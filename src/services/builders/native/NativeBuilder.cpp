@@ -293,7 +293,7 @@ bool NativeBuilder::GenerateBuildFiles(const std::string& projectPath,
         return false;
     }
 
-    if (!GenerateCMakeLists(buildDir.string(), config, packageDefines))
+    if (!GenerateCMakeLists(projectPath, buildDir.string(), config, packageDefines))
         return false;
 
     return true;
@@ -306,7 +306,8 @@ static std::string ToCMakePath(const std::string& path)
     return result;
 }
 
-bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
+bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
+                                       const std::string& buildDir,
                                        const PlatformConfig& config,
                                        const std::vector<std::string>& packageDefines)
 {
@@ -321,6 +322,11 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
 
     file << "cmake_minimum_required(VERSION 3.16)\n";
     file << "project(DekiGame LANGUAGES C CXX)\n\n";
+
+    // The project's own layout: src/ and packages/ under its root. This file
+    // is rewritten on every build, so an absolute root is fine (a relative
+    // one used to point at a staging folder that no longer exists).
+    file << "set(DEKI_PROJECT_ROOT \"" << ToCMakePath(projectPath) << "\")\n\n";
 
     file << "set(CMAKE_CXX_STANDARD 17)\n";
     file << "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\n";
@@ -375,7 +381,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     // Project sources. PluginExports.cpp is editor/DLL export glue (uses editor-only
     // GetComponentMeta) — the static exe registers components via the init file below.
     CMakeGen::EmitProjectSourceCollection(file,
-                                          "${CMAKE_SOURCE_DIR}/../../project/src");
+                                          "${DEKI_PROJECT_ROOT}/src");
     file << "list(FILTER PROJECT_SOURCES EXCLUDE REGEX \"PluginExports\\\\.cpp$\")\n";
     file << "\n";
 
@@ -384,16 +390,20 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     // DekiPlugin_* DLL-export entry (which collides across packages) EXCEPT the platform
     // entry that defines main(), and compile each package's generated metadata + vendored .c.
     file << "# Package packages\n";
-    file << "set(PACKAGE_SOURCES \"\")\n";
+    file << "set(_ALL_PACKAGE_SOURCES \"\")\n";
     file << "set(PACKAGE_INCLUDE_DIRS \"\")\n";
     file << "set(PACKAGE_DEFINES \"\")\n";
-    file << "set(PACKAGE_SYSTEM_LIBS \"\")\n";
+    // Accumulators are named _ALL_* because every include(package.cmake)
+    // sets PACKAGE_SOURCES, PACKAGE_SYSTEM_LIBS and friends for that package;
+    // accumulating into the same names lost every package but the last (and
+    // put bare file names such as SDL3DisplaySetup.cpp into the executable).
+    file << "set(_ALL_SYSTEM_LIBS \"\")\n";
     // Reflection codegen inputs, filled by the package loop below.
     file << "set(_RC_PKG_DIRS \"\")\n";
     file << "set(_RC_PKG_TAGS \"\")\n";
     file << "set(_RC_PKG_PREFIXES \"\")\n";
     file << "set(_RC_PKG_OUTDIRS \"\")\n";
-    file << "file(GLOB PACKAGE_CMAKE_FILES \"${CMAKE_SOURCE_DIR}/../../project/packages/*/package.cmake\")\n";
+    file << "file(GLOB PACKAGE_CMAKE_FILES \"${DEKI_PROJECT_ROOT}/packages/*/package.cmake\")\n";
     file << "foreach(PACKAGE_CMAKE ${PACKAGE_CMAKE_FILES})\n";
     file << "    get_filename_component(PACKAGE_DIR \"${PACKAGE_CMAKE}\" DIRECTORY)\n";
     file << "    unset(PACKAGE_CORE_SOURCES)\n";
@@ -405,7 +415,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     file << "        list(APPEND PACKAGE_DEFINES \"DEKI_${PACKAGE_UPPER}_EXPORTS\")\n";
     file << "    endif()\n";
     file << "    if(PACKAGE_SYSTEM_LIBS)\n";
-    file << "        list(APPEND PACKAGE_SYSTEM_LIBS ${PACKAGE_SYSTEM_LIBS})\n";
+    file << "        list(APPEND _ALL_SYSTEM_LIBS ${PACKAGE_SYSTEM_LIBS})\n";
     file << "    endif()\n";
     file << "    set(_ENTRY_PATH \"\")\n";
     file << "    if(PACKAGE_ENTRY AND EXISTS \"${PACKAGE_DIR}/${PACKAGE_ENTRY}\")\n";
@@ -427,7 +437,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     // build generates its own below.
     file << "        string(FIND \"${SRC}\" \"/generated/\" _IS_GEN)\n";
     file << "        if(_IS_EDITOR EQUAL -1 AND _IS_TESTS EQUAL -1 AND _IS_GEN EQUAL -1 AND NOT \"${SRC}\" STREQUAL \"${_ENTRY_PATH}\")\n";
-    file << "            list(APPEND PACKAGE_SOURCES \"${SRC}\")\n";
+    file << "            list(APPEND _ALL_PACKAGE_SOURCES \"${SRC}\")\n";
     file << "        endif()\n";
     file << "    endforeach()\n";
     file << "    list(APPEND PACKAGE_INCLUDE_DIRS \"${PACKAGE_DIR}\")\n";
@@ -473,8 +483,8 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     file << "    set(_RC_INCS ${PACKAGE_INCLUDE_DIRS}\n";
     file << "        \"${DEKI_ENGINE_PATH}/include\"\n";
     file << "        \"${DEKI_ENGINE_PATH}/third_party\"\n";
-    file << "        \"${CMAKE_SOURCE_DIR}/../../project/packages\"\n";
-    file << "        \"${CMAKE_SOURCE_DIR}/../../project/src\")\n";
+    file << "        \"${DEKI_PROJECT_ROOT}/packages\"\n";
+    file << "        \"${DEKI_PROJECT_ROOT}/src\")\n";
     // The codegen parses package headers directly, so it needs the same third-party
     // includes the compile step gets transitively from linked targets — otherwise
     // e.g. deki-sdl3-integration fails on <SDL3/SDL.h>.
@@ -502,7 +512,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     // Compile the .gen.cpp this pass produces, not the package's checked-in copy.
     file << "    foreach(_OUTDIR ${_RC_PKG_OUTDIRS})\n";
     file << "        file(GLOB _RC_GEN_SRCS \"${_OUTDIR}/*.gen.cpp\")\n";
-    file << "        list(APPEND PACKAGE_SOURCES ${_RC_GEN_SRCS})\n";
+    file << "        list(APPEND _ALL_PACKAGE_SOURCES ${_RC_GEN_SRCS})\n";
     file << "    endforeach()\n";
     file << "endif()\n\n";
 
@@ -529,7 +539,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     file << "    \"${DEKI_ENGINE_PATH}/entry/DekiMain.cpp\"\n";
     file << "    \"${CMAKE_SOURCE_DIR}/" << packageInitName << "\"\n";
     file << "    ${PROJECT_SOURCES}\n";
-    file << "    ${PACKAGE_SOURCES}\n";
+    file << "    ${_ALL_PACKAGE_SOURCES}\n";
     file << ")\n\n";
 
     // Order the build-time codegen before compilation, so an edited component
@@ -552,13 +562,13 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& buildDir,
     file << "target_include_directories(DekiGame PRIVATE\n";
     file << "    \"${DEKI_ENGINE_PATH}/include\"\n";
     file << "    \"${DEKI_ENGINE_PATH}/third_party\"\n";
-    file << "    \"${CMAKE_SOURCE_DIR}/../../project/packages\"\n";
+    file << "    \"${DEKI_PROJECT_ROOT}/packages\"\n";
     file << "    ${PACKAGE_INCLUDE_DIRS}\n";
-    file << "    \"${CMAKE_SOURCE_DIR}/../../project/src\"\n";
+    file << "    \"${DEKI_PROJECT_ROOT}/src\"\n";
     file << ")\n\n";
 
     // Link (deki-engine-core + SDL3/OpenGL + package-declared system libs e.g. winhttp)
-    file << "target_link_libraries(DekiGame PRIVATE deki-engine-core SDL3::SDL3-static OpenGL::GL ${PACKAGE_SYSTEM_LIBS})\n\n";
+    file << "target_link_libraries(DekiGame PRIVATE deki-engine-core SDL3::SDL3-static OpenGL::GL ${_ALL_SYSTEM_LIBS})\n\n";
 
     // Compile definitions
     file << "# Platform defines\n";

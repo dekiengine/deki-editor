@@ -289,8 +289,8 @@ void EmitActivePackageSources(std::ostream& out,
         // characters only, the way string(MAKE_C_IDENTIFIER) would spell it.
         const std::string var = "DEKI_PKG_SOURCES_" + CMakeIdentifier(pkg.dirName);
         out << "file(GLOB_RECURSE " << var
-            << " \"${DEKI_PROJECT_PATH}/project/packages/" << pkg.dirName << "/*.cpp\""
-            << " \"${DEKI_PROJECT_PATH}/project/packages/" << pkg.dirName << "/*.c\")\n";
+            << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.cpp\""
+            << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.c\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/editor/.*\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/tests/.*\")\n";
         out << "list(APPEND DEKI_ENGINE_SOURCES ${" << var << "})\n";
@@ -302,7 +302,7 @@ void EmitActivePackageSources(std::ostream& out,
     for (const auto& pkg : allPackages)
     {
         if (activePackageIds.count(pkg.id) == 0) continue;
-        out << "    \"${DEKI_PROJECT_PATH}/project/packages/" << pkg.dirName << "\"\n";
+        out << "    \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "\"\n";
     }
     out << ")\n";
 }
@@ -453,7 +453,7 @@ void EmitIncludePaths(std::ostream& out,
     out << "    \"${DEKI_ENGINE_PATH}/include\"\n";
     out << "    \"${DEKI_ENGINE_PATH}/src\"\n";
     out << "    \"${DEKI_ENGINE_PATH}/third_party\"\n";
-    out << "    \"${DEKI_PROJECT_PATH}/project/packages\"\n";
+    out << "    \"${DEKI_PROJECT_PATH}/packages\"\n";
     out << "    ${DEKI_PACKAGE_INCLUDE_DIRS}\n";
     out << "    \"" << projectSrcRelPath << "\"\n";
 

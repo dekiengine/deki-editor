@@ -62,7 +62,7 @@ private:
                  BuildProgressCallback progressCallback);
 
     // Build file generation helpers
-    bool GenerateCMakeLists(const std::string& buildDir, const PlatformConfig& config,
+    bool GenerateCMakeLists(const std::string& projectPath, const std::string& buildDir, const PlatformConfig& config,
                             const std::vector<std::string>& packageDefines);
 };
 

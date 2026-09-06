@@ -109,6 +109,19 @@ Findings of the pre-publication review, all fixed in this release:
   directory it migrates from.
 
 ### Fixed
+- The desktop simulator and ESP-IDF builds generated CMake against a project
+  layout that no longer exists (`generated/project/src`, a staging folder
+  from before projects were flattened), so no package or project source was
+  compiled and the link failed on `WinMain`. The generated files now name the
+  project root and read `src/` and `packages/` under it. The native
+  generator also accumulated package sources and system libraries into the
+  same `PACKAGE_SOURCES` / `PACKAGE_SYSTEM_LIBS` variables that every
+  `package.cmake` sets for itself, so bare file names such as
+  `SDL3DisplaySetup.cpp` ended up on the executable and all but the last
+  package's libraries were dropped. The engine entry is `Deki::Main()` (the
+  header declared it in the namespace while the definition was global);
+  deki-desktop-integration and deki-esp32-integration 0.10.1 call it, and
+  `migrate-namespace.py` maps the old `DekiMain`.
 - A transparent pixel between two opaque ones on the same row of a sprite
   (the notch of a heart, the empty half of a half heart, the gap between a
   character's legs) rendered as a black dot. Both row-span fast paths

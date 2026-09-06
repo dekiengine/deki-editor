@@ -35,6 +35,7 @@ MOVED = {
     "DekiEngine": "Engine",
     "DekiEngineSettings": "EngineSettings",
     "DekiEngineHost": "EngineHost",
+    "DekiMain": "Main",
     "DekiColorFormat": "ColorFormat",
     "DekiFPSCounter": "FPSCounter",
     "DekiLogSystem": "LogSystem",

@@ -65,7 +65,7 @@ void EmitGeneratedFileSources(std::ostream& out,
 
 // Emit project source collection from project/src/
 void EmitProjectSourceCollection(std::ostream& out,
-                                 const std::string& relPath = "${CMAKE_CURRENT_SOURCE_DIR}/../../project/src",
+                                 const std::string& relPath = "${DEKI_PROJECT_PATH}/src",
                                  bool excludePluginExports = false);
 
 // Emit target_compile_definitions block
@@ -78,7 +78,7 @@ void EmitPlatformDefines(std::ostream& out,
 // Emit target_include_directories block
 void EmitIncludePaths(std::ostream& out,
                       const std::string& targetName,
-                      const std::string& projectSrcRelPath = "${CMAKE_CURRENT_SOURCE_DIR}/../../project/src",
+                      const std::string& projectSrcRelPath = "${DEKI_PROJECT_PATH}/src",
                       const std::vector<std::string>& extraPaths = {});
 
 // Generate a package_init.cpp that calls each package's RegisterComponents() function

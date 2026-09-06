@@ -610,8 +610,8 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "    message(FATAL_ERROR \"DEKI_ENGINE_PATH not set. Build from Deki Editor.\")\n";
     file << "endif()\n";
     file << "\n";
-    file << "# Project path (two levels up from ESP-IDF build directory)\n";
-    file << "set(DEKI_PROJECT_PATH \"${CMAKE_SOURCE_DIR}/../..\")\n";
+    file << "# Project root: three levels up from generated/build/<platform>\n";
+    file << "get_filename_component(DEKI_PROJECT_PATH \"${CMAKE_SOURCE_DIR}/../../..\" ABSOLUTE)\n";
     file << "\n";
 
     CMakeGen::EmitEngineCoreSourceCollection(file);
@@ -630,14 +630,14 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "target_sources(${COMPONENT_LIB} PRIVATE ${DEKI_ENGINE_SOURCES})\n";
 
     CMakeGen::EmitIncludePaths(file, "${COMPONENT_LIB}",
-                               "${DEKI_PROJECT_PATH}/project/src");
+                               "${DEKI_PROJECT_PATH}/src");
 
     // Project sources
     file << "\n";
     file << "# =============================================================================\n";
     file << "# Project Sources\n";
     file << "# =============================================================================\n";
-    CMakeGen::EmitProjectSourceCollection(file, "${DEKI_PROJECT_PATH}/project/src", true);
+    CMakeGen::EmitProjectSourceCollection(file, "${DEKI_PROJECT_PATH}/src", true);
     file << "\n";
     file << "if(PROJECT_SOURCES)\n";
     file << "    target_sources(${COMPONENT_LIB} PRIVATE ${PROJECT_SOURCES})\n";
