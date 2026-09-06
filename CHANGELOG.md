@@ -136,7 +136,10 @@ Findings of the pre-publication review, all fixed in this release:
   deki-desktop-integration 0.10.2 sets the asset base to `S:/` (every load
   was null) and logs to `dekigame.log` beside the exe, deki-2d 0.10.2 reads
   animations through the filesystem provider (they never opened on a mount),
-  deki-sdl3-integration 0.10.1 titles the window "Deki".
+  deki-sdl3-integration 0.10.1 titles the window "Deki". The simulator build
+  reuses the SDL3 source the editor's own build fetched instead of cloning it
+  into the project, which also fixes "Filename too long" on a deep project
+  folder on Windows.
 - A transparent pixel between two opaque ones on the same row of a sprite
   (the notch of a heart, the empty half of a half heart, the gap between a
   character's legs) rendered as a black dot. Both row-span fast paths

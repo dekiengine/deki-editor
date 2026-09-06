@@ -356,9 +356,18 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // Engine component metadata (src/generated/*.gen.cpp) is produced by the editor build
     // and reused here via the deki-engine subdirectory below — no separate codegen step.
 
-    // SDL3 via FetchContent
+    // SDL3 via FetchContent. The editor's own build has already fetched the
+    // same SDL3 (its scene view renders through it); point FetchContent at
+    // that checkout when it is there, so a project build neither clones nor
+    // downloads anything. A clone into the project's build tree also breaks
+    // under a deep project folder on Windows: SDL's repository has paths that
+    // pass the 260-character limit ("Filename too long" on checkout).
     file << "# SDL3\n";
     file << "include(FetchContent)\n";
+    const std::string editorSdl3 = ToCMakePath((fs::path(EditorSettings::GetDepsDir()) / "sdl3-src").string());
+    file << "if(NOT DEFINED FETCHCONTENT_SOURCE_DIR_SDL3 AND EXISTS \"" << editorSdl3 << "/CMakeLists.txt\")\n";
+    file << "    set(FETCHCONTENT_SOURCE_DIR_SDL3 \"" << editorSdl3 << "\" CACHE PATH \"SDL3 source shared with the editor build\")\n";
+    file << "endif()\n";
     file << "set(SDL_SHARED OFF CACHE BOOL \"\" FORCE)\n";
     file << "set(SDL_STATIC ON CACHE BOOL \"\" FORCE)\n";
     file << "set(SDL_TEST OFF CACHE BOOL \"\" FORCE)\n";
