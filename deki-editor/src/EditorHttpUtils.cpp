@@ -770,6 +770,59 @@ bool EditorHttpUtils::ParseGitHubRelease(const std::string& json, const std::str
     return false;
 }
 
+// Archive checks: shared by both platforms below.
+bool EditorHttpUtils::IsSafeArchiveEntry(const std::string& entry)
+{
+    if (entry.empty()) return false;
+    std::string e = entry;
+    for (char& c : e)
+        if (c == '\\') c = '/';
+    if (e.front() == '/') return false;                                   // absolute
+    if (e.size() >= 2 && e[1] == ':') return false;                       // drive letter
+    if (e.rfind("//", 0) == 0) return false;                              // UNC
+    for (unsigned char c : e)
+        if (c < 0x20) return false;                                       // control characters
+    // Any ".." path segment, wherever it sits.
+    size_t start = 0;
+    while (start <= e.size())
+    {
+        const size_t end = e.find('/', start);
+        const std::string seg = e.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        if (seg == "..") return false;
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    return true;
+}
+
+bool EditorHttpUtils::ZipEntriesAreSafe(const std::string& zipPath, std::string& reason)
+{
+    std::string listing;
+#ifdef _WIN32
+    const int rc = RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-tf", zipPath }, listing, 60u * 1000u);
+#else
+    const int rc = RunProcessCapture({ "unzip", "-Z1", "--", zipPath }, listing);
+#endif
+    if (rc != 0)
+    {
+        reason = "could not list the archive";
+        return false;
+    }
+    std::istringstream lines(listing);
+    std::string line;
+    while (std::getline(lines, line))
+    {
+        while (!line.empty() && (line.back() == '\r' || line.back() == '\n')) line.pop_back();
+        if (line.empty()) continue;
+        if (!IsSafeArchiveEntry(line))
+        {
+            reason = "archive entry escapes the destination: " + line;
+            return false;
+        }
+    }
+    return true;
+}
+
 #ifdef _WIN32
 
 bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& localPath,
@@ -1023,58 +1076,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
     if (status)
         status("Too many redirects (" + std::to_string(kMaxRedirects) + ") downloading " + url);
     return false;
-}
-
-bool EditorHttpUtils::IsSafeArchiveEntry(const std::string& entry)
-{
-    if (entry.empty()) return false;
-    std::string e = entry;
-    for (char& c : e)
-        if (c == '\\') c = '/';
-    if (e.front() == '/') return false;                                   // absolute
-    if (e.size() >= 2 && e[1] == ':') return false;                       // drive letter
-    if (e.rfind("//", 0) == 0) return false;                              // UNC
-    for (unsigned char c : e)
-        if (c < 0x20) return false;                                       // control characters
-    // Any ".." path segment, wherever it sits.
-    size_t start = 0;
-    while (start <= e.size())
-    {
-        const size_t end = e.find('/', start);
-        const std::string seg = e.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        if (seg == "..") return false;
-        if (end == std::string::npos) break;
-        start = end + 1;
-    }
-    return true;
-}
-
-bool EditorHttpUtils::ZipEntriesAreSafe(const std::string& zipPath, std::string& reason)
-{
-    std::string listing;
-#ifdef _WIN32
-    const int rc = RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-tf", zipPath }, listing, 60u * 1000u);
-#else
-    const int rc = RunProcessCapture({ "unzip", "-Z1", "--", zipPath }, listing);
-#endif
-    if (rc != 0)
-    {
-        reason = "could not list the archive";
-        return false;
-    }
-    std::istringstream lines(listing);
-    std::string line;
-    while (std::getline(lines, line))
-    {
-        while (!line.empty() && (line.back() == '\r' || line.back() == '\n')) line.pop_back();
-        if (line.empty()) continue;
-        if (!IsSafeArchiveEntry(line))
-        {
-            reason = "archive entry escapes the destination: " + line;
-            return false;
-        }
-    }
-    return true;
 }
 
 bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status)
