@@ -110,11 +110,14 @@ Findings of the pre-publication review, all fixed in this release:
 
 ### Fixed
 - A transparent pixel between two opaque ones on the same row of a sprite
-  (the notch of a heart, the gap between a character's legs) rendered as the
-  chroma-key colour. The texture importer recorded one non-key span per row
-  and the renderer's fast path copied the span verbatim. Rows with a hole are
-  now recorded as `(-1, -1)` and deki-rendering 0.10.1 compares those pixel
-  by pixel; the asset cache version is bumped so every texture is re-imported.
+  (the notch of a heart, the empty half of a half heart, the gap between a
+  character's legs) rendered as a black dot. Both row-span fast paths
+  assumed first-to-last opaque: deki-2d 0.10.1 records the longest fully
+  opaque run per row for alpha sprites, and for chroma-keyed sprites the
+  texture importer records a row with a hole as `(-1, -1)`, which
+  deki-rendering 0.10.1 compares pixel by pixel. The asset cache version is
+  bumped so every texture is re-imported. Update both packages
+  (`--packages-update deki-2d`, `--packages-update deki-rendering`).
 - Play mode: a crash in game code (a null dereference in a behaviour's
   `Update`, say) is contained and reported in the Console on MinGW and Linux
   builds. The guard only worked in MSVC builds before, so on the supported
