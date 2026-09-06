@@ -385,8 +385,10 @@ bool Project::Load(const std::string& path)
         // has both takes the files.
         LoadSettingsFiles(m_Path);
 
-        // Load startup scene
-        m_StartupScene = json.value("startupScene", "");
+        // Load startup scene. Older files stored it with backslashes, which the
+        // runtime's asset lookup (keyed by the forward-slash asset path) never
+        // matched: the device built fine and then failed to load its scene.
+        SetStartupScene(json.value("startupScene", ""));
 
         // Load render pipeline
         m_RenderPipelineGuid = json.value("renderPipelineGuid", "");

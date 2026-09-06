@@ -297,7 +297,14 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
     }
 
     if (dpackFiles.empty())
-        return true;  // No packs — nothing to index
+    {
+        // No packs: still write an index with zero entries, so the runtime's
+        // pack reader finds a valid file instead of reporting a missing one.
+        std::ofstream out(outputPath, std::ios::binary);
+        const uint32_t count = 0;
+        out.write(reinterpret_cast<const char*>(&count), sizeof(uint32_t));
+        return static_cast<bool>(out);
+    }
 
     // For each .dpack, read its GUID (from .data sidecar) and its asset list
     struct IndexEntry

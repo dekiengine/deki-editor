@@ -129,11 +129,78 @@ bool ProjectTemplate::CreateDirectories(const std::string& projectPath)
     }
 }
 
+// The scene the desktop simulator boots: a PlatformSetupComponent whose setup
+// components open the SDL3 window (2x, the panel's size) and enable keyboard
+// and mouse; once they are up it loads the project's startup scene. The
+// typeIds are HashString() of the two component GUIDs, which is what StaticType hashes.
+static const char* kSimulatorBootScene = R"json({
+  "objects": [
+    {
+      "active": true,
+      "children": [
+        {
+          "active": true,
+          "children": [],
+          "components": [
+            {
+              "class": "SDL3DisplaySetup",
+              "properties": { "windowWidth": 320, "windowHeight": 240, "windowScale": 2 },
+              "type": "c3a8f1d0-5b7e-4a2c-8d91-6e3f4c7b2a50"
+            }
+          ],
+          "id": 600,
+          "name": "SDL3 Display",
+          "transform": { "rotation": 0.0, "scaleX": 1.0, "scaleY": 1.0, "x": 0.0, "y": 0.0 }
+        },
+        {
+          "active": true,
+          "children": [],
+          "components": [
+            {
+              "class": "SDL3InputSetup",
+              "properties": { "enableKeyboard": true, "enableMouse": true },
+              "type": "d4b9e2f1-6c8a-4d3b-9e72-7f4g5d8c3b61"
+            }
+          ],
+          "id": 601,
+          "name": "SDL3 Input",
+          "transform": { "rotation": 0.0, "scaleX": 1.0, "scaleY": 1.0, "x": 0.0, "y": 0.0 }
+        }
+      ],
+      "components": [
+        {
+          "class": "PlatformSetupComponent",
+          "properties": {
+            "setupComponents": [ { "id": 600, "typeId": 1129371288 }, { "id": 601, "typeId": 2309669438 } ]
+          },
+          "type": "e1b3c909-aaa1-49f4-8d62-04145f79f2a0"
+        }
+      ],
+      "id": 1,
+      "name": "Setup",
+      "transform": { "rotation": 0.0, "scaleX": 1.0, "scaleY": 1.0, "x": 0.0, "y": 0.0 }
+    }
+  ]
+}
+)json";
+
 bool ProjectTemplate::CreateDefaultPlatform(const std::string& projectPath)
 {
     // Create Simulator platform as the default
     PlatformConfig simulator = CreateSimulatorPlatformConfig();
     std::string platformsDir = GetPlatformsDirectory(projectPath);
+
+    // A device build boots the platform's boot scene, and on the simulator
+    // that scene is what opens the window. A platform without one used to
+    // build fine and start with no display at all.
+    simulator.bootScene = "platforms/" + simulator.id + "/boot.scene";
+    const std::filesystem::path bootPath = std::filesystem::path(platformsDir) / simulator.id / "boot.scene";
+    std::error_code ec;
+    std::filesystem::create_directories(bootPath.parent_path(), ec);
+    std::ofstream boot(bootPath, std::ios::binary);
+    boot << kSimulatorBootScene;
+    if (!boot)
+        return false;
 
     return PlatformRegistry::Instance().SavePlatformToFile(simulator, platformsDir);
 }

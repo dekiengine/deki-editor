@@ -238,6 +238,13 @@ void NativeBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         return;
     }
 
+    if (!DeployPartitions(projectPath, buildDir, outputCallback))
+    {
+        SetError("Build succeeded but a storage partition could not be deployed next to the exe");
+        if (progressCallback) progressCallback(GetProgress());
+        return;
+    }
+
     SetProgress(BuildState::Completed, "Build succeeded", 1.0f);
     if (progressCallback) progressCallback(GetProgress());
 }
@@ -376,7 +383,13 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // The engine subdir only defines DEKI_LOG_ENABLED for editor builds; the desktop
     // simulator is a debugging tool, so route engine-core logs through the callback too.
     file << "# Desktop simulator: enable engine-core logging (it's a debug build target)\n";
-    file << "target_compile_definitions(deki-engine-core PUBLIC DEKI_LOG_ENABLED)\n\n";
+    file << "target_compile_definitions(deki-engine-core PUBLIC DEKI_LOG_ENABLED)\n";
+    // The engine's internal trace (DEKI_LOG_INTERNAL: lifecycle, asset lookups,
+    // platform setup) follows the platform's defines, so a project can switch
+    // it on for a simulator run without editing the engine.
+    if (std::find(config.defines.begin(), config.defines.end(), "DEKI_LOG_INTERNAL_ENABLED") != config.defines.end())
+        file << "target_compile_definitions(deki-engine-core PUBLIC DEKI_LOG_INTERNAL_ENABLED)\n";
+    file << "\n";
 
     // Project sources. PluginExports.cpp is editor/DLL export glue (uses editor-only
     // GetComponentMeta) — the static exe registers components via the init file below.
@@ -518,7 +531,10 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
 
     // Static registration init file (defines deki_register_project_packages(), which the
     // engine calls at startup) — same mechanism the firmware build uses for non-DLL targets.
-    std::string projRoot = fs::path(buildDir).parent_path().parent_path().string();
+    // Scan the project itself: two levels up from the build directory used to
+    // be the project root and is generated/ now, which holds no packages, so
+    // the init file came out empty and every scene component was "missing".
+    const std::string& projRoot = projectPath;
     auto allPackages = CMakeGen::ScanPackageManifests(projRoot);
     auto activeIds = CMakeGen::ResolveActivePackages(allPackages, packageDefines);
     // engineDefinesSystemInit=true: the static sim links deki-engine-core's committed
@@ -628,26 +644,55 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     file << "    set_target_properties(DekiGame PROPERTIES WIN32_EXECUTABLE FALSE)\n";
     file << "endif()\n\n";
 
-    // Deploy the two storage partitions next to the exe so the simulator's virtual
-    // mounts resolve (DesktopFileSystem maps these CWD-relative):
-    //   flash/   <- SPIFFS export  (F:/ : boot scene + project settings)
-    //   storage/ <- SD-card export (S:/ : packed/exported assets)
-    // Run the exe from its own directory so "./flash" and "./storage" resolve.
-    file << "# Deploy storage partitions next to the exe (F:/ -> flash, S:/ -> storage)\n";
-    file << "if(EXISTS \"${CMAKE_SOURCE_DIR}/spiffs_data\")\n";
-    file << "    add_custom_command(TARGET DekiGame POST_BUILD\n";
-    file << "        COMMAND ${CMAKE_COMMAND} -E copy_directory\n";
-    file << "            \"${CMAKE_SOURCE_DIR}/spiffs_data\" \"$<TARGET_FILE_DIR:DekiGame>/flash\"\n";
-    file << "        COMMENT \"Deploying flash partition (F:/) next to DekiGame\")\n";
-    file << "endif()\n";
-    file << "if(EXISTS \"${CMAKE_SOURCE_DIR}/../../storage\")\n";
-    file << "    add_custom_command(TARGET DekiGame POST_BUILD\n";
-    file << "        COMMAND ${CMAKE_COMMAND} -E copy_directory\n";
-    file << "            \"${CMAKE_SOURCE_DIR}/../../storage\" \"$<TARGET_FILE_DIR:DekiGame>/storage\"\n";
-    file << "        COMMENT \"Deploying SD-card partition (S:/) next to DekiGame\")\n";
-    file << "endif()\n";
+    // The storage partitions are deployed next to the exe by DeployPartitions()
+    // after the build, not by a POST_BUILD command: the CMake version tested
+    // the source directories at configure time, so a partition exported after
+    // the first configure was never copied.
 
     return CMakeGen::WriteIfChanged(fs::path(buildDir) / "CMakeLists.txt", file.str());
+}
+
+// Copy the two partitions next to the exe so the simulator's virtual mounts
+// resolve (DesktopFileSystem maps them relative to the exe's directory, which
+// Flash() uses as the working directory):
+//   flash/   <- SPIFFS export  (F:/ : dproject.bin + boot scene), written by
+//               FirmwareBuildService into <build>/spiffs_data before the build
+//   storage/ <- SD-card export (S:/ : the assets), written by --export /
+//               AssetExporter::ExportToStorage into <project>/storage
+bool NativeBuilder::DeployPartitions(const std::string& projectPath, const std::string& buildDir,
+                                     BuildOutputCallback outputCallback)
+{
+    const fs::path binDir = fs::path(buildDir) / "build" / "bin";
+    const std::pair<fs::path, const char*> partitions[] = {
+        { fs::path(buildDir) / "spiffs_data", "flash" },
+        { fs::path(projectPath) / "storage", "storage" },
+    };
+    bool ok = true;
+    for (const auto& [source, name] : partitions)
+    {
+        std::error_code ec;
+        if (!fs::is_directory(source, ec))
+        {
+            if (outputCallback)
+                outputCallback(std::string("No ") + name + " partition to deploy (" + source.string() +
+                                   " does not exist" + (std::string(name) == "storage" ? "; run --export first)" : ")"),
+                               false);
+            continue;
+        }
+        const fs::path dest = binDir / name;
+        fs::remove_all(dest, ec);
+        fs::copy(source, dest, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+        if (ec)
+        {
+            if (outputCallback)
+                outputCallback(std::string("Failed to deploy ") + name + " partition: " + ec.message(), true);
+            ok = false;
+            continue;
+        }
+        if (outputCallback)
+            outputCallback(std::string("Deployed ") + name + " partition next to DekiGame", false);
+    }
+    return ok;
 }
 
 // ============================================================================

@@ -67,7 +67,11 @@ public:
     const std::string& GetStartupScene() const { return m_StartupScene; }
     void SetStartupScene(const std::string& scene)
     {
+        // Asset paths are forward-slash keys everywhere else (asset table,
+        // runtime lookup); keep the startup scene spelled the same way.
         m_StartupScene = scene;
+        for (char& c : m_StartupScene)
+            if (c == '\\') c = '/';
         MarkDirty();
     }
 

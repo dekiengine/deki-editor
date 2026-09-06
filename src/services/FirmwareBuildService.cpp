@@ -409,11 +409,23 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         const std::string spiffsDataPath =
             builder.GetBuildDirectory(projectPath) + "/spiffs_data";
 
+        // A platform may name its own boot scene (a splash that then loads
+        // the game); without one the device boots the project's startup
+        // scene, the one the editor opens. Nothing at all used to be
+        // exported, and the engine's LoadBootScene failed on every board
+        // whose platform file did not set bootScene.
+        std::string bootScene = platform.bootScene;
+        if (bootScene.empty())
+        {
+            bootScene = editor->GetProject()->GetStartupScene();
+            std::replace(bootScene.begin(), bootScene.end(), '\\', '/');
+        }
+
         AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline());
-        if (exporter.ExportForSPIFFS(spiffsDataPath, platform.bootScene))
+        if (exporter.ExportForSPIFFS(spiffsDataPath, bootScene))
         {
             log(std::string("Exported SPIFFS data: dproject.bin") +
-                    (platform.bootScene.empty() ? "" : ", boot.scene"),
+                    (bootScene.empty() ? "" : ", boot.scene (" + bootScene + ")"),
                 false);
         }
         else

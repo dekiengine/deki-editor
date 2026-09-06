@@ -62,6 +62,8 @@ private:
                  BuildProgressCallback progressCallback);
 
     // Build file generation helpers
+    bool DeployPartitions(const std::string& projectPath, const std::string& buildDir,
+                          BuildOutputCallback outputCallback);
     bool GenerateCMakeLists(const std::string& projectPath, const std::string& buildDir, const PlatformConfig& config,
                             const std::vector<std::string>& packageDefines);
 };

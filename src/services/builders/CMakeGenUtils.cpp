@@ -601,7 +601,7 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
     if (!projectComponents.empty())
     {
         cpp << "\n    // Project game components\n";
-        cpp << "    auto& factory = ComponentFactory::Instance();\n";
+        cpp << "    auto& factory = ::Deki::ComponentFactory::Instance();\n";
         for (const auto& cls : projectComponents)
             cpp << "    factory.Register(" << cls << "::StaticType, []() -> ::Deki::Component* { return new " << cls << "(); });\n";
     }

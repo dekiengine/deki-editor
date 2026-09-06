@@ -122,6 +122,21 @@ Findings of the pre-publication review, all fixed in this release:
   header declared it in the namespace while the definition was global);
   deki-desktop-integration and deki-esp32-integration 0.10.1 call it, and
   `migrate-namespace.py` maps the old `DekiMain`.
+- Running the built simulator: the package registration file scanned
+  `generated/` for packages and came out empty (every scene component
+  "missing"); the flash and storage partitions were only copied next to the
+  exe when they existed at configure time (they are deployed after every
+  build now, `--export` first for `storage/`); a platform without a
+  `bootScene` exported nothing to boot, so `--new-project` writes
+  `platforms/native_simulator/boot.scene` (SDL3 window and input, then the
+  startup scene) and the flash export falls back to the project's startup
+  scene; the startup scene path is stored with forward slashes; an export
+  without asset packs writes an empty pack index instead of none. Old boot
+  scenes still load through a `setup_components` alias. In the packages:
+  deki-desktop-integration 0.10.2 sets the asset base to `S:/` (every load
+  was null) and logs to `dekigame.log` beside the exe, deki-2d 0.10.2 reads
+  animations through the filesystem provider (they never opened on a mount),
+  deki-sdl3-integration 0.10.1 titles the window "Deki".
 - A transparent pixel between two opaque ones on the same row of a sprite
   (the notch of a heart, the empty half of a half heart, the gap between a
   character's legs) rendered as a black dot. Both row-span fast paths
