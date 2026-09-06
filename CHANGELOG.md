@@ -63,6 +63,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `EditorWindow`) are locked; a change without a `kDekiReflectionAbiVersion`
   bump fails CI. `DEKI_DEPRECATED("...")` and the deprecation window (mark in
   minor N, remove in N+1) are in COMPATIBILITY.md.
+- `--render-scenes` can run a scene instead of only drawing it:
+  `DEKI_RENDER_TICK_MS=<ms>` advances a fixed clock by that much per frame and
+  runs the play-mode lifecycle (Awake, Start, Update, component updates)
+  before each one, and with `DEKI_RENDER_OUT` every frame is written as
+  `<scene>_<n>.ppm`. Behaviour-driven scenes render identically on every
+  machine; the website's animated device screen is 48 such frames.
 - Update notice: once a day the editor asks GitHub for the latest release and
   shows a toast when it is newer than the running build; **Help → Open release
   page** opens it, **Help → Check for updates now** asks immediately, and

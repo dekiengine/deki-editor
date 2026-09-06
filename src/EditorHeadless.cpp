@@ -40,6 +40,9 @@
 #include <deki/providers/IRenderSystem.h>
 #include <deki/reflection/SettingsRegistry.h>
 #include <deki/reflection/Property.h>
+#include <deki/Time.h>
+#include <deki/providers/ITimeProvider.h>
+#include "LifecycleManager.h"
 #include <deki-editor/AssetPipeline.h>
 
 #include <nlohmann/json.hpp>
@@ -1017,6 +1020,36 @@ int CmdRenderScenes(EditorApp& editor)
     if (outDir)
         fs::create_directories(outDir, ec);
 
+    // DEKI_RENDER_TICK_MS: run the scene the way play mode does - lifecycle
+    // (Awake, Start, Update) and component updates before every frame - on a
+    // clock that advances by exactly this many milliseconds per frame, so a
+    // behaviour-driven scene produces the same frames on every machine. With
+    // DEKI_RENDER_OUT every frame is written as <scene>_<n>.ppm; the printed
+    // hash is the last frame's. Unset (the default) the scene stays static.
+    float tickMs = 0.0f;
+    if (const char* env = std::getenv("DEKI_RENDER_TICK_MS"))
+        tickMs = std::max(0.0f, static_cast<float>(std::atof(env)));
+    struct SteppedClock : Deki::ITimeProvider
+    {
+        uint32_t ms = 0;
+        uint32_t GetTicksMs() const override { return ms; }
+    };
+    SteppedClock* clock = nullptr;
+    Deki::LifecycleManager* lifecycle = Deki::Engine::GetInstance().GetLifecycleManager();
+    if (tickMs > 0.0f)
+    {
+        if (!lifecycle)
+        {
+            printf("Error: no lifecycle manager - cannot tick scenes\n");
+            return 1;
+        }
+        auto owned = std::make_unique<SteppedClock>();
+        clock = owned.get();
+        Deki::Time::SetTimeProvider(std::move(owned));
+        Deki::Time::Initialize();
+    }
+    float clockMs = 0.0f;
+
     // Same source as play mode: the project's display settings, else 320x240.
     int32_t width = 320, height = 240;
     if (auto* settings = DekiEditor::GetDisplaySettings())
@@ -1036,8 +1069,12 @@ int CmdRenderScenes(EditorApp& editor)
     }
     std::sort(scenePaths.begin(), scenePaths.end());
 
-    printf("Rendering %zu scene(s) at %dx%d RGB565, %d frame(s) each, mode %s\n",
-           scenePaths.size(), width, height, frames, mode.c_str());
+    if (clock)
+        printf("Rendering %zu scene(s) at %dx%d RGB565, %d frame(s) each, mode %s, ticking %.3f ms per frame\n",
+               scenePaths.size(), width, height, frames, mode.c_str(), tickMs);
+    else
+        printf("Rendering %zu scene(s) at %dx%d RGB565, %d frame(s) each, mode %s\n",
+               scenePaths.size(), width, height, frames, mode.c_str());
 
     if (useSystem && !rs->Setup(width, height, Deki::ColorFormat::RGB565))
     {
@@ -1067,10 +1104,27 @@ int CmdRenderScenes(EditorApp& editor)
         uint8_t cr, cg, cb;
         camera->GetClearColor(cr, cg, cb);
         const uint16_t clear = static_cast<uint16_t>(((cr >> 3) << 11) | ((cg >> 2) << 5) | (cb >> 3));
+        std::string name = rel;
+        for (char& c : name)
+            if (c == '/' || c == '\\') c = '_';
+
         int32_t presentCount = -1;
         int partialFrames = 0, emptyFrames = 0;
         for (int f = 0; f < frames; ++f)
         {
+            if (clock)
+            {
+                // Same order as the editor's play-mode tick.
+                clockMs += tickMs;
+                clock->ms = static_cast<uint32_t>(clockMs);
+                Deki::Time::UpdateF(tickMs);
+                lifecycle->ProcessInternalAwake(&scene);
+                lifecycle->ProcessAwake(&scene);
+                lifecycle->ProcessStart(&scene);
+                lifecycle->ProcessUpdate(&scene);
+                Deki::Engine::GetInstance().RunUpdateCallbacks(static_cast<uint32_t>(tickMs));
+                lifecycle->ProcessRuntimeUpdate(&scene, tickMs / 1000.0f);
+            }
             if (useSystem)
             {
                 rs->Render(&scene);
@@ -1083,6 +1137,17 @@ int CmdRenderScenes(EditorApp& editor)
                 uint16_t* px = reinterpret_cast<uint16_t*>(buffer.data());
                 std::fill(px, px + static_cast<size_t>(width) * height, clear);
                 rs->RenderToBuffer(&scene, camera, buffer.data(), width, height, Deki::ColorFormat::RGB565);
+            }
+            if (clock && outDir)
+            {
+                if (useSystem)
+                {
+                    const uint8_t* fb = rs->GetFrameBuffer();
+                    if (fb) std::memcpy(buffer.data(), fb, buffer.size());
+                }
+                char num[16];
+                snprintf(num, sizeof(num), "_%04d", f);
+                WritePpmFromRgb565(fs::path(outDir) / (name + num + ".ppm"), buffer.data(), width, height);
             }
         }
         if (useSystem)
@@ -1100,12 +1165,7 @@ int CmdRenderScenes(EditorApp& editor)
         ++rendered;
 
         if (outDir)
-        {
-            std::string name = rel;
-            for (char& c : name)
-                if (c == '/' || c == '\\') c = '_';
             WritePpmFromRgb565(fs::path(outDir) / (name + ".ppm"), buffer.data(), width, height);
-        }
     }
 
     if (rendered == 0)

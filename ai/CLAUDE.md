@@ -45,7 +45,8 @@ Gates for any engine or package change: `cmake --build <project>/generated/build
 then `--verify-scenes` and `--render-scenes` on the sample project
 (`../deki-demo`), hashes unchanged unless the change is meant to alter pixels.
 `DEKI_RENDER_MODE=buffer|system|tracked` must agree; `DEKI_RENDER_OUT=<dir>`
-writes `.ppm`. Golden hashes (`../packages/deki-rendering/tests`,
+writes `.ppm`; `DEKI_RENDER_TICK_MS=<ms>` runs behaviours on a fixed clock and
+writes every frame (the website's canvas strip is made this way). Golden hashes (`../packages/deki-rendering/tests`,
 `tools/ci/golden-scaffold.txt`) change only on purpose, said in the commit.
 
 ## CI

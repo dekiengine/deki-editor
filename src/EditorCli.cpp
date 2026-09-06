@@ -54,12 +54,14 @@ void PrintUsage(const char* program)
     printf("  --build-code          Regenerate build files and compile packages + plugin\n");
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
     printf("  --render-scenes       Render every scene headless and print a hash per scene\n");
+    printf("                        (DEKI_RENDER_FRAMES=n, DEKI_RENDER_OUT=<dir> writes .ppm files,\n");
+    printf("                        DEKI_RENDER_MODE=buffer|system|tracked: scene-view path, the\n");
+    printf("                        engine's render system, or that with dirty tracking forced on;\n");
+    printf("                        DEKI_RENDER_TICK_MS=<ms> runs the scene like play mode, advancing\n");
+    printf("                        a fixed clock per frame, and writes every frame to DEKI_RENDER_OUT)\n");
     printf("  --dump-metadata <file> Write every loaded package's components, properties and\n");
     printf("                        settings sections (with defaults) as JSON; the docs build's input\n");
     printf("  --include-project     With --dump-metadata: the project's own components too\n");
-    printf("                        (DEKI_RENDER_FRAMES=n, DEKI_RENDER_OUT=<dir> writes .ppm files,\n");
-    printf("                        DEKI_RENDER_MODE=buffer|system|tracked: scene-view path, the\n");
-    printf("                        engine's render system, or that with dirty tracking forced on)\n");
     printf("\n");
     printf("Firmware (headless):\n");
     printf("  --build-firmware      Build firmware for the active platform\n");
