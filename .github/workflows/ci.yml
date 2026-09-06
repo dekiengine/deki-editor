@@ -1,0 +1,331 @@
+# Deki Editor CI.
+#
+# Two supported targets, one job each: build the editor, build and run the two
+# test binaries, and run the repository's own consistency checks
+# (tools/ci/check_version.py, tools/ci/check_abi.py, the Python tool tests).
+#
+# The "smoke" jobs go one step further and do what a user does: create a
+# project, build it (packages cloned from the public registry, compiled with
+# the same GCC), verify its scene and render it, and compare the pixel hash to
+# tools/ci/golden-scaffold.txt. That is a cold build of several packages, so
+# it runs on pull requests, tags and manual dispatch rather than on every push,
+# to keep the minutes of a private repository in check.
+#
+# GCC 16.1+ is a hard requirement (C++26 reflection for the codegen); the jobs
+# fail fast when the toolchain they installed is older.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSES/**'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_BUILD_TYPE: Release
+
+jobs:
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Windows (MinGW GCC 16)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}\.sccache
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+
+      # DekiRenderingTests compiles deki-rendering's own tests; it looks for
+      # the package beside the editor checkout (DEKI_PACKAGES_DIR defaults to
+      # ../packages) and silently skips when it is not there.
+      - name: Check out deki-rendering (for DekiRenderingTests)
+        uses: actions/checkout@v4
+        with:
+          repository: dekiengine/deki-rendering
+          path: ../packages/deki-rendering
+
+      # The runner image ships MSYS2 at C:\msys64, which is where the editor's
+      # CMakeLists looks for g++ (see the top of CMakeLists.txt); release: false
+      # keeps that location and only updates the packages.
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          release: false
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            git
+
+      - name: Toolchain check (GCC 16.1+)
+        run: |
+          g++ --version | head -n1
+          ver=$(g++ -dumpfullversion)
+          case "$ver" in
+            16.[1-9]*|1[7-9].*|[2-9][0-9].*) ;;
+            *) echo "::error::GCC 16.1+ required for the reflection codegen, got $ver"; exit 1 ;;
+          esac
+          cmake --version | head -n1
+          python --version
+
+      - name: Cache FetchContent sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-windows-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: .sccache
+          key: sccache-windows-${{ github.sha }}
+          restore-keys: sccache-windows-
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+
+      - name: Build editor
+        run: cmake --build build --target DekiEditor
+
+      - name: Build tests
+        run: cmake --build build --target DekiEditorTests DekiRenderingTests
+
+      - name: Editor tests
+        run: ./build/bin/DekiEditorTests.exe --gtest_brief=1
+
+      - name: Rendering tests
+        run: ./build/bin/DekiRenderingTests.exe --gtest_brief=1
+
+      - name: Version consistency
+        run: python tools/ci/check_version.py
+
+      - name: ABI lock
+        run: python tools/ci/check_abi.py
+
+      - name: Python tool tests
+        run: |
+          python -m unittest discover -s tools/docs/tests
+          if [ -d tools/tests ]; then python -m unittest discover -s tools/tests; fi
+
+      - name: sccache stats
+        if: always()
+        run: ./build/bin/sccache.exe --show-stats || true
+
+      - name: Editor log on failure
+        if: failure()
+        run: cat "$APPDATA/DekiEditor/Editor.log" 2>/dev/null || true
+
+      - name: Upload editor build
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-windows
+          path: build/bin
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  linux:
+    name: Linux (GCC 16)
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+
+      - name: Check out deki-rendering (for DekiRenderingTests)
+        uses: actions/checkout@v4
+        with:
+          repository: dekiengine/deki-rendering
+          path: ../packages/deki-rendering
+
+      - name: Install toolchain and SDL3 build dependencies
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
+            libdbus-1-dev libudev-dev xvfb
+
+      - name: Toolchain check (GCC 16.1+)
+        run: |
+          g++-16 --version | head -n1
+          ver=$(g++-16 -dumpfullversion)
+          case "$ver" in
+            16.[1-9]*|1[7-9].*|[2-9][0-9].*) ;;
+            *) echo "::error::GCC 16.1+ required for the reflection codegen, got $ver"; exit 1 ;;
+          esac
+
+      - name: Cache FetchContent sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-linux-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-linux-${{ github.sha }}
+          restore-keys: ccache-linux-
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+          -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build editor
+        run: cmake --build build --target DekiEditor
+
+      - name: Build tests
+        run: cmake --build build --target DekiEditorTests DekiRenderingTests
+
+      - name: Editor tests
+        run: ./build/bin/DekiEditorTests --gtest_brief=1
+
+      - name: Rendering tests
+        run: ./build/bin/DekiRenderingTests --gtest_brief=1
+
+      - name: Version consistency
+        run: python3 tools/ci/check_version.py
+
+      - name: ABI lock
+        run: python3 tools/ci/check_abi.py
+
+      - name: Python tool tests
+        run: |
+          python3 -m unittest discover -s tools/docs/tests
+          if [ -d tools/tests ]; then python3 -m unittest discover -s tools/tests; fi
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s
+
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
+
+      - name: Upload editor build
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-linux
+          path: |
+            build/bin
+            build/lib
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # What a user does: a new project, built from the registry, verified and
+  # rendered. The hash must match tools/ci/golden-scaffold.txt on both
+  # platforms; a change to the scaffold scene or to rendering updates that
+  # file in the same commit and says so.
+  smoke-windows:
+    name: Project smoke (Windows)
+    needs: windows
+    if: github.event_name != 'push'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          release: false
+          update: true
+          path-type: inherit
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja git
+      - uses: actions/download-artifact@v4
+        with:
+          name: editor-windows
+          path: build/bin
+      - name: New project, build, verify, render
+        run: |
+          set -e
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          ./build/bin/DekiEditor.exe --new-project ci-smoke "$parent"
+          ./build/bin/DekiEditor.exe --build-code "$parent/ci-smoke"
+          ./build/bin/DekiEditor.exe --verify-scenes "$parent/ci-smoke"
+          ./build/bin/DekiEditor.exe --render-scenes "$parent/ci-smoke" | tee render.txt
+          python tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt
+      - name: Editor log on failure
+        if: failure()
+        run: cat "$APPDATA/DekiEditor/Editor.log" 2>/dev/null || true
+
+  smoke-linux:
+    name: Project smoke (Linux)
+    needs: linux
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - name: Install toolchain
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb libgl1-mesa-dev
+      - uses: actions/download-artifact@v4
+        with:
+          name: editor-linux
+          path: build
+      - name: New project, build, verify, render
+        run: |
+          set -e
+          chmod +x build/bin/DekiEditor
+          export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          xvfb-run -a ./build/bin/DekiEditor --new-project ci-smoke "$parent"
+          xvfb-run -a ./build/bin/DekiEditor --build-code "$parent/ci-smoke"
+          xvfb-run -a ./build/bin/DekiEditor --verify-scenes "$parent/ci-smoke"
+          xvfb-run -a ./build/bin/DekiEditor --render-scenes "$parent/ci-smoke" | tee render.txt
+          python3 tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true

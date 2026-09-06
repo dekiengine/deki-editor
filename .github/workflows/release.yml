@@ -1,0 +1,155 @@
+# Release: a bare-semver tag (0.10.0) builds both platforms, packages them with
+# the bundled toolchain (tools/package-*.{ps1,sh}) and publishes a GitHub
+# release carrying one archive per platform plus its SHA-256. The tag must
+# equal the editor's project() version and have a CHANGELOG section
+# (tools/ci/check_version.py --tag), so a release cannot claim a number the
+# binary inside does not report.
+#
+# The archives are not code-signed (see SETUP.md, "Packaged builds").
+
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build and publish
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CMAKE_BUILD_TYPE: Release
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  check:
+    name: Version and changelog
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout first so the composite action below exists in the tree.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - run: python3 tools/ci/check_version.py --tag "$RELEASE_TAG"
+
+  windows:
+    name: Package Windows
+    needs: check
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      # actions/checkout first so the composite action below exists in the tree.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          release: false
+          update: true
+          path-type: inherit
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja git
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+          cmake --build build --target DekiEditor
+      - name: Package
+        shell: pwsh
+        run: tools/package-windows.ps1 -Msys2 C:\msys64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  linux:
+    name: Package Linux
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout first so the composite action below exists in the tree.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - name: Install toolchain and SDL3 build dependencies
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-16 gcc-16 cmake ninja-build git curl pkg-config patchelf \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
+            libdbus-1-dev libudev-dev
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+                -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
+          cmake --build build --target DekiEditor
+      - name: Package
+        run: tools/package-linux.sh build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [windows, linux]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Release notes from CHANGELOG
+        run: |
+          # The "## <tag>" section of CHANGELOG.md, up to the next "## ".
+          awk -v tag="$RELEASE_TAG" '
+            $0 == "## " tag { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          echo "" >> notes.md
+          echo "Archives are not code-signed yet; on Windows choose *More info → Run anyway* at the SmartScreen prompt. Verify with \`sha256sum -c <file>.sha256\`." >> notes.md
+          cat notes.md
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" artifacts/* --clobber
+            gh release edit "$RELEASE_TAG" --notes-file notes.md
+          else
+            gh release create "$RELEASE_TAG" artifacts/* --title "Deki Editor $RELEASE_TAG" --notes-file notes.md
+          fi

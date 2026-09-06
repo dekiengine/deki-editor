@@ -1,0 +1,119 @@
+# Contributing
+
+Thanks for looking. This page covers what a change needs before it can land,
+in the editor, the engine (`deki-engine/`, a submodule with its own
+repository) and the packages (`github.com/dekiengine/deki-*`).
+
+## Toolchain
+
+GCC 16.1+ everywhere (C++26 static reflection drives the codegen), Ninja, and
+CMake 3.25+. Windows builds with MinGW from MSYS2; MSVC is not a supported
+path because packages are `dlopen`ed into the editor and must share its ABI.
+[SETUP.md](SETUP.md) has the full setup, the CLI reference and the
+troubleshooting list.
+
+## Naming
+
+One convention, Microsoft/Unreal-flavoured to match the editor's Unity-style
+framing:
+
+| Kind | Style | Example |
+| --- | --- | --- |
+| Types, namespaces | `PascalCase` | `Deki::Object`, `DekiEditor::AssetPipeline` |
+| Methods, functions | `PascalCase` | `GetType()`, `LoadAssets()` |
+| Private/protected members | `m_PascalCase` | `m_CurrentScene` |
+| Static members | `s_PascalCase` | `s_Instance` |
+| **Reflected properties** | **`camelCase`** | `tintColor`, `pixelsPerMeter` |
+| Public POD struct fields | `camelCase` | `AssetData::guid` |
+| Constants, enum values | `PascalCase` / `SCREAMING_CASE` | `AssetTypeName`, `RGB565` |
+| Locals, parameters | `camelCase` | `assetPath` |
+
+`.clang-format` in each repository is the formatter; run it on what you touch.
+
+### Everything the engine exports lives in `namespace Deki`, unprefixed
+
+Since engine 0.10 there is one rule for engine types: `namespace Deki`, no
+`Deki` prefix. `Deki::Object`, `Deki::Component`, `Deki::Behaviour`,
+`Deki::Engine`, `Deki::Scene`, `Deki::Color`, `Deki::IDisplay`,
+`Deki::PropertyInfo`. Component classes keep their `*Component` / `*Settings`
+suffix (`Deki::SetupComponent`). Two things keep a `DEKI`/`Deki` spelling on
+purpose: macros (`DEKI_COMPONENT`, `DEKI_EXPORT`, `DEKI_LOG_*`), because macros
+have no namespace, and the C interop surface in `deki-engine/include/deki/interop/`
+(`DekiPlugin_*` exports, `DekiReflectionAbi`), because package DLLs resolve
+those symbols by string and C has no namespaces.
+
+A user component therefore reads:
+
+```cpp
+class Mover : public Deki::Behaviour
+{
+    DEKI_COMPONENT(Mover, Deki::Behaviour, "Game")
+public:
+    DEKI_EXPORT float speed = 1.0f;
+};
+```
+
+Package and project code stays in the global namespace (or its own); it
+qualifies engine types with `Deki::` or opens the namespace. Do not add
+aliases for the old prefixed names: `tools/migrate-namespace.py <dir>` rewrites
+a codebase to the new names in one pass.
+
+## Reflected field names are the file format
+
+The reflection codegen emits each `DEKI_EXPORT` member's C++ identifier as the
+key in scene files, settings files and `.anim` assets. Renaming one changes the
+on-disk key, and an old key does not error: it falls through and the property
+silently takes its default. So:
+
+- Never rename a reflected member in place. Add `DEKI_RENAMED_FROM("oldName")`
+  to it, so old files keep loading, and bump the format version if the change
+  is otherwise incompatible; see [COMPATIBILITY.md](COMPATIBILITY.md).
+- Run `DekiEditor --verify-scenes <project>` on a real project before and after.
+  It must be green both times; a legacy key shows as a warning until the scene
+  is re-saved.
+- Component type GUIDs (`DEKI_COMPONENT(..., "guid", ...)`) are permanent. A
+  scene refers to a component by that GUID.
+- A rename in a published package is a breaking release of that package.
+
+## Before you open a pull request
+
+```bash
+cmake --build build
+cmake --build build --target DekiEditorTests DekiRenderingTests
+build/bin/DekiEditorTests
+build/bin/DekiRenderingTests
+DekiEditor --build-code <project>      # a real project: ../deki-demo works
+DekiEditor --verify-scenes <project>
+DekiEditor --render-scenes <project>   # renderer changes: hashes must match unless intended
+```
+
+- Add a test with the change: GoogleTest suites live in `tests/` (editor and
+  engine) and in `packages/deki-rendering/tests` (rendering). The editor
+  sources a test can link are listed in `EDITOR_TESTABLE_SOURCES` in the root
+  `CMakeLists.txt`; add yours there.
+- Renderer changes that alter pixels must update the golden hashes on purpose
+  and say so in the commit message.
+- Engine changes go to the engine repository first; the editor then bumps the
+  submodule pointer. Anything that changes `DekiComponent`/`DekiObject` layout
+  or virtuals bumps `kDekiReflectionAbiVersion` (`deki-engine/include/deki/interop/
+  ReflectionAbi.h`) and its changelog.
+- Keep the commit message about why. The code shows what.
+
+## Documentation
+
+`cmake --build build --target docs` builds the reference site; component
+descriptions, tooltips and ranges come from `DEKI_DESCRIPTION`, `DEKI_TOOLTIP`
+and `DEKI_RANGE` on the code, so documenting a component means annotating it.
+
+## Reporting problems
+
+Bugs and feature requests: GitHub issues on the repository concerned (editor,
+engine or the package). Security issues: see [SECURITY.md](SECURITY.md).
+
+## Contributors
+
+- **Kirbyrawr**: author and maintainer.
+- **@imanol**: early engine and editor work.
+
+The public history of the editor and the engine starts at 0.10.0; the work
+before that was squashed into the first commit and is credited here.

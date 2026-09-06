@@ -1,0 +1,5 @@
+# Pixel hash of the scene a new project opens to (DekiEditor --new-project),
+# rendered by --render-scenes: 60 frames, project display size, RGB565.
+# Both CI platforms must produce this. Re-record for an intended change to the
+# scaffold scene or to rendering, and say so in the commit.
+88381d7187f49c1b  scenes/main.scene

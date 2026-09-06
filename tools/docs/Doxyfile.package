@@ -1,0 +1,41 @@
+# Doxygen configuration for ONE package's documentation site.
+#
+# Run by tools/docs/build_docs.py once per package with DEKI_PKG_NAME,
+# DEKI_PKG_MD (the directory holding that package's index.md), DEKI_PKG_OUT and
+# DEKI_DOCS_VERSION set. The result is pushed to the package repository's
+# gh-pages branch (tools/docs/publish_docs.py) and served at
+# https://dekiengine.github.io/<package>/, which the registry's `docs` field
+# names and the main site links to. There is no C++ input: the page is the
+# component/property reference generated from the package's reflection
+# metadata; the API reference lives on the main site.
+
+PROJECT_NAME           = $(DEKI_PKG_NAME)
+PROJECT_NUMBER         = $(DEKI_DOCS_VERSION)
+PROJECT_BRIEF          = "Deki package reference"
+OUTPUT_DIRECTORY       = $(DEKI_PKG_OUT)
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+PAGE_OUTLINE_PANEL     = NO
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+SEARCHENGINE           = NO
+HTML_EXTRA_STYLESHEET  = tools/docs/theme/doxygen-awesome.css \
+                         tools/docs/theme/doxygen-awesome-sidebar-only.css \
+                         tools/docs/theme/deki.css
+HTML_COLORSTYLE        = LIGHT
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_INCOMPLETE_DOC = NO
+
+INPUT                  = $(DEKI_PKG_MD)
+USE_MDFILE_AS_MAINPAGE = $(DEKI_PKG_MD)/index.md
+RECURSIVE              = NO
+FILE_PATTERNS          = *.md
+MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 3
+AUTOLINK_SUPPORT       = NO
+SHOW_FILES             = NO
+SHOW_NAMESPACES        = NO
+SOURCE_BROWSER         = NO
+HAVE_DOT               = NO

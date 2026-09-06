@@ -1,0 +1,205 @@
+#pragma once
+
+#include <deki-editor/IAssetImporter.h>
+#include <deki-editor/TextureData.h>
+#include <deki-editor/SubAsset.h>
+#include <cstdint>
+#include <vector>
+#include <unordered_map>
+#include <string>
+
+#include <deki-editor/EditorExport.h>
+namespace DekiEditor
+{
+
+// Decoded image, RGBA8 packed (4 bytes per pixel).
+struct DEKI_EDITOR_API DecodedImage
+{
+    std::vector<uint8_t> rgba;
+    int width = 0;
+    int height = 0;
+};
+
+// Decode an image file (PNG/JPG/BMP/TGA/GIF) from disk into RGBA8.
+// Returns false if the file cannot be opened or decoded.
+DEKI_EDITOR_API bool DecodeImageFile(const std::string& absolutePath, DecodedImage& out);
+
+// Metadata chunk type identifiers for 2DTX format
+enum class MetadataChunkType : uint32_t
+{
+    Sprite = 1,     // frameWidth, frameHeight
+    FrameList = 2,  // Frame list with GUIDs for sub-asset addressing
+    ChromaKey = 3   // 1-bit transparent color + per-row non-key column spans
+};
+
+// Optional chroma-key transparency for a texture. When enabled is true,
+// pixels matching (r,g,b) are treated as transparent at render time. The
+// importer also bakes per-row non-key column spans so the blit can skip
+// the per-pixel chroma compare on opaque rows.
+struct DEKI_EDITOR_API ChromaKeySettings
+{
+    bool enabled = false;
+    uint8_t r = 255;
+    uint8_t g = 0;
+    uint8_t b = 255;  // magenta default
+};
+
+// Sprite slicing modes
+enum class SpriteSlicingMode
+{
+    None = 0,  // No slicing (full texture)
+    Grid = 1,  // Uniform grid (frameWidth x frameHeight)
+    Atlas = 2  // Custom frame definitions
+};
+
+// Individual frame definition for atlas mode
+struct DEKI_EDITOR_API AtlasFrame
+{
+    int32_t x = 0;
+    int32_t y = 0;
+    int32_t width = 0;
+    int32_t height = 0;
+    std::string name;  // Optional frame name
+};
+
+// Optional sprite metadata to bake into texture file
+struct DEKI_EDITOR_API SpriteSettings
+{
+    SpriteSlicingMode mode = SpriteSlicingMode::None;
+
+    // Grid mode settings
+    int32_t frameWidth = 0;   // Spritesheet frame width (0 = full width)
+    int32_t frameHeight = 0;  // Spritesheet frame height (0 = full height)
+
+    // Atlas mode settings
+    std::vector<AtlasFrame> frames;
+
+    // 9-slice borders (in pixels). hasNineSlice gates whether they're written.
+    bool hasNineSlice = false;
+    uint16_t nineSliceLeft = 0;
+    uint16_t nineSliceRight = 0;
+    uint16_t nineSliceTop = 0;
+    uint16_t nineSliceBottom = 0;
+
+    bool HasData() const
+    {
+        if (hasNineSlice) return true;
+        return mode == SpriteSlicingMode::Grid ? (frameWidth > 0 || frameHeight > 0)
+                                               : !frames.empty();
+    }
+};
+
+/**
+ * @brief Runtime sprite frame data (texture coordinates)
+ *
+ * Stores the pixel coordinates for individual sprite frames.
+ * This data is registered per-frame-GUID and used for rendering.
+ */
+struct DEKI_EDITOR_API SpriteFrameData
+{
+    int x = 0;       // Pixel X coordinate within texture
+    int y = 0;       // Pixel Y coordinate within texture
+    int width = 0;   // Frame width in pixels
+    int height = 0;  // Frame height in pixels
+};
+
+class DEKI_EDITOR_API TextureImporter : public IAssetImporter
+{
+public:
+    // IAssetImporter interface
+    std::vector<std::string> GetSupportedExtensions() const override
+    {
+        return { ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif" };
+    }
+
+    std::string GetImporterName() const override
+    {
+        return "TextureImporter";
+    }
+
+    ImportResult Import(const std::string& sourcePath,
+                        const std::string& cachePath) override;
+
+    // Specific texture import with format control
+    ImportResult ImportWithFormat(const std::string& sourcePath,
+                                  const std::string& cachePath,
+                                  TextureFormat format);
+
+    // Low-level static functions (for direct usage without importer instance)
+    static bool WriteTexFile(const std::string& path,
+                             const uint8_t* rgbaData,
+                             uint32_t width, uint32_t height,
+                             TextureFormat format = TextureFormat::RGB565A8,
+                             const SpriteSettings* spriteSettings = nullptr,
+                             const std::vector<SubAssetInfo>* frameSubAssets = nullptr,
+                             const ChromaKeySettings* chromaKey = nullptr);
+
+    static bool ReadTexFile(const std::string& path, TexData& outData);
+
+    static std::vector<uint8_t> ConvertToRGBA(const TexData& data);
+
+    // True if any pixel in the RGBA buffer has alpha < 255.
+    static bool HasAlphaChannel(const uint8_t* rgbaData, size_t pixelCount);
+
+    /**
+     * @brief Automatically detect sprite frames from texture by analyzing transparent regions
+     * @param rgbaData RGBA pixel data (4 bytes per pixel)
+     * @param width Texture width
+     * @param height Texture height
+     * @param alphaThreshold Alpha value below which pixels are considered transparent (0-255)
+     * @param minWidth Minimum frame width to detect (ignore smaller regions)
+     * @param minHeight Minimum frame height to detect (ignore smaller regions)
+     * @return Vector of detected atlas frames
+     */
+    static std::vector<AtlasFrame> AutoDetectFrames(const uint8_t* rgbaData,
+                                                    uint32_t width, uint32_t height,
+                                                    uint8_t alphaThreshold = 10,
+                                                    int minWidth = 1,
+                                                    int minHeight = 1);
+
+    /**
+     * @brief Generate sprite frame sub-assets from sprite settings
+     * @param parentGuid Parent texture asset GUID
+     * @param texWidth Texture width in pixels
+     * @param texHeight Texture height in pixels
+     * @param settings Sprite slicing settings
+     * @return Vector of SubAssetInfo for each frame (empty if no frames)
+     */
+    static std::vector<SubAssetInfo> GenerateFrameSubAssets(
+        const std::string& parentGuid,
+        int texWidth,
+        int texHeight,
+        const SpriteSettings& settings);
+
+    // Sprite frame data registry (for runtime frame coordinate lookup)
+    /**
+     * @brief Get sprite frame data by frame GUID
+     * @param frameGuid Frame GUID
+     * @return Pointer to frame data or nullptr if not found
+     */
+    static const SpriteFrameData* GetFrameData(const std::string& frameGuid);
+
+    /**
+     * @brief Register sprite frame data for a frame GUID
+     * @param frameGuid Frame GUID
+     * @param data Frame coordinate data
+     */
+    static void RegisterFrameData(const std::string& frameGuid, const SpriteFrameData& data);
+
+    /**
+     * @brief Clear all registered frame data (called when rebuilding asset cache)
+     */
+    static void ClearFrameData();
+
+    /**
+     * @brief Check if a .tex file contains a FrameList metadata chunk
+     * @param texPath Path to the .tex file
+     * @return true if FrameList chunk exists, false otherwise
+     */
+    static bool HasFrameListChunk(const std::string& texPath);
+
+private:
+    static std::unordered_map<std::string, SpriteFrameData> s_FrameDataRegistry;
+};
+
+}  // namespace DekiEditor

@@ -1,0 +1,4 @@
+[submodule "deki-engine"]
+	path = deki-engine
+	url = https://github.com/dekiengine/deki-engine.git
+	branch = master

@@ -1,0 +1,47 @@
+#pragma once
+
+#include "IPanel.h"
+
+#include "imgui.h"
+#include <memory>
+
+class CameraComponent;
+
+namespace DekiEditor
+{
+
+class EditorApp;
+class EditModeRenderer;
+
+class PlayViewPanel : public IPanel
+{
+public:
+    const char* Id() const override { return "PlayView"; }
+    PlayViewPanel(EditorApp* app);
+    ~PlayViewPanel();
+    void Draw();
+
+
+private:
+    EditorApp* m_App;
+
+    // Camera-viewport renderer for stopped-state preview
+    std::unique_ptr<EditModeRenderer> m_PreviewRenderer;
+
+    // Canvas position (set during draw)
+    ImVec2 m_CanvasTopLeft;
+    ImVec2 m_CanvasSize;
+
+    // Play mode drag tracking (forward input even when mouse leaves canvas)
+    bool m_PlayModeDragging = false;
+    bool m_WasHoveringInBounds = false;
+
+    // Touch input mode: only dispatch move events during active press (like embedded touchscreens)
+    bool m_TouchInputMode = true;
+
+    // Last key state forwarded to the game (one slot per entry of the
+    // forward() table in Draw: space/enter/esc/backspace + 4 arrows + A-Z).
+    bool m_PlayKeyDown[34] = {};
+};
+
+}  // namespace DekiEditor

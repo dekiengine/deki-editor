@@ -1,0 +1,79 @@
+# Doxygen configuration for the Deki documentation site.
+#
+# Run through tools/docs/build_docs.py, which sets DEKI_DOCS_VERSION,
+# DEKI_DOCS_OUT and DEKI_DOCS_MD and runs doxygen from the deki-editor root.
+# The generated Markdown under DEKI_DOCS_MD (package/component reference from
+# the reflection metadata) is merged with the API reference of the engine
+# and the editor DLL headers.
+
+PROJECT_NAME           = "Deki"
+PROJECT_NUMBER         = $(DEKI_DOCS_VERSION)
+PROJECT_BRIEF          = "Modular C++ 2D engine for embedded displays and desktop"
+OUTPUT_DIRECTORY       = $(DEKI_DOCS_OUT)
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+PAGE_OUTLINE_PANEL     = NO
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_EXTRA_STYLESHEET  = tools/docs/theme/doxygen-awesome.css \
+                         tools/docs/theme/doxygen-awesome-sidebar-only.css \
+                         tools/docs/theme/deki.css
+HTML_COLORSTYLE        = LIGHT
+HTML_DYNAMIC_SECTIONS  = NO
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+
+INPUT                  = $(DEKI_DOCS_MD) \
+                         deki-engine/include \
+                         deki-editor/include/deki-editor
+USE_MDFILE_AS_MAINPAGE = $(DEKI_DOCS_MD)/index.md
+RECURSIVE              = YES
+STRIP_FROM_INC_PATH    = deki-engine/include
+FILE_PATTERNS          = *.h *.md
+EXCLUDE_PATTERNS       = */generated/* */third_party/* */platforms/esp32/*
+EXCLUDE_SYMBOLS        = std::* nlohmann::* deki_refl::*
+MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 3
+AUTOLINK_SUPPORT       = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = NO
+SHOW_INCLUDE_FILES     = NO
+SHOW_FILES             = YES
+SHOW_NAMESPACES        = YES
+SORT_MEMBER_DOCS       = NO
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+BUILTIN_STL_SUPPORT    = YES
+
+# The source stays private for now: the site shows declarations, signatures
+# and doc comments, not header bodies. Flip these when the repos go public.
+SOURCE_BROWSER         = NO
+INLINE_SOURCES         = NO
+VERBATIM_HEADERS       = NO
+STRIP_CODE_COMMENTS    = YES
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
+
+HAVE_DOT               = NO
+CLASS_GRAPH            = TEXT
+
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = DEKI_EDITOR \
+                         DEKI_ENGINE_API= \
+                         DEKI_EDITOR_API= \
+                         DEKI_FAST_ATTR= \
+                         "DEKI_COMPONENT(a,b,c,...)=" \
+                         "DEKI_COMPONENT(a,b,c)=" \
+                         DEKI_EXPORT= \
+                         "DEKI_TOOLTIP(x)=" \
+                         "DEKI_RANGE(a,b)=" \
+                         "DEKI_SLIDER(a,b)=" \
+                         "DEKI_DESCRIPTION(x)=" \
+                         "DEKI_DISPLAY_NAME(x)=" \
+                         "DEKI_RENAMED_FROM(x)="

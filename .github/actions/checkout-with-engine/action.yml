@@ -1,0 +1,57 @@
+# Check out deki-editor with its deki-engine submodule.
+#
+# deki-engine is a private repository, and a workflow's own GITHUB_TOKEN only
+# reaches the repository the workflow runs in, so `actions/checkout` with
+# `submodules: recursive` fails on the submodule fetch. While the engine is
+# private the submodule is fetched over SSH with a read-only deploy key on
+# dekiengine/deki-engine, stored as the DEKI_ENGINE_DEPLOY_KEY secret on this
+# repository. To set it up once:
+#
+#     ssh-keygen -t ed25519 -N "" -f deki-engine-ci -C "deki-editor CI"
+#     gh api repos/dekiengine/deki-engine/keys -f title="deki-editor CI (read-only)" \
+#            -f key="$(cat deki-engine-ci.pub)" -F read_only=true
+#     gh secret set DEKI_ENGINE_DEPLOY_KEY --repo dekiengine/deki-editor < deki-engine-ci
+#     rm deki-engine-ci deki-engine-ci.pub
+#
+# With no secret the action fetches the submodule over plain HTTPS, which is
+# what works once both repositories are public; the key is then unnecessary.
+
+name: Checkout with engine
+description: actions/checkout plus the deki-engine submodule (deploy key while it is private)
+
+inputs:
+  ref:
+    description: "Ref to check out (default: the workflow's ref)"
+    required: false
+    default: ''
+  deploy-key:
+    description: Private SSH key with read access to dekiengine/deki-engine; empty for a public engine
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+        submodules: false
+
+    - uses: webfactory/ssh-agent@v0.9.1
+      if: inputs.deploy-key != ''
+      with:
+        ssh-private-key: ${{ inputs.deploy-key }}
+
+    - name: Fetch deki-engine
+      shell: bash
+      env:
+        HAVE_KEY: ${{ inputs.deploy-key != '' }}
+      run: |
+        if [ "$HAVE_KEY" = "true" ]; then
+          git config --global url."git@github.com:dekiengine/deki-engine.git".insteadOf "https://github.com/dekiengine/deki-engine.git"
+        else
+          echo "No DEKI_ENGINE_DEPLOY_KEY secret: fetching the submodule over HTTPS (needs a public deki-engine)"
+        fi
+        git submodule sync --recursive
+        git submodule update --init --recursive --depth=1
+        git -C deki-engine log --oneline -1

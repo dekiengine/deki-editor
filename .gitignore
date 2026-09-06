@@ -1,0 +1,49 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# IDE files
+.vs/
+.vscode/
+.claude/
+.cache/
+*.vcxproj.user
+*.suo
+*.sln.docstates
+.idea/
+
+# Compiled files
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.dylib
+*.pdb
+*.ilk
+*.exp
+
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ImGui layout file (user-specific)
+imgui.ini
+
+# Packaged distributions (tools/package-linux.sh) — hundreds of MB, all reproducible
+/dist/
+
+# Python bytecode from the build/codegen helper scripts
+__pycache__/
+*.py[cod]

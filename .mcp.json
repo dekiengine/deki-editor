@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "The editor's MCP server binds 127.0.0.1 only and requires a bearer token.",
+    "By default it mints a fresh token per session and prints the full URL on",
+    "startup (--mcp) or offers it via right-click on the MCP status-bar button.",
+    "For a stable config like this one, set DEKI_MCP_TOKEN (>= 16 chars) in the",
+    "environment of both the editor and the client, and put the same value in",
+    "the url below."
+  ],
+  "mcpServers": {
+    "deki-editor": {
+      "type": "sse",
+      "url": "http://127.0.0.1:3000/sse?token=${DEKI_MCP_TOKEN}"
+    }
+  }
+}

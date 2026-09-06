@@ -1,0 +1,19 @@
+/* Deki additions on top of doxygen-awesome.
+ *
+ * Doxygen 1.18 emits inline code from Markdown as <span class="tt">, which
+ * doxygen-awesome 2.3 does not style, so it fell back to the browser's
+ * light background in dark mode. Give it the theme's code colours. */
+span.tt,
+.tt {
+    font-family: var(--font-family-monospace);
+    font-size: var(--code-font-size, 14px);
+    background: var(--code-background);
+    color: var(--code-foreground);
+    border-radius: var(--border-radius-small);
+    padding: 1px 4px;
+}
+
+/* Generated property tables are wide; let the first column keep its name on one line. */
+div.contents table.markdownTable td:first-child {
+    white-space: nowrap;
+}

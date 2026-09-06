@@ -1,0 +1,117 @@
+# Deki Editor
+
+A scene editor for [Deki](https://github.com/dekiengine/deki-engine), a modular
+C++ 2D engine for small displays: drive an LCD from an ESP32-S3, run the same
+project on the desktop through SDL3, or use the engine headless. The editor is
+Unity-shaped (hierarchy, inspector, scene view, asset browser, console, play
+mode, undo/redo) and hosts the engine in-process, so the components you write
+in C++ are compiled into a plugin DLL, hot-reloaded, and show up in the
+inspector with no registration code.
+
+![The editor with the demo project open](docs/img/editor.png)
+
+**Status: 0.x.** Windows (MinGW GCC 16) and Linux build and run; ESP32-S3 is
+the firmware target. File formats are versioned but may still change before
+1.0, and every breaking change ships with a migration path; see
+[COMPATIBILITY.md](COMPATIBILITY.md). Reference documentation, generated from
+the code: **https://dekiengine.github.io/docs/**
+
+## Quick start
+
+GCC 16.1 or newer is required, on every platform: the component reflection is
+C++26 static reflection, generated at configure time. On Windows that means
+MSYS2 (`pacman -S mingw-w64-x86_64-gcc`); on Ubuntu the toolchain PPA. Details,
+alternatives and troubleshooting are in [SETUP.md](SETUP.md).
+
+```bash
+git clone --recurse-submodules https://github.com/dekiengine/deki-editor.git
+cd deki-editor
+cmake -B build -S . -G Ninja        # fetches SDL3, ImGui, FreeType, stb, gtest
+cmake --build build                 # build/bin/DekiEditor.exe
+build/bin/DekiEditor --new-project my-game ..   # a project that renders on first open
+build/bin/DekiEditor ../my-game
+```
+
+The first open of a project restores its packages from the registry and builds
+them, which takes a few minutes; after that, opens are seconds and edits to your
+components rebuild and reload in place.
+
+## Packages
+
+The engine core is deliberately small: objects, components, the lifecycle,
+assets and provider interfaces. Rendering, 2D content, input, tweens, state
+machines, particles and every hardware integration are **packages**, each its
+own repository under [github.com/dekiengine](https://github.com/dekiengine)
+and listed in the [registry](https://github.com/dekiengine/registry). A project
+declares the ones it uses in `deki-packages.json`; the editor clones them into
+`packages/`, builds them as DLLs (desktop) or links them statically (firmware),
+and the Package Manager panel adds, removes and updates them. A new project
+starts with rendering, 2D, input and the desktop/SDL3 integrations.
+
+## Layout
+
+| Directory | What it is |
+| --- | --- |
+| `src/` | The editor application: panels, services (hot reload, package manager, firmware builders, MCP server), commands |
+| `deki-editor/` | The editor **DLL**: the API package DLLs link against (asset pipeline, registries, widgets, theme) |
+| `deki-engine/` | The engine, as a git submodule ([its own repository](https://github.com/dekiengine/deki-engine)) |
+| `tests/` | GoogleTest suites for the editor and the engine |
+| `tools/docs/` | The documentation build (component reference from reflection metadata + Doxygen) |
+| `docs/` | Design notes and status documents |
+
+## Testing
+
+```bash
+cmake --build build --target DekiEditorTests DekiRenderingTests
+build/bin/DekiEditorTests
+build/bin/DekiRenderingTests        # the rendering package's rasterizer and renderer tests
+```
+
+Beyond unit tests, the editor's command line is the integration harness, and
+every verb boots the editor exactly as the GUI does:
+
+```bash
+DekiEditor --build-code <project>       # generate build files, compile packages + plugin
+DekiEditor --verify-scenes <project>    # every scene property key must resolve to a component
+DekiEditor --render-scenes <project>    # one framebuffer hash per scene: the pixel gate
+```
+
+`--verify-scenes` is how a reflected-field rename is caught before it silently
+resets values in somebody's scene, and `--render-scenes` is how renderer changes
+prove they changed nothing they should not have. See [SETUP.md](SETUP.md) for
+the full list.
+
+## Documentation
+
+`cmake --build build --target docs` builds the reference from the live
+reflection metadata: the main site (engine core, project settings, the Doxygen
+API reference, and a link to every package) at https://dekiengine.github.io/docs/,
+and one site per package with its components and properties, published on that
+package's own repository (for example https://dekiengine.github.io/deki-2d/).
+
+## How this is built
+
+I designed Deki and I direct every change in it. I work with AI coding tools as
+a pair programmer, which is why many commits carry a co-author trailer, and I
+keep that history as it is rather than pretend otherwise. What makes the code
+trustworthy is not who typed it but what it has to pass: the unit suites above,
+`--verify-scenes` on real projects, golden pixel hashes for the rasterizer and
+the renderer, and a headless build of a fresh project on a machine that is not
+mine. Nothing lands without those.
+
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has
+the conventions (naming, the rule that reflected field names are the file
+format, how to run the gates); [SECURITY.md](SECURITY.md) has the contact for
+vulnerabilities.
+
+## Credits
+
+Written and maintained by **Kirbyrawr**, with early engine and editor work by
+**@imanol**. See [CONTRIBUTING.md](CONTRIBUTING.md#contributors).
+
+## License
+
+Apache License 2.0; see [LICENSE](LICENSE). Bundled third-party fonts and
+libraries are listed with their licenses in [LICENSES/](LICENSES/).

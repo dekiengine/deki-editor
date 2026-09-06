@@ -1,0 +1,492 @@
+#include "PlatformConfig.h"
+#include <deki/LogSystem.h>
+#include <deki-editor/EditorPaths.h>
+#include <filesystem>
+#include <fstream>
+#include <algorithm>
+#include <nlohmann/json.hpp>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <shlobj.h>
+#else
+#include <cstdlib>
+#endif
+
+namespace fs = std::filesystem;
+using json = nlohmann::json;
+
+namespace DekiEditor
+{
+
+// ============================================================================
+// PlatformRegistry Implementation
+// ============================================================================
+
+PlatformRegistry& PlatformRegistry::Instance()
+{
+    static PlatformRegistry instance;
+    return instance;
+}
+
+void PlatformRegistry::RegisterPlatform(const PlatformConfig& config)
+{
+    m_Platforms[config.id] = config;
+}
+
+const PlatformConfig* PlatformRegistry::GetPlatform(const std::string& id) const
+{
+    auto it = m_Platforms.find(id);
+    if (it != m_Platforms.end())
+    {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+std::vector<std::string> PlatformRegistry::GetAvailablePlatforms() const
+{
+    std::vector<std::string> platforms;
+    platforms.reserve(m_Platforms.size());
+    for (const auto& [id, config] : m_Platforms)
+    {
+        platforms.push_back(id);
+    }
+    return platforms;
+}
+
+std::vector<std::pair<std::string, std::string>> PlatformRegistry::GetPlatformDisplayList() const
+{
+    std::vector<std::pair<std::string, std::string>> list;
+    list.reserve(m_Platforms.size());
+    for (const auto& [id, config] : m_Platforms)
+    {
+        list.emplace_back(id, config.displayName);
+    }
+    return list;
+}
+
+// Helper: parse a single platform config from JSON
+const std::vector<std::string>& SupportedIdfTargets()
+{
+    static const std::vector<std::string> kTargets = { "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2" };
+    return kTargets;
+}
+
+bool IsValidDisplayBus(const std::string& bus)
+{
+    if (bus.empty() || bus.size() > 32) return false;
+    for (unsigned char c : bus)
+    {
+        const bool ok = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+        if (!ok) return false;
+    }
+    return true;
+}
+
+static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
+{
+    config.id = j.value("id", "");
+    if (config.id.empty())
+        return false;
+
+    config.displayName = j.value("displayName", config.id);
+
+    // Load family (new format) or type (legacy format)
+    if (j.contains("family"))
+    {
+        std::string familyStr = j.value("family", "custom");
+        if (familyStr == "native")
+            config.family = MCUFamily::Native;
+        else if (familyStr == "espressif")
+            config.family = MCUFamily::Espressif;
+        else if (familyStr == "rp2040")
+            config.family = MCUFamily::RP2040;
+        else if (familyStr == "samd")
+            config.family = MCUFamily::SAMD;
+        else if (familyStr == "nrf")
+            config.family = MCUFamily::NRF;
+        else
+            config.family = MCUFamily::Custom;
+    }
+    else if (j.contains("type"))
+    {
+        // Legacy format - convert type to family + mcuChip
+        std::string typeStr = j.value("type", "custom");
+        if (typeStr == "esp32s3")
+        {
+            config.family = MCUFamily::Espressif;
+            config.mcuChip = "esp32s3";
+        }
+        else if (typeStr == "esp32")
+        {
+            config.family = MCUFamily::Espressif;
+            config.mcuChip = "esp32";
+        }
+        else if (typeStr == "esp32c3")
+        {
+            config.family = MCUFamily::Espressif;
+            config.mcuChip = "esp32c3";
+        }
+        else if (typeStr == "simulator")
+        {
+            config.family = MCUFamily::Native;
+        }
+        else
+        {
+            config.family = MCUFamily::Custom;
+        }
+    }
+
+    // Load mcuChip if not already set by legacy conversion
+    if (config.mcuChip.empty())
+        config.mcuChip = j.value("mcuChip", "");
+    config.boardVariant = j.value("boardVariant", "");
+
+    config.toolchainPrefix = j.value("toolchainPrefix", "");
+    config.idfTarget = j.value("idfTarget", "");
+    config.framework = j.value("framework", "espidf");
+    // idfTarget and displayBus end up inside the shell line that runs idf.py
+    // (ESPIDFToolchain::ExecuteIDF) and in generated CMake; a platform JSON
+    // can arrive in a board pack, so both are allowlisted here and an invalid
+    // value is dropped with an error rather than passed along.
+    if (!config.idfTarget.empty())
+    {
+        const auto& targets = SupportedIdfTargets();
+        if (std::find(targets.begin(), targets.end(), config.idfTarget) == targets.end())
+        {
+            DEKI_LOG_ERROR("Platform '%s': idfTarget '%s' is not a supported ESP-IDF target; ignoring it",
+                           config.id.c_str(), config.idfTarget.c_str());
+            config.idfTarget.clear();
+        }
+    }
+
+    config.flashSize = j.value("flashSize", 0u);
+    config.psramSize = j.value("psramSize", 0u);
+    config.psramMode = j.value("psramMode", "quad");
+    config.cpuFreqHz = j.value("cpuFreqHz", 0u);
+
+    config.screenWidth = j.value("screenWidth", 0);
+    config.screenHeight = j.value("screenHeight", 0);
+    config.displayDriver = j.value("displayDriver", "");
+    config.displayBus = j.value("displayBus", "");
+    if (!config.displayBus.empty() && !IsValidDisplayBus(config.displayBus))
+    {
+        DEKI_LOG_ERROR("Platform '%s': displayBus '%s' is not an identifier (A-Z, 0-9, '_'); ignoring it",
+                       config.id.c_str(), config.displayBus.c_str());
+        config.displayBus.clear();
+    }
+    config.useIramAttr = j.value("useIramAttr", true);
+    config.colorFormat = j.value("colorFormat", "RGB565");
+
+    config.maxAppSize = j.value("maxAppSize", 0u);
+    config.flashFreqHz = j.value("flashFreqHz", 0u);
+
+    config.debugInterface = j.value("debugInterface", "");
+    config.uploadBaudRate = j.value("uploadBaudRate", 0u);
+    config.uploadProtocol = j.value("uploadProtocol", "");
+    config.partitionTable = j.value("partitionTable", "");
+
+    if (j.contains("defines") && j["defines"].is_array())
+        for (const auto& def : j["defines"])
+            config.defines.push_back(def.get<std::string>());
+
+    if (j.contains("cxxFlags") && j["cxxFlags"].is_array())
+        for (const auto& flag : j["cxxFlags"])
+            config.cxxFlags.push_back(flag.get<std::string>());
+
+    if (j.contains("cFlags") && j["cFlags"].is_array())
+        for (const auto& flag : j["cFlags"])
+            config.cFlags.push_back(flag.get<std::string>());
+
+    if (j.contains("linkFlags") && j["linkFlags"].is_array())
+        for (const auto& flag : j["linkFlags"])
+            config.linkFlags.push_back(flag.get<std::string>());
+
+    if (j.contains("requiredLibraries") && j["requiredLibraries"].is_array())
+        for (const auto& lib : j["requiredLibraries"])
+            config.requiredLibraries.push_back(lib.get<std::string>());
+
+    if (j.contains("pins") && j["pins"].is_array())
+    {
+        for (const auto& pinObj : j["pins"])
+        {
+            PinMapping pin;
+            pin.name = pinObj.value("name", "");
+            pin.gpio = pinObj.value("gpio", -1);
+            pin.function = pinObj.value("function", "");
+            config.pins.push_back(pin);
+        }
+    }
+
+    config.bootScene = j.value("bootScene", "");
+    return true;
+}
+
+bool PlatformRegistry::LoadPlatformsFromDirectory(const std::string& path)
+{
+    if (!fs::exists(path) || !fs::is_directory(path))
+        return false;
+
+    bool loaded = false;
+    for (const auto& entry : fs::directory_iterator(path))
+    {
+        if (!entry.is_directory())
+            continue;
+
+        // Each platform lives in its own subdirectory: <id>/<id>.json
+        fs::path jsonFile = entry.path() / (entry.path().filename().string() + ".json");
+        if (!fs::exists(jsonFile))
+            continue;
+
+        try
+        {
+            std::ifstream file(jsonFile);
+            json j;
+            file >> j;
+
+            PlatformConfig config;
+            if (LoadPlatformFromJson(j, config))
+            {
+                RegisterPlatform(config);
+                loaded = true;
+            }
+        }
+        catch (const std::exception&)
+        {
+            // Skip invalid JSON files
+        }
+    }
+
+    return loaded;
+}
+
+bool PlatformRegistry::LoadPlatformsFromBoardPacks()
+{
+    // Get board packs directory: ~/.deki-editor/board-packs/
+    std::string boardPacksDir = DekiEditor::EditorPaths::GetBoardPacksDir();
+
+    if (boardPacksDir.empty() || !fs::exists(boardPacksDir))
+        return false;
+
+    bool loaded = false;
+    try
+    {
+        for (const auto& packEntry : fs::directory_iterator(boardPacksDir))
+        {
+            if (!packEntry.is_directory())
+                continue;
+
+            // Each board pack directory contains platform JSON files
+            for (const auto& platformFile : fs::directory_iterator(packEntry.path()))
+            {
+                if (platformFile.path().extension() != ".json")
+                    continue;
+                if (platformFile.path().filename() == "pack.json")
+                    continue;
+
+                try
+                {
+                    std::ifstream file(platformFile.path());
+                    json j;
+                    file >> j;
+
+                    PlatformConfig config;
+                    if (LoadPlatformFromJson(j, config) && !GetPlatform(config.id))
+                    {
+                        RegisterPlatform(config);
+                        loaded = true;
+                    }
+                }
+                catch (const std::exception&)
+                {
+                    // Skip invalid JSON files
+                }
+            }
+        }
+    }
+    catch (const std::exception&)
+    {
+        // Skip errors during directory iteration
+    }
+
+    return loaded;
+}
+
+void PlatformRegistry::Clear()
+{
+    m_Platforms.clear();
+}
+
+void PlatformRegistry::UnregisterPlatform(const std::string& id)
+{
+    m_Platforms.erase(id);
+}
+
+bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const std::string& directory)
+{
+    try
+    {
+        // Ensure platform subdirectory exists: <dir>/<id>/
+        fs::path platformDir = fs::path(directory) / config.id;
+        fs::create_directories(platformDir);
+
+        // Build JSON — only write non-default values to keep files clean
+        json j;
+        j["id"] = config.id;
+        j["displayName"] = config.displayName;
+
+        switch (config.family)
+        {
+            case MCUFamily::Native: j["family"] = "native"; break;
+            case MCUFamily::Espressif: j["family"] = "espressif"; break;
+            case MCUFamily::RP2040: j["family"] = "rp2040"; break;
+            case MCUFamily::SAMD: j["family"] = "samd"; break;
+            case MCUFamily::NRF: j["family"] = "nrf"; break;
+            default: j["family"] = "custom"; break;
+        }
+
+        if (!config.mcuChip.empty()) j["mcuChip"] = config.mcuChip;
+        if (!config.boardVariant.empty()) j["boardVariant"] = config.boardVariant;
+        if (!config.toolchainPrefix.empty()) j["toolchainPrefix"] = config.toolchainPrefix;
+        if (!config.idfTarget.empty()) j["idfTarget"] = config.idfTarget;
+        j["framework"] = config.framework;
+
+        if (config.flashSize > 0) j["flashSize"] = config.flashSize;
+        if (config.psramSize > 0) j["psramSize"] = config.psramSize;
+        if (!config.psramMode.empty() && config.psramMode != "quad") j["psramMode"] = config.psramMode;
+        if (config.maxAppSize > 0) j["maxAppSize"] = config.maxAppSize;
+        if (config.cpuFreqHz > 0) j["cpuFreqHz"] = config.cpuFreqHz;
+        if (config.flashFreqHz > 0) j["flashFreqHz"] = config.flashFreqHz;
+
+        if (config.screenWidth > 0) j["screenWidth"] = config.screenWidth;
+        if (config.screenHeight > 0) j["screenHeight"] = config.screenHeight;
+        if (!config.displayDriver.empty()) j["displayDriver"] = config.displayDriver;
+        if (!config.displayBus.empty()) j["displayBus"] = config.displayBus;
+        if (!config.useIramAttr) j["useIramAttr"] = false;
+        if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
+
+        if (!config.defines.empty()) j["defines"] = config.defines;
+        if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
+        if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
+        if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
+        if (!config.requiredLibraries.empty()) j["requiredLibraries"] = config.requiredLibraries;
+
+        if (!config.debugInterface.empty()) j["debugInterface"] = config.debugInterface;
+        if (config.uploadBaudRate > 0 && config.uploadBaudRate != 921600)
+            j["uploadBaudRate"] = config.uploadBaudRate;
+        if (!config.uploadProtocol.empty()) j["uploadProtocol"] = config.uploadProtocol;
+        if (!config.partitionTable.empty()) j["partitionTable"] = config.partitionTable;
+
+        if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
+
+        if (!config.pins.empty())
+        {
+            json pinsArray = json::array();
+            for (const auto& pin : config.pins)
+            {
+                json pinObj;
+                pinObj["name"] = pin.name;
+                pinObj["gpio"] = pin.gpio;
+                pinObj["function"] = pin.function;
+                pinsArray.push_back(pinObj);
+            }
+            j["pins"] = pinsArray;
+        }
+
+        // Write to file: <dir>/<id>/<id>.json
+        fs::path filePath = platformDir / (config.id + ".json");
+        std::ofstream file(filePath);
+        file << j.dump(2);
+        file.close();
+
+        // Also register in memory
+        RegisterPlatform(config);
+
+        return true;
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+}
+
+bool PlatformRegistry::DeletePlatform(const std::string& id, const std::string& directory)
+{
+    try
+    {
+        // Remove from registry
+        UnregisterPlatform(id);
+
+        // Delete entire platform subdirectory: <dir>/<id>/
+        fs::path platformDir = fs::path(directory) / id;
+        if (fs::exists(platformDir))
+        {
+            fs::remove_all(platformDir);
+        }
+
+        return true;
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+}
+
+// ============================================================================
+// Built-in Platform Configurations (Fallback for legacy projects)
+// ============================================================================
+
+PlatformConfig CreateSimulatorPlatformConfig()
+{
+    PlatformConfig config;
+
+    // Identification
+    config.id = "native_simulator";
+    config.displayName = "Desktop Simulator (SDL3)";
+    config.family = MCUFamily::Native;
+    config.mcuChip = "";
+
+    // Toolchain (native)
+    config.toolchainPrefix = "";
+    config.idfTarget = "";
+    config.framework = "native";
+
+    // Memory (unlimited for desktop)
+    config.flashSize = 0;
+    config.psramSize = 0;
+    config.maxAppSize = 0;
+
+    // Display
+    config.screenWidth = 320;
+    config.screenHeight = 240;
+    config.displayDriver = "SDL3";
+    config.displayBus = "SOFTWARE";
+
+    // Compiler defines
+    config.defines = {
+        "SIMULATOR",
+        "DEKI_PACKAGE_SDL3",
+        "DEBUG",
+        "DEKI_LOG_ENABLED"
+    };
+
+    // C++ flags
+    config.cxxFlags = {
+        "-std=c++17",
+        "-O0",
+        "-g"
+    };
+
+    return config;
+}
+
+void RegisterBuiltInPlatforms()
+{
+    PlatformRegistry& registry = PlatformRegistry::Instance();
+
+    // Only register Simulator as fallback for legacy projects
+    registry.RegisterPlatform(CreateSimulatorPlatformConfig());
+}
+
+}  // namespace DekiEditor

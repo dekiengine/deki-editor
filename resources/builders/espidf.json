@@ -1,0 +1,109 @@
+{
+  "id": "espidf",
+  "name": "ESP-IDF",
+  "family": "espressif",
+  "supportedTargets": ["esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2"],
+  "buildDirectory": "builders/esp-idf",
+  "debug": {
+    "gdb": {
+      "searchPaths": [
+        "~/.espressif/tools/xtensa-esp-elf-gdb/*/xtensa-esp-elf-gdb/bin",
+        "~/.espressif/tools/riscv32-esp-elf-gdb/*/riscv32-esp-elf-gdb/bin"
+      ],
+      "binaryPattern": "${toolchainPrefix}gdb"
+    },
+    "server": {
+      "searchPaths": [
+        "~/.espressif/tools/openocd-esp32/*/openocd-esp32/bin"
+      ],
+      "binary": "openocd",
+      "scriptsDir": "../share/openocd/scripts"
+    },
+    "boardConfigs": {
+      "builtin-jtag": "board/${idfTarget}-builtin.cfg",
+      "ftdi": "board/${idfTarget}-ftdi.cfg",
+      "esp-prog": "board/${idfTarget}-bridge.cfg"
+    },
+    "defaultBoardConfig": "builtin-jtag",
+    "elf": "build/${platformId}/build/DekiGame.elf",
+    "setupCommands": [
+      "set remote hardware-watchpoint-limit 2",
+      "mon reset halt",
+      "flushregs"
+    ]
+  },
+  "components": [
+    {
+      "id": "esp-idf",
+      "displayName": "ESP-IDF SDK",
+      "required": true,
+      "canInstall": true,
+      "canSetup": true,
+      "installPath": "espressif/esp-idf",
+      "versionCheck": {
+        "type": "github_release",
+        "repo": "espressif/esp-idf",
+        "assetPattern": ".zip"
+      },
+      "fallback": {
+        "version": "v5.3.2",
+        "url": "https://github.com/espressif/esp-idf/releases/download/v5.3.2/esp-idf-v5.3.2.zip",
+        "sha256": "cc016c8be9c4f9b0d295e82fa88c369a05c8af68f1bcb7813c7b89eccd46a9e4"
+      },
+      "detection": {
+        "windows": "{installPath}/*/export.bat",
+        "unix": "{installPath}/*/export.sh"
+      },
+      "postInstall": {
+        "windows": "{installPath}/*/install.bat esp32s3",
+        "unix": "{installPath}/*/install.sh esp32s3"
+      },
+      "tooltip": "Espressif IoT Development Framework"
+    },
+    {
+      "id": "python",
+      "displayName": "Python",
+      "required": true,
+      "canInstall": true,
+      "canSetup": false,
+      "installPath": "espressif/python",
+      "versionCheck": {
+        "type": "static",
+        "version": "3.11.9"
+      },
+      "fallback": {
+        "version": "3.11.9",
+        "url": "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip",
+        "sha256": "009d6bf7e3b2ddca3d784fa09f90fe54336d5b60f0e0f305c37f400bf83cfd3b"
+      },
+      "detection": {
+        "windows": "{installPath}/python.exe",
+        "unix": "{installPath}/bin/python3"
+      },
+      "tooltip": "Python interpreter (needed by ESP-IDF)"
+    },
+    {
+      "id": "esptool",
+      "displayName": "esptool",
+      "required": false,
+      "canInstall": true,
+      "canSetup": false,
+      "installPath": "espressif/esptool",
+      "versionCheck": {
+        "type": "github_release",
+        "repo": "espressif/esptool",
+        "assetPattern": "win64.zip"
+      },
+      "fallback": {
+        "version": "v4.8.1",
+        "url": "https://github.com/espressif/esptool/releases/download/v4.8.1/esptool-v4.8.1-win64.zip",
+        "sha256": "2483d409e241d8826ae0ff023eecf31a7d4de6c10ca5ee855b1420cdfd53aaf6"
+      },
+      "detection": {
+        "windows": "espressif/esptool/*/esptool.exe",
+        "unix": "espressif/esptool/*/esptool.py"
+      },
+      "tooltip": "Flash tool for ESP32 devices"
+    }
+  ]
+}
