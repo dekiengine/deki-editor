@@ -109,6 +109,12 @@ Findings of the pre-publication review, all fixed in this release:
   directory it migrates from.
 
 ### Fixed
+- A transparent pixel between two opaque ones on the same row of a sprite
+  (the notch of a heart, the gap between a character's legs) rendered as the
+  chroma-key colour. The texture importer recorded one non-key span per row
+  and the renderer's fast path copied the span verbatim. Rows with a hole are
+  now recorded as `(-1, -1)` and deki-rendering 0.10.1 compares those pixel
+  by pixel; the asset cache version is bumped so every texture is re-imported.
 - Play mode: a crash in game code (a null dereference in a behaviour's
   `Update`, say) is contained and reported in the Console on MinGW and Linux
   builds. The guard only worked in MSVC builds before, so on the supported

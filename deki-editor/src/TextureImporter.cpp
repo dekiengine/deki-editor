@@ -269,6 +269,21 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
             qKeyB = static_cast<uint8_t>((qKeyB >> 3) << 3);
         }
 
+        auto isKeyAt = [&](uint32_t x, uint32_t y) -> bool
+        {
+            size_t i = (static_cast<size_t>(y) * width + x) * 4;
+            uint8_t pr = rgbaData[i + 0];
+            uint8_t pg = rgbaData[i + 1];
+            uint8_t pb = rgbaData[i + 2];
+            if (isRGB565Family)
+            {
+                pr = static_cast<uint8_t>((pr >> 3) << 3);
+                pg = static_cast<uint8_t>((pg >> 2) << 2);
+                pb = static_cast<uint8_t>((pb >> 3) << 3);
+            }
+            return pr == qKeyR && pg == qKeyG && pb == qKeyB;
+        };
+
         chromaSpans.resize(static_cast<size_t>(height) * 2);
         for (uint32_t y = 0; y < height; ++y)
         {
@@ -276,17 +291,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
             int16_t endCol = 0;
             for (uint32_t x = 0; x < width; ++x)
             {
-                size_t i = (static_cast<size_t>(y) * width + x) * 4;
-                uint8_t pr = rgbaData[i + 0];
-                uint8_t pg = rgbaData[i + 1];
-                uint8_t pb = rgbaData[i + 2];
-                if (isRGB565Family)
-                {
-                    pr = static_cast<uint8_t>((pr >> 3) << 3);
-                    pg = static_cast<uint8_t>((pg >> 2) << 2);
-                    pb = static_cast<uint8_t>((pb >> 3) << 3);
-                }
-                if (pr != qKeyR || pg != qKeyG || pb != qKeyB)
+                if (!isKeyAt(x, y))
                 {
                     startCol = static_cast<int16_t>(x);
                     break;
@@ -294,17 +299,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
             }
             for (int32_t x = static_cast<int32_t>(width) - 1; x >= startCol; --x)
             {
-                size_t i = (static_cast<size_t>(y) * width + x) * 4;
-                uint8_t pr = rgbaData[i + 0];
-                uint8_t pg = rgbaData[i + 1];
-                uint8_t pb = rgbaData[i + 2];
-                if (isRGB565Family)
-                {
-                    pr = static_cast<uint8_t>((pr >> 3) << 3);
-                    pg = static_cast<uint8_t>((pg >> 2) << 2);
-                    pb = static_cast<uint8_t>((pb >> 3) << 3);
-                }
-                if (pr != qKeyR || pg != qKeyG || pb != qKeyB)
+                if (!isKeyAt(static_cast<uint32_t>(x), y))
                 {
                     endCol = static_cast<int16_t>(x + 1);
                     break;
@@ -315,6 +310,20 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
             {
                 startCol = 0;
                 endCol = 0;
+            }
+            // A key pixel strictly inside [startCol, endCol) breaks the span
+            // contract: the blit copies the span verbatim, so the hole (the
+            // notch of a heart, the gap between two legs) came out as the key
+            // colour. Such a row is recorded as (-1, -1) and the blit compares
+            // every pixel of it instead.
+            for (int32_t x = startCol + 1; x + 1 < endCol; ++x)
+            {
+                if (isKeyAt(static_cast<uint32_t>(x), y))
+                {
+                    startCol = -1;
+                    endCol = -1;
+                    break;
+                }
             }
             chromaSpans[y * 2] = startCol;
             chromaSpans[y * 2 + 1] = endCol;

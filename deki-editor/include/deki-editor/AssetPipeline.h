@@ -19,7 +19,7 @@ namespace DekiEditor
 // The asset pipeline will wipe and regenerate the cache on version mismatch.
 // v3: frame animation cache moved to reflection-generated MessagePack (full
 //     field-name keys) instead of the hand-written compact-key format.
-constexpr int DEKI_CACHE_VERSION = 3;
+constexpr int DEKI_CACHE_VERSION = 4;  // 4: chroma spans mark rows with interior key pixels
 
 // Forward declaration
 class AssetPipeline;
