@@ -103,6 +103,12 @@ Findings of the pre-publication review, all fixed in this release:
   directory it migrates from.
 
 ### Fixed
+- Play mode: a crash in game code (a null dereference in a behaviour's
+  `Update`, say) is contained and reported in the Console on MinGW and Linux
+  builds. The guard only worked in MSVC builds before, so on the supported
+  toolchain it took the editor down. The report carries the exception or
+  signal, the address and, when the crash handler is initialised, a stack
+  trace captured at the fault.
 - The plugin loader read the reflection-ABI handshake struct of a project
   plugin built before ABI v3 past its end (the package loader had the guard,
   the plugin loader did not); it now reads `version` first and refuses the

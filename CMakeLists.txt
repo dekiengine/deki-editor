@@ -480,6 +480,8 @@ set(EDITOR_TESTABLE_SOURCES
     # Provides the fault handler SafeDllCall relies on off MSVC. Compiled away
     # to nothing on MSVC, which uses __try/__except instead.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FaultGuard.cpp
+    # PlayModeGuardTests: a fault in play-mode game code is reported, not fatal.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PlayModeGuard.cpp
 )
 
 # Editor sources

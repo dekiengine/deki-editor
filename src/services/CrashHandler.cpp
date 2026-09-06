@@ -1,4 +1,7 @@
 #include "CrashHandler.h"
+#ifndef _MSC_VER
+#include "FaultGuard.h"
+#endif
 #include <deki-editor/EditorTheme.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
@@ -1303,8 +1306,31 @@ static void CrashTerminateHandler()
 #endif
 }
 
+#ifndef _MSC_VER
+// FaultGuard's trace hook: runs inside the fault handler, on the faulting
+// thread, when a guard (PlayModeGuard) asked for a stack trace. Same capture
+// the fatal path uses, so a contained play-mode crash reads like a real one.
+static void FaultGuardTraceHook(void* platformInfo, std::string& outTrace, std::string& outAccess)
+{
+#if defined(_WIN32)
+    auto* ep = static_cast<EXCEPTION_POINTERS*>(platformInfo);
+    if (!ep) return;
+    if (ep->ExceptionRecord)
+        outAccess = FormatAccessViolationDetails(ep->ExceptionRecord);
+    if (ep->ContextRecord)
+        outTrace = CaptureStackTraceWindows(ep->ContextRecord);
+#else
+    (void)platformInfo;
+    outTrace = CaptureStackTraceUnix();
+#endif
+}
+#endif
+
 void CrashHandler::Initialize()
 {
+#ifndef _MSC_VER
+    FaultGuardSetTraceHook(&FaultGuardTraceHook);
+#endif
 #ifdef _WIN32
     InitializeSymbols();
     SetUnhandledExceptionFilter(CrashExceptionFilter);

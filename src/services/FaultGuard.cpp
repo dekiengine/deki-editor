@@ -10,6 +10,7 @@
 #ifndef _MSC_VER
 
 #include <cstdio>
+#include <string>
 #ifndef _WIN32
 #include <cstring>
 #endif
@@ -18,6 +19,28 @@ namespace DekiEditor
 {
 
 thread_local FaultGuard* t_faultGuard = nullptr;
+
+namespace
+{
+FaultTraceHook g_traceHook = nullptr;
+
+// Runs the trace hook for a guard that asked for one. Inside the handler, so
+// nothing here may throw or fault; the hook promises the same.
+void RunTraceHook(FaultGuard* g, void* platformInfo)
+{
+    if (!g_traceHook || !(g->trace || g->accessDetails))
+        return;
+    std::string trace, access;
+    g_traceHook(platformInfo, trace, access);
+    if (g->trace) g->trace->swap(trace);
+    if (g->accessDetails) g->accessDetails->swap(access);
+}
+}  // namespace
+
+void FaultGuardSetTraceHook(FaultTraceHook hook)
+{
+    g_traceHook = hook;
+}
 
 // ============================================================================
 #if defined(_WIN32)
@@ -64,6 +87,9 @@ LONG CALLBACK FaultHandler(EXCEPTION_POINTERS* info)
         g->accessType = static_cast<std::uintptr_t>(rec->ExceptionInformation[0]);
         g->accessAddr = static_cast<std::uintptr_t>(rec->ExceptionInformation[1]);
     }
+
+    // The faulting frames are still walkable here and nowhere later.
+    RunTraceHook(g, info);
 
     // Set last: the recovery pass keys off this, and everything above must be
     // visible by then.
@@ -144,6 +170,11 @@ void FaultHandler(int sig, siginfo_t* info, void* /*ucontext*/)
     g->code = static_cast<unsigned long>(sig);
     g->faultIp = 0;  // would need per-arch ucontext_t decoding; not worth it here
     g->accessAddr = info ? reinterpret_cast<std::uintptr_t>(info->si_addr) : 0;
+
+    // Trace while the faulting frames still exist. The hook's backtrace is not
+    // strictly async-signal-safe; it is the same call the fatal path makes, and
+    // a guard that asked for it has judged the diagnostic worth that risk.
+    RunTraceHook(g, info);
 
     // siglongjmp, not longjmp: it restores the signal mask saved by sigsetjmp.
     // Without that the signal stays blocked on this thread — it was blocked on

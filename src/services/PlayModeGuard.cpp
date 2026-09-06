@@ -1,11 +1,16 @@
 #include "PlayModeGuard.h"
-#include "CrashHandler.h"
 
 #include <cstdio>
 #include <exception>
 
 #if defined(_WIN32)
 #include <windows.h>
+#endif
+
+#if defined(_MSC_VER)
+#include "CrashHandler.h"
+#else
+#include "FaultGuard.h"
 #endif
 
 namespace DekiEditor
@@ -43,16 +48,30 @@ const char* ExceptionCodeName(uint32_t code)
 #endif
 }
 
-void FormatMessage(CrashInfo& info)
+void FormatMessage(CrashInfo& info, const char* name)
 {
     char buf[256];
-    std::snprintf(buf, sizeof(buf), "%s at 0x%016llx",
-                  ExceptionCodeName(info.exceptionCode),
+    std::snprintf(buf, sizeof(buf), "%s at 0x%016llx", name,
                   (unsigned long long)(uintptr_t)info.faultAddress);
     info.message = buf;
 }
 
-// SEH is MSVC-only; MinGW/GCC uses the C++-catch fallback in Invoke() below.
+// "Attempted to READ address 0x0000000000000000 [null pointer dereference]",
+// the same shape CrashHandler prints for a fatal access violation, from the
+// fields the guard recorded. The trace hook may replace it with the crash
+// handler's own text when one is installed.
+void FormatAccessDetails(CrashInfo& info, std::uintptr_t accessType, std::uintptr_t addr, bool known)
+{
+    if (!known)
+        return;
+    const char* verb = accessType == 1 ? "WRITE" : accessType == 8 ? "EXECUTE" : "READ";
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "Attempted to %s address 0x%016llx%s", verb,
+                  (unsigned long long)addr, addr < 0x10000 ? " [null pointer dereference]" : "");
+    info.accessDetails = buf;
+}
+
+// SEH is MSVC-only; MinGW/GCC and POSIX use FaultGuard below.
 #if defined(_MSC_VER)
 int SehFilter(EXCEPTION_POINTERS* ep, CrashInfo* outInfo)
 {
@@ -100,6 +119,43 @@ static void StdFunctionTrampoline(void* ctx)
 {
     (*static_cast<const std::function<void()>*>(ctx))();
 }
+#else
+// The guarded call in its own frame: DEKI_FAULT_GUARD_BEGIN is also the resume
+// point, and recovery abandons every frame below it without unwinding, so the
+// function holds nothing that needs a destructor across the call. The C++
+// try/catch stays in Invoke(), outside the guard: a C++ exception unwinds
+// normally and never reaches the fault handler.
+static bool RunUnderFaultGuard(const std::function<void()>& fn, CrashInfo& outInfo)
+{
+    FaultGuard g;
+    DEKI_FAULT_GUARD_BEGIN(g);
+    if (g.faulted)
+    {
+        DEKI_FAULT_GUARD_END(g);
+        outInfo.exceptionCode = static_cast<uint32_t>(g.code);
+#if defined(_WIN32)
+        outInfo.faultAddress = reinterpret_cast<const void*>(g.faultIp);
+        const bool isAv = g.code == EXCEPTION_ACCESS_VIOLATION;
+        if (outInfo.accessDetails.empty())
+            FormatAccessDetails(outInfo, g.accessType, g.accessAddr, isAv);
+        FormatMessage(outInfo, ExceptionCodeName(outInfo.exceptionCode));
+#else
+        // POSIX reports the address touched, not the instruction; that is the
+        // more useful of the two for a null dereference anyway.
+        outInfo.faultAddress = reinterpret_cast<const void*>(g.accessAddr);
+        if (outInfo.accessDetails.empty())
+            FormatAccessDetails(outInfo, 0, g.accessAddr, g.code == SIGSEGV || g.code == SIGBUS);
+        FormatMessage(outInfo, FaultGuardDescribe(g));
+#endif
+        return false;
+    }
+    // Ask the handler for a trace, filled while the faulting frames still exist.
+    g.trace = &outInfo.stackTrace;
+    g.accessDetails = &outInfo.accessDetails;
+    fn();
+    DEKI_FAULT_GUARD_END(g);
+    return true;
+}
 #endif
 }  // namespace
 
@@ -108,13 +164,16 @@ bool Invoke(const char* phase, const std::function<void()>& fn, CrashInfo& outIn
     outInfo = CrashInfo{};
     outInfo.phase = phase;
 
-#if defined(_MSC_VER)
     bool ok = false;
     try
     {
+#if defined(_MSC_VER)
         ok = RunUnderSeh(&StdFunctionTrampoline,
                          const_cast<std::function<void()>*>(&fn),
                          &outInfo);
+#else
+        ok = RunUnderFaultGuard(fn, outInfo);
+#endif
     }
     catch (const std::exception& e)
     {
@@ -131,31 +190,11 @@ bool Invoke(const char* phase, const std::function<void()>& fn, CrashInfo& outIn
         return false;
     }
 
+#if defined(_MSC_VER)
     if (!ok)
-    {
-        FormatMessage(outInfo);
-        return false;
-    }
-    return true;
-#else
-    // TODO(non-win32): no SEH equivalent; signal-based recovery is unsafe.
-    // Fall through to a direct call so behaviour matches the pre-guard editor.
-    try
-    {
-        fn();
-        return true;
-    }
-    catch (const std::exception& e)
-    {
-        outInfo.message = std::string("C++ exception: ") + e.what();
-        return false;
-    }
-    catch (...)
-    {
-        outInfo.message = "Unknown C++ exception";
-        return false;
-    }
+        FormatMessage(outInfo, ExceptionCodeName(outInfo.exceptionCode));
 #endif
+    return ok;
 }
 
 }  // namespace PlayModeGuard
