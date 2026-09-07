@@ -4,6 +4,15 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.11.1
+
+### Fixed
+- The reflection codegen skipped a project header whose class derives from a
+  component of the project's own (`class Slime : public EnemyBase`) and never
+  names `Component` or `Behaviour`; the component then failed to resolve at
+  load. Any header with a derived class is reflected now.
+- `AddComponent` warnings say "type", not "GUID".
+
 ## 0.11.0
 
 ### Breaking
