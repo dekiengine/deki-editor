@@ -4,6 +4,15 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.12.0
+
+### Breaking
+- `Behaviour::NeedsUpdate()` / `SetNeedsUpdate()` are gone. Declaring
+  `Update()` is what makes it run; a behaviour without one costs nothing per
+  frame, and there is no per-instance switch. `tools/migrate-components.py`
+  strips the old `SetNeedsUpdate(true)` calls. Reflection ABI 8; every
+  package is re-released as 0.12.0 with `minEngine` 0.12.0.
+
 ## 0.11.1
 
 ### Fixed

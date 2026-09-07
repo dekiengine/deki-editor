@@ -29,8 +29,10 @@ What the script does, per directory given:
     include; moves DEKI_DESCRIPTION / DEKI_DISPLAY_NAME /
     DEKI_PROJECT_SETTINGS_SECTION (now DEKI_SETTINGS_SECTION) above the class.
   * sources and headers: `X::StaticType` -> `::Deki::TypeId<X>()`,
-    `X::StaticGuid` -> `::Deki::TypeName<X>()`, and removes the
-    DEKI_REGISTER_PROJECT_SETTINGS(_PLUGIN) lines (registration is generated).
+    `X::StaticGuid` -> `::Deki::TypeName<X>()`, removes the
+    DEKI_REGISTER_PROJECT_SETTINGS(_PLUGIN) lines (registration is generated)
+    and the `SetNeedsUpdate(...)` / `NeedsUpdate() override` lines (engine 0.12:
+    declaring Update() is what makes it run).
   * records every GUID -> qualified name it saw into --map (JSON, merged).
   * --assets DIR...: rewrites JSON assets (scenes, boot scenes, graphs, a
     package.json) using the map: GUID strings become qualified names, numeric
@@ -40,7 +42,7 @@ What the script does, per directory given:
     python tools/migrate-components.py deki-engine/include modules/deki-2d --map guids.json
     python tools/migrate-components.py --map guids.json --assets deki-demo/assets deki-demo/platforms
 
-Idempotent: a tree without DEKI_COMPONENT is left alone.
+Idempotent: a tree with nothing to rewrite is left alone.
 """
 
 from __future__ import annotations
@@ -247,6 +249,9 @@ def migrate_header(path: Path, text: str, guid_map: dict[str, str]) -> str | Non
 STATIC_TYPE_RE = re.compile(r'\b([A-Za-z_][\w:]*)::StaticType\b')
 STATIC_GUID_RE = re.compile(r'\b([A-Za-z_][\w:]*)::StaticGuid\b')
 REGISTER_RE = re.compile(r'^[ \t]*DEKI_REGISTER_PROJECT_SETTINGS(?:_PLUGIN)?\(\s*\w+\s*\)\s*;?[ \t]*\n', re.M)
+# Engine 0.12: the per-instance NeedsUpdate switch is gone; declaring Update() is the rule.
+NEEDS_UPDATE_CALL_RE = re.compile(r'^[ \t]*SetNeedsUpdate\((?:true|false)\);[ \t]*(?://[^\n]*)?\n', re.M)
+NEEDS_UPDATE_OVERRIDE_RE = re.compile(r'^[ \t]*bool NeedsUpdate\(\) const override \{ return (?:true|false); \}[ \t]*(?://[^\n]*)?\n', re.M)
 
 
 def migrate_source(text: str) -> str | None:
@@ -261,6 +266,8 @@ def migrate_source(text: str) -> str | None:
     text = STATIC_TYPE_RE.sub(st, text)
     text = STATIC_GUID_RE.sub(lambda m: f"::Deki::TypeName<{m.group(1)}>()", text)
     text = REGISTER_RE.sub("", text)
+    text = NEEDS_UPDATE_CALL_RE.sub("", text)
+    text = NEEDS_UPDATE_OVERRIDE_RE.sub("", text)
     return text if text != original else None
 
 

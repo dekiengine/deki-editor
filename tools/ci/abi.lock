@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 7
+abi_version: 8
 
 class Deki::Component (9 virtual)
   ~Component()
@@ -17,12 +17,11 @@ class Deki::Component (9 virtual)
   bool NeedsRuntimeUpdate() const
   void OnPropertyChanged(const char* propertyName)
 
-class Deki::Behaviour (5 virtual)
+class Deki::Behaviour (4 virtual)
   ~Behaviour()
   void Awake()
   void Start()
   void Update()
-  bool NeedsUpdate() const
 
 class Deki::IDisplay (18 virtual)
   ~IDisplay()

@@ -63,9 +63,8 @@ void RunFrames(Deki::LifecycleManager* lm, Deki::Scene& scene, int frames)
 
 } // namespace
 
-// The update gate: NeedsUpdate()/DeclaresUpdate() were never consulted, so
-// every started behaviour paid a virtual call per frame whether or not it had
-// anything to run.
+// The update gate: DeclaresUpdate() was never consulted, so every started
+// behaviour paid a virtual call per frame whether or not it had anything to run.
 TEST(HeadlessRuntime, UpdateIsSkippedForBehavioursThatDoNotDeclareIt)
 {
     Deki::Scene scene;
@@ -75,27 +74,6 @@ TEST(HeadlessRuntime, UpdateIsSkippedForBehavioursThatDoNotDeclareIt)
 
     RunFrames(Deki::Engine::GetInstance().GetLifecycleManager(), scene, 5);
     EXPECT_EQ(silent->updates, 0);
-}
-
-TEST(HeadlessRuntime, SetNeedsUpdateFalseIsARuntimeOptOut)
-{
-    Deki::Scene scene;
-    Deki::Object* root = scene.CreateDekiObject("Root");
-    auto* counter = new TickCounter();
-    root->AddComponent(counter);
-    auto* lm = Deki::Engine::GetInstance().GetLifecycleManager();
-
-    RunFrames(lm, scene, 3);
-    const int ticked = counter->updates;
-    EXPECT_GT(ticked, 0) << "declared Update runs by default";
-
-    counter->SetNeedsUpdate(false);
-    RunFrames(lm, scene, 3);
-    EXPECT_EQ(counter->updates, ticked) << "opted out: no further ticks";
-
-    counter->SetNeedsUpdate(true);
-    RunFrames(lm, scene, 3);
-    EXPECT_GT(counter->updates, ticked) << "opted back in";
 }
 
 TEST(HeadlessRuntime, LifecycleRunsWithNoDisplayAndNoRenderer)
