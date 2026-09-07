@@ -202,8 +202,8 @@ def component_section(c, level="##", pid="", base_links=None):
         facts.append(f"Inspector name: {esc(display)}")
     if c.get("category"):
         facts.append(f"Category: {esc(c['category'])}")
-    if c.get("guid"):
-        facts.append(f"Type GUID: {code(c['guid'])}")
+    if c.get("type"):
+        facts.append(f"Type: {code(c['type'])}")
     flags = []
     if c.get("isAbstract"):
         flags.append("abstract")

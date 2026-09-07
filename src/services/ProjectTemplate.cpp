@@ -132,7 +132,7 @@ bool ProjectTemplate::CreateDirectories(const std::string& projectPath)
 // The scene the desktop simulator boots: a PlatformSetupComponent whose setup
 // components open the SDL3 window (2x, the panel's size) and enable keyboard
 // and mouse; once they are up it loads the project's startup scene. The
-// typeIds are HashString() of the two component GUIDs, which is what StaticType hashes.
+// typeIds are HashString() of the two component class names (Deki::TypeId<T>()).
 static const char* kSimulatorBootScene = R"json({
   "objects": [
     {
@@ -145,7 +145,7 @@ static const char* kSimulatorBootScene = R"json({
             {
               "class": "SDL3DisplaySetup",
               "properties": { "windowWidth": 320, "windowHeight": 240, "windowScale": 2 },
-              "type": "c3a8f1d0-5b7e-4a2c-8d91-6e3f4c7b2a50"
+              "type": "SDL3DisplaySetup"
             }
           ],
           "id": 600,
@@ -159,7 +159,7 @@ static const char* kSimulatorBootScene = R"json({
             {
               "class": "SDL3InputSetup",
               "properties": { "enableKeyboard": true, "enableMouse": true },
-              "type": "d4b9e2f1-6c8a-4d3b-9e72-7f4g5d8c3b61"
+              "type": "SDL3InputSetup"
             }
           ],
           "id": 601,
@@ -171,9 +171,9 @@ static const char* kSimulatorBootScene = R"json({
         {
           "class": "PlatformSetupComponent",
           "properties": {
-            "setupComponents": [ { "id": 600, "typeId": 1129371288 }, { "id": 601, "typeId": 2309669438 } ]
+            "setupComponents": [ { "id": 600, "typeId": 813358572 }, { "id": 601, "typeId": 2694918394 } ]
           },
-          "type": "e1b3c909-aaa1-49f4-8d62-04145f79f2a0"
+          "type": "Deki::PlatformSetupComponent"
         }
       ],
       "id": 1,

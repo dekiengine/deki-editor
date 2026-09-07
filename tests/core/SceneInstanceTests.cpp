@@ -34,7 +34,7 @@ protected:
                                       int intVal = 0, float floatVal = 0.0f)
     {
         Deki::Object* obj = scene->CreateDekiObject(name);
-        auto* comp = obj->AddComponent("mock-component-test-guid");
+        auto* comp = obj->AddComponent(Deki::TypeName<MockComponent>());
         if (comp)
         {
             auto* mock = static_cast<MockComponent*>(comp);
@@ -84,7 +84,7 @@ TEST_F(SceneInstanceTest, SmallEnumRestore_OneByte_WritesOnlyOneByte)
     comp.trailingPointer = nullptr;
 
     ComponentData data;
-    data.typeName = "mock-small-enum-component-guid";
+    data.typeName = Deki::TypeName<MockSmallEnumComponent>();
     data.properties["smallEnum2"] = 2;
 
     RestoreComponentProperties(&comp, data);
@@ -101,7 +101,7 @@ TEST_F(SceneInstanceTest, SmallEnumRestore_TwoByte_WritesOnlyTwoBytes)
     MockSmallEnumComponent comp;
 
     ComponentData data;
-    data.typeName = "mock-small-enum-component-guid";
+    data.typeName = Deki::TypeName<MockSmallEnumComponent>();
     data.properties["mediumEnum"] = 1;
 
     RestoreComponentProperties(&comp, data);
@@ -178,7 +178,7 @@ TEST_F(SceneInstanceTest, ObjectRefRestore_WithTypeId_RestoresBothFields)
     comp.targetRef.resolved = reinterpret_cast<Deki::Object*>(static_cast<uintptr_t>(0xDEADBEEF));
 
     ComponentData data;
-    data.typeName = "mock-ref-component-guid";
+    data.typeName = Deki::TypeName<MockRefComponent>();
     data.properties["targetRef"] = nlohmann::json{{"id", 999}, {"typeId", 111}};
 
     RestoreComponentProperties(&comp, data);
@@ -195,7 +195,7 @@ TEST_F(SceneInstanceTest, ObjectRefRestore_PlainId_RestoresWithZeroTypeId)
     MockRefComponent comp;
 
     ComponentData data;
-    data.typeName = "mock-ref-component-guid";
+    data.typeName = Deki::TypeName<MockRefComponent>();
     data.properties["targetRef"] = 555;
 
     RestoreComponentProperties(&comp, data);
@@ -360,7 +360,7 @@ TEST_F(SceneInstanceTest, CreateChildrenRecursive_RestoresComponents)
 
     Deki::Object* child = new Deki::Object("Child");
     root->AddChild(child);
-    auto* comp = child->AddComponent("mock-component-test-guid");
+    auto* comp = child->AddComponent(Deki::TypeName<MockComponent>());
     auto* mock = static_cast<MockComponent*>(comp);
     mock->intValue = 42;
     mock->stringValue = "hello";
@@ -442,7 +442,7 @@ TEST_F(SceneInstanceTest, ObjectRefAfterRestore_PointsToRestoredObject)
     Deki::Object* bgObj = new Deki::Object("Background");
     root->AddChild(bgObj);
     auto* refComp = static_cast<MockRefComponent*>(
-        bgObj->AddComponent("mock-ref-component-guid"));
+        bgObj->AddComponent(Deki::TypeName<MockRefComponent>()));
     refComp->targetRef.id = buttonId;
     refComp->targetRef.componentTypeId = 12345;
 
@@ -485,14 +485,14 @@ TEST_F(SceneInstanceTest, SerializeComponents_MultipleComponents_CapturesAll)
 {
     // Verifies that all components on an object are serialized in order.
     Deki::Object obj("Multi");
-    obj.AddComponent("mock-component-test-guid");
-    obj.AddComponent("mock-ref-component-guid");
+    obj.AddComponent(Deki::TypeName<MockComponent>());
+    obj.AddComponent(Deki::TypeName<MockRefComponent>());
 
     std::vector<ComponentData> serialized = SerializeComponents(&obj);
 
     ASSERT_EQ(serialized.size(), 2u);
-    EXPECT_EQ(serialized[0].typeName, "mock-component-test-guid");
-    EXPECT_EQ(serialized[1].typeName, "mock-ref-component-guid");
+    EXPECT_EQ(serialized[0].typeName, Deki::TypeName<MockComponent>());
+    EXPECT_EQ(serialized[1].typeName, Deki::TypeName<MockRefComponent>());
 }
 
 TEST_F(SceneInstanceTest, RestoreComponents_RecreatesInOrder)
@@ -504,13 +504,13 @@ TEST_F(SceneInstanceTest, RestoreComponents_RecreatesInOrder)
     std::vector<ComponentData> comps;
 
     ComponentData cd1;
-    cd1.typeName = "mock-component-test-guid";
+    cd1.typeName = Deki::TypeName<MockComponent>();
     cd1.properties["intValue"] = 10;
     cd1.properties["stringValue"] = "first";
     comps.push_back(cd1);
 
     ComponentData cd2;
-    cd2.typeName = "mock-ref-component-guid";
+    cd2.typeName = Deki::TypeName<MockRefComponent>();
     cd2.properties["someValue"] = 20;
     cd2.properties["targetRef"] = nlohmann::json{{"id", 100}, {"typeId", 200}};
     comps.push_back(cd2);
@@ -709,12 +709,12 @@ TEST_F(SceneInstanceTest, DeepHierarchy_SerializeAndRestore_PreservesFullTree)
     // Level 1: two children
     Deki::Object* a = new Deki::Object("A");
     root->AddChild(a);
-    auto* aMock = static_cast<MockComponent*>(a->AddComponent("mock-component-test-guid"));
+    auto* aMock = static_cast<MockComponent*>(a->AddComponent(Deki::TypeName<MockComponent>()));
     aMock->intValue = 1;
 
     Deki::Object* b = new Deki::Object("B");
     root->AddChild(b);
-    auto* bRef = static_cast<MockRefComponent*>(b->AddComponent("mock-ref-component-guid"));
+    auto* bRef = static_cast<MockRefComponent*>(b->AddComponent(Deki::TypeName<MockRefComponent>()));
     bRef->targetRef.id = a->GetId();
 
     // Level 2: one child under A

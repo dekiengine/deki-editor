@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deki/Component.h>
+#include <deki/reflection/ComponentFactory.h>
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ObjectRef.h>
 #include <deki/assets/AssetRef.h>
@@ -17,7 +18,11 @@ namespace DekiEditor::Tests
 class MockComponent : public Deki::Component
 {
 public:
-    DECLARE_COMPONENT_TYPE(MockComponent, Deki::Component)
+    // Hand-written (not reflected), but identified like every component: by
+    // its qualified class name. The instance carries its entry.
+    static constexpr Deki::ComponentType StaticType = Deki::TypeId<MockComponent>();
+    static const Deki::ComponentTypeInfo TypeInfo;
+    MockComponent() { SetTypeInfo(&TypeInfo); }
 
     // Test properties covering all serialization types
     int32_t intValue = 0;
@@ -47,7 +52,11 @@ public:
 class MockSmallEnumComponent : public Deki::Component
 {
 public:
-    DECLARE_COMPONENT_TYPE(MockSmallEnumComponent, Deki::Component)
+    // Hand-written (not reflected), but identified like every component: by
+    // its qualified class name. The instance carries its entry.
+    static constexpr Deki::ComponentType StaticType = Deki::TypeId<MockSmallEnumComponent>();
+    static const Deki::ComponentTypeInfo TypeInfo;
+    MockSmallEnumComponent() { SetTypeInfo(&TypeInfo); }
 
     enum class SmallEnum : uint8_t { A = 0, B = 1, C = 2 };
     enum class MediumEnum : uint16_t { X = 0, Y = 1, Z = 2 };
@@ -58,7 +67,7 @@ public:
     MediumEnum mediumEnum = MediumEnum::X;  // 2-byte enum
     uint8_t* trailingPointer = nullptr;     // Pointer right after enums (corruption canary)
 
-    bool Deserialize(Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) override;
+    static bool DeserializeImpl(Deki::Component* self, Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
 
     static const Deki::PropertyInfo Properties[];
     static const int PropertyCount;
@@ -74,7 +83,11 @@ public:
 class MockRefComponent : public Deki::Component
 {
 public:
-    DECLARE_COMPONENT_TYPE(MockRefComponent, Deki::Component)
+    // Hand-written (not reflected), but identified like every component: by
+    // its qualified class name. The instance carries its entry.
+    static constexpr Deki::ComponentType StaticType = Deki::TypeId<MockRefComponent>();
+    static const Deki::ComponentTypeInfo TypeInfo;
+    MockRefComponent() { SetTypeInfo(&TypeInfo); }
 
     Deki::ObjectRefBase targetRef;
     int32_t someValue = 0;

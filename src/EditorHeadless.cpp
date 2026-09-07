@@ -1266,7 +1266,7 @@ nlohmann::json MetaToJson(const Deki::ComponentMeta& meta, const nlohmann::json&
     nlohmann::json j;
     j["name"] = meta.name ? meta.name : "";
     j["displayName"] = meta.GetDisplayName();
-    j["guid"] = meta.serializedName ? meta.serializedName : "";
+    j["type"] = meta.serializedName ? meta.serializedName : "";  // qualified C++ name, the scene file's "type"
     j["category"] = meta.category ? meta.category : "";
     j["description"] = meta.description ? meta.description : "";
     if (meta.baseTypeId != 0)

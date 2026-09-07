@@ -804,130 +804,22 @@ bool BuildFileGenerator::GeneratePluginExports(const std::string& projectPath, C
     fs::path packagesPath = fs::path(GetPackagesDirectory(projectPath));
     fs::path pluginPath = srcPath / "PluginExports.cpp";
 
-    // Find all component classes by scanning headers for DEKI_COMPONENT
-    std::vector<std::pair<std::string, std::string>> components;  // {className, headerPath}
-
-    // Helper: scan a directory tree for DEKI_COMPONENT headers
-    auto scanDirectory = [](const fs::path& scanDir, const fs::path& relativeTo,
-                            std::vector<std::pair<std::string, std::string>>& outComponents)
-    {
-        if (!fs::exists(scanDir)) return;
-
-        try
-        {
-            for (const auto& entry : fs::recursive_directory_iterator(scanDir))
-            {
-                if (!entry.is_regular_file())
-                    continue;
-
-                auto ext = entry.path().extension().string();
-                if (ext != ".h" && ext != ".hpp")
-                    continue;
-
-                // Skip generated directory
-                if (entry.path().string().find("generated") != std::string::npos)
-                    continue;
-
-                // Read header and look for DEKI_COMPONENT
-                std::ifstream headerFile(entry.path());
-                if (!headerFile.is_open())
-                    continue;
-
-                std::string line;
-                std::string className;
-                while (std::getline(headerFile, line))
-                {
-                    // Skip comment lines
-                    std::string trimmed = line;
-                    size_t firstNonSpace = trimmed.find_first_not_of(" \t");
-                    if (firstNonSpace != std::string::npos &&
-                        trimmed.substr(firstNonSpace, 2) == "//")
-                        continue;
-                    if (firstNonSpace != std::string::npos &&
-                        trimmed.substr(firstNonSpace, 1) == "*")
-                        continue;
-
-                    // Skip #define lines
-                    if (firstNonSpace != std::string::npos &&
-                        trimmed.substr(firstNonSpace, 7) == "#define")
-                        continue;
-
-                    // Look for DEKI_COMPONENT(ClassName, ...)
-                    size_t pos = line.find("DEKI_COMPONENT(");
-                    if (pos != std::string::npos)
-                    {
-                        pos += strlen("DEKI_COMPONENT(");
-                        size_t endPos = line.find(',', pos);
-                        if (endPos != std::string::npos)
-                        {
-                            className = line.substr(pos, endPos - pos);
-                            while (!className.empty() && (className.front() == ' ' || className.front() == '\t'))
-                                className.erase(0, 1);
-                            while (!className.empty() && (className.back() == ' ' || className.back() == '\t'))
-                                className.pop_back();
-
-                            fs::path relPath = fs::relative(entry.path(), relativeTo);
-                            outComponents.push_back({ className, relPath.string() });
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        catch (const fs::filesystem_error&)
-        {
-        }
-    };
-
-    if (!fs::exists(srcPath))
-    {
-        DEKI_LOG_ERROR("HotReloadService: Source path does not exist: %s", srcPath.string().c_str());
-        return false;
-    }
-
-    // Scan user sources (project/src/)
-    scanDirectory(srcPath, srcPath, components);
-
-    // Note: installed packages (project/packages/) are NOT scanned here —
-    // they compile as separate DLLs and register their own components.
-
-    // Sort before emitting. scanDirectory walks with recursive_directory_iterator,
-    // whose order is unspecified and in practice differs per filesystem — so the
-    // same project produced a different include/registration order on NTFS than
-    // on ext4. PluginExports.cpp is committed, so that churned the file on every
-    // build from a different machine while being semantically identical.
-    std::sort(components.begin(), components.end());
-
-    // No components is the normal state of a project that was just created, not
-    // an error. Everything below emits correctly for an empty list — the
-    // include loop and the metadata switch simply produce nothing and
-    // DekiPlugin_GetComponentCount() returns 0 — so generate the plugin anyway.
-    // Failing here instead meant a brand-new project greeted the user with
-    // "Build failed with 0 error(s)" until they wrote their first component.
-    if (components.empty())
-    {
-        DEKI_LOG_EDITOR("BuildFileGenerator: no DEKI_COMPONENT types in project/src yet — "
-                        "generating an empty plugin");
-    }
+    // The component table itself is generated by the reflection codegen
+    // (PluginRegistration.gen.cpp: DekiPlugin_GetComponentCount/Meta). This file
+    // carries only what the codegen cannot know: the plugin's name and version,
+    // its init/shutdown hooks and the profiling instrumentation.
 
     // Generate content to a string first (so we can compare before writing)
     std::ostringstream newContent;
 
     newContent << "// Auto-generated plugin exports - DO NOT EDIT\n";
     newContent << "// Generated by Deki Editor\n";
-    newContent << "// Reflection code is generated by the C++26 reflection generator\n\n";
+    newContent << "// Component tables are generated by the C++26 reflection generator\n\n";
 
     // Include headers
     newContent << "#include <deki/Engine.h>\n";
     newContent << "#include <deki/reflection/Property.h>\n\n";
 
-    for (const auto& [className, headerPath] : components)
-    {
-        // Use forward slashes for includes
-        std::string includePath = headerPath;
-        std::replace(includePath.begin(), includePath.end(), '\\', '/');
-        newContent << "#include \"" << includePath << "\"\n";
-    }
     newContent << "\n";
 
     // DLL export macro
@@ -976,23 +868,8 @@ bool BuildFileGenerator::GeneratePluginExports(const std::string& projectPath, C
     newContent << "#endif\n";
     newContent << "}\n\n";
 
-    newContent << "DEKI_PLUGIN_API int DekiPlugin_GetComponentCount()\n";
-    newContent << "{\n";
-    newContent << "    return " << components.size() << ";\n";
-    newContent << "}\n\n";
-
-    // Component metadata array using GetComponentMeta from each class
-    newContent << "DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)\n";
-    newContent << "{\n";
-    newContent << "    switch (index)\n";
-    newContent << "    {\n";
-    for (size_t i = 0; i < components.size(); ++i)
-    {
-        newContent << "        case " << i << ": return &" << components[i].first << "::GetComponentMeta();\n";
-    }
-    newContent << "        default: return nullptr;\n";
-    newContent << "    }\n";
-    newContent << "}\n\n";
+    newContent << "// DekiPlugin_GetComponentCount() / DekiPlugin_GetComponentMeta() are generated\n";
+    newContent << "// by the reflection codegen into generated/PluginRegistration.gen.cpp.\n\n";
 
     newContent << "DEKI_PLUGIN_API int DekiPlugin_Init()\n";
     newContent << "{\n";
@@ -1032,13 +909,9 @@ bool BuildFileGenerator::GeneratePluginExports(const std::string& projectPath, C
     file << newContentStr;
     file.close();
 
-    DEKI_LOG_EDITOR("HotReloadService: Updated PluginExports.cpp with %zu component(s)", components.size());
+    DEKI_LOG_EDITOR("HotReloadService: Updated PluginExports.cpp");
     if (console)
-    {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "Updated PluginExports.cpp with %zu component(s)", components.size());
-        console->LogEditor(msg);
-    }
+        console->LogEditor("Updated PluginExports.cpp");
 
     return true;
 }

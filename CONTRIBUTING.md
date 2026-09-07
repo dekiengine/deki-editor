@@ -37,7 +37,7 @@ Since engine 0.10 there is one rule for engine types: `namespace Deki`, no
 `Deki::Engine`, `Deki::Scene`, `Deki::Color`, `Deki::IDisplay`,
 `Deki::PropertyInfo`. Component classes keep their `*Component` / `*Settings`
 suffix (`Deki::SetupComponent`). Two things keep a `DEKI`/`Deki` spelling on
-purpose: macros (`DEKI_COMPONENT`, `DEKI_EXPORT`, `DEKI_LOG_*`), because macros
+purpose: macros (`DEKI_EXPORT`, `DEKI_CATEGORY`, `DEKI_LOG_*`), because macros
 have no namespace, and the C interop surface in `deki-engine/include/deki/interop/`
 (`DekiPlugin_*` exports, `DekiReflectionAbi`), because package DLLs resolve
 those symbols by string and C has no namespaces.
@@ -45,13 +45,21 @@ those symbols by string and C has no namespaces.
 A user component therefore reads:
 
 ```cpp
+DEKI_CATEGORY("Game")
+DEKI_DESCRIPTION("Moves the object along X at a constant speed.")
 class Mover : public Deki::Behaviour
 {
-    DEKI_COMPONENT(Mover, Deki::Behaviour, "Game")
 public:
     DEKI_EXPORT float speed = 1.0f;
 };
 ```
+
+Nothing in the class body declares it as a component: deriving publicly from
+`Deki::Component` or `Deki::Behaviour` is what the reflection codegen looks
+for, and the class's identity is its qualified name (`Deki::TypeId<Mover>()`
+is the hash of `"Mover"`). The markers above the class are optional editor
+metadata. Exported fields are public, because the generated code reaches them
+from outside the class.
 
 Package and project code stays in the global namespace (or its own); it
 qualifies engine types with `Deki::` or opens the namespace. Do not add
@@ -71,8 +79,10 @@ silently takes its default. So:
 - Run `DekiEditor --verify-scenes <project>` on a real project before and after.
   It must be green both times; a legacy key shows as a warning until the scene
   is re-saved.
-- Component type GUIDs (`DEKI_COMPONENT(..., "guid", ...)`) are permanent. A
-  scene refers to a component by that GUID.
+- A component's class name (with its namespace) is its identity: a scene
+  refers to a component by `"type": "Game::Mover"`. Renaming or moving the
+  class changes the id, so treat it like a reflected member: do it only with
+  a release note, and re-save the scenes that use it.
 - A rename in a published package is a breaking release of that package.
 
 ## Before you open a pull request

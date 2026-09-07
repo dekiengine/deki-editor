@@ -24,7 +24,7 @@ protected:
     }
     void TearDown() override { MockComponent::Unregister(); }
 
-    static std::string SceneWith(const char* properties, const char* type = "mock-component-test-guid",
+    static std::string SceneWith(const char* properties, const char* type = Deki::TypeName<MockComponent>(),
                                  const char* classHint = "MockComponent")
     {
         return std::string(R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
@@ -87,6 +87,6 @@ TEST_F(RenamedProperty, ChangedTypeGuidResolvesByClassName)
     EXPECT_EQ(mock->intValue, 3);
 
     const nlohmann::json j = nlohmann::json::parse(scene.SaveToJsonString());
-    EXPECT_EQ(j["objects"][0]["children"][0]["components"][0].at("type"), "mock-component-test-guid")
+    EXPECT_EQ(j["objects"][0]["children"][0]["components"][0].at("type"), Deki::TypeName<MockComponent>())
         << "a save writes the current GUID";
 }

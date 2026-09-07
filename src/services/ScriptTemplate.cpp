@@ -24,20 +24,21 @@ bool CreateBehaviourScript(const std::string& directory, const std::string& name
     }
 
     // Header: a Deki::Behaviour. <deki/Engine.h> provides every engine type
-    // (Deki::Behaviour, DEKI_LOG, ...). DEKI_COMPONENT must be INSIDE the class
-    // (it expands to public: and method declarations); the reflection code is
-    // generated into a .gen.cpp by the C++26 reflection codegen, which needs at
-    // least one DEKI_EXPORT property to process the class.
+    // (Deki::Behaviour, DEKI_LOG, ...). Deriving publicly from Deki::Behaviour
+    // (or Deki::Component for data-only pieces) is all it takes: the reflection
+    // codegen finds the class by its base and identifies it by its name. The
+    // markers above the class are optional editor metadata.
     const std::string headerContent =
         "#pragma once\n"
         "\n"
         "#include <deki/Engine.h>\n"
         "\n"
-        "class " +
+        "DEKI_CATEGORY(\"Game\")\n"
+        "DEKI_DESCRIPTION(\"What " +
+        name + " does, in one line.\")\n"
+               "class " +
         name + " : public Deki::Behaviour\n"
                "{\n"
-               "    DEKI_COMPONENT(" +
-        name + ", Deki::Behaviour, \"Game\")\n"
                "public:\n"
                "    // Exported properties (visible in Inspector)\n"
                "    DEKI_EXPORT\n"

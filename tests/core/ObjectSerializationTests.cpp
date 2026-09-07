@@ -34,7 +34,7 @@ TEST_F(ObjectSerializationTest, SerializeComponent_Int32Property_SerializesCorre
 
     ComponentData data = SerializeComponent(m_Component);
 
-    EXPECT_EQ(data.typeName, "mock-component-test-guid");  // serializedName, not class name
+    EXPECT_EQ(data.typeName, Deki::TypeName<MockComponent>());  // serializedName, not class name
     ASSERT_TRUE(data.properties.contains("intValue"));
     EXPECT_EQ(data.properties["intValue"].get<int32_t>(), 42);
 }
@@ -109,7 +109,7 @@ TEST_F(ObjectSerializationTest, SerializeComponent_EnumProperty_SerializesCorrec
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_Int32_RestoresCorrectly)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     data.properties["intValue"] = 999;
 
     RestoreComponentProperties(m_Component, data);
@@ -120,7 +120,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_Int32_RestoresCorrect
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_Float_RestoresCorrectly)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     data.properties["floatValue"] = 2.718f;
 
     RestoreComponentProperties(m_Component, data);
@@ -131,7 +131,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_Float_RestoresCorrect
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_Bool_RestoresCorrectly)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     data.properties["boolValue"] = true;
 
     RestoreComponentProperties(m_Component, data);
@@ -142,7 +142,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_Bool_RestoresCorrectl
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_String_RestoresCorrectly)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     data.properties["stringValue"] = "Restored String";
 
     RestoreComponentProperties(m_Component, data);
@@ -153,7 +153,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_String_RestoresCorrec
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_AssetRef_RestoresBothGuids)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     data.properties["assetRef"] = nlohmann::json{
         {"guid", "restored-guid"},
         {"source", "restored-source"}
@@ -172,7 +172,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_AssetRef_RestoresBoth
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_Enum_RestoresCorrectly)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     data.properties["enumValue"] = 5;
 
     RestoreComponentProperties(m_Component, data);
@@ -215,7 +215,7 @@ TEST_F(ObjectSerializationTest, SerializeAndRestore_RoundTrip_PreservesAllValues
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_MissingProperty_LeavesDefault)
 {
     ComponentData data;
-    data.typeName = "mock-component-test-guid";
+    data.typeName = Deki::TypeName<MockComponent>();
     // Only set intValue, leave others missing
     data.properties["intValue"] = 42;
 

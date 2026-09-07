@@ -12,7 +12,7 @@ engine and package versions, what may change, and how a change reaches you.
   version, rather than loading partially.
 - Package releases follow semver against the engine: `minEngine` in a
   package's `package.json` is checked at install, and a package whose
-  reflected names or GUIDs change is a major release of that package.
+  reflected names or class names change is a major release of that package.
 - Before 1.0, breaking changes can still happen between minor versions. They
   are announced in the changelog with the migration, never silent.
 
@@ -24,7 +24,7 @@ These are what downstream projects and packages depend on:
 | --- | --- | --- |
 | Scene files (`.scene`), asset envelopes (`.asset`), sidecars (`.data`) | JSON, reflected property names as keys | `formatVersion` in the file (absent = 1) |
 | Reflected property names | `DEKI_EXPORT` members of every component | Renames carry `DEKI_RENAMED_FROM`; the old key loads and is written back under the new name on save |
-| Component type GUIDs | `DEKI_COMPONENT(...)` | Permanent; the `class` name in the file resolves a stale GUID |
+| Component type names | The qualified class name (`Game::Mover`), `"type"` in the file | A rename is a format change; a 0.10 GUID resolves through the editor's legacy table and the `class` hint |
 | Project descriptor `deki.json` | `structure` field | Layout migrations run on open (`v1`..`v5`) |
 | Package manifest `deki-packages.json`, lock file | `schemaVersion` / `lockVersion` | |
 | Package descriptor `package.json`, `package.cmake` | | Editor reads unknown keys tolerantly |
@@ -56,6 +56,25 @@ packages and project code, done once before 1.0 and not aliased; the fix is
 mechanical (`tools/migrate-namespace.py <dir>`). It is not a file-format
 change: component type GUIDs are unchanged and the `"class"` hint written to
 scene files is the unqualified class name, which did not change either.
+
+## Engine 0.11: macro-free components
+
+A component is any class deriving publicly from `Deki::Component` or
+`Deki::Behaviour`; `DEKI_COMPONENT`, the type GUID and the trailing
+`#include "generated/X.gen.h"` are gone, and `DEKI_DESCRIPTION`,
+`DEKI_DISPLAY_NAME` and the new `DEKI_CATEGORY` / `DEKI_SETTINGS_SECTION` sit
+above the class. The identity of a component is its qualified class name:
+scene files write `"type": "GradientComponent"` where they wrote a GUID, and
+`ObjectRef` / `PropertyRef` data hash that name. `X::StaticType` is
+`Deki::TypeId<X>()`.
+
+This is a file-format change with a migration in both directions of the
+tooling: `tools/migrate-components.py <src dirs> --map guids.json --assets
+<asset dirs>` rewrites a project's headers and its JSON assets in one pass, and
+the editor loads 0.10 scenes unchanged (the GUIDs of every dekiengine package
+are in a legacy table; a project's own components resolve through the `class`
+hint) and writes names on the next save. The reflection ABI is version 7:
+`Deki::Component` lost six virtuals and gained the type-info pointer.
 
 The same release drew the line between public and internal headers. The
 public set lives in `deki-engine/include/deki/` and is included as

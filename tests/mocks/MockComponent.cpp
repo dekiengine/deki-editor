@@ -1,5 +1,6 @@
 #include "MockComponent.h"
 #include <deki/reflection/ComponentRegistry.h>
+#include <deki/reflection/ComponentFactory.h>
 #include <deki/SceneMessagePack.h>
 #include <cstddef>
 
@@ -141,7 +142,7 @@ const int MockComponent::PropertyCount = sizeof(Properties) / sizeof(Properties[
 
 const Deki::ComponentMeta MockComponent::ComponentMeta = {
     "MockComponent",      // name
-    "mock-component-test-guid", // serializedName
+    Deki::TypeName<MockComponent>(), // serializedName
     "Testing",            // category
     "Mock component for unit tests", // description
     MockComponent::StaticType,
@@ -158,9 +159,24 @@ const Deki::ComponentMeta MockComponent::ComponentMeta = {
     false                 // displayNameGenerated
 };
 
+const Deki::ComponentTypeInfo MockComponent::TypeInfo = {
+    Deki::TypeName<MockComponent>(),
+    "MockComponent",
+    MockComponent::StaticType,
+    Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // declaresUpdate
+    []() -> Deki::Component* { return new MockComponent(); },
+    nullptr,
+    nullptr, nullptr,
+    nullptr, 0,
+    &MockComponent::ComponentMeta
+};
+
 void MockComponent::Register()
 {
     Deki::ComponentRegistry::Instance().Register(&ComponentMeta);
+    Deki::ComponentFactory::Instance().Register(&TypeInfo);
 }
 
 void MockComponent::Unregister()
@@ -238,7 +254,7 @@ const int MockSmallEnumComponent::PropertyCount = sizeof(Properties) / sizeof(Pr
 
 const Deki::ComponentMeta MockSmallEnumComponent::ComponentMeta = {
     "MockSmallEnumComponent",
-    "mock-small-enum-component-guid",
+    Deki::TypeName<MockSmallEnumComponent>(),
     "Testing",
     "Mock component with small enums for testing enumSize serialization",
     MockSmallEnumComponent::StaticType,
@@ -251,8 +267,23 @@ const Deki::ComponentMeta MockSmallEnumComponent::ComponentMeta = {
     false
 };
 
-bool MockSmallEnumComponent::Deserialize(Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize)
+const Deki::ComponentTypeInfo MockSmallEnumComponent::TypeInfo = {
+    Deki::TypeName<MockSmallEnumComponent>(),
+    "MockSmallEnumComponent",
+    MockSmallEnumComponent::StaticType,
+    Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // declaresUpdate
+    []() -> Deki::Component* { return new MockSmallEnumComponent(); },
+    &MockSmallEnumComponent::DeserializeImpl,
+    nullptr, nullptr,
+    nullptr, 0,
+    &MockSmallEnumComponent::ComponentMeta
+};
+
+bool MockSmallEnumComponent::DeserializeImpl(Deki::Component* c, Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize)
 {
+    auto& self = *static_cast<MockSmallEnumComponent*>(c);
     for (uint32_t i = 0; i < mapSize; i++)
     {
         const char* key; uint16_t keyLen;
@@ -261,10 +292,10 @@ bool MockSmallEnumComponent::Deserialize(Deki::SceneFormat::SceneMsgPackParser& 
         uint32_t keyHash = Deki::HashStringLen(key, keyLen);
         switch (keyHash)
         {
-            case Deki::HashString("width"): { float v; if (parser.ReadFloat(v)) width = v; break; }
-            case Deki::HashString("smallEnum1"): { int32_t v; if (parser.ReadInt(v)) smallEnum1 = static_cast<SmallEnum>(v); break; }
-            case Deki::HashString("smallEnum2"): { int32_t v; if (parser.ReadInt(v)) smallEnum2 = static_cast<SmallEnum>(v); break; }
-            case Deki::HashString("mediumEnum"): { int32_t v; if (parser.ReadInt(v)) mediumEnum = static_cast<MediumEnum>(v); break; }
+            case Deki::HashString("width"): { float v; if (parser.ReadFloat(v)) self.width = v; break; }
+            case Deki::HashString("smallEnum1"): { int32_t v; if (parser.ReadInt(v)) self.smallEnum1 = static_cast<SmallEnum>(v); break; }
+            case Deki::HashString("smallEnum2"): { int32_t v; if (parser.ReadInt(v)) self.smallEnum2 = static_cast<SmallEnum>(v); break; }
+            case Deki::HashString("mediumEnum"): { int32_t v; if (parser.ReadInt(v)) self.mediumEnum = static_cast<MediumEnum>(v); break; }
             default: parser.SkipValue(); break;
         }
     }
@@ -274,6 +305,7 @@ bool MockSmallEnumComponent::Deserialize(Deki::SceneFormat::SceneMsgPackParser& 
 void MockSmallEnumComponent::Register()
 {
     Deki::ComponentRegistry::Instance().Register(&ComponentMeta);
+    Deki::ComponentFactory::Instance().Register(&TypeInfo);
 }
 
 // ============================================================================
@@ -317,7 +349,7 @@ const int MockRefComponent::PropertyCount = sizeof(Properties) / sizeof(Properti
 
 const Deki::ComponentMeta MockRefComponent::ComponentMeta = {
     "MockRefComponent",
-    "mock-ref-component-guid",
+    Deki::TypeName<MockRefComponent>(),
     "Testing",
     "Mock component with ObjectRef for testing reference serialization",
     MockRefComponent::StaticType,
@@ -330,9 +362,24 @@ const Deki::ComponentMeta MockRefComponent::ComponentMeta = {
     false
 };
 
+const Deki::ComponentTypeInfo MockRefComponent::TypeInfo = {
+    Deki::TypeName<MockRefComponent>(),
+    "MockRefComponent",
+    MockRefComponent::StaticType,
+    Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // declaresUpdate
+    []() -> Deki::Component* { return new MockRefComponent(); },
+    nullptr,
+    nullptr, nullptr,
+    nullptr, 0,
+    &MockRefComponent::ComponentMeta
+};
+
 void MockRefComponent::Register()
 {
     Deki::ComponentRegistry::Instance().Register(&ComponentMeta);
+    Deki::ComponentFactory::Instance().Register(&TypeInfo);
 }
 
 } // namespace DekiEditor::Tests

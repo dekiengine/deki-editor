@@ -47,6 +47,7 @@ set(TEST_SOURCES
     services/CMakeCacheReaderTests.cpp
     services/RegistrySourceTests.cpp
     services/ProjectScaffoldTests.cpp
+    services/ScriptTemplateTests.cpp
     core/ComponentDefaultsTests.cpp
     core/SceneFormatVersionTests.cpp
     core/AssetDataTests.cpp
@@ -65,6 +66,7 @@ set(TEST_SOURCES
 
     # New GUID and architecture tests
     core/GuidTests.cpp
+    core/TypeIdTests.cpp
     core/GuidCacheTests.cpp
     core/AssetTypeRegistryTests.cpp
     core/EditorExtensionTests.cpp

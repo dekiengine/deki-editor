@@ -164,7 +164,7 @@ TEST(ProjectScaffold, StarterSceneHasCameraGradientAndText)
         for (const json& c : child.at("components"))
         {
             classes.insert(c.at("class").get<std::string>());
-            EXPECT_EQ(c.at("type").get<std::string>().size(), 36u);  // a GUID
+            EXPECT_EQ(c.at("type").get<std::string>(), c.at("class").get<std::string>());  // the class name is the type
             if (c.at("class") == "TextComponent") textProps = c.at("properties");
         }
     }

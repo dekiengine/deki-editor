@@ -21,11 +21,11 @@ namespace DekiEditor::ProjectScaffold
 namespace
 {
 
-// Component type GUIDs, as declared by DEKI_COMPONENT in the packages a new
-// project starts with. They are the scene file's "type" key and never change.
-constexpr const char* kCameraGuid = "146999a7-398f-4e52-a7c7-1e6a78bfb9c4";     // deki-rendering CameraComponent
-constexpr const char* kGradientGuid = "8d84cca3-7eb9-4b92-ba49-968ceec203c8";   // deki-2d GradientComponent
-constexpr const char* kTextGuid = "5447ea24-d11f-4161-ae10-2f11e0a18d09";       // deki-2d TextComponent
+// Component types of the packages a new project starts with: the qualified
+// class name is the scene file's "type" key (see deki/TypeId.h).
+constexpr const char* kCameraType = "CameraComponent";      // deki-rendering
+constexpr const char* kGradientType = "GradientComponent";  // deki-2d
+constexpr const char* kTextType = "TextComponent";          // deki-2d
 
 json Transform(double x, double y)
 {
@@ -42,9 +42,9 @@ json Object(uint32_t id, const char* name, json components, json children, doubl
                  { "transform", Transform(x, y) } };
 }
 
-json Component(const char* guid, const char* className, json properties)
+json Component(const char* type, const char* className, json properties)
 {
-    return json{ { "class", className }, { "properties", std::move(properties) }, { "type", guid } };
+    return json{ { "class", className }, { "properties", std::move(properties) }, { "type", type } };
 }
 
 bool WriteText(const fs::path& path, const std::string& text, std::string& err)
@@ -176,12 +176,12 @@ bool WriteStarterScene(const std::string& projectPath, const std::string& fontSo
     json children = json::array();
 
     children.push_back(Object(2, "Camera",
-        json::array({ Component(kCameraGuid, "CameraComponent",
+        json::array({ Component(kCameraType, "CameraComponent",
             json{ { "pixelsPerMeter", 0.0 }, { "clearColor", 202250495 }, { "pixelSnap", false } }) }),
         json::array()));
 
     children.push_back(Object(3, "Sky",
-        json::array({ Component(kGradientGuid, "GradientComponent",
+        json::array({ Component(kGradientType, "GradientComponent",
             json{ { "width", 20.0 }, { "height", 15.0 }, { "angle", 90.0 },
                   { "gradientType", 0 }, { "stopCount", 4 },
                   { "stop1Color", 390692863 }, { "stop1Position", 0.0 },
@@ -199,7 +199,7 @@ bool WriteStarterScene(const std::string& projectPath, const std::string& fontSo
         const std::string variantGuid =
             GenerateDeterministicGuid(fontSourceGuid + ":" + std::to_string(kStarterFontSize));
         children.push_back(Object(4, "Hello",
-            json::array({ Component(kTextGuid, "TextComponent",
+            json::array({ Component(kTextType, "TextComponent",
                 json{ { "text", "Hello, Deki" },
                       { "fontSize", kStarterFontSize },
                       { "font", json{ { "guid", variantGuid }, { "source", fontSourceGuid } } },

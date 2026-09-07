@@ -2,6 +2,7 @@
 #include "SafeDllCall.h"
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/ComponentFactory.h>
+#include <deki/reflection/SettingsRegistry.h>
 #include <deki/reflection/Property.h>
 #include <deki/interop/ReflectionAbi.h>  // reflection layout handshake
 #include <deki/SetupComponent.h>
@@ -404,10 +405,13 @@ bool PluginLoader::LoadPlugin(const std::string& path)
                 }
 
                 registry.RegisterPluginComponent(meta);
-                if (meta->createFunc)
+                if (meta->typeInfo)
                 {
-                    Deki::ComponentFactory::Instance().Register(meta->typeId, meta->createFunc);
+                    Deki::ComponentFactory::Instance().Register(meta->typeInfo);
+                    registry.RegisterFields(meta->typeInfo->typeId, meta->typeInfo->fields, meta->typeInfo->fieldCount);
                 }
+                if (meta->settingsSection)
+                    Deki::SettingsRegistry::Instance().RegisterPlugin(meta->settingsSection, meta);
                 DEKI_LOG_EDITOR("PluginLoader: Registered component '%s'", meta->name);
             }
         }

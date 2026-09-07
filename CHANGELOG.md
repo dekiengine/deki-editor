@@ -4,6 +4,34 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.11.0
+
+### Breaking
+- Components declare nothing: `DEKI_COMPONENT(...)` and the trailing
+  `#include "generated/X.gen.h"` are gone. A class deriving publicly from
+  `Deki::Component` or `Deki::Behaviour` is a component, its identity is its
+  qualified class name, and `DEKI_DESCRIPTION` / `DEKI_DISPLAY_NAME` plus the
+  new `DEKI_CATEGORY` / `DEKI_SETTINGS_SECTION` go on the lines above the
+  class. Exported fields must be public. `X::StaticType` is `Deki::TypeId<X>()`.
+  Scene files write `"type": "Game::Mover"` instead of a GUID; 0.10 scenes still
+  load (legacy GUID table for every dekiengine package, `class` hint for a
+  project's own components) and are written back with names on save. Migration:
+  `python tools/migrate-components.py <project>/src --map guids.json --assets
+  <project>/assets <project>/platforms`, then `--packages-update all`. Every
+  package is re-released as 0.11.0 with `minEngine` 0.11.0.
+- A forgotten requirement is now a build error with the fix in the message
+  (private inheritance, a non-public `DEKI_EXPORT`, a marker above nothing)
+  instead of a component that silently never appears.
+
+### Fixed
+- Create Script wrote a three-argument `DEKI_COMPONENT` that never compiled.
+  The template is a plain class again, with the markers above it.
+
+### Changed
+- `PluginExports.cpp` no longer lists components; the reflection codegen
+  writes `generated/PluginRegistration.gen.cpp` with the plugin's table.
+- `--dump-metadata` reports `type` (the qualified class name) instead of `guid`.
+
 ## 0.10.0
 
 ### Breaking

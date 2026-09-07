@@ -73,7 +73,7 @@ pacman -S mingw-w64-x86_64-gcc    # 16.1.0 or newer
 
 Verify: `C:/msys64/mingw64/bin/g++ --version` must report **16.1.0+**. With an
 older GCC the configure step stops with `generator compile failed ... needs GCC 16.1+`
-rather than continuing with stale or missing `*.gen.h`.
+rather than continuing with stale or missing generated sources.
 ---
 
 ## 3. Choosing a toolchain

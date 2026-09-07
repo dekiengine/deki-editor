@@ -48,7 +48,7 @@ endif()
 # The release number. The engine (deki-engine/CMakeLists.txt) carries the same
 # one, packages name it as minEngine, and the git tag equals it; see
 # COMPATIBILITY.md. tools/ci/check_version.py fails when the two drift.
-project(DekiEditor VERSION 0.10.0 LANGUAGES CXX)
+project(DekiEditor VERSION 0.11.0 LANGUAGES CXX)
 
 # Unity builds batch sources into a few large translation units, which makes
 # a clean build much faster. Opt-in until every TU is known to be free of
@@ -493,6 +493,7 @@ set(EDITOR_TESTABLE_SOURCES
     # ProjectScaffoldTests: what a new project is made of, and the manifest
     # writer it shares with PackageManager.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ProjectScaffold.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ScriptTemplate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageManifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/VersionCompare.cpp
     # The name allowlist every path built from registry/manifest/pack content goes through.

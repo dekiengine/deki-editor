@@ -2,25 +2,19 @@
 # tools/ci/check_abi.py --update; do not edit by hand.
 #
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
-# deki-engine/src/interop/DekiReflectionAbi.h in the same commit and
+# deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 6
+abi_version: 7
 
-class Deki::Component (15 virtual)
+class Deki::Component (9 virtual)
   ~Component()
-  ComponentType GetType() const
-  ComponentType GetBaseType() const
   Behaviour* AsBehaviour()
-  bool DeclaresUpdate() const
   void LoadAssets()
   void UnloadAssets()
   void RuntimeUpdate(float deltaTime)
   void OnAssetRefResolved(const char* propertyName, void* asset, const char* guid)
   bool NeedsAssetLoading() const
   bool NeedsRuntimeUpdate() const
-  bool Deserialize(SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize)
-  void ResolveObjectRefs(Scene* scene)
-  void RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap)
   void OnPropertyChanged(const char* propertyName)
 
 class Deki::Behaviour (5 virtual)

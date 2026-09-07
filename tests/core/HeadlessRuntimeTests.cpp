@@ -13,6 +13,7 @@
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/Behaviour.h>
+#include <deki/reflection/ComponentFactory.h>
 #include "LifecycleManager.h"
 
 namespace
@@ -21,12 +22,13 @@ namespace
 class TickCounter : public Deki::Behaviour
 {
 public:
-    DECLARE_COMPONENT_TYPE(TickCounter, Deki::Behaviour)
+    // Hand-written, no codegen: the entry says Update() is declared.
+    static const Deki::ComponentTypeInfo kInfo;
+    TickCounter() { SetTypeInfo(&kInfo); }
 
     void Awake() override  { ++awakes; }
     void Start() override  { ++starts; }
     void Update() override { ++updates; }
-    bool DeclaresUpdate() const override { return true; }  // hand-written, no codegen
 
     int awakes = 0;
     int starts = 0;
@@ -39,11 +41,14 @@ public:
 class SilentBehaviour : public Deki::Behaviour
 {
 public:
-    DECLARE_COMPONENT_TYPE(SilentBehaviour, Deki::Behaviour)
+    static const Deki::ComponentTypeInfo kInfo;
+    SilentBehaviour() { SetTypeInfo(&kInfo); }
     void Update() override { ++updates; }  // must NOT run: not "declared"
-    bool DeclaresUpdate() const override { return false; }
     int updates = 0;
 };
+
+const Deki::ComponentTypeInfo TickCounter::kInfo = Deki::MakeHandWrittenTypeInfo<TickCounter>(/*declaresUpdate=*/true);
+const Deki::ComponentTypeInfo SilentBehaviour::kInfo = Deki::MakeHandWrittenTypeInfo<SilentBehaviour>(/*declaresUpdate=*/false);
 
 void RunFrames(Deki::LifecycleManager* lm, Deki::Scene& scene, int frames)
 {

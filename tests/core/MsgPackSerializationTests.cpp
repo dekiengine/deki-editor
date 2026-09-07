@@ -19,12 +19,9 @@ class MsgPackSerializationTest : public ::testing::Test
 protected:
     void SetUp() override
     {
+        // Registers the meta and the type entry (the msgpack parser creates by
+        // the hash of the serialized name, which is the entry's typeId).
         MockSmallEnumComponent::Register();
-        // Register with the hash of the serialized name (what the msgpack parser uses)
-        Deki::ComponentFactory::Instance().Register(
-            Deki::HashString("mock-small-enum-component-guid"),
-            []() -> Deki::Component* { return new MockSmallEnumComponent(); }
-        );
     }
 };
 
