@@ -26,7 +26,7 @@ alternatives and troubleshooting are in [SETUP.md](SETUP.md).
 ```bash
 git clone --recurse-submodules https://github.com/dekiengine/deki-editor.git
 cd deki-editor
-cmake -B build -S . -G Ninja        # fetches SDL3, ImGui, FreeType, stb, gtest
+cmake -B build -S . -G Ninja        # fetches ImGui, FreeType, stb, gtest and a prebuilt SDL3
 cmake --build build                 # build/bin/DekiEditor.exe
 build/bin/DekiEditor --new-project my-game ..   # a project that renders on first open
 build/bin/DekiEditor ../my-game

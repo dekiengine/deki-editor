@@ -1096,6 +1096,11 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
             changed = "DEKI_ENGINE_PATH";
         else if (!samePath(ReadCMakeCacheVar(cacheDir, "DEKI_EDITOR_DIR"), EditorPaths::GetExecutableDir()))
             changed = "DEKI_EDITOR_DIR";
+        // SDL3 moved from a source checkout to a prebuilt archive; a project
+        // configured against the old headers would not find them any more.
+        else if (!samePath(ReadCMakeCacheVar(cacheDir, "DEKI_SDL3_INCLUDE_DIR"),
+                           ReadCMakeCacheVar(EditorSettings::GetBuildDir(), "DEKI_SDL3_INCLUDE_DIR")))
+            changed = "DEKI_SDL3_INCLUDE_DIR";
         if (changed)
         {
             needsConfigure = true;

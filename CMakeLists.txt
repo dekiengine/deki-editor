@@ -78,17 +78,55 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 include(FetchContent)
 
-# Fetch SDL3
-set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-set(SDL_STATIC ON CACHE BOOL "" FORCE)
-set(SDL_TEST OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(
-    SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-3.2.8
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(SDL3)
+# SDL3.
+#
+# Windows (MinGW): SDL's own prebuilt release archive, fetched by URL and
+# verified by hash, consumed through its CMake package. Nothing of SDL3 is
+# compiled here; the same archive is what a project's simulator build uses
+# (deki-sdl3-integration's package.json names it). The archive ships SDL3 as
+# a DLL only, so SDL3.dll is copied next to DekiEditor below and travels with
+# the packaged editor.
+#
+# Elsewhere: built from source at the same release, statically.
+#
+# Both paths record where the headers and the link library live, because the
+# generated package builds compile against them (EditorSettings passes the
+# two cache entries on as -DDEKI_SDL3_INCLUDE_DIR / -DDEKI_SDL3_LIB_DIR).
+set(DEKI_SDL3_VERSION 3.2.8)
+if(WIN32 AND MINGW)
+    FetchContent_Declare(
+        SDL3
+        URL https://github.com/libsdl-org/SDL/releases/download/release-${DEKI_SDL3_VERSION}/SDL3-devel-${DEKI_SDL3_VERSION}-mingw.zip
+        URL_HASH SHA256=557661694a37bf3f9c4076353bebe7c0e5d457077f093d4e52c756a83706ba24
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(SDL3)
+    # FetchContent hoists a single top-level directory out of an archive; be
+    # right either way.
+    set(_sdl3_prefix "${sdl3_SOURCE_DIR}/x86_64-w64-mingw32")
+    if(NOT EXISTS "${_sdl3_prefix}" AND EXISTS "${sdl3_SOURCE_DIR}/SDL3-${DEKI_SDL3_VERSION}/x86_64-w64-mingw32")
+        set(_sdl3_prefix "${sdl3_SOURCE_DIR}/SDL3-${DEKI_SDL3_VERSION}/x86_64-w64-mingw32")
+    endif()
+    set(SDL3_DIR "${_sdl3_prefix}/lib/cmake/SDL3" CACHE PATH "" FORCE)
+    find_package(SDL3 ${DEKI_SDL3_VERSION} EXACT REQUIRED CONFIG)
+    set(DEKI_SDL3_TARGET SDL3::SDL3)
+    set(DEKI_SDL3_INCLUDE_DIR "${_sdl3_prefix}/include" CACHE PATH "SDL3 headers, for generated package builds" FORCE)
+    set(DEKI_SDL3_LIB_DIR "${_sdl3_prefix}/lib" CACHE PATH "SDL3 link library, for generated package builds" FORCE)
+else()
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        SDL3
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+        GIT_TAG release-${DEKI_SDL3_VERSION}
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(SDL3)
+    set(DEKI_SDL3_TARGET SDL3::SDL3-static)
+    set(DEKI_SDL3_INCLUDE_DIR "${sdl3_SOURCE_DIR}/include" CACHE PATH "SDL3 headers, for generated package builds" FORCE)
+    set(DEKI_SDL3_LIB_DIR "${CMAKE_BINARY_DIR}/lib" CACHE PATH "SDL3 link library, for generated package builds" FORCE)
+endif()
 
 # Find OpenGL
 find_package(OpenGL REQUIRED)
@@ -386,7 +424,7 @@ target_include_directories(imgui PUBLIC
 target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_FREETYPE)
 
 target_link_libraries(imgui PUBLIC
-    SDL3::SDL3-static
+    ${DEKI_SDL3_TARGET}
     OpenGL::GL
     freetype
 )
@@ -789,10 +827,19 @@ target_link_libraries(DekiEditor PRIVATE
     deki-engine-internal  # engine-internal headers too (MissingComponent, LifecycleManager, ...)
     imgui
     freetype
-    SDL3::SDL3-static
+    ${DEKI_SDL3_TARGET}
     OpenGL::GL
     httplib::httplib
 )
+
+# The prebuilt SDL3 is a DLL: put it next to the editor, which is also where
+# the tests land, so a build tree runs as-is and the packaging script, which
+# takes bin/ whole, ships it.
+if(TARGET SDL3::SDL3-shared)
+    add_custom_command(TARGET DekiEditor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:SDL3::SDL3-shared>" "$<TARGET_FILE_DIR:DekiEditor>"
+        COMMENT "Copying SDL3.dll next to DekiEditor")
+endif()
 
 
 # Windows-specific settings

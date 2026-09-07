@@ -101,6 +101,14 @@ Findings of the pre-publication review, all fixed in this release:
   requires a loopback `Host` header; generated CMake quotes the project name.
 
 ### Changed
+- The editor's own Windows build no longer compiles SDL3. The configure
+  downloads SDL's prebuilt MinGW release archive, hash-pinned, and links
+  `SDL3.dll`, which is copied next to `DekiEditor.exe` and ships in the
+  packaged editor; a clean build skips the 263-file SDL3 compile. Linux still
+  builds SDL3 from source, statically. Generated package builds get the
+  headers and import library from the editor's cache
+  (`-DDEKI_SDL3_INCLUDE_DIR`, `-DDEKI_SDL3_LIB_DIR`); a project configured
+  against the old source checkout is reconfigured on open.
 - "Package" is the only name. The sibling checkout of the package repositories
   is `../packages/` (`DEKI_PACKAGES_DIR` defaults to it; CI checks out
   `../packages/deki-rendering`), the docs tools take `--packages`, and the

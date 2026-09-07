@@ -13,7 +13,7 @@
 #
 #     dist\DekiEditor-windows-x86_64\
 #         DekiEditor.exe
-#         libdeki-*.dll, resources\, ninja.exe, sccache.exe
+#         libdeki-*.dll, SDL3.dll, resources\, ninja.exe, sccache.exe
 #         toolchain\bin\{g++.exe,gcc.exe,as.exe,ld.exe,cmake.exe,ninja.exe,...}
 #         toolchain\lib\gcc\...            <- cc1plus, found via argv[0]
 #         toolchain\include\c++\...

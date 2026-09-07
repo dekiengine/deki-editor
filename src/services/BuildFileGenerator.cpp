@@ -203,6 +203,18 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    endif()\n";
     file << "endif()\n\n";
 
+    // SDL3 comes from wherever the editor's own build took it: a prebuilt
+    // archive (headers and import library under its prefix) or a source
+    // build (headers in sdl3-src, the static library beside the editor's).
+    // The editor passes both locations; an older caller gets the source layout.
+    file << "# SDL3, as the editor build has it\n";
+    file << "if(NOT DEKI_SDL3_INCLUDE_DIR)\n";
+    file << "    set(DEKI_SDL3_INCLUDE_DIR \"${DEKI_DEPS_DIR}/sdl3-src/include\")\n";
+    file << "endif()\n";
+    file << "if(NOT DEKI_SDL3_LIB_DIR)\n";
+    file << "    set(DEKI_SDL3_LIB_DIR \"${DEKI_LIB_DIR}\")\n";
+    file << "endif()\n\n";
+
     // Common include paths (shared between plugin and package targets)
     file << "# Common include paths\n";
     file << "set(DEKI_COMMON_INCLUDES\n";
@@ -212,7 +224,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    \"${DEKI_EDITOR_ROOT}/deki-editor/include\"\n";
     file << "    \"${DEKI_DEPS_DIR}/imgui-src\"\n";
     file << "    \"${DEKI_DEPS_DIR}/freetype-src/include\"\n";
-    file << "    \"${DEKI_DEPS_DIR}/sdl3-src/include\"\n";
+    file << "    \"${DEKI_SDL3_INCLUDE_DIR}\"\n";
     file << "    \"${DEKI_DEPS_DIR}/stb-src\"\n";
     file << "    \"${DEKI_PROJECT_ROOT}/packages\"\n";
     file << ")\n\n";
@@ -245,8 +257,13 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    PATHS \"${DEKI_LIB_DIR}\" NO_DEFAULT_PATH)\n";
     file << "find_library(imgui_found NAMES imgui\n";
     file << "    PATHS \"${DEKI_LIB_DIR}\" NO_DEFAULT_PATH)\n";
+    // Re-searched on every configure: find_library caches its answer, and
+    // the SDL3 library moved (static lib in the editor's lib/ -> import
+    // library in the prebuilt archive), so a cached path could point at a
+    // file that is gone and ninja would stop on it.
+    file << "unset(SDL3-static_found CACHE)\n";
     file << "find_library(SDL3-static_found NAMES SDL3-static SDL3\n";
-    file << "    PATHS \"${DEKI_LIB_DIR}\" NO_DEFAULT_PATH)\n\n";
+    file << "    PATHS \"${DEKI_SDL3_LIB_DIR}\" \"${DEKI_LIB_DIR}\" NO_DEFAULT_PATH)\n\n";
 
     // Extract version from git tag
     file << "# Extract version from git tag\n";

@@ -113,8 +113,11 @@ cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 ```
 
-First configure fetches SDL3, ImGui, freetype, efsw, nlohmann/json and googletest
-via `FetchContent`, so it takes a while and needs network.
+First configure fetches ImGui, freetype, efsw, nlohmann/json and googletest via
+`FetchContent`, so it takes a while and needs network. SDL3 is not compiled:
+on Windows the configure downloads SDL's prebuilt MinGW release archive
+(hash-pinned) and the editor links `SDL3.dll`, which is copied next to it; on
+Linux SDL3 is fetched and built from source at the same release.
 
 Output in `build/bin/`:
 

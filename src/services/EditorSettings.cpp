@@ -242,9 +242,22 @@ std::string EditorSettings::GetCMakeLocationArgs()
         return path;
     };
 
-    return " -DDEKI_ENGINE_PATH=\"" + toCMakePath(GetEnginePath()) + "\"" +
-           " -DDEKI_EDITOR_DIR=\"" + toCMakePath(EditorPaths::GetExecutableDir()) + "\"" +
-           " -DDEKI_DEPS_DIR=\"" + toCMakePath(GetDepsDir()) + "\"";
+    std::string args = " -DDEKI_ENGINE_PATH=\"" + toCMakePath(GetEnginePath()) + "\"" +
+                       " -DDEKI_EDITOR_DIR=\"" + toCMakePath(EditorPaths::GetExecutableDir()) + "\"" +
+                       " -DDEKI_DEPS_DIR=\"" + toCMakePath(GetDepsDir()) + "\"";
+
+    // Where the editor's own configure put SDL3's headers and link library
+    // (a prebuilt archive on Windows, a source build elsewhere); generated
+    // package builds compile against the same ones. Absent from an older
+    // cache, the generated file falls back to the source layout.
+    const std::string buildDir = GetBuildDir();
+    const std::string sdl3Include = ReadCMakeCacheVar(buildDir, "DEKI_SDL3_INCLUDE_DIR");
+    const std::string sdl3Lib = ReadCMakeCacheVar(buildDir, "DEKI_SDL3_LIB_DIR");
+    if (!sdl3Include.empty())
+        args += " -DDEKI_SDL3_INCLUDE_DIR=\"" + toCMakePath(sdl3Include) + "\"";
+    if (!sdl3Lib.empty())
+        args += " -DDEKI_SDL3_LIB_DIR=\"" + toCMakePath(sdl3Lib) + "\"";
+    return args;
 }
 
 bool EditorSettings::GetPanelOpen(const std::string& panelName, bool defaultValue)
