@@ -1,4 +1,8 @@
 #include "NativeBuilder.h"
+#include "services/SafeNames.h"
+#include <deki-editor/EditorHttpUtils.h>
+#include <fstream>
+#include <cstdio>
 #include <deki-editor/Paths.h>
 #include "core/ProjectPaths.h"
 #include "../CMakeGenUtils.h"
@@ -191,6 +195,18 @@ void NativeBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
     // deki_package_init.gen.cpp behind that kept calling SDL3_RegisterComponents() after the
     // package's prefix became DekiSDL3, breaking the link.
     if (outputCallback) outputCallback("Generating build files...", false);
+    // Third-party libraries the packages declared (SDL3): fetch a prebuilt
+    // archive where one is published for this host, else note the version
+    // for a source build. Runs before the build files so they can name it.
+    SetProgress(BuildState::Building, "Resolving native dependencies...", 0.05f);
+    if (progressCallback) progressCallback(GetProgress());
+    if (!PrepareNativeDependencies(projectPath, outputCallback))
+    {
+        SetError("Failed to resolve native dependencies");
+        if (progressCallback) progressCallback(GetProgress());
+        return;
+    }
+
     if (!GenerateBuildFiles(projectPath, m_PlatformConfig, m_PackageDefines))
     {
         SetError("Failed to generate build files");
@@ -313,6 +329,145 @@ static std::string ToCMakePath(const std::string& path)
     return result;
 }
 
+// The version of an SDL source checkout ("3.2.8") from its SDL_version.h,
+// or "" when there is no readable checkout there.
+static std::string SdlSourceVersion(const fs::path& srcDir)
+{
+    std::ifstream in(srcDir / "include" / "SDL3" / "SDL_version.h");
+    if (!in)
+        return "";
+    int major = -1, minor = -1, micro = -1, v = 0;
+    std::string line;
+    while (std::getline(in, line))
+    {
+        if (std::sscanf(line.c_str(), "#define SDL_MAJOR_VERSION %d", &v) == 1) major = v;
+        else if (std::sscanf(line.c_str(), "#define SDL_MINOR_VERSION %d", &v) == 1) minor = v;
+        else if (std::sscanf(line.c_str(), "#define SDL_MICRO_VERSION %d", &v) == 1) micro = v;
+    }
+    if (major < 0 || minor < 0 || micro < 0)
+        return "";
+    return std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(micro);
+}
+
+const char* NativeBuilder::HostPrebuiltKey()
+{
+#if defined(_WIN32)
+    return "windows-mingw";
+#elif defined(__APPLE__)
+    return "macos";
+#else
+    return "linux";
+#endif
+}
+
+// Resolve every native dependency the active packages declare. A prebuilt
+// archive for this host is downloaded (pinned SHA-256, refused otherwise),
+// unpacked under <project>/generated/deps/<name>-<version>/ and remembered
+// by the SHA-256 it came from, so a later build only checks the marker.
+// Anything that cannot be fetched falls back to a source build, which the
+// generated CMake performs at release-<version>.
+bool NativeBuilder::PrepareNativeDependencies(const std::string& projectPath, BuildOutputCallback outputCallback)
+{
+    m_NativeDeps.clear();
+    auto log = [&](const std::string& message, bool isError = false)
+    {
+        if (outputCallback) outputCallback(message, isError);
+    };
+
+    const auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
+    const auto activeIds = CMakeGen::ResolveActivePackages(allPackages, m_PackageDefines);
+    const std::string host = HostPrebuiltKey();
+    const fs::path depsRoot = ProjectPaths::Generated(projectPath) / "deps";
+
+    for (const auto& pkg : allPackages)
+    {
+        if (activeIds.count(pkg.id) == 0) continue;
+        for (const auto& dep : pkg.nativeDeps)
+        {
+            std::string reason;
+            if (!SafeNames::IsSafeName(dep.name, reason) || !SafeNames::IsSafeName(dep.version, reason))
+            {
+                log(pkg.id + ": native dependency '" + dep.name + "' " + dep.version + " has an unusable name: " + reason, true);
+                continue;
+            }
+
+            ResolvedNativeDependency resolved;
+            resolved.version = dep.version;
+            resolved.git = dep.git;
+
+            const auto pit = dep.prebuilt.find(host);
+            if (pit != dep.prebuilt.end())
+            {
+                const CMakeGen::NativePrebuilt& pre = pit->second;
+                const fs::path dest = depsRoot / (dep.name + "-" + dep.version);
+                const fs::path marker = dest / ".deki-prebuilt";
+                std::error_code ec;
+
+                bool ready = false;
+                {
+                    std::ifstream in(marker);
+                    std::string have;
+                    ready = in && std::getline(in, have) && !pre.sha256.empty() && have == pre.sha256;
+                }
+
+                if (!ready && pre.sha256.empty())
+                    log(pkg.id + ": prebuilt " + dep.name + " has no sha256; building it from source instead", true);
+                else if (!ready && (!EditorHttpUtils::IsSafeArchiveEntry(pre.cmakeDir) ||
+                                    !EditorHttpUtils::IsSafeArchiveEntry(pre.includeDir)))
+                    log(pkg.id + ": prebuilt " + dep.name + " names a directory outside its archive; building it from source instead", true);
+                else if (!ready)
+                {
+                    log("Fetching prebuilt " + dep.name + " " + dep.version + " from " + pre.url);
+                    fs::create_directories(depsRoot, ec);
+                    const fs::path zip = depsRoot / (dep.name + "-" + dep.version + ".zip");
+                    auto status = [&](const std::string& s) { log(s); };
+                    bool ok = EditorHttpUtils::DownloadFileVerified(pre.url, zip.string(), pre.sha256, &m_CancelRequested, status);
+                    if (ok)
+                    {
+                        fs::remove_all(dest, ec);
+                        fs::create_directories(dest, ec);
+                        ok = EditorHttpUtils::ExtractZip(zip.string(), dest.string(), status);
+                    }
+                    fs::remove(zip, ec);
+                    if (ok)
+                    {
+                        std::ofstream out(marker, std::ios::binary);
+                        out << pre.sha256 << "\n";
+                        ready = static_cast<bool>(out);
+                    }
+                    if (!ready)
+                    {
+                        fs::remove_all(dest, ec);
+                        log("Could not fetch the prebuilt " + dep.name + "; building it from source instead", true);
+                    }
+                }
+
+                if (ready)
+                {
+                    const fs::path cmakeDir = dest / pre.cmakeDir;
+                    if (fs::exists(cmakeDir / (dep.name + "Config.cmake")))
+                    {
+                        resolved.cmakeDir = cmakeDir.string();
+                        resolved.includeDir = (dest / pre.includeDir).string();
+                        log("Using prebuilt " + dep.name + " " + dep.version);
+                    }
+                    else
+                    {
+                        log("Prebuilt " + dep.name + " archive has no " + dep.name + "Config.cmake under " + pre.cmakeDir +
+                                "; building it from source instead",
+                            true);
+                    }
+                }
+            }
+
+            if (resolved.cmakeDir.empty())
+                log("Building " + dep.name + " " + dep.version + " from source");
+            m_NativeDeps[dep.name] = resolved;
+        }
+    }
+    return true;
+}
+
 bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
                                        const std::string& buildDir,
                                        const PlatformConfig& config,
@@ -356,27 +511,54 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // Engine component metadata (src/generated/*.gen.cpp) is produced by the editor build
     // and reused here via the deki-engine subdirectory below — no separate codegen step.
 
-    // SDL3 via FetchContent. The editor's own build has already fetched the
-    // same SDL3 (its scene view renders through it); point FetchContent at
-    // that checkout when it is there, so a project build neither clones nor
-    // downloads anything. A clone into the project's build tree also breaks
-    // under a deep project folder on Windows: SDL's repository has paths that
-    // pass the 260-character limit ("Filename too long" on checkout).
-    file << "# SDL3\n";
-    file << "include(FetchContent)\n";
-    const std::string editorSdl3 = ToCMakePath((fs::path(EditorSettings::GetDepsDir()) / "sdl3-src").string());
-    file << "if(NOT DEFINED FETCHCONTENT_SOURCE_DIR_SDL3 AND EXISTS \"" << editorSdl3 << "/CMakeLists.txt\")\n";
-    file << "    set(FETCHCONTENT_SOURCE_DIR_SDL3 \"" << editorSdl3 << "\" CACHE PATH \"SDL3 source shared with the editor build\")\n";
-    file << "endif()\n";
-    file << "set(SDL_SHARED OFF CACHE BOOL \"\" FORCE)\n";
-    file << "set(SDL_STATIC ON CACHE BOOL \"\" FORCE)\n";
-    file << "set(SDL_TEST OFF CACHE BOOL \"\" FORCE)\n";
-    file << "FetchContent_Declare(SDL3\n";
-    file << "    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git\n";
-    file << "    GIT_TAG release-3.2.8\n";
-    file << "    GIT_SHALLOW TRUE\n";
-    file << ")\n";
-    file << "FetchContent_MakeAvailable(SDL3)\n\n";
+    // SDL3. deki-sdl3-integration declares it in package.json under
+    // dependencies.native (name, version, git, prebuilt archives per host) and
+    // PrepareNativeDependencies() resolved that before this file was written.
+    // Prebuilt: SDL's own release archive, unpacked under <project>/generated/
+    // deps and consumed through its CMake package, so the project holds no
+    // SDL3 build tree at all (on Windows that tree is what pushed a deep
+    // project folder past the 260-character path limit). Source: FetchContent
+    // at release-<version>, pointed at the editor's own checkout when that is
+    // the same version, so nothing is cloned.
+    ResolvedNativeDependency sdl3;
+    if (auto it = m_NativeDeps.find("SDL3"); it != m_NativeDeps.end())
+        sdl3 = it->second;
+    if (sdl3.version.empty())
+        sdl3.version = "3.2.8";
+    if (sdl3.git.empty())
+        sdl3.git = "https://github.com/libsdl-org/SDL.git";
+
+    file << "# SDL3 " << sdl3.version << "\n";
+    if (!sdl3.cmakeDir.empty())
+    {
+        file << "# Prebuilt release archive, fetched and verified by the editor.\n";
+        file << "set(SDL3_DIR \"" << ToCMakePath(sdl3.cmakeDir) << "\" CACHE PATH \"\" FORCE)\n";
+        file << "find_package(SDL3 " << sdl3.version << " EXACT REQUIRED CONFIG)\n";
+        file << "set(DEKI_SDL3_TARGET SDL3::SDL3)\n";
+        file << "set(DEKI_SDL3_INCLUDE \"" << ToCMakePath(sdl3.includeDir) << "\")\n\n";
+    }
+    else
+    {
+        file << "include(FetchContent)\n";
+        const fs::path editorSdl3 = fs::path(EditorSettings::GetDepsDir()) / "sdl3-src";
+        if (SdlSourceVersion(editorSdl3) == sdl3.version)
+        {
+            file << "if(NOT DEFINED FETCHCONTENT_SOURCE_DIR_SDL3 AND EXISTS \"" << ToCMakePath(editorSdl3.string()) << "/CMakeLists.txt\")\n";
+            file << "    set(FETCHCONTENT_SOURCE_DIR_SDL3 \"" << ToCMakePath(editorSdl3.string()) << "\" CACHE PATH \"SDL3 source shared with the editor build\")\n";
+            file << "endif()\n";
+        }
+        file << "set(SDL_SHARED OFF CACHE BOOL \"\" FORCE)\n";
+        file << "set(SDL_STATIC ON CACHE BOOL \"\" FORCE)\n";
+        file << "set(SDL_TEST OFF CACHE BOOL \"\" FORCE)\n";
+        file << "FetchContent_Declare(SDL3\n";
+        file << "    GIT_REPOSITORY " << sdl3.git << "\n";
+        file << "    GIT_TAG release-" << sdl3.version << "\n";
+        file << "    GIT_SHALLOW TRUE\n";
+        file << ")\n";
+        file << "FetchContent_MakeAvailable(SDL3)\n";
+        file << "set(DEKI_SDL3_TARGET SDL3::SDL3-static)\n";
+        file << "set(DEKI_SDL3_INCLUDE \"\")\n\n";
+    }
 
     // OpenGL
     file << "find_package(OpenGL REQUIRED)\n\n";
@@ -387,7 +569,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     file << "add_subdirectory(\"${DEKI_ENGINE_PATH}\" \"${CMAKE_BINARY_DIR}/deki-engine\")\n\n";
 
     // Make engine link SDL3 and OpenGL (needed by SDL3 package)
-    file << "target_link_libraries(deki-engine-core PUBLIC SDL3::SDL3-static OpenGL::GL)\n\n";
+    file << "target_link_libraries(deki-engine-core PUBLIC ${DEKI_SDL3_TARGET} OpenGL::GL)\n\n";
 
     // The engine subdir only defines DEKI_LOG_ENABLED for editor builds; the desktop
     // simulator is a debugging tool, so route engine-core logs through the callback too.
@@ -510,6 +692,9 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // The codegen parses package headers directly, so it needs the same third-party
     // includes the compile step gets transitively from linked targets — otherwise
     // e.g. deki-sdl3-integration fails on <SDL3/SDL.h>.
+    file << "    if(DEKI_SDL3_INCLUDE)\n";
+    file << "        list(APPEND _RC_INCS \"${DEKI_SDL3_INCLUDE}\")\n";
+    file << "    endif()\n";
     file << "    if(DEFINED sdl3_SOURCE_DIR)\n";
     file << "        list(APPEND _RC_INCS \"${sdl3_SOURCE_DIR}/include\")\n";
     file << "    endif()\n";
@@ -593,7 +778,14 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     file << ")\n\n";
 
     // Link (deki-engine-core + SDL3/OpenGL + package-declared system libs e.g. winhttp)
-    file << "target_link_libraries(DekiGame PRIVATE deki-engine-core SDL3::SDL3-static OpenGL::GL ${_ALL_SYSTEM_LIBS})\n\n";
+    file << "target_link_libraries(DekiGame PRIVATE deki-engine-core ${DEKI_SDL3_TARGET} OpenGL::GL ${_ALL_SYSTEM_LIBS})\n\n";
+
+    // A prebuilt SDL3 is a DLL; it has to sit next to the exe.
+    file << "if(TARGET SDL3::SDL3-shared)\n";
+    file << "    add_custom_command(TARGET DekiGame POST_BUILD\n";
+    file << "        COMMAND ${CMAKE_COMMAND} -E copy_if_different \"$<TARGET_FILE:SDL3::SDL3-shared>\" \"$<TARGET_FILE_DIR:DekiGame>\"\n";
+    file << "        COMMENT \"Copying SDL3 next to DekiGame\")\n";
+    file << "endif()\n\n";
 
     // Compile definitions
     file << "# Platform defines\n";

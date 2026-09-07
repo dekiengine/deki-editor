@@ -62,6 +62,27 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                             info.dekiDeps.push_back(name);
                         else if (platform == "espidf")
                             info.espidfDeps.push_back(name);
+                        else if (platform == "native" && dep.is_object())
+                        {
+                            NativeDependency nd;
+                            nd.name = name;
+                            nd.version = dep.value("version", "");
+                            nd.git = dep.value("git", "");
+                            if (dep.contains("prebuilt") && dep["prebuilt"].is_object())
+                            {
+                                for (auto& [host, archive] : dep["prebuilt"].items())
+                                {
+                                    if (!archive.is_object()) continue;
+                                    NativePrebuilt pre;
+                                    pre.url = archive.value("url", "");
+                                    pre.sha256 = archive.value("sha256", "");
+                                    pre.cmakeDir = archive.value("cmakeDir", "");
+                                    pre.includeDir = archive.value("includeDir", "");
+                                    nd.prebuilt[host] = pre;
+                                }
+                            }
+                            info.nativeDeps.push_back(nd);
+                        }
                     }
                 }
             }

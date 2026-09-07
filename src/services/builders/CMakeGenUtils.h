@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 #include <ostream>
 #include <filesystem>
 
@@ -13,6 +14,32 @@ struct PlatformConfig;
 
 namespace CMakeGen
 {
+
+// A release archive of a third-party library for one host, from package.json:
+//   "dependencies": { "native": [ { "name": "SDL3", "version": "3.2.8",
+//       "git": "https://github.com/libsdl-org/SDL.git",
+//       "prebuilt": { "windows-mingw": { "url": "...", "sha256": "...",
+//           "cmakeDir": "SDL3-3.2.8/x86_64-w64-mingw32/lib/cmake/SDL3",
+//           "includeDir": "SDL3-3.2.8/x86_64-w64-mingw32/include" } } } ] }
+// The native builder unpacks it under <project>/generated/deps and consumes
+// the library through its CMake package instead of building it from source.
+struct NativePrebuilt
+{
+    std::string url;         // https archive
+    std::string sha256;      // pinned; an unpinned archive is not used
+    std::string cmakeDir;    // directory holding <Name>Config.cmake, relative to the archive root
+    std::string includeDir;  // public headers, relative to the archive root
+};
+
+// A third-party library a package needs in a native (desktop) build. The
+// version is the package's to choose; the builder only follows it.
+struct NativeDependency
+{
+    std::string name;     // e.g. "SDL3"
+    std::string version;  // e.g. "3.2.8"
+    std::string git;      // source fallback: repository, built at tag release-<version>
+    std::map<std::string, NativePrebuilt> prebuilt;  // host key ("windows-mingw", "linux", "macos") -> archive
+};
 
 // Package manifest data parsed from package.json + package.cmake
 struct PackageEntry
@@ -25,6 +52,7 @@ struct PackageEntry
     std::vector<std::string> sourceStems;  // Auto-discovered .cpp stems (excluding entry, editor/, generated/)
     std::vector<std::string> dekiDeps;     // Transitive deki:* dependency IDs
     std::vector<std::string> espidfDeps;   // ESP-IDF component dependencies (e.g., "fatfs", "sdmmc")
+    std::vector<NativeDependency> nativeDeps;  // Third-party libraries for the desktop build
     bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
 };
 

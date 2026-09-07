@@ -136,10 +136,20 @@ Findings of the pre-publication review, all fixed in this release:
   deki-desktop-integration 0.10.2 sets the asset base to `S:/` (every load
   was null) and logs to `dekigame.log` beside the exe, deki-2d 0.10.2 reads
   animations through the filesystem provider (they never opened on a mount),
-  deki-sdl3-integration 0.10.1 titles the window "Deki". The simulator build
-  reuses the SDL3 source the editor's own build fetched instead of cloning it
-  into the project, which also fixes "Filename too long" on a deep project
-  folder on Windows.
+  deki-sdl3-integration 0.10.1 titles the window "Deki".
+- The simulator no longer builds SDL3 from source in every project. A
+  package declares its native dependencies in `package.json`
+  (`dependencies.native`: name, version, git, and per host a `prebuilt`
+  archive with its SHA-256); deki-sdl3-integration 0.10.2 names SDL's own
+  `SDL3-devel-3.2.8-mingw.zip` for Windows. The builder downloads and
+  verifies it once into `<project>/generated/deps/`, links the DLL through
+  its CMake package and copies it next to the exe. The version is the
+  package's, no longer hardcoded in the editor; where no prebuilt is
+  published the source build runs at `release-<version>`, reusing the
+  editor's checkout when it is the same version. A first simulator build of
+  the sample project takes about a minute and a half instead of compiling
+  263 SDL3 files, and the deepest SDL3 tree, which was what broke a deep
+  project folder on Windows, is gone.
 - A transparent pixel between two opaque ones on the same row of a sprite
   (the notch of a heart, the empty half of a half heart, the gap between a
   character's legs) rendered as a black dot. Both row-span fast paths

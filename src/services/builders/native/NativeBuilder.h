@@ -2,6 +2,8 @@
 
 #include "../FirmwareBuilderBase.h"
 #include "NativeToolchain.h"
+#include <map>
+#include <string>
 #include <thread>
 
 namespace DekiEditor
@@ -54,6 +56,22 @@ public:
 
 private:
     NativeToolchain m_Toolchain;
+
+    // A third-party library the active packages declared for this build,
+    // resolved by PrepareNativeDependencies(): either a prebuilt archive
+    // unpacked under <project>/generated/deps (cmakeDir set) or a source
+    // build at release-<version> from git.
+    struct ResolvedNativeDependency
+    {
+        std::string version;
+        std::string git;
+        std::string cmakeDir;    // absolute, holds <Name>Config.cmake; empty = build from source
+        std::string includeDir;  // absolute public headers of the prebuilt
+    };
+    std::map<std::string, ResolvedNativeDependency> m_NativeDeps;
+
+    static const char* HostPrebuiltKey();
+    bool PrepareNativeDependencies(const std::string& projectPath, BuildOutputCallback outputCallback);
 
     // Internal worker functions
     void DoBuild(const std::string& projectPath, BuildOutputCallback outputCallback,
