@@ -4,6 +4,12 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.12.1
+
+### Added
+- `Object::AddComponent(Deki::TypeId<T>())` and `AddComponent("Game::Health")`
+  on every platform; the component factory is engine-internal.
+
 ## 0.12.0
 
 ### Breaking

@@ -75,6 +75,46 @@ TEST(TypeId, AddComponentAttachesAnEntryEvenWithoutCodegen)
     EXPECT_EQ(obj.GetComponent<GlobalWidget>(), nullptr);
 }
 
+namespace TypeIdTestNs
+{
+class Spawnable : public Deki::Component
+{
+public:
+    static const Deki::ComponentTypeInfo kTypeInfo;
+    Spawnable() { SetTypeInfo(&kTypeInfo); }
+    int value = 7;
+};
+}  // namespace TypeIdTestNs
+
+namespace
+{
+Deki::ComponentTypeInfo MakeSpawnable()
+{
+    Deki::ComponentTypeInfo info = Deki::MakeHandWrittenTypeInfo<TypeIdTestNs::Spawnable>(false);
+    info.create = []() -> Deki::Component* { return new TypeIdTestNs::Spawnable(); };
+    return info;
+}
+}  // namespace
+const Deki::ComponentTypeInfo TypeIdTestNs::Spawnable::kTypeInfo = MakeSpawnable();
+
+TEST(TypeId, ObjectAddsRegisteredComponentsByIdAndByName)
+{
+    auto& factory = Deki::ComponentFactory::Instance();
+    factory.Register(&TypeIdTestNs::Spawnable::kTypeInfo);
+
+    Deki::Object obj("o");
+    Deki::Component* byId = obj.AddComponent(Deki::TypeId<TypeIdTestNs::Spawnable>());
+    ASSERT_NE(byId, nullptr);
+    EXPECT_EQ(byId->GetType(), Deki::TypeId<TypeIdTestNs::Spawnable>());
+    EXPECT_EQ(byId->GetOwner(), &obj);
+    EXPECT_EQ(obj.GetComponent<TypeIdTestNs::Spawnable>(), byId);
+
+    // The id of a class nobody registered
+    EXPECT_EQ(obj.AddComponent(Deki::HashString("Nowhere::Nothing")), nullptr);
+
+    factory.Unregister(Deki::TypeId<TypeIdTestNs::Spawnable>());
+}
+
 TEST(TypeId, ARegisteredEntryWinsOverTheFallback)
 {
     static const Deki::ComponentTypeInfo info = Deki::MakeHandWrittenTypeInfo<GlobalWidget>(/*declaresUpdate=*/false);
