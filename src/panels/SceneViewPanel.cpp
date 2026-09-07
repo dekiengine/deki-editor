@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include "SceneViewPanel.h"
 #include "../PanelMaximize.h"
 #include "scene_view/SceneTextureCache.h"
@@ -797,7 +798,7 @@ void SceneViewPanel::DrawSceneCanvas()
     // by the time we reach here.
     if (!m_EditorCamera)
     {
-        m_EditorCameraObject->AddComponent("CameraComponent");
+        Deki::Internal::AddComponentByName(*m_EditorCameraObject, "CameraComponent");
         m_EditorCamera = m_EditorCameraObject->FindInterface<Deki::ICamera>();
         if (!m_EditorCamera) return;
     }

@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include "ObjectSerializationHelper.h"
 
 #include "PropertyTypeHandlers.h"
@@ -263,7 +264,7 @@ void RestoreComponents(Deki::Object* obj, const std::vector<ComponentData>& comp
 {
     for (const auto& cd : components)
     {
-        Deki::Component* comp = obj->AddComponent(cd.typeName);
+        Deki::Component* comp = Deki::Internal::AddComponentByName(*obj, cd.typeName);
         if (comp)
         {
             RestoreComponentProperties(comp, cd);

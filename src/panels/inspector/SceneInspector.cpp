@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include "SceneInspector.h"
 #include "../../EditorApp.h"
 #include "../../core/Project.h"
@@ -52,7 +53,7 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
             if (!Deki::ComponentRegistry::Instance().GetMetaByClassName("CameraComponent"))
                 return;
             m_CameraObject = std::make_unique<Deki::Object>();
-            m_CameraObject->AddComponent("CameraComponent");
+            Deki::Internal::AddComponentByName(*m_CameraObject, "CameraComponent");
             m_Camera = m_CameraObject->FindInterface<Deki::ICamera>();
             if (!m_Camera) return;
         }

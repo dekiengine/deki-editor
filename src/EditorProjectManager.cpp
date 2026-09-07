@@ -1,6 +1,7 @@
 // EditorApp Project & Scene Management
 // Extracted from EditorApp.cpp - project open/close, scene lifecycle, hot reload callbacks
 
+#include "ObjectInternal.h"
 #include "EditorApp.h"
 #include <algorithm>
 #include <regex>
@@ -950,7 +951,7 @@ void EditorApp::EnsurePlatformSetup()
 
     if (!hasSetupComp)
     {
-        if (setupObj->AddComponent("PlatformSetupComponent"))
+        if (Deki::Internal::AddComponentByName(*setupObj, "PlatformSetupComponent"))
             modified = true;
     }
 

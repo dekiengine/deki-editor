@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include "PlatformManagerPanel.h"
 #include <deki-editor/Paths.h>
 #include "ActivityPanel.h"
@@ -75,7 +76,7 @@ PlatformManagerPanel::PlatformManagerPanel(EditorApp* app)
                 Deki::Scene bootScene;
                 Deki::Object* setup = bootScene.CreateDekiObject("Setup");
                 if (setup)
-                    setup->AddComponent("PlatformSetupComponent");
+                    Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
                 bootScene.SaveToFile(bootPath);
             }
 
@@ -393,7 +394,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
                 Deki::Scene bp;
                 Deki::Object* setup = bp.CreateDekiObject("Setup");
                 if (setup)
-                    setup->AddComponent("PlatformSetupComponent");
+                    Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
                 bp.SaveToFile(bootPath);
             }
         }

@@ -36,6 +36,7 @@ set(EDITOR_DLL_SOURCES
     src/AssetPicker.cpp
     src/CommandHistory.cpp
     src/EditorNaming.cpp
+    src/EditorComponents.cpp
 )
 
 # Create shared library (DLL)

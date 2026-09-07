@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include "ClipboardCommands.h"
 #include <deki/Object.h>
 #include <deki/Component.h>
@@ -80,7 +81,7 @@ void PasteComponentAsNewCommand::Execute()
 {
     for (auto& entry : m_Entries)
     {
-        Deki::Component* comp = entry.object->AddComponent(m_SourceData.typeName);
+        Deki::Component* comp = Deki::Internal::AddComponentByName(*entry.object, m_SourceData.typeName);
         if (comp)
         {
             RestoreComponentProperties(comp, m_SourceData);

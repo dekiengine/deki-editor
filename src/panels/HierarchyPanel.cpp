@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include "HierarchyPanel.h"
 #include "../PanelMaximize.h"
 #include "EditorApp.h"
@@ -513,7 +514,7 @@ void HierarchyPanel::Draw()
                                     scene, objName,
                                     [this, compName](Deki::Object* obj)
                                     {
-                                        obj->AddComponent(compName);
+                                        Deki::Internal::AddComponentByName(*obj, compName);
                                         m_App->SetSelectedObject(obj);
                                     },
                                     sceneRoot,

@@ -1,3 +1,4 @@
+#include "ObjectInternal.h"
 #include <gtest/gtest.h>
 #include "../mocks/MockComponent.h"
 #include <deki/SceneMessagePack.h>
@@ -37,7 +38,7 @@ TEST_F(MsgPackSerializationTest, SmallEnumRoundTrip)
     Deki::Scene scene;
     auto* obj = new Deki::Object();
     obj->SetName("TestObj");
-    obj->AddComponent(static_cast<Deki::Component*>(comp));
+    Deki::Internal::AttachComponent(*obj, comp);
     scene.AddObject(obj);
 
     // Write to msgpack

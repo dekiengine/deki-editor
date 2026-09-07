@@ -4,6 +4,15 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.12.3
+
+### Changed
+- `AddComponent<T>()` is the only `AddComponent` a script can see. The
+  by-name and pre-built-instance forms are private to `Deki::Object`, reached
+  through the engine-internal `Deki::Internal` entry points by the scene
+  loaders and the editor; package editor code that builds objects on the
+  user's behalf calls `DekiEditor::AddComponentByName()` from the editor DLL.
+
 ## 0.12.2
 
 ### Changed

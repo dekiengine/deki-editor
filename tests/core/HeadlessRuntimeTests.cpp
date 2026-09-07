@@ -7,6 +7,7 @@
 // question becomes whether the rest of the engine degrades cleanly or assumes
 // a display exists.
 
+#include "ObjectInternal.h"
 #include <gtest/gtest.h>
 
 #include <deki/Engine.h>
@@ -70,7 +71,7 @@ TEST(HeadlessRuntime, UpdateIsSkippedForBehavioursThatDoNotDeclareIt)
     Deki::Scene scene;
     Deki::Object* root = scene.CreateDekiObject("Root");
     auto* silent = new SilentBehaviour();
-    root->AddComponent(silent);
+    Deki::Internal::AttachComponent(*root, silent);
 
     RunFrames(Deki::Engine::GetInstance().GetLifecycleManager(), scene, 5);
     EXPECT_EQ(silent->updates, 0);
@@ -87,7 +88,7 @@ TEST(HeadlessRuntime, LifecycleRunsWithNoDisplayAndNoRenderer)
     Deki::Scene scene;
     Deki::Object* root = scene.CreateDekiObject("Root");
     auto* counter = new TickCounter();
-    root->AddComponent(counter);
+    Deki::Internal::AttachComponent(*root, counter);
 
     auto* lm = engine.GetLifecycleManager();
     ASSERT_NE(lm, nullptr);
