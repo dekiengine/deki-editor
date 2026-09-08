@@ -4,6 +4,20 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- File dialogs work off Windows. Opening a project and Save As logged "not
+  implemented on this platform" and returned nothing on Linux, so neither
+  could be done through a dialog at all. They now go through SDL's dialogs,
+  which use the desktop portal, on every platform but Windows, which keeps
+  its shell dialogs.
+- The dialogs are asynchronous: the call returns at once and the handler runs
+  on a later frame, from `ProcessDeferredTasks`, outside the ImGui frame. A
+  Save As raised by the unsaved-changes prompt therefore closes the prompt on
+  the frame after the write lands, and the prompt's buttons are disabled while
+  a dialog is up rather than stacking a second one.
+
 ## 0.13.0
 
 ### Breaking

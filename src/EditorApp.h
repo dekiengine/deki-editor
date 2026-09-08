@@ -416,6 +416,12 @@ private:
 
     UnsavedChangesPrompt m_UnsavedPrompt;
 
+    // Set by the Save As handler the prompt raised, once the write has landed.
+    // The prompt itself has to do the closing, because ImGui::CloseCurrentPopup
+    // only means anything inside the popup's own frame, and the dialog result
+    // arrives outside one.
+    bool m_UnsavedPromptSaved = false;
+
 public:
     // Is the unsaved-changes dialog holding an operation? A scripted caller that
     // does not check this can keep issuing commands that appear to succeed while

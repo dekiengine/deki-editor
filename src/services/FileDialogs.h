@@ -1,28 +1,46 @@
 #pragma once
 
+#include <functional>
 #include <string>
+
+struct SDL_Window;
 
 namespace DekiEditor
 {
 namespace FileDialogs
 {
 
-// Open a folder picker dialog
-// Returns the selected folder path, or empty string if cancelled
-std::string OpenFolder(const char* title = "Select Folder");
+// Called with the chosen path, or with an empty string if the user cancelled
+// or the dialog failed. Always runs on the main thread, from PumpResults(),
+// never inside an ImGui frame -- so a handler may open a project, save a
+// scene, or do anything else that would be unsafe mid-frame.
+using ResultCallback = std::function<void(const std::string& path)>;
 
-// Open a file picker dialog
-// filter: Windows-style filter string (e.g. "Text Files\0*.txt\0All Files\0*.*\0")
-// defaultPath: Optional initial directory
-// Returns the selected file path, or empty string if cancelled
-std::string OpenFile(const char* filter, const char* defaultPath = nullptr);
+// Parent window for the dialogs. Wired once at boot, like ProgressModal's.
+void SetWindow(SDL_Window* window);
 
-// Open a save file dialog
-// filter: Windows-style filter string
-// defaultExt: Default extension to append if none specified
-// defaultPath: Optional initial directory
-// Returns the selected file path, or empty string if cancelled
-std::string SaveFile(const char* filter, const char* defaultExt, const char* defaultPath = nullptr);
+// Every one of these returns immediately. The callback arrives on a later
+// frame; on Linux that is however long the desktop portal takes to answer.
+//
+// filter is the Win32 filter string ("Scene Files (*.scene)\0*.scene\0"),
+// parsed by FileDialogFilter for the platforms that want a different shape.
+
+void OpenFolder(const char* title, ResultCallback onResult);
+
+void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResult);
+
+// defaultExt is appended when the chosen name carries no extension of its own.
+void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath,
+              ResultCallback onResult);
+
+// True between a request and its callback. The call sites use it to avoid
+// stacking a second dialog on the first, and to disable the button that
+// opened it.
+bool IsPending();
+
+// Delivers the callbacks of finished dialogs. Called once a frame from
+// EditorApp::ProcessDeferredTasks, before the ImGui frame opens.
+void PumpResults();
 
 }  // namespace FileDialogs
 }  // namespace DekiEditor

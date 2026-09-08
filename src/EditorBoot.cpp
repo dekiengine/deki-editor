@@ -29,6 +29,7 @@
 #include <deki-profiling-hooks/ProfilingHooks.h>
 #include "services/ProfilingService.h"
 #include "services/EditorSettings.h"
+#include "services/FileDialogs.h"
 #include "services/StartupProgress.h"
 #include "services/HotReloadService.h"
 #include <deki/LogSystem.h>
@@ -585,6 +586,10 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     // no-op headless rather than a check at each of its ~10 call sites.
     StartupProgress::SetWindow(ctx.window);
     StartupProgress::Update("Initializing...");
+
+    // Parents the file dialogs. Null headless, which is what the portable
+    // backend expects when there is no window to sit in front of.
+    FileDialogs::SetWindow(ctx.window);
 
     ProfilingService::Get().Initialize();
 

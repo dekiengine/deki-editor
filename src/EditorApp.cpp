@@ -833,6 +833,10 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
 
 void EditorApp::ProcessDeferredTasks()
 {
+    // Hand a finished file dialog its answer first, outside the ImGui frame:
+    // the handlers open projects and write scenes.
+    FileDialogs::PumpResults();
+
     // Advance a running build first: a finished step may need the reload tail,
     // which has to run here, outside the ImGui frame, like the checks below.
     if (m_HotReloadService)
@@ -1517,8 +1521,24 @@ void EditorApp::DrawUnsavedChangesDialog()
             return;
         }
 
+        // A Save As raised by this prompt finished on an earlier frame. Now
+        // that we are inside the popup again, it can be closed for real.
+        if (m_UnsavedPromptSaved)
+        {
+            m_UnsavedPromptSaved = false;
+            ImGui::CloseCurrentPopup();
+            ExecutePendingAction();
+            ImGui::EndPopup();
+            return;
+        }
+
         ImGui::Text("Do you want to save changes to the current scene?");
         ImGui::Separator();
+
+        // While the file dialog is up, the prompt stays on screen but inert:
+        // a second click would stack another dialog behind the first.
+        const bool waitingOnDialog = FileDialogs::IsPending();
+        ImGui::BeginDisabled(waitingOnDialog);
 
         if (ImGui::Button("Save", ImVec2(100, 0)))
         {
@@ -1526,16 +1546,17 @@ void EditorApp::DrawUnsavedChangesDialog()
             if (m_CurrentScenePath.empty())
             {
                 std::string defaultPath = m_Project ? m_Project->GetAssetsPath() : "";
-                std::string path = FileDialogs::SaveFile("Scene Files (*.scene)\0*.scene\0", "scene", defaultPath.c_str());
-                // A failed write must not fall through to ExecutePendingAction,
-                // which discards the scene. Leave the popup open so the user
-                // can pick another location.
-                if (!path.empty() && SaveSceneAs(path))
-                {
-                    ImGui::CloseCurrentPopup();
-                    ExecutePendingAction();
-                }
-                // If user cancelled Save As or the write failed, stay open
+                FileDialogs::SaveFile(
+                    "Scene Files (*.scene)\0*.scene\0", "scene", defaultPath.c_str(),
+                    [this](const std::string& path)
+                    {
+                        // A failed write must not fall through to
+                        // ExecutePendingAction, which discards the scene. Saying
+                        // nothing leaves the popup open so the user can pick
+                        // another location.
+                        if (!path.empty() && SaveSceneAs(path))
+                            m_UnsavedPromptSaved = true;
+                    });
             }
             else
             {
@@ -1561,6 +1582,8 @@ void EditorApp::DrawUnsavedChangesDialog()
             m_NavigationSourcePath.clear();
             ImGui::CloseCurrentPopup();
         }
+
+        ImGui::EndDisabled();
 
         ImGui::EndPopup();
     }

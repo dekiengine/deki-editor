@@ -791,13 +791,16 @@ void EditorApp::DrawProjectManagerMenuBar()
 
 void EditorApp::OpenProjectDialog()
 {
-    const std::string path = FileDialogs::OpenFolder("Select Project Folder");
-    if (path.empty())
-        return;
-    // Ask about the dirty scene BEFORE OpenProject: its internal CloseProject
-    // runs mid-open and cannot stop to ask.
-    if (!CheckUnsavedChanges(PendingSceneAction::OpenProject, path))
-        OpenProject(path);
+    FileDialogs::OpenFolder("Select Project Folder",
+                            [this](const std::string& path)
+                            {
+                                if (path.empty())
+                                    return;
+                                // Ask about the dirty scene BEFORE OpenProject: its internal
+                                // CloseProject runs mid-open and cannot stop to ask.
+                                if (!CheckUnsavedChanges(PendingSceneAction::OpenProject, path))
+                                    OpenProject(path);
+                            });
 }
 
 void EditorApp::SaveSceneAsDialog()
@@ -805,9 +808,14 @@ void EditorApp::SaveSceneAsDialog()
     if (!m_CurrentScene)
         return;
     const std::string defaultPath = m_Project ? m_Project->GetAssetsPath() : "";
-    const std::string path = FileDialogs::SaveFile("Scene Files (*.scene)\0*.scene\0", "scene", defaultPath.c_str());
-    if (!path.empty())
-        SaveSceneAs(path);
+    FileDialogs::SaveFile("Scene Files (*.scene)\0*.scene\0", "scene", defaultPath.c_str(),
+                          [this](const std::string& path)
+                          {
+                              // The scene may have been closed while the dialog was up.
+                              if (path.empty() || !m_CurrentScene)
+                                  return;
+                              SaveSceneAs(path);
+                          });
 }
 
 }  // namespace DekiEditor

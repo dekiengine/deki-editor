@@ -146,20 +146,26 @@ void ProjectManagerScreen::RebuildFilter()
 
 void ProjectManagerScreen::ImportProject()
 {
-    const std::string path = FileDialogs::OpenFolder("Select a Deki project folder");
-    if (path.empty())
-        return;
+    // The result lands on a later frame, so everything it touches is member
+    // state the next draw reads.
+    FileDialogs::OpenFolder("Select a Deki project folder",
+                            [this](const std::string& path)
+                            {
+                                if (path.empty())
+                                    return;
 
-    if (!ProjectRegistry::IsProjectDir(path))
-    {
-        m_Error = fs::path(path).filename().string() +
-                  " is not a Deki project — there is no deki.json in that folder.";
-        return;
-    }
+                                if (!ProjectRegistry::IsProjectDir(path))
+                                {
+                                    m_Error = fs::path(path).filename().string() +
+                                              " is not a Deki project — there is no deki.json in "
+                                              "that folder.";
+                                    return;
+                                }
 
-    m_Error.clear();
-    ProjectRegistry::Get().Add(path);
-    m_PendingOpen = path;
+                                m_Error.clear();
+                                ProjectRegistry::Get().Add(path);
+                                m_PendingOpen = path;
+                            });
 }
 
 void ProjectManagerScreen::Draw()

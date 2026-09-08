@@ -521,6 +521,9 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FaultGuard.cpp
     # PlayModeGuardTests: a fault in play-mode game code is reported, not fatal.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PlayModeGuard.cpp
+    # FileDialogFilterTests: the Win32 filter string the call sites are
+    # written in, as the portable dialogs need it.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FileDialogFilter.cpp
 )
 
 # Editor sources
@@ -629,6 +632,8 @@ set(EDITOR_SOURCES
     src/services/ProjectMaintenance.h
     src/services/FileDialogs.cpp
     src/services/FileDialogs.h
+    src/services/FileDialogFilter.cpp
+    src/services/FileDialogFilter.h
     src/services/EngineEditorSetup.cpp
     src/services/EngineEditorSetup.h
     src/services/AssetExporter.cpp

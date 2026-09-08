@@ -40,6 +40,7 @@ set(TEST_SOURCES
     services/VersionCompareTests.cpp
     services/EditorLogFileTests.cpp
     services/UpdateCheckTests.cpp
+    services/FileDialogFilterTests.cpp
     services/PlayModeGuardTests.cpp
     core/ZipSafetyTests.cpp
     core/PlatformConfigTests.cpp
