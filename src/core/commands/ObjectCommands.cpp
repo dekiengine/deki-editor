@@ -91,7 +91,7 @@ void AddComponentCommand::Execute()
 {
     Deki::Component* comp = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
     if (auto* scene = m_Object->GetOwnerScene())
-        scene->InvalidateBehavioursCache();
+        scene->InvalidateComponentsCache();
     if (comp && m_OnAdded) m_OnAdded(comp);
 }
 
@@ -107,7 +107,7 @@ void AddComponentCommand::Undo()
         {
             m_Object->RemoveComponent(*it);
             if (auto* scene = m_Object->GetOwnerScene())
-                scene->InvalidateBehavioursCache();
+                scene->InvalidateComponentsCache();
             break;
         }
     }
@@ -130,7 +130,7 @@ void RemoveComponentCommand::Execute()
         CustomEditorRegistry::Instance().ClearCacheForComponent(m_ComponentToRemove);
         m_Object->RemoveComponent(m_ComponentToRemove);
         if (auto* scene = m_Object->GetOwnerScene())
-            scene->InvalidateBehavioursCache();
+            scene->InvalidateComponentsCache();
         m_ComponentToRemove = nullptr;
         if (m_OnRemoved) m_OnRemoved();
     }
@@ -144,7 +144,7 @@ void RemoveComponentCommand::Undo()
     {
         RestoreComponentProperties(comp, m_StoredData);
         if (auto* scene = m_Object->GetOwnerScene())
-            scene->InvalidateBehavioursCache();
+            scene->InvalidateComponentsCache();
         m_ComponentToRemove = comp;
     }
 }

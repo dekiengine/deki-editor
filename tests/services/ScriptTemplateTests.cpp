@@ -50,7 +50,7 @@ TEST_F(ScriptTemplateTest, WritesAMacroFreeBehaviour)
     ASSERT_TRUE(CreateBehaviourScript(dir.string(), "Mover", error)) << error;
 
     const std::string header = ReadAll(dir / "Mover.h");
-    EXPECT_NE(header.find("class Mover : public Deki::Behaviour"), std::string::npos);
+    EXPECT_NE(header.find("class Mover : public Deki::Component"), std::string::npos);
     EXPECT_NE(header.find("DEKI_CATEGORY("), std::string::npos);
     EXPECT_NE(header.find("DEKI_DESCRIPTION("), std::string::npos);
     EXPECT_NE(header.find("DEKI_EXPORT"), std::string::npos);

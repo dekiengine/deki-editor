@@ -2,7 +2,7 @@
 """Lock the virtual-function tables that package DLLs depend on.
 
 Packages subclass a handful of engine and editor classes (Deki::Component,
-Deki::Behaviour, Deki::IDisplay, DekiEditor::CustomEditor, ...). The order and
+Deki::IDisplay, DekiEditor::CustomEditor, ...). The order and
 count of their virtual functions is part of the ABI: a virtual added in the
 middle, removed, or reordered makes an already-built package call the wrong
 slot, and nothing in the reflection handshake measures that (see the header
@@ -47,7 +47,6 @@ LOCK = REPO / "tools" / "ci" / "abi.lock"
 # integration derives from. Adding a class here is itself a lock change.
 CLASSES: dict[str, Path] = {
     "Deki::Component": ENGINE / "Component.h",
-    "Deki::Behaviour": ENGINE / "Behaviour.h",
     "Deki::IDisplay": ENGINE / "providers" / "IDisplay.h",
     "Deki::IPackage": ENGINE / "providers" / "IPackage.h",
     "Deki::IRenderSystem": ENGINE / "providers" / "IRenderSystem.h",

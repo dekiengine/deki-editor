@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <deki/TypeId.h>
-#include <deki/Behaviour.h>
 #include <deki/Object.h>
 #include <deki/reflection/ComponentFactory.h>
 
@@ -19,7 +18,7 @@ class Health : public Deki::Component
 public:
     int hp = 10;
 };
-class Runner : public Deki::Behaviour
+class Runner : public Deki::Component
 {
 public:
     void Update() override { ++ticks; }
@@ -35,7 +34,7 @@ TEST(TypeId, QualifiedNameIsTheIdentity)
 {
     EXPECT_EQ(std::string(Deki::TypeNameOf<TypeIdTestNs::Health>()), "TypeIdTestNs::Health");
     EXPECT_EQ(std::string(Deki::TypeNameOf<GlobalWidget>()), "GlobalWidget");
-    EXPECT_EQ(std::string(Deki::TypeNameOf<Deki::Behaviour>()), "Deki::Behaviour");
+    EXPECT_EQ(std::string(Deki::TypeNameOf<Deki::Component>()), "Deki::Component");
 
     EXPECT_EQ(std::string(Deki::TypeShortNameOf<TypeIdTestNs::Health>()), "Health");
     EXPECT_EQ(std::string(Deki::TypeShortNameOf<GlobalWidget>()), "GlobalWidget");
@@ -47,7 +46,7 @@ TEST(TypeId, HashMatchesTheRuntimeHashOfTheName)
     // the compile-time id.
     EXPECT_EQ(Deki::TypeId<TypeIdTestNs::Health>(), Deki::HashString("TypeIdTestNs::Health"));
     EXPECT_EQ(Deki::TypeId<TypeIdTestNs::Health>(), Deki::HashString(Deki::TypeName<TypeIdTestNs::Health>()));
-    EXPECT_EQ(Deki::TypeId<Deki::Behaviour>(), Deki::HashString("Deki::Behaviour"));
+    EXPECT_EQ(Deki::TypeId<Deki::Component>(), Deki::HashString("Deki::Component"));
     EXPECT_NE(Deki::TypeId<TypeIdTestNs::Health>(), Deki::TypeId<GlobalWidget>());
 
     // Null-terminated storage, usable as a ComponentMeta string
@@ -67,11 +66,11 @@ TEST(TypeId, AddComponentAttachesAnEntryEvenWithoutCodegen)
     EXPECT_FALSE(health->DeclaresUpdate());
 
     EXPECT_EQ(runner->GetType(), Deki::TypeId<TypeIdTestNs::Runner>());
-    EXPECT_EQ(runner->GetBaseType(), Deki::TypeId<Deki::Behaviour>());
-    EXPECT_TRUE(runner->DeclaresUpdate());  // a hand-written behaviour is allowed to tick
+    EXPECT_EQ(runner->GetBaseType(), Deki::TypeId<Deki::Component>());
+    EXPECT_TRUE(runner->DeclaresUpdate());  // Runner declares Update(): the fallback entry sees it
 
     EXPECT_EQ(obj.GetComponent<TypeIdTestNs::Health>(), health);
-    EXPECT_EQ(obj.GetComponent<Deki::Behaviour>(), runner);  // base-type match
+    EXPECT_EQ(obj.GetComponent<Deki::Component>(), health);  // base-type match: the first component
     EXPECT_EQ(obj.GetComponent<GlobalWidget>(), nullptr);
 }
 

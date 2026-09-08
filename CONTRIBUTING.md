@@ -33,7 +33,7 @@ framing:
 ### Everything the engine exports lives in `namespace Deki`, unprefixed
 
 Since engine 0.10 there is one rule for engine types: `namespace Deki`, no
-`Deki` prefix. `Deki::Object`, `Deki::Component`, `Deki::Behaviour`,
+`Deki` prefix. `Deki::Object`, `Deki::Component`,
 `Deki::Engine`, `Deki::Scene`, `Deki::Color`, `Deki::IDisplay`,
 `Deki::PropertyInfo`. Component classes keep their `*Component` / `*Settings`
 suffix (`Deki::SetupComponent`). Two things keep a `DEKI`/`Deki` spelling on
@@ -47,16 +47,16 @@ A user component therefore reads:
 ```cpp
 DEKI_CATEGORY("Game")
 DEKI_DESCRIPTION("Moves the object along X at a constant speed.")
-class Mover : public Deki::Behaviour
+class Mover : public Deki::Component
 {
 public:
     DEKI_EXPORT float speed = 1.0f;
+    void Update() override;
 };
 ```
 
 Nothing in the class body declares it as a component: deriving publicly from
-`Deki::Component` or `Deki::Behaviour` is what the reflection codegen looks
-for, and the class's identity is its qualified name (`Deki::TypeId<Mover>()`
+`Deki::Component` is what the reflection codegen looks for, and the class's identity is its qualified name (`Deki::TypeId<Mover>()`
 is the hash of `"Mover"`). The markers above the class are optional editor
 metadata. Exported fields are public, because the generated code reaches them
 from outside the class.

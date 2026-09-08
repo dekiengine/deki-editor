@@ -15,7 +15,6 @@
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/Component.h>
-#include <deki/Behaviour.h>
 #include <deki/assets/AssetRef.h>
 #include "imgui.h"
 #include <deki-editor/IconsTabler.h>
@@ -603,8 +602,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
             }
             assetRefBase.ptr = nullptr;
             assetRefBase.loadAttempted = false;
-            if (auto* behaviour = comp->AsBehaviour())
-                behaviour->ResetRefsResolved();
+            comp->ResetRefsResolved();
         }
     }
 

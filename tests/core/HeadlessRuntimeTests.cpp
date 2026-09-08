@@ -13,14 +13,13 @@
 #include <deki/Engine.h>
 #include <deki/Scene.h>
 #include <deki/Object.h>
-#include <deki/Behaviour.h>
 #include <deki/reflection/ComponentFactory.h>
 #include "LifecycleManager.h"
 
 namespace
 {
 
-class TickCounter : public Deki::Behaviour
+class TickCounter : public Deki::Component
 {
 public:
     // Hand-written, no codegen: the entry says Update() is declared.
@@ -36,10 +35,10 @@ public:
     int updates = 0;
 };
 
-// Stands in for a reflected behaviour whose class declares no Update(): the
+// Stands in for a reflected component whose class declares no Update(): the
 // codegen answers false for those, and LifecycleManager must then never call
 // the (inherited, empty) Update at all.
-class SilentBehaviour : public Deki::Behaviour
+class SilentBehaviour : public Deki::Component
 {
 public:
     static const Deki::ComponentTypeInfo kInfo;

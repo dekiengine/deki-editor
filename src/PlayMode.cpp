@@ -21,7 +21,6 @@
 #include <unordered_set>
 
 #include <deki/Engine.h>
-#include <deki/Behaviour.h>
 #include <deki/Component.h>
 #include <deki/providers/IInputSystem.h>
 #include <deki/ICamera.h>

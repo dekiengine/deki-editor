@@ -272,7 +272,7 @@ TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
     // The behaviours cache itself is also expected to be stable across frames
     // (it is rebuilt only when marked dirty), which is what lets the snapshot
     // copy stay inside already-reserved capacity.
-    const size_t capBefore = scene.GetBehaviours().capacity();
+    const size_t capBefore = scene.GetActiveComponents().capacity();
     lm->ProcessUpdate(&scene);
-    EXPECT_EQ(scene.GetBehaviours().capacity(), capBefore);
+    EXPECT_EQ(scene.GetActiveComponents().capacity(), capBefore);
 }

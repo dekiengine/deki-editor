@@ -87,7 +87,7 @@ void PasteComponentAsNewCommand::Execute()
             RestoreComponentProperties(comp, m_SourceData);
             entry.addedComponent = comp;
             if (auto* scene = entry.object->GetOwnerScene())
-                scene->InvalidateBehavioursCache();
+                scene->InvalidateComponentsCache();
             if (m_OnAdded)
                 m_OnAdded(comp);
         }
@@ -102,7 +102,7 @@ void PasteComponentAsNewCommand::Undo()
         {
             entry.object->RemoveComponent(entry.addedComponent);
             if (auto* scene = entry.object->GetOwnerScene())
-                scene->InvalidateBehavioursCache();
+                scene->InvalidateComponentsCache();
             entry.addedComponent = nullptr;
         }
     }

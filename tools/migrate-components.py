@@ -32,7 +32,8 @@ What the script does, per directory given:
     `X::StaticGuid` -> `::Deki::TypeName<X>()`, removes the
     DEKI_REGISTER_PROJECT_SETTINGS(_PLUGIN) lines (registration is generated)
     and the `SetNeedsUpdate(...)` / `NeedsUpdate() override` lines (engine 0.12:
-    declaring Update() is what makes it run).
+    declaring Update() is what makes it run), and rewrites `Deki::Behaviour` to
+    `Deki::Component` (engine 0.13: one base class, lifecycle methods optional).
   * records every GUID -> qualified name it saw into --map (JSON, merged).
   * --assets DIR...: rewrites JSON assets (scenes, boot scenes, graphs, a
     package.json) using the map: GUID strings become qualified names, numeric
@@ -249,6 +250,9 @@ def migrate_header(path: Path, text: str, guid_map: dict[str, str]) -> str | Non
 STATIC_TYPE_RE = re.compile(r'\b([A-Za-z_][\w:]*)::StaticType\b')
 STATIC_GUID_RE = re.compile(r'\b([A-Za-z_][\w:]*)::StaticGuid\b')
 REGISTER_RE = re.compile(r'^[ \t]*DEKI_REGISTER_PROJECT_SETTINGS(?:_PLUGIN)?\(\s*\w+\s*\)\s*;?[ \t]*\n', re.M)
+# Engine 0.13: Behaviour merged into Component.
+BEHAVIOUR_RE = re.compile(r'\bDeki::Behaviour\b')
+BEHAVIOUR_INCLUDE_RE = re.compile(r'#include\s+[<"]deki/Behaviour\.h[>"]')
 # Engine 0.12: the per-instance NeedsUpdate switch is gone; declaring Update() is the rule.
 NEEDS_UPDATE_CALL_RE = re.compile(r'^[ \t]*SetNeedsUpdate\((?:true|false)\);[ \t]*(?://[^\n]*)?\n', re.M)
 NEEDS_UPDATE_OVERRIDE_RE = re.compile(r'^[ \t]*bool NeedsUpdate\(\) const override \{ return (?:true|false); \}[ \t]*(?://[^\n]*)?\n', re.M)
@@ -268,6 +272,8 @@ def migrate_source(text: str) -> str | None:
     text = REGISTER_RE.sub("", text)
     text = NEEDS_UPDATE_CALL_RE.sub("", text)
     text = NEEDS_UPDATE_OVERRIDE_RE.sub("", text)
+    text = BEHAVIOUR_INCLUDE_RE.sub("#include <deki/Component.h>", text)
+    text = BEHAVIOUR_RE.sub("Deki::Component", text)
     return text if text != original else None
 
 

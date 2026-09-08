@@ -59,8 +59,8 @@ scene files is the unqualified class name, which did not change either.
 
 ## Engine 0.11: macro-free components
 
-A component is any class deriving publicly from `Deki::Component` or
-`Deki::Behaviour`; `DEKI_COMPONENT`, the type GUID and the trailing
+A component is any class deriving publicly from `Deki::Component` (0.13
+folded `Deki::Behaviour` into it); `DEKI_COMPONENT`, the type GUID and the trailing
 `#include "generated/X.gen.h"` are gone, and `DEKI_DESCRIPTION`,
 `DEKI_DISPLAY_NAME` and the new `DEKI_CATEGORY` / `DEKI_SETTINGS_SECTION` sit
 above the class. The identity of a component is its qualified class name:
@@ -94,7 +94,7 @@ now and needs a public API instead. The rewrite is mechanical:
   `DEKI_DEPRECATED("use X instead")` (engine `DekiExport.h`) in minor version
   N and removed in N+1. One release of warnings, then it stops compiling; the
   changelog lists both steps.
-- **Virtual tables.** Packages subclass `Deki::Component`, `Deki::Behaviour`,
+- **Virtual tables.** Packages subclass `Deki::Component`,
   `Deki::IDisplay`, the provider interfaces and the editor's `CustomEditor`,
   `EditorExtension` and `EditorWindow`. Adding, removing or reordering a
   virtual function on any of them changes the slot every already-built package

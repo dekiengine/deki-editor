@@ -4,11 +4,13 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 8
+abi_version: 9
 
-class Deki::Component (9 virtual)
+class Deki::Component (11 virtual)
   ~Component()
-  Behaviour* AsBehaviour()
+  void Awake()
+  void Start()
+  void Update()
   void LoadAssets()
   void UnloadAssets()
   void RuntimeUpdate(float deltaTime)
@@ -16,12 +18,6 @@ class Deki::Component (9 virtual)
   bool NeedsAssetLoading() const
   bool NeedsRuntimeUpdate() const
   void OnPropertyChanged(const char* propertyName)
-
-class Deki::Behaviour (4 virtual)
-  ~Behaviour()
-  void Awake()
-  void Start()
-  void Update()
 
 class Deki::IDisplay (18 virtual)
   ~IDisplay()

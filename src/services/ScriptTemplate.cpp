@@ -23,11 +23,12 @@ bool CreateBehaviourScript(const std::string& directory, const std::string& name
         return false;
     }
 
-    // Header: a Deki::Behaviour. <deki/Engine.h> provides every engine type
-    // (Deki::Behaviour, DEKI_LOG, ...). Deriving publicly from Deki::Behaviour
-    // (or Deki::Component for data-only pieces) is all it takes: the reflection
-    // codegen finds the class by its base and identifies it by its name. The
-    // markers above the class are optional editor metadata.
+    // Header: a Deki::Component. <deki/Engine.h> provides every engine type
+    // (Deki::Component, DEKI_LOG, ...). Deriving publicly from Deki::Component
+    // is all it takes: the reflection codegen finds the class by its base and
+    // identifies it by its name. Declare only the lifecycle methods you need;
+    // with none the class is a data component. The markers above the class are
+    // optional editor metadata.
     const std::string headerContent =
         "#pragma once\n"
         "\n"
@@ -37,7 +38,7 @@ bool CreateBehaviourScript(const std::string& directory, const std::string& name
         "DEKI_DESCRIPTION(\"What " +
         name + " does, in one line.\")\n"
                "class " +
-        name + " : public Deki::Behaviour\n"
+        name + " : public Deki::Component\n"
                "{\n"
                "public:\n"
                "    // Exported properties (visible in Inspector)\n"

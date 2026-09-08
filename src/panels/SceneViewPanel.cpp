@@ -117,8 +117,7 @@ void SceneViewPanel::InvalidateAllAssets()
         for (Deki::Component* comp : obj->GetComponents())
         {
             comp->UnloadAssets();
-            if (auto* behaviour = comp->AsBehaviour())
-                behaviour->ResetRefsResolved();
+            comp->ResetRefsResolved();
         }
 
         // Recurse into children

@@ -4,6 +4,17 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.13.0
+
+### Breaking
+- One base class. `Deki::Behaviour` is folded into `Deki::Component`: every
+  component may declare `Awake()`, `Start()` and `Update()`, and one that
+  declares none is data. `Component::AsBehaviour()` and `<deki/Behaviour.h>`
+  are gone; `Scene::GetBehaviours()` is `GetActiveComponents()`.
+  `tools/migrate-components.py` rewrites `Deki::Behaviour` to
+  `Deki::Component`. Reflection ABI 9; every package is re-released as 0.13.0
+  with `minEngine` 0.13.0.
+
 ## 0.12.3
 
 ### Changed
