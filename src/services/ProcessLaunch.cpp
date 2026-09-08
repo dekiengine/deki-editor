@@ -155,6 +155,92 @@ bool LaunchDetached(const std::string& program, const std::vector<std::string>& 
 #endif
 }
 
+bool LaunchDetachedInDirectory(const std::string& program, const std::vector<std::string>& args,
+                               const std::string& workingDirectory)
+{
+#ifdef _WIN32
+    const std::wstring appName = ResolveProgram(program);
+    if (appName.empty())
+        return false;
+
+    std::string cmdLine = QuoteWindowsArg(program);
+    for (const auto& arg : args)
+    {
+        cmdLine += ' ';
+        cmdLine += QuoteWindowsArg(arg);
+    }
+
+    const int wlen = MultiByteToWideChar(CP_UTF8, 0, cmdLine.c_str(), -1, nullptr, 0);
+    std::wstring wideCmd(static_cast<size_t>(wlen > 0 ? wlen : 1), L'\0');
+    if (wlen > 0)
+        MultiByteToWideChar(CP_UTF8, 0, cmdLine.c_str(), -1, wideCmd.data(), wlen);
+
+    const int dlen = MultiByteToWideChar(CP_UTF8, 0, workingDirectory.c_str(), -1, nullptr, 0);
+    std::wstring wideDir(static_cast<size_t>(dlen > 1 ? dlen - 1 : 0), L'\0');
+    if (dlen > 1)
+        MultiByteToWideChar(CP_UTF8, 0, workingDirectory.c_str(), -1, wideDir.data(), dlen);
+
+    STARTUPINFOW si;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(pi));
+
+    // No CREATE_NO_WINDOW: the game is a console subsystem program and its
+    // console is where its log goes.
+    const BOOL ok = CreateProcessW(
+        appName.c_str(),
+        wideCmd.data(),  // must be writable
+        nullptr, nullptr, FALSE,
+        0,
+        nullptr,
+        wideDir.empty() ? nullptr : wideDir.c_str(),
+        &si, &pi);
+
+    if (!ok)
+        return false;
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return true;
+#else
+    pid_t pid = fork();
+    if (pid < 0)
+        return false;
+
+    if (pid == 0)
+    {
+        // Double-fork, as LaunchDetached does, so the game is reparented to
+        // init rather than left for the editor to reap.
+        pid_t inner = fork();
+        if (inner == 0)
+        {
+            if (!workingDirectory.empty() && chdir(workingDirectory.c_str()) != 0)
+                _exit(126);
+
+            std::vector<char*> argv;
+            argv.reserve(args.size() + 2);
+            argv.push_back(const_cast<char*>(program.c_str()));
+            for (const auto& a : args)
+                argv.push_back(const_cast<char*>(a.c_str()));
+            argv.push_back(nullptr);
+
+            // execv, not execvp: the caller resolved the path already, and a
+            // PATH lookup could find a different DekiGame.
+            execv(program.c_str(), argv.data());
+            _exit(127);
+        }
+        _exit(inner < 0 ? 1 : 0);
+    }
+
+    int st = 0;
+    if (waitpid(pid, &st, 0) < 0)
+        return false;
+    return WIFEXITED(st) && WEXITSTATUS(st) == 0;
+#endif
+}
+
 bool OpenInCodeEditor(const std::string& filePath, int line)
 {
     if (filePath.empty())

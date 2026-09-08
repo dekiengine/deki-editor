@@ -7,6 +7,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Fixed
+- Run works, and works off Windows. The native builder looked for the built
+  executable only under per-config directories (`build/bin/Release`, and so
+  on), but the generated project is configured with Ninja, which is
+  single-config and writes to `build/bin` -- so Run reported "Executable not
+  found. Build the project first." after a successful build, on Windows too.
+  It now looks there first, drops the `.exe` off Windows, and launches
+  through the shared no-shell spawn instead of a Win32-only call that printed
+  "Run not implemented for this platform" everywhere else.
 - File dialogs work off Windows. Opening a project and Save As logged "not
   implemented on this platform" and returned nothing on Linux, so neither
   could be done through a dialog at all. They now go through SDL's dialogs,

@@ -7,6 +7,7 @@
 #include "core/ProjectPaths.h"
 #include "../CMakeGenUtils.h"
 #include "../../EditorSettings.h"
+#include "../../ProcessLaunch.h"
 #include "core/PlatformConfig.h"
 #include "EditorApp.h"
 #include "imgui.h"
@@ -22,6 +23,17 @@ namespace fs = std::filesystem;
 
 namespace DekiEditor
 {
+
+namespace
+{
+// The simulator target is DekiGame; only Windows gives it a suffix.
+#ifdef _WIN32
+const char* const kNativeExecutableName = "DekiGame.exe";
+#else
+const char* const kNativeExecutableName = "DekiGame";
+#endif
+}  // namespace
+
 
 NativeBuilder::NativeBuilder()
 {
@@ -91,15 +103,17 @@ void NativeBuilder::Flash(const std::string& projectPath, const std::string& /*p
     // "Flash" for native = run the built executable
     std::string buildDir = GetBuildDirectory(projectPath);
 
-#ifdef _WIN32
-    // Look for the executable in common output locations
+    // The generated project is configured with -G Ninja, which is
+    // single-config, so build/bin is where the executable lands. The
+    // per-config directories below are for a multi-config generator.
     std::string exePath;
     std::vector<std::string> candidates = {
-        buildDir + "/build/bin/Release/DekiGame.exe",
-        buildDir + "/build/bin/Debug/DekiGame.exe",
-        buildDir + "/build/Release/DekiGame.exe",
-        buildDir + "/build/Debug/DekiGame.exe",
-        buildDir + "/build/DekiGame.exe"
+        buildDir + "/build/bin/" + kNativeExecutableName,
+        buildDir + "/build/bin/Release/" + kNativeExecutableName,
+        buildDir + "/build/bin/Debug/" + kNativeExecutableName,
+        buildDir + "/build/" + kNativeExecutableName,
+        buildDir + "/build/Release/" + kNativeExecutableName,
+        buildDir + "/build/Debug/" + kNativeExecutableName
     };
 
     for (const auto& path : candidates)
@@ -119,32 +133,17 @@ void NativeBuilder::Flash(const std::string& projectPath, const std::string& /*p
 
     if (outputCallback) outputCallback("Launching: " + exePath, false);
 
-    // Launch as detached process
-    STARTUPINFOA si;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&pi, sizeof(pi));
-
-    std::string workDir = (fs::path(exePath).parent_path()).string();
-    std::vector<char> cmdBuf(exePath.begin(), exePath.end());
-    cmdBuf.push_back('\0');
-
-    if (CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, FALSE, 0, NULL,
-                       workDir.c_str(), &si, &pi))
+    // From its own directory: the deployed storage partitions sit beside
+    // it and it resolves them relative to the working directory.
+    const std::string workDir = fs::path(exePath).parent_path().string();
+    if (LaunchDetachedInDirectory(exePath, {}, workDir))
     {
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
         if (outputCallback) outputCallback("Application launched.", false);
     }
     else
     {
         if (outputCallback) outputCallback("Failed to launch application.", true);
     }
-#else
-    if (outputCallback) outputCallback("Run not implemented for this platform.", true);
-#endif
 }
 
 void NativeBuilder::Clean(const std::string& projectPath, BuildOutputCallback outputCallback,

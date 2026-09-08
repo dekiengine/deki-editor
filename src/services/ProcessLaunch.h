@@ -24,6 +24,15 @@ namespace DekiEditor
 /// Does not wait for it and does not report its exit status.
 bool LaunchDetached(const std::string& program, const std::vector<std::string>& args);
 
+/// Launch `program` from `workingDirectory`, detached, keeping its console.
+///
+/// For running something the user is meant to watch -- the built game, which
+/// finds its assets relative to its own directory and writes its log to
+/// stdout. LaunchDetached suits the helpers the editor drives on the side, and
+/// suppresses both of those.
+bool LaunchDetachedInDirectory(const std::string& program, const std::vector<std::string>& args,
+                               const std::string& workingDirectory);
+
 /// Open a source file in the user's code editor, optionally at a line.
 /// Currently targets VS Code (`code`), matching the previous behaviour.
 bool OpenInCodeEditor(const std::string& filePath, int line = -1);
