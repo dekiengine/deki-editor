@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 9
+abi_version: 10
 
 class Deki::Component (11 virtual)
   ~Component()

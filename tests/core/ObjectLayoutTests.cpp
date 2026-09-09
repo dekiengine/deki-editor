@@ -103,6 +103,26 @@ TEST(ObjectLayout, AbiMismatchIsReportedAndNamed)
 }
 
 // The side table must behave exactly like the members it replaced.
+// The build chooses the transform width, and every package DLL bakes the
+// resulting Deki::Object layout into its inline accessors. So the handshake
+// carries the width and not only the size: a headless build and a 2D build
+// could pad to the same sizeof and still disagree on every offset.
+TEST(ObjectLayout, AbiHandshakeCarriesTransformWidth)
+{
+    const DekiReflectionAbi abi = DekiCurrentReflectionAbi();
+    // The editor always compiles the 2D transform.
+    EXPECT_EQ(abi.transformConfig & 1u, 1u);
+}
+
+TEST(ObjectLayout, AbiTransformMismatchIsNamed)
+{
+    DekiReflectionAbi theirs = DekiCurrentReflectionAbi();
+    theirs.transformConfig = 0;  // as if built for a project with nothing to draw
+    char what[128] = {};
+    EXPECT_FALSE(DekiReflectionAbiMatches(theirs, what, sizeof(what)));
+    EXPECT_NE(std::string(what).find("transform configuration"), std::string::npos) << what;
+}
+
 TEST(ObjectInstancePayload, RoundTripsThroughTheSideTable)
 {
     Deki::Object obj("probe");

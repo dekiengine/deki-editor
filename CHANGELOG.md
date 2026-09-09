@@ -6,6 +6,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Changed
+- The engine's transform is a build switch (engine changelog). Every build the
+  editor makes or generates defines `DEKI_TRANSFORM_2D`, so nothing changes
+  yet. Reflection ABI 10: the handshake carries the width, and every package is
+  rebuilt on first open.
+
 ### Fixed
 - A file dialog whose platform helper dies without answering no longer wedges
   the editor. The one-at-a-time guard was a flag only the answer could clear,

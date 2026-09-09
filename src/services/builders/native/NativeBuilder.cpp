@@ -565,6 +565,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // Add engine as subdirectory (builds as static library without DEKI_EDITOR)
     file << "# Engine (static library, non-editor mode)\n";
     file << "set(SIMULATOR ON CACHE BOOL \"\" FORCE)\n";
+    file << "set(DEKI_TRANSFORM_2D ON CACHE BOOL \"\" FORCE)\n";
     file << "add_subdirectory(\"${DEKI_ENGINE_PATH}\" \"${CMAKE_BINARY_DIR}/deki-engine\")\n\n";
 
     // Make engine link SDL3 and OpenGL (needed by SDL3 package)
@@ -708,7 +709,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     file << "        PACKAGE_OUTDIRS ${_RC_PKG_OUTDIRS}\n";
     file << "        GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "        INCLUDE_DIRS ${_RC_INCS}\n";
-    file << "        DEFINES SIMULATOR DEKI_LOG_ENABLED \"DEKI_FAST_ATTR=\"\n";
+    file << "        DEFINES SIMULATOR DEKI_LOG_ENABLED DEKI_TRANSFORM_2D \"DEKI_FAST_ATTR=\"\n";
     for (const auto& define : config.defines)
         file << "                " << define << "\n";
     for (const auto& define : packageDefines)
@@ -790,6 +791,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     file << "# Platform defines\n";
     file << "target_compile_definitions(DekiGame PRIVATE\n";
     file << "    SIMULATOR\n";
+    file << "    DEKI_TRANSFORM_2D\n";
     file << "    ${PACKAGE_DEFINES}\n";
     for (const auto& define : config.defines)
     {

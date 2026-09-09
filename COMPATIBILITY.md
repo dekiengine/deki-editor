@@ -54,6 +54,20 @@ checked, versioned event already: `sizeof` is pinned by the layout tests and
 carried in the ABI handshake, so a mismatched package DLL is refused rather
 than misreading memory.
 
+### The transform width is chosen by the build
+
+`Deki::Object` carries a transform only when the build defines
+`DEKI_TRANSFORM_2D`; `DEKI_TRANSFORM_3D` is reserved for a third axis, implies
+2D, and is a compile error without it. A build that defines neither compiles an
+object with no transform at all, which is what a project with nothing to draw
+gets, and nothing it paid for.
+
+The editor always compiles the full width so it can open any project. A
+device or simulator build takes what the project declares (below). The
+reflection ABI handshake carries the width alongside the sizes, so a package
+DLL built at a different width is refused with a message naming it. The scene
+formats do not change: a build without a transform skips the keys.
+
 ## What is not
 
 Build output, regenerated from the above on every open or build. Do not track

@@ -652,6 +652,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
 
     // ESP32 define (previously provided by arduino-esp32, now needed explicitly for engine guards)
     file << "\ntarget_compile_definitions(${COMPONENT_LIB} PRIVATE ESP32)\n";
+    file << "target_compile_definitions(${COMPONENT_LIB} PRIVATE DEKI_TRANSFORM_2D)\n";
 
     // Enable logging when requested by build options (DEKI_LOG_ENABLED env var set by ExecuteIDF)
     file << "\nif(DEFINED ENV{DEKI_LOG_ENABLED} AND NOT \"$ENV{DEKI_LOG_ENABLED}\" STREQUAL \"\")\n";
