@@ -137,7 +137,7 @@ ninja.exe, sccache.exe       bundled tools used for project builds
 
 ```
 DekiEditor -V
-Deki Editor 0.10.0 (engine 0.10.0, reflection ABI 6)
+Deki Editor 0.14.0 (engine 0.14.0, reflection ABI 10)
 ```
 
 The same line is under **Help → About Deki Editor** (with a copy button) and
@@ -154,15 +154,15 @@ updates daily** turns that off (setting `updates.check`). Nothing is downloaded.
 A release on GitHub carries one archive per platform plus its checksum:
 
 ```
-DekiEditor-0.10.0-windows-x86_64.zip        DekiEditor-0.10.0-windows-x86_64.zip.sha256
-DekiEditor-0.10.0-linux-x86_64.tar.gz       DekiEditor-0.10.0-linux-x86_64.tar.gz.sha256
+DekiEditor-0.14.0-windows-x86_64.zip        DekiEditor-0.14.0-windows-x86_64.zip.sha256
+DekiEditor-0.14.0-linux-x86_64.tar.gz       DekiEditor-0.14.0-linux-x86_64.tar.gz.sha256
 ```
 
 Verify before unpacking (the `.sha256` file is in `sha256sum` format):
 
 ```bash
-sha256sum -c DekiEditor-0.10.0-linux-x86_64.tar.gz.sha256      # Linux / MSYS2
-certutil -hashfile DekiEditor-0.10.0-windows-x86_64.zip SHA256  # Windows, compare by eye
+sha256sum -c DekiEditor-0.14.0-linux-x86_64.tar.gz.sha256      # Linux / MSYS2
+certutil -hashfile DekiEditor-0.14.0-windows-x86_64.zip SHA256  # Windows, compare by eye
 ```
 
 Unpack anywhere and run `DekiEditor`; the archive is self-contained (toolchain,
