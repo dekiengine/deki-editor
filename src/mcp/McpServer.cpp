@@ -31,8 +31,9 @@ constexpr const char* kBindAddress = "127.0.0.1";
 // 256 bits of CSPRNG output, hex encoded.
 //
 // DEKI_MCP_TOKEN overrides it. A per-session token cannot be written into a
-// checked-in .mcp.json, so a developer who wants a stable client config sets the
-// env var for both the editor and the client instead. Anything shorter than 16
+// client configuration that outlives the session, so a developer who wants a
+// stable one sets the env var for both the editor and the client instead
+// (SETUP.md section 8). Anything shorter than 16
 // characters is refused rather than silently accepted — a weak fixed token on a
 // surface that can execute code is worse than the rotating one it replaces.
 std::string GenerateSessionToken()

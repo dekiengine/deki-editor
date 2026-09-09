@@ -468,7 +468,7 @@ private:
     const std::vector<std::string>& SceneGuidsIn(const std::string& absPath);
 
 public:
-    // Default 3000, matching .mcp.json. Overridable so a second editor — or one
+    // Default 3000. Overridable so a second editor — or one
     // launched while a dead instance still holds the socket — can still be
     // driven; the listen socket uses SO_REUSEADDR, so a colliding bind succeeds
     // and then silently refuses every connection.

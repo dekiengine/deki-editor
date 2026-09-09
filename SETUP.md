@@ -372,8 +372,8 @@ package site to that repository's `gh-pages` branch (`tools/docs/publish_docs.py
 ## 8. MCP
 
 `DekiEditor --mcp <project>` starts an SSE server on
-`http://localhost:3000/sse` (see `.mcp.json`) instead of requiring the Activity
-panel toggle. Alongside the scene and asset tools it exposes:
+`http://localhost:3000/sse` instead of requiring the Activity panel toggle.
+Alongside the scene and asset tools it exposes:
 
 `list_platforms`, `toolchain_status`, `build_firmware`, `build_status`,
 `cancel_build`, `install_toolchain_component`, `flash_firmware`, `clean_build`
@@ -382,6 +382,15 @@ Long operations are start-and-poll — `build_firmware`, `flash_firmware` and
 `install_toolchain_component` return once the work is running, and you poll
 `build_status` (`idle|building|flashing|installing|completed|failed`). MCP
 handlers run on the editor's frame loop, so blocking would freeze the UI.
+
+**Connecting a client.** The server binds `127.0.0.1` only and wants a bearer
+token on every route. By default it mints a fresh one per session and prints
+the full URL on startup, which is also on the right-click menu of the MCP
+status-bar button — paste that into the client and nothing else is needed. For
+a client configuration that survives restarts, set `DEKI_MCP_TOKEN` (16
+characters or more, refused below that) in the environment of both the editor
+and the client, and use `http://127.0.0.1:3000/sse?token=$DEKI_MCP_TOKEN`.
+`--mcp-port` moves the port when 3000 is taken.
 
 ---
 

@@ -625,7 +625,7 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
 
     // Bring the MCP server up at startup instead of requiring the Activity
     // panel toggle, so external tooling can attach to a freshly launched
-    // editor (see .mcp.json — SSE on http://localhost:3000/sse).
+    // editor (SSE on http://localhost:3000/sse; SETUP.md section 8).
     if (opts.startMcp)
     {
         editor.StartMcpServer(opts.mcpPort);
