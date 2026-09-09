@@ -20,6 +20,23 @@ namespace CMakeGen
 // ============================================================================
 
 // Scan a single packages directory for package.json manifests
+// "tags" from a manifest or descriptor: an array of strings. Anything else,
+// or its absence, is no tags. Unknown tags are kept rather than rejected, so
+// the vocabulary can grow without every reader changing.
+static std::vector<std::string> TagsFrom(const nlohmann::json& j)
+{
+    std::vector<std::string> tags;
+    if (j.contains("tags") && j["tags"].is_array())
+    {
+        for (const auto& t : j["tags"])
+        {
+            if (t.is_string())
+                tags.push_back(t.get<std::string>());
+        }
+    }
+    return tags;
+}
+
 static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntry>& allPackages)
 {
     if (!fs::exists(packagesDir))
@@ -41,6 +58,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             info.dirName = entry.path().filename().string();
             info.buildDefine = j.value("buildDefine", "");
             info.id = j.value("id", "");
+            info.tags = TagsFrom(j);
 
             // Collect dependencies from all platform dependency lists
             if (j.contains("dependencies"))
@@ -596,6 +614,98 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
     fs::path outPath = outputDir / "deki_package_init.gen.cpp";
     WriteIfChanged(outPath, cpp.str());
     return outPath.string();
+}
+
+std::vector<std::string> ReadProjectTags(const std::string& projectPath)
+{
+    std::vector<std::string> tags;
+    if (projectPath.empty())
+        return tags;
+    std::ifstream in(fs::path(projectPath) / "deki.json");
+    if (!in)
+        return tags;
+    try
+    {
+        nlohmann::json j;
+        in >> j;
+        tags = TagsFrom(j);
+    }
+    catch (const std::exception& e)
+    {
+        DEKI_LOG_WARNING("deki.json: could not read tags (%s)", e.what());
+    }
+    return tags;
+}
+
+TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackages,
+                                     const std::set<std::string>& activeIds,
+                                     const std::vector<std::string>& projectTags,
+                                     std::string* why)
+{
+    TransformWidth width = TransformWidth::None;
+    std::vector<std::string> declared2d;
+    std::vector<std::string> declared3d;
+
+    auto consider = [&](const std::string& who, const std::vector<std::string>& tags)
+    {
+        for (const auto& tag : tags)
+        {
+            if (tag == "transform_3d")
+            {
+                width = TransformWidth::ThreeD;
+                declared3d.push_back(who);
+            }
+            else if (tag == "transform_2d")
+            {
+                if (width == TransformWidth::None)
+                    width = TransformWidth::TwoD;
+                declared2d.push_back(who);
+            }
+        }
+    };
+
+    for (const auto& pkg : allPackages)
+    {
+        if (activeIds.count(pkg.id) != 0)
+            consider(pkg.id, pkg.tags);
+    }
+    consider("the project", projectTags);
+
+    if (why)
+    {
+        auto join = [](const std::vector<std::string>& v)
+        {
+            std::string s;
+            for (size_t i = 0; i < v.size(); ++i)
+                s += (i ? ", " : "") + v[i];
+            return s;
+        };
+        switch (width)
+        {
+            case TransformWidth::None:
+                *why = "no transform: nothing active declares transform_2d or transform_3d";
+                break;
+            case TransformWidth::TwoD:
+                *why = "2D transform, declared by " + join(declared2d);
+                break;
+            case TransformWidth::ThreeD:
+                *why = "3D transform, declared by " + join(declared3d);
+                if (!declared2d.empty())
+                    *why += " (2D by " + join(declared2d) + ")";
+                break;
+        }
+    }
+    return width;
+}
+
+std::vector<std::string> TransformDefines(TransformWidth width)
+{
+    std::vector<std::string> defines;
+    if (width == TransformWidth::TwoD || width == TransformWidth::ThreeD)
+        defines.push_back("DEKI_TRANSFORM_2D");
+    if (width == TransformWidth::ThreeD)
+        defines.push_back("DEKI_TRANSFORM_3D");
+    return defines;
 }
 
 }  // namespace CMakeGen

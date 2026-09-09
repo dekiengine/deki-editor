@@ -569,6 +569,12 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
     auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines);
 
+    // The transform width: the widest any active package or the project
+    // declares (CMakeGenUtils, COMPATIBILITY.md).
+    std::string transformWhy;
+    const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(CMakeGen::ResolveTransformWidth(
+        allPackages, activeIds, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
+
     // Build REQUIRES list from platform config + active package ESP-IDF deps
     std::string
         requires
@@ -652,7 +658,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
 
     // ESP32 define (previously provided by arduino-esp32, now needed explicitly for engine guards)
     file << "\ntarget_compile_definitions(${COMPONENT_LIB} PRIVATE ESP32)\n";
-    file << "target_compile_definitions(${COMPONENT_LIB} PRIVATE DEKI_TRANSFORM_2D)\n";
+    file << "message(STATUS \"Deki transform: " << CMakeGen::EscapeCMakeString(transformWhy) << "\")\n";
+    for (const auto& define : transformDefines)
+        file << "target_compile_definitions(${COMPONENT_LIB} PRIVATE " << define << ")\n";
 
     // Enable logging when requested by build options (DEKI_LOG_ENABLED env var set by ExecuteIDF)
     file << "\nif(DEFINED ENV{DEKI_LOG_ENABLED} AND NOT \"$ENV{DEKI_LOG_ENABLED}\" STREQUAL \"\")\n";

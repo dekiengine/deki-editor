@@ -11,6 +11,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   editor makes or generates defines `DEKI_TRANSFORM_2D`, so nothing changes
   yet. Reflection ABI 10: the handshake carries the width, and every package is
   rebuilt on first open.
+- Packages declare the transform they need with a `transform_2d` (or
+  `transform_3d`) tag in `package.json`, and a project declares the same in
+  `deki.json` for its own scripts; `--new-project` writes it. The simulator and
+  firmware builds compile the widest declared and log who declared it, and a
+  project where nothing does has no transform at all. rendering, 2d, input,
+  tween, tilemap and fsm declare 2D. The editor's own builds stay at the full
+  width.
 
 ### Fixed
 - A file dialog whose platform helper dies without answering no longer wedges

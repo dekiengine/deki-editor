@@ -68,6 +68,17 @@ reflection ABI handshake carries the width alongside the sizes, so a package
 DLL built at a different width is refused with a message naming it. The scene
 formats do not change: a build without a transform skips the keys.
 
+**Declaring it.** A package that reads or writes an object's position,
+rotation or scale carries `"tags": ["transform_2d"]` in its `package.json`;
+one that needs the third axis carries `transform_3d`. A project whose own
+scripts use the transform declares the same in `deki.json`, which
+`--new-project` writes for you. The device and simulator builds take the
+widest tag across the active packages and the project, and say in the build
+log which declared it. A project where nothing declares one compiles an object
+with no transform, which is what a project with nothing to draw is meant to
+get. Unknown tags are ignored, so the list can grow. Of the packages shipped
+here, rendering, 2d, input, tween, tilemap and fsm declare `transform_2d`.
+
 ## What is not
 
 Build output, regenerated from the above on every open or build. Do not track

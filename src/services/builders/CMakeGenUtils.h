@@ -54,6 +54,7 @@ struct PackageEntry
     std::vector<std::string> espidfDeps;   // ESP-IDF component dependencies (e.g., "fatfs", "sdmmc")
     std::vector<NativeDependency> nativeDeps;  // Third-party libraries for the desktop build
     bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
+    std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...
 };
 
 // Scan all package manifests in project/packages/
@@ -62,6 +63,34 @@ std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath);
 // Resolve which packages are active given the build defines, including transitive deps
 std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
                                             const std::vector<std::string>& packageDefines);
+
+// The transform width a build compiles into Deki::Object (see
+// deki-engine/include/deki/Object.h and COMPATIBILITY.md). A package that
+// reads or writes an object's position, rotation or scale carries
+// "transform_2d" in its package.json "tags"; one that needs the third axis
+// carries "transform_3d"; a project's own scripts declare the same in
+// deki.json. The build takes the widest across the active packages and the
+// project, and a project where nothing declares one compiles an object with
+// no transform at all.
+enum class TransformWidth
+{
+    None = 0,
+    TwoD = 2,
+    ThreeD = 3,
+};
+
+// deki.json "tags", or an empty list when there is none.
+std::vector<std::string> ReadProjectTags(const std::string& projectPath);
+
+// The widest transform anything active declares. `why` receives one line for
+// the build log saying who declared what, or that nothing did.
+TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackages,
+                                     const std::set<std::string>& activeIds,
+                                     const std::vector<std::string>& projectTags,
+                                     std::string* why = nullptr);
+
+// The compile definitions for a width: none, DEKI_TRANSFORM_2D, or both.
+std::vector<std::string> TransformDefines(TransformWidth width);
 
 // Emit engine core source collection (GLOB_RECURSE + standard exclusions)
 void EmitEngineCoreSourceCollection(std::ostream& out,

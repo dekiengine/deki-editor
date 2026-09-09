@@ -74,6 +74,9 @@ bool WriteDekiJson(const std::string& projectPath, const std::string& projectNam
     j["engineVersion"] = "1.0.0";
 #endif
     j["structure"] = ProjectPaths::kStructureVersion;
+    // The scaffold's scene positions its objects and its scripts may move them,
+    // so the project declares the 2D transform for its own code (COMPATIBILITY.md).
+    j["tags"] = nlohmann::json::array({ "transform_2d" });
     j["startupScene"] = kStartupScene;
     j["activePlatformId"] = activePlatformId;
     // Adopted from assets/rendering on first open (EditorProjectManager), the
