@@ -540,8 +540,8 @@ set(EDITOR_SOURCES
     src/EditorCli.h
     src/EditorApp.cpp
     src/EditorApp.h
-    src/EditorMenuBar.cpp
-    src/EditorProjectManager.cpp
+    src/EditorApp.MenuBar.cpp
+    src/EditorApp.ProjectManager.cpp
     src/PlayMode.cpp
     src/EditorPlayModeFileSystem.cpp
     src/EditorPlayModeFileSystem.h
@@ -575,8 +575,8 @@ set(EDITOR_SOURCES
     src/panels/inspector/InspectorUtils.h
     src/panels/inspector/PropertyEditorFactory.cpp
     src/panels/inspector/PropertyEditorFactory.h
-    src/panels/inspector/PropertyEditorArray.cpp
-    src/panels/inspector/PropertyEditorMulti.cpp
+    src/panels/inspector/PropertyEditorFactory.Array.cpp
+    src/panels/inspector/PropertyEditorFactory.Multi.cpp
     src/panels/inspector/AssetPropertyEditor.cpp
     src/panels/inspector/AssetPropertyEditor.h
     src/panels/inspector/ComponentManager.cpp
@@ -736,8 +736,8 @@ set(EDITOR_SOURCES
     src/services/EditorCapture.h
     src/panels/ProfilerPanel.cpp
     src/panels/ProfilerPanel.h
-    src/panels/ProfilerFlameGraph.cpp
-    src/panels/ProfilerMemoryView.cpp
+    src/panels/ProfilerPanel.FlameGraph.cpp
+    src/panels/ProfilerPanel.MemoryView.cpp
     src/panels/FrameCapturePanel.cpp
     src/panels/FrameCapturePanel.h
     src/services/builders/BuilderDefinition.cpp
@@ -749,8 +749,8 @@ set(EDITOR_SOURCES
     src/mcp/McpToolRegistry.h
     src/mcp/McpTools.cpp
     src/mcp/McpTools.h
-    src/mcp/McpBuildTools.cpp
-    src/mcp/McpEditorTools.cpp
+    src/mcp/McpTools.Build.cpp
+    src/mcp/McpTools.Editor.cpp
     src/mcp/McpResources.cpp
     src/mcp/McpResources.h
 )

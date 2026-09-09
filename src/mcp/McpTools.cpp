@@ -170,10 +170,10 @@ static const char* PropertyTypeToString(Deki::PropertyType type)
 
 void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 {
-    // Firmware build / flash / toolchain tools live in McpBuildTools.cpp
+    // Firmware build / flash / toolchain tools live in McpTools.Build.cpp
     RegisterBuildTools(registry, editor);
 
-    // Project / package manager / rebuild / capture live in McpEditorTools.cpp
+    // Project / package manager / rebuild / capture live in McpTools.Editor.cpp
     RegisterEditorTools(registry, editor);
 
     // =========================================================================

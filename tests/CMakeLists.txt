@@ -31,8 +31,8 @@ endif()
 
 set(TEST_SOURCES
     # Existing tests
-    core/DekiObjectLayoutTests.cpp
-    core/DekiObjectTransformTests.cpp
+    core/ObjectLayoutTests.cpp
+    core/ObjectTransformTests.cpp
     core/PresentFrameTests.cpp
     core/EditorRecoveryTests.cpp
     core/UnsavedChangesPromptTests.cpp

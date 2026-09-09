@@ -1,5 +1,5 @@
 /**
- * @file DekiObjectTransformTests.cpp
+ * @file ObjectTransformTests.cpp
  * @brief World-transform propagation (the rotation-0 fast path must equal the
  *        trig path), the one-shot GetWorldTransform read, the iterative
  *        active-hierarchy walk, and the interface-adapter version counter.
@@ -11,7 +11,7 @@
 #include <deki/Object.h>
 #include <deki/ComponentInterfaceAdapters.h>
 
-TEST(DekiObjectTransform, ChildOfUnrotatedParentUsesPlainOffsets)
+TEST(ObjectTransform, ChildOfUnrotatedParentUsesPlainOffsets)
 {
     auto* parent = new Deki::Object("parent");
     parent->SetX(1.5f);
@@ -31,7 +31,7 @@ TEST(DekiObjectTransform, ChildOfUnrotatedParentUsesPlainOffsets)
     delete parent;  // deletes the child
 }
 
-TEST(DekiObjectTransform, RotatedParentStillRotatesChildren)
+TEST(ObjectTransform, RotatedParentStillRotatesChildren)
 {
     auto* parent = new Deki::Object("parent");
     parent->SetRotation(1.0f);
@@ -45,7 +45,7 @@ TEST(DekiObjectTransform, RotatedParentStillRotatesChildren)
     delete parent;
 }
 
-TEST(DekiObjectTransform, GetWorldTransformMatchesTheFiveGetters)
+TEST(ObjectTransform, GetWorldTransformMatchesTheFiveGetters)
 {
     auto* parent = new Deki::Object("parent");
     parent->SetX(3.0f);
@@ -67,7 +67,7 @@ TEST(DekiObjectTransform, GetWorldTransformMatchesTheFiveGetters)
     delete parent;
 }
 
-TEST(DekiObjectTransform, MovingTheParentInvalidatesTheChild)
+TEST(ObjectTransform, MovingTheParentInvalidatesTheChild)
 {
     auto* parent = new Deki::Object("parent");
     auto* child = new Deki::Object("child");
@@ -79,7 +79,7 @@ TEST(DekiObjectTransform, MovingTheParentInvalidatesTheChild)
     delete parent;
 }
 
-TEST(DekiObjectActive, InactiveAncestorMakesTheWholeSubtreeInactive)
+TEST(ObjectActive, InactiveAncestorMakesTheWholeSubtreeInactive)
 {
     auto* root = new Deki::Object("root");
     auto* mid = new Deki::Object("mid");

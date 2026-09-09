@@ -2,7 +2,7 @@
 // project creation, the package manager, plugin rebuilds, and screenshot /
 // frame-sequence capture of the editor's own window.
 //
-// McpTools.cpp stays focused on scene + asset editing; McpBuildTools.cpp on
+// McpTools.cpp stays focused on scene + asset editing; McpTools.Build.cpp on
 // firmware. This file is the "operate the application" surface, which is what
 // automation (docs screenshots, smoke runs) actually needs.
 

@@ -393,7 +393,7 @@ private:
     // Hot reload: serialize the scene before a plugin swap and restore it after.
     // Declared here with the rest of hot reload rather than among the play-mode
     // helpers, where they used to sit despite being implemented in
-    // EditorProjectManager.cpp and having nothing to do with play mode.
+    // EditorApp.ProjectManager.cpp and having nothing to do with play mode.
     void OnBeforePluginReload();
     void OnAfterPluginReload();
 

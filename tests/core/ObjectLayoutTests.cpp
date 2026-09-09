@@ -2,7 +2,7 @@
 //
 // These are not testing behaviour — they are testing an ABI contract. Package
 // DLLs and the game plugin read Deki::Object's `parent`/`children` and walk its
-// component vector through INLINE accessors in DekiObject.h, and they derive
+// component vector through INLINE accessors in Object.h, and they derive
 // from Deki::Component. Both layouts are therefore compiled into every package
 // binary, and nothing at link time checks that those copies still agree with
 // the engine's.
@@ -14,7 +14,7 @@
 // warning — just wrong pointers.
 //
 // If one of these fails, do NOT simply update the number. See the note in
-// DekiObject.cpp: the layout changing means every prebuilt package is now wrong,
+// Object.cpp: the layout changing means every prebuilt package is now wrong,
 // and kDekiReflectionAbiVersion must be bumped in the same commit so the loader
 // rejects them instead of miscomputing.
 
@@ -35,7 +35,7 @@ namespace
 // DLLs, so pinning a second set of numbers here would just be more to maintain.
 constexpr bool k64Bit = (sizeof(void*) == 8);
 
-TEST(DekiObjectLayout, SizeIsPinned)
+TEST(ObjectLayout, SizeIsPinned)
 {
     if (!k64Bit) GTEST_SKIP() << "sizes are pinned for 64-bit only";
     EXPECT_EQ(sizeof(Deki::Object), 152u)
@@ -44,7 +44,7 @@ TEST(DekiObjectLayout, SizeIsPinned)
            "kDekiReflectionAbiVersion so stale packages are refused.";
 }
 
-TEST(DekiObjectLayout, SceneSizeIsPinned)
+TEST(ObjectLayout, SceneSizeIsPinned)
 {
     if (!k64Bit) GTEST_SKIP() << "sizes are pinned for 64-bit only";
     EXPECT_EQ(sizeof(Deki::Scene), 120u)
@@ -55,27 +55,27 @@ TEST(DekiObjectLayout, SceneSizeIsPinned)
 // The point of moving the editor-only instance payload into a side table was to
 // make the layout independent of DEKI_EDITOR. This suite always compiles WITH
 // that define, so it cannot prove the runtime half on its own — that check is
-// the static_assert in DekiObject.cpp, verified by building
+// the static_assert in Object.cpp, verified by building
 // `-DDEKI_EDITOR=OFF -DSIMULATOR=ON`. What this can prove is that no
 // editor-only storage crept back into the object.
-TEST(DekiObjectLayout, EditorOnlyPayloadIsNotStoredInTheObject)
+TEST(ObjectLayout, EditorOnlyPayloadIsNotStoredInTheObject)
 {
     // Two std::strings and a bool used to live in Deki::Object under #ifdef. If
     // anything like that returns, the size assertion above fires first — but
     // this states the intent explicitly for whoever reads the failure.
     EXPECT_LT(sizeof(Deki::Object), 152u + sizeof(std::string))
-        << "DekiObject appears to have regained editor-only storage. Editor-only "
-           "payload belongs in the side table in DekiObject.cpp, not in a member.";
+        << "Deki::Object appears to have regained editor-only storage. Editor-only "
+           "payload belongs in the side table in Object.cpp, not in a member.";
 }
 
-TEST(DekiObjectLayout, NoVirtualFunctions)
+TEST(ObjectLayout, NoVirtualFunctions)
 {
     // A vptr would insert 8 bytes at the front and move every member.
     EXPECT_FALSE(std::is_polymorphic<Deki::Object>::value);
     EXPECT_FALSE(std::is_polymorphic<Deki::Scene>::value);
 }
 
-TEST(DekiObjectLayout, NotCopyable)
+TEST(ObjectLayout, NotCopyable)
 {
     // Deki::Object owns children and components by raw pointer, and its editor-only
     // payload is keyed by `this`. A copy would double-free and alias that row.
@@ -83,7 +83,7 @@ TEST(DekiObjectLayout, NotCopyable)
     EXPECT_FALSE(std::is_copy_assignable<Deki::Object>::value);
 }
 
-TEST(DekiObjectLayout, AbiHandshakeCarriesObjectLayout)
+TEST(ObjectLayout, AbiHandshakeCarriesObjectLayout)
 {
     const DekiReflectionAbi abi = DekiCurrentReflectionAbi();
     EXPECT_EQ(abi.version, kDekiReflectionAbiVersion);
@@ -91,7 +91,7 @@ TEST(DekiObjectLayout, AbiHandshakeCarriesObjectLayout)
     EXPECT_EQ(abi.sizeofDekiComponent, static_cast<uint32_t>(sizeof(Deki::Component)));
 }
 
-TEST(DekiObjectLayout, AbiMismatchIsReportedAndNamed)
+TEST(ObjectLayout, AbiMismatchIsReportedAndNamed)
 {
     DekiReflectionAbi theirs = DekiCurrentReflectionAbi();
     theirs.sizeofDekiObject += 8;  // as if built before a member was added
@@ -103,7 +103,7 @@ TEST(DekiObjectLayout, AbiMismatchIsReportedAndNamed)
 }
 
 // The side table must behave exactly like the members it replaced.
-TEST(DekiObjectInstancePayload, RoundTripsThroughTheSideTable)
+TEST(ObjectInstancePayload, RoundTripsThroughTheSideTable)
 {
     Deki::Object obj("probe");
     EXPECT_FALSE(obj.IsSceneInstance());
@@ -125,7 +125,7 @@ TEST(DekiObjectInstancePayload, RoundTripsThroughTheSideTable)
     EXPECT_EQ(obj.GetInstanceOverridesJson(), "{\"x\":1}");
 }
 
-TEST(DekiObjectInstancePayload, PartOfInstanceFlagIsIndependent)
+TEST(ObjectInstancePayload, PartOfInstanceFlagIsIndependent)
 {
     Deki::Object obj("probe");
     EXPECT_FALSE(obj.IsPartOfInstance());
@@ -145,7 +145,7 @@ TEST(DekiObjectInstancePayload, PartOfInstanceFlagIsIndependent)
 
 // The table is keyed by pointer, so a destroyed object must not leave a row
 // behind for whatever gets allocated at that address next.
-TEST(DekiObjectInstancePayload, DestructionDoesNotLeakRowsToReusedAddresses)
+TEST(ObjectInstancePayload, DestructionDoesNotLeakRowsToReusedAddresses)
 {
     std::string leakedAddressGuid;
     {

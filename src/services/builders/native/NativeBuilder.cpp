@@ -745,7 +745,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // Package entry sources come from the package loop above (only the platform entry that
     // defines main() is kept). Never hardcode a specific package here.
     file << "add_executable(DekiGame\n";
-    file << "    \"${DEKI_ENGINE_PATH}/entry/DekiMain.cpp\"\n";
+    file << "    \"${DEKI_ENGINE_PATH}/entry/Main.cpp\"\n";
     file << "    \"${CMAKE_SOURCE_DIR}/" << packageInitName << "\"\n";
     file << "    ${PROJECT_SOURCES}\n";
     file << "    ${_ALL_PACKAGE_SOURCES}\n";

@@ -533,7 +533,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // with the wrong stride. These are the DLLs that land in the project's bin/,
     // so this is the copy of the handshake that matters most in practice.
     file << "    # Reflection layout handshake (engine source, see DekiReflectionAbi.h)\n";
-    file << "    list(APPEND PACKAGE_ALL_SOURCES \"${DEKI_ENGINE_PATH}/src/interop/DekiPackageAbi.cpp\")\n\n";
+    file << "    list(APPEND PACKAGE_ALL_SOURCES \"${DEKI_ENGINE_PATH}/src/interop/ReflectionAbi.cpp\")\n\n";
 
     // Create package DLL. No PCH on packages: MSVC's `_PchSym_` COMDAT symbols
     // get picked up by WINDOWS_EXPORT_ALL_SYMBOLS and land in the auto-generated
@@ -705,7 +705,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // point: a plugin left behind by a failed build would otherwise hand the
     // editor property tables with the wrong stride.
     file << "# Reflection layout handshake (engine source, see DekiReflectionAbi.h)\n";
-    file << "list(APPEND GAME_SOURCES \"${DEKI_ENGINE_PATH}/src/interop/DekiPackageAbi.cpp\")\n\n";
+    file << "list(APPEND GAME_SOURCES \"${DEKI_ENGINE_PATH}/src/interop/ReflectionAbi.cpp\")\n\n";
 
     // Create plugin DLL (game code only)
     file << "# Create plugin DLL (game code only)\n";
