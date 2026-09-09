@@ -7,6 +7,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Fixed
+- A file dialog whose platform helper dies without answering no longer wedges
+  the editor. The one-at-a-time guard was a flag only the answer could clear,
+  so no dialog could be opened again until restart. Each request now carries
+  an id and a newer request supersedes an outstanding one, dropping its
+  handler and ignoring any late answer for it. The request id is also what
+  travels as the platform callback's user data, replacing a pointer into a
+  buffer that a second save request would have rewritten under the first.
 - Run works, and works off Windows. The native builder looked for the built
   executable only under per-config directories (`build/bin/Release`, and so
   on), but the generated project is configured with Ninja, which is

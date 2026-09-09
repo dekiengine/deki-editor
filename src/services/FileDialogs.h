@@ -33,9 +33,14 @@ void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResu
 void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath,
               ResultCallback onResult);
 
-// True between a request and its callback. The call sites use it to avoid
-// stacking a second dialog on the first, and to disable the button that
-// opened it.
+// True between a request and its callback. Disable whatever opened the dialog
+// while this holds, which is how stacking is avoided.
+//
+// Making a request anyway is allowed and supersedes the outstanding one: its
+// handler is dropped and a late answer for it is ignored. That is deliberate.
+// A platform dialog helper can die without ever answering, and a state that
+// only the answer could clear would leave the editor unable to open any
+// dialog again until restart.
 bool IsPending();
 
 // Delivers the callbacks of finished dialogs. Called once a frame from

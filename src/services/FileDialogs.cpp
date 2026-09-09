@@ -5,6 +5,7 @@
 #include <deki/LogSystem.h>
 
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <mutex>
 #include <string>
@@ -29,10 +30,17 @@ namespace
 
 SDL_Window* g_Window = nullptr;
 
-// One dialog at a time. The flag is set before the dialog is raised and
-// cleared only once its result has been handed to the call site, so a second
-// request while one is up is dropped rather than queued.
-std::atomic<bool> g_Pending{ false };
+// One dialog at a time, identified rather than merely flagged. A bare
+// boolean could never be cleared if the platform's dialog helper died without
+// answering -- kill the helper on Linux and SDL never calls back, which used
+// to leave the editor unable to open any dialog again until restart. With an
+// id, a newer request supersedes the older one, so the next attempt always
+// works, and a late answer from a superseded request is dropped instead of
+// being handed to a call site that has moved on.
+//
+// 0 means nothing is in flight.
+std::atomic<uint64_t> g_ActiveId{ 0 };
+uint64_t g_NextId = 1;
 
 // A finished dialog parks its answer here. On Linux the SDL callback runs on
 // whichever thread pumps SDL events -- the main thread today, but the mutex
@@ -42,9 +50,14 @@ ResultCallback g_Callback;
 std::string g_ResultPath;
 bool g_HaveResult = false;
 
-void PostResult(std::string path)
+// The extension the in-flight save dialog should append, if it is a save.
+std::string g_PendingSaveExt;
+
+void PostResult(uint64_t id, std::string path)
 {
     std::lock_guard<std::mutex> lock(g_ResultMutex);
+    if (id != g_ActiveId.load())
+        return;  // superseded, or already delivered
     g_ResultPath = std::move(path);
     g_HaveResult = true;
 }
@@ -111,15 +124,14 @@ std::wstring WideFilter(const char* filter)
 
 #else
 
-// The extension the pending save dialog should append. Held here because SDL
-// carries only a void* through, and one dialog is live at a time. Null
-// userdata means "no extension to add", which is every non-save dialog.
-std::string g_PendingSaveExt;
-
 // SDL hands back a null-terminated list of paths, or null on error. We only
 // ever ask for one, so the first entry is the answer.
+//
+// userdata is the request id, not a pointer: passing one into g_PendingSaveExt
+// would have left SDL holding a buffer that a later request rewrites.
 void SDLCALL DialogCallback(void* userdata, const char* const* filelist, int /*filter*/)
 {
+    const uint64_t id = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(userdata));
     std::string chosen;
 
     if (!filelist)
@@ -135,10 +147,13 @@ void SDLCALL DialogCallback(void* userdata, const char* const* filelist, int /*f
         chosen = filelist[0];
     }
 
-    if (userdata)
-        chosen = WithDefaultExtension(chosen, static_cast<const char*>(userdata));
+    {
+        std::lock_guard<std::mutex> lock(g_ResultMutex);
+        if (id == g_ActiveId.load() && !g_PendingSaveExt.empty())
+            chosen = WithDefaultExtension(chosen, g_PendingSaveExt.c_str());
+    }
 
-    PostResult(std::move(chosen));
+    PostResult(id, std::move(chosen));
 }
 
 std::vector<SDL_DialogFileFilter> BuildSdlFilters(const std::vector<DialogFilter>& parsed)
@@ -152,25 +167,26 @@ std::vector<SDL_DialogFileFilter> BuildSdlFilters(const std::vector<DialogFilter
 
 #endif
 
-// Shared front half of every request: refuse a second dialog, remember the
-// handler, and mark one in flight.
-bool BeginRequest(ResultCallback onResult)
+// Shared front half of every request: take an id, remember the handler, and
+// mark it in flight. Returns 0 only for a missing handler; a request made
+// while another is outstanding supersedes it rather than being refused, which
+// is what makes a dialog whose helper died recoverable.
+uint64_t BeginRequest(ResultCallback onResult, const char* defaultExt)
 {
     if (!onResult)
-        return false;
-
-    bool expected = false;
-    if (!g_Pending.compare_exchange_strong(expected, true))
-    {
-        DEKI_LOG_WARNING("A file dialog is already open; ignoring the second request");
-        return false;
-    }
+        return 0;
 
     std::lock_guard<std::mutex> lock(g_ResultMutex);
+    if (g_ActiveId.load() != 0)
+        DEKI_LOG_WARNING("A file dialog was already open; the new request supersedes it");
+
+    const uint64_t id = g_NextId++;
+    g_ActiveId.store(id);
     g_Callback = std::move(onResult);
     g_ResultPath.clear();
     g_HaveResult = false;
-    return true;
+    g_PendingSaveExt = defaultExt ? defaultExt : "";
+    return id;
 }
 
 }  // namespace
@@ -182,7 +198,8 @@ void SetWindow(SDL_Window* window)
 
 void OpenFolder(const char* title, ResultCallback onResult)
 {
-    if (!BeginRequest(std::move(onResult)))
+    const uint64_t id = BeginRequest(std::move(onResult), nullptr);
+    if (id == 0)
         return;
 
 #ifdef _WIN32
@@ -200,16 +217,18 @@ void OpenFolder(const char* title, ResultCallback onResult)
         CoTaskMemFree(pidl);
         chosen = ToUtf8(path);
     }
-    PostResult(std::move(chosen));
+    PostResult(id, std::move(chosen));
 #else
     (void)title;
-    SDL_ShowOpenFolderDialog(DialogCallback, nullptr, g_Window, nullptr, false);
+    SDL_ShowOpenFolderDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
+                             g_Window, nullptr, false);
 #endif
 }
 
 void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResult)
 {
-    if (!BeginRequest(std::move(onResult)))
+    const uint64_t id = BeginRequest(std::move(onResult), nullptr);
+    if (id == 0)
         return;
 
 #ifdef _WIN32
@@ -225,12 +244,12 @@ void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResu
     if (!wdefault.empty())
         ofn.lpstrInitialDir = wdefault.c_str();
 
-    PostResult(GetOpenFileNameW(&ofn) ? ToUtf8(filename) : std::string());
+    PostResult(id, GetOpenFileNameW(&ofn) ? ToUtf8(filename) : std::string());
 #else
     const std::vector<DialogFilter> parsed = ParseWin32Filter(filter);
     const std::vector<SDL_DialogFileFilter> sdlFilters = BuildSdlFilters(parsed);
-    SDL_ShowOpenFileDialog(DialogCallback, nullptr, g_Window,
-                           sdlFilters.empty() ? nullptr : sdlFilters.data(),
+    SDL_ShowOpenFileDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
+                           g_Window, sdlFilters.empty() ? nullptr : sdlFilters.data(),
                            static_cast<int>(sdlFilters.size()), defaultPath, false);
 #endif
 }
@@ -238,7 +257,8 @@ void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResu
 void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath,
               ResultCallback onResult)
 {
-    if (!BeginRequest(std::move(onResult)))
+    const uint64_t id = BeginRequest(std::move(onResult), defaultExt);
+    if (id == 0)
         return;
 
 #ifdef _WIN32
@@ -256,22 +276,19 @@ void SaveFile(const char* filter, const char* defaultExt, const char* defaultPat
     if (!wdefault.empty())
         ofn.lpstrInitialDir = wdefault.c_str();
 
-    PostResult(GetSaveFileNameW(&ofn) ? ToUtf8(filename) : std::string());
+    PostResult(id, GetSaveFileNameW(&ofn) ? ToUtf8(filename) : std::string());
 #else
     const std::vector<DialogFilter> parsed = ParseWin32Filter(filter);
     const std::vector<SDL_DialogFileFilter> sdlFilters = BuildSdlFilters(parsed);
-    g_PendingSaveExt = defaultExt ? defaultExt : "";
-    SDL_ShowSaveFileDialog(DialogCallback,
-                           g_PendingSaveExt.empty() ? nullptr : &g_PendingSaveExt[0],
-                           g_Window,
-                           sdlFilters.empty() ? nullptr : sdlFilters.data(),
+    SDL_ShowSaveFileDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
+                           g_Window, sdlFilters.empty() ? nullptr : sdlFilters.data(),
                            static_cast<int>(sdlFilters.size()), defaultPath);
 #endif
 }
 
 bool IsPending()
 {
-    return g_Pending.load();
+    return g_ActiveId.load() != 0;
 }
 
 void PumpResults()
@@ -288,11 +305,13 @@ void PumpResults()
         g_Callback = nullptr;
         g_ResultPath.clear();
         g_HaveResult = false;
-    }
 
-    // Cleared before the handler runs, so a handler that opens another dialog
-    // (Save As after a failed write) is not refused as a duplicate.
-    g_Pending.store(false);
+        // Retired under the same lock that took the answer, so a late callback
+        // for this id cannot post a second result into the slot we just
+        // emptied. Cleared before the handler runs, too, so a handler that
+        // opens another dialog (Save As after a failed write) starts clean.
+        g_ActiveId.store(0);
+    }
 
     if (callback)
         callback(path);
