@@ -25,6 +25,7 @@ These are what downstream projects and packages depend on:
 | Scene files (`.scene`), asset envelopes (`.asset`), sidecars (`.data`) | JSON, reflected property names as keys | `formatVersion` in the file (absent = 1) |
 | Reflected property names | `DEKI_EXPORT` members of every component | Renames carry `DEKI_RENAMED_FROM`; the old key loads and is written back under the new name on save |
 | Component type names | The qualified class name (`Game::Mover`), `"type"` in the file | A rename is a format change; a 0.10 GUID resolves through the editor's legacy table and the `class` hint |
+| Object transform keys | `x`, `y`, `rotation`, `scaleX`, `scaleY` on the object itself, written by `Scene.cpp` rather than through reflection | `rotation` is the Z angle in radians and stays a single number (below) |
 | Project descriptor `deki.json` | `structure` field | Layout migrations run on open (`v1`..`v5`) |
 | Package manifest `deki-packages.json`, lock file | `schemaVersion` / `lockVersion` | |
 | Package descriptor `package.json`, `package.cmake` | | Editor reads unknown keys tolerantly |
@@ -33,6 +34,25 @@ These are what downstream projects and packages depend on:
 | Public engine headers | `deki-engine/include/deki/`, spelled `#include <deki/Object.h>` | Deprecation window (below); everything under `deki-engine/src/` is internal and may change without notice |
 | Reflection ABI between editor and package DLLs | `kDekiReflectionAbiVersion` in `deki-engine/include/deki/interop/ReflectionAbi.h` | Handshake at load; a mismatched DLL is refused and rebuilt |
 | Plugin C exports | `deki-engine/include/deki/interop/Plugin.h` | Engine minor version |
+
+### `rotation` is the Z angle, permanently
+
+An object's transform is stored as `x`, `y`, `rotation`, `scaleX`, `scaleY`.
+Should the engine ever grow a third axis, every one of those keys extends by
+addition: a scene written today simply has no `z` or `scaleZ`, and the loader
+defaults them. `rotation` is the exception, because widening one number into
+three would change the type of a key that already exists, which no amount of
+`DEKI_RENAMED_FROM` can migrate.
+
+So it is fixed: `rotation` is rotation about Z, in radians, and it stays a
+single number. Further axes take new keys of their own (`rotationX`,
+`rotationY`), and a 2D scene keeps loading unchanged.
+
+This costs nothing to hold to and is the only part of a possible 3D future
+that cannot be bought later with a version bump. Growing `Deki::Object` is a
+checked, versioned event already: `sizeof` is pinned by the layout tests and
+carried in the ABI handshake, so a mismatched package DLL is refused rather
+than misreading memory.
 
 ## What is not
 
