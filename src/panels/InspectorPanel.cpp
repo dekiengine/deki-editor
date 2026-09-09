@@ -985,6 +985,70 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             EditorUI::Get().Vector2Field("Scale", obj->GetScaleX(), obj->GetScaleY(),
                                          0.01f, 0.01f, 10.0f, "%.3f", cb);
         }
+#ifdef DEKI_TRANSFORM_3D
+        // The third axis, only when the project declares transform_3d: a 2D
+        // device drops these on load, so offering them to a 2D project would
+        // be offering something the board will not honour.
+        if (m_App->ProjectDeclaresDepth())
+        {
+            {
+                EditorUI::FloatCallbacks cb;
+                cb.onStartChange = [this](float)
+                { BeginLiveEdit(); };
+                cb.onChange = [obj](float v)
+                { obj->SetZ(v); };
+                cb.onUndo = [obj](float v)
+                { obj->SetZ(v); };
+                cb.onRedo = [obj](float v)
+                { obj->SetZ(v); };
+                cb.onEndChange = [this](float, float)
+                { EndLiveEdit(); };
+                EditorUI::Get().FloatField("Z", obj->GetZ(), EditorUI::Unit::Distance, cb);
+            }
+            {
+                EditorUI::FloatCallbacks cb;
+                cb.onStartChange = [this](float)
+                { BeginLiveEdit(); };
+                cb.onChange = [obj](float v)
+                { obj->SetRotationX(v); };
+                cb.onUndo = [obj](float v)
+                { obj->SetRotationX(v); };
+                cb.onRedo = [obj](float v)
+                { obj->SetRotationX(v); };
+                cb.onEndChange = [this](float, float)
+                { EndLiveEdit(); };
+                EditorUI::Get().FloatField("Rotation X", obj->GetRotationX(), EditorUI::Unit::Angle, cb);
+            }
+            {
+                EditorUI::FloatCallbacks cb;
+                cb.onStartChange = [this](float)
+                { BeginLiveEdit(); };
+                cb.onChange = [obj](float v)
+                { obj->SetRotationY(v); };
+                cb.onUndo = [obj](float v)
+                { obj->SetRotationY(v); };
+                cb.onRedo = [obj](float v)
+                { obj->SetRotationY(v); };
+                cb.onEndChange = [this](float, float)
+                { EndLiveEdit(); };
+                EditorUI::Get().FloatField("Rotation Y", obj->GetRotationY(), EditorUI::Unit::Angle, cb);
+            }
+            {
+                EditorUI::FloatCallbacks cb;
+                cb.onStartChange = [this](float)
+                { BeginLiveEdit(); };
+                cb.onChange = [obj](float v)
+                { obj->SetScaleZ(v); };
+                cb.onUndo = [obj](float v)
+                { obj->SetScaleZ(v); };
+                cb.onRedo = [obj](float v)
+                { obj->SetScaleZ(v); };
+                cb.onEndChange = [this](float, float)
+                { EndLiveEdit(); };
+                EditorUI::Get().FloatField("Scale Z", obj->GetScaleZ(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
+            }
+        }
+#endif
         SchematicSectionEnd();
     }
 }

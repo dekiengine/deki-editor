@@ -18,6 +18,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   project where nothing does has no transform at all. rendering, 2d, input,
   tween, tilemap and fsm declare 2D. The editor's own builds stay at the full
   width.
+- The 3D width exists (engine changelog). The editor compiles it, shows Z,
+  Rotation X, Rotation Y and Scale Z in the inspector only for a project that
+  declares `transform_3d`, and warns at save time, naming the objects, when a
+  scene carries depth that a 2D device would place at zero. No package declares
+  3D yet, so nothing pays for it.
 
 ### Fixed
 - A file dialog whose platform helper dies without answering no longer wedges

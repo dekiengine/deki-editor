@@ -459,6 +459,7 @@ set(DEKI_EDITOR ON CACHE BOOL "Building for editor" FORCE)
 # The editor compiles the full transform so it can open any project; a device
 # build takes only what the project's packages declare.
 set(DEKI_TRANSFORM_2D ON CACHE BOOL "Editor: 2D transform always compiled" FORCE)
+set(DEKI_TRANSFORM_3D ON CACHE BOOL "Editor: 3D transform always compiled" FORCE)
 # Pass editor include directories to engine for component editors
 set(DEKI_EDITOR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src" CACHE STRING "" FORCE)
 set(DEKI_IMGUI_INCLUDE_DIR "${imgui_SOURCE_DIR}" CACHE STRING "" FORCE)

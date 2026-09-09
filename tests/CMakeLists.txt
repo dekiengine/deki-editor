@@ -33,6 +33,7 @@ set(TEST_SOURCES
     # Existing tests
     core/ObjectLayoutTests.cpp
     core/ObjectTransformTests.cpp
+    core/ObjectTransform3DTests.cpp
     core/PresentFrameTests.cpp
     core/EditorRecoveryTests.cpp
     core/UnsavedChangesPromptTests.cpp

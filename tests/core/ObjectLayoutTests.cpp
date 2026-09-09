@@ -38,7 +38,8 @@ constexpr bool k64Bit = (sizeof(void*) == 8);
 TEST(ObjectLayout, SizeIsPinned)
 {
     if (!k64Bit) GTEST_SKIP() << "sizes are pinned for 64-bit only";
-    EXPECT_EQ(sizeof(Deki::Object), 152u)
+    // 184 at the editor's full width; 152 at 2D, 112 headless (Object.cpp).
+    EXPECT_EQ(sizeof(Deki::Object), 184u)
         << "sizeof(Deki::Object) changed. Every package DLL bakes this into its inline "
            "GetParent()/GetChildren()/GetComponent<T>() calls. Bump "
            "kDekiReflectionAbiVersion so stale packages are refused.";
@@ -63,7 +64,7 @@ TEST(ObjectLayout, EditorOnlyPayloadIsNotStoredInTheObject)
     // Two std::strings and a bool used to live in Deki::Object under #ifdef. If
     // anything like that returns, the size assertion above fires first — but
     // this states the intent explicitly for whoever reads the failure.
-    EXPECT_LT(sizeof(Deki::Object), 152u + sizeof(std::string))
+    EXPECT_LT(sizeof(Deki::Object), 184u + sizeof(std::string))
         << "Deki::Object appears to have regained editor-only storage. Editor-only "
            "payload belongs in the side table in Object.cpp, not in a member.";
 }
@@ -110,8 +111,9 @@ TEST(ObjectLayout, AbiMismatchIsReportedAndNamed)
 TEST(ObjectLayout, AbiHandshakeCarriesTransformWidth)
 {
     const DekiReflectionAbi abi = DekiCurrentReflectionAbi();
-    // The editor always compiles the 2D transform.
+    // The editor always compiles the full width.
     EXPECT_EQ(abi.transformConfig & 1u, 1u);
+    EXPECT_EQ(abi.transformConfig & 2u, 2u);
 }
 
 TEST(ObjectLayout, AbiTransformMismatchIsNamed)

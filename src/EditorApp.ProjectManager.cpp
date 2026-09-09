@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <regex>
 #include "core/ProjectPaths.h"
+#include "services/builders/CMakeGenUtils.h"
+#include <functional>
+#include <set>
 #include <deki-editor/CommandHistory.h>
 #include "core/commands/AssetCommands.h"  // DeleteAssetsCommand::SweepStaleTrash
 #include "core/PlatformConfig.h"
@@ -261,6 +264,19 @@ bool EditorApp::OpenProject(const std::string& path)
     // RegisterEngineEditors for exe-dir packages is skipped here on purpose —
     // the same call after bin/ packages load picks up both sets, and running it
     // twice just registers the exe-dir factories twice.
+
+    // What width the device will compile, from the tags the project's packages
+    // and deki.json declare. The editor has every axis regardless.
+    {
+        const auto declared = CMakeGen::ScanPackageManifests(path);
+        std::set<std::string> ids;
+        for (const auto& pkg : declared)
+            ids.insert(pkg.id);
+        std::string why;
+        m_ProjectTransformWidth = static_cast<int>(
+            CMakeGen::ResolveTransformWidth(declared, ids, CMakeGen::ReadProjectTags(path), &why));
+        DEKI_LOG_INFO("Project transform: %s", why.c_str());
+    }
 
     // A project is open, so runtime/ is authoritative about what a package is —
     // the loader no longer needs a vendor name prefix to recognise one.
@@ -959,10 +975,51 @@ void EditorApp::EnsurePlatformSetup()
         m_CurrentScene->SaveToFile(m_CurrentScenePath);
 }
 
+// A 2D device drops depth on load. Say so at save time, naming the objects,
+// rather than let a scene look right in the editor and wrong on the board.
+// The values are still written: losing data is worse than a warning.
+void EditorApp::WarnIfDepthInFlatProject() const
+{
+#ifdef DEKI_TRANSFORM_3D
+    if (!m_CurrentScene || ProjectDeclaresDepth())
+        return;
+
+    std::vector<std::string> names;
+    std::set<const Deki::Object*> seen;
+    std::function<void(Deki::Object*)> visit = [&](Deki::Object* o)
+    {
+        if (!o || !seen.insert(o).second)
+            return;
+        if (o->GetZ() != 0.0f || o->GetRotationX() != 0.0f || o->GetRotationY() != 0.0f ||
+            o->GetScaleZ() != 1.0f)
+        {
+            names.push_back(o->GetName());
+        }
+        for (Deki::Object* c : o->GetChildren())
+            visit(c);
+    };
+    for (Deki::Object* root : m_CurrentScene->GetObjects())
+        visit(root);
+    if (names.empty())
+        return;
+
+    std::string list;
+    for (size_t i = 0; i < names.size() && i < 8; ++i)
+        list += (i ? ", " : "") + names[i];
+    if (names.size() > 8)
+        list += ", ...";
+    DEKI_LOG_WARNING("Scene uses depth on %zu object(s) (%s), but nothing declares transform_3d, "
+                     "so a device build places them at zero depth. Add \"transform_3d\" to the "
+                     "project's deki.json tags if that is not what you want.",
+                     names.size(), list.c_str());
+#endif
+}
+
 bool EditorApp::SaveScene()
 {
     if (m_CurrentScene && !m_CurrentScenePath.empty())
     {
+        WarnIfDepthInFlatProject();
         if (!m_CurrentScene->SaveToFile(m_CurrentScenePath))
         {
             DEKI_LOG_ERROR("SaveScene: failed to write '%s'", m_CurrentScenePath.c_str());
@@ -1025,6 +1082,7 @@ bool EditorApp::SaveSceneAs(const std::string& path)
     if (fs::path(resolved).has_parent_path())
         fs::create_directories(fs::path(resolved).parent_path(), ec);
 
+    WarnIfDepthInFlatProject();
     if (!m_CurrentScene->SaveToFile(resolved))
     {
         DEKI_LOG_ERROR("SaveSceneAs: failed to write '%s'", resolved.c_str());

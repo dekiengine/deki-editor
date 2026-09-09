@@ -79,6 +79,13 @@ with no transform, which is what a project with nothing to draw is meant to
 get. Unknown tags are ignored, so the list can grow. Of the packages shipped
 here, rendering, 2d, input, tween, tilemap and fsm declare `transform_2d`.
 
+**The third axis.** At the 3D width an object also stores `z`, `rotationX`,
+`rotationY` and `scaleZ`, written to the scene only when set, so a 2D
+project's files do not change and a 2D device skips them. `rotation` stays the
+Z angle. The editor shows the four fields only for a project that declares
+`transform_3d`, and warns at save when a scene carries depth that the project's
+device would drop.
+
 ## What is not
 
 Build output, regenerated from the above on every open or build. Do not track

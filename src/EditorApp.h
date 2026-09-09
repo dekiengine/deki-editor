@@ -134,6 +134,10 @@ public:
     bool SaveScene();
     bool SaveSceneAs(const std::string& path);
 
+    // Before a save: a 2D device drops depth on load, so name the objects that
+    // carry it when the project has not declared transform_3d.
+    void WarnIfDepthInFlatProject() const;
+
     // Absolute paths pass through unchanged; relative ones are taken as
     // project-relative.
     std::string ResolveProjectPath(const std::string& path) const;
@@ -167,6 +171,13 @@ public:
 
     // Accessors
     Project* GetProject() { return m_Project.get(); }
+
+    // The transform width the project's packages and deki.json declare, which
+    // is what its simulator and firmware builds compile (COMPATIBILITY.md). The
+    // editor itself always has every axis; this says what the device will have,
+    // so the inspector can hide what a 2D device would drop on load.
+    int GetProjectTransformWidth() const { return m_ProjectTransformWidth; }
+    bool ProjectDeclaresDepth() const { return m_ProjectTransformWidth >= 3; }
     ::Deki::Scene* GetCurrentScene();
     const std::string& GetCurrentScenePath() const { return m_CurrentScenePath; }
     const std::vector<std::string>& GetSceneNavigationStack() const { return m_SceneNavigationStack; }
@@ -308,6 +319,7 @@ private:
     bool m_QuitRequested = false;
     float m_DpiScale = 1.0f;
     std::unique_ptr<Project> m_Project;
+    int m_ProjectTransformWidth = 2;  // 0, 2 or 3; see GetProjectTransformWidth
     std::unique_ptr<::Deki::Scene> m_CurrentScene;
     std::unique_ptr<AssetPipeline> m_AssetPipeline;
     std::unique_ptr<PluginLoader> m_PluginLoader;
