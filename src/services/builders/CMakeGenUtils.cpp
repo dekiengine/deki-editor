@@ -59,6 +59,26 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             info.buildDefine = j.value("buildDefine", "");
             info.id = j.value("id", "");
             info.tags = TagsFrom(j);
+            info.strippable = j.value("strippable", false);
+            if (j.contains("features") && j["features"].is_array())
+            {
+                for (const auto& f : j["features"])
+                {
+                    if (!f.is_object())
+                        continue;
+                    FeatureEntry fe;
+                    fe.id = f.value("id", "");
+                    fe.displayName = f.value("displayName", "");
+                    fe.buildDefine = f.value("buildDefine", "");
+                    fe.required = f.value("required", false);
+                    if (f.contains("componentTypes") && f["componentTypes"].is_array())
+                        for (const auto& t : f["componentTypes"])
+                            if (t.is_string())
+                                fe.componentTypes.push_back(t.get<std::string>());
+                    if (!fe.id.empty())
+                        info.features.push_back(fe);
+                }
+            }
 
             // Collect dependencies from all platform dependency lists
             if (j.contains("dependencies"))
@@ -317,7 +337,9 @@ std::string EscapeCMakeString(const std::string& s)
 
 void EmitActivePackageSources(std::ostream& out,
                               const std::vector<PackageEntry>& allPackages,
-                              const std::set<std::string>& activePackageIds)
+                              const std::set<std::string>& activePackageIds,
+                              const std::vector<std::string>& sourceExcludeRegexes,
+                              bool excludeGenerated)
 {
     out << "# Active package sources (auto-detected from project configuration)\n";
     for (const auto& pkg : allPackages)
@@ -332,6 +354,12 @@ void EmitActivePackageSources(std::ostream& out,
             << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.c\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/editor/.*\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/tests/.*\")\n";
+        if (excludeGenerated)
+            out << "list(FILTER " << var << " EXCLUDE REGEX \".*/generated/.*\")\n";
+        // The stripped components. The regexes name their package directory,
+        // so applying every one to every package is harmless.
+        for (const auto& rx : sourceExcludeRegexes)
+            out << "list(FILTER " << var << " EXCLUDE REGEX \"" << EscapeCMakeString(rx) << "\")\n";
         out << "list(APPEND DEKI_ENGINE_SOURCES ${" << var << "})\n";
     }
 
@@ -666,8 +694,21 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
 
     for (const auto& pkg : allPackages)
     {
-        if (activeIds.count(pkg.id) != 0)
-            consider(pkg.id, pkg.tags);
+        if (activeIds.count(pkg.id) == 0)
+            continue;
+        std::vector<std::string> declared = pkg.tags;
+        // A required feature whose define is the switch itself is the same
+        // declaration, in the descriptor's own vocabulary.
+        for (const auto& feat : pkg.features)
+        {
+            if (!feat.required)
+                continue;
+            if (feat.buildDefine == "DEKI_TRANSFORM_2D")
+                declared.push_back("transform_2d");
+            else if (feat.buildDefine == "DEKI_TRANSFORM_3D")
+                declared.push_back("transform_3d");
+        }
+        consider(pkg.id, declared);
     }
     consider("the project", projectTags);
 

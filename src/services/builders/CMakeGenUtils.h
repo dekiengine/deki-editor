@@ -42,6 +42,19 @@ struct NativeDependency
 };
 
 // Package manifest data parsed from package.json + package.cmake
+// One entry of a package's "features": a compile definition the package
+// brings, the component types it provides, and whether it may be left out.
+// The stripper judges a feature by its componentTypes; `required` means it
+// is never offered as a switch (the transform declarations are this).
+struct FeatureEntry
+{
+    std::string id;
+    std::string displayName;
+    std::string buildDefine;
+    bool required = false;
+    std::vector<std::string> componentTypes;
+};
+
 struct PackageEntry
 {
     std::string dirName;                   // Filesystem directory name under packages/
@@ -55,6 +68,8 @@ struct PackageEntry
     std::vector<NativeDependency> nativeDeps;  // Third-party libraries for the desktop build
     bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
     std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...
+    std::vector<FeatureEntry> features;    // package.json "features"
+    bool strippable = false;               // package.json "strippable": its unused component features may go
 };
 
 // Scan all package manifests in project/packages/
@@ -109,9 +124,15 @@ std::string EscapeCppString(const std::string& s);
 // quotes, `$`, `;` escaped so it stays one literal argument.
 std::string EscapeCMakeString(const std::string& s);
 
+// Emit GLOB_RECURSE per active package with editor/ exclusion.
+// `sourceExcludeRegexes` leave stripped components out (FeatureResolver);
+// `excludeGenerated` leaves out the package's checked-in generated/ when the
+// build regenerates reflection itself.
 void EmitActivePackageSources(std::ostream& out,
                               const std::vector<PackageEntry>& allPackages,
-                              const std::set<std::string>& activePackageIds);
+                              const std::set<std::string>& activePackageIds,
+                              const std::vector<std::string>& sourceExcludeRegexes = {},
+                              bool excludeGenerated = false);
 
 // Emit selective .gen.cpp inclusion based on active packages
 void EmitGeneratedFileSources(std::ostream& out,

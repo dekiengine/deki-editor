@@ -81,6 +81,12 @@ int CmdVerifyScenes(EditorApp& editor);
 /// rectangles run on real scenes. The three must hash identically.
 int CmdRenderScenes(EditorApp& editor);
 
+/// Print the stripping plan for the project open: every package feature with
+/// whether a device build keeps it and why, every package likewise, then the
+/// one-line summary the build log carries. Reads settings/build.json like the
+/// builds do. Returns 0.
+int CmdStripPlan(EditorApp& editor);
+
 /// Write the reflection metadata of everything the project open loaded —
 /// each package's components (name, GUID, category, description, every
 /// property with type, tooltip, range, enum values, default value) and

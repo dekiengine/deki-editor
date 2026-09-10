@@ -11,6 +11,7 @@
 #include "services/builders/IFirmwareBuilder.h"
 #include "services/AssetExporter.h"
 #include "services/FirmwareBuildService.h"
+#include "services/FeatureResolver.h"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -622,6 +623,42 @@ void BuildPanel::DrawPlatformDetails()
         ImGui::TextDisabled("Driver:");
         ImGui::SameLine();
         ImGui::Text("%s", platform->displayDriver.c_str());
+    }
+
+    // Stripping: what a device build leaves out (services/FeatureResolver).
+    // The editor's own builds never strip; it has to open every scene.
+    if (auto* project = m_App->GetProject())
+    {
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Stripping");
+        if (m_StripProject != project->GetPath())
+        {
+            m_Strip = BuildStripSettings::Load(project->GetPath());
+            m_StripProject = project->GetPath();
+            m_StripSummary.clear();
+        }
+        bool changed = false;
+        changed |= ImGui::Checkbox("Strip unused components", &m_Strip.stripUnusedComponents);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Leave out a feature none of whose components any scene or source names.\n"
+                              "Pin a feature in the Package Manager if a script creates it in a way the scan cannot see.");
+        changed |= ImGui::Checkbox("Strip unused packages", &m_Strip.stripUnusedPackages);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Leave out a package all of whose component features are off and that nothing kept requires.\n"
+                              "Packages without components (drivers, protocols) are never touched.");
+        if (changed)
+        {
+            m_Strip.Save(project->GetPath());
+            m_StripSummary.clear();
+        }
+        if (m_StripSummary.empty())
+            m_StripSummary = ComputeStripPlan(project->GetPath()).summary;
+        ImGui::TextWrapped("%s", m_StripSummary.c_str());
+        if (ImGui::SmallButton("Recompute"))
+            m_StripSummary.clear();
+        ImGui::SameLine();
+        ImGui::TextDisabled("simulator and firmware builds only");
     }
 }
 

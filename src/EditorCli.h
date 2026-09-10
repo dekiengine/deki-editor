@@ -20,6 +20,7 @@ struct CliOptions
     bool buildCode = false;
     bool verifyScenes = false;
     bool renderScenes = false;
+    bool stripPlan = false;                 // --strip-plan: what a device build leaves out, and why
     const char* dumpMetadataOut = nullptr;  // --dump-metadata <file>: reflection metadata as JSON
     bool includeProject = false;            // --include-project: the project's own components too
     bool packagesRestore = false;

@@ -575,6 +575,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(CMakeGen::ResolveTransformWidth(
         allPackages, activeIds, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
 
+    // What this build leaves out (services/FeatureResolver).
+    const StripPlan strip = ComputeStripPlan(projectPath);
+
     // Build REQUIRES list from platform config + active package ESP-IDF deps
     std::string
         requires
@@ -621,8 +624,73 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "\n";
 
     CMakeGen::EmitEngineCoreSourceCollection(file);
-    CMakeGen::EmitActivePackageSources(file, allPackages, activeIds);
+    // When something is stripped, the reflection tables the editor left in each
+    // package's generated/ (made with every feature present) would reference
+    // components this build does not compile, so this build regenerates its own
+    // with the same exclusions. When nothing is stripped, today's path: the
+    // package copies are compiled as they are.
+    file << "message(STATUS \"Deki stripping: " << CMakeGen::EscapeCMakeString(strip.summary) << "\")\n";
+    CMakeGen::EmitActivePackageSources(file, allPackages, activeIds, strip.SourceExcludeRegexes(),
+                                       strip.AnythingStripped());
     CMakeGen::EmitGeneratedFileSources(file, enginePath, allPackages, activeIds);
+    if (strip.AnythingStripped())
+    {
+        std::string dirs, tags, prefixes, outdirs;
+        for (const auto& pkg : allPackages)
+        {
+            if (activeIds.count(pkg.id) == 0 || pkg.packagePrefix.empty())
+                continue;
+            dirs += " \"${DEKI_PROJECT_PATH}/packages/" + pkg.dirName + "\"";
+            tags += " \"" + pkg.dirName + "\"";
+            prefixes += " \"" + pkg.packagePrefix + "\"";
+            outdirs += " \"${CMAKE_BINARY_DIR}/refl/" + pkg.dirName + "/generated\"";
+        }
+        file << "\n# Reflection regenerated for this configuration (stripping is on)\n";
+        file << "if(NOT DEKI_GXX16)\n    set(DEKI_GXX16 \"$ENV{DEKI_GXX16}\")\nendif()\n";
+        file << "if(NOT DEKI_GXX16)\n    find_program(DEKI_GXX16 NAMES g++-16 g++)\nendif()\n";
+        file << "if(NOT DEKI_GXX16)\n"
+                "    message(FATAL_ERROR \"Stripping regenerates the reflection tables and needs GCC 16.1+: "
+                "set DEKI_GXX16 (variable or environment), or turn stripping off in the Build panel.\")\n"
+                "endif()\n";
+        file << "include(\"${DEKI_ENGINE_PATH}/cmake/DekiReflectionCodegen.cmake\")\n";
+        file << "deki_reflection_codegen(\n";
+        file << "    UNIT_PREFIX \"firmware\"\n";
+        file << "    PACKAGE_DIRS" << dirs << "\n";
+        file << "    PACKAGE_TAGS" << tags << "\n";
+        file << "    PACKAGE_PREFIXES" << prefixes << "\n";
+        file << "    PACKAGE_OUTDIRS" << outdirs << "\n";
+        file << "    GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
+        file << "    INCLUDE_DIRS ${DEKI_PACKAGE_INCLUDE_DIRS} \"${DEKI_ENGINE_PATH}/include\" "
+                "\"${DEKI_ENGINE_PATH}/third_party\" \"${DEKI_PROJECT_PATH}/packages\" \"${DEKI_PROJECT_PATH}/src\"\n";
+        {
+            const auto codegenExcludes = strip.CodegenExcludeRegexes();
+            if (!codegenExcludes.empty())
+            {
+                file << "    EXCLUDE_REGEX";
+                for (const auto& rx : codegenExcludes)
+                    file << " \"" << CMakeGen::EscapeCMakeString(rx) << "\"";
+                file << "\n";
+            }
+        }
+        // The generator parses the package headers as a host program: the
+        // configuration's defines, none of the ESP-IDF ones.
+        file << "    DEFINES \"DEKI_FAST_ATTR=\"";
+        for (const auto& define : transformDefines)
+            file << " " << define;
+        for (const auto& define : allDefines)
+            file << " " << define;
+        file << ")\n";
+        file << "set(_DEKI_FW_GEN_SRCS \"\")\n";
+        file << "foreach(_OUTDIR" << outdirs << ")\n";
+        file << "    file(GLOB _g \"${_OUTDIR}/*.gen.cpp\")\n";
+        file << "    list(APPEND _DEKI_FW_GEN_SRCS ${_g})\n";
+        file << "endforeach()\n";
+        file << "target_sources(${COMPONENT_LIB} PRIVATE ${_DEKI_FW_GEN_SRCS})\n";
+        file << "foreach(_OUTDIR" << outdirs << ")\n";
+        file << "    get_filename_component(_REFL_DIR \"${_OUTDIR}\" DIRECTORY)\n";
+        file << "    target_include_directories(${COMPONENT_LIB} PRIVATE \"${_REFL_DIR}\")\n";
+        file << "endforeach()\n";
+    }
 
     // Generate package init file that calls each package's RegisterComponents()
     // and registers project game components with ComponentFactory

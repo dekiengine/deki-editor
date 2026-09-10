@@ -43,6 +43,9 @@ set(TEST_SOURCES
     services/UpdateCheckTests.cpp
     services/FileDialogFilterTests.cpp
     services/TransformWidthTests.cpp
+    services/FeatureResolverTests.cpp
+    services/ComponentUsageScanTests.cpp
+    services/BuildStripSettingsTests.cpp
     services/PlayModeGuardTests.cpp
     core/ZipSafetyTests.cpp
     core/PlatformConfigTests.cpp

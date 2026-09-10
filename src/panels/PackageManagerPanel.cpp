@@ -4,6 +4,7 @@
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/EditorTheme.h>
 #include "../services/PackageManager.h"
+#include "imgui.h"
 #include "../services/GitProcess.h"
 #include "../services/installers/DekiPackageInstaller.h"
 #include "../widgets/Toast.h"
@@ -469,6 +470,8 @@ void PackageManagerPanel::DrawPackageDetails()
         }
         ui.Unindent();
     }
+
+    DrawFeatures(pkg);
 
     // Framework / builder — only when the package relies on the active platform's
     // framework (declares deps under that framework key, or is an ESP-IDF
@@ -1299,8 +1302,8 @@ void PackageManagerPanel::OnAddPackageConfirmed()
 
 void PackageManagerPanel::ScanProjectForPackageUsage()
 {
-    // Engine package system has been removed — this is now a no-op.
-    // Build defines are read directly from installed package metadata on disk.
+    // The next GetRequiredBuildDefines() rescans; this only forgets the last plan.
+    m_StripPlanValid = false;
 }
 
 void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
@@ -1501,49 +1504,86 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 
 std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines() const
 {
-    std::vector<std::string> defines;
-    defines.push_back("DEKI_PACKAGE_FEATURES_CONFIGURED");
+    // The stripper decides what a device build defines (services/FeatureResolver).
+    // The plan is kept so the details view can show each feature's fate.
+    auto* project = m_App->GetProject();
+    if (!project)
+        return { "DEKI_PACKAGE_FEATURES_CONFIGURED" };
+    m_StripPlan = ComputeStripPlan(project->GetPath());
+    m_StripPlanValid = true;
+    return m_StripPlan.defines;
+}
 
-    // Get defines from installed project packages (standalone DLLs)
-    if (auto* project = m_App->GetProject())
+// The selected package's features and what a device build does with each.
+// A required feature is shown, not offered; the rest take Auto (the scan
+// decides), On (pinned, for a component a script creates in a way the scan
+// cannot see) or Off.
+void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
+{
+    auto* project = m_App->GetProject();
+    if (!project)
+        return;
+    if (!m_StripPlanValid || m_StripSettingsProject != project->GetPath())
     {
-        namespace fs = std::filesystem;
-        fs::path packagesDir = fs::path(GetPackagesDirectory(project->GetPath()));
-        if (fs::exists(packagesDir))
-        {
-            for (const auto& entry : fs::directory_iterator(packagesDir))
-            {
-                if (!entry.is_directory()) continue;
-                fs::path jsonPath = entry.path() / "package.json";
-                if (!fs::exists(jsonPath)) continue;
-                try
-                {
-                    std::ifstream file(jsonPath);
-                    nlohmann::json j;
-                    file >> j;
-                    std::string buildDefine = j.value("buildDefine", "");
-                    if (!buildDefine.empty())
-                        defines.push_back(buildDefine);
-                    // Include feature defines
-                    if (j.contains("features") && j["features"].is_array())
-                    {
-                        for (const auto& feat : j["features"])
-                        {
-                            std::string featDefine = feat.value("buildDefine", "");
-                            if (!featDefine.empty())
-                                defines.push_back(featDefine);
-                        }
-                    }
-                }
-                catch (const std::exception& e)
-                {
-                    DEKI_LOG_WARNING("PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted", e.what());
-                }
-            }
-        }
+        m_StripSettings = BuildStripSettings::Load(project->GetPath());
+        m_StripSettingsProject = project->GetPath();
+        m_StripPlan = ComputeStripPlan(project->GetPath());
+        m_StripPlanValid = true;
     }
 
-    return defines;
+    // The descriptor's own id can differ from the registry id the panel uses
+    // (deki-tiledmap in deki-tiledmapeditor-integration); match either.
+    std::vector<const FeatureDecision*> rows;
+    for (const auto& d : m_StripPlan.features)
+    {
+        if (d.packageId == pkg.id || d.packageDir == pkg.id || d.packageDir == pkg.name)
+            rows.push_back(&d);
+    }
+    if (rows.empty())
+        return;
+
+    auto& ui = EditorUI::Get();
+    ui.Spacing();
+    TextCol(ui, Palette::Dim, "Features in device builds:");
+    ui.Indent();
+    bool changed = false;
+    for (const FeatureDecision* d : rows)
+    {
+        ImGui::PushID(d->featureId.c_str());
+        if (!d->offered)
+        {
+            ui.Text(d->displayName.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled(d->state == FeatureState::Required ? "required" : "not strippable");
+        }
+        else
+        {
+            const std::string ov = m_StripSettings.Override(d->packageId, d->featureId);
+            int index = ov == "on" ? 1 : (ov == "off" ? 2 : 0);
+            ImGui::SetNextItemWidth(m_App->Dpi(72.0f));
+            if (ImGui::Combo("##mode", &index, "Auto\0On\0Off\0"))
+            {
+                m_StripSettings.SetOverride(d->packageId, d->featureId, index == 1 ? "on" : (index == 2 ? "off" : ""));
+                changed = true;
+            }
+            ImGui::SameLine();
+            ui.Text(d->displayName.c_str());
+            ImGui::SameLine();
+            if (d->on)
+                ImGui::TextDisabled("%s", FeatureStateName(d->state));
+            else
+                ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.35f, 1.0f), "%s", FeatureStateName(d->state));
+        }
+        if (ImGui::IsItemHovered() && !d->reason.empty())
+            ImGui::SetTooltip("%s", d->reason.c_str());
+        ImGui::PopID();
+    }
+    ui.Unindent();
+    if (changed)
+    {
+        m_StripSettings.Save(project->GetPath());
+        m_StripPlanValid = false;  // recomputed on the next draw, with the new pins
+    }
 }
 
 void PackageManagerPanel::DrawAddRegistryPopup()

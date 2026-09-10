@@ -25,6 +25,7 @@
 #include "services/PackageRestore.h"
 #include "services/HotReloadService.h"
 #include "services/FirmwareBuildService.h"
+#include "services/FeatureResolver.h"
 #include "services/AssetExporter.h"
 #include "services/ProjectTemplate.h"
 #include "services/PackageLoader.h"
@@ -1342,6 +1343,35 @@ void SortByName(nlohmann::json& arr)
 }
 
 }  // namespace
+
+int CmdStripPlan(EditorApp& editor)
+{
+    Project* project = ProjectOf(editor, "--strip-plan");
+    if (!project)
+        return 1;
+
+    const StripPlan plan = ComputeStripPlan(project->GetPath());
+    std::string currentPackage;
+    for (const auto& d : plan.features)
+    {
+        if (d.packageId != currentPackage)
+        {
+            currentPackage = d.packageId;
+            const char* pkgNote = "";
+            for (const auto& p : plan.packages)
+                if (p.packageId == d.packageId && !p.on)
+                    pkgNote = "  [stripped]";
+            printf("%s%s\n", d.packageId.c_str(), pkgNote);
+        }
+        printf("  %-4s %-16s %-12s %s\n", d.on ? "on" : "off", d.featureId.c_str(), FeatureStateName(d.state),
+               d.reason.c_str());
+    }
+    for (const auto& p : plan.packages)
+        if (!p.on)
+            printf("%s stripped: %s\n", p.packageId.c_str(), p.reason.c_str());
+    printf("%s\n", plan.summary.c_str());
+    return 0;
+}
 
 int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
 {

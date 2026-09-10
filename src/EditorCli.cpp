@@ -53,6 +53,7 @@ void PrintUsage(const char* program)
     printf("  --version <ver>       Version/tag for --packages-add (or branch:<name>)\n");
     printf("  --build-code          Regenerate build files and compile packages + plugin\n");
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
+    printf("  --strip-plan          Print what a device build leaves out, feature by feature, and why\n");
     printf("  --render-scenes       Render every scene headless and print a hash per scene\n");
     printf("                        (DEKI_RENDER_FRAMES=n, DEKI_RENDER_OUT=<dir> writes .ppm files,\n");
     printf("                        DEKI_RENDER_MODE=buffer|system|tracked: scene-view path, the\n");
@@ -190,6 +191,10 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.renderScenes = true;
         }
+        else if (strcmp(argv[i], "--strip-plan") == 0)
+        {
+            o.stripPlan = true;
+        }
         else if (strcmp(argv[i], "--dump-metadata") == 0)
         {
             o.dumpMetadataOut = takeValue(i, "--dump-metadata");
@@ -233,7 +238,7 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
 
 bool HasCommand(const CliOptions& o)
 {
-    return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes ||
+    return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes || o.stripPlan ||
            o.dumpMetadataOut ||
            o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId ||
            o.firmwareBuild || o.flash || o.clean ||
@@ -320,6 +325,8 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
         return CmdVerifyScenes(editor);
     if (o.renderScenes)
         return CmdRenderScenes(editor);
+    if (o.stripPlan)
+        return CmdStripPlan(editor);
     if (o.exportAssets)
         return CmdExportAssets(editor);
     if (o.build)

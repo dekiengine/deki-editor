@@ -8,6 +8,7 @@
 #include "EditorApp.h"
 #include "panels/PackageManagerPanel.h"
 #include "services/AssetExporter.h"
+#include "services/FeatureResolver.h"
 
 #include <chrono>
 #include <filesystem>
@@ -253,49 +254,9 @@ FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string&
 
 std::vector<std::string> FirmwareBuildService::CollectPackageDefines(const std::string& projectPath)
 {
-    std::vector<std::string> defines;
-    defines.push_back("DEKI_PACKAGE_FEATURES_CONFIGURED");
-
-    const fs::path packagesDir = fs::path(GetPackagesDirectory(projectPath));
-    if (!fs::exists(packagesDir))
-        return defines;
-
-    for (const auto& entry : fs::directory_iterator(packagesDir))
-    {
-        if (!entry.is_directory())
-            continue;
-
-        const fs::path jsonPath = entry.path() / "package.json";
-        if (!fs::exists(jsonPath))
-            continue;
-
-        try
-        {
-            std::ifstream file(jsonPath);
-            nlohmann::json j;
-            file >> j;
-
-            const std::string buildDefine = j.value("buildDefine", "");
-            if (!buildDefine.empty())
-                defines.push_back(buildDefine);
-
-            if (j.contains("features") && j["features"].is_array())
-            {
-                for (const auto& feat : j["features"])
-                {
-                    const std::string featDefine = feat.value("buildDefine", "");
-                    if (!featDefine.empty())
-                        defines.push_back(featDefine);
-                }
-            }
-        }
-        catch (...)
-        {
-            // Malformed package.json contributes no defines, same as the GUI path.
-        }
-    }
-
-    return defines;
+    // The stripper decides what a device build defines (services/FeatureResolver):
+    // the configured marker, every kept package, every kept feature.
+    return ComputeStripPlan(projectPath).defines;
 }
 
 nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPath,

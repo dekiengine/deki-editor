@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include "PlatformEditorDialog.h"
+#include "../services/BuildStripSettings.h"
 
 namespace DekiEditor
 {
@@ -49,6 +50,12 @@ private:
     IFirmwareBuilder* GetActiveBuilder();
 
     EditorApp* m_App;
+
+    // Stripping switches (services/BuildStripSettings) and the plan's one-line
+    // summary, cached until a switch changes or the user asks again.
+    BuildStripSettings m_Strip;
+    std::string m_StripProject;
+    std::string m_StripSummary;
 
     // Selected platform ID
     std::string m_SelectedPlatform;

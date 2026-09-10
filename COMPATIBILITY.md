@@ -79,6 +79,22 @@ with no transform, which is what a project with nothing to draw is meant to
 get. Unknown tags are ignored, so the list can grow. Of the packages shipped
 here, rendering, 2d, input, tween, tilemap and fsm declare `transform_2d`.
 
+### Stripping
+
+A device or simulator build compiles only what the project uses. Each entry
+of a package's `features` names the component types it provides in
+`componentTypes` and the definition it brings in `buildDefine`; the editor
+scans the project's scenes and sources for those type names, and a feature
+none of them mentions is left out: sources out of the glob, header out of the
+reflection codegen, define unset. A feature marked `"required": true` is never
+offered as a switch. A feature another kept feature includes is kept, learned
+from the package's own sources rather than declared. The two switches and any
+per-feature pins live in `settings/build.json`. A package takes part by saying
+`"strippable": true` in its descriptor and keeping `componentTypes` accurate;
+a package that does not opt in keeps every feature, which is right for a
+platform package whose setup components the runtime creates without any scene
+naming them. The editor's own builds never strip.
+
 **The third axis.** At the 3D width an object also stores `z`, `rotationX`,
 `rotationY` and `scaleZ`, written to the scene only when set, so a 2D
 project's files do not change and a 2D device skips them. `rotation` stays the

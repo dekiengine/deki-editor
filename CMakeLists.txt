@@ -531,6 +531,11 @@ set(EDITOR_TESTABLE_SOURCES
     # TransformWidthTests: the width a project compiles, from the tags its
     # packages and deki.json declare.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/CMakeGenUtils.cpp
+    # The stripper: what a device build leaves out, from the descriptors, the
+    # scenes and sources, and settings/build.json.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ComponentUsageScan.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/BuildStripSettings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FeatureResolver.cpp
 )
 
 # Editor sources
@@ -641,6 +646,12 @@ set(EDITOR_SOURCES
     src/services/FileDialogs.h
     src/services/FileDialogFilter.cpp
     src/services/FileDialogFilter.h
+    src/services/ComponentUsageScan.cpp
+    src/services/ComponentUsageScan.h
+    src/services/BuildStripSettings.cpp
+    src/services/BuildStripSettings.h
+    src/services/FeatureResolver.cpp
+    src/services/FeatureResolver.h
     src/services/EngineEditorSetup.cpp
     src/services/EngineEditorSetup.h
     src/services/AssetExporter.cpp

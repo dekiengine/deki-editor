@@ -5,6 +5,7 @@
 #include "../services/PackageManager.h"
 #include "../services/EditorSettings.h"
 #include "../services/sources/DekiRegistrySource.h"
+#include "../services/FeatureResolver.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -95,6 +96,15 @@ private:
 
     // UI State
     PackageEntry* m_SelectedPackage = nullptr;
+
+    // The stripper's last plan (services/FeatureResolver), recomputed when the
+    // build asks for defines or the details view finds it stale. Mutable
+    // because GetRequiredBuildDefines() is const to its callers.
+    mutable StripPlan m_StripPlan;
+    mutable bool m_StripPlanValid = false;
+    BuildStripSettings m_StripSettings;
+    std::string m_StripSettingsProject;
+    void DrawFeatures(const PackageEntry& pkg);
     char m_SearchFilter[256] = "";
     char m_AddPackageUrl[512] = "";
     char m_VersionInput[128] = "";    // Manual version/branch input
