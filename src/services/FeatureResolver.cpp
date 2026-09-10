@@ -212,13 +212,6 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                 d.reason = "required by the package";
                 d.offered = false;
             }
-            else if (!pkg.strippable)
-            {
-                d.on = true;
-                d.state = FeatureState::DefaultOn;
-                d.reason = "the package does not opt into stripping (no \"strippable\": true in its package.json)";
-                d.offered = false;
-            }
             else if (ov == "on")
             {
                 d.on = true;
@@ -310,33 +303,34 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
 
     // ---- packages ----
     // A package goes only when asked, only when it had component features to
-    // judge by and every one is off, and only when no kept package requires it.
-    std::set<std::string> keptPackageKeys;
+    // judge by and nothing outside it names one (a feature kept by the
+    // package's own sources is no reason for the whole package to stay), and
+    // only when no kept package requires it.
     for (const auto& pkg : allPackages)
     {
         bool hasComponentFeatures = false;
-        bool anyOn = false;
+        bool anyWanted = false;
         for (const auto& d : plan.features)
         {
             if (d.packageDir != pkg.dirName)
                 continue;
             if (!d.componentTypes.empty())
                 hasComponentFeatures = true;
-            if (d.on)
-                anyOn = true;
+            if (d.state == FeatureState::Used || d.state == FeatureState::Pinned || d.state == FeatureState::Required)
+                anyWanted = true;
         }
         PackageDecision p;
         p.packageId = pkg.id;
         p.packageDir = pkg.dirName;
         p.on = true;
-        if (settings.stripUnusedPackages && hasComponentFeatures && !anyOn)
+        if (settings.stripUnusedPackages && hasComponentFeatures && !anyWanted)
         {
             p.on = false;
-            p.reason = "every component feature is off";
+            p.reason = "no scene or source names any of its components";
         }
         else
         {
-            p.reason = hasComponentFeatures ? "has features in use" : "no component features to judge by";
+            p.reason = hasComponentFeatures ? "has components in use" : "no component features to judge by";
         }
         plan.packages.push_back(p);
     }
@@ -365,6 +359,19 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                     }
                 }
             }
+        }
+    }
+
+    // A stripped package takes its features with it, so the plan reads as one.
+    for (auto& d : plan.features)
+    {
+        auto self = std::find_if(plan.packages.begin(), plan.packages.end(),
+                                 [&](const PackageDecision& p) { return p.packageDir == d.packageDir; });
+        if (self != plan.packages.end() && !self->on && d.on)
+        {
+            d.on = false;
+            d.state = FeatureState::Stripped;
+            d.reason = "its package is stripped: " + self->reason;
         }
     }
 

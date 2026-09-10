@@ -17,9 +17,10 @@ struct BuildStripSettings
 {
     // Leave out a feature none of whose components any scene or source names.
     bool stripUnusedComponents = true;
-    // Leave out a package all of whose component features are off and that
-    // no kept package requires. Packages with no component features (drivers,
-    // protocols) are never touched by this; they have nothing to scan for.
+    // Leave out a package none of whose components any scene or source names
+    // and that no kept package requires. Packages with no component features
+    // (drivers, protocols) are never touched by this; they have nothing to
+    // scan for.
     bool stripUnusedPackages = false;
 
     // package id -> feature id -> "on" | "off". Absent means automatic.

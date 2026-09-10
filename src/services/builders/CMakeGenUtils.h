@@ -69,7 +69,6 @@ struct PackageEntry
     bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
     std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...
     std::vector<FeatureEntry> features;    // package.json "features"
-    bool strippable = false;               // package.json "strippable": its unused component features may go
 };
 
 // Scan all package manifests in project/packages/

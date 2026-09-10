@@ -89,11 +89,11 @@ none of them mentions is left out: sources out of the glob, header out of the
 reflection codegen, define unset. A feature marked `"required": true` is never
 offered as a switch. A feature another kept feature includes is kept, learned
 from the package's own sources rather than declared. The two switches and any
-per-feature pins live in `settings/build.json`. A package takes part by saying
-`"strippable": true` in its descriptor and keeping `componentTypes` accurate;
-a package that does not opt in keeps every feature, which is right for a
-platform package whose setup components the runtime creates without any scene
-naming them. The editor's own builds never strip.
+per-feature pins live in `settings/build.json`. Every package takes part; a
+package author changes nothing beyond keeping `componentTypes` accurate. The
+scan reads the platforms' boot scenes as well as the project's, so the setup
+components a platform names there count as used. The editor's own builds never
+strip.
 
 **The third axis.** At the 3D width an object also stores `z`, `rotationX`,
 `rotationY` and `scaleZ`, written to the scene only when set, so a 2D

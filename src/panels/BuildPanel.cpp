@@ -645,7 +645,7 @@ void BuildPanel::DrawPlatformDetails()
                               "Pin a feature in the Package Manager if a script creates it in a way the scan cannot see.");
         changed |= ImGui::Checkbox("Strip unused packages", &m_Strip.stripUnusedPackages);
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Leave out a package all of whose component features are off and that nothing kept requires.\n"
+            ImGui::SetTooltip("Leave out a package none of whose components any scene or source names, and that nothing kept requires.\n"
                               "Packages without components (drivers, protocols) are never touched.");
         if (changed)
         {

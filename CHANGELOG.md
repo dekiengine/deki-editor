@@ -13,14 +13,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   and a feature none of them mentions stays out of the build: its sources out
   of the package glob, its header out of the reflection codegen, its define
   unset. Two switches in the Build panel: strip unused components (on by
-  default) and strip unused packages (off; a package all of whose component
-  features are off and that nothing kept requires). The Package Manager's
+  default) and strip unused packages (off; a package none of whose components
+  any scene or source names, and that nothing kept requires). The Package
+  Manager's
   details view shows every feature's fate with a reason, and lets a feature
   be pinned on, for a component a script creates in a way the scan cannot
   see, or forced off. A feature marked `required` in its descriptor is never
-  offered, and only a package that says `"strippable": true` has features
-  taken away by the scan (deki-2d does; a platform package's setup components
-  are created by the runtime, not a scene, and stay). Settings live in
+  offered. The scan reads the platforms' boot scenes as well as the project's,
+  so a platform's setup components count as used. Settings live in
   `settings/build.json`. The build log says what was stripped, and
   `--strip-plan <project>` prints every decision with its reason. The
   editor's own builds never strip.

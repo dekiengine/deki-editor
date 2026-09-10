@@ -51,6 +51,21 @@ TEST(ComponentUsageScan, ScenesNameTheirComponents)
     EXPECT_EQ(u.byType.at("SpriteComponent")[0], "assets/scenes/a.scene");
 }
 
+TEST(ComponentUsageScan, PlatformBootScenesCountToo)
+{
+    // The setup components live in platforms/<id>/boot.scene, never in a
+    // project scene; without this the display driver would be stripped.
+    TempProject p;
+    fs::create_directories(p.root / "platforms" / "native_simulator");
+    std::ofstream(p.root / "platforms" / "native_simulator" / "boot.scene") << R"({
+      "objects": [ { "name": "Platform", "components": [ { "type": "PlatformSetupComponent", "properties": {} } ],
+        "children": [ { "name": "d", "components": [ { "class": "SDL3DisplaySetup", "type": "SDL3DisplaySetup", "properties": {} } ] } ] } ] })";
+
+    const ComponentUsage u = ScanComponentUsage(p.root.string(), {});
+    EXPECT_TRUE(u.Uses("SDL3DisplaySetup"));
+    EXPECT_EQ(u.byType.at("SDL3DisplaySetup")[0], "platforms/native_simulator/boot.scene");
+}
+
 TEST(ComponentUsageScan, SourcesCountOnlyWholeIdentifiersOfKnownTypes)
 {
     TempProject p;

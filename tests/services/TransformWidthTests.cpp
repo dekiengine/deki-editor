@@ -104,5 +104,16 @@ TEST(TransformWidth, TagsAreReadFromTheDescriptors)
     }
     EXPECT_TRUE(ReadProjectTags(root.string()).empty());
 
+    // "requires" names packages this one cannot build without; it joins the
+    // platform dependency lists, once each.
+    {
+        std::ofstream(root / "packages" / "pkg" / "package.json")
+            << R"({ "id": "pkg", "buildDefine": "DEKI_PACKAGE_PKG", "requires": ["deki-input"],
+                    "dependencies": { "native": ["deki-input", "deki-rendering"] } })";
+    }
+    const auto again = ScanPackageManifests(root.string());
+    ASSERT_EQ(again.size(), 1u);
+    EXPECT_EQ(again[0].dekiDeps, (std::vector<std::string>{ "deki-input", "deki-rendering" }));
+
     fs::remove_all(root);
 }

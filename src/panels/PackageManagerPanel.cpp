@@ -1554,7 +1554,7 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
         {
             ui.Text(d->displayName.c_str());
             ImGui::SameLine();
-            ImGui::TextDisabled(d->state == FeatureState::Required ? "required" : "not strippable");
+            ImGui::TextDisabled("required");
         }
         else
         {

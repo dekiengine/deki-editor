@@ -59,7 +59,6 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             info.buildDefine = j.value("buildDefine", "");
             info.id = j.value("id", "");
             info.tags = TagsFrom(j);
-            info.strippable = j.value("strippable", false);
             if (j.contains("features") && j["features"].is_array())
             {
                 for (const auto& f : j["features"])
@@ -80,6 +79,13 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 }
             }
 
+            // "requires": the packages this one cannot build without, whatever
+            // the platform. The platform dependency lists below may repeat them.
+            if (j.contains("requires") && j["requires"].is_array())
+                for (const auto& r : j["requires"])
+                    if (r.is_string() && r.get<std::string>().rfind("deki-", 0) == 0)
+                        info.dekiDeps.push_back(r.get<std::string>());
+
             // Collect dependencies from all platform dependency lists
             if (j.contains("dependencies"))
             {
@@ -97,7 +103,10 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                         if (name.empty()) continue;
 
                         if (name.rfind("deki-", 0) == 0)
-                            info.dekiDeps.push_back(name);
+                        {
+                            if (std::find(info.dekiDeps.begin(), info.dekiDeps.end(), name) == info.dekiDeps.end())
+                                info.dekiDeps.push_back(name);
+                        }
                         else if (platform == "espidf")
                             info.espidfDeps.push_back(name);
                         else if (platform == "native" && dep.is_object())

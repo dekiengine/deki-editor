@@ -35,7 +35,6 @@ CMakeGen::PackageEntry Pkg(const char* id, const char* define, std::vector<CMake
     p.buildDefine = define;
     p.features = std::move(feats);
     p.dekiDeps = std::move(deps);
-    p.strippable = true;
     return p;
 }
 
@@ -90,28 +89,9 @@ TEST(FeatureResolver, RequiredCanNeverBeStripped)
     const FeatureDecision* t = plan.Find("deki-2d", "transform");
     ASSERT_TRUE(t);
     EXPECT_TRUE(t->on);
+    EXPECT_FALSE(t->offered);
     EXPECT_EQ(t->state, FeatureState::Required);
     EXPECT_TRUE(Has(plan.defines, "DEKI_TRANSFORM_2D"));
-}
-
-TEST(FeatureResolver, APackageThatDoesNotOptInKeepsEverything)
-{
-    // A platform package: its setup components are created by the runtime,
-    // never named by a scene, and the scan must not take them away.
-    std::vector<CMakeGen::PackageEntry> pkgs = {
-        Pkg("deki-sdl3", "DEKI_PACKAGE_SDL3", { Feat("display", "DEKI_FEATURE_SDL3_DISPLAY", { "SDL3DisplaySetup" }) }),
-    };
-    pkgs[0].strippable = false;
-    BuildStripSettings s;
-    s.stripUnusedPackages = true;
-    const StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, "");
-    const FeatureDecision* d = plan.Find("deki-sdl3", "display");
-    ASSERT_TRUE(d);
-    EXPECT_TRUE(d->on);
-    EXPECT_FALSE(d->offered);
-    EXPECT_TRUE(plan.packages[0].on);
-    EXPECT_FALSE(plan.AnythingStripped());
-    EXPECT_TRUE(Has(plan.defines, "DEKI_FEATURE_SDL3_DISPLAY"));
 }
 
 TEST(FeatureResolver, StrippingOffKeepsEverything)
@@ -276,6 +256,45 @@ TEST(FeatureResolver, PackagesGoOnlyWhenAskedAndOnlyWhenNothingNeedsThem)
         EXPECT_NE(plan.packages[0].reason.find("deki-particles"), std::string::npos);
         EXPECT_TRUE(Has(plan.defines, "DEKI_PACKAGE_2D"));
     }
+}
+
+TEST(FeatureResolver, AFeatureKeptByItsOwnPackageDoesNotKeepThePackage)
+{
+    // Every single-component package includes its component from its system
+    // code, so the feature is always kept while the package stays. With the
+    // package level on, that is no reason to stay: nothing outside names it.
+    const fs::path root = fs::temp_directory_path() / "deki-feature-resolver-test4";
+    fs::remove_all(root);
+    fs::create_directories(root / "deki-tween");
+    std::ofstream(root / "deki-tween" / "TweenManager.cpp") << "#include \"TweenComponent.h\"\n";
+
+    const std::vector<CMakeGen::PackageEntry> pkgs = {
+        Pkg("deki-tween", "DEKI_PACKAGE_TWEEN", { Feat("tween", "DEKI_FEATURE_TWEEN", { "TweenComponent" }) }),
+    };
+    {
+        BuildStripSettings s;  // components only: the feature is kept, the package stays
+        const StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, root.string());
+        EXPECT_EQ(plan.Find("deki-tween", "tween")->state, FeatureState::Kept);
+        EXPECT_TRUE(plan.packages[0].on);
+        EXPECT_TRUE(Has(plan.defines, "DEKI_PACKAGE_TWEEN"));
+    }
+    {
+        BuildStripSettings s;
+        s.stripUnusedPackages = true;
+        const StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, root.string());
+        EXPECT_FALSE(plan.packages[0].on) << plan.packages[0].reason;
+        EXPECT_FALSE(plan.Find("deki-tween", "tween")->on);
+        EXPECT_NE(plan.Find("deki-tween", "tween")->reason.find("package is stripped"), std::string::npos);
+        EXPECT_FALSE(Has(plan.defines, "DEKI_PACKAGE_TWEEN"));
+        EXPECT_FALSE(Has(plan.defines, "DEKI_FEATURE_TWEEN"));
+    }
+    {
+        BuildStripSettings s;  // used from a scene: stays at either level
+        s.stripUnusedPackages = true;
+        const StripPlan plan = ResolveStripPlan(pkgs, Using({ "TweenComponent" }), s, root.string());
+        EXPECT_TRUE(plan.packages[0].on);
+    }
+    fs::remove_all(root);
 }
 
 TEST(FeatureResolver, RegexesNameTheExcludedFiles)

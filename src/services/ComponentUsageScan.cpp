@@ -94,11 +94,15 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
     const fs::path root(projectPath);
     std::error_code ec;
 
-    // Scenes: every component an object carries.
-    const fs::path assets(GetAssetsDirectory(projectPath));
-    if (fs::exists(assets, ec))
+    // Scenes: every component an object carries. The project's own scenes
+    // under assets/, and the platforms' boot scenes, which is where the
+    // setup components (SDL3DisplaySetup, ESP32SerialSetup) are named.
+    for (const fs::path dir : { fs::path(GetAssetsDirectory(projectPath)),
+                                fs::path(GetPlatformsDirectory(projectPath)) })
     {
-        for (const auto& entry : fs::recursive_directory_iterator(assets, ec))
+        if (!fs::exists(dir, ec))
+            continue;
+        for (const auto& entry : fs::recursive_directory_iterator(dir, ec))
         {
             if (!entry.is_regular_file() || entry.path().extension() != ".scene")
                 continue;

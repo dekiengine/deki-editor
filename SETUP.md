@@ -403,9 +403,7 @@ mentions stays out of the build. In the Build panel, **Strip unused
 components** is on by default and **Strip unused packages** is off. The
 Package Manager's details view shows every feature's fate and why, and lets
 you pin a feature on (for a component a script creates in a way the scan does
-not see) or force it off. Only packages that opt in (`"strippable": true` in
-their `package.json`; deki-2d does) have features taken away; the rest show
-their features as not strippable. `DekiEditor --strip-plan <project>` prints
+not see) or force it off. `DekiEditor --strip-plan <project>` prints
 every decision with its reason. The choices live in `settings/build.json`, and the
 build log opens with a line saying what was stripped. The editor itself never
 strips anything.

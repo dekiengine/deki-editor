@@ -10,11 +10,11 @@
 //
 // A feature stays in when it is required, pinned, used, or included by a
 // kept feature's sources; the last is learned by reading the package's own
-// files rather than trusting a descriptor to have listed it. Only a package
-// that says `"strippable": true` in its descriptor has features taken away
-// by the scan: a platform package's setup components (SDL3DisplaySetup) are
-// created by the runtime, not by a scene, and must never go. The editor's own
-// builds never strip anything: it has to open every scene.
+// files rather than trusting a descriptor to have listed it. Every package
+// is strippable at the level the project chose; the scan reads the platform
+// boot scenes as well as the project's, so the setup components a platform
+// names there (SDL3DisplaySetup) count as used. The editor's own builds never
+// strip anything: it has to open every scene.
 
 #include "BuildStripSettings.h"
 #include "ComponentUsageScan.h"
@@ -51,8 +51,7 @@ struct FeatureDecision
     bool on = true;
     FeatureState state = FeatureState::DefaultOn;
     std::string reason;
-    // False when the user gets no switch: the feature is required, or its
-    // package has not opted into stripping.
+    // False when the user gets no switch: the feature is required.
     bool offered = true;
 };
 
