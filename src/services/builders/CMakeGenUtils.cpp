@@ -59,6 +59,17 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             info.buildDefine = j.value("buildDefine", "");
             info.id = j.value("id", "");
             info.tags = TagsFrom(j);
+
+            // "platforms": the frameworks this package can compile for. Absent
+            // means all of them, so existing manifests keep their behaviour.
+            if (j.contains("platforms") && j["platforms"].is_array())
+            {
+                for (const auto& p : j["platforms"])
+                {
+                    if (p.is_string())
+                        info.platforms.push_back(p.get<std::string>());
+                }
+            }
             if (j.contains("features") && j["features"].is_array())
             {
                 for (const auto& f : j["features"])
@@ -240,18 +251,34 @@ std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath)
 // Active package resolution
 // ============================================================================
 
-std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
-                                            const std::vector<std::string>& packageDefines)
+bool PackageSupportsPlatform(const PackageEntry& pkg, const std::string& framework)
 {
-    // Seed with packages whose buildDefine appears in packageDefines
+    if (pkg.platforms.empty() || framework.empty()) return true;
+    return std::find(pkg.platforms.begin(), pkg.platforms.end(), framework) != pkg.platforms.end();
+}
+
+std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
+                                            const std::vector<std::string>& packageDefines,
+                                            const std::string& framework)
+{
+    // Seed with packages whose buildDefine appears in packageDefines, skipping
+    // any that cannot compile for this platform at all.
     std::set<std::string> activeIds;
     for (const auto& pkg : allPackages)
     {
+        if (!PackageSupportsPlatform(pkg, framework)) continue;
         if (std::find(packageDefines.begin(), packageDefines.end(), pkg.buildDefine) != packageDefines.end())
             activeIds.insert(pkg.id);
     }
 
-    // Resolve transitive deki:* dependencies (fixed-point loop)
+    // Resolve transitive deki:* dependencies (fixed-point loop).
+    // The platform filter applies to dependency edges too, because dekiDeps
+    // absorbs names from every key of "dependencies" regardless of platform: a
+    // desktop-only dependency would otherwise be dragged into a firmware build
+    // by a package that is itself perfectly buildable there.
+    std::map<std::string, const PackageEntry*> byId;
+    for (const auto& pkg : allPackages) byId[pkg.id] = &pkg;
+
     bool changed = true;
     while (changed)
     {
@@ -261,6 +288,8 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
             if (activeIds.count(pkg.id) == 0) continue;
             for (const auto& dep : pkg.dekiDeps)
             {
+                auto it = byId.find(dep);
+                if (it != byId.end() && !PackageSupportsPlatform(*it->second, framework)) continue;
                 if (activeIds.insert(dep).second)
                     changed = true;
             }
@@ -411,8 +440,16 @@ void EmitGeneratedFileSources(std::ostream& out,
 
             // Skip ComponentFactory.gen.cpp (static initializers, not needed on firmware)
             if (filename == "ComponentFactory.gen.cpp") continue;
-            // Skip CoreRegistration.gen.cpp (redundant with AllComponentRegistration)
-            if (filename == "CoreRegistration.gen.cpp") continue;
+            // CoreRegistration.gen.cpp was skipped here as "redundant with
+            // AllComponentRegistration". It is the opposite: AllComponentRegistration
+            // only forward-declares DekiCore_RegisterComponents() and calls it from
+            // deki_register_all_components, while the definition — and the core
+            // components' factory entries — live here. Leaving it out cost an
+            // "undefined reference to DekiCore_RegisterComponents()" at link.
+            //
+            // It went unnoticed because a firmware build had never reached the
+            // link step before. Its static registrar is idempotent (a `done`
+            // flag), so it costs nothing next to the explicit call.
             // Skip AllPackageInit.gen.cpp (deki_package_init.gen.cpp provides init/shutdown)
             if (filename == "AllPackageInit.gen.cpp") continue;
 

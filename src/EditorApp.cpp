@@ -807,6 +807,8 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
                                     "Package restore failed", result.detail, 12.0f);
             if (m_ConsolePanel)
                 m_ConsolePanel->LogWarning(result.detail);
+            else
+                DEKI_LOG_ERROR("Package restore failed: %s", result.detail.c_str());
             continue;
         }
 
@@ -828,6 +830,13 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
         // compiler's channel and feed the "Build failed" pill.
         if (m_ConsolePanel)
             m_ConsolePanel->LogWarning(message);
+
+        // Headless has neither surface, and every CLI verb opens the project,
+        // so on the command line this pass could revert an edit and say nothing
+        // at all. Silently undoing someone's work is the worst thing this
+        // function can do, so it always reaches a channel that exists.
+        if (!m_ConsolePanel)
+            DEKI_LOG_WARNING("%s", message.c_str());
     }
 }
 

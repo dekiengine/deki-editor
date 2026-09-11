@@ -15,6 +15,7 @@
 #include "../services/FirmwareBuildService.h"
 #include "../core/PlatformConfig.h"
 #include "../services/SafeNames.h"
+#include "../services/PackageManager.h"
 #include <deki-editor/Paths.h>
 
 #include <filesystem>
@@ -336,6 +337,70 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                 throw std::runtime_error("could not save the project");
 
                             return { { "activePlatformId", id } };
+                        } });
+
+    // The CLI equivalent of the Package Manager's "Editable (I am developing
+    // this package)" checkbox. Without it, a package directory belongs to the
+    // editor: PackageIntegrity stashes local edits and puts the checkout back
+    // on the pinned version every time the project opens, which on the command
+    // line happens on every single verb.
+    registry.Register({ "set_package_editable",
+                        "Mark a package as one this project is DEVELOPING rather than consuming. "
+                        "Editable packages are left alone; non-editable ones have local edits "
+                        "stashed and their checkout reset to the pinned version on every project "
+                        "open. Persisted as \"editable\" in deki-packages.json.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "package_id" }) },
+                          { "properties",
+                            { { "package_id", { { "type", "string" }, { "description", "Package id, e.g. \"deki-sdl3\"" } } },
+                              { "editable", { { "type", "boolean" }, { "description", "true to develop it here (default), false to hand it back to the editor" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            auto* project = editor ? editor->GetProject() : nullptr;
+                            if (!project)
+                                throw std::runtime_error("no project open");
+
+                            const std::string id = args.value("package_id", "");
+                            if (id.empty())
+                                throw std::runtime_error("package_id is required");
+                            const bool editable = args.value("editable", true);
+
+                            PackageManager manager(editor);
+                            manager.LoadPackages(project->GetPath());
+
+                            // Packages are named inconsistently across manifests:
+                            // some carry a bare directory name, others "owner/repo".
+                            // Accept either, plus the id and display name, rather
+                            // than making the caller guess which one this package
+                            // happens to use.
+                            PackageEntry* found = nullptr;
+                            std::vector<std::string> known;
+                            for (auto& pkg : manager.GetPackages())
+                            {
+                                known.push_back(pkg.name);
+
+                                std::string leaf = pkg.name;
+                                const auto slash = leaf.find_last_of('/');
+                                if (slash != std::string::npos) leaf = leaf.substr(slash + 1);
+
+                                if (pkg.name == id || pkg.id == id || leaf == id ||
+                                    pkg.displayName == id)
+                                {
+                                    found = &pkg;
+                                    break;
+                                }
+                            }
+                            if (!found)
+                            {
+                                std::string msg = "no package '" + id + "' in this project; it has:";
+                                for (const auto& k : known) msg += " " + k;
+                                throw std::runtime_error(msg);
+                            }
+
+                            found->editable = editable;
+                            manager.SavePackages(project->GetPath());
+
+                            return { { "packageId", id }, { "editable", editable } };
                         } });
 
     registry.Register({ "toolchain_status",

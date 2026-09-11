@@ -567,7 +567,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // Scan packages and resolve active set (needed before REQUIRES generation)
     std::string enginePath = GetEnginePath(projectPath);
     auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
-    auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines);
+    auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines, "espidf");
 
     // The transform width: the widest any active package or the project
     // declares (CMakeGenUtils, COMPATIBILITY.md).
