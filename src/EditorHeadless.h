@@ -100,6 +100,7 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath);
 /// builds do. Returns 0.
 int CmdStripPlan(EditorApp& editor, const char* platformId);
 int CmdPlatformCompat(EditorApp& editor);
+int CmdBuildAllTargets(EditorApp& editor);
 
 /// Write the reflection metadata of everything the project open loaded —
 /// each package's components (name, GUID, category, description, every

@@ -1488,6 +1488,87 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
     return 0;
 }
 
+// The project's own targets, which is what "every target" means: the registry
+// also holds built-ins and whatever board packs are installed, and building
+// those would be building someone else's hardware.
+static std::vector<std::string> ProjectOwnPlatforms(const std::string& projectPath)
+{
+    std::vector<std::string> ids;
+    std::error_code ec;
+    const std::filesystem::path dir(GetPlatformsDirectory(projectPath));
+    if (!std::filesystem::exists(dir, ec))
+        return ids;
+    for (const auto& entry : std::filesystem::directory_iterator(dir, ec))
+        if (entry.is_directory())
+            ids.push_back(entry.path().filename().string());
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
+// Build every target the project declares, not just one.
+//
+// Nothing else does this, and that is why a desktop package sat inside a
+// firmware configuration undetected until the first time anyone built it: the
+// desktop build runs constantly and catches its own direction, while the other
+// direction had no build to catch it. Per-target stripping, capabilities and
+// per-target content are all only as correct as the last run of this.
+int CmdBuildAllTargets(EditorApp& editor)
+{
+    Project* project = ProjectOf(editor, "--build-all-targets");
+    if (!project)
+        return 1;
+
+    const std::vector<std::string> targets = ProjectOwnPlatforms(project->GetPath());
+    if (targets.empty())
+    {
+        printf("This project declares no platforms.\n");
+        return 0;
+    }
+
+    // Cheap first: a conflict is answerable without spending a build on it.
+    int blocked = 0;
+    for (const auto& t : targets)
+    {
+        const auto conflicts = FindTargetContentConflicts(project->GetPath(), t);
+        if (conflicts.empty())
+            continue;
+        printf("%-24s BLOCKED\n", t.c_str());
+        for (const auto& c : conflicts)
+            printf("    %s\n", c.Describe().c_str());
+        ++blocked;
+    }
+    if (blocked > 0)
+    {
+        printf("\n%d target(s) cannot build; nothing was compiled.\n", blocked);
+        return 1;
+    }
+
+    int failed = 0;
+    for (const auto& t : targets)
+    {
+        printf("=== %s ===\n", t.c_str());
+        fflush(stdout);
+        // The editor is passed, not omitted: the asset export needs it, and
+        // that is where the per-target boot scene and screen geometry are
+        // decided. Without it each target would be built from the same assets.
+        const FirmwareOpResult r =
+            FirmwareBuildService::Build(project->GetPath(), t, nullptr, &editor);
+        if (r.success)
+        {
+            printf("%-24s ok\n", t.c_str());
+        }
+        else
+        {
+            printf("%-24s FAILED: %s\n", t.c_str(), r.error.c_str());
+            ++failed;
+        }
+        fflush(stdout);
+    }
+
+    printf("\n%zu target(s), %d failed\n", targets.size(), failed);
+    return failed == 0 ? 0 : 1;
+}
+
 // Which packages build for which of the project's targets, and why not where
 // not. The question a person actually has when one project serves a desktop and
 // a board, and the thing a link error answers far too late.

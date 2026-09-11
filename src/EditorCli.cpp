@@ -55,6 +55,7 @@ void PrintUsage(const char* program)
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
     printf("  --strip-plan          Print what a device build leaves out, feature by feature, and why\n");
     printf("                        Answers for --platform <id>; default the active one, \"all\" pools every platform\n");
+    printf("  --build-all-targets   Build every platform the project declares, not just one\n");
     printf("  --platform-compat     Which packages build for which of the project's targets, and\n");
     printf("                        what a package needs that a target does not provide\n");
     printf("\n");
@@ -209,6 +210,10 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.platformCompat = true;
         }
+        else if (strcmp(argv[i], "--build-all-targets") == 0)
+        {
+            o.buildAllTargets = true;
+        }
         else if (strcmp(argv[i], "--list-tools") == 0)
         {
             o.listTools = true;
@@ -269,7 +274,7 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
 bool HasCommand(const CliOptions& o)
 {
     return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes || o.stripPlan ||
-           o.platformCompat ||
+           o.platformCompat || o.buildAllTargets ||
            o.listTools || o.toolName || o.scriptPath ||
            o.dumpMetadataOut ||
            o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId ||
@@ -359,6 +364,8 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
         return CmdRenderScenes(editor);
     if (o.platformCompat)
         return CmdPlatformCompat(editor);
+    if (o.buildAllTargets)
+        return CmdBuildAllTargets(editor);
     if (o.stripPlan)
         return CmdStripPlan(editor, o.platformId);
     if (o.listTools)

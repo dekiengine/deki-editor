@@ -22,6 +22,7 @@ struct CliOptions
     bool renderScenes = false;
     bool stripPlan = false;                 // --strip-plan: what a device build leaves out, and why
     bool platformCompat = false;            // --platform-compat: which packages build for which target
+    bool buildAllTargets = false;           // --build-all-targets: build every platform the project declares
     bool listTools = false;                 // --list-tools: every scriptable tool and its schema
     const char* toolName = nullptr;         // --tool <name>: run one tool
     const char* toolArgs = nullptr;         // --args <json>: its arguments
