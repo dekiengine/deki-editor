@@ -60,14 +60,15 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             info.id = j.value("id", "");
             info.tags = TagsFrom(j);
 
-            // "platforms": the frameworks this package can compile for. Absent
-            // means all of them, so existing manifests keep their behaviour.
-            if (j.contains("platforms") && j["platforms"].is_array())
+            // "platformRequires": what the package needs from a platform.
+            // Absent means it builds anywhere, so existing manifests keep their
+            // behaviour.
+            if (j.contains("platformRequires") && j["platformRequires"].is_array())
             {
-                for (const auto& p : j["platforms"])
+                for (const auto& p : j["platformRequires"])
                 {
                     if (p.is_string())
-                        info.platforms.push_back(p.get<std::string>());
+                        info.platformRequires.push_back(p.get<std::string>());
                 }
             }
             if (j.contains("features") && j["features"].is_array())
@@ -251,22 +252,40 @@ std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath)
 // Active package resolution
 // ============================================================================
 
-bool PackageSupportsPlatform(const PackageEntry& pkg, const std::string& framework)
+std::vector<std::string> MissingCapabilities(const PackageEntry& pkg,
+                                             const std::set<std::string>& platformCapabilities)
 {
-    if (pkg.platforms.empty() || framework.empty()) return true;
-    return std::find(pkg.platforms.begin(), pkg.platforms.end(), framework) != pkg.platforms.end();
+    // No requirements means it builds anywhere. No capability set means no
+    // target is in hand (the editor's own build, which loads everything), so
+    // nothing is judged.
+    if (pkg.platformRequires.empty() || platformCapabilities.empty())
+        return {};
+
+    std::vector<std::string> missing;
+    for (const auto& need : pkg.platformRequires)
+    {
+        if (platformCapabilities.count(need) == 0)
+            missing.push_back(need);
+    }
+    return missing;
+}
+
+bool PackageSupportsPlatform(const PackageEntry& pkg,
+                             const std::set<std::string>& platformCapabilities)
+{
+    return MissingCapabilities(pkg, platformCapabilities).empty();
 }
 
 std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
                                             const std::vector<std::string>& packageDefines,
-                                            const std::string& framework)
+                                            const std::set<std::string>& platformCapabilities)
 {
     // Seed with packages whose buildDefine appears in packageDefines, skipping
-    // any that cannot compile for this platform at all.
+    // any this target cannot satisfy.
     std::set<std::string> activeIds;
     for (const auto& pkg : allPackages)
     {
-        if (!PackageSupportsPlatform(pkg, framework)) continue;
+        if (!PackageSupportsPlatform(pkg, platformCapabilities)) continue;
         if (std::find(packageDefines.begin(), packageDefines.end(), pkg.buildDefine) != packageDefines.end())
             activeIds.insert(pkg.id);
     }
@@ -289,7 +308,8 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
             for (const auto& dep : pkg.dekiDeps)
             {
                 auto it = byId.find(dep);
-                if (it != byId.end() && !PackageSupportsPlatform(*it->second, framework)) continue;
+                if (it != byId.end() && !PackageSupportsPlatform(*it->second, platformCapabilities))
+                    continue;
                 if (activeIds.insert(dep).second)
                     changed = true;
             }

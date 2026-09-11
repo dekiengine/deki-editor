@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <cstdint>
 
 namespace DekiEditor
@@ -103,6 +104,25 @@ struct PlatformConfig
     std::vector<std::string> cFlags;     // C-specific flags
     std::vector<std::string> cxxFlags;   // C++-specific flags
     std::vector<std::string> linkFlags;  // Linker flags
+
+    // What this platform can offer a package, as free-form capability names
+    // ("desktop-os", "sdl3", "posix-process", "wifi", "bluetooth", "spi").
+    //
+    // A package says what it needs rather than which platforms it likes, so a
+    // platform nobody has heard of yet still works: it declares what it can
+    // supply and the packages that need only those things build on it. The
+    // allowlist this replaces got that backwards — a third-party board was
+    // refused for the sole reason that its name was not on a list written
+    // before it existed.
+    //
+    // Never read this directly; call Capabilities(), which adds the ones
+    // derived from fields the platform already has.
+    std::vector<std::string> provides;
+
+    // provides, plus "framework:<framework>" and "family:<family>" derived from
+    // this config. A package genuinely tied to one toolchain can require those
+    // without anyone authoring a new list.
+    std::set<std::string> Capabilities() const;
 
     // Libraries
     std::vector<std::string> requiredLibraries;

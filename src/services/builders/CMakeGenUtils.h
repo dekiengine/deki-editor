@@ -70,33 +70,45 @@ struct PackageEntry
     std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...
     std::vector<FeatureEntry> features;    // package.json "features"
 
-    // package.json "platforms": the build frameworks this package can compile
-    // for, spelled the same way as the keys of "dependencies" ("native",
-    // "espidf", ...). Empty means every platform, which is what a package that
-    // says nothing gets — the field is a restriction, never a requirement.
+    // package.json "platformRequires": what this package needs FROM a platform,
+    // as capability names the platform answers with its "provides"
+    // ("desktop-os", "sdl3", "posix-process", "spi"). Empty means it builds
+    // anywhere, which is what a package that says nothing gets.
     //
-    // Without it a desktop-only package lands in an ESP32 firmware build: the
+    // Requirements rather than an allowlist of platform names, because the
+    // engine is modular enough that platforms appear which no existing package
+    // has heard of. An allowlist refuses those for no better reason than that
+    // their name is not on a list written earlier; a denylist admits them and
+    // fails at the compiler. Matching what a package needs against what a
+    // platform offers gets both cases right without anyone editing a package.
+    //
+    // This is what keeps a desktop-only package out of a firmware build: the
     // ESP-IDF generator globs every active package's sources, and SDL3's
-    // #include <SDL3/SDL.h> then fails to resolve against the cross toolchain.
-    // Being unused is not enough to keep it out, because stripUnusedPackages is
-    // off by default and its components ARE used, just by another platform's
-    // boot scene.
-    std::vector<std::string> platforms;
+    // #include <SDL3/SDL.h> does not resolve against a cross toolchain. Being
+    // unused is not enough on its own, since package stripping is off by
+    // default and the components ARE used, just by another target.
+    std::vector<std::string> platformRequires;
 };
 
-// True when `pkg` can compile for `framework` ("native", "espidf", ...). A
-// package that declares no platforms supports all of them.
-bool PackageSupportsPlatform(const PackageEntry& pkg, const std::string& framework);
+// What `pkg` needs that `platformCapabilities` does not offer. Empty means it
+// can build there. A package that requires nothing can build anywhere, and so
+// can any package when the capability set is empty (no target in hand).
+std::vector<std::string> MissingCapabilities(const PackageEntry& pkg,
+                                             const std::set<std::string>& platformCapabilities);
+
+// True when nothing is missing.
+bool PackageSupportsPlatform(const PackageEntry& pkg,
+                             const std::set<std::string>& platformCapabilities);
 
 // Scan all package manifests in project/packages/
 std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath);
 
 // Resolve which packages are active given the build defines, including transitive deps.
-// `framework` ("native", "espidf", ...) drops packages that cannot compile for it,
-// dependency edges included; empty means no platform filtering.
+// `platformCapabilities` drops packages the target cannot satisfy, dependency edges
+// included; empty means no platform filtering (every package is eligible).
 std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
                                             const std::vector<std::string>& packageDefines,
-                                            const std::string& framework = "");
+                                            const std::set<std::string>& platformCapabilities = {});
 
 // The transform width a build compiles into Deki::Object (see
 // deki-engine/include/deki/Object.h and COMPATIBILITY.md). A package that

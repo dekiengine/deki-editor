@@ -375,7 +375,7 @@ bool NativeBuilder::PrepareNativeDependencies(const std::string& projectPath, Bu
     };
 
     const auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
-    const auto activeIds = CMakeGen::ResolveActivePackages(allPackages, m_PackageDefines, "native");
+    const auto activeIds = CMakeGen::ResolveActivePackages(allPackages, m_PackageDefines, m_PlatformConfig.Capabilities());
     const std::string host = HostPrebuiltKey();
     const fs::path depsRoot = ProjectPaths::Generated(projectPath) / "deps";
 
@@ -480,7 +480,7 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // The transform width this project compiles: the widest any active package
     // or the project itself declares (CMakeGenUtils, COMPATIBILITY.md).
     const auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
-    const auto activeIds = CMakeGen::ResolveActivePackages(allPackages, packageDefines, "native");
+    const auto activeIds = CMakeGen::ResolveActivePackages(allPackages, packageDefines, m_PlatformConfig.Capabilities());
     std::string transformWhy;
     const CMakeGen::TransformWidth transformWidth = CMakeGen::ResolveProjectTransformWidth(
         allPackages, CMakeGen::ReadProjectTags(projectPath), &transformWhy);

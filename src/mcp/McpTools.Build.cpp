@@ -188,6 +188,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "psram_size", { { "type", "integer" }, { "description", "PSRAM in bytes, 0 for none" } } },
                               { "psram_mode", { { "type", "string" }, { "description", "quad or oct" } } },
                               { "defines", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Preprocessor defines for the firmware build" } } },
+                              { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities this board offers packages, e.g. wifi, spi, sdl3" } } },
                               { "boot_scene", { { "type", "string" }, { "description", "Scene the device boots, relative to the project" } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -224,6 +225,13 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
                             config.id = id;
                             config.displayName = args.value("display_name", config.displayName.empty() ? id : config.displayName);
+                            if (args.contains("provides") && args["provides"].is_array())
+                            {
+                                config.provides.clear();
+                                for (const auto& cap : args["provides"])
+                                    if (cap.is_string())
+                                        config.provides.push_back(cap.get<std::string>());
+                            }
                             if (args.contains("screen_width"))
                                 config.screenWidth = args["screen_width"].get<int32_t>();
                             if (args.contains("screen_height"))
@@ -420,6 +428,59 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             }
 
                             return { { "packageId", id }, { "editable", editable } };
+                        } });
+
+    // Capabilities are how a package decides whether it can build for a target,
+    // so they have to be settable without opening platform JSON by hand.
+    registry.Register({ "set_platform_provides",
+                        "Set what a platform can offer packages, as capability names "
+                        "(\"desktop-os\", \"sdl3\", \"posix-process\", \"wifi\", \"spi\"). A package "
+                        "declares what it needs in its platformRequires and builds for this target "
+                        "only when everything it needs is offered here. \"framework:<x>\" and "
+                        "\"family:<x>\" are added automatically and need not be listed.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "platform_id", "provides" }) },
+                          { "properties",
+                            { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
+                              { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "The complete capability list; replaces what was there" } } },
+                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string path = ResolveProjectPath(editor, args);
+                            if (path.empty())
+                                throw std::runtime_error("no project");
+
+                            const std::string id = args.value("platform_id", "");
+                            if (id.empty())
+                                throw std::runtime_error("set_platform_provides needs a platform_id");
+
+                            auto& registryRef = PlatformRegistry::Instance();
+                            registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
+                            registryRef.LoadPlatformsFromBoardPacks();
+
+                            const PlatformConfig* existing = registryRef.GetPlatform(id);
+                            if (!existing)
+                                throw std::runtime_error("no platform '" + id + "' in this project");
+
+                            PlatformConfig config = *existing;
+                            config.provides.clear();
+                            if (args.contains("provides") && args["provides"].is_array())
+                            {
+                                for (const auto& cap : args["provides"])
+                                    if (cap.is_string())
+                                        config.provides.push_back(cap.get<std::string>());
+                            }
+
+                            registryRef.RegisterPlatform(config);
+                            if (!registryRef.SavePlatformToFile(config, GetPlatformsDirectory(path)))
+                                throw std::runtime_error("could not write the platform file for '" + id + "'");
+
+                            nlohmann::json caps = nlohmann::json::array();
+                            for (const auto& c : config.Capabilities())
+                                caps.push_back(c);
+                            return { { "platformId", id },
+                                     { "provides", config.provides },
+                                     { "capabilities", caps } };
                         } });
 
     registry.Register({ "toolchain_status",

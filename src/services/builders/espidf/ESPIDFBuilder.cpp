@@ -559,7 +559,11 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
                                            const PlatformConfig& config,
                                            const std::vector<std::string>& packageDefines)
 {
-    // Ensure ESP32 platform package is always included
+    // An ESP-IDF firmware needs its HAL whether or not a scene names one of its
+    // components, so it is forced on here. This is a per-family hardcode and the
+    // wart it implies is real: a third-party framework gets no equivalent and
+    // would need its own line. The platform should be saying which HAL package
+    // it needs; see PlatformConfig::Capabilities.
     std::vector<std::string> allDefines = packageDefines;
     if (std::find(allDefines.begin(), allDefines.end(), "DEKI_PACKAGE_ESP32_HAL") == allDefines.end())
         allDefines.push_back("DEKI_PACKAGE_ESP32_HAL");
@@ -567,7 +571,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // Scan packages and resolve active set (needed before REQUIRES generation)
     std::string enginePath = GetEnginePath(projectPath);
     auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
-    auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines, "espidf");
+    auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines, config.Capabilities());
 
     // The transform width: the widest any active package or the project
     // declares (CMakeGenUtils, COMPATIBILITY.md).

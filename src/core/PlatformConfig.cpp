@@ -73,6 +73,33 @@ const std::vector<std::string>& SupportedIdfTargets()
     return kTargets;
 }
 
+// The family as it is spelled in JSON, so a capability name matches what an
+// author would write. Kept beside the serializer below, which must agree.
+static const char* FamilyToString(MCUFamily family)
+{
+    switch (family)
+    {
+        case MCUFamily::Native: return "native";
+        case MCUFamily::Espressif: return "espressif";
+        case MCUFamily::RP2040: return "rp2040";
+        case MCUFamily::SAMD: return "samd";
+        case MCUFamily::NRF: return "nrf";
+        default: return "custom";
+    }
+}
+
+std::set<std::string> PlatformConfig::Capabilities() const
+{
+    std::set<std::string> caps(provides.begin(), provides.end());
+    // Derived, so the distinctions that already exist need no authoring: a
+    // package tied to one toolchain requires "framework:espidf" and every
+    // ESP-IDF board satisfies it without listing anything.
+    if (!framework.empty())
+        caps.insert("framework:" + framework);
+    caps.insert(std::string("family:") + FamilyToString(family));
+    return caps;
+}
+
 bool IsValidDisplayBus(const std::string& bus)
 {
     if (bus.empty() || bus.size() > 32) return false;
@@ -186,6 +213,11 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.uploadBaudRate = j.value("uploadBaudRate", 0u);
     config.uploadProtocol = j.value("uploadProtocol", "");
     config.partitionTable = j.value("partitionTable", "");
+
+    if (j.contains("provides") && j["provides"].is_array())
+        for (const auto& cap : j["provides"])
+            if (cap.is_string())
+                config.provides.push_back(cap.get<std::string>());
 
     if (j.contains("defines") && j["defines"].is_array())
         for (const auto& def : j["defines"])
@@ -366,6 +398,7 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         if (!config.useIramAttr) j["useIramAttr"] = false;
         if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
 
+        if (!config.provides.empty()) j["provides"] = config.provides;
         if (!config.defines.empty()) j["defines"] = config.defines;
         if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
         if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
@@ -451,6 +484,11 @@ PlatformConfig CreateSimulatorPlatformConfig()
     config.toolchainPrefix = "";
     config.idfTarget = "";
     config.framework = "native";
+
+    // What a desktop can offer a package. "sdl3" is here because the simulator
+    // is the SDL3 backend, which is how deki-sdl3 ends up in this build and out
+    // of a board's; "posix-process" is what the curl HTTP backend needs to fork.
+    config.provides = { "desktop-os", "posix-process", "filesystem", "threads", "sdl3" };
 
     // Memory (unlimited for desktop)
     config.flashSize = 0;
