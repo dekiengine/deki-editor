@@ -49,9 +49,21 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
         // the list so the panel can show it. Those are offers, not intent —
         // writing them would make the next open restore the whole registry.
         // They are neither declared nor installed, so they fall out here.
+        //   developing — marked editable. That is a statement of intent in its
+        //     own right, and it has to survive a reload or it means nothing.
+        //     A package pulled in by another (resolvedBy set) is neither
+        //     declared nor adopted, so without this its editable flag was
+        //     dropped on every save while the caller was told it had been set
+        //     — and the package stayed exposed to the restore pass that stashes
+        //     local edits and resets the checkout.
+        //
+        //     This only ever ADDS entries, so it cannot bring back the bug
+        //     described above, where inclusion keyed off resolvedBy and deleted
+        //     declarations.
         const bool declared = pkg.declaredInManifest;
         const bool adopted = pkg.isInstalled && pkg.resolvedBy.empty();
-        if (!declared && !adopted) continue;
+        const bool developing = pkg.editable;
+        if (!declared && !adopted && !developing) continue;
 
         json entry;
         entry["version"] = pkg.installedVersion.empty() ? "*" : pkg.installedVersion;

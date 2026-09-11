@@ -397,8 +397,27 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                 throw std::runtime_error(msg);
                             }
 
+                            const std::string resolvedId = found->id;
                             found->editable = editable;
                             manager.SavePackages(project->GetPath());
+
+                            // Read it back rather than trusting the write. The
+                            // manifest keeps only some of what it is handed, so
+                            // a flag can be dropped on save; reporting success
+                            // anyway is how a caller ends up believing a package
+                            // is protected while the restore pass still stashes
+                            // its edits.
+                            PackageManager check(editor);
+                            check.LoadPackages(project->GetPath());
+                            for (const auto& pkg : check.GetPackages())
+                            {
+                                if (pkg.id != resolvedId) continue;
+                                if (pkg.editable != editable)
+                                    throw std::runtime_error(
+                                        "'" + resolvedId + "' did not keep editable=" +
+                                        (editable ? "true" : "false") + " across a reload");
+                                break;
+                            }
 
                             return { { "packageId", id }, { "editable", editable } };
                         } });
