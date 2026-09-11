@@ -395,6 +395,36 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     status("Cleaned up temporary archive");
 
     // Rename extracted folder to target path if needed
+    // An archive that wraps everything in one directory leaves the real root a
+    // level below where the component says it is, and the failure surfaces much
+    // later as a missing tool. `extractedName` handles that when it is declared,
+    // but it has to name the folder, which for ESP-IDF carries the version, so a
+    // version bump silently breaks it. Hoisting a lone directory needs nothing
+    // declared and cannot go stale.
+    if (extracted && comp.extractedName.empty())
+    {
+        try
+        {
+            std::vector<fs::path> entries;
+            for (const auto& entry : fs::directory_iterator(destDir))
+                entries.push_back(entry.path());
+
+            if (entries.size() == 1 && fs::is_directory(entries[0]))
+            {
+                const fs::path wrapper = entries[0];
+                status("Archive wrapped everything in '" + wrapper.filename().string() +
+                       "'; lifting its contents up");
+                for (const auto& child : fs::directory_iterator(wrapper))
+                    fs::rename(child.path(), fs::path(destDir) / child.path().filename());
+                fs::remove(wrapper);
+            }
+        }
+        catch (const std::exception& e)
+        {
+            status(std::string("Could not lift the archive's contents: ") + e.what());
+        }
+    }
+
     if (extracted && !comp.extractedName.empty())
     {
         std::string srcPath = extractDir + "/" + comp.extractedName;

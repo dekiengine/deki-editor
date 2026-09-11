@@ -51,12 +51,12 @@
         "sha256": "cc016c8be9c4f9b0d295e82fa88c369a05c8af68f1bcb7813c7b89eccd46a9e4"
       },
       "detection": {
-        "windows": "{installPath}/*/export.bat",
-        "unix": "{installPath}/*/export.sh"
+        "windows": "{installPath}/export.bat",
+        "unix": "{installPath}/export.sh"
       },
       "postInstall": {
-        "windows": "{installPath}/*/install.bat esp32s3",
-        "unix": "{installPath}/*/install.sh esp32s3"
+        "windows": "{installPath}/install.bat esp32s3",
+        "unix": "{installPath}/install.sh esp32s3"
       },
       "tooltip": "Espressif IoT Development Framework"
     },

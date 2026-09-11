@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstdlib>
 #include "ESPIDFToolchain.h"
 #include "../../SafeNames.h"
 #include <deki-editor/EditorPaths.h>
@@ -53,6 +55,17 @@ std::string ESPIDFToolchain::ReadEngineVersion(const std::string& projectPath) c
 std::string ESPIDFToolchain::GetIDFPath() const
 {
     std::string idfDir = GetToolchainsDir() + "/espressif/esp-idf";
+
+    // The SDK sitting directly in its install directory is the normal case now
+    // that the installer lifts a wrapping folder out of the archive. The search
+    // below stays for installs made before it did.
+#ifdef _WIN32
+    if (fs::exists(fs::path(idfDir) / "export.bat"))
+        return idfDir;
+#else
+    if (fs::exists(fs::path(idfDir) / "export.sh"))
+        return idfDir;
+#endif
 
     try
     {
@@ -133,6 +146,68 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     std::string internalLogEnabled = ctx.enableInternalLogging ? "1" : "";
 
     std::string envSettings = "set \"DEKI_ENGINE_PATH=" + enginePath + "\" && ";
+
+    // Anything that must happen before export.bat runs. cmd expands %PATH%
+    // when it parses the whole line rather than when each piece runs, so
+    // appending to PATH after the export would append to the PATH as it was
+    // beforehand and discard everything ESP-IDF had just added, leaving idf.py
+    // unfindable. Doing it first is correct either way: export.bat prepends
+    // its own entries and leaves ours in place behind them.
+    std::string preExportSettings;
+
+    // The reflection generator's compiler, handed down explicitly.
+    //
+    // A stripped firmware build regenerates the reflection tables, and that
+    // needs GCC 16. Inside the ESP-IDF environment PATH belongs to Espressif,
+    // so a search for g++ there finds the cross compiler or nothing at all.
+    // The editor was itself built with the compiler in question, so it is the
+    // one thing in the chain that knows where it is.
+    {
+        std::string gxx16;
+        if (const char* fromEnv = std::getenv("DEKI_GXX16"); fromEnv && *fromEnv)
+        {
+            gxx16 = fromEnv;
+        }
+        else
+        {
+            for (const char* candidate : { "C:/msys64/mingw64/bin/g++.exe",
+                                           "C:/mingw64/bin/g++.exe",
+                                           "C:/MinGW/bin/g++.exe" })
+            {
+                if (fs::exists(candidate))
+                {
+                    gxx16 = candidate;
+                    break;
+                }
+            }
+        }
+        if (!gxx16.empty())
+        {
+            envSettings += "set \"DEKI_GXX16=" + gxx16 + "\" && ";
+
+            // And its own directory on PATH, or the compiler cannot run at all.
+            //
+            // g++ is only a driver: the real compiler is cc1plus, which lives
+            // in lib/gcc/... rather than beside g++, so Windows resolves its
+            // DLLs through PATH. export.bat replaces PATH with Espressif's,
+            // cc1plus then fails to start, and because it never starts it
+            // prints nothing: the build reported "generator compile failed"
+            // with no diagnostics whatsoever.
+            //
+            // Appended, not prepended: ESP-IDF's own cmake, ninja and python
+            // must keep winning, and nothing in its directories supplies the
+            // libraries cc1plus wants.
+            std::string compilerDir = fs::path(gxx16).parent_path().string();
+            std::replace(compilerDir.begin(), compilerDir.end(), '/', '\\');
+            if (!compilerDir.empty())
+                preExportSettings += "set \"PATH=%PATH%;" + compilerDir + "\" && ";
+
+            if (outputCallback)
+                outputCallback("[Codegen] DEKI_GXX16=" + gxx16 + " (PATH += " + compilerDir + ")",
+                               false);
+        }
+    }
+
     envSettings += "set \"DEKI_LOG_ENABLED=" + logEnabled + "\" && ";
     envSettings += "set \"DEKI_LOG_INTERNAL_ENABLED=" + internalLogEnabled + "\" && ";
 
@@ -185,7 +260,31 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         }
     }
 
-    std::string fullCommand = "cmd /c \"cd /d \"" + idfPath + "\" && export.bat && cd /d \"" +
+    // export.bat by its full path, not by name after a cd. Windows can be
+    // configured with NoDefaultCurrentDirectoryInExePath, and then cmd refuses
+    // to run anything from the working directory: the build failed with
+    // "export.bat is not recognised" while the file sat right there.
+    // /S: with this many quoted segments cmd otherwise strips the wrong pair
+    // and reports "the filename, directory name, or volume label syntax is
+    // incorrect". /S makes it take everything between the outermost quotes
+    // literally.
+    // Backslashes for the script's own path. export.bat works out where it
+    // lives from %~dp0 and decides from that whether it is running under
+    // CMD; handed a forward-slash path it concludes it is not, and refuses
+    // with "This .bat file is for Windows CMD.EXE shell only".
+    std::string idfPathNative = idfPath;
+    std::replace(idfPathNative.begin(), idfPathNative.end(), '/', '\\');
+
+    // MSYSTEM unset first. export.bat refuses outright when it sees that
+    // variable, on the grounds that it is being run from an MSYS shell rather
+    // than CMD. It is set for every child of an MSYS2 or Git Bash session, so
+    // launching the editor from the same shell its own compiler lives in was
+    // enough to make every firmware build fail with "This .bat file is for
+    // Windows CMD.EXE shell only". The child really is CMD; only the inherited
+    // variable said otherwise.
+    std::string fullCommand = "cmd /s /c \"set \"MSYSTEM=\" && " + preExportSettings +
+                              "cd /d \"" + idfPathNative +
+                              "\" && call \"" + idfPathNative + "\\export.bat\" && cd /d \"" +
                               workDir + "\" && " + envSettings + command + "\"";
 
     SECURITY_ATTRIBUTES sa;

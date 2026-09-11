@@ -81,6 +81,19 @@ int CmdVerifyScenes(EditorApp& editor);
 /// rectangles run on real scenes. The three must hash identically.
 int CmdRenderScenes(EditorApp& editor);
 
+/// List every scriptable tool with its JSON schema. Same registry the MCP
+/// server serves, so the two can never drift apart.
+int CmdListTools(EditorApp& editor);
+
+/// Run one tool and print its result as JSON. `argsJson` may be null, which
+/// means no arguments. Returns 1 if the tool is unknown or throws.
+int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson);
+
+/// Run a JSON array of {"tool": name, "args": {...}} in order, stopping at
+/// the first failure. Each step's result is printed as it runs, so a failure
+/// halfway through says what had already been done.
+int CmdRunScript(EditorApp& editor, const char* scriptPath);
+
 /// Print the stripping plan for the project open: every package feature with
 /// whether a device build keeps it and why, every package likewise, then the
 /// one-line summary the build log carries. Reads settings/build.json like the

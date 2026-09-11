@@ -26,6 +26,8 @@
 #include "services/HotReloadService.h"
 #include "services/FirmwareBuildService.h"
 #include "services/FeatureResolver.h"
+#include "mcp/McpToolRegistry.h"
+#include "mcp/McpTools.h"
 #include "services/AssetExporter.h"
 #include "services/ProjectTemplate.h"
 #include "services/PackageLoader.h"
@@ -1343,6 +1345,148 @@ void SortByName(nlohmann::json& arr)
 }
 
 }  // namespace
+
+// ===========================================================================
+// Scripting
+// ===========================================================================
+//
+// These run the registry the MCP server exposes. Building it here rather than
+// keeping a second, CLI-only set of operations is the point: a tool gained by
+// one interface is gained by both, and they cannot drift.
+
+namespace
+{
+McpToolRegistry BuildToolRegistry(EditorApp& editor)
+{
+    McpToolRegistry registry;
+    RegisterAllTools(registry, &editor);
+    return registry;
+}
+
+/// Run one tool, printing what it returned. Throws are reported rather than
+/// escaping, because a script step failing is an ordinary outcome.
+bool RunOneTool(const McpToolRegistry& registry, const std::string& name,
+                const nlohmann::json& args, std::string& outError)
+{
+    const McpToolDescriptor* tool = registry.FindTool(name);
+    if (!tool)
+    {
+        outError = "no tool named '" + name + "'";
+        return false;
+    }
+    try
+    {
+        const nlohmann::json result = tool->handler(args);
+        printf("%s\n", result.dump(2).c_str());
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        outError = e.what();
+        return false;
+    }
+}
+}  // namespace
+
+int CmdListTools(EditorApp& editor)
+{
+    const McpToolRegistry registry = BuildToolRegistry(editor);
+    nlohmann::json out = nlohmann::json::array();
+    for (const McpToolDescriptor& tool : registry.GetTools())
+    {
+        out.push_back({ { "name", tool.name },
+                        { "description", tool.description },
+                        { "inputSchema", tool.inputSchema } });
+    }
+    printf("%s\n", out.dump(2).c_str());
+    return 0;
+}
+
+int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson)
+{
+    if (!toolName || !*toolName)
+    {
+        printf("Error: --tool needs a tool name. --list-tools shows them.\n");
+        return 1;
+    }
+
+    nlohmann::json args = nlohmann::json::object();
+    if (argsJson && *argsJson)
+    {
+        try
+        {
+            args = nlohmann::json::parse(argsJson);
+        }
+        catch (const std::exception& e)
+        {
+            printf("Error: --args is not valid JSON: %s\n", e.what());
+            return 1;
+        }
+    }
+
+    const McpToolRegistry registry = BuildToolRegistry(editor);
+    std::string error;
+    if (!RunOneTool(registry, toolName, args, error))
+    {
+        printf("Error: %s\n", error.c_str());
+        return 1;
+    }
+    return 0;
+}
+
+int CmdRunScript(EditorApp& editor, const char* scriptPath)
+{
+    std::ifstream in(Str(scriptPath));
+    if (!in)
+    {
+        printf("Error: cannot read script '%s'\n", Str(scriptPath).c_str());
+        return 1;
+    }
+
+    nlohmann::json script;
+    try
+    {
+        in >> script;
+    }
+    catch (const std::exception& e)
+    {
+        printf("Error: script is not valid JSON: %s\n", e.what());
+        return 1;
+    }
+    if (!script.is_array())
+    {
+        printf("Error: a script is a JSON array of {\"tool\", \"args\"} steps.\n");
+        return 1;
+    }
+
+    const McpToolRegistry registry = BuildToolRegistry(editor);
+    int stepNumber = 0;
+    for (const auto& step : script)
+    {
+        ++stepNumber;
+        if (!step.is_object() || !step.contains("tool") || !step["tool"].is_string())
+        {
+            printf("Error: step %d has no \"tool\" name.\n", stepNumber);
+            return 1;
+        }
+        const std::string name = step["tool"].get<std::string>();
+        const nlohmann::json args =
+            step.contains("args") ? step["args"] : nlohmann::json::object();
+
+        printf("[%d/%d] %s\n", stepNumber, static_cast<int>(script.size()), name.c_str());
+        std::string error;
+        if (!RunOneTool(registry, name, args, error))
+        {
+            // Stopping here rather than carrying on: a later step almost
+            // always depends on what this one was to produce, and a cascade of
+            // failures hides which one actually broke.
+            printf("Error: step %d (%s) failed: %s\n", stepNumber, name.c_str(), error.c_str());
+            return 1;
+        }
+    }
+    printf("Script finished: %d step(s).\n", stepNumber);
+    return 0;
+}
 
 int CmdStripPlan(EditorApp& editor)
 {

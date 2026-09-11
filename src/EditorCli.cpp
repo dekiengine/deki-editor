@@ -54,6 +54,13 @@ void PrintUsage(const char* program)
     printf("  --build-code          Regenerate build files and compile packages + plugin\n");
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
     printf("  --strip-plan          Print what a device build leaves out, feature by feature, and why\n");
+    printf("\n");
+    printf("Scripting (the same tools the MCP server exposes):\n");
+    printf("  --list-tools          List every tool, with its JSON schema\n");
+    printf("  --tool <name>         Run one tool and print its result as JSON\n");
+    printf("  --args <json>         Arguments for --tool (default: {})\n");
+    printf("  --script <file>       Run a JSON array of {\"tool\", \"args\"} in order,\n");
+    printf("                        stopping at the first failure\n");
     printf("  --render-scenes       Render every scene headless and print a hash per scene\n");
     printf("                        (DEKI_RENDER_FRAMES=n, DEKI_RENDER_OUT=<dir> writes .ppm files,\n");
     printf("                        DEKI_RENDER_MODE=buffer|system|tracked: scene-view path, the\n");
@@ -195,6 +202,22 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.stripPlan = true;
         }
+        else if (strcmp(argv[i], "--list-tools") == 0)
+        {
+            o.listTools = true;
+        }
+        else if (strcmp(argv[i], "--tool") == 0)
+        {
+            o.toolName = takeValue(i, "--tool");
+        }
+        else if (strcmp(argv[i], "--args") == 0)
+        {
+            o.toolArgs = takeValue(i, "--args");
+        }
+        else if (strcmp(argv[i], "--script") == 0)
+        {
+            o.scriptPath = takeValue(i, "--script");
+        }
         else if (strcmp(argv[i], "--dump-metadata") == 0)
         {
             o.dumpMetadataOut = takeValue(i, "--dump-metadata");
@@ -239,6 +262,7 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
 bool HasCommand(const CliOptions& o)
 {
     return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes || o.stripPlan ||
+           o.listTools || o.toolName || o.scriptPath ||
            o.dumpMetadataOut ||
            o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId ||
            o.firmwareBuild || o.flash || o.clean ||
@@ -327,6 +351,12 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
         return CmdRenderScenes(editor);
     if (o.stripPlan)
         return CmdStripPlan(editor);
+    if (o.listTools)
+        return CmdListTools(editor);
+    if (o.toolName)
+        return CmdRunTool(editor, o.toolName, o.toolArgs);
+    if (o.scriptPath)
+        return CmdRunScript(editor, o.scriptPath);
     if (o.exportAssets)
         return CmdExportAssets(editor);
     if (o.build)

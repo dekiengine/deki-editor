@@ -13,6 +13,14 @@
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include "../services/FirmwareBuildService.h"
+#include "../core/PlatformConfig.h"
+#include "../services/SafeNames.h"
+#include <deki-editor/Paths.h>
+
+#include <filesystem>
+#include <chrono>
+#include <cstdio>
+#include <thread>
 
 #include <stdexcept>
 #include <string>
@@ -76,6 +84,258 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             if (!err.empty())
                                 throw std::runtime_error(err);
                             return result;
+                        } });
+
+    registry.Register({ "wait_for_operation",
+                        "Block until the running firmware operation finishes, and report how it "
+                        "went. build_firmware, flash_firmware and the toolchain tools all start "
+                        "in the background and return at once, which suits a GUI polling for "
+                        "progress but leaves a script with nothing to wait on: the process exits "
+                        "and takes the work with it.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "timeout_seconds", { { "type", "integer" }, { "description", "Give up after this long (default 3600). Giving up does not cancel the operation." } } },
+                              { "quiet", { { "type", "boolean" }, { "description", "Do not print progress lines while waiting" } } } } } },
+                        [](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const int timeoutSeconds = args.value("timeout_seconds", 3600);
+                            const bool quiet = args.value("quiet", false);
+
+                            const auto started = std::chrono::steady_clock::now();
+                            std::string lastText;
+                            nlohmann::json status;
+
+                            while (true)
+                            {
+                                status = FirmwareBuildService::QueryStatus();
+                                const std::string state = status.value("state", "idle");
+                                const std::string text = status.value("statusText", "");
+
+                                if (!quiet && !text.empty() && text != lastText)
+                                {
+                                    // stderr: stdout carries the result, and a
+                                    // caller parsing it should not have to strip
+                                    // progress out of the middle.
+                                    fprintf(stderr, "  %s\n", text.c_str());
+                                    lastText = text;
+                                }
+
+                                if (!status.value("active", false) || state == "completed" ||
+                                    state == "failed" || state == "idle")
+                                    break;
+
+                                const auto elapsed = std::chrono::steady_clock::now() - started;
+                                if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >=
+                                    timeoutSeconds)
+                                {
+                                    status["timedOut"] = true;
+                                    break;
+                                }
+                                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                            }
+
+                            if (status.value("state", "") == "failed")
+                                throw std::runtime_error("operation failed: " +
+                                                         status.value("error", "(no detail)"));
+                            return status;
+                        } });
+
+    registry.Register({ "setup_toolchain_component",
+                        "Run a toolchain component's post-install step. Downloading a component "
+                        "is not always enough to use it: the ESP-IDF archive carries no compilers, "
+                        "and its install script fetches them. Starts in the background; poll "
+                        "build_status. Only components whose status reports canSetup have one.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "component_id" }) },
+                          { "properties",
+                            { { "component_id", { { "type", "string" }, { "description", "Component id, e.g. esp-idf" } } },
+                              { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } },
+                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string path = ResolveProjectPath(editor, args);
+                            const std::string component = args.value("component_id", "");
+                            if (component.empty())
+                                throw std::runtime_error("setup_toolchain_component needs component_id");
+
+                            FirmwareOpResult r = FirmwareBuildService::StartSetupToolchainComponent(
+                                path, ArgPlatform(args), component, nullptr);
+                            if (!r.success)
+                                throw std::runtime_error(r.error);
+                            return { { "started", true }, { "component", component } };
+                        } });
+
+    registry.Register({ "create_platform",
+                        "Add a build target to the project. Copies an existing platform (its own, "
+                        "or one from an installed board pack) under a new id, so a board can be "
+                        "adapted without writing platform JSON by hand. Fields given here override "
+                        "the copy. Returns the platform as saved.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "id" }) },
+                          { "properties",
+                            { { "id", { { "type", "string" }, { "description", "Id for the new platform" } } },
+                              { "from", { { "type", "string" }, { "description", "Platform id to copy (optional; without it the platform is created bare)" } } },
+                              { "display_name", { { "type", "string" }, { "description", "Human-readable name (default: the id)" } } },
+                              { "screen_width", { { "type", "integer" } } },
+                              { "screen_height", { { "type", "integer" } } },
+                              { "family", { { "type", "string" }, { "description", "Vendor family, e.g. espressif or native" } } },
+                              { "framework", { { "type", "string" }, { "description", "Build framework: espidf, native" } } },
+                              { "mcu_chip", { { "type", "string" }, { "description", "Chip, e.g. esp32s3" } } },
+                              { "idf_target", { { "type", "string" }, { "description", "ESP-IDF target, e.g. esp32s3" } } },
+                              { "cpu_freq_hz", { { "type", "integer" } } },
+                              { "flash_size", { { "type", "integer" }, { "description", "Flash in bytes" } } },
+                              { "psram_size", { { "type", "integer" }, { "description", "PSRAM in bytes, 0 for none" } } },
+                              { "psram_mode", { { "type", "string" }, { "description", "quad or oct" } } },
+                              { "defines", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Preprocessor defines for the firmware build" } } },
+                              { "boot_scene", { { "type", "string" }, { "description", "Scene the device boots, relative to the project" } } },
+                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string path = ResolveProjectPath(editor, args);
+                            if (path.empty())
+                                throw std::runtime_error("no project");
+
+                            const std::string id = args.value("id", "");
+                            if (id.empty())
+                                throw std::runtime_error("create_platform needs an id");
+                            std::string why;
+                            if (!SafeNames::IsSafeName(id, why))
+                                throw std::runtime_error("'" + id + "' is not a usable platform id: " + why);
+
+                            // Board packs as well as the project's own, so a
+                            // supported board can be adopted by name.
+                            auto& registryRef = PlatformRegistry::Instance();
+                            registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
+                            registryRef.LoadPlatformsFromBoardPacks();
+
+                            if (registryRef.GetPlatform(id))
+                                throw std::runtime_error("a platform called '" + id + "' already exists");
+
+                            PlatformConfig config;
+                            const std::string from = args.value("from", "");
+                            if (!from.empty())
+                            {
+                                const PlatformConfig* source = registryRef.GetPlatform(from);
+                                if (!source)
+                                    throw std::runtime_error("no platform '" + from + "' to copy");
+                                config = *source;
+                            }
+
+                            config.id = id;
+                            config.displayName = args.value("display_name", config.displayName.empty() ? id : config.displayName);
+                            if (args.contains("screen_width"))
+                                config.screenWidth = args["screen_width"].get<int32_t>();
+                            if (args.contains("screen_height"))
+                                config.screenHeight = args["screen_height"].get<int32_t>();
+                            // family is an enum, spelled as a string everywhere a
+                            // platform is written, so it is translated here rather
+                            // than assigned.
+                            if (args.contains("family") && args["family"].is_string())
+                            {
+                                const std::string family = args["family"].get<std::string>();
+                                if (family == "native") config.family = MCUFamily::Native;
+                                else if (family == "espressif") config.family = MCUFamily::Espressif;
+                                else if (family == "rp2040") config.family = MCUFamily::RP2040;
+                                else if (family == "samd") config.family = MCUFamily::SAMD;
+                                else if (family == "nrf") config.family = MCUFamily::NRF;
+                                else if (family == "custom") config.family = MCUFamily::Custom;
+                                else throw std::runtime_error("unknown family '" + family +
+                                                              "'; use native, espressif, rp2040, samd, nrf or custom");
+                            }
+                            config.framework = args.value("framework", config.framework);
+                            config.mcuChip = args.value("mcu_chip", config.mcuChip);
+                            config.idfTarget = args.value("idf_target", config.idfTarget);
+                            config.psramMode = args.value("psram_mode", config.psramMode);
+                            if (args.contains("cpu_freq_hz"))
+                                config.cpuFreqHz = args["cpu_freq_hz"].get<uint32_t>();
+                            if (args.contains("flash_size"))
+                                config.flashSize = args["flash_size"].get<uint32_t>();
+                            if (args.contains("psram_size"))
+                                config.psramSize = args["psram_size"].get<uint32_t>();
+                            if (args.contains("defines") && args["defines"].is_array())
+                            {
+                                config.defines.clear();
+                                for (const auto& define : args["defines"])
+                                    if (define.is_string())
+                                        config.defines.push_back(define.get<std::string>());
+                            }
+                            config.bootScene = args.value("boot_scene", config.bootScene);
+
+                            // An ESP-IDF target that names no chip cannot be
+                            // built, and the failure would come much later as a
+                            // confusing toolchain error.
+                            if (config.framework == "espidf" && config.idfTarget.empty())
+                                throw std::runtime_error("an espidf platform needs idf_target, e.g. esp32s3");
+
+                            // SavePlatformToFile makes the per-platform folder itself,
+                            // so it wants platforms/, not platforms/<id>.
+                            const std::string platformsDir = GetPlatformsDirectory(path);
+                            std::error_code ec;
+                            std::filesystem::create_directories(platformsDir, ec);
+                            if (!registryRef.SavePlatformToFile(config, platformsDir))
+                                throw std::runtime_error("could not write the platform under " + platformsDir);
+                            const std::string directory = platformsDir + "/" + id;
+
+                            // A copied platform names the boot scene of the
+                            // platform it came from, which belongs to that one.
+                            // Carry the file across so the new target boots.
+                            if (!from.empty() && !config.bootScene.empty() && !args.contains("boot_scene"))
+                            {
+                                const std::filesystem::path sourceScene =
+                                    std::filesystem::path(path) / config.bootScene;
+                                const std::filesystem::path ours =
+                                    std::filesystem::path(directory) / sourceScene.filename();
+                                if (std::filesystem::exists(sourceScene, ec) &&
+                                    !std::filesystem::equivalent(sourceScene, ours, ec))
+                                {
+                                    std::filesystem::copy_file(
+                                        sourceScene, ours,
+                                        std::filesystem::copy_options::overwrite_existing, ec);
+                                    config.bootScene = GetPlatformsDirectoryRelative() + "/" + id +
+                                                       "/" + sourceScene.filename().string();
+                                    registryRef.SavePlatformToFile(config, directory);
+                                }
+                            }
+
+                            return { { "id", config.id },
+                                     { "displayName", config.displayName },
+                                     { "framework", config.framework },
+                                     { "idfTarget", config.idfTarget },
+                                     { "screenWidth", config.screenWidth },
+                                     { "screenHeight", config.screenHeight },
+                                     { "bootScene", config.bootScene },
+                                     { "directory", directory } };
+                        } });
+
+    registry.Register({ "set_active_platform",
+                        "Choose which platform the project builds for by default, the same "
+                        "setting the Build panel's target dropdown writes.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "platform_id" }) },
+                          { "properties",
+                            { { "platform_id", { { "type", "string" }, { "description", "Platform id, or \"\" to leave the project with no default" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            auto* project = editor ? editor->GetProject() : nullptr;
+                            if (!project)
+                                throw std::runtime_error("no project open");
+
+                            const std::string id = args.value("platform_id", "");
+                            if (!id.empty())
+                            {
+                                auto& registryRef = PlatformRegistry::Instance();
+                                registryRef.LoadPlatformsFromDirectory(
+                                    GetPlatformsDirectory(project->GetPath()));
+                                registryRef.LoadPlatformsFromBoardPacks();
+                                if (!registryRef.GetPlatform(id))
+                                    throw std::runtime_error("no platform '" + id + "' in this project");
+                            }
+
+                            project->SetActivePlatformId(id);
+                            if (!project->Save())
+                                throw std::runtime_error("could not save the project");
+
+                            return { { "activePlatformId", id } };
                         } });
 
     registry.Register({ "toolchain_status",

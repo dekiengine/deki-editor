@@ -21,6 +21,10 @@ struct CliOptions
     bool verifyScenes = false;
     bool renderScenes = false;
     bool stripPlan = false;                 // --strip-plan: what a device build leaves out, and why
+    bool listTools = false;                 // --list-tools: every scriptable tool and its schema
+    const char* toolName = nullptr;         // --tool <name>: run one tool
+    const char* toolArgs = nullptr;         // --args <json>: its arguments
+    const char* scriptPath = nullptr;       // --script <file>: run a list of them in order
     const char* dumpMetadataOut = nullptr;  // --dump-metadata <file>: reflection metadata as JSON
     bool includeProject = false;            // --include-project: the project's own components too
     bool packagesRestore = false;

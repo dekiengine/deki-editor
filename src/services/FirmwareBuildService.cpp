@@ -488,6 +488,25 @@ FirmwareOpResult FirmwareBuildService::StartInstallToolchainComponent(
     return Started(ctx);
 }
 
+FirmwareOpResult FirmwareBuildService::StartSetupToolchainComponent(
+    const std::string& projectPath, const std::string& platformId,
+    const std::string& componentId, FirmwareLogCallback onLine)
+{
+    Ctx ctx;
+    std::string err;
+    if (!Prepare(projectPath, platformId, ctx, err))
+        return Failure(err);
+
+    FirmwareOpResult check = ValidateComponent(ctx, componentId);
+    if (!check.success)
+        return check;
+
+    ResetToolchainStatus();
+    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
+    ctx.builder->SetupToolchainComponent(componentId, MakeToolchainProgressSink(onLine));
+    return Started(ctx);
+}
+
 nlohmann::json FirmwareBuildService::QueryStatus()
 {
     nlohmann::json out;
