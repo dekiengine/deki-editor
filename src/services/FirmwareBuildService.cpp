@@ -252,11 +252,14 @@ FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string&
 
 }  // namespace
 
-std::vector<std::string> FirmwareBuildService::CollectPackageDefines(const std::string& projectPath)
+std::vector<std::string> FirmwareBuildService::CollectPackageDefines(const std::string& projectPath,
+                                                                     const std::string& targetPlatformId)
 {
     // The stripper decides what a device build defines (services/FeatureResolver):
-    // the configured marker, every kept package, every kept feature.
-    return ComputeStripPlan(projectPath).defines;
+    // the configured marker, every kept package, every kept feature. The target
+    // scopes it: another platform's boot scene must not decide what this one
+    // compiles.
+    return ComputeStripPlan(projectPath, targetPlatformId).defines;
 }
 
 nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPath,
@@ -404,11 +407,11 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     {
         auto* pkgPanel = editor->GetPackageManagerPanel();
         pkgPanel->ScanProjectForPackageUsage();
-        defines = pkgPanel->GetRequiredBuildDefines();
+        defines = pkgPanel->GetRequiredBuildDefines(platform.id);
     }
     else
     {
-        defines = CollectPackageDefines(projectPath);
+        defines = CollectPackageDefines(projectPath, platform.id);
     }
 
     builder.SetBuildOptions(options);

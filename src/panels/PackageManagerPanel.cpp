@@ -1502,15 +1502,21 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
     return true;
 }
 
-std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines() const
+std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(
+    const std::string& targetPlatformId) const
 {
     // The stripper decides what a device build defines (services/FeatureResolver).
     // The plan is kept so the details view can show each feature's fate.
+    //
+    // The target matters here and not only in the headless fallback: this is the
+    // path a build actually takes when an editor is present, so leaving it out
+    // would let another platform's boot scene decide what this one compiles.
     auto* project = m_App->GetProject();
     if (!project)
         return { "DEKI_PACKAGE_FEATURES_CONFIGURED" };
-    m_StripPlan = ComputeStripPlan(project->GetPath());
+    m_StripPlan = ComputeStripPlan(project->GetPath(), targetPlatformId);
     m_StripPlanValid = true;
+    m_StripPlanPlatform = targetPlatformId;
     return m_StripPlan.defines;
 }
 
@@ -1523,12 +1529,17 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
     auto* project = m_App->GetProject();
     if (!project)
         return;
-    if (!m_StripPlanValid || m_StripSettingsProject != project->GetPath())
+    // The details view shows what the ACTIVE target would do, so a plan computed
+    // for another one is stale even when the project has not changed.
+    const std::string& activePlatform = project->GetActivePlatformId();
+    if (!m_StripPlanValid || m_StripSettingsProject != project->GetPath() ||
+        m_StripPlanPlatform != activePlatform)
     {
         m_StripSettings = BuildStripSettings::Load(project->GetPath());
         m_StripSettingsProject = project->GetPath();
-        m_StripPlan = ComputeStripPlan(project->GetPath());
+        m_StripPlan = ComputeStripPlan(project->GetPath(), activePlatform);
         m_StripPlanValid = true;
+        m_StripPlanPlatform = activePlatform;
     }
 
     // The descriptor's own id can differ from the registry id the panel uses

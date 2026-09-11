@@ -98,6 +98,11 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                            const std::string& packagesDir);
 
 // The whole thing for a project: descriptors, scan, settings.
-StripPlan ComputeStripPlan(const std::string& projectPath);
+//
+// `targetPlatformId` is the platform being built. It scopes which boot scenes
+// count as evidence, so a package used only by another target's boot scene is
+// not kept alive here. Empty pools every platform, for callers with no target
+// in hand.
+StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId = "");
 
 }  // namespace DekiEditor

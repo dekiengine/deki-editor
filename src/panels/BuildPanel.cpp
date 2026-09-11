@@ -653,7 +653,7 @@ void BuildPanel::DrawPlatformDetails()
             m_StripSummary.clear();
         }
         if (m_StripSummary.empty())
-            m_StripSummary = ComputeStripPlan(project->GetPath()).summary;
+            m_StripSummary = ComputeStripPlan(project->GetPath(), project->GetActivePlatformId()).summary;
         ImGui::TextWrapped("%s", m_StripSummary.c_str());
         if (ImGui::SmallButton("Recompute"))
             m_StripSummary.clear();

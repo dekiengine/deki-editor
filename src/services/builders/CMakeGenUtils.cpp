@@ -785,6 +785,18 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
     return width;
 }
 
+TransformWidth ResolveProjectTransformWidth(const std::vector<PackageEntry>& allPackages,
+                                            const std::vector<std::string>& projectTags,
+                                            std::string* why)
+{
+    // Every installed package counts, not the ones a particular target keeps.
+    // See the header for why the layout must not vary by target.
+    std::set<std::string> everything;
+    for (const auto& pkg : allPackages)
+        everything.insert(pkg.id);
+    return ResolveTransformWidth(allPackages, everything, projectTags, why);
+}
+
 std::vector<std::string> TransformDefines(TransformWidth width)
 {
     std::vector<std::string> defines;

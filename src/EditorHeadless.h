@@ -98,7 +98,7 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath);
 /// whether a device build keeps it and why, every package likewise, then the
 /// one-line summary the build log carries. Reads settings/build.json like the
 /// builds do. Returns 0.
-int CmdStripPlan(EditorApp& editor);
+int CmdStripPlan(EditorApp& editor, const char* platformId);
 
 /// Write the reflection metadata of everything the project open loaded —
 /// each package's components (name, GUID, category, description, every

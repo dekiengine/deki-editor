@@ -123,6 +123,19 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
                                      const std::vector<std::string>& projectTags,
                                      std::string* why = nullptr);
 
+// The width for a PROJECT, which is what a build must compile.
+//
+// Deliberately blind to which packages a given target ends up with. Feeding it
+// the per-target active set instead would let two targets of one project
+// disagree about what a Deki::Object is: exclude deki-3d from a board and that
+// board compiles a narrower object, so a scene authored with a third axis
+// loses it on that target and nothing says so. The layout is a property of the
+// project, so every target compiles the same one, at the cost of a board
+// carrying a wider object than it strictly needs.
+TransformWidth ResolveProjectTransformWidth(const std::vector<PackageEntry>& allPackages,
+                                            const std::vector<std::string>& projectTags,
+                                            std::string* why = nullptr);
+
 // The compile definitions for a width: none, DEKI_TRANSFORM_2D, or both.
 std::vector<std::string> TransformDefines(TransformWidth width);
 

@@ -85,7 +85,8 @@ std::string ReadWhole(const fs::path& p)
 }  // namespace
 
 ComponentUsage ScanComponentUsage(const std::string& projectPath,
-                                  const std::vector<std::string>& knownTypes)
+                                  const std::vector<std::string>& knownTypes,
+                                  const std::string& targetPlatformId)
 {
     ComponentUsage usage;
     if (projectPath.empty())
@@ -95,10 +96,24 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
     std::error_code ec;
 
     // Scenes: every component an object carries. The project's own scenes
-    // under assets/, and the platforms' boot scenes, which is where the
-    // setup components (SDL3DisplaySetup, ESP32SerialSetup) are named.
-    for (const fs::path dir : { fs::path(GetAssetsDirectory(projectPath)),
-                                fs::path(GetPlatformsDirectory(projectPath)) })
+    // under assets/ are shared by every target, so they always count.
+    //
+    // Under platforms/ the boot scenes are where the setup components live
+    // (SDL3DisplaySetup, ESP32SerialSetup), and those are the one thing that
+    // is emphatically NOT shared: the simulator's boot scene naming
+    // SDL3DisplaySetup says nothing about what an ESP32 build needs. Reading
+    // all of them is how SDL3 ended up switched on for a firmware build and
+    // failed it. With a target named, only that target's own directory counts.
+    //
+    // An empty target keeps the pooled view, which is what the editor's own
+    // panels want when no platform is selected.
+    std::vector<fs::path> sceneRoots{ fs::path(GetAssetsDirectory(projectPath)) };
+    if (targetPlatformId.empty())
+        sceneRoots.push_back(fs::path(GetPlatformsDirectory(projectPath)));
+    else
+        sceneRoots.push_back(fs::path(GetPlatformsDirectory(projectPath)) / targetPlatformId);
+
+    for (const fs::path& dir : sceneRoots)
     {
         if (!fs::exists(dir, ec))
             continue;

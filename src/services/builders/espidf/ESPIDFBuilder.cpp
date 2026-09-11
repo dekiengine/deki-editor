@@ -572,11 +572,11 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // The transform width: the widest any active package or the project
     // declares (CMakeGenUtils, COMPATIBILITY.md).
     std::string transformWhy;
-    const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(CMakeGen::ResolveTransformWidth(
-        allPackages, activeIds, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
+    const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(CMakeGen::ResolveProjectTransformWidth(
+        allPackages, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
 
     // What this build leaves out (services/FeatureResolver).
-    const StripPlan strip = ComputeStripPlan(projectPath);
+    const StripPlan strip = ComputeStripPlan(projectPath, config.id);
 
     // Build REQUIRES list from platform config + active package ESP-IDF deps
     std::string

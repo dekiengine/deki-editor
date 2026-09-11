@@ -482,14 +482,14 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     const auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
     const auto activeIds = CMakeGen::ResolveActivePackages(allPackages, packageDefines, "native");
     std::string transformWhy;
-    const CMakeGen::TransformWidth transformWidth = CMakeGen::ResolveTransformWidth(
-        allPackages, activeIds, CMakeGen::ReadProjectTags(projectPath), &transformWhy);
+    const CMakeGen::TransformWidth transformWidth = CMakeGen::ResolveProjectTransformWidth(
+        allPackages, CMakeGen::ReadProjectTags(projectPath), &transformWhy);
     const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(transformWidth);
 
     // What this build leaves out (services/FeatureResolver): the stripped
     // components' sources stay out of the package globs and their headers out
     // of the reflection codegen, so nothing references what is not compiled.
-    const StripPlan strip = ComputeStripPlan(projectPath);
+    const StripPlan strip = ComputeStripPlan(projectPath, m_PlatformConfig.id);
     std::string stripSourceRegex;
     for (const auto& rx : strip.SourceExcludeRegexes())
         stripSourceRegex += (stripSourceRegex.empty() ? "" : "|") + rx;

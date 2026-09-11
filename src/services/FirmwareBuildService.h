@@ -43,7 +43,8 @@ public:
     /// Mirrors PackageManagerPanel::GetRequiredBuildDefines() — reads
     /// <project>/project/packages/<pkg>/package.json for buildDefine plus each
     /// feature's buildDefine. Pure filesystem work, no GUI state.
-    static std::vector<std::string> CollectPackageDefines(const std::string& projectPath);
+    static std::vector<std::string> CollectPackageDefines(const std::string& projectPath,
+                                                         const std::string& targetPlatformId = "");
 
     /// Platforms visible for a project: built-ins, board packs, and the
     /// project's own project/platforms directory.

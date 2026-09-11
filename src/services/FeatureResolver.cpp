@@ -450,7 +450,7 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
     return plan;
 }
 
-StripPlan ComputeStripPlan(const std::string& projectPath)
+StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId)
 {
     const auto all = CMakeGen::ScanPackageManifests(projectPath);
     std::vector<std::string> knownTypes;
@@ -458,7 +458,7 @@ StripPlan ComputeStripPlan(const std::string& projectPath)
         for (const auto& feat : pkg.features)
             for (const auto& type : feat.componentTypes)
                 knownTypes.push_back(type);
-    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes);
+    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, targetPlatformId);
     const BuildStripSettings settings = BuildStripSettings::Load(projectPath);
     return ResolveStripPlan(all, usage, settings, GetPackagesDirectory(projectPath));
 }

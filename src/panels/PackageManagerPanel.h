@@ -54,7 +54,7 @@ public:
 
     // Get the set of build defines needed for the current project
     // Returns defines like DEKI_PACKAGE_2D, DEKI_FEATURE_SPRITES, etc.
-    std::vector<std::string> GetRequiredBuildDefines() const;
+    std::vector<std::string> GetRequiredBuildDefines(const std::string& targetPlatformId = "") const;
 
     // ── Headless entry points (MCP automation) ───────────────────────────────
     // These drive the same PackageManager the UI does, so an automated install is
@@ -102,6 +102,9 @@ private:
     // because GetRequiredBuildDefines() is const to its callers.
     mutable StripPlan m_StripPlan;
     mutable bool m_StripPlanValid = false;
+    // Which target the cached plan was computed for. A plan is only valid for
+    // the platform that produced it, so switching targets has to recompute.
+    mutable std::string m_StripPlanPlatform;
     BuildStripSettings m_StripSettings;
     std::string m_StripSettingsProject;
     void DrawFeatures(const PackageEntry& pkg);

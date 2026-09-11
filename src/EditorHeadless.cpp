@@ -1488,13 +1488,20 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
     return 0;
 }
 
-int CmdStripPlan(EditorApp& editor)
+int CmdStripPlan(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--strip-plan");
     if (!project)
         return 1;
 
-    const StripPlan plan = ComputeStripPlan(project->GetPath());
+    // A plan is per target: another platform's boot scene says nothing about
+    // this one. Defaults to the active platform; "all" asks for the pooled view.
+    std::string target = platformId ? platformId : project->GetActivePlatformId();
+    if (target == "all")
+        target.clear();
+    printf("target: %s\n", target.empty() ? "all platforms (pooled)" : target.c_str());
+
+    const StripPlan plan = ComputeStripPlan(project->GetPath(), target);
     std::string currentPackage;
     for (const auto& d : plan.features)
     {

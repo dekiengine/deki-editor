@@ -54,6 +54,7 @@ void PrintUsage(const char* program)
     printf("  --build-code          Regenerate build files and compile packages + plugin\n");
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
     printf("  --strip-plan          Print what a device build leaves out, feature by feature, and why\n");
+    printf("                        Answers for --platform <id>; default the active one, \"all\" pools every platform\n");
     printf("\n");
     printf("Scripting (the same tools the MCP server exposes):\n");
     printf("  --list-tools          List every tool, with its JSON schema\n");
@@ -350,7 +351,7 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
     if (o.renderScenes)
         return CmdRenderScenes(editor);
     if (o.stripPlan)
-        return CmdStripPlan(editor);
+        return CmdStripPlan(editor, o.platformId);
     if (o.listTools)
         return CmdListTools(editor);
     if (o.toolName)
