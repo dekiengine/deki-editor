@@ -10,6 +10,7 @@
 // candidate for leaving out of a device build.
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -35,9 +36,15 @@ struct ComponentUsage
 // pooling them is what let a simulator's SDL3 setup keep SDL3 alive in a
 // firmware build. Empty means every platform, the pooled view the editor
 // panels use when no target is selected.
+// `targetCapabilities` is what the target platform offers. Objects a scene
+// marks as needing something it does not offer are not part of that target's
+// build (services/SceneTargetFilter), so their components must not count as
+// used here either — otherwise the stripper keeps a package alive for an object
+// the build will not contain.
 ComponentUsage ScanComponentUsage(const std::string& projectPath,
                                   const std::vector<std::string>& knownTypes,
-                                  const std::string& targetPlatformId = "");
+                                  const std::string& targetPlatformId = "",
+                                  const std::set<std::string>& targetCapabilities = {});
 
 // The name a scene or a descriptor uses for a type: the identifier after the
 // last `::`, so "Deki2D::SpriteComponent" and "SpriteComponent" agree.

@@ -92,6 +92,12 @@ public:
     // Export assets to storage with additional force-included GUIDs
     bool ExportToStorage(const std::unordered_set<std::string>& additionalGuids);
 
+    // What the target platform offers, so a scene's objects that ask for
+    // something it has not got are left out of this target's build
+    // (services/SceneTargetFilter). Empty keeps every object, which is what an
+    // export with no target in mind should do.
+    void SetTargetCapabilities(const std::set<std::string>& caps) { m_TargetCapabilities = caps; }
+
     // Get the last export statistics
     int GetExportedAssetCount() const { return m_ExportedCount; }
 
@@ -177,6 +183,7 @@ private:
     AssetPipeline* m_Pipeline;
     PackageLoader* m_PackageLoader = nullptr;
     int m_ExportedCount = 0;
+    std::set<std::string> m_TargetCapabilities;
 };
 
 }  // namespace DekiEditor

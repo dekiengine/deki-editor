@@ -1,4 +1,5 @@
 #include "ComponentUsageScan.h"
+#include "SceneTargetFilter.h"
 
 #include <deki-editor/Paths.h>
 #include <deki/LogSystem.h>
@@ -86,7 +87,8 @@ std::string ReadWhole(const fs::path& p)
 
 ComponentUsage ScanComponentUsage(const std::string& projectPath,
                                   const std::vector<std::string>& knownTypes,
-                                  const std::string& targetPlatformId)
+                                  const std::string& targetPlatformId,
+                                  const std::set<std::string>& targetCapabilities)
 {
     ComponentUsage usage;
     if (projectPath.empty())
@@ -126,8 +128,10 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
                 std::ifstream in(entry.path());
                 nlohmann::json j;
                 in >> j;
+                // Objects this target will not carry must not keep their
+                // components alive; the exporter drops the same ones.
                 std::set<std::string> types;
-                CollectSceneTypes(j, types);
+                CollectSceneTypes(FilterSceneForTarget(j, targetCapabilities), types);
                 const std::string where = Relative(entry.path(), root);
                 for (const auto& t : types)
                     usage.byType[t].push_back(where);

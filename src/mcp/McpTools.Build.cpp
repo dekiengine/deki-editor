@@ -22,6 +22,9 @@
 #include <chrono>
 #include <cstdio>
 #include <thread>
+#include <fstream>
+#include <functional>
+#include <vector>
 
 #include <stdexcept>
 #include <string>
@@ -481,6 +484,88 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             return { { "platformId", id },
                                      { "provides", config.provides },
                                      { "capabilities", caps } };
+                        } });
+
+    // Per-target content. "requires" is a BUILD-time key: the exporter drops
+    // the object for targets that cannot satisfy it and the runtime never sees
+    // it, which is why this edits the scene file rather than the loaded scene.
+    registry.Register({ "set_object_requires",
+                        "Say which platform capabilities an object needs, so it exists only on "
+                        "targets that offer them (\"wifi\", \"desktop-os\"). One project can then "
+                        "serve a desktop and a board, with an object present on one and absent "
+                        "from the other, instead of the build failing or shipping something dead. "
+                        "An empty list clears it, putting the object back on every target.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "scene_path", "object_id", "requires" }) },
+                          { "properties",
+                            { { "scene_path", { { "type", "string" }, { "description", "Scene file, relative to the project" } } },
+                              { "object_id", { { "type", "integer" }, { "description", "Object id, as shown by list_objects" } } },
+                              { "requires", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities the object needs; empty clears" } } },
+                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            namespace fs = std::filesystem;
+                            const std::string path = ResolveProjectPath(editor, args);
+                            const std::string rel = args.value("scene_path", "");
+                            if (rel.empty())
+                                throw std::runtime_error("set_object_requires needs a scene_path");
+
+                            fs::path scenePath = fs::path(path) / rel;
+                            if (!fs::exists(scenePath))
+                                throw std::runtime_error("no scene at " + scenePath.string());
+
+                            nlohmann::json scene;
+                            {
+                                std::ifstream in(scenePath);
+                                in >> scene;
+                            }
+
+                            const int64_t wantedId = args.value("object_id", (int64_t)-1);
+                            std::vector<std::string> needs;
+                            if (args.contains("requires") && args["requires"].is_array())
+                                for (const auto& n : args["requires"])
+                                    if (n.is_string())
+                                        needs.push_back(n.get<std::string>());
+
+                            // Objects nest through "children", so this walks.
+                            bool found = false;
+                            std::function<void(nlohmann::json&)> visit = [&](nlohmann::json& node)
+                            {
+                                if (found) return;
+                                if (node.is_array())
+                                {
+                                    for (auto& item : node) visit(item);
+                                    return;
+                                }
+                                if (!node.is_object()) return;
+                                // Components carry an "id" as well, so an object
+                                // is the node that holds components or children.
+                                const bool isObject =
+                                    node.contains("components") || node.contains("children");
+                                if (isObject && node.contains("id") && node["id"].is_number_integer() &&
+                                    node["id"].get<int64_t>() == wantedId)
+                                {
+                                    if (needs.empty())
+                                        node.erase("requires");
+                                    else
+                                        node["requires"] = needs;
+                                    found = true;
+                                    return;
+                                }
+                                for (auto& entry : node.items()) visit(entry.value());
+                            };
+                            visit(scene);
+
+                            if (!found)
+                                throw std::runtime_error("no object with id " + std::to_string(wantedId) +
+                                                         " in " + rel);
+
+                            {
+                                std::ofstream out(scenePath);
+                                out << scene.dump(2) << "\n";
+                            }
+
+                            return { { "scene", rel }, { "objectId", wantedId }, { "requires", needs } };
                         } });
 
     registry.Register({ "toolchain_status",

@@ -7,6 +7,7 @@
 #include <regex>
 #include "core/ProjectPaths.h"
 #include "services/builders/CMakeGenUtils.h"
+#include "services/SceneTargetFilter.h"
 #include <functional>
 #include <set>
 #include <deki-editor/CommandHistory.h>
@@ -1020,11 +1021,29 @@ bool EditorApp::SaveScene()
     if (m_CurrentScene && !m_CurrentScenePath.empty())
     {
         WarnIfDepthInFlatProject();
+
+        // "requires" is a build-time key the engine's Object does not model, so
+        // rewriting the JSON from objects drops it. Read it first, put it back
+        // after (services/SceneTargetFilter).
+        nlohmann::json before;
+        bool haveBefore = false;
+        try
+        {
+            std::ifstream in(m_CurrentScenePath);
+            if (in) { in >> before; haveBefore = true; }
+        }
+        catch (const std::exception&)
+        {
+            haveBefore = false;
+        }
+
         if (!m_CurrentScene->SaveToFile(m_CurrentScenePath))
         {
             DEKI_LOG_ERROR("SaveScene: failed to write '%s'", m_CurrentScenePath.c_str());
             return false;
         }
+        if (haveBefore)
+            PreserveTargetRequirements(m_CurrentScenePath, before);
         CommandHistory::Instance().MarkSavePoint();
         InspectorUtils::CaptureSavedState(m_CurrentScene.get());
 

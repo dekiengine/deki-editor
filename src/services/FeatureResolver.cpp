@@ -1,4 +1,5 @@
 #include "FeatureResolver.h"
+#include "core/PlatformConfig.h"
 
 #include <deki-editor/Paths.h>
 #include <deki/LogSystem.h>
@@ -458,7 +459,20 @@ StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& ta
         for (const auto& feat : pkg.features)
             for (const auto& type : feat.componentTypes)
                 knownTypes.push_back(type);
-    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, targetPlatformId);
+    // What the target offers, so objects a scene marks as needing something it
+    // has not got stop keeping their components alive. Resolved from whatever
+    // platforms are registered; an unknown target simply offers nothing, which
+    // keeps every object, the same as having no target at all.
+    std::set<std::string> targetCapabilities;
+    if (!targetPlatformId.empty())
+    {
+        if (const PlatformConfig* platform =
+                PlatformRegistry::Instance().GetPlatform(targetPlatformId))
+            targetCapabilities = platform->Capabilities();
+    }
+
+    const ComponentUsage usage =
+        ScanComponentUsage(projectPath, knownTypes, targetPlatformId, targetCapabilities);
     const BuildStripSettings settings = BuildStripSettings::Load(projectPath);
     return ResolveStripPlan(all, usage, settings, GetPackagesDirectory(projectPath));
 }

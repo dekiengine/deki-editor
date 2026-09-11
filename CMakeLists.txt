@@ -534,6 +534,7 @@ set(EDITOR_TESTABLE_SOURCES
     # The stripper: what a device build leaves out, from the descriptors, the
     # scenes and sources, and settings/build.json.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ComponentUsageScan.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SceneTargetFilter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/BuildStripSettings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FeatureResolver.cpp
 )
@@ -647,6 +648,7 @@ set(EDITOR_SOURCES
     src/services/FileDialogFilter.cpp
     src/services/FileDialogFilter.h
     src/services/ComponentUsageScan.cpp
+    src/services/SceneTargetFilter.cpp
     src/services/ComponentUsageScan.h
     src/services/BuildStripSettings.cpp
     src/services/BuildStripSettings.h

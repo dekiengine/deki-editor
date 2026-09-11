@@ -2,6 +2,7 @@
 #include "core/ProjectPaths.h"
 #include "AssetPacker.h"
 #include "PackageLoader.h"
+#include "SceneTargetFilter.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetData.h>
 #include <deki-editor/Paths.h>
@@ -810,12 +811,49 @@ bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std
 
         if (fs::exists(sourcePath))
         {
+            // Objects this target cannot satisfy are not part of its build, so
+            // they are dropped before the scene is compiled. Done on the JSON
+            // rather than after loading, so the runtime never learns that
+            // targets exist and the scene format stays readable by anything.
+            // The filtered copy goes beside the output, never over the source.
+            fs::path compileFrom = sourcePath;
+            fs::path filtered;
+            if (!m_TargetCapabilities.empty())
+            {
+                try
+                {
+                    std::ifstream in(sourcePath);
+                    nlohmann::json scene;
+                    in >> scene;
+                    if (SceneHasTargetRequirements(scene))
+                    {
+                        filtered = fs::path(spiffsDataPath) / "boot.filtered.scene";
+                        std::ofstream out(filtered);
+                        out << FilterSceneForTarget(scene, m_TargetCapabilities).dump(2);
+                        out.close();
+                        compileFrom = filtered;
+                        DEKI_LOG_INFO("Boot scene filtered for this target");
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    DEKI_LOG_WARNING("Boot scene could not be filtered (%s); exporting it whole",
+                                     e.what());
+                    compileFrom = sourcePath;
+                }
+            }
+
             // Compile JSON scene to MessagePack binary
-            if (m_Pipeline->CompileSceneFile(sourcePath.string(), destPath.string()))
+            if (m_Pipeline->CompileSceneFile(compileFrom.string(), destPath.string()))
             {
                 DEKI_LOG_INFO("Compiled boot scene to SPIFFS: %s (%zu bytes)",
                               destPath.string().c_str(), fs::file_size(destPath));
                 exported = true;
+                if (!filtered.empty())
+                {
+                    std::error_code rmEc;
+                    fs::remove(filtered, rmEc);  // scratch, not something to flash
+                }
             }
             else
             {

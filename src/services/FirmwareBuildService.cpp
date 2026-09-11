@@ -386,6 +386,9 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         }
 
         AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline());
+        // So a scene object that asks for something this board has not got is
+        // left out of what gets flashed, rather than shipped and dead.
+        exporter.SetTargetCapabilities(platform.Capabilities());
         if (exporter.ExportForSPIFFS(spiffsDataPath, bootScene))
         {
             log(std::string("Exported SPIFFS data: dproject.bin") +
