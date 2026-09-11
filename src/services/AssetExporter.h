@@ -98,6 +98,17 @@ public:
     // export with no target in mind should do.
     void SetTargetCapabilities(const std::set<std::string>& caps) { m_TargetCapabilities = caps; }
 
+    // The screen this target actually has. Without it every target was handed
+    // the project's own display settings, so a board of a different size or
+    // colour depth was flashed with the wrong geometry in dproject.bin. Width
+    // or height of 0, or an empty format, leaves that part to the project.
+    void SetTargetDisplay(int width, int height, const std::string& colorFormat)
+    {
+        m_TargetWidth = width;
+        m_TargetHeight = height;
+        m_TargetColorFormat = colorFormat;
+    }
+
     // Get the last export statistics
     int GetExportedAssetCount() const { return m_ExportedCount; }
 
@@ -179,11 +190,17 @@ private:
 
     void WriteProjectSettings(const std::string& storagePath);
 
+    // Overlay the target platform's screen onto the project's, where it has one.
+    void ApplyTargetDisplay(int32_t& width, int32_t& height, uint8_t& colorFormat) const;
+
     Project* m_Project;
     AssetPipeline* m_Pipeline;
     PackageLoader* m_PackageLoader = nullptr;
     int m_ExportedCount = 0;
     std::set<std::string> m_TargetCapabilities;
+    int m_TargetWidth = 0;
+    int m_TargetHeight = 0;
+    std::string m_TargetColorFormat;
 };
 
 }  // namespace DekiEditor

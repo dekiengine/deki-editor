@@ -97,6 +97,26 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                            const BuildStripSettings& settings,
                            const std::string& packagesDir);
 
+// A component this target's own content uses, from a package this target
+// cannot have. The one case that genuinely is a mistake rather than a normal
+// exclusion, and the one worth refusing a build over.
+struct TargetContentConflict
+{
+    std::string componentType;            // e.g. "SDL3DisplaySetup"
+    std::string where;                    // the scene or source that names it
+    std::string packageId;                // the package providing it
+    std::vector<std::string> missing;     // what the package needs and the target lacks
+
+    // One line a person can act on, naming all four.
+    std::string Describe() const;
+};
+
+// Everything this target's content asks for that the target cannot supply.
+// Empty means the build is coherent: packages left out are left out because
+// nothing here needs them, which is the normal multi-target case and no error.
+std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string& projectPath,
+                                                              const std::string& targetPlatformId);
+
 // The whole thing for a project: descriptors, scan, settings.
 //
 // `targetPlatformId` is the platform being built. It scopes which boot scenes

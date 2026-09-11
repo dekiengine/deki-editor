@@ -1488,6 +1488,76 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
     return 0;
 }
 
+// Which packages build for which of the project's targets, and why not where
+// not. The question a person actually has when one project serves a desktop and
+// a board, and the thing a link error answers far too late.
+int CmdPlatformCompat(EditorApp& editor)
+{
+    Project* project = ProjectOf(editor, "--platform-compat");
+    if (!project)
+        return 1;
+
+    auto& registry = PlatformRegistry::Instance();
+    std::vector<std::string> targets = registry.GetAvailablePlatforms();
+    std::sort(targets.begin(), targets.end());
+    if (targets.empty())
+    {
+        printf("This project has no platforms.\n");
+        return 0;
+    }
+
+    const auto packages = CMakeGen::ScanPackageManifests(project->GetPath());
+
+    size_t nameWidth = 8;
+    for (const auto& pkg : packages)
+        nameWidth = std::max(nameWidth, pkg.id.size());
+
+    printf("%-*s", (int)nameWidth + 2, "Package");
+    for (const auto& t : targets)
+        printf("%-22s", t.c_str());
+    printf("\n");
+
+    for (const auto& pkg : packages)
+    {
+        printf("%-*s", (int)nameWidth + 2, pkg.id.c_str());
+        for (const auto& t : targets)
+        {
+            const PlatformConfig* platform = registry.GetPlatform(t);
+            std::string cell = "yes";
+            if (platform)
+            {
+                const auto missing = CMakeGen::MissingCapabilities(pkg, platform->Capabilities());
+                if (!missing.empty())
+                {
+                    cell = "no (" + missing.front();
+                    if (missing.size() > 1)
+                        cell += ", +" + std::to_string(missing.size() - 1);
+                    cell += ")";
+                }
+            }
+            printf("%-22s", cell.c_str());
+        }
+        printf("\n");
+    }
+
+    // The exclusions above are normal. This is the part that is not.
+    int problems = 0;
+    for (const auto& t : targets)
+    {
+        const auto conflicts = FindTargetContentConflicts(project->GetPath(), t);
+        if (conflicts.empty())
+            continue;
+        printf("\n%s cannot build:\n", t.c_str());
+        for (const auto& c : conflicts)
+            printf("  %s\n", c.Describe().c_str());
+        ++problems;
+    }
+
+    if (problems == 0)
+        printf("\nEvery target is coherent: what each leaves out, nothing on it needs.\n");
+    return problems == 0 ? 0 : 1;
+}
+
 int CmdStripPlan(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--strip-plan");

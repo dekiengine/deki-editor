@@ -579,6 +579,21 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(CMakeGen::ResolveProjectTransformWidth(
         allPackages, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
 
+    // Content this target needs but cannot have. Packages left out because
+    // nothing here uses them are normal and silent; a scene on THIS target
+    // naming a component from a package this target cannot build is a mistake,
+    // and saying so now beats a compiler or linker error later.
+    const auto conflicts = FindTargetContentConflicts(projectPath, config.id);
+    if (!conflicts.empty())
+    {
+        DEKI_LOG_ERROR("Cannot build for '%s':", config.id.c_str());
+        for (const auto& c : conflicts)
+            DEKI_LOG_ERROR("  %s", c.Describe().c_str());
+        DEKI_LOG_ERROR("  Remove it from this target's content, or use a platform that provides "
+                       "what it needs (set_platform_provides).");
+        return false;
+    }
+
     // What this build leaves out (services/FeatureResolver).
     const StripPlan strip = ComputeStripPlan(projectPath, config.id);
 

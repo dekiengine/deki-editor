@@ -451,6 +451,66 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
     return plan;
 }
 
+std::string TargetContentConflict::Describe() const
+{
+    std::string s = where + " uses " + componentType + " from " + packageId + ", which needs ";
+    for (size_t i = 0; i < missing.size(); ++i)
+        s += (i ? ", " : "") + missing[i];
+    s += missing.size() == 1 ? "; this target does not provide it."
+                             : "; this target provides none of those.";
+    return s;
+}
+
+std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string& projectPath,
+                                                              const std::string& targetPlatformId)
+{
+    std::vector<TargetContentConflict> conflicts;
+    if (targetPlatformId.empty())
+        return conflicts;  // no target, nothing to be incompatible with
+
+    const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(targetPlatformId);
+    if (!platform)
+        return conflicts;
+    const std::set<std::string> caps = platform->Capabilities();
+
+    const auto all = CMakeGen::ScanPackageManifests(projectPath);
+
+    // component type -> the package that provides it.
+    std::map<std::string, const CMakeGen::PackageEntry*> owner;
+    std::vector<std::string> knownTypes;
+    for (const auto& pkg : all)
+        for (const auto& feat : pkg.features)
+            for (const auto& type : feat.componentTypes)
+            {
+                owner[type] = &pkg;
+                knownTypes.push_back(type);
+            }
+
+    // Scoped to this target, and with the objects it will not carry already
+    // dropped: an object excluded by its own "requires" is not this target's
+    // content and must not be reported against it.
+    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, targetPlatformId, caps);
+
+    for (const auto& [type, places] : usage.byType)
+    {
+        auto it = owner.find(type);
+        if (it == owner.end())
+            continue;
+        const std::vector<std::string> missing = CMakeGen::MissingCapabilities(*it->second, caps);
+        if (missing.empty())
+            continue;
+
+        TargetContentConflict c;
+        c.componentType = type;
+        c.where = places.empty() ? "(unknown)" : places.front();
+        c.packageId = it->second->id;
+        c.missing = missing;
+        conflicts.push_back(std::move(c));
+    }
+
+    return conflicts;
+}
+
 StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId)
 {
     const auto all = CMakeGen::ScanPackageManifests(projectPath);

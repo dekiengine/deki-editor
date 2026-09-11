@@ -96,6 +96,31 @@ AssetExporter::AssetExporter(Project* project, AssetPipeline* pipeline, PackageL
 {
 }
 
+// The board's own screen wins over the project's. One project serves several
+// targets and they do not all have the same panel; without this a 480x320 board
+// was flashed with whatever geometry the project happened to be set to. No
+// target set leaves everything as it was.
+void AssetExporter::ApplyTargetDisplay(int32_t& width, int32_t& height, uint8_t& colorFormat) const
+{
+    if (m_TargetWidth > 0 && m_TargetHeight > 0)
+    {
+        width = m_TargetWidth;
+        height = m_TargetHeight;
+    }
+    if (m_TargetColorFormat.empty())
+        return;
+
+    // Deki::ColorFormat, spelled as a platform JSON spells it.
+    if (m_TargetColorFormat == "RGB565")        colorFormat = 0;
+    else if (m_TargetColorFormat == "RGB888")   colorFormat = 1;
+    else if (m_TargetColorFormat == "ARGB8888") colorFormat = 2;
+    else if (m_TargetColorFormat == "RGB565A8") colorFormat = 3;
+    else
+        DEKI_LOG_WARNING("Platform colorFormat '%s' is not one of RGB565, RGB888, ARGB8888 or "
+                         "RGB565A8; keeping the project's",
+                         m_TargetColorFormat.c_str());
+}
+
 bool AssetExporter::ExportToStorage()
 {
     return ExportToStorage(std::unordered_set<std::string>{});
@@ -695,6 +720,7 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
     int32_t displayWidth = displaySettings ? displaySettings->targetWidth : 320;
     int32_t displayHeight = displaySettings ? displaySettings->targetHeight : 240;
     uint8_t displayColorFormat = displaySettings ? static_cast<uint8_t>(displaySettings->colorFormat) : 0;
+    ApplyTargetDisplay(displayWidth, displayHeight, displayColorFormat);
 
     // Resolve render pipeline config from .rpipeline asset
     std::string rendererName;
@@ -769,6 +795,7 @@ bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std
     int32_t displayWidth = displaySettings ? displaySettings->targetWidth : 320;
     int32_t displayHeight = displaySettings ? displaySettings->targetHeight : 240;
     uint8_t displayColorFormat = displaySettings ? static_cast<uint8_t>(displaySettings->colorFormat) : 0;
+    ApplyTargetDisplay(displayWidth, displayHeight, displayColorFormat);
 
     // Resolve render pipeline config from .rpipeline asset
     std::string rendererName2;
