@@ -213,3 +213,35 @@ if(EXISTS "${_pkg_rendering}/tests" AND DEKI_GXX16)
 else()
     message(STATUS "Deki: package tests skipped (no deki-rendering checkout at ${DEKI_PACKAGES_DIR})")
 endif()
+
+# =============================================================================
+# Package unit tests (deki-particles)
+# =============================================================================
+# Cheaper than the deki-rendering target above: ParticlePool is a header, so
+# this compiles the tests alone against the engine. No package sources and no
+# reflection codegen, which is why it does not need DEKI_GXX16 either.
+set(_pkg_particles "${DEKI_PACKAGES_DIR}/deki-particles")
+if(EXISTS "${_pkg_particles}/tests")
+    file(GLOB _pkg_particles_tests CONFIGURE_DEPENDS "${_pkg_particles}/tests/*.cpp")
+
+    add_executable(DekiParticlesTests EXCLUDE_FROM_ALL ${_pkg_particles_tests})
+    target_include_directories(DekiParticlesTests PRIVATE
+        ${DEKI_ENGINE_PATH}/third_party
+        ${DEKI_PACKAGES_DIR}
+        ${_pkg_particles}
+    )
+    target_compile_definitions(DekiParticlesTests PRIVATE
+        DEKI_LOG_ENABLED
+        "DEKI_FAST_ATTR="
+    )
+    target_link_libraries(DekiParticlesTests PRIVATE GTest::gtest_main deki-engine-internal)
+    gtest_discover_tests(DekiParticlesTests)
+    if(DEKI_RUN_TESTS_ON_BUILD)
+        add_custom_command(TARGET DekiParticlesTests POST_BUILD
+            COMMAND $<TARGET_FILE:DekiParticlesTests> --gtest_brief=1
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running deki-particles tests...")
+    endif()
+else()
+    message(STATUS "Deki: deki-particles tests skipped (no checkout at ${_pkg_particles})")
+endif()
