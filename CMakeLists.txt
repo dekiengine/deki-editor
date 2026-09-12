@@ -867,6 +867,42 @@ if(TARGET SDL3::SDL3-shared)
         COMMENT "Copying SDL3.dll next to DekiEditor")
 endif()
 
+# The GCC runtime, next to the exe, for the same reason and a sharper one.
+#
+# DekiEditor.exe imports libstdc++-6.dll, libwinpthread-1.dll and
+# libgcc_s_seh-1.dll by name, and nothing put them in bin/, so Windows
+# resolved them through PATH — which means whichever mingw happened to lead
+# it. Git for Windows ships its own copies, and a Git Bash PATH leads with
+# them, so the editor could load a libstdc++ and libwinpthread it was not
+# built against.
+#
+# That is not theoretical: three --render-scenes runs wedged permanently,
+# surviving even Stop-Process -Force, and a gdb backtrace of one showed the
+# main thread parked in WaitForMultipleObjects inside
+# `C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll` — a thread primitive
+# that never woke, from a runtime that did not match the build. It is the same
+# failure as the reflection codegen's cc1plus dying silently: on Windows, do
+# not let PATH choose which runtime you load.
+#
+# The exe's own directory precedes PATH in the search order, so copying them
+# here settles it whatever shell launches the editor. Taken from the compiler
+# that built this binary, so they match by construction.
+if(WIN32 AND CMAKE_CXX_COMPILER)
+    get_filename_component(_deki_cxx_bin "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    foreach(_rt libstdc++-6.dll libwinpthread-1.dll libgcc_s_seh-1.dll)
+        if(EXISTS "${_deki_cxx_bin}/${_rt}")
+            add_custom_command(TARGET DekiEditor POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${_deki_cxx_bin}/${_rt}" "$<TARGET_FILE_DIR:DekiEditor>"
+                COMMENT "Copying ${_rt} next to DekiEditor")
+        else()
+            # Not fatal: a toolchain that links these statically has nothing to
+            # copy, and then PATH cannot get it wrong either.
+            message(STATUS "Deki: ${_rt} not beside the compiler; assuming it is linked statically")
+        endif()
+    endforeach()
+endif()
+
 
 # Windows-specific settings
 if(WIN32)
