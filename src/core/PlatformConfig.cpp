@@ -214,6 +214,11 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.uploadProtocol = j.value("uploadProtocol", "");
     config.partitionTable = j.value("partitionTable", "");
 
+    if (j.contains("requiresPackages") && j["requiresPackages"].is_array())
+        for (const auto& id : j["requiresPackages"])
+            if (id.is_string())
+                config.requiresPackages.push_back(id.get<std::string>());
+
     if (j.contains("provides") && j["provides"].is_array())
         for (const auto& cap : j["provides"])
             if (cap.is_string())
@@ -221,7 +226,26 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 
     if (j.contains("defines") && j["defines"].is_array())
         for (const auto& def : j["defines"])
-            config.defines.push_back(def.get<std::string>());
+        {
+            if (!def.is_string())
+                continue;
+            const std::string d = def.get<std::string>();
+
+            // Which packages and features a build has is the resolver's answer
+            // (FeatureResolver, ResolveActivePackages): a platform asserting
+            // one here says a package is present without anything having put
+            // it in the build, and the two are then free to disagree. A board
+            // that needs a package says so in requiresPackages.
+            if (d.rfind("DEKI_PACKAGE_", 0) == 0 || d.rfind("DEKI_FEATURE_", 0) == 0)
+            {
+                DEKI_LOG_ERROR("Platform '%s': define '%s' names a package or feature, which is "
+                               "the build's decision, not the board's; ignoring it. Use "
+                               "requiresPackages for a package the board always needs.",
+                               config.id.c_str(), d.c_str());
+                continue;
+            }
+            config.defines.push_back(d);
+        }
 
     if (j.contains("cxxFlags") && j["cxxFlags"].is_array())
         for (const auto& flag : j["cxxFlags"])
@@ -399,6 +423,7 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
 
         if (!config.provides.empty()) j["provides"] = config.provides;
+        if (!config.requiresPackages.empty()) j["requiresPackages"] = config.requiresPackages;
         if (!config.defines.empty()) j["defines"] = config.defines;
         if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
         if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
@@ -501,10 +526,11 @@ PlatformConfig CreateSimulatorPlatformConfig()
     config.displayDriver = "SDL3";
     config.displayBus = "SOFTWARE";
 
-    // Compiler defines
+    // Compiler defines. DEKI_PACKAGE_SDL3 used to be here, asserting a package
+    // the resolver had not necessarily put in the build; deki-sdl3 is chosen
+    // now because it needs "sdl3" and this platform provides it.
     config.defines = {
         "SIMULATOR",
-        "DEKI_PACKAGE_SDL3",
         "DEBUG",
         "DEKI_LOG_ENABLED"
     };

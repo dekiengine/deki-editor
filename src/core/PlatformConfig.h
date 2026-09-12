@@ -124,6 +124,16 @@ struct PlatformConfig
     // without anyone authoring a new list.
     std::set<std::string> Capabilities() const;
 
+    // Packages this platform needs whether or not any scene names one of their
+    // components — its hardware abstraction layer, typically. Package ids, e.g.
+    // ["deki-esp32-integration"].
+    //
+    // The ESP-IDF builder used to force its own HAL on by name, which works for
+    // exactly one family: a third-party framework would have had to patch the
+    // editor to get the same. A board declares its own now, and one that
+    // declares nothing gets nothing.
+    std::vector<std::string> requiresPackages;
+
     // Libraries
     std::vector<std::string> requiredLibraries;
 

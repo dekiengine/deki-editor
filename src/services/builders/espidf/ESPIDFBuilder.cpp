@@ -559,18 +559,31 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
                                            const PlatformConfig& config,
                                            const std::vector<std::string>& packageDefines)
 {
-    // An ESP-IDF firmware needs its HAL whether or not a scene names one of its
-    // components, so it is forced on here. This is a per-family hardcode and the
-    // wart it implies is real: a third-party framework gets no equivalent and
-    // would need its own line. The platform should be saying which HAL package
-    // it needs; see PlatformConfig::Capabilities.
-    std::vector<std::string> allDefines = packageDefines;
-    if (std::find(allDefines.begin(), allDefines.end(), "DEKI_PACKAGE_ESP32_HAL") == allDefines.end())
-        allDefines.push_back("DEKI_PACKAGE_ESP32_HAL");
-
     // Scan packages and resolve active set (needed before REQUIRES generation)
     std::string enginePath = GetEnginePath(projectPath);
     auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
+
+    // A firmware needs its hardware abstraction layer whether or not any scene
+    // names one of its components. The platform says which package that is, so
+    // a board on a framework this editor has never heard of names its own
+    // instead of needing a line added here.
+    std::vector<std::string> allDefines = packageDefines;
+    for (const auto& id : config.requiresPackages)
+    {
+        std::string define;
+        for (const auto& pkg : allPackages)
+            if (pkg.id == id || pkg.dirName == id)
+                define = pkg.buildDefine;
+
+        if (define.empty())
+        {
+            DEKI_LOG_WARNING("Platform '%s' requires package '%s', which is not installed",
+                             config.id.c_str(), id.c_str());
+            continue;
+        }
+        if (std::find(allDefines.begin(), allDefines.end(), define) == allDefines.end())
+            allDefines.push_back(define);
+    }
     auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines, config.Capabilities());
 
     // The transform width: the widest any active package or the project

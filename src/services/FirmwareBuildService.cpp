@@ -360,6 +360,13 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
                        ". Install it with --install-toolchain or the Build Panel.");
     }
 
+    // The builder learns its platform BEFORE the export below, not after.
+    // GetBuildDirectory is per platform only once it knows one, and it used to
+    // be told after the SPIFFS payload had already been written, so every
+    // ESP-IDF board wrote into the same fallback directory and the last build
+    // won. Two boards in one project overwrote each other's assets.
+    builder.SetPlatformConfig(platform);
+
     // SPIFFS payload — dproject.bin plus the platform's boot scene — written
     // into the builder's build directory before the image is assembled.
     // Without it the device flashes with no assets at all, which is exactly

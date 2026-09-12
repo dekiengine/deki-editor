@@ -192,6 +192,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "psram_mode", { { "type", "string" }, { "description", "quad or oct" } } },
                               { "defines", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Preprocessor defines for the firmware build" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities this board offers packages, e.g. wifi, spi, sdl3" } } },
+                              { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL" } } },
                               { "boot_scene", { { "type", "string" }, { "description", "Scene the device boots, relative to the project" } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -228,6 +229,13 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
                             config.id = id;
                             config.displayName = args.value("display_name", config.displayName.empty() ? id : config.displayName);
+                            if (args.contains("requires_packages") && args["requires_packages"].is_array())
+                            {
+                                config.requiresPackages.clear();
+                                for (const auto& r : args["requires_packages"])
+                                    if (r.is_string())
+                                        config.requiresPackages.push_back(r.get<std::string>());
+                            }
                             if (args.contains("provides") && args["provides"].is_array())
                             {
                                 config.provides.clear();
@@ -446,6 +454,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                           { "properties",
                             { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "The complete capability list; replaces what was there" } } },
+                              { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -474,6 +483,14 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                         config.provides.push_back(cap.get<std::string>());
                             }
 
+                            if (args.contains("requires_packages") && args["requires_packages"].is_array())
+                            {
+                                config.requiresPackages.clear();
+                                for (const auto& r : args["requires_packages"])
+                                    if (r.is_string())
+                                        config.requiresPackages.push_back(r.get<std::string>());
+                            }
+
                             registryRef.RegisterPlatform(config);
                             if (!registryRef.SavePlatformToFile(config, GetPlatformsDirectory(path)))
                                 throw std::runtime_error("could not write the platform file for '" + id + "'");
@@ -483,6 +500,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                 caps.push_back(c);
                             return { { "platformId", id },
                                      { "provides", config.provides },
+                                     { "requiresPackages", config.requiresPackages },
                                      { "capabilities", caps } };
                         } });
 
