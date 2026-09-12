@@ -515,6 +515,16 @@ void PackageManagerPanel::DrawPackageDetails()
     ui.Separator();
     ui.Spacing();
 
+    // Before the description, not after: it changes whether you want to read
+    // the rest. The registry carries the flag; the package's own README says
+    // what specifically is unsettled.
+    if (pkg.experimental)
+    {
+        TextCol(ui, Palette::Amber,
+                "Experimental - its API and formats can change without a migration path.");
+        ui.Spacing();
+    }
+
     // Description + metadata.
     if (!pkg.description.empty())
     {
@@ -1329,6 +1339,7 @@ void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
                     pkg.name = entry.id;
                     pkg.displayName = entry.displayName;
                     pkg.description = entry.description;
+                    pkg.experimental = entry.experimental;
                     pkg.url = "https://github.com/" + entry.repo;
                     pkg.source = PackageSourceType::Custom;
                     pkg.packageType = PackageType::DekiPackage;
@@ -1388,6 +1399,7 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
         pkg.name = entry.id;
         pkg.displayName = entry.displayName;
         pkg.description = entry.description;
+        pkg.experimental = entry.experimental;
         pkg.url = "https://github.com/" + entry.repo;
         pkg.source = PackageSourceType::Custom;
         pkg.packageType = PackageType::DekiPackage;
@@ -1714,6 +1726,7 @@ void PackageManagerPanel::FetchCustomRegistry(const CustomRegistryInfo& registry
                         pkg.name = entry.id;
                         pkg.displayName = entry.displayName;
                         pkg.description = entry.description;
+                        pkg.experimental = entry.experimental;
                         pkg.url = "https://github.com/" + entry.repo;
                         pkg.source = PackageSourceType::Custom;
                         pkg.packageType = PackageType::DekiPackage;

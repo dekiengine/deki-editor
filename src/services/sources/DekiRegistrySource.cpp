@@ -174,6 +174,7 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
         entry.displayName = str(pkg, "displayName");
         entry.description = str(pkg, "description");
         entry.repo = str(pkg, "repo");
+        entry.experimental = pkg.value("experimental", false);
         {
             // The id names a directory in every project that installs the
             // package and the repo names the clone target; a registry entry

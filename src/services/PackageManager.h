@@ -64,6 +64,8 @@ struct PackageEntry
     // status check, no checkout — and makes a version switch refuse to run over
     // unpushed commits. Persisted as "editable": true in deki-packages.json.
     bool editable = false;
+    // From the registry: the author says this one can change under you.
+    bool experimental = false;
 };
 
 // Core dependency information (managed by editor, not user)

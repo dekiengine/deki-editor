@@ -17,6 +17,9 @@ struct RegistryPackageEntry
     std::string minEngine;                      // "1.2.0" (empty = any engine)
     std::string docs;                           // "https://dekiengine.github.io/deki-2d/" (the package's own docs site)
     std::vector<std::string> requiredPackages;  // ["deki-rendering", "deki-input"]
+    // Published to be tried, not depended on: its API and formats can change
+    // without a migration path. Absent means the package makes no such warning.
+    bool experimental = false;
 };
 
 class DekiRegistrySource : public IPackageSource
