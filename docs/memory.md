@@ -155,6 +155,43 @@ Deki::Memory::LogStats("after level load");
   of these is a licence to place memory yourself — they are for sizing a
   project and for finding what is holding memory it should have released.
 
+## `Deki::Vector<T>` — when the count changes at runtime
+
+`<deki/providers/Vector.h>`. `Buffer<T>` covers a count you know when you
+allocate. When it changes and has no fixed bound, `std::vector` is the wrong
+answer on a device: `push_back` calls `operator new`, which cannot report
+exhaustion with exceptions off, so it aborts and the board reboots.
+
+`Deki::Vector` is that shape with the one thing changed that matters here —
+everything that can allocate returns `bool`:
+
+```cpp
+Deki::Vector<Enemy> enemies;
+if (!enemies.Reserve(32, Deki::MemoryUse::Hot, "wave"))
+    return;                          // out of memory, said once
+
+if (!enemies.PushBack(spawned))      // and per growth, if it has to grow
+    DEKI_LOG_WARNING("dropped a spawn");
+```
+
+- **`Reserve` up front makes the pushes that follow infallible.** One check
+  instead of one per element; that's the pattern worth writing on a device.
+- Growth **doubles from a first block of 4**, not 16: a device project has
+  many short lists, and a large default on each adds up to more than the lists
+  do.
+- **A failed growth leaves everything already stored intact**, so a caller
+  that drops the new element still has a working vector.
+- `RemoveUnordered(i)` is O(1) and fills the hole with the last element — the
+  same trick `ParticlePool::KillSwap` uses, and what a list of live entities
+  wants. `Clear()` keeps the memory for refilling next frame; `Reset()`
+  releases it.
+- Same `T` constraint as `Buffer`: trivially copyable and trivially
+  destructible. Growth moves elements with a `memcpy`.
+
+Reach for `Buffer` first. Most "dynamic" data here turns out to have a bound
+the project already knows, and a fixed allocation cannot fragment a small heap
+the way repeated growth can.
+
 ### `std::vector`, `std::string` and plain `new`
 
 These call `operator new`, which `Deki::Buffer<T>` cannot replace. On a device
@@ -171,25 +208,53 @@ which changes two things:
   Without the replacement it aborts, because libstdc++ implements the nothrow
   form by calling the throwing one inside a removed `try`/`catch`.
 
-The replacement is **instrumentation, not a re-route**: it still uses `malloc`,
-with the same alignment and no header. Going through `Memory::Allocate` would
-add a header to every `std::string` that outgrows its small-string buffer,
-memset memory a vector is about to overwrite, and pay the ESP32 provider's
-16-byte alignment on small blocks — and routing by size the way
-`MemoryUse::Auto` does would silently move a large `std::vector` into PSRAM,
-making a hot loop slow for reasons invisible in the code. A caller that knows
-how memory will be used says so with a `MemoryUse`; `operator new` cannot know,
-so it does not guess.
+These **do** go through the engine: `operator new` calls
+`IMemoryProvider::AllocateRaw`, so a board sees every allocation on the device
+and can substitute its heap for all of them.
+
+What it is *not* is `Memory::Allocate`. That would put a 16-byte header before
+every `std::string` that outgrows its small-string buffer, memset memory a
+vector is about to overwrite, and pay the ESP32 provider's 16-byte SIMD
+alignment on small blocks — and ESP-IDF implements aligned allocation by
+over-allocating, so that is more waste than the header. `AllocateRaw` has none
+of it: natural alignment, no header, the pointer the heap returned.
+
+Measured, 1.6M paired 48-byte allocations, engine at `-O2`:
+
+| | ns/op |
+|---|---|
+| `malloc` + `free` | 47–52 |
+| routed through the provider | 46–51 — indistinguishable |
+| routed, plus `DEKI_MEMORY_TRACK_RAW` | 63–71 (+35%) |
+
+So the routing is free and always on; **counting the bytes is opt-in**, because
+with no header the block size has to come from the heap and on Windows that is
+`_msize` calling `HeapSize` under a lock. Build with `DEKI_MEMORY_TRACK_RAW`
+while hunting where memory went, and `Memory::LogStats` will report what
+containers hold; without it that line says so rather than printing a
+misleading zero.
+
+What is given up along with the header is its magic value, so a **double free
+of container memory is as undiagnosable as it was** when this path was plain
+`malloc`. Anything the engine can describe goes through `Allocate` and keeps
+the guard.
+
+Placement is deliberately not decided here. Routing by size the way
+`MemoryUse::Auto` does would silently move a large `std::vector` into PSRAM and
+make a hot loop slow for reasons invisible in the code. A caller that knows how
+memory will be used says so with a `MemoryUse`; `operator new` cannot know, so
+it does not guess.
 
 It is compiled only where `__cpp_exceptions` is undefined — i.e. exactly the
 builds where the abort problem exists. Host and editor builds keep the standard
 operators. The over-aligned forms (`align_val_t`) are left to libstdc++ so they
 stay a matched pair.
 
-So: for anything whose size comes from a file, a scene, or the screen, use
-`Deki::Buffer<T>` and handle the `false`. For ordinary small containers, use
-`std::vector` and know that exhaustion is now a logged abort rather than a
-silent one.
+So: for a count that changes at runtime, use `Deki::Vector<T>` and handle
+the `false`. For anything whose size comes from a file, a scene, or the
+screen, use `Deki::Buffer<T>`. `std::vector` stays right for editor and
+tooling code, and on a device its exhaustion is now a logged abort rather
+than a silent one.
 
 ## Platform layer: `IMemoryProvider`
 
@@ -206,6 +271,13 @@ allocates from each region: `AllocateExternal` / `FreeExternal`,
 `AllocateInternal` / `FreeInternal`, and `AllocateDma`. The defaults are
 `malloc`/`free`, which is right for a host where every allocation is equally
 reachable; `AllocateDma` defaults to `AllocateInternal` for the same reason.
+
+`AllocateRaw` / `FreeRaw` / `GetRawBlockSize` are the fourth pair plus a query:
+the plain natural-alignment allocator the global `operator new` routes through,
+so a board's heap serves `std::vector` and scalar `new` as well as everything
+the engine places. They default to `malloc`/`free`, and `GetRawBlockSize`
+returns 0 where the platform cannot answer — which only costs accuracy in
+`LogStats`. Override both of the pair or neither.
 
 `AllocateDma` is separate from `AllocateInternal` because on the ESP32-S3 most
 internal RAM is DMA-reachable but not all of it, and a display peripheral

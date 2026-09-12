@@ -43,6 +43,7 @@ set(TEST_SOURCES
     services/UpdateCheckTests.cpp
     services/FileDialogFilterTests.cpp
     services/BufferTests.cpp
+    services/VectorTests.cpp
     services/PlatformCapabilityTests.cpp
     services/SceneTargetFilterTests.cpp
     services/TransformWidthTests.cpp

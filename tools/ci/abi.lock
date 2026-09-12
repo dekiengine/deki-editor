@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 11
+abi_version: 12
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -113,7 +113,7 @@ class Deki::ITimeProvider (3 virtual)
   uint32_t GetTicksMs() const
   void DelayMs(uint32_t ms) const
 
-class Deki::IMemoryProvider (13 virtual)
+class Deki::IMemoryProvider (16 virtual)
   ~IMemoryProvider()
   bool Initialize()
   void Shutdown()
@@ -127,6 +127,9 @@ class Deki::IMemoryProvider (13 virtual)
   void* AllocateDma(size_t size)
   void FreeInternal(void* ptr)
   size_t GetAvailableInternalRAM() const
+  void* AllocateRaw(size_t size)
+  void FreeRaw(void* ptr)
+  size_t GetRawBlockSize(void* ptr) const
 
 class Deki::ICamera (10 virtual)
   void ScreenToWorld(float screenX, float screenY, int bufferWidth, int bufferHeight, float& worldX, float& worldY) const
