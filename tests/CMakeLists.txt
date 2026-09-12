@@ -42,6 +42,7 @@ set(TEST_SOURCES
     services/EditorLogFileTests.cpp
     services/UpdateCheckTests.cpp
     services/FileDialogFilterTests.cpp
+    services/BufferTests.cpp
     services/PlatformCapabilityTests.cpp
     services/SceneTargetFilterTests.cpp
     services/TransformWidthTests.cpp
