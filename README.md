@@ -89,6 +89,11 @@ API reference, and a link to every package) at https://dekiengine.github.io/docs
 and one site per package with its components and properties, published on that
 package's own repository (for example https://dekiengine.github.io/deki-2d/).
 
+Hand-written notes on the subsystems live in [docs/](docs/), including
+[docs/memory.md](docs/memory.md) — how allocation works and the rule that every
+device-side allocation goes through `Deki::Memory`, which is enforced rather
+than advisory.
+
 ## How this is built
 
 I designed Deki and I direct every change in it. I work with AI coding tools as
@@ -103,8 +108,8 @@ mine. Nothing lands without those.
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has
 the conventions (naming, the rule that reflected field names are the file
-format, how to run the gates); [SECURITY.md](SECURITY.md) has the contact for
-vulnerabilities.
+format, the rule that every allocation goes through the engine, how to run the
+gates); [SECURITY.md](SECURITY.md) has the contact for vulnerabilities.
 
 ## Credits
 

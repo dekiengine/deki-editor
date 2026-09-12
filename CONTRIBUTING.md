@@ -85,28 +85,80 @@ silently takes its default. So:
   a release note, and re-save the scenes that use it.
 - A rename in a published package is a breaking release of that package.
 
+## Every allocation goes through the engine
+
+Runtime code — the engine's and every package's — allocates through
+`Deki::Memory`, and in practice through `Deki::Buffer<T>`, which owns its
+memory and frees itself. **No `new[]`, no `malloc`, no `heap_caps_*`.**
+
+```cpp
+Deki::Buffer<uint8_t> pixels;
+if (!pixels.Allocate(w * h * 2, Deki::MemoryUse::Buffer, "Thing::bake"))
+    return false;   // out of memory is a return, never an abort
+```
+
+This is enforced, not advisory: `python tools/ci/check_allocations.py` fails on
+raw allocations in package runtime code. It exists because `new[]` cannot fail
+gracefully on a device — ESP-IDF builds with exceptions off, so a failed
+allocation reaches `__cxa_allocate_exception` and reboots the board, and
+`std::nothrow` aborts identically because libstdc++ implements it by calling
+the throwing form inside a `try`/`catch` that `-fno-exceptions` has removed.
+
+Two rules that follow, and that a patch is most likely to get wrong:
+
+- **Say what the memory is for, not where it should go.** `MemoryUse::Hot`
+  (touched every frame), `Buffer` (large and read-mostly), `Dma` (a peripheral
+  reads it), or `Auto`. Only the engine knows whether this board has external
+  RAM and how slow it is; a caller that picks a region is wrong on the next
+  board.
+- **Placement resolves once and there is no fallback.** A full region means the
+  allocation returns null; it is not retried elsewhere. Do not add a fallback —
+  moving a `Hot` buffer to external RAM turns a placement mistake into
+  unaccountable frame drops, and the other direction exhausts the heap the next
+  `Hot` allocation needed. Handle the null.
+
+`editor/`, `tests/`, `generated/` and `third_party/` are exempt: they run on
+the host, where exceptions are on and the heap is a desktop's.
+
+Full reference, including `IMemoryProvider` for a new platform and the waiver
+syntax for a genuinely unavoidable case: [docs/memory.md](docs/memory.md).
+
 ## Before you open a pull request
 
 ```bash
 cmake --build build
-cmake --build build --target DekiEditorTests DekiRenderingTests
-build/bin/DekiEditorTests
-build/bin/DekiRenderingTests
+# One target per command: the build stops at the first failing target, and the
+# other one's stale executable still runs and still reports a pass.
+cmake --build build --target DekiEditorTests      && build/bin/DekiEditorTests
+cmake --build build --target DekiRenderingTests   && build/bin/DekiRenderingTests
+cmake --build build --target DekiParticlesTests   && build/bin/DekiParticlesTests
+python tools/ci/check_allocations.py   # no raw allocations in package runtime code
+python tools/ci/check_abi.py           # package-facing virtuals unchanged, or version bumped
+python -m unittest discover -s tools/tests
 DekiEditor --build-code <project>      # a real project: ../deki-demo works
 DekiEditor --verify-scenes <project>
 DekiEditor --render-scenes <project>   # renderer changes: hashes must match unless intended
 ```
 
 - Add a test with the change: GoogleTest suites live in `tests/` (editor and
-  engine) and in `packages/deki-rendering/tests` (rendering). The editor
-  sources a test can link are listed in `EDITOR_TESTABLE_SOURCES` in the root
-  `CMakeLists.txt`; add yours there.
+  engine) and in a package's own `tests/` directory (`deki-rendering`,
+  `deki-particles`), wired up in `tests/CMakeLists.txt`. The editor sources a
+  test can link are listed in `EDITOR_TESTABLE_SOURCES` in the root
+  `CMakeLists.txt`; add yours there. A package whose code under test is
+  header-only needs no codegen — see the `DekiParticlesTests` target, which
+  compiles the tests alone against the engine.
 - Renderer changes that alter pixels must update the golden hashes on purpose
   and say so in the commit message.
 - Engine changes go to the engine repository first; the editor then bumps the
   submodule pointer. Anything that changes `DekiComponent`/`DekiObject` layout
-  or virtuals bumps `kDekiReflectionAbiVersion` (`deki-engine/include/deki/interop/
-  ReflectionAbi.h`) and its changelog.
+  bumps `kDekiReflectionAbiVersion` (`deki-engine/include/deki/interop/
+  ReflectionAbi.h`) and its changelog — and so does adding, removing or
+  reordering a virtual on any of the package-facing interfaces
+  (`Deki::Component`, the `I*` providers, the editor extension points), because
+  that moves vtable slots. `check_abi.py` lists them and fails when the lock
+  changes without the bump; run it with `--update` in the same commit. The bump
+  is cheap: `ReflectionAbi.cpp` is compiled into each package at *project*
+  build time, so it forces a rebuild, never a republish.
 - Keep the commit message about why. The code shows what.
 
 ## Documentation
