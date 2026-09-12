@@ -610,22 +610,22 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // What this build leaves out (services/FeatureResolver).
     const StripPlan strip = ComputeStripPlan(projectPath, config.id);
 
-    // Build REQUIRES list from platform config + active package ESP-IDF deps
-    std::string
-        requires
-    = "esp_psram";
+    // Build REQUIRES list from platform config + active package ESP-IDF deps.
+    // Not named `requires`: that is a keyword since C++20, and the firmware
+    // has been compiling at gnu++2b (which ESP-IDF forces) for a while.
+    std::string idfRequires = "esp_psram";
     for (const auto& lib : config.requiredLibraries)
     {
-        if (requires.find(lib) == std::string::npos)
-        requires += " " + lib;
+        if (idfRequires.find(lib) == std::string::npos)
+            idfRequires += " " + lib;
     }
     for (const auto& pkg : allPackages)
     {
         if (activeIds.count(pkg.id) == 0) continue;
         for (const auto& dep : pkg.espidfDeps)
         {
-            if (requires.find(dep) == std::string::npos)
-            requires += " " + dep;
+            if (idfRequires.find(dep) == std::string::npos)
+                idfRequires += " " + dep;
         }
     }
 
@@ -636,9 +636,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "idf_component_register(\n";
     file << "    SRCS \"$ENV{DEKI_ENGINE_PATH}/entry/Main.cpp\"\n";
     file << "    INCLUDE_DIRS \".\"\n";
-    file << "    REQUIRES " <<
-            requires <<
-        "\n";
+    file << "    REQUIRES " << idfRequires << "\n";
     file << ")\n";
     file << "\n";
     file << "# =============================================================================\n";

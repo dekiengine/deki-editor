@@ -53,14 +53,15 @@ static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePane
             continue;
         std::istringstream deps(cmakeText.substr(at + strlen("PACKAGE_LINK_DEPS"), close - at - strlen("PACKAGE_LINK_DEPS")));
 
-        std::vector<std::string> requires;
+        // Not `requires`: a keyword since C++20.
+        std::vector<std::string> declaredRequires;
         try
         {
             std::ifstream jsonFile(jsonPath);
             nlohmann::json j = nlohmann::json::parse(jsonFile, nullptr, true, true);
             for (const auto& r : j.value("requires", nlohmann::json::array()))
                 if (r.is_string())
-                    requires.push_back(r.get<std::string>());
+                    declaredRequires.push_back(r.get<std::string>());
         }
         catch (const std::exception&)
         {
@@ -73,7 +74,7 @@ static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePane
             // Engine/editor libraries are provided by the editor, not by a package.
             if (dep.rfind("deki-", 0) != 0 || dep == "deki-editor" || dep == "deki-engine-core")
                 continue;
-            if (std::find(requires.begin(), requires.end(), dep) == requires.end())
+            if (std::find(declaredRequires.begin(), declaredRequires.end(), dep) == declaredRequires.end())
             {
                 console->LogWarning("Package '" + entry.path().filename().string() + "' links '" + dep +
                                     "' (PACKAGE_LINK_DEPS) but package.json does not list it in \"requires\"; "
@@ -115,7 +116,14 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // also the target HotReloadService builds and the plugin file it loads.
     file << "project(\"" << CMakeGen::EscapeCMakeString(projectName) << "-components\")\n\n";
 
-    file << "set(CMAKE_CXX_STANDARD 17)\n";
+    // C++23, to match what the same package sources get when they are built
+    // for a device: ESP-IDF forces -std=gnu++2b for chip targets (see
+    // tools/cmake/build.cmake in the IDF), unconditionally. Generating 17 here
+    // meant a package compiled at two different standards depending on the
+    // target, so a C++20 feature would build for the board and fail on the
+    // desktop — the wrong way round, since the desktop is where authoring
+    // happens.
+    file << "set(CMAKE_CXX_STANDARD 23)\n";
     file << "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\n";
 
     // No compile cache wired in: ninja's incremental builds handle the

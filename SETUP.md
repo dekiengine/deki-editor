@@ -47,7 +47,7 @@ git submodule update --init --recursive
 | CMake ≥ 3.16 | build system | 3.29 used in practice |
 | Ninja | generator | CMake copies one next to `DekiEditor.exe` for project builds |
 | **GCC 16.1+** | reflection codegen | **hard requirement**, see below |
-| A C++17 compiler | editor + engine | MinGW-w64 **or** MSVC — see §3 |
+| A C++23 compiler | editor + engine | MinGW-w64 **or** MSVC — see §3 |
 | git (+ git-lfs) | package install shells out to `git` | must be on `PATH` |
 | Network access | packages and the registry | `github.com`, `raw.githubusercontent.com` |
 

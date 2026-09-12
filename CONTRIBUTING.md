@@ -12,6 +12,16 @@ path because packages are `dlopen`ed into the editor and must share its ABI.
 [SETUP.md](SETUP.md) has the full setup, the CLI reference and the
 troubleshooting list.
 
+**C++23**, on every target. That is not a choice so much as catching up with
+one: ESP-IDF forces `-std=gnu++2b` for chip targets unconditionally (see
+`tools/cmake/build.cmake` in the IDF), so the firmware had been compiling at
+C++23 for a long time while the editor, the desktop simulator and the
+generated project builds were pinned at 17. The same package source was being
+compiled at two different standards depending on the target, which meant a
+C++20 feature would build for the board and fail on the desktop — the wrong
+way round, since the desktop is where authoring happens. Package code may use
+C++23 freely now.
+
 ## Naming
 
 One convention, Microsoft/Unreal-flavoured to match the editor's Unity-style

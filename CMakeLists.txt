@@ -56,7 +56,7 @@ project(DekiEditor VERSION 0.14.0 LANGUAGES CXX)
 option(DEKI_UNITY_BUILD "Build the editor's own targets as unity builds" OFF)
 set(CMAKE_UNITY_BUILD ${DEKI_UNITY_BUILD})
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Position-independent code everywhere.
