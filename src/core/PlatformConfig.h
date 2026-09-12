@@ -134,6 +134,19 @@ struct PlatformConfig
     // declares nothing gets nothing.
     std::vector<std::string> requiresPackages;
 
+    // Extra ESP-IDF options for this board, as "CONFIG_X=y" lines appended to
+    // the generated sdkconfig.defaults.
+    //
+    // The generated file is rewritten on every build, so a board previously had
+    // no way to say anything the editor did not already know how to emit, and
+    // hand-editing it lasted exactly one build. Boards differ in ways the
+    // editor should not have to enumerate: flash mode for an emulator, a
+    // peripheral its driver needs, a stack size for a heavy component.
+    //
+    // Last word: these are appended after everything generated, so a board can
+    // override what the editor chose.
+    std::vector<std::string> sdkconfig;
+
     // Libraries
     std::vector<std::string> requiredLibraries;
 

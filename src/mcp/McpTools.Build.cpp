@@ -455,6 +455,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "The complete capability list; replaces what was there" } } },
                               { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
+                              { "sdkconfig", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Extra ESP-IDF options as \"CONFIG_X=y\" lines, appended last so they win" } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -489,6 +490,13 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                 for (const auto& r : args["requires_packages"])
                                     if (r.is_string())
                                         config.requiresPackages.push_back(r.get<std::string>());
+                            }
+                            if (args.contains("sdkconfig") && args["sdkconfig"].is_array())
+                            {
+                                config.sdkconfig.clear();
+                                for (const auto& line : args["sdkconfig"])
+                                    if (line.is_string())
+                                        config.sdkconfig.push_back(line.get<std::string>());
                             }
 
                             registryRef.RegisterPlatform(config);

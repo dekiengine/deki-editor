@@ -885,6 +885,18 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     file << "CONFIG_FATFS_LFN_HEAP=y\n";
     file << "CONFIG_FATFS_MAX_LFN=255\n";
 
+    // The board's own options, last so they override anything chosen above.
+    // This file is rewritten on every build, so without this a board had no way
+    // to say anything the editor did not already know how to emit, and editing
+    // it by hand lasted exactly one build. Boards differ in ways this generator
+    // should not have to enumerate.
+    if (!config.sdkconfig.empty())
+    {
+        file << "\n# From the platform's \"sdkconfig\"\n";
+        for (const auto& line : config.sdkconfig)
+            file << line << "\n";
+    }
+
     return CMakeGen::WriteIfChanged(filePath, file.str());
 }
 

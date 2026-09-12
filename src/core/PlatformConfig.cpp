@@ -214,6 +214,11 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.uploadProtocol = j.value("uploadProtocol", "");
     config.partitionTable = j.value("partitionTable", "");
 
+    if (j.contains("sdkconfig") && j["sdkconfig"].is_array())
+        for (const auto& line : j["sdkconfig"])
+            if (line.is_string())
+                config.sdkconfig.push_back(line.get<std::string>());
+
     if (j.contains("requiresPackages") && j["requiresPackages"].is_array())
         for (const auto& id : j["requiresPackages"])
             if (id.is_string())
@@ -424,6 +429,7 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
 
         if (!config.provides.empty()) j["provides"] = config.provides;
         if (!config.requiresPackages.empty()) j["requiresPackages"] = config.requiresPackages;
+        if (!config.sdkconfig.empty()) j["sdkconfig"] = config.sdkconfig;
         if (!config.defines.empty()) j["defines"] = config.defines;
         if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
         if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
