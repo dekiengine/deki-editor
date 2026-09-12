@@ -930,6 +930,38 @@ Deki::ICamera* FindCameraInSubtree(Deki::Object* obj)
     return nullptr;
 }
 
+// The renderer a project's pipeline names, which is how the engine picks one
+// (Deki::ProjectSettings). The engine's public headers only forward-declare
+// DekiRenderer — it lives in the rendering package — so the name is read from
+// the pipeline asset rather than asked of the renderer itself.
+std::string RendererNameOf(Project* project, AssetPipeline* pipeline)
+{
+    if (!project || !pipeline)
+        return "default";
+    const std::string guid = project->GetRenderPipelineGuid();
+    if (guid.empty())
+        return "default";
+
+    const AssetInfo* info = pipeline->GetAssetInfoByGuid(guid);
+    if (!info)
+        return "default";
+
+    try
+    {
+        std::ifstream in(fs::path(pipeline->GetProjectPath()) / info->path);
+        if (!in)
+            return "default";
+        nlohmann::json j;
+        in >> j;
+        const std::string name = j.value("renderer", "");
+        return name.empty() ? "default" : name;
+    }
+    catch (const std::exception&)
+    {
+        return "default";
+    }
+}
+
 uint64_t Fnv1a(const uint8_t* bytes, size_t count)
 {
     uint64_t h = 0xcbf29ce484222325ULL;
@@ -1071,6 +1103,18 @@ int CmdRenderScenes(EditorApp& editor)
             scenePaths.push_back(entry.path());
     }
     std::sort(scenePaths.begin(), scenePaths.end());
+
+    // What produced these pixels, so a recorded hash can be compared against
+    // the same thing that made it.
+    //
+    // An exact hash is a property of one renderer. Two backends drawing the
+    // same scene correctly still differ: fill rules at pixel edges, sub-pixel
+    // precision, filtering and blend rounding are all allowed to. So a golden
+    // is keyed by this line rather than being a single number the project is
+    // expected to produce forever, and a second backend records its own
+    // instead of forcing this one's check to be loosened to accommodate it.
+    printf("config: renderer=%s mode=%s size=%dx%d format=RGB565 frames=%d\n",
+           RendererNameOf(project, editor.GetAssetPipeline()).c_str(), mode.c_str(), width, height, frames);
 
     if (clock)
         printf("Rendering %zu scene(s) at %dx%d RGB565, %d frame(s) each, mode %s, ticking %.3f ms per frame\n",
