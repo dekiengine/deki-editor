@@ -92,10 +92,18 @@ Copy-Item "$RepoRoot\LICENSES" "$Dist\LICENSES" -Recurse -Force
 Copy-Item "$RepoRoot\LICENSE" "$Dist\LICENSE" -Force
 
 # bin\ accumulates runtime artefacts from local use that have no business in a
-# distribution: *.locked.exe is the copy hot reload shunts aside while the editor
-# holds the original open (a second ~280 MB of editor), and crash\ is local crash
-# dumps, which may contain paths and memory from whatever was being worked on.
-Get-ChildItem $Dist -Filter '*.locked.exe' -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
+# distribution: the copies hot reload shunts aside while the editor holds the
+# original open, and crash\ is local crash dumps, which may contain paths and
+# memory from whatever was being worked on.
+#
+# The filter was '*.locked.exe', which matched exactly one of the names hot
+# reload actually produces. It also writes a timestamp in
+# (DekiEditor.locked-191236.exe) and does the same for DLLs
+# (libdeki-editor.locked-191415.dll, libdeki-engine-core.locked-191415.dll).
+# A local bin\ here held 637 MB of them, all of which would have shipped.
+Get-ChildItem $Dist -Recurse -File |
+    Where-Object { $_.Name -match '\.locked(-\d+)?\.(exe|dll)$' } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
 Remove-Item "$Dist\crash" -Recurse -Force -ErrorAction SilentlyContinue
 # Debug info doubles the size and is not useful without matching sources.
 Get-ChildItem $Dist -Filter '*.pdb' -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
