@@ -156,3 +156,36 @@ TEST(DekiBuffer, ReleaseHandsOwnershipOut)
     EXPECT_FALSE(static_cast<bool>(b));  // the buffer no longer frees it
     Deki::Memory::Free(raw);             // the caller does
 }
+
+// --- the reporting side ----------------------------------------------------
+// "How much memory am I using?" needed GetStats for the allocated half and a
+// provider the caller does not have for the free half.
+
+TEST(DekiMemoryReporting, AvailableInternalIsSafeWithoutABackend)
+{
+    // Host test binaries run with no backend set (Allocate falls through to
+    // malloc), so this must answer rather than dereference one. Zero means
+    // "not reported", which is also what the desktop provider says.
+    EXPECT_EQ(Deki::Memory::GetAvailableInternal(), 0u);
+}
+
+TEST(DekiMemoryReporting, StatsCountWhatBufferAllocates)
+{
+    const uint32_t before = Deki::Memory::GetStats().totalAllocated;
+    {
+        Buffer<uint8_t> b(4096, MemoryUse::Buffer, "test");
+        ASSERT_TRUE(static_cast<bool>(b));
+        EXPECT_GE(Deki::Memory::GetStats().totalAllocated, before + 4096u);
+    }
+    // And stop counting it once the buffer goes out of scope, which is the
+    // property that makes the number worth logging at all.
+    EXPECT_EQ(Deki::Memory::GetStats().totalAllocated, before);
+}
+
+TEST(DekiMemoryReporting, LogStatsWorksWithAndWithoutALabel)
+{
+    // It formats and logs; the point of the test is that neither form
+    // dereferences a null label or a missing backend.
+    Deki::Memory::LogStats();
+    Deki::Memory::LogStats("BufferTests");
+}

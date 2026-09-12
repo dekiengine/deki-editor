@@ -156,14 +156,90 @@ class CheckAllocations(unittest.TestCase):
 
     # --- operational ---------------------------------------------------------
 
-    def test_a_missing_packages_directory_passes_rather_than_blocking(self):
-        # A checkout without the packages beside it cannot check them, and a
-        # contributor building only the editor should not be stopped by that.
+    # --- the engine's own runtime ------------------------------------------
+
+    def run_engine_check(self, files, extra=None):
+        """Runs the lint over a throwaway repo holding an engine tree."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for rel, body in files.items():
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(body, encoding="utf-8")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = alloc.main(["--packages-dir", str(root / "no-packages"),
+                                   "--repo", str(root)] + (extra or []))
+            return code, buf.getvalue()
+
+    def test_the_engine_runtime_is_checked_too(self):
+        # It was left out of the first version and immediately proved the
+        # point: ProjectSettings kept its on-device settings chunk with a bare
+        # realloc. An engine allocation reaches every project on every board.
+        code, out = self.run_engine_check(
+            {"deki-engine/src/Thing.cpp": "void* p = realloc(q, n);\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("deki-engine/src/Thing.cpp:1", out)
+
+    def test_engine_headers_are_checked_too(self):
+        code, _ = self.run_engine_check(
+            {"deki-engine/include/deki/Thing.h": "auto* x = new uint8_t[n];\n"})
+        self.assertEqual(code, 1)
+
+    def test_the_engines_host_only_platform_layers_are_skipped(self):
+        # The editor and desktop platform layers run where exceptions are on.
+        code, _ = self.run_engine_check({
+            "deki-engine/src/platforms/editor/EditorDisplay.cpp":
+                "m_Rgba = new uint8_t[w * h * 4];\ndelete[] m_Rgba;\n",
+            "deki-engine/src/platforms/desktop/Thing.cpp": "void* p = malloc(n);\n",
+        })
+        self.assertEqual(code, 0)
+
+    def test_the_esp32_platform_layer_is_not_skipped(self):
+        # It runs on the device, so only its memory provider is exempt.
+        code, _ = self.run_engine_check(
+            {"deki-engine/src/platforms/esp32/Thing.cpp": "auto* x = new uint8_t[n];\n"})
+        self.assertEqual(code, 1)
+
+    def test_the_memory_subsystem_itself_is_exempt(self):
+        # It is where the platform allocator is supposed to be called. Exempt
+        # by path, which says "bottom of the stack" rather than "was granted
+        # permission to break the rule".
+        code, _ = self.run_engine_check({
+            "deki-engine/src/providers/Memory.cpp":
+                "void* p = malloc(n);  // tracking array, deliberately raw\n",
+            "deki-engine/include/deki/providers/IMemoryProvider.h":
+                "virtual void* AllocateInternal(size_t s) { return malloc(s); }\n",
+            "deki-engine/src/platforms/esp32/ESP32MemoryProvider.cpp":
+                "return heap_caps_malloc(size, MALLOC_CAP_DMA);\n",
+        })
+        self.assertEqual(code, 0)
+
+    def test_the_engine_can_be_excluded_on_request(self):
+        code, _ = self.run_engine_check(
+            {"deki-engine/src/Thing.cpp": "void* p = malloc(n);\n"}, ["--no-engine"])
+        self.assertEqual(code, 0)
+
+    # --- operational ---------------------------------------------------------
+
+    def test_nothing_to_check_passes_rather_than_blocking(self):
+        # A checkout with neither the packages beside it nor an engine in it
+        # cannot check anything, and should not block on that.
         buf = io.StringIO()
         with redirect_stdout(buf):
-            code = alloc.main(["--packages-dir", "does/not/exist"])
+            code = alloc.main(["--packages-dir", "does/not/exist",
+                               "--repo", "also/does/not/exist"])
         self.assertEqual(code, 0)
         self.assertIn("nothing to check", buf.getvalue())
+
+    def test_a_missing_packages_directory_still_checks_the_engine(self):
+        # The common case for a contributor who cloned only the editor: the
+        # packages are absent, but the engine comes with it as a submodule and
+        # is held to the same rule.
+        code, out = self.run_engine_check(
+            {"deki-engine/src/Thing.cpp": "auto* x = new float[n];\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("deki-engine/src/Thing.cpp", out)
 
     def test_headers_are_scanned_too(self):
         # ParticlePool's columns lived in a header, which is where most of

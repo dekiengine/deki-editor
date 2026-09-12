@@ -129,19 +129,67 @@ void  Free(void* ptr, const char* context = nullptr);
   into a logged error instead of heap corruption.
 - Always pass a `context` string. It is what the failure log and the debug
   leak table name, and `"GradientComponent::bake"` in an out-of-memory line is
-  the difference between a diagnosis and a guess.
+  the difference between a diagnosis and a guess. A failure also reports how
+  much was free in the region it tried, which separates "this asset is too big
+  for this board" from "something is holding memory it should have released".
+- `Memory::Initialize` logs the free internal and external RAM once at startup,
+  and which threshold `Auto` uses, so a project can be sized against real
+  numbers rather than against the first out-of-memory line.
 - `AllocateInternal` / `FreeInternal` bypass the placement decision and exist
   for the platform layer. Do not reach for them from a component.
-- `IsPSRAMAvailable()`, `GetAvailablePSRAM()` and `GetStats()` report; they are
-  not a licence to place memory yourself.
 
-### What is deliberately *not* covered
+### Finding out where the memory went
 
-`std::vector`, `std::string` and anything else using the default allocator call
-the same `operator new` and abort the same way when it fails. The lint does not
-flag them and this doc does not pretend otherwise: fixing it needs an allocator
-shim, not a rule. Prefer `Deki::Buffer<T>` for anything whose size comes from a
-file, a scene, or the screen — which is where the large allocations are.
+```cpp
+Deki::Memory::LogStats("after level load");
+// Memory at after level load: 48216 bytes allocated (48216 internal, 0 external);
+//                             237096 free internal
+```
+
+- `LogStats(label)` answers "how much memory am I using?" in one call. In a
+  debug build it also reports the live and peak allocation counts. It costs
+  nothing unless called.
+- `GetStats()` returns the same numbers as a struct;
+  `GetAvailableInternal()` and `GetAvailablePSRAM()` give the free side.
+  `IsPSRAMAvailable()` says whether there is an external region at all. None
+  of these is a licence to place memory yourself — they are for sizing a
+  project and for finding what is holding memory it should have released.
+
+### `std::vector`, `std::string` and plain `new`
+
+These call `operator new`, which `Deki::Buffer<T>` cannot replace. On a device
+build the engine replaces the operators themselves
+([`src/providers/OperatorNew.cpp`](../deki-engine/src/providers/OperatorNew.cpp)),
+which changes two things:
+
+- **A failed allocation says so.** It logs the size it wanted and then aborts,
+  because a throwing `operator new` has no other option with exceptions off.
+  "Out of memory asking for 40960 bytes" is a diagnosis; the reboot it
+  replaces was not.
+- **`std::nothrow` works.** `new (std::nothrow) T[n]` returns `nullptr`
+  instead of aborting, so code that wants to handle exhaustion itself can.
+  Without the replacement it aborts, because libstdc++ implements the nothrow
+  form by calling the throwing one inside a removed `try`/`catch`.
+
+The replacement is **instrumentation, not a re-route**: it still uses `malloc`,
+with the same alignment and no header. Going through `Memory::Allocate` would
+add a header to every `std::string` that outgrows its small-string buffer,
+memset memory a vector is about to overwrite, and pay the ESP32 provider's
+16-byte alignment on small blocks — and routing by size the way
+`MemoryUse::Auto` does would silently move a large `std::vector` into PSRAM,
+making a hot loop slow for reasons invisible in the code. A caller that knows
+how memory will be used says so with a `MemoryUse`; `operator new` cannot know,
+so it does not guess.
+
+It is compiled only where `__cpp_exceptions` is undefined — i.e. exactly the
+builds where the abort problem exists. Host and editor builds keep the standard
+operators. The over-aligned forms (`align_val_t`) are left to libstdc++ so they
+stay a matched pair.
+
+So: for anything whose size comes from a file, a scene, or the screen, use
+`Deki::Buffer<T>` and handle the `false`. For ordinary small containers, use
+`std::vector` and know that exhaustion is now a logged abort rather than a
+silent one.
 
 ## Platform layer: `IMemoryProvider`
 
@@ -181,10 +229,23 @@ python tools/ci/check_allocations.py --verbose  # also list files and waivers
 ```
 
 Fails on `new[]`, `delete[]`, `malloc`/`calloc`/`realloc` and `heap_caps_*` in
-package runtime code. It skips `editor/`, `tests/`, `generated/` and
-`third_party/`, which run on the host where exceptions are on and the heap is a
-desktop's. Comments and string literals are blanked before matching, so a
-comment explaining this rule does not trip it.
+runtime code — **the engine's own as well as every package's**. An allocation
+in the engine reaches every project on every board, where a package's reaches
+only the projects that installed it, so if anything the engine is the more
+important half; leaving it out of the first version of this lint immediately
+proved the point, since `ProjectSettings` was keeping its on-device settings
+chunk with a bare `realloc`.
+
+Skipped: `editor/`, `tests/`, `generated/`, `third_party/` and the engine's
+`platforms/editor` and `platforms/desktop` layers, all of which run on the host
+where exceptions are on and the heap is a desktop's. Exempt by path, because
+they are the bottom of the stack rather than code with permission to break the
+rule: `providers/Memory.cpp`, `providers/IMemoryProvider.h`, any
+`*MemoryProvider.*`, and `providers/OperatorNew.cpp` — which has to define
+`operator new[]` so that nothing else needs to.
+
+Comments and string literals are blanked before matching, so a comment
+explaining this rule does not trip it.
 
 A genuinely unavoidable case takes a waiver **with a reason** — one without a
 reason does not count, so a diff always shows which exceptions were argued for:

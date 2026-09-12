@@ -123,14 +123,22 @@ bool WriteGitIgnore(const std::string& projectPath, std::string& err)
 
 bool WriteRenderPipeline(const std::string& projectPath, std::string& err)
 {
-    // The clip2d pass has to be here. A pipeline with an empty pass list is
-    // valid but draws nothing, so a brand-new project would enter play mode
-    // and render a black screen with no error to explain it.
+    // No passes. This used to write a "clip2d" entry, with a comment saying a
+    // pipeline needs it or the project renders black — which was true once and
+    // is not now: clipping became a builtin of Standard2DRenderer, which
+    // pushes and pops a clip rect around any object exposing IClipProvider,
+    // and nothing registers a pass by that name. So every new project logged
+    // "No pass registered for 'clip2d'" on its first run while rendering
+    // perfectly, which is how a user learns to ignore warnings.
+    //
+    // Passes are opt-in extras (the tilemap pass, deki-3d's mesh pass), and
+    // most attach themselves. deki-rendering still recognises a clip2d entry
+    // from an older project without complaining; see IsBuiltinPassName there.
     json j;
     j[Deki::AuthoredFormat::VersionKey] = Deki::AuthoredFormat::AssetVersion;
     j["type"] = "RenderPipeline";
     j["renderer"] = "standard2d";
-    j["passes"] = json::array({ json{ { "type", "clip2d" }, { "settings", json::object() } } });
+    j["passes"] = json::array();
     const fs::path path = fs::path(GetAssetsDirectory(projectPath)) / "rendering" / "Standard2D.asset";
     return WriteText(path, j.dump(2), err);
 }

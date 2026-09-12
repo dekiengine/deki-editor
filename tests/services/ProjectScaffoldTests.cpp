@@ -97,15 +97,20 @@ TEST(ProjectScaffold, GitIgnoreCoversGeneratedPackagesAndStorage)
     EXPECT_NE(text.find("storage/\n"), std::string::npos);
 }
 
-TEST(ProjectScaffold, RenderPipelineHasTheClipPass)
+TEST(ProjectScaffold, RenderPipelineNamesTheRendererAndNoPasses)
 {
+    // It used to write a "clip2d" pass. Nothing registers one — clipping is a
+    // builtin of Standard2DRenderer — so every new project logged "No pass
+    // registered for 'clip2d'" on its first run while rendering correctly.
+    // Passes are opt-in extras, and the ones that exist attach themselves.
     TempProject t;
     std::string err;
     ASSERT_TRUE(ProjectScaffold::WriteRenderPipeline(t.Path(), err)) << err;
     const json j = t.ReadJson(fs::path(GetAssetsDirectoryRelative()) / "rendering" / "Standard2D.asset");
     EXPECT_EQ(j.at("type"), "RenderPipeline");
-    ASSERT_EQ(j.at("passes").size(), 1u);
-    EXPECT_EQ(j.at("passes")[0].at("type"), "clip2d");
+    EXPECT_EQ(j.at("renderer"), "standard2d");
+    ASSERT_TRUE(j.at("passes").is_array());
+    EXPECT_TRUE(j.at("passes").empty());
 }
 
 TEST(ProjectScaffold, StarterFontGetsASidecarWithTheBakedSize)

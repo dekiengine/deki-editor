@@ -44,8 +44,9 @@ bool WritePackageManifestFor(const std::string& projectPath,
 /// folders.
 bool WriteGitIgnore(const std::string& projectPath, std::string& err);
 
-/// assets/rendering/Standard2D.asset: the default render pipeline with the
-/// clip2d pass (an empty pass list is valid but draws nothing).
+/// assets/rendering/Standard2D.asset: the default render pipeline, naming the
+/// standard2d renderer and no passes. Clipping is a builtin of that renderer,
+/// not a pass; passes are opt-in extras and attach themselves.
 bool WriteRenderPipeline(const std::string& projectPath, std::string& err);
 
 /// Copies kStarterFontFile from `editorFontsDir` into assets/fonts/ and
