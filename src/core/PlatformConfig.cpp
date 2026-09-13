@@ -98,16 +98,44 @@ std::set<std::string> PlatformConfig::Capabilities() const
         caps.insert("framework:" + framework);
     caps.insert(std::string("family:") + FamilyToString(family));
 
-    // "psram" comes from psramSize, the same field the firmware build reads to
-    // emit CONFIG_SPIRAM. Declaring it in `provides` as well would be a second
-    // source of truth for one fact, and the two drift: a target created by
-    // copying a board without PSRAM and then given a psramSize has the memory,
-    // boots with it detected, and still fails to satisfy a package that asks
-    // for "psram".
+    // Memory regions are capabilities named after the region, so a package
+    // that allocates from Deki::Region("rtc") requires "memory:rtc" and the two
+    // agree by construction rather than by someone keeping two lists in step.
+    //
+    // The prefix matches framework: and family: above, and keeps a region from
+    // colliding with an unrelated capability that happens to share a word.
+    //
+    // Every platform has a heap, so memory:internal is universal. memory:external
+    // comes from psramSize, the same field the firmware build reads to emit
+    // CONFIG_SPIRAM — one source of truth, because when it was two they drifted:
+    // a target created by copying a board without PSRAM and then given a
+    // psramSize had the memory, booted with it detected, and still failed to
+    // satisfy a package that asked for it.
+    //
+    // Regions beyond these two are a board's own business and it lists them in
+    // `provides` ("memory:rtc"), because only that board knows it has them.
+    caps.insert("memory:internal");
     if (psramSize > 0)
-        caps.insert("psram");
+        caps.insert("memory:external");
 
     return caps;
+}
+
+// A capability is matched by exact string, so the only names that work are the
+// ones everybody spells the same way. Deliberately narrow: lowercase only,
+// because "WiFi" silently matching nothing is the failure this prevents.
+bool IsValidCapabilityName(const std::string& name)
+{
+    if (name.empty() || name.size() > 64)
+        return false;
+    for (unsigned char c : name)
+    {
+        const bool ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+                        c == '.' || c == '-' || c == ':' || c == '_';
+        if (!ok)
+            return false;
+    }
+    return true;
 }
 
 bool IsValidDisplayBus(const std::string& bus)
@@ -237,7 +265,20 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     if (j.contains("provides") && j["provides"].is_array())
         for (const auto& cap : j["provides"])
             if (cap.is_string())
-                config.provides.push_back(cap.get<std::string>());
+            {
+                std::string name = cap.get<std::string>();
+                // Capabilities are matched by exact string against what a
+                // package requires, so a name that cannot match anything is
+                // worth saying out loud at load rather than leaving as a
+                // package mysteriously refused on a board that has the
+                // hardware. "WiFi" and "wifi " are the two that bite.
+                if (!IsValidCapabilityName(name))
+                    DEKI_LOG_WARNING("Platform '%s': capability '%s' is not a valid name "
+                                     "(lowercase letters, digits and . - : _ only), so no "
+                                     "package requirement can match it",
+                                     config.id.c_str(), name.c_str());
+                config.provides.push_back(std::move(name));
+            }
 
     if (j.contains("defines") && j["defines"].is_array())
         for (const auto& def : j["defines"])

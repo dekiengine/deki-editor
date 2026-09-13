@@ -90,23 +90,26 @@ TEST(PlatformConfig, UnsafeTargetAndBusAreDroppedOnLoad)
 // from the fields that already describe the hardware rather than from a second
 // list somebody has to remember to update.
 
-TEST(PlatformCapabilities, PsramComesFromPsramSizeNotFromProvides)
+TEST(PlatformCapabilities, ExternalMemoryComesFromPsramSizeNotFromProvides)
 {
     PlatformConfig board;
     board.framework = "espidf";
     board.psramSize = 4 * 1024 * 1024;   // and nothing in provides
 
-    EXPECT_EQ(board.Capabilities().count("psram"), 1u)
+    EXPECT_EQ(board.Capabilities().count("memory:external"), 1u)
         << "a target with PSRAM must satisfy a package that asks for it, "
            "however the target was authored";
 }
 
-TEST(PlatformCapabilities, NoPsramSizeMeansNoPsramCapability)
+TEST(PlatformCapabilities, NoPsramSizeMeansNoExternalRegion)
 {
     PlatformConfig board;
     board.framework = "espidf";
 
-    EXPECT_EQ(board.Capabilities().count("psram"), 0u);
+    const auto caps = board.Capabilities();
+    EXPECT_EQ(caps.count("memory:external"), 0u);
+    // But every platform has a heap, so the internal region is always offered.
+    EXPECT_EQ(caps.count("memory:internal"), 1u);
 }
 
 TEST(PlatformCapabilities, DerivedAndDeclaredCapabilitiesCoexist)
@@ -116,10 +119,49 @@ TEST(PlatformCapabilities, DerivedAndDeclaredCapabilitiesCoexist)
     PlatformConfig board;
     board.framework = "espidf";
     board.psramSize = 8 * 1024 * 1024;
-    board.provides = { "psram", "wifi" };
+    board.provides = { "memory:rtc", "wifi" };
 
     const auto caps = board.Capabilities();
-    EXPECT_EQ(caps.count("psram"), 1u);
+    EXPECT_EQ(caps.count("memory:external"), 1u);   // derived
+    EXPECT_EQ(caps.count("memory:rtc"), 1u);        // declared: only the board knows
     EXPECT_EQ(caps.count("wifi"), 1u);
     EXPECT_EQ(caps.count("framework:espidf"), 1u);
+}
+
+TEST(PlatformCapabilities, ARegionsCapabilityNameIsTheRegionName)
+{
+    // The whole point of the memory: prefix. A package that allocates from
+    // Deki::Region("rtc") declares platformRequires ["memory:rtc"], and a board
+    // that serves it declares provides ["memory:rtc"]. Neither side keeps a
+    // separate table, so neither side can drift.
+    PlatformConfig board;
+    board.framework = "espidf";
+    board.psramSize = 8 * 1024 * 1024;
+    board.provides = { "memory:rtc" };
+
+    const auto caps = board.Capabilities();
+    for (const char* need : { "memory:internal", "memory:external", "memory:rtc" })
+        EXPECT_EQ(caps.count(need), 1u) << need;
+
+    // And a region this board does not have is simply absent, which is what
+    // lets the build refuse the target by name instead of failing at runtime.
+    EXPECT_EQ(caps.count("memory:tightly-coupled"), 0u);
+}
+
+TEST(PlatformCapabilities, ANameThatCannotMatchIsRejected)
+{
+    // Capabilities are compared as exact strings, so a name in the wrong case
+    // or with a stray space matches nothing and the package that needed it is
+    // refused on a board that has the hardware.
+    EXPECT_TRUE(IsValidCapabilityName("wifi"));
+    EXPECT_TRUE(IsValidCapabilityName("memory:external"));
+    EXPECT_TRUE(IsValidCapabilityName("particles.scratch"));
+    EXPECT_TRUE(IsValidCapabilityName("framework:espidf"));
+    EXPECT_TRUE(IsValidCapabilityName("posix-process"));
+
+    EXPECT_FALSE(IsValidCapabilityName("WiFi"));      // the one that bites
+    EXPECT_FALSE(IsValidCapabilityName("wifi "));     // and the other one
+    EXPECT_FALSE(IsValidCapabilityName(""));
+    EXPECT_FALSE(IsValidCapabilityName("mem external"));
+    EXPECT_FALSE(IsValidCapabilityName(std::string(65, 'a')));
 }

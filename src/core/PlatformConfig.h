@@ -60,6 +60,7 @@ const std::vector<std::string>& SupportedIdfTargets();
 
 /// displayBus is an identifier: A-Z, 0-9 and '_' ("SPI", "PARALLEL_8BIT", "SOFTWARE").
 bool IsValidDisplayBus(const std::string& bus);
+bool IsValidCapabilityName(const std::string& name);
 
 struct PlatformConfig
 {

@@ -38,7 +38,7 @@ reasons it has to hold:
 
 Deki::Buffer<uint8_t> baked;
 
-if (!baked.Allocate(width * height * 2, Deki::MemoryUse::Buffer, "Gradient::bake"))
+if (!baked.Allocate(width * height * 2, Deki::Mem::External))
 {
     DEKI_LOG_WARNING("no room for a %dx%d bake; not drawing it", width, height);
     return false;          // carry on without the thing, do not abort
@@ -53,7 +53,7 @@ RenderInto(baked.Data());  // Data(), Count(), Bytes(), operator[], begin/end
   by `static_assert`. Nothing here constructs or destroys elements — these are
   the raw pixel, glyph, span and sample buffers the engine hands to blitters
   and drivers. A `T` with a destructor would silently never run it.
-- **The `MemoryUse` is required**, here as everywhere else.
+- **The region is required**, here as everywhere else.
 - **`Allocate` on an unchanged count is a no-op**, which is what makes it safe
   to call from a render path every frame. A different count releases the old
   buffer first rather than copying: every caller overwrites it immediately
@@ -81,38 +81,80 @@ pay off where there is headroom. Most allocations here are long-lived and owned
 by something anyway — glyph tables, pixel data, particle columns, framebuffers
 — which is what RAII serves and an arena does not.
 
-## `MemoryUse` — you choose, every time
+## Regions — you choose, every time
 
 `<deki/providers/Memory.h>`. **There is no default and nothing is inferred.**
-Every allocating call takes a `MemoryUse`, and omitting it does not compile.
+Every allocating call names a region, and omitting it does not compile.
 
-| Use | Where it goes |
+| Region | Where it goes |
 | --- | --- |
-| `Internal` | Internal RAM. The plain choice for anything without a reason to be elsewhere |
-| `Hot` | Internal RAM, and read or written every frame |
-| `Buffer` | External (PSRAM) where the board has it, internal where it does not |
-| `Dma` | DMA-capable internal RAM, via the platform's DMA allocator |
+| `Deki::Mem::Internal` | Internal RAM. Fast, and the scarce one |
+| `Deki::Mem::External` | PSRAM where the board has it. Megabytes, and markedly slower — it is reached over SPI |
 
-`Internal` and `Hot` place identically today. The difference is what they claim:
-`Internal` means nobody asked for anything special, `Hot` means *this must never
-be moved external*, whatever a later policy or tool decides. Sprite pixels the
-blitter walks every frame are `Hot`; a glyph table read once at load is
-`Internal`.
+`Deki::Memory::AllocateDma(bytes, region)` adds the constraint that a DMA
+engine must be able to read the block. That is orthogonal to placement: a
+framebuffer must be reachable whether the board keeps it internally or in
+PSRAM, which is why it is a separate entry point rather than a third region.
 
-**`Buffer` is the only route to PSRAM**, and it is a claim that the latency does
-not matter for that buffer.
+### A region is a name, so packages can add their own
 
-### Why you choose and not the engine
+The engine ships two. The set is open:
 
-Size does not predict placement. The largest allocation on the part is usually
-the framebuffer, and it belongs in internal RAM; a decoded asset of exactly the
-same size may never be read again after load. Only the caller knows which it is
-holding.
+```cpp
+// in a board-support package — no engine change, no registration call
+inline constexpr Deki::MemoryRegion Rtc = Deki::Region("esp32.rtc");
 
-So there is no size rule, and no default argument either — a default is the
-engine choosing, one step removed. A buffer that lands in slow memory for
-reasons invisible in the source is a performance bug nobody can find by reading
-the code.
+battery.Allocate(count, Rtc);
+```
+
+`Region()` hashes the name at compile time with the same FNV-1a the rest of the
+engine uses, so a region is a constant expression a provider can switch on.
+
+**Two packages naming the same region mean the same region** — that is how two
+board packages agree on `"rtc"` without coordinating, exactly like two packages
+both requiring the `spi` capability. What that does not survive is two packages
+meaning *different* things by one word, so qualify names you did not invent:
+`particles.scratch`, `esp32.rtc`. A debug build reports two different names
+that hash alike, because the allocation header stores only the id.
+
+### Serving one is the board's job
+
+A package can *name* a region; only the board's `IMemoryProvider` can serve it.
+A provider that has not heard of `esp32.rtc` returns nullptr and the failure
+names the region:
+
+```
+Failed to allocate 64 bytes in 'esp32.rtc' for 'void Battery::Save()'
+at Battery.cpp:88 (0 bytes free there)
+```
+
+It is not substituted for another region. For `Rtc` in particular that matters
+more than usual: the point of it is surviving deep sleep, so quietly handing
+back ordinary RAM would lose the data at the one moment it was supposed to
+persist.
+
+### The region name is the capability name
+
+A target advertises the regions it has as capabilities, prefixed `memory:`:
+
+| Capability | Comes from |
+| --- | --- |
+| `memory:internal` | every platform — derived |
+| `memory:external` | the platform's `psramSize` — derived |
+| `memory:esp32.rtc` | the board's `provides`, because only it knows |
+
+So a package that needs one declares it and the build refuses a target that
+lacks it, by name, before anything runs:
+
+```json
+"platformRequires": ["memory:esp32.rtc"]
+```
+
+The two halves cannot drift, because `Region("esp32.rtc")` and
+`"memory:esp32.rtc"` are the same token with a prefix rather than two lists
+somebody keeps in step. Capability names are lowercase with `.`, `-`, `:` and
+`_`; a platform declaring `"WiFi"` gets a warning at load, since an exact-string
+match would silently never fire.
 
 ### Placement resolves once. There is no fallback.
 
@@ -136,8 +178,9 @@ fallback; it is the only region there is.
 not cover:
 
 ```cpp
-void* Allocate(size_t size, MemoryUse use, const char* context = nullptr);
-T*    AllocateArray<T>(size_t count, MemoryUse use, const char* context = nullptr);
+void* Allocate(size_t size, MemoryRegion region, AllocContext ctx = {});
+void* AllocateDma(size_t size, MemoryRegion region, AllocContext ctx = {});
+T*    AllocateArray<T>(size_t count, MemoryRegion region, AllocContext ctx = {});
 void  Free(void* ptr, const char* context = nullptr);
 ```
 
@@ -179,7 +222,7 @@ Deki::Memory::LogStats("after level load");
 Every allocating call takes one, and almost nobody writes one:
 
 ```cpp
-posX.Allocate(capacity, Deki::MemoryUse::Internal);
+posX.Allocate(capacity, Deki::Mem::Internal);
 ```
 
 In a debug build the default argument captures the call site, so a failure
@@ -241,7 +284,7 @@ exhaustion with exceptions off, so it aborts and the board reboots.
 everything that can allocate returns `bool`:
 
 ```cpp
-Deki::Vector<Enemy> enemies(Deki::MemoryUse::Internal, "wave");
+Deki::Vector<Enemy> enemies(Deki::Mem::Internal);
 
 if (!enemies.Reserve(32))            // out of memory, said once
     return;
@@ -323,7 +366,7 @@ the guard.
 Placement is deliberately not decided here. Routing by size the way
 the removed `Auto` rule did would silently move a large `std::vector` into
 PSRAM and make a hot loop slow for reasons invisible in the code. A caller who
-wants external memory names `MemoryUse::Buffer` and gets `Deki::Buffer`;
+wants external memory names `Deki::Mem::External` and gets `Deki::Buffer`;
 `operator new` cannot know, so it does not guess.
 
 It is compiled only where `__cpp_exceptions` is undefined — i.e. exactly the

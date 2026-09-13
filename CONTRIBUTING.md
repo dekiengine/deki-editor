@@ -103,7 +103,7 @@ memory and frees itself. **No `new[]`, no `malloc`, no `heap_caps_*`.**
 
 ```cpp
 Deki::Buffer<uint8_t> pixels;
-if (!pixels.Allocate(w * h * 2, Deki::MemoryUse::Buffer, "Thing::bake"))
+if (!pixels.Allocate(w * h * 2, Deki::Mem::External))
     return false;   // out of memory is a return, never an abort
 ```
 
@@ -116,11 +116,16 @@ the throwing form inside a `try`/`catch` that `-fno-exceptions` has removed.
 
 Two rules that follow, and that a patch is most likely to get wrong:
 
-- **Say where the memory goes, every time.** `MemoryUse::Internal`,
-  `External` (PSRAM where the board has it) or `DMA` (a peripheral has to
-  reach it). There is no default and leaving it out does not compile. Size is
-  not a hint: the framebuffer is the biggest allocation on the part and
-  belongs in internal RAM, so only you know which kind of buffer you hold.
+- **Say where the memory goes, every time.** `Deki::Mem::Internal` or
+  `Deki::Mem::External` (PSRAM where the board has it); `Memory::AllocateDma`
+  where a peripheral has to reach it. There is no default and leaving it out
+  does not compile. Size is not a hint: the framebuffer is the biggest
+  allocation on the part and belongs in internal RAM, so only you know which
+  kind of buffer you hold.
+- **A region is a name, so a package can add one.** `Deki::Region("esp32.rtc")`
+  needs no engine change; the board's provider decides whether it serves it,
+  and a target advertises what it has as `memory:esp32.rtc`. See
+  [docs/memory.md](docs/memory.md).
 - **Placement resolves once and there is no fallback.** A full region means the
   allocation returns null; it is not retried elsewhere. Do not add a fallback —
   moving an `Internal` buffer to external RAM turns a placement mistake into
