@@ -34,9 +34,10 @@ public:
 
     bool Initialize(int32_t, int32_t) override { return true; }
     void Shutdown() override {}
-    void Present(const uint8_t*, int, int, int) override { ++fullCalls; }
+    void Present(const uint8_t*, int, int, Deki::ColorFormat) override { ++fullCalls; }
     bool SupportsPartialPresent() const override { return partial; }
-    void PresentRegions(const uint8_t*, int, int, int, const Deki::Rect* rects, int32_t count) override
+    void PresentRegions(const uint8_t*, int, int, Deki::ColorFormat, const Deki::Rect* rects,
+                        int32_t count) override
     {
         ++regionCalls;
         lastCount = count;

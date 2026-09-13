@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 15
+abi_version: 16
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -23,9 +23,9 @@ class Deki::IDisplay (18 virtual)
   ~IDisplay()
   bool Initialize(int32_t width, int32_t height)
   void Shutdown()
-  void Present(const uint8_t* framebuffer, int width, int height, int format)
+  void Present(const uint8_t* framebuffer, int width, int height, ColorFormat format)
   bool SupportsPartialPresent() const
-  void PresentRegions(const uint8_t* framebuffer, int width, int height, int format, const Rect* rects, int32_t count)
+  void PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format, const Rect* rects, int32_t count)
   void GetDisplaySize(int32_t* width, int32_t* height) const
   bool IsInitialized() const
   void RequestFullRefresh()
