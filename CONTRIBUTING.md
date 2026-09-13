@@ -116,16 +116,20 @@ the throwing form inside a `try`/`catch` that `-fno-exceptions` has removed.
 
 Two rules that follow, and that a patch is most likely to get wrong:
 
-- **Say what the memory is for, not where it should go.** `MemoryUse::Hot`
-  (touched every frame), `Buffer` (large and read-mostly), `Dma` (a peripheral
-  reads it), or `Auto`. Only the engine knows whether this board has external
-  RAM and how slow it is; a caller that picks a region is wrong on the next
-  board.
+- **Say where the memory goes, every time.** `MemoryUse::Internal`,
+  `External` (PSRAM where the board has it) or `DMA` (a peripheral has to
+  reach it). There is no default and leaving it out does not compile. Size is
+  not a hint: the framebuffer is the biggest allocation on the part and
+  belongs in internal RAM, so only you know which kind of buffer you hold.
 - **Placement resolves once and there is no fallback.** A full region means the
   allocation returns null; it is not retried elsewhere. Do not add a fallback —
-  moving a `Hot` buffer to external RAM turns a placement mistake into
+  moving an `Internal` buffer to external RAM turns a placement mistake into
   unaccountable frame drops, and the other direction exhausts the heap the next
-  `Hot` allocation needed. Handle the null.
+  internal allocation needed. Handle the null.
+- **You do not have to name the allocation.** The `context` argument is
+  optional: in a debug build the call site fills itself in, so a failure says
+  which file and line asked. Pass a literal only where the call site is not
+  the useful name — one function allocating three different things.
 
 `editor/`, `tests/`, `generated/` and `third_party/` are exempt: they run on
 the host, where exceptions are on and the heap is a desktop's.

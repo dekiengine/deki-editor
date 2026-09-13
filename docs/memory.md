@@ -102,19 +102,17 @@ blitter walks every frame are `Hot`; a glyph table read once at load is
 **`Buffer` is the only route to PSRAM**, and it is a claim that the latency does
 not matter for that buffer.
 
-### Why there is no `Auto`
+### Why you choose and not the engine
 
-There was one. It sent anything at or above 16 KB to PSRAM, and it was removed
-because the guess has the sign backwards here: in a graphics engine the largest
-allocations are usually the ones touched every frame — framebuffers,
-composites, bakes — so "large" was close to the worst available predictor of
-"belongs in slow memory". On real ESP32-S3 hardware a framebuffer in PSRAM
-measured markedly worse than one in internal RAM.
+Size does not predict placement. The largest allocation on the part is usually
+the framebuffer, and it belongs in internal RAM; a decoded asset of exactly the
+same size may never be read again after load. Only the caller knows which it is
+holding.
 
-A heuristic that quietly moves a buffer somewhere slow is a performance bug
-nobody can find by reading the code, because the code does not mention it. So
-the engine stopped guessing and the caller says. That is also why there is no
-default argument: a default is the engine choosing, one step removed.
+So there is no size rule, and no default argument either — a default is the
+engine choosing, one step removed. A buffer that lands in slow memory for
+reasons invisible in the source is a performance bug nobody can find by reading
+the code.
 
 ### Placement resolves once. There is no fallback.
 
@@ -143,20 +141,19 @@ T*    AllocateArray<T>(size_t count, MemoryUse use, const char* context = nullpt
 void  Free(void* ptr, const char* context = nullptr);
 ```
 
-- Memory is **zeroed** before it is returned, so the `{}` that `new T[n]{}`
-  used to provide is not lost.
+- Memory is **zeroed** before it is returned, so a buffer never starts full of
+  noise and callers do not write their own clearing loop.
 - `Free` works out which region the block came from by reading a header placed
   immediately before the user pointer, so callers never choose. That header
   also carries a magic value, which turns a double free or a foreign pointer
   into a logged error instead of heap corruption.
-- Always pass a `context` string. It is what the failure log and the debug
-  leak table name, and `"GradientComponent::bake"` in an out-of-memory line is
-  the difference between a diagnosis and a guess. A failure also reports how
-  much was free in the region it tried, which separates "this asset is too big
-  for this board" from "something is holding memory it should have released".
+- **Naming the allocation is optional.** See `AllocContext` below.
+- A failure reports how much was free in the region it tried, which separates
+  "this asset is too big for this board" from "something is holding memory it
+  should have released".
 - `Memory::Initialize` logs the free internal and external RAM once at startup,
-  and which threshold `Auto` uses, so a project can be sized against real
-  numbers rather than against the first out-of-memory line.
+  so a project can be sized against real numbers rather than against the first
+  out-of-memory line.
 - `AllocateInternal` / `FreeInternal` bypass the placement decision and exist
   for the platform layer. Do not reach for them from a component.
 
@@ -177,6 +174,62 @@ Deki::Memory::LogStats("after level load");
   of these is a licence to place memory yourself — they are for sizing a
   project and for finding what is holding memory it should have released.
 
+## `AllocContext` — the label writes itself
+
+Every allocating call takes one, and almost nobody writes one:
+
+```cpp
+posX.Allocate(capacity, Deki::MemoryUse::Internal);
+```
+
+In a debug build the default argument captures the call site, so a failure
+reads:
+
+```
+Failed to allocate 153600 bytes in internal RAM for
+'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
+(126556 bytes free there)
+```
+
+Pass a literal where the call site is not the useful name — one function
+allocating three different things — and it wins over the derived one:
+
+```cpp
+posX.Allocate(capacity, Deki::MemoryUse::Internal, "ParticlePool::posX");
+```
+
+**It names the caller, not the engine.** `Buffer<T>::Allocate` and
+`Memory::Allocate` both take the context and forward it rather than
+re-defaulting it, so the location is where *you* wrote the call, not
+`Buffer.h`. A test asserts exactly that, because a version that got this wrong
+would report a plausible-looking file on every allocation in the engine and be
+confidently useless.
+
+**Nothing is copied.** Every member points at a string literal with static
+storage duration, which is what lets the debug leak table hold the pointer. Do
+not build one from a `std::string` — the label has to outlive the allocation.
+
+### It is a debug-build feature
+
+Capturing costs flash: the file paths and function names live in the binary
+forever. On device that is a poor trade, so the capture compiles out entirely
+unless `DEBUG` is defined (or you set `DEKI_NO_ALLOC_CONTEXT` to switch it off
+in a debug build too).
+
+| | Debug / editor | Release / firmware |
+| --- | --- | --- |
+| `AllocContext` | label, file, function, line | **one pointer** |
+| Failure line | `for '<caller>' at <file>:<line>` | `for '<label>'; build with DEBUG for the call site` |
+| Flash cost | strings embedded | **+32 bytes measured, 0.002%** |
+| `Deki::Vector` | +12 bytes per instance | unchanged |
+
+So on device a hand-written label is still worth having for anything you would
+want named in a crash log: without one, an allocation reports `'?'`.
+
+Note the layout differs between debug and release, so an engine and the
+packages calling it have to agree — the same constraint `MemoryStats` already
+imposes.
+
 ## `Deki::Vector<T>` — when the count changes at runtime
 
 `<deki/providers/Vector.h>`. `Buffer<T>` covers a count you know when you
@@ -188,7 +241,7 @@ exhaustion with exceptions off, so it aborts and the board reboots.
 everything that can allocate returns `bool`:
 
 ```cpp
-Deki::Vector<Enemy> enemies(Deki::MemoryUse::Hot, "wave");
+Deki::Vector<Enemy> enemies(Deki::MemoryUse::Internal, "wave");
 
 if (!enemies.Reserve(32))            // out of memory, said once
     return;
@@ -296,9 +349,23 @@ Deki::Memory::Initialize();
 
 The interface reports external RAM (`HasExternalRAM`, totals, free) and
 allocates from each region: `AllocateExternal` / `FreeExternal`,
-`AllocateInternal` / `FreeInternal`, and `AllocateDma`. The defaults are
-`malloc`/`free`, which is right for a host where every allocation is equally
-reachable; `AllocateDma` defaults to `AllocateInternal` for the same reason.
+`AllocateInternal` / `FreeInternal`, and `AllocateDMA`.
+
+**Every placement virtual is pure — implement all of them.** A provider states
+what each region means on its platform, even when the answer is "the same as
+the others here". A desktop provider writing `return malloc(size);` in
+`AllocateDMA` has made a claim you can read and check.
+
+`AllocateDMA` is the one that matters. A provider that could inherit it from
+`AllocateInternal` would hand a display peripheral memory it cannot reach on
+any part where those differ — silent corruption, with nothing in the build to
+say so.
+
+`GetAvailableInternalRAM` is required for the same reason: a provider that
+answers 0 without meaning it makes the startup line report an exhausted board.
+
+Pure virtuals occupy the same vtable slots as implemented ones, so this costs
+no ABI version. It stops a provider compiling until it decides.
 
 `AllocateRaw` / `FreeRaw` / `GetRawBlockSize` are the fourth pair plus a query:
 the plain natural-alignment allocator the global `operator new` routes through,
@@ -307,7 +374,7 @@ the engine places. They default to `malloc`/`free`, and `GetRawBlockSize`
 returns 0 where the platform cannot answer — which only costs accuracy in
 `LogStats`. Override both of the pair or neither.
 
-`AllocateDma` is separate from `AllocateInternal` because on the ESP32-S3 most
+`AllocateDMA` is separate from `AllocateInternal` because on the ESP32-S3 most
 internal RAM is DMA-reachable but not all of it, and a display peripheral
 reading a framebuffer that is not gets silent corruption rather than an error.
 The ESP32 provider asks for `MALLOC_CAP_DMA` explicitly. Whoever overrides one

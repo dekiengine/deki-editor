@@ -11,6 +11,10 @@
 
 #include <deki/providers/Buffer.h>
 #include <deki/providers/IMemoryProvider.h>
+#include <deki/LogSystem.h>
+
+#include <cstring>
+#include <string>
 
 #include <cstdint>
 #include <utility>
@@ -32,7 +36,7 @@ TEST(DekiBuffer, DefaultIsEmptyAndFalsey)
 
 TEST(DekiBuffer, AllocatesAndReportsElementsNotBytes)
 {
-    Buffer<uint32_t> b(16, MemoryUse::Hot, "test");
+    Buffer<uint32_t> b(16, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 16u);
     EXPECT_EQ(b.Bytes(), 16u * sizeof(uint32_t));
@@ -43,7 +47,7 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 {
     // Several call sites relied on `new T[n]{}` for this, so the replacement
     // has to keep it or those buffers start full of noise.
-    Buffer<uint32_t> b(32, MemoryUse::Hot, "test");
+    Buffer<uint32_t> b(32, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     for (size_t i = 0; i < b.Count(); ++i)
         EXPECT_EQ(b[i], 0u) << "element " << i;
@@ -51,7 +55,7 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 
 TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 {
-    Buffer<int16_t> b(4, MemoryUse::Hot, "test");
+    Buffer<int16_t> b(4, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     b[0] = 10; b[1] = 20; b[2] = 30; b[3] = 40;
 
@@ -64,7 +68,7 @@ TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 
 TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
 {
-    Buffer<uint8_t> a(8, MemoryUse::Hot, "test");
+    Buffer<uint8_t> a(8, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(a));
     const uint8_t* raw = a.Data();
 
@@ -78,8 +82,8 @@ TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
 
 TEST(DekiBuffer, MoveAssignmentReleasesWhatItHeld)
 {
-    Buffer<uint8_t> a(8, MemoryUse::Hot, "test");
-    Buffer<uint8_t> b(4, MemoryUse::Hot, "test");
+    Buffer<uint8_t> a(8, MemoryUse::Internal, "test");
+    Buffer<uint8_t> b(4, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(a));
     ASSERT_TRUE(static_cast<bool>(b));
 
@@ -90,7 +94,7 @@ TEST(DekiBuffer, MoveAssignmentReleasesWhatItHeld)
 
 TEST(DekiBuffer, SelfMoveAssignmentIsNotADoubleFree)
 {
-    Buffer<uint8_t> a(8, MemoryUse::Hot, "test");
+    Buffer<uint8_t> a(8, MemoryUse::Internal, "test");
     const uint8_t* raw = a.Data();
     a = std::move(a);
     ASSERT_TRUE(static_cast<bool>(a));
@@ -102,18 +106,18 @@ TEST(DekiBuffer, ReallocatingToTheSameCountKeepsTheMemory)
 {
     // This is what makes Allocate safe to call from a render path every frame:
     // the common case where nothing changed must not churn.
-    Buffer<uint8_t> b(64, MemoryUse::Buffer, "test");
+    Buffer<uint8_t> b(64, MemoryUse::External, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     const uint8_t* raw = b.Data();
 
-    EXPECT_TRUE(b.Allocate(64, MemoryUse::Buffer, "test"));
+    EXPECT_TRUE(b.Allocate(64, MemoryUse::External, "test"));
     EXPECT_EQ(b.Data(), raw);
 }
 
 TEST(DekiBuffer, ReallocatingToADifferentCountResizes)
 {
-    Buffer<uint8_t> b(64, MemoryUse::Buffer, "test");
-    ASSERT_TRUE(b.Allocate(128, MemoryUse::Buffer, "test"));
+    Buffer<uint8_t> b(64, MemoryUse::External, "test");
+    ASSERT_TRUE(b.Allocate(128, MemoryUse::External, "test"));
     EXPECT_EQ(b.Count(), 128u);
     EXPECT_EQ(b.Bytes(), 128u);
 }
@@ -123,7 +127,7 @@ TEST(DekiBuffer, ZeroCountIsAnEmptySuccessNotAFailure)
     // A sparse font with no codepoints, a sprite with no spans: asking for
     // nothing is normal and must not read as out of memory.
     Buffer<uint8_t> b;
-    EXPECT_TRUE(b.Allocate(0, MemoryUse::Hot, "test"));
+    EXPECT_TRUE(b.Allocate(0, MemoryUse::Internal, "test"));
     EXPECT_FALSE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 0u);
 }
@@ -133,14 +137,14 @@ TEST(DekiBuffer, AnImpossibleCountFailsRatherThanWrapping)
     // count * sizeof(T) is a 32-bit size_t on the device, so a count read from
     // a corrupt file could wrap to a small allocation that later overruns.
     Buffer<uint32_t> b;
-    EXPECT_FALSE(b.Allocate(SIZE_MAX / 2, MemoryUse::Buffer, "test"));
+    EXPECT_FALSE(b.Allocate(SIZE_MAX / 2, MemoryUse::External, "test"));
     EXPECT_FALSE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 0u);
 }
 
 TEST(DekiBuffer, ResetFreesImmediately)
 {
-    Buffer<uint8_t> b(16, MemoryUse::Hot, "test");
+    Buffer<uint8_t> b(16, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     b.Reset();
     EXPECT_FALSE(static_cast<bool>(b));
@@ -151,7 +155,7 @@ TEST(DekiBuffer, ResetFreesImmediately)
 
 TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 {
-    Buffer<uint8_t> b(16, MemoryUse::Hot, "test");
+    Buffer<uint8_t> b(16, MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     uint8_t* raw = b.Release();
     ASSERT_NE(raw, nullptr);
@@ -160,7 +164,7 @@ TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 }
 
 // --- placement -------------------------------------------------------------
-// Nothing reaches external RAM unless the caller names MemoryUse::Buffer.
+// Nothing reaches external RAM unless the caller names MemoryUse::External.
 // There used to be a size rule (>= 16 KB went to PSRAM) and it was removed:
 // in a graphics engine the largest allocations are usually the ones touched
 // every frame, and a framebuffer in PSRAM measures markedly worse on real
@@ -199,11 +203,15 @@ public:
     }
     void FreeInternal(void* ptr) override { free(ptr); }
 
-    void* AllocateDma(size_t size) override
+    void* AllocateDMA(size_t size) override
     {
         ++dmaCalls;
         return malloc(size);
     }
+
+    // A number a failure log can quote. The spy always succeeds, so this only
+    // has to be non-zero to prove the reporting path reads it.
+    size_t GetAvailableInternalRAM() const override { return 256 * 1024; }
 
     int externalCalls = 0;
     int internalCalls = 0;
@@ -245,7 +253,7 @@ TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
 TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::MemoryUse::Hot, "test");
+    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::MemoryUse::Internal, "test");
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 0);
     Deki::Memory::Free(p);
@@ -254,7 +262,7 @@ TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
 TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(64, Deki::MemoryUse::Buffer, "test");
+    void* p = Deki::Memory::Allocate(64, Deki::MemoryUse::External, "test");
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 1);   // and size is irrelevant: 64 bytes
     Deki::Memory::Free(p);
@@ -263,7 +271,7 @@ TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
 TEST(DekiMemoryPlacement, DmaAsksTheProviderForDmaMemory)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(4096, Deki::MemoryUse::Dma, "test");
+    void* p = Deki::Memory::Allocate(4096, Deki::MemoryUse::DMA, "test");
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->dmaCalls, 1);
     EXPECT_EQ(s.spy->externalCalls, 0);   // a peripheral must be able to reach it
@@ -277,6 +285,124 @@ TEST(DekiMemoryPlacement, AnOmittedMemoryUseIsInternal)
     Deki::Buffer<uint8_t> b(200000, Deki::MemoryUse::Internal, "test");
     ASSERT_TRUE(static_cast<bool>(b));
     EXPECT_EQ(s.spy->externalCalls, 0);
+}
+
+// --- the context the compiler fills in --------------------------------------
+// Nobody should have to type "ParticlePool::posX" by hand. AllocContext's
+// default argument captures the call site, and the property that makes it
+// worth anything is that it names the CALLER rather than whichever engine
+// header the allocation eventually passed through.
+
+namespace
+{
+// Refuses everything, so the failure log can be provoked on a host where the
+// heap would otherwise satisfy any request a size_t can express.
+class AlwaysFailsProvider : public Deki::IMemoryProvider
+{
+public:
+    bool Initialize() override { return true; }
+    void Shutdown() override {}
+    bool HasExternalRAM() const override { return false; }
+    size_t GetTotalExternalRAM() const override { return 0; }
+    size_t GetAvailableExternalRAM() const override { return 0; }
+    void* AllocateExternal(size_t) override { return nullptr; }
+    void FreeExternal(void*) override {}
+    bool IsExternalPointer(void*) const override { return false; }
+    void* AllocateInternal(size_t) override { return nullptr; }
+    void FreeInternal(void*) override {}
+
+    // Nothing is reachable here either: a provider that refuses internal RAM
+    // and then hands out DMA memory would be lying about the same heap.
+    void* AllocateDMA(size_t) override { return nullptr; }
+
+    // Genuinely exhausted, so zero is the measurement rather than a shrug.
+    size_t GetAvailableInternalRAM() const override { return 0; }
+};
+
+// Collects what the engine logged, so a test can assert on the message a
+// developer would actually read.
+struct CapturedLog
+{
+    CapturedLog()
+    {
+        Deki::LogSystem::SetLogCallback(
+            [this](Deki::LogLevel, const std::string& message, const char*, int)
+            { text += message; text += "\n"; });
+    }
+    ~CapturedLog() { Deki::LogSystem::SetLogCallback(nullptr); }
+
+    bool Contains(const char* needle) const { return text.find(needle) != std::string::npos; }
+
+    std::string text;
+};
+}  // namespace
+
+TEST(DekiAllocContext, AnOmittedContextNamesTheCallSite)
+{
+    const Deki::AllocContext ctx;  // default argument territory: captured here
+
+    EXPECT_EQ(ctx.label, nullptr);
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    ASSERT_NE(ctx.Name(), nullptr);
+    EXPECT_NE(strstr(ctx.Name(), "AnOmittedContextNamesTheCallSite"), nullptr)
+        << "name was: " << ctx.Name();
+    ASSERT_NE(ctx.File(), nullptr);
+    EXPECT_NE(strstr(ctx.File(), "BufferTests"), nullptr) << "file was: " << ctx.File();
+    EXPECT_GT(ctx.Line(), 0u);
+#else
+    // Release and firmware capture nothing, so an unlabelled allocation is
+    // anonymous — the cost of the strings is the thing being avoided.
+    EXPECT_STREQ(ctx.Name(), "?");
+    EXPECT_EQ(ctx.Line(), 0u);
+#endif
+}
+
+TEST(DekiAllocContext, AnExplicitLabelAlwaysWins)
+{
+    const Deki::AllocContext ctx("ParticlePool::posX");
+
+    // True in every configuration: a hand-written name is what gets reported.
+    EXPECT_STREQ(ctx.Name(), "ParticlePool::posX");
+
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    // And in a debug build the label does not cost the location: a failure can
+    // still say which line asked.
+    EXPECT_GT(ctx.Line(), 0u);
+    EXPECT_NE(strstr(ctx.File(), "BufferTests"), nullptr);
+#endif
+}
+
+TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
+{
+    // The whole point. Buffer<T>::Allocate is a template in Buffer.h which
+    // forwards to Memory::Allocate in Memory.cpp. If either of those
+    // re-defaulted the context instead of forwarding it, every allocation in
+    // the engine would report Buffer.h or Memory.cpp as its origin and the
+    // feature would be worse than useless — it would be confidently wrong.
+    Deki::Memory::SetBackend(new AlwaysFailsProvider());
+    CapturedLog log;
+
+    Deki::Buffer<uint8_t> b;
+    EXPECT_FALSE(b.Allocate(64, Deki::MemoryUse::Internal));  // no context given
+
+    Deki::Memory::SetBackend(nullptr);
+
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    EXPECT_TRUE(log.Contains("AFailureNamesTheCallerNotTheEngineHeader"))
+        << "logged: " << log.text;
+
+    // Match on "at <file>:", which is the origin the AllocContext claims.
+    // A bare filename test would pass on the logger's own "Memory.cpp:450 ->"
+    // stamp, which says where the DEKI_LOG_ERROR statement lives and has
+    // nothing to do with who asked for the memory.
+    EXPECT_TRUE(log.Contains("at BufferTests.cpp:")) << "logged: " << log.text;
+    EXPECT_FALSE(log.Contains("at Buffer.h:")) << "logged: " << log.text;
+    EXPECT_FALSE(log.Contains("at Memory.cpp:")) << "logged: " << log.text;
+#else
+    // Nothing was captured, so nothing is claimed — and in particular the
+    // engine must not invent an origin it does not have.
+    EXPECT_FALSE(log.Contains(" at ")) << "logged: " << log.text;
+#endif
 }
 
 // --- the reporting side ----------------------------------------------------
@@ -295,7 +421,7 @@ TEST(DekiMemoryReporting, StatsCountWhatBufferAllocates)
 {
     const uint32_t before = Deki::Memory::GetStats().totalAllocated;
     {
-        Buffer<uint8_t> b(4096, MemoryUse::Buffer, "test");
+        Buffer<uint8_t> b(4096, MemoryUse::External, "test");
         ASSERT_TRUE(static_cast<bool>(b));
         EXPECT_GE(Deki::Memory::GetStats().totalAllocated, before + 4096u);
     }
