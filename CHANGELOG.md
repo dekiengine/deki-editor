@@ -55,6 +55,25 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   scene carries depth that a 2D device would place at zero. No package declares
   3D yet, so nothing pays for it.
 
+### Added
+- `DekiPackageCompileCheck`, a build target that compiles every package in
+  `modules/` against the engine built here, out of the checkout. Until now a
+  package was only ever compiled by a *project* build, and a project holds a
+  git clone pinned to a released tag: editing a package and building a project
+  compiled the clone's older source and reported success, which is how a
+  change to `deki-imu` sat unbuilt while every gate stayed green. Each package
+  gets the defines its descriptor asks for — its own `buildDefine`, the
+  `buildDefine` of everything in its `requires` closure, and the transform
+  width that closure's `tags` declare — so a package tagged `transform_2d`
+  compiles with `Deki::Object`'s transform, as a project would give it.
+  Reflection codegen runs per package, because some headers include their
+  generated tables. The libraries are `OBJECT` and nothing links: the question
+  is whether a package still compiles against the engine's API, so a package
+  needing a sibling's symbols still passes. Packages that need a host library
+  (`dependencies.native` or `dependencies.default` — SDL3, LovyanGFX) are
+  skipped and say so at configure time; the ESP-IDF ones are checked, since
+  they carry a desktop path. 23 of 25 packages are covered.
+
 ### Fixed
 - A file dialog whose platform helper dies without answering no longer wedges
   the editor. The one-at-a-time guard was a flag only the answer could clear,

@@ -152,6 +152,7 @@ syntax for a genuinely unavoidable case: [docs/memory.md](docs/memory.md).
 
 ```bash
 cmake --build build
+cmake --build build --target DekiPackageCompileCheck   # every package, this engine
 # One target per command: the build stops at the first failing target, and the
 # other one's stale executable still runs and still reports a pass.
 cmake --build build --target DekiEditorTests      && build/bin/DekiEditorTests
@@ -172,6 +173,15 @@ DekiEditor --render-scenes <project>   # renderer changes: hashes must match unl
   `CMakeLists.txt`; add yours there. A package whose code under test is
   header-only needs no codegen — see the `DekiParticlesTests` target, which
   compiles the tests alone against the engine.
+- `DekiPackageCompileCheck` compiles every package in `modules/` against the
+  engine built here, straight out of the checkout. A project build compiles a
+  git clone pinned to a released tag instead, so a package edit can sit unbuilt
+  while every other gate stays green; this is the gate that sees it. Each
+  package gets the defines its descriptor asks for — its `buildDefine`, those
+  of its `requires` closure, and the transform width from that closure's
+  `tags`. Packages that need a host library (`dependencies.native` or
+  `dependencies.default`: SDL3, LovyanGFX) are skipped and say so at configure
+  time.
 - Renderer changes that alter pixels must update the golden hashes on purpose
   and say so in the commit message.
 - Engine changes go to the engine repository first; the editor then bumps the
