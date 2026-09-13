@@ -53,6 +53,7 @@ RenderInto(baked.Data());  // Data(), Count(), Bytes(), operator[], begin/end
   by `static_assert`. Nothing here constructs or destroys elements — these are
   the raw pixel, glyph, span and sample buffers the engine hands to blitters
   and drivers. A `T` with a destructor would silently never run it.
+- **The `MemoryUse` is required**, here as everywhere else.
 - **`Allocate` on an unchanged count is a no-op**, which is what makes it safe
   to call from a render path every frame. A different count releases the old
   buffer first rather than copying: every caller overwrites it immediately
@@ -80,19 +81,40 @@ pay off where there is headroom. Most allocations here are long-lived and owned
 by something anyway — glyph tables, pixel data, particle columns, framebuffers
 — which is what RAII serves and an arena does not.
 
-## `MemoryUse` — say what the memory is *for*
+## `MemoryUse` — you choose, every time
 
-`<deki/providers/Memory.h>`. Callers describe the use; the engine picks the
-region.
+`<deki/providers/Memory.h>`. **There is no default and nothing is inferred.**
+Every allocating call takes a `MemoryUse`, and omitting it does not compile.
 
-| Use | Meaning | Where it goes |
-| --- | --- | --- |
-| `Hot` | Read or written every frame | Internal RAM, always |
-| `Buffer` | Large and read-mostly: a gradient bake, a decoded image, an asset blob | External (PSRAM) where the board has it, internal where it does not |
-| `Dma` | A peripheral has to read it (a framebuffer handed to a display) | DMA-capable internal RAM, via the platform's DMA allocator |
-| `Auto` | No opinion | By size: at or above `Memory::kLargeAllocation` (16 KB) it is treated as `Buffer`, below it as internal |
+| Use | Where it goes |
+| --- | --- |
+| `Internal` | Internal RAM. The plain choice for anything without a reason to be elsewhere |
+| `Hot` | Internal RAM, and read or written every frame |
+| `Buffer` | External (PSRAM) where the board has it, internal where it does not |
+| `Dma` | DMA-capable internal RAM, via the platform's DMA allocator |
 
-Pick `Hot` or `Buffer` when you know; `Auto` is for generic code that does not.
+`Internal` and `Hot` place identically today. The difference is what they claim:
+`Internal` means nobody asked for anything special, `Hot` means *this must never
+be moved external*, whatever a later policy or tool decides. Sprite pixels the
+blitter walks every frame are `Hot`; a glyph table read once at load is
+`Internal`.
+
+**`Buffer` is the only route to PSRAM**, and it is a claim that the latency does
+not matter for that buffer.
+
+### Why there is no `Auto`
+
+There was one. It sent anything at or above 16 KB to PSRAM, and it was removed
+because the guess has the sign backwards here: in a graphics engine the largest
+allocations are usually the ones touched every frame — framebuffers,
+composites, bakes — so "large" was close to the worst available predictor of
+"belongs in slow memory". On real ESP32-S3 hardware a framebuffer in PSRAM
+measured markedly worse than one in internal RAM.
+
+A heuristic that quietly moves a buffer somewhere slow is a performance bug
+nobody can find by reading the code, because the code does not mention it. So
+the engine stopped guessing and the caller says. That is also why there is no
+default argument: a default is the engine choosing, one step removed.
 
 ### Placement resolves once. There is no fallback.
 
@@ -116,8 +138,8 @@ fallback; it is the only region there is.
 not cover:
 
 ```cpp
-void* Allocate(size_t size, MemoryUse use = MemoryUse::Auto, const char* context = nullptr);
-T*    AllocateArray<T>(size_t count, MemoryUse use = MemoryUse::Auto, const char* context = nullptr);
+void* Allocate(size_t size, MemoryUse use, const char* context = nullptr);
+T*    AllocateArray<T>(size_t count, MemoryUse use, const char* context = nullptr);
 void  Free(void* ptr, const char* context = nullptr);
 ```
 
@@ -166,13 +188,19 @@ exhaustion with exceptions off, so it aborts and the board reboots.
 everything that can allocate returns `bool`:
 
 ```cpp
-Deki::Vector<Enemy> enemies;
-if (!enemies.Reserve(32, Deki::MemoryUse::Hot, "wave"))
-    return;                          // out of memory, said once
+Deki::Vector<Enemy> enemies(Deki::MemoryUse::Hot, "wave");
+
+if (!enemies.Reserve(32))            // out of memory, said once
+    return;
 
 if (!enemies.PushBack(spawned))      // and per growth, if it has to grow
     DEKI_LOG_WARNING("dropped a spawn");
 ```
+
+- **The region is a constructor argument**, so the declaration is where a
+  reader learns what memory this list occupies, and every growth lands in the
+  same place. There is no default constructor: a vector that grows must know
+  where to put the new block, and the engine will not decide for it.
 
 - **`Reserve` up front makes the pushes that follow infallible.** One check
   instead of one per element; that's the pattern worth writing on a device.
@@ -240,10 +268,10 @@ of container memory is as undiagnosable as it was** when this path was plain
 the guard.
 
 Placement is deliberately not decided here. Routing by size the way
-`MemoryUse::Auto` does would silently move a large `std::vector` into PSRAM and
-make a hot loop slow for reasons invisible in the code. A caller that knows how
-memory will be used says so with a `MemoryUse`; `operator new` cannot know, so
-it does not guess.
+the removed `Auto` rule did would silently move a large `std::vector` into
+PSRAM and make a hot loop slow for reasons invisible in the code. A caller who
+wants external memory names `MemoryUse::Buffer` and gets `Deki::Buffer`;
+`operator new` cannot know, so it does not guess.
 
 It is compiled only where `__cpp_exceptions` is undefined — i.e. exactly the
 builds where the abort problem exists. Host and editor builds keep the standard

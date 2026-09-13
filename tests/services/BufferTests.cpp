@@ -10,10 +10,12 @@
 #include <gtest/gtest.h>
 
 #include <deki/providers/Buffer.h>
+#include <deki/providers/IMemoryProvider.h>
 
 #include <cstdint>
 #include <utility>
 #include <vector>
+#include <cstdlib>
 
 using Deki::Buffer;
 using Deki::MemoryUse;
@@ -155,6 +157,126 @@ TEST(DekiBuffer, ReleaseHandsOwnershipOut)
     ASSERT_NE(raw, nullptr);
     EXPECT_FALSE(static_cast<bool>(b));  // the buffer no longer frees it
     Deki::Memory::Free(raw);             // the caller does
+}
+
+// --- placement -------------------------------------------------------------
+// Nothing reaches external RAM unless the caller names MemoryUse::Buffer.
+// There used to be a size rule (>= 16 KB went to PSRAM) and it was removed:
+// in a graphics engine the largest allocations are usually the ones touched
+// every frame, and a framebuffer in PSRAM measures markedly worse on real
+// hardware. These pin that no such inference comes back.
+
+namespace
+{
+// Records where each allocation was asked from, so a test can assert the
+// region rather than infer it. HasExternalRAM is true, so the external branch
+// is live — on a host there is no PSRAM, but Memory cannot tell the
+// difference and neither should the rule.
+class RegionSpyProvider : public Deki::IMemoryProvider
+{
+public:
+    bool Initialize() override { return true; }
+    void Shutdown() override {}
+
+    bool HasExternalRAM() const override { return true; }
+    size_t GetTotalExternalRAM() const override { return 4 * 1024 * 1024; }
+    size_t GetAvailableExternalRAM() const override { return 4 * 1024 * 1024; }
+
+    void* AllocateExternal(size_t size) override
+    {
+        ++externalCalls;
+        void* p = malloc(size);
+        m_LastExternal = p;
+        return p;
+    }
+    void FreeExternal(void* ptr) override { free(ptr); }
+    bool IsExternalPointer(void* ptr) const override { return ptr && ptr == m_LastExternal; }
+
+    void* AllocateInternal(size_t size) override
+    {
+        ++internalCalls;
+        return malloc(size);
+    }
+    void FreeInternal(void* ptr) override { free(ptr); }
+
+    void* AllocateDma(size_t size) override
+    {
+        ++dmaCalls;
+        return malloc(size);
+    }
+
+    int externalCalls = 0;
+    int internalCalls = 0;
+    int dmaCalls = 0;
+
+private:
+    void* m_LastExternal = nullptr;
+};
+
+struct ScopedSpy
+{
+    ScopedSpy() : spy(new RegionSpyProvider())
+    {
+        Deki::Memory::SetBackend(spy);   // takes ownership
+        Deki::Memory::Initialize();
+    }
+    ~ScopedSpy()
+    {
+        Deki::Memory::Shutdown();
+        Deki::Memory::SetBackend(nullptr);
+    }
+    RegionSpyProvider* spy;
+};
+}  // namespace
+
+TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
+{
+    // 150 KB — comfortably over the 16 KB the old rule used, and the size of a
+    // 320x240 RGB565 framebuffer, which is exactly the buffer that must not go
+    // to PSRAM by accident.
+    ScopedSpy s;
+    void* p = Deki::Memory::Allocate(153600, Deki::MemoryUse::Internal, "test");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(s.spy->externalCalls, 0);
+    EXPECT_GT(s.spy->internalCalls, 0);
+    Deki::Memory::Free(p);
+}
+
+TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
+{
+    ScopedSpy s;
+    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::MemoryUse::Hot, "test");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(s.spy->externalCalls, 0);
+    Deki::Memory::Free(p);
+}
+
+TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
+{
+    ScopedSpy s;
+    void* p = Deki::Memory::Allocate(64, Deki::MemoryUse::Buffer, "test");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(s.spy->externalCalls, 1);   // and size is irrelevant: 64 bytes
+    Deki::Memory::Free(p);
+}
+
+TEST(DekiMemoryPlacement, DmaAsksTheProviderForDmaMemory)
+{
+    ScopedSpy s;
+    void* p = Deki::Memory::Allocate(4096, Deki::MemoryUse::Dma, "test");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(s.spy->dmaCalls, 1);
+    EXPECT_EQ(s.spy->externalCalls, 0);   // a peripheral must be able to reach it
+    Deki::Memory::Free(p);
+}
+
+TEST(DekiMemoryPlacement, AnOmittedMemoryUseIsInternal)
+{
+    // The default argument, which is what most call sites use.
+    ScopedSpy s;
+    Deki::Buffer<uint8_t> b(200000, Deki::MemoryUse::Internal, "test");
+    ASSERT_TRUE(static_cast<bool>(b));
+    EXPECT_EQ(s.spy->externalCalls, 0);
 }
 
 // --- the reporting side ----------------------------------------------------
