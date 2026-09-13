@@ -797,7 +797,7 @@ void SceneViewPanel::DrawSceneCanvas()
     // by the time we reach here.
     if (!m_EditorCamera)
     {
-        Deki::Internal::AddComponentByName(*m_EditorCameraObject, "CameraComponent");
+        Deki::detail::AddComponentByName(*m_EditorCameraObject, "CameraComponent");
         m_EditorCamera = m_EditorCameraObject->FindInterface<Deki::ICamera>();
         if (!m_EditorCamera) return;
     }

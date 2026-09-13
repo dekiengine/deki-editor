@@ -35,7 +35,7 @@ protected:
                                       int intVal = 0, float floatVal = 0.0f)
     {
         Deki::Object* obj = scene->CreateDekiObject(name);
-        auto* comp = Deki::Internal::AddComponentByName(*obj, Deki::TypeName<MockComponent>());
+        auto* comp = Deki::detail::AddComponentByName(*obj, Deki::TypeName<MockComponent>());
         if (comp)
         {
             auto* mock = static_cast<MockComponent*>(comp);
@@ -361,7 +361,7 @@ TEST_F(SceneInstanceTest, CreateChildrenRecursive_RestoresComponents)
 
     Deki::Object* child = new Deki::Object("Child");
     root->AddChild(child);
-    auto* comp = Deki::Internal::AddComponentByName(*child, Deki::TypeName<MockComponent>());
+    auto* comp = Deki::detail::AddComponentByName(*child, Deki::TypeName<MockComponent>());
     auto* mock = static_cast<MockComponent*>(comp);
     mock->intValue = 42;
     mock->stringValue = "hello";
@@ -443,7 +443,7 @@ TEST_F(SceneInstanceTest, ObjectRefAfterRestore_PointsToRestoredObject)
     Deki::Object* bgObj = new Deki::Object("Background");
     root->AddChild(bgObj);
     auto* refComp = static_cast<MockRefComponent*>(
-        Deki::Internal::AddComponentByName(*bgObj, Deki::TypeName<MockRefComponent>()));
+        Deki::detail::AddComponentByName(*bgObj, Deki::TypeName<MockRefComponent>()));
     refComp->targetRef.id = buttonId;
     refComp->targetRef.componentTypeId = 12345;
 
@@ -486,8 +486,8 @@ TEST_F(SceneInstanceTest, SerializeComponents_MultipleComponents_CapturesAll)
 {
     // Verifies that all components on an object are serialized in order.
     Deki::Object obj("Multi");
-    Deki::Internal::AddComponentByName(obj, Deki::TypeName<MockComponent>());
-    Deki::Internal::AddComponentByName(obj, Deki::TypeName<MockRefComponent>());
+    Deki::detail::AddComponentByName(obj, Deki::TypeName<MockComponent>());
+    Deki::detail::AddComponentByName(obj, Deki::TypeName<MockRefComponent>());
 
     std::vector<ComponentData> serialized = SerializeComponents(&obj);
 
@@ -710,12 +710,12 @@ TEST_F(SceneInstanceTest, DeepHierarchy_SerializeAndRestore_PreservesFullTree)
     // Level 1: two children
     Deki::Object* a = new Deki::Object("A");
     root->AddChild(a);
-    auto* aMock = static_cast<MockComponent*>(Deki::Internal::AddComponentByName(*a, Deki::TypeName<MockComponent>()));
+    auto* aMock = static_cast<MockComponent*>(Deki::detail::AddComponentByName(*a, Deki::TypeName<MockComponent>()));
     aMock->intValue = 1;
 
     Deki::Object* b = new Deki::Object("B");
     root->AddChild(b);
-    auto* bRef = static_cast<MockRefComponent*>(Deki::Internal::AddComponentByName(*b, Deki::TypeName<MockRefComponent>()));
+    auto* bRef = static_cast<MockRefComponent*>(Deki::detail::AddComponentByName(*b, Deki::TypeName<MockRefComponent>()));
     bRef->targetRef.id = a->GetId();
 
     // Level 2: one child under A

@@ -264,7 +264,7 @@ void RestoreComponents(Deki::Object* obj, const std::vector<ComponentData>& comp
 {
     for (const auto& cd : components)
     {
-        Deki::Component* comp = Deki::Internal::AddComponentByName(*obj, cd.typeName);
+        Deki::Component* comp = Deki::detail::AddComponentByName(*obj, cd.typeName);
         if (comp)
         {
             RestoreComponentProperties(comp, cd);

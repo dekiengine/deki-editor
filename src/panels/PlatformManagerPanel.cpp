@@ -76,7 +76,7 @@ PlatformManagerPanel::PlatformManagerPanel(EditorApp* app)
                 Deki::Scene bootScene;
                 Deki::Object* setup = bootScene.CreateDekiObject("Setup");
                 if (setup)
-                    Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
+                    Deki::detail::AddComponentByName(*setup, "PlatformSetupComponent");
                 bootScene.SaveToFile(bootPath);
             }
 
@@ -394,7 +394,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
                 Deki::Scene bp;
                 Deki::Object* setup = bp.CreateDekiObject("Setup");
                 if (setup)
-                    Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
+                    Deki::detail::AddComponentByName(*setup, "PlatformSetupComponent");
                 bp.SaveToFile(bootPath);
             }
         }

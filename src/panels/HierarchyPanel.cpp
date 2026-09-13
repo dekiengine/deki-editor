@@ -514,7 +514,7 @@ void HierarchyPanel::Draw()
                                     scene, objName,
                                     [this, compName](Deki::Object* obj)
                                     {
-                                        Deki::Internal::AddComponentByName(*obj, compName);
+                                        Deki::detail::AddComponentByName(*obj, compName);
                                         m_App->SetSelectedObject(obj);
                                     },
                                     sceneRoot,

@@ -38,7 +38,7 @@ TEST_F(MsgPackSerializationTest, SmallEnumRoundTrip)
     Deki::Scene scene;
     auto* obj = new Deki::Object();
     obj->SetName("TestObj");
-    Deki::Internal::AttachComponent(*obj, comp);
+    Deki::detail::AttachComponent(*obj, comp);
     scene.AddObject(obj);
 
     // Write to msgpack

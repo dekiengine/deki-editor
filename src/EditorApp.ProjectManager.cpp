@@ -968,7 +968,7 @@ void EditorApp::EnsurePlatformSetup()
 
     if (!hasSetupComp)
     {
-        if (Deki::Internal::AddComponentByName(*setupObj, "PlatformSetupComponent"))
+        if (Deki::detail::AddComponentByName(*setupObj, "PlatformSetupComponent"))
             modified = true;
     }
 

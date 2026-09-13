@@ -70,7 +70,7 @@ TEST(HeadlessRuntime, UpdateIsSkippedForBehavioursThatDoNotDeclareIt)
     Deki::Scene scene;
     Deki::Object* root = scene.CreateDekiObject("Root");
     auto* silent = new SilentBehaviour();
-    Deki::Internal::AttachComponent(*root, silent);
+    Deki::detail::AttachComponent(*root, silent);
 
     RunFrames(Deki::Engine::GetInstance().GetLifecycleManager(), scene, 5);
     EXPECT_EQ(silent->updates, 0);
@@ -87,7 +87,7 @@ TEST(HeadlessRuntime, LifecycleRunsWithNoDisplayAndNoRenderer)
     Deki::Scene scene;
     Deki::Object* root = scene.CreateDekiObject("Root");
     auto* counter = new TickCounter();
-    Deki::Internal::AttachComponent(*root, counter);
+    Deki::detail::AttachComponent(*root, counter);
 
     auto* lm = engine.GetLifecycleManager();
     ASSERT_NE(lm, nullptr);
