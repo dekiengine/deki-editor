@@ -73,7 +73,7 @@ struct ScopedFailingAllocator
 
 TEST(DekiVector, AFreshVectorIsEmptyAndHoldsNothing)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     EXPECT_EQ(v.Size(), 0u);
     EXPECT_EQ(v.Capacity(), 0u);
     EXPECT_TRUE(v.Empty());
@@ -83,7 +83,7 @@ TEST(DekiVector, AFreshVectorIsEmptyAndHoldsNothing)
 
 TEST(DekiVector, PushBackGrowsAndKeepsOrder)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     for (int i = 0; i < 10; ++i)
         ASSERT_TRUE(v.PushBack(i)) << i;
 
@@ -98,7 +98,7 @@ TEST(DekiVector, EndFollowsSizeNotCapacity)
 {
     // Otherwise a range-for walks uninitialised tail elements, which is the
     // kind of bug that shows up as one wrong entity per frame.
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(32));
     ASSERT_TRUE(v.PushBack(7));
     ASSERT_TRUE(v.PushBack(8));
@@ -114,7 +114,7 @@ TEST(DekiVector, EndFollowsSizeNotCapacity)
 
 TEST(DekiVector, ReserveNeverShrinksAndIsIdempotent)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(16));
     const int* raw = v.Data();
     EXPECT_EQ(v.Capacity(), 16u);
@@ -129,7 +129,7 @@ TEST(DekiVector, ReserveNeverShrinksAndIsIdempotent)
 TEST(DekiVector, ReserveUpFrontMakesTheFollowingPushesInfallible)
 {
     // The pattern worth writing on a device: one check, not one per element.
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(64));
     const int* raw = v.Data();
 
@@ -141,7 +141,7 @@ TEST(DekiVector, ReserveUpFrontMakesTheFollowingPushesInfallible)
 
 TEST(DekiVector, GrowthPreservesWhatWasAlreadyThere)
 {
-    Vector<uint32_t> v(MemoryUse::Internal, "test");
+    Vector<uint32_t> v(MemoryUse::Internal);
     for (uint32_t i = 0; i < 100; ++i)
         ASSERT_TRUE(v.PushBack(i * 7u)) << i;
     for (uint32_t i = 0; i < 100; ++i)
@@ -150,7 +150,7 @@ TEST(DekiVector, GrowthPreservesWhatWasAlreadyThere)
 
 TEST(DekiVector, PopBackShrinksAndReportsAnEmptyVector)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.PushBack(1));
     ASSERT_TRUE(v.PushBack(2));
 
@@ -164,7 +164,7 @@ TEST(DekiVector, PopBackShrinksAndReportsAnEmptyVector)
 
 TEST(DekiVector, RemoveUnorderedFillsTheHoleWithTheLast)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     for (int i = 0; i < 4; ++i)
         ASSERT_TRUE(v.PushBack(i));
 
@@ -177,7 +177,7 @@ TEST(DekiVector, RemoveUnorderedFillsTheHoleWithTheLast)
 
 TEST(DekiVector, RemoveUnorderedOfTheLastJustShrinks)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.PushBack(5));
     ASSERT_TRUE(v.PushBack(6));
 
@@ -188,7 +188,7 @@ TEST(DekiVector, RemoveUnorderedOfTheLastJustShrinks)
 
 TEST(DekiVector, RemoveUnorderedRejectsAnIndexPastTheEnd)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(8));
     ASSERT_TRUE(v.PushBack(1));
 
@@ -199,7 +199,7 @@ TEST(DekiVector, RemoveUnorderedRejectsAnIndexPastTheEnd)
 
 TEST(DekiVector, ClearKeepsTheMemoryAndResetReleasesIt)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     for (int i = 0; i < 8; ++i)
         ASSERT_TRUE(v.PushBack(i));
     const size_t capacity = v.Capacity();
@@ -218,7 +218,7 @@ TEST(DekiVector, MoveTransfersAndLeavesTheSourceEmpty)
     // The reason the move constructor is written out: a defaulted one would
     // copy m_Size across, leaving the source claiming elements over a Buffer
     // that no longer holds any, so Back() would dereference null.
-    Vector<int> a(MemoryUse::Internal, "test");
+    Vector<int> a(MemoryUse::Internal);
     ASSERT_TRUE(a.PushBack(1));
     ASSERT_TRUE(a.PushBack(2));
     const int* raw = a.Data();
@@ -236,9 +236,9 @@ TEST(DekiVector, MoveTransfersAndLeavesTheSourceEmpty)
 
 TEST(DekiVector, MoveAssignmentReleasesWhatItHeld)
 {
-    Vector<int> a(MemoryUse::Internal, "test");
+    Vector<int> a(MemoryUse::Internal);
     ASSERT_TRUE(a.PushBack(1));
-    Vector<int> b(MemoryUse::Internal, "test");
+    Vector<int> b(MemoryUse::Internal);
     ASSERT_TRUE(b.PushBack(9));
     ASSERT_TRUE(b.PushBack(9));
 
@@ -250,7 +250,7 @@ TEST(DekiVector, MoveAssignmentReleasesWhatItHeld)
 
 TEST(DekiVector, SelfMoveAssignmentIsNotADoubleFree)
 {
-    Vector<int> a(MemoryUse::Internal, "test");
+    Vector<int> a(MemoryUse::Internal);
     ASSERT_TRUE(a.PushBack(3));
     const int* raw = a.Data();
 
@@ -266,7 +266,7 @@ TEST(DekiVector, ReserveReportsOutOfMemoryInsteadOfAborting)
 {
     ScopedFailingAllocator oom(0);
 
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     EXPECT_FALSE(v.Reserve(16));
     EXPECT_EQ(v.Capacity(), 0u);
     EXPECT_EQ(v.Size(), 0u);
@@ -276,7 +276,7 @@ TEST(DekiVector, PushBackReportsAFailedGrowth)
 {
     ScopedFailingAllocator oom(0);
 
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     EXPECT_FALSE(v.PushBack(1));  // the very first block cannot be had
     EXPECT_EQ(v.Size(), 0u);
 }
@@ -285,7 +285,7 @@ TEST(DekiVector, AFailedGrowthLeavesEverythingAlreadyStoredIntact)
 {
     // The property that makes the bool usable: a caller that drops the new
     // element still has a working vector, not a half-grown one.
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(4));
     for (int i = 0; i < 4; ++i)
         ASSERT_TRUE(v.PushBack(i));
@@ -304,7 +304,7 @@ TEST(DekiVector, AFailedGrowthLeavesEverythingAlreadyStoredIntact)
 
 TEST(DekiVector, AVectorKeepsWorkingAfterAFailedGrowth)
 {
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(2));
     ASSERT_TRUE(v.PushBack(1));
     ASSERT_TRUE(v.PushBack(2));
@@ -325,7 +325,7 @@ TEST(DekiVector, AnImpossibleReserveFailsRatherThanWrapping)
     // count * sizeof(T) is a 32-bit size_t on the device, so a huge count
     // could wrap to a small allocation the vector then overruns. Buffer
     // checks it; this pins that Vector inherits the check.
-    Vector<uint32_t> v(MemoryUse::Internal, "test");
+    Vector<uint32_t> v(MemoryUse::Internal);
     EXPECT_FALSE(v.Reserve(SIZE_MAX / 2));
     EXPECT_EQ(v.Capacity(), 0u);
 }
@@ -334,7 +334,7 @@ TEST(DekiVector, GrowthKeepsThePlacementReserveAsked)
 {
     // Reserve records the MemoryUse so a later growth inside PushBack does
     // not quietly fall back to Auto and land in a different region.
-    Vector<int> v(MemoryUse::Internal, "test");
+    Vector<int> v(MemoryUse::Internal);
     ASSERT_TRUE(v.Reserve(1));
     ASSERT_TRUE(v.PushBack(1));
     ASSERT_TRUE(v.PushBack(2));  // grows, still Internal

@@ -191,11 +191,14 @@ Failed to allocate 153600 bytes in internal RAM for
 (126556 bytes free there)
 ```
 
-Pass a literal where the call site is not the useful name — one function
-allocating three different things — and it wins over the derived one:
+There is no name to pass and no way to pass one. A hand-written tag is a
+second identity for the same allocation that someone has to keep in step with
+the first, and the compiler already knows the answer. Two allocations in one
+function are told apart by their line numbers:
 
-```cpp
-posX.Allocate(capacity, Deki::MemoryUse::Internal, "ParticlePool::posX");
+```
+'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
+'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:48
 ```
 
 **It names the caller, not the engine.** `Buffer<T>::Allocate` and
@@ -206,29 +209,26 @@ would report a plausible-looking file on every allocation in the engine and be
 confidently useless.
 
 **Nothing is copied.** Every member points at a string literal with static
-storage duration, which is what lets the debug leak table hold the pointer. Do
-not build one from a `std::string` — the label has to outlive the allocation.
+storage duration, which is what lets the debug leak table hold the pointer.
 
-### It is a debug-build feature
+### Stripping it
 
-Capturing costs flash: the file paths and function names live in the binary
-forever. On device that is a poor trade, so the capture compiles out entirely
-unless `DEBUG` is defined (or you set `DEKI_NO_ALLOC_CONTEXT` to switch it off
-in a debug build too).
+Capture is on in every build. It costs **4,272 bytes on the ESP32-S3
+firmware — 0.28%** of a 1.5 MB image, about 40 bytes per call site, which is
+cheap enough not to think about.
 
-| | Debug / editor | Release / firmware |
-| --- | --- | --- |
-| `AllocContext` | label, file, function, line | **one pointer** |
-| Failure line | `for '<caller>' at <file>:<line>` | `for '<label>'; build with DEBUG for the call site` |
-| Flash cost | strings embedded | **+32 bytes measured, 0.002%** |
-| `Deki::Vector` | +12 bytes per instance | unchanged |
+Define `DEKI_STRIP_ALLOC_CONTEXT` for a build that needs the flash back.
+`AllocContext` becomes an empty struct, no paths or function names reach the
+binary, and a failure reports what it was trying to do without claiming an
+origin:
 
-So on device a hand-written label is still worth having for anything you would
-want named in a crash log: without one, an allocation reports `'?'`.
+```
+Failed to allocate 153600 bytes in internal RAM (126556 bytes free there)
+```
 
-Note the layout differs between debug and release, so an engine and the
-packages calling it have to agree — the same constraint `MemoryStats` already
-imposes.
+Note the layout differs between a stripped and an unstripped build, so an
+engine and the packages calling it have to agree — the same constraint
+`MemoryStats` already imposes.
 
 ## `Deki::Vector<T>` — when the count changes at runtime
 
