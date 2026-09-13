@@ -38,10 +38,32 @@ inline float PixelsPerMeter()
 /// How the inspector renders one physical quantity.
 struct UnitDisplay
 {
-    float multiplier;    ///< stored -> display
+    float multiplier;    ///< stored -> display, applied before the offset
+    float offset;        ///< added after scaling; only Fahrenheit needs one
     const char* format;  ///< ImGui printf format, including the suffix
     float dragSpeed;
 };
+
+/// Stored (SI) value -> what the inspector shows.
+inline float ToDisplay(float stored, const UnitDisplay& ud)
+{
+    return stored * ud.multiplier + ud.offset;
+}
+
+/**
+ * @brief What the inspector shows -> the stored (SI) value
+ *
+ * The exact inverse of ToDisplay, and deliberately written next to it. While
+ * every conversion was a bare multiply, a caller could invert it inline and be
+ * right. With an offset in play, an open-coded `shown / multiplier` is wrong by
+ * 32 degrees and still looks reasonable.
+ */
+inline float FromDisplay(float shown, const UnitDisplay& ud)
+{
+    if (ud.multiplier == 0.0f)
+        return shown;
+    return (shown - ud.offset) / ud.multiplier;
+}
 
 /**
  * @brief How to show a value of `unit`, given the project's current mode
@@ -59,19 +81,29 @@ inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
     {
         case Deki::PhysicalUnit::Distance:
             // Pixels mode snaps Distance to whole pixels, so display as %.0f.
-            return pixels ? UnitDisplay{ ppm, "%.0f px", 1.0f }
-                          : UnitDisplay{ 1.0f, "%.3f m", 0.01f };
+            return pixels ? UnitDisplay{ ppm, 0.0f, "%.0f px", 1.0f }
+                          : UnitDisplay{ 1.0f, 0.0f, "%.3f m", 0.01f };
         case Deki::PhysicalUnit::Velocity:
-            return pixels ? UnitDisplay{ ppm, "%.1f px/s", 10.0f }
-                          : UnitDisplay{ 1.0f, "%.3f m/s", 0.1f };
+            return pixels ? UnitDisplay{ ppm, 0.0f, "%.1f px/s", 10.0f }
+                          : UnitDisplay{ 1.0f, 0.0f, "%.3f m/s", 0.1f };
         case Deki::PhysicalUnit::Acceleration:
-            return pixels ? UnitDisplay{ ppm, "%.1f px/s\xc2\xb2", 10.0f }
-                          : UnitDisplay{ 1.0f, "%.3f m/s\xc2\xb2", 0.1f };
+            return pixels ? UnitDisplay{ ppm, 0.0f, "%.1f px/s\xc2\xb2", 10.0f }
+                          : UnitDisplay{ 1.0f, 0.0f, "%.3f m/s\xc2\xb2", 0.1f };
         case Deki::PhysicalUnit::Angle:
-            return UnitDisplay{ Deki::Math::kRadToDeg, "%.2f\xc2\xb0", 1.0f };
+            return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.2f\xc2\xb0", 1.0f };
+        case Deki::PhysicalUnit::AngularVelocity:
+            // Stored rad/s, shown degrees/s - the unit every gyro datasheet and
+            // every person actually uses.
+            return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.1fÂ°/s", 1.0f };
+        case Deki::PhysicalUnit::Temperature:
+            // The only conversion with an offset: C -> F is x9/5 + 32.
+            return (Deki::EngineSettings::Global().temperatureUnit ==
+                    Deki::TemperatureUnit::Fahrenheit)
+                       ? UnitDisplay{ 1.8f, 32.0f, "%.1fÂ°F", 0.5f }
+                       : UnitDisplay{ 1.0f, 0.0f, "%.1fÂ°C", 0.5f };
         case Deki::PhysicalUnit::None:
         default:
-            return UnitDisplay{ 1.0f, "%.3f", 0.1f };
+            return UnitDisplay{ 1.0f, 0.0f, "%.3f", 0.1f };
     }
 }
 
@@ -90,6 +122,8 @@ inline const char* CanonicalUnitSymbol(Deki::PhysicalUnit unit)
         case Deki::PhysicalUnit::Velocity:     return "m/s";
         case Deki::PhysicalUnit::Acceleration: return "m/s^2";
         case Deki::PhysicalUnit::Angle:        return "rad";
+        case Deki::PhysicalUnit::AngularVelocity: return "rad/s";
+        case Deki::PhysicalUnit::Temperature:     return "C";
         case Deki::PhysicalUnit::None:
         default:                               return nullptr;
     }

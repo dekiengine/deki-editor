@@ -425,7 +425,7 @@ static void InstallEditorUIBackend()
         for (int i = 0; i < count; ++i)
         {
             before[i] = value[i];
-            disp[i] = value[i] * ud.multiplier;
+            disp[i] = ToDisplay(value[i], ud);
         }
 
         InspectorUtils::BeginPropertyRow(label);
@@ -440,7 +440,7 @@ static void InstallEditorUIBackend()
 
         for (int i = 0; i < count; ++i)
         {
-            float edited = (ud.multiplier != 0.0f) ? (disp[i] / ud.multiplier) : disp[i];
+            float edited = FromDisplay(disp[i], ud);
             if (snapPx) edited = SnapMetersToPixel(edited);
             value[i] = edited;
         }

@@ -21,22 +21,27 @@ namespace
 // it is testing and puts back what it found.
 struct ScopedUnitMode
 {
-    ScopedUnitMode(Deki::UnitMode mode, float ppm)
+    explicit ScopedUnitMode(Deki::UnitMode mode, float ppm,
+                            Deki::TemperatureUnit temp = Deki::TemperatureUnit::Celsius)
         : m_Mode(Deki::EngineSettings::Global().inspectorUnit),
-          m_Ppm(Deki::EngineSettings::Global().pixelsPerMeter)
+          m_Ppm(Deki::EngineSettings::Global().pixelsPerMeter),
+          m_Temp(Deki::EngineSettings::Global().temperatureUnit)
     {
         Deki::EngineSettings::Global().inspectorUnit = mode;
         Deki::EngineSettings::Global().pixelsPerMeter = ppm;
+        Deki::EngineSettings::Global().temperatureUnit = temp;
     }
     ~ScopedUnitMode()
     {
         Deki::EngineSettings::Global().inspectorUnit = m_Mode;
         Deki::EngineSettings::Global().pixelsPerMeter = m_Ppm;
+        Deki::EngineSettings::Global().temperatureUnit = m_Temp;
     }
 
 private:
     Deki::UnitMode m_Mode;
     float m_Ppm;
+    Deki::TemperatureUnit m_Temp;
 };
 }  // namespace
 
@@ -150,4 +155,77 @@ TEST(Units, NothingSnapsInMetersMode)
 {
     ScopedUnitMode mode(Deki::UnitMode::Meters, 16.0f);
     EXPECT_FALSE(ShouldSnapToPixel(Deki::PhysicalUnit::Distance));
+}
+
+// --- temperature, the only conversion with an offset ------------------------
+
+TEST(Units, CelsiusShowsTheStoredValueUnchanged)
+{
+    ScopedUnitMode mode(Deki::UnitMode::Pixels, 16.0f, Deki::TemperatureUnit::Celsius);
+    const UnitDisplay ud = GetUnitDisplay(Deki::PhysicalUnit::Temperature);
+
+    EXPECT_FLOAT_EQ(ToDisplay(21.5f, ud), 21.5f);
+    EXPECT_NE(strstr(ud.format, "C"), nullptr);
+}
+
+TEST(Units, FahrenheitConvertsAtTheTwoFixedPoints)
+{
+    // The whole reason UnitDisplay has an offset. Water freezes and boils at
+    // the numbers everyone knows, or the conversion is wrong.
+    ScopedUnitMode mode(Deki::UnitMode::Pixels, 16.0f, Deki::TemperatureUnit::Fahrenheit);
+    const UnitDisplay ud = GetUnitDisplay(Deki::PhysicalUnit::Temperature);
+
+    EXPECT_FLOAT_EQ(ToDisplay(0.0f, ud), 32.0f);
+    EXPECT_FLOAT_EQ(ToDisplay(100.0f, ud), 212.0f);
+    EXPECT_FLOAT_EQ(ToDisplay(-40.0f, ud), -40.0f);   // where the scales cross
+    EXPECT_NE(strstr(ud.format, "F"), nullptr);
+}
+
+TEST(Units, EditingInFahrenheitStoresCelsius)
+{
+    // The failure this pair exists to prevent: a caller inverting the
+    // conversion by hand would divide by 1.8 and forget the 32, storing a
+    // temperature wrong by about 18 degrees while looking plausible.
+    ScopedUnitMode mode(Deki::UnitMode::Pixels, 16.0f, Deki::TemperatureUnit::Fahrenheit);
+    const UnitDisplay ud = GetUnitDisplay(Deki::PhysicalUnit::Temperature);
+
+    EXPECT_FLOAT_EQ(FromDisplay(212.0f, ud), 100.0f);
+    EXPECT_FLOAT_EQ(FromDisplay(32.0f, ud), 0.0f);
+}
+
+TEST(Units, EveryQuantityRoundTripsThroughDisplayAndBack)
+{
+    // ToDisplay and FromDisplay must be exact inverses for every unit, in
+    // every mode - that is the contract the inspector relies on to avoid
+    // drifting a value a little on each edit.
+    for (auto mode : { Deki::UnitMode::Pixels, Deki::UnitMode::Meters })
+        for (auto temp : { Deki::TemperatureUnit::Celsius, Deki::TemperatureUnit::Fahrenheit })
+        {
+            ScopedUnitMode scope(mode, 32.0f, temp);
+            for (auto unit : { Deki::PhysicalUnit::None,
+                               Deki::PhysicalUnit::Distance,
+                               Deki::PhysicalUnit::Velocity,
+                               Deki::PhysicalUnit::Acceleration,
+                               Deki::PhysicalUnit::Angle,
+                               Deki::PhysicalUnit::AngularVelocity,
+                               Deki::PhysicalUnit::Temperature })
+            {
+                const UnitDisplay ud = GetUnitDisplay(unit);
+                const float stored = 3.75f;
+                EXPECT_NEAR(FromDisplay(ToDisplay(stored, ud), ud), stored, 0.0001f)
+                    << "unit " << static_cast<int>(unit);
+            }
+        }
+}
+
+TEST(Units, AngularVelocityShowsDegreesPerSecond)
+{
+    // Stored rad/s like every other angular value; shown in the unit a gyro
+    // datasheet quotes.
+    ScopedUnitMode mode(Deki::UnitMode::Meters, 16.0f);
+    const UnitDisplay ud = GetUnitDisplay(Deki::PhysicalUnit::AngularVelocity);
+
+    EXPECT_NEAR(ToDisplay(3.14159265f, ud), 180.0f, 0.001f);
+    EXPECT_STREQ(CanonicalUnitSymbol(Deki::PhysicalUnit::AngularVelocity), "rad/s");
+    EXPECT_STREQ(CanonicalUnitSymbol(Deki::PhysicalUnit::Temperature), "C");
 }
