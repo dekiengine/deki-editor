@@ -139,6 +139,12 @@ Two rules that follow, and that a patch is most likely to get wrong:
 `editor/`, `tests/`, `generated/` and `third_party/` are exempt: they run on
 the host, where exceptions are on and the heap is a desktop's.
 
+**Units: stored values are SI, always.** Metres, radians, seconds, Celsius. A
+`float` in a component or a scene file is in the unit
+[docs/units.md](docs/units.md) gives, and conversion happens only when
+something is displayed. `DEKI_UNIT(Distance)` is a hint for the inspector, not
+a statement about storage.
+
 Full reference, including `IMemoryProvider` for a new platform and the waiver
 syntax for a genuinely unavoidable case: [docs/memory.md](docs/memory.md).
 

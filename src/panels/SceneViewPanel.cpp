@@ -14,7 +14,7 @@
 #include "scene_view/SceneSnapping.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
-#include "EditorPixelSnap.h"
+#include "../core/Units.h"
 #include "InspectorPanel.h"
 #include <deki-editor/CommandHistory.h>
 #include "core/Commands.h"

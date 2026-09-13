@@ -1,0 +1,119 @@
+#pragma once
+
+// Everything that converts a stored value into something a person reads.
+//
+// Stored values are SI and never anything else — metres, radians, seconds; see
+// docs/units.md. Display is the only place a conversion happens, and this is
+// the only place a display conversion is written. It used to be three: the
+// inspector's multiplier table, the pixel-snapping helpers, and a separate
+// switch in the headless JSON writer, so adding a unit meant finding all three
+// and one of them had already drifted to a different opinion about Angle.
+//
+// If you add a PhysicalUnit, everything that needs teaching about it is in this
+// file.
+
+#include <cmath>
+
+#include <deki/Engine.h>               // EngineSettings
+#include <deki/ICamera.h>              // UnitMode
+#include <deki/Math.h>                 // kRadToDeg
+#include <deki/reflection/Property.h>  // PhysicalUnit
+
+namespace DekiEditor
+{
+
+/// True when the project shows distances in pixels rather than metres.
+inline bool IsPixelsMode()
+{
+    return Deki::EngineSettings::Global().inspectorUnit == Deki::UnitMode::Pixels;
+}
+
+/// Pixels per metre, never zero, so a caller can multiply without checking.
+inline float PixelsPerMeter()
+{
+    const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
+    return ppm > 0.0f ? ppm : 1.0f;
+}
+
+/// How the inspector renders one physical quantity.
+struct UnitDisplay
+{
+    float multiplier;    ///< stored -> display
+    const char* format;  ///< ImGui printf format, including the suffix
+    float dragSpeed;
+};
+
+/**
+ * @brief How to show a value of `unit`, given the project's current mode
+ *
+ * Pixels mode scales the distance family by pixelsPerMeter; Meters mode shows
+ * them unchanged. Angle is always degrees whichever mode is set, because
+ * nobody reads radians — storage stays radians regardless.
+ */
+inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
+{
+    const bool pixels = IsPixelsMode();
+    const float ppm = PixelsPerMeter();
+
+    switch (unit)
+    {
+        case Deki::PhysicalUnit::Distance:
+            // Pixels mode snaps Distance to whole pixels, so display as %.0f.
+            return pixels ? UnitDisplay{ ppm, "%.0f px", 1.0f }
+                          : UnitDisplay{ 1.0f, "%.3f m", 0.01f };
+        case Deki::PhysicalUnit::Velocity:
+            return pixels ? UnitDisplay{ ppm, "%.1f px/s", 10.0f }
+                          : UnitDisplay{ 1.0f, "%.3f m/s", 0.1f };
+        case Deki::PhysicalUnit::Acceleration:
+            return pixels ? UnitDisplay{ ppm, "%.1f px/s\xc2\xb2", 10.0f }
+                          : UnitDisplay{ 1.0f, "%.3f m/s\xc2\xb2", 0.1f };
+        case Deki::PhysicalUnit::Angle:
+            return UnitDisplay{ Deki::Math::kRadToDeg, "%.2f\xc2\xb0", 1.0f };
+        case Deki::PhysicalUnit::None:
+        default:
+            return UnitDisplay{ 1.0f, "%.3f", 0.1f };
+    }
+}
+
+/**
+ * @brief The SI symbol a value of `unit` is STORED in, or nullptr
+ *
+ * Not affected by the project's display mode: this is what the number in the
+ * scene file means, which is what a machine-readable dump wants. The inspector
+ * wants GetUnitDisplay instead.
+ */
+inline const char* CanonicalUnitSymbol(Deki::PhysicalUnit unit)
+{
+    switch (unit)
+    {
+        case Deki::PhysicalUnit::Distance:     return "m";
+        case Deki::PhysicalUnit::Velocity:     return "m/s";
+        case Deki::PhysicalUnit::Acceleration: return "m/s^2";
+        case Deki::PhysicalUnit::Angle:        return "rad";
+        case Deki::PhysicalUnit::None:
+        default:                               return nullptr;
+    }
+}
+
+/// Whether an edited value of `unit` should land on a whole pixel. Only
+/// distances, and only when the user is working in pixels — snapping a
+/// velocity or an angle would be meaningless.
+inline bool ShouldSnapToPixel(Deki::PhysicalUnit unit)
+{
+    return unit == Deki::PhysicalUnit::Distance && IsPixelsMode();
+}
+
+/**
+ * @brief Round a metres value to the nearest whole pixel in Pixels mode
+ *
+ * A no-op in Meters mode. Apply it to values the user places interactively so
+ * what they see as an integer pixel position round-trips to exactly that.
+ */
+inline float SnapMetersToPixel(float meters)
+{
+    if (!IsPixelsMode())
+        return meters;
+    return std::round(meters * PixelsPerMeter()) / PixelsPerMeter();
+}
+
+}  // namespace DekiEditor

@@ -18,6 +18,7 @@
 #include "services/VersionCompare.h"
 #include "EditorApp.h"
 
+#include "core/Units.h"
 #include "core/Project.h"
 #include "core/ProjectPaths.h"
 #include "services/PackageManager.h"
@@ -1261,18 +1262,6 @@ const char* PropertyTypeName(Deki::PropertyType t)
     return "unknown";
 }
 
-const char* PhysicalUnitName(Deki::PhysicalUnit u)
-{
-    switch (u)
-    {
-        case Deki::PhysicalUnit::None: return nullptr;
-        case Deki::PhysicalUnit::Distance: return "m";
-        case Deki::PhysicalUnit::Velocity: return "m/s";
-        case Deki::PhysicalUnit::Acceleration: return "m/s^2";
-        case Deki::PhysicalUnit::Angle: return "rad";
-    }
-    return nullptr;
-}
 
 nlohmann::json PropertyToJson(const Deki::PropertyInfo& p, const nlohmann::json& defaults)
 {
@@ -1293,7 +1282,7 @@ nlohmann::json PropertyToJson(const Deki::PropertyInfo& p, const nlohmann::json&
         j["enumValues"] = values;
     }
     if (p.group && *p.group) j["group"] = p.group;
-    if (const char* unit = PhysicalUnitName(p.physicalUnit)) j["unit"] = unit;
+    if (const char* unit = CanonicalUnitSymbol(p.physicalUnit)) j["unit"] = unit;
     if (p.visibilityProperty && *p.visibilityProperty)
         j["visibleWhen"] = { { "property", p.visibilityProperty },
                              { "minValue", p.visibilityMinValue },

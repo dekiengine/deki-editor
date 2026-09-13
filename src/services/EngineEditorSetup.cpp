@@ -13,8 +13,8 @@
 #include "../panels/inspector/InspectorUtils.h"
 #include <deki-editor/CommandHistory.h>
 #include "../core/Commands.h"
-#include "../panels/inspector/UnitDisplay.h"
-#include "../EditorPixelSnap.h"
+#include "../core/Units.h"
+
 #include <deki/reflection/Property.h>
 #include <vector>
 #include <cstring>
@@ -418,7 +418,7 @@ static void InstallEditorUIBackend()
     {
         const Deki::PhysicalUnit unit = static_cast<Deki::PhysicalUnit>(unitKind);
         const UnitDisplay ud = GetUnitDisplay(unit);
-        const bool snapPx = (unit == Deki::PhysicalUnit::Distance) && IsPixelsMode();
+        const bool snapPx = ShouldSnapToPixel(unit);
 
         float before[3] = { 0, 0, 0 };
         float disp[3] = { 0, 0, 0 };

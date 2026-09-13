@@ -2,7 +2,7 @@
 #include "SceneCoordinates.h"
 #include "SceneObjectMeasurer.h"
 #include "SceneSnapping.h"
-#include "../../EditorPixelSnap.h"
+#include "../../core/Units.h"
 #include <deki-editor/CommandHistory.h>
 #include "../../core/Commands.h"
 #include <deki-editor/EditorExtension.h>

@@ -8,7 +8,7 @@
 #include "inspector/AssetTypeInspector.h"
 #include <deki-editor/AssetPicker.h>
 #include "../EditorApp.h"
-#include "../EditorPixelSnap.h"
+#include "../core/Units.h"
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/EditorExtension.h>
