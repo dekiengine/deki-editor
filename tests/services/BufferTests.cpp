@@ -22,7 +22,8 @@
 #include <cstdlib>
 
 using Deki::Buffer;
-using Deki::MemoryUse;
+using Deki::MemoryRegion;
+namespace Mem = Deki::Mem;
 
 TEST(DekiBuffer, DefaultIsEmptyAndFalsey)
 {
@@ -36,7 +37,7 @@ TEST(DekiBuffer, DefaultIsEmptyAndFalsey)
 
 TEST(DekiBuffer, AllocatesAndReportsElementsNotBytes)
 {
-    Buffer<uint32_t> b(16, MemoryUse::Internal);
+    Buffer<uint32_t> b(16, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 16u);
     EXPECT_EQ(b.Bytes(), 16u * sizeof(uint32_t));
@@ -47,7 +48,7 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 {
     // Several call sites relied on `new T[n]{}` for this, so the replacement
     // has to keep it or those buffers start full of noise.
-    Buffer<uint32_t> b(32, MemoryUse::Internal);
+    Buffer<uint32_t> b(32, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     for (size_t i = 0; i < b.Count(); ++i)
         EXPECT_EQ(b[i], 0u) << "element " << i;
@@ -55,7 +56,7 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 
 TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 {
-    Buffer<int16_t> b(4, MemoryUse::Internal);
+    Buffer<int16_t> b(4, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     b[0] = 10; b[1] = 20; b[2] = 30; b[3] = 40;
 
@@ -68,7 +69,7 @@ TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 
 TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
 {
-    Buffer<uint8_t> a(8, MemoryUse::Internal);
+    Buffer<uint8_t> a(8, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(a));
     const uint8_t* raw = a.Data();
 
@@ -82,8 +83,8 @@ TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
 
 TEST(DekiBuffer, MoveAssignmentReleasesWhatItHeld)
 {
-    Buffer<uint8_t> a(8, MemoryUse::Internal);
-    Buffer<uint8_t> b(4, MemoryUse::Internal);
+    Buffer<uint8_t> a(8, Mem::Internal);
+    Buffer<uint8_t> b(4, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(a));
     ASSERT_TRUE(static_cast<bool>(b));
 
@@ -94,7 +95,7 @@ TEST(DekiBuffer, MoveAssignmentReleasesWhatItHeld)
 
 TEST(DekiBuffer, SelfMoveAssignmentIsNotADoubleFree)
 {
-    Buffer<uint8_t> a(8, MemoryUse::Internal);
+    Buffer<uint8_t> a(8, Mem::Internal);
     const uint8_t* raw = a.Data();
     a = std::move(a);
     ASSERT_TRUE(static_cast<bool>(a));
@@ -106,18 +107,18 @@ TEST(DekiBuffer, ReallocatingToTheSameCountKeepsTheMemory)
 {
     // This is what makes Allocate safe to call from a render path every frame:
     // the common case where nothing changed must not churn.
-    Buffer<uint8_t> b(64, MemoryUse::External);
+    Buffer<uint8_t> b(64, Mem::External);
     ASSERT_TRUE(static_cast<bool>(b));
     const uint8_t* raw = b.Data();
 
-    EXPECT_TRUE(b.Allocate(64, MemoryUse::External));
+    EXPECT_TRUE(b.Allocate(64, Mem::External));
     EXPECT_EQ(b.Data(), raw);
 }
 
 TEST(DekiBuffer, ReallocatingToADifferentCountResizes)
 {
-    Buffer<uint8_t> b(64, MemoryUse::External);
-    ASSERT_TRUE(b.Allocate(128, MemoryUse::External));
+    Buffer<uint8_t> b(64, Mem::External);
+    ASSERT_TRUE(b.Allocate(128, Mem::External));
     EXPECT_EQ(b.Count(), 128u);
     EXPECT_EQ(b.Bytes(), 128u);
 }
@@ -127,7 +128,7 @@ TEST(DekiBuffer, ZeroCountIsAnEmptySuccessNotAFailure)
     // A sparse font with no codepoints, a sprite with no spans: asking for
     // nothing is normal and must not read as out of memory.
     Buffer<uint8_t> b;
-    EXPECT_TRUE(b.Allocate(0, MemoryUse::Internal));
+    EXPECT_TRUE(b.Allocate(0, Mem::Internal));
     EXPECT_FALSE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 0u);
 }
@@ -137,14 +138,14 @@ TEST(DekiBuffer, AnImpossibleCountFailsRatherThanWrapping)
     // count * sizeof(T) is a 32-bit size_t on the device, so a count read from
     // a corrupt file could wrap to a small allocation that later overruns.
     Buffer<uint32_t> b;
-    EXPECT_FALSE(b.Allocate(SIZE_MAX / 2, MemoryUse::External));
+    EXPECT_FALSE(b.Allocate(SIZE_MAX / 2, Mem::External));
     EXPECT_FALSE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 0u);
 }
 
 TEST(DekiBuffer, ResetFreesImmediately)
 {
-    Buffer<uint8_t> b(16, MemoryUse::Internal);
+    Buffer<uint8_t> b(16, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     b.Reset();
     EXPECT_FALSE(static_cast<bool>(b));
@@ -155,7 +156,7 @@ TEST(DekiBuffer, ResetFreesImmediately)
 
 TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 {
-    Buffer<uint8_t> b(16, MemoryUse::Internal);
+    Buffer<uint8_t> b(16, Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     uint8_t* raw = b.Release();
     ASSERT_NE(raw, nullptr);
@@ -164,7 +165,7 @@ TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 }
 
 // --- placement -------------------------------------------------------------
-// Nothing reaches external RAM unless the caller names MemoryUse::External.
+// Nothing reaches external RAM unless the caller names Mem::External.
 // There used to be a size rule (>= 16 KB went to PSRAM) and it was removed:
 // in a graphics engine the largest allocations are usually the ones touched
 // every frame, and a framebuffer in PSRAM measures markedly worse on real
@@ -243,7 +244,7 @@ TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
     // 320x240 RGB565 framebuffer, which is exactly the buffer that must not go
     // to PSRAM by accident.
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(153600, Deki::MemoryUse::Internal);
+    void* p = Deki::Memory::Allocate(153600, Deki::Mem::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 0);
     EXPECT_GT(s.spy->internalCalls, 0);
@@ -253,7 +254,7 @@ TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
 TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::MemoryUse::Internal);
+    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::Mem::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 0);
     Deki::Memory::Free(p);
@@ -262,7 +263,7 @@ TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
 TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(64, Deki::MemoryUse::External);
+    void* p = Deki::Memory::Allocate(64, Deki::Mem::External);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 1);   // and size is irrelevant: 64 bytes
     Deki::Memory::Free(p);
@@ -271,7 +272,7 @@ TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
 TEST(DekiMemoryPlacement, DmaAsksTheProviderForDmaMemory)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(4096, Deki::MemoryUse::DMA);
+    void* p = Deki::Memory::AllocateDma(4096, Deki::Mem::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->dmaCalls, 1);
     EXPECT_EQ(s.spy->externalCalls, 0);   // a peripheral must be able to reach it
@@ -282,7 +283,7 @@ TEST(DekiMemoryPlacement, AnOmittedMemoryUseIsInternal)
 {
     // The default argument, which is what most call sites use.
     ScopedSpy s;
-    Deki::Buffer<uint8_t> b(200000, Deki::MemoryUse::Internal);
+    Deki::Buffer<uint8_t> b(200000, Deki::Mem::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     EXPECT_EQ(s.spy->externalCalls, 0);
 }
@@ -385,7 +386,7 @@ TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
     CapturedLog log;
 
     Deki::Buffer<uint8_t> b;
-    EXPECT_FALSE(b.Allocate(64, Deki::MemoryUse::Internal));  // no context given
+    EXPECT_FALSE(b.Allocate(64, Deki::Mem::Internal));  // no context given
 
     Deki::Memory::SetBackend(nullptr);
 
@@ -423,7 +424,7 @@ TEST(DekiMemoryReporting, StatsCountWhatBufferAllocates)
 {
     const uint32_t before = Deki::Memory::GetStats().totalAllocated;
     {
-        Buffer<uint8_t> b(4096, MemoryUse::External);
+        Buffer<uint8_t> b(4096, Mem::External);
         ASSERT_TRUE(static_cast<bool>(b));
         EXPECT_GE(Deki::Memory::GetStats().totalAllocated, before + 4096u);
     }
@@ -438,4 +439,57 @@ TEST(DekiMemoryReporting, LogStatsWorksWithAndWithoutALabel)
     // dereferences a null label or a missing backend.
     Deki::Memory::LogStats();
     Deki::Memory::LogStats("BufferTests");
+}
+
+// --- regions are open -------------------------------------------------------
+// The engine ships "internal" and "external". Nothing stops a package adding
+// its own, which is the point: a board with RTC memory that survives deep
+// sleep should not need an engine release to say so.
+
+namespace Deki::Mem
+{
+// Exactly what a board-support package would write. Deki::Mem is an ordinary
+// namespace, so this needs no engine change and no registration call.
+inline constexpr MemoryRegion TestRtc = Region("rtc");
+}  // namespace Deki::Mem
+
+TEST(DekiMemoryRegion, APackageCanDefineItsOwnRegion)
+{
+    // Usable in a constant expression, so it costs nothing at runtime and can
+    // sit in a switch label inside a provider.
+    static_assert(Deki::Mem::TestRtc.id == Deki::HashName("rtc"));
+    EXPECT_STREQ(Deki::Mem::TestRtc.name, "rtc");
+}
+
+TEST(DekiMemoryRegion, RegionsAreDistinctAndCompareByName)
+{
+    static_assert(Deki::Mem::Internal != Deki::Mem::External);
+    static_assert(Deki::Mem::Internal == Deki::Region("internal"));
+
+    // The name survives to the failure log; an id alone would print a number.
+    EXPECT_STREQ(Deki::Mem::Internal.name, "internal");
+    EXPECT_STREQ(Deki::Mem::External.name, "external");
+}
+
+TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
+{
+    // FNV-1a, computed here at runtime, independently of the constexpr one.
+    // Region names must hash the way every other name in this engine does, or
+    // a region name and a platform capability name could not be the same token
+    // without a table mapping between them.
+    auto runtime_fnv1a = [](const char* str)
+    {
+        uint32_t h = 2166136261u;
+        while (*str)
+        {
+            h ^= static_cast<uint8_t>(*str++);
+            h *= 16777619u;
+        }
+        return h;
+    };
+
+    EXPECT_EQ(Deki::HashName("internal"), runtime_fnv1a("internal"));
+    EXPECT_EQ(Deki::HashName("external"), runtime_fnv1a("external"));
+    EXPECT_EQ(Deki::HashName("rtc"), runtime_fnv1a("rtc"));
+    EXPECT_NE(Deki::HashName("internal"), Deki::HashName("external"));
 }
