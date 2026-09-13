@@ -81,7 +81,7 @@ void PasteComponentAsNewCommand::Execute()
 {
     for (auto& entry : m_Entries)
     {
-        Deki::Component* comp = Deki::detail::AddComponentByName(*entry.object, m_SourceData.typeName);
+        Deki::Component* comp = Deki::Internal::AddComponentByName(*entry.object, m_SourceData.typeName);
         if (comp)
         {
             RestoreComponentProperties(comp, m_SourceData);

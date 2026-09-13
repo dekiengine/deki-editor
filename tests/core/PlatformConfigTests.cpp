@@ -131,7 +131,7 @@ TEST(PlatformCapabilities, DerivedAndDeclaredCapabilitiesCoexist)
 TEST(PlatformCapabilities, ARegionsCapabilityNameIsTheRegionName)
 {
     // The whole point of the memory: prefix. A package that allocates from
-    // Deki::Region("rtc") declares platformRequires ["memory:rtc"], and a board
+    // Deki::Memory::Region("rtc") declares platformRequires ["memory:rtc"], and a board
     // that serves it declares provides ["memory:rtc"]. Neither side keeps a
     // separate table, so neither side can drift.
     PlatformConfig board;

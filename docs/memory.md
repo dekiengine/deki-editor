@@ -38,7 +38,7 @@ reasons it has to hold:
 
 Deki::Buffer<uint8_t> baked;
 
-if (!baked.Allocate(width * height * 2, Deki::Mem::External))
+if (!baked.Allocate(width * height * 2, Deki::Memory::External))
 {
     DEKI_LOG_WARNING("no room for a %dx%d bake; not drawing it", width, height);
     return false;          // carry on without the thing, do not abort
@@ -88,8 +88,8 @@ Every allocating call names a region, and omitting it does not compile.
 
 | Region | Where it goes |
 | --- | --- |
-| `Deki::Mem::Internal` | Internal RAM. Fast, and the scarce one |
-| `Deki::Mem::External` | PSRAM where the board has it. Megabytes, and markedly slower — it is reached over SPI |
+| `Deki::Memory::Internal` | Internal RAM. Fast, and the scarce one |
+| `Deki::Memory::External` | PSRAM where the board has it. Megabytes, and markedly slower — it is reached over SPI |
 
 `Deki::Memory::AllocateDma(bytes, region)` adds the constraint that a DMA
 engine must be able to read the block. That is orthogonal to placement: a
@@ -102,10 +102,20 @@ The engine ships two. The set is open:
 
 ```cpp
 // in a board-support package — no engine change, no registration call
-inline constexpr Deki::MemoryRegion Rtc = Deki::Region("esp32.rtc");
+namespace DekiEsp32
+{
+inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
+}
 
-battery.Allocate(count, Rtc);
+battery.Allocate(count, DekiEsp32::Rtc);
 ```
+
+A package keeps its regions in **its own namespace**, not in `Deki::Memory` —
+which it could not do anyway, a class being closed, and that is the point. Two
+board packages that both want an `Rtc` constant cannot collide, because the
+language keeps them apart. Where the constant lives is never load-bearing: a
+region's identity is its hashed name, so moving one between namespaces changes
+nothing at all.
 
 `Region()` hashes the name at compile time with the same FNV-1a the rest of the
 engine uses, so a region is a constant expression a provider can switch on.
@@ -178,9 +188,9 @@ fallback; it is the only region there is.
 not cover:
 
 ```cpp
-void* Allocate(size_t size, MemoryRegion region, AllocContext ctx = {});
-void* AllocateDma(size_t size, MemoryRegion region, AllocContext ctx = {});
-T*    AllocateArray<T>(size_t count, MemoryRegion region, AllocContext ctx = {});
+void* Allocate(size_t size, Memory::Region region, AllocContext ctx = {});
+void* AllocateDma(size_t size, Memory::Region region, AllocContext ctx = {});
+T*    AllocateArray<T>(size_t count, Memory::Region region, AllocContext ctx = {});
 void  Free(void* ptr, const char* context = nullptr);
 ```
 
@@ -222,7 +232,7 @@ Deki::Memory::LogStats("after level load");
 Every allocating call takes one, and almost nobody writes one:
 
 ```cpp
-posX.Allocate(capacity, Deki::Mem::Internal);
+posX.Allocate(capacity, Deki::Memory::Internal);
 ```
 
 In a debug build the default argument captures the call site, so a failure
@@ -284,7 +294,7 @@ exhaustion with exceptions off, so it aborts and the board reboots.
 everything that can allocate returns `bool`:
 
 ```cpp
-Deki::Vector<Enemy> enemies(Deki::Mem::Internal);
+Deki::Vector<Enemy> enemies(Deki::Memory::Internal);
 
 if (!enemies.Reserve(32))            // out of memory, said once
     return;
@@ -366,7 +376,7 @@ the guard.
 Placement is deliberately not decided here. Routing by size the way
 the removed `Auto` rule did would silently move a large `std::vector` into
 PSRAM and make a hot loop slow for reasons invisible in the code. A caller who
-wants external memory names `Deki::Mem::External` and gets `Deki::Buffer`;
+wants external memory names `Deki::Memory::External` and gets `Deki::Buffer`;
 `operator new` cannot know, so it does not guess.
 
 It is compiled only where `__cpp_exceptions` is undefined — i.e. exactly the

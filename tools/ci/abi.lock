@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 14
+abi_version: 15
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -117,10 +117,10 @@ class Deki::IMemoryProvider (10 virtual)
   ~IMemoryProvider()
   bool Initialize()
   void Shutdown()
-  bool Serves(MemoryRegion region) const
-  void* Allocate(MemoryRegion region, size_t bytes, bool needsDma)
-  void Free(MemoryRegion region, void* ptr)
-  size_t GetAvailable(MemoryRegion region) const
+  bool Serves(Memory::Region region) const
+  void* Allocate(Memory::Region region, size_t bytes, bool needsDma)
+  void Free(Memory::Region region, void* ptr)
+  size_t GetAvailable(Memory::Region region) const
   void* AllocateRaw(size_t size)
   void FreeRaw(void* ptr)
   size_t GetRawBlockSize(void* ptr) const

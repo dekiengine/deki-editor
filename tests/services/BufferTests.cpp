@@ -22,7 +22,7 @@
 #include <cstdlib>
 
 using Deki::Buffer;
-using Deki::MemoryRegion;
+using Region = Deki::Memory::Region;
 
 TEST(DekiBuffer, DefaultIsEmptyAndFalsey)
 {
@@ -36,7 +36,7 @@ TEST(DekiBuffer, DefaultIsEmptyAndFalsey)
 
 TEST(DekiBuffer, AllocatesAndReportsElementsNotBytes)
 {
-    Buffer<uint32_t> b(16, Deki::Internal);
+    Buffer<uint32_t> b(16, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 16u);
     EXPECT_EQ(b.Bytes(), 16u * sizeof(uint32_t));
@@ -47,7 +47,7 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 {
     // Several call sites relied on `new T[n]{}` for this, so the replacement
     // has to keep it or those buffers start full of noise.
-    Buffer<uint32_t> b(32, Deki::Internal);
+    Buffer<uint32_t> b(32, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     for (size_t i = 0; i < b.Count(); ++i)
         EXPECT_EQ(b[i], 0u) << "element " << i;
@@ -55,7 +55,7 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 
 TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 {
-    Buffer<int16_t> b(4, Deki::Internal);
+    Buffer<int16_t> b(4, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     b[0] = 10; b[1] = 20; b[2] = 30; b[3] = 40;
 
@@ -68,7 +68,7 @@ TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 
 TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
 {
-    Buffer<uint8_t> a(8, Deki::Internal);
+    Buffer<uint8_t> a(8, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(a));
     const uint8_t* raw = a.Data();
 
@@ -82,8 +82,8 @@ TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
 
 TEST(DekiBuffer, MoveAssignmentReleasesWhatItHeld)
 {
-    Buffer<uint8_t> a(8, Deki::Internal);
-    Buffer<uint8_t> b(4, Deki::Internal);
+    Buffer<uint8_t> a(8, Deki::Memory::Internal);
+    Buffer<uint8_t> b(4, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(a));
     ASSERT_TRUE(static_cast<bool>(b));
 
@@ -94,7 +94,7 @@ TEST(DekiBuffer, MoveAssignmentReleasesWhatItHeld)
 
 TEST(DekiBuffer, SelfMoveAssignmentIsNotADoubleFree)
 {
-    Buffer<uint8_t> a(8, Deki::Internal);
+    Buffer<uint8_t> a(8, Deki::Memory::Internal);
     const uint8_t* raw = a.Data();
     a = std::move(a);
     ASSERT_TRUE(static_cast<bool>(a));
@@ -106,18 +106,18 @@ TEST(DekiBuffer, ReallocatingToTheSameCountKeepsTheMemory)
 {
     // This is what makes Allocate safe to call from a render path every frame:
     // the common case where nothing changed must not churn.
-    Buffer<uint8_t> b(64, Deki::External);
+    Buffer<uint8_t> b(64, Deki::Memory::External);
     ASSERT_TRUE(static_cast<bool>(b));
     const uint8_t* raw = b.Data();
 
-    EXPECT_TRUE(b.Allocate(64, Deki::External));
+    EXPECT_TRUE(b.Allocate(64, Deki::Memory::External));
     EXPECT_EQ(b.Data(), raw);
 }
 
 TEST(DekiBuffer, ReallocatingToADifferentCountResizes)
 {
-    Buffer<uint8_t> b(64, Deki::External);
-    ASSERT_TRUE(b.Allocate(128, Deki::External));
+    Buffer<uint8_t> b(64, Deki::Memory::External);
+    ASSERT_TRUE(b.Allocate(128, Deki::Memory::External));
     EXPECT_EQ(b.Count(), 128u);
     EXPECT_EQ(b.Bytes(), 128u);
 }
@@ -127,7 +127,7 @@ TEST(DekiBuffer, ZeroCountIsAnEmptySuccessNotAFailure)
     // A sparse font with no codepoints, a sprite with no spans: asking for
     // nothing is normal and must not read as out of memory.
     Buffer<uint8_t> b;
-    EXPECT_TRUE(b.Allocate(0, Deki::Internal));
+    EXPECT_TRUE(b.Allocate(0, Deki::Memory::Internal));
     EXPECT_FALSE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 0u);
 }
@@ -137,14 +137,14 @@ TEST(DekiBuffer, AnImpossibleCountFailsRatherThanWrapping)
     // count * sizeof(T) is a 32-bit size_t on the device, so a count read from
     // a corrupt file could wrap to a small allocation that later overruns.
     Buffer<uint32_t> b;
-    EXPECT_FALSE(b.Allocate(SIZE_MAX / 2, Deki::External));
+    EXPECT_FALSE(b.Allocate(SIZE_MAX / 2, Deki::Memory::External));
     EXPECT_FALSE(static_cast<bool>(b));
     EXPECT_EQ(b.Count(), 0u);
 }
 
 TEST(DekiBuffer, ResetFreesImmediately)
 {
-    Buffer<uint8_t> b(16, Deki::Internal);
+    Buffer<uint8_t> b(16, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     b.Reset();
     EXPECT_FALSE(static_cast<bool>(b));
@@ -155,7 +155,7 @@ TEST(DekiBuffer, ResetFreesImmediately)
 
 TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 {
-    Buffer<uint8_t> b(16, Deki::Internal);
+    Buffer<uint8_t> b(16, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     uint8_t* raw = b.Release();
     ASSERT_NE(raw, nullptr);
@@ -164,7 +164,7 @@ TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 }
 
 // --- placement -------------------------------------------------------------
-// Nothing reaches external RAM unless the caller names Deki::External.
+// Nothing reaches external RAM unless the caller names Deki::Memory::External.
 // There used to be a size rule (>= 16 KB went to PSRAM) and it was removed:
 // in a graphics engine the largest allocations are usually the ones touched
 // every frame, and a framebuffer in PSRAM measures markedly worse on real
@@ -185,12 +185,12 @@ public:
     // Claims both regions, so the external branch is live. On a host there is
     // no PSRAM, but Memory cannot tell the difference and neither should the
     // placement rule.
-    bool Serves(Deki::MemoryRegion region) const override
+    bool Serves(Deki::Memory::Region region) const override
     {
-        return region == Deki::Internal || region == Deki::External;
+        return region == Deki::Memory::Internal || region == Deki::Memory::External;
     }
 
-    void* Allocate(Deki::MemoryRegion region, size_t bytes, bool needsDma) override
+    void* Allocate(Deki::Memory::Region region, size_t bytes, bool needsDma) override
     {
         if (!Serves(region))
         {
@@ -199,20 +199,20 @@ public:
         }
         if (needsDma)
             ++dmaCalls;
-        if (region == Deki::External)
+        if (region == Deki::Memory::External)
             ++externalCalls;
         else
             ++internalCalls;
         return malloc(bytes);
     }
 
-    void Free(Deki::MemoryRegion, void* ptr) override { free(ptr); }
+    void Free(Deki::Memory::Region, void* ptr) override { free(ptr); }
 
     // A number a failure log can quote, so the reporting path is exercised.
     // Zero for a region this board does not serve: reporting free space in
     // memory that does not exist would read as "nearly full" rather than
     // "not here".
-    size_t GetAvailable(Deki::MemoryRegion region) const override
+    size_t GetAvailable(Deki::Memory::Region region) const override
     {
         return Serves(region) ? 256 * 1024 : 0;
     }
@@ -245,7 +245,7 @@ TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
     // 320x240 RGB565 framebuffer, which is exactly the buffer that must not go
     // to PSRAM by accident.
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(153600, Deki::Internal);
+    void* p = Deki::Memory::Allocate(153600, Deki::Memory::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 0);
     EXPECT_GT(s.spy->internalCalls, 0);
@@ -255,7 +255,7 @@ TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
 TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::Internal);
+    void* p = Deki::Memory::Allocate(1024 * 1024, Deki::Memory::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 0);
     Deki::Memory::Free(p);
@@ -264,7 +264,7 @@ TEST(DekiMemoryPlacement, HotIsInternalAtAnySize)
 TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::Allocate(64, Deki::External);
+    void* p = Deki::Memory::Allocate(64, Deki::Memory::External);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->externalCalls, 1);   // and size is irrelevant: 64 bytes
     Deki::Memory::Free(p);
@@ -273,7 +273,7 @@ TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
 TEST(DekiMemoryPlacement, DmaAsksTheProviderForDmaMemory)
 {
     ScopedSpy s;
-    void* p = Deki::Memory::AllocateDma(4096, Deki::Internal);
+    void* p = Deki::Memory::AllocateDma(4096, Deki::Memory::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->dmaCalls, 1);
     EXPECT_EQ(s.spy->externalCalls, 0);   // a peripheral must be able to reach it
@@ -284,7 +284,7 @@ TEST(DekiMemoryPlacement, AnOmittedMemoryUseIsInternal)
 {
     // The default argument, which is what most call sites use.
     ScopedSpy s;
-    Deki::Buffer<uint8_t> b(200000, Deki::Internal);
+    Deki::Buffer<uint8_t> b(200000, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     EXPECT_EQ(s.spy->externalCalls, 0);
 }
@@ -306,16 +306,16 @@ public:
     void Shutdown() override {}
     // Serves the regions but has nothing left in them, which is a different
     // failure from "this board has no such region" and has to log differently.
-    bool Serves(Deki::MemoryRegion region) const override
+    bool Serves(Deki::Memory::Region region) const override
     {
-        return region == Deki::Internal || region == Deki::External;
+        return region == Deki::Memory::Internal || region == Deki::Memory::External;
     }
 
-    void* Allocate(Deki::MemoryRegion, size_t, bool) override { return nullptr; }
-    void Free(Deki::MemoryRegion, void*) override {}
+    void* Allocate(Deki::Memory::Region, size_t, bool) override { return nullptr; }
+    void Free(Deki::Memory::Region, void*) override {}
 
     // Genuinely exhausted, so zero is the measurement rather than a shrug.
-    size_t GetAvailable(Deki::MemoryRegion) const override { return 0; }
+    size_t GetAvailable(Deki::Memory::Region) const override { return 0; }
 };
 
 // Collects what the engine logged, so a test can assert on the message a
@@ -384,7 +384,7 @@ TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
     CapturedLog log;
 
     Deki::Buffer<uint8_t> b;
-    EXPECT_FALSE(b.Allocate(64, Deki::Internal));  // no context given
+    EXPECT_FALSE(b.Allocate(64, Deki::Memory::Internal));  // no context given
 
     Deki::Memory::SetBackend(nullptr);
 
@@ -422,7 +422,7 @@ TEST(DekiMemoryReporting, StatsCountWhatBufferAllocates)
 {
     const uint32_t before = Deki::Memory::GetStats().totalAllocated;
     {
-        Buffer<uint8_t> b(4096, Deki::External);
+        Buffer<uint8_t> b(4096, Deki::Memory::External);
         ASSERT_TRUE(static_cast<bool>(b));
         EXPECT_GE(Deki::Memory::GetStats().totalAllocated, before + 4096u);
     }
@@ -444,29 +444,31 @@ TEST(DekiMemoryReporting, LogStatsWorksWithAndWithoutALabel)
 // its own, which is the point: a board with RTC memory that survives deep
 // sleep should not need an engine release to say so.
 
-namespace Deki
+namespace TestBoard
 {
-// Exactly what a board-support package would write. Deki is an ordinary
-// namespace, so this needs no engine change and no registration call.
-inline constexpr MemoryRegion TestRtc = Region("rtc");
-}  // namespace Deki
+// Exactly what a board-support package would write: its own namespace, its own
+// constant, no engine change and no registration call. Two board packages both
+// wanting an "Rtc" cannot collide, because each is in its own namespace — which
+// a class being closed is what guarantees.
+inline constexpr Deki::Memory::Region Rtc{"rtc"};
+}  // namespace TestBoard
 
 TEST(DekiMemoryRegion, APackageCanDefineItsOwnRegion)
 {
     // Usable in a constant expression, so it costs nothing at runtime and can
     // sit in a switch label inside a provider.
-    static_assert(Deki::TestRtc.id == Deki::HashName("rtc"));
-    EXPECT_STREQ(Deki::TestRtc.name, "rtc");
+    static_assert(TestBoard::Rtc.id == Deki::HashName("rtc"));
+    EXPECT_STREQ(TestBoard::Rtc.name, "rtc");
 }
 
 TEST(DekiMemoryRegion, RegionsAreDistinctAndCompareByName)
 {
-    static_assert(Deki::Internal != Deki::External);
-    static_assert(Deki::Internal == Deki::Region("internal"));
+    static_assert(Deki::Memory::Internal != Deki::Memory::External);
+    static_assert(Deki::Memory::Internal == Deki::Memory::Region("internal"));
 
     // The name survives to the failure log; an id alone would print a number.
-    EXPECT_STREQ(Deki::Internal.name, "internal");
-    EXPECT_STREQ(Deki::External.name, "external");
+    EXPECT_STREQ(Deki::Memory::Internal.name, "internal");
+    EXPECT_STREQ(Deki::Memory::External.name, "external");
 }
 
 TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
@@ -502,7 +504,7 @@ TEST(DekiMemoryRegion, ARegionTheBoardDoesNotServeFailsAndIsNamed)
     ScopedSpy s;
     CapturedLog log;
 
-    void* p = Deki::Memory::Allocate(64, Deki::TestRtc);
+    void* p = Deki::Memory::Allocate(64, TestBoard::Rtc);
 
     EXPECT_EQ(p, nullptr);
     EXPECT_EQ(s.spy->refusedCalls, 1);
@@ -517,8 +519,8 @@ TEST(DekiMemoryRegion, DmaIsAConstraintNotAPlace)
     // prefers, so the constraint has to survive either placement.
     ScopedSpy s;
 
-    void* a = Deki::Memory::AllocateDma(1024, Deki::Internal);
-    void* b = Deki::Memory::AllocateDma(1024, Deki::External);
+    void* a = Deki::Memory::AllocateDma(1024, Deki::Memory::Internal);
+    void* b = Deki::Memory::AllocateDma(1024, Deki::Memory::External);
     ASSERT_NE(a, nullptr);
     ASSERT_NE(b, nullptr);
 
@@ -536,8 +538,8 @@ TEST(DekiMemoryRegion, TwoPackagesNamingTheSameRegionMeanTheSameRegion)
     // Not a conflict — the point. Two board packages that both support a part
     // with RTC memory write Region("rtc") independently and interoperate,
     // the same way two packages both requiring the "spi" capability do.
-    constexpr Deki::MemoryRegion from_package_a = Deki::Region("rtc");
-    constexpr Deki::MemoryRegion from_package_b = Deki::Region("rtc");
+    constexpr Deki::Memory::Region from_package_a = Deki::Memory::Region("rtc");
+    constexpr Deki::Memory::Region from_package_b = Deki::Memory::Region("rtc");
 
     static_assert(from_package_a == from_package_b);
     EXPECT_EQ(from_package_a.id, from_package_b.id);
@@ -551,6 +553,6 @@ TEST(DekiMemoryRegion, PrefixedNamesKeepPackagesOutOfEachOthersWay)
     // The convention that stops two packages meaning different things by the
     // same word. "scratch" is a word several packages would want; qualifying
     // it makes the collision impossible rather than unlikely.
-    static_assert(Deki::Region("particles.scratch") != Deki::Region("tilemap.scratch"));
-    static_assert(Deki::Region("esp32.rtc") != Deki::Region("rtc"));
+    static_assert(Deki::Memory::Region("particles.scratch") != Deki::Memory::Region("tilemap.scratch"));
+    static_assert(Deki::Memory::Region("esp32.rtc") != Deki::Memory::Region("rtc"));
 }

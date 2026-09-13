@@ -89,7 +89,7 @@ std::string AddComponentCommand::GetDescription() const
 
 void AddComponentCommand::Execute()
 {
-    Deki::Component* comp = Deki::detail::AddComponentByName(*m_Object, m_TypeName);
+    Deki::Component* comp = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
     if (auto* scene = m_Object->GetOwnerScene())
         scene->InvalidateComponentsCache();
     if (comp && m_OnAdded) m_OnAdded(comp);
@@ -139,7 +139,7 @@ void RemoveComponentCommand::Execute()
 void RemoveComponentCommand::Undo()
 {
     // Recreate the component using AddComponent
-    Deki::Component* comp = Deki::detail::AddComponentByName(*m_Object, m_TypeName);
+    Deki::Component* comp = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
     if (comp)
     {
         RestoreComponentProperties(comp, m_StoredData);

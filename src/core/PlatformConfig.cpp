@@ -99,7 +99,7 @@ std::set<std::string> PlatformConfig::Capabilities() const
     caps.insert(std::string("family:") + FamilyToString(family));
 
     // Memory regions are capabilities named after the region, so a package
-    // that allocates from Deki::Region("rtc") requires "memory:rtc" and the two
+    // that allocates from Deki::Memory::Region("rtc") requires "memory:rtc" and the two
     // agree by construction rather than by someone keeping two lists in step.
     //
     // The prefix matches framework: and family: above, and keeps a region from
