@@ -183,43 +183,45 @@ public:
     bool Initialize() override { return true; }
     void Shutdown() override {}
 
-    bool HasExternalRAM() const override { return true; }
-    size_t GetTotalExternalRAM() const override { return 4 * 1024 * 1024; }
-    size_t GetAvailableExternalRAM() const override { return 4 * 1024 * 1024; }
-
-    void* AllocateExternal(size_t size) override
+    // Claims both regions, so the external branch is live. On a host there is
+    // no PSRAM, but Memory cannot tell the difference and neither should the
+    // placement rule.
+    bool Serves(Deki::MemoryRegion region) const override
     {
-        ++externalCalls;
-        void* p = malloc(size);
-        m_LastExternal = p;
-        return p;
-    }
-    void FreeExternal(void* ptr) override { free(ptr); }
-    bool IsExternalPointer(void* ptr) const override { return ptr && ptr == m_LastExternal; }
-
-    void* AllocateInternal(size_t size) override
-    {
-        ++internalCalls;
-        return malloc(size);
-    }
-    void FreeInternal(void* ptr) override { free(ptr); }
-
-    void* AllocateDMA(size_t size) override
-    {
-        ++dmaCalls;
-        return malloc(size);
+        return region == Deki::Mem::Internal || region == Deki::Mem::External;
     }
 
-    // A number a failure log can quote. The spy always succeeds, so this only
-    // has to be non-zero to prove the reporting path reads it.
-    size_t GetAvailableInternalRAM() const override { return 256 * 1024; }
+    void* Allocate(Deki::MemoryRegion region, size_t bytes, bool needsDma) override
+    {
+        if (!Serves(region))
+        {
+            ++refusedCalls;
+            return nullptr;
+        }
+        if (needsDma)
+            ++dmaCalls;
+        if (region == Deki::Mem::External)
+            ++externalCalls;
+        else
+            ++internalCalls;
+        return malloc(bytes);
+    }
+
+    void Free(Deki::MemoryRegion, void* ptr) override { free(ptr); }
+
+    // A number a failure log can quote, so the reporting path is exercised.
+    // Zero for a region this board does not serve: reporting free space in
+    // memory that does not exist would read as "nearly full" rather than
+    // "not here".
+    size_t GetAvailable(Deki::MemoryRegion region) const override
+    {
+        return Serves(region) ? 256 * 1024 : 0;
+    }
 
     int externalCalls = 0;
     int internalCalls = 0;
     int dmaCalls = 0;
-
-private:
-    void* m_LastExternal = nullptr;
+    int refusedCalls = 0;   ///< regions this board does not serve
 };
 
 struct ScopedSpy
@@ -303,21 +305,18 @@ class AlwaysFailsProvider : public Deki::IMemoryProvider
 public:
     bool Initialize() override { return true; }
     void Shutdown() override {}
-    bool HasExternalRAM() const override { return false; }
-    size_t GetTotalExternalRAM() const override { return 0; }
-    size_t GetAvailableExternalRAM() const override { return 0; }
-    void* AllocateExternal(size_t) override { return nullptr; }
-    void FreeExternal(void*) override {}
-    bool IsExternalPointer(void*) const override { return false; }
-    void* AllocateInternal(size_t) override { return nullptr; }
-    void FreeInternal(void*) override {}
+    // Serves the regions but has nothing left in them, which is a different
+    // failure from "this board has no such region" and has to log differently.
+    bool Serves(Deki::MemoryRegion region) const override
+    {
+        return region == Deki::Mem::Internal || region == Deki::Mem::External;
+    }
 
-    // Nothing is reachable here either: a provider that refuses internal RAM
-    // and then hands out DMA memory would be lying about the same heap.
-    void* AllocateDMA(size_t) override { return nullptr; }
+    void* Allocate(Deki::MemoryRegion, size_t, bool) override { return nullptr; }
+    void Free(Deki::MemoryRegion, void*) override {}
 
     // Genuinely exhausted, so zero is the measurement rather than a shrug.
-    size_t GetAvailableInternalRAM() const override { return 0; }
+    size_t GetAvailable(Deki::MemoryRegion) const override { return 0; }
 };
 
 // Collects what the engine logged, so a test can assert on the message a
@@ -492,4 +491,67 @@ TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
     EXPECT_EQ(Deki::HashName("external"), runtime_fnv1a("external"));
     EXPECT_EQ(Deki::HashName("rtc"), runtime_fnv1a("rtc"));
     EXPECT_NE(Deki::HashName("internal"), Deki::HashName("external"));
+}
+
+TEST(DekiMemoryRegion, ARegionTheBoardDoesNotServeFailsAndIsNamed)
+{
+    // The other half of an open vocabulary. A package can define "rtc"
+    // without an engine release; a board that has no such memory must refuse
+    // it rather than quietly hand back internal RAM that does not survive
+    // deep sleep. Silently substituting would be worse than failing, because
+    // the data would be lost at the one moment it was supposed to persist.
+    ScopedSpy s;
+    CapturedLog log;
+
+    void* p = Deki::Memory::Allocate(64, Deki::Mem::TestRtc);
+
+    EXPECT_EQ(p, nullptr);
+    EXPECT_EQ(s.spy->refusedCalls, 1);
+    EXPECT_EQ(s.spy->internalCalls, 0) << "must not fall back to another region";
+    EXPECT_EQ(s.spy->externalCalls, 0);
+    EXPECT_TRUE(log.Contains("rtc")) << "the failure must name the region: " << log.text;
+}
+
+TEST(DekiMemoryRegion, DmaIsAConstraintNotAPlace)
+{
+    // The display asks for reachability in whichever region the board
+    // prefers, so the constraint has to survive either placement.
+    ScopedSpy s;
+
+    void* a = Deki::Memory::AllocateDma(1024, Deki::Mem::Internal);
+    void* b = Deki::Memory::AllocateDma(1024, Deki::Mem::External);
+    ASSERT_NE(a, nullptr);
+    ASSERT_NE(b, nullptr);
+
+    EXPECT_EQ(s.spy->dmaCalls, 2) << "the requirement must reach the provider "
+                                    "from both regions";
+    EXPECT_EQ(s.spy->internalCalls, 1);
+    EXPECT_EQ(s.spy->externalCalls, 1);
+
+    Deki::Memory::Free(a);
+    Deki::Memory::Free(b);
+}
+
+TEST(DekiMemoryRegion, TwoPackagesNamingTheSameRegionMeanTheSameRegion)
+{
+    // Not a conflict — the point. Two board packages that both support a part
+    // with RTC memory write Region("rtc") independently and interoperate,
+    // the same way two packages both requiring the "spi" capability do.
+    constexpr Deki::MemoryRegion from_package_a = Deki::Region("rtc");
+    constexpr Deki::MemoryRegion from_package_b = Deki::Region("rtc");
+
+    static_assert(from_package_a == from_package_b);
+    EXPECT_EQ(from_package_a.id, from_package_b.id);
+
+    // Distinct objects with distinct name pointers; identity is the hash.
+    EXPECT_STREQ(from_package_a.name, from_package_b.name);
+}
+
+TEST(DekiMemoryRegion, PrefixedNamesKeepPackagesOutOfEachOthersWay)
+{
+    // The convention that stops two packages meaning different things by the
+    // same word. "scratch" is a word several packages would want; qualifying
+    // it makes the collision impossible rather than unlikely.
+    static_assert(Deki::Region("particles.scratch") != Deki::Region("tilemap.scratch"));
+    static_assert(Deki::Region("esp32.rtc") != Deki::Region("rtc"));
 }

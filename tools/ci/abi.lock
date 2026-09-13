@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 13
+abi_version: 14
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -113,20 +113,14 @@ class Deki::ITimeProvider (3 virtual)
   uint32_t GetTicksMs() const
   void DelayMs(uint32_t ms) const
 
-class Deki::IMemoryProvider (16 virtual)
+class Deki::IMemoryProvider (10 virtual)
   ~IMemoryProvider()
   bool Initialize()
   void Shutdown()
-  bool HasExternalRAM() const
-  size_t GetTotalExternalRAM() const
-  size_t GetAvailableExternalRAM() const
-  void* AllocateExternal(size_t size)
-  void FreeExternal(void* ptr)
-  bool IsExternalPointer(void* ptr) const
-  void* AllocateInternal(size_t size)
-  void* AllocateDMA(size_t size)
-  void FreeInternal(void* ptr)
-  size_t GetAvailableInternalRAM() const
+  bool Serves(MemoryRegion region) const
+  void* Allocate(MemoryRegion region, size_t bytes, bool needsDma)
+  void Free(MemoryRegion region, void* ptr)
+  size_t GetAvailable(MemoryRegion region) const
   void* AllocateRaw(size_t size)
   void FreeRaw(void* ptr)
   size_t GetRawBlockSize(void* ptr) const

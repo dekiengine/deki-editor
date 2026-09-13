@@ -32,30 +32,29 @@ public:
 
     bool Initialize() override { return true; }
     void Shutdown() override {}
-    bool HasExternalRAM() const override { return false; }
-    size_t GetTotalExternalRAM() const override { return 0; }
-    size_t GetAvailableExternalRAM() const override { return 0; }
-    void* AllocateExternal(size_t) override { return nullptr; }
-    void FreeExternal(void*) override {}
-    bool IsExternalPointer(void*) const override { return false; }
-
-    void* AllocateInternal(size_t size) override
+    // One heap, a fixed number of allocations, then refusal — which is the
+    // only way to reach the out-of-memory paths from a host test, where a
+    // 64-bit heap will commit anything a size_t can express.
+    bool Serves(Deki::MemoryRegion region) const override
     {
-        if (m_Allowed <= 0)
+        return region == Deki::Mem::Internal || region == Deki::Mem::External;
+    }
+
+    void* Allocate(Deki::MemoryRegion region, size_t bytes, bool needsDma) override
+    {
+        (void)needsDma;
+        if (!Serves(region) || m_Allowed <= 0)
             return nullptr;
         --m_Allowed;
-        return malloc(size);
+        return malloc(bytes);
     }
-    void FreeInternal(void* ptr) override { free(ptr); }
 
-    // Same budget as internal: this provider models a heap running out, and a
-    // DMA request draws on the same pool it does.
-    void* AllocateDMA(size_t size) override { return AllocateInternal(size); }
+    void Free(Deki::MemoryRegion, void* ptr) override { free(ptr); }
 
-    // Not modelled — the budget is a count of allocations, not bytes, so there
-    // is no byte figure to report and inventing one would put a fiction in the
-    // failure log this suite reads.
-    size_t GetAvailableInternalRAM() const override { return 0; }
+    // Not modelled: the budget counts allocations rather than bytes, so there
+    // is no byte figure to report and a made-up one would show up in the
+    // out-of-memory line these tests provoke.
+    size_t GetAvailable(Deki::MemoryRegion) const override { return 0; }
 
 private:
     int m_Allowed;
