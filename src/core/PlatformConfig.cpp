@@ -97,6 +97,16 @@ std::set<std::string> PlatformConfig::Capabilities() const
     if (!framework.empty())
         caps.insert("framework:" + framework);
     caps.insert(std::string("family:") + FamilyToString(family));
+
+    // "psram" comes from psramSize, the same field the firmware build reads to
+    // emit CONFIG_SPIRAM. Declaring it in `provides` as well would be a second
+    // source of truth for one fact, and the two drift: a target created by
+    // copying a board without PSRAM and then given a psramSize has the memory,
+    // boots with it detected, and still fails to satisfy a package that asks
+    // for "psram".
+    if (psramSize > 0)
+        caps.insert("psram");
+
     return caps;
 }
 

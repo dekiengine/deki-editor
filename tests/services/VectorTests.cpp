@@ -337,7 +337,7 @@ TEST(DekiVector, GrowthKeepsThePlacementReserveAsked)
     Vector<int> v(MemoryUse::Internal, "test");
     ASSERT_TRUE(v.Reserve(1));
     ASSERT_TRUE(v.PushBack(1));
-    ASSERT_TRUE(v.PushBack(2));  // grows, still Hot
+    ASSERT_TRUE(v.PushBack(2));  // grows, still Internal
     EXPECT_EQ(v.Size(), 2u);
     EXPECT_GE(v.Capacity(), 2u);
 }

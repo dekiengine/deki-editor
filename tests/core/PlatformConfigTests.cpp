@@ -84,3 +84,42 @@ TEST(PlatformConfig, UnsafeTargetAndBusAreDroppedOnLoad)
     EXPECT_EQ(good->idfTarget, "esp32s3");
     EXPECT_EQ(good->displayBus, "PARALLEL_8BIT");
 }
+
+// --- capabilities -----------------------------------------------------------
+// A board's memory regions are part of what it offers packages, and they come
+// from the fields that already describe the hardware rather than from a second
+// list somebody has to remember to update.
+
+TEST(PlatformCapabilities, PsramComesFromPsramSizeNotFromProvides)
+{
+    PlatformConfig board;
+    board.framework = "espidf";
+    board.psramSize = 4 * 1024 * 1024;   // and nothing in provides
+
+    EXPECT_EQ(board.Capabilities().count("psram"), 1u)
+        << "a target with PSRAM must satisfy a package that asks for it, "
+           "however the target was authored";
+}
+
+TEST(PlatformCapabilities, NoPsramSizeMeansNoPsramCapability)
+{
+    PlatformConfig board;
+    board.framework = "espidf";
+
+    EXPECT_EQ(board.Capabilities().count("psram"), 0u);
+}
+
+TEST(PlatformCapabilities, DerivedAndDeclaredCapabilitiesCoexist)
+{
+    // The board platform declares "psram" by hand as well. Deriving it must
+    // not produce a duplicate or drop what was authored alongside it.
+    PlatformConfig board;
+    board.framework = "espidf";
+    board.psramSize = 8 * 1024 * 1024;
+    board.provides = { "psram", "wifi" };
+
+    const auto caps = board.Capabilities();
+    EXPECT_EQ(caps.count("psram"), 1u);
+    EXPECT_EQ(caps.count("wifi"), 1u);
+    EXPECT_EQ(caps.count("framework:espidf"), 1u);
+}
