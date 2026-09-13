@@ -37,6 +37,7 @@ set(TEST_SOURCES
     core/PresentFrameTests.cpp
     core/EditorRecoveryTests.cpp
     core/UnsavedChangesPromptTests.cpp
+    core/UnitsTests.cpp
     services/SourceChangeDetectorTests.cpp
     services/VersionCompareTests.cpp
     services/EditorLogFileTests.cpp

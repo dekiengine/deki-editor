@@ -113,7 +113,17 @@ inline float SnapMetersToPixel(float meters)
 {
     if (!IsPixelsMode())
         return meters;
-    return std::round(meters * PixelsPerMeter()) / PixelsPerMeter();
+
+    // Read the setting directly rather than through PixelsPerMeter(), which
+    // clamps an invalid value to 1.0. That clamp is right for a display
+    // multiplier — showing metres beats showing zeroes — and wrong here: it
+    // would round to whole METRES and flatten every value in the project. A
+    // broken setting means "do not snap", not "snap to something else".
+    const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
+    if (ppm <= 0.0f)
+        return meters;
+
+    return std::round(meters * ppm) / ppm;
 }
 
 }  // namespace DekiEditor
