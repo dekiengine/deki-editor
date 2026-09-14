@@ -175,3 +175,41 @@ class GenerateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EmptyTableCells(unittest.TestCase):
+    """An empty value must never reach Markdown as a bare pair of backticks.
+
+    Doxygen reads `` as a code span that never closes and swallows every row
+    after it into one cell, so the page shows the raw </td> and \ilinebr of
+    the rest of the table. deki-sdl3-integration's features have no
+    buildDefine -- they are stripped by their component types -- and that one
+    empty cell destroyed its whole feature-flag table on the live docs site.
+    """
+
+    def test_empty_values_render_as_a_dash_not_empty_backticks(self):
+        for value in ("", "   ", "\t", None):
+            with self.subTest(value=value):
+                got = gen.code(value)
+                self.assertNotIn("``", got)
+                self.assertEqual(got, gen.EMPTY_CELL)
+
+    def test_real_values_still_render_as_code(self):
+        self.assertEqual(gen.code("DEKI_FEATURE_SPRITE"), "`DEKI_FEATURE_SPRITE`")
+        self.assertEqual(gen.code(0), "`0`")
+        self.assertEqual(gen.code(False), "`False`")
+
+    def test_a_backtick_in_a_value_cannot_close_the_span_early(self):
+        self.assertEqual(gen.code("a`b"), "`a'b`")
+
+    def test_a_feature_without_a_define_does_not_break_its_table(self):
+        features = [
+            {"id": "display", "displayName": "Display", "defaultEnabled": True},
+            {"id": "sprite", "displayName": "Sprites", "buildDefine": "DEKI_FEATURE_SPRITE",
+             "defaultEnabled": True},
+        ]
+        rows = [f"| {gen.esc(f.get('displayName'))} | {gen.code(f.get('buildDefine', ''))} | "
+                f"{'on' if f.get('defaultEnabled', True) else 'off'} |" for f in features]
+        for row in rows:
+            self.assertNotIn("``", row)
+            self.assertEqual(row.count("|"), 4, f"row is not three cells: {row}")

@@ -51,7 +51,25 @@ def esc(text):
 
 
 def code(text):
-    return "`" + str(text).replace("`", "'") + "`"
+    r"""Inline code for a Markdown table cell, or an em dash for nothing.
+
+    An empty value must not come back as a bare pair of backticks. Doxygen
+    reads that as a code span that never closes and swallows the rest of the
+    table into it, so the page shows one cell containing the raw `</td>` and
+    `\ilinebr` of every row after it. deki-sdl3-integration's two features
+    have no buildDefine -- they are stripped by their component types rather
+    than by a define -- and that was enough to destroy its whole table.
+    """
+    if text is None:
+        return EMPTY_CELL
+    s = str(text)
+    if not s.strip():
+        return EMPTY_CELL
+    return "`" + s.replace("`", "'") + "`"
+
+
+# What a table cell shows when there is nothing to show.
+EMPTY_CELL = "&mdash;"
 
 
 def page_id(kind, name):
@@ -354,7 +372,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
     if info.get("features"):
         out.append("## Feature flags")
         out.append("")
-        out.append("Compile-time features the package exposes (`package.json`):")
+        out.append("Compile-time features the package exposes (`package.json`). A feature with "
+                   "no define is stripped by its component types rather than by the build:")
         out.append("")
         out.append("| Feature | Define | Default |")
         out.append("| --- | --- | --- |")
