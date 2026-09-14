@@ -72,9 +72,7 @@ metadata. Exported fields are public, because the generated code reaches them
 from outside the class.
 
 Package and project code stays in the global namespace (or its own); it
-qualifies engine types with `Deki::` or opens the namespace. Do not add
-aliases for the old prefixed names: `tools/migrate-namespace.py <dir>` rewrites
-a codebase to the new names in one pass.
+qualifies engine types with `Deki::` or opens the namespace.
 
 ## Reflected field names are the file format
 

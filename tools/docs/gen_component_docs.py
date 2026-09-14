@@ -139,6 +139,32 @@ def first_paragraph(path):
     return " ".join(para)
 
 
+def read_changelog(path, versions=2):
+    """The most recent version sections of a package's CHANGELOG.md.
+
+    The whole file goes on the site once a package has years of history, which
+    buries the page the reader came for. Two versions is what "what changed
+    for me" needs; the rest is one link away on GitHub.
+    """
+    if not os.path.isfile(path):
+        return ""
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return ""
+
+    out, seen = [], 0
+    for line in lines:
+        if line.startswith("## "):
+            seen += 1
+            if seen > versions:
+                break
+        if seen:
+            out.append(line)
+    return chr(10).join(out).strip()
+
+
 def read_package_info(pkg_id, modules_dir, registry):
     """package.json + README + registry entry for a package."""
     info = {"displayName": pkg_id, "summary": "", "requires": [], "features": [], "repo": "", "docs": ""}
@@ -168,6 +194,7 @@ def read_package_info(pkg_id, modules_dir, registry):
         readme = os.path.join(pdir, "README.md")
         if os.path.isfile(readme) and not info["summary"]:
             info["summary"] = first_paragraph(readme)
+        info["changelog"] = read_changelog(os.path.join(pdir, "CHANGELOG.md"))
     if not info["repo"]:
         info["repo"] = f"dekiengine/{pkg_id}"
     if not info["docs"]:
@@ -349,6 +376,17 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
         out.append("This package registers no components; it provides a driver or a library the")
         out.append("engine calls into (see its README).")
         out.append("")
+    if info.get("changelog"):
+        out.append("## Changelog")
+        out.append("")
+        # Demoted one level: the file's "## 0.15.0" would otherwise sit at the
+        # same level as this page's own sections.
+        for line in info["changelog"].splitlines():
+            out.append("#" + line if line.startswith("## ") else line)
+        out.append("")
+        out.append(f"Earlier releases: [CHANGELOG.md](https://github.com/{info['repo']}/blob/master/CHANGELOG.md).")
+        out.append("")
+
     out.append("---")
     out.append("")
     out.append(f"Generated from the package's reflection metadata by the Deki documentation build"

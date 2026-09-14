@@ -112,49 +112,12 @@ or depend on it:
 - `packages/deki-*/` clones (the manifest is the source of truth)
 - The editor's own `build/`
 
-## Engine 0.10: the namespace move
+## One version number
 
-The engine and the editor share one version number: editor 0.10.0 ships engine
-0.10.0, and a package's `minEngine` names that number. Both stay at 0.x until the
-API is declared stable.
-
-Engine 0.10 moved every engine type into `namespace Deki` and dropped the
-`Deki` prefix (`DekiObject` → `Deki::Object`). This is a source-level break for
-packages and project code, done once before 1.0 and not aliased; the fix is
-mechanical (`tools/migrate-namespace.py <dir>`). It is not a file-format
-change: component type GUIDs are unchanged and the `"class"` hint written to
-scene files is the unqualified class name, which did not change either.
-
-## Engine 0.11: macro-free components
-
-A component is any class deriving publicly from `Deki::Component` (0.13
-folded `Deki::Behaviour` into it); `DEKI_COMPONENT`, the type GUID and the trailing
-`#include "generated/X.gen.h"` are gone, and `DEKI_DESCRIPTION`,
-`DEKI_DISPLAY_NAME` and the new `DEKI_CATEGORY` / `DEKI_SETTINGS_SECTION` sit
-above the class. The identity of a component is its qualified class name:
-scene files write `"type": "GradientComponent"` where they wrote a GUID, and
-`ObjectRef` / `PropertyRef` data hash that name. `X::StaticType` is
-`Deki::TypeId<X>()`.
-
-This is a file-format change with a migration in both directions of the
-tooling: `tools/migrate-components.py <src dirs> --map guids.json --assets
-<asset dirs>` rewrites a project's headers and its JSON assets in one pass, and
-the editor loads 0.10 scenes unchanged (the GUIDs of every dekiengine package
-are in a legacy table; a project's own components resolve through the `class`
-hint) and writes names on the next save. The reflection ABI is version 7:
-`Deki::Component` lost six virtuals and gained the type-info pointer.
-
-The same release drew the line between public and internal headers. The
-public set lives in `deki-engine/include/deki/` and is included as
-`#include <deki/Object.h>`, `<deki/reflection/Property.h>`,
-`<deki/providers/IDisplay.h>`; the redundant `Deki` file-name prefix went the
-way of the type prefix. `deki-engine/src/` is the implementation plus a few
-engine-internal headers (`LifecycleManager.h`, `MissingComponent.h`,
-`AuthoredFormat.h`, the provider registry) that only the editor's own binaries
-reach. A package or project that included one of those has a compile error
-now and needs a public API instead. The rewrite is mechanical:
-`python tools/migrate-includes.py <dir>` (idempotent; the table it applies is
-`tools/migrate-includes-map.txt`).
+The engine and the editor share one version number: editor 0.15.0 ships engine
+0.15.0, and a package's `minEngine` names that number. Both stay at 0.x until
+the API is declared stable, and before 1.0 a breaking change bumps the minor
+across the editor, the engine and every package together.
 
 ## Deprecation and the ABI rule
 

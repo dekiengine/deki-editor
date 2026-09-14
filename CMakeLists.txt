@@ -13,8 +13,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version"
 # Windows included. This was gated on NOT WIN32 while the Windows toolchain was
 # undecided — the alternative there was the MSVC ABI via clang-cl, and switching
 # the default out from under an MSVC build would have been rude. That is settled:
-# Windows is MinGW GCC 16 (see docs/linux-port-status.md), so the default is now
-# the same everywhere.
+# Windows is MinGW GCC 16, so the default is now the same everywhere.
 #
 # Must run before project(), which is what latches the compiler. Only applies
 # when the caller did not choose one, so -DCMAKE_CXX_COMPILER=... still wins,
@@ -48,7 +47,7 @@ endif()
 # The release number. The engine (deki-engine/CMakeLists.txt) carries the same
 # one, packages name it as minEngine, and the git tag equals it; see
 # COMPATIBILITY.md. tools/ci/check_version.py fails when the two drift.
-project(DekiEditor VERSION 0.14.0 LANGUAGES CXX)
+project(DekiEditor VERSION 0.15.0 LANGUAGES CXX)
 
 # Unity builds batch sources into a few large translation units, which makes
 # a clean build much faster. Opt-in until every TU is known to be free of
