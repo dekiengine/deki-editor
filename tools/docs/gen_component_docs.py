@@ -230,6 +230,33 @@ def docs_url_for_repo(repo):
 
 # ----------------------------------------------------------------- sections
 
+def property_table(props):
+    """A property table with the empty columns left out.
+
+    Constraints and Description are only there when someone wrote them, and
+    most components have neither: Description was entirely blank in 24 of the
+    33 tables across the package docs and Constraints in 5. A column of empty
+    cells is not neutral, it is width taken from the three that say something,
+    on the page a reader came to for exactly those three.
+    """
+    columns = [
+        ("Property", lambda p: code(p.get("name", ""))),
+        ("Type", lambda p: esc(fmt_type(p))),
+        ("Default", lambda p: fmt_default(p)),
+        ("Constraints", fmt_constraints),
+        ("Description", fmt_description),
+    ]
+    cells = {name: [render(p) for p in props] for name, render in columns}
+    kept = [name for name, _ in columns if any(c.strip() for c in cells[name])]
+
+    out = ["| " + " | ".join(kept) + " |",
+           "| " + " | ".join("---" for _ in kept) + " |"]
+    for i in range(len(props)):
+        out.append("| " + " | ".join(cells[name][i] for name in kept) + " |")
+    out.append("")
+    return out
+
+
 def component_section(c, level="##", pid="", base_links=None):
     """One component: heading (class name only, so the sidebar stays readable),
     description, facts, its own properties, and one line for inherited ones."""
@@ -267,12 +294,7 @@ def component_section(c, level="##", pid="", base_links=None):
     own = [p for p in c.get("properties", []) if not p.get("inheritedFrom")]
     inherited = [p for p in c.get("properties", []) if p.get("inheritedFrom")]
     if own:
-        out.append("| Property | Type | Default | Constraints | Description |")
-        out.append("| --- | --- | --- | --- | --- |")
-        for p in own:
-            out.append(f"| {code(p.get('name', ''))} | {esc(fmt_type(p))} | {fmt_default(p)} | "
-                       f"{fmt_constraints(p)} | {fmt_description(p)} |")
-        out.append("")
+        out.extend(property_table(own))
     elif not inherited:
         out.append("No reflected properties.")
         out.append("")
@@ -351,8 +373,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
         facts.append("Requires: " + ", ".join(links))
     out.append(" · ".join(facts))
     out.append("")
-    out.append(f"Install: `DekiEditor --packages-add {pkg_id} <project>`, or add it in the Package Manager. "
-               f"Part of [Deki]({main_url}); the engine's own components and the C++ API are documented there.")
+    out.append(f"Install with `DekiEditor --packages-add {pkg_id} <project>`, or from the Package "
+               f"Manager. The engine's own components and C++ API are in the [Deki docs]({main_url}).")
     out.append("")
     if display != pkg_id:
         out.append(f"Shown in the editor as **{display}**.")
@@ -372,8 +394,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
     if info.get("features"):
         out.append("## Feature flags")
         out.append("")
-        out.append("Compile-time features the package exposes (`package.json`). A feature with "
-                   "no define is stripped by its component types rather than by the build:")
+        out.append("Features this package can be built without. One with no define is stripped "
+                   "by its component types instead.")
         out.append("")
         out.append("| Feature | Define | Default |")
         out.append("| --- | --- | --- |")
@@ -408,10 +430,10 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
 
     out.append("---")
     out.append("")
-    out.append(f"Generated from the package's reflection metadata by the Deki documentation build"
-               + (f" (engine {version})." if version else "."))
-    out.append("Reflected property names are the keys scene files use; a rename ships with an alias,")
-    out.append(f"see [COMPATIBILITY.md](https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md).")
+    out.append("Generated from this package's reflection metadata"
+               + (f" (engine {version})." if version else ".")
+               + " Property names are the keys scene files use, and a rename ships with an alias "
+               + "([compatibility](https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md)).")
     out.append("")
     return out
 
@@ -483,8 +505,9 @@ def index_page(data, infos):
     version = data.get("engineVersion", "")
     out = ["# Deki {#mainpage}", ""]
     out.append("A modular C++ 2D engine for embedded displays and desktop, with a visual editor.")
-    out.append("This site documents the engine core and its C++ API; every package documents itself"
-               " on its own site, linked below. All of it is generated from the code"
+    out.append("")
+    out.append("The engine core and its C++ API are here. Each package documents itself, linked"
+               " below. All of it is generated from the code"
                + (f" (engine {version})." if version else "."))
     out.append("")
     out.append("- [Engine core](engine-core.html): components and settings the engine provides itself")
@@ -494,8 +517,8 @@ def index_page(data, infos):
     out.append("")
     out.append("## Packages {#packages}")
     out.append("")
-    out.append("Each package is its own repository under [github.com/dekiengine](https://github.com/dekiengine)"
-               " and is installed with `DekiEditor --packages-add <id> <project>` or the Package Manager.")
+    out.append("Each is its own repository under [github.com/dekiengine](https://github.com/dekiengine)."
+               " Install with `DekiEditor --packages-add <id> <project>`, or from the Package Manager.")
     out.append("")
     out.append("| Package | Components | Summary |")
     out.append("| --- | --- | --- |")

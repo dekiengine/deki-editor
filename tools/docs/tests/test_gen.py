@@ -148,7 +148,7 @@ class GenerateTests(unittest.TestCase):
         page = self.read(self.pkgs, "deki-2d", "index.md")
         self.assertIn("# deki-2d {#mainpage}", page)
         self.assertIn("Requires: [deki-rendering](https://dekiengine.github.io/deki-rendering/)", page)
-        self.assertIn("Part of [Deki](https://dekiengine.github.io/docs/)", page)
+        self.assertIn("[Deki docs](https://dekiengine.github.io/docs/)", page)
         self.assertIn("[SpriteComponent](#c-spritecomponent)", page)
         self.assertIn("### SpriteComponent {#c-spritecomponent}", page)
         self.assertIn("Inspector name: Sprite", page)
@@ -213,3 +213,43 @@ class EmptyTableCells(unittest.TestCase):
         for row in rows:
             self.assertNotIn("``", row)
             self.assertEqual(row.count("|"), 4, f"row is not three cells: {row}")
+
+
+class PropertyTableColumns(unittest.TestCase):
+    """Columns nobody filled in do not get to take width from the ones they did.
+
+    Description was entirely empty in 24 of the 33 property tables across the
+    package docs, Constraints in 5. Rendering them anyway cost the three
+    columns a reader actually came for.
+    """
+
+    @staticmethod
+    def props(**overrides):
+        base = {"name": "width", "type": "float", "default": 0}
+        base.update(overrides)
+        return [base]
+
+    def test_empty_columns_are_dropped(self):
+        table = gen.property_table(self.props())
+        self.assertIn("| Property | Type | Default |", table[0])
+        self.assertNotIn("Constraints", table[0])
+        self.assertNotIn("Description", table[0])
+
+    def test_a_column_with_any_content_is_kept(self):
+        table = gen.property_table(self.props(tooltip="How wide it is"))
+        self.assertIn("Description", table[0])
+        self.assertNotIn("Constraints", table[0])
+
+    def test_every_row_has_the_same_cell_count_as_the_header(self):
+        rows = [
+            {"name": "a", "type": "float", "default": 0},
+            {"name": "b", "type": "float", "default": 1, "tooltip": "only this one"},
+        ]
+        table = gen.property_table(rows)
+        want = table[0].count("|")
+        for line in table[:-1]:
+            self.assertEqual(line.count("|"), want, f"ragged row: {line}")
+
+    def test_the_separator_matches_the_header_width(self):
+        table = gen.property_table(self.props(tooltip="x", sliderMin=0, sliderMax=10))
+        self.assertEqual(table[0].count("|"), table[1].count("|"))
