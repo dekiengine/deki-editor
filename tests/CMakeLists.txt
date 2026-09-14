@@ -147,126 +147,17 @@ if(DEKI_RUN_TESTS_ON_BUILD)
     )
 endif()
 
+
 # =============================================================================
-# Package unit tests (deki-rendering)
+# Package descriptors
 # =============================================================================
-# Packages live in their own repos and are only ever compiled by a *project*
-# build, so their tests/ directories had no build at all. This target compiles
-# deki-rendering's runtime sources plus its tests against the engine built
-# here, running the reflection codegen into the build tree. It is optional:
-# it only exists when a packages checkout is found next to this repo (or at
-# -DDEKI_PACKAGES_DIR=<dir>).
+# Both the test targets and the compile checks below build a package the way a
+# project would, which means giving it the defines its package.json asks for.
+# Read once here, used by both.
+
 set(DEKI_PACKAGES_DIR "${CMAKE_SOURCE_DIR}/../packages" CACHE PATH
     "Directory holding package checkouts (deki-rendering, deki-2d, ...) for package unit tests")
-set(_pkg_rendering "${DEKI_PACKAGES_DIR}/deki-rendering")
-if(EXISTS "${_pkg_rendering}/tests" AND DEKI_GXX16)
-    include(${DEKI_ENGINE_PATH}/cmake/DekiReflectionCodegen.cmake)
-    unset(PACKAGE_PREFIX)
-    unset(PACKAGE_UPPER)
-    include("${_pkg_rendering}/package.cmake")
-    set(_pkg_gen_root "${CMAKE_BINARY_DIR}/pkgtests/deki-rendering")
-    file(MAKE_DIRECTORY "${_pkg_gen_root}/generated")
-    deki_reflection_codegen(
-        UNIT_PREFIX "pkgtests"
-        PACKAGE_DIRS "${_pkg_rendering}" PACKAGE_TAGS "deki-rendering"
-        PACKAGE_PREFIXES "${PACKAGE_PREFIX}" PACKAGE_OUTDIRS "${_pkg_gen_root}/generated"
-        GENERATOR_SRC "${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
-        INCLUDE_DIRS "${DEKI_ENGINE_PATH}/include" "${DEKI_ENGINE_PATH}/third_party"
-                     "${DEKI_PACKAGES_DIR}" "${_pkg_rendering}" "${_pkg_gen_root}"
-        # Same define set as the engine's own codegen call so the generator
-        # can reuse the shared PCH (GCC refuses a .gch whose -D set differs).
-        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN
-                "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240"
-                "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
-                "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
 
-    file(GLOB _pkg_rendering_src CONFIGURE_DEPENDS "${_pkg_rendering}/*.cpp")
-    file(GLOB _pkg_rendering_tests CONFIGURE_DEPENDS "${_pkg_rendering}/tests/*.cpp")
-    file(GLOB _pkg_rendering_gen CONFIGURE_DEPENDS "${_pkg_gen_root}/generated/*.cpp")
-
-    add_executable(DekiRenderingTests EXCLUDE_FROM_ALL ${_pkg_rendering_src} ${_pkg_rendering_tests} ${_pkg_rendering_gen})
-    add_dependencies(DekiRenderingTests ${DEKI_RC_TARGETS_deki_rendering})
-    target_include_directories(DekiRenderingTests PRIVATE
-            ${DEKI_ENGINE_PATH}/third_party
-        ${CMAKE_SOURCE_DIR}/deki-editor/include
-        ${DEKI_PACKAGES_DIR}
-        ${_pkg_rendering}
-        ${_pkg_gen_root}
-    )
-    target_compile_definitions(DekiRenderingTests PRIVATE
-        DEKI_EDITOR
-        DEKI_LOG_ENABLED
-        "DEKI_FAST_ATTR="
-        "DEKI_PACKAGE_VERSION=\"tests\""
-        "DEKI_PACKAGE_${PACKAGE_UPPER}"
-        "DEKI_${PACKAGE_UPPER}_EXPORTS"
-    )
-    target_link_libraries(DekiRenderingTests PRIVATE GTest::gtest_main deki-engine-internal deki-editor)
-    # Generated property tables take offsetof() of polymorphic components; the
-    # project builds carry the same warning suppression.
-    target_compile_options(DekiRenderingTests PRIVATE -Wno-invalid-offsetof)
-    gtest_discover_tests(DekiRenderingTests)
-    if(DEKI_RUN_TESTS_ON_BUILD)
-        add_custom_command(TARGET DekiRenderingTests POST_BUILD
-            COMMAND $<TARGET_FILE:DekiRenderingTests> --gtest_brief=1
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "Running deki-rendering tests...")
-    endif()
-else()
-    message(STATUS "Deki: package tests skipped (no deki-rendering checkout at ${DEKI_PACKAGES_DIR})")
-endif()
-
-# =============================================================================
-# Package unit tests (deki-particles)
-# =============================================================================
-# Cheaper than the deki-rendering target above: ParticlePool is a header, so
-# this compiles the tests alone against the engine. No package sources and no
-# reflection codegen, which is why it does not need DEKI_GXX16 either.
-set(_pkg_particles "${DEKI_PACKAGES_DIR}/deki-particles")
-if(EXISTS "${_pkg_particles}/tests")
-    file(GLOB _pkg_particles_tests CONFIGURE_DEPENDS "${_pkg_particles}/tests/*.cpp")
-
-    add_executable(DekiParticlesTests EXCLUDE_FROM_ALL ${_pkg_particles_tests})
-    target_include_directories(DekiParticlesTests PRIVATE
-        ${DEKI_ENGINE_PATH}/third_party
-        ${DEKI_PACKAGES_DIR}
-        ${_pkg_particles}
-    )
-    target_compile_definitions(DekiParticlesTests PRIVATE
-        DEKI_LOG_ENABLED
-        "DEKI_FAST_ATTR="
-    )
-    target_link_libraries(DekiParticlesTests PRIVATE GTest::gtest_main deki-engine-internal)
-    gtest_discover_tests(DekiParticlesTests)
-    if(DEKI_RUN_TESTS_ON_BUILD)
-        add_custom_command(TARGET DekiParticlesTests POST_BUILD
-            COMMAND $<TARGET_FILE:DekiParticlesTests> --gtest_brief=1
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "Running deki-particles tests...")
-    endif()
-else()
-    message(STATUS "Deki: deki-particles tests skipped (no checkout at ${_pkg_particles})")
-endif()
-
-# =============================================================================
-# Package compile checks — every package, against THIS engine, no project
-# =============================================================================
-# A package is normally only compiled by a *project* build, and a project holds
-# a git clone pinned to a released tag. So editing a package in modules/ and
-# building a project compiles the clone's older source and reports success:
-# a change to deki-imu went unbuilt that way while every gate stayed green.
-#
-# This target compiles each package's own sources against the engine built
-# here, straight out of DEKI_PACKAGES_DIR. Reflection codegen runs per package
-# because some headers include their generated tables (FrameAnimationData.h
-# does). OBJECT libraries, so this is a compile check and nothing has to link —
-# a package that needs a sibling's symbols still passes, which is right: the
-# question is whether it still compiles against the engine's API.
-# A package compiles under the defines a project build would give it: its own
-# buildDefine, the buildDefine of everything it requires, and the transform
-# width declared by the tags of that same closure. Object's x, y and rotation
-# only exist under DEKI_TRANSFORM_2D, so a package tagged transform_2d compiled
-# without it fails on every transform call it makes.
 function(deki_read_package_descriptor pkg_id)
     set(_json_path "${DEKI_PACKAGES_DIR}/${pkg_id}/package.json")
     if(NOT EXISTS "${_json_path}")
@@ -335,6 +226,202 @@ function(deki_package_compile_defines pkg_id out_var)
     set(${out_var} "${_defines}" PARENT_SCOPE)
 endfunction()
 
+if(EXISTS "${DEKI_PACKAGES_DIR}")
+    file(GLOB _pkg_dirs RELATIVE "${DEKI_PACKAGES_DIR}" "${DEKI_PACKAGES_DIR}/deki-*")
+    foreach(_d IN LISTS _pkg_dirs)
+        if(IS_DIRECTORY "${DEKI_PACKAGES_DIR}/${_d}")
+            deki_read_package_descriptor("${_d}")
+        endif()
+    endforeach()
+endif()
+
+# =============================================================================
+# Package unit tests
+# =============================================================================
+# Packages live in their own repos and are only ever compiled by a *project*
+# build, so their tests/ directories had no build at all. These targets compile
+# a package's tests against the engine built here. They are optional: each one
+# exists only when a packages checkout is found next to this repo (or at
+# -DDEKI_PACKAGES_DIR=<dir>).
+#
+# Two shapes, because the cost differs by an order of magnitude:
+#
+#   plain          compile tests/*.cpp alone, optionally with the handful of
+#                  package sources they actually call. No reflection codegen,
+#                  so no DEKI_GXX16 needed. Use this wherever the code under
+#                  test is not a component.
+#   ALL_SOURCES    compile the package's whole runtime plus generated
+#                  reflection tables, which is what a test touching components
+#                  needs. Implies CODEGEN.
+
+function(deki_add_package_tests pkg_id)
+    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR" "TARGET" "SOURCES;DEFINES" ${ARGN})
+    set(_pkg "${DEKI_PACKAGES_DIR}/${pkg_id}")
+    if(NOT EXISTS "${_pkg}/tests")
+        message(STATUS "Deki: ${pkg_id} tests skipped (no checkout at ${_pkg})")
+        return()
+    endif()
+    if(T_ALL_SOURCES AND NOT DEKI_GXX16)
+        message(STATUS "Deki: ${pkg_id} tests skipped (reflection codegen needs DEKI_GXX16)")
+        return()
+    endif()
+
+    file(GLOB _tests CONFIGURE_DEPENDS "${_pkg}/tests/*.cpp")
+    if(NOT _tests)
+        return()
+    endif()
+
+    # Named package sources, for a test that calls into a .cpp without wanting
+    # the whole package: deki-tween's easing curves are a free function in
+    # Easing.cpp, and pulling the rest in would drag components and codegen
+    # behind them.
+    set(_srcs "")
+    foreach(_s IN LISTS T_SOURCES)
+        list(APPEND _srcs "${_pkg}/${_s}")
+    endforeach()
+
+    string(REPLACE "-" "_" _sfx "${pkg_id}")
+    set(_gen "${CMAKE_BINARY_DIR}/pkgtests/${pkg_id}")
+    set(_gen_srcs "")
+
+    unset(PACKAGE_PREFIX)
+    unset(PACKAGE_UPPER)
+    if(EXISTS "${_pkg}/package.cmake")
+        include("${_pkg}/package.cmake")
+    endif()
+    deki_package_compile_defines("${pkg_id}" _pkg_defines)
+
+    if(T_ALL_SOURCES)
+        include(${DEKI_ENGINE_PATH}/cmake/DekiReflectionCodegen.cmake)
+        file(MAKE_DIRECTORY "${_gen}/generated")
+        deki_reflection_codegen(
+            UNIT_PREFIX "pkgtests_${_sfx}"
+            PACKAGE_DIRS "${_pkg}" PACKAGE_TAGS "${pkg_id}"
+            PACKAGE_PREFIXES "${PACKAGE_PREFIX}" PACKAGE_OUTDIRS "${_gen}/generated"
+            GENERATOR_SRC "${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
+            INCLUDE_DIRS "${DEKI_ENGINE_PATH}/include" "${DEKI_ENGINE_PATH}/third_party"
+                         "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}"
+            DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
+                    "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240"
+                    "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
+                    "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
+        file(GLOB _all_srcs CONFIGURE_DEPENDS "${_pkg}/*.cpp")
+        list(APPEND _srcs ${_all_srcs})
+        file(GLOB _gen_srcs CONFIGURE_DEPENDS "${_gen}/generated/*.cpp")
+    endif()
+
+    add_executable(${T_TARGET} EXCLUDE_FROM_ALL ${_srcs} ${_tests} ${_gen_srcs})
+    if(T_ALL_SOURCES)
+        add_dependencies(${T_TARGET} ${DEKI_RC_TARGETS_${_sfx}})
+    endif()
+    target_include_directories(${T_TARGET} PRIVATE
+        ${DEKI_ENGINE_PATH}/third_party
+        ${CMAKE_SOURCE_DIR}/deki-editor/include
+        ${DEKI_PACKAGES_DIR}
+        ${_pkg}
+        ${_gen}
+    )
+    target_compile_definitions(${T_TARGET} PRIVATE
+        DEKI_EDITOR
+        DEKI_LOG_ENABLED
+        "DEKI_FAST_ATTR="
+        "DEKI_PACKAGE_VERSION=\"tests\""
+        ${_pkg_defines}
+        ${T_DEFINES}
+    )
+    if(PACKAGE_UPPER)
+        target_compile_definitions(${T_TARGET} PRIVATE "DEKI_${PACKAGE_UPPER}_EXPORTS")
+    endif()
+    # Generated property tables take offsetof() of polymorphic components; the
+    # project builds carry the same warning suppression.
+    target_compile_options(${T_TARGET} PRIVATE -Wno-invalid-offsetof)
+
+    set(_libs GTest::gtest_main deki-engine-internal)
+    if(T_NEEDS_EDITOR)
+        list(APPEND _libs deki-editor)
+    endif()
+    target_link_libraries(${T_TARGET} PRIVATE ${_libs})
+
+    gtest_discover_tests(${T_TARGET})
+    if(DEKI_RUN_TESTS_ON_BUILD)
+        add_custom_command(TARGET ${T_TARGET} POST_BUILD
+            COMMAND $<TARGET_FILE:${T_TARGET}> --gtest_brief=1
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running ${pkg_id} tests...")
+    endif()
+    set_property(GLOBAL APPEND PROPERTY DEKI_PKGTEST_TARGETS ${T_TARGET})
+endfunction()
+
+# deki-rendering's tests reach into QuadBlit's .cpp and construct components,
+# so this one needs the package's whole runtime and its reflection tables.
+deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR)
+
+# ParticlePool is a header, so the tests compile alone against the engine.
+deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
+
+# deki-3d is deliberately absent. Its tests/ holds two standalone programs
+# with their own main() -- MeshRoundTrip.cpp, and Raster3DBench.cpp which is a
+# benchmark rather than a test -- built by hand from the g++ line in their
+# header comments. They are wired into no target, so they have never run here;
+# turning MeshRoundTrip into gtest cases is worth doing and is its own job.
+
+# The unit accessors under test are inline in IDekiIMU.h; no sources needed.
+deki_add_package_tests(deki-imu TARGET DekiImuTests)
+
+# The easing curves are free functions in one .cpp. Compiling just that file
+# keeps the tween components and their codegen out of this target.
+deki_add_package_tests(deki-tween TARGET DekiTweenTests SOURCES Easing.cpp)
+
+# The graph queries and the compiled-blob loader are in NodeGraphData.cpp;
+# the loader needs NodeFactory to resolve node types out of a blob.
+deki_add_package_tests(deki-nodegraph TARGET DekiNodeGraphTests
+                       SOURCES NodeGraphData.cpp NodeFactory.cpp)
+
+# InputDispatch is a static claim; InputCollider's HitTest needs a Deki::Object
+# to take a world position from, which a test can build without codegen.
+deki_add_package_tests(deki-input TARGET DekiInputTests
+                       SOURCES InputCollider.cpp InputDispatch.cpp)
+
+# BuildOpaqueRowSpans is header-inline, so the tests need no package sources.
+# It decides which pixels the blitter copies straight, and getting it wrong is
+# visible only as a wrong pixel in a finished frame.
+deki_add_package_tests(deki-2d TARGET Deki2DTests)
+
+# deki-fsm has no target, and the reason is structural rather than an
+# oversight. Its actions reach through FsmContext into an Object, a scene and
+# reflected property bindings, and FsmActions.h pulls in generated tables, so a
+# test needs the whole package compiled -- at which point it needs the whole
+# requires closure linked too, since the action library calls into deki-tween
+# (Ease::GetFunction) and deki-2d (AnimationComponent, ButtonComponent). That
+# is a project-shaped build, not a unit-test target. Covering the FSM properly
+# means a fake runtime, and that is its own piece of work.
+
+get_property(_pkgtests GLOBAL PROPERTY DEKI_PKGTEST_TARGETS)
+if(_pkgtests)
+    add_custom_target(DekiPackageTests DEPENDS ${_pkgtests})
+    list(LENGTH _pkgtests _n)
+    message(STATUS "Deki: package test targets: ${_n}")
+endif()
+
+# =============================================================================
+# Package compile checks — every package, against THIS engine, no project
+# =============================================================================
+# A package is normally only compiled by a *project* build, and a project holds
+# a git clone pinned to a released tag. So editing a package in modules/ and
+# building a project compiles the clone's older source and reports success:
+# a change to deki-imu went unbuilt that way while every gate stayed green.
+#
+# This target compiles each package's own sources against the engine built
+# here, straight out of DEKI_PACKAGES_DIR. Reflection codegen runs per package
+# because some headers include their generated tables (FrameAnimationData.h
+# does). OBJECT libraries, so this is a compile check and nothing has to link —
+# a package that needs a sibling's symbols still passes, which is right: the
+# question is whether it still compiles against the engine's API.
+# A package compiles under the defines a project build would give it: its own
+# buildDefine, the buildDefine of everything it requires, and the transform
+# width declared by the tags of that same closure. Object's x, y and rotation
+# only exist under DEKI_TRANSFORM_2D, so a package tagged transform_2d compiled
+# without it fails on every transform call it makes.
 function(deki_add_package_compile_check pkg_id)
     set(_pkg "${DEKI_PACKAGES_DIR}/${pkg_id}")
     if(NOT EXISTS "${_pkg}/package.cmake")
@@ -428,11 +515,6 @@ if(DEKI_GXX16 AND EXISTS "${DEKI_PACKAGES_DIR}")
     foreach(_d IN LISTS _pkg_dirs)
         if(IS_DIRECTORY "${DEKI_PACKAGES_DIR}/${_d}")
             list(APPEND DEKI_PKG_INCLUDE_ROOTS "${DEKI_PACKAGES_DIR}/${_d}")
-        endif()
-    endforeach()
-    foreach(_d IN LISTS _pkg_dirs)
-        if(IS_DIRECTORY "${DEKI_PACKAGES_DIR}/${_d}")
-            deki_read_package_descriptor("${_d}")
         endif()
     endforeach()
     foreach(_d IN LISTS _pkg_dirs)

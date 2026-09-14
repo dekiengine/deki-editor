@@ -156,8 +156,8 @@ cmake --build build --target DekiPackageCompileCheck   # every package, this eng
 # One target per command: the build stops at the first failing target, and the
 # other one's stale executable still runs and still reports a pass.
 cmake --build build --target DekiEditorTests      && build/bin/DekiEditorTests
-cmake --build build --target DekiRenderingTests   && build/bin/DekiRenderingTests
-cmake --build build --target DekiParticlesTests   && build/bin/DekiParticlesTests
+cmake --build build --target DekiPackageTests     # every package test target
+ctest --test-dir build --output-on-failure        # runs them all
 python tools/ci/check_allocations.py   # no raw allocations in package runtime code
 python tools/ci/check_abi.py           # package-facing virtuals unchanged, or version bumped
 python -m unittest discover -s tools/tests
@@ -168,12 +168,25 @@ python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt
 ```
 
 - Add a test with the change: GoogleTest suites live in `tests/` (editor and
-  engine) and in a package's own `tests/` directory (`deki-rendering`,
-  `deki-particles`), wired up in `tests/CMakeLists.txt`. The editor sources a
-  test can link are listed in `EDITOR_TESTABLE_SOURCES` in the root
-  `CMakeLists.txt`; add yours there. A package whose code under test is
-  header-only needs no codegen — see the `DekiParticlesTests` target, which
-  compiles the tests alone against the engine.
+  engine) and in a package's own `tests/` directory, wired up with one call in
+  `tests/CMakeLists.txt`:
+
+  ```cmake
+  deki_add_package_tests(deki-tween TARGET DekiTweenTests SOURCES Easing.cpp)
+  ```
+
+  `SOURCES` names the package files the tests actually call, so a test does not
+  drag the rest of the package (and its codegen) behind it. Pass `ALL_SOURCES`
+  instead when the code under test is a component or its headers include
+  generated tables — that compiles the package's whole runtime and runs
+  reflection codegen, and is an order of magnitude slower. Pass nothing at all
+  when the code under test is header-only. The editor sources a test can link
+  are listed in `EDITOR_TESTABLE_SOURCES` in the root `CMakeLists.txt`.
+
+  Note what `ALL_SOURCES` implies: the package has to *link*, so a package that
+  calls into its `requires` closure cannot use it. That is why deki-fsm has no
+  target — its action library calls deki-tween and deki-2d, so linking it is a
+  project-shaped build. Covering a package like that needs a fake runtime.
 - `DekiPackageCompileCheck` compiles every package in `modules/` against the
   engine built here, straight out of the checkout. A project build compiles a
   git clone pinned to a released tag instead, so a package edit can sit unbuilt

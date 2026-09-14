@@ -56,6 +56,27 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   3D yet, so nothing pays for it.
 
 ### Added
+- Package tests come from one `deki_add_package_tests()` call instead of a
+  copy-pasted CMake block each. Five packages that had none now have tests —
+  deki-imu (7), deki-tween (8), deki-nodegraph (15), deki-input (14) and
+  deki-2d (11) — and `DekiPackageTests` builds all seven targets together.
+  Each call names the package sources its tests actually reach, so a test does
+  not drag the rest of the package and its codegen behind it; `ALL_SOURCES` is
+  there for the component-shaped case that needs reflection tables.
+
+  What they cover is the arithmetic that fails silently: every easing curve
+  checked for its endpoints, finiteness, In/Out mirroring and monotonicity;
+  the IMU's SI and datasheet spellings pinned as exact conversions of one
+  another; the node-graph loader refusing truncated and malformed blobs rather
+  than reading past them; the gesture claim protocol; the hit test's world-to
+  -bounds Y flip with each padding edge separately; and the sprite opaque-run
+  rule against the hole it once copied straight through.
+
+  deki-fsm has no target on purpose, and the note in `tests/CMakeLists.txt`
+  says why: its action library calls into deki-tween and deki-2d, so linking
+  it is a project-shaped build rather than a unit-test target. deki-3d's two
+  test files are standalone programs with their own `main()` and are wired to
+  nothing, which is why they have never run.
 - `DekiPackageCompileCheck`, a build target that compiles every package in
   `modules/` against the engine built here, out of the checkout. Until now a
   package was only ever compiled by a *project* build, and a project holds a
