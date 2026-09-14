@@ -148,8 +148,20 @@ def main(argv):
 
     packages = a.packages
     if packages is None:
-        cand = os.path.join(root, "..", "packages")
-        packages = cand if os.path.isdir(cand) else None
+        # "packages" is the name everywhere in the tooling; the checkout beside
+        # this repo is still called "modules" and a rename is blocked, so both
+        # are tried. Without a hit the package pages silently lose everything
+        # that comes from package.json and CHANGELOG.md -- minEngine, the
+        # feature list and the changelog section -- with no warning, which is
+        # how they shipped without one.
+        for name in ("packages", "modules"):
+            cand = os.path.join(root, "..", name)
+            if os.path.isdir(cand):
+                packages = cand
+                break
+        if packages is None:
+            print("[docs] no package checkout beside this repo: package pages "
+                  "will have no changelog, minEngine or feature list")
     registry_file = None
     if a.registry and os.path.isfile(a.registry):
         registry_file = a.registry
