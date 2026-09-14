@@ -23,6 +23,28 @@
 namespace DekiEditor
 {
 
+// The project's name is its folder's name, so the path has to be resolved
+// before the folder can be read off it: a caller that passes "." or a path
+// with a trailing slash otherwise names the project "." or "", and that name
+// is baked into the generated CMake project() and into DekiPlugin_GetName().
+// `DekiEditor --verify-scenes .` really did leave a project called ".".
+static std::string ProjectFolderName(const std::string& projectPath)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path resolved = fs::weakly_canonical(fs::path(projectPath), ec);
+    if (ec || resolved.empty())
+        resolved = fs::absolute(fs::path(projectPath), ec);
+    resolved = resolved.lexically_normal();
+
+    // lexically_normal leaves a trailing separator on "a/b/", whose filename()
+    // is empty; the directory itself is then the parent path.
+    std::string name = resolved.filename().string();
+    if (name.empty())
+        name = resolved.parent_path().filename().string();
+    return name;
+}
+
 // A package that links another deki package (PACKAGE_LINK_DEPS) must also
 // declare it in package.json "requires", or installing it alone leaves the
 // link target missing. The two lists are hand-maintained in different files,
@@ -96,7 +118,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     std::stringstream file;
 
     // Get project name from folder
-    std::string projectName = fs::path(projectPath).filename().string();
+    std::string projectName = ProjectFolderName(projectPath);
 
     // The editor's own location is no longer resolved here: both DEKI_EDITOR_DIR and
     // DEKI_ENGINE_PATH are passed on the CMake command line at configure time, so this
@@ -860,7 +882,7 @@ bool BuildFileGenerator::GeneratePluginExports(const std::string& projectPath, C
     newContent << "#endif\n\n";
 
     // Export plugin info
-    std::string projectName = fs::path(projectPath).filename().string();
+    std::string projectName = ProjectFolderName(projectPath);
     newContent << "// ============================================================================\n";
     newContent << "// Plugin exports\n";
     newContent << "// ============================================================================\n\n";

@@ -163,7 +163,8 @@ python tools/ci/check_abi.py           # package-facing virtuals unchanged, or v
 python -m unittest discover -s tools/tests
 DekiEditor --build-code <project>      # a real project: ../deki-demo works
 DekiEditor --verify-scenes <project>
-DekiEditor --render-scenes <project>   # renderer changes: hashes must match unless intended
+DekiEditor --render-scenes ../deki-demo > render.txt
+python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt
 ```
 
 - Add a test with the change: GoogleTest suites live in `tests/` (editor and
@@ -183,7 +184,12 @@ DekiEditor --render-scenes <project>   # renderer changes: hashes must match unl
   `dependencies.default`: SDL3, LovyanGFX) are skipped and say so at configure
   time.
 - Renderer changes that alter pixels must update the golden hashes on purpose
-  and say so in the commit message.
+  and say so in the commit message. CI runs the scaffold golden
+  (`golden-scaffold.txt`) against a project it creates itself; the demo golden
+  (`golden-demo.txt`) is the one on real content and is run by hand, because
+  deki-demo is a separate repository CI does not check out. The tool tests
+  check that both files still parse and still hold real hashes — a golden that
+  gates nothing used to pass every test.
 - Engine changes go to the engine repository first; the editor then bumps the
   submodule pointer. Anything that changes `DekiComponent`/`DekiObject` layout
   bumps `kDekiReflectionAbiVersion` (`deki-engine/include/deki/interop/

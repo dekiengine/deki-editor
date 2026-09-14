@@ -67,8 +67,21 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             {
                 for (const auto& p : j["platformRequires"])
                 {
-                    if (p.is_string())
-                        info.platformRequires.push_back(p.get<std::string>());
+                    if (!p.is_string())
+                        continue;
+                    std::string need = p.get<std::string>();
+                    // Both sides of the match are checked the same way. A
+                    // platform's "provides" is validated when it loads; a
+                    // requirement that cannot match any valid name would
+                    // otherwise surface as a package quietly excluded from
+                    // every target, with nothing saying why.
+                    if (!IsValidCapabilityName(need))
+                        DEKI_LOG_WARNING("Package '%s': platformRequires '%s' is not a valid "
+                                         "capability name (lowercase letters, digits and "
+                                         ". - : _ only), so no platform can provide it",
+                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(),
+                                         need.c_str());
+                    info.platformRequires.push_back(std::move(need));
                 }
             }
             if (j.contains("features") && j["features"].is_array())

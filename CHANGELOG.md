@@ -75,6 +75,18 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they carry a desktop path. 23 of 25 packages are covered.
 
 ### Fixed
+- A project path given relatively no longer becomes the project's name. Both
+  the generated CMake `project()` and `DekiPlugin_GetName()` took the last
+  component of the path exactly as passed, so `DekiEditor --verify-scenes .`
+  from inside a project left it named `.` — `project(".-components")` in the
+  generated build and `return ".";` in the tracked `src/PluginExports.cpp`. A
+  trailing slash produced an empty name the same way. The path is resolved
+  before its folder is read off it.
+- A package's `platformRequires` entries are checked against the capability
+  name rules, which only a platform's `provides` was. Both sides of the match
+  are validated now: a requirement that no valid name can satisfy would
+  otherwise show up as a package quietly left out of every target, with
+  nothing saying why.
 - A file dialog whose platform helper dies without answering no longer wedges
   the editor. The one-at-a-time guard was a flag only the answer could clear,
   so no dialog could be opened again until restart. Each request now carries

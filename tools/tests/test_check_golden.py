@@ -110,3 +110,63 @@ class CheckGolden(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ShippedGoldens(unittest.TestCase):
+    """The golden files in tools/ci/ are the gate; nothing checked them.
+
+    check_golden's own logic is covered above against synthetic files, so a
+    golden that had been corrupted, hand-edited into an unparsable shape, or
+    emptied would still have passed every test in this suite while silently
+    gating nothing: a config block with no hashes compares equal to anything.
+    """
+
+    CI = Path(__file__).resolve().parents[1] / "ci"
+
+    def goldens(self):
+        found = sorted(self.CI.glob("golden-*.txt"))
+        self.assertTrue(found, f"no golden files in {self.CI}")
+        return found
+
+    def test_every_golden_parses_into_at_least_one_hash(self):
+        for path in self.goldens():
+            with self.subTest(golden=path.name):
+                blocks = golden.parse_golden(path)
+                self.assertTrue(blocks, f"{path.name} has no config blocks")
+                total = sum(len(scenes) for scenes in blocks.values())
+                self.assertTrue(total, f"{path.name} records no hashes, so it gates nothing")
+
+    def test_hashes_are_16_hex_digits_and_scenes_are_unique(self):
+        for path in self.goldens():
+            blocks = golden.parse_golden(path)
+            for config, scenes in blocks.items():
+                with self.subTest(golden=path.name, config=config):
+                    # A scene appearing twice in one block means the later line
+                    # silently won when the file was recorded by hand.
+                    lines = [
+                        ln.strip()
+                        for ln in path.read_text(encoding="utf-8").splitlines()
+                        if ln.strip() and not ln.strip().startswith("#")
+                    ]
+                    self.assertEqual(
+                        len(scenes),
+                        len({s for s in scenes}),
+                        f"{path.name}: duplicate scene in block '{config}'",
+                    )
+                    for scene, h in scenes.items():
+                        self.assertRegex(
+                            h, r"^[0-9a-f]{16}$", f"{path.name}: '{scene}' hash is not 16 hex digits"
+                        )
+                    self.assertTrue(lines)
+
+    def test_a_golden_matches_a_render_of_itself(self):
+        """Round-trip: each block, replayed as a render capture, must pass."""
+        for path in self.goldens():
+            blocks = golden.parse_golden(path)
+            for config, scenes in blocks.items():
+                with self.subTest(golden=path.name, config=config):
+                    with tempfile.TemporaryDirectory() as tmp:
+                        render = Path(tmp) / "render.txt"
+                        body = "".join(f"  {h}  {s}\n" for s, h in scenes.items())
+                        render.write_text(f"config: {config}\n{body}", encoding="utf-8")
+                        self.assertEqual(golden.main([str(render), str(path)]), 0)
