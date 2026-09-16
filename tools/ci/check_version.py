@@ -35,9 +35,18 @@ def project_version(cmake: Path, name: str) -> str | None:
 
 
 def changelog_has_section(version: str) -> bool:
+    """True when CHANGELOG.md has a section for this release.
+
+    The heading may carry a release date, which is how every entry in this
+    changelog is actually written ("## 0.15.0 - 2026-09-14"). Matching only a
+    bare "## 0.15.0" meant this returned False for every release ever made, so
+    a tag build would have failed here; nothing noticed because CI has not
+    reached this script since the deploy key went missing.
+    """
     if not CHANGELOG.exists():
         return False
-    return re.search(r"^## " + re.escape(version) + r"\s*$", CHANGELOG.read_text(encoding="utf-8"), re.M) is not None
+    pattern = r"^## " + re.escape(version) + r"\s*(?:[-–—]\s*\S.*)?$"
+    return re.search(pattern, CHANGELOG.read_text(encoding="utf-8"), re.M) is not None
 
 
 def main(argv: list[str]) -> int:
