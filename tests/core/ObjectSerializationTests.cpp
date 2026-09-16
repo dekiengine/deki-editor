@@ -102,6 +102,79 @@ TEST_F(ObjectSerializationTest, SerializeComponent_EnumProperty_SerializesCorrec
     EXPECT_EQ(data.properties["enumValue"].get<int>(), 2);
 }
 
+// An enum carrying names is written BY NAME, so appending to it or reordering
+// it cannot change what an already-saved file means.
+TEST_F(ObjectSerializationTest, SerializeComponent_NamedEnum_WritesTheName)
+{
+    m_Component->gappedEnum = MockComponent::GappedEnum::High;
+
+    ComponentData data = SerializeComponent(m_Component);
+
+    ASSERT_TRUE(data.properties.contains("gappedEnum"));
+    ASSERT_TRUE(data.properties["gappedEnum"].is_string());
+    EXPECT_EQ(data.properties["gappedEnum"].get<std::string>(), "High");
+}
+
+// The name must resolve to the enumerator's UNDERLYING VALUE (20), not to its
+// position in the table (2). Getting this wrong is invisible on an enum
+// numbered 0, 1, 2 and silently wrong on every other one.
+TEST_F(ObjectSerializationTest, RestoreComponentProperties_NamedEnum_RestoresTheValueNotTheIndex)
+{
+    ComponentData data;
+    data.typeName = Deki::TypeName<MockComponent>();
+    data.properties["gappedEnum"] = "High";
+
+    RestoreComponentProperties(m_Component, data);
+
+    EXPECT_EQ(static_cast<int32_t>(m_Component->gappedEnum), 20);
+}
+
+// Files written before enums were stored by name hold a bare number, and that
+// number was always the underlying value, so it still loads unchanged.
+TEST_F(ObjectSerializationTest, RestoreComponentProperties_NamedEnum_StillReadsALegacyInteger)
+{
+    ComponentData data;
+    data.typeName = Deki::TypeName<MockComponent>();
+    data.properties["gappedEnum"] = 10;
+
+    RestoreComponentProperties(m_Component, data);
+
+    EXPECT_EQ(static_cast<int32_t>(m_Component->gappedEnum), 10);
+}
+
+// A name the enum no longer declares leaves the field alone rather than
+// guessing at a neighbour, which is the behaviour that made storing positions
+// worth replacing in the first place.
+TEST_F(ObjectSerializationTest, RestoreComponentProperties_NamedEnum_UnknownNameKeepsTheDefault)
+{
+    m_Component->gappedEnum = MockComponent::GappedEnum::Low;
+
+    ComponentData data;
+    data.typeName = Deki::TypeName<MockComponent>();
+    data.properties["gappedEnum"] = "Retired";
+
+    RestoreComponentProperties(m_Component, data);
+
+    EXPECT_EQ(static_cast<int32_t>(m_Component->gappedEnum), 10);
+}
+
+// The full loop, which is what a user actually does: set, save, load.
+TEST_F(ObjectSerializationTest, NamedEnum_RoundTripsThroughItsName)
+{
+    for (const auto expected : { MockComponent::GappedEnum::Off,
+                                 MockComponent::GappedEnum::Low,
+                                 MockComponent::GappedEnum::High })
+    {
+        m_Component->gappedEnum = expected;
+        ComponentData data = SerializeComponent(m_Component);
+
+        m_Component->gappedEnum = MockComponent::GappedEnum::Off;
+        RestoreComponentProperties(m_Component, data);
+
+        EXPECT_EQ(m_Component->gappedEnum, expected);
+    }
+}
+
 // ============================================================================
 // RestoreComponentProperties Tests
 // ============================================================================

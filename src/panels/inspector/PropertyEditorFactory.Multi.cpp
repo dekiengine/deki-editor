@@ -351,11 +351,15 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     default: return *reinterpret_cast<const int32_t*>(p);
                 }
             };
-            int index = readIndex(components[0]);
+            // readIndex returns the stored enumerator VALUE, not its row in the
+            // tables; those differ on any enum that is not numbered 0, 1, 2...
+            // Map value -> row for the combo and row -> value for the write.
+            const int32_t value = readIndex(components[0]);
             bool same = true;
             for (size_t i = 1; i < components.size() && same; ++i)
-                same = readIndex(components[i]) == index;
-            if (index < 0 || index >= prop.enumCount) index = 0;
+                same = readIndex(components[i]) == value;
+            int index = Deki::EnumIndexForValue(prop, value);
+            if (index < 0) index = 0;  // a value the enum no longer declares
 
             BeginPropertyRow(displayName.c_str());
             if (!same) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
@@ -363,9 +367,12 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             if (!same) ImGui::PopStyleColor();
             if (changed)
             {
+                int32_t chosen = index;
+                if (prop.enumInts && index >= 0 && index < prop.enumCount)
+                    chosen = prop.enumInts[index];
                 CommandHistory::Instance().ExecuteNoMerge(
                     std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                        components, prop, nlohmann::json(index)));
+                        components, prop, nlohmann::json(chosen)));
             }
             break;
         }

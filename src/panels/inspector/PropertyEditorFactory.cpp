@@ -719,16 +719,25 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
 
     if (prop.enumValues && prop.enumCount > 0)
     {
-        if (currentIndex < 0) currentIndex = 0;
-        if (currentIndex >= prop.enumCount) currentIndex = prop.enumCount - 1;
+        // What was read out of the field is the enumerator's VALUE, which is
+        // not the row it occupies in the tables: an enum may start off zero,
+        // leave a gap, or be a flags set. So map value -> row to drive the
+        // combo and row -> value to write back. This used to pass the value
+        // straight in as an index and clamp it into range, which silently
+        // rewrote the field on any enum that was not numbered 0, 1, 2, ...
+        int comboRow = Deki::EnumIndexForValue(prop, currentIndex);
+        if (comboRow < 0) comboRow = 0;  // a value the enum no longer declares
         oldIndex = currentIndex;
 
         BeginPropertyRow(displayName);
-        if (EditorUI::Get().Combo("##value", &currentIndex, prop.enumValues, prop.enumCount))
+        if (EditorUI::Get().Combo("##value", &comboRow, prop.enumValues, prop.enumCount))
         {
+            int32_t chosen = comboRow;
+            if (prop.enumInts && comboRow >= 0 && comboRow < prop.enumCount)
+                chosen = prop.enumInts[comboRow];
             // Combo is immediate; the command reads the component's old value.
             CommandHistory::Instance().ExecuteNoMerge(
-                std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nlohmann::json(currentIndex)));
+                std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nlohmann::json(chosen)));
         }
     }
     else

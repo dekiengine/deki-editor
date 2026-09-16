@@ -48,12 +48,20 @@ void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::Compon
             {
                 uint8_t enumSize = prop.enumSize > 0 ? prop.enumSize : 1;
                 void* ptr = reinterpret_cast<char*>(const_cast<Deki::Component*>(comp)) + prop.offset;
+                int32_t enumValue = 0;
                 switch (enumSize)
                 {
-                    case 1: properties[prop.name] = static_cast<int>(*reinterpret_cast<uint8_t*>(ptr)); break;
-                    case 2: properties[prop.name] = static_cast<int>(*reinterpret_cast<uint16_t*>(ptr)); break;
-                    default: properties[prop.name] = *reinterpret_cast<int32_t*>(ptr); break;
+                    case 1: enumValue = static_cast<int32_t>(*reinterpret_cast<uint8_t*>(ptr)); break;
+                    case 2: enumValue = static_cast<int32_t>(*reinterpret_cast<uint16_t*>(ptr)); break;
+                    default: enumValue = *reinterpret_cast<int32_t*>(ptr); break;
                 }
+                // By NAME, matching the scene writer, so an enum has one
+                // spelling in JSON wherever it appears. This shape also reaches
+                // the clipboard, where it can be pasted into another session.
+                if (const char* enumName = Deki::EnumNameForValue(prop, enumValue))
+                    properties[prop.name] = enumName;
+                else
+                    properties[prop.name] = enumValue;
                 break;
             }
             case Deki::PropertyType::ObjectRef:
@@ -145,11 +153,22 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
                         Deki::SetPropertyValue<uint32_t>(comp, prop, value.get<uint32_t>());
                     break;
                 case Deki::PropertyType::Enum:
-                    if (value.is_number_integer())
+                {
+                    // Accepts the name written now and the bare number written
+                    // before it, so older clipboard and undo payloads still apply.
+                    bool haveValue = false;
+                    int32_t v = 0;
+                    if (value.is_string())
+                        haveValue = Deki::EnumValueForName(prop, value.get<std::string>().c_str(), v);
+                    else if (value.is_number_integer())
+                    {
+                        v = value.get<int32_t>();
+                        haveValue = true;
+                    }
+                    if (haveValue)
                     {
                         uint8_t enumSize = prop.enumSize > 0 ? prop.enumSize : 1;
                         void* ptr = reinterpret_cast<char*>(comp) + prop.offset;
-                        int v = value.get<int>();
                         switch (enumSize)
                         {
                             case 1: *reinterpret_cast<uint8_t*>(ptr) = static_cast<uint8_t>(v); break;
@@ -158,6 +177,7 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
                         }
                     }
                     break;
+                }
                 case Deki::PropertyType::ObjectRef:
                     ApplyObjectRef(comp, prop.offset, value);
                     break;

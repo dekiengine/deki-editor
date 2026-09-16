@@ -34,6 +34,12 @@ public:
     int enumValue = 0;
     int32_t renamedValue = 0;  // serialised as "renamedValue", formerly "legacyValue" (DEKI_RENAMED_FROM)
 
+    // An enum that is NOT numbered 0, 1, 2. Its whole point is that a position
+    // in the name table is not the value stored in the field, which is what
+    // serialising enums by index used to get wrong.
+    enum class GappedEnum : int32_t { Off = 0, Low = 10, High = 20 };
+    GappedEnum gappedEnum = GappedEnum::Off;
+
     // Static metadata for reflection
     static const Deki::PropertyInfo Properties[];
     static const int PropertyCount;

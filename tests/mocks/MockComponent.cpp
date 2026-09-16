@@ -11,6 +11,11 @@ namespace DekiEditor::Tests
 // MockComponent - standard property types
 // ============================================================================
 
+// Parallel tables for MockComponent::GappedEnum, in the shape the codegen
+// emits: names in declaration order, and the value each one actually holds.
+static const char* const s_GappedEnum_Values[] = { "Off", "Low", "High" };
+static const int32_t s_GappedEnum_Ints[] = { 0, 10, 20 };
+
 const Deki::PropertyInfo MockComponent::Properties[] = {
     {
         "intValue",          // name
@@ -135,6 +140,28 @@ const Deki::PropertyInfo MockComponent::Properties[] = {
         Deki::PhysicalUnit::None,
         nullptr,          // valueOfProperty
         "legacyValue"     // renamedFrom
+    },
+    {
+        // What the codegen emits for an enum whose enumerators are not
+        // numbered 0, 1, 2: the names and their UNDERLYING VALUES, as two
+        // parallel tables.
+        "gappedEnum",
+        "Gapped Enum",
+        Deki::PropertyType::Enum,
+        offsetof(MockComponent, gappedEnum),
+        nullptr, 0, 0, false,
+        nullptr,
+        s_GappedEnum_Values, 3, 4,
+        Deki::PropertyType::Int32,
+        nullptr, 0, 0,
+        nullptr,
+        false, false, nullptr, false,
+        nullptr,
+        nullptr,
+        Deki::PhysicalUnit::None,
+        nullptr,             // valueOfProperty
+        nullptr,             // renamedFrom
+        s_GappedEnum_Ints    // enumInts
     }
 };
 
