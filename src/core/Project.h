@@ -44,6 +44,10 @@ public:
     Project() = default;
 
     bool Load(const std::string& path);
+
+    /// Why the last Load() returned false, when it failed for a reason worth
+    /// showing rather than a missing file. Empty otherwise.
+    const std::string& GetLoadError() const { return m_LoadError; }
     bool Save();
 
     // Settings are stored under settings/, one file per owner: package-owned
@@ -126,6 +130,7 @@ public:
 private:
     std::string m_Name;
     std::string m_Path;                                   // Project root directory
+    std::string m_LoadError;                              // see GetLoadError()
     std::string m_AssetsPath;                             // project/assets/
     std::string m_SrcPath;                                // project/src/
     std::string m_BuildPath;                              // build/

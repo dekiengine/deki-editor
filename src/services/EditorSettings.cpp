@@ -31,14 +31,22 @@ static std::string s_ImGuiIniPath;
 std::string EditorSettings::GetSettingsDir()
 {
 #ifdef _WIN32
-    char path[MAX_PATH];
-    if (SUCCEEDED(SHGetFolderPathA(nullptr, CSIDL_APPDATA, nullptr, 0, path)))
+    // The WIDE call, and a wide std::filesystem::path all the way to the end.
+    //
+    // SHGetFolderPathA returns the ANSI-code-page spelling of the path, so on
+    // an account whose name does not fit that code page — anything Cyrillic,
+    // Greek, Chinese, Japanese — it comes back mangled or fails outright, and
+    // the editor then has nowhere to keep its settings, layout or log. Building
+    // the path as wchar_t avoids the conversion entirely; .string() at the end
+    // is UTF-8 out of std::filesystem.
+    PWSTR roaming = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &roaming)))
     {
-        fs::path settingsDir = fs::path(path) / "DekiEditor";
-        if (!fs::exists(settingsDir))
-        {
-            fs::create_directories(settingsDir);
-        }
+        fs::path settingsDir = fs::path(roaming) / L"DekiEditor";
+        CoTaskMemFree(roaming);
+        std::error_code ec;
+        if (!fs::exists(settingsDir, ec))
+            fs::create_directories(settingsDir, ec);
         return settingsDir.string();
     }
 #endif

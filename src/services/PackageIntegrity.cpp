@@ -87,6 +87,38 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
     const std::string dirArg = packageDir.string();
     std::string out;
 
+    // The presence of a .git entry is not proof this directory IS a repository.
+    // A half-deleted clone can leave an empty one behind, and git then walks UP
+    // looking for a real repository — so every command below, `stash push -u`
+    // included, lands on whatever encloses the package.
+    //
+    // That is not hypothetical. The docs build puts a project inside the editor
+    // checkout, so its package clones sit under deki-editor's own worktree, and
+    // one restore stashed the editor's uncommitted source as "deki auto-restore:
+    // deki-2d". The work was recoverable, but only because stash keeps it.
+    //
+    // So ask git what the root actually is, and refuse unless it is this
+    // directory. Nothing below runs otherwise.
+    if (RunGit({ "-C", dirArg, "rev-parse", "--show-toplevel" }, out) != 0)
+    {
+        result.action = PackageIntegrityResult::Action::Skipped;
+        result.detail = "'" + packageName + "' is not a git clone";
+        return result;
+    }
+    {
+        std::error_code cmpEc;
+        const fs::path reportedRoot = fs::path(Trim(out));
+        if (!fs::exists(reportedRoot, cmpEc) ||
+            !fs::equivalent(reportedRoot, packageDir, cmpEc) || cmpEc)
+        {
+            result.action = PackageIntegrityResult::Action::Skipped;
+            result.detail = "'" + packageName + "' is not the root of its own repository (git says " +
+                            Trim(out) + "); leaving it alone rather than running git in " +
+                            "whatever encloses it";
+            return result;
+        }
+    }
+
     // ---- 1. Local modifications -------------------------------------------
     //
     // .gitignore in every package repo covers generated/ and .deki-package.json,

@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import urllib.request
@@ -41,10 +42,36 @@ def registry_ids(index):
     return ids
 
 
+def rmtree_force(path):
+    """Delete a tree containing read-only files.
+
+    The package clones under the docs project carry read-only .git pack files,
+    which Windows refuses to unlink until the bit is cleared, and clearing it on
+    the file alone is not always enough: the containing directory is checked
+    too. Without this a second docs build fails on the leftovers of the first,
+    so the docs could only ever be built once per checkout.
+
+    shutil's callback was renamed from onerror to onexc in 3.12 and the old name
+    is gone in 3.14, which this runs under.
+    """
+    def clear_readonly_and_retry(func, target, _exc):
+        for path_to_fix in (target, os.path.dirname(target)):
+            try:
+                os.chmod(path_to_fix, stat.S_IWRITE)
+            except OSError:
+                pass
+        func(target)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=clear_readonly_and_retry)
+    else:
+        shutil.rmtree(path, onerror=clear_readonly_and_retry)
+
+
 def create_project(editor, parent, name):
     project = os.path.join(parent, name)
     if os.path.isdir(project):
-        shutil.rmtree(project)
+        rmtree_force(project)
     os.makedirs(parent, exist_ok=True)
     rc = subprocess.run([editor, "--new-project", name, parent], capture_output=True, text=True)
     if rc.returncode != 0 or not os.path.isfile(os.path.join(project, "deki.json")):

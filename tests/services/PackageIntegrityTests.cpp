@@ -122,6 +122,11 @@ bool GitAvailable()
     return DekiEditor::RunGit({ "--version" }, out) == 0;
 }
 
+bool IsBlank(const std::string& s)
+{
+    return s.find_first_not_of(" \t\r\n") == std::string::npos;
+}
+
 #define REQUIRE_GIT()                                          \
     do                                                         \
     {                                                          \
@@ -291,4 +296,51 @@ TEST(PackageIntegrity, PlainDirectoryIsNotAReparsePoint)
     EXPECT_FALSE(DekiEditor::IsReparsePoint(dir / "does-not-exist"));
 
     fs::remove_all(dir, ec);
+}
+
+// A directory INSIDE another repository, carrying a .git that is not a usable
+// repository of its own. git walks up from there and finds the enclosing one,
+// so every command — `stash push -u` included — would land on a repository this
+// function was never pointed at.
+//
+// This is what happened: the docs build puts a project inside the editor
+// checkout, so its package clones live under deki-editor's own worktree, and a
+// restore stashed the editor's uncommitted source under the name of a package.
+TEST(PackageIntegrity, APathInsideAnotherRepositoryIsSkipped)
+{
+    REQUIRE_GIT();
+    const fs::path outer = fs::temp_directory_path() / "deki_integrity_outer";
+    std::error_code ec;
+    fs::remove_all(outer, ec);
+    fs::create_directories(outer, ec);
+
+    std::string out;
+    ASSERT_EQ(DekiEditor::RunGit({ "-C", outer.string(), "init" }, out), 0) << out;
+    {
+        std::ofstream f(outer / "outer.txt");
+        f << "work that must not be stashed\n";
+    }
+    DekiEditor::RunGit({ "-C", outer.string(), "add", "-A" }, out);
+    DekiEditor::RunGit({ "-C", outer.string(), "-c", "user.email=t@t", "-c", "user.name=t",
+                         "commit", "-m", "outer" }, out);
+
+    // A package directory under it, with a .git that is not a repository.
+    const fs::path inner = outer / "packages" / "deki-test";
+    fs::create_directories(inner / ".git", ec);
+    {
+        std::ofstream f(inner / "Package.cpp");
+        f << "// an uncommitted edit in the OUTER repository\n";
+    }
+
+    const auto r = DekiEditor::RestorePackage(inner, "deki-test", "1.0.0");
+
+    EXPECT_EQ(r.action, PackageIntegrityResult::Action::Skipped)
+        << "must refuse a directory that is not its own repository root";
+    EXPECT_TRUE(fs::exists(inner / "Package.cpp")) << "nothing may be stashed or reverted";
+
+    // The decisive one: the enclosing repository must be untouched.
+    ASSERT_EQ(DekiEditor::RunGit({ "-C", outer.string(), "stash", "list" }, out), 0);
+    EXPECT_TRUE(IsBlank(out)) << "the enclosing repository was stashed: " << out;
+
+    fs::remove_all(outer, ec);
 }

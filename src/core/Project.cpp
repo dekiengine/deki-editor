@@ -1,5 +1,6 @@
 #include "Project.h"
 #include "ProjectPaths.h"
+#include "../services/VersionCompare.h"
 #include <deki-editor/Paths.h>
 #include <deki-editor/FileIO.h>
 #include "SettingsOwnership.h"
@@ -294,6 +295,30 @@ bool Project::Load(const std::string& path)
         // Gated on the structure version so it runs once, and so a project can
         // always say which layout it is on rather than each migration inferring it
         // from the shape of the directory.
+        // Which editor last wrote this project. Refuse a project from a NEWER
+        // one: its scenes may use a format this build does not understand, and
+        // opening it would quietly rewrite them back into the older shape on
+        // the next save, losing whatever the newer editor stored.
+        //
+        // Older is always fine, which is the whole point of the migrations
+        // above and of the name and enum tables.
+        //
+        // The field used to be stamped once at scaffold time and never updated,
+        // so every project claimed whatever version created it; deki-demo said
+        // 1.0.0 while running 0.15.0, and nothing read it. It is rewritten on
+        // every save now, below.
+        const std::string wroteWith = json.value("engineVersion", "");
+        if (!wroteWith.empty() &&
+            DekiEditor::CompareVersions(wroteWith, DEKI_ENGINE_VERSION) > 0)
+        {
+            m_LoadError = "This project was last saved by Deki " + wroteWith +
+                          "; this editor is " + DEKI_ENGINE_VERSION +
+                          ". Update the editor to open it. Opening it here would "
+                          "write its scenes back in the older format.";
+            DEKI_LOG_ERROR("Project: %s", m_LoadError.c_str());
+            return false;
+        }
+
         m_StructureVersion = json.value("structure", "v1");
         const bool migrated = (m_StructureVersion != ProjectPaths::kStructureVersion);
         if (migrated)
@@ -471,6 +496,12 @@ bool Project::Save()
     const std::vector<std::string> writtenSections = SaveSettingsFiles(m_Path);
 
     // Record the layout version so the migration above runs exactly once.
+    // Which editor wrote this, rewritten every save. Load refuses a project
+    // from a newer one. It used to be stamped once when the project was
+    // created and never touched again, so it recorded nothing useful: every
+    // project claimed the version that scaffolded it, forever.
+    json["engineVersion"] = DEKI_ENGINE_VERSION;
+
     json["structure"] = m_StructureVersion.empty()
                             ? std::string(ProjectPaths::kStructureVersion)
                             : m_StructureVersion;

@@ -55,7 +55,27 @@ std::string EditorPaths::GetEditorDataDir()
 {
     std::string home = GetUserHomeDir();
     if (home.empty()) return "";
+
+#ifdef _WIN32
     return home + "/.deki-editor";
+#else
+    // XDG on Linux and macOS: a dotfolder straight in $HOME is what this used
+    // to be, and it is the thing distribution packagers and users ask about
+    // first. $XDG_DATA_HOME wins when set, as the spec says.
+    //
+    // A directory from before this keeps being used, so nobody's toolchains and
+    // board packs move out from under them; only a fresh install picks the new
+    // location.
+    const std::string legacy = home + "/.deki-editor";
+    std::error_code ec;
+    if (std::filesystem::exists(legacy, ec))
+        return legacy;
+
+    const char* xdg = getenv("XDG_DATA_HOME");
+    if (xdg && xdg[0] != '\0')
+        return std::string(xdg) + "/deki-editor";
+    return home + "/.local/share/deki-editor";
+#endif
 }
 
 std::string EditorPaths::GetToolchainsDir()

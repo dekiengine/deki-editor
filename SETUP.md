@@ -317,7 +317,12 @@ work.
                       sections, with defaults, as JSON (the docs build's input)
 --include-project     With --dump-metadata: the project's own components too
 
+--strip-plan          What a build would leave out, and why, without building
+--platform-compat     Which packages build for which of the project's targets,
+                      and what stops the ones that do not
+
 --build-firmware      Build firmware for the active platform
+--build-all-targets   Build every platform the project declares, not just one
 --flash               Flash previously built firmware to a device
 --clean               Clean the firmware build directory
 

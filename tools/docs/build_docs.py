@@ -37,13 +37,31 @@ import urllib.request
 import zipfile
 
 def _rmtree(path):
-    """shutil.rmtree that also removes read-only files: the package clones under
-    the docs project carry read-only .git pack files, which Windows refuses to
-    unlink until the bit is cleared."""
-    def _onerror(func, p, _exc):
-        os.chmod(p, stat.S_IWRITE)
+    """shutil.rmtree that also removes read-only files.
+
+    The package clones under the docs project carry read-only .git pack files,
+    which Windows refuses to unlink until the bit is cleared. Clearing it on the
+    file alone is not always enough: the containing directory can be read-only
+    too, and Windows checks that before letting an entry be removed.
+
+    `onerror` was deprecated in Python 3.12 in favour of `onexc` and is removed
+    in 3.14, so the right one is chosen for the interpreter in hand. On 3.12
+    passing the deprecated name also raised a DeprecationWarning that turned the
+    handler into a no-op under -W error, which is how a docs rebuild came to
+    fail on files this function exists to delete.
+    """
+    def _clear_readonly_and_retry(func, p, _exc):
+        for target in (p, os.path.dirname(p)):
+            try:
+                os.chmod(target, stat.S_IWRITE)
+            except OSError:
+                pass
         func(p)
-    shutil.rmtree(path, onerror=_onerror)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_clear_readonly_and_retry)
+    else:
+        shutil.rmtree(path, onerror=_clear_readonly_and_retry)
 
 
 DOXYGEN_VERSION = "1.18.0"
