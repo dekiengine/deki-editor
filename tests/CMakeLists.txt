@@ -63,6 +63,7 @@ set(TEST_SOURCES
     core/SceneFormatVersionTests.cpp
     core/AssetDataTests.cpp
     core/RenamedPropertyTests.cpp
+    core/RenamedComponentTests.cpp
     services/MinEngineGateTests.cpp
     services/PackageIntegrityTests.cpp
     panels/VirtualFoldersTests.cpp

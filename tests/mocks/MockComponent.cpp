@@ -16,6 +16,12 @@ namespace DekiEditor::Tests
 static const char* const s_GappedEnum_Values[] = { "Off", "Low", "High" };
 static const int32_t s_GappedEnum_Ints[] = { 0, 10, 20 };
 
+// Names this component was saved under before, newest first, as DEKI_FORMER_NAME
+// produces. Two of them so the chain case is covered: a class renamed twice must
+// still resolve from a scene written before either rename.
+static const char* const s_MockComponent_FormerNames[] = { "OldMockComponent",
+                                                           "AncientMockComponent" };
+
 const Deki::PropertyInfo MockComponent::Properties[] = {
     {
         "intValue",          // name
@@ -183,7 +189,14 @@ const Deki::ComponentMeta MockComponent::ComponentMeta = {
     MockComponent::Properties,
     MockComponent::PropertyCount,
     {},                   // displayNameBuffer
-    false                 // displayNameGenerated
+    false,                // displayNameGenerated
+    nullptr,              // displayNameOverride
+    nullptr,              // settingsSection
+    nullptr,              // typeInfo (set through SetTypeInfo, not the meta)
+    // What the codegen emits for two DEKI_FORMER_NAME lines: the qualified
+    // names this class was saved under before, newest first.
+    s_MockComponent_FormerNames,
+    2                     // formerNameCount
 };
 
 const Deki::ComponentTypeInfo MockComponent::TypeInfo = {
