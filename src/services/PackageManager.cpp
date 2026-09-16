@@ -1,6 +1,7 @@
 #include "PackageManager.h"
 #include "SafeNames.h"
 #include "PackageManifest.h"
+#include "VersionCompare.h"
 #include <deki-editor/Paths.h>
 #include <deki-editor/FileIO.h>
 #include <deki/LogSystem.h>

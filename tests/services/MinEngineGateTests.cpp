@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "services/installers/DekiPackageInstaller.h"
+#include "services/PackageManager.h"
 
 #include <filesystem>
 #include <fstream>
@@ -132,4 +133,40 @@ TEST(MinEngineGate, ThisEnginesOwnPackagesPassBothBounds)
 
     std::string reason;
     EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason)) << reason;
+}
+
+// The package list answers the same question the installer does, but from the
+// registry rather than a downloaded manifest. If the two ever disagree the list
+// tells people a package is fine and the install then refuses it, so they are
+// checked against each other here.
+TEST(MinEngineGate, TheListAgreesWithTheInstaller)
+{
+    struct Case { const char* minEngine; bool compatible; };
+    const Case cases[] = {
+        { DEKI_ENGINE_VERSION, true },
+        { DEKI_OLDEST_SUPPORTED_PACKAGE, true },
+        { "99.0.0", false },   // needs a newer editor
+        { "0.1.0", false },    // built for an editor too old
+        { "", true },          // said nothing; both paths accept that
+    };
+
+    for (const Case& c : cases)
+    {
+        PackageEntry pkg;
+        pkg.minEngine = c.minEngine;
+        const bool listSaysOk = PackageCompatibilityProblem(pkg).empty();
+        EXPECT_EQ(listSaysOk, c.compatible) << "minEngine '" << c.minEngine << "'";
+
+        const std::string dirName = std::string("agree_") + (c.minEngine[0] ? c.minEngine : "empty");
+        PackageDir dir(dirName.c_str());
+        if (c.minEngine[0])
+            dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")") + c.minEngine + R"("})");
+        else
+            dir.WriteManifest(R"({"id":"deki-x"})");
+
+        std::string reason;
+        const bool installerSaysOk = DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason);
+        EXPECT_EQ(listSaysOk, installerSaysOk)
+            << "the list and the installer disagree about minEngine '" << c.minEngine << "'";
+    }
 }

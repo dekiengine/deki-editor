@@ -525,6 +525,17 @@ void PackageManagerPanel::DrawPackageDetails()
         ui.Spacing();
     }
 
+    // Ahead of the Install button, not after it. The installer makes the same
+    // comparison, but only once the package has been cloned, so the whole
+    // download used to happen and be thrown away again with no warning that it
+    // was going to be. The registry already told us which engine the package
+    // needs, so say it here.
+    if (const std::string problem = PackageCompatibilityProblem(pkg); !problem.empty())
+    {
+        TextCol(ui, Palette::Red, ("Not compatible. " + problem + ".").c_str());
+        ui.Spacing();
+    }
+
     // Description + metadata.
     if (!pkg.description.empty())
     {
@@ -1340,6 +1351,7 @@ void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
                     pkg.displayName = entry.displayName;
                     pkg.description = entry.description;
                     pkg.experimental = entry.experimental;
+                    pkg.minEngine = entry.minEngine;
                     pkg.url = "https://github.com/" + entry.repo;
                     pkg.source = PackageSourceType::Custom;
                     pkg.packageType = PackageType::DekiPackage;
@@ -1400,6 +1412,7 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
         pkg.displayName = entry.displayName;
         pkg.description = entry.description;
         pkg.experimental = entry.experimental;
+        pkg.minEngine = entry.minEngine;
         pkg.url = "https://github.com/" + entry.repo;
         pkg.source = PackageSourceType::Custom;
         pkg.packageType = PackageType::DekiPackage;
@@ -1727,6 +1740,7 @@ void PackageManagerPanel::FetchCustomRegistry(const CustomRegistryInfo& registry
                         pkg.displayName = entry.displayName;
                         pkg.description = entry.description;
                         pkg.experimental = entry.experimental;
+                        pkg.minEngine = entry.minEngine;
                         pkg.url = "https://github.com/" + entry.repo;
                         pkg.source = PackageSourceType::Custom;
                         pkg.packageType = PackageType::DekiPackage;

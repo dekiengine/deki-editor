@@ -8,6 +8,8 @@
 #include <unordered_set>
 #include <mutex>
 
+#include "VersionCompare.h"
+
 // Package source type
 enum class PackageSourceType
 {
@@ -66,7 +68,41 @@ struct PackageEntry
     bool editable = false;
     // From the registry: the author says this one can change under you.
     bool experimental = false;
+    // The engine version this package was built for, straight from the
+    // registry. Carried here so the package list can say whether a package
+    // will work BEFORE anyone installs it: the check itself reads the manifest,
+    // which only exists once the package has been downloaded, so without this
+    // the only way to find out was to click install and have the download
+    // thrown away again.
+    std::string minEngine;
 };
+
+/// Why a package cannot be used with this editor, or empty when it can.
+///
+/// The same two comparisons the installer makes, but against the registry's
+/// minEngine rather than a manifest that only exists once the package has been
+/// downloaded. That is the whole point: the package list can say so before
+/// anyone clicks Install, instead of the download happening and being thrown
+/// away again.
+///
+/// Inline so it can be tested without linking PackageManager.cpp, which pulls
+/// in the editor application. A test pins it against the installer's answer.
+inline std::string PackageCompatibilityProblem(const PackageEntry& pkg)
+{
+    // No answer beats a wrong one: a package that never said which engine it
+    // needs predates the field, and the installer accepts those too.
+    if (pkg.minEngine.empty())
+        return {};
+
+    if (DekiEditor::CompareVersions(DEKI_ENGINE_VERSION, pkg.minEngine) < 0)
+        return "Needs editor " + pkg.minEngine + "; this one is " + DEKI_ENGINE_VERSION;
+
+    if (DekiEditor::CompareVersions(pkg.minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
+        return "Built for editor " + pkg.minEngine + "; this one needs "
+               + DEKI_OLDEST_SUPPORTED_PACKAGE + " or newer";
+
+    return {};
+}
 
 // Core dependency information (managed by editor, not user)
 struct CoreDependency
