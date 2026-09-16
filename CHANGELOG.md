@@ -6,6 +6,55 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+## 0.16.0 - 2026-09-16
+
+### Changed
+- **Packages live in their own namespace.** Every package component was
+  declared at global scope, which made a component's identity a bare class
+  name: the name a scene file stores and the name the registry keys on. Two
+  packages defining one name collided there, and the loser's instances were
+  then read through the winner's field table. Each package now has a namespace
+  (`Deki2D`, `DekiRendering`, and so on) and every component carries
+  `DEKI_FORMER_NAME` with the name it used to be saved under, so existing
+  scenes load unchanged and are written back qualified on the next save.
+- **Enums are stored by name.** A scene held a bare integer, so appending to an
+  enum or reordering one silently changed what every saved file meant. The
+  reflection tables now carry each enumerator's underlying value beside its
+  name, scenes and settings write the name, and a number still reads. This also
+  fixed the inspector writing a list position where the loader read a value,
+  which is silently wrong on any enum not numbered 0, 1, 2.
+- **A component can be renamed.** `DEKI_FORMER_NAME("Old::Name")` above a class
+  records a name it was saved under, repeatable so a class renamed twice still
+  loads a file older than either rename. `DEKI_RENAMED_FROM` already did this
+  for a field; there was nothing for the class.
+- Reflection ABI 17. Packages must be rebuilt.
+
+### Added
+- **The engine says how old a package may be.** `minEngine` was a floor with
+  nothing above it, so a package from an older generation installed, failed the
+  ABI handshake, was rebuilt from source, and failed to compile — a compile
+  error deep in a project build with nothing naming the package. The engine now
+  declares the oldest package generation it can build and the editor refuses
+  anything below it, by name and version.
+- That check also runs when a project OPENS, not only when a package is added.
+  Cloning a project whose packages are committed, or restoring them from the
+  lock, never went through an install and so was never checked.
+- Registration reports two different components claiming one name instead of
+  silently replacing the first.
+
+### Fixed
+- Only the first codegen precompiled header ever got a rebuild rule, so editing
+  an engine reflection header left the others stale. A stale one surfaces as a
+  wall of "redefinition of struct" errors pointing at a header that is correct.
+- The package compile check put only a package's own generated directory on the
+  include path, so a header including a sibling's generated output resolved by
+  accident against whatever an earlier project build had left in the source
+  tree.
+- The lock no longer caches `availableVersions`. Nothing refreshed it, so it
+  went stale silently and a package could resolve to a version deleted from
+  every remote.
+
+
 ## 0.15.0 - 2026-09-14
 
 ### Added
