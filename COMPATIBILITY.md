@@ -129,6 +129,23 @@ The engine and the editor share one version number: editor 0.16.0 ships engine
 the API is declared stable, and before 1.0 a breaking change bumps the minor
 across the editor, the engine and every package together.
 
+## Which editor last saved a project
+
+`deki.json` carries `lastSavedBy`, rewritten on every save with the editor that
+wrote the file. Opening a project whose `lastSavedBy` is above the running
+editor is refused, naming both versions, because saving would write its scenes
+back in the older format and drop whatever the newer editor stored. Older or
+absent always opens: the migrations, the former-name table and the enum name
+table exist for exactly that direction.
+
+`lastSavedBy` arrived in 0.16.0, so every project written before it has no such
+key and opens anywhere. It is deliberately not the older `engineVersion` key,
+which is kept up to date for the ESP-IDF toolchain and the doc generator but
+cannot carry this rule: before 0.16.0 it was written once when the project was
+scaffolded and never updated, and a fallback in the scaffold wrote a literal
+`1.0.0`. That value outranks every version Deki has shipped, and no threshold
+can separate a stale `1.0.0` from a genuine future one.
+
 ## Deprecation and the ABI rule
 
 - **C++ API.** A public function, type or macro that is going away is marked

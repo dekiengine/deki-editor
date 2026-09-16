@@ -64,6 +64,7 @@ set(TEST_SOURCES
     core/AssetDataTests.cpp
     core/RenamedPropertyTests.cpp
     core/RenamedComponentTests.cpp
+    core/ProjectVersionGateTests.cpp
     services/MinEngineGateTests.cpp
     services/PackageIntegrityTests.cpp
     panels/VirtualFoldersTests.cpp

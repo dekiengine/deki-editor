@@ -68,11 +68,13 @@ bool WriteDekiJson(const std::string& projectPath, const std::string& projectNam
     j["name"] = projectName;
     j["version"] = "1.0";
     j["engine"] = "deki";
-#ifdef DEKI_ENGINE_VERSION
+    // Both carry the same thing. Project::Save rewrites them on every save;
+    // the load gate reads lastSavedBy (see Project::Load). There is no fallback
+    // for a missing DEKI_ENGINE_VERSION on purpose: it is always defined, and
+    // the one that used to stand here wrote a literal "1.0.0" that then
+    // outranked every real version.
+    j["lastSavedBy"] = DEKI_ENGINE_VERSION;
     j["engineVersion"] = DEKI_ENGINE_VERSION;
-#else
-    j["engineVersion"] = "1.0.0";
-#endif
     j["structure"] = ProjectPaths::kStructureVersion;
     // The scaffold's scene positions its objects and its scripts may move them,
     // so the project declares the 2D transform for its own code (COMPATIBILITY.md).

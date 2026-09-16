@@ -41,6 +41,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   lock, never went through an install and so was never checked.
 - Registration reports two different components claiming one name instead of
   silently replacing the first.
+- **A project says which editor last saved it.** `deki.json` now carries
+  `lastSavedBy`, rewritten on every save. Opening a project whose value is
+  above the running editor is refused, naming both versions, rather than
+  saving its scenes back in the older format and dropping what the newer
+  editor stored. A project without the key, which is every project written
+  before this release, opens anywhere. It is a new key rather than the
+  existing `engineVersion` because that one was stamped once at scaffold time
+  and never updated, and its fallback wrote a literal `1.0.0` that outranks
+  every shipped version. `engineVersion` is still written and still read by
+  the ESP-IDF toolchain and the doc generator.
 
 ### Fixed
 - Only the first codegen precompiled header ever got a rebuild rule, so editing

@@ -13,6 +13,9 @@
 #include <deki/settings/UnitProjectSettings.h>
 #include <deki/settings/CoreProjectSettings.h>
 
+// CompareVersions, for the ProjectNeedsNewerEditor rule below.
+#include "services/VersionCompare.h"
+
 namespace DekiEditor
 {
 
@@ -24,6 +27,27 @@ namespace DekiEditor
 Deki::DisplayProjectSettings* GetDisplaySettings();
 Deki::UnitProjectSettings* GetUnitSettings();
 Deki::CoreProjectSettings* GetCoreSettings();
+
+/// True when a project saved by editor `lastSavedBy` must not be opened by
+/// editor `thisEditor`, because opening it would write its scenes back in the
+/// older format and drop whatever the newer one stored.
+///
+/// `lastSavedBy` is deki.json's "lastSavedBy". An empty one means the project
+/// predates the field, which is always older, so always allowed. It is a
+/// separate key from the older "engineVersion" on purpose: that one was
+/// stamped once at scaffold time and never updated, and its missing-macro
+/// fallback wrote a literal "1.0.0" that outranks every real version, so no
+/// threshold can tell a stale value there from a true one.
+///
+/// Inline so the rule can be tested without linking Project.cpp, which pulls
+/// in the whole editor.
+inline bool ProjectNeedsNewerEditor(const std::string& lastSavedBy,
+                                    const std::string& thisEditor)
+{
+    if (lastSavedBy.empty())
+        return false;
+    return DekiEditor::CompareVersions(lastSavedBy, thisEditor) > 0;
+}
 
 /**
  * @brief Project file (deki.json) — paths and asset/build wiring.

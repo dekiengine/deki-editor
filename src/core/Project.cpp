@@ -303,13 +303,17 @@ bool Project::Load(const std::string& path)
         // Older is always fine, which is the whole point of the migrations
         // above and of the name and enum tables.
         //
-        // The field used to be stamped once at scaffold time and never updated,
-        // so every project claimed whatever version created it; deki-demo said
-        // 1.0.0 while running 0.15.0, and nothing read it. It is rewritten on
-        // every save now, below.
-        const std::string wroteWith = json.value("engineVersion", "");
-        if (!wroteWith.empty() &&
-            DekiEditor::CompareVersions(wroteWith, DEKI_ENGINE_VERSION) > 0)
+        // The check reads "lastSavedBy" rather than the older "engineVersion",
+        // which cannot be trusted: before 0.16.0 that one was stamped once at
+        // scaffold time and never updated, so it recorded whatever created the
+        // project rather than what last wrote it, and the scaffold had a
+        // fallback that wrote the literal "1.0.0". Since 1.0.0 compares above
+        // 0.16.0, honouring it would lock every project made before this one
+        // out of the editor, and no threshold can tell a stale 1.0.0 from a
+        // real one. "lastSavedBy" is written only by editors that maintain it,
+        // so its absence means "older", which is always allowed.
+        const std::string wroteWith = json.value("lastSavedBy", "");
+        if (ProjectNeedsNewerEditor(wroteWith, DEKI_ENGINE_VERSION))
         {
             m_LoadError = "This project was last saved by Deki " + wroteWith +
                           "; this editor is " + DEKI_ENGINE_VERSION +
@@ -497,9 +501,12 @@ bool Project::Save()
 
     // Record the layout version so the migration above runs exactly once.
     // Which editor wrote this, rewritten every save. Load refuses a project
-    // from a newer one. It used to be stamped once when the project was
-    // created and never touched again, so it recorded nothing useful: every
-    // project claimed the version that scaffolded it, forever.
+    // from a newer one. "engineVersion" used to carry this, but it was stamped
+    // once when the project was created and never touched again, so every
+    // project claimed the version that scaffolded it, forever. It is kept
+    // up to date here too because the ESP-IDF toolchain and the doc generator
+    // still read it, but the gate on load uses "lastSavedBy" alone.
+    json["lastSavedBy"] = DEKI_ENGINE_VERSION;
     json["engineVersion"] = DEKI_ENGINE_VERSION;
 
     json["structure"] = m_StructureVersion.empty()
