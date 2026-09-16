@@ -11,8 +11,16 @@ engine and package versions, what may change, and how a change reaches you.
 - A newer file refuses to load in an older editor with a message naming the
   version, rather than loading partially.
 - Package releases follow semver against the engine: `minEngine` in a
-  package's `package.json` is checked at install, and a package whose
-  reflected names or class names change is a major release of that package.
+  package's `package.json` is checked whenever packages are resolved, on
+  install and on opening a project, and a package whose reflected names or
+  class names change is a major release of that package.
+- `minEngine` is checked in BOTH directions. Releases are in lockstep, so it
+  is also the engine generation the package was built against, and an engine
+  refuses a package older than it can still build
+  (`DEKI_OLDEST_SUPPORTED_PACKAGE`). Without that a package installs, fails the
+  ABI handshake, is rebuilt from source, and fails to compile — a build error
+  with nothing naming the package. A package only has to move when a release
+  actually breaks it, not on every release.
 - Before 1.0, breaking changes can still happen between minor versions. They
   are announced in the changelog with the migration, never silent.
 
@@ -24,7 +32,9 @@ These are what downstream projects and packages depend on:
 | --- | --- | --- |
 | Scene files (`.scene`), asset envelopes (`.asset`), sidecars (`.data`) | JSON, reflected property names as keys | `formatVersion` in the file (absent = 1) |
 | Reflected property names | `DEKI_EXPORT` members of every component | Renames carry `DEKI_RENAMED_FROM`; the old key loads and is written back under the new name on save |
-| Component type names | The qualified class name (`Game::Mover`), `"type"` in the file | A rename is a format change; a 0.10 GUID resolves through the editor's legacy table and the `class` hint |
+| Component type names | The qualified class name (`Game::Mover`), `"type"` in the file | Renames carry `DEKI_FORMER_NAME`, repeatable, so a file older than several renames still loads and is written back under the current name |
+| Enum values | The enumerator's NAME in the file, resolved through the reflected value table | Reorder or insert freely; renaming a value is the change that costs, and it fails loudly rather than silently |
+| Colours | `#RRGGBBAA` | A packed integer still reads |
 | Object transform keys | `x`, `y`, `rotation`, `scaleX`, `scaleY` on the object itself, written by `Scene.cpp` rather than through reflection | `rotation` is the Z angle in radians and stays a single number (below) |
 | Project descriptor `deki.json` | `structure` field | Layout migrations run on open (`v1`..`v5`) |
 | Package manifest `deki-packages.json`, lock file | `schemaVersion` / `lockVersion` | |
@@ -114,8 +124,8 @@ or depend on it:
 
 ## One version number
 
-The engine and the editor share one version number: editor 0.15.0 ships engine
-0.15.0, and a package's `minEngine` names that number. Both stay at 0.x until
+The engine and the editor share one version number: editor 0.16.0 ships engine
+0.16.0, and a package's `minEngine` names that number. Both stay at 0.x until
 the API is declared stable, and before 1.0 a breaking change bumps the minor
 across the editor, the engine and every package together.
 

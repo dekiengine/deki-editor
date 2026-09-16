@@ -182,8 +182,9 @@ On project open the editor reconstructs it:
 
 1. **From the manifest** — reads `deki-packages.json` + `deki-packages-lock.json`
    and clones anything missing, at the version the project pins. Resolution order
-   is: manifest pin → lock `installedVersion` → `availableVersions[0]` →
-   registry `latest`.
+   is: manifest pin → lock `installedVersion` → registry `latest`. The lock
+   does not cache a list of available versions: it records what is installed,
+   and a cache nobody refreshes goes stale.
 2. **Transitive requires** — scans each installed package's `package.json`
    `requires` and pulls those through the registry, repeating until nothing new
    appears. This is how `deki-esp32-integration` drags in `deki-ble`, `deki-http`,
