@@ -228,7 +228,7 @@ uint32_t EditorAssets::LoadFontAtlasFromPath(const std::string& dfontPath, uint3
     return cached->textureId;
 }
 
-BitmapFont* EditorAssets::GetBitmapFont(const std::string& bakedGuid)
+Deki2D::BitmapFont* EditorAssets::GetBitmapFont(const std::string& bakedGuid)
 {
     if (bakedGuid.empty())
         return nullptr;
@@ -236,14 +236,14 @@ BitmapFont* EditorAssets::GetBitmapFont(const std::string& bakedGuid)
     // Check cache
     auto it = m_FontAtlasCache.find(bakedGuid);
     if (it != m_FontAtlasCache.end() && it->second)
-        return static_cast<BitmapFont*>(it->second->font);
+        return static_cast<Deki2D::BitmapFont*>(it->second->font);
 
     // Try to load it
     LoadFontAtlas(bakedGuid);
 
     it = m_FontAtlasCache.find(bakedGuid);
     if (it != m_FontAtlasCache.end() && it->second)
-        return static_cast<BitmapFont*>(it->second->font);
+        return static_cast<Deki2D::BitmapFont*>(it->second->font);
 
     return nullptr;
 }
@@ -297,7 +297,7 @@ void EditorAssets::ClearFontBakingCallbacks()
     m_FontAtlasCallback = nullptr;
 }
 
-BitmapFont* EditorAssets::GetBitmapFontWithBaking(const std::string& sourceGuid, int fontSize)
+Deki2D::BitmapFont* EditorAssets::GetBitmapFontWithBaking(const std::string& sourceGuid, int fontSize)
 {
     if (m_FontBakeCallback)
     {
@@ -326,7 +326,7 @@ EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::st
     if (!fs::exists(dfontPath))
         return nullptr;
 
-    // Delegate dfont parsing + BitmapFont creation to the 2d package
+    // Delegate dfont parsing + Deki2D::BitmapFont creation to the 2d package
     uint8_t* atlasRGBA = nullptr;
     int32_t atlasW = 0, atlasH = 0;
     void* font = s_fontFactory(dfontPath.c_str(), &atlasRGBA, atlasW, atlasH);

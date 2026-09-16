@@ -7,7 +7,10 @@
 #include <functional>
 
 // Forward declarations
-class BitmapFont;
+// The editor holds bitmap fonts only as opaque handles; the type itself
+// belongs to deki-2d, so name it there rather than declaring a second one at
+// global scope that is ambiguous wherever both are visible.
+namespace Deki2D { class BitmapFont; }
 
 #include <deki-editor/EditorExport.h>
 namespace DekiEditor
@@ -18,7 +21,7 @@ namespace DekiEditor
  *
  * Provides Unity-like asset loading for editor use:
  *   uint32_t texId = EditorAssets::Get()->LoadTexture(guid, &w, &h);
- *   BitmapFont* font = EditorAssets::Get()->GetBitmapFont(bakedGuid);
+ *   Deki2D::BitmapFont* font = EditorAssets::Get()->GetBitmapFont(bakedGuid);
  *
  * Features:
  * - GPU texture caching by GUID
@@ -36,11 +39,11 @@ public:
     /// Load a .dtex image file as RGBA pixel data. Caller must free() the returned buffer.
     using ImageLoaderFn = uint8_t* (*)(const char* path, int32_t& outWidth, int32_t& outHeight, bool& outHasAlpha);
 
-    /// Load a .dfont file, returning an opaque BitmapFont* and the atlas RGBA data for GPU upload.
+    /// Load a .dfont file, returning an opaque Deki2D::BitmapFont* and the atlas RGBA data for GPU upload.
     /// The caller must free() outAtlasRGBA after uploading. The returned font is owned by the caller.
     using FontFromDfontFn = void* (*)(const char* dfontPath, uint8_t** outAtlasRGBA, int32_t& outAtlasW, int32_t& outAtlasH);
 
-    /// Destroy an opaque BitmapFont* returned by FontFromDfontFn.
+    /// Destroy an opaque Deki2D::BitmapFont* returned by FontFromDfontFn.
     using FontDestroyFn = void (*)(void* font);
 
     static void RegisterImageLoader(ImageLoaderFn fn);
@@ -115,7 +118,7 @@ public:
      * @param bakedGuid Deterministic GUID of the baked font
      * @return Pointer to BitmapFont, or nullptr if not cached
      */
-    BitmapFont* GetBitmapFont(const std::string& bakedGuid);
+    Deki2D::BitmapFont* GetBitmapFont(const std::string& bakedGuid);
 
     /**
      * @brief Invalidate cached font (forces reload on next access)
@@ -136,7 +139,7 @@ public:
      * @param fontSize Font size in pixels
      * @return BitmapFont pointer (owned by caller's cache), or nullptr on failure
      */
-    using FontBakeCallback = std::function<BitmapFont*(const std::string&, int)>;
+    using FontBakeCallback = std::function<Deki2D::BitmapFont*(const std::string&, int)>;
 
     /**
      * @brief Callback for getting font atlas texture
@@ -168,7 +171,7 @@ public:
      * @param fontSize Font size in pixels
      * @return BitmapFont pointer, or nullptr if not found
      */
-    BitmapFont* GetBitmapFontWithBaking(const std::string& sourceGuid, int fontSize);
+    Deki2D::BitmapFont* GetBitmapFontWithBaking(const std::string& sourceGuid, int fontSize);
 
     /**
      * @brief Load font atlas by source GUID and size (triggers baking if needed)
@@ -247,7 +250,7 @@ private:
         uint32_t textureId = 0;
         uint32_t width = 0;
         uint32_t height = 0;
-        void* font = nullptr;  // Opaque BitmapFont*, destroyed via s_fontDestroyer
+        void* font = nullptr;  // Opaque Deki2D::BitmapFont*, destroyed via s_fontDestroyer
     };
 
     // Internal font loading

@@ -516,6 +516,14 @@ if(DEKI_GXX16 AND EXISTS "${DEKI_PACKAGES_DIR}")
     foreach(_d IN LISTS _pkg_dirs)
         if(IS_DIRECTORY "${DEKI_PACKAGES_DIR}/${_d}")
             list(APPEND DEKI_PKG_INCLUDE_ROOTS "${DEKI_PACKAGES_DIR}/${_d}")
+            # ...and where that sibling's codegen output lands. A header like
+            # deki-2d's FrameAnimationData.h includes "generated/X.gen.h", so
+            # any package that includes it needs deki-2d's generated directory
+            # too, not only its own. This used to resolve by accident against a
+            # stale generated/ left in the source tree by an earlier project
+            # build, which meant the check passed or failed depending on what
+            # had been built there before.
+            list(APPEND DEKI_PKG_INCLUDE_ROOTS "${CMAKE_BINARY_DIR}/pkgcheck/${_d}")
         endif()
     endforeach()
     foreach(_d IN LISTS _pkg_dirs)

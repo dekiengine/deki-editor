@@ -69,8 +69,8 @@ public:
     int32_t GetScreenWidth() const override { return 8; }
     int32_t GetScreenHeight() const override { return 8; }
     Deki::ColorFormat GetColorFormat() const override { return Deki::ColorFormat::RGB565; }
-    void SetRenderer(DekiRenderer*) override {}
-    DekiRenderer* GetRenderer() const override { return nullptr; }
+    void SetRenderer(DekiRendering::DekiRenderer*) override {}
+    DekiRendering::DekiRenderer* GetRenderer() const override { return nullptr; }
     void RenderToBuffer(Deki::Scene*, Deki::ICamera*, uint8_t*, int32_t, int32_t, Deki::ColorFormat) override {}
     void MarkAllDirty() override { ++markAllDirtyCalls; }
     const Deki::Rect* GetPresentRects(int32_t* out) const override
