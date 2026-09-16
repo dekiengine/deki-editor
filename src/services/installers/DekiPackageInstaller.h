@@ -60,7 +60,7 @@ public:
     // Public for the same reason as the two above: it decides whether a package
     // is allowed to install at all, so it is worth testing directly rather than
     // through a network clone.
-    bool EngineSatisfiesPackage(const fs::path& packageDir, std::string& reason) const;
+    static bool EngineSatisfiesPackage(const fs::path& packageDir, std::string& reason);
 
     // Extract repo name from package info (e.g., "owner/repo" -> "repo").
     // This IS the directory name under packages/, so anything that needs to

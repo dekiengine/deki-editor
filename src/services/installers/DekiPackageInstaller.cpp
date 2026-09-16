@@ -776,7 +776,7 @@ bool DekiPackageInstaller::IsCoreDependency(const std::string& /*name*/) const
 }
 
 bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir,
-                                                  std::string& reason) const
+                                                  std::string& reason)
 {
     const fs::path manifest = packageDir / "package.json";
     if (!fs::exists(manifest))
@@ -809,6 +809,23 @@ bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir,
         reason = "Package needs engine " + minEngine + " or newer; this editor embeds "
                  + DEKI_ENGINE_VERSION + ". Update the editor, or install an older "
                  "version of the package.";
+        return false;
+    }
+
+    // The other direction. Releases are in lockstep, so minEngine is also the
+    // engine generation this package was BUILT against, and a package older
+    // than the engine can still build is refused here rather than later.
+    //
+    // Later is much worse: it installs, its DLL fails the reflection ABI
+    // handshake at load, the editor rebuilds it from source as that error asks,
+    // and the rebuild fails to compile against an engine the source predates.
+    // What reaches the user is a compile error inside a project build with
+    // nothing naming the package that caused it.
+    if (DekiEditor::CompareVersions(minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
+    {
+        reason = "Package was built for engine " + minEngine + "; this editor needs "
+                 + DEKI_OLDEST_SUPPORTED_PACKAGE + " or newer. Update the package, or "
+                 "use an editor from its own release.";
         return false;
     }
     return true;

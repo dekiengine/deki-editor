@@ -292,11 +292,10 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         else if (typeStr == "espidf_component")
             pkg.packageType = PackageType::ESPIDFComponent;
 
-        if (entry.contains("availableVersions") && entry["availableVersions"].is_array())
-        {
-            for (const auto& v : entry["availableVersions"])
-                pkg.availableVersions.push_back(v.get<std::string>());
-        }
+        // Deliberately not read back, even from a lock that still carries it.
+        // Trusting a cache nobody refreshes is how a package resolves to a
+        // version that no longer exists anywhere; the entry is dropped the next
+        // time the lock is written.
         if (entry.contains("requires") && entry["requires"].is_array())
         {
             for (const auto& r : entry["requires"])
@@ -456,8 +455,12 @@ void PackageManager::SavePackages(const std::string& projectPath)
             entry["source"] = sourceToString(pkg.source);
             entry["packageType"] = packageTypeToString(pkg.packageType);
 
-            if (!pkg.availableVersions.empty())
-                entry["availableVersions"] = pkg.availableVersions;
+            // availableVersions is NOT written. A lock records what is
+            // installed, not what happened to be available when it was last
+            // written, and a cache nobody refreshes goes stale silently:
+            // deki-demo's lock still listed 1.0.0 and 1.1.0 long after those
+            // tags were deleted from every remote. Versions are fetched when
+            // they are needed instead.
 
             if (!pkg.requiredPackages.empty())
                 entry["requires"] = pkg.requiredPackages;

@@ -195,6 +195,7 @@ public:
     // them, stashing any local edits first, and toast whatever changed. Called
     // on window focus (scoped to packages the watchers saw change) and on
     // project open (sweepAll, since the watchers were not running).
+    void ReportIncompatiblePackages();
     void RunPackageIntegrityCheck(bool sweepAll);
     PlatformManagerPanel* GetPlatformManagerPanel() { return m_PlatformManagerPanel.get(); }
     PlayViewPanel* GetPlayViewPanel() { return m_PlayViewPanel.get(); }

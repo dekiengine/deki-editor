@@ -59,18 +59,13 @@ TEST(MinEngineGate, RefusesAPackageNeedingANewerEngine)
     EXPECT_NE(reason.find(DEKI_ENGINE_VERSION), std::string::npos);
 }
 
-TEST(MinEngineGate, AcceptsAPackageMatchingOrOlderThanTheEngine)
+TEST(MinEngineGate, AcceptsAPackageBuiltForThisEngine)
 {
-    DekiPackageInstaller installer;
     std::string reason;
 
     PackageDir same("same");
     same.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")") + DEKI_ENGINE_VERSION + R"("})");
-    EXPECT_TRUE(installer.EngineSatisfiesPackage(same.Path(), reason)) << reason;
-
-    PackageDir older("older");
-    older.WriteManifest(R"({"id":"deki-x","minEngine":"0.1.0"})");
-    EXPECT_TRUE(installer.EngineSatisfiesPackage(older.Path(), reason)) << reason;
+    EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(same.Path(), reason)) << reason;
 }
 
 // Packages published before the field existed must keep installing, and a
@@ -98,4 +93,43 @@ TEST(MinEngineGate, AcceptsManifestsThatCannotAnswer)
     PackageDir empty("empty");
     empty.WriteManifest(R"({"id":"deki-x","minEngine":""})");
     EXPECT_TRUE(installer.EngineSatisfiesPackage(empty.Path(), reason)) << reason;
+}
+
+// The other direction. Releases are in lockstep, so a package's minEngine is
+// also the engine generation it was built against, and one older than this
+// engine can still build is refused here rather than failing to compile later.
+TEST(MinEngineGate, RefusesAPackageBuiltForAnOlderEngine)
+{
+    PackageDir dir("older");
+    dir.WriteManifest(R"({"id":"deki-x","minEngine":"0.1.0"})");
+
+    std::string reason;
+    EXPECT_FALSE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason));
+    // Both numbers again: which generation the package is, and which is needed.
+    EXPECT_NE(reason.find("0.1.0"), std::string::npos);
+    EXPECT_NE(reason.find(DEKI_OLDEST_SUPPORTED_PACKAGE), std::string::npos);
+}
+
+// A package from exactly the oldest supported generation is fine; the bound is
+// inclusive, so the engine accepts the packages released alongside it.
+TEST(MinEngineGate, AcceptsTheOldestSupportedGeneration)
+{
+    PackageDir dir("oldest");
+    dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")")
+                      + DEKI_OLDEST_SUPPORTED_PACKAGE + R"("})");
+
+    std::string reason;
+    EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason)) << reason;
+}
+
+// The two bounds have to agree with each other: a package built for this very
+// engine must pass both, or every package fails on the release that ships them.
+TEST(MinEngineGate, ThisEnginesOwnPackagesPassBothBounds)
+{
+    PackageDir dir("current");
+    dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")")
+                      + DEKI_ENGINE_VERSION + R"("})");
+
+    std::string reason;
+    EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason)) << reason;
 }

@@ -744,6 +744,54 @@ void EditorApp::OnWindowFocusGained()
     // reach the browser through the pipeline callbacks.
 }
 
+void EditorApp::ReportIncompatiblePackages()
+{
+    if (!m_Project)
+        return;
+
+    // The installer checks this when a package is ADDED, which misses the
+    // common case entirely: cloning a project whose packages are committed, or
+    // restoring them from the lock, puts packages on disk without ever going
+    // through an install. Reporting here means a mismatch arrives once, naming
+    // the package and both versions, instead of surfacing later as a compile
+    // error inside a project build with nothing pointing at the cause.
+    //
+    // Deliberately not part of RunPackageIntegrityCheck: that one is about git
+    // state, needs the hot-reload service, and returns early without it, so
+    // headless verbs would never have run this.
+    //
+    // Editable packages are checked too — a working tree from an older
+    // generation does not build either — and nothing here changes disk.
+    const std::string projectPath = m_Project->GetPath();
+    PackageManager mgr(this);
+    mgr.LoadPackages(projectPath);  // also refreshes installed status
+
+    const std::filesystem::path packagesDir =
+        std::filesystem::path(DekiEditor::GetPackagesDirectory(projectPath));
+
+    for (const PackageEntry& pkg : mgr.GetPackages())
+    {
+        if (!pkg.isInstalled)
+            continue;
+        const std::string dirName = DekiPackageInstaller::GetRepoName(pkg);
+        if (dirName.empty())
+            continue;
+        std::string reason;
+        if (DekiPackageInstaller::EngineSatisfiesPackage(packagesDir / dirName, reason))
+            continue;
+
+        const std::string message = "'" + dirName + "': " + reason;
+        DEKI_LOG_ERROR("Package compatibility: %s", message.c_str());
+        if (!m_Headless)
+        {
+            DekiEditor::Toast::Push(DekiEditor::Toast::Level::Error,
+                                    "Package is not compatible with this editor", message, 15.0f);
+            if (m_ConsolePanel)
+                m_ConsolePanel->LogError(message);
+        }
+    }
+}
+
 void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
 {
     if (!m_Project || !m_HotReloadService)

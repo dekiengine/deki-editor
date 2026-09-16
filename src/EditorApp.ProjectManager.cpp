@@ -369,6 +369,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // editor was closed, so this is the pass that catches a package edited in
     // another tool. Runs before the build checks above are pumped, so a build
     // never compiles edits that are about to be reverted.
+    ReportIncompatiblePackages();
     RunPackageIntegrityCheck(true);
 
     // Start asset pipeline - automatically creates GUIDs for all assets
