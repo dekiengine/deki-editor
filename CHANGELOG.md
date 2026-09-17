@@ -53,6 +53,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the ESP-IDF toolchain and the doc generator.
 
 ### Fixed
+- **A simulator or firmware build compiles and links again.** Three separate
+  breaks had accumulated, none of them visible to any gate, because the package
+  compile check builds packages the editor's way and nothing built a game.
+  The generated project asked for C++17, which had been true since the first
+  release and stopped being true in 0.15.0 when the engine's allocation context
+  started including `<source_location>`; it now asks for C++23, like every
+  other build here, and a platform's own flags may no longer set the standard,
+  since those land last and silently win. The simulator platform carried
+  exactly such a flag, and still does in every project already created, so it
+  is now dropped with a warning rather than honoured.
 - **A rename now carries the references to the component, not just the
   component.** A scene stores a component's identity three ways: the `type`
   name, `ObjectRef`'s numeric `typeId`, and `PropertyRef`'s `component` name.

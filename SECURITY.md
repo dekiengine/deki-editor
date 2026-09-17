@@ -19,15 +19,13 @@ the other side of it:
   allowlisted before it becomes a path, every path is checked to stay under
   the project's `packages/` before anything is deleted or handed to git, and
   git is spawned from an argument vector with a validated URL and ref.
-- Everything the editor itself fetches or downloads goes over HTTPS from the
-  first hop; nothing is spawned through a shell with a network-supplied string
-  in it. One package is an exception and is called out here rather than left
-  to be discovered: `deki-gps`'s desktop backend asks `ip-api.com` for an
-  approximate location over plain HTTP, because that service offers no HTTPS
-  on its free tier. It runs when the package initialises in a desktop build,
-  so a simulator run with `deki-gps` active sends the machine's IP address to
-  a third party unencrypted. Leave the package out of a desktop target if
-  that is not wanted.
+- Everything fetched or downloaded goes over HTTPS from the first hop, with no
+  exceptions; nothing is spawned through a shell with a network-supplied string
+  in it. One request is worth naming because it is the only one a *running
+  game* makes: `deki-gps`'s desktop backend asks `ipwho.is` for an approximate
+  location, over HTTPS, when the package initialises in a desktop build, and
+  caches the answer for an hour. Leaving the package out of a desktop target
+  stops it. Device builds never make it.
 - Toolchain archives are pinned by SHA-256 in `resources/builders/*.json` and an unpinned
   download is refused; archives are listed and refused before extraction when
   an entry would escape the destination.

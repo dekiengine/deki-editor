@@ -507,7 +507,15 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
     // one used to point at a staging folder that no longer exists).
     file << "set(DEKI_PROJECT_ROOT \"" << ToCMakePath(projectPath) << "\")\n\n";
 
-    file << "set(CMAKE_CXX_STANDARD 17)\n";
+    // C++23, the same as the editor-side package build (BuildFileGenerator) and
+    // as ESP-IDF forces for a device target. This said 17 from the first
+    // release, which went unnoticed while the engine's public headers happened
+    // to stay inside C++17. It stopped being true in 0.15.0: allocation context
+    // capture includes <source_location>, which is C++20, and it is on unless a
+    // build asks for it to be stripped. From then until this was fixed the
+    // simulator could not compile the engine at all, and the error pointed at
+    // Memory.h rather than at the standard.
+    file << "set(CMAKE_CXX_STANDARD 23)\n";
     file << "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\n";
 
     // Output directories
@@ -862,11 +870,38 @@ bool NativeBuilder::GenerateCMakeLists(const std::string& projectPath,
         file << ")\n\n";
     }
 
-    if (!config.cxxFlags.empty())
+    // A platform's cxxFlags may not choose the language standard. These land
+    // AFTER the ones CMAKE_CXX_STANDARD generates, so a "-std=" here silently
+    // wins over it, and every simulator platform written before this carries
+    // "-std=c++17" in its JSON from the old built-in config. That is what made
+    // the engine fail to compile against <source_location>, with an error
+    // pointing at Memory.h and nothing pointing here. The standard is the
+    // build's decision; drop any attempt to set it and say so once.
+    std::vector<std::string> cxxFlags;
+    std::vector<std::string> droppedStd;
+    for (const auto& flag : config.cxxFlags)
+    {
+        if (flag.rfind("-std=", 0) == 0)
+            droppedStd.push_back(flag);
+        else
+            cxxFlags.push_back(flag);
+    }
+    if (!droppedStd.empty())
+    {
+        std::string names;
+        for (const auto& f : droppedStd)
+            names += (names.empty() ? "" : ", ") + f;
+        DEKI_LOG_WARNING(
+            "NativeBuilder: ignoring %s from platform '%s' cxxFlags. The C++ standard is set by "
+            "the build (C++23), and a flag here would override it and break the engine headers.",
+            names.c_str(), config.id.c_str());
+    }
+
+    if (!cxxFlags.empty())
     {
         file << "target_compile_options(DekiGame PRIVATE\n";
         file << "    $<$<COMPILE_LANGUAGE:CXX>:";
-        for (const auto& flag : config.cxxFlags)
+        for (const auto& flag : cxxFlags)
             file << " " << flag;
         file << ">\n";
         file << ")\n\n";

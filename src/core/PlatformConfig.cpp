@@ -592,9 +592,14 @@ PlatformConfig CreateSimulatorPlatformConfig()
         "DEKI_LOG_ENABLED"
     };
 
-    // C++ flags
+    // C++ flags. No "-std=" here: the standard is the build's decision
+    // (NativeBuilder writes CMAKE_CXX_STANDARD 23, matching the editor-side
+    // package build and what ESP-IDF forces for a device). This used to say
+    // "-std=c++17", which landed after CMake's own flag and quietly won, so
+    // the simulator could not compile the engine once its headers reached
+    // C++20. NativeBuilder now drops any "-std=" it finds here, which also
+    // rescues the platform JSON already written into existing projects.
     config.cxxFlags = {
-        "-std=c++17",
         "-O0",
         "-g"
     };
