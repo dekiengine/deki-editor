@@ -149,7 +149,7 @@ can separate a stale `1.0.0` from a genuine future one.
 ## Deprecation and the ABI rule
 
 - **C++ API.** A public function, type or macro that is going away is marked
-  `DEKI_DEPRECATED("use X instead")` (engine `DekiExport.h`) in minor version
+  `DEKI_DEPRECATED("use X instead")` (engine `include/deki/Export.h`) in minor version
   N and removed in N+1. One release of warnings, then it stops compiling; the
   changelog lists both steps.
 - **Virtual tables.** Packages subclass `Deki::Component`,
@@ -162,7 +162,7 @@ can separate a stale `1.0.0` from a genuine future one.
   build when the tables in `tools/ci/abi.lock` changed and the constant did
   not. Appending a virtual is a bump too. After a bump: `check_abi.py --update`.
 - **Layout.** `sizeof` of the handshake structs is pinned by
-  `tests/core/DekiObjectLayoutTests.cpp` and checked at package load.
+  `tests/core/ObjectLayoutTests.cpp` and checked at package load.
 - **Versions.** The engine's `project()` version equals the editor's and the
   release tag equals both; `tools/ci/check_version.py` enforces it.
 

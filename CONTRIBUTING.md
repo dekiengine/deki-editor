@@ -7,8 +7,17 @@ repository) and the packages (`github.com/dekiengine/deki-*`).
 ## Toolchain
 
 GCC 16.1+ everywhere (C++26 static reflection drives the codegen), Ninja, and
-CMake 3.25+. Windows builds with MinGW from MSYS2; MSVC is not a supported
-path because packages are `dlopen`ed into the editor and must share its ABI.
+CMake 3.16+ to build the editor. A project's own generated build files ask for
+3.25, so that is the version to have in practice.
+
+Windows builds with MinGW from MSYS2. Build the editor itself with MSVC and the
+reflection codegen will not compile, since no MSVC release implements the
+reflection paper the codegen is written against. Separately, and for a different
+reason, a project's plugin compiler must match whichever compiler the editor was
+built with: the plugin is loaded into the running editor and passes C++ objects
+across the DLL boundary, and the MSVC and GNU ABIs are incompatible.
+[SETUP.md §3](SETUP.md) covers how that compiler is chosen.
+
 [SETUP.md](SETUP.md) has the full setup, the CLI reference and the
 troubleshooting list.
 
@@ -71,8 +80,17 @@ is the hash of `"Mover"`). The markers above the class are optional editor
 metadata. Exported fields are public, because the generated code reaches them
 from outside the class.
 
-Package and project code stays in the global namespace (or its own); it
-qualifies engine types with `Deki::` or opens the namespace.
+Every package puts its components in a namespace of its own: `Deki2D`,
+`DekiRendering`, `DekiInput`, and so on, one per package, named in that
+package's README under **Namespace**. A component's identity is its qualified
+name, so the namespace is part of what a scene file stores and two packages can
+no longer collide over a class name. Code naming a package's type qualifies it
+or opens the namespace, the same as for engine types under `Deki::`.
+
+A project's own components may stay at global scope. Renaming a component, or
+moving it into a namespace, changes its identity: add `DEKI_FORMER_NAME("Old")`
+above the class so scenes saved under the old name still load, and they are
+rewritten to the new one on the next save.
 
 ## Reflected field names are the file format
 

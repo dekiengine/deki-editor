@@ -135,11 +135,26 @@ jobs:
       - name: Release notes from CHANGELOG
         run: |
           # The "## <tag>" section of CHANGELOG.md, up to the next "## ".
+          #
+          # The heading may carry a date, as "## 0.16.0 - 2026-09-16", which is
+          # the form this changelog uses and which tools/ci/check_version.py
+          # accepts. Matching the whole line exactly therefore found nothing and
+          # published an empty release. Compare the prefix instead, and require
+          # what follows to be end-of-line or a space so "0.16.0" does not match
+          # a heading for "0.16.0-rc1". The comparison is literal, not a regex,
+          # so the dots in a version are not wildcards.
           awk -v tag="$RELEASE_TAG" '
-            $0 == "## " tag { on = 1; next }
+            BEGIN { head = "## " tag; n = length(head) }
+            substr($0, 1, n) == head && (length($0) == n || substr($0, n + 1, 1) == " ") {
+              on = 1; next
+            }
             on && /^## / { exit }
             on { print }
           ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::no CHANGELOG.md section found for $RELEASE_TAG" >&2
+            exit 1
+          fi
           echo "" >> notes.md
           echo "Archives are not code-signed yet; on Windows choose *More info → Run anyway* at the SmartScreen prompt. Verify with \`sha256sum -c <file>.sha256\`." >> notes.md
           cat notes.md

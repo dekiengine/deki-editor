@@ -129,15 +129,16 @@ libdeki-profiling-hooks.dll  profiling hooks
 ninja.exe, sccache.exe       bundled tools used for project builds
 ```
 
-> Build `--target DekiEditor` rather than the default `all`. The default also
-> builds `DekiEditorTests`, and CTest's test-discovery step runs that binary at
-> build time — a crash there fails the build even though the editor is fine.
+> The default `all` target builds the editor and not the tests: `DekiEditorTests`
+> is `EXCLUDE_FROM_ALL`, so CTest's discovery step, which runs that binary at
+> build time, cannot fail a plain build. Build it by name when you want it,
+> `--target DekiEditorTests`.
 
 ### Which version am I running?
 
 ```
 DekiEditor -V
-Deki Editor 0.14.0 (engine 0.14.0, reflection ABI 11)
+Deki Editor 0.16.0 (engine 0.16.0, reflection ABI 17)
 ```
 
 The same line is under **Help → About Deki Editor** (with a copy button) and
@@ -154,15 +155,15 @@ updates daily** turns that off (setting `updates.check`). Nothing is downloaded.
 A release on GitHub carries one archive per platform plus its checksum:
 
 ```
-DekiEditor-0.14.0-windows-x86_64.zip        DekiEditor-0.14.0-windows-x86_64.zip.sha256
-DekiEditor-0.14.0-linux-x86_64.tar.gz       DekiEditor-0.14.0-linux-x86_64.tar.gz.sha256
+DekiEditor-0.16.0-windows-x86_64.zip        DekiEditor-0.16.0-windows-x86_64.zip.sha256
+DekiEditor-0.16.0-linux-x86_64.tar.gz       DekiEditor-0.16.0-linux-x86_64.tar.gz.sha256
 ```
 
 Verify before unpacking (the `.sha256` file is in `sha256sum` format):
 
 ```bash
-sha256sum -c DekiEditor-0.14.0-linux-x86_64.tar.gz.sha256      # Linux / MSYS2
-certutil -hashfile DekiEditor-0.14.0-windows-x86_64.zip SHA256  # Windows, compare by eye
+sha256sum -c DekiEditor-0.16.0-linux-x86_64.tar.gz.sha256      # Linux / MSYS2
+certutil -hashfile DekiEditor-0.16.0-windows-x86_64.zip SHA256  # Windows, compare by eye
 ```
 
 Unpack anywhere and run `DekiEditor`; the archive is self-contained (toolchain,
@@ -190,7 +191,7 @@ On project open the editor reconstructs it:
    appears. This is how `deki-esp32-integration` drags in `deki-ble`, `deki-http`,
    `deki-i2c`, `deki-i2s`, `deki-uart`, `deki-sdcard` and `deki-wifi` without the
    project naming them.
-3. **First build** — with no `bin/` yet, the plugin build runs, codegen produces
+3. **First build** — with no `generated/runtime/` yet, the plugin build runs, codegen produces
    reflection, and the package DLLs plus the game plugin are compiled.
 
 Both restore passes are idempotent and skip the network entirely when nothing is
@@ -250,13 +251,13 @@ behind a filter.
 Runs automatically on project open and on source changes. To drive it by hand:
 
 ```bash
-cmake --build <project>/build
+cmake --build <project>/generated/build
 ```
 
-Produces package DLLs in `<project>/bin/` and the game plugin in
-`<project>/bin/.build_temp/`.
+Produces package DLLs in `<project>/generated/runtime/` and the game plugin in
+`<project>/generated/runtime/.build_temp/`.
 
-`<project>/CMakeLists.txt` is **generated** by the editor and rewritten before
+`<project>/generated/CMakeLists.txt` is **generated** by the editor and rewritten before
 each build — it contains absolute paths to your engine and editor checkouts, so
 do not hand-edit it and do not expect it to be portable between machines.
 
@@ -266,9 +267,9 @@ do not hand-edit it and do not expect it to be portable between machines.
 DekiEditor --build-firmware --platform native_simulator <project>
 ```
 
-Produces `<project>/build/native/build/bin/DekiGame.exe`. This target generates
+Produces `<project>/generated/build/native/build/bin/DekiGame.exe`. This target generates
 its **own** reflection with runtime defines (no `DEKI_EDITOR`) into
-`<project>/build/native/build/refl/`, because reflection is configuration
+`<project>/generated/build/native/build/refl/`, because reflection is configuration
 specific — the editor's copy references editor-only members.
 
 ### ESP32 firmware
@@ -452,7 +453,7 @@ generated reflection. Rename one — package include dirs are searched before
 `project/src`.
 
 **A clean checkout doesn't build anything**
-It should: a missing/empty `bin/` is treated as "never built" and triggers the
+It should: a missing/empty `generated/runtime/` is treated as "never built" and triggers the
 first build. If it stays idle, check the log for package restore failures first —
 the build is skipped when there is nothing to compile.
 

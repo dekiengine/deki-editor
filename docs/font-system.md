@@ -51,7 +51,7 @@ Each font has a `.data` JSON sidecar (e.g., `MyFont.ttf.data`):
 
 ## Baking Authority: FontSyncHandler
 
-**File:** `../packages/deki-2d/editor/FontSyncHandler.cpp`
+**File:** `../../modules/deki-2d/editor/FontSyncHandler.cpp`
 
 FontSyncHandler is the **single authority** for font baking. All baking requests go through it:
 
@@ -83,7 +83,8 @@ font.guid   = variant GUID (baked .dfont file for a specific size)
 font.source = TTF source GUID (the original font file)
 ```
 
-`font.Get()` loads via `font.guid` -> `AssetManager::LoadByGuid` -> `BitmapFont::Load`.
+`font.Get()` loads via `font.guid` -> `AssetManager::LoadByGuidAndType` ->
+`BitmapFont::Load`.
 
 ### How font.guid stays in sync
 
@@ -157,10 +158,10 @@ The atlas path stored inside the dfont is relative to the dfont file's directory
 
 | File | Purpose |
 |------|---------|
-| `../packages/deki-2d/TextComponent.h` | fontSize, previewEnabled, previewSize fields |
-| `../packages/deki-2d/TextComponent.cpp` | RenderContent font loading, preview compilation |
-| `../packages/deki-2d/BitmapFont.cpp` | Font loading, glyph rendering |
-| `../packages/deki-2d/editor/FontSyncHandler.cpp` | Baking authority |
-| `../packages/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont compilation |
-| `../packages/deki-2d/editor/TextComponentEditor.cpp` | Inspector UI, font size dropdown |
+| `../../modules/deki-2d/TextComponent.h` | fontSize, previewEnabled, previewSize fields |
+| `../../modules/deki-2d/TextComponent.cpp` | RenderContent font loading, preview compilation |
+| `../../modules/deki-2d/BitmapFont.cpp` | Font loading, glyph rendering |
+| `../../modules/deki-2d/editor/FontSyncHandler.cpp` | Baking authority |
+| `../../modules/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont compilation |
+| `../../modules/deki-2d/editor/TextComponentEditor.cpp` | Inspector UI, font size dropdown |
 | `src/services/AssetExporter.cpp` | Export-time baking and copying |

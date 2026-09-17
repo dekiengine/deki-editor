@@ -1,5 +1,6 @@
 #include "ProjectTemplate.h"
 #include "ProjectScaffold.h"
+#include "SimulatorBootScene.h"
 #include <deki/LogSystem.h>
 #include <deki-editor/Paths.h>
 #include "core/ProjectPaths.h"
@@ -129,60 +130,6 @@ bool ProjectTemplate::CreateDirectories(const std::string& projectPath)
     }
 }
 
-// The scene the desktop simulator boots: a PlatformSetupComponent whose setup
-// components open the SDL3 window (2x, the panel's size) and enable keyboard
-// and mouse; once they are up it loads the project's startup scene. The
-// typeIds are HashString() of the two component class names (Deki::TypeId<T>()).
-static const char* kSimulatorBootScene = R"json({
-  "objects": [
-    {
-      "active": true,
-      "children": [
-        {
-          "active": true,
-          "children": [],
-          "components": [
-            {
-              "class": "SDL3DisplaySetup",
-              "properties": { "windowWidth": 320, "windowHeight": 240, "windowScale": 2 },
-              "type": "SDL3DisplaySetup"
-            }
-          ],
-          "id": 600,
-          "name": "SDL3 Display",
-          "transform": { "rotation": 0.0, "scaleX": 1.0, "scaleY": 1.0, "x": 0.0, "y": 0.0 }
-        },
-        {
-          "active": true,
-          "children": [],
-          "components": [
-            {
-              "class": "SDL3InputSetup",
-              "properties": { "enableKeyboard": true, "enableMouse": true },
-              "type": "SDL3InputSetup"
-            }
-          ],
-          "id": 601,
-          "name": "SDL3 Input",
-          "transform": { "rotation": 0.0, "scaleX": 1.0, "scaleY": 1.0, "x": 0.0, "y": 0.0 }
-        }
-      ],
-      "components": [
-        {
-          "class": "PlatformSetupComponent",
-          "properties": {
-            "setupComponents": [ { "id": 600, "typeId": 813358572 }, { "id": 601, "typeId": 2694918394 } ]
-          },
-          "type": "Deki::PlatformSetupComponent"
-        }
-      ],
-      "id": 1,
-      "name": "Setup",
-      "transform": { "rotation": 0.0, "scaleX": 1.0, "scaleY": 1.0, "x": 0.0, "y": 0.0 }
-    }
-  ]
-}
-)json";
 
 bool ProjectTemplate::CreateDefaultPlatform(const std::string& projectPath)
 {
@@ -198,7 +145,7 @@ bool ProjectTemplate::CreateDefaultPlatform(const std::string& projectPath)
     std::error_code ec;
     std::filesystem::create_directories(bootPath.parent_path(), ec);
     std::ofstream boot(bootPath, std::ios::binary);
-    boot << kSimulatorBootScene;
+    boot << SimulatorBootSceneJson();
     if (!boot)
         return false;
 

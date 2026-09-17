@@ -294,9 +294,9 @@ During `AssetExporter::ExportToStorage()`:
 |------|---------|
 | `deki-editor/src/TextureImporter.cpp` | PNG -> .tex conversion, SubAsset generation |
 | `deki-editor/include/deki-editor/TextureImporter.h` | TextureImporter interface, SpriteFrameData |
-| `../packages/deki-2d/Sprite.h` | Sprite class, SpriteFrame struct, FindFrame |
-| `../packages/deki-2d/Sprite.cpp` | Sprite loading, FrameList parsing |
-| `../packages/deki-2d/SpriteComponent.h` | SpriteComponent with frame rect fields |
-| `deki-engine/src/generated/SpriteComponent.gen.cpp` | Generated ResolveObjectRefs with source pattern |
+| `../../modules/deki-2d/Sprite.h` | Sprite class, SpriteFrame struct, FindFrame |
+| `../../modules/deki-2d/Sprite.cpp` | Sprite loading, FrameList parsing |
+| `../../modules/deki-2d/SpriteComponent.h` | SpriteComponent with frame rect fields |
+| `../../modules/deki-2d/generated/Deki2DReflection0.gen.cpp` | Generated ResolveObjectRefs with source pattern (one file per package, not per component) |
 | `src/panels/inspector/AssetPropertyEditor.cpp` | Frame assignment UI |
 | `src/services/AssetExporter.cpp` | Export pipeline |

@@ -53,6 +53,21 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the ESP-IDF toolchain and the doc generator.
 
 ### Fixed
+- **A rename now carries the references to the component, not just the
+  component.** A scene stores a component's identity three ways: the `type`
+  name, `ObjectRef`'s numeric `typeId`, and `PropertyRef`'s `component` name.
+  `DEKI_FORMER_NAME` only reached the first, so moving every package component
+  into a namespace changed the other two and broke them silently — the
+  component loaded, the object resolved, and the reference pointed at nothing.
+  Saving then wrote the dead id back, so the file never healed. A hash cannot
+  be turned back into the name it came from, so the registry now also indexes
+  former names by hash, and both reference kinds resolve through it and are
+  rewritten to the current identity on load. Affects any project using an
+  object or property reference to a package component, which is most of them.
+- The boot scene a new project is created with named the SDL3 display and
+  input setup by their pre-namespace ids, so on a brand new project neither
+  ran. A test now checks every id in that scene against the name written
+  beside it.
 - Only the first codegen precompiled header ever got a rebuild rule, so editing
   an engine reflection header left the others stale. A stale one surfaces as a
   wall of "redefinition of struct" errors pointing at a header that is correct.

@@ -20,7 +20,7 @@ Every component that references an asset uses `AssetRef<T>`. It has four fields:
 ```
 if (!ptr && !guid.empty() && !loadAttempted) {
     loadAttempted = true;
-    ptr = AssetManager::Get()->LoadByGuid<T>(guid);
+    ptr = static_cast<T*>(AssetManager::Get()->LoadByGuidAndType(guid, T::AssetTypeName));
 }
 return ptr;
 ```
@@ -78,8 +78,8 @@ The `"preview:"` prefix prevents collision with real font variant GUIDs.
 ### Where deterministic GUIDs are generated
 
 - `deki-engine/src/Guid.cpp` - Core implementation
-- `../packages/deki-2d/editor/FontSyncHandler.cpp` - Font baking
-- `../packages/deki-2d/TextComponent.cpp` - Edit mode font.guid sync
+- `../../modules/deki-2d/editor/FontSyncHandler.cpp` - Font baking
+- `../../modules/deki-2d/TextComponent.cpp` - Edit mode font.guid sync
 - `src/services/AssetExporter.cpp` - Export-time baking
 - `src/PlayMode.cpp` - Play mode font setup
 - `deki-editor/src/AssetPipeline.cpp` - Cache management
@@ -127,7 +127,7 @@ prime = 16777619
 
 ```
 AssetRef::Get()
-  -> AssetManager::LoadByGuid<T>(guid)
+  -> AssetManager::LoadByGuidAndType(guid, T::AssetTypeName)
     -> LookupPath(guid)
       -> Check binary asset_table.bin (binary search by FNV-1a hash)
       -> Check guidToPath_ map (runtime registrations)

@@ -27,6 +27,13 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Least privilege, set here rather than inherited: the repository or org
+# default can be read-write on every scope, and nothing in this workflow
+# writes to the repository. The release workflow asks for more, where it
+# needs it.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

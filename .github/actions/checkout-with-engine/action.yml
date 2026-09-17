@@ -37,7 +37,10 @@ runs:
         ref: ${{ inputs.ref }}
         submodules: false
 
-    - uses: webfactory/ssh-agent@v0.9.1
+    # Pinned to a commit, not the tag: this step receives the engine deploy
+    # key, so a moved tag would hand the private key to code nobody here
+    # reviewed. The comment records which release the commit is.
+    - uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd  # v0.9.1
       if: inputs.deploy-key != ''
       with:
         ssh-private-key: ${{ inputs.deploy-key }}

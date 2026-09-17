@@ -1,5 +1,7 @@
-# Build directories
-build/
+# Build directories. The glob, not just "build/", so a second tree for a
+# clean-configure check (build-clean/, build-msvc/) is ignored too: those
+# hold absolute paths from the machine that configured them.
+build*/
 out/
 cmake-build-*/
 
