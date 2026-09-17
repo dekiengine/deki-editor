@@ -19,9 +19,16 @@ the other side of it:
   allowlisted before it becomes a path, every path is checked to stay under
   the project's `packages/` before anything is deleted or handed to git, and
   git is spawned from an argument vector with a validated URL and ref.
-- Everything fetched or downloaded goes over HTTPS from the first hop; nothing
-  is spawned through a shell with a network-supplied string in it. Toolchain
-  archives are pinned by SHA-256 in `resources/builders/*.json` and an unpinned
+- Everything the editor itself fetches or downloads goes over HTTPS from the
+  first hop; nothing is spawned through a shell with a network-supplied string
+  in it. One package is an exception and is called out here rather than left
+  to be discovered: `deki-gps`'s desktop backend asks `ip-api.com` for an
+  approximate location over plain HTTP, because that service offers no HTTPS
+  on its free tier. It runs when the package initialises in a desktop build,
+  so a simulator run with `deki-gps` active sends the machine's IP address to
+  a third party unencrypted. Leave the package out of a desktop target if
+  that is not wanted.
+- Toolchain archives are pinned by SHA-256 in `resources/builders/*.json` and an unpinned
   download is refused; archives are listed and refused before extraction when
   an entry would escape the destination.
 - The MCP server binds `127.0.0.1`, generates a 256-bit session token, requires
