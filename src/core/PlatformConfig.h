@@ -46,11 +46,6 @@ struct PinMapping
  * Contains all information needed to build firmware for a specific platform:
  * toolchain settings, memory layout, display configuration, compiler flags, etc.
  */
-/// The ESP-IDF chips idf.py accepts as set-target. One list, used by the
-/// platform loader (a platform JSON naming anything else is refused), the
-/// ESP-IDF builder and the toolchain descriptor.
-const std::vector<std::string>& SupportedIdfTargets();
-
 /// displayBus is an identifier: A-Z, 0-9 and '_' ("SPI", "PARALLEL_8BIT", "SOFTWARE").
 bool IsValidDisplayBus(const std::string& bus);
 bool IsValidCapabilityName(const std::string& name);

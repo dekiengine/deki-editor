@@ -236,6 +236,18 @@ public:
     /// Human-readable builder name (e.g., "ESP-IDF", "Pico SDK")
     virtual const char* GetName() const = 0;
 
+    /// Problems with a platform aimed at this builder, empty when it is fine.
+    ///
+    /// The builder owns its own settings, so it owns validating them: the
+    /// editor must not know that an ESP-IDF target has to be one of six chip
+    /// names. A new Espressif chip is then a builder update, not an editor
+    /// release.
+    virtual std::vector<std::string> ValidatePlatform(const PlatformConfig& config) const
+    {
+        (void)config;
+        return {};
+    }
+
     /// The build framework this builder serves: "espidf", "native",
     /// "tactility". THE dispatch key — a platform names its framework and the
     /// registry hands it to whoever claims that id.

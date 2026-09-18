@@ -50,11 +50,11 @@ const PlatformConfig* Load(const PlatformDir& d, const std::string& id)
 
 }  // namespace
 
-TEST(PlatformConfig, SupportedTargetsAreTheIdfChips)
+TEST(PlatformConfig, DisplayBusMustBeAnIdentifier)
 {
-    const auto& t = SupportedIdfTargets();
-    EXPECT_NE(std::find(t.begin(), t.end(), std::string("esp32s3")), t.end());
-    EXPECT_EQ(std::find(t.begin(), t.end(), std::string("esp32 && calc")), t.end());
+    // The ESP-IDF target allowlist used to be asserted here too. It moved into
+    // the ESP-IDF builder (ESPIDFBuilder::ValidatePlatform): the editor is
+    // target-agnostic and must not hold a list of one vendor's chips.
     EXPECT_TRUE(IsValidDisplayBus("SPI"));
     EXPECT_TRUE(IsValidDisplayBus("PARALLEL_8BIT"));
     EXPECT_FALSE(IsValidDisplayBus("SPI\" && calc && \""));
@@ -62,7 +62,7 @@ TEST(PlatformConfig, SupportedTargetsAreTheIdfChips)
     EXPECT_FALSE(IsValidDisplayBus(""));
 }
 
-TEST(PlatformConfig, UnsafeTargetAndBusAreDroppedOnLoad)
+TEST(PlatformConfig, AnUnsafeBusIsDroppedOnLoadAndTheTargetIsLeftToItsBuilder)
 {
     PlatformDir d;
     d.Write("pc_bad", R"({
@@ -76,8 +76,12 @@ TEST(PlatformConfig, UnsafeTargetAndBusAreDroppedOnLoad)
 
     const PlatformConfig* bad = Load(d, "pc_bad");
     ASSERT_NE(bad, nullptr);
-    EXPECT_TRUE(bad->idfTarget.empty()) << bad->idfTarget;
     EXPECT_TRUE(bad->displayBus.empty()) << bad->displayBus;
+
+    // idfTarget is carried through untouched. Judging it belongs to the
+    // ESP-IDF builder, which refuses the build and says why; clearing it here
+    // turned a typo into a confusing failure much further downstream.
+    EXPECT_EQ(bad->idfTarget, "esp32s3; rm -rf /");
 
     const PlatformConfig* good = PlatformRegistry::Instance().GetPlatform("pc_good");
     ASSERT_NE(good, nullptr);

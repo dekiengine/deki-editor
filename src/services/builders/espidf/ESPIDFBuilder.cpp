@@ -30,6 +30,44 @@ namespace fs = std::filesystem;
 namespace DekiEditor
 {
 
+// The chips idf.py accepts as set-target. Lives here, not in the editor's
+// platform type: the editor is target-agnostic, and a new Espressif chip
+// should be a change to this builder, not an editor release.
+const std::vector<std::string>& SupportedIdfTargets()
+{
+    static const std::vector<std::string> kTargets = { "esp32",   "esp32s2", "esp32s3",
+                                                       "esp32c3", "esp32c6", "esp32h2" };
+    return kTargets;
+}
+
+std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& config) const
+{
+    std::vector<std::string> problems;
+
+    // idfTarget reaches the shell line that runs idf.py and the generated
+    // CMake, and a platform JSON can arrive in a board pack, so it is
+    // allowlisted rather than trusted. It used to be silently cleared at load,
+    // which turned a typo into a confusing downstream failure.
+    if (config.idfTarget.empty())
+    {
+        problems.push_back("idfTarget is not set; an ESP-IDF platform must name its chip");
+    }
+    else
+    {
+        const auto& targets = SupportedIdfTargets();
+        if (std::find(targets.begin(), targets.end(), config.idfTarget) == targets.end())
+        {
+            std::string known;
+            for (const auto& t : targets)
+                known += (known.empty() ? "" : ", ") + t;
+            problems.push_back("idfTarget '" + config.idfTarget +
+                               "' is not a supported ESP-IDF target; use one of: " + known);
+        }
+    }
+
+    return problems;
+}
+
 ESPIDFBuilder::ESPIDFBuilder()
 {
     // Load builder definition from JSON recipe

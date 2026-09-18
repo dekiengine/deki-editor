@@ -66,13 +66,6 @@ std::vector<std::pair<std::string, std::string>> PlatformRegistry::GetPlatformDi
     return list;
 }
 
-// Helper: parse a single platform config from JSON
-const std::vector<std::string>& SupportedIdfTargets()
-{
-    static const std::vector<std::string> kTargets = { "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2" };
-    return kTargets;
-}
-
 // The family when a platform did not name one. Only reached by JSON with no
 // "family" and no legacy "type"; a capability of "family:custom" then says
 // plainly that the platform declined to categorise itself.
@@ -192,20 +185,11 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.toolchainPrefix = j.value("toolchainPrefix", "");
     config.idfTarget = j.value("idfTarget", "");
     config.framework = j.value("framework", "espidf");
-    // idfTarget and displayBus end up inside the shell line that runs idf.py
-    // (ESPIDFToolchain::ExecuteIDF) and in generated CMake; a platform JSON
-    // can arrive in a board pack, so both are allowlisted here and an invalid
-    // value is dropped with an error rather than passed along.
-    if (!config.idfTarget.empty())
-    {
-        const auto& targets = SupportedIdfTargets();
-        if (std::find(targets.begin(), targets.end(), config.idfTarget) == targets.end())
-        {
-            DEKI_LOG_ERROR("Platform '%s': idfTarget '%s' is not a supported ESP-IDF target; ignoring it",
-                           config.id.c_str(), config.idfTarget.c_str());
-            config.idfTarget.clear();
-        }
-    }
+    // idfTarget is NOT checked here. It is an ESP-IDF setting and the editor
+    // is target-agnostic; the owning builder validates it through
+    // ITargetBuilder::ValidatePlatform, which the build refuses on. It used to
+    // be silently CLEARED here on a bad value, which then produced a confusing
+    // downstream failure instead of naming the problem.
 
     config.flashSize = j.value("flashSize", 0u);
     config.psramSize = j.value("psramSize", 0u);

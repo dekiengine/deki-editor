@@ -42,6 +42,7 @@ public:
     // Identity
     const char* GetName() const override { return "ESP-IDF"; }
     std::string GetFrameworkId() const override { return "espidf"; }
+    std::vector<std::string> ValidatePlatform(const PlatformConfig& config) const override;
     std::vector<std::string> GetSupportedTargets() const override;
     std::string GetBuildDirectory(const std::string& projectPath) const override;
 

@@ -99,6 +99,18 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
         return false;
     }
 
+    // The builder owns its own settings, so it owns judging them. The editor
+    // does not know what an ESP-IDF target is.
+    const std::vector<std::string> problems = ctx.builder->ValidatePlatform(*ctx.platform);
+    if (!problems.empty())
+    {
+        err = "Platform '" + ctx.platformId + "' is not valid for the " +
+              ctx.builder->GetFrameworkId() + " builder:";
+        for (const auto& problem : problems)
+            err += "\n  " + problem;
+        return false;
+    }
+
     return true;
 }
 
