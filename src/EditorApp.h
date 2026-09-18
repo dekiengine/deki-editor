@@ -36,6 +36,7 @@ struct SDL_Window;
 #include "panels/SDCardDeployPanel.h"
 #include "panels/DeployAnalysisPanel.h"
 #include "panels/ActivityPanel.h"
+#include "services/builders/BuildActivitySink.h"
 #include "panels/PlayViewPanel.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/EditorApplication.h>

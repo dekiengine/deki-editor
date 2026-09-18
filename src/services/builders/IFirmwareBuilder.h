@@ -30,7 +30,14 @@ public:
     virtual ~IPlatformEditorUI() = default;
 
     /// Draw the builder's platform editor UI (ImGui widgets)
-    virtual void Draw(EditorApp* app) = 0;
+    /// Draw this platform's builder-specific settings.
+    ///
+    /// Deliberately takes nothing: it used to take EditorApp*, an
+    /// executable-only type, purely so two implementations could call
+    /// app->Dpi(100) - which is just `x * ImGui::GetWindowDpiScale()`. Passing
+    /// it would drag the editor's application class into an interface that
+    /// third-party builders compile against.
+    virtual void Draw() = 0;
 
     /// Write the edited values back into a PlatformConfig
     virtual void ApplyToConfig(PlatformConfig& config) const = 0;

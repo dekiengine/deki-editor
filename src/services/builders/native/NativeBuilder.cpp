@@ -984,7 +984,7 @@ public:
         m_LinkFlags = config.linkFlags;
     }
 
-    void Draw(EditorApp* app) override
+    void Draw() override
     {
         // --- Display ---
         if (ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
@@ -992,13 +992,13 @@ public:
             ImGui::Indent();
 
             ImGui::Text("Screen Resolution");
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##ScreenWidth", &m_ScreenWidth);
             if (m_ScreenWidth < 1) m_ScreenWidth = 1;
             ImGui::SameLine();
             ImGui::Text("x");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##ScreenHeight", &m_ScreenHeight);
             if (m_ScreenHeight < 1) m_ScreenHeight = 1;
 

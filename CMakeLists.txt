@@ -534,6 +534,7 @@ set(EDITOR_TESTABLE_SOURCES
     # packages and deki.json declare.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/CMakeGenUtils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/BuilderDispatch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/BuildActivitySink.cpp
     # The stripper: what a device build leaves out, from the descriptors, the
     # scenes and sources, and settings/build.json.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ComponentUsageScan.cpp
@@ -697,6 +698,8 @@ set(EDITOR_SOURCES
     src/services/builders/CMakeGenUtils.h
     src/services/builders/BuilderDispatch.cpp
     src/services/builders/BuilderDispatch.h
+    src/services/builders/BuildActivitySink.cpp
+    src/services/builders/BuildActivitySink.h
     src/services/builders/espidf/ESPIDFBuilder.cpp
     src/services/builders/espidf/ESPIDFBuilder.h
     src/services/builders/espidf/ESPIDFToolchain.cpp

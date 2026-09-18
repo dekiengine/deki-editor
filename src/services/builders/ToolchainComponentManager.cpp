@@ -2,7 +2,7 @@
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/EditorHttpUtils.h>
 #include "services/EditorSettings.h"
-#include "panels/ActivityPanel.h"
+#include "BuildActivitySink.h"
 #include <filesystem>
 #include <algorithm>
 #include <fstream>
@@ -305,7 +305,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
             p.statusText = msg;
             cb(p);
         }
-        ActivityPanel::Log(actCategory, msg);
+        BuildActivityLog(actCategory, msg);
     };
 
     // Always the pinned archive from the builder definition, whose SHA-256 is
@@ -320,7 +320,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     if (url.empty())
     {
         std::string err = "No download URL for " + comp.displayName;
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -345,7 +345,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     if (!downloaded)
     {
         std::string err = "Download failed for " + comp.displayName;
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -509,11 +509,11 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
             info.updateAvailable = false;
         }
         status("Installed " + comp.displayName + " " + installVersion + " to: " + destDir);
-        ActivityPanel::CompleteProcess(actCategory);
+        BuildActivityComplete(actCategory);
     }
     else
     {
-        ActivityPanel::FailProcess(actCategory, "Failed to extract " + comp.displayName);
+        BuildActivityFail(actCategory, "Failed to extract " + comp.displayName);
     }
 
     if (cb)
@@ -539,7 +539,7 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
             p.statusText = msg;
             cb(p);
         }
-        ActivityPanel::Log(actCategory, msg);
+        BuildActivityLog(actCategory, msg);
     };
 
     std::string baseDir = m_ToolchainsDir + "/" + comp.installPath;
@@ -566,7 +566,7 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
         if (!downloaded)
         {
             std::string err = "Download failed for " + sub.name;
-            ActivityPanel::FailProcess(actCategory, err);
+            BuildActivityFail(actCategory, err);
             if (cb)
             {
                 BuildProgress p;
@@ -590,7 +590,7 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
         if (!extracted)
         {
             std::string err = "Extraction failed for " + sub.name;
-            ActivityPanel::FailProcess(actCategory, err);
+            BuildActivityFail(actCategory, err);
             if (cb)
             {
                 BuildProgress p;
@@ -624,7 +624,7 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
         current++;
     }
 
-    ActivityPanel::CompleteProcess(actCategory);
+    BuildActivityComplete(actCategory);
 
     if (cb)
     {
@@ -693,7 +693,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
             p.statusText = msg;
             cb(p);
         }
-        ActivityPanel::Log(actCategory, msg);
+        BuildActivityLog(actCategory, msg);
     };
 
     // Pick platform-specific postInstall command
@@ -706,7 +706,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     if (postInstallTemplate.empty())
     {
         std::string err = "No postInstall script defined for " + comp.displayName;
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -776,7 +776,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
         if (!found)
         {
             std::string err = "Could not find setup script matching: " + commandPart;
-            ActivityPanel::FailProcess(actCategory, err);
+            BuildActivityFail(actCategory, err);
             if (cb)
             {
                 BuildProgress p;
@@ -814,7 +814,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0))
     {
         std::string err = "Failed to create output pipe";
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -851,7 +851,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     {
         CloseHandle(hReadPipe);
         std::string err = "Failed to launch setup script (error " + std::to_string(GetLastError()) + ")";
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -905,7 +905,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     {
         EditorSettings::SetBool("setup." + comp.id, true);
         status("Setup completed successfully");
-        ActivityPanel::CompleteProcess(actCategory);
+        BuildActivityComplete(actCategory);
         if (cb)
         {
             BuildProgress p;
@@ -918,7 +918,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     else
     {
         std::string err = "Setup script exited with code " + std::to_string(exitCode);
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -939,7 +939,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     if (!pipe)
     {
         std::string err = "Failed to launch setup script";
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;
@@ -966,7 +966,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     {
         EditorSettings::SetBool("setup." + comp.id, true);
         status("Setup completed successfully");
-        ActivityPanel::CompleteProcess(actCategory);
+        BuildActivityComplete(actCategory);
         if (cb)
         {
             BuildProgress p;
@@ -979,7 +979,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     else
     {
         std::string err = "Setup script exited with code " + std::to_string(exitCode);
-        ActivityPanel::FailProcess(actCategory, err);
+        BuildActivityFail(actCategory, err);
         if (cb)
         {
             BuildProgress p;

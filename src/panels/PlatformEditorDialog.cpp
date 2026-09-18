@@ -351,7 +351,7 @@ void PlatformEditorDialog::Draw()
 
             // Builder-specific UI or native fallback
             if (m_EditorUI)
-                m_EditorUI->Draw(m_App);
+                m_EditorUI->Draw();
             else
                 DrawNativeEditor();
 
@@ -417,7 +417,7 @@ bool PlatformEditorDialog::DrawInline()
     ImGui::Spacing();
 
     if (m_EditorUI)
-        m_EditorUI->Draw(m_App);
+        m_EditorUI->Draw();
     else
         DrawNativeEditor();
 

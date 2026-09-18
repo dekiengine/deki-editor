@@ -996,7 +996,7 @@ public:
         m_UseIramAttr = config.OptionBool("useIramAttr", true);
     }
 
-    void Draw(EditorApp* app) override
+    void Draw() override
     {
         // --- Chip ---
         if (!m_Targets.empty())
@@ -1038,13 +1038,13 @@ public:
             ImGui::Indent();
 
             ImGui::Text("Screen Resolution");
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##ScreenWidth", &m_ScreenWidth);
             if (m_ScreenWidth < 1) m_ScreenWidth = 1;
             ImGui::SameLine();
             ImGui::Text("x");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##ScreenHeight", &m_ScreenHeight);
             if (m_ScreenHeight < 1) m_ScreenHeight = 1;
 
@@ -1059,7 +1059,7 @@ public:
             ImGui::Indent();
 
             ImGui::Text("Flash Size (MB)");
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##FlashSize", &m_FlashSizeMB);
             if (m_FlashSizeMB < 0) m_FlashSizeMB = 0;
             ImGui::SameLine();
@@ -1072,7 +1072,7 @@ public:
             ImGui::Spacing();
 
             ImGui::Text("PSRAM Size (MB)");
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##PsramSize", &m_PsramSizeMB);
             if (m_PsramSizeMB < 0) m_PsramSizeMB = 0;
             ImGui::SameLine();
@@ -1086,7 +1086,7 @@ public:
             {
                 ImGui::Spacing();
                 ImGui::Text("PSRAM Mode");
-                ImGui::SetNextItemWidth(app->Dpi(120));
+                ImGui::SetNextItemWidth(120.0f * ImGui::GetWindowDpiScale());
                 static const char* psramModes[] = { "Quad SPI", "Octal SPI" };
                 ImGui::Combo("##PsramMode", &m_PsramModeIndex, psramModes, 2);
             }
@@ -1094,7 +1094,7 @@ public:
             ImGui::Spacing();
 
             ImGui::Text("CPU Frequency (MHz)");
-            ImGui::SetNextItemWidth(app->Dpi(100));
+            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
             ImGui::InputInt("##CpuFreq", &m_CpuFreqMHz);
             if (m_CpuFreqMHz < 0) m_CpuFreqMHz = 0;
             ImGui::SameLine();

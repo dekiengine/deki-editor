@@ -206,6 +206,27 @@ EditorApp::EditorApp()
     // Create activity panel
     m_ActivityPanel = std::make_unique<ActivityPanel>(this);
 
+    // The build machinery reports progress through a sink rather than calling
+    // the panel directly, so it can move into deki-editor.dll and be linked by
+    // a third-party builder. The GUI's sink is the panel; a headless run
+    // installs its own, or none.
+    static struct PanelActivitySink : IBuildActivitySink
+    {
+        void Log(const std::string& process, const std::string& message) override
+        {
+            ActivityPanel::Log(process, message);
+        }
+        void Complete(const std::string& process) override
+        {
+            ActivityPanel::CompleteProcess(process);
+        }
+        void Fail(const std::string& process, const std::string& error) override
+        {
+            ActivityPanel::FailProcess(process, error);
+        }
+    } s_PanelSink;
+    SetBuildActivitySink(&s_PanelSink);
+
     // Create play view panel
     m_PlayViewPanel = std::make_unique<PlayViewPanel>(this);
 
