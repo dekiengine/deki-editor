@@ -53,6 +53,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the ESP-IDF toolchain and the doc generator.
 
 ### Fixed
+- **The project filesystem is mounted before packages load.** It used to be
+  created near the end of opening a project, but loading a package runs its
+  editor-auto setup components, and a setup may read or write `S:/`. Those
+  writes landed on no filesystem at all and vanished without an error. What it
+  broke in practice: deki-gps caches its last location there, so the lookup ran
+  again on every project open, which is the one thing the cache exists to stop.
+  Only the mount moved; the asset path resolver still attaches later, where the
+  pipeline it needs is ready.
 - **A simulator or firmware build compiles and links again.** Three separate
   breaks had accumulated, none of them visible to any gate, because the package
   compile check builds packages the editor's way and nothing built a game.

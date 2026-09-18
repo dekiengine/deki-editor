@@ -224,6 +224,28 @@ bool EditorApp::OpenProject(const std::string& path)
     if (m_HotReloadService)
         m_HotReloadService->BuildPackagesIfStale(path);
 
+    // The filesystem has to exist before the packages do. Loading a package
+    // runs its editor-auto SetupComponents (SetupComponent::RunEditorAutoSetups,
+    // from PackageLoader), and a setup may read or write S:/ — deki-gps caches
+    // its last location there, for one. This used to be created near the end of
+    // OpenProject, so those writes landed on no filesystem at all and vanished
+    // without an error: the GPS lookup ran again on every project open, which is
+    // exactly what its cache exists to prevent.
+    //
+    // Only the S:/ mount moves up here. The path resolver below it needs the
+    // asset pipeline, which is not ready yet, and is attached to this same
+    // object further down.
+    auto* editorFs = new EditorPlayModeFileSystem();
+    {
+        std::filesystem::path projectDataDir =
+            std::filesystem::path(EditorSettings::GetSettingsDir()) / m_Project->GetName();
+        std::error_code mkdir_ec;
+        std::filesystem::create_directories(projectDataDir, mkdir_ec);
+        editorFs->SetStorageBasePath(projectDataDir.string() + "/");
+        Deki::FileSystem::SetFileSystem(editorFs);
+        Deki::FileSystem::SetDefaultFileSystem(editorFs);
+    }
+
     // Load engine packages with per-project shadow copies
     // Must happen before plugin loading — plugins link against package import libs
     StartupProgress::Update("Loading packages...");
@@ -626,9 +648,10 @@ bool EditorApp::OpenProject(const std::string& path)
 
     std::string cachePath = GetCacheDirectory(path);
 
-    // Set up editor filesystem with path resolver
-    // This allows AssetManager::Load<T>("path") to work by resolving to cached compiled files
-    auto* editorFs = new EditorPlayModeFileSystem();
+    // The filesystem itself was created and mounted before the packages loaded,
+    // because their setups can touch S:/. What was missing until now is the
+    // resolver, which needs the asset pipeline: it lets
+    // AssetManager::Load<T>("path") find the cached compiled file.
     AssetPipeline* pipeline = m_AssetPipeline.get();
     editorFs->SetPathResolver([pipeline, cachePath](const std::string& path) -> std::string
                               {
@@ -640,14 +663,6 @@ bool EditorApp::OpenProject(const std::string& path)
             return pipeline->GetAbsolutePath(info->cachePath);
         }
         return ""; });
-    std::filesystem::path projectDataDir =
-        std::filesystem::path(EditorSettings::GetSettingsDir()) / m_Project->GetName();
-    std::error_code mkdir_ec;
-    std::filesystem::create_directories(projectDataDir, mkdir_ec);
-    editorFs->SetStorageBasePath(projectDataDir.string() + "/");
-    Deki::FileSystem::SetFileSystem(editorFs);
-    Deki::FileSystem::SetDefaultFileSystem(editorFs);
-
     // Set cache directory for AssetManager
     Deki::AssetManager::Get()->SetCacheDirectory(cachePath);
 
