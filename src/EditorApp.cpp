@@ -265,6 +265,14 @@ EditorApp::~EditorApp()
     CrashHandler::SetPreCrashCallback(nullptr);
     StopMcpServer();
 
+    // Explicitly, while the editor's statics are still alive. The registry is
+    // a function-local static destroyed after main returns, and unloading a
+    // builder plugin then would run its detach against dead statics. It also
+    // cancels any build still running in a plugin's code before that module
+    // is freed. Same discipline as PluginLoader::UnloadAllPlugins.
+    BuilderRegistry::Instance().Shutdown();
+    SetBuildActivitySink(nullptr);
+
     // Unregister the log callback before tearing down the file sink so a
     // late-firing log doesn't touch a closed FILE*. ConsolePanel is destroyed
     // along with this EditorApp, so the prior callback's reference to it

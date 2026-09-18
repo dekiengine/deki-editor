@@ -43,20 +43,48 @@ public:
     /// Each builder reads dependencies from the file and reports if it's compatible.
     std::vector<std::string> GetSupportedPlatforms(const std::string& metadataPath) const;
 
-    /// Load builder DLL plugins from ~/.deki-editor/builders/
-    /// (Future: for now just registers built-in builders)
+    /// Built-ins plus one scan for builder plugins. Idempotent, and lazy
+    /// rather than at editor start: FirmwareBuildService is reached by the
+    /// headless CLI and the MCP server, neither of which goes through the
+    /// editor's boot path, and those are exactly the routes a CI build takes.
+    void EnsureLoaded();
+
+    /// Scan for builder plugins. EnsureLoaded() is the normal entry point.
     void LoadBuilderPlugins();
 
-    /// Initialize with built-in builders (call once at startup)
+    /// Register built-in builders only. Kept public for tests.
     void RegisterBuiltInBuilders();
+
+    /// Destroy builders and unload plugin modules, in that order.
+    ///
+    /// Must be called explicitly before the process exits, the way
+    /// PluginLoader::UnloadAllPlugins is: Instance() is a function-local
+    /// static destroyed after main returns, and unloading a module then runs
+    /// its detach against already-destroyed editor statics.
+    void Shutdown();
+
+    /// Load one plugin module; false when it was refused.
+    bool LoadOneBuilderPlugin(const std::string& path);
 
 private:
     BuilderRegistry() = default;
     ~BuilderRegistry();
 
-    std::vector<std::unique_ptr<IFirmwareBuilder>> m_Builders;
+    // A plugin-created builder must be destroyed by the plugin that made it:
+    // its vtable and its operator delete both live in that module, so `delete`
+    // from the editor is undefined. Built-ins carry a null destroy and are
+    // deleted normally.
+    struct LoadedBuilder
+    {
+        IFirmwareBuilder* builder = nullptr;
+        void (*destroy)(IFirmwareBuilder*) = nullptr;
+        size_t moduleIndex = SIZE_MAX;  // index into m_PluginHandles
+    };
+
+    std::vector<LoadedBuilder> m_Builders;
     bool m_BuiltInsRegistered = false;
     bool m_PluginsLoaded = false;
+    bool m_ShutDown = false;
 
     // DLL handles for cleanup (void* = HMODULE on Windows, void* from dlopen on Unix)
     std::vector<void*> m_PluginHandles;

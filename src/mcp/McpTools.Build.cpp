@@ -297,7 +297,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             // means. Missing builder is not fatal - a platform
                             // for a target whose package is not installed yet
                             // is still worth saving.
-                            BuilderRegistry::Instance().RegisterBuiltInBuilders();
+                            BuilderRegistry::Instance().EnsureLoaded();
                             if (auto* b = BuilderRegistry::Instance().GetBuilderForPlatform(config))
                             {
                                 const auto problems = b->ValidatePlatform(config);

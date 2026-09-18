@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+#include <vector>
+
 /**
  * @file DekiBuilderPlugin.h
  * @brief Plugin interface for Deki firmware builder extensions.
@@ -63,6 +67,75 @@ extern "C"
      * @brief Get the plugin name for display in the editor
      * @return Human-readable name (e.g., "Pico SDK Builder")
      */
+/**
+ * @brief What the plugin was compiled against.
+ *
+ * A builder plugin shares C++ objects with the editor — PlatformConfig by
+ * reference, std::string and std::vector across the boundary, a vtable it
+ * inherits. That only works when both sides agree on the layout of those
+ * things, and when they disagree the failure is a corrupted field or a crash
+ * somewhere unrelated, not an error.
+ *
+ * So the editor refuses to load a plugin that cannot prove it matches. This
+ * mirrors the reflection ABI guard the package loader already uses.
+ *
+ * Read `version` THROUGH the pointer before copying the struct: if the plugin
+ * was built against a different revision, the struct it returns may be a
+ * different size, and copying it first is the bug PluginLoader documents.
+ */
+struct DekiBuilderAbi
+{
+    uint32_t version;         ///< kDekiBuilderAbiVersion the plugin compiled with
+    uint32_t structSize;      ///< sizeof(DekiBuilderAbi) as the plugin sees it
+    uint32_t platformConfigSize;   ///< sizeof(DekiEditor::PlatformConfig)
+    uint32_t stdStringSize;        ///< sizeof(std::string)
+    uint32_t stdVectorSize;        ///< sizeof(std::vector<int>)
+    uint32_t compilerTag;     ///< compiler + STL identity; see DekiBuilder_ThisAbi
+};
+
+/// Bump when the builder interface changes shape: a new virtual, a reordered
+/// one, a changed signature, or a change to PlatformConfig's layout.
+constexpr uint32_t kDekiBuilderAbiVersion = 1;
+
+/// The compiler and standard library this translation unit is using. A MinGW
+/// plugin and an MSVC editor lay out std::string differently, and nothing else
+/// here would catch it.
+constexpr uint32_t DekiBuilder_CompilerTag()
+{
+    uint32_t tag = 0;
+#if defined(_MSC_VER)
+    tag = 0x4d000000u | (uint32_t)(_MSC_VER);
+#elif defined(__GNUC__)
+    tag = 0x47000000u | ((uint32_t)__GNUC__ << 8) | (uint32_t)__GNUC_MINOR__;
+#endif
+#if defined(_GLIBCXX_USE_CXX11_ABI)
+    tag ^= (uint32_t)(_GLIBCXX_USE_CXX11_ABI) << 16;
+#endif
+    return tag;
+}
+
+/// Fill in from the plugin's own point of view. A plugin implements
+/// DekiBuilder_GetAbi by returning a static filled with this.
+inline DekiBuilderAbi DekiBuilder_ThisAbi(uint32_t platformConfigSize)
+{
+    DekiBuilderAbi abi{};
+    abi.version = kDekiBuilderAbiVersion;
+    abi.structSize = (uint32_t)sizeof(DekiBuilderAbi);
+    abi.platformConfigSize = platformConfigSize;
+    abi.stdStringSize = (uint32_t)sizeof(std::string);
+    abi.stdVectorSize = (uint32_t)sizeof(std::vector<int>);
+    abi.compilerTag = DekiBuilder_CompilerTag();
+    return abi;
+}
+
+/**
+ * @brief REQUIRED. What this plugin was compiled against.
+ *
+ * A plugin without this export is refused: there is no legacy builder plugin
+ * to be kind to, because LoadBuilderPlugins() has never had a caller.
+ */
+    DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilder_GetAbi(void);
+
     DEKI_BUILDER_API const char* DekiBuilder_GetName(void);
 
     /**

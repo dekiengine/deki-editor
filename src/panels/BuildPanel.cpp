@@ -30,7 +30,7 @@ BuildPanel::BuildPanel(EditorApp* app)
     : m_App(app), m_PlatformEditor(app)
 {
     // Register built-in builders (idempotent)
-    BuilderRegistry::Instance().RegisterBuiltInBuilders();
+    BuilderRegistry::Instance().EnsureLoaded();
     // Enumerate available serial ports
     m_AvailablePorts = EnumeratePorts();
     if (!m_AvailablePorts.empty())

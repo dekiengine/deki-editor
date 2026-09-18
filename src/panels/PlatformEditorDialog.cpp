@@ -96,7 +96,7 @@ void PlatformEditorDialog::PopulateBuilderList()
     // Simulator" row here as well as NativeBuilder's own, so the simulator
     // appeared twice; and a hardcoded list cannot show a builder the editor
     // was not compiled with, which is the whole point of the plugin path.
-    BuilderRegistry::Instance().RegisterBuiltInBuilders();
+    BuilderRegistry::Instance().EnsureLoaded();
     for (auto* builder : BuilderRegistry::Instance().GetAllBuilders())
     {
         if (builder == nullptr)

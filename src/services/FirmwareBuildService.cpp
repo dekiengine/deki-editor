@@ -90,7 +90,7 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
         return false;
     }
 
-    BuilderRegistry::Instance().RegisterBuiltInBuilders();
+    BuilderRegistry::Instance().EnsureLoaded();
     ctx.builder = BuilderRegistry::Instance().GetBuilderForPlatform(*ctx.platform);
     if (!ctx.builder)
     {
@@ -279,7 +279,7 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
 
     nlohmann::json arr = nlohmann::json::array();
     auto& platforms = PlatformRegistry::Instance();
-    BuilderRegistry::Instance().RegisterBuiltInBuilders();
+    BuilderRegistry::Instance().EnsureLoaded();
 
     for (const auto& id : platforms.GetAvailablePlatforms())
     {
