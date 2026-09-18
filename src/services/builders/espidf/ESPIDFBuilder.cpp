@@ -75,11 +75,6 @@ ESPIDFExecContext ESPIDFBuilder::MakeExecContext()
 // Identity
 // ============================================================================
 
-MCUFamily ESPIDFBuilder::GetSupportedFamily() const
-{
-    return MCUFamily::Espressif;
-}
-
 std::vector<std::string> ESPIDFBuilder::GetSupportedTargets() const
 {
     return SupportedIdfTargets();

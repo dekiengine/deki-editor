@@ -51,11 +51,6 @@ NativeBuilder::~NativeBuilder()
 // Identity
 // ============================================================================
 
-MCUFamily NativeBuilder::GetSupportedFamily() const
-{
-    return MCUFamily::Native;
-}
-
 std::vector<std::string> NativeBuilder::GetSupportedTargets() const
 {
     return { "native" };

@@ -533,6 +533,7 @@ set(EDITOR_TESTABLE_SOURCES
     # TransformWidthTests: the width a project compiles, from the tags its
     # packages and deki.json declare.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/CMakeGenUtils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/BuilderDispatch.cpp
     # The stripper: what a device build leaves out, from the descriptors, the
     # scenes and sources, and settings/build.json.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ComponentUsageScan.cpp
@@ -694,6 +695,8 @@ set(EDITOR_SOURCES
     src/services/builders/FirmwareBuilderBase.h
     src/services/builders/CMakeGenUtils.cpp
     src/services/builders/CMakeGenUtils.h
+    src/services/builders/BuilderDispatch.cpp
+    src/services/builders/BuilderDispatch.h
     src/services/builders/espidf/ESPIDFBuilder.cpp
     src/services/builders/espidf/ESPIDFBuilder.h
     src/services/builders/espidf/ESPIDFToolchain.cpp

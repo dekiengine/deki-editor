@@ -9,21 +9,14 @@
 namespace DekiEditor
 {
 
-/**
- * @brief MCU family enumeration for supported target platforms
- *
- * This is a broad category that groups similar MCUs together.
- * The specific chip variant is stored in PlatformConfig::mcuChip.
- */
-enum class MCUFamily
-{
-    Native,     // Desktop simulator (SDL3)
-    Espressif,  // ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2
-    RP2040,     // Raspberry Pi Pico, Pico W
-    SAMD,       // SAMD21, SAMD51 (Adafruit M0/M4)
-    NRF,        // Nordic nRF52840
-    Custom      // User-defined / other
-};
+// The family — "espressif", "native", "rp2040", a console's name — used to be
+// a closed enum. It cannot be: the editor is target-agnostic, and an enum here
+// means every new target patches the editor, which is exactly what a vendor
+// under NDA cannot do. It is a free-form string, like `framework`, and the
+// on-disk JSON has always stored it as text.
+//
+// It is DESCRIPTIVE ONLY: a capability source ("family:<x>") and a UI grouping.
+// Builders are chosen by `framework`, never by this. See BuilderDispatch.h.
 
 /**
  * @brief Memory region definition for partition layouts
@@ -67,7 +60,7 @@ struct PlatformConfig
     // Identification
     std::string id;           // Unique identifier: "esp32s3_v_board"
     std::string displayName;  // Human-readable: "V-Board (ESP32-S3)"
-    MCUFamily family = MCUFamily::Custom;
+    std::string family;   // "espressif", "native", ... — descriptive, see above
     std::string mcuChip;  // Specific chip: "esp32s3", "rp2040"
 
     // Framework

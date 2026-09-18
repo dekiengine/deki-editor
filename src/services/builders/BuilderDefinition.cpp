@@ -10,14 +10,11 @@ using json = nlohmann::json;
 namespace DekiEditor
 {
 
-MCUFamily ParseMCUFamily(const std::string& familyStr)
+// The family is whatever the descriptor says. Kept as a function so callers
+// get the "custom" default in one place rather than each inventing it.
+std::string ParseMCUFamily(const std::string& familyStr)
 {
-    if (familyStr == "native") return MCUFamily::Native;
-    if (familyStr == "espressif") return MCUFamily::Espressif;
-    if (familyStr == "rp2040") return MCUFamily::RP2040;
-    if (familyStr == "samd") return MCUFamily::SAMD;
-    if (familyStr == "nrf") return MCUFamily::NRF;
-    return MCUFamily::Custom;
+    return familyStr.empty() ? "custom" : familyStr;
 }
 
 static void ParseComponent(const json& j, ComponentDef& comp)

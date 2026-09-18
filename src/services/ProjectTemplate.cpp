@@ -78,14 +78,14 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
     // Generate build files using the appropriate builder
     if (platform)
     {
-        IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForFamily(platform->family);
+        IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
         if (builder)
         {
             if (!builder->GenerateBuildFiles(projectPath.string(), *platform, {}))
                 return false;
 
             // Copy bundled components for ESP-IDF platforms
-            if (platform->family == MCUFamily::Espressif)
+            if (platform->framework == "espidf")
                 CopyBundledComponents(projectPath.string());
         }
 
@@ -194,14 +194,14 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,
     // Generate build files using the appropriate builder
     if (platform)
     {
-        IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForFamily(platform->family);
+        IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
         if (builder)
         {
             if (!builder->GenerateBuildFiles(projectPath, *platform, {}))
                 return false;
 
             // Copy bundled components for ESP-IDF platforms
-            if (platform->family == MCUFamily::Espressif)
+            if (platform->framework == "espidf")
                 CopyBundledComponents(projectPath);
         }
     }

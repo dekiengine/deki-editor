@@ -73,20 +73,10 @@ const std::vector<std::string>& SupportedIdfTargets()
     return kTargets;
 }
 
-// The family as it is spelled in JSON, so a capability name matches what an
-// author would write. Kept beside the serializer below, which must agree.
-static const char* FamilyToString(MCUFamily family)
-{
-    switch (family)
-    {
-        case MCUFamily::Native: return "native";
-        case MCUFamily::Espressif: return "espressif";
-        case MCUFamily::RP2040: return "rp2040";
-        case MCUFamily::SAMD: return "samd";
-        case MCUFamily::NRF: return "nrf";
-        default: return "custom";
-    }
-}
+// The family when a platform did not name one. Only reached by JSON with no
+// "family" and no legacy "type"; a capability of "family:custom" then says
+// plainly that the platform declined to categorise itself.
+static const char* kDefaultFamily = "custom";
 
 std::set<std::string> PlatformConfig::Capabilities() const
 {
@@ -96,7 +86,7 @@ std::set<std::string> PlatformConfig::Capabilities() const
     // ESP-IDF board satisfies it without listing anything.
     if (!framework.empty())
         caps.insert("framework:" + framework);
-    caps.insert(std::string("family:") + FamilyToString(family));
+    caps.insert("family:" + (family.empty() ? std::string(kDefaultFamily) : family));
 
     // Memory regions are capabilities named after the region, so a package
     // that allocates from Deki::Memory::Region("rtc") requires "memory:rtc" and the two
@@ -157,22 +147,13 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 
     config.displayName = j.value("displayName", config.id);
 
-    // Load family (new format) or type (legacy format)
+    // Load family (new format) or type (legacy format). Any spelling is
+    // accepted: the editor does not have a list of the world's targets.
     if (j.contains("family"))
     {
-        std::string familyStr = j.value("family", "custom");
-        if (familyStr == "native")
-            config.family = MCUFamily::Native;
-        else if (familyStr == "espressif")
-            config.family = MCUFamily::Espressif;
-        else if (familyStr == "rp2040")
-            config.family = MCUFamily::RP2040;
-        else if (familyStr == "samd")
-            config.family = MCUFamily::SAMD;
-        else if (familyStr == "nrf")
-            config.family = MCUFamily::NRF;
-        else
-            config.family = MCUFamily::Custom;
+        config.family = j.value("family", kDefaultFamily);
+        if (config.family.empty())
+            config.family = kDefaultFamily;
     }
     else if (j.contains("type"))
     {
@@ -180,26 +161,26 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
         std::string typeStr = j.value("type", "custom");
         if (typeStr == "esp32s3")
         {
-            config.family = MCUFamily::Espressif;
+            config.family = "espressif";
             config.mcuChip = "esp32s3";
         }
         else if (typeStr == "esp32")
         {
-            config.family = MCUFamily::Espressif;
+            config.family = "espressif";
             config.mcuChip = "esp32";
         }
         else if (typeStr == "esp32c3")
         {
-            config.family = MCUFamily::Espressif;
+            config.family = "espressif";
             config.mcuChip = "esp32c3";
         }
         else if (typeStr == "simulator")
         {
-            config.family = MCUFamily::Native;
+            config.family = "native";
         }
         else
         {
-            config.family = MCUFamily::Custom;
+            config.family = kDefaultFamily;
         }
     }
 
@@ -448,15 +429,7 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         j["id"] = config.id;
         j["displayName"] = config.displayName;
 
-        switch (config.family)
-        {
-            case MCUFamily::Native: j["family"] = "native"; break;
-            case MCUFamily::Espressif: j["family"] = "espressif"; break;
-            case MCUFamily::RP2040: j["family"] = "rp2040"; break;
-            case MCUFamily::SAMD: j["family"] = "samd"; break;
-            case MCUFamily::NRF: j["family"] = "nrf"; break;
-            default: j["family"] = "custom"; break;
-        }
+        j["family"] = config.family.empty() ? kDefaultFamily : config.family;
 
         if (!config.mcuChip.empty()) j["mcuChip"] = config.mcuChip;
         if (!config.boardVariant.empty()) j["boardVariant"] = config.boardVariant;
@@ -559,7 +532,7 @@ PlatformConfig CreateSimulatorPlatformConfig()
     // Identification
     config.id = "native_simulator";
     config.displayName = "Desktop Simulator (SDL3)";
-    config.family = MCUFamily::Native;
+    config.family = "native";
     config.mcuChip = "";
 
     // Toolchain (native)

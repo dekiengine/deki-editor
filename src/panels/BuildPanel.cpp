@@ -537,7 +537,7 @@ void BuildPanel::DrawToolchainStatusSummary()
         return;
     }
 
-    IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForFamily(platform->family);
+    IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
     if (!builder)
     {
         ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "No builder for this platform family");
@@ -580,15 +580,8 @@ void BuildPanel::DrawPlatformDetails()
     // Display key info in a compact format
     ImGui::TextDisabled("Family:");
     ImGui::SameLine();
-    switch (platform->family)
-    {
-        case MCUFamily::Native: ImGui::Text("Native (SDL3)"); break;
-        case MCUFamily::Espressif: ImGui::Text("Espressif"); break;
-        case MCUFamily::RP2040: ImGui::Text("RP2040"); break;
-        case MCUFamily::SAMD: ImGui::Text("SAMD"); break;
-        case MCUFamily::NRF: ImGui::Text("Nordic nRF"); break;
-        default: ImGui::Text("Custom"); break;
-    }
+    // The platform's own spelling: the editor has no list of families.
+    ImGui::Text("%s", platform->family.empty() ? "custom" : platform->family.c_str());
 
     if (!platform->mcuChip.empty())
     {
@@ -683,7 +676,7 @@ IFirmwareBuilder* BuildPanel::GetActiveBuilder()
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)
         return nullptr;
-    return BuilderRegistry::Instance().GetBuilderForFamily(platform->family);
+    return BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
 }
 
 std::vector<std::string> BuildPanel::EnumeratePorts()

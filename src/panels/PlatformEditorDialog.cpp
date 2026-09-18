@@ -92,19 +92,25 @@ void PlatformEditorDialog::PopulateBuilderList()
 {
     m_AvailableBuilders.clear();
 
-    // Always add Desktop Simulator first
-    m_AvailableBuilders.push_back({ "Desktop Simulator", MCUFamily::Native });
-
-    // Add all registered builders
+    // Purely from what is registered. There used to be a hardcoded "Desktop
+    // Simulator" row here as well as NativeBuilder's own, so the simulator
+    // appeared twice; and a hardcoded list cannot show a builder the editor
+    // was not compiled with, which is the whole point of the plugin path.
     BuilderRegistry::Instance().RegisterBuiltInBuilders();
-    auto builders = BuilderRegistry::Instance().GetAllBuilders();
-    for (auto* builder : builders)
+    for (auto* builder : BuilderRegistry::Instance().GetAllBuilders())
     {
-        m_AvailableBuilders.push_back({ builder->GetName(), builder->GetSupportedFamily() });
+        if (builder == nullptr)
+            continue;
+        BuilderEntry entry;
+        entry.name = builder->GetName();
+        entry.frameworkId = builder->GetFrameworkId();
+        entry.icon = builder->GetIcon();
+        entry.description = builder->GetDescription();
+        m_AvailableBuilders.push_back(std::move(entry));
     }
 
-    // Always add Custom last
-    m_AvailableBuilders.push_back({ "Custom", MCUFamily::Custom });
+    // Custom last: a platform whose framework no installed builder claims.
+    m_AvailableBuilders.push_back({ "Custom", "", "custom", nullptr, "" });
 }
 
 void PlatformEditorDialog::ApplyBuilderDefaults(int builderIndex)
@@ -118,12 +124,13 @@ void PlatformEditorDialog::ApplyBuilderDefaults(int builderIndex)
     const auto& entry = m_AvailableBuilders[builderIndex];
     m_EditorUI.reset();
 
-    if (entry.family != MCUFamily::Custom)
+    if (!entry.frameworkId.empty())
     {
-        auto* builder = BuilderRegistry::Instance().GetBuilderForFamily(entry.family);
+        auto* builder = BuilderRegistry::Instance().GetBuilder(entry.frameworkId);
         if (builder)
         {
             PlatformConfig defaultConfig;
+            defaultConfig.framework = entry.frameworkId;
             defaultConfig.family = entry.family;
             defaultConfig.screenWidth = 320;
             defaultConfig.screenHeight = 240;
@@ -191,7 +198,8 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     m_FamilyIndex = (int)m_AvailableBuilders.size() - 1;  // Default to Custom (last)
     for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
     {
-        if (m_AvailableBuilders[i].family == config->family)
+        if (!m_AvailableBuilders[i].frameworkId.empty() &&
+            m_AvailableBuilders[i].frameworkId == config->framework)
         {
             m_FamilyIndex = i;
             break;
@@ -211,9 +219,9 @@ void PlatformEditorDialog::CreateEditorUI(const PlatformConfig& config)
 {
     m_EditorUI.reset();
 
-    if (config.family != MCUFamily::Custom)
+    if (!config.framework.empty())
     {
-        auto* builder = BuilderRegistry::Instance().GetBuilderForFamily(config.family);
+        auto* builder = BuilderRegistry::Instance().GetBuilderForPlatform(config);
         if (builder)
         {
             m_EditorUI = builder->CreateEditorUI(config);
@@ -234,9 +242,14 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
 
     // Set family from selected builder
     if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size())
+    {
         config.family = m_AvailableBuilders[m_FamilyIndex].family;
+        config.framework = m_AvailableBuilders[m_FamilyIndex].frameworkId;
+    }
     else
-        config.family = MCUFamily::Custom;
+    {
+        config.family = "custom";
+    }
 
     // Delegate builder-specific fields to editor UI
     if (m_EditorUI)
@@ -249,9 +262,7 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
         config.screenWidth = m_ScreenWidth;
         config.screenHeight = m_ScreenHeight;
 
-        if (config.family == MCUFamily::Native)
-            config.framework = "native";
-        else
+        if (config.framework.empty())
             config.framework = "custom";
     }
 
@@ -450,28 +461,31 @@ bool PlatformEditorDialog::DrawInline()
 // Framework Picker (step 1 of creating a new platform)
 // ============================================================================
 
-static const char* GetFrameworkIcon(MCUFamily family)
+// Fallbacks for a builder that does not describe itself. A builder's own
+// GetIcon()/GetDescription() win, so a third-party backend is not anonymous.
+static const char* GetFrameworkIcon(const char* builderIcon, const std::string& frameworkId)
 {
-    switch (family)
-    {
-        case MCUFamily::Native: return ICON_TI_DEVICE_DESKTOP;
-        case MCUFamily::Espressif: return ICON_TI_CPU;
-        case MCUFamily::RP2040: return ICON_TI_CPU;
-        case MCUFamily::Custom: return ICON_TI_TOOL;
-        default: return ICON_TI_CPU;
-    }
+    if (builderIcon != nullptr)
+        return builderIcon;
+    if (frameworkId.empty())
+        return ICON_TI_TOOL;               // the Custom row
+    if (frameworkId == "native")
+        return ICON_TI_DEVICE_DESKTOP;
+    return ICON_TI_CPU;
 }
 
-static const char* GetFrameworkDescription(MCUFamily family)
+static std::string GetFrameworkDescription(const std::string& builderDesc,
+                                           const std::string& frameworkId)
 {
-    switch (family)
-    {
-        case MCUFamily::Native: return "Run your project on desktop with SDL3 simulator";
-        case MCUFamily::Espressif: return "Build for ESP32, ESP32-S3, and other Espressif chips";
-        case MCUFamily::RP2040: return "Build for Raspberry Pi Pico and RP2040 boards";
-        case MCUFamily::Custom: return "Configure a custom platform with manual settings";
-        default: return "";
-    }
+    if (!builderDesc.empty())
+        return builderDesc;
+    if (frameworkId.empty())
+        return "Configure a custom platform with manual settings";
+    if (frameworkId == "native")
+        return "Run your project on desktop with SDL3 simulator";
+    if (frameworkId == "espidf")
+        return "Build for ESP32, ESP32-S3, and other Espressif chips";
+    return "";
 }
 
 void PlatformEditorDialog::DrawFrameworkPicker()
@@ -492,8 +506,8 @@ void PlatformEditorDialog::DrawFrameworkPicker()
     for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
     {
         const auto& entry = m_AvailableBuilders[i];
-        const char* icon = GetFrameworkIcon(entry.family);
-        const char* desc = GetFrameworkDescription(entry.family);
+        const char* icon = GetFrameworkIcon(entry.icon, entry.frameworkId);
+        const std::string desc = GetFrameworkDescription(entry.description, entry.frameworkId);
 
         ImGui::PushID(i);
 
@@ -514,7 +528,7 @@ void PlatformEditorDialog::DrawFrameworkPicker()
         drawList->AddText(ImVec2(textX, nameY), iconColor, entry.name.c_str());
 
         float descY = pos.y + padding + ImGui::GetTextLineHeight() + 2.0f;
-        drawList->AddText(ImVec2(textX, descY), descColor, desc);
+        drawList->AddText(ImVec2(textX, descY), descColor, desc.c_str());
 
         ImGui::PopID();
     }
@@ -587,7 +601,7 @@ void PlatformEditorDialog::DrawBasicSection()
 
         // Custom family hint
         if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size() &&
-            m_AvailableBuilders[m_FamilyIndex].family == MCUFamily::Custom)
+            m_AvailableBuilders[m_FamilyIndex].frameworkId.empty())
         {
             ImGui::Spacing();
             ImGui::TextDisabled("Custom platforms use user-defined toolchains.");

@@ -47,7 +47,7 @@ public:
 
     // Identity
     const char* GetName() const override { return "Native (Desktop)"; }
-    MCUFamily GetSupportedFamily() const override;
+    std::string GetFrameworkId() const override { return "native"; }
     std::vector<std::string> GetSupportedTargets() const override;
     std::string GetBuildDirectory(const std::string& projectPath) const override;
 

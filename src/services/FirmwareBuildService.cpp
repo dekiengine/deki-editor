@@ -25,19 +25,6 @@ namespace DekiEditor
 namespace
 {
 
-const char* FamilyName(MCUFamily family)
-{
-    switch (family)
-    {
-        case MCUFamily::Native: return "native";
-        case MCUFamily::Espressif: return "espressif";
-        case MCUFamily::RP2040: return "rp2040";
-        case MCUFamily::SAMD: return "samd";
-        case MCUFamily::NRF: return "nrf";
-        default: return "custom";
-    }
-}
-
 const char* StatusName(ToolchainComponentStatus s)
 {
     switch (s)
@@ -104,11 +91,11 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     }
 
     BuilderRegistry::Instance().RegisterBuiltInBuilders();
-    ctx.builder = BuilderRegistry::Instance().GetBuilderForFamily(ctx.platform->family);
+    ctx.builder = BuilderRegistry::Instance().GetBuilderForPlatform(*ctx.platform);
     if (!ctx.builder)
     {
-        err = std::string("No firmware builder registered for family '") +
-              FamilyName(ctx.platform->family) + "' (platform '" + ctx.platformId + "').";
+        err = BuilderRegistry::Instance().DescribeMissingBuilder(*ctx.platform) +
+              " (platform '" + ctx.platformId + "')";
         return false;
     }
 
@@ -287,12 +274,12 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
         const PlatformConfig* p = platforms.GetPlatform(id);
         if (!p) continue;
 
-        IFirmwareBuilder* b = BuilderRegistry::Instance().GetBuilderForFamily(p->family);
+        IFirmwareBuilder* b = BuilderRegistry::Instance().GetBuilderForPlatform(*p);
 
         nlohmann::json j;
         j["id"] = p->id;
         j["displayName"] = p->displayName;
-        j["family"] = FamilyName(p->family);
+        j["family"] = p->family;
         j["mcuChip"] = p->mcuChip;
         j["framework"] = p->framework;
         j["screenWidth"] = p->screenWidth;

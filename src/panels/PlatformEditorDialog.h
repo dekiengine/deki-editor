@@ -69,10 +69,17 @@ private:
     // Builder-driven framework selection
     bool m_ShowFrameworkPicker = false;
     int m_SelectedBuilderIndex = -1;
+    // One row of the builder picker. Built from the registered builders
+    // themselves, so a third-party backend appears without the editor knowing
+    // it exists. `frameworkId` empty means the "Custom" row, which configures
+    // a platform no builder claims yet.
     struct BuilderEntry
     {
         std::string name;
-        MCUFamily family;
+        std::string frameworkId;
+        std::string family;
+        const char* icon = nullptr;
+        std::string description;
     };
     std::vector<BuilderEntry> m_AvailableBuilders;
     int m_FamilyIndex = 0;

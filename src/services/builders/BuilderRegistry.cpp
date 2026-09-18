@@ -1,4 +1,5 @@
 #include "BuilderRegistry.h"
+#include "BuilderDispatch.h"
 #include "espidf/ESPIDFBuilder.h"
 #include "native/NativeBuilder.h"
 #include "DekiBuilderPlugin.h"
@@ -53,14 +54,19 @@ void BuilderRegistry::RegisterBuilder(std::unique_ptr<IFirmwareBuilder> builder)
     m_Builders.push_back(std::move(builder));
 }
 
-IFirmwareBuilder* BuilderRegistry::GetBuilderForFamily(MCUFamily family)
+IFirmwareBuilder* BuilderRegistry::GetBuilder(const std::string& frameworkId)
 {
-    for (auto& builder : m_Builders)
-    {
-        if (builder->GetSupportedFamily() == family)
-            return builder.get();
-    }
-    return nullptr;
+    return SelectBuilder(GetAllBuilders(), frameworkId);
+}
+
+IFirmwareBuilder* BuilderRegistry::GetBuilderForPlatform(const PlatformConfig& config)
+{
+    return SelectBuilder(GetAllBuilders(), config.framework);
+}
+
+std::string BuilderRegistry::DescribeMissingBuilder(const PlatformConfig& config) const
+{
+    return DescribeNoBuilder(GetAllBuilders(), config.framework);
 }
 
 std::vector<IFirmwareBuilder*> BuilderRegistry::GetAllBuilders() const

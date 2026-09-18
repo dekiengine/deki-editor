@@ -236,8 +236,21 @@ public:
     /// Human-readable builder name (e.g., "ESP-IDF", "Pico SDK")
     virtual const char* GetName() const = 0;
 
-    /// MCU family this builder supports (Espressif, RP2040, etc.)
-    virtual MCUFamily GetSupportedFamily() const = 0;
+    /// The build framework this builder serves: "espidf", "native",
+    /// "tactility". THE dispatch key — a platform names its framework and the
+    /// registry hands it to whoever claims that id.
+    ///
+    /// Not the MCU family, which cannot distinguish two builders for the same
+    /// silicon: a Tactility board IS an ESP32-S3, so a family key would hand
+    /// its build to ESP-IDF. Not GetPlatformKey() either, which reads the
+    /// platform config this builder was already given and so cannot be used to
+    /// choose it.
+    virtual std::string GetFrameworkId() const = 0;
+
+    /// Optional self-description for the platform editor's builder picker, so
+    /// a third-party builder is not anonymous in the UI.
+    virtual const char* GetIcon() const { return nullptr; }
+    virtual const char* GetDescription() const { return ""; }
 
     /// List of supported chip targets (e.g., {"esp32", "esp32s3", "esp32c3"})
     virtual std::vector<std::string> GetSupportedTargets() const = 0;

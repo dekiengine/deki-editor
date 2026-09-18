@@ -252,15 +252,15 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             // than assigned.
                             if (args.contains("family") && args["family"].is_string())
                             {
+                                // Any spelling: the family is descriptive and
+                                // the editor has no list of the world's targets.
+                                // A capability name must still be matchable, so
+                                // it is validated as one.
                                 const std::string family = args["family"].get<std::string>();
-                                if (family == "native") config.family = MCUFamily::Native;
-                                else if (family == "espressif") config.family = MCUFamily::Espressif;
-                                else if (family == "rp2040") config.family = MCUFamily::RP2040;
-                                else if (family == "samd") config.family = MCUFamily::SAMD;
-                                else if (family == "nrf") config.family = MCUFamily::NRF;
-                                else if (family == "custom") config.family = MCUFamily::Custom;
-                                else throw std::runtime_error("unknown family '" + family +
-                                                              "'; use native, espressif, rp2040, samd, nrf or custom");
+                                if (!IsValidCapabilityName(family))
+                                    throw std::runtime_error("invalid family '" + family +
+                                        "'; lowercase letters, digits, '.', '-', ':' and '_' only");
+                                config.family = family;
                             }
                             config.framework = args.value("framework", config.framework);
                             config.mcuChip = args.value("mcu_chip", config.mcuChip);

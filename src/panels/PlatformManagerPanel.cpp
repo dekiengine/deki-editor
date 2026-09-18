@@ -37,18 +37,19 @@ inline uint32_t Pack(const ImVec4& c)
     return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f),
                           (uint8_t)(c.z * 255.0f), (uint8_t)(c.w * 255.0f));
 }
-// Human-readable MCU family name (used by the list subtitle and details view).
-const char* FamilyName(MCUFamily family)
+// A prettier label for the families we happen to know, falling back to the
+// platform's own spelling. A lookup, not a switch: the editor has no list of
+// the world's targets, and an unknown family must still display as itself
+// rather than as "Custom".
+std::string FamilyName(const std::string& family)
 {
-    switch (family)
-    {
-        case MCUFamily::Native: return "Desktop Simulator";
-        case MCUFamily::Espressif: return "Espressif";
-        case MCUFamily::RP2040: return "RP2040";
-        case MCUFamily::SAMD: return "SAMD";
-        case MCUFamily::NRF: return "Nordic nRF52";
-        default: return "Custom";
-    }
+    if (family == "native") return "Desktop Simulator";
+    if (family == "espressif") return "Espressif";
+    if (family == "rp2040") return "RP2040";
+    if (family == "samd") return "SAMD";
+    if (family == "nrf") return "Nordic nRF52";
+    if (family.empty()) return "Custom";
+    return family;
 }
 }  // namespace
 
@@ -413,7 +414,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
     ui.Spacing();
 
     // Family / chip / framework
-    ui.Text(("Family: " + std::string(FamilyName(platform->family))).c_str());
+    ui.Text(("Family: " + FamilyName(platform->family)).c_str());
 
     if (!platform->mcuChip.empty())
         ui.Text(("Chip: " + platform->mcuChip).c_str());

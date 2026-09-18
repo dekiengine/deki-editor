@@ -89,6 +89,6 @@ bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDe
 std::vector<BuilderDefinition> LoadAllBuilderDefinitions(const std::string& directory);
 
 /// Convert family string ("espressif", "rp2040", etc.) to MCUFamily enum
-MCUFamily ParseMCUFamily(const std::string& familyStr);
+std::string ParseMCUFamily(const std::string& familyStr);
 
 }  // namespace DekiEditor

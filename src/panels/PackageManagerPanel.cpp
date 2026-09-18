@@ -504,7 +504,7 @@ void PackageManagerPanel::DrawPackageDetails()
         TextCol(ui, Palette::Dim, "Framework");
         ui.Text(frameworkDisplay.c_str());
 
-        if (IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForFamily(config->family))
+        if (IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*config))
         {
             TextCol(ui, Palette::Dim, "Builder");
             ui.Text(builder->GetName());

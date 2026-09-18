@@ -50,6 +50,7 @@ set(TEST_SOURCES
     services/TransformWidthTests.cpp
     services/FeatureResolverTests.cpp
     services/ComponentUsageScanTests.cpp
+    services/BuilderDispatchTests.cpp
     services/BuildStripSettingsTests.cpp
     services/PlayModeGuardTests.cpp
     core/ZipSafetyTests.cpp
