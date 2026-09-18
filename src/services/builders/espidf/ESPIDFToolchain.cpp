@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include "ESPIDFToolchain.h"
-#include "../../SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include <nlohmann/json.hpp>

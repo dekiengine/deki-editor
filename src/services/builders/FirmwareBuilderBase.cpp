@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <set>
 #include <map>
-#include "services/VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 namespace fs = std::filesystem;
 

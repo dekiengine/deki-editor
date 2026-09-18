@@ -501,9 +501,7 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ProjectScaffold.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ScriptTemplate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageManifest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/VersionCompare.cpp
     # The name allowlist every path built from registry/manifest/pack content goes through.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SafeNames.cpp
     # PlatformConfigTests: platform JSON validation.
     # EditorLogFileTests: the Editor.log sink and its rotation.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/EditorLogFile.cpp
@@ -531,7 +529,6 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FileDialogFilter.cpp
     # TransformWidthTests: the width a project compiles, from the tags its
     # packages and deki.json declare.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/builders/CMakeGenUtils.cpp
     # The stripper: what a device build leaves out, from the descriptors, the
     # scenes and sources, and settings/build.json.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ComponentUsageScan.cpp
@@ -622,8 +619,6 @@ set(EDITOR_SOURCES
     src/services/PlayModeGuard.h
     src/services/ClipboardService.cpp
     src/services/ClipboardService.h
-    src/services/ProcessLaunch.cpp
-    src/services/ProcessLaunch.h
     src/services/EditorSettings.cpp
     src/services/EditorSettings.h
     src/services/ProjectRegistry.cpp
@@ -688,8 +683,6 @@ set(EDITOR_SOURCES
     src/services/ToolHost.h
     src/services/builders/FirmwareBuilderBase.cpp
     src/services/builders/FirmwareBuilderBase.h
-    src/services/builders/CMakeGenUtils.cpp
-    src/services/builders/CMakeGenUtils.h
     src/services/builders/espidf/ESPIDFBuilder.cpp
     src/services/builders/espidf/ESPIDFBuilder.h
     src/services/builders/espidf/ESPIDFToolchain.cpp
@@ -756,8 +749,6 @@ set(EDITOR_SOURCES
     src/panels/ProfilerPanel.MemoryView.cpp
     src/panels/FrameCapturePanel.cpp
     src/panels/FrameCapturePanel.h
-    src/services/builders/BuilderDefinition.cpp
-    src/services/builders/BuilderDefinition.h
     src/services/builders/ToolchainComponentManager.cpp
     src/services/builders/ToolchainComponentManager.h
     src/mcp/McpServer.cpp

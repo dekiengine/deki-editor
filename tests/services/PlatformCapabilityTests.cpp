@@ -11,7 +11,7 @@
 
 #include <gtest/gtest.h>
 
-#include "services/builders/CMakeGenUtils.h"
+#include <deki-editor/build/CMakeGenUtils.h>
 
 #include <set>
 #include <string>

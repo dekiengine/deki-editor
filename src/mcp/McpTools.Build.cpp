@@ -16,7 +16,7 @@
 #include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/build/BuilderRegistry.h>
 #include <deki-editor/build/TargetBuilder.h>
-#include "../services/SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include "../services/PackageManager.h"
 #include <deki-editor/Paths.h>
 

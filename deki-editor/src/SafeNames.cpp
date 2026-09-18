@@ -1,4 +1,4 @@
-#include "SafeNames.h"
+#include <deki-editor/SafeNames.h>
 
 #include <system_error>
 

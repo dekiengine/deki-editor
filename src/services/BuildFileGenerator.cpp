@@ -2,7 +2,7 @@
 // Extracted from HotReloadService.cpp
 
 #include "BuildFileGenerator.h"
-#include "builders/CMakeGenUtils.h"
+#include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/EditorPaths.h>
 #include "core/ProjectPaths.h"

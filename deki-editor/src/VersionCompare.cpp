@@ -1,4 +1,4 @@
-#include "VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 #include <algorithm>
 #include <cstdlib>

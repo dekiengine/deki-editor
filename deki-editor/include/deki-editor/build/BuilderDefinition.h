@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <string>
 #include <vector>
 #include <map>
@@ -13,7 +15,7 @@ enum class MCUFamily;
 // Builder Definition structs — parsed from resources/builders/*.json
 // ============================================================================
 
-struct VersionCheckDef
+struct DEKI_EDITOR_API VersionCheckDef
 {
     std::string type;          // "github_release" or "static"
     std::string repo;          // For github_release: "espressif/esp-idf"
@@ -21,19 +23,19 @@ struct VersionCheckDef
     std::string version;       // For static: fixed version string
 };
 
-struct FallbackDef
+struct DEKI_EDITOR_API FallbackDef
 {
     std::string version;
     std::string url;
 };
 
-struct PostInstallDef
+struct DEKI_EDITOR_API PostInstallDef
 {
     std::string windows;
     std::string unix_;  // "unix" is not a keyword but avoid confusion
 };
 
-struct SubComponentDef
+struct DEKI_EDITOR_API SubComponentDef
 {
     std::string name;
     std::string version;
@@ -47,7 +49,7 @@ struct SubComponentDef
     std::string targetName;     // Desired folder name after rename
 };
 
-struct ComponentDef
+struct DEKI_EDITOR_API ComponentDef
 {
     std::string id;
     std::string displayName;
@@ -72,7 +74,7 @@ struct ComponentDef
     std::string tooltip;
 };
 
-struct BuilderDefinition
+struct DEKI_EDITOR_API BuilderDefinition
 {
     std::string id;      // "espidf"
     std::string name;    // "ESP-IDF"
@@ -83,12 +85,12 @@ struct BuilderDefinition
 };
 
 /// Parse a single builder JSON file into a BuilderDefinition
-bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef);
+DEKI_EDITOR_API bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef);
 
 /// Load all builder definitions from a directory
-std::vector<BuilderDefinition> LoadAllBuilderDefinitions(const std::string& directory);
+DEKI_EDITOR_API std::vector<BuilderDefinition> LoadAllBuilderDefinitions(const std::string& directory);
 
 /// Convert family string ("espressif", "rp2040", etc.) to MCUFamily enum
-std::string ParseMCUFamily(const std::string& familyStr);
+DEKI_EDITOR_API std::string ParseMCUFamily(const std::string& familyStr);
 
 }  // namespace DekiEditor

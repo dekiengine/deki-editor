@@ -3,10 +3,10 @@
 #include "core/ProjectPaths.h"
 #include "../SharedLibNaming.h"
 #include "../PackageLoader.h"
-#include "../VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 #include "../GitProcess.h"
 #include "../PackageIntegrity.h"
-#include "../SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <nlohmann/json.hpp>
 #include <cstring>
 #include <fstream>

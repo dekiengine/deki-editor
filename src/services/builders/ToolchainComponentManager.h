@@ -1,6 +1,6 @@
 #pragma once
 
-#include "BuilderDefinition.h"
+#include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/build/TargetBuilder.h>
 #include "DownloadTypes.h"
 #include <string>

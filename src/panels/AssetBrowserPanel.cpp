@@ -1,7 +1,7 @@
 #include "AssetBrowserPanel.h"
 #include "asset_browser/VirtualFolders.h"
 #include "asset_browser/AssetFileOps.h"
-#include "../services/ProcessLaunch.h"
+#include <deki-editor/ProcessLaunch.h>
 #include "../services/ScriptTemplate.h"
 #include "../services/AssetImportDrop.h"
 #include "../core/SceneExport.h"

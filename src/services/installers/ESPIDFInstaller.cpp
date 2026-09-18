@@ -5,7 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
-#include "services/VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 ESPIDFInstaller::ESPIDFInstaller() = default;
 ESPIDFInstaller::~ESPIDFInstaller() = default;

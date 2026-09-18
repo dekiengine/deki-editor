@@ -1,5 +1,5 @@
 #include "ConsolePanel.h"
-#include "../services/ProcessLaunch.h"
+#include <deki-editor/ProcessLaunch.h>
 #include "../PanelMaximize.h"
 #include "../EditorApp.h"
 #include <deki-editor/EditorTheme.h>

@@ -1,5 +1,5 @@
 #include "BoardPackManager.h"
-#include "SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/EditorHttpUtils.h>
 #include <deki-editor/build/PlatformConfig.h>

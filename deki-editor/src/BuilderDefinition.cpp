@@ -1,4 +1,4 @@
-#include "BuilderDefinition.h"
+#include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>

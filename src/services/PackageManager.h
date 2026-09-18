@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <mutex>
 
-#include "VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 // Package source type
 enum class PackageSourceType

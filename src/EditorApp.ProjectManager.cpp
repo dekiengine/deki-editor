@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <regex>
 #include "core/ProjectPaths.h"
-#include "services/builders/CMakeGenUtils.h"
+#include <deki-editor/build/CMakeGenUtils.h>
 #include "services/SceneTargetFilter.h"
 #include <functional>
 #include <set>

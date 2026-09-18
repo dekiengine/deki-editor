@@ -1,5 +1,5 @@
 #include "PackageManifest.h"
-#include "SafeNames.h"
+#include <deki-editor/SafeNames.h>
 
 #include "PackageManager.h"
 

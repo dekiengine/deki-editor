@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <string>
 #include <vector>
 
@@ -16,11 +18,11 @@ namespace DekiEditor
 ///
 /// This lived as two byte-identical `static` copies, in FirmwareBuilderBase.cpp
 /// and ESPIDFInstaller.cpp, before the engine-version gate needed a third.
-int CompareVersions(const std::string& a, const std::string& b);
+DEKI_EDITOR_API int CompareVersions(const std::string& a, const std::string& b);
 
 /// The highest version in `versions` by CompareVersions, or "" when empty.
 /// Registry and lock files list versions oldest-first, so taking the first
 /// entry (which two version choosers did) installed the OLDEST release.
-std::string HighestVersion(const std::vector<std::string>& versions);
+DEKI_EDITOR_API std::string HighestVersion(const std::vector<std::string>& versions);
 
 }  // namespace DekiEditor

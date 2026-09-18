@@ -3,7 +3,7 @@
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
 #include "services/FrameCaptureService.h"
-#include "services/ProcessLaunch.h"
+#include <deki-editor/ProcessLaunch.h>
 #include "core/Project.h"
 #include "imgui.h"
 #include <filesystem>

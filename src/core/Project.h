@@ -14,7 +14,7 @@
 #include <deki/settings/CoreProjectSettings.h>
 
 // CompareVersions, for the ProjectNeedsNewerEditor rule below.
-#include "services/VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 namespace DekiEditor
 {

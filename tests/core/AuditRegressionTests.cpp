@@ -17,7 +17,7 @@
 #include "core/commands/AssetCommands.h"
 #include "core/commands/HierarchyCommands.h"
 #include "services/installers/DekiPackageInstaller.h"
-#include "services/SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <deki-editor/Paths.h>
 
 #include <deki/Scene.h>

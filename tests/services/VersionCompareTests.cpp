@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "services/VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 using DekiEditor::CompareVersions;
 

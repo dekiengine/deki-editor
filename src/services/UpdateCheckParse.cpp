@@ -1,5 +1,5 @@
 #include "UpdateCheckParse.h"
-#include "VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 
 #include <nlohmann/json.hpp>
 

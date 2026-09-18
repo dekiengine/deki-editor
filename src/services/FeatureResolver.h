@@ -18,7 +18,7 @@
 
 #include "BuildStripSettings.h"
 #include "ComponentUsageScan.h"
-#include "builders/CMakeGenUtils.h"
+#include <deki-editor/build/CMakeGenUtils.h>
 
 #include <map>
 #include <string>

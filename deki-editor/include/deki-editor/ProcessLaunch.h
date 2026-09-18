@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 // Spawning external programs without a shell.
 //
 // The editor launches a few things on the user's behalf — the code editor, the
@@ -22,7 +24,7 @@ namespace DekiEditor
 /// Launch `program` with `args`, detached, without a console window.
 /// Returns false if the process could not be started (e.g. program not found).
 /// Does not wait for it and does not report its exit status.
-bool LaunchDetached(const std::string& program, const std::vector<std::string>& args);
+DEKI_EDITOR_API bool LaunchDetached(const std::string& program, const std::vector<std::string>& args);
 
 /// Launch `program` from `workingDirectory`, detached, keeping its console.
 ///
@@ -30,14 +32,14 @@ bool LaunchDetached(const std::string& program, const std::vector<std::string>& 
 /// finds its assets relative to its own directory and writes its log to
 /// stdout. LaunchDetached suits the helpers the editor drives on the side, and
 /// suppresses both of those.
-bool LaunchDetachedInDirectory(const std::string& program, const std::vector<std::string>& args,
+DEKI_EDITOR_API bool LaunchDetachedInDirectory(const std::string& program, const std::vector<std::string>& args,
                                const std::string& workingDirectory);
 
 /// Open a source file in the user's code editor, optionally at a line.
 /// Currently targets VS Code (`code`), matching the previous behaviour.
-bool OpenInCodeEditor(const std::string& filePath, int line = -1);
+DEKI_EDITOR_API bool OpenInCodeEditor(const std::string& filePath, int line = -1);
 
 /// Reveal a file or directory in the platform's file manager.
-bool RevealInFileManager(const std::string& path);
+DEKI_EDITOR_API bool RevealInFileManager(const std::string& path);
 
 }  // namespace DekiEditor

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 // Names that arrive from outside the editor and become path segments or build
 // tokens: registry ids and `owner/repo` slugs, manifest and lock-file names,
 // board-pack ids, PACKAGE_TARGET read out of a cloned package.cmake.
@@ -21,26 +23,26 @@ namespace DekiEditor::SafeNames
 {
 
 /// One path segment / identifier. Fills `reason` on rejection.
-bool IsSafeName(const std::string& name, std::string& reason);
+DEKI_EDITOR_API bool IsSafeName(const std::string& name, std::string& reason);
 
 /// "owner/name" as the registry's `repo` field and the manifest's `name`
 /// carry it: exactly one '/', both halves IsSafeName. A bare name (no '/')
 /// is accepted too, since older lock files store just the repository name.
-bool IsSafeRepoSlug(const std::string& slug, std::string& reason);
+DEKI_EDITOR_API bool IsSafeRepoSlug(const std::string& slug, std::string& reason);
 
 /// A serial port as the flash step passes it to idf.py: `COM<n>` on Windows,
 /// `/dev/<name>` elsewhere. Anything else (a space, a quote, an option) is
 /// refused before it reaches the shell that runs the ESP-IDF export script.
-bool IsSafeSerialPort(const std::string& port, std::string& reason);
+DEKI_EDITOR_API bool IsSafeSerialPort(const std::string& port, std::string& reason);
 
 /// A preprocessor define as a package declares it: `NAME` or `NAME=value`
 /// with `[A-Za-z_][A-Za-z0-9_]*` and a value of `[A-Za-z0-9_.]*`.
-bool IsSafeDefine(const std::string& define, std::string& reason);
+DEKI_EDITOR_API bool IsSafeDefine(const std::string& define, std::string& reason);
 
 /// True when `child` resolves to `parent` or somewhere below it. Both are
 /// canonicalised weakly (the child may not exist yet); a failure to
 /// canonicalise is "not inside".
-bool IsInsideDirectory(const std::filesystem::path& child, const std::filesystem::path& parent);
+DEKI_EDITOR_API bool IsInsideDirectory(const std::filesystem::path& child, const std::filesystem::path& parent);
 
 }  // namespace DekiEditor::SafeNames
 

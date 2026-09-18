@@ -1,13 +1,13 @@
 #include "NativeBuilder.h"
-#include "services/SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <deki-editor/EditorHttpUtils.h>
 #include <fstream>
 #include <cstdio>
 #include <deki-editor/Paths.h>
 #include "core/ProjectPaths.h"
-#include "../CMakeGenUtils.h"
+#include <deki-editor/build/CMakeGenUtils.h>
 #include "../../EditorSettings.h"
-#include "../../ProcessLaunch.h"
+#include <deki-editor/ProcessLaunch.h>
 #include "../../FeatureResolver.h"
 #include <deki-editor/build/PlatformConfig.h>
 #include "EditorApp.h"

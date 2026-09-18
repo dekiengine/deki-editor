@@ -1,4 +1,4 @@
-#include "CMakeGenUtils.h"
+#include <deki-editor/build/CMakeGenUtils.h>
 #include <deki/LogSystem.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/build/PlatformConfig.h>

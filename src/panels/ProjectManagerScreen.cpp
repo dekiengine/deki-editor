@@ -2,7 +2,7 @@
 
 #include "EditorApp.h"
 #include "services/FileDialogs.h"
-#include "services/ProcessLaunch.h"
+#include <deki-editor/ProcessLaunch.h>
 #include "services/ProjectRegistry.h"
 
 #include <deki-editor/EditorTheme.h>

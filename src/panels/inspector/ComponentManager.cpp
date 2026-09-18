@@ -1,7 +1,7 @@
 #include "ComponentManager.h"
 #include <unordered_map>
 #include <deki-editor/Paths.h>
-#include "../../services/ProcessLaunch.h"
+#include <deki-editor/ProcessLaunch.h>
 #include "InspectorUtils.h"
 #include "../../EditorApp.h"
 #include <deki-editor/EditorTheme.h>

@@ -1,11 +1,11 @@
 #include "ESPIDFBuilder.h"
-#include "../../SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <algorithm>
 #include <deki-editor/Paths.h>
 #include "core/ProjectPaths.h"
 #include <deki-editor/EditorTheme.h>
-#include "../CMakeGenUtils.h"
-#include "../BuilderDefinition.h"
+#include <deki-editor/build/CMakeGenUtils.h>
+#include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/EditorPaths.h>
 #include "../../EditorSettings.h"
 #include <deki-editor/build/PlatformConfig.h>

@@ -1,5 +1,5 @@
 #include "DekiRegistrySource.h"
-#include "../SafeNames.h"
+#include <deki-editor/SafeNames.h>
 #include <deki/LogSystem.h>
 #include <cstdlib>
 #include <deki-editor/EditorHttpUtils.h>

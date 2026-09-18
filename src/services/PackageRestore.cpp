@@ -4,7 +4,7 @@
 
 #include "PackageManager.h"
 #include "StartupProgress.h"
-#include "VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 #include "sources/DekiRegistrySource.h"
 
 #include <nlohmann/json.hpp>

@@ -15,7 +15,7 @@
 
 #include "EditorHeadless.h"
 #include "EditorVersion.h"
-#include "services/VersionCompare.h"
+#include <deki-editor/VersionCompare.h>
 #include "EditorApp.h"
 
 #include "core/Units.h"
