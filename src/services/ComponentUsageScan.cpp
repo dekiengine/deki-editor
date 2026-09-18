@@ -87,6 +87,7 @@ std::string ReadWhole(const fs::path& p)
 
 ComponentUsage ScanComponentUsage(const std::string& projectPath,
                                   const std::vector<std::string>& knownTypes,
+                                  const std::vector<std::string>& scanPackageIds,
                                   const std::string& targetPlatformId,
                                   const std::set<std::string>& targetCapabilities)
 {
@@ -144,13 +145,23 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
         }
     }
 
-    // Sources: what the project's own code names. Bounded to the known types.
+    // Sources: what code names. Bounded to the known types.
+    //
+    // Both the project's own sources AND the installed packages' sources count.
+    // A package may use another package's component — deki-fsm calls
+    // Deki2D::AnimationComponent::Play() and ButtonComponent::AddOnClickCallback()
+    // — and that reference is as real as one in the project. Scanning only the
+    // project's src/ stripped those two deki-2d features out of a build whose
+    // deki-fsm still referenced them, and the link failed with an undefined
+    // reference rather than anything pointing at stripping.
     if (!knownTypes.empty())
     {
-        const fs::path src(GetSourceDirectory(projectPath));
-        if (fs::exists(src, ec))
+        auto scanTree = [&](const fs::path& dir, bool skipEditorAndTests)
         {
-            for (const auto& entry : fs::recursive_directory_iterator(src, ec))
+            std::error_code dirEc;
+            if (!fs::exists(dir, dirEc))
+                return;
+            for (const auto& entry : fs::recursive_directory_iterator(dir, dirEc))
             {
                 if (!entry.is_regular_file())
                     continue;
@@ -160,6 +171,11 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
                 const std::string generic = entry.path().generic_string();
                 if (generic.find("/generated/") != std::string::npos)
                     continue;
+                // A package's editor-only and test code is never compiled into
+                // a game, so it is no evidence that the game needs a component.
+                if (skipEditorAndTests && (generic.find("/editor/") != std::string::npos ||
+                                           generic.find("/tests/") != std::string::npos))
+                    continue;
                 const std::string text = ReadWhole(entry.path());
                 const std::string where = Relative(entry.path(), root);
                 for (const auto& type : knownTypes)
@@ -168,7 +184,13 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
                         usage.byType[type].push_back(where);
                 }
             }
-        }
+        };
+
+        scanTree(fs::path(GetSourceDirectory(projectPath)), false);
+
+        const fs::path packagesRoot(GetPackagesDirectory(projectPath));
+        for (const auto& id : scanPackageIds)
+            scanTree(packagesRoot / id, true);
     }
 
     return usage;

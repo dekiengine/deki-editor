@@ -233,13 +233,30 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
             }
             else
             {
+                // A package naming its OWN component is not evidence that the
+                // game needs it — AnimationComponent.cpp obviously mentions
+                // AnimationComponent, and counting that would keep every
+                // feature alive forever. What counts is a scene, the project's
+                // own code, or ANOTHER package: deki-fsm calling
+                // Deki2D::AnimationComponent::Play() genuinely needs deki-2d's
+                // animation feature, and stripping it broke the link.
+                // Intra-package dependencies are handled separately, by the
+                // include inspection that marks a feature Kept.
+                const std::string ownPrefix =
+                    GetPackagesDirectoryRelative() + "/" + pkg.id + "/";
+
                 std::vector<std::string> where;
                 for (const auto& type : feat.componentTypes)
                 {
                     auto it = usage.byType.find(type);
-                    if (it != usage.byType.end())
-                        for (const auto& w : it->second)
-                            where.push_back(type + " in " + w);
+                    if (it == usage.byType.end())
+                        continue;
+                    for (const auto& w : it->second)
+                    {
+                        if (w.rfind(ownPrefix, 0) == 0)
+                            continue;
+                        where.push_back(type + " in " + w);
+                    }
                 }
                 if (!where.empty())
                 {
@@ -488,8 +505,16 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
 
     // Scoped to this target, and with the objects it will not carry already
     // dropped: an object excluded by its own "requires" is not this target's
-    // content and must not be reported against it.
-    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, targetPlatformId, caps);
+    // content and must not be reported against it. Likewise only the packages
+    // this target can actually build are scanned — an ineligible package's
+    // sources are not its content either.
+    std::vector<std::string> eligibleIds;
+    for (const auto& pkg : all)
+        if (CMakeGen::MissingCapabilities(pkg, caps).empty())
+            eligibleIds.push_back(pkg.id);
+
+    const ComponentUsage usage =
+        ScanComponentUsage(projectPath, knownTypes, eligibleIds, targetPlatformId, caps);
 
     for (const auto& [type, places] : usage.byType)
     {
@@ -531,8 +556,15 @@ StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& ta
             targetCapabilities = platform->Capabilities();
     }
 
-    const ComponentUsage usage =
-        ScanComponentUsage(projectPath, knownTypes, targetPlatformId, targetCapabilities);
+    // Only packages this target can build count as usage; see the note in
+    // ComponentUsageScan.h.
+    std::vector<std::string> eligibleIds;
+    for (const auto& pkg : all)
+        if (CMakeGen::MissingCapabilities(pkg, targetCapabilities).empty())
+            eligibleIds.push_back(pkg.id);
+
+    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, eligibleIds,
+                                                    targetPlatformId, targetCapabilities);
     const BuildStripSettings settings = BuildStripSettings::Load(projectPath);
     return ResolveStripPlan(all, usage, settings, GetPackagesDirectory(projectPath));
 }
