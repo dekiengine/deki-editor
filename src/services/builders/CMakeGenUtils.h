@@ -65,6 +65,17 @@ struct PackageEntry
     std::vector<std::string> sourceStems;  // Auto-discovered .cpp stems (excluding entry, editor/, generated/)
     std::vector<std::string> dekiDeps;     // Transitive deki:* dependency IDs
     std::vector<std::string> espidfDeps;   // ESP-IDF component dependencies (e.g., "fatfs", "sdmmc")
+
+    // Every non-deki dependency, keyed by the framework it was declared under.
+    // espidfDeps and nativeDeps above are the two the editor's own builders
+    // read; this is the same data for ANY framework, so a third-party backend
+    // can find its own.
+    //
+    // Before this, a key the editor did not recognise was silently DROPPED: a
+    // package declaring dependencies under "tactility" built successfully and
+    // linked without them. A build that quietly does the wrong thing is worse
+    // than one that refuses.
+    std::map<std::string, std::vector<std::string>> frameworkDeps;
     std::vector<NativeDependency> nativeDeps;  // Third-party libraries for the desktop build
     bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
     std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...

@@ -22,7 +22,7 @@
 #include <deki/TypeId.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/PropertyRef.h>
-#include "reflection/LegacyTypeNames.h"
+#include "reflection/FormerTypeIds.h"
 #include "../mocks/MockComponent.h"
 
 using DekiEditor::Tests::MockComponent;

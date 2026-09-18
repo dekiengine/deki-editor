@@ -249,7 +249,29 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
         config.mcuChip = j.value("mcuChip", "");
     config.boardVariant = j.value("boardVariant", "");
 
-    config.framework = j.value("framework", "espidf");
+    // No default. The framework is what chooses a build backend, and guessing
+    // "espidf" meant a platform that forgot to say so was quietly built as an
+    // ESP-IDF one - for a console or a Tactility app, silently the wrong
+    // thing. Unset resolves to no builder and the build says so by name.
+    //
+    // Every platform JSON in the wild already carries it: the ones written
+    // before this defaulted to espidf and are migrated below, and the
+    // simulator sets "native" explicitly.
+    config.framework = j.value("framework", "");
+    if (config.framework.empty())
+    {
+        // Legacy: a file written when espidf was the assumed default. The
+        // family, or an ESP-specific setting, says what it really was.
+        const bool looksEspIdf = config.family == "espressif" || j.contains("idfTarget") ||
+                                 j.contains("sdkconfig") || j.contains("partitionTable");
+        if (looksEspIdf)
+        {
+            config.framework = "espidf";
+            DEKI_LOG_WARNING("Platform '%s': no \"framework\"; assuming \"espidf\" from its other "
+                             "settings. Add it explicitly - the guess will be removed.",
+                             config.id.c_str());
+        }
+    }
 
     // Framework settings. The nested object is the shape we write; the
     // top-level keys are what every platform JSON written before this change

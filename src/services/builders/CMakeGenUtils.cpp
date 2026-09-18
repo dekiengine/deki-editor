@@ -133,7 +133,10 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                                 info.dekiDeps.push_back(name);
                         }
                         else if (platform == "espidf")
+                        {
                             info.espidfDeps.push_back(name);
+                            info.frameworkDeps[platform].push_back(name);
+                        }
                         else if (platform == "native" && dep.is_object())
                         {
                             NativeDependency nd;
@@ -154,6 +157,14 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                                 }
                             }
                             info.nativeDeps.push_back(nd);
+                            info.frameworkDeps[platform].push_back(name);
+                        }
+                        else
+                        {
+                            // Any other framework. Kept rather than dropped, so
+                            // a backend the editor has never heard of can read
+                            // its package's dependencies.
+                            info.frameworkDeps[platform].push_back(name);
                         }
                     }
                 }

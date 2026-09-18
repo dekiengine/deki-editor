@@ -266,6 +266,14 @@ public:
     /// choose it.
     virtual std::string GetFrameworkId() const = 0;
 
+    /// Whether this target is flashed at all.
+    ///
+    /// Not every target is an MCU you write an image to. A Tactility app is
+    /// installed over Wi-Fi, from an SD card or through an on-device store; a
+    /// console has its own deployment entirely. The UI hides its flash
+    /// controls rather than offering a button that cannot work.
+    virtual bool SupportsFlash() const { return true; }
+
     /// Optional self-description for the platform editor's builder picker, so
     /// a third-party builder is not anonymous in the UI.
     virtual const char* GetIcon() const { return nullptr; }

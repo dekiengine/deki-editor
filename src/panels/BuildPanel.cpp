@@ -203,28 +203,36 @@ void BuildPanel::DrawToolbar()
 
     ImGui::SameLine();
 
-    // Flash button
-    if (isBusy) ImGui::BeginDisabled();
+    // Flash, only for targets that are flashed at all. Not every target is an
+    // MCU you write an image to: a Tactility app is installed over Wi-Fi or
+    // from an SD card, and a console has its own deployment entirely. Hiding
+    // the buttons beats offering one that cannot work.
+    ITargetBuilder* const activeBuilder = GetActiveBuilder();
+    const bool canFlash = activeBuilder == nullptr || activeBuilder->SupportsFlash();
 
-    if (ImGui::Button("Flash"))
+    if (canFlash)
     {
-        StartFlash();
+        if (isBusy) ImGui::BeginDisabled();
+
+        if (ImGui::Button("Flash"))
+        {
+            StartFlash();
+        }
+
+        if (isBusy) ImGui::EndDisabled();
+
+        ImGui::SameLine();
+
+        if (isBusy) ImGui::BeginDisabled();
+
+        if (ImGui::Button("Build & Flash"))
+        {
+            m_FlashAfterBuild = true;
+            StartBuild();
+        }
+
+        if (isBusy) ImGui::EndDisabled();
     }
-
-    if (isBusy) ImGui::EndDisabled();
-
-    ImGui::SameLine();
-
-    // Build & Flash button
-    if (isBusy) ImGui::BeginDisabled();
-
-    if (ImGui::Button("Build & Flash"))
-    {
-        m_FlashAfterBuild = true;
-        StartBuild();
-    }
-
-    if (isBusy) ImGui::EndDisabled();
 
     ImGui::SameLine();
 
