@@ -71,6 +71,73 @@ std::vector<std::pair<std::string, std::string>> PlatformRegistry::GetPlatformDi
 // plainly that the platform declined to categorise itself.
 static const char* kDefaultFamily = "custom";
 
+// ---- frameworkOptions accessors -------------------------------------------
+// The editor never interprets these; it only carries them. Every lookup is
+// total: a missing key, a malformed blob or a wrong type gives the fallback,
+// so a builder reads its settings without guarding each one.
+
+static json ParseOptions(const std::string& text)
+{
+    if (text.empty())
+        return json::object();
+    json parsed = json::parse(text, nullptr, false);
+    return parsed.is_object() ? parsed : json::object();
+}
+
+std::string PlatformConfig::Option(const std::string& key, const std::string& fallback) const
+{
+    const json o = ParseOptions(frameworkOptions);
+    const auto it = o.find(key);
+    return (it != o.end() && it->is_string()) ? it->get<std::string>() : fallback;
+}
+
+uint32_t PlatformConfig::OptionU32(const std::string& key, uint32_t fallback) const
+{
+    const json o = ParseOptions(frameworkOptions);
+    const auto it = o.find(key);
+    return (it != o.end() && it->is_number_unsigned()) ? it->get<uint32_t>() : fallback;
+}
+
+bool PlatformConfig::OptionBool(const std::string& key, bool fallback) const
+{
+    const json o = ParseOptions(frameworkOptions);
+    const auto it = o.find(key);
+    return (it != o.end() && it->is_boolean()) ? it->get<bool>() : fallback;
+}
+
+std::vector<std::string> PlatformConfig::OptionList(const std::string& key) const
+{
+    std::vector<std::string> out;
+    const json o = ParseOptions(frameworkOptions);
+    const auto it = o.find(key);
+    if (it != o.end() && it->is_array())
+        for (const auto& v : *it)
+            if (v.is_string())
+                out.push_back(v.get<std::string>());
+    return out;
+}
+
+void PlatformConfig::SetOption(const std::string& key, const std::string& value)
+{
+    json o = ParseOptions(frameworkOptions);
+    o[key] = value;
+    frameworkOptions = o.dump();
+}
+
+void PlatformConfig::SetOptionBool(const std::string& key, bool value)
+{
+    json o = ParseOptions(frameworkOptions);
+    o[key] = value;
+    frameworkOptions = o.dump();
+}
+
+void PlatformConfig::SetOptionList(const std::string& key, const std::vector<std::string>& values)
+{
+    json o = ParseOptions(frameworkOptions);
+    o[key] = values;
+    frameworkOptions = o.dump();
+}
+
 std::set<std::string> PlatformConfig::Capabilities() const
 {
     std::set<std::string> caps(provides.begin(), provides.end());
@@ -182,18 +249,36 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
         config.mcuChip = j.value("mcuChip", "");
     config.boardVariant = j.value("boardVariant", "");
 
-    config.toolchainPrefix = j.value("toolchainPrefix", "");
-    config.idfTarget = j.value("idfTarget", "");
     config.framework = j.value("framework", "espidf");
-    // idfTarget is NOT checked here. It is an ESP-IDF setting and the editor
-    // is target-agnostic; the owning builder validates it through
-    // ITargetBuilder::ValidatePlatform, which the build refuses on. It used to
-    // be silently CLEARED here on a bad value, which then produced a confusing
-    // downstream failure instead of naming the problem.
+
+    // Framework settings. The nested object is the shape we write; the
+    // top-level keys are what every platform JSON written before this change
+    // has, and they are read into the same place so nothing needs migrating by
+    // hand. One-way: SavePlatformToFile only ever writes the nested form.
+    //
+    // Their VALUES are not judged here. The editor does not know what an
+    // ESP-IDF target is; the owning builder says so through
+    // ITargetBuilder::ValidatePlatform and the build refuses. A bad value used
+    // to be silently cleared, which turned a typo into a confusing failure
+    // much further downstream.
+    {
+        json options = json::object();
+        if (j.contains("frameworkOptions") && j["frameworkOptions"].is_object())
+            options = j["frameworkOptions"];
+
+        static const char* kLegacyKeys[] = { "toolchainPrefix", "idfTarget",  "psramMode",
+                                             "useIramAttr",     "flashFreqHz", "debugInterface",
+                                             "uploadProtocol",  "partitionTable", "sdkconfig" };
+        for (const char* key : kLegacyKeys)
+            if (j.contains(key) && !options.contains(key))
+                options[key] = j[key];
+
+        if (!options.empty())
+            config.frameworkOptions = options.dump();
+    }
 
     config.flashSize = j.value("flashSize", 0u);
     config.psramSize = j.value("psramSize", 0u);
-    config.psramMode = j.value("psramMode", "quad");
     config.cpuFreqHz = j.value("cpuFreqHz", 0u);
 
     config.screenWidth = j.value("screenWidth", 0);
@@ -206,21 +291,12 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
                        config.id.c_str(), config.displayBus.c_str());
         config.displayBus.clear();
     }
-    config.useIramAttr = j.value("useIramAttr", true);
     config.colorFormat = j.value("colorFormat", "RGB565");
 
     config.maxAppSize = j.value("maxAppSize", 0u);
-    config.flashFreqHz = j.value("flashFreqHz", 0u);
 
-    config.debugInterface = j.value("debugInterface", "");
     config.uploadBaudRate = j.value("uploadBaudRate", 0u);
-    config.uploadProtocol = j.value("uploadProtocol", "");
-    config.partitionTable = j.value("partitionTable", "");
 
-    if (j.contains("sdkconfig") && j["sdkconfig"].is_array())
-        for (const auto& line : j["sdkconfig"])
-            if (line.is_string())
-                config.sdkconfig.push_back(line.get<std::string>());
 
     if (j.contains("requiresPackages") && j["requiresPackages"].is_array())
         for (const auto& id : j["requiresPackages"])
@@ -415,40 +491,40 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
 
         j["family"] = config.family.empty() ? kDefaultFamily : config.family;
 
+        // Written back as one nested object, never as the legacy top-level
+        // keys: the editor does not know what any of them mean.
+        if (!config.frameworkOptions.empty())
+        {
+            json options = json::parse(config.frameworkOptions, nullptr, false);
+            if (options.is_object() && !options.empty())
+                j["frameworkOptions"] = options;
+        }
+
         if (!config.mcuChip.empty()) j["mcuChip"] = config.mcuChip;
         if (!config.boardVariant.empty()) j["boardVariant"] = config.boardVariant;
-        if (!config.toolchainPrefix.empty()) j["toolchainPrefix"] = config.toolchainPrefix;
-        if (!config.idfTarget.empty()) j["idfTarget"] = config.idfTarget;
         j["framework"] = config.framework;
 
         if (config.flashSize > 0) j["flashSize"] = config.flashSize;
         if (config.psramSize > 0) j["psramSize"] = config.psramSize;
-        if (!config.psramMode.empty() && config.psramMode != "quad") j["psramMode"] = config.psramMode;
         if (config.maxAppSize > 0) j["maxAppSize"] = config.maxAppSize;
         if (config.cpuFreqHz > 0) j["cpuFreqHz"] = config.cpuFreqHz;
-        if (config.flashFreqHz > 0) j["flashFreqHz"] = config.flashFreqHz;
 
         if (config.screenWidth > 0) j["screenWidth"] = config.screenWidth;
         if (config.screenHeight > 0) j["screenHeight"] = config.screenHeight;
         if (!config.displayDriver.empty()) j["displayDriver"] = config.displayDriver;
         if (!config.displayBus.empty()) j["displayBus"] = config.displayBus;
-        if (!config.useIramAttr) j["useIramAttr"] = false;
         if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
 
         if (!config.provides.empty()) j["provides"] = config.provides;
         if (!config.requiresPackages.empty()) j["requiresPackages"] = config.requiresPackages;
-        if (!config.sdkconfig.empty()) j["sdkconfig"] = config.sdkconfig;
         if (!config.defines.empty()) j["defines"] = config.defines;
         if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
         if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
         if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
         if (!config.requiredLibraries.empty()) j["requiredLibraries"] = config.requiredLibraries;
 
-        if (!config.debugInterface.empty()) j["debugInterface"] = config.debugInterface;
         if (config.uploadBaudRate > 0 && config.uploadBaudRate != 921600)
             j["uploadBaudRate"] = config.uploadBaudRate;
-        if (!config.uploadProtocol.empty()) j["uploadProtocol"] = config.uploadProtocol;
-        if (!config.partitionTable.empty()) j["partitionTable"] = config.partitionTable;
 
         if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
 
@@ -520,8 +596,6 @@ PlatformConfig CreateSimulatorPlatformConfig()
     config.mcuChip = "";
 
     // Toolchain (native)
-    config.toolchainPrefix = "";
-    config.idfTarget = "";
     config.framework = "native";
 
     // What a desktop can offer a package. "sdl3" is here because the simulator

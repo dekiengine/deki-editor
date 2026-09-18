@@ -81,11 +81,11 @@ TEST(PlatformConfig, AnUnsafeBusIsDroppedOnLoadAndTheTargetIsLeftToItsBuilder)
     // idfTarget is carried through untouched. Judging it belongs to the
     // ESP-IDF builder, which refuses the build and says why; clearing it here
     // turned a typo into a confusing failure much further downstream.
-    EXPECT_EQ(bad->idfTarget, "esp32s3; rm -rf /");
+    EXPECT_EQ(bad->Option("idfTarget"), "esp32s3; rm -rf /");
 
     const PlatformConfig* good = PlatformRegistry::Instance().GetPlatform("pc_good");
     ASSERT_NE(good, nullptr);
-    EXPECT_EQ(good->idfTarget, "esp32s3");
+    EXPECT_EQ(good->Option("idfTarget"), "esp32s3");
     EXPECT_EQ(good->displayBus, "PARALLEL_8BIT");
 }
 
@@ -168,4 +168,58 @@ TEST(PlatformCapabilities, ANameThatCannotMatchIsRejected)
     EXPECT_FALSE(IsValidCapabilityName(""));
     EXPECT_FALSE(IsValidCapabilityName("mem external"));
     EXPECT_FALSE(IsValidCapabilityName(std::string(65, 'a')));
+}
+
+// --- frameworkOptions -------------------------------------------------------
+// Framework settings are carried, not understood. The editor must be able to
+// round-trip a target it has never heard of.
+
+TEST(PlatformConfig, LegacyTopLevelKeysAreReadIntoFrameworkOptions)
+{
+    PlatformDir d;
+    d.Write("pc_legacy", R"({
+        "id": "pc_legacy", "displayName": "legacy", "family": "espressif",
+        "framework": "espidf", "idfTarget": "esp32s3", "psramMode": "oct",
+        "useIramAttr": false, "sdkconfig": ["CONFIG_A=y", "CONFIG_B=n"]
+    })");
+
+    const PlatformConfig* p = Load(d, "pc_legacy");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(p->Option("idfTarget"), "esp32s3");
+    EXPECT_EQ(p->Option("psramMode"), "oct");
+    EXPECT_FALSE(p->OptionBool("useIramAttr", true));
+    ASSERT_EQ(p->OptionList("sdkconfig").size(), 2u);
+    EXPECT_EQ(p->OptionList("sdkconfig")[0], "CONFIG_A=y");
+}
+
+TEST(PlatformConfig, AnUnknownFrameworksOptionsSurviveUntouched)
+{
+    // The point of the blob: a console or any other target the editor has
+    // never heard of keeps its settings without the editor knowing one of them.
+    PlatformDir d;
+    d.Write("pc_alien", R"({
+        "id": "pc_alien", "displayName": "alien", "family": "someconsole",
+        "framework": "someconsole-sdk",
+        "frameworkOptions": { "sdkRoot": "/opt/sdk", "devkitOnly": true, "heapMb": 512 }
+    })");
+
+    const PlatformConfig* p = Load(d, "pc_alien");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(p->family, "someconsole");
+    EXPECT_EQ(p->Option("sdkRoot"), "/opt/sdk");
+    EXPECT_TRUE(p->OptionBool("devkitOnly"));
+    EXPECT_EQ(p->OptionU32("heapMb"), 512u);
+}
+
+TEST(PlatformConfig, MissingOrMistypedOptionsGiveTheFallback)
+{
+    PlatformConfig p;
+    p.frameworkOptions = R"({"a": "text", "b": 7})";
+    EXPECT_EQ(p.Option("missing", "dflt"), "dflt");
+    EXPECT_EQ(p.Option("b", "dflt"), "dflt");        // wrong type
+    EXPECT_EQ(p.OptionU32("a", 42u), 42u);           // wrong type
+    EXPECT_TRUE(p.OptionList("missing").empty());
+
+    p.frameworkOptions = "not json at all";
+    EXPECT_EQ(p.Option("a", "dflt"), "dflt");        // malformed blob
 }

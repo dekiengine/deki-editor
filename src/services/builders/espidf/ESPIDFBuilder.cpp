@@ -48,19 +48,19 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
     // CMake, and a platform JSON can arrive in a board pack, so it is
     // allowlisted rather than trusted. It used to be silently cleared at load,
     // which turned a typo into a confusing downstream failure.
-    if (config.idfTarget.empty())
+    if (config.Option("idfTarget").empty())
     {
         problems.push_back("idfTarget is not set; an ESP-IDF platform must name its chip");
     }
     else
     {
         const auto& targets = SupportedIdfTargets();
-        if (std::find(targets.begin(), targets.end(), config.idfTarget) == targets.end())
+        if (std::find(targets.begin(), targets.end(), config.Option("idfTarget")) == targets.end())
         {
             std::string known;
             for (const auto& t : targets)
                 known += (known.empty() ? "" : ", ") + t;
-            problems.push_back("idfTarget '" + config.idfTarget +
+            problems.push_back("idfTarget '" + config.Option("idfTarget") +
                                "' is not a supported ESP-IDF target; use one of: " + known);
         }
     }
@@ -132,7 +132,7 @@ std::string ESPIDFBuilder::GetBuildDirectory(const std::string& projectPath) con
 // Determine the ESP-IDF target chip from the platform config.
 static std::string GetIdfTarget(const PlatformConfig& config)
 {
-    if (!config.idfTarget.empty()) return config.idfTarget;
+    if (!config.Option("idfTarget").empty()) return config.Option("idfTarget");
     if (!config.mcuChip.empty()) return config.mcuChip;
     static const std::vector<std::string> knownChips = {
         "esp32s3", "esp32s2", "esp32c3", "esp32c6", "esp32h2", "esp32"
@@ -804,7 +804,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "endif()\n";
 
     // ESP-IDF specific: IRAM_ATTR
-    if (config.useIramAttr)
+    if (config.OptionBool("useIramAttr", true))
     {
         file << "\n";
         file << "target_compile_definitions(${COMPONENT_LIB} PRIVATE \"DEKI_FAST_ATTR=IRAM_ATTR\")\n";
@@ -832,7 +832,7 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
 
     std::ostringstream file;
 
-    std::string idfTarget = config.idfTarget;
+    std::string idfTarget = config.Option("idfTarget");
     if (idfTarget.empty())
         idfTarget = config.mcuChip;
 
@@ -850,7 +850,7 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         file << "CONFIG_SPIRAM=y\n";
 
         // PSRAM SPI mode: "oct" for Octal SPI, default is Quad
-        if (config.psramMode == "oct")
+        if (config.Option("psramMode", "quad") == "oct")
         {
             file << "CONFIG_SPIRAM_MODE_OCT=y\n";
         }
@@ -921,10 +921,11 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     // to say anything the editor did not already know how to emit, and editing
     // it by hand lasted exactly one build. Boards differ in ways this generator
     // should not have to enumerate.
-    if (!config.sdkconfig.empty())
+    const std::vector<std::string> extraSdkconfig = config.OptionList("sdkconfig");
+    if (!extraSdkconfig.empty())
     {
         file << "\n# From the platform's \"sdkconfig\"\n";
-        for (const auto& line : config.sdkconfig)
+        for (const auto& line : extraSdkconfig)
             file << line << "\n";
     }
 
@@ -937,10 +938,11 @@ bool ESPIDFBuilder::GeneratePartitionsCsv(const std::string& boardPath, const Pl
 
     std::ostringstream file;
 
-    if (!config.partitionTable.empty())
+    const std::string partitionTable = config.Option("partitionTable");
+    if (!partitionTable.empty())
     {
         // Use custom partition table from platform config
-        file << config.partitionTable;
+        file << partitionTable;
     }
     else
     {
@@ -985,13 +987,13 @@ public:
         // Memory
         m_FlashSizeMB = static_cast<int>(config.flashSize / (1024 * 1024));
         m_PsramSizeMB = static_cast<int>(config.psramSize / (1024 * 1024));
-        m_PsramModeIndex = (config.psramMode == "oct") ? 1 : 0;
+        m_PsramModeIndex = (config.Option("psramMode", "quad") == "oct") ? 1 : 0;
         m_CpuFreqMHz = static_cast<int>(config.cpuFreqHz / 1000000);
 
         // Compiler
         m_Defines = config.defines;
         m_RequiredLibraries = config.requiredLibraries;
-        m_UseIramAttr = config.useIramAttr;
+        m_UseIramAttr = config.OptionBool("useIramAttr", true);
     }
 
     void Draw(EditorApp* app) override
@@ -1123,7 +1125,7 @@ public:
     void ApplyToConfig(PlatformConfig& config) const override
     {
         config.mcuChip = m_McuChip;
-        config.idfTarget = m_McuChip;  // ESP-IDF target = chip
+        config.SetOption("idfTarget", m_McuChip);  // ESP-IDF target = chip
         config.framework = "espidf";
 
         config.screenWidth = m_ScreenWidth;
@@ -1131,12 +1133,12 @@ public:
 
         config.flashSize = static_cast<uint32_t>(m_FlashSizeMB) * 1024 * 1024;
         config.psramSize = static_cast<uint32_t>(m_PsramSizeMB) * 1024 * 1024;
-        config.psramMode = (m_PsramModeIndex == 1) ? "oct" : "quad";
+        config.SetOption("psramMode", (m_PsramModeIndex == 1) ? "oct" : "quad");
         config.cpuFreqHz = static_cast<uint32_t>(m_CpuFreqMHz) * 1000000;
 
         config.defines = m_Defines;
         config.requiredLibraries = m_RequiredLibraries;
-        config.useIramAttr = m_UseIramAttr;
+        config.SetOptionBool("useIramAttr", m_UseIramAttr);
     }
 
 private:

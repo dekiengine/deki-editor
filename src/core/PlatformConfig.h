@@ -62,27 +62,50 @@ struct PlatformConfig
     std::string framework;     // "espidf", "pico-sdk"
     std::string boardVariant;  // Board variant name
 
-    // Toolchain
-    std::string toolchainPrefix;  // "xtensa-esp32s3-elf-" (auto-detected based on family)
-    std::string idfTarget;        // ESP-specific: "esp32s3", "esp32c3", etc.
+    // Settings that belong to the build framework, as a JSON object in text
+    // form. The editor round-trips it WITHOUT interpreting it; only the
+    // builder claiming `framework` knows what is in there.
+    //
+    // This used to be a dozen named fields on this struct — idfTarget,
+    // sdkconfig, partitionTable, uploadProtocol ("esptool"), useIramAttr,
+    // psramMode ("quad"/"oct"), toolchainPrefix ("xtensa-esp32s3-elf-"),
+    // debugInterface, flashFreqHz — which made a supposedly generic platform
+    // type into an ESP-IDF config file. A console platform would have
+    // inherited flash-frequency fields, and a new setting for any target
+    // meant editing the editor.
+    //
+    // Text rather than a parsed object on purpose: this struct crosses a DLL
+    // boundary to third-party builders, and a std::string has an ABI a JSON
+    // library's type does not.
+    std::string frameworkOptions;  // JSON object, "{}" when empty
+
+    /// Read one value out of frameworkOptions. Missing or wrong-typed keys
+    /// give the default, so a builder never has to guard every lookup.
+    std::string Option(const std::string& key, const std::string& fallback = "") const;
+    uint32_t OptionU32(const std::string& key, uint32_t fallback = 0) const;
+    bool OptionBool(const std::string& key, bool fallback = false) const;
+    std::vector<std::string> OptionList(const std::string& key) const;
+
+    /// Set one value, creating the object if needed. For the platform editor
+    /// and the MCP tool, which must not need to know what the keys mean.
+    void SetOption(const std::string& key, const std::string& value);
+    void SetOptionBool(const std::string& key, bool value);
+    void SetOptionList(const std::string& key, const std::vector<std::string>& values);
 
     // Memory
     uint32_t flashSize = 0;   // Flash size in bytes
     uint32_t psramSize = 0;   // PSRAM size in bytes (0 if none)
-    std::string psramMode;    // "quad" (default) or "oct" — SPI mode for PSRAM
     uint32_t maxAppSize = 0;  // Maximum application size (from partition table)
     std::vector<MemoryRegion> memoryMap;
 
     // Clocks
     uint32_t cpuFreqHz = 0;    // CPU frequency
-    uint32_t flashFreqHz = 0;  // Flash SPI frequency
 
     // Display
     int screenWidth = 0;
     int screenHeight = 0;
     std::string displayDriver;  // "ILI9341", "ST7789", etc.
     std::string displayBus;     // "SPI", "PARALLEL_8BIT", etc.
-    bool useIramAttr = true;    // Map DEKI_FAST_ATTR to IRAM_ATTR for performance-critical functions
     std::string colorFormat;    // "RGB565", "RGB888", "RGBA8888" — maps to Deki::ColorFormat
 
     // Pin mappings
@@ -123,31 +146,16 @@ struct PlatformConfig
     // declares nothing gets nothing.
     std::vector<std::string> requiresPackages;
 
-    // Extra ESP-IDF options for this board, as "CONFIG_X=y" lines appended to
-    // the generated sdkconfig.defaults.
-    //
-    // The generated file is rewritten on every build, so a board previously had
-    // no way to say anything the editor did not already know how to emit, and
-    // hand-editing it lasted exactly one build. Boards differ in ways the
-    // editor should not have to enumerate: flash mode for an emulator, a
-    // peripheral its driver needs, a stack size for a heavy component.
-    //
-    // Last word: these are appended after everything generated, so a board can
-    // override what the editor chose.
-    std::vector<std::string> sdkconfig;
 
     // Libraries
     std::vector<std::string> requiredLibraries;
 
     // Debug settings
-    std::string debugInterface;  // "builtin-jtag", "ftdi", "esp-prog", "stlink", "cmsis-dap", "jlink"
 
     // Upload settings
     int uploadBaudRate = 921600;
-    std::string uploadProtocol;  // "esptool"
 
     // Partition table (CSV format)
-    std::string partitionTable;
 
     // Boot scene - loaded from flash (F:/) to initialize platform hardware
     // Contains PlatformSetupComponent that sets up SD card, etc.

@@ -14,6 +14,8 @@
 #include "../core/Project.h"
 #include "../services/FirmwareBuildService.h"
 #include "../core/PlatformConfig.h"
+#include "../services/builders/BuilderRegistry.h"
+#include "../services/builders/IFirmwareBuilder.h"
 #include "../services/SafeNames.h"
 #include "../services/PackageManager.h"
 #include <deki-editor/Paths.h>
@@ -264,8 +266,17 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             }
                             config.framework = args.value("framework", config.framework);
                             config.mcuChip = args.value("mcu_chip", config.mcuChip);
-                            config.idfTarget = args.value("idf_target", config.idfTarget);
-                            config.psramMode = args.value("psram_mode", config.psramMode);
+                            // Framework settings pass through untouched: the
+                            // editor does not know what any of them mean. The
+                            // two named ones are kept as conveniences that
+                            // write into the same blob.
+                            if (args.contains("framework_options") &&
+                                args["framework_options"].is_object())
+                                config.frameworkOptions = args["framework_options"].dump();
+                            if (args.contains("idf_target"))
+                                config.SetOption("idfTarget", args.value("idf_target", std::string()));
+                            if (args.contains("psram_mode"))
+                                config.SetOption("psramMode", args.value("psram_mode", std::string()));
                             if (args.contains("cpu_freq_hz"))
                                 config.cpuFreqHz = args["cpu_freq_hz"].get<uint32_t>();
                             if (args.contains("flash_size"))
@@ -281,11 +292,24 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             }
                             config.bootScene = args.value("boot_scene", config.bootScene);
 
-                            // An ESP-IDF target that names no chip cannot be
-                            // built, and the failure would come much later as a
-                            // confusing toolchain error.
-                            if (config.framework == "espidf" && config.idfTarget.empty())
-                                throw std::runtime_error("an espidf platform needs idf_target, e.g. esp32s3");
+                            // Judged by the builder that owns the framework,
+                            // not here: this tool must not know what "espidf"
+                            // means. Missing builder is not fatal - a platform
+                            // for a target whose package is not installed yet
+                            // is still worth saving.
+                            BuilderRegistry::Instance().RegisterBuiltInBuilders();
+                            if (auto* b = BuilderRegistry::Instance().GetBuilderForPlatform(config))
+                            {
+                                const auto problems = b->ValidatePlatform(config);
+                                if (!problems.empty())
+                                {
+                                    std::string msg = "platform is not valid for the " +
+                                                      b->GetFrameworkId() + " builder:";
+                                    for (const auto& pr : problems)
+                                        msg += "\n  " + pr;
+                                    throw std::runtime_error(msg);
+                                }
+                            }
 
                             // SavePlatformToFile makes the per-platform folder itself,
                             // so it wants platforms/, not platforms/<id>.
@@ -320,7 +344,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             return { { "id", config.id },
                                      { "displayName", config.displayName },
                                      { "framework", config.framework },
-                                     { "idfTarget", config.idfTarget },
+                                     { "frameworkOptions", config.frameworkOptions },
                                      { "screenWidth", config.screenWidth },
                                      { "screenHeight", config.screenHeight },
                                      { "bootScene", config.bootScene },
@@ -493,10 +517,11 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             }
                             if (args.contains("sdkconfig") && args["sdkconfig"].is_array())
                             {
-                                config.sdkconfig.clear();
+                                std::vector<std::string> lines;
                                 for (const auto& line : args["sdkconfig"])
                                     if (line.is_string())
-                                        config.sdkconfig.push_back(line.get<std::string>());
+                                        lines.push_back(line.get<std::string>());
+                                config.SetOptionList("sdkconfig", lines);
                             }
 
                             registryRef.RegisterPlatform(config);
