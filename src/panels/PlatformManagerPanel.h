@@ -12,7 +12,7 @@ namespace DekiEditor
 
 class EditorApp;
 class BoardPackManager;
-class IFirmwareBuilder;
+class ITargetBuilder;
 
 /**
  * @brief Panel for managing build platforms and toolchains
@@ -50,7 +50,7 @@ private:
 
     // Tab: Toolchains
     void DrawToolchainsTab();
-    void DrawBuilderToolchains(IFirmwareBuilder* builder);
+    void DrawBuilderToolchains(ITargetBuilder* builder);
     void RefreshToolchains();
 
     EditorApp* m_App;

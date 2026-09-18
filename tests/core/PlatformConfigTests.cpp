@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 
 #include <algorithm>
 #include <filesystem>

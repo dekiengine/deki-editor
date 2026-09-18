@@ -7,7 +7,7 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/CommandHistory.h>
 #include "../../core/Commands.h"
-#include "../../core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "../../services/ClipboardService.h"
 #include "../../services/PackageLoader.h"
 #include "../../services/EditorSettings.h"

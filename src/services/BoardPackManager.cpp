@@ -2,7 +2,7 @@
 #include "SafeNames.h"
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/EditorHttpUtils.h>
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>

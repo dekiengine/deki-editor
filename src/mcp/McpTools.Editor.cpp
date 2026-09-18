@@ -11,7 +11,7 @@
 #include "McpToolRegistry.h"
 #include "../EditorApp.h"
 #include "../core/Project.h"
-#include "../core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "../panels/PackageManagerPanel.h"
 #include "../services/ProjectTemplate.h"
 #include "../services/HotReloadService.h"

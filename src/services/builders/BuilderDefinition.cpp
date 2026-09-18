@@ -1,5 +1,5 @@
 #include "BuilderDefinition.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>

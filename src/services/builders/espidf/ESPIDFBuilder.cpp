@@ -8,7 +8,7 @@
 #include "../BuilderDefinition.h"
 #include <deki-editor/EditorPaths.h>
 #include "../../EditorSettings.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "../../installers/ESPIDFInstaller.h"
 #include "EditorApp.h"
 #include "imgui.h"

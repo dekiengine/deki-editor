@@ -1,8 +1,8 @@
 #include "PlatformEditorDialog.h"
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
-#include "services/builders/BuilderRegistry.h"
-#include "services/builders/IFirmwareBuilder.h"
+#include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/TargetBuilder.h>
 #include <deki-editor/IconsTabler.h>
 #include "imgui.h"
 #include <cstring>

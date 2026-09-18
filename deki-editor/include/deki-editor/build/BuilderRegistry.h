@@ -1,7 +1,9 @@
 #pragma once
 
-#include "IFirmwareBuilder.h"
-#include "BuilderDispatch.h"
+#include <deki-editor/EditorExport.h>
+
+#include <deki-editor/build/TargetBuilder.h>
+#include <deki-editor/build/BuilderDispatch.h>
 #include <vector>
 #include <memory>
 
@@ -17,27 +19,27 @@ namespace DekiEditor
  * BuildPanel queries this registry to get the right builder
  * for the user's selected platform.
  */
-class BuilderRegistry
+class DEKI_EDITOR_API BuilderRegistry
 {
 public:
     static BuilderRegistry& Instance();
 
     /// Register a built-in builder (takes ownership)
-    void RegisterBuilder(std::unique_ptr<IFirmwareBuilder> builder);
+    void RegisterBuilder(std::unique_ptr<ITargetBuilder> builder);
 
     /// The builder claiming a framework id ("espidf", "native", ...).
     /// nullptr when nobody does; see BuilderDispatch.h for why there is no
     /// fallback.
-    IFirmwareBuilder* GetBuilder(const std::string& frameworkId);
+    ITargetBuilder* GetBuilder(const std::string& frameworkId);
 
     /// The builder for a platform, chosen by its `framework`.
-    IFirmwareBuilder* GetBuilderForPlatform(const PlatformConfig& config);
+    ITargetBuilder* GetBuilderForPlatform(const PlatformConfig& config);
 
     /// Message for when GetBuilderForPlatform returned nullptr.
     std::string DescribeMissingBuilder(const PlatformConfig& config) const;
 
     /// Get all registered builders
-    std::vector<IFirmwareBuilder*> GetAllBuilders() const;
+    std::vector<ITargetBuilder*> GetAllBuilders() const;
 
     /// Query all builders for a package's supported platforms from metadata.
     /// Each builder reads dependencies from the file and reports if it's compatible.
@@ -83,8 +85,8 @@ private:
     // deleted normally.
     struct LoadedBuilder
     {
-        IFirmwareBuilder* builder = nullptr;
-        void (*destroy)(IFirmwareBuilder*) = nullptr;
+        ITargetBuilder* builder = nullptr;
+        void (*destroy)(ITargetBuilder*) = nullptr;
         size_t moduleIndex = SIZE_MAX;  // index into m_PluginHandles
     };
 

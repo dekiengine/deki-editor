@@ -9,7 +9,7 @@
 // payload and scan scenes for package defines. No ImGui state is touched
 // either way, so every entry point here works headless.
 //
-// IFirmwareBuilder::Build/Flash/Clean run on a worker thread. Every Run* entry
+// ITargetBuilder::Build/Flash/Clean run on a worker thread. Every Run* entry
 // point here blocks until that worker finishes, so callers get a final result.
 
 #include <string>
@@ -17,7 +17,7 @@
 #include <functional>
 #include <nlohmann/json.hpp>
 
-#include "services/builders/IFirmwareBuilder.h"  // IFirmwareBuilder, BuildOptions
+#include <deki-editor/build/TargetBuilder.h>  // ITargetBuilder, BuildOptions
 
 namespace DekiEditor
 {
@@ -59,7 +59,7 @@ public:
                                           std::string& outError);
 
     /// Everything that has to happen between "a firmware build was asked for"
-    /// and IFirmwareBuilder::Build: toolchain check, SPIFFS payload export,
+    /// and ITargetBuilder::Build: toolchain check, SPIFFS payload export,
     /// package defines, platform config, build options, build-file regeneration.
     ///
     /// This is the single definition of what preparing a firmware build means.
@@ -76,7 +76,7 @@ public:
     /// project's scenes and contributes only the defines actually used.
     static FirmwareOpResult PrepareBuild(const std::string& projectPath,
                                          const PlatformConfig& platform,
-                                         IFirmwareBuilder& builder,
+                                         ITargetBuilder& builder,
                                          EditorApp* editor,
                                          const BuildOptions& options,
                                          FirmwareLogCallback onLine);

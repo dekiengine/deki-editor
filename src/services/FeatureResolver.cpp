@@ -1,5 +1,5 @@
 #include "FeatureResolver.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 
 #include <deki-editor/Paths.h>
 #include <deki/LogSystem.h>

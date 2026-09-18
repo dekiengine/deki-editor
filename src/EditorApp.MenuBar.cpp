@@ -5,7 +5,7 @@
 #include "services/UpdateCheck.h"
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/CommandHistory.h>
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "core/Commands.h"
 #include "services/FileDialogs.h"
 #include "services/ClipboardService.h"

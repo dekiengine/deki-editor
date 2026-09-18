@@ -4,8 +4,8 @@
 #include <vector>
 #include <memory>
 #include <functional>
-#include "core/PlatformConfig.h"
-#include "services/builders/IFirmwareBuilder.h"
+#include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/TargetBuilder.h>
 
 namespace DekiEditor
 {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <string>
 #include <vector>
 #include <map>
@@ -47,10 +49,10 @@ struct PinMapping
  * toolchain settings, memory layout, display configuration, compiler flags, etc.
  */
 /// displayBus is an identifier: A-Z, 0-9 and '_' ("SPI", "PARALLEL_8BIT", "SOFTWARE").
-bool IsValidDisplayBus(const std::string& bus);
-bool IsValidCapabilityName(const std::string& name);
+DEKI_EDITOR_API bool IsValidDisplayBus(const std::string& bus);
+DEKI_EDITOR_API bool IsValidCapabilityName(const std::string& name);
 
-struct PlatformConfig
+struct DEKI_EDITOR_API PlatformConfig
 {
     // Identification
     std::string id;           // Unique identifier: "esp32s3_v_board"
@@ -168,7 +170,7 @@ struct PlatformConfig
  * Singleton that manages platform configurations. Built-in platforms
  * are registered at startup, and custom platforms can be loaded from JSON.
  */
-class PlatformRegistry
+class DEKI_EDITOR_API PlatformRegistry
 {
 public:
     /**
@@ -257,12 +259,12 @@ private:
  * Called when no platforms are loaded from the project directory.
  * Only registers the Simulator as a fallback for legacy projects.
  */
-void RegisterBuiltInPlatforms();
+DEKI_EDITOR_API void RegisterBuiltInPlatforms();
 
 /**
  * @brief Create the desktop simulator platform configuration
  * @return Platform configuration for SDL3 simulator builds
  */
-PlatformConfig CreateSimulatorPlatformConfig();
+DEKI_EDITOR_API PlatformConfig CreateSimulatorPlatformConfig();
 
 }  // namespace DekiEditor

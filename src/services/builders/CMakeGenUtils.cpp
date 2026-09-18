@@ -1,7 +1,7 @@
 #include "CMakeGenUtils.h"
 #include <deki/LogSystem.h>
 #include <deki-editor/Paths.h>
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include <fstream>
 #include <sstream>
 #include <algorithm>

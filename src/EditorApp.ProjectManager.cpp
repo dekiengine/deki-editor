@@ -12,7 +12,7 @@
 #include <set>
 #include <deki-editor/CommandHistory.h>
 #include "core/commands/AssetCommands.h"  // DeleteAssetsCommand::SweepStaleTrash
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/AssetDatabase.h>
 #include <deki-editor/EditorApplication.h>

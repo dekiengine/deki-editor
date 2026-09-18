@@ -1,7 +1,7 @@
 #pragma once
 
 #include "BuilderDefinition.h"
-#include "IFirmwareBuilder.h"
+#include <deki-editor/build/TargetBuilder.h>
 #include "DownloadTypes.h"
 #include <string>
 #include <vector>
@@ -18,7 +18,7 @@ namespace DekiEditor
  * @brief Runtime toolchain component manager driven by BuilderDefinition JSON
  *
  * Evaluates detection rules, downloads/installs components, checks for updates.
- * Each IFirmwareBuilder owns one of these, initialized from its builder JSON.
+ * Each ITargetBuilder owns one of these, initialized from its builder JSON.
  */
 class ToolchainComponentManager
 {

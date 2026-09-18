@@ -5,8 +5,8 @@
 #include <deki-editor/Paths.h>
 #include "core/ProjectPaths.h"
 #include <deki-editor/EditorPaths.h>
-#include "core/PlatformConfig.h"
-#include "builders/BuilderRegistry.h"
+#include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/BuilderRegistry.h>
 #include <filesystem>
 #include <fstream>
 
@@ -78,7 +78,7 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
     // Generate build files using the appropriate builder
     if (platform)
     {
-        IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
+        ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
         if (builder)
         {
             if (!builder->GenerateBuildFiles(projectPath.string(), *platform, {}))
@@ -194,7 +194,7 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,
     // Generate build files using the appropriate builder
     if (platform)
     {
-        IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
+        ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
         if (builder)
         {
             if (!builder->GenerateBuildFiles(projectPath, *platform, {}))

@@ -2,7 +2,7 @@
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
 #include "services/ProjectTemplate.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "imgui.h"
 #include <filesystem>
 

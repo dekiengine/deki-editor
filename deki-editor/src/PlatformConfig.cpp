@@ -1,4 +1,4 @@
-#include "PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include <deki/LogSystem.h>
 #include <deki-editor/EditorPaths.h>
 #include <filesystem>

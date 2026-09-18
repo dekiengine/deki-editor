@@ -13,7 +13,7 @@
 #include <deki-editor/EditorApplication.h>
 #include <deki-editor/EditorAssets.h>
 #include <deki/assets/AssetManager.h>
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "services/EditorSettings.h"
 #include <deki/profiling/Profiler.h>
 #include "imgui.h"

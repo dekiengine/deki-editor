@@ -15,7 +15,7 @@
  *
  * Usage:
  *   1. Include this header in your builder project
- *   2. Implement IFirmwareBuilder for your platform
+ *   2. Implement ITargetBuilder for your platform
  *   3. Export the required C functions below
  *   4. Build as a shared library (DLL/so/dylib)
  *   5. Place in ~/.deki-editor/builders/
@@ -28,10 +28,10 @@
  * DEKI_BUILDER_API const char* DekiBuilder_GetName() { return "Pico SDK Builder"; }
  * DEKI_BUILDER_API const char* DekiBuilder_GetVersion() { return "1.0.0"; }
  * DEKI_BUILDER_API int DekiBuilder_GetBuilderCount() { return 1; }
- * DEKI_BUILDER_API IFirmwareBuilder* DekiBuilder_CreateBuilder(int index) {
+ * DEKI_BUILDER_API ITargetBuilder* DekiBuilder_CreateBuilder(int index) {
  *     return new MyPicoSDKBuilder();
  * }
- * DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(IFirmwareBuilder* builder) {
+ * DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(ITargetBuilder* builder) {
  *     delete builder;
  * }
  * @endcode
@@ -54,7 +54,7 @@
 #ifdef __cplusplus
 namespace DekiEditor
 {
-class IFirmwareBuilder;
+class ITargetBuilder;
 }
 #endif
 
@@ -158,7 +158,7 @@ inline DekiBuilderAbi DekiBuilder_ThisAbi(uint32_t platformConfigSize)
  * The editor will call DekiBuilder_DestroyBuilder() when done.
  */
 #ifdef __cplusplus
-    DEKI_BUILDER_API DekiEditor::IFirmwareBuilder* DekiBuilder_CreateBuilder(int index);
+    DEKI_BUILDER_API DekiEditor::ITargetBuilder* DekiBuilder_CreateBuilder(int index);
 #else
 DEKI_BUILDER_API void* DekiBuilder_CreateBuilder(int index);
 #endif
@@ -168,7 +168,7 @@ DEKI_BUILDER_API void* DekiBuilder_CreateBuilder(int index);
  * @param builder The builder to destroy (must have been created by this plugin)
  */
 #ifdef __cplusplus
-    DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(DekiEditor::IFirmwareBuilder* builder);
+    DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(DekiEditor::ITargetBuilder* builder);
 #else
 DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(void* builder);
 #endif

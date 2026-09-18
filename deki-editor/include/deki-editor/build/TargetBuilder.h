@@ -107,7 +107,7 @@ using BuildProgressCallback = std::function<void(const BuildProgress&)>;
 // We include PlatformConfig.h in the .cpp files that need it
 
 // ============================================================================
-// IFirmwareBuilder — Abstract interface for platform-specific builders
+// ITargetBuilder — Abstract interface for platform-specific builders
 // ============================================================================
 
 /**
@@ -118,10 +118,10 @@ using BuildProgressCallback = std::function<void(const BuildProgress&)>;
  * management. Builders can be built-in (linked) or loaded as DLL plugins
  * from ~/.deki-editor/builders/.
  */
-class IFirmwareBuilder
+class ITargetBuilder
 {
 public:
-    virtual ~IFirmwareBuilder() = default;
+    virtual ~ITargetBuilder() = default;
 
     // ========================================================================
     // Core operations

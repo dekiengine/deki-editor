@@ -13,9 +13,9 @@
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include "../services/FirmwareBuildService.h"
-#include "../core/PlatformConfig.h"
-#include "../services/builders/BuilderRegistry.h"
-#include "../services/builders/IFirmwareBuilder.h"
+#include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/TargetBuilder.h>
 #include "../services/SafeNames.h"
 #include "../services/PackageManager.h"
 #include <deki-editor/Paths.h>

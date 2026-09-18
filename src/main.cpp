@@ -20,7 +20,7 @@
 #include "PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>  // DrawDockSeams, DrawAllTabTopAccents
 #include "services/CrashHandler.h"
-#include "services/builders/BuilderRegistry.h"
+#include <deki-editor/build/BuilderRegistry.h>
 #include "services/builders/espidf/ESPIDFBuilder.h"
 #include "services/builders/native/NativeBuilder.h"
 #include <memory>

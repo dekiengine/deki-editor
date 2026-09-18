@@ -6,10 +6,10 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
 #include "core/Project.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "services/BoardPackManager.h"
-#include "services/builders/BuilderRegistry.h"
-#include "services/builders/IFirmwareBuilder.h"
+#include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/TargetBuilder.h>
 #include <deki/Scene.h>
 #include <deki-editor/EditorUI.h>
 #include "imgui.h"
@@ -670,7 +670,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
     auto& ui = EditorUI::Get();
 
     // Collect the available toolchains (builders).
-    std::vector<IFirmwareBuilder*> builders;
+    std::vector<ITargetBuilder*> builders;
     for (auto* b : BuilderRegistry::Instance().GetAllBuilders())
         if (b) builders.push_back(b);
 
@@ -776,7 +776,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
     ui.Unindent(pad);
 }
 
-void PlatformManagerPanel::DrawBuilderToolchains(IFirmwareBuilder* builder)
+void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
 {
     auto& ui = EditorUI::Get();
 

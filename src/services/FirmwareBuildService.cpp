@@ -2,9 +2,9 @@
 #include <deki-editor/Paths.h>
 
 #include "core/Project.h"
-#include "core/PlatformConfig.h"
-#include "builders/BuilderRegistry.h"
-#include "builders/IFirmwareBuilder.h"
+#include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/TargetBuilder.h>
 #include "EditorApp.h"
 #include "panels/PackageManagerPanel.h"
 #include "services/AssetExporter.h"
@@ -41,7 +41,7 @@ struct Ctx
 {
     std::unique_ptr<Project> project;
     const PlatformConfig* platform = nullptr;
-    IFirmwareBuilder* builder = nullptr;
+    ITargetBuilder* builder = nullptr;
     std::string platformId;
 };
 
@@ -120,7 +120,7 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
 // which would call PlatformRegistry::Clear() underneath a running build.
 struct ActiveOp
 {
-    IFirmwareBuilder* builder = nullptr;
+    ITargetBuilder* builder = nullptr;
     std::string platformId;
     std::string platformName;
 };
@@ -190,9 +190,9 @@ FirmwareOpResult ValidateComponent(const Ctx& ctx, const std::string& componentI
                              ctx.platformId, ctx.platform->displayName };
 }
 
-// IFirmwareBuilder::Build/Flash/Clean return as soon as the worker starts.
+// ITargetBuilder::Build/Flash/Clean return as soon as the worker starts.
 // RunOnBuildThread sets m_IsBuilding before spawning, so polling cannot race.
-FirmwareOpResult WaitForBuild(IFirmwareBuilder* builder, const Ctx& ctx)
+FirmwareOpResult WaitForBuild(ITargetBuilder* builder, const Ctx& ctx)
 {
     while (builder->IsBuilding())
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -286,7 +286,7 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
         const PlatformConfig* p = platforms.GetPlatform(id);
         if (!p) continue;
 
-        IFirmwareBuilder* b = BuilderRegistry::Instance().GetBuilderForPlatform(*p);
+        ITargetBuilder* b = BuilderRegistry::Instance().GetBuilderForPlatform(*p);
 
         nlohmann::json j;
         j["id"] = p->id;
@@ -342,7 +342,7 @@ nlohmann::json FirmwareBuildService::ToolchainStatus(const std::string& projectP
 
 FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPath,
                                                     const PlatformConfig& platform,
-                                                    IFirmwareBuilder& builder,
+                                                    ITargetBuilder& builder,
                                                     EditorApp* editor,
                                                     const BuildOptions& options,
                                                     FirmwareLogCallback onLine)

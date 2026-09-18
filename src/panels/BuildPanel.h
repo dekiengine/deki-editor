@@ -12,7 +12,7 @@ namespace DekiEditor
 {
 
 class EditorApp;
-class IFirmwareBuilder;
+class ITargetBuilder;
 
 /**
  * @brief Build panel for firmware builds and uploads
@@ -47,7 +47,7 @@ private:
     void StartFlash();
 
     std::vector<std::string> EnumeratePorts();
-    IFirmwareBuilder* GetActiveBuilder();
+    ITargetBuilder* GetActiveBuilder();
 
     EditorApp* m_App;
 

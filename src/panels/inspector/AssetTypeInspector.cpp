@@ -9,7 +9,7 @@
 #include <deki-editor/CommandHistory.h>
 #include "../../core/commands/AssetCommands.h"
 #include "../../services/AssetExporter.h"
-#include "../../core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "../SceneViewPanel.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/SubAsset.h>

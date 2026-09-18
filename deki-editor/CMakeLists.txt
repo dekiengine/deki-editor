@@ -37,6 +37,14 @@ set(EDITOR_DLL_SOURCES
     src/CommandHistory.cpp
     src/EditorNaming.cpp
     src/EditorComponents.cpp
+    # The build-target machinery. Here rather than in the application so a
+    # package's builder DLL links ONE copy of the registry, the dispatch and
+    # the platform type instead of compiling its own - and so a third-party
+    # backend has public headers to compile against at all.
+    src/PlatformConfig.cpp
+    src/BuilderRegistry.cpp
+    src/BuilderDispatch.cpp
+    src/BuildActivitySink.cpp
 )
 
 # Create shared library (DLL)

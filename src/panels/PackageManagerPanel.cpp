@@ -10,8 +10,8 @@
 #include "../widgets/Toast.h"
 #include "../services/HotReloadService.h"
 #include <deki-editor/EditorHttpUtils.h>
-#include "../services/builders/BuilderRegistry.h"
-#include "../core/PlatformConfig.h"
+#include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/PlatformConfig.h>
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include <deki-editor/EditorUI.h>
@@ -504,7 +504,7 @@ void PackageManagerPanel::DrawPackageDetails()
         TextCol(ui, Palette::Dim, "Framework");
         ui.Text(frameworkDisplay.c_str());
 
-        if (IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*config))
+        if (ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*config))
         {
             TextCol(ui, Palette::Dim, "Builder");
             ui.Text(builder->GetName());

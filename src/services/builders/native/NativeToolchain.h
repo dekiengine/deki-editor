@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../IFirmwareBuilder.h"
+#include <deki-editor/build/TargetBuilder.h>
 #include <string>
 #include <vector>
 #include <atomic>

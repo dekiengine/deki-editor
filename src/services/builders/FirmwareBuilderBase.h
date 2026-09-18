@@ -1,8 +1,8 @@
 #pragma once
 
-#include "IFirmwareBuilder.h"
+#include <deki-editor/build/TargetBuilder.h>
 #include "ToolchainComponentManager.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "../PackageManager.h"
 #include <thread>
 #include <atomic>
@@ -12,7 +12,7 @@
 namespace DekiEditor
 {
 
-class FirmwareBuilderBase : public IFirmwareBuilder
+class FirmwareBuilderBase : public ITargetBuilder
 {
 public:
     ~FirmwareBuilderBase() override = default;

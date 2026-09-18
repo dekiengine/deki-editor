@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include "services/builders/BuilderDispatch.h"
-#include "services/builders/IFirmwareBuilder.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/BuilderDispatch.h>
+#include <deki-editor/build/TargetBuilder.h>
+#include <deki-editor/build/PlatformConfig.h>
 
 using namespace DekiEditor;
 
@@ -14,7 +14,7 @@ namespace
 {
 // Only the identity matters here, so everything else is left to throw if the
 // dispatcher ever calls it — which it must not.
-class StubBuilder : public IFirmwareBuilder
+class StubBuilder : public ITargetBuilder
 {
    public:
     StubBuilder(const char* name, std::string framework)
@@ -68,7 +68,7 @@ TEST(BuilderDispatch, PicksTheBuilderClaimingTheFramework)
 {
     StubBuilder native("Native", "native");
     StubBuilder espidf("ESP-IDF", "espidf");
-    const std::vector<IFirmwareBuilder*> all{ &native, &espidf };
+    const std::vector<ITargetBuilder*> all{ &native, &espidf };
 
     EXPECT_EQ(SelectBuilder(all, "espidf"), &espidf);
     EXPECT_EQ(SelectBuilder(all, "native"), &native);
@@ -82,7 +82,7 @@ TEST(BuilderDispatch, TwoBuildersForTheSameSiliconAreToldApart)
     // app would be built as firmware.
     StubBuilder espidf("ESP-IDF", "espidf");
     StubBuilder tactility("Tactility", "tactility");
-    const std::vector<IFirmwareBuilder*> all{ &espidf, &tactility };
+    const std::vector<ITargetBuilder*> all{ &espidf, &tactility };
 
     EXPECT_EQ(SelectBuilder(all, "tactility"), &tactility);
     EXPECT_EQ(SelectBuilder(all, "espidf"), &espidf);
@@ -91,7 +91,7 @@ TEST(BuilderDispatch, TwoBuildersForTheSameSiliconAreToldApart)
 TEST(BuilderDispatch, AnUnclaimedFrameworkIsNullNotAGuess)
 {
     StubBuilder espidf("ESP-IDF", "espidf");
-    const std::vector<IFirmwareBuilder*> all{ &espidf };
+    const std::vector<ITargetBuilder*> all{ &espidf };
 
     EXPECT_EQ(SelectBuilder(all, "tactility"), nullptr);
 }
@@ -107,7 +107,7 @@ TEST(BuilderDispatch, AnUnsetFrameworkMatchesNothing)
 TEST(BuilderDispatch, ANullBuilderInTheListIsSkipped)
 {
     StubBuilder espidf("ESP-IDF", "espidf");
-    const std::vector<IFirmwareBuilder*> all{ nullptr, &espidf };
+    const std::vector<ITargetBuilder*> all{ nullptr, &espidf };
     EXPECT_EQ(SelectBuilder(all, "espidf"), &espidf);
 }
 

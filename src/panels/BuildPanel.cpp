@@ -5,10 +5,10 @@
 #include <deki-editor/EditorTheme.h>
 #include "ActivityPanel.h"
 #include "EditorApp.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "panels/PlatformManagerPanel.h"
-#include "services/builders/BuilderRegistry.h"
-#include "services/builders/IFirmwareBuilder.h"
+#include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/TargetBuilder.h>
 #include "services/AssetExporter.h"
 #include "services/FirmwareBuildService.h"
 #include "services/FeatureResolver.h"
@@ -61,7 +61,7 @@ BuildPanel::BuildPanel(EditorApp* app)
             project->Save();
 
             // Regenerate build files for the saved platform
-            IFirmwareBuilder* builder = GetActiveBuilder();
+            ITargetBuilder* builder = GetActiveBuilder();
             if (builder)
             {
                 std::vector<std::string> packageDefines;
@@ -187,7 +187,7 @@ void BuildPanel::Draw()
 void BuildPanel::DrawToolbar()
 {
     // Get builder for the active platform
-    IFirmwareBuilder* builder = GetActiveBuilder();
+    ITargetBuilder* builder = GetActiveBuilder();
     bool isBusy = (builder && builder->IsBuilding());
 
     // Build button
@@ -299,7 +299,7 @@ void BuildPanel::StartBuild()
         return;
     }
 
-    IFirmwareBuilder* builder = GetActiveBuilder();
+    ITargetBuilder* builder = GetActiveBuilder();
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
 
     // GetActiveBuilder() resolves the builder through the platform, so a null
@@ -372,7 +372,7 @@ void BuildPanel::StartBuild()
 
 void BuildPanel::StartFlash()
 {
-    IFirmwareBuilder* builder = GetActiveBuilder();
+    ITargetBuilder* builder = GetActiveBuilder();
     if (builder && m_App->GetProject())
     {
         if (!builder->IsToolchainInstalled())
@@ -456,7 +456,7 @@ void BuildPanel::DrawPlatformSelector()
 
                 // Regenerate build files for the new platform
                 const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
-                IFirmwareBuilder* platformBuilder = GetActiveBuilder();
+                ITargetBuilder* platformBuilder = GetActiveBuilder();
                 if (config && platformBuilder)
                 {
                     std::vector<std::string> packageDefines;
@@ -537,7 +537,7 @@ void BuildPanel::DrawToolchainStatusSummary()
         return;
     }
 
-    IFirmwareBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
+    ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
     if (!builder)
     {
         ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "No builder for this platform family");
@@ -671,7 +671,7 @@ void BuildPanel::SetSelectedPlatform(const std::string& platformId)
     }
 }
 
-IFirmwareBuilder* BuildPanel::GetActiveBuilder()
+ITargetBuilder* BuildPanel::GetActiveBuilder()
 {
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)

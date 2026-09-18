@@ -2,7 +2,7 @@
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/EditorHttpUtils.h>
 #include "services/EditorSettings.h"
-#include "BuildActivitySink.h"
+#include <deki-editor/build/BuildActivitySink.h>
 #include <filesystem>
 #include <algorithm>
 #include <fstream>

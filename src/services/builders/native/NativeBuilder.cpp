@@ -9,7 +9,7 @@
 #include "../../EditorSettings.h"
 #include "../../ProcessLaunch.h"
 #include "../../FeatureResolver.h"
-#include "core/PlatformConfig.h"
+#include <deki-editor/build/PlatformConfig.h>
 #include "EditorApp.h"
 #include "imgui.h"
 #include <filesystem>

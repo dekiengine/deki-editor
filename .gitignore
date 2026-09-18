@@ -1,7 +1,11 @@
 # Build directories. The glob, not just "build/", so a second tree for a
 # clean-configure check (build-clean/, build-msvc/) is ignored too: those
 # hold absolute paths from the machine that configured them.
-build*/
+#
+# LEADING SLASH, so it matches only at the repo root. Unanchored, "build*/"
+# also matched src/services/builders/ — anything whose name merely starts with
+# "build" — and new source files added there were silently never committed.
+/build*/
 out/
 cmake-build-*/
 
