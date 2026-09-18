@@ -66,6 +66,7 @@ set(TEST_SOURCES
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
     core/RenamedComponentRefTests.cpp
+    core/AutoSetupPhaseTests.cpp
     services/SimulatorBootSceneTests.cpp
     services/MinEngineGateTests.cpp
     services/PackageIntegrityTests.cpp

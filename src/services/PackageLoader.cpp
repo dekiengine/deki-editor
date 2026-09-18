@@ -522,7 +522,8 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
     // background thread runs. The fired-tracking inside RunEditorAutoSetups is
     // still idempotent, so calling it after the loop is safe even if a future
     // path also calls it post-load.
-    Deki::SetupComponent::RunEditorAutoSetups();
+    Deki::SetupComponent::RunEditorAutoSetups(
+        Deki::SetupComponent::SetupPhase::EditorLoad);
 
     // Packages loaded successfully from existing DLLs — clear any stale build errors
     // from BuildStalePackages() so play mode isn't blocked when DLLs are actually working

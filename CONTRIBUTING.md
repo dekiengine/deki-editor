@@ -92,6 +92,31 @@ moving it into a namespace, changes its identity: add `DEKI_FORMER_NAME("Old")`
 above the class so scenes saved under the old name still load, and they are
 rewritten to the new one on the next save.
 
+## A package setup declares when it runs
+
+A `SetupComponent` a project authors into a scene runs when that scene does.
+A package can also register one to run on its own, and it says which of two
+moments it wants:
+
+```cpp
+DEKI_REGISTER_EDITOR_AUTO_SETUP(MyClockComponent);   // packages finish loading
+DEKI_REGISTER_PLAY_AUTO_SETUP(MyLocationComponent);  // the user presses Play
+```
+
+The first fires on every project open and again after every hot reload, so it
+suits something cheap and local that the editor itself may want live: a clock
+source, installing a client object.
+
+The second waits for Play. Use it for anything with a side effect beyond the
+editor — a network request, hardware, something that costs the user money or
+privacy. The rule of thumb is whether a user who opened a project to look at a
+scene would be surprised it happened. `deki-gps` is the worked example: it
+geolocates by asking a third party where the machine is, and as an editor-load
+setup that request went out every time a project was opened.
+
+Both fire once per registration and are re-armed by a hot reload, so neither
+repeats a side effect on a second Play.
+
 ## Reflected field names are the file format
 
 The reflection codegen emits each `DEKI_EXPORT` member's C++ identifier as the

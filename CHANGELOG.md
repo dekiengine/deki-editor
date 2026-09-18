@@ -9,6 +9,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## 0.16.0 - 2026-09-16
 
 ### Changed
+- **A setup that reaches outside the editor now waits for Play.** Package
+  setups used to run at one moment, when packages finished loading, so opening
+  a project was enough to make deki-gps ask a third party where the machine
+  was. A package chooses its moment now, and the editor runs the Play ones from
+  InitPlayMode. Both are still idempotent, so a second Play repeats nothing.
 - **Packages live in their own namespace.** Every package component was
   declared at global scope, which made a component's identity a bare class
   name: the name a scene file stores and the name the registry keys on. Two

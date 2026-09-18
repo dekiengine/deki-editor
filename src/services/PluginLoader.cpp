@@ -430,7 +430,8 @@ bool PluginLoader::LoadPlugin(const std::string& path)
 
     // Fire any newly-registered editor-auto SetupComponents from this plugin DLL
     // (idempotent — already-fired entries are skipped).
-    Deki::SetupComponent::RunEditorAutoSetups();
+    Deki::SetupComponent::RunEditorAutoSetups(
+        Deki::SetupComponent::SetupPhase::EditorLoad);
 
     return true;
 }

@@ -21,6 +21,7 @@
 #include <unordered_set>
 
 #include <deki/Engine.h>
+#include <deki/SetupComponent.h>  // play-phase auto setups
 #include <deki/Component.h>
 #include <deki/providers/IInputSystem.h>
 #include <deki/ICamera.h>
@@ -216,6 +217,18 @@ void EditorApp::InitPlayMode()
     m_Play.scene = std::make_unique<::Deki::Scene>();
     m_Play.scene->LoadFromJsonString(m_Play.sceneBackup);
     RegisterSceneCallbacks(m_Play.scene.get());
+
+    // Setups that wait for Play, now that the user has asked for the game to
+    // run. A package declares this with DEKI_REGISTER_PLAY_AUTO_SETUP, for
+    // anything with a side effect outside the editor: deki-gps asks a third
+    // party where the machine is, and doing that when a project merely OPENED
+    // meant opening a project made a request nobody asked for.
+    //
+    // Idempotent per entry, so a second Play costs nothing, and a hot reload
+    // that cleared and re-registered an entry lets it fire again on the next
+    // Play.
+    Deki::SetupComponent::RunEditorAutoSetups(
+        Deki::SetupComponent::SetupPhase::PlayStart);
 
     // Save edit command history aside and start fresh for play mode
     CommandHistory::Instance().SaveAndClear();
