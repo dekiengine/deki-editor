@@ -1,4 +1,4 @@
-#include "FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 #include <deki-editor/build/PlatformConfig.h>
 
 #include <deki-editor/Paths.h>

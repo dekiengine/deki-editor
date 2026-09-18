@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/build/DependencyInfo.h>
+
 #include <string>
 #include <vector>
 #include <map>
@@ -9,14 +11,6 @@
 #include <mutex>
 
 #include <deki-editor/VersionCompare.h>
-
-// Package source type
-enum class PackageSourceType
-{
-    GitHub,          // github.com
-    ESPIDFRegistry,  // components.espressif.com (future)
-    Custom           // User-defined URL (future)
-};
 
 // Package type (which installer manages it)
 enum class PackageType
@@ -114,14 +108,6 @@ struct CoreDependency
 };
 
 // Dependency information for platform build manifests (e.g., idf_component.yml)
-struct DependencyInfo
-{
-    std::string name;     // Package name (e.g., "LovyanGFX")
-    std::string version;  // Version string
-    std::string gitUrl;   // Git URL (empty for registry packages)
-    PackageSourceType source = PackageSourceType::ESPIDFRegistry;
-};
-
 // Callback types
 using PackageCallback = std::function<void(bool success, const std::string& message)>;
 using VersionsCallback = std::function<void(bool success, const std::vector<std::string>& versions)>;

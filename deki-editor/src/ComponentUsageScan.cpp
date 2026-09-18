@@ -1,5 +1,5 @@
-#include "ComponentUsageScan.h"
-#include "SceneTargetFilter.h"
+#include <deki-editor/ComponentUsageScan.h>
+#include <deki-editor/SceneTargetFilter.h>
 
 #include <deki-editor/Paths.h>
 #include <deki/LogSystem.h>

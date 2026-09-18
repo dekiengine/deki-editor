@@ -20,13 +20,13 @@
 
 #include "core/Units.h"
 #include "core/Project.h"
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include "services/PackageManager.h"
 #include "services/sources/DekiRegistrySource.h"
 #include "services/PackageRestore.h"
 #include "services/HotReloadService.h"
 #include "services/FirmwareBuildService.h"
-#include "services/FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 #include "mcp/McpToolRegistry.h"
 #include "mcp/McpTools.h"
 #include "services/AssetExporter.h"

@@ -1,6 +1,6 @@
 #include "ESPIDFInstaller.h"
 #include <deki-editor/Paths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <fstream>
 #include <sstream>
 #include <algorithm>

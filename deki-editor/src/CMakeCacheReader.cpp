@@ -1,4 +1,4 @@
-#include "CMakeCacheReader.h"
+#include <deki-editor/CMakeCacheReader.h>
 
 #include <filesystem>
 #include <fstream>

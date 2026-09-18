@@ -1,5 +1,5 @@
-#include "EditorSettings.h"
-#include "CMakeCacheReader.h"
+#include <deki-editor/EditorSettings.h>
+#include <deki-editor/CMakeCacheReader.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/FileIO.h>

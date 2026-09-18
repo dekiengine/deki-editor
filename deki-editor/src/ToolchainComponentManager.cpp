@@ -1,7 +1,7 @@
-#include "ToolchainComponentManager.h"
+#include <deki-editor/build/ToolchainComponentManager.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/EditorHttpUtils.h>
-#include "services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include <deki-editor/build/BuildActivitySink.h>
 #include <filesystem>
 #include <algorithm>

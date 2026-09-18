@@ -6,7 +6,7 @@
 // hardcoded GetComponent<SpriteComponent> etc. calls.
 
 #include "EditorApp.h"
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/CommandHistory.h>
 #include <imgui.h>
 #include <imgui_internal.h>

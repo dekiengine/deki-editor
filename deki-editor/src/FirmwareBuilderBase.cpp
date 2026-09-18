@@ -1,6 +1,6 @@
-#include "FirmwareBuilderBase.h"
+#include <deki-editor/build/FirmwareBuilderBase.h>
 #include <deki-editor/Paths.h>
-#include "../EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include <filesystem>
 #include <fstream>
 #include <algorithm>

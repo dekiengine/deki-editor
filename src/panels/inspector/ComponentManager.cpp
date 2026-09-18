@@ -10,7 +10,7 @@
 #include <deki-editor/build/PlatformConfig.h>
 #include "../../services/ClipboardService.h"
 #include "../../services/PackageLoader.h"
-#include "../../services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "../../services/PluginLoader.h"
 #include <deki/Object.h>
 #include <deki/Component.h>

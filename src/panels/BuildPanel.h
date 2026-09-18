@@ -6,7 +6,7 @@
 #include <vector>
 #include <memory>
 #include "PlatformEditorDialog.h"
-#include "../services/BuildStripSettings.h"
+#include <deki-editor/BuildStripSettings.h>
 
 namespace DekiEditor
 {

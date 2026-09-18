@@ -1,6 +1,6 @@
-#include "BuildStripSettings.h"
+#include <deki-editor/BuildStripSettings.h>
 
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki/LogSystem.h>
 
 #include <nlohmann/json.hpp>

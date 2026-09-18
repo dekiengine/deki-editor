@@ -1,7 +1,7 @@
 #include "PackageLoader.h"
-#include "CMakeCacheReader.h"
+#include <deki-editor/CMakeCacheReader.h>
 #include <deki-editor/Paths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include "core/SettingsOwnership.h"
 #include "SharedLibNaming.h"
 #include "SafeDllCall.h"

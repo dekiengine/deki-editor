@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "services/BuildStripSettings.h"
+#include <deki-editor/BuildStripSettings.h>
 
 #include <filesystem>
 #include <fstream>

@@ -1,9 +1,12 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
+#include <deki-editor/build/DependencyInfo.h>
+
 #include <deki-editor/build/TargetBuilder.h>
-#include "ToolchainComponentManager.h"
+#include <deki-editor/build/ToolchainComponentManager.h>
 #include <deki-editor/build/PlatformConfig.h>
-#include "../PackageManager.h"
 #include <thread>
 #include <atomic>
 #include <mutex>
@@ -12,7 +15,7 @@
 namespace DekiEditor
 {
 
-class FirmwareBuilderBase : public ITargetBuilder
+class DEKI_EDITOR_API FirmwareBuilderBase : public ITargetBuilder
 {
 public:
     ~FirmwareBuilderBase() override = default;

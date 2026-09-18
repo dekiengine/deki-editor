@@ -2,12 +2,12 @@
 #include <deki-editor/SafeNames.h>
 #include <algorithm>
 #include <deki-editor/Paths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/EditorPaths.h>
-#include "../../EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "../../installers/ESPIDFInstaller.h"
 #include "EditorApp.h"

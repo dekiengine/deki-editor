@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "services/CMakeCacheReader.h"
+#include <deki-editor/CMakeCacheReader.h>
 
 #include <filesystem>
 #include <fstream>

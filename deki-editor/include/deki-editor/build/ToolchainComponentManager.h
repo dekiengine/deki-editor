@@ -1,8 +1,10 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/build/TargetBuilder.h>
-#include "DownloadTypes.h"
+#include <deki-editor/build/DownloadTypes.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -20,7 +22,7 @@ namespace DekiEditor
  * Evaluates detection rules, downloads/installs components, checks for updates.
  * Each ITargetBuilder owns one of these, initialized from its builder JSON.
  */
-class ToolchainComponentManager
+class DEKI_EDITOR_API ToolchainComponentManager
 {
 public:
     ToolchainComponentManager();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 // Which package features a device build compiles, and what it leaves out.
 //
 // The inputs are the package descriptors (each feature's build define and the
@@ -16,8 +18,8 @@
 // names there (SDL3DisplaySetup) count as used. The editor's own builds never
 // strip anything: it has to open every scene.
 
-#include "BuildStripSettings.h"
-#include "ComponentUsageScan.h"
+#include <deki-editor/BuildStripSettings.h>
+#include <deki-editor/ComponentUsageScan.h>
 #include <deki-editor/build/CMakeGenUtils.h>
 
 #include <map>
@@ -38,9 +40,9 @@ enum class FeatureState
     Stripped,   // unused, and stripping is on
 };
 
-const char* FeatureStateName(FeatureState state);
+DEKI_EDITOR_API const char* FeatureStateName(FeatureState state);
 
-struct FeatureDecision
+struct DEKI_EDITOR_API FeatureDecision
 {
     std::string packageId;
     std::string packageDir;
@@ -55,7 +57,7 @@ struct FeatureDecision
     bool offered = true;
 };
 
-struct PackageDecision
+struct DEKI_EDITOR_API PackageDecision
 {
     std::string packageId;
     std::string packageDir;
@@ -63,7 +65,7 @@ struct PackageDecision
     std::string reason;
 };
 
-struct StripPlan
+struct DEKI_EDITOR_API StripPlan
 {
     std::vector<FeatureDecision> features;
     std::vector<PackageDecision> packages;
@@ -92,7 +94,7 @@ struct StripPlan
 
 // `packagesDir` is where the package sources are, for the include inspection;
 // empty skips that step (the unit tests do this to test the rules alone).
-StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackages,
+DEKI_EDITOR_API StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackages,
                            const ComponentUsage& usage,
                            const BuildStripSettings& settings,
                            const std::string& packagesDir);
@@ -100,7 +102,7 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
 // A component this target's own content uses, from a package this target
 // cannot have. The one case that genuinely is a mistake rather than a normal
 // exclusion, and the one worth refusing a build over.
-struct TargetContentConflict
+struct DEKI_EDITOR_API TargetContentConflict
 {
     std::string componentType;            // e.g. "SDL3DisplaySetup"
     std::string where;                    // the scene or source that names it
@@ -114,7 +116,7 @@ struct TargetContentConflict
 // Everything this target's content asks for that the target cannot supply.
 // Empty means the build is coherent: packages left out are left out because
 // nothing here needs them, which is the normal multi-target case and no error.
-std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string& projectPath,
+DEKI_EDITOR_API std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string& projectPath,
                                                               const std::string& targetPlatformId);
 
 // The whole thing for a project: descriptors, scan, settings.
@@ -123,6 +125,6 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
 // count as evidence, so a package used only by another target's boot scene is
 // not kept alive here. Empty pools every platform, for callers with no target
 // in hand.
-StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId = "");
+DEKI_EDITOR_API StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId = "");
 
 }  // namespace DekiEditor

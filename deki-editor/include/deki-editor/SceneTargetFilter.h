@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 // Which objects of a scene exist on a given target.
 //
 // One project serves several targets, and a scene is shared by all of them. An
@@ -33,17 +35,17 @@ namespace DekiEditor
 // What `obj` needs that `capabilities` does not offer. Empty means it belongs
 // on this target. An empty capability set judges nothing and keeps everything,
 // which is what a caller with no target in hand (the editor) wants.
-std::vector<std::string> ObjectMissingCapabilities(const nlohmann::json& obj,
+DEKI_EDITOR_API std::vector<std::string> ObjectMissingCapabilities(const nlohmann::json& obj,
                                                    const std::set<std::string>& capabilities);
 
 // `scene` with every object the target cannot satisfy removed, children
 // included: dropping a parent drops what it carries, because a child's
 // existence depends on it.
-nlohmann::json FilterSceneForTarget(const nlohmann::json& scene,
+DEKI_EDITOR_API nlohmann::json FilterSceneForTarget(const nlohmann::json& scene,
                                     const std::set<std::string>& capabilities);
 
 // True when the filter would change anything, so a caller can skip the copy.
-bool SceneHasTargetRequirements(const nlohmann::json& scene);
+DEKI_EDITOR_API bool SceneHasTargetRequirements(const nlohmann::json& scene);
 
 // Carry every object's "requires" from the file as it was into the file as the
 // editor has just rewritten it, matching objects by id.
@@ -56,10 +58,10 @@ bool SceneHasTargetRequirements(const nlohmann::json& scene);
 // entry goes with it.
 //
 // Returns true if anything was re-applied.
-bool PreserveTargetRequirements(const std::string& scenePath, const nlohmann::json& before);
+DEKI_EDITOR_API bool PreserveTargetRequirements(const std::string& scenePath, const nlohmann::json& before);
 
 // The "requires" of every object in `scene`, keyed by object id. Empty when the
 // scene has none, which is the common case and lets a caller skip the work.
-std::map<int64_t, std::vector<std::string>> CollectTargetRequirements(const nlohmann::json& scene);
+DEKI_EDITOR_API std::map<int64_t, std::vector<std::string>> CollectTargetRequirements(const nlohmann::json& scene);
 
 }  // namespace DekiEditor

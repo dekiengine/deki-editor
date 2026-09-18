@@ -6,7 +6,7 @@
 #include <deki-editor/IconsTabler.h>
 #include <functional>
 #include "../core/Project.h"
-#include "../services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "../services/PackageLoader.h"
 #include <deki/Scene.h>
 #include <deki/Object.h>

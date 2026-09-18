@@ -5,9 +5,9 @@
 #include "EditorApp.h"
 #include <algorithm>
 #include <regex>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/build/CMakeGenUtils.h>
-#include "services/SceneTargetFilter.h"
+#include <deki-editor/SceneTargetFilter.h>
 #include <functional>
 #include <set>
 #include <deki-editor/CommandHistory.h>
@@ -20,7 +20,7 @@
 #include <deki-editor/EditorRegistry.h>
 #include <deki-editor/EditorAssets.h>
 #include "panels/inspector/InspectorUtils.h"
-#include "services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "services/ProjectRegistry.h"
 #include "services/AssetExporter.h"
 #include "services/StartupProgress.h"

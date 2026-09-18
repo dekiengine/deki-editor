@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "services/FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 
 #include <algorithm>
 #include <filesystem>

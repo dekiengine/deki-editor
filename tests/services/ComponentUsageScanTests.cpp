@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "services/ComponentUsageScan.h"
+#include <deki-editor/ComponentUsageScan.h>
 
 #include <filesystem>
 #include <fstream>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <filesystem>
 #include <string>
 
@@ -28,19 +30,19 @@ namespace ProjectPaths
 {
 
 // Generated — all of this is disposable and gitignored as one folder.
-std::filesystem::path Generated(const std::string& projectRoot);  // generated/
-std::filesystem::path Runtime(const std::string& projectRoot);    // generated/runtime/ — loadable DLLs
-std::filesystem::path Build(const std::string& projectRoot);      // generated/build/   — CMake tree
-std::filesystem::path Cache(const std::string& projectRoot);      // generated/cache/   — asset cache
-std::filesystem::path Shadow(const std::string& projectRoot);     // generated/shadow/  — hot-reload copies
-std::filesystem::path CMakeListsFile(const std::string& projectRoot);
+DEKI_EDITOR_API std::filesystem::path Generated(const std::string& projectRoot);  // generated/
+DEKI_EDITOR_API std::filesystem::path Runtime(const std::string& projectRoot);    // generated/runtime/ — loadable DLLs
+DEKI_EDITOR_API std::filesystem::path Build(const std::string& projectRoot);      // generated/build/   — CMake tree
+DEKI_EDITOR_API std::filesystem::path Cache(const std::string& projectRoot);      // generated/cache/   — asset cache
+DEKI_EDITOR_API std::filesystem::path Shadow(const std::string& projectRoot);     // generated/shadow/  — hot-reload copies
+DEKI_EDITOR_API std::filesystem::path CMakeListsFile(const std::string& projectRoot);
 
 // Authored — tracked, the user's.
-std::filesystem::path Settings(const std::string& projectRoot);  // settings/
+DEKI_EDITOR_API std::filesystem::path Settings(const std::string& projectRoot);  // settings/
 
 /** Directories a project must have; created on new projects and repaired on open. */
-std::filesystem::path RuntimeBuildTemp(const std::string& projectRoot);   // generated/runtime/.build_temp/
-std::filesystem::path RuntimePdbArchive(const std::string& projectRoot);  // generated/runtime/.pdb_archive/
+DEKI_EDITOR_API std::filesystem::path RuntimeBuildTemp(const std::string& projectRoot);   // generated/runtime/.build_temp/
+DEKI_EDITOR_API std::filesystem::path RuntimePdbArchive(const std::string& projectRoot);  // generated/runtime/.pdb_archive/
 
 /** Structure version written to deki.json once a project uses this layout. */
 inline constexpr const char* kStructureVersion = "v5";
@@ -57,7 +59,7 @@ inline constexpr const char* kStructureVersion = "v5";
  *
  * @return true if anything moved.
  */
-bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& outSummary);
+DEKI_EDITOR_API bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& outSummary);
 
 /**
  * @brief Rename a project's "modules" to "packages" (the pre-0.9 layout; "modules" is the legacy name).
@@ -70,7 +72,7 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
  * settings folder. Best-effort per entry: each is independently useful and a
  * missed one is retried on the next open.
  */
-bool MigrateModulesToPackages(const std::string& projectRoot, std::string& outSummary);
+DEKI_EDITOR_API bool MigrateModulesToPackages(const std::string& projectRoot, std::string& outSummary);
 
 /**
  * @brief Move a pre-v3 project's generated folders under generated/.
@@ -84,7 +86,7 @@ bool MigrateModulesToPackages(const std::string& projectRoot, std::string& outSu
  *
  * @return true if anything was moved.
  */
-bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSummary);
+DEKI_EDITOR_API bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSummary);
 
 }  // namespace ProjectPaths
 }  // namespace DekiEditor

@@ -9,7 +9,7 @@
 
 #include <gtest/gtest.h>
 
-#include "services/SceneTargetFilter.h"
+#include <deki-editor/SceneTargetFilter.h>
 
 #include <set>
 #include <string>

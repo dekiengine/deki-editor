@@ -1,5 +1,5 @@
 #include "Project.h"
-#include "ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/VersionCompare.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/FileIO.h>

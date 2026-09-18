@@ -3,7 +3,7 @@
 #include "SimulatorBootScene.h"
 #include <deki/LogSystem.h>
 #include <deki-editor/Paths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/build/BuilderRegistry.h>

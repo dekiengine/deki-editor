@@ -42,7 +42,7 @@ struct SDL_Window;
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/EditorApplication.h>
 #include "services/ToolHost.h"
-#include "services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "services/PluginLoader.h"
 #include "services/PackageLoader.h"
 #include "services/HotReloadService.h"

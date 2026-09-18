@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 // What a project has said about stripping its device builds.
 //
 // Lives in settings/build.json beside the engine's own settings files. Two
@@ -13,7 +15,7 @@
 namespace DekiEditor
 {
 
-struct BuildStripSettings
+struct DEKI_EDITOR_API BuildStripSettings
 {
     // Leave out a feature none of whose components any scene or source names.
     bool stripUnusedComponents = true;

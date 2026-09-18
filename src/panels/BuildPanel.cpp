@@ -11,7 +11,7 @@
 #include <deki-editor/build/TargetBuilder.h>
 #include "services/AssetExporter.h"
 #include "services/FirmwareBuildService.h"
-#include "services/FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>

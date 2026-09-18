@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <string>
 #include <vector>
 #include <map>
@@ -8,7 +10,7 @@ namespace DekiEditor
 {
 
 // Simple editor settings persistence
-class EditorSettings
+class DEKI_EDITOR_API EditorSettings
 {
 public:
     // Load settings from disk
@@ -68,7 +70,7 @@ public:
     static std::string GetSettingsDir();
 
     // External dependency from a package.json file
-    struct PackageDepInfo
+    struct DEKI_EDITOR_API PackageDepInfo
     {
         std::string name;                 // e.g. "LovyanGFX"
         std::string version;              // e.g. "1.2.19"

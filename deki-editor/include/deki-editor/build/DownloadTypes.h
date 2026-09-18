@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 #include <string>
 #include <functional>
 #include <cstdint>
@@ -17,7 +19,7 @@ enum class DownloadStatus
     Failed
 };
 
-struct DownloadProgress
+struct DEKI_EDITOR_API DownloadProgress
 {
     DownloadStatus status = DownloadStatus::Idle;
     std::string statusText;
@@ -27,7 +29,7 @@ struct DownloadProgress
     std::string error;
 };
 
-struct ToolchainVersionInfo
+struct DEKI_EDITOR_API ToolchainVersionInfo
 {
     std::string name;
     std::string latestVersion;

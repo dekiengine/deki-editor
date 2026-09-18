@@ -4,11 +4,11 @@
 #include <fstream>
 #include <cstdio>
 #include <deki-editor/Paths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/build/CMakeGenUtils.h>
-#include "../../EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include <deki-editor/ProcessLaunch.h>
-#include "../../FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "EditorApp.h"
 #include "imgui.h"

@@ -1,6 +1,6 @@
 #include "ProjectMaintenance.h"
 #include "PackageLoader.h"
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <deki/LogSystem.h>
 
 #include <filesystem>

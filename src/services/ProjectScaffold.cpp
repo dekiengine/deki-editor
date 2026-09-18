@@ -1,7 +1,7 @@
 #include "ProjectScaffold.h"
 
 #include "PackageManifest.h"
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 
 #include "AuthoredFormat.h"
 

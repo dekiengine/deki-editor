@@ -1,8 +1,8 @@
 #include "AssetExporter.h"
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include "AssetPacker.h"
 #include "PackageLoader.h"
-#include "SceneTargetFilter.h"
+#include <deki-editor/SceneTargetFilter.h>
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetData.h>
 #include <deki-editor/Paths.h>

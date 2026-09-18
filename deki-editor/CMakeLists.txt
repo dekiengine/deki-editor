@@ -52,6 +52,15 @@ set(EDITOR_DLL_SOURCES
     src/VersionCompare.cpp
     src/BuilderDefinition.cpp
     src/CMakeGenUtils.cpp
+    src/ProjectPaths.cpp
+    src/CMakeCacheReader.cpp
+    src/EditorSettings.cpp
+    src/ToolchainComponentManager.cpp
+    src/FirmwareBuilderBase.cpp
+    src/SceneTargetFilter.cpp
+    src/ComponentUsageScan.cpp
+    src/BuildStripSettings.cpp
+    src/FeatureResolver.cpp
 )
 
 # Create shared library (DLL)

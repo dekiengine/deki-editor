@@ -5,7 +5,7 @@
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/EditorPaths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include <sstream>
 #include <nlohmann/json.hpp>
 #include <vector>

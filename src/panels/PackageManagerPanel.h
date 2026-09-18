@@ -3,9 +3,9 @@
 #include "IPanel.h"
 
 #include "../services/PackageManager.h"
-#include "../services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "../services/sources/DekiRegistrySource.h"
-#include "../services/FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 #include <memory>
 #include <vector>
 #include <string>

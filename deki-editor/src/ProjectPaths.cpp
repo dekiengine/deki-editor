@@ -1,4 +1,4 @@
-#include "ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 
 #include <deki-editor/Paths.h>
 

@@ -28,7 +28,7 @@
 #include <deki-editor/Paths.h>
 #include <deki-profiling-hooks/ProfilingHooks.h>
 #include "services/ProfilingService.h"
-#include "services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "services/FileDialogs.h"
 #include "services/StartupProgress.h"
 #include "services/HotReloadService.h"

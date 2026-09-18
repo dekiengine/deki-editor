@@ -1,6 +1,6 @@
 #include "UpdateCheck.h"
 #include "UpdateCheckParse.h"
-#include "EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include "../EditorVersion.h"
 #include "../widgets/Toast.h"
 

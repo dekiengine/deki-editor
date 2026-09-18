@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/EditorExport.h>
+
 // Which component types a project actually uses.
 //
 // A scene names every component it carries, so the scenes are the authority
@@ -17,7 +19,7 @@
 namespace DekiEditor
 {
 
-struct ComponentUsage
+struct DEKI_EDITOR_API ComponentUsage
 {
     // Short component type name (namespace stripped) -> where it was seen,
     // as project-relative paths. A scene path means an object carries it; a
@@ -52,7 +54,7 @@ struct ComponentUsage
 // deki-sdl3-integration's sources are not this target's content when the
 // target cannot provide sdl3, and counting them reports a conflict against a
 // package that was never going to be built.
-ComponentUsage ScanComponentUsage(const std::string& projectPath,
+DEKI_EDITOR_API ComponentUsage ScanComponentUsage(const std::string& projectPath,
                                   const std::vector<std::string>& knownTypes,
                                   const std::vector<std::string>& scanPackageIds,
                                   const std::string& targetPlatformId = "",
@@ -60,6 +62,6 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
 
 // The name a scene or a descriptor uses for a type: the identifier after the
 // last `::`, so "Deki2D::SpriteComponent" and "SpriteComponent" agree.
-std::string ShortTypeName(const std::string& qualified);
+DEKI_EDITOR_API std::string ShortTypeName(const std::string& qualified);
 
 }  // namespace DekiEditor

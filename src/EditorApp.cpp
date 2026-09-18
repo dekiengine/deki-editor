@@ -14,7 +14,7 @@
 #include <deki-editor/EditorAssets.h>
 #include <deki/assets/AssetManager.h>
 #include <deki-editor/build/PlatformConfig.h>
-#include "services/EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 #include <deki/profiling/Profiler.h>
 #include "imgui.h"
 #include "imgui_internal.h"

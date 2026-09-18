@@ -1,6 +1,6 @@
 #include "ProjectRegistry.h"
 
-#include "EditorSettings.h"
+#include <deki-editor/EditorSettings.h>
 
 #include <nlohmann/json.hpp>
 

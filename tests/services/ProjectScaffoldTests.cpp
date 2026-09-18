@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include "services/ProjectScaffold.h"
 
 #include <deki-editor/AssetData.h>

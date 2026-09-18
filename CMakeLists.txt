@@ -487,10 +487,8 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/ObjectCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/PropertyCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/InstanceCommands.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ProjectPaths.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/SettingsOwnership.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageLoader.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/CMakeCacheReader.cpp
     # RegistrySourceTests: the registry index / package file parsers.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/sources/DekiRegistrySource.cpp
     # SimulatorBootSceneTests: the boot scene a new project gets, whose typeIds
@@ -531,10 +529,6 @@ set(EDITOR_TESTABLE_SOURCES
     # packages and deki.json declare.
     # The stripper: what a device build leaves out, from the descriptors, the
     # scenes and sources, and settings/build.json.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ComponentUsageScan.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SceneTargetFilter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/BuildStripSettings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FeatureResolver.cpp
 )
 
 # Editor sources
@@ -606,7 +600,6 @@ set(EDITOR_SOURCES
     src/panels/asset_browser/DeleteConfirmDialog.cpp
     src/panels/asset_browser/RenameDialog.cpp
     src/core/Project.cpp
-    src/core/ProjectPaths.h
     src/core/SettingsOwnership.h
     src/core/Project.h
     src/core/Commands.h
@@ -619,8 +612,6 @@ set(EDITOR_SOURCES
     src/services/PlayModeGuard.h
     src/services/ClipboardService.cpp
     src/services/ClipboardService.h
-    src/services/EditorSettings.cpp
-    src/services/EditorSettings.h
     src/services/ProjectRegistry.cpp
     src/services/ProjectRegistry.h
     src/services/FirmwareBuildService.cpp
@@ -641,13 +632,6 @@ set(EDITOR_SOURCES
     src/services/FileDialogs.h
     src/services/FileDialogFilter.cpp
     src/services/FileDialogFilter.h
-    src/services/ComponentUsageScan.cpp
-    src/services/SceneTargetFilter.cpp
-    src/services/ComponentUsageScan.h
-    src/services/BuildStripSettings.cpp
-    src/services/BuildStripSettings.h
-    src/services/FeatureResolver.cpp
-    src/services/FeatureResolver.h
     src/services/EngineEditorSetup.cpp
     src/services/EngineEditorSetup.h
     src/services/AssetExporter.cpp
@@ -681,8 +665,6 @@ set(EDITOR_SOURCES
     src/widgets/Toast.h
     src/services/ToolHost.cpp
     src/services/ToolHost.h
-    src/services/builders/FirmwareBuilderBase.cpp
-    src/services/builders/FirmwareBuilderBase.h
     src/services/builders/espidf/ESPIDFBuilder.cpp
     src/services/builders/espidf/ESPIDFBuilder.h
     src/services/builders/espidf/ESPIDFToolchain.cpp
@@ -749,8 +731,6 @@ set(EDITOR_SOURCES
     src/panels/ProfilerPanel.MemoryView.cpp
     src/panels/FrameCapturePanel.cpp
     src/panels/FrameCapturePanel.h
-    src/services/builders/ToolchainComponentManager.cpp
-    src/services/builders/ToolchainComponentManager.h
     src/mcp/McpServer.cpp
     src/mcp/McpServer.h
     src/mcp/McpToolRegistry.h

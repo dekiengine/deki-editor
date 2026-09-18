@@ -1,4 +1,4 @@
-#include "SceneTargetFilter.h"
+#include <deki-editor/SceneTargetFilter.h>
 
 #include <fstream>
 #include <functional>

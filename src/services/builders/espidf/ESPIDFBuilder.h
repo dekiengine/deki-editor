@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../FirmwareBuilderBase.h"
+#include <deki-editor/build/FirmwareBuilderBase.h>
 #include "ESPIDFToolchain.h"
 #include <thread>
 

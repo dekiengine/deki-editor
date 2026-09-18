@@ -1,7 +1,7 @@
 #include "DeployAnalysisPanel.h"
 #include <deki/LogSystem.h>
 #include <deki-editor/Paths.h>
-#include "core/ProjectPaths.h"
+#include <deki-editor/build/ProjectPaths.h>
 #include "AssetBrowserPanel.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>

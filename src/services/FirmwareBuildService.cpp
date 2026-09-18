@@ -8,7 +8,7 @@
 #include "EditorApp.h"
 #include "panels/PackageManagerPanel.h"
 #include "services/AssetExporter.h"
-#include "services/FeatureResolver.h"
+#include <deki-editor/FeatureResolver.h>
 
 #include <chrono>
 #include <filesystem>
