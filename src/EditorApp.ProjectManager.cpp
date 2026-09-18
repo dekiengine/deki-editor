@@ -31,7 +31,7 @@
 #include "EditorPlayModeFileSystem.h"
 #include <deki/providers/FileSystem.h>
 #include <deki/providers/Memory.h>
-#include <deki/platforms/desktop/DesktopMemoryProvider.h>
+#include <deki/providers/HostMemoryProvider.h>
 #include <deki/assets/AssetManager.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/LogSystem.h>
@@ -639,7 +639,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // These are also initialized in PlayMode, but we need them earlier for edit mode rendering
     if (!Deki::Memory::IsInitialized())
     {
-        Deki::Memory::SetBackend(new Deki::DesktopMemoryProvider());
+        Deki::Memory::SetBackend(new Deki::HostMemoryProvider());
     }
     Deki::Memory::Initialize();
 

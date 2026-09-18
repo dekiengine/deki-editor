@@ -343,7 +343,6 @@ void EmitEngineCoreSourceCollection(std::ostream& out,
     out << "file(GLOB_RECURSE DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/src/*.cpp\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/packages/.*\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/generated/.*\")\n";
-    out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/platforms/desktop/.*\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/editor/.*\")\n";
 
     for (const auto& exclusion : extraExclusions)
