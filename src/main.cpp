@@ -20,6 +20,10 @@
 #include "PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>  // DrawDockSeams, DrawAllTabTopAccents
 #include "services/CrashHandler.h"
+#include "services/builders/BuilderRegistry.h"
+#include "services/builders/espidf/ESPIDFBuilder.h"
+#include "services/builders/native/NativeBuilder.h"
+#include <memory>
 #include "services/ProgressModal.h"
 #include "services/EditorCapture.h"
 #include <deki/profiling/Profiler.h>
@@ -79,10 +83,30 @@ static void BuildDefaultDockLayout(ImGuiID dockspace_id, ImVec2 size)
     ImGui::DockBuilderFinish(dockspace_id);
 }
 
+namespace
+{
+// The builders that ship with the editor. Installed here rather than built
+// into BuilderRegistry so the registry names no concrete backend — it is the
+// same machinery a third-party or NDA'd backend arrives through, and it can
+// move into deki-editor.dll without depending on this executable.
+//
+// These two are next in line to become packages of their own; when they do,
+// this function goes away and nothing else changes.
+void RegisterEditorBuiltInBuilders(DekiEditor::BuilderRegistry& registry)
+{
+    registry.RegisterBuilder(std::make_unique<DekiEditor::NativeBuilder>());
+    registry.RegisterBuilder(std::make_unique<DekiEditor::ESPIDFBuilder>());
+}
+}  // namespace
+
 int main(int argc, char* argv[])
 {
     // Register crash handler as early as possible
     DekiEditor::CrashHandler::Initialize();
+
+    // Before anything can resolve a builder. Both the GUI and every CLI verb
+    // come through here, which is why it is the one place that does this.
+    DekiEditor::BuilderRegistry::Instance().SetBuiltInProvider(&RegisterEditorBuiltInBuilders);
 
     DekiEditor::CliOptions cli;
     const bool parsed = DekiEditor::ParseArgs(argc, argv, cli);

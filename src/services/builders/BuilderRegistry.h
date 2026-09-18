@@ -52,8 +52,15 @@ public:
     /// Scan for builder plugins. EnsureLoaded() is the normal entry point.
     void LoadBuilderPlugins();
 
-    /// Register built-in builders only. Kept public for tests.
-    void RegisterBuiltInBuilders();
+    /// Who supplies the builders that ship with the editor.
+    ///
+    /// The registry used to construct ESPIDFBuilder and NativeBuilder itself,
+    /// which meant this generic machinery named two concrete backends — and
+    /// would have made deki-editor.dll depend on the executable once it moved
+    /// there. The owner of those builders installs a provider instead, and the
+    /// registry knows nothing about what it will be handed.
+    using BuiltInProvider = void (*)(BuilderRegistry&);
+    void SetBuiltInProvider(BuiltInProvider provider);
 
     /// Destroy builders and unload plugin modules, in that order.
     ///
@@ -82,6 +89,7 @@ private:
     };
 
     std::vector<LoadedBuilder> m_Builders;
+    BuiltInProvider m_BuiltInProvider = nullptr;
     bool m_BuiltInsRegistered = false;
     bool m_PluginsLoaded = false;
     bool m_ShutDown = false;
