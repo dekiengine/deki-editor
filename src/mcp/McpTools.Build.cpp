@@ -155,7 +155,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                         { { "type", "object" },
                           { "required", nlohmann::json::array({ "component_id" }) },
                           { "properties",
-                            { { "component_id", { { "type", "string" }, { "description", "Component id, e.g. esp-idf" } } },
+                            { { "component_id", { { "type", "string" }, { "description", "Component id, from toolchain_status" } } },
                               { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -185,13 +185,12 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "display_name", { { "type", "string" }, { "description", "Human-readable name (default: the id)" } } },
                               { "screen_width", { { "type", "integer" } } },
                               { "screen_height", { { "type", "integer" } } },
-                              { "family", { { "type", "string" }, { "description", "Vendor family, e.g. espressif or native" } } },
+                              { "family", { { "type", "string" }, { "description", "Vendor family; descriptive only, never used to choose a backend" } } },
                               { "framework", { { "type", "string" }, { "description", "Build framework id, as claimed by an installed build backend. Any value is accepted; the backend validates it." } } },
-                              { "mcu_chip", { { "type", "string" }, { "description", "Chip id, e.g. esp32s3 or rp2040" } } },
+                              { "mcu_chip", { { "type", "string" }, { "description", "Chip id, in the backend's own spelling" } } },
                               { "cpu_freq_hz", { { "type", "integer" } } },
                               { "flash_size", { { "type", "integer" }, { "description", "Flash in bytes" } } },
                               { "psram_size", { { "type", "integer" }, { "description", "PSRAM in bytes, 0 for none" } } },
-                              { "psram_mode", { { "type", "string" }, { "description", "quad or oct" } } },
                               { "defines", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Preprocessor defines for the firmware build" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities this board offers packages, e.g. wifi, spi, sdl3" } } },
                               { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL" } } },
@@ -273,11 +272,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             if (args.contains("framework_options") &&
                                 args["framework_options"].is_object())
                                 config.frameworkOptions = args["framework_options"].dump();
-                            // No idf_target parameter: naming one framework's
-                            // setting in a generic tool is what framework_options
-                            // exists to avoid. Pass {"idfTarget": "esp32s3"} in it.
-                            if (args.contains("psram_mode"))
-                                config.SetOption("psramMode", args.value("psram_mode", std::string()));
+                            // No parameter names a framework's setting: that is
+                            // what framework_options exists to avoid.
                             if (args.contains("cpu_freq_hz"))
                                 config.cpuFreqHz = args["cpu_freq_hz"].get<uint32_t>();
                             if (args.contains("flash_size"))
@@ -401,7 +397,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                         { { "type", "object" },
                           { "required", nlohmann::json::array({ "package_id" }) },
                           { "properties",
-                            { { "package_id", { { "type", "string" }, { "description", "Package id, e.g. \"deki-sdl3\"" } } },
+                            { { "package_id", { { "type", "string" }, { "description", "Package id" } } },
                               { "editable", { { "type", "boolean" }, { "description", "true to develop it here (default), false to hand it back to the editor" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -485,7 +481,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "The complete capability list; replaces what was there" } } },
                               { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
-                              { "sdkconfig", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Extra ESP-IDF options as \"CONFIG_X=y\" lines, appended last so they win" } } },
+                              { "framework_options", { { "type", "object" }, { "description", "Settings for the platform's build backend, merged key by key into what it already has. The editor does not interpret them; the backend validates them when it builds." } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -521,13 +517,16 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                     if (r.is_string())
                                         config.requiresPackages.push_back(r.get<std::string>());
                             }
-                            if (args.contains("sdkconfig") && args["sdkconfig"].is_array())
+                            if (args.contains("framework_options") && args["framework_options"].is_object())
                             {
-                                std::vector<std::string> lines;
-                                for (const auto& line : args["sdkconfig"])
-                                    if (line.is_string())
-                                        lines.push_back(line.get<std::string>());
-                                config.SetOptionList("sdkconfig", lines);
+                                nlohmann::json options = nlohmann::json::parse(
+                                    config.frameworkOptions.empty() ? std::string("{}") : config.frameworkOptions,
+                                    nullptr, /*allow_exceptions*/ false);
+                                if (!options.is_object())
+                                    options = nlohmann::json::object();
+                                for (auto it = args["framework_options"].begin(); it != args["framework_options"].end(); ++it)
+                                    options[it.key()] = it.value();
+                                config.frameworkOptions = options.dump();
                             }
 
                             registryRef.RegisterPlatform(config);
@@ -626,8 +625,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                         } });
 
     registry.Register({ "toolchain_status",
-                        "Report toolchain components for a platform's builder (e.g. esp-idf, "
-                        "python, esptool), including install state and versions.",
+                        "Report the toolchain components of a platform's build backend, "
+                        "including install state and versions.",
                         { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -682,9 +681,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "install_toolchain_component",
                         "Download and install a toolchain component by id (see toolchain_status "
-                        "for valid ids, e.g. esp-idf). Runs the component's post-install step "
+                        "for valid ids). Runs the component's post-install step "
                         "when it declares one. This downloads gigabytes and can take a long time.",
-                        { { "type", "object" }, { "properties", { { "component_id", { { "type", "string" }, { "description", "Component id, e.g. \"esp-idf\"" } } }, { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } }, { "required", nlohmann::json::array({ "component_id" }) } },
+                        { { "type", "object" }, { "properties", { { "component_id", { { "type", "string" }, { "description", "Component id, from toolchain_status" } } }, { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } }, { "required", nlohmann::json::array({ "component_id" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string path = ResolveProjectPath(editor, args);

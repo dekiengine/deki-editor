@@ -5,6 +5,7 @@
 #include <fstream>
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include <set>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -207,93 +208,54 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 
     config.displayName = j.value("displayName", config.id);
 
-    // Load family (new format) or type (legacy format). Any spelling is
-    // accepted: the editor does not have a list of the world's targets.
-    if (j.contains("family"))
-    {
-        config.family = j.value("family", kDefaultFamily);
-        if (config.family.empty())
-            config.family = kDefaultFamily;
-    }
-    else if (j.contains("type"))
-    {
-        // Legacy format - convert type to family + mcuChip
-        std::string typeStr = j.value("type", "custom");
-        if (typeStr == "esp32s3")
-        {
-            config.family = "espressif";
-            config.mcuChip = "esp32s3";
-        }
-        else if (typeStr == "esp32")
-        {
-            config.family = "espressif";
-            config.mcuChip = "esp32";
-        }
-        else if (typeStr == "esp32c3")
-        {
-            config.family = "espressif";
-            config.mcuChip = "esp32c3";
-        }
-        else if (typeStr == "simulator")
-        {
-            config.family = "native";
-        }
-        else
-        {
-            config.family = kDefaultFamily;
-        }
-    }
+    // Any spelling is accepted: the editor does not have a list of the world's
+    // targets. (A pre-0.10 "type" key used to be translated here through a
+    // table of three chip names; no platform file has carried one since.)
+    config.family = j.value("family", kDefaultFamily);
+    if (config.family.empty())
+        config.family = kDefaultFamily;
 
-    // Load mcuChip if not already set by legacy conversion
-    if (config.mcuChip.empty())
-        config.mcuChip = j.value("mcuChip", "");
+    config.mcuChip = j.value("mcuChip", "");
     config.boardVariant = j.value("boardVariant", "");
 
-    // No default. The framework is what chooses a build backend, and guessing
-    // "espidf" meant a platform that forgot to say so was quietly built as an
-    // ESP-IDF one - for a console or a Tactility app, silently the wrong
-    // thing. Unset resolves to no builder and the build says so by name.
-    //
-    // Every platform JSON in the wild already carries it: the ones written
-    // before this defaulted to espidf and are migrated below, and the
-    // simulator sets "native" explicitly.
+    // No default, and no guess. The framework is what chooses a build backend;
+    // a platform that does not say resolves to no backend, and the build says
+    // so by name. It used to default to one framework, and then to be inferred
+    // from that framework's settings - the editor recognising a target by its
+    // keys is the same knowledge by another route.
     config.framework = j.value("framework", "");
-    if (config.framework.empty())
-    {
-        // Legacy: a file written when espidf was the assumed default. The
-        // family, or an ESP-specific setting, says what it really was.
-        const bool looksEspIdf = config.family == "espressif" || j.contains("idfTarget") ||
-                                 j.contains("sdkconfig") || j.contains("partitionTable");
-        if (looksEspIdf)
-        {
-            config.framework = "espidf";
-            DEKI_LOG_WARNING("Platform '%s': no \"framework\"; assuming \"espidf\" from its other "
-                             "settings. Add it explicitly - the guess will be removed.",
-                             config.id.c_str());
-        }
-    }
 
-    // Framework settings. The nested object is the shape we write; the
-    // top-level keys are what every platform JSON written before this change
-    // has, and they are read into the same place so nothing needs migrating by
-    // hand. One-way: SavePlatformToFile only ever writes the nested form.
+    // Framework settings. The nested "frameworkOptions" object is the shape we
+    // write. Platform files from before it existed keep those settings at the
+    // top level, and they are read into the same place so nothing needs
+    // migrating by hand. One-way: SavePlatformToFile only writes the nested
+    // form.
     //
-    // Their VALUES are not judged here. The editor does not know what an
-    // ESP-IDF target is; the owning builder says so through
-    // ITargetBuilder::ValidatePlatform and the build refuses. A bad value used
-    // to be silently cleared, which turned a typo into a confusing failure
-    // much further downstream.
+    // WHICH top-level keys are framework settings is decided without naming
+    // any: every key this loader does not own is the framework's. It used to
+    // be a list of nine of one framework's setting names, which meant the
+    // editor knew them, and that any other framework's older files lost theirs.
+    //
+    // Their VALUES are not judged here either. The owning backend says so
+    // through ITargetBuilder::ValidatePlatform and the build refuses. A bad
+    // value used to be silently cleared, which turned a typo into a confusing
+    // failure much further downstream.
     {
+        static const std::set<std::string> kOwnKeys = {
+            "id",           "displayName",  "family",        "framework",        "frameworkOptions",
+            "mcuChip",      "boardVariant", "flashSize",     "psramSize",        "cpuFreqHz",
+            "maxAppSize",   "screenWidth",  "screenHeight",  "displayDriver",    "displayBus",
+            "colorFormat",  "pins",         "defines",       "cFlags",           "cxxFlags",
+            "linkFlags",    "provides",     "requiresPackages", "requiredLibraries", "uploadBaudRate",
+            "bootScene" };
+
         json options = json::object();
         if (j.contains("frameworkOptions") && j["frameworkOptions"].is_object())
             options = j["frameworkOptions"];
 
-        static const char* kLegacyKeys[] = { "toolchainPrefix", "idfTarget",  "psramMode",
-                                             "useIramAttr",     "flashFreqHz", "debugInterface",
-                                             "uploadProtocol",  "partitionTable", "sdkconfig" };
-        for (const char* key : kLegacyKeys)
-            if (j.contains(key) && !options.contains(key))
-                options[key] = j[key];
+        for (auto it = j.begin(); it != j.end(); ++it)
+            if (kOwnKeys.count(it.key()) == 0 && !options.contains(it.key()))
+                options[it.key()] = it.value();
 
         if (!options.empty())
             config.frameworkOptions = options.dump();

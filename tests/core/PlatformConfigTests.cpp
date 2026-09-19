@@ -211,6 +211,44 @@ TEST(PlatformConfig, AnUnknownFrameworksOptionsSurviveUntouched)
     EXPECT_EQ(p->OptionU32("heapMb"), 512u);
 }
 
+TEST(PlatformConfig, TopLevelKeysTheEditorDoesNotOwnBelongToTheFramework)
+{
+    // Which top-level keys are framework settings is decided without naming
+    // any of them. It used to be a list of nine of one framework's keys, so a
+    // file for any other framework that kept its settings at the top level
+    // lost them on load.
+    PlatformDir d;
+    d.Write("pc_flat", R"({
+        "id": "pc_flat", "displayName": "flat", "family": "someconsole",
+        "framework": "someconsole-sdk", "screenWidth": 640,
+        "sdkRoot": "/opt/sdk", "devkitOnly": true,
+        "frameworkOptions": { "sdkRoot": "/nested/wins" }
+    })");
+
+    const PlatformConfig* p = Load(d, "pc_flat");
+    ASSERT_NE(p, nullptr);
+    EXPECT_TRUE(p->OptionBool("devkitOnly"));
+    // The nested form is the current one; a stray top-level copy does not override it.
+    EXPECT_EQ(p->Option("sdkRoot"), "/nested/wins");
+    // The editor's own keys stay the editor's.
+    EXPECT_EQ(p->screenWidth, 640);
+    EXPECT_EQ(p->Option("screenWidth", "absent"), "absent");
+}
+
+TEST(PlatformConfig, APlatformThatNamesNoFrameworkGetsNone)
+{
+    // Not guessed from the family or from settings that look like one
+    // framework's: that is the editor recognising a target by another route.
+    PlatformDir d;
+    d.Write("pc_silent", R"({
+        "id": "pc_silent", "displayName": "silent", "family": "espressif", "idfTarget": "esp32s3"
+    })");
+
+    const PlatformConfig* p = Load(d, "pc_silent");
+    ASSERT_NE(p, nullptr);
+    EXPECT_TRUE(p->framework.empty());
+}
+
 TEST(PlatformConfig, MissingOrMistypedOptionsGiveTheFallback)
 {
     PlatformConfig p;

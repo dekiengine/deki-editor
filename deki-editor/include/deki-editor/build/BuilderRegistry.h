@@ -13,7 +13,7 @@ namespace DekiEditor
 /**
  * @brief Registry that manages available firmware builders
  *
- * Holds built-in builders (like ESPIDFBuilder) and can load
+ * Holds the backends that packages and plugins contribute, and can load
  * builder DLL plugins from ~/.deki-editor/builders/.
  *
  * BuildPanel queries this registry to get the right builder

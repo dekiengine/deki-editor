@@ -37,19 +37,12 @@ inline uint32_t Pack(const ImVec4& c)
     return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f),
                           (uint8_t)(c.z * 255.0f), (uint8_t)(c.w * 255.0f));
 }
-// A prettier label for the families we happen to know, falling back to the
-// platform's own spelling. A lookup, not a switch: the editor has no list of
-// the world's targets, and an unknown family must still display as itself
-// rather than as "Custom".
+// The platform's own spelling. There was a table of five families here with
+// prettier labels; the editor has no list of the world's targets, and a family
+// it has heard of should not read differently from one it has not.
 std::string FamilyName(const std::string& family)
 {
-    if (family == "native") return "Desktop Simulator";
-    if (family == "espressif") return "Espressif";
-    if (family == "rp2040") return "RP2040";
-    if (family == "samd") return "SAMD";
-    if (family == "nrf") return "Nordic nRF52";
-    if (family.empty()) return "Custom";
-    return family;
+    return family.empty() ? "Custom" : family;
 }
 }  // namespace
 

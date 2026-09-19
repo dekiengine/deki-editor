@@ -62,8 +62,8 @@ enum class ToolchainComponentStatus
 
 struct ToolchainComponent
 {
-    std::string id;           // e.g., "esp-idf", "python", "gcc"
-    std::string displayName;  // e.g., "ESP-IDF SDK"
+    std::string id;           // the backend's own id for it: an SDK, an interpreter, a flash tool
+    std::string displayName;
     ToolchainComponentStatus status = ToolchainComponentStatus::NotInstalled;
     std::string installedVersion;
     std::string latestVersion;
