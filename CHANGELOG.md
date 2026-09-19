@@ -7,6 +7,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Changed
+- `deki-editor/ShellCommand.h`: `RunShellCommand`, one shell command line with its
+  output streamed back line by line and a cancel that reaches the whole process
+  tree, for the tool steps a build backend drives (an SDK installer, a checkout,
+  a vendor build script). The editor's toolchain setup step now uses it
+  instead of its own process-and-pipe code, and so can a backend.
 - **A toolchain component installed at a version other than the one its
   backend pins shows as needing an update**, without a network check. It used
   to count as installed. The ESP32 package uses this to require ESP-IDF 6.1.

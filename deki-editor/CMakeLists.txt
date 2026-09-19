@@ -50,6 +50,7 @@ set(EDITOR_DLL_SOURCES
     # one copy instead of compiling its own.
     src/ProcessLaunch.cpp
     src/SerialPorts.cpp
+    src/ShellCommand.cpp
     src/SafeNames.cpp
     src/VersionCompare.cpp
     src/BuilderDefinition.cpp

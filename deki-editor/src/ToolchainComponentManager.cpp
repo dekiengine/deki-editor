@@ -1,4 +1,5 @@
 #include <deki-editor/build/ToolchainComponentManager.h>
+#include <deki-editor/ShellCommand.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/EditorHttpUtils.h>
 #include <deki-editor/EditorSettings.h>
@@ -811,12 +812,12 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
         fullCommand = m_ToolchainsDir + "/" + commandPart;
     }
 
-#ifdef _WIN32
-    // Convert to backslashes for Windows cmd.exe
-    std::replace(fullCommand.begin(), fullCommand.end(), '/', '\\');
     std::string workDir = fs::path(fullCommand).parent_path().string();
+#ifdef _WIN32
+    std::replace(fullCommand.begin(), fullCommand.end(), '/', '\\');
+    std::replace(workDir.begin(), workDir.end(), '/', '\\');
 
-    // cmd /S /c "set "MSYSTEM=" && call "script.bat" args"
+    // set "MSYSTEM=" && call "script.bat" args
     //
     // MSYSTEM cleared for the child. It is inherited from every MSYS2 or Git
     // Bash session - the shell this editor's own compiler lives in - and a
@@ -826,112 +827,17 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     // left a new SDK with no compilers. The child is cmd.exe; only the
     // inherited variable said otherwise. (The ESP32 backend clears it the same
     // way for export.bat.)
-    //
-    // /S so cmd strips exactly the outer pair of quotes and keeps the ones
-    // around the script path, whatever it contains.
-    std::string cmdLine = "cmd /S /c \"set \"MSYSTEM=\" && call \"" + fullCommand + "\"";
+    std::string cmdLine = "set \"MSYSTEM=\" && call \"" + fullCommand + "\"";
+#else
+    std::string cmdLine = "\"" + fullCommand + "\"";
+#endif
     if (!argsPart.empty())
         cmdLine += " " + argsPart;
-    cmdLine += "\"";
 
     status("Running: " + cmdLine);
     status("Working directory: " + workDir);
 
-    // Create pipes for stdout/stderr capture
-    SECURITY_ATTRIBUTES sa = {};
-    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.bInheritHandle = TRUE;
-
-    HANDLE hReadPipe = nullptr, hWritePipe = nullptr;
-    if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0))
-    {
-        std::string err = "Failed to create output pipe";
-        BuildActivityFail(actCategory, err);
-        if (cb)
-        {
-            BuildProgress p;
-            p.state = BuildState::Failed;
-            p.error = err;
-            cb(p);
-        }
-        return;
-    }
-    SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
-
-    STARTUPINFOA si = {};
-    si.cb = sizeof(si);
-    si.hStdOutput = hWritePipe;
-    si.hStdError = hWritePipe;
-    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
-
-    PROCESS_INFORMATION pi = {};
-
-    BOOL created = CreateProcessA(
-        nullptr,
-        const_cast<char*>(cmdLine.c_str()),
-        nullptr, nullptr,
-        TRUE,              // inherit handles
-        CREATE_NO_WINDOW,  // no visible console
-        nullptr,
-        workDir.c_str(),
-        &si, &pi);
-
-    CloseHandle(hWritePipe);  // close write end in parent so ReadFile will EOF
-
-    if (!created)
-    {
-        CloseHandle(hReadPipe);
-        std::string err = "Failed to launch setup script (error " + std::to_string(GetLastError()) + ")";
-        BuildActivityFail(actCategory, err);
-        if (cb)
-        {
-            BuildProgress p;
-            p.state = BuildState::Failed;
-            p.error = err;
-            cb(p);
-        }
-        return;
-    }
-
-    // Read output line by line
-    std::string lineBuffer;
-    char buf[256];
-    DWORD bytesRead;
-    while (ReadFile(hReadPipe, buf, sizeof(buf) - 1, &bytesRead, nullptr) && bytesRead > 0)
-    {
-        buf[bytesRead] = '\0';
-        lineBuffer += buf;
-
-        size_t newlinePos;
-        while ((newlinePos = lineBuffer.find('\n')) != std::string::npos)
-        {
-            std::string line = lineBuffer.substr(0, newlinePos);
-            lineBuffer = lineBuffer.substr(newlinePos + 1);
-            while (!line.empty() && line.back() == '\r')
-                line.pop_back();
-            if (!line.empty())
-                status(line);
-        }
-    }
-
-    // Flush remaining
-    if (!lineBuffer.empty())
-    {
-        while (!lineBuffer.empty() && (lineBuffer.back() == '\r' || lineBuffer.back() == '\n'))
-            lineBuffer.pop_back();
-        if (!lineBuffer.empty())
-            status(lineBuffer);
-    }
-
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    DWORD exitCode = 1;
-    GetExitCodeProcess(pi.hProcess, &exitCode);
-
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    CloseHandle(hReadPipe);
+    const int exitCode = RunShellCommand(cmdLine, workDir, [&status](const std::string& line) { status(line); });
 
     if (exitCode == 0)
     {
@@ -949,7 +855,8 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     }
     else
     {
-        std::string err = "Setup script exited with code " + std::to_string(exitCode);
+        std::string err = exitCode < 0 ? "Failed to launch setup script"
+                                       : "Setup script exited with code " + std::to_string(exitCode);
         BuildActivityFail(actCategory, err);
         if (cb)
         {
@@ -959,68 +866,6 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
             cb(p);
         }
     }
-#else
-    // Unix: use popen
-    std::string cmdLine = "\"" + fullCommand + "\"";
-    if (!argsPart.empty())
-        cmdLine += " " + argsPart;
-
-    status("Running: " + cmdLine);
-
-    FILE* pipe = popen(cmdLine.c_str(), "r");
-    if (!pipe)
-    {
-        std::string err = "Failed to launch setup script";
-        BuildActivityFail(actCategory, err);
-        if (cb)
-        {
-            BuildProgress p;
-            p.state = BuildState::Failed;
-            p.error = err;
-            cb(p);
-        }
-        return;
-    }
-
-    char buffer[512];
-    while (fgets(buffer, sizeof(buffer), pipe))
-    {
-        std::string line(buffer);
-        while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
-            line.pop_back();
-        if (!line.empty())
-            status(line);
-    }
-
-    int exitCode = pclose(pipe);
-
-    if (exitCode == 0)
-    {
-        EditorSettings::SetBool("setup." + comp.id, true);
-        status("Setup completed successfully");
-        BuildActivityComplete(actCategory);
-        if (cb)
-        {
-            BuildProgress p;
-            p.state = BuildState::Completed;
-            p.statusText = comp.displayName + " setup complete";
-            p.progress = 1.0f;
-            cb(p);
-        }
-    }
-    else
-    {
-        std::string err = "Setup script exited with code " + std::to_string(exitCode);
-        BuildActivityFail(actCategory, err);
-        if (cb)
-        {
-            BuildProgress p;
-            p.state = BuildState::Failed;
-            p.error = err;
-            cb(p);
-        }
-    }
-#endif
 }
 
 // ============================================================================
