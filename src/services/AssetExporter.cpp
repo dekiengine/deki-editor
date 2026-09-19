@@ -202,6 +202,9 @@ bool AssetExporter::ExportToStorage(const std::unordered_set<std::string>& addit
         usedAssets.usedGuids.insert(guid);
     }
 
+    // Step 1.6: What those cannot load without (a frame's sheet, ...)
+    AddAssetDependencies(usedAssets);
+
     DEKI_LOG_INFO("Found %zu used assets (%zu force-included), %zu font usages",
                   usedAssets.usedGuids.size(), additionalGuids.size(), usedAssets.fontUsages.size());
 
@@ -353,6 +356,50 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
     }
 
     return collection;
+}
+
+// A sprite frame is not a file: it lives in its sheet. The compiled scene
+// already loads a frame through its sheet (it writes the sheet as the guid and
+// the frame as the source), and an animation plays frames of one sheet - but
+// the scan above reads the scene as saved, where a frame is referenced by its
+// own id alone, so the sheet was never exported. Every animated character
+// then rendered as nothing on a device, with no error: the sheet simply was
+// not there to load.
+void AssetExporter::AddAssetDependencies(AssetUsageCollection& collection)
+{
+    namespace fs = std::filesystem;
+    std::vector<std::string> pending(collection.usedGuids.begin(), collection.usedGuids.end());
+    auto add = [&](const std::string& guid)
+    {
+        if (!guid.empty() && collection.usedGuids.insert(guid).second)
+            pending.push_back(guid);
+    };
+
+    while (!pending.empty())
+    {
+        const std::string guid = pending.back();
+        pending.pop_back();
+
+        if (const SubAssetInfo* sub = m_Pipeline->GetSubAsset(guid))
+            add(sub->parentGuid);
+
+        const AssetInfo* info = m_Pipeline->GetAssetInfoByGuid(guid);
+        if (!info)
+            continue;
+        std::string ext = fs::path(info->path).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (ext != ".anim")
+            continue;
+
+        std::ifstream in(m_Pipeline->GetAbsolutePath(info->path));
+        const nlohmann::json anim = nlohmann::json::parse(in, nullptr, /*allow_exceptions=*/false);
+        if (!anim.is_object())
+        {
+            DEKI_LOG_WARNING("Export: animation %s is not readable JSON; its sheet may be missing", info->path.c_str());
+            continue;
+        }
+        add(anim.value("spritesheetGuid", std::string()));
+    }
 }
 
 void AssetExporter::CollectAssetsFromObject(Deki::Object* obj, AssetUsageCollection& collection)

@@ -74,6 +74,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **Animated characters were missing on every exported target.** A sprite
+  that shows one frame of a sheet refers to the frame's own id, and the
+  export scan read scenes as saved, so it never added the sheet the frame is
+  cut from (nor the sheet an `.anim` plays). The compiled scene already loads
+  a frame through its sheet, so on a device the sheet was simply absent and
+  the sprite drew nothing, with no error. The export now adds each frame's
+  sheet and each animation's sheet. Re-export (`--export`) to pick it up.
 - **No project configured on Linux.** The generated project build ordered the
   game DLL after its reflection codegen through a variable named for the
   tag's old spelling (`project/src`), which is never set. CMake 4.4 accepts the

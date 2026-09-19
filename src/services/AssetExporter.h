@@ -149,6 +149,13 @@ private:
     void CollectAssetsFromObject(Deki::Object* obj, AssetUsageCollection& collection);
 
     /**
+     * @brief Add what the collected assets cannot be loaded without: the
+     *        sheet a sprite frame is cut from, the sheet an animation plays.
+     *        Repeats until nothing new is added.
+     */
+    void AddAssetDependencies(AssetUsageCollection& collection);
+
+    /**
      * @brief Scan a component's properties for asset references using reflection
      * @param comp The component to scan
      * @param collection Output collection to add found assets to
