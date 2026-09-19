@@ -17,7 +17,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   to count as installed. The ESP32 package uses this to require ESP-IDF 6.1.
 - MCP `set_platform_provides` also takes `external_memory_size` and
   `display_name`, so an existing platform's memory can be changed without
-  editing its JSON.
+  editing its JSON, and `screen_width` with `screen_height` (both or
+  neither) for its resolution.
 - **The editor ships no build backend, and knows none.** Building for a target
   is done by a backend that arrives in a package's editor-side DLL (or as a
   plugin under `~/.deki-editor/builders/`, or a directory named by

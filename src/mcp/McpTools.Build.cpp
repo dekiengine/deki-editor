@@ -474,6 +474,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
                               { "external_memory_size", { { "type", "integer" }, { "description", "Bytes of memory beyond the internal heap the engine may allocate from (Deki::Memory::External), 0 for none. Grants packages the memory:external capability. Unchanged when omitted." } } },
                               { "display_name", { { "type", "string" }, { "description", "Human-readable name. Unchanged when omitted." } } },
+                              { "screen_width", { { "type", "integer" }, { "description", "Screen width in pixels, the size the game renders and exports assets at. Give with screen_height. Unchanged when omitted." } } },
+                              { "screen_height", { { "type", "integer" }, { "description", "Screen height in pixels. Give with screen_width. Unchanged when omitted." } } },
                               { "framework_options", { { "type", "object" }, { "description", "Settings for the platform's build backend, merged key by key into what it already has. The editor does not interpret them; the backend validates them when it builds." } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -524,6 +526,22 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             if (args.contains("display_name") && args["display_name"].is_string() &&
                                 !args["display_name"].get<std::string>().empty())
                                 config.displayName = args["display_name"].get<std::string>();
+                            if (args.contains("screen_width") || args.contains("screen_height"))
+                            {
+                                // Both or neither: half a resolution change leaves a
+                                // platform that matches no screen.
+                                auto dimension = [&args](const char* key) -> int32_t
+                                {
+                                    if (!args.contains(key) || !args[key].is_number_integer() ||
+                                        args[key].get<long long>() <= 0 || args[key].get<long long>() > 16384)
+                                        throw std::runtime_error(
+                                            "screen_width and screen_height are given together, as pixel counts "
+                                            "from 1 to 16384");
+                                    return args[key].get<int32_t>();
+                                };
+                                config.screenWidth = dimension("screen_width");
+                                config.screenHeight = dimension("screen_height");
+                            }
                             if (args.contains("framework_options") && args["framework_options"].is_object())
                             {
                                 nlohmann::json options = nlohmann::json::parse(
@@ -546,7 +564,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             return { { "platformId", id },
                                      { "provides", config.provides },
                                      { "requiresPackages", config.requiresPackages },
-                                     { "capabilities", caps } };
+                                     { "capabilities", caps },
+                                     { "screenWidth", config.screenWidth },
+                                     { "screenHeight", config.screenHeight } };
                         } });
 
     // Per-target content. "requires" is a BUILD-time key: the exporter drops
