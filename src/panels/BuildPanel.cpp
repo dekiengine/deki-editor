@@ -702,7 +702,14 @@ ITargetBuilder* BuildPanel::GetActiveBuilder()
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)
         return nullptr;
-    return BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
+    ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
+    // One backend serves every platform of its framework, and what it answers
+    // (can it deploy, to what, is its toolchain in) can depend on which one.
+    // Tell it which before asking - but never under a running operation,
+    // which reads the platform it was started with.
+    if (builder && !builder->IsBuilding())
+        builder->SetPlatformConfig(*platform);
+    return builder;
 }
 
 }  // namespace DekiEditor

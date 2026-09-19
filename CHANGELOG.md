@@ -68,6 +68,21 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **No project configured on Linux.** The generated project build ordered the
+  game DLL after its reflection codegen through a variable named for the
+  tag's old spelling (`project/src`), which is never set. CMake 4.4 accepts the
+  empty `add_dependencies()` that left, so on Windows the ordering was simply
+  missing; Ubuntu 24.04's CMake 3.28 rejects it, so every project failed to
+  configure and opened with no components. It now names the tag it registers.
+- A build backend is told which platform it is serving before it is asked
+  anything about it. One backend serves every platform of its framework, and
+  the toolchain status and install, and whether and where it can deploy, were
+  asked of it with no platform or with the last one it built - so a backend
+  whose platforms differ (a device app needing ESP-IDF, its simulator not)
+  answered for the wrong one. The Build panel binds it too, though never
+  under a running build.
+- `BuilderRegistry.h` did not include `<cstdint>` for `SIZE_MAX`, which only
+  MinGW's headers happened to supply; the Linux editor did not compile.
 - A toolchain's setup step did nothing and reported success when the editor
   was started from Git Bash or MSYS2: ESP-IDF's installer exits quietly when
   it sees `MSYSTEM`, so a new ESP-IDF was left without compilers. Setup

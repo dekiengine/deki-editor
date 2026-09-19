@@ -4,8 +4,9 @@
 
 #include <deki-editor/build/TargetBuilder.h>
 #include <deki-editor/build/BuilderDispatch.h>
-#include <vector>
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace DekiEditor
 {

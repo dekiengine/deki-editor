@@ -117,6 +117,15 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
         return false;
     }
 
+    // Bound before anything is asked of it. One backend serves every platform
+    // of its framework, and its answers - which toolchain components, whether
+    // they are installed, whether it can deploy - can depend on which one: a
+    // Tactility device app needs ESP-IDF, its simulator does not. Unbound, it
+    // described whatever platform it was last given, or none. Never under a
+    // running operation, which reads the platform it was started with.
+    if (!ctx.builder->IsBuilding())
+        ctx.builder->SetPlatformConfig(*ctx.platform);
+
     return true;
 }
 
@@ -487,12 +496,15 @@ FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPat
     if (!Prepare(projectPath, platformId, ctx, err))
         return Failure(err);
 
-    if (!ctx.builder->SupportsDeploy())
-        return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
     if (ctx.builder->IsBuilding())
         return Failure("A build or deploy is already in progress for this builder.");
 
+    // Told its platform before it is asked whether it can deploy: one backend
+    // serves every platform of its framework, and whether there is a deploy
+    // step can differ between them (a device app vs. its simulator).
     ctx.builder->SetPlatformConfig(*ctx.platform);
+    if (!ctx.builder->SupportsDeploy())
+        return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
     ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
     return Started(ctx);

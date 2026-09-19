@@ -742,9 +742,15 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // Create plugin DLL (game code only)
     file << "# Create plugin DLL (game code only)\n";
     file << "add_library(${PROJECT_NAME} SHARED ${GAME_SOURCES})\n";
-    // Same regen-before-compile edge as the package targets (tag "project/src"), which
+    // Same regen-before-compile edge as the package targets (tag "src" above), which
     // is more than one target when the game's component set is big enough to shard.
-    file << "add_dependencies(${PROJECT_NAME} ${DEKI_RC_TARGETS_project_src})\n";
+    // It named the tag's pre-flatten spelling, "project/src", whose variable is
+    // never set: the edge was silently missing. CMake 4.4 accepts the empty
+    // add_dependencies() that left; 3.28 (Ubuntu 24.04's) rejects it, so no
+    // project configured on Linux.
+    file << "if(DEKI_RC_TARGETS_src)\n";
+    file << "    add_dependencies(${PROJECT_NAME} ${DEKI_RC_TARGETS_src})\n";
+    file << "endif()\n";
     file << "target_precompile_headers(${PROJECT_NAME} PRIVATE \"${DEKI_PCH_HEADER}\")\n";
     // PluginLoader loads the plugin DLL directly from bin/ (no shadow copy), so
     // Windows file-locks it while the editor is running. We build into a temp
