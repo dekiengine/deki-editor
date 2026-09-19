@@ -166,9 +166,9 @@ def main(argv):
 
     packages = a.packages
     if packages is None:
-        # "packages" is the name everywhere in the tooling; the checkout beside
-        # this repo is still called "modules" and a rename is blocked, so both
-        # are tried. Without a hit the package pages silently lose everything
+        # "packages" is the name everywhere in the tooling. The checkout beside
+        # this repo was called "modules" until 2026-09-19, so a checkout that
+        # was never renamed still works. Without a hit the package pages silently lose everything
         # that comes from package.json and CHANGELOG.md -- minEngine, the
         # feature list and the changelog section -- with no warning, which is
         # how they shipped without one.

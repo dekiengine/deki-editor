@@ -472,6 +472,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "The complete capability list; replaces what was there" } } },
                               { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
+                              { "external_memory_size", { { "type", "integer" }, { "description", "Bytes of memory beyond the internal heap the engine may allocate from (Deki::Memory::External), 0 for none. Grants packages the memory:external capability. Unchanged when omitted." } } },
+                              { "display_name", { { "type", "string" }, { "description", "Human-readable name. Unchanged when omitted." } } },
                               { "framework_options", { { "type", "object" }, { "description", "Settings for the platform's build backend, merged key by key into what it already has. The editor does not interpret them; the backend validates them when it builds." } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -508,6 +510,20 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                     if (r.is_string())
                                         config.requiresPackages.push_back(r.get<std::string>());
                             }
+                            // The other settings create_platform takes, so an existing
+                            // platform can be changed through the CLI instead of by
+                            // editing its JSON. create_platform only ever makes a new one.
+                            if (args.contains("external_memory_size"))
+                            {
+                                if (!args["external_memory_size"].is_number_unsigned() &&
+                                    !(args["external_memory_size"].is_number_integer() &&
+                                      args["external_memory_size"].get<long long>() >= 0))
+                                    throw std::runtime_error("external_memory_size must be a non-negative byte count");
+                                config.externalMemorySize = args["external_memory_size"].get<uint32_t>();
+                            }
+                            if (args.contains("display_name") && args["display_name"].is_string() &&
+                                !args["display_name"].get<std::string>().empty())
+                                config.displayName = args["display_name"].get<std::string>();
                             if (args.contains("framework_options") && args["framework_options"].is_object())
                             {
                                 nlohmann::json options = nlohmann::json::parse(

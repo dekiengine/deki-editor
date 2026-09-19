@@ -205,6 +205,20 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
         comp.status = installed ? ToolchainComponentStatus::Installed
                                 : ToolchainComponentStatus::NotInstalled;
 
+        // The pinned version is what an install puts down, so it is what the
+        // backend was written against. An install of another version - left
+        // behind when a package moved its pin - is out of date, and says so
+        // without a network check. Only "Check for Updates" could flag it
+        // before, by comparing against the newest release, which is not the
+        // same question.
+        const std::string installedVer = installed ? ReadInstalledVersion(m_ToolchainsDir, compDef.id)
+                                                   : std::string();
+        if (!installedVer.empty())
+            comp.installedVersion = installedVer;
+        if (!installedVer.empty() && !compDef.fallback.version.empty() &&
+            NormalizeVersion(installedVer) != NormalizeVersion(compDef.fallback.version))
+            comp.status = ToolchainComponentStatus::UpdateAvailable;
+
         // Fill version info from cache
         {
             std::lock_guard<std::mutex> lock(m_VersionMutex);
@@ -216,6 +230,8 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
 
                 if (installed && it->second.updateAvailable)
                     comp.status = ToolchainComponentStatus::UpdateAvailable;
+                if (!installedVer.empty())
+                    comp.installedVersion = installedVer;
             }
             else
             {
@@ -499,6 +515,9 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
         // Record the installed version so "Check for Updates" can compare it to the
         // latest release and flag outdated components.
         WriteInstalledVersion(m_ToolchainsDir, comp.id, installVersion);
+        // These files are new; whatever setup ran was for the ones they
+        // replaced. (The post-install step runs right after this anyway.)
+        EditorSettings::SetBool("setup." + comp.id, false);
         {
             std::lock_guard<std::mutex> lock(m_VersionMutex);
             auto& info = m_VersionCache[comp.id];
@@ -797,10 +816,23 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     std::replace(fullCommand.begin(), fullCommand.end(), '/', '\\');
     std::string workDir = fs::path(fullCommand).parent_path().string();
 
-    // Build command: cmd /c "script.bat" args
-    std::string cmdLine = "cmd /c \"" + fullCommand + "\"";
+    // cmd /S /c "set "MSYSTEM=" && call "script.bat" args"
+    //
+    // MSYSTEM cleared for the child. It is inherited from every MSYS2 or Git
+    // Bash session - the shell this editor's own compiler lives in - and a
+    // batch script may take it to mean it is not running under cmd.exe. The
+    // ESP-IDF installer does exactly that: `if defined MSYSTEM goto :__end`,
+    // which EXITS 0 having installed nothing, so setup reported "complete" and
+    // left a new SDK with no compilers. The child is cmd.exe; only the
+    // inherited variable said otherwise. (The ESP32 backend clears it the same
+    // way for export.bat.)
+    //
+    // /S so cmd strips exactly the outer pair of quotes and keeps the ones
+    // around the script path, whatever it contains.
+    std::string cmdLine = "cmd /S /c \"set \"MSYSTEM=\" && call \"" + fullCommand + "\"";
     if (!argsPart.empty())
         cmdLine += " " + argsPart;
+    cmdLine += "\"";
 
     status("Running: " + cmdLine);
     status("Working directory: " + workDir);

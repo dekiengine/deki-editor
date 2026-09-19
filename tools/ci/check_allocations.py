@@ -42,7 +42,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_PACKAGES = REPO.parent / "modules"
+DEFAULT_PACKAGES = REPO.parent / "packages"
 
 # The engine's own runtime is held to the same rule as a package's, and for
 # longer: a `realloc` in the engine reaches every project on every board,

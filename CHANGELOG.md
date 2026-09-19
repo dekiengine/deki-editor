@@ -7,6 +7,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Changed
+- **A toolchain component installed at a version other than the one its
+  backend pins shows as needing an update**, without a network check. It used
+  to count as installed. The ESP32 package uses this to require ESP-IDF 6.1.
+- MCP `set_platform_provides` also takes `external_memory_size` and
+  `display_name`, so an existing platform's memory can be changed without
+  editing its JSON.
 - **The editor ships no build backend, and knows none.** Building for a target
   is done by a backend that arrives in a package's editor-side DLL (or as a
   plugin under `~/.deki-editor/builders/`, or a directory named by
@@ -57,6 +63,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- A toolchain's setup step did nothing and reported success when the editor
+  was started from Git Bash or MSYS2: ESP-IDF's installer exits quietly when
+  it sees `MSYSTEM`, so a new ESP-IDF was left without compilers. Setup
+  scripts run with `MSYSTEM` cleared, as the builds already did.
+- `tools/ci/check_allocations.py` still looked for packages in `../modules`
+  after the checkout was renamed to `../packages`, and passed while checking
+  only the engine.
 - `--toolchain-status` and `--install-toolchain` answered "No build backends
   are registered at all" for every project once backends had moved into
   packages, because they ran without opening the project. They open it now.
