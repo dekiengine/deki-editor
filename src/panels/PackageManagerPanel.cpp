@@ -482,7 +482,7 @@ void PackageManagerPanel::DrawPackageDetails()
     bool packageUsesFramework = false;
     if (config)
     {
-        if (pkg.packageType == PackageType::ESPIDFComponent)
+        if (pkg.packageType == PackageType::FrameworkComponent)
         {
             packageUsesFramework = true;
         }
@@ -589,9 +589,14 @@ void PackageManagerPanel::DrawPackageDetails()
 
                 for (const auto& [platform, deps] : m_PackageDetails.dependencies)
                 {
+                    // The framework's own id, prettified only where the
+                    // editor happens to know a nicer spelling. A framework it
+                    // has never heard of must still display as itself.
                     std::string platformLabel = platform;
                     if (platform == "espidf")
                         platformLabel = "ESP-IDF";
+                    else if (platform == "native")
+                        platformLabel = "Desktop";
 
                     if (ui.TreeNodeEx(platformLabel.c_str(), EditorUI::TreeDefaultOpen))
                     {
@@ -1137,7 +1142,7 @@ void PackageManagerPanel::OnInstallClicked()
     {
         installer = m_PackageManager->GetInstallerByPlatform("Deki Package");
     }
-    else if (m_SelectedPackage->packageType == PackageType::ESPIDFComponent)
+    else if (m_SelectedPackage->packageType == PackageType::FrameworkComponent)
     {
         installer = m_PackageManager->GetInstallerByPlatform("ESP-IDF");
     }
@@ -1225,7 +1230,7 @@ void PackageManagerPanel::OnRemoveClicked()
     {
         installer = m_PackageManager->GetInstallerByPlatform("Deki Package");
     }
-    else if (m_SelectedPackage->packageType == PackageType::ESPIDFComponent)
+    else if (m_SelectedPackage->packageType == PackageType::FrameworkComponent)
     {
         installer = m_PackageManager->GetInstallerByPlatform("ESP-IDF");
     }
@@ -1472,7 +1477,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 
     // Same installer routing as OnInstallClicked.
     IPackageInstaller* installer = nullptr;
-    if (pkg->packageType == PackageType::ESPIDFComponent)
+    if (pkg->packageType == PackageType::FrameworkComponent)
     {
         installer = m_PackageManager->GetInstallerByPlatform("ESP-IDF");
     }

@@ -26,9 +26,15 @@
 // Package type (which installer manages it)
 enum class PackageType
 {
-    Unknown,         // Not yet determined
-    DekiPackage,     // Deki engine package (has package.cmake, installed to project/packages/)
-    ESPIDFComponent  // ESP-IDF component (managed via idf_component.yml)
+    Unknown,          // Not yet determined
+    DekiPackage,      // Deki package (has package.cmake, installed to project/packages/)
+
+    // Managed by a build framework's OWN package manager rather than by Deki
+    // - an ESP-IDF component in idf_component.yml, say. Named for the shape
+    // rather than for ESP-IDF, which used to be the only one the editor knew:
+    // the installer that handles these now comes from a package, so the
+    // editor no longer knows which framework it is.
+    FrameworkComponent
 };
 
 // Package information

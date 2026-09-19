@@ -320,8 +320,10 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         std::string typeStr = entry.value("packageType", "unknown");
         if (typeStr == "deki_package")
             pkg.packageType = PackageType::DekiPackage;
-        else if (typeStr == "espidf_component")
-            pkg.packageType = PackageType::ESPIDFComponent;
+        // "espidf_component" is what locks written before the rename say.
+        // Read both, write only the new spelling below.
+        else if (typeStr == "framework_component" || typeStr == "espidf_component")
+            pkg.packageType = PackageType::FrameworkComponent;
 
         // Deliberately not read back, even from a lock that still carries it.
         // Trusting a cache nobody refreshes is how a package resolves to a
@@ -450,7 +452,7 @@ void PackageManager::SavePackages(const std::string& projectPath)
         switch (t)
         {
             case PackageType::DekiPackage: return "deki_package";
-            case PackageType::ESPIDFComponent: return "espidf_component";
+            case PackageType::FrameworkComponent: return "framework_component";
             default: return "unknown";
         }
     };
@@ -539,7 +541,7 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
         }
         else if (installer->GetPlatformName() == "ESP-IDF")
         {
-            pkgType = PackageType::ESPIDFComponent;
+            pkgType = PackageType::FrameworkComponent;
         }
 
         for (const auto& installed : installedPackages)
@@ -626,7 +628,7 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
     // would have pulled it regardless.
     for (auto& pkg : m_Packages)
     {
-        if (pkg.packageType != PackageType::ESPIDFComponent) continue;
+        if (pkg.packageType != PackageType::FrameworkComponent) continue;
         if (pkg.isInstalled) continue;
         if (!pkg.declaredInManifest && pkg.lockedVersion.empty()) continue;
 

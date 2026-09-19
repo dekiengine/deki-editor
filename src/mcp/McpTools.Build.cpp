@@ -185,9 +185,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "screen_width", { { "type", "integer" } } },
                               { "screen_height", { { "type", "integer" } } },
                               { "family", { { "type", "string" }, { "description", "Vendor family, e.g. espressif or native" } } },
-                              { "framework", { { "type", "string" }, { "description", "Build framework id, as claimed by an installed build backend (e.g. espidf, native). Any value is accepted; the backend validates it." } } },
-                              { "mcu_chip", { { "type", "string" }, { "description", "Chip, e.g. esp32s3" } } },
-                              { "idf_target", { { "type", "string" }, { "description", "ESP-IDF target, e.g. esp32s3" } } },
+                              { "framework", { { "type", "string" }, { "description", "Build framework id, as claimed by an installed build backend. Any value is accepted; the backend validates it." } } },
+                              { "mcu_chip", { { "type", "string" }, { "description", "Chip id, e.g. esp32s3 or rp2040" } } },
                               { "cpu_freq_hz", { { "type", "integer" } } },
                               { "flash_size", { { "type", "integer" }, { "description", "Flash in bytes" } } },
                               { "psram_size", { { "type", "integer" }, { "description", "PSRAM in bytes, 0 for none" } } },
@@ -273,8 +272,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             if (args.contains("framework_options") &&
                                 args["framework_options"].is_object())
                                 config.frameworkOptions = args["framework_options"].dump();
-                            if (args.contains("idf_target"))
-                                config.SetOption("idfTarget", args.value("idf_target", std::string()));
+                            // No idf_target parameter: naming one framework's
+                            // setting in a generic tool is what framework_options
+                            // exists to avoid. Pass {"idfTarget": "esp32s3"} in it.
                             if (args.contains("psram_mode"))
                                 config.SetOption("psramMode", args.value("psram_mode", std::string()));
                             if (args.contains("cpu_freq_hz"))

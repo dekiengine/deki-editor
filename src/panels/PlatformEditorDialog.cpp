@@ -411,10 +411,8 @@ static const char* GetFrameworkIcon(const char* builderIcon, const std::string& 
     if (builderIcon != nullptr)
         return builderIcon;
     if (frameworkId.empty())
-        return ICON_TI_TOOL;               // the Custom row
-    if (frameworkId == "native")
-        return ICON_TI_DEVICE_DESKTOP;
-    return ICON_TI_CPU;
+        return ICON_TI_TOOL;  // the Custom row
+    return ICON_TI_CPU;       // a backend that did not pick one
 }
 
 static std::string GetFrameworkDescription(const std::string& builderDesc,
@@ -422,12 +420,10 @@ static std::string GetFrameworkDescription(const std::string& builderDesc,
 {
     if (!builderDesc.empty())
         return builderDesc;
+    // Only the Custom row is the editor's own; every real framework is
+    // described by the backend that provides it.
     if (frameworkId.empty())
         return "Configure a custom platform with manual settings";
-    if (frameworkId == "native")
-        return "Run your project on desktop with SDL3 simulator";
-    if (frameworkId == "espidf")
-        return "Build for ESP32, ESP32-S3, and other Espressif chips";
     return "";
 }
 

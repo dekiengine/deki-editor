@@ -200,7 +200,7 @@ IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg,
 {
     if (pkg.packageType == PackageType::DekiPackage)
         return mgr.GetInstallerByPlatform("Deki Package");
-    if (pkg.packageType == PackageType::ESPIDFComponent)
+    if (pkg.packageType == PackageType::FrameworkComponent)
         return mgr.GetInstallerByPlatform("ESP-IDF");
 
     IPackageInstaller* installer = mgr.GetInstallerByPlatform("Deki Package");
@@ -236,7 +236,7 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     }
 
     int missing = 0;
-    bool anyEspIdf = false;
+    bool anyFrameworkComponent = false;
     printf("%-40s %-12s %s\n", "PACKAGE", "STATE", "VERSION");
     for (const auto& p : pkgs)
     {
@@ -245,18 +245,18 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
         // manifest, fetched by ESP-IDF at build time. Reporting it as declared
         // says what is actually true, and it is never counted as missing —
         // there is no per-project install step it could be missing from.
-        const bool espIdf = (p.packageType == PackageType::ESPIDFComponent);
-        if (espIdf) anyEspIdf = true;
-        if (!p.isInstalled && !espIdf) ++missing;
+        const bool frameworkComponent = (p.packageType == PackageType::FrameworkComponent);
+        if (frameworkComponent) anyFrameworkComponent = true;
+        if (!p.isInstalled && !frameworkComponent) ++missing;
 
         printf("%-40s %-12s %s%s\n",
                p.id.c_str(),
-               espIdf ? "declared" : (p.isInstalled ? "installed" : "missing"),
+               frameworkComponent ? "declared" : (p.isInstalled ? "installed" : "missing"),
                p.installedVersion.empty() ? "-" : p.installedVersion.c_str(),
                p.resolvedBy.empty() ? "" : (" (required by " + p.resolvedBy + ")").c_str());
     }
     printf("\n%zu package(s), %d missing\n", pkgs.size(), missing);
-    if (anyEspIdf)
+    if (anyFrameworkComponent)
         printf("declared = ESP-IDF component, fetched when firmware is built\n");
     return missing;
 }

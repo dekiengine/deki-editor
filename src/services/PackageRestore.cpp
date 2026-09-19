@@ -199,7 +199,7 @@ IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg,
 {
     if (pkg.packageType == PackageType::DekiPackage)
         return mgr.GetInstallerByPlatform("Deki Package");
-    if (pkg.packageType == PackageType::ESPIDFComponent)
+    if (pkg.packageType == PackageType::FrameworkComponent)
         return mgr.GetInstallerByPlatform("ESP-IDF");
 
     IPackageInstaller* installer = mgr.GetInstallerByPlatform("Deki Package");
