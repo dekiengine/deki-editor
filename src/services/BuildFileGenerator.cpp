@@ -641,7 +641,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "        target_link_libraries(${PACKAGE_TARGET} PRIVATE ${LIB_PATH})\n";
     file << "    endforeach()\n";
     file << "    # Link third-party\n";
-    file << "    foreach(LIB_NAME freetyped imgui SDL3-static)\n";
+    file << "    foreach(LIB_NAME imgui freetyped SDL3-static)\n";
     file << "        if(${LIB_NAME}_found)\n";
     file << "            target_link_libraries(${PACKAGE_TARGET} PRIVATE ${${LIB_NAME}_found})\n";
     file << "        endif()\n";

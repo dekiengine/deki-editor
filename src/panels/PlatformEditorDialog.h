@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/build/BuilderWidgets.h>
+
 #include <string>
 #include <vector>
 #include <memory>

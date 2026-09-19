@@ -27,6 +27,11 @@ public:
     /// Register a built-in builder (takes ownership)
     void RegisterBuilder(std::unique_ptr<ITargetBuilder> builder);
 
+    /// Register a builder created by a loaded package module, with that
+    /// module's destroy function. Its vtable and operator delete live over
+    /// there, so the registry must never `delete` it.
+    void RegisterPluginBuilder(ITargetBuilder* builder, void (*destroy)(ITargetBuilder*));
+
     /// The builder claiming a framework id ("espidf", "native", ...).
     /// nullptr when nobody does; see BuilderDispatch.h for why there is no
     /// fallback.

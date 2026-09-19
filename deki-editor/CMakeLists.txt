@@ -61,6 +61,7 @@ set(EDITOR_DLL_SOURCES
     src/ComponentUsageScan.cpp
     src/BuildStripSettings.cpp
     src/FeatureResolver.cpp
+    src/BuilderWidgets.cpp
 )
 
 # Create shared library (DLL)

@@ -3,6 +3,7 @@
 
 #include "ObjectInternal.h"
 #include "EditorApp.h"
+#include "services/BuildersFromPackages.h"
 #include <algorithm>
 #include <regex>
 #include <deki-editor/build/ProjectPaths.h>
@@ -319,6 +320,13 @@ bool EditorApp::OpenProject(const std::string& path)
         // via REGISTER_EDITOR static initializers at load time, but those entries
         // must be forwarded to CustomEditorRegistry for hit-testing / rendering.
         RegisterEngineEditors();
+
+        // Build backends arrive the same way: a package that ships one exports
+        // the plugin entry points from the DLL just loaded. The editor has no
+        // backend of its own, so without this a project can build nothing.
+        // (Installers are picked up by PackageManager's own constructor, which
+        // runs per instance rather than once per open.)
+        RegisterBuildersFromPackages(*m_PackageLoader);
     }
 
     // Re-apply settings now that package-owned sections exist.

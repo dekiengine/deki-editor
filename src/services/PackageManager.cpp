@@ -1,4 +1,7 @@
 #include "PackageManager.h"
+#include "BuildersFromPackages.h"
+#include "PackageLoader.h"
+#include "../EditorApp.h"
 #include <deki-editor/SafeNames.h>
 #include "PackageManifest.h"
 #include <deki-editor/VersionCompare.h>
@@ -7,7 +10,6 @@
 #include <deki/LogSystem.h>
 #include "sources/GitHubPackageSource.h"
 #include "sources/DekiRegistrySource.h"
-#include "installers/ESPIDFInstaller.h"
 #include "installers/DekiPackageInstaller.h"
 #include "../EditorApp.h"
 #include <nlohmann/json.hpp>
@@ -54,7 +56,19 @@ DekiRegistrySource* PackageManager::GetRegistrySource()
 void PackageManager::InitDefaultInstallers()
 {
     m_Installers.push_back(std::make_unique<DekiPackageInstaller>());
-    m_Installers.push_back(std::make_unique<ESPIDFInstaller>());
+    // No ESP-IDF installer here any more: it arrives from
+    // deki-esp32-integration, the same way a build backend does.
+    // DekiPackageInstaller stays because a Deki package is what this editor
+    // fundamentally manages.
+    //
+    // Per instance, not once per project open: a PackageManager is
+    // constructed ad hoc wherever one is needed, and each must see the same
+    // installers.
+    if (m_App != nullptr)
+    {
+        if (DekiEditor::PackageLoader* loader = m_App->GetPackageLoader())
+            DekiEditor::RegisterInstallersFromPackages(*loader, *this);
+    }
 }
 
 void PackageManager::RegisterSource(std::unique_ptr<IPackageSource> source)
@@ -76,7 +90,23 @@ IPackageSource* PackageManager::GetSourceForUrl(const std::string& url)
 
 void PackageManager::RegisterInstaller(std::unique_ptr<IPackageInstaller> installer)
 {
-    m_Installers.push_back(std::move(installer));
+    m_Installers.push_back(std::shared_ptr<IPackageInstaller>(std::move(installer)));
+}
+
+void PackageManager::RegisterPluginInstaller(IPackageInstaller* installer,
+                                             void (*destroy)(IPackageInstaller*))
+{
+    if (installer == nullptr || destroy == nullptr)
+        return;
+    m_Installers.push_back(std::shared_ptr<IPackageInstaller>(installer, destroy));
+}
+
+bool PackageManager::HasInstallerFor(const std::string& platformName) const
+{
+    for (const auto& installer : m_Installers)
+        if (installer && installer->GetPlatformName() == platformName)
+            return true;
+    return false;
 }
 
 IPackageInstaller* PackageManager::GetInstallerForProject(const std::string& projectPath)

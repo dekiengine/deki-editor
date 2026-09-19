@@ -614,6 +614,7 @@ set(EDITOR_SOURCES
     src/services/ClipboardService.h
     src/services/ProjectRegistry.cpp
     src/services/ProjectRegistry.h
+    src/services/BuildersFromPackages.cpp
     src/services/FirmwareBuildService.cpp
     src/services/FirmwareBuildService.h
     src/services/PluginToolchain.cpp
@@ -665,14 +666,6 @@ set(EDITOR_SOURCES
     src/widgets/Toast.h
     src/services/ToolHost.cpp
     src/services/ToolHost.h
-    src/services/builders/espidf/ESPIDFBuilder.cpp
-    src/services/builders/espidf/ESPIDFBuilder.h
-    src/services/builders/espidf/ESPIDFToolchain.cpp
-    src/services/builders/espidf/ESPIDFToolchain.h
-    src/services/builders/native/NativeBuilder.cpp
-    src/services/builders/native/NativeBuilder.h
-    src/services/builders/native/NativeToolchain.cpp
-    src/services/builders/native/NativeToolchain.h
     src/services/AssetDeployer.cpp
     src/services/AssetDeployer.h
     src/panels/ProjectSettingsPanel.cpp
@@ -716,8 +709,6 @@ set(EDITOR_SOURCES
     src/services/sources/GitHubPackageSource.h
     src/services/sources/DekiRegistrySource.cpp
     src/services/sources/DekiRegistrySource.h
-    src/services/installers/ESPIDFInstaller.cpp
-    src/services/installers/ESPIDFInstaller.h
     src/services/installers/DekiPackageInstaller.h
     src/services/ProfilingService.cpp
     src/services/ProfilingService.h
@@ -913,8 +904,6 @@ add_custom_command(TARGET DekiEditor POST_BUILD
         "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/tabler-icons.ttf"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:DekiEditor>/resources/builders"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_SOURCE_DIR}/resources/builders/espidf.json"
-        "$<TARGET_FILE_DIR:DekiEditor>/resources/builders/espidf.json"
 )
 
 # =============================================================================
