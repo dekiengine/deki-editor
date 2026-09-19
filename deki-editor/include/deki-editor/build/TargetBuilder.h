@@ -2,6 +2,7 @@
 
 #include <string>
 #include <functional>
+#include <utility>
 #include <vector>
 #include <memory>
 
@@ -80,7 +81,7 @@ enum class BuildState
 {
     Idle,
     Building,
-    Flashing,
+    Deploying,
     Completed,
     Failed
 };
@@ -99,6 +100,13 @@ struct BuildOptions
     bool enableInternalLogging = false;  // Enable verbose engine-internal logs (DEKI_LOG_INTERNAL)
 };
 
+/// One thing a build can be deployed to, as the backend enumerates them.
+struct DeployTarget
+{
+    std::string id;     // what Deploy() is given back: "COM5", an address, a serial number
+    std::string label;  // what the selector shows; the id when empty
+};
+
 // Callback for real-time output lines
 using BuildOutputCallback = std::function<void(const std::string& line, bool isError)>;
 using BuildProgressCallback = std::function<void(const BuildProgress&)>;
@@ -111,12 +119,17 @@ using BuildProgressCallback = std::function<void(const BuildProgress&)>;
 // ============================================================================
 
 /**
- * @brief Abstract interface for firmware builders
+ * @brief A build backend: everything the editor knows about one kind of target
  *
- * Each MCU family (ESP-IDF, Pico SDK, etc.) implements this
- * interface to provide platform-specific build, flash, and toolchain
- * management. Builders can be built-in (linked) or loaded as DLL plugins
- * from ~/.deki-editor/builders/.
+ * One implementation per build framework - a microcontroller SDK, the desktop
+ * the editor runs on, an app format for someone else's firmware, a console
+ * SDK. It generates the target's build files, drives its toolchain and knows
+ * what getting a build onto a device means there.
+ *
+ * The editor ships none. A backend arrives in a package's editor-side DLL
+ * (see BuilderPlugin.h) or as a plugin under ~/.deki-editor/builders/, so a
+ * target can be added - including one whose SDK cannot be published - without
+ * an editor release.
  */
 class ITargetBuilder
 {
@@ -132,20 +145,44 @@ public:
                        BuildOutputCallback outputCallback = nullptr,
                        BuildProgressCallback progressCallback = nullptr) = 0;
 
-    /// Flash firmware to device
-    virtual void Flash(const std::string& projectPath, const std::string& port,
-                       BuildOutputCallback outputCallback = nullptr,
-                       BuildProgressCallback progressCallback = nullptr) = 0;
-
     /// Clean build directory
     virtual void Clean(const std::string& projectPath,
                        BuildOutputCallback outputCallback = nullptr,
                        BuildProgressCallback progressCallback = nullptr) = 0;
 
-    /// Set target chip within the builder's family
-    virtual void SetTarget(const std::string& projectPath, const std::string& target,
-                           BuildOutputCallback outputCallback = nullptr,
-                           BuildProgressCallback progressCallback = nullptr) = 0;
+    // ========================================================================
+    // Deploy - getting a finished build onto something
+    // ========================================================================
+    //
+    // This was Flash(projectPath, port): every target was assumed to be a
+    // microcontroller on a serial port. The desktop backend implemented it as
+    // "run the executable" and ignored the port; an app format for someone
+    // else's firmware had to stub it. What the step IS, what it is called and
+    // what it can be aimed at all belong to the backend.
+
+    /// Whether this target has a deploy step at all. Pure: a backend says so
+    /// either way, rather than inheriting a button that cannot work.
+    virtual bool SupportsDeploy() const = 0;
+
+    /// The verb for the button and the log: "Flash", "Run", "Install".
+    virtual const char* GetDeployLabel() const { return "Deploy"; }
+
+    /// What a deploy can be aimed at right now - serial ports, devkits on the
+    /// network, paired devices. Empty means there is nothing to choose (the
+    /// machine the editor runs on), and the UI shows no selector.
+    virtual std::vector<DeployTarget> EnumerateDeployTargets() const { return {}; }
+
+    /// Deploy the last build. deployTargetId is a DeployTarget::id from
+    /// EnumerateDeployTargets, or empty to let the backend pick.
+    virtual void Deploy(const std::string& projectPath, const std::string& deployTargetId,
+                        BuildOutputCallback outputCallback = nullptr,
+                        BuildProgressCallback progressCallback = nullptr)
+    {
+        (void)projectPath;
+        (void)deployTargetId;
+        (void)outputCallback;
+        (void)progressCallback;
+    }
 
     /// Cancel current operation
     virtual void Cancel() = 0;
@@ -240,58 +277,66 @@ public:
     // Identity
     // ========================================================================
 
-    /// Human-readable builder name (e.g., "ESP-IDF", "Pico SDK")
+    /// Human-readable backend name
     virtual const char* GetName() const = 0;
+
+    /// What the Build panel shows about a platform aimed at this backend, as
+    /// label/value rows: a chip and its memory, a devkit model, nothing at
+    /// all. The editor used to print "Chip", "Flash" and "PSRAM" itself,
+    /// which is one kind of target's idea of a summary.
+    virtual std::vector<std::pair<std::string, std::string>> DescribePlatform(const PlatformConfig& config) const
+    {
+        (void)config;
+        return {};
+    }
 
     /// Problems with a platform aimed at this builder, empty when it is fine.
     ///
-    /// The builder owns its own settings, so it owns validating them: the
-    /// editor must not know that an ESP-IDF target has to be one of six chip
-    /// names. A new Espressif chip is then a builder update, not an editor
-    /// release.
+    /// The backend owns its own settings, so it owns validating them: the
+    /// editor must not know which chip names a framework accepts. A new chip
+    /// is then a backend update, not an editor release.
     virtual std::vector<std::string> ValidatePlatform(const PlatformConfig& config) const
     {
         (void)config;
         return {};
     }
 
-    /// The build framework this builder serves: "espidf", "native",
-    /// "tactility". THE dispatch key — a platform names its framework and the
-    /// registry hands it to whoever claims that id.
+    /// The build framework this backend serves, as a lowercase id. THE
+    /// dispatch key: a platform names its framework and the registry hands it
+    /// to whoever claims that id.
     ///
-    /// Not the MCU family, which cannot distinguish two builders for the same
-    /// silicon: a Tactility board IS an ESP32-S3, so a family key would hand
-    /// its build to ESP-IDF. Not GetPlatformKey() either, which reads the
+    /// Not the vendor family, which cannot distinguish two backends for the
+    /// same silicon: an app format that runs on a chip and that chip's own SDK
+    /// share a family and must not share a build. Not GetPlatformKey() either, which reads the
     /// platform config this builder was already given and so cannot be used to
     /// choose it.
     virtual std::string GetFrameworkId() const = 0;
-
-    /// Whether this target is flashed at all.
-    ///
-    /// Not every target is an MCU you write an image to. A Tactility app is
-    /// installed over Wi-Fi, from an SD card or through an on-device store; a
-    /// console has its own deployment entirely. The UI hides its flash
-    /// controls rather than offering a button that cannot work.
-    virtual bool SupportsFlash() const { return true; }
 
     /// Optional self-description for the platform editor's builder picker, so
     /// a third-party builder is not anonymous in the UI.
     virtual const char* GetIcon() const { return nullptr; }
     virtual const char* GetDescription() const { return ""; }
 
-    /// List of supported chip targets (e.g., {"esp32", "esp32s3", "esp32c3"})
-    virtual std::vector<std::string> GetSupportedTargets() const = 0;
-
     /// Get the builder's project directory for a given project path.
-    /// e.g., "projectPath/builders/esp-idf" for ESP-IDF
     virtual std::string GetBuildDirectory(const std::string& projectPath) const = 0;
+
+    /// Where the editor writes the boot payload before Build(): the compiled
+    /// project settings (dproject.bin) and the platform's boot scene. What
+    /// becomes of the directory is the backend's business - packed into a
+    /// flash filesystem image, copied beside an executable, bundled into an
+    /// app archive. Empty means this target takes no boot payload, and the
+    /// editor writes none.
+    ///
+    /// Pure on purpose. The editor used to decide this itself, as
+    /// "<build directory>/spiffs_data" - one target's partition name, which
+    /// every backend then had to know to look for.
+    virtual std::string GetBootPayloadDirectory(const std::string& projectPath) const = 0;
 
     // ========================================================================
     // Package compatibility
     // ========================================================================
 
     /// Platform key for resolving dependencies in package.json / .deki-package.json
-    /// e.g., "espidf", "pico-sdk", "devkitpro"
     virtual std::string GetPlatformKey() const = 0;
 
     /// Check if a package is compatible with this builder given its metadata file.

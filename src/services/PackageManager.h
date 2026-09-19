@@ -67,11 +67,25 @@ public:
     void RegisterPluginInstaller(IPackageInstaller* installer,
                                  void (*destroy)(IPackageInstaller*));
 
-    /// Whether an installer already claims this platform name.
-    bool HasInstallerFor(const std::string& platformName) const;
+    /// The id of the editor's own installer, the one that clones Deki
+    /// packages into <project>/packages. The only installer the editor knows.
+    static constexpr const char* kDekiInstallerId = "deki";
+
+    /// Whether an installer already claims this id.
+    bool HasInstaller(const std::string& installerId) const;
+    IPackageInstaller* GetInstallerById(const std::string& installerId);
     IPackageInstaller* GetInstallerForProject(const std::string& projectPath);
     std::vector<IPackageInstaller*> GetAllInstallersForProject(const std::string& projectPath);
-    IPackageInstaller* GetInstallerByPlatform(const std::string& platformName);
+
+    /// The installer that manages `pkg`, or nullptr with the reason in whyNot.
+    ///
+    /// The one place this is decided. It used to be written out in the panel
+    /// (three times), the restore pass and the CLI, and every copy sent a
+    /// FrameworkComponent to an installer looked up by the display name of one
+    /// particular framework - so a second framework's component manager could
+    /// be registered and still never be handed anything.
+    IPackageInstaller* GetInstallerFor(const PackageEntry& pkg, const std::string& projectPath,
+                                       std::string& whyNot);
 
     // Package operations
     bool AddPackageFromUrl(const std::string& url, PackageEntry& outInfo);

@@ -35,8 +35,7 @@ void PrintUsage(const char* program)
     printf("editor's first open, because it is the same work.\n");
     printf("\n");
     printf("The exceptions, which read the project directory and nothing else, are\n");
-    printf("--new-project, --packages-list, --list-platforms, --toolchain-status and\n");
-    printf("--install-toolchain.\n");
+    printf("--new-project, --packages-list and --list-platforms.\n");
     printf("\n");
     printf("Options:\n");
     printf("  --help, -h            Show this help message\n");
@@ -77,13 +76,15 @@ void PrintUsage(const char* program)
     printf("\n");
     printf("Firmware (headless):\n");
     printf("  --build-firmware      Build firmware for the active platform\n");
-    printf("  --flash               Flash previously built firmware to a device\n");
+    printf("  --deploy              Deploy the last build as its backend defines: flash, run, install\n");
+    printf("                        (--flash is accepted as the same thing)\n");
     printf("  --clean               Clean the firmware build directory\n");
     printf("  --list-platforms      List platforms available to the project (JSON)\n");
     printf("  --toolchain-status    Show toolchain component status (JSON)\n");
-    printf("  --install-toolchain <id>  Install a toolchain component (e.g. esp-idf)\n");
+    printf("  --install-toolchain <id>  Install a toolchain component (ids: --toolchain-status)\n");
     printf("  --platform <id>       Override the platform (default: activePlatformId)\n");
-    printf("  --port <port>         Serial port for --flash (default: auto-detect)\n");
+    printf("  --deploy-target <id>  What to deploy to, e.g. a serial port (default: the backend chooses;\n");
+    printf("                        --port is accepted as the same thing)\n");
     printf("\n");
     printf("MCP:\n");
     printf("  --mcp                 Start the MCP server (SSE, http://localhost:3000/sse)\n");
@@ -101,10 +102,10 @@ void PrintUsage(const char* program)
     printf("  %s --packages-restore /path/to/project Install missing packages\n", program);
     printf("  %s --packages-add https://github.com/dekiengine/deki-2d /path/to/project\n", program);
     printf("  %s --list-platforms /path/to/project\n", program);
-    printf("  %s --install-toolchain esp-idf /path/to/project\n", program);
+    printf("  %s --toolchain-status --platform <platform-id> /path/to/project\n", program);
     printf("  %s --build-firmware /path/to/project\n", program);
-    printf("  %s --build-firmware --platform native_simulator /path/to/project\n", program);
-    printf("  %s --flash --port COM5 /path/to/project\n", program);
+    printf("  %s --build-firmware --platform <platform-id> /path/to/project\n", program);
+    printf("  %s --deploy --deploy-target COM5 /path/to/project\n", program);
     printf("  %s --mcp /path/to/project             Open editor with MCP server running\n", program);
 }
 
@@ -150,9 +151,9 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.firmwareBuild = true;
         }
-        else if (strcmp(argv[i], "--flash") == 0)
+        else if (strcmp(argv[i], "--deploy") == 0 || strcmp(argv[i], "--flash") == 0)
         {
-            o.flash = true;
+            o.deploy = true;
         }
         else if (strcmp(argv[i], "--clean") == 0)
         {
@@ -174,9 +175,9 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.platformId = takeValue(i, "--platform");
         }
-        else if (strcmp(argv[i], "--port") == 0)
+        else if (strcmp(argv[i], "--deploy-target") == 0 || strcmp(argv[i], "--port") == 0)
         {
-            o.serialPort = takeValue(i, "--port");
+            o.deployTarget = takeValue(i, argv[i]);
         }
         else if (strcmp(argv[i], "--mcp") == 0)
         {
@@ -278,7 +279,7 @@ bool HasCommand(const CliOptions& o)
            o.listTools || o.toolName || o.scriptPath ||
            o.dumpMetadataOut ||
            o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId ||
-           o.firmwareBuild || o.flash || o.clean ||
+           o.firmwareBuild || o.deploy || o.clean ||
            o.packagesList || o.listPlatforms || o.toolchainStatus ||
            o.installToolchainId || o.newProjectName;
 }
@@ -295,11 +296,15 @@ bool IsLightCommand(const CliOptions& o)
     // booting would install the missing ones first and there would be nothing
     // left to report.
     //
-    // The three toolchain/platform verbs go through FirmwareBuildService, which
-    // loads the project and the platform registry itself. They describe the
-    // machine and the board packs, neither of which a project open changes.
-    return o.packagesList || o.listPlatforms || o.toolchainStatus ||
-           o.installToolchainId;
+    // --list-platforms reads platform files: the project's and the board
+    // packs'. A project open changes neither.
+    //
+    // --toolchain-status and --install-toolchain used to be here too, on the
+    // reasoning that a toolchain describes the machine. It describes a build
+    // BACKEND, and backends arrive from the project's packages now - so without
+    // the open there is nobody to ask, and both verbs answered "No build
+    // backends are registered at all" for every project.
+    return o.packagesList || o.listPlatforms;
 }
 
 int RunLightCommand(const CliOptions& o)
@@ -310,10 +315,6 @@ int RunLightCommand(const CliOptions& o)
         return CmdPackagesList(o.projectPath);
     if (o.listPlatforms)
         return CmdListPlatforms(o.projectPath);
-    if (o.toolchainStatus)
-        return CmdToolchainStatus(o.projectPath, o.platformId);
-    if (o.installToolchainId)
-        return CmdInstallToolchain(o.projectPath, o.platformId, o.installToolchainId);
 
     printf("Error: no light command to run (this is a bug)\n");
     return 1;
@@ -378,12 +379,16 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
         return CmdExportAssets(editor);
     if (o.build)
         return CmdBuildAssets(editor);
+    if (o.toolchainStatus)
+        return CmdToolchainStatus(o.projectPath, o.platformId);
+    if (o.installToolchainId)
+        return CmdInstallToolchain(o.projectPath, o.platformId, o.installToolchainId);
     if (o.clean)
         return CmdClean(editor, o.platformId);
     if (o.firmwareBuild)
         return CmdFirmwareBuild(editor, o.platformId);
-    if (o.flash)
-        return CmdFlash(editor, o.platformId, o.serialPort);
+    if (o.deploy)
+        return CmdDeploy(editor, o.platformId, o.deployTarget);
 
     // Everything requested has already run (e.g. --packages-add on its own,
     // whose install and rebuild happened above).

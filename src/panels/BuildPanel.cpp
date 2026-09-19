@@ -1,5 +1,4 @@
 #include "BuildPanel.h"
-#include "../services/SerialPorts.h"
 #include <deki-editor/Paths.h>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
@@ -31,12 +30,6 @@ BuildPanel::BuildPanel(EditorApp* app)
 {
     // Register built-in builders (idempotent)
     BuilderRegistry::Instance().EnsureLoaded();
-    // Enumerate available serial ports
-    m_AvailablePorts = EnumeratePorts();
-    if (!m_AvailablePorts.empty())
-    {
-        m_SelectedPort = m_AvailablePorts[0];
-    }
 
     // Set default platform
     auto platforms = PlatformRegistry::Instance().GetAvailablePlatforms();
@@ -93,11 +86,11 @@ void BuildPanel::Draw()
         return;
     }
 
-    // Deferred flash after build completes (must run on main thread)
-    if (m_PendingFlash)
+    // Deferred deploy after build completes (must run on main thread)
+    if (m_PendingDeploy)
     {
-        m_PendingFlash = false;
-        StartFlash();
+        m_PendingDeploy = false;
+        StartDeploy();
     }
 
     DrawToolbar();
@@ -195,7 +188,7 @@ void BuildPanel::DrawToolbar()
 
     if (ImGui::Button("Build"))
     {
-        m_FlashAfterBuild = false;
+        m_DeployAfterBuild = false;
         StartBuild();
     }
 
@@ -203,20 +196,25 @@ void BuildPanel::DrawToolbar()
 
     ImGui::SameLine();
 
-    // Flash, only for targets that are flashed at all. Not every target is an
-    // MCU you write an image to: a Tactility app is installed over Wi-Fi or
-    // from an SD card, and a console has its own deployment entirely. Hiding
-    // the buttons beats offering one that cannot work.
+    // Deploy, in the active backend's own words: its verb on the button, its
+    // targets in the selector. This was a "Flash" button and a serial-port
+    // list for every target, which is one kind of target's idea of deploying
+    // - the desktop backend took the port and ignored it. A backend with no
+    // deploy step gets no button, and one with nothing to choose between gets
+    // no selector.
     ITargetBuilder* const activeBuilder = GetActiveBuilder();
-    const bool canFlash = activeBuilder == nullptr || activeBuilder->SupportsFlash();
+    if (activeBuilder != m_DeployTargetsOwner)
+        RefreshDeployTargets();
 
-    if (canFlash)
+    if (activeBuilder != nullptr && activeBuilder->SupportsDeploy())
     {
+        const std::string verb = activeBuilder->GetDeployLabel();
+
         if (isBusy) ImGui::BeginDisabled();
 
-        if (ImGui::Button("Flash"))
+        if (ImGui::Button(verb.c_str()))
         {
-            StartFlash();
+            StartDeploy();
         }
 
         if (isBusy) ImGui::EndDisabled();
@@ -225,42 +223,52 @@ void BuildPanel::DrawToolbar()
 
         if (isBusy) ImGui::BeginDisabled();
 
-        if (ImGui::Button("Build & Flash"))
+        if (ImGui::Button(("Build & " + verb).c_str()))
         {
-            m_FlashAfterBuild = true;
+            m_DeployAfterBuild = true;
             StartBuild();
         }
 
         if (isBusy) ImGui::EndDisabled();
-    }
 
-    ImGui::SameLine();
+        ImGui::SameLine();
 
-    // Port selector (combo dropdown)
-    ImGui::SetNextItemWidth(m_App->Dpi(100));
-    if (ImGui::BeginCombo("##Port", m_SelectedPort.c_str()))
-    {
-        for (size_t i = 0; i < m_AvailablePorts.size(); ++i)
+        if (!m_DeployTargets.empty())
         {
-            bool selected = (m_AvailablePorts[i] == m_SelectedPort);
-            if (ImGui::Selectable(m_AvailablePorts[i].c_str(), selected))
+            auto labelOf = [](const DeployTarget& t) -> const std::string&
+            { return t.label.empty() ? t.id : t.label; };
+
+            std::string current = m_SelectedDeployTarget;
+            for (const DeployTarget& t : m_DeployTargets)
+                if (t.id == m_SelectedDeployTarget)
+                    current = labelOf(t);
+
+            ImGui::SetNextItemWidth(m_App->Dpi(100));
+            if (ImGui::BeginCombo("##DeployTarget", current.c_str()))
             {
-                m_SelectedPort = m_AvailablePorts[i];
-                m_SelectedPortIndex = static_cast<int>(i);
+                for (const DeployTarget& t : m_DeployTargets)
+                {
+                    const bool selected = (t.id == m_SelectedDeployTarget);
+                    if (ImGui::Selectable(labelOf(t).c_str(), selected))
+                        m_SelectedDeployTarget = t.id;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
             }
-            if (selected)
-                ImGui::SetItemDefaultFocus();
+
+            ImGui::SameLine();
         }
-        ImGui::EndCombo();
-    }
 
-    ImGui::SameLine();
-    if (ImGui::Button("Refresh Ports"))
-    {
-        m_AvailablePorts = EnumeratePorts();
-    }
+        // Offered even with an empty list: plugging a device in is how the
+        // list stops being empty.
+        if (ImGui::Button("Refresh"))
+        {
+            RefreshDeployTargets();
+        }
 
-    ImGui::SameLine();
+        ImGui::SameLine();
+    }
 
     // Clean button
     if (isBusy) ImGui::BeginDisabled();
@@ -303,7 +311,7 @@ void BuildPanel::StartBuild()
     {
         ActivityPanel::LogError("Build", "No project loaded!");
         ActivityPanel::FailProcess("Build", "No project loaded");
-        m_FlashAfterBuild = false;
+        m_DeployAfterBuild = false;
         return;
     }
 
@@ -316,7 +324,7 @@ void BuildPanel::StartBuild()
     {
         ActivityPanel::LogError("Build", "No builder available for this platform.");
         ActivityPanel::FailProcess("Build", "No builder available");
-        m_FlashAfterBuild = false;
+        m_DeployAfterBuild = false;
         return;
     }
 
@@ -328,7 +336,7 @@ void BuildPanel::StartBuild()
     options.enableLogging = m_EnableLogging;
     options.enableInternalLogging = m_EnableInternalLogging;
 
-    // Toolchain check, SPIFFS payload, package defines, build files. Shared
+    // Toolchain check, boot payload, package defines, build files. Shared
     // with the CLI so a firmware image built from a terminal is the image this
     // button produces — see FirmwareBuildService::PrepareBuild.
     const FirmwareOpResult prepared = FirmwareBuildService::PrepareBuild(
@@ -345,7 +353,7 @@ void BuildPanel::StartBuild()
     {
         ActivityPanel::LogError("Build", prepared.error);
         ActivityPanel::FailProcess("Build", prepared.error);
-        m_FlashAfterBuild = false;
+        m_DeployAfterBuild = false;
         return;
     }
 
@@ -365,48 +373,67 @@ void BuildPanel::StartBuild()
             if (progress.state == BuildState::Completed)
             {
                 ActivityPanel::CompleteProcess("Build");
-                if (m_FlashAfterBuild)
+                if (m_DeployAfterBuild)
                 {
-                    m_FlashAfterBuild = false;
-                    m_PendingFlash = true;
+                    m_DeployAfterBuild = false;
+                    m_PendingDeploy = true;
                 }
             }
             else if (progress.state == BuildState::Failed)
             {
-                m_FlashAfterBuild = false;
+                m_DeployAfterBuild = false;
                 ActivityPanel::FailProcess("Build", progress.error);
             } });
 }
 
-void BuildPanel::StartFlash()
+void BuildPanel::RefreshDeployTargets()
 {
     ITargetBuilder* builder = GetActiveBuilder();
-    if (builder && m_App->GetProject())
+    m_DeployTargetsOwner = builder;
+    m_DeployTargets = (builder != nullptr && builder->SupportsDeploy()) ? builder->EnumerateDeployTargets()
+                                                                         : std::vector<DeployTarget>{};
+
+    bool stillOffered = false;
+    for (const DeployTarget& t : m_DeployTargets)
+        if (t.id == m_SelectedDeployTarget)
+            stillOffered = true;
+    if (!stillOffered)
+        m_SelectedDeployTarget = m_DeployTargets.empty() ? std::string() : m_DeployTargets.front().id;
+}
+
+void BuildPanel::StartDeploy()
+{
+    ITargetBuilder* builder = GetActiveBuilder();
+    if (builder && m_App->GetProject() && builder->SupportsDeploy())
     {
+        // The Activity panel's process name is the backend's verb, so the log
+        // reads "Flash" for a board and "Run" for the desktop.
+        const std::string verb = builder->GetDeployLabel();
         if (!builder->IsToolchainInstalled())
         {
-            ActivityPanel::LogError("Flash", builder->GetToolchainStatus());
-            ActivityPanel::FailProcess("Flash", "Toolchain not installed");
+            ActivityPanel::LogError(verb, builder->GetToolchainStatus());
+            ActivityPanel::FailProcess(verb, "Toolchain not installed");
         }
         else
         {
-            ActivityPanel::Log("Flash", "Flashing to " + m_SelectedPort + "...");
-            ActivityPanel::SetCancelCallback("Flash", [builder]()
+            ActivityPanel::Log(verb, m_SelectedDeployTarget.empty() ? verb + "..."
+                                                                    : verb + " -> " + m_SelectedDeployTarget + "...");
+            ActivityPanel::SetCancelCallback(verb, [builder]()
                                              { builder->Cancel(); });
-            builder->Flash(m_App->GetProject()->GetPath(), m_SelectedPort, [](const std::string& line, bool isError)
+            builder->Deploy(m_App->GetProject()->GetPath(), m_SelectedDeployTarget, [verb](const std::string& line, bool isError)
                            {
                     if (isError)
-                        ActivityPanel::LogError("Flash", line);
+                        ActivityPanel::LogError(verb, line);
                     else
-                        ActivityPanel::Log("Flash", line); }, [this](const BuildProgress& progress)
+                        ActivityPanel::Log(verb, line); }, [this, verb](const BuildProgress& progress)
                            {
-                    m_IsUploading = (progress.state == BuildState::Flashing);
+                    m_IsUploading = (progress.state == BuildState::Deploying);
                     m_BuildProgress = progress.progress;
                     m_BuildStatus = progress.statusText;
                     if (progress.state == BuildState::Completed)
-                        ActivityPanel::CompleteProcess("Flash");
+                        ActivityPanel::CompleteProcess(verb);
                     else if (progress.state == BuildState::Failed)
-                        ActivityPanel::FailProcess("Flash", progress.error); });
+                        ActivityPanel::FailProcess(verb, progress.error); });
         }
     }
 }
@@ -591,25 +618,16 @@ void BuildPanel::DrawPlatformDetails()
     // The platform's own spelling: the editor has no list of families.
     ImGui::Text("%s", platform->family.empty() ? "custom" : platform->family.c_str());
 
-    if (!platform->mcuChip.empty())
+    // Whatever the backend thinks is worth saying about its own kind of
+    // target. The editor printed "Chip", "Flash" and "PSRAM" here itself.
+    if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
     {
-        ImGui::TextDisabled("Chip:");
-        ImGui::SameLine();
-        ImGui::Text("%s", platform->mcuChip.c_str());
-    }
-
-    if (platform->flashSize > 0)
-    {
-        ImGui::TextDisabled("Flash:");
-        ImGui::SameLine();
-        ImGui::Text("%u MB", platform->flashSize / (1024 * 1024));
-    }
-
-    if (platform->psramSize > 0)
-    {
-        ImGui::TextDisabled("PSRAM:");
-        ImGui::SameLine();
-        ImGui::Text("%u MB", platform->psramSize / (1024 * 1024));
+        for (const auto& [label, value] : describer->DescribePlatform(*platform))
+        {
+            ImGui::TextDisabled("%s:", label.c_str());
+            ImGui::SameLine();
+            ImGui::Text("%s", value.c_str());
+        }
     }
 
     if (platform->screenWidth > 0 && platform->screenHeight > 0)
@@ -685,11 +703,6 @@ ITargetBuilder* BuildPanel::GetActiveBuilder()
     if (!platform)
         return nullptr;
     return BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
-}
-
-std::vector<std::string> BuildPanel::EnumeratePorts()
-{
-    return EnumerateSerialPorts();
 }
 
 }  // namespace DekiEditor

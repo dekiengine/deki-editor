@@ -48,6 +48,7 @@ set(EDITOR_DLL_SOURCES
     # Support the build machinery needs, promoted so a package's builder links
     # one copy instead of compiling its own.
     src/ProcessLaunch.cpp
+    src/SerialPorts.cpp
     src/SafeNames.cpp
     src/VersionCompare.cpp
     src/BuilderDefinition.cpp

@@ -7,9 +7,10 @@
 // discovery, the UI's model, restore - stays in the application; only the
 // interface a package implements lives here.
 //
-// ESP-IDF component installation used to be built into PackageManager, so the
-// editor knew one framework's package manager by name. It is just another
-// IPackageInstaller now, contributed by deki-esp32-integration.
+// A build framework's own component manager used to be built into
+// PackageManager, so the editor knew one framework's package manager by name.
+// It is just another IPackageInstaller now, contributed by the package that
+// ships that framework's backend, and found by the id it declares.
 //
 // These types are in the GLOBAL namespace, matching where they have always
 // lived. Moving them into DekiEditor as a side effect of this split would
@@ -29,11 +30,10 @@ enum class PackageType
     Unknown,          // Not yet determined
     DekiPackage,      // Deki package (has package.cmake, installed to project/packages/)
 
-    // Managed by a build framework's OWN package manager rather than by Deki
-    // - an ESP-IDF component in idf_component.yml, say. Named for the shape
-    // rather than for ESP-IDF, which used to be the only one the editor knew:
-    // the installer that handles these now comes from a package, so the
-    // editor no longer knows which framework it is.
+    // Managed by a build framework's OWN package manager rather than by Deki:
+    // a component the framework fetches itself at build time, say. WHICH
+    // framework is PackageEntry::installer, the id of the installer that owns
+    // the entry; the editor never knows more than that id.
     FrameworkComponent
 };
 
@@ -56,6 +56,11 @@ struct DEKI_EDITOR_API PackageEntry
     std::string url;  // Source URL (GitHub repo URL)
     PackageSourceType source = PackageSourceType::GitHub;
     PackageType packageType = PackageType::Unknown;
+    // IPackageInstaller::GetId() of the installer that manages this entry.
+    // Empty until something has determined it. For a FrameworkComponent this
+    // is the only thing that says whose component it is - two frameworks can
+    // each have a component manager, and both produce FrameworkComponents.
+    std::string installer;
     bool isInstalled = false;
     std::vector<std::string> requiredPackages;  // Package-to-package deps (from "requires" in package.json/registry)
     std::string resolvedBy;                     // If auto-resolved, which package caused it (empty = user-added)
@@ -128,6 +133,15 @@ class IPackageInstaller
 {
 public:
     virtual ~IPackageInstaller() = default;
+
+    /// Stable identity, written to project files (the lock's "installer" and,
+    /// for a component from the framework's own registry, the manifest's
+    /// "source"). Lowercase identifier; by convention the framework id of the
+    /// backend the same package ships. Never shown to the user and never
+    /// changed once released: renaming it orphans every project's entries.
+    virtual std::string GetId() const = 0;
+
+    /// What the user sees.
     virtual std::string GetPlatformName() const = 0;
 
     // Check if this installer is applicable for the given project

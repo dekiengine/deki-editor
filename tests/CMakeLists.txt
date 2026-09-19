@@ -51,6 +51,7 @@ set(TEST_SOURCES
     services/FeatureResolverTests.cpp
     services/ComponentUsageScanTests.cpp
     services/BuilderDispatchTests.cpp
+    services/InstallerRoutingTests.cpp
     services/BuildStripSettingsTests.cpp
     services/PlayModeGuardTests.cpp
     core/ZipSafetyTests.cpp

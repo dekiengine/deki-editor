@@ -10,13 +10,6 @@ using json = nlohmann::json;
 namespace DekiEditor
 {
 
-// The family is whatever the descriptor says. Kept as a function so callers
-// get the "custom" default in one place rather than each inventing it.
-std::string ParseMCUFamily(const std::string& familyStr)
-{
-    return familyStr.empty() ? "custom" : familyStr;
-}
-
 static void ParseComponent(const json& j, ComponentDef& comp)
 {
     comp.id = j.value("id", "");
@@ -86,15 +79,11 @@ static void ParseComponent(const json& j, ComponentDef& comp)
     }
 }
 
-bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef)
+bool ParseBuilderDefinition(const std::string& jsonText, BuilderDefinition& outDef, std::string& outError)
 {
     try
     {
-        std::ifstream file(jsonPath);
-        if (!file.is_open())
-            return false;
-
-        json j = json::parse(file);
+        json j = json::parse(jsonText);
 
         outDef.id = j.value("id", "");
         outDef.name = j.value("name", "");
@@ -118,32 +107,30 @@ bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDe
             }
         }
 
-        return !outDef.id.empty();
+        if (outDef.id.empty())
+        {
+            outError = "the definition has no \"id\"";
+            return false;
+        }
+        return true;
     }
-    catch (const std::exception&)
+    catch (const std::exception& e)
     {
+        outError = e.what();
         return false;
     }
 }
 
-std::vector<BuilderDefinition> LoadAllBuilderDefinitions(const std::string& directory)
+bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef, std::string& outError)
 {
-    std::vector<BuilderDefinition> defs;
-
-    if (!fs::exists(directory) || !fs::is_directory(directory))
-        return defs;
-
-    for (const auto& entry : fs::directory_iterator(directory))
+    std::ifstream file(jsonPath, std::ios::binary);
+    if (!file.is_open())
     {
-        if (entry.path().extension() == ".json")
-        {
-            BuilderDefinition def;
-            if (LoadBuilderDefinition(entry.path().string(), def))
-                defs.push_back(def);
-        }
+        outError = "cannot open " + jsonPath;
+        return false;
     }
-
-    return defs;
+    const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return ParseBuilderDefinition(text, outDef, outError);
 }
 
 }  // namespace DekiEditor

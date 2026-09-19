@@ -11,7 +11,7 @@
 // EditorApp::OpenProject in ways nothing reported: --verify-scenes read a
 // plugin nothing had promoted and had to warn about it, --packages-restore
 // stopped before the build the editor performs, and firmware built from here
-// carried no SPIFFS payload at all. None of that bootstrap survives.
+// carried no boot payload at all. None of that bootstrap survives.
 
 #include "EditorHeadless.h"
 #include "EditorVersion.h"
@@ -194,18 +194,15 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
     return "";
 }
 
-// Route a package to its installer the same way the panel does.
+// The routing itself is PackageManager::GetInstallerFor; this adds the reason
+// to the output, which is otherwise a bare "no applicable installer".
 IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg,
                                 const std::string& projectPath)
 {
-    if (pkg.packageType == PackageType::DekiPackage)
-        return mgr.GetInstallerByPlatform("Deki Package");
-    if (pkg.packageType == PackageType::FrameworkComponent)
-        return mgr.GetInstallerByPlatform("ESP-IDF");
-
-    IPackageInstaller* installer = mgr.GetInstallerByPlatform("Deki Package");
-    if (!installer || !installer->IsApplicable(projectPath))
-        installer = mgr.GetInstallerForProject(projectPath);
+    std::string whyNot;
+    IPackageInstaller* installer = mgr.GetInstallerFor(pkg, projectPath, whyNot);
+    if (installer == nullptr)
+        printf("%s\n", whyNot.c_str());
     return installer;
 }
 
@@ -240,7 +237,7 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     printf("%-40s %-12s %s\n", "PACKAGE", "STATE", "VERSION");
     for (const auto& p : pkgs)
     {
-        // "installed" would overstate an ESP-IDF component: nothing of it lives
+        // "installed" would overstate a framework component: nothing of it lives
         // in the project. It is a line in the firmware build's dependency
         // manifest, fetched by ESP-IDF at build time. Reporting it as declared
         // says what is actually true, and it is never counted as missing —
@@ -257,7 +254,7 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     }
     printf("\n%zu package(s), %d missing\n", pkgs.size(), missing);
     if (anyFrameworkComponent)
-        printf("declared = ESP-IDF component, fetched when firmware is built\n");
+        printf("declared = a build framework's own component, fetched by that framework when it builds\n");
     return missing;
 }
 
@@ -728,22 +725,22 @@ int CmdFirmwareBuild(EditorApp& editor, const char* platformId)
 
     printf("Building firmware for: %s\n", project->GetPath().c_str());
 
-    // Passing the editor is what gives this build the SPIFFS payload and the
+    // Passing the editor is what gives this build the boot payload and the
     // scene-scanned package defines the Build panel produces. Without it the
     // image would flash with no assets — see FirmwareBuildService::PrepareBuild.
     auto r = FirmwareBuildService::Build(project->GetPath(), Str(platformId), EchoLine, &editor);
     return Report(r, "Firmware build");
 }
 
-int CmdFlash(EditorApp& editor, const char* platformId, const char* port)
+int CmdDeploy(EditorApp& editor, const char* platformId, const char* deployTarget)
 {
-    Project* project = ProjectOf(editor, "--flash");
+    Project* project = ProjectOf(editor, "--deploy");
     if (!project)
         return 1;
 
-    printf("Flashing firmware for: %s\n", project->GetPath().c_str());
-    auto r = FirmwareBuildService::Flash(project->GetPath(), Str(platformId), Str(port), EchoLine);
-    return Report(r, "Flash");
+    printf("Deploying the build of: %s\n", project->GetPath().c_str());
+    auto r = FirmwareBuildService::Deploy(project->GetPath(), Str(platformId), Str(deployTarget), EchoLine);
+    return Report(r, "Deploy");
 }
 
 int CmdClean(EditorApp& editor, const char* platformId)

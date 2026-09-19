@@ -6,6 +6,7 @@
 #include <deki-editor/PackageInstallerPlugin.h>
 #include <deki-editor/build/BuilderPlugin.h>
 #include <deki-editor/build/BuilderRegistry.h>
+#include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/build/TargetBuilder.h>
 #include <deki/LogSystem.h>
@@ -49,6 +50,7 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
         if (abi == nullptr || abi->version != kDekiBuilderAbiVersion ||
             abi->structSize != sizeof(DekiBuilderAbi) ||
             abi->platformConfigSize != sizeof(PlatformConfig) ||
+            abi->packageEntrySize != sizeof(CMakeGen::PackageEntry) ||
             abi->stdStringSize != sizeof(std::string) ||
             abi->compilerTag != DekiBuilder_CompilerTag())
         {
@@ -109,14 +111,14 @@ void RegisterInstallersFromPackages(PackageLoader& loader, ::PackageManager& man
                 continue;
 
             // A second copy would double every listing the manager produces.
-            if (manager.HasInstallerFor(installer->GetPlatformName()))
+            if (manager.HasInstaller(installer->GetId()))
             {
                 destroy(installer);
                 continue;
             }
 
-            DEKI_LOG_INFO("Package '%s' provides package installer '%s'", pkg.name.c_str(),
-                          installer->GetPlatformName().c_str());
+            DEKI_LOG_INFO("Package '%s' provides package installer '%s' (id '%s')", pkg.name.c_str(),
+                          installer->GetPlatformName().c_str(), installer->GetId().c_str());
             manager.RegisterPluginInstaller(installer, destroy);
         }
     }

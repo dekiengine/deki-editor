@@ -474,8 +474,9 @@ void PackageManagerPanel::DrawPackageDetails()
     DrawFeatures(pkg);
 
     // Framework / builder — only when the package relies on the active platform's
-    // framework (declares deps under that framework key, or is an ESP-IDF
-    // component). Otherwise the labels describe the project, not the package.
+    // framework (declares deps under that framework key, or is one of that
+    // framework's own components). Otherwise the labels describe the project,
+    // not the package.
     auto* project = m_App->GetProject();
     const PlatformConfig* config = project ? PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId()) : nullptr;
 
@@ -589,14 +590,12 @@ void PackageManagerPanel::DrawPackageDetails()
 
                 for (const auto& [platform, deps] : m_PackageDetails.dependencies)
                 {
-                    // The framework's own id, prettified only where the
-                    // editor happens to know a nicer spelling. A framework it
-                    // has never heard of must still display as itself.
+                    // The backend claiming this framework names it; a key no
+                    // loaded backend claims ("default", or a framework whose
+                    // package is not installed) displays as itself.
                     std::string platformLabel = platform;
-                    if (platform == "espidf")
-                        platformLabel = "ESP-IDF";
-                    else if (platform == "native")
-                        platformLabel = "Desktop";
+                    if (ITargetBuilder* named = BuilderRegistry::Instance().GetBuilder(platform))
+                        platformLabel = named->GetName();
 
                     if (ui.TreeNodeEx(platformLabel.c_str(), EditorUI::TreeDefaultOpen))
                     {
@@ -1136,29 +1135,11 @@ void PackageManagerPanel::OnInstallClicked()
     if (!project) return;
     std::string projectPath = project->GetPath();
 
-    // Route to the correct installer based on package type
-    IPackageInstaller* installer = nullptr;
-    if (m_SelectedPackage->packageType == PackageType::DekiPackage)
-    {
-        installer = m_PackageManager->GetInstallerByPlatform("Deki Package");
-    }
-    else if (m_SelectedPackage->packageType == PackageType::FrameworkComponent)
-    {
-        installer = m_PackageManager->GetInstallerByPlatform("ESP-IDF");
-    }
-    else
-    {
-        // Unknown type — try DekiPackageInstaller first (validates package.cmake post-clone)
-        installer = m_PackageManager->GetInstallerByPlatform("Deki Package");
-        if (!installer || !installer->IsApplicable(projectPath))
-        {
-            installer = m_PackageManager->GetInstallerForProject(projectPath);
-        }
-    }
-
+    std::string whyNot;
+    IPackageInstaller* installer = m_PackageManager->GetInstallerFor(*m_SelectedPackage, projectPath, whyNot);
     if (!installer)
     {
-        m_StatusMessage = "No installer available for this project";
+        m_StatusMessage = whyNot;
         return;
     }
 
@@ -1173,10 +1154,10 @@ void PackageManagerPanel::OnInstallClicked()
         version = m_VersionInput;
     }
 
-    std::string installerPlatform = installer->GetPlatformName();
+    const bool dekiPackage = (installer->GetId() == PackageManager::kDekiInstallerId);
 
     m_PackageManager->InstallWithDependencies(projectPath, *m_SelectedPackage, version, installer,
-                                              [this, installerPlatform](bool success, const std::string& message)
+                                              [this, dekiPackage](bool success, const std::string& message)
                                               {
                                                   if (success)
                                                   {
@@ -1189,7 +1170,7 @@ void PackageManagerPanel::OnInstallClicked()
                                                           m_PackageManager->SavePackages(proj->GetPath());
 
                                                           // For Deki packages, force CMakeLists.txt regeneration and trigger rebuild
-                                                          if (installerPlatform == "Deki Package")
+                                                          if (dekiPackage)
                                                           {
                                                               namespace fs = std::filesystem;
                                                               std::string path = proj->GetPath();
@@ -1224,24 +1205,11 @@ void PackageManagerPanel::OnRemoveClicked()
     if (!project) return;
     std::string projectPath = project->GetPath();
 
-    // Route to the correct installer based on package type
-    IPackageInstaller* installer = nullptr;
-    if (m_SelectedPackage->packageType == PackageType::DekiPackage)
-    {
-        installer = m_PackageManager->GetInstallerByPlatform("Deki Package");
-    }
-    else if (m_SelectedPackage->packageType == PackageType::FrameworkComponent)
-    {
-        installer = m_PackageManager->GetInstallerByPlatform("ESP-IDF");
-    }
-    else
-    {
-        installer = m_PackageManager->GetInstallerForProject(projectPath);
-    }
-
+    std::string whyNot;
+    IPackageInstaller* installer = m_PackageManager->GetInstallerFor(*m_SelectedPackage, projectPath, whyNot);
     if (!installer)
     {
-        m_StatusMessage = "No installer available for this project";
+        m_StatusMessage = whyNot;
         return;
     }
 
@@ -1475,21 +1443,11 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
     if (useVersion.empty())
         useVersion = pkg->availableVersions.empty() ? "main" : pkg->availableVersions[0];
 
-    // Same installer routing as OnInstallClicked.
-    IPackageInstaller* installer = nullptr;
-    if (pkg->packageType == PackageType::FrameworkComponent)
-    {
-        installer = m_PackageManager->GetInstallerByPlatform("ESP-IDF");
-    }
-    else
-    {
-        installer = m_PackageManager->GetInstallerByPlatform("Deki Package");
-        if (!installer || !installer->IsApplicable(projectPath))
-            installer = m_PackageManager->GetInstallerForProject(projectPath);
-    }
+    std::string whyNot;
+    IPackageInstaller* installer = m_PackageManager->GetInstallerFor(*pkg, projectPath, whyNot);
     if (!installer)
     {
-        outMessage = "No installer available for this project";
+        outMessage = whyNot;
         return false;
     }
 
@@ -1517,7 +1475,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 
     // Deki packages change the generated build graph, so drop the stale
     // CMakeLists.txt and force a rebuild that bypasses timestamp detection.
-    if (installer->GetPlatformName() == "Deki Package")
+    if (installer->GetId() == PackageManager::kDekiInstallerId)
     {
         std::error_code ec;
         std::filesystem::remove(std::filesystem::path(projectPath) / "CMakeLists.txt", ec);

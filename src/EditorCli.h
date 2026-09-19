@@ -35,7 +35,7 @@ struct CliOptions
     const char* packagesUpdateId = nullptr;  // package id, repo name, or "all"
     const char* packageVersion = nullptr;
     bool firmwareBuild = false;
-    bool flash = false;
+    bool deploy = false;
     bool clean = false;
 
     // Verbs that answer from files on disk
@@ -47,7 +47,7 @@ struct CliOptions
 
     // Modifiers
     const char* platformId = nullptr;
-    const char* serialPort = nullptr;
+    const char* deployTarget = nullptr;
 
     // GUI options
     bool mcp = false;

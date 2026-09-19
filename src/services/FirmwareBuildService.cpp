@@ -361,24 +361,21 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
 
     // The builder learns its platform BEFORE the export below, not after.
     // GetBuildDirectory is per platform only once it knows one, and it used to
-    // be told after the SPIFFS payload had already been written, so every
-    // ESP-IDF board wrote into the same fallback directory and the last build
-    // won. Two boards in one project overwrote each other's assets.
+    // be told after the boot payload had already been written, so every board
+    // of one framework wrote into the same fallback directory and the last
+    // build won. Two boards in one project overwrote each other's assets.
     builder.SetPlatformConfig(platform);
 
-    // SPIFFS payload — dproject.bin plus the platform's boot scene — written
-    // into the builder's build directory before the image is assembled.
-    // Without it the device flashes with no assets at all, which is exactly
-    // what every CLI firmware build produced while this step lived only in
-    // BuildPanel::StartBuild.
+    // Boot payload — dproject.bin plus the platform's boot scene — written
+    // where the backend asks for it, before it assembles anything. Without it
+    // a device comes up with no assets at all, which is exactly what every
+    // CLI build produced while this step lived only in BuildPanel::StartBuild.
     //
     // It needs an imported asset pipeline, which is why the CLI now boots the
     // editor rather than reaching for the builder directly.
-    if (editor && editor->GetProject() && editor->GetAssetPipeline())
+    const std::string bootPayloadDir = builder.GetBootPayloadDirectory(projectPath);
+    if (editor && editor->GetProject() && editor->GetAssetPipeline() && !bootPayloadDir.empty())
     {
-        const std::string spiffsDataPath =
-            builder.GetBuildDirectory(projectPath) + "/spiffs_data";
-
         // A platform may name its own boot scene (a splash that then loads
         // the game); without one the device boots the project's startup
         // scene, the one the editor opens. Nothing at all used to be
@@ -397,15 +394,15 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         exporter.SetTargetCapabilities(platform.Capabilities());
         // And the board's own screen, rather than whatever the project is set to.
         exporter.SetTargetDisplay(platform.screenWidth, platform.screenHeight, platform.colorFormat);
-        if (exporter.ExportForSPIFFS(spiffsDataPath, bootScene))
+        if (exporter.ExportBootPayload(bootPayloadDir, bootScene))
         {
-            log(std::string("Exported SPIFFS data: dproject.bin") +
+            log(std::string("Exported boot payload: dproject.bin") +
                     (bootScene.empty() ? "" : ", boot.scene (" + bootScene + ")"),
                 false);
         }
         else
         {
-            log("Failed to export SPIFFS data", true);
+            log("Failed to export the boot payload", true);
         }
     }
 
@@ -464,22 +461,35 @@ FirmwareOpResult FirmwareBuildService::StartBuild(const std::string& projectPath
     return KickOffBuild(projectPath, platformId, onLine, ctx, editor);
 }
 
-FirmwareOpResult FirmwareBuildService::StartFlash(const std::string& projectPath,
-                                                  const std::string& platformId,
-                                                  const std::string& port,
-                                                  FirmwareLogCallback onLine)
+namespace
+{
+// A backend with no deploy step used to get its no-op Flash() called and the
+// caller told it had started.
+std::string NoDeployStep(const ITargetBuilder& builder, const PlatformConfig& platform)
+{
+    return std::string("The '") + builder.GetName() + "' backend has no deploy step for platform '" +
+           platform.id + "'.";
+}
+}  // namespace
+
+FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPath,
+                                                   const std::string& platformId,
+                                                   const std::string& deployTargetId,
+                                                   FirmwareLogCallback onLine)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
         return Failure(err);
 
+    if (!ctx.builder->SupportsDeploy())
+        return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
     if (ctx.builder->IsBuilding())
-        return Failure("A build or flash is already in progress for this builder.");
+        return Failure("A build or deploy is already in progress for this builder.");
 
     ctx.builder->SetPlatformConfig(*ctx.platform);
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->Flash(projectPath, port, onLine, nullptr);
+    ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
     return Started(ctx);
 }
 
@@ -557,7 +567,7 @@ nlohmann::json FirmwareBuildService::QueryStatus()
     switch (p.state)
     {
         case BuildState::Building: state = "building"; break;
-        case BuildState::Flashing: state = "flashing"; break;
+        case BuildState::Deploying: state = "deploying"; break;
         case BuildState::Completed: state = "completed"; break;
         case BuildState::Failed: state = "failed"; break;
         default: state = "idle"; break;
@@ -598,19 +608,22 @@ bool FirmwareBuildService::CancelActive()
     return true;
 }
 
-FirmwareOpResult FirmwareBuildService::Flash(const std::string& projectPath,
-                                             const std::string& platformId,
-                                             const std::string& port,
-                                             FirmwareLogCallback onLine)
+FirmwareOpResult FirmwareBuildService::Deploy(const std::string& projectPath,
+                                              const std::string& platformId,
+                                              const std::string& deployTargetId,
+                                              FirmwareLogCallback onLine)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
         return Failure(err);
 
+    if (!ctx.builder->SupportsDeploy())
+        return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
+
     ctx.builder->SetPlatformConfig(*ctx.platform);
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->Flash(projectPath, port, onLine, nullptr);
+    ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
     return WaitForBuild(ctx.builder, ctx);
 }
 

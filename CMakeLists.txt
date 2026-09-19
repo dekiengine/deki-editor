@@ -499,6 +499,11 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ProjectScaffold.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ScriptTemplate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageManifest.cpp
+    # InstallerRoutingTests: which installer manages a package, and how a lock
+    # file says so.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/BuildersFromPackages.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/sources/GitHubPackageSource.cpp
     # The name allowlist every path built from registry/manifest/pack content goes through.
     # PlatformConfigTests: platform JSON validation.
     # EditorLogFileTests: the Editor.log sink and its rotation.
@@ -644,7 +649,6 @@ set(EDITOR_SOURCES
     src/services/hot_reload/CMakeCacheRepair.cpp
     src/services/ScriptTemplate.cpp
     src/services/AssetImportDrop.cpp
-    src/services/SerialPorts.cpp
     src/core/SceneExport.cpp
     src/services/ProcessRunner.cpp
     src/services/HotReloadService.h
@@ -902,8 +906,6 @@ add_custom_command(TARGET DekiEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/fonts/tabler-icons.ttf"
         "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/tabler-icons.ttf"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:DekiEditor>/resources/builders"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
 )
 
 # =============================================================================

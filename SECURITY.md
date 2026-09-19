@@ -26,7 +26,8 @@ the other side of it:
   location, over HTTPS, when the package initialises in a desktop build, and
   caches the answer for an hour. Leaving the package out of a desktop target
   stops it. Device builds never make it.
-- Toolchain archives are pinned by SHA-256 in `resources/builders/*.json` and an unpinned
+- Toolchain archives are pinned by SHA-256 in the toolchain definition each build backend
+  carries (the ESP-IDF one is `editor/ESPIDFToolchainDefinition.h` in deki-esp32-integration) and an unpinned
   download is refused; archives are listed and refused before extraction when
   an entry would escape the destination.
 - The MCP server binds `127.0.0.1`, generates a 256-bit session token, requires

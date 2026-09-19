@@ -17,30 +17,27 @@ struct PlatformConfig;
 namespace CMakeGen
 {
 
-// A release archive of a third-party library for one host, from package.json:
-//   "dependencies": { "native": [ { "name": "SDL3", "version": "3.2.8",
-//       "git": "https://github.com/libsdl-org/SDL.git",
-//       "prebuilt": { "windows-mingw": { "url": "...", "sha256": "...",
-//           "cmakeDir": "SDL3-3.2.8/x86_64-w64-mingw32/lib/cmake/SDL3",
-//           "includeDir": "SDL3-3.2.8/x86_64-w64-mingw32/include" } } } ] }
-// The native builder unpacks it under <project>/generated/deps and consumes
-// the library through its CMake package instead of building it from source.
-struct DEKI_EDITOR_API NativePrebuilt
+// One thing a package needs from a build framework, from package.json:
+//   "dependencies": { "<framework id>": [ "bare-name", { "name": "...", ... } ] }
+//
+// The editor reads the NAME, because every framework has one, and keeps the
+// rest exactly as written. What a declaration means - a registry component, a
+// git tag to build, a prebuilt archive per host with a pinned digest - is the
+// business of the backend claiming that framework id, which parses `json`
+// itself.
+//
+// This type used to come in two hardcoded shapes, one per framework the editor
+// happened to ship: a list of names for one, and a parsed
+// version/git/prebuilt struct for the other. A third framework got names only,
+// so it could not have declared a pinned SDK archive however it spelled it.
+struct DEKI_EDITOR_API FrameworkDependency
 {
-    std::string url;         // https archive
-    std::string sha256;      // pinned; an unpinned archive is not used
-    std::string cmakeDir;    // directory holding <Name>Config.cmake, relative to the archive root
-    std::string includeDir;  // public headers, relative to the archive root
-};
-
-// A third-party library a package needs in a native (desktop) build. The
-// version is the package's to choose; the builder only follows it.
-struct DEKI_EDITOR_API NativeDependency
-{
-    std::string name;     // e.g. "SDL3"
-    std::string version;  // e.g. "3.2.8"
-    std::string git;      // source fallback: repository, built at tag release-<version>
-    std::map<std::string, NativePrebuilt> prebuilt;  // host key ("windows-mingw", "linux", "macos") -> archive
+    std::string name;
+    // The declaration as a JSON object in text form, or empty when it was a
+    // bare string. Text for the reason PlatformConfig::frameworkOptions is:
+    // this crosses a DLL boundary, and a std::string has an ABI that a JSON
+    // library's type does not.
+    std::string json;
 };
 
 // Package manifest data parsed from package.json + package.cmake
@@ -66,19 +63,16 @@ struct DEKI_EDITOR_API PackageEntry
     std::string packagePrefix;             // PACKAGE_PREFIX from package.cmake (e.g., "Deki2D")
     std::vector<std::string> sourceStems;  // Auto-discovered .cpp stems (excluding entry, editor/, generated/)
     std::vector<std::string> dekiDeps;     // Transitive deki:* dependency IDs
-    std::vector<std::string> espidfDeps;   // ESP-IDF component dependencies (e.g., "fatfs", "sdmmc")
 
-    // Every non-deki dependency, keyed by the framework it was declared under.
-    // espidfDeps and nativeDeps above are the two the editor's own builders
-    // read; this is the same data for ANY framework, so a third-party backend
-    // can find its own.
+    // Every non-deki dependency, keyed by the framework id it was declared
+    // under, in declaration order. A backend looks up its own id; the editor
+    // looks up none.
     //
-    // Before this, a key the editor did not recognise was silently DROPPED: a
-    // package declaring dependencies under "tactility" built successfully and
-    // linked without them. A build that quietly does the wrong thing is worse
-    // than one that refuses.
-    std::map<std::string, std::vector<std::string>> frameworkDeps;
-    std::vector<NativeDependency> nativeDeps;  // Third-party libraries for the desktop build
+    // A key the editor did not recognise used to be silently DROPPED: a
+    // package declaring dependencies under a third-party framework built
+    // successfully and linked without them. A build that quietly does the
+    // wrong thing is worse than one that refuses.
+    std::map<std::string, std::vector<FrameworkDependency>> frameworkDeps;
     bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
     std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...
     std::vector<FeatureEntry> features;    // package.json "features"

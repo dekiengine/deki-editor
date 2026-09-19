@@ -28,6 +28,19 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
 /// version ("*"). What a new project starts from.
 nlohmann::json BuildPackageManifestForIds(const std::vector<std::string>& packageIds);
 
+/// How PackageEntry::source is spelled in the manifest and the lock.
+///
+/// "github" and "custom" are the editor's own. Anything else is the id of the
+/// installer whose framework registry the package comes from - so the file
+/// names the installer and the editor needs no table of frameworks. "espidf",
+/// which is what these files have always said for an ESP-IDF registry
+/// component, is simply that installer's id.
+///
+/// An empty spelling means Custom in the manifest (where the key is omitted
+/// for registry packages) and "leave it alone" in the lock.
+void ReadPackageSource(const std::string& spelling, bool emptyIsCustom, PackageEntry& pkg);
+std::string PackageSourceToString(const PackageEntry& pkg);
+
 /// Atomic write of a manifest to `path`.
 bool WritePackageManifest(const std::string& path, const nlohmann::json& manifest, std::string& err);
 

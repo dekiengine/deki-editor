@@ -7,6 +7,7 @@
 #include <memory>
 #include "PlatformEditorDialog.h"
 #include <deki-editor/BuildStripSettings.h>
+#include <deki-editor/build/TargetBuilder.h>
 
 namespace DekiEditor
 {
@@ -20,7 +21,7 @@ class ITargetBuilder;
  * Provides UI for:
  * - Platform selection (V-Board, Simulator, etc.)
  * - Compact toolchain status summary
- * - Build/Flash/Clean buttons
+ * - Build, Clean and the active backend's deploy step
  * - Build options
  */
 class BuildPanel : public IPanel
@@ -44,9 +45,11 @@ private:
     void DrawPlatformDetails();
 
     void StartBuild();
-    void StartFlash();
+    void StartDeploy();
 
-    std::vector<std::string> EnumeratePorts();
+    /// Ask the active backend what a deploy can be aimed at, keeping the
+    /// current choice when it is still on offer.
+    void RefreshDeployTargets();
     ITargetBuilder* GetActiveBuilder();
 
     EditorApp* m_App;
@@ -61,10 +64,11 @@ private:
     std::string m_SelectedPlatform;
     int m_SelectedPlatformIndex = 0;
 
-    // COM port for flashing
-    std::string m_SelectedPort = "COM3";
-    std::vector<std::string> m_AvailablePorts;
-    int m_SelectedPortIndex = 0;
+    // What the active backend offers to deploy to, and the one chosen. Both
+    // belong to that backend, so they are re-read whenever it changes.
+    std::vector<DeployTarget> m_DeployTargets;
+    std::string m_SelectedDeployTarget;
+    ITargetBuilder* m_DeployTargetsOwner = nullptr;
 
     // Build state
     bool m_IsBuilding = false;
@@ -75,8 +79,8 @@ private:
     // Build options
     bool m_EnableLogging = true;
     bool m_EnableInternalLogging = false;
-    bool m_FlashAfterBuild = false;
-    bool m_PendingFlash = false;
+    bool m_DeployAfterBuild = false;
+    bool m_PendingDeploy = false;
 
     // Platform editor dialog
     PlatformEditorDialog m_PlatformEditor;

@@ -83,10 +83,6 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
         {
             if (!builder->GenerateBuildFiles(projectPath.string(), *platform, {}))
                 return false;
-
-            // Copy bundled components for ESP-IDF platforms
-            if (platform->framework == "espidf")
-                CopyBundledComponents(projectPath.string());
         }
 
         // Save the platform config to project's project/platforms/ directory
@@ -199,117 +195,10 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,
         {
             if (!builder->GenerateBuildFiles(projectPath, *platform, {}))
                 return false;
-
-            // Copy bundled components for ESP-IDF platforms
-            if (platform->framework == "espidf")
-                CopyBundledComponents(projectPath);
         }
     }
 
     return true;
-}
-
-std::string ProjectTemplate::GetToolchainsDir()
-{
-    return EditorPaths::GetToolchainsDir();
-}
-
-bool ProjectTemplate::CopyDirectoryRecursive(const std::string& src, const std::string& dst)
-{
-    try
-    {
-        if (!fs::exists(src))
-        {
-            return false;
-        }
-
-        // Create destination directory
-        fs::create_directories(dst);
-
-        // Copy all files and subdirectories
-        for (const auto& entry : fs::recursive_directory_iterator(src))
-        {
-            const auto& path = entry.path();
-            std::string relativePath = path.string().substr(src.length());
-
-            // Handle leading path separator
-            if (!relativePath.empty() && (relativePath[0] == '/' || relativePath[0] == '\\'))
-            {
-                relativePath = relativePath.substr(1);
-            }
-
-            fs::path destPath = fs::path(dst) / relativePath;
-
-            if (entry.is_directory())
-            {
-                fs::create_directories(destPath);
-            }
-            else if (entry.is_regular_file())
-            {
-                fs::copy_file(path, destPath, fs::copy_options::overwrite_existing);
-            }
-        }
-
-        return true;
-    }
-    catch (const std::exception&)
-    {
-        return false;
-    }
-}
-
-bool ProjectTemplate::CopyBundledComponents(const std::string& projectPath)
-{
-    std::string toolchainsDir = GetToolchainsDir();
-    if (toolchainsDir.empty())
-    {
-        return false;
-    }
-
-    std::string bundledComponentsDir = toolchainsDir + "/esp-idf-components";
-    std::string projectComponentsDir = (ProjectPaths::Build(projectPath) / "esp-idf" / "components").string();
-
-    // Check if bundled components exist
-    if (!fs::exists(bundledComponentsDir))
-    {
-        // Components not downloaded yet - this is OK, project can still build
-        // (will use managed_components instead)
-        return true;
-    }
-
-    // Create project components directory
-    try
-    {
-        fs::create_directories(projectComponentsDir);
-    }
-    catch (const std::exception&)
-    {
-        return false;
-    }
-
-    // Copy each component
-    std::vector<std::string> components = { "LovyanGFX" };
-    bool allSuccess = true;
-
-    for (const auto& component : components)
-    {
-        std::string srcDir = bundledComponentsDir + "/" + component;
-        std::string dstDir = projectComponentsDir + "/" + component;
-
-        if (fs::exists(srcDir))
-        {
-            // Skip if already exists (don't overwrite user modifications)
-            if (!fs::exists(dstDir))
-            {
-                if (!CopyDirectoryRecursive(srcDir, dstDir))
-                {
-                    allSuccess = false;
-                }
-            }
-        }
-    }
-
-    return allSuccess;
 }
 
 }  // namespace DekiEditor

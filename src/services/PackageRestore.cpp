@@ -193,18 +193,15 @@ bool TryFillFromRegistry(PackageManager& mgr, PackageEntry& pkg)
 namespace
 {
 
-// Route a package to its installer the same way the panel does.
+// The routing itself is PackageManager::GetInstallerFor; this keeps the reason,
+// which the caller's "unresolvable" list has no room for.
 IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg,
                                 const std::string& projectPath)
 {
-    if (pkg.packageType == PackageType::DekiPackage)
-        return mgr.GetInstallerByPlatform("Deki Package");
-    if (pkg.packageType == PackageType::FrameworkComponent)
-        return mgr.GetInstallerByPlatform("ESP-IDF");
-
-    IPackageInstaller* installer = mgr.GetInstallerByPlatform("Deki Package");
-    if (!installer || !installer->IsApplicable(projectPath))
-        installer = mgr.GetInstallerForProject(projectPath);
+    std::string whyNot;
+    IPackageInstaller* installer = mgr.GetInstallerFor(pkg, projectPath, whyNot);
+    if (installer == nullptr)
+        DEKI_LOG_WARNING("PackageRestore: %s", whyNot.c_str());
     return installer;
 }
 

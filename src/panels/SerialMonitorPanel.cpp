@@ -1,5 +1,5 @@
 #include "SerialMonitorPanel.h"
-#include "../services/SerialPorts.h"
+#include <deki-editor/SerialPorts.h>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"

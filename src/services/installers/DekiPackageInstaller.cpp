@@ -140,7 +140,7 @@ std::map<std::string, std::vector<DependencyInfo>> DekiPackageInstaller::ParsePl
         else
         {
             dep.version = afterName;
-            dep.source = PackageSourceType::ESPIDFRegistry;
+            dep.source = PackageSourceType::FrameworkRegistry;
         }
 
         result[platform].push_back(dep);

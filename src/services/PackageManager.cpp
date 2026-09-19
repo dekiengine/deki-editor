@@ -101,10 +101,10 @@ void PackageManager::RegisterPluginInstaller(IPackageInstaller* installer,
     m_Installers.push_back(std::shared_ptr<IPackageInstaller>(installer, destroy));
 }
 
-bool PackageManager::HasInstallerFor(const std::string& platformName) const
+bool PackageManager::HasInstaller(const std::string& installerId) const
 {
     for (const auto& installer : m_Installers)
-        if (installer && installer->GetPlatformName() == platformName)
+        if (installer && installer->GetId() == installerId)
             return true;
     return false;
 }
@@ -134,16 +134,45 @@ std::vector<IPackageInstaller*> PackageManager::GetAllInstallersForProject(const
     return result;
 }
 
-IPackageInstaller* PackageManager::GetInstallerByPlatform(const std::string& platformName)
+IPackageInstaller* PackageManager::GetInstallerById(const std::string& installerId)
 {
     for (auto& installer : m_Installers)
     {
-        if (installer->GetPlatformName() == platformName)
+        if (installer->GetId() == installerId)
         {
             return installer.get();
         }
     }
     return nullptr;
+}
+
+IPackageInstaller* PackageManager::GetInstallerFor(const PackageEntry& pkg, const std::string& projectPath,
+                                                   std::string& whyNot)
+{
+    if (pkg.packageType == PackageType::FrameworkComponent)
+    {
+        // No guessing. With one framework installed "the other installer"
+        // would be right by luck, and with two it would hand one framework's
+        // component to the other's manifest.
+        if (pkg.installer.empty())
+        {
+            whyNot = "'" + pkg.id + "' is a framework component, but the project does not record "
+                     "which framework's installer manages it";
+            return nullptr;
+        }
+        IPackageInstaller* installer = GetInstallerById(pkg.installer);
+        if (installer == nullptr)
+            whyNot = "'" + pkg.id + "' is managed by the '" + pkg.installer +
+                     "' installer, which no installed package provides";
+        return installer;
+    }
+
+    IPackageInstaller* installer = GetInstallerById(kDekiInstallerId);
+    if (pkg.packageType == PackageType::Unknown && (installer == nullptr || !installer->IsApplicable(projectPath)))
+        installer = GetInstallerForProject(projectPath);
+    if (installer == nullptr)
+        whyNot = "No installer available for this project";
+    return installer;
 }
 
 bool PackageManager::AddPackageFromUrl(const std::string& url, PackageEntry& outInfo)
@@ -309,21 +338,33 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         if (pkg.url.empty()) pkg.url = entry.value("url", "");
         pkg.resolvedBy = entry.value("resolvedBy", "");
 
-        std::string sourceStr = entry.value("source", "");
-        if (sourceStr == "github")
-            pkg.source = PackageSourceType::GitHub;
-        else if (sourceStr == "espidf")
-            pkg.source = PackageSourceType::ESPIDFRegistry;
-        else if (!sourceStr.empty())
-            pkg.source = PackageSourceType::Custom;
+        DekiEditor::ReadPackageSource(entry.value("source", ""), /*emptyIsCustom*/ false, pkg);
 
+        static const std::string kComponentSuffix = "_component";
         std::string typeStr = entry.value("packageType", "unknown");
         if (typeStr == "deki_package")
+        {
             pkg.packageType = PackageType::DekiPackage;
-        // "espidf_component" is what locks written before the rename say.
-        // Read both, write only the new spelling below.
-        else if (typeStr == "framework_component" || typeStr == "espidf_component")
+            pkg.installer = kDekiInstallerId;
+        }
+        else if (typeStr == "framework_component")
+        {
             pkg.packageType = PackageType::FrameworkComponent;
+        }
+        // Older locks spelled the type "<installer id>_component", from when
+        // there was one framework and its name was the type. The id is right
+        // there in the spelling, so read it rather than knowing it.
+        else if (typeStr.size() > kComponentSuffix.size() &&
+                 typeStr.compare(typeStr.size() - kComponentSuffix.size(), kComponentSuffix.size(),
+                                 kComponentSuffix) == 0)
+        {
+            pkg.packageType = PackageType::FrameworkComponent;
+            if (pkg.installer.empty())
+                pkg.installer = typeStr.substr(0, typeStr.size() - kComponentSuffix.size());
+        }
+        // An explicit key wins over anything inferred above.
+        if (entry.contains("installer") && entry["installer"].is_string())
+            pkg.installer = entry["installer"].get<std::string>();
 
         // Deliberately not read back, even from a lock that still carries it.
         // Trusting a cache nobody refreshes is how a package resolves to a
@@ -357,19 +398,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                     // it the declaration.
                     pkg.declaredInManifest = true;
 
-                    std::string sourceStr = pkgJson.value("source", "");
-                    if (sourceStr == "github")
-                    {
-                        pkg.source = PackageSourceType::GitHub;
-                    }
-                    else if (sourceStr == "espidf")
-                    {
-                        pkg.source = PackageSourceType::ESPIDFRegistry;
-                    }
-                    else
-                    {
-                        pkg.source = PackageSourceType::Custom;
-                    }
+                    DekiEditor::ReadPackageSource(pkgJson.value("source", ""), /*emptyIsCustom*/ true, pkg);
                     pkg.url = pkgJson.value("url", "");
                     // Developer intent, so it belongs in the manifest (committed)
                     // rather than the lock (generated).
@@ -437,15 +466,6 @@ void PackageManager::SavePackages(const std::string& projectPath)
     fs::path packagesPath = fs::path(projectPath) / DekiEditor::GetPackageManifestFileName();
     fs::path lockPath = fs::path(projectPath) / DekiEditor::GetPackageLockFileName();
 
-    auto sourceToString = [](PackageSourceType s) -> std::string
-    {
-        switch (s)
-        {
-            case PackageSourceType::GitHub: return "github";
-            case PackageSourceType::ESPIDFRegistry: return "espidf";
-            default: return "custom";
-        }
-    };
 
     auto packageTypeToString = [](PackageType t) -> std::string
     {
@@ -485,8 +505,13 @@ void PackageManager::SavePackages(const std::string& projectPath)
             if (!pkg.author.empty()) entry["author"] = pkg.author;
             if (!pkg.license.empty()) entry["license"] = pkg.license;
             if (!pkg.url.empty()) entry["url"] = pkg.url;
-            entry["source"] = sourceToString(pkg.source);
+            entry["source"] = DekiEditor::PackageSourceToString(pkg);
             entry["packageType"] = packageTypeToString(pkg.packageType);
+            // Only where it carries information: a Deki package's installer is
+            // implied by its type, and locks for projects that have no
+            // framework component stay byte-identical.
+            if (pkg.packageType == PackageType::FrameworkComponent && !pkg.installer.empty())
+                entry["installer"] = pkg.installer;
 
             // availableVersions is NOT written. A lock records what is
             // installed, not what happened to be available when it was last
@@ -533,16 +558,13 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
 
         auto installedPackages = installer->GetInstalledPackages(projectPath);
 
-        // Determine package type from installer
-        PackageType pkgType = PackageType::Unknown;
-        if (installer->GetPlatformName() == "Deki Package")
-        {
-            pkgType = PackageType::DekiPackage;
-        }
-        else if (installer->GetPlatformName() == "ESP-IDF")
-        {
-            pkgType = PackageType::FrameworkComponent;
-        }
+        // The editor's own installer manages Deki packages; every other
+        // installer is some framework's component manager. What it reports is
+        // stamped with its id, which is also what heals an entry from a lock
+        // that never recorded one.
+        const std::string installerId = installer->GetId();
+        const PackageType pkgType = (installerId == kDekiInstallerId) ? PackageType::DekiPackage
+                                                                      : PackageType::FrameworkComponent;
 
         for (const auto& installed : installedPackages)
         {
@@ -599,6 +621,7 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
                     pkg.isInstalled = true;
                     pkg.installedVersion = installed.installedVersion;
                     pkg.packageType = pkgType;
+                    pkg.installer = installerId;
                     found = true;
                     break;
                 }
@@ -609,23 +632,24 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
             {
                 PackageEntry newPkg = installed;
                 newPkg.packageType = pkgType;
+                newPkg.installer = installerId;
                 m_Packages.push_back(newPkg);
             }
         }
     }
 
-    // ESP-IDF components are never installed *into* the project, so asking an
-    // installer whether they are on disk is the wrong question. ESP-IDF's own
-    // component manager fetches them into the build tree during a firmware
-    // build, and ESPIDFBuilder regenerates idf_component.yml from the manifest
-    // every time it builds. The durable record is therefore the manifest and
-    // lock, not anything under build/.
+    // Framework components are never installed *into* the project, so asking
+    // an installer whether they are on disk is the wrong question. The
+    // framework's own component manager fetches them into the build tree
+    // during a build, and the backend regenerates its dependency manifest from
+    // ours every time it builds. The durable record is therefore the manifest
+    // and lock, not anything under build/.
     //
     // Deriving their state from build/ meant a clean build -- or any wipe of a
     // gitignored directory -- reported a perfectly well declared component as
-    // "missing" until the next restore happened to rewrite the yml. LovyanGFX
-    // did exactly that. Nothing was ever actually wrong: the firmware build
-    // would have pulled it regardless.
+    // "missing" until the next restore happened to rewrite the framework's
+    // file. Nothing was ever actually wrong: the build would have pulled it
+    // regardless.
     for (auto& pkg : m_Packages)
     {
         if (pkg.packageType != PackageType::FrameworkComponent) continue;
@@ -787,7 +811,7 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                            }
 
                            // Install resolved deps that aren't on disk
-                           auto* dekiInstaller = GetInstallerByPlatform("Deki Package");
+                           auto* dekiInstaller = GetInstallerById(kDekiInstallerId);
                            if (dekiInstaller)
                            {
                                for (size_t i = 0; i < m_Packages.size(); ++i)
@@ -901,7 +925,7 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                           }
 
                           // Remove orphaned deps from disk
-                          auto* dekiInstaller = GetInstallerByPlatform("Deki Package");
+                          auto* dekiInstaller = GetInstallerById(kDekiInstallerId);
                           if (dekiInstaller)
                           {
                               for (const auto& orphanId : orphanedIds)

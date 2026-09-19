@@ -4,9 +4,49 @@
 #include "PackageManager.h"
 
 #include <deki-editor/FileIO.h>
+#include <deki/LogSystem.h>
 
 namespace DekiEditor
 {
+
+void ReadPackageSource(const std::string& spelling, bool emptyIsCustom, PackageEntry& pkg)
+{
+    if (spelling == "github")
+    {
+        pkg.source = PackageSourceType::GitHub;
+    }
+    else if (spelling == "custom" || (spelling.empty() && emptyIsCustom))
+    {
+        pkg.source = PackageSourceType::Custom;
+    }
+    else if (!spelling.empty())
+    {
+        pkg.source = PackageSourceType::FrameworkRegistry;
+        pkg.installer = spelling;
+    }
+}
+
+std::string PackageSourceToString(const PackageEntry& pkg)
+{
+    switch (pkg.source)
+    {
+        case PackageSourceType::GitHub:
+            return "github";
+        case PackageSourceType::FrameworkRegistry:
+            if (!pkg.installer.empty())
+                return pkg.installer;
+            // Nothing sets this source without also knowing the installer, so
+            // this is a bug upstream. Say so; "custom" at least keeps the file
+            // loadable, where an empty key would read back differently in the
+            // manifest and the lock.
+            DEKI_LOG_ERROR("PackageManager: '%s' comes from a framework registry but no installer is "
+                           "recorded for it; written as \"custom\"",
+                           pkg.id.c_str());
+            return "custom";
+        default:
+            return "custom";
+    }
+}
 
 nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
                                     const std::map<std::string, std::string>& versionOverrides)
@@ -69,14 +109,9 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
         entry["version"] = pkg.installedVersion.empty() ? "*" : pkg.installedVersion;
 
         // Only include source/url for non-registry packages
-        if (pkg.source == PackageSourceType::GitHub)
+        if (pkg.source == PackageSourceType::GitHub || pkg.source == PackageSourceType::FrameworkRegistry)
         {
-            entry["source"] = "github";
-            if (!pkg.url.empty()) entry["url"] = pkg.url;
-        }
-        else if (pkg.source == PackageSourceType::ESPIDFRegistry)
-        {
-            entry["source"] = "espidf";
+            entry["source"] = PackageSourceToString(pkg);
             if (!pkg.url.empty()) entry["url"] = pkg.url;
         }
 

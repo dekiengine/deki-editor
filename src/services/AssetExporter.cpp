@@ -748,40 +748,40 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
                   (int)passNames.size());
 }
 
-bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std::string& bootSceneAssetPath)
+bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::string& bootSceneAssetPath)
 {
     namespace fs = std::filesystem;
 
     if (!m_Project)
     {
-        DEKI_LOG_ERROR("ExportForSPIFFS: No project");
+        DEKI_LOG_ERROR("ExportBootPayload: No project");
         return false;
     }
 
-    DEKI_LOG_INFO("Exporting files for SPIFFS partition to %s", spiffsDataPath.c_str());
+    DEKI_LOG_INFO("Exporting the boot payload to %s", payloadDir.c_str());
 
-    // Create/clear spiffs_data directory
+    // Create/clear the payload directory
     try
     {
-        if (fs::exists(spiffsDataPath))
+        if (fs::exists(payloadDir))
         {
-            fs::remove_all(spiffsDataPath);
+            fs::remove_all(payloadDir);
         }
-        fs::create_directories(spiffsDataPath);
+        fs::create_directories(payloadDir);
     }
     catch (const std::exception& e)
     {
-        DEKI_LOG_ERROR("Failed to create SPIFFS directory: %s", e.what());
+        DEKI_LOG_ERROR("Failed to create the boot payload directory: %s", e.what());
         return false;
     }
 
     // Write dproject.bin (uses the raw filename, not the F:/ prefixed path)
-    fs::path projectSettingsPath = fs::path(spiffsDataPath) / "dproject.bin";
+    fs::path projectSettingsPath = fs::path(payloadDir) / "dproject.bin";
     std::ofstream settingsFile(projectSettingsPath, std::ios::binary);
 
     if (!settingsFile.is_open())
     {
-        DEKI_LOG_ERROR("Failed to create dproject.bin in SPIFFS directory");
+        DEKI_LOG_ERROR("Failed to create dproject.bin in the boot payload directory");
         return false;
     }
 
@@ -818,14 +818,14 @@ bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
     settingsFile.close();
 
-    DEKI_LOG_INFO("Wrote dproject.bin to SPIFFS (%zu bytes)", settingsBuffer.size());
+    DEKI_LOG_INFO("Wrote dproject.bin to the boot payload (%zu bytes)", settingsBuffer.size());
 
     // Compile and export boot scene if specified
     if (!bootSceneAssetPath.empty() && m_Pipeline)
     {
         DEKI_LOG_INFO("Boot scene path: '%s'", bootSceneAssetPath.c_str());
 
-        fs::path destPath = fs::path(spiffsDataPath) / "boot.scene";
+        fs::path destPath = fs::path(payloadDir) / "boot.scene";
         bool exported = false;
 
         // Resolve the JSON scene file path
@@ -854,7 +854,7 @@ bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std
                     in >> scene;
                     if (SceneHasTargetRequirements(scene))
                     {
-                        filtered = fs::path(spiffsDataPath) / "boot.filtered.scene";
+                        filtered = fs::path(payloadDir) / "boot.filtered.scene";
                         std::ofstream out(filtered);
                         out << FilterSceneForTarget(scene, m_TargetCapabilities).dump(2);
                         out.close();
@@ -873,7 +873,7 @@ bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std
             // Compile JSON scene to MessagePack binary
             if (m_Pipeline->CompileSceneFile(compileFrom.string(), destPath.string()))
             {
-                DEKI_LOG_INFO("Compiled boot scene to SPIFFS: %s (%zu bytes)",
+                DEKI_LOG_INFO("Compiled boot scene into the boot payload: %s (%zu bytes)",
                               destPath.string().c_str(), fs::file_size(destPath));
                 exported = true;
                 if (!filtered.empty())
@@ -901,7 +901,7 @@ bool AssetExporter::ExportForSPIFFS(const std::string& spiffsDataPath, const std
             DEKI_LOG_WARNING("No asset pipeline available for boot scene export");
     }
 
-    DEKI_LOG_INFO("SPIFFS export complete");
+    DEKI_LOG_INFO("Boot payload export complete");
     return true;
 }
 

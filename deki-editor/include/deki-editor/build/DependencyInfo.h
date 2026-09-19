@@ -20,9 +20,9 @@
 /// Where a dependency comes from.
 enum class PackageSourceType
 {
-    GitHub,          // github.com
-    ESPIDFRegistry,  // components.espressif.com
-    Custom           // user-defined URL
+    GitHub,             // github.com
+    FrameworkRegistry,  // the build framework's own component registry
+    Custom              // user-defined URL
 };
 
 struct DEKI_EDITOR_API DependencyInfo
@@ -30,5 +30,5 @@ struct DEKI_EDITOR_API DependencyInfo
     std::string name;     // e.g. "LovyanGFX"
     std::string version;  // version string
     std::string gitUrl;   // empty for registry packages
-    PackageSourceType source = PackageSourceType::ESPIDFRegistry;
+    PackageSourceType source = PackageSourceType::FrameworkRegistry;
 };

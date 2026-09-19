@@ -84,10 +84,12 @@ public:
     // Returns true on success
     bool ExportToStorage();
 
-    // Export files needed for SPIFFS flash partition (dproject.bin, boot scene)
-    // spiffsDataPath: output directory (e.g., builders/esp-idf/spiffs_data/)
+    // Export what a target needs before it can load anything else: the
+    // compiled project settings (dproject.bin) and the boot scene.
+    // payloadDir: where the build backend wants it
+    // (ITargetBuilder::GetBootPayloadDirectory); cleared first.
     // bootSceneAssetPath: relative asset path for boot scene (e.g., "boot.scene"), empty to skip
-    bool ExportForSPIFFS(const std::string& spiffsDataPath, const std::string& bootSceneAssetPath);
+    bool ExportBootPayload(const std::string& payloadDir, const std::string& bootSceneAssetPath);
 
     // Export assets to storage with additional force-included GUIDs
     bool ExportToStorage(const std::unordered_set<std::string>& additionalGuids);

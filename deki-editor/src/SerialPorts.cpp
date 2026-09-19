@@ -1,4 +1,4 @@
-#include "SerialPorts.h"
+#include <deki-editor/SerialPorts.h>
 
 #include <algorithm>
 #include <cstdlib>

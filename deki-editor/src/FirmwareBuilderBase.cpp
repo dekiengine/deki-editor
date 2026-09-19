@@ -325,7 +325,7 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(
             if (dep.name.rfind("deki-", 0) == 0) continue;
             dep.version = depObj.value("version", "");
             dep.gitUrl = depObj.value("git", "");
-            dep.source = dep.gitUrl.empty() ? PackageSourceType::ESPIDFRegistry : PackageSourceType::GitHub;
+            dep.source = dep.gitUrl.empty() ? PackageSourceType::FrameworkRegistry : PackageSourceType::GitHub;
 
             if (dep.name.empty() || dep.version.empty()) continue;
 

@@ -280,7 +280,7 @@ Needs the ESP-IDF toolchain, which the editor installs for you:
 DekiEditor --toolchain-status <project>              # what's missing
 DekiEditor --install-toolchain esp-idf <project>     # several GB
 DekiEditor --build-firmware <project>                # uses activePlatformId
-DekiEditor --flash --port COM5 <project>
+DekiEditor --deploy --deploy-target COM5 <project>
 ```
 
 Components are installed under `~/.deki-editor/toolchains/`. The ESP32 build is a
@@ -325,11 +325,11 @@ work.
 
 --build-firmware      Build firmware for the active platform
 --build-all-targets   Build every platform the project declares, not just one
---flash               Flash previously built firmware to a device
+--deploy              Deploy the last build as its backend defines: flash, run, install (alias: --flash)
 --clean               Clean the firmware build directory
 
 --platform <id>       Override the platform (default: activePlatformId)
---port <port>         Serial port for --flash (default: auto-detect)
+--deploy-target <id>  What to deploy to, e.g. a serial port (default: the backend chooses; alias: --port)
 
 --mcp                 Start the MCP server when the editor opens
 --mcp-port <port>     Port for the MCP server (implies --mcp)
@@ -383,9 +383,9 @@ package site to that repository's `gh-pages` branch (`tools/docs/publish_docs.py
 Alongside the scene and asset tools it exposes:
 
 `list_platforms`, `toolchain_status`, `build_firmware`, `build_status`,
-`cancel_build`, `install_toolchain_component`, `flash_firmware`, `clean_build`
+`cancel_build`, `install_toolchain_component`, `deploy_build`, `clean_build`
 
-Long operations are start-and-poll — `build_firmware`, `flash_firmware` and
+Long operations are start-and-poll — `build_firmware`, `deploy_build` and
 `install_toolchain_component` return once the work is running, and you poll
 `build_status` (`idle|building|flashing|installing|completed|failed`). MCP
 handlers run on the editor's frame loop, so blocking would freeze the UI.

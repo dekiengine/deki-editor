@@ -748,15 +748,6 @@ bool EditorHttpUtils::ParseGitHubRelease(const std::string& json, const std::str
         const std::string downloadUrl = asset.value("browser_download_url", "");
         if (downloadUrl.empty() || downloadUrl.find(assetPattern) == std::string::npos) continue;
 
-        // For the ESP32 release pattern (esp32-) skip the -libs and .tar variants:
-        // the main package is esp32-X.X.X.zip.
-        if (assetPattern == "esp32-")
-        {
-            if (downloadUrl.find("-libs") != std::string::npos) continue;
-            if (downloadUrl.find(".tar.") != std::string::npos) continue;
-            if (downloadUrl.size() < 4 || downloadUrl.compare(downloadUrl.size() - 4, 4, ".zip") != 0) continue;
-        }
-
         if (!prefix.empty() && downloadUrl.rfind(prefix, 0) != 0) return false;
 
         std::string reason;

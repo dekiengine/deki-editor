@@ -58,26 +58,12 @@ public:
     static bool ValidateAndRepairProject(const std::string& projectPath,
                                          const PlatformConfig* platform = nullptr);
 
-    /**
-     * @brief Copy bundled ESP-IDF components to a project
-     * @param projectPath Path to the project root
-     * @return true if components were copied successfully (or already exist)
-     *
-     * Copies from ~/.deki-editor/toolchains/esp-idf-components/ to
-     * {projectPath}/builders/esp-idf/components/
-     */
-    static bool CopyBundledComponents(const std::string& projectPath);
-
 private:
     // Directory creation
     static bool CreateDirectories(const std::string& projectPath);
 
     // Platform setup
     static bool CreateDefaultPlatform(const std::string& projectPath);
-
-    // Component bundling helpers
-    static std::string GetToolchainsDir();
-    static bool CopyDirectoryRecursive(const std::string& src, const std::string& dst);
 };
 
 }  // namespace DekiEditor

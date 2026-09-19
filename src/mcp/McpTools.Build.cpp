@@ -94,7 +94,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "wait_for_operation",
                         "Block until the running firmware operation finishes, and report how it "
-                        "went. build_firmware, flash_firmware and the toolchain tools all start "
+                        "went. build_firmware, deploy_build and the toolchain tools all start "
                         "in the background and return at once, which suits a GUI polling for "
                         "progress but leaves a script with nothing to wait on: the process exits "
                         "and takes the work with it.",
@@ -703,21 +703,22 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
     // Flash / clean
     // =========================================================================
 
-    registry.Register({ "flash_firmware",
-                        "Flash previously built firmware to a connected device. Returns once "
-                        "flashing starts — poll build_status for the result.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "port", { { "type", "string" }, { "description", "Serial port, e.g. \"COM5\" (default: auto-detect)" } } } } } },
+    registry.Register({ "deploy_build",
+                        "Deploy the last build the way the platform's backend defines it: flash a "
+                        "device, run the executable, install an app. Refused when the backend has "
+                        "no deploy step. Returns once it starts — poll build_status for the result.",
+                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "target", { { "type", "string" }, { "description", "What to deploy to, in the backend's own terms (a serial port for a board that is flashed); omit to let the backend choose" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string path = ResolveProjectPath(editor, args);
-                            const std::string port = args.value("port", std::string());
-                            FirmwareOpResult r = FirmwareBuildService::StartFlash(path, ArgPlatform(args), port, nullptr);
+                            const std::string target = args.value("target", std::string());
+                            FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target, nullptr);
                             if (!r.success)
                                 throw std::runtime_error(r.error);
 
                             nlohmann::json j = OpToJson(r);
                             j["started"] = true;
-                            j["note"] = "Flash running in background — poll build_status.";
+                            j["note"] = "Deploy running in background — poll build_status.";
                             return j;
                         } });
 

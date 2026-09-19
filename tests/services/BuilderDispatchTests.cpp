@@ -26,15 +26,8 @@ class StubBuilder : public ITargetBuilder
     std::string GetFrameworkId() const override { return m_Framework; }
 
     void Build(const std::string&, BuildOutputCallback, BuildProgressCallback) override {}
-    void Flash(const std::string&, const std::string&, BuildOutputCallback,
-               BuildProgressCallback) override
-    {
-    }
+    bool SupportsDeploy() const override { return false; }
     void Clean(const std::string&, BuildOutputCallback, BuildProgressCallback) override {}
-    void SetTarget(const std::string&, const std::string&, BuildOutputCallback,
-                   BuildProgressCallback) override
-    {
-    }
     void Cancel() override {}
     bool IsBuilding() const override { return false; }
     BuildState GetState() const override { return BuildState::Idle; }
@@ -53,8 +46,8 @@ class StubBuilder : public ITargetBuilder
     {
         return true;
     }
-    std::vector<std::string> GetSupportedTargets() const override { return {}; }
     std::string GetBuildDirectory(const std::string&) const override { return ""; }
+    std::string GetBootPayloadDirectory(const std::string&) const override { return ""; }
     std::string GetPlatformKey() const override { return m_Framework; }
 
    private:

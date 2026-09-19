@@ -21,6 +21,7 @@ public:
     DekiPackageInstaller();
     ~DekiPackageInstaller();
 
+    std::string GetId() const override { return "deki"; }
     std::string GetPlatformName() const override { return "Deki Package"; }
 
     bool IsApplicable(const std::string& projectPath) const override;

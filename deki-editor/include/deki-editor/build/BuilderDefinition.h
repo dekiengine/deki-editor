@@ -9,16 +9,14 @@
 namespace DekiEditor
 {
 
-enum class MCUFamily;
-
 // ============================================================================
-// Builder Definition structs — parsed from resources/builders/*.json
+// Toolchain definition structs — parsed from JSON a build backend supplies
 // ============================================================================
 
 struct DEKI_EDITOR_API VersionCheckDef
 {
     std::string type;          // "github_release" or "static"
-    std::string repo;          // For github_release: "espressif/esp-idf"
+    std::string repo;          // For github_release: "owner/name"
     std::string assetPattern;  // For github_release: asset filename pattern
     std::string version;       // For static: fixed version string
 };
@@ -76,21 +74,29 @@ struct DEKI_EDITOR_API ComponentDef
 
 struct DEKI_EDITOR_API BuilderDefinition
 {
-    std::string id;      // "espidf"
-    std::string name;    // "ESP-IDF"
-    std::string family;  // "espressif" — maps to MCUFamily
+    std::string id;      // the framework id the backend claims
+    std::string name;    // display name
+    std::string family;  // descriptive vendor family, never a dispatch key
     std::vector<std::string> supportedTargets;
-    std::string buildDirectory;  // e.g., "builders/esp-idf"
+    std::string buildDirectory;  // relative to the project, the backend's choice
     std::vector<ComponentDef> components;
 };
 
-/// Parse a single builder JSON file into a BuilderDefinition
-DEKI_EDITOR_API bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef);
+/// Parse a toolchain definition from JSON text.
+///
+/// Text, not a path, is the primary form: a build backend lives in a package,
+/// and the package DLL is built into the project's runtime directory, nowhere
+/// near its own sources - so a backend carries its definition inside itself
+/// rather than hoping a file sits beside the editor. It used to: the ESP-IDF
+/// backend read resources/builders/espidf.json next to DekiEditor.exe, which
+/// made the editor ship one framework's recipe after the backend had left.
+///
+/// A failure says why in outError. There is no silent "no toolchain" state.
+DEKI_EDITOR_API bool ParseBuilderDefinition(const std::string& jsonText, BuilderDefinition& outDef,
+                                            std::string& outError);
 
-/// Load all builder definitions from a directory
-DEKI_EDITOR_API std::vector<BuilderDefinition> LoadAllBuilderDefinitions(const std::string& directory);
-
-/// Convert family string ("espressif", "rp2040", etc.) to MCUFamily enum
-DEKI_EDITOR_API std::string ParseMCUFamily(const std::string& familyStr);
+/// The same, from a file a backend locates itself.
+DEKI_EDITOR_API bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef,
+                                           std::string& outError);
 
 }  // namespace DekiEditor

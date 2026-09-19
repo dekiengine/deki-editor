@@ -5,7 +5,7 @@
 // Owns the sequence a firmware build goes through (load project -> resolve
 // platform -> resolve builder -> prepare -> Build/Flash/Clean) so the Build
 // panel, the CLI and MCP all run the same one. An EditorApp is optional and
-// only ever an input: passing one lets the preparation export the SPIFFS
+// only ever an input: passing one lets the preparation export the boot
 // payload and scan scenes for package defines. No ImGui state is touched
 // either way, so every entry point here works headless.
 //
@@ -59,19 +59,19 @@ public:
                                           std::string& outError);
 
     /// Everything that has to happen between "a firmware build was asked for"
-    /// and ITargetBuilder::Build: toolchain check, SPIFFS payload export,
+    /// and ITargetBuilder::Build: toolchain check, boot payload export,
     /// package defines, platform config, build options, build-file regeneration.
     ///
     /// This is the single definition of what preparing a firmware build means.
     /// The Build panel calls it and then drives the builder itself (so it can
     /// wire its own progress and cancel UI); Build/StartBuild below call it and
     /// drive the builder for you. Before it existed the two had drifted, and a
-    /// firmware image built from the CLI shipped with no SPIFFS data at all —
+    /// firmware image built from the CLI shipped with no boot payload at all —
     /// no dproject.bin, no boot scene — because that step lived only in the
     /// panel.
     ///
     /// `editor` may be null, in which case the defines fall back to every
-    /// installed package's declared define and no SPIFFS payload is written.
+    /// installed package's declared define and no boot payload is written.
     /// A booted editor is always the better input: its package panel scans the
     /// project's scenes and contributes only the defines actually used.
     static FirmwareOpResult PrepareBuild(const std::string& projectPath,
@@ -98,11 +98,11 @@ public:
                                        FirmwareLogCallback onLine = nullptr,
                                        EditorApp* editor = nullptr);
 
-    /// Non-blocking Flash(). success==true means "started".
-    static FirmwareOpResult StartFlash(const std::string& projectPath,
-                                       const std::string& platformId,
-                                       const std::string& port,
-                                       FirmwareLogCallback onLine = nullptr);
+    /// Non-blocking Deploy(). success==true means "started".
+    static FirmwareOpResult StartDeploy(const std::string& projectPath,
+                                        const std::string& platformId,
+                                        const std::string& deployTargetId,
+                                        FirmwareLogCallback onLine = nullptr);
 
     /// Non-blocking InstallToolchainComponent(). success==true means "started".
     /// Progress surfaces through QueryStatus() as state "installing".
@@ -122,17 +122,20 @@ public:
     /// Snapshot of the most recently started operation. Returns
     /// {"active": bool, "state": "...", "statusText": "...", "progress": f,
     ///  "error": "...", "platformId": "..."}.
-    /// state is one of idle|building|flashing|installing|completed|failed.
+    /// state is one of idle|building|deploying|installing|completed|failed.
     static nlohmann::json QueryStatus();
 
     /// Request cancellation of the in-flight operation. No-op when idle.
     static bool CancelActive();
 
-    /// Flash previously built firmware. port empty => builder auto-detect.
-    static FirmwareOpResult Flash(const std::string& projectPath,
-                                  const std::string& platformId,
-                                  const std::string& port,
-                                  FirmwareLogCallback onLine = nullptr);
+    /// Deploy the last build, whatever that means for the platform's backend:
+    /// flash it, run it, install it. deployTargetId is one of the backend's
+    /// ITargetBuilder::EnumerateDeployTargets ids; empty lets it choose.
+    /// Refused when the backend has no deploy step.
+    static FirmwareOpResult Deploy(const std::string& projectPath,
+                                   const std::string& platformId,
+                                   const std::string& deployTargetId,
+                                   FirmwareLogCallback onLine = nullptr);
 
     /// Clean the builder's build directory. Blocks until complete.
     static FirmwareOpResult Clean(const std::string& projectPath,

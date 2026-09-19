@@ -88,14 +88,23 @@ struct DekiBuilderAbi
     uint32_t version;         ///< kDekiBuilderAbiVersion the plugin compiled with
     uint32_t structSize;      ///< sizeof(DekiBuilderAbi) as the plugin sees it
     uint32_t platformConfigSize;   ///< sizeof(DekiEditor::PlatformConfig)
+    uint32_t packageEntrySize;     ///< sizeof(DekiEditor::CMakeGen::PackageEntry)
     uint32_t stdStringSize;        ///< sizeof(std::string)
     uint32_t stdVectorSize;        ///< sizeof(std::vector<int>)
     uint32_t compilerTag;     ///< compiler + STL identity; see DekiBuilder_ThisAbi
 };
 
 /// Bump when the builder interface changes shape: a new virtual, a reordered
-/// one, a changed signature, or a change to PlatformConfig's layout.
-constexpr uint32_t kDekiBuilderAbiVersion = 1;
+/// one, a changed signature, or a change to the layout of a struct that
+/// crosses the boundary.
+///
+/// 2: Flash/SetTarget/GetSupportedTargets/SupportsFlash replaced by the deploy
+///    step; GetBootPayloadDirectory and DescribePlatform added;
+///    CMakeGen::PackageEntry carries framework dependencies as written. The
+///    handshake also gained packageEntrySize, because ScanPackageManifests
+///    returns those by value: a backend built against another layout destroyed
+///    them with the wrong destructor and took the editor down with it.
+constexpr uint32_t kDekiBuilderAbiVersion = 2;
 
 /// The compiler and standard library this translation unit is using. A MinGW
 /// plugin and an MSVC editor lay out std::string differently, and nothing else
@@ -116,12 +125,13 @@ constexpr uint32_t DekiBuilder_CompilerTag()
 
 /// Fill in from the plugin's own point of view. A plugin implements
 /// DekiBuilder_GetAbi by returning a static filled with this.
-inline DekiBuilderAbi DekiBuilder_ThisAbi(uint32_t platformConfigSize)
+inline DekiBuilderAbi DekiBuilder_ThisAbi(uint32_t platformConfigSize, uint32_t packageEntrySize)
 {
     DekiBuilderAbi abi{};
     abi.version = kDekiBuilderAbiVersion;
     abi.structSize = (uint32_t)sizeof(DekiBuilderAbi);
     abi.platformConfigSize = platformConfigSize;
+    abi.packageEntrySize = packageEntrySize;
     abi.stdStringSize = (uint32_t)sizeof(std::string);
     abi.stdVectorSize = (uint32_t)sizeof(std::vector<int>);
     abi.compilerTag = DekiBuilder_CompilerTag();

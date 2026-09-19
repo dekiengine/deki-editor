@@ -132,39 +132,15 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                             if (std::find(info.dekiDeps.begin(), info.dekiDeps.end(), name) == info.dekiDeps.end())
                                 info.dekiDeps.push_back(name);
                         }
-                        else if (platform == "espidf")
-                        {
-                            info.espidfDeps.push_back(name);
-                            info.frameworkDeps[platform].push_back(name);
-                        }
-                        else if (platform == "native" && dep.is_object())
-                        {
-                            NativeDependency nd;
-                            nd.name = name;
-                            nd.version = dep.value("version", "");
-                            nd.git = dep.value("git", "");
-                            if (dep.contains("prebuilt") && dep["prebuilt"].is_object())
-                            {
-                                for (auto& [host, archive] : dep["prebuilt"].items())
-                                {
-                                    if (!archive.is_object()) continue;
-                                    NativePrebuilt pre;
-                                    pre.url = archive.value("url", "");
-                                    pre.sha256 = archive.value("sha256", "");
-                                    pre.cmakeDir = archive.value("cmakeDir", "");
-                                    pre.includeDir = archive.value("includeDir", "");
-                                    nd.prebuilt[host] = pre;
-                                }
-                            }
-                            info.nativeDeps.push_back(nd);
-                            info.frameworkDeps[platform].push_back(name);
-                        }
                         else
                         {
-                            // Any other framework. Kept rather than dropped, so
-                            // a backend the editor has never heard of can read
-                            // its package's dependencies.
-                            info.frameworkDeps[platform].push_back(name);
+                            // Whatever the framework. Kept as written, for the
+                            // backend claiming `platform` to interpret.
+                            FrameworkDependency fd;
+                            fd.name = name;
+                            if (dep.is_object())
+                                fd.json = dep.dump();
+                            info.frameworkDeps[platform].push_back(std::move(fd));
                         }
                     }
                 }
