@@ -69,7 +69,7 @@ set(TEST_SOURCES
     core/ProjectVersionGateTests.cpp
     core/RenamedComponentRefTests.cpp
     core/AutoSetupPhaseTests.cpp
-    services/SimulatorBootSceneTests.cpp
+    services/PlatformTemplateTests.cpp
     services/MinEngineGateTests.cpp
     services/PackageIntegrityTests.cpp
     panels/VirtualFoldersTests.cpp
@@ -131,7 +131,15 @@ target_compile_definitions(DekiEditorTests PRIVATE
     # test binary is built with the same one, so the same values hold here.
     DEKI_EDITOR_CXX_COMPILER="${CMAKE_CXX_COMPILER}"
     DEKI_EDITOR_C_COMPILER="${CMAKE_C_COMPILER}"
+    # ProjectScaffoldTests reads the starter the editor ships, from the source
+    # tree: the deployed copy only exists once DekiEditor itself has been built.
+    DEKI_TEST_STARTER_JSON="${CMAKE_SOURCE_DIR}/resources/starter.json"
 )
+# PlatformTemplateTests checks the boot scenes the packages ship, when there is
+# a packages checkout to look in.
+if(DEKI_PACKAGES_DIR AND EXISTS "${DEKI_PACKAGES_DIR}")
+    target_compile_definitions(DekiEditorTests PRIVATE DEKI_TEST_PACKAGES_DIR="${DEKI_PACKAGES_DIR}")
+endif()
 
 target_link_libraries(DekiEditorTests PRIVATE
     GTest::gtest_main

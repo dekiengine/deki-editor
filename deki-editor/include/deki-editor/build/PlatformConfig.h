@@ -253,18 +253,4 @@ private:
     std::map<std::string, PlatformConfig> m_Platforms;
 };
 
-/**
- * @brief Register built-in fallback platforms
- *
- * Called when no platforms are loaded from the project directory.
- * Only registers the Simulator as a fallback for legacy projects.
- */
-DEKI_EDITOR_API void RegisterBuiltInPlatforms();
-
-/**
- * @brief Create the desktop simulator platform configuration
- * @return Platform configuration for SDL3 simulator builds
- */
-DEKI_EDITOR_API PlatformConfig CreateSimulatorPlatformConfig();
-
 }  // namespace DekiEditor

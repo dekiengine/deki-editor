@@ -25,10 +25,26 @@ inline constexpr const char* kStartupScene = "scenes/main.scene";
 inline constexpr const char* kStarterFontFile = "JetBrainsMono-Regular.ttf";
 inline constexpr int kStarterFontSize = 16;
 
-/// Registry packages every new desktop project declares: rendering, the 2D
-/// components, input, and the SDL3 window plus desktop providers that make the
-/// simulator run.
-std::vector<std::string> DefaultPackageIds();
+/// What a new project starts with: the registry packages it declares and the
+/// platform it is aimed at. Read from a data file beside the editor
+/// (resources/starter.json), because which packages and which target a new
+/// project gets is the distribution's choice, not something for the editor's
+/// code to name. The platform is not written by the scaffold: it is adopted on
+/// first open from whichever of those packages offers a template for it
+/// (deki-editor/build/PlatformTemplates.h).
+struct ProjectStarter
+{
+    std::vector<std::string> packageIds;
+    std::string platformId;
+};
+
+/// <editor directory>/resources/starter.json
+std::string DefaultStarterPath();
+
+/// Read a starter file. Refuses, with the reason, a file that is missing,
+/// does not parse, declares no packages, or names anything that is not a plain
+/// name. There is no built-in starter to fall back to.
+bool LoadProjectStarter(const std::string& path, ProjectStarter& out, std::string& err);
 
 /// deki.json with the current structure version, the startup scene and the
 /// active platform. Everything Project::Save would rewrite on first open is

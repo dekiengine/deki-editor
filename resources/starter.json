@@ -1,0 +1,11 @@
+{
+  "_comment": "What File > New Project and --new-project start a project with. Data, not code: the editor names no package and no platform of its own, so a distribution aimed at other targets ships a different file. 'platform' is adopted on first open from whichever listed package offers a template for it (<package>/platforms/<id>/).",
+  "packages": [
+    "deki-rendering",
+    "deki-2d",
+    "deki-input",
+    "deki-sdl3-integration",
+    "deki-desktop-integration"
+  ],
+  "platform": "native_simulator"
+}

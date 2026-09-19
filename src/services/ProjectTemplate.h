@@ -62,8 +62,6 @@ private:
     // Directory creation
     static bool CreateDirectories(const std::string& projectPath);
 
-    // Platform setup
-    static bool CreateDefaultPlatform(const std::string& projectPath);
 };
 
 }  // namespace DekiEditor

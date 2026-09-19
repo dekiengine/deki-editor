@@ -1,6 +1,5 @@
 #include "ProjectTemplate.h"
 #include "ProjectScaffold.h"
-#include "SimulatorBootScene.h"
 #include <deki/LogSystem.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/build/ProjectPaths.h>
@@ -44,18 +43,26 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
     if (!CreateDirectories(projectPath.string()))
         return false;
 
-    // Create default platform (Simulator)
-    if (!CreateDefaultPlatform(projectPath.string()))
-        return false;
-
-    // The project files. The active platform is the one the dialog picked, or
-    // the simulator written just above.
-    const std::string activePlatformId = platform ? platform->id : CreateSimulatorPlatformConfig().id;
+    // What the project starts with is data beside the editor, not a list in
+    // this file. It used to be one: five package ids, and a desktop simulator
+    // platform whose config and boot scene were written from the editor's own
+    // source.
     std::string err;
+    ProjectScaffold::ProjectStarter starter;
+    if (!ProjectScaffold::LoadProjectStarter(ProjectScaffold::DefaultStarterPath(), starter, err))
+    {
+        DEKI_LOG_ERROR("ProjectTemplate: %s", err.c_str());
+        return false;
+    }
+
+    // The active platform is the one the dialog picked, or the starter's. The
+    // starter's is only NAMED here. Its files belong to a package that is not
+    // installed yet; the first open restores the packages and adopts it.
+    const std::string activePlatformId = platform ? platform->id : starter.platformId;
     if (!ProjectScaffold::WriteDekiJson(projectPath.string(), projectName, activePlatformId, err) ||
         !ProjectScaffold::WriteGitIgnore(projectPath.string(), err) ||
         !ProjectScaffold::WriteRenderPipeline(projectPath.string(), err) ||
-        !ProjectScaffold::WritePackageManifestFor(projectPath.string(), ProjectScaffold::DefaultPackageIds(), err))
+        !ProjectScaffold::WritePackageManifestFor(projectPath.string(), starter.packageIds, err))
     {
         DEKI_LOG_ERROR("ProjectTemplate: %s", err.c_str());
         return false;
@@ -124,28 +131,6 @@ bool ProjectTemplate::CreateDirectories(const std::string& projectPath)
     {
         return false;
     }
-}
-
-
-bool ProjectTemplate::CreateDefaultPlatform(const std::string& projectPath)
-{
-    // Create Simulator platform as the default
-    PlatformConfig simulator = CreateSimulatorPlatformConfig();
-    std::string platformsDir = GetPlatformsDirectory(projectPath);
-
-    // A device build boots the platform's boot scene, and on the simulator
-    // that scene is what opens the window. A platform without one used to
-    // build fine and start with no display at all.
-    simulator.bootScene = "platforms/" + simulator.id + "/boot.scene";
-    const std::filesystem::path bootPath = std::filesystem::path(platformsDir) / simulator.id / "boot.scene";
-    std::error_code ec;
-    std::filesystem::create_directories(bootPath.parent_path(), ec);
-    std::ofstream boot(bootPath, std::ios::binary);
-    boot << SimulatorBootSceneJson();
-    if (!boot)
-        return false;
-
-    return PlatformRegistry::Instance().SavePlatformToFile(simulator, platformsDir);
 }
 
 bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,

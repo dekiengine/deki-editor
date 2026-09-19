@@ -8,6 +8,10 @@
 #include <deki-editor/AssetData.h>
 #include <deki-editor/FileIO.h>
 #include <deki-editor/Paths.h>
+#include <deki-editor/EditorPaths.h>
+#include <deki-editor/SafeNames.h>
+
+#include <fstream>
 
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -56,9 +60,57 @@ bool WriteText(const fs::path& path, const std::string& text, std::string& err)
 
 }  // namespace
 
-std::vector<std::string> DefaultPackageIds()
+std::string DefaultStarterPath()
 {
-    return { "deki-rendering", "deki-2d", "deki-input", "deki-sdl3-integration", "deki-desktop-integration" };
+    return (fs::path(EditorPaths::GetExecutableDir()) / "resources" / "starter.json").string();
+}
+
+bool LoadProjectStarter(const std::string& path, ProjectStarter& out, std::string& err)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open())
+    {
+        err = "cannot open the project starter " + path;
+        return false;
+    }
+
+    const json j = json::parse(file, nullptr, /*allow_exceptions*/ false);
+    if (!j.is_object())
+    {
+        err = path + " is not a JSON object";
+        return false;
+    }
+
+    ProjectStarter starter;
+    if (j.contains("packages") && j["packages"].is_array())
+    {
+        for (const auto& id : j["packages"])
+        {
+            std::string reason;
+            if (!id.is_string() || !SafeNames::IsSafeName(id.get<std::string>(), reason))
+            {
+                err = path + ": \"packages\" holds something that is not a package id";
+                return false;
+            }
+            starter.packageIds.push_back(id.get<std::string>());
+        }
+    }
+    if (starter.packageIds.empty())
+    {
+        err = path + " declares no packages";
+        return false;
+    }
+
+    starter.platformId = j.value("platform", std::string());
+    std::string reason;
+    if (!SafeNames::IsSafeName(starter.platformId, reason))
+    {
+        err = path + ": \"platform\" is not a platform id: " + reason;
+        return false;
+    }
+
+    out = std::move(starter);
+    return true;
 }
 
 bool WriteDekiJson(const std::string& projectPath, const std::string& projectName,

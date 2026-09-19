@@ -68,22 +68,69 @@ TEST(ProjectScaffold, DekiJsonIsCurrentAndComplete)
     EXPECT_FALSE(j.contains("displaySettings"));  // lives in settings/, Project::Save erases it
 }
 
-TEST(ProjectScaffold, ManifestDeclaresTheDesktopPackagesAtNewest)
+TEST(ProjectScaffold, ManifestDeclaresTheStarterPackagesAtNewest)
 {
     TempProject t;
     std::string err;
-    const auto ids = ProjectScaffold::DefaultPackageIds();
+    const std::vector<std::string> ids = { "pkg-one", "pkg-two" };
     ASSERT_TRUE(ProjectScaffold::WritePackageManifestFor(t.Path(), ids, err)) << err;
 
     const json j = t.ReadJson("deki-packages.json");
     EXPECT_EQ(j.at("schemaVersion"), 1);
+    EXPECT_EQ(j.at("packages").size(), ids.size());
     for (const auto& id : ids)
     {
         ASSERT_TRUE(j.at("packages").contains(id)) << id;
         EXPECT_EQ(j.at("packages").at(id).at("version"), "*");
     }
-    EXPECT_TRUE(j.at("packages").contains("deki-rendering"));
-    EXPECT_TRUE(j.at("packages").contains("deki-2d"));
+}
+
+// What a new project starts with is a data file, so the editor's code names no
+// package and no platform. These pin the reader; the last one pins the file
+// the editor actually ships.
+TEST(ProjectStarter, ReadsPackagesAndThePlatform)
+{
+    TempProject t;
+    const fs::path file = t.dir / "starter.json";
+    std::ofstream(file) << R"({"packages":["pkg-one","pkg-two"],"platform":"widget_devkit"})";
+
+    ProjectScaffold::ProjectStarter starter;
+    std::string err;
+    ASSERT_TRUE(ProjectScaffold::LoadProjectStarter(file.string(), starter, err)) << err;
+    EXPECT_EQ(starter.packageIds, (std::vector<std::string>{ "pkg-one", "pkg-two" }));
+    EXPECT_EQ(starter.platformId, "widget_devkit");
+}
+
+TEST(ProjectStarter, RefusesRatherThanFallingBackToABuiltInOne)
+{
+    TempProject t;
+    ProjectScaffold::ProjectStarter starter;
+    std::string err;
+
+    EXPECT_FALSE(ProjectScaffold::LoadProjectStarter((t.dir / "absent.json").string(), starter, err));
+    EXPECT_FALSE(err.empty());
+
+    const auto refuses = [&](const char* text)
+    {
+        const fs::path file = t.dir / "bad.json";
+        std::ofstream(file, std::ios::trunc) << text;
+        err.clear();
+        return !ProjectScaffold::LoadProjectStarter(file.string(), starter, err) && !err.empty();
+    };
+    EXPECT_TRUE(refuses("not json"));
+    EXPECT_TRUE(refuses(R"({"packages":[],"platform":"x"})"));
+    EXPECT_TRUE(refuses(R"({"packages":["ok"]})"));
+    EXPECT_TRUE(refuses(R"({"packages":["../escape"],"platform":"x"})"));
+    EXPECT_TRUE(refuses(R"({"packages":["ok"],"platform":"../escape"})"));
+}
+
+TEST(ProjectStarter, TheShippedStarterIsUsable)
+{
+    ProjectScaffold::ProjectStarter starter;
+    std::string err;
+    ASSERT_TRUE(ProjectScaffold::LoadProjectStarter(DEKI_TEST_STARTER_JSON, starter, err)) << err;
+    EXPECT_FALSE(starter.packageIds.empty());
+    EXPECT_FALSE(starter.platformId.empty());
 }
 
 TEST(ProjectScaffold, GitIgnoreCoversGeneratedPackagesAndStorage)

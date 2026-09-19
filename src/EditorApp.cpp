@@ -162,7 +162,6 @@ EditorApp::EditorApp()
 
     // Initialize platform registry with built-in platforms and board packs
     StartupProgress::Update("Registering platforms...");
-    RegisterBuiltInPlatforms();
     StartupProgress::Update("Loading board packs...");
     PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
 

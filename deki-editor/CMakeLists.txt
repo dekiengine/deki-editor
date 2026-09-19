@@ -42,6 +42,7 @@ set(EDITOR_DLL_SOURCES
     # the platform type instead of compiling its own - and so a third-party
     # backend has public headers to compile against at all.
     src/PlatformConfig.cpp
+    src/PlatformTemplates.cpp
     src/BuilderRegistry.cpp
     src/BuilderDispatch.cpp
     src/BuildActivitySink.cpp

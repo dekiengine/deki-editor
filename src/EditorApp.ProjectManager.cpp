@@ -27,6 +27,7 @@
 #include "services/StartupProgress.h"
 #include "services/PackageManager.h"
 #include "services/PackageRestore.h"
+#include <deki-editor/build/PlatformTemplates.h>
 #include "services/Prerequisites.h"
 #include "services/FileDialogs.h"
 #include "EditorPlayModeFileSystem.h"
@@ -101,19 +102,6 @@ bool EditorApp::OpenProject(const std::string& path)
     if (auto* units = DekiEditor::GetUnitSettings())
         units->ApplyToGlobalCache();
 
-    // Load platforms: board packs as baseline, project platforms override
-    std::string platformsDir = GetPlatformsDirectory(path);
-    PlatformRegistry::Instance().Clear();
-    RegisterBuiltInPlatforms();
-    PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
-    PlatformRegistry::Instance().LoadPlatformsFromDirectory(platformsDir);
-
-    // Restore active platform selection from project
-    if (m_BuildPanel && !m_Project->GetActivePlatformId().empty())
-    {
-        m_BuildPanel->SetSelectedPlatform(m_Project->GetActivePlatformId());
-    }
-
     // Asset cache epoch: a bumped ASSET_CACHE_EPOCH means the compiled asset
     // format changed, so the cache is wiped here and ImportAllAssets below
     // rebuilds it. The result used to be ignored - the bump only logged.
@@ -182,6 +170,35 @@ bool EditorApp::OpenProject(const std::string& path)
                     m_HotReloadService->ForceNextBuild();
             }
         }
+    }
+
+    // Platforms, now that the packages are on disk: board packs as the baseline,
+    // then what the installed packages offer, then the project's own, which
+    // override both.
+    //
+    // This used to run before the restore, with a desktop simulator the editor
+    // built from its own source registered first as "the fallback". The editor
+    // has no platform of its own now. A project's active platform that it does
+    // not define yet - a new project's, which names the starter's platform and
+    // nothing more - is adopted from the package offering it, and one that
+    // nobody offers is an error said here rather than a quiet substitute.
+    {
+        const std::string activePlatform = m_Project->GetActivePlatformId();
+        PlatformRegistry::Instance().Clear();
+        PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
+        RegisterPlatformTemplates(path);
+        PlatformRegistry::Instance().LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
+
+        std::string platformErr;
+        if (!EnsureProjectPlatform(path, activePlatform, platformErr))
+            DEKI_LOG_ERROR("EditorApp: %s", platformErr.c_str());
+        else if (!activePlatform.empty() && PlatformRegistry::Instance().GetPlatform(activePlatform) == nullptr)
+            DEKI_LOG_ERROR("EditorApp: the project's active platform '%s' is not defined under platforms/, "
+                           "and no installed package or board pack offers it",
+                           activePlatform.c_str());
+
+        if (m_BuildPanel && !activePlatform.empty())
+            m_BuildPanel->SetSelectedPlatform(activePlatform);
     }
 
     // A project that has never been built has no package binaries at all, and the
@@ -805,7 +822,6 @@ void EditorApp::CloseProject()
 
     // Clear platform registry and restore board pack platforms
     PlatformRegistry::Instance().Clear();
-    RegisterBuiltInPlatforms();
     PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
 
     // Shutdown AssetDatabase before pipeline

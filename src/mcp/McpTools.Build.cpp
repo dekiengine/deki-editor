@@ -9,6 +9,7 @@
 // start-and-poll too, sharing build_status via the builder's progress state.
 
 #include "McpTools.h"
+#include <deki-editor/build/PlatformTemplates.h>
 #include "McpToolRegistry.h"
 #include "../EditorApp.h"
 #include "../core/Project.h"
@@ -371,8 +372,13 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                 registryRef.LoadPlatformsFromDirectory(
                                     GetPlatformsDirectory(project->GetPath()));
                                 registryRef.LoadPlatformsFromBoardPacks();
+                                RegisterPlatformTemplates(project->GetPath());
+                                std::string adoptErr;
+                                if (!EnsureProjectPlatform(project->GetPath(), id, adoptErr))
+                                    throw std::runtime_error(adoptErr);
                                 if (!registryRef.GetPlatform(id))
-                                    throw std::runtime_error("no platform '" + id + "' in this project");
+                                    throw std::runtime_error("no platform '" + id + "' in this project, its "
+                                                             "packages or the installed board packs");
                             }
 
                             project->SetActivePlatformId(id);

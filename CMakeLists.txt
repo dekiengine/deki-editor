@@ -491,9 +491,6 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageLoader.cpp
     # RegistrySourceTests: the registry index / package file parsers.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/sources/DekiRegistrySource.cpp
-    # SimulatorBootSceneTests: the boot scene a new project gets, whose typeIds
-    # are literals that no rename updates for you.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SimulatorBootScene.cpp
     # ProjectScaffoldTests: what a new project is made of, and the manifest
     # writer it shares with PackageManager.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ProjectScaffold.cpp
@@ -697,7 +694,6 @@ set(EDITOR_SOURCES
     src/panels/PlatformManagerPanel.cpp
     src/panels/PlatformManagerPanel.h
     src/services/ProjectTemplate.cpp
-    src/services/SimulatorBootScene.cpp
     src/services/ProjectTemplate.h
     src/services/PackageManager.cpp
     src/services/PackageManager.h
@@ -906,6 +902,10 @@ add_custom_command(TARGET DekiEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/fonts/tabler-icons.ttf"
         "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/tabler-icons.ttf"
+    # What a new project starts with (ProjectScaffold::LoadProjectStarter).
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/starter.json"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/starter.json"
 )
 
 # =============================================================================

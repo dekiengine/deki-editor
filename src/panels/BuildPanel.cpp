@@ -1,4 +1,5 @@
 #include "BuildPanel.h"
+#include <deki-editor/build/PlatformTemplates.h>
 #include <deki-editor/Paths.h>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
@@ -486,6 +487,12 @@ void BuildPanel::DrawPlatformSelector()
             // Persist active platform to project
             if (m_App && m_App->GetProject())
             {
+                // Chosen from what a package offers: it becomes the project's
+                // own copy now, so it can be edited and its boot scene exists.
+                std::string adoptErr;
+                if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
+                    ActivityPanel::LogError("Build", adoptErr);
+
                 m_App->GetProject()->SetActivePlatformId(m_SelectedPlatform);
                 m_App->GetProject()->Save();
 

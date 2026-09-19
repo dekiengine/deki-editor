@@ -1,4 +1,5 @@
 #include "FirmwareBuildService.h"
+#include <deki-editor/build/PlatformTemplates.h>
 #include <deki-editor/Paths.h>
 
 #include "core/Project.h"
@@ -65,8 +66,8 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
 
     auto& platforms = PlatformRegistry::Instance();
     platforms.Clear();
-    RegisterBuiltInPlatforms();
     platforms.LoadPlatformsFromBoardPacks();
+    RegisterPlatformTemplates(projectPath);
     platforms.LoadPlatformsFromDirectory(GetPlatformsDirectory(projectPath));
 
     ctx.platformId = platformId.empty() ? ctx.project->GetActivePlatformId() : platformId;
@@ -75,6 +76,11 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
         err = "No platform specified and the project has no activePlatformId.";
         return false;
     }
+
+    // A platform a package only offers becomes the project's own before it is
+    // built for: its boot scene path is relative to the project.
+    if (!EnsureProjectPlatform(projectPath, ctx.platformId, err))
+        return false;
 
     ctx.platform = platforms.GetPlatform(ctx.platformId);
     if (!ctx.platform)
