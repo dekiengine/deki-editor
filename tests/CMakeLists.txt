@@ -135,12 +135,6 @@ target_compile_definitions(DekiEditorTests PRIVATE
     # tree: the deployed copy only exists once DekiEditor itself has been built.
     DEKI_TEST_STARTER_JSON="${CMAKE_SOURCE_DIR}/resources/starter.json"
 )
-# PlatformTemplateTests checks the boot scenes the packages ship, when there is
-# a packages checkout to look in.
-if(DEKI_PACKAGES_DIR AND EXISTS "${DEKI_PACKAGES_DIR}")
-    target_compile_definitions(DekiEditorTests PRIVATE DEKI_TEST_PACKAGES_DIR="${DEKI_PACKAGES_DIR}")
-endif()
-
 target_link_libraries(DekiEditorTests PRIVATE
     GTest::gtest_main
     deki-engine-internal
@@ -172,6 +166,13 @@ endif()
 
 set(DEKI_PACKAGES_DIR "${CMAKE_SOURCE_DIR}/../packages" CACHE PATH
     "Directory holding package checkouts (deki-rendering, deki-2d, ...) for package unit tests")
+
+# PlatformTemplateTests checks the boot scenes the packages ship, when there is
+# a packages checkout to look in. After the default above, or a fresh configure
+# would find the variable unset and compile the check out.
+if(EXISTS "${DEKI_PACKAGES_DIR}")
+    target_compile_definitions(DekiEditorTests PRIVATE DEKI_TEST_PACKAGES_DIR="${DEKI_PACKAGES_DIR}")
+endif()
 
 function(deki_read_package_descriptor pkg_id)
     set(_json_path "${DEKI_PACKAGES_DIR}/${pkg_id}/package.json")
