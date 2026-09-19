@@ -12,6 +12,12 @@
 #include <deki/reflection/Property.h>
 #include "../core/commands/PropertyTypeHandlers.h"
 #include <deki-editor/AssetPipeline.h>
+#include <deki-editor/AssetTypeRegistry.h>
+#include <deki-editor/CliTool.h>
+#include <deki-editor/EditorRegistry.h>
+#include <deki-editor/Paths.h>
+#include <filesystem>
+#include <fstream>
 
 namespace DekiEditor
 {
@@ -787,6 +793,127 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 { "startupScene", project->GetStartupScene() }
                             };
                         } });
+
+    // A new asset of any registered type, with the content the Asset Browser's
+    // Create menu gives it, imported at once. The type's own tools (a node
+    // graph's, say) then edit it.
+    registry.Register({ "create_asset",
+                        "Create a new asset of a registered type (e.g. \"FsmGraph\") at a project-relative path, "
+                        "with the default content the Asset Browser's Create menu gives it, and import it. "
+                        "Refuses to overwrite.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "asset_type", { { "type", "string" }, { "description", "The type's name, as its asset type editor registers it" } } },
+                              { "path", { { "type", "string" }, { "description", "Project-relative path, with the type's extension (e.g. assets/fsm/bob.asset)" } } } } },
+                          { "required", nlohmann::json::array({ "asset_type", "path" }) } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            namespace fs = std::filesystem;
+                            auto* project = editor->GetProject();
+                            auto* pipeline = editor->GetAssetPipeline();
+                            if (!project || !pipeline) throw std::runtime_error("No project open");
+
+                            const std::string typeName = args["asset_type"].get<std::string>();
+                            const AssetTypeHandler* handler = AssetTypeRegistry::Instance().GetHandler(typeName);
+                            if (!handler) throw std::runtime_error("No asset type '" + typeName + "' is registered");
+                            if (handler->defaultContent.empty())
+                                throw std::runtime_error("Asset type '" + typeName + "' has no default content to create from");
+
+                            const std::string rel = args["path"].get<std::string>();
+                            const std::string ext = fs::path(rel).extension().string();
+                            if (std::find(handler->extensions.begin(), handler->extensions.end(), ext) == handler->extensions.end())
+                                throw std::runtime_error("'" + rel + "' does not have a " + typeName + " extension");
+                            const fs::path abs = fs::path(project->GetPath()) / rel;
+                            if (fs::exists(abs)) throw std::runtime_error("'" + rel + "' already exists");
+
+                            std::error_code ec;
+                            fs::create_directories(abs.parent_path(), ec);
+                            {
+                                std::ofstream out(abs, std::ios::binary);
+                                out << handler->defaultContent;
+                                if (!out) throw std::runtime_error("Could not write '" + rel + "'");
+                            }
+                            pipeline->RefreshAsset(rel);
+
+                            const AssetInfo* info = pipeline->GetAssetInfo(rel);
+                            return { { "path", rel }, { "assetType", typeName },
+                                     { "guid", info ? info->guid : std::string() } };
+                        } });
+
+    // What double-clicking an asset in the Asset Browser does: open it in the
+    // tool window that edits its type (a node graph in the Node Graph window).
+    registry.Register({ "open_asset",
+                        "Open an asset in the editor window that edits it, as double-clicking it in the Asset "
+                        "Browser does (e.g. a node graph in the Node Graph window).",
+                        { { "type", "object" },
+                          { "properties", { { "path", { { "type", "string" }, { "description", "Project-relative path" } } } } },
+                          { "required", nlohmann::json::array({ "path" }) } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            namespace fs = std::filesystem;
+                            auto* project = editor->GetProject();
+                            auto* pipeline = editor->GetAssetPipeline();
+                            if (!project || !pipeline) throw std::runtime_error("No project open");
+                            if (!editor->GetToolHost()) throw std::runtime_error("No tool windows in this session");
+
+                            const std::string rel = args["path"].get<std::string>();
+                            const fs::path abs = fs::path(project->GetPath()) / rel;
+                            if (!fs::exists(abs)) throw std::runtime_error("'" + rel + "' does not exist");
+                            const AssetInfo* info = pipeline->GetAssetInfo(rel);
+                            const std::string cache = info ? GetCachePath(project->GetPath(), info->guid) : std::string();
+                            if (!editor->GetToolHost()->OpenToolForFile(abs.string().c_str(), cache.c_str()))
+                                throw std::runtime_error("No editor window opens '" + rel + "'");
+                            return { { "path", rel }, { "opened", true } };
+                        } });
+
+    // Tools the loaded packages add (CliTool). Looked up by name on every call
+    // rather than held, so a package that unloads takes its tools with it.
+    registry.SetDynamicSource(
+        [editor]() -> std::vector<McpToolDescriptor>
+        {
+            std::vector<McpToolDescriptor> tools;
+            for (const auto& factory : DekiEditorInternal::EditorRegistry::Instance().GetAllFactories())
+            {
+                if (!factory.prototype || factory.prototype->GetEditorType() != EditorType::CliTool)
+                    continue;
+                auto* tool = static_cast<CliTool*>(factory.prototype);
+                McpToolDescriptor d;
+                d.name = tool->GetToolName();
+                d.description = tool->GetToolDescription();
+                d.inputSchema = nlohmann::json::parse(tool->GetInputSchema(), nullptr, /*allow_exceptions=*/false);
+                if (d.inputSchema.is_discarded())
+                    d.inputSchema = { { "type", "object" } };
+                const std::string name = d.name;
+                d.handler = [editor, name](const nlohmann::json& args) -> nlohmann::json
+                {
+                    CliTool* found = nullptr;
+                    for (const auto& f : DekiEditorInternal::EditorRegistry::Instance().GetAllFactories())
+                        if (f.prototype && f.prototype->GetEditorType() == EditorType::CliTool &&
+                            name == static_cast<CliTool*>(f.prototype)->GetToolName())
+                            found = static_cast<CliTool*>(f.prototype);
+                    if (!found) throw std::runtime_error("The package providing '" + name + "' is no longer loaded");
+
+                    CliToolContext context;
+                    if (auto* project = editor->GetProject())
+                        context.projectPath = project->GetPath();
+                    context.refreshAsset = [editor](const std::string& rel)
+                    {
+                        if (auto* pipeline = editor->GetAssetPipeline())
+                            pipeline->RefreshAsset(rel);
+                    };
+
+                    std::string result, error;
+                    if (!found->Run(context, args.dump(), result, error))
+                        throw std::runtime_error(error.empty() ? name + " failed" : error);
+                    nlohmann::json value = nlohmann::json::parse(result, nullptr, /*allow_exceptions=*/false);
+                    if (value.is_discarded())
+                        throw std::runtime_error(name + " returned something that is not JSON");
+                    return value;
+                };
+                tools.push_back(std::move(d));
+            }
+            return tools;
+        });
 
     // Project settings are components too (one live instance per section in
     // the SettingsRegistry), written with the same per-type handlers as a

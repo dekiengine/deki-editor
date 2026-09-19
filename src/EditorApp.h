@@ -160,7 +160,7 @@ public:
     // the few steps that exist for a UI that is not there. Every such site is
     // an explicit, commented decision; anything not marked runs identically in
     // both modes, which is what makes a CLI run and a GUI run comparable.
-    void SetHeadless(bool headless) { m_Headless = headless; }
+    void SetHeadless(bool headless);
     bool IsHeadless() const { return m_Headless; }
 
     // DPI scale (set from main.cpp, used by SceneView for screen-space conversions)
@@ -445,6 +445,10 @@ public:
 
     // Answer it without a mouse. Takes effect on the next frame.
     void AnswerUnsavedChangesDialog(DialogAnswer answer) { m_UnsavedPrompt.Answer(answer); }
+    // The crash-recovery window ("Recover Scenes"): open, and its "Later" -
+    // dismiss for now, keeping every recovered file for the next open.
+    bool IsRecoveryDialogOpen() const { return m_Recovery.DialogRequested(); }
+    void PostponeRecoveryDialog() { m_Recovery.SetDialogRequested(false); }
 
 private:
     // Tab focus restoration on startup

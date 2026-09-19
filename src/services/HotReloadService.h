@@ -39,6 +39,10 @@ class AssetFileWatcher;
 class HotReloadService
 {
 public:
+    // Build results go to the log as well as the Console panel, which a
+    // command-line run never shows.
+    void SetHeadless(bool headless) { m_Headless = headless; }
+
     // Callbacks for preserving component state across hot reload
     using BeforeReloadCallback = std::function<void()>;
     using AfterReloadCallback = std::function<void()>;
@@ -230,6 +234,8 @@ private:
     PluginLoader* m_Loader;
     PackageLoader* m_PackageLoader;
     ConsolePanel* m_Console;
+    // A command-line run: a Console panel may exist, but nobody sees it.
+    bool m_Headless = false;
 
     // Plugin paths to reload after build
     std::vector<std::string> m_PluginPaths;

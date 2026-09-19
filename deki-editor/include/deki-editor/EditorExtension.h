@@ -26,7 +26,8 @@ namespace DekiEditor
 enum class EditorType
 {
     CustomEditor,  // Unified component editor
-    AssetTypeEditor
+    AssetTypeEditor,
+    CliTool  // A command-line / MCP tool a package adds (CliTool.h)
 };
 
 // ============================================================================

@@ -15,6 +15,10 @@ BuildLineKind ClassifyBuildLine(const std::string& line)
         return BuildLineKind::Explain;
     if (has("error") || has("Error") || has("ERROR"))
         return BuildLineKind::Error;
+    // The linker's own complaints carry no "error": only its closing
+    // "ld returned 1" did, which names nothing.
+    if (has("undefined reference to") || has("multiple definition of") || has("cannot find -l"))
+        return BuildLineKind::Error;
     if (has("warning") || has("Warning") || has("WARNING"))
         return BuildLineKind::Warning;
     // Noisy MSBuild/ninja progress lines

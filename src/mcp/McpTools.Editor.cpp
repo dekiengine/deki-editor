@@ -254,16 +254,26 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         } });
 
     registry.Register({ "answer_dialog",
-                        "Answer the unsaved-changes dialog without clicking: \"save\", "
-                        "\"discard\" or \"cancel\". Applied on the next frame. \"save\" fails if "
-                        "the scene has no path yet — give it one with save_scene_as first.",
-                        { { "type", "object" }, { "properties", { { "answer", { { "type", "string" }, { "enum", nlohmann::json::array({ "save", "discard", "cancel" }) } } } } }, { "required", nlohmann::json::array({ "answer" }) } },
+                        "Answer a dialog without clicking. The unsaved-changes dialog: \"save\", \"discard\" or "
+                        "\"cancel\" (\"save\" fails if the scene has no path yet - give it one with save_scene_as "
+                        "first). The crash-recovery window (Recover Scenes): \"later\", which dismisses it and "
+                        "keeps every recovered file for the next open. Applied on the next frame.",
+                        { { "type", "object" }, { "properties", { { "answer", { { "type", "string" }, { "enum", nlohmann::json::array({ "save", "discard", "cancel", "later" }) } } } } }, { "required", nlohmann::json::array({ "answer" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
+                            const std::string answer = args.at("answer").get<std::string>();
+                            // Restoring or discarding recovered scenes overwrites or
+                            // deletes a person's work, so neither is offered here.
+                            if (answer == "later")
+                            {
+                                if (!editor->IsRecoveryDialogOpen())
+                                    throw std::runtime_error("The crash-recovery window is not open");
+                                editor->PostponeRecoveryDialog();
+                                return { { "answered", answer } };
+                            }
                             if (!editor->IsUnsavedChangesDialogOpen())
                                 throw std::runtime_error("No unsaved-changes dialog is open");
 
-                            const std::string answer = args.at("answer").get<std::string>();
                             DialogAnswer value;
                             if (answer == "save")
                                 value = DialogAnswer::Save;
@@ -272,7 +282,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             else if (answer == "cancel")
                                 value = DialogAnswer::Cancel;
                             else
-                                throw std::runtime_error("answer must be save, discard or cancel");
+                                throw std::runtime_error("answer must be save, discard, cancel or later");
 
                             editor->AnswerUnsavedChangesDialog(value);
                             return { { "answered", answer } };

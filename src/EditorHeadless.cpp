@@ -1398,7 +1398,7 @@ McpToolRegistry BuildToolRegistry(EditorApp& editor)
 bool RunOneTool(const McpToolRegistry& registry, const std::string& name,
                 const nlohmann::json& args, std::string& outError)
 {
-    const McpToolDescriptor* tool = registry.FindTool(name);
+    const std::optional<McpToolDescriptor> tool = registry.FindTool(name);
     if (!tool)
     {
         outError = "no tool named '" + name + "'";

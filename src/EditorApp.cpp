@@ -259,6 +259,14 @@ EditorApp::EditorApp()
         WriteRecoverySnapshot(); });
 }
 
+void EditorApp::SetHeadless(bool headless)
+{
+    m_Headless = headless;
+    // Created before the boot says whether this run has a window.
+    if (m_HotReloadService)
+        m_HotReloadService->SetHeadless(headless);
+}
+
 EditorApp::~EditorApp()
 {
     CrashHandler::SetPreCrashCallback(nullptr);

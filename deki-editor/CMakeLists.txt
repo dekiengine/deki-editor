@@ -51,6 +51,7 @@ set(EDITOR_DLL_SOURCES
     src/ProcessLaunch.cpp
     src/SerialPorts.cpp
     src/ShellCommand.cpp
+    src/CliTool.cpp
     src/SafeNames.cpp
     src/VersionCompare.cpp
     src/BuilderDefinition.cpp

@@ -706,6 +706,42 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
     m_SourcesDirty = false;
 }
 
+// Without a Console panel - a command-line run - a build's errors went
+// nowhere: they are reported to the panel, and the "rebuilding" notice is an
+// editor-level log line the command line does not print. The project then
+// opened on the previous binaries and the verb carried on as if nothing had
+// changed. Say so through the log instead, with the compiler's own lines.
+static void LogBuildErrorsWithoutConsole(const std::string& output)
+{
+    constexpr int kMaxLines = 20;
+    int shown = 0, total = 0;
+    size_t start = 0;
+    while (start < output.size())
+    {
+        size_t end = output.find('\n', start);
+        if (end == std::string::npos)
+            end = output.size();
+        std::string line = output.substr(start, end - start);
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (ClassifyBuildLine(line) == BuildLineKind::Error)
+        {
+            ++total;
+            if (shown < kMaxLines)
+            {
+                DEKI_LOG_ERROR("  %s", line.c_str());
+                ++shown;
+            }
+        }
+        start = end + 1;
+    }
+    if (total > shown)
+        DEKI_LOG_ERROR("  ... and %d more error lines", total - shown);
+    if (total == 0 && !output.empty())
+        DEKI_LOG_ERROR("  (no compiler error line recognised; last output: %s)",
+                       output.substr(output.size() > 400 ? output.size() - 400 : 0).c_str());
+}
+
 bool HotReloadService::EnsureFirstBuild(const std::string& projectPath)
 {
     namespace fs = std::filesystem;
@@ -727,7 +763,11 @@ bool HotReloadService::EnsureFirstBuild(const std::string& projectPath)
     std::string output;
     const bool ok = RunBuild(projectPath, output);
     if (!ok)
+    {
         DEKI_LOG_ERROR("HotReload: first build failed; the project will open with no components");
+        if (m_Headless || !m_Console)
+            LogBuildErrorsWithoutConsole(output);
+    }
     return ok;
 }
 
@@ -858,6 +898,8 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     DEKI_LOG_EDITOR("HotReload: package binaries stale (%s) — rebuilding before load", reason);
     if (m_Console)
         m_Console->LogEditor((std::string("Rebuilding packages before load (") + reason + ")...").c_str());
+    if (m_Headless || !m_Console)
+        DEKI_LOG_INFO("Rebuilding packages before load (%s)...", reason);
     StartupProgress::Update("Rebuilding packages...");
 
     // m_PluginDirectory was set above; RunBuild reads it for the reload step.
@@ -877,6 +919,12 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         BuildOutputOptions reportOptions;
         reportOptions.rawWhenNoErrors = !ok;
         ReportBuildOutput(*m_Console, buildOutput, "__startup__", reportOptions);
+    }
+    if (!ok && (m_Headless || !m_Console))
+    {
+        DEKI_LOG_ERROR("Rebuilding the project's packages failed (%s); it opens with the previous "
+                       "binaries, which do not have those changes:", reason);
+        LogBuildErrorsWithoutConsole(buildOutput);
     }
     // The post-open watcher path must not also rebuild for the same edits.
     m_SourcesDirty = false;

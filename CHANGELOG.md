@@ -6,6 +6,21 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Added
+- **Packages can add command-line tools.** A `CliTool` (`deki-editor/CliTool.h`),
+  registered with `REGISTER_EDITOR`, appears in `--list-tools` and the MCP
+  server while its package is loaded, and is callable from `--tool` /
+  `--script` like the editor's own. A package that brings its own kind of
+  content brings the tools that author it: deki-nodegraph's graph tools are
+  the first.
+- CLI `create_asset`: a new asset of any registered type (e.g. `FsmGraph`),
+  with the content the Asset Browser's Create menu gives it, imported at once.
+- CLI `open_asset`: open an asset in the window that edits it, as a
+  double-click in the Asset Browser does.
+- CLI `answer_dialog` also answers the crash-recovery window with `later`
+  (dismiss, keep every recovered file). Restore and Discard are not offered:
+  they overwrite or delete a person's work.
+
 ### Changed
 - `deki-editor/ShellCommand.h`: `RunShellCommand`, one shell command line with its
   output streamed back line by line and a cancel that reaches the whole process
@@ -74,6 +89,15 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **A failed package rebuild was invisible on the command line.** Opening a
+  project whose package sources changed rebuilds them first; when that build
+  failed, its errors went only to the Console panel, which a command-line run
+  never shows, and the "rebuilding" notice was an editor-level log line it
+  does not print. The verb then ran on the previous binaries as if nothing had
+  changed. A headless run now says it is rebuilding and, on failure, prints
+  the compiler's own error lines. Linker errors ("undefined reference to",
+  "multiple definition of") are recognised as errors too; only their closing
+  "ld returned 1" was, which names nothing.
 - **Animated characters were missing on every exported target.** A sprite
   that shows one frame of a sheet refers to the frame's own id, and the
   export scan read scenes as saved, so it never added the sheet the frame is

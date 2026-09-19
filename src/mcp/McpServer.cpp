@@ -360,7 +360,7 @@ nlohmann::json McpServer::HandleToolsCall(const nlohmann::json& params)
     std::string toolName = params.value("name", "");
     auto arguments = params.value("arguments", nlohmann::json::object());
 
-    const auto* tool = m_ToolRegistry->FindTool(toolName);
+    const auto tool = m_ToolRegistry->FindTool(toolName);
     if (!tool)
     {
         return {

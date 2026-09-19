@@ -674,6 +674,10 @@ void RegisterEngineEditors()
                     DekiEditor::AssetTypeRegistry::Instance().Register(handler);
                     break;
                 }
+                case DekiEditor::EditorType::CliTool:
+                    // Found by name when a tool is called (McpTools.cpp), not
+                    // registered here, so it goes with its package on unload.
+                    break;
             }
         }
     }
@@ -740,6 +744,10 @@ void RegisterEngineEditors()
                     DekiEditor::AssetTypeRegistry::Instance().Register(handler);
                     break;
                 }
+                case DekiEditor::EditorType::CliTool:
+                    // Found by name when a tool is called (McpTools.cpp), not
+                    // registered here, so it goes with its package on unload.
+                    break;
             }
         }
     }
