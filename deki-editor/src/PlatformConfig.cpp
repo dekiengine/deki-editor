@@ -125,6 +125,13 @@ void PlatformConfig::SetOption(const std::string& key, const std::string& value)
     frameworkOptions = o.dump();
 }
 
+void PlatformConfig::SetOptionU32(const std::string& key, uint32_t value)
+{
+    json o = ParseOptions(frameworkOptions);
+    o[key] = value;
+    frameworkOptions = o.dump();
+}
+
 void PlatformConfig::SetOptionBool(const std::string& key, bool value)
 {
     json o = ParseOptions(frameworkOptions);
@@ -157,16 +164,16 @@ std::set<std::string> PlatformConfig::Capabilities() const
     // colliding with an unrelated capability that happens to share a word.
     //
     // Every platform has a heap, so memory:internal is universal. memory:external
-    // comes from psramSize, the same field the firmware build reads to emit
-    // CONFIG_SPIRAM — one source of truth, because when it was two they drifted:
-    // a target created by copying a board without PSRAM and then given a
-    // psramSize had the memory, booted with it detected, and still failed to
-    // satisfy a package that asked for it.
+    // comes from externalMemorySize, the same field a backend reads to switch
+    // that memory on in its build — one source of truth, because when it was
+    // two they drifted: a target created by copying a board without external
+    // memory and then given some had the memory, booted with it detected, and
+    // still failed to satisfy a package that asked for it.
     //
     // Regions beyond these two are a board's own business and it lists them in
     // `provides` ("memory:rtc"), because only that board knows it has them.
     caps.insert("memory:internal");
-    if (psramSize > 0)
+    if (externalMemorySize > 0)
         caps.insert("memory:external");
 
     return caps;
@@ -189,17 +196,6 @@ bool IsValidCapabilityName(const std::string& name)
     return true;
 }
 
-bool IsValidDisplayBus(const std::string& bus)
-{
-    if (bus.empty() || bus.size() > 32) return false;
-    for (unsigned char c : bus)
-    {
-        const bool ok = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
-        if (!ok) return false;
-    }
-    return true;
-}
-
 static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 {
     config.id = j.value("id", "");
@@ -215,8 +211,6 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     if (config.family.empty())
         config.family = kDefaultFamily;
 
-    config.mcuChip = j.value("mcuChip", "");
-    config.boardVariant = j.value("boardVariant", "");
 
     // No default, and no guess. The framework is what chooses a build backend;
     // a platform that does not say resolves to no backend, and the build says
@@ -242,12 +236,9 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     // failure much further downstream.
     {
         static const std::set<std::string> kOwnKeys = {
-            "id",           "displayName",  "family",        "framework",        "frameworkOptions",
-            "mcuChip",      "boardVariant", "flashSize",     "psramSize",        "cpuFreqHz",
-            "maxAppSize",   "screenWidth",  "screenHeight",  "displayDriver",    "displayBus",
-            "colorFormat",  "pins",         "defines",       "cFlags",           "cxxFlags",
-            "linkFlags",    "provides",     "requiresPackages", "requiredLibraries", "uploadBaudRate",
-            "bootScene" };
+            "id",          "displayName", "family",   "framework", "frameworkOptions",  "externalMemorySize",
+            "psramSize",   "screenWidth", "screenHeight", "colorFormat", "defines",     "cFlags",
+            "cxxFlags",    "linkFlags",   "provides", "requiresPackages", "bootScene" };
 
         json options = json::object();
         if (j.contains("frameworkOptions") && j["frameworkOptions"].is_object())
@@ -261,26 +252,13 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
             config.frameworkOptions = options.dump();
     }
 
-    config.flashSize = j.value("flashSize", 0u);
-    config.psramSize = j.value("psramSize", 0u);
-    config.cpuFreqHz = j.value("cpuFreqHz", 0u);
+    // "psramSize" is what this key was called when the platform type
+    // described a microcontroller. Read, never written.
+    config.externalMemorySize = j.value("externalMemorySize", j.value("psramSize", 0u));
 
     config.screenWidth = j.value("screenWidth", 0);
     config.screenHeight = j.value("screenHeight", 0);
-    config.displayDriver = j.value("displayDriver", "");
-    config.displayBus = j.value("displayBus", "");
-    if (!config.displayBus.empty() && !IsValidDisplayBus(config.displayBus))
-    {
-        DEKI_LOG_ERROR("Platform '%s': displayBus '%s' is not an identifier (A-Z, 0-9, '_'); ignoring it",
-                       config.id.c_str(), config.displayBus.c_str());
-        config.displayBus.clear();
-    }
     config.colorFormat = j.value("colorFormat", "RGB565");
-
-    config.maxAppSize = j.value("maxAppSize", 0u);
-
-    config.uploadBaudRate = j.value("uploadBaudRate", 0u);
-
 
     if (j.contains("requiresPackages") && j["requiresPackages"].is_array())
         for (const auto& id : j["requiresPackages"])
@@ -339,22 +317,6 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     if (j.contains("linkFlags") && j["linkFlags"].is_array())
         for (const auto& flag : j["linkFlags"])
             config.linkFlags.push_back(flag.get<std::string>());
-
-    if (j.contains("requiredLibraries") && j["requiredLibraries"].is_array())
-        for (const auto& lib : j["requiredLibraries"])
-            config.requiredLibraries.push_back(lib.get<std::string>());
-
-    if (j.contains("pins") && j["pins"].is_array())
-    {
-        for (const auto& pinObj : j["pins"])
-        {
-            PinMapping pin;
-            pin.name = pinObj.value("name", "");
-            pin.gpio = pinObj.value("gpio", -1);
-            pin.function = pinObj.value("function", "");
-            config.pins.push_back(pin);
-        }
-    }
 
     config.bootScene = j.value("bootScene", "");
     return true;
@@ -484,19 +446,12 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
                 j["frameworkOptions"] = options;
         }
 
-        if (!config.mcuChip.empty()) j["mcuChip"] = config.mcuChip;
-        if (!config.boardVariant.empty()) j["boardVariant"] = config.boardVariant;
         j["framework"] = config.framework;
 
-        if (config.flashSize > 0) j["flashSize"] = config.flashSize;
-        if (config.psramSize > 0) j["psramSize"] = config.psramSize;
-        if (config.maxAppSize > 0) j["maxAppSize"] = config.maxAppSize;
-        if (config.cpuFreqHz > 0) j["cpuFreqHz"] = config.cpuFreqHz;
+        if (config.externalMemorySize > 0) j["externalMemorySize"] = config.externalMemorySize;
 
         if (config.screenWidth > 0) j["screenWidth"] = config.screenWidth;
         if (config.screenHeight > 0) j["screenHeight"] = config.screenHeight;
-        if (!config.displayDriver.empty()) j["displayDriver"] = config.displayDriver;
-        if (!config.displayBus.empty()) j["displayBus"] = config.displayBus;
         if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
 
         if (!config.provides.empty()) j["provides"] = config.provides;
@@ -505,26 +460,8 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
         if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
         if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
-        if (!config.requiredLibraries.empty()) j["requiredLibraries"] = config.requiredLibraries;
-
-        if (config.uploadBaudRate > 0 && config.uploadBaudRate != 921600)
-            j["uploadBaudRate"] = config.uploadBaudRate;
 
         if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
-
-        if (!config.pins.empty())
-        {
-            json pinsArray = json::array();
-            for (const auto& pin : config.pins)
-            {
-                json pinObj;
-                pinObj["name"] = pin.name;
-                pinObj["gpio"] = pin.gpio;
-                pinObj["function"] = pin.function;
-                pinsArray.push_back(pinObj);
-            }
-            j["pins"] = pinsArray;
-        }
 
         // Write to file: <dir>/<id>/<id>.json
         fs::path filePath = platformDir / (config.id + ".json");

@@ -298,7 +298,6 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
         j["id"] = p->id;
         j["displayName"] = p->displayName;
         j["family"] = p->family;
-        j["mcuChip"] = p->mcuChip;
         j["framework"] = p->framework;
         j["screenWidth"] = p->screenWidth;
         j["screenHeight"] = p->screenHeight;

@@ -644,13 +644,6 @@ void BuildPanel::DrawPlatformDetails()
         ImGui::Text("%dx%d", platform->screenWidth, platform->screenHeight);
     }
 
-    if (!platform->displayDriver.empty())
-    {
-        ImGui::TextDisabled("Driver:");
-        ImGui::SameLine();
-        ImGui::Text("%s", platform->displayDriver.c_str());
-    }
-
     // Stripping: what a device build leaves out (services/FeatureResolver).
     // The editor's own builds never strip; it has to open every scene.
     if (auto* project = m_App->GetProject())

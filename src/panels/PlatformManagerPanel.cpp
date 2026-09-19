@@ -216,13 +216,13 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
             const auto& [id, displayName] = m_PlatformList[i];
             bool selected = (i == m_SelectedIndex);
 
-            // Build a "Family · Chip" subtitle from the platform config.
+            // Build a "Family · Framework" subtitle from the platform config.
             std::string subtitle;
             if (auto* p = PlatformRegistry::Instance().GetPlatform(id))
             {
                 subtitle = FamilyName(p->family);
-                if (!p->mcuChip.empty())
-                    subtitle += "  \xc2\xb7  " + p->mcuChip;
+                if (!p->framework.empty())
+                    subtitle += "  \xc2\xb7  " + p->framework;
             }
 
             if (ui.SelectableCard(id.c_str(), displayName.c_str(),
@@ -406,14 +406,16 @@ void PlatformManagerPanel::DrawPlatformDetails()
     ui.Separator();
     ui.Spacing();
 
-    // Family / chip / framework
+    // Family and framework, then whatever the backend that builds for it
+    // thinks is worth saying (a chip, a devkit model, nothing).
     ui.Text(("Family: " + FamilyName(platform->family)).c_str());
-
-    if (!platform->mcuChip.empty())
-        ui.Text(("Chip: " + platform->mcuChip).c_str());
 
     if (!platform->framework.empty())
         ui.Text(("Framework: " + platform->framework).c_str());
+
+    if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
+        for (const auto& [label, value] : describer->DescribePlatform(*platform))
+            ui.Text((label + ": " + value).c_str());
 
     // Compiler defines
     if (!platform->defines.empty())

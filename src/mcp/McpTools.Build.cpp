@@ -187,10 +187,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "screen_height", { { "type", "integer" } } },
                               { "family", { { "type", "string" }, { "description", "Vendor family; descriptive only, never used to choose a backend" } } },
                               { "framework", { { "type", "string" }, { "description", "Build framework id, as claimed by an installed build backend. Any value is accepted; the backend validates it." } } },
-                              { "mcu_chip", { { "type", "string" }, { "description", "Chip id, in the backend's own spelling" } } },
-                              { "cpu_freq_hz", { { "type", "integer" } } },
-                              { "flash_size", { { "type", "integer" }, { "description", "Flash in bytes" } } },
-                              { "psram_size", { { "type", "integer" }, { "description", "PSRAM in bytes, 0 for none" } } },
+                              { "external_memory_size", { { "type", "integer" }, { "description", "Bytes of memory beyond the internal heap that the engine may allocate from (Deki::Memory::External), 0 for none. Grants packages the memory:external capability." } } },
                               { "defines", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Preprocessor defines for the firmware build" } } },
                               { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities this board offers packages, e.g. wifi, spi, sdl3" } } },
                               { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL" } } },
@@ -264,22 +261,16 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                 config.family = family;
                             }
                             config.framework = args.value("framework", config.framework);
-                            config.mcuChip = args.value("mcu_chip", config.mcuChip);
                             // Framework settings pass through untouched: the
-                            // editor does not know what any of them mean. The
-                            // two named ones are kept as conveniences that
-                            // write into the same blob.
+                            // editor does not know what any of them mean. A
+                            // chip, its flash and its clock used to have
+                            // parameters of their own here, which is one kind
+                            // of target's idea of a platform.
                             if (args.contains("framework_options") &&
                                 args["framework_options"].is_object())
                                 config.frameworkOptions = args["framework_options"].dump();
-                            // No parameter names a framework's setting: that is
-                            // what framework_options exists to avoid.
-                            if (args.contains("cpu_freq_hz"))
-                                config.cpuFreqHz = args["cpu_freq_hz"].get<uint32_t>();
-                            if (args.contains("flash_size"))
-                                config.flashSize = args["flash_size"].get<uint32_t>();
-                            if (args.contains("psram_size"))
-                                config.psramSize = args["psram_size"].get<uint32_t>();
+                            if (args.contains("external_memory_size"))
+                                config.externalMemorySize = args["external_memory_size"].get<uint32_t>();
                             if (args.contains("defines") && args["defines"].is_array())
                             {
                                 config.defines.clear();

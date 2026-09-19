@@ -100,7 +100,9 @@ struct DekiBuilderAbi
 ///
 /// 2: Flash/SetTarget/GetSupportedTargets/SupportsFlash replaced by the deploy
 ///    step; GetBootPayloadDirectory and DescribePlatform added;
-///    CMakeGen::PackageEntry carries framework dependencies as written. The
+///    CMakeGen::PackageEntry carries framework dependencies as written;
+///    PlatformConfig loses its microcontroller fields (a backend reads those
+///    from frameworkOptions) and psramSize becomes externalMemorySize. The
 ///    handshake also gained packageEntrySize, because ScanPackageManifests
 ///    returns those by value: a backend built against another layout destroyed
 ///    them with the wrong destructor and took the editor down with it.

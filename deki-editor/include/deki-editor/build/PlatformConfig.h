@@ -21,35 +21,11 @@ namespace DekiEditor
 // Builders are chosen by `framework`, never by this. See BuilderDispatch.h.
 
 /**
- * @brief Memory region definition for partition layouts
- */
-struct MemoryRegion
-{
-    std::string name;
-    uint32_t start = 0;
-    uint32_t size = 0;
-    bool isFlash = false;
-    bool isPSRAM = false;
-};
-
-/**
- * @brief Pin mapping for hardware configuration
- */
-struct PinMapping
-{
-    std::string name;
-    int gpio = -1;
-    std::string function;  // "SPI_MOSI", "I2C_SDA", etc.
-};
-
-/**
  * @brief Complete platform configuration for firmware builds
  *
  * Contains all information needed to build firmware for a specific platform:
  * toolchain settings, memory layout, display configuration, compiler flags, etc.
  */
-/// displayBus is an identifier: A-Z, 0-9 and '_' ("SPI", "PARALLEL_8BIT", "SOFTWARE").
-DEKI_EDITOR_API bool IsValidDisplayBus(const std::string& bus);
 DEKI_EDITOR_API bool IsValidCapabilityName(const std::string& name);
 
 struct DEKI_EDITOR_API PlatformConfig
@@ -58,11 +34,9 @@ struct DEKI_EDITOR_API PlatformConfig
     std::string id;           // Unique identifier: "esp32s3_v_board"
     std::string displayName;  // Human-readable: "V-Board (ESP32-S3)"
     std::string family;   // "espressif", "native", ... — descriptive, see above
-    std::string mcuChip;  // Specific chip: "esp32s3", "rp2040"
 
     // Framework
     std::string framework;     // "espidf", "pico-sdk"
-    std::string boardVariant;  // Board variant name
 
     // Settings that belong to the build framework, as a JSON object in text
     // form. The editor round-trips it WITHOUT interpreting it; only the
@@ -91,27 +65,28 @@ struct DEKI_EDITOR_API PlatformConfig
     /// Set one value, creating the object if needed. For the platform editor
     /// and the MCP tool, which must not need to know what the keys mean.
     void SetOption(const std::string& key, const std::string& value);
+    void SetOptionU32(const std::string& key, uint32_t value);
     void SetOptionBool(const std::string& key, bool value);
     void SetOptionList(const std::string& key, const std::vector<std::string>& values);
 
-    // Memory
-    uint32_t flashSize = 0;   // Flash size in bytes
-    uint32_t psramSize = 0;   // PSRAM size in bytes (0 if none)
-    uint32_t maxAppSize = 0;  // Maximum application size (from partition table)
-    std::vector<MemoryRegion> memoryMap;
-
-    // Clocks
-    uint32_t cpuFreqHz = 0;    // CPU frequency
+    // Memory the engine can place allocations in beyond the internal heap, in
+    // bytes; 0 if there is none. This is the engine's own vocabulary -
+    // Deki::Memory::External - not any chip's: whatever the target calls it
+    // (PSRAM on a microcontroller, a second heap on a console), a package that
+    // allocates from that region requires "memory:external" and this is what
+    // grants it. See Capabilities().
+    //
+    // It was psramSize, one of a dozen fields here describing a
+    // microcontroller: the chip, its flash, its clock, a display bus, a pin
+    // map, an upload baud rate. Those are the business of the backend that
+    // builds for such a thing and live in frameworkOptions now. A console
+    // platform used to inherit all of them.
+    uint32_t externalMemorySize = 0;
 
     // Display
     int screenWidth = 0;
     int screenHeight = 0;
-    std::string displayDriver;  // "ILI9341", "ST7789", etc.
-    std::string displayBus;     // "SPI", "PARALLEL_8BIT", etc.
     std::string colorFormat;    // "RGB565", "RGB888", "RGBA8888" — maps to Deki::ColorFormat
-
-    // Pin mappings
-    std::vector<PinMapping> pins;
 
     // Compiler flags
     std::vector<std::string> defines;    // Preprocessor defines
@@ -148,27 +123,17 @@ struct DEKI_EDITOR_API PlatformConfig
     // declares nothing gets nothing.
     std::vector<std::string> requiresPackages;
 
-
-    // Libraries
-    std::vector<std::string> requiredLibraries;
-
-    // Debug settings
-
-    // Upload settings
-    int uploadBaudRate = 921600;
-
-    // Partition table (CSV format)
-
-    // Boot scene - loaded from flash (F:/) to initialize platform hardware
-    // Contains PlatformSetupComponent that sets up SD card, etc.
-    std::string bootScene;  // Path relative to assets, e.g., "scenes/boot.scene"
+    // The scene a build of this platform boots: a PlatformSetupComponent and
+    // the setup components that bring the target's display, input and storage
+    // up. Relative to the project.
+    std::string bootScene;
 };
 
 /**
  * @brief Registry for available platforms
  *
- * Singleton that manages platform configurations. Built-in platforms
- * are registered at startup, and custom platforms can be loaded from JSON.
+ * Singleton that manages platform configurations, all of them loaded from
+ * JSON: the project's own, those its packages offer, and board packs.
  */
 class DEKI_EDITOR_API PlatformRegistry
 {

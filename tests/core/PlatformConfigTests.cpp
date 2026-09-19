@@ -1,6 +1,7 @@
-// PlatformConfig: the two strings of a platform JSON that reach a shell line
-// (idfTarget, displayBus) are allowlisted on load. A platform JSON can come
-// from a downloaded board pack, so an unexpected value is dropped, not passed.
+// PlatformConfig: what the editor's platform type owns, and what it carries
+// for a build backend without looking inside. A platform JSON can come from a
+// downloaded board pack or a package, so what reaches a shell line is checked
+// by whoever builds that line - the backend - not guessed at here.
 
 #include <gtest/gtest.h>
 
@@ -50,43 +51,71 @@ const PlatformConfig* Load(const PlatformDir& d, const std::string& id)
 
 }  // namespace
 
-TEST(PlatformConfig, DisplayBusMustBeAnIdentifier)
+TEST(PlatformConfig, FrameworkSettingsAreCarriedNotJudged)
 {
-    // The ESP-IDF target allowlist used to be asserted here too. It moved into
-    // the ESP-IDF builder (ESPIDFBuilder::ValidatePlatform): the editor is
-    // target-agnostic and must not hold a list of one vendor's chips.
-    EXPECT_TRUE(IsValidDisplayBus("SPI"));
-    EXPECT_TRUE(IsValidDisplayBus("PARALLEL_8BIT"));
-    EXPECT_FALSE(IsValidDisplayBus("SPI\" && calc && \""));
-    EXPECT_FALSE(IsValidDisplayBus("spi"));
-    EXPECT_FALSE(IsValidDisplayBus(""));
-}
-
-TEST(PlatformConfig, AnUnsafeBusIsDroppedOnLoadAndTheTargetIsLeftToItsBuilder)
-{
+    // The loader used to know that a platform has a display bus, check that it
+    // was an identifier and clear it if not; and before that, to hold one
+    // framework's chip allowlist. Both are that framework's settings. They are
+    // carried through untouched, and the backend that owns them refuses the
+    // build and says why (ITargetBuilder::ValidatePlatform) - clearing a value
+    // here turned a typo into a confusing failure much further downstream.
     PlatformDir d;
     d.Write("pc_bad", R"({
-        "id": "pc_bad", "displayName": "bad", "family": "espressif", "mcuChip": "esp32s3",
+        "id": "pc_bad", "displayName": "bad", "family": "espressif", "framework": "espidf",
         "idfTarget": "esp32s3; rm -rf /", "displayBus": "SPI\" && calc"
-    })");
-    d.Write("pc_good", R"({
-        "id": "pc_good", "displayName": "good", "family": "espressif", "mcuChip": "esp32s3",
-        "idfTarget": "esp32s3", "displayBus": "PARALLEL_8BIT"
     })");
 
     const PlatformConfig* bad = Load(d, "pc_bad");
     ASSERT_NE(bad, nullptr);
-    EXPECT_TRUE(bad->displayBus.empty()) << bad->displayBus;
-
-    // idfTarget is carried through untouched. Judging it belongs to the
-    // ESP-IDF builder, which refuses the build and says why; clearing it here
-    // turned a typo into a confusing failure much further downstream.
     EXPECT_EQ(bad->Option("idfTarget"), "esp32s3; rm -rf /");
+    EXPECT_EQ(bad->Option("displayBus"), "SPI\" && calc");
+}
 
-    const PlatformConfig* good = PlatformRegistry::Instance().GetPlatform("pc_good");
-    ASSERT_NE(good, nullptr);
-    EXPECT_EQ(good->Option("idfTarget"), "esp32s3");
-    EXPECT_EQ(good->displayBus, "PARALLEL_8BIT");
+TEST(PlatformConfig, AMicrocontrollersDescriptionIsItsBackendsBusiness)
+{
+    // mcuChip, flashSize, cpuFreqHz, displayDriver, displayBus, pins,
+    // requiredLibraries, uploadBaudRate... were fields of the platform type, so
+    // a console platform inherited a flash size and an upload baud rate. Files
+    // that carry them at the top level still load: they are the framework's.
+    PlatformDir d;
+    d.Write("pc_mcu", R"({
+        "id": "pc_mcu", "displayName": "mcu", "family": "somevendor", "framework": "somevendor-sdk",
+        "mcuChip": "chip9000", "flashSize": 8388608, "cpuFreqHz": 240000000,
+        "requiredLibraries": ["liba", "libb"],
+        "pins": [ { "name": "LED", "gpio": 2, "function": "OUT" } ]
+    })");
+
+    const PlatformConfig* p = Load(d, "pc_mcu");
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(p->Option("mcuChip"), "chip9000");
+    EXPECT_EQ(p->OptionU32("flashSize"), 8388608u);
+    EXPECT_EQ(p->OptionU32("cpuFreqHz"), 240000000u);
+    ASSERT_EQ(p->OptionList("requiredLibraries").size(), 2u);
+
+    // And a save keeps what the editor never looked inside, the pin map included.
+    ASSERT_TRUE(PlatformRegistry::Instance().SavePlatformToFile(*p, d.dir.string()));
+    const PlatformConfig* again = Load(d, "pc_mcu");
+    ASSERT_NE(again, nullptr);
+    EXPECT_EQ(again->Option("mcuChip"), "chip9000");
+    EXPECT_NE(again->frameworkOptions.find("\"gpio\":2"), std::string::npos) << again->frameworkOptions;
+}
+
+TEST(PlatformConfig, ExternalMemoryIsTheEnginesWordAndTheOldKeyStillReads)
+{
+    PlatformDir d;
+    d.Write("pc_old", R"({ "id": "pc_old", "displayName": "old", "framework": "x", "psramSize": 4194304 })");
+    d.Write("pc_new", R"({ "id": "pc_new", "displayName": "new", "framework": "x", "externalMemorySize": 8388608 })");
+
+    const PlatformConfig* oldSpelling = Load(d, "pc_old");
+    ASSERT_NE(oldSpelling, nullptr);
+    EXPECT_EQ(oldSpelling->externalMemorySize, 4194304u);
+    EXPECT_EQ(oldSpelling->Capabilities().count("memory:external"), 1u);
+    // Owned by the loader, so not mistaken for a framework setting.
+    EXPECT_EQ(oldSpelling->Option("psramSize", "absent"), "absent");
+
+    const PlatformConfig* newSpelling = PlatformRegistry::Instance().GetPlatform("pc_new");
+    ASSERT_NE(newSpelling, nullptr);
+    EXPECT_EQ(newSpelling->externalMemorySize, 8388608u);
 }
 
 // --- capabilities -----------------------------------------------------------
@@ -94,18 +123,18 @@ TEST(PlatformConfig, AnUnsafeBusIsDroppedOnLoadAndTheTargetIsLeftToItsBuilder)
 // from the fields that already describe the hardware rather than from a second
 // list somebody has to remember to update.
 
-TEST(PlatformCapabilities, ExternalMemoryComesFromPsramSizeNotFromProvides)
+TEST(PlatformCapabilities, ExternalMemoryComesFromItsSizeNotFromProvides)
 {
     PlatformConfig board;
     board.framework = "espidf";
-    board.psramSize = 4 * 1024 * 1024;   // and nothing in provides
+    board.externalMemorySize = 4 * 1024 * 1024;   // and nothing in provides
 
     EXPECT_EQ(board.Capabilities().count("memory:external"), 1u)
-        << "a target with PSRAM must satisfy a package that asks for it, "
+        << "a target with external memory must satisfy a package that asks for it, "
            "however the target was authored";
 }
 
-TEST(PlatformCapabilities, NoPsramSizeMeansNoExternalRegion)
+TEST(PlatformCapabilities, NoExternalMemorySizeMeansNoExternalRegion)
 {
     PlatformConfig board;
     board.framework = "espidf";
@@ -122,7 +151,7 @@ TEST(PlatformCapabilities, DerivedAndDeclaredCapabilitiesCoexist)
     // not produce a duplicate or drop what was authored alongside it.
     PlatformConfig board;
     board.framework = "espidf";
-    board.psramSize = 8 * 1024 * 1024;
+    board.externalMemorySize = 8 * 1024 * 1024;
     board.provides = { "memory:rtc", "wifi" };
 
     const auto caps = board.Capabilities();
@@ -140,7 +169,7 @@ TEST(PlatformCapabilities, ARegionsCapabilityNameIsTheRegionName)
     // separate table, so neither side can drift.
     PlatformConfig board;
     board.framework = "espidf";
-    board.psramSize = 8 * 1024 * 1024;
+    board.externalMemorySize = 8 * 1024 * 1024;
     board.provides = { "memory:rtc" };
 
     const auto caps = board.Capabilities();
