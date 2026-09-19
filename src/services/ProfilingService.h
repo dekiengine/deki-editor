@@ -16,7 +16,7 @@ namespace DekiEditor
 struct MemorySnapshot
 {
     uint32_t totalAllocated = 0;
-    uint32_t psramAllocated = 0;
+    uint32_t externalAllocated = 0;
     uint32_t internalRamAllocated = 0;
     uint32_t activeAllocations = 0;  // Available in DEBUG builds
     uint32_t peakAllocations = 0;    // Available in DEBUG builds

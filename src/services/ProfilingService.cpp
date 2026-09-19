@@ -139,7 +139,7 @@ void ProfilingService::EndFrame()
     {
         Deki::MemoryStats stats = Deki::Memory::GetStats();
         frameData.memoryStats.totalAllocated = stats.totalAllocated;
-        frameData.memoryStats.psramAllocated = stats.psramAllocated;
+        frameData.memoryStats.externalAllocated = stats.externalAllocated;
         frameData.memoryStats.internalRamAllocated = stats.internalRamAllocated;
 #ifdef DEBUG
         frameData.memoryStats.activeAllocations = stats.activeAllocations;

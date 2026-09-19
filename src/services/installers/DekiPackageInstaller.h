@@ -80,7 +80,7 @@ private:
     std::string ParsePackageVar(const fs::path& packageCmakePath, const char* varName) const;
 
     // Parse PACKAGE_PLATFORM_DEPS from a package.cmake file
-    // Returns map of platform -> dependencies (e.g., "espidf" -> [{name, version, gitUrl}])
+    // Returns map of platform -> dependencies (framework id -> [{name, version, gitUrl}])
     std::map<std::string, std::vector<DependencyInfo>> ParsePlatformDeps(const fs::path& packageCmakePath) const;
 
     // Run git silently with an explicit argument vector, return exit code.

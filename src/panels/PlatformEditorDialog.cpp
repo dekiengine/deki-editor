@@ -502,7 +502,7 @@ void PlatformEditorDialog::DrawBasicSection()
         }
         ImGui::InputText("##PlatformId", m_Id, sizeof(m_Id));
         if (ImGui::IsItemHovered())
-            DekiEditor::Tooltip("Unique identifier (e.g., esp32s3_my_board)");
+            DekiEditor::Tooltip("Unique identifier: lowercase letters, digits and '_' (e.g., my_board)");
 
         ImGui::Spacing();
 

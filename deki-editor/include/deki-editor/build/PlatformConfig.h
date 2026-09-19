@@ -20,23 +20,25 @@ namespace DekiEditor
 // It is DESCRIPTIVE ONLY: a capability source ("family:<x>") and a UI grouping.
 // Builders are chosen by `framework`, never by this. See BuilderDispatch.h.
 
-/**
- * @brief Complete platform configuration for firmware builds
- *
- * Contains all information needed to build firmware for a specific platform:
- * toolchain settings, memory layout, display configuration, compiler flags, etc.
- */
 DEKI_EDITOR_API bool IsValidCapabilityName(const std::string& name);
 
+/**
+ * @brief What the editor knows about a platform
+ *
+ * Its identity, the framework whose backend builds for it, that backend's
+ * settings (carried, not interpreted), its screen, compiler flags, what it
+ * offers packages and what it needs from them, and the scene it boots.
+ */
 struct DEKI_EDITOR_API PlatformConfig
 {
     // Identification
-    std::string id;           // Unique identifier: "esp32s3_v_board"
-    std::string displayName;  // Human-readable: "V-Board (ESP32-S3)"
-    std::string family;   // "espressif", "native", ... — descriptive, see above
+    std::string id;           // Unique identifier; also its directory under platforms/
+    std::string displayName;  // Human-readable
+    std::string family;       // Vendor family — descriptive, see above
 
-    // Framework
-    std::string framework;     // "espidf", "pico-sdk"
+    // The id of the build framework; whichever backend claims it builds this
+    // platform. No default: a platform that does not say gets no backend.
+    std::string framework;
 
     // Settings that belong to the build framework, as a JSON object in text
     // form. The editor round-trips it WITHOUT interpreting it; only the

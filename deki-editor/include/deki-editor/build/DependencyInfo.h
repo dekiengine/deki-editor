@@ -27,7 +27,7 @@ enum class PackageSourceType
 
 struct DEKI_EDITOR_API DependencyInfo
 {
-    std::string name;     // e.g. "LovyanGFX"
+    std::string name;     // as the framework's registry or the repository names it
     std::string version;  // version string
     std::string gitUrl;   // empty for registry packages
     PackageSourceType source = PackageSourceType::FrameworkRegistry;

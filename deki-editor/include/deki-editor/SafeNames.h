@@ -30,9 +30,9 @@ DEKI_EDITOR_API bool IsSafeName(const std::string& name, std::string& reason);
 /// is accepted too, since older lock files store just the repository name.
 DEKI_EDITOR_API bool IsSafeRepoSlug(const std::string& slug, std::string& reason);
 
-/// A serial port as the flash step passes it to idf.py: `COM<n>` on Windows,
-/// `/dev/<name>` elsewhere. Anything else (a space, a quote, an option) is
-/// refused before it reaches the shell that runs the ESP-IDF export script.
+/// A serial port as a backend's deploy step passes it to its tools: `COM<n>`
+/// on Windows, `/dev/<name>` elsewhere. Anything else (a space, a quote, an
+/// option) is refused before it reaches a shell line.
 DEKI_EDITOR_API bool IsSafeSerialPort(const std::string& port, std::string& reason);
 
 /// A preprocessor define as a package declares it: `NAME` or `NAME=value`

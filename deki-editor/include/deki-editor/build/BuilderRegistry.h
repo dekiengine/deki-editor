@@ -32,7 +32,7 @@ public:
     /// there, so the registry must never `delete` it.
     void RegisterPluginBuilder(ITargetBuilder* builder, void (*destroy)(ITargetBuilder*));
 
-    /// The builder claiming a framework id ("espidf", "native", ...).
+    /// The builder claiming a framework id.
     /// nullptr when nobody does; see BuilderDispatch.h for why there is no
     /// fallback.
     ITargetBuilder* GetBuilder(const std::string& frameworkId);

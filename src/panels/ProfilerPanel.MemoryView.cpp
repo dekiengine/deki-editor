@@ -41,9 +41,9 @@ void ProfilerPanel::DrawMemoryView()
     ImGui::Separator();
 
     // Format values
-    char totalBuf[32], psramBuf[32], internalBuf[32];
+    char totalBuf[32], externalBuf[32], internalBuf[32];
     FormatBytes(memStats.totalAllocated, totalBuf, sizeof(totalBuf));
-    FormatBytes(memStats.psramAllocated, psramBuf, sizeof(psramBuf));
+    FormatBytes(memStats.externalAllocated, externalBuf, sizeof(externalBuf));
     FormatBytes(memStats.internalRamAllocated, internalBuf, sizeof(internalBuf));
 
     // Stats display with color coding
@@ -55,9 +55,9 @@ void ProfilerPanel::DrawMemoryView()
     ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "%s", totalBuf);
     ImGui::NextColumn();
 
-    ImGui::Text("PSRAM Used:");
+    ImGui::Text("External Used:");
     ImGui::NextColumn();
-    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "%s", psramBuf);
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "%s", externalBuf);
     ImGui::NextColumn();
 
     ImGui::Text("Internal RAM Used:");
@@ -123,12 +123,12 @@ void ProfilerPanel::DrawMemoryView()
             ImVec2(x + barWidth - 1, graphPos.y + graphHeight),
             (int)i == m_SelectedFrame ? IM_COL32(100, 150, 255, 255) : IM_COL32(60, 120, 200, 200));
 
-        // PSRAM portion (green overlay)
-        if (frame.memoryStats.psramAllocated > 0)
+        // External-region portion (green overlay)
+        if (frame.memoryStats.externalAllocated > 0)
         {
-            float psramHeight = (float)frame.memoryStats.psramAllocated / maxMemory * graphHeight;
+            float externalHeight = (float)frame.memoryStats.externalAllocated / maxMemory * graphHeight;
             drawList->AddRectFilled(
-                ImVec2(x, graphPos.y + graphHeight - psramHeight),
+                ImVec2(x, graphPos.y + graphHeight - externalHeight),
                 ImVec2(x + barWidth - 1, graphPos.y + graphHeight),
                 IM_COL32(60, 180, 60, 150));
         }
@@ -170,13 +170,13 @@ void ProfilerPanel::DrawMemoryView()
             ImGui::BeginTooltip();
             ImGui::Text("Frame #%llu", frame.frameNumber);
 
-            char total[32], psram[32], internal[32];
+            char total[32], external[32], internal[32];
             FormatBytes(frame.memoryStats.totalAllocated, total, sizeof(total));
-            FormatBytes(frame.memoryStats.psramAllocated, psram, sizeof(psram));
+            FormatBytes(frame.memoryStats.externalAllocated, external, sizeof(external));
             FormatBytes(frame.memoryStats.internalRamAllocated, internal, sizeof(internal));
 
             ImGui::Text("Total: %s", total);
-            ImGui::Text("PSRAM: %s", psram);
+            ImGui::Text("External: %s", external);
             ImGui::Text("Internal: %s", internal);
             ImGui::EndTooltip();
         }
@@ -186,7 +186,7 @@ void ProfilerPanel::DrawMemoryView()
     ImGui::Spacing();
     ImGui::TextColored(ImVec4(0.3f, 0.5f, 0.8f, 1.0f), "[Total Memory]");
     ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), "[PSRAM]");
+    ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), "[External]");
 }
 
 }  // namespace DekiEditor

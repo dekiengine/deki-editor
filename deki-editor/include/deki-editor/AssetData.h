@@ -19,7 +19,7 @@ namespace DekiEditor
  *   "audio": { "volume": 0.8, "loop": true }
  * }
  *
- * For runtime (ESP32), settings are baked into compiled asset headers.
+ * For a game build, settings are baked into compiled asset headers.
  */
 struct DEKI_EDITOR_API AssetData
 {

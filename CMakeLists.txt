@@ -441,7 +441,7 @@ add_subdirectory(deki-profiling-hooks)
 add_subdirectory(deki-editor)
 
 # =============================================================================
-# Deki Engine as Subdirectory (Unity-style: same code compiles for ESP32 + Editor)
+# Deki Engine as Subdirectory (Unity-style: the same code compiles for a game build and the editor)
 # =============================================================================
 # Include the engine as a CMake subdirectory with DEKI_EDITOR flag.
 # This builds the portable engine core as a static library.

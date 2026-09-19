@@ -6,6 +6,80 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Changed
+- **The editor ships no build backend, and knows none.** Building for a target
+  is done by a backend that arrives in a package's editor-side DLL (or as a
+  plugin under `~/.deki-editor/builders/`, or a directory named by
+  `DEKI_BUILDER_PATH`) and claims a framework id; a platform names its
+  `framework` and gets whichever backend claims it. The ESP-IDF backend is in
+  deki-esp32-integration and the desktop one in deki-desktop-integration, so a
+  project has to have the package for a target installed to build for it. A
+  platform that names no framework gets no backend: there is no default, and
+  none is guessed from the platform's other settings any more. Builder ABI 2;
+  the public interface is `deki-editor/build/TargetBuilder.h`.
+- **A framework's own package manager comes from a package too.** Installers
+  are found by an id they declare, which the lock file records as
+  `"installer"`. Existing project files need no change: a `"source"` that is
+  not `github` or `custom` is the installer's id (`espidf` always was), and an
+  older lock's `"<id>_component"` type is read for the id in it.
+- **A platform file describes a platform, not a microcontroller.** `mcuChip`,
+  `flashSize`, `cpuFreqHz`, `displayDriver`, `displayBus`, `pins`,
+  `requiredLibraries`, `uploadBaudRate` and the rest are settings of the
+  backend that builds for such a board, in `frameworkOptions`. **Nothing to do:**
+  every top-level key the editor does not own is read as the framework's, so
+  existing files load as they are, and saving one writes them nested.
+  `psramSize` is now `externalMemorySize` (the old key is still read); it is
+  what grants packages `memory:external`.
+- **The editor has no platform of its own.** The desktop simulator's platform
+  file and boot scene are offered by deki-desktop-integration
+  (`<package>/platforms/<id>/`), and any package can offer platforms the same
+  way. A project adopts one by having it copied in - when it is opened on that
+  platform, switched to it, or built for it - after which it is the project's
+  own file. Two packages offering the same id is reported, not resolved by
+  guessing, and a platform nobody offers is an error rather than a substitute.
+  **Projects that already have `platforms/native_simulator/` are unaffected;**
+  one that relied on the built-in fallback gets the same files copied in the
+  next time it is opened, provided deki-desktop-integration is installed.
+- **What a new project starts with is `resources/starter.json`** beside the
+  editor: its packages and its platform id. There is no built-in list behind it.
+- **"Flash" is the backend's word, not the editor's.** A backend defines its
+  deploy step: its verb ("Flash" for a board, "Run" for the desktop), and what
+  it can be aimed at (serial ports for a board; nothing to choose for the
+  desktop, which used to be handed a port and ignore it). The Build panel shows
+  that verb and those targets. CLI: `--deploy` and `--deploy-target <id>`;
+  `--flash` and `--port` are accepted as the same thing. MCP: `flash_firmware`
+  is now `deploy_build`, and takes `target` where it took `port`.
+- MCP `create_platform` takes `framework_options` and `external_memory_size`;
+  `mcu_chip`, `cpu_freq_hz`, `flash_size`, `psram_size` and `psram_mode` are
+  gone. `set_platform_provides` takes `framework_options` (merged key by key)
+  where it took `sdkconfig`. `--list-platforms` no longer reports `mcuChip`.
+- The profiler's memory view says "External" where it said "PSRAM", following
+  the engine.
+
+### Fixed
+- `--toolchain-status` and `--install-toolchain` answered "No build backends
+  are registered at all" for every project once backends had moved into
+  packages, because they ran without opening the project. They open it now.
+- A backend built against another layout of the structs it exchanges with the
+  editor crashed the editor instead of being refused. The load handshake now
+  covers `CMakeGen::PackageEntry` as well as `PlatformConfig`.
+- The simulator's engine was compiled for 320x240 RGB565 whatever the platform
+  said, so the renderer was set up at one size while the game was built for
+  another. See the engine changelog.
+- A package's dependencies declared under any framework other than the two the
+  editor used to ship were reduced to bare names; a declaration is now handed
+  to its backend exactly as written.
+
+### Removed
+- The serial "storage mode" half of the asset deployer (send `STORAGE_MODE`,
+  wait for the device to reappear as a USB drive, copy, send `EXIT_STORAGE`).
+  It was one target's firmware protocol, it lived in the editor, and nothing
+  called it; the SD Card Deploy panel only ever copied to a drive, and still
+  does. A device-link transfer belongs in a backend's deploy step.
+- `ProjectTemplate::CopyBundledComponents`, whose source directory nothing ever
+  populated; the `"esp32-"` release-asset special case; the pre-0.10 platform
+  `"type"` key.
+
 ## 0.16.0 - 2026-09-16
 
 ### Changed

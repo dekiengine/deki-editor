@@ -112,8 +112,8 @@ public:
                                                            FirmwareLogCallback onLine = nullptr);
 
     /// Non-blocking SetupToolchainComponent(). success==true means "started".
-    /// Runs the component's post-install step, which for ESP-IDF is the
-    /// install script that fetches the compilers the SDK archive omits.
+    /// Runs the component's post-install step - for an SDK whose archive omits
+    /// its compilers, the script that fetches them.
     static FirmwareOpResult StartSetupToolchainComponent(const std::string& projectPath,
                                                          const std::string& platformId,
                                                          const std::string& componentId,

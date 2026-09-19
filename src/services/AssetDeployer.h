@@ -12,10 +12,7 @@ namespace DekiEditor
 enum class DeployState
 {
     Idle,
-    EnteringStorageMode,
-    WaitingForDrive,
     CopyingAssets,
-    ExitingStorageMode,
     Completed,
     Failed
 };
@@ -33,31 +30,24 @@ struct DeployProgress
 using DeployProgressCallback = std::function<void(const DeployProgress&)>;
 
 /**
- * @brief Deploys assets to device SD card via USB Mass Storage
+ * @brief Copies the project's exported storage/ folder onto a removable drive
  *
- * This service sends serial commands to the device to enter USB storage mode,
- * then copies the project's storage/ folder contents to the SD card.
+ * A card in a reader, a USB stick: whatever the machine mounts as removable.
+ * Nothing here knows what will read the drive afterwards.
  *
- * Workflow:
- * 1. Send "STORAGE_MODE" command via serial
- * 2. Wait for USB drive to appear (with "DEKI" or "STORAGE" label)
- * 3. Copy storage/ folder contents to the drive
- * 4. Send "EXIT_STORAGE" command
+ * This class also used to talk to a device: send "STORAGE_MODE" down a serial
+ * port, wait for the device to reappear as a USB drive labelled DEKI, copy,
+ * send "EXIT_STORAGE". That is one target's firmware protocol (it is
+ * implemented by deki-esp32-integration's serial commands), it lived in the
+ * editor, and nothing called it. Getting assets onto a device over its own
+ * link is a build backend's deploy step (ITargetBuilder::Deploy), where that
+ * flow belongs if it comes back.
  */
 class AssetDeployer
 {
 public:
     AssetDeployer();
     ~AssetDeployer();
-
-    /**
-     * @brief Deploy assets to device
-     * @param projectPath Path to the project folder
-     * @param comPort Serial port for communication (e.g., "COM3")
-     * @param progressCallback Callback for progress updates
-     */
-    void Deploy(const std::string& projectPath, const std::string& comPort,
-                DeployProgressCallback progressCallback = nullptr);
 
     /**
      * @brief Cancel deployment
@@ -85,8 +75,7 @@ public:
      * @param drivePath Drive path (e.g., "E:\\" on Windows)
      * @param progressCallback Callback for progress updates
      *
-     * This is a simpler deployment method that copies directly to an SD card
-     * inserted in a USB card reader, without serial communication.
+     * Copies storage/ to the drive on a worker thread.
      */
     void DeployToDrive(const std::string& projectPath, const std::string& drivePath,
                        DeployProgressCallback progressCallback = nullptr);
@@ -98,19 +87,6 @@ public:
     static std::vector<std::pair<std::string, std::string>> GetRemovableDrives();
 
 private:
-    // Internal worker
-    void DoDeploy(const std::string& projectPath, const std::string& comPort,
-                  DeployProgressCallback progressCallback);
-
-    // Serial communication
-    bool OpenSerialPort(const std::string& port);
-    void CloseSerialPort();
-    bool SendCommand(const std::string& cmd);
-    std::string WaitForResponse(int timeoutMs = 5000);
-
-    // Drive detection (Windows only for now)
-    std::string FindStorageDrive(int timeoutMs = 15000);
-
     // Asset copying
     bool CopyAssets(const std::string& sourcePath, const std::string& destPath,
                     DeployProgressCallback progressCallback);
@@ -126,12 +102,6 @@ private:
 
     mutable std::mutex m_ProgressMutex;
     DeployProgress m_Progress;
-
-#ifdef _WIN32
-    void* m_SerialHandle = nullptr;  // HANDLE on Windows
-#else
-    int m_SerialFd = -1;
-#endif
 };
 
 }  // namespace DekiEditor

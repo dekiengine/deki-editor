@@ -72,15 +72,15 @@ public:
     // External dependency from a package.json file
     struct DEKI_EDITOR_API PackageDepInfo
     {
-        std::string name;                 // e.g. "LovyanGFX"
+        std::string name;
         std::string version;              // e.g. "1.2.19"
-        std::string gitUrl;               // e.g. "https://github.com/.../LovyanGFX.git"
+        std::string gitUrl;               // empty for a framework-registry dependency
         std::string cmakePatchFile;       // path within component dir, empty = no patch
         std::string cmakePatchUncomment;  // commented-out line to uncomment, empty = no patch
     };
 
     // Collect all external dependencies from engine package.json files for the given
-    // platform key ("espidf", "default"). Skips deki:* inter-package deps.
+    // platform key (a framework id, or "default"). Skips deki:* inter-package deps.
     // Optional overrides map replaces version for named deps (e.g. from deki.json).
     static std::vector<PackageDepInfo> GetPlatformDependencies(
         const std::string& platformKey,

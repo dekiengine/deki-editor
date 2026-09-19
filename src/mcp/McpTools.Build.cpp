@@ -149,7 +149,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "setup_toolchain_component",
                         "Run a toolchain component's post-install step. Downloading a component "
-                        "is not always enough to use it: the ESP-IDF archive carries no compilers, "
+                        "is not always enough to use it: an SDK archive may carry no compilers, "
                         "and its install script fetches them. Starts in the background; poll "
                         "build_status. Only components whose status reports canSetup have one.",
                         { { "type", "object" },

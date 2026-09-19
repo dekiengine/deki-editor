@@ -24,7 +24,7 @@ class DEKI_EDITOR_API IBuildActivitySink
    public:
     virtual ~IBuildActivitySink() = default;
 
-    /// Progress on a named long-running process ("esp-idf install", ...).
+    /// Progress on a named long-running process (a toolchain install, say).
     virtual void Log(const std::string& process, const std::string& message) = 0;
     virtual void Complete(const std::string& process) = 0;
     virtual void Fail(const std::string& process, const std::string& error) = 0;

@@ -17,9 +17,9 @@ struct PlatformConfig;
  */
 struct BoardPackPlatform
 {
-    std::string id;           // e.g., "esp32s3_v_board"
-    std::string displayName;  // e.g., "V-Board (ESP32-S3)"
-    std::string family;       // e.g., "espressif"
+    std::string id;           // platform id
+    std::string displayName;
+    std::string family;       // vendor family, descriptive only
 };
 
 /**

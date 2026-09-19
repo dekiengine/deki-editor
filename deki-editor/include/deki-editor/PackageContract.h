@@ -42,7 +42,7 @@ struct DEKI_EDITOR_API PackageEntry
 {
     std::string id;                // Unique ID: "github:owner/repo"
     std::string name;              // "owner/repo"
-    std::string displayName;       // "LovyanGFX"
+    std::string displayName;       // "repo"
     std::string description;       // "JSON library for embedded systems"
     std::string installedVersion;  // Currently installed version (empty if not installed)
     // Version the lock file records for this package. Distinct from
@@ -103,7 +103,6 @@ struct DEKI_EDITOR_API CoreDependency
     bool isGitHub = false;  // true = GitHub, false = registry package
 };
 
-// Dependency information for platform build manifests (e.g., idf_component.yml)
 // Callback types
 using PackageCallback = std::function<void(bool success, const std::string& message)>;
 using VersionsCallback = std::function<void(bool success, const std::vector<std::string>& versions)>;
