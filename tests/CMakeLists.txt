@@ -92,6 +92,7 @@ set(TEST_SOURCES
     core/EditorSelectionTests.cpp
 
     # Editor invariant: a scene is always available (no "no scene" state)
+    core/SceneDuplicateTests.cpp
     core/SceneGuaranteeTests.cpp
 
     # Serialization tests

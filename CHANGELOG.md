@@ -19,6 +19,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `display_name`, so an existing platform's memory can be changed without
   editing its JSON, and `screen_width` with `screen_height` (both or
   neither) for its resolution.
+- MCP `set_project_setting` sets a Project Settings value (e.g. section
+  `Framebuffer`, `targetWidth`) and saves the project.
+- MCP `duplicate_object` also takes `name`, `x`/`y` and `parent_id` for the
+  copy. A `--script` cannot hand one call's returned id to the next, so
+  laying out copies from the command line was not possible before.
 - **The editor ships no build backend, and knows none.** Building for a target
   is done by a backend that arrives in a package's editor-side DLL (or as a
   plugin under `~/.deki-editor/builders/`, or a directory named by

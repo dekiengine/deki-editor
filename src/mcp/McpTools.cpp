@@ -8,6 +8,7 @@
 #include <deki/Component.h>
 #include <deki/Math.h>
 #include <deki/reflection/ComponentRegistry.h>
+#include <deki/reflection/SettingsRegistry.h>
 #include <deki/reflection/Property.h>
 #include "../core/commands/PropertyTypeHandlers.h"
 #include <deki-editor/AssetPipeline.h>
@@ -233,9 +234,22 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             return { { "deleted", objId } };
                         } });
 
+    // The copy's name, place and parent can be given in the same call. A
+    // --script is a fixed list of calls, so it cannot pass the id this returns
+    // on to a later set_position: without these, laying out copies from the
+    // command line was not possible at all.
     registry.Register({ "duplicate_object",
-                        "Duplicate a DekiObject in the current scene. Returns the new object.",
-                        { { "type", "object" }, { "properties", { { "object_id", { { "type", "integer" }, { "description", "ID of the object to duplicate" } } } } }, { "required", nlohmann::json::array({ "object_id" }) } },
+                        "Duplicate a DekiObject in the current scene. Returns the new object. Optionally names "
+                        "the copy, places it (x and y together, local position) and puts it under another "
+                        "parent, in one step.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "object_id", { { "type", "integer" }, { "description", "ID of the object to duplicate" } } },
+                              { "name", { { "type", "string" }, { "description", "Name for the copy (default: the duplicate's own)" } } },
+                              { "x", { { "type", "number" }, { "description", "Local X of the copy; give with y" } } },
+                              { "y", { { "type", "number" }, { "description", "Local Y of the copy; give with x" } } },
+                              { "parent_id", { { "type", "integer" }, { "description", "Parent for the copy (default: the original's parent)" } } } } },
+                          { "required", nlohmann::json::array({ "object_id" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             auto* scene = editor->GetCurrentScene();
@@ -244,13 +258,32 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             Deki::Object* obj = scene->FindDekiObject(objId);
                             if (!obj) throw std::runtime_error("Object not found: " + std::to_string(objId));
 
+                            if (args.contains("x") != args.contains("y"))
+                                throw std::runtime_error("duplicate_object takes x and y together");
+
+                            Deki::Object* parent = obj->GetParent();
+                            if (args.contains("parent_id") && !args["parent_id"].is_null())
+                            {
+                                const uint32_t parentId = args["parent_id"].get<uint32_t>();
+                                parent = scene->FindDekiObject(parentId);
+                                if (!parent) throw std::runtime_error("Parent not found: " + std::to_string(parentId));
+                            }
+
                             Deki::Object* duplicated = nullptr;
                             CommandHistory::Instance().Execute(
-                                std::make_unique<DuplicateObjectCommand>(scene, obj, obj->GetParent(),
+                                std::make_unique<DuplicateObjectCommand>(scene, obj, parent,
                                                                          [&duplicated](Deki::Object* dup)
                                                                          { duplicated = dup; }));
 
                             if (!duplicated) throw std::runtime_error("Failed to duplicate object");
+
+                            if (args.contains("name") && args["name"].is_string())
+                                CommandHistory::Instance().Execute(
+                                    std::make_unique<RenameObjectCommand>(duplicated, args["name"].get<std::string>()));
+                            if (args.contains("x"))
+                                CommandHistory::Instance().ExecuteNoMerge(std::make_unique<SetPositionCommand>(
+                                    duplicated, args["x"].get<float>(), args["y"].get<float>()));
+
                             return SerializeObject(duplicated);
                         } });
 
@@ -753,6 +786,61 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
                                 { "startupScene", project->GetStartupScene() }
                             };
+                        } });
+
+    // Project settings are components too (one live instance per section in
+    // the SettingsRegistry), written with the same per-type handlers as a
+    // scene property; then the project is saved, as the Project Settings
+    // panel does after every edit. The target resolution had no CLI route.
+    //
+    // Written directly, not through CommandHistory: that history is the open
+    // scene's, and an entry there marks the SCENE unsaved, so the next
+    // open_scene stopped at a save-changes prompt no command line can answer.
+    registry.Register({ "set_project_setting",
+                        "Set a project setting: a property of one of the Project Settings sections (e.g. "
+                        "section \"Framebuffer\", property \"targetWidth\"), then save the project. Enum values "
+                        "take their index or name.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "section", { { "type", "string" }, { "description", "Settings section, as the Project Settings panel names it" } } },
+                              { "property", { { "type", "string" }, { "description", "Property name within the section" } } },
+                              { "value", { { "description", "New value (type depends on the property)" } } } } },
+                          { "required", nlohmann::json::array({ "section", "property", "value" }) } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            auto* project = editor->GetProject();
+                            if (!project) throw std::runtime_error("No project open");
+
+                            const std::string section = args["section"].get<std::string>();
+                            const Deki::SettingsTypeInfo* info = nullptr;
+                            std::string known;
+                            for (const auto& entry : Deki::SettingsRegistry::Instance().GetAll())
+                            {
+                                known += (known.empty() ? "" : ", ") + std::string(entry.sectionName);
+                                if (section == entry.sectionName)
+                                    info = &entry;
+                            }
+                            if (!info || !info->instance || !info->meta)
+                                throw std::runtime_error("No settings section '" + section + "' (there are: " + known + ")");
+
+                            const std::string propName = args["property"].get<std::string>();
+                            const Deki::PropertyInfo* prop = FindProperty(info->meta, propName);
+                            if (!prop) throw std::runtime_error("Section '" + section + "' has no property '" + propName + "'");
+                            if (prop->type == Deki::PropertyType::AssetRef)
+                                throw std::runtime_error("set_project_setting does not set asset references");
+
+                            if (prop->type == Deki::PropertyType::Enum)
+                                ApplyEnumSized(info->instance, prop->offset, ResolveEnumValue(*prop, args["value"]),
+                                               prop->enumSize);
+                            else
+                                GetPropertyTypeHandler(prop->type).apply(info->instance, prop->offset, args["value"]);
+                            if (auto* units = DekiEditor::GetUnitSettings())
+                                units->ApplyToGlobalCache();
+                            if (!project->Save())
+                                throw std::runtime_error("could not save the project");
+
+                            return { { "section", section }, { "property", propName },
+                                     { "value", CapturePropertyValue(info->instance, *prop) } };
                         } });
 
     // =========================================================================
