@@ -5,13 +5,21 @@
  * values live in hugo-dekiengine/static/css/main.css; the accent is also
  * EditorTheme.h's Accent, which is why the editor matches too.
  *
- * Loaded last of the three stylesheets, so plain `html { --x: y }` overrides
- * doxygen-awesome's defaults. Its dark values sit on `html.dark-mode`, which
- * outranks a bare `html`, so every variable is declared for both selectors.
+ * Loaded last of the three stylesheets, but being last is not enough on its
+ * own. doxygen-awesome carries its dark palette twice: on `html.dark-mode`
+ * for its toggle, and on `html:not(.light-mode)` inside a
+ * `prefers-color-scheme: dark` media query. Doxygen does not put a class on
+ * <html> at all here, so a bare `html { --x: y }` (0,0,1) LOST to that
+ * media-query rule (0,1,1) on any machine set to dark — the pages rendered in
+ * doxygen-awesome's #1C1D1F rather than the site's #0a0b0d, and would have
+ * differed from one visitor to the next depending on an OS setting. Matching
+ * all three selectors is what makes these values win everywhere. The site has
+ * one appearance, so the docs follow it whatever the visitor's preference is.
  */
 
 html,
-html.dark-mode {
+html.dark-mode,
+html:not(.light-mode) {
     color-scheme: dark;
 
     --primary-color: #3ac3ff;
@@ -114,8 +122,18 @@ html.dark-mode {
  * search box and the reserved height left a gap above the tree. Keyed off the
  * box itself rather than a per-site stylesheet, so one theme serves both. */
 html:not(:has(#MSearchBox)),
-html.dark-mode:not(:has(#MSearchBox)) {
+html.dark-mode:not(:has(#MSearchBox)),
+html:not(.light-mode):not(:has(#MSearchBox)) {
     --top-height: 96px;
+}
+
+/* Doxygen 1.18 builds the results as a plain div, and it grows past the
+ * window the script sizes: 1125px of hits inside a 402px box, spilling down
+ * the page over the nav tree with nothing behind them. */
+#MSearchResultsWindow {
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    background: var(--page-background-color);
 }
 
 /* The 32px grid the site draws across every page. */
