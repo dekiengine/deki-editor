@@ -63,17 +63,22 @@ html:not(.light-mode) {
     --border-radius-medium: 0;
     --border-radius-small: 0;
 
-    /* Mono for text, Space Grotesk for headings — the site's pairing. */
-    --font-family: "JetBrains Mono", "Fira Code", ui-monospace, Consolas, monospace;
+    /* The site sets everything in JetBrains Mono, which suits pages that are
+     * a screen long. Reference pages are not: they are read in paragraphs, and
+     * mono is tiring at that length. Prose here takes Space Grotesk — the
+     * site's other face, so this adds no third typeface — and everything that
+     * is code stays mono: signatures, fragments, inline code, the type names
+     * in the tree, and the bar, which mirrors the site's own mono nav. */
+    --font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-family-monospace: "JetBrains Mono", "Fira Code", ui-monospace, Consolas, monospace;
     --font-family-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
-    --page-font-size: 14px;
+    --page-font-size: 15px;
     --navigation-font-size: 13px;
-    --toc-font-size: 12.5px;
+    --toc-font-size: 13px;
     --code-font-size: 13px;
-    --title-font-size: 20px;
-    --content-line-height: 25px;
+    --title-font-size: 21px;
+    --content-line-height: 26px;
 
     /* Admonitions, keyed to the site's blue and its warm syntax colours. */
     --warning-color: #241d08;
@@ -153,6 +158,7 @@ div.title, .title, #projectname {
 
 /* ───────────────────────────── site bar ───────────────────────────── */
 .deki-bar {
+    font-family: var(--font-family-monospace);
     position: fixed;
     top: 0;
     left: 0;
@@ -324,11 +330,33 @@ div.title a, .title a { color: inherit !important; }
 #titlearea { border-bottom: 1px solid var(--separator-color); }
 #projectname { font-size: var(--title-font-size); letter-spacing: 0; }
 #projectnumber {
-    font-family: var(--font-family);
     font-size: 11px;
     color: var(--primary-color);
 }
 #projectbrief { color: var(--page-secondary-foreground-color); font-size: 11.5px; }
+
+/* Code stays mono even though prose no longer is. Doxygen already uses the
+ * monospace face for fragments and inline code, but the member tables and the
+ * parameter lists are ordinary tables, and a C++ signature set in a
+ * proportional face is worse than any paragraph gains. The tree is mostly
+ * type names, and short enough that mono costs nothing there. */
+/* doxygen-awesome names `#nav-tree .label` (1,1,0) in its font rule, which
+ * outranks a bare `#nav-tree`, so the tree needs the class spelled out. */
+#nav-tree,
+#nav-tree .label,
+#nav-tree a,
+.navpath li.navelem a,
+#projectnumber,
+table.memberdecls .memItemLeft,
+table.memberdecls .memItemRight,
+table.memberdecls .memTemplItemLeft,
+table.memberdecls .memTemplItemRight,
+table.memberdecls .memTemplParams,
+.memname, .memproto, .memtitle,
+.paramtype, .paramname, .retval,
+div.contents table.markdownTable td:first-child {
+    font-family: var(--font-family-monospace);
+}
 
 #nav-tree .item > a,
 #nav-tree .label { font-size: var(--navigation-font-size); }
