@@ -366,25 +366,71 @@ div.contents table.markdownTable td:first-child {
     text-shadow: none;
 }
 
+/* doxygen-awesome fakes a full-bleed rule under a section heading with a
+ * stack of box-shadows painted in --page-background-color. That only works on
+ * a flat page: over the site's grid the shadows cover it in opaque blocks
+ * that end in mid-air, which is the stray bar at the right of every section
+ * heading. A plain border does the same job. */
 div.contents .doxysection,
 h1.groupheader,
-h2.groupheader {
+h2.groupheader,
+td h2.groupheader {
+    box-shadow: none;
     border-bottom: 1px solid var(--separator-color);
     color: var(--page-foreground-color);
 }
 
+/* Doxygen's own dark sheet draws the member tables in its navy (#233250 on
+ * the borders, black in the heading shadows). doxygen-awesome recolours the
+ * cells' top and bottom but not their sides, and not the description rows at
+ * all, which left blue rules down a table that is grey everywhere else. */
+table.memberdecls .memItemLeft,
+table.memberdecls .memItemRight,
+table.memberdecls .memTemplParams,
+table.memberdecls .memTemplItemLeft,
+table.memberdecls .memTemplItemRight,
+table.memberdecls .mdescLeft,
+table.memberdecls .mdescRight,
+table.memberdecls .memSeparator {
+    border-color: var(--separator-color);
+}
+
+/* Tables are the site's tables now. The hairline grid was already the same
+ * colour, but the cells were half the site's padding, which packed the rules
+ * into a ladder, and the head row was plain bold text rather than the site's
+ * small accent caps. */
 table.doxtable th,
 table.markdownTable th {
-    background: var(--tablehead-background);
-    color: var(--page-foreground-color);
-    border-bottom: 1px solid var(--separator-color);
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    background: rgba(255, 255, 255, 0.012);
+    color: var(--primary-color);
+    font-family: var(--font-family-monospace);
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-size: 11.5px;
 }
+table.doxtable th,
 table.doxtable td,
-table.markdownTable td { border-color: var(--separator-color); }
+table.markdownTable th,
+table.markdownTable td {
+    border-color: var(--separator-color);
+    padding: 10px 14px;
+    vertical-align: top;
+}
+table.markdownTable tr:last-child td,
+table.doxtable tr:last-child td { border-bottom: none; }
+
+/* The member tables set every signature row on the code background, which
+ * against the page makes a striped ladder the site has no equivalent of. A
+ * tenth of that contrast still groups the signature with its description. */
+table.memberdecls .memItemLeft,
+table.memberdecls .memItemRight,
+table.memberdecls .memTemplItemLeft,
+table.memberdecls .memTemplItemRight,
+table.memberdecls .memTemplParams {
+    background-color: var(--odd-color);
+    border-top-color: transparent;
+}
 
 div.memitem,
 div.memproto,
