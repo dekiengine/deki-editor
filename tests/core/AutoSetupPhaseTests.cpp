@@ -111,7 +111,7 @@ TEST_F(AutoSetupPhase, TheUsualOrderRunsEachExactlyOnce)
 
 TEST_F(AutoSetupPhase, PlayingAgainDoesNotRunItAgain)
 {
-    // Stop and Play a second time must not repeat the side effect — for
+    // Stop and Play a second time must not repeat the side effect - for
     // deki-gps that would be another request.
     RegisterBoth();
     SetupComponent::RunEditorAutoSetups(Phase::PlayStart);

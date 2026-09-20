@@ -16,7 +16,7 @@ namespace DekiEditor
 /// Memory that is about to be freed, described as byte ranges.
 ///
 /// Ranges rather than a set of base pointers, because commands do not only
-/// store objects — the EditorUI field helpers store *interior* pointers such as
+/// store objects - the EditorUI field helpers store *interior* pointers such as
 /// `&obj->x` or the address of a field inside a component. A base-pointer set
 /// would miss every one of those and leave exactly the dangling writes this
 /// mechanism exists to prevent.
@@ -92,7 +92,7 @@ public:
     /// Report whether this command holds a raw pointer to anything in `dead`.
     ///
     /// CommandHistory calls this when the scene is about to free objects, and
-    /// discards any command that answers true — running Undo()/Redo() on a
+    /// discards any command that answers true - running Undo()/Redo() on a
     /// command whose target has been freed is a use-after-free.
     ///
     /// The default is false, which is correct for commands that address their

@@ -173,7 +173,7 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
         }
 
         // A full rebuild sees every asset, so two sidecars carrying the same
-        // GUID show up here as well — resolve rather than let the later one
+        // GUID show up here as well - resolve rather than let the later one
         // overwrite the earlier one's mapping.
         entry.guid = ResolveGuidConflict(relativePath, entry.guid);
         if (entry.guid.empty())
@@ -614,7 +614,7 @@ std::string GuidCache::ResolveGuidConflict(const std::string& relativePath,
         return guid;
     }
 
-    // Both files exist, so two live assets claim one GUID — a copied folder
+    // Both files exist, so two live assets claim one GUID - a copied folder
     // still carrying its .data sidecars is the usual cause. Treating that as a
     // move silently repointed every reference from the original to the copy,
     // and which one won depended on directory iteration order. Mint a fresh

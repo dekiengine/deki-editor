@@ -1,4 +1,4 @@
-// Deki::Buffer<T> — the owning buffer component and package code uses instead
+// Deki::Buffer<T> - the owning buffer component and package code uses instead
 // of calling an allocator and remembering a matching Free.
 //
 // The cases below are the mistakes this type exists to make impossible, each
@@ -174,7 +174,7 @@ namespace
 {
 // Records where each allocation was asked from, so a test can assert the
 // region rather than infer it. HasExternalRAM is true, so the external branch
-// is live — on a host there is no PSRAM, but Memory cannot tell the
+// is live - on a host there is no PSRAM, but Memory cannot tell the
 // difference and neither should the rule.
 class RegionSpyProvider : public Deki::IMemoryProvider
 {
@@ -241,7 +241,7 @@ struct ScopedSpy
 
 TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
 {
-    // 150 KB — comfortably over the 16 KB the old rule used, and the size of a
+    // 150 KB - comfortably over the 16 KB the old rule used, and the size of a
     // 320x240 RGB565 framebuffer, which is exactly the buffer that must not go
     // to PSRAM by accident.
     ScopedSpy s;
@@ -379,7 +379,7 @@ TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
     // forwards to Memory::Allocate in Memory.cpp. If either of those
     // re-defaulted the context instead of forwarding it, every allocation in
     // the engine would report Buffer.h or Memory.cpp as its origin and the
-    // feature would be worse than useless — it would be confidently wrong.
+    // feature would be worse than useless - it would be confidently wrong.
     Deki::Memory::SetBackend(new AlwaysFailsProvider());
     CapturedLog log;
 
@@ -400,7 +400,7 @@ TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
     EXPECT_FALSE(log.Contains("at Buffer.h:")) << "logged: " << log.text;
     EXPECT_FALSE(log.Contains("at Memory.cpp:")) << "logged: " << log.text;
 #else
-    // Nothing was captured, so nothing is claimed — and in particular the
+    // Nothing was captured, so nothing is claimed - and in particular the
     // engine must not invent an origin it does not have.
     EXPECT_FALSE(log.Contains(" at ")) << "logged: " << log.text;
 #endif
@@ -448,7 +448,7 @@ namespace TestBoard
 {
 // Exactly what a board-support package would write: its own namespace, its own
 // constant, no engine change and no registration call. Two board packages both
-// wanting an "Rtc" cannot collide, because each is in its own namespace — which
+// wanting an "Rtc" cannot collide, because each is in its own namespace - which
 // a class being closed is what guarantees.
 inline constexpr Deki::Memory::Region Rtc{"rtc"};
 }  // namespace TestBoard
@@ -535,7 +535,7 @@ TEST(DekiMemoryRegion, DmaIsAConstraintNotAPlace)
 
 TEST(DekiMemoryRegion, TwoPackagesNamingTheSameRegionMeanTheSameRegion)
 {
-    // Not a conflict — the point. Two board packages that both support a part
+    // Not a conflict - the point. Two board packages that both support a part
     // with RTC memory write Region("rtc") independently and interoperate,
     // the same way two packages both requiring the "spi" capability do.
     constexpr Deki::Memory::Region from_package_a = Deki::Memory::Region("rtc");

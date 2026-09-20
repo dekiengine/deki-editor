@@ -1,4 +1,4 @@
-// FaultGuard.cpp — the fault handler behind FaultGuard.h.
+// FaultGuard.cpp - the fault handler behind FaultGuard.h.
 //
 // Windows: a vectored exception handler.
 // POSIX:   a sigaction handler for the fault signals.
@@ -53,7 +53,7 @@ bool IsRecoverableFault(DWORD code)
 {
     // Severity "error" only. This deliberately excludes C++ exceptions
     // (0xE06D7363), breakpoints, and the guard-page notification the OS uses to
-    // grow a thread stack (0x8xxxxxxx) — swallowing any of those would break
+    // grow a thread stack (0x8xxxxxxx) - swallowing any of those would break
     // normal execution rather than contain a crash.
     if ((code & 0xF0000000u) != 0xC0000000u)
         return false;
@@ -177,8 +177,8 @@ void FaultHandler(int sig, siginfo_t* info, void* /*ucontext*/)
     RunTraceHook(g, info);
 
     // siglongjmp, not longjmp: it restores the signal mask saved by sigsetjmp.
-    // Without that the signal stays blocked on this thread — it was blocked on
-    // entry to the handler — and the next fault would never be delivered, so a
+    // Without that the signal stays blocked on this thread - it was blocked on
+    // entry to the handler - and the next fault would never be delivered, so a
     // second bad package would take the editor down after all.
     siglongjmp(g->jb, 1);
 }

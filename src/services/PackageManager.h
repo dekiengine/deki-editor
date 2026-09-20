@@ -109,7 +109,7 @@ public:
     // Restoring declared-but-missing packages lives in services/PackageRestore.h,
     // not here. It used to be duplicated on this class as well, which left two
     // functions of the same name with different results (a count vs. installed /
-    // failed / unresolvable) — and only the free one was reachable. Both the
+    // failed / unresolvable) - and only the free one was reachable. Both the
     // --packages-restore verb and project open go through PackageRestore.
 
 private:

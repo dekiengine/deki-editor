@@ -89,7 +89,7 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
         if (!w) continue;
 
         // A docked panel is reparented under its dock node's host window, so it
-        // carries ChildWindow — the flag alone would filter out exactly the
+        // carries ChildWindow - the flag alone would filter out exactly the
         // windows worth capturing. Treat anything with a dock assignment as a
         // top-level panel and only drop genuine scaffolding.
         const bool isDockedPanel = (w->DockId != 0) || (w->DockNode != nullptr);

@@ -57,7 +57,7 @@ void EditorApp::DrawMenuBar()
 {
     // Re-push the same FramePadding used at the parent window's Begin() time
     // so BeginMenuBar's internal AlignTextToFramePadding offsets text by
-    // (barH - fontH)/2 — i.e. vertically centered. main.cpp's push has been
+    // (barH - fontH)/2 - i.e. vertically centered. main.cpp's push has been
     // popped by now, leaving FramePadding at the theme default.
     const float menuBarHeight_baked = ImGui::GetCurrentWindow()->MenuBarHeight;
     const float fontH_baked = ImGui::GetFontSize();
@@ -71,7 +71,7 @@ void EditorApp::DrawMenuBar()
     // left/top inset here; the taller rows and full-width hover are applied
     // per-menu in BeginBarMenu (which needs the popup open first). This
     // WindowPadding only affects popups begun within this scope (the menus and
-    // their submenus) — the menu bar itself was begun by the parent window and
+    // their submenus) - the menu bar itself was begun by the parent window and
     // keeps its baked layout. Sized in multiples of the font height so it
     // tracks DPI.
     const float menuFont = ImGui::GetFontSize();
@@ -82,7 +82,7 @@ void EditorApp::DrawMenuBar()
         // Geometry expressed in multiples of GetFontSize() per ImGui FAQ.
         // GetFontSize() already includes FontScaleMain * FontScaleDpi, so
         // values scale automatically with monitor DPI changes.
-        // Bar bounds come from the window's MenuBarRect — the height baked
+        // Bar bounds come from the window's MenuBarRect - the height baked
         // into the window at Begin() time. We use MenuBarRect directly
         // because it's the authoritative bar rectangle for hit-testing.
         const ImRect barRect = ImGui::GetCurrentWindow()->MenuBarRect();
@@ -109,7 +109,7 @@ void EditorApp::DrawMenuBar()
         // Mapped to our loaded fonts: g_FontDisplay (Space Grotesk Medium 20px).
         {
             ImFont* titleFont = g_FontDisplay ? g_FontDisplay : ImGui::GetFont();
-            // PushFont size is a base size — ImGui multiplies by FontScaleMain
+            // PushFont size is a base size - ImGui multiplies by FontScaleMain
             // * FontScaleDpi at draw time, so no manual *dpi here.
             ImGui::PushFont(titleFont, 16.0f);
             ImGui::AlignTextToFramePadding();
@@ -117,7 +117,7 @@ void EditorApp::DrawMenuBar()
             ImGui::SameLine();
             ImGui::TextColored(Palette::Fg, "DEKI/EDITOR");
             ImGui::PopFont();
-            // 20px gap after the title block — ~1.5 font heights.
+            // 20px gap after the title block - ~1.5 font heights.
             ImGui::Dummy(ImVec2(ImGui::GetFontSize() * 1.5f, 0.0f));
             ImGui::SameLine();
             // Publish the X where File/Edit/... start so the Win32 hit test
@@ -134,7 +134,7 @@ void EditorApp::DrawMenuBar()
         ImDrawList* menuDl = ImGui::GetWindowDrawList();
 
         // Open a top-level bar menu (File/Edit/...) with ITS bar button's own
-        // background suppressed — we stamp a full-bar-height background in
+        // background suppressed - we stamp a full-bar-height background in
         // DrawMenuItemBg instead. The transparency is scoped to just the
         // BeginMenu call (the bar button). Doing it globally would also zero the
         // dropdown's hover highlight, because the popup's MenuItem/Selectable
@@ -152,7 +152,7 @@ void EditorApp::DrawMenuBar()
                 // the popup's WindowPadding.x. A Selectable extends its hover box
                 // by ItemSpacing.x/2 on each side (imgui_widgets.cpp ~7397), so
                 // the highlight bleeds precisely to both window edges while the
-                // label keeps its WindowPadding.x left inset — full-width hover,
+                // label keeps its WindowPadding.x left inset - full-width hover,
                 // padded text. ItemSpacing.y sets the (taller) row height. The
                 // push lives between Begin/EndBarMenu, so the menu bar's own item
                 // spacing is left untouched. Paired pop is in EndBarMenu().
@@ -171,7 +171,7 @@ void EditorApp::DrawMenuBar()
 
         // After each BeginMenu, draw a full-height background covering the
         // entry's full column. Also hijacks hover-state and clicks so the
-        // entire vertical strip is interactive — not just the text rect.
+        // entire vertical strip is interactive - not just the text rect.
         auto DrawMenuItemBg = [&](bool isOpen, const char* popupId)
         {
             ImVec2 rMin = ImGui::GetItemRectMin();
@@ -187,7 +187,7 @@ void EditorApp::DrawMenuBar()
                 g.HoveredId = id;
                 // Menu-bar switching: ImGui's BeginMenu only triggers a popup
                 // switch when the cursor is over the small text rect. Extend
-                // that to the full column — if any menu in this bar is open
+                // that to the full column - if any menu in this bar is open
                 // and we're hovered, swap to us. OpenPopup at the same stack
                 // level auto-closes the previous popup.
                 if (!isOpen && g.OpenPopupStack.Size > 0)
@@ -222,7 +222,7 @@ void EditorApp::DrawMenuBar()
             // above, it is user-initiated with a scene possibly dirty, so ask
             // before the close discards it. (OpenProject's internal
             // CloseProject deliberately stays unguarded: it runs mid-open, and
-            // a dialog there would strand the editor between two projects —
+            // a dialog there would strand the editor between two projects -
             // which is why the dialog is asked BEFORE OpenProject is called.)
             if (ImGui::MenuItem("Quit to Project Manager", nullptr, false, m_Project != nullptr))
             {
@@ -236,7 +236,7 @@ void EditorApp::DrawMenuBar()
             {
                 SaveScene();
             }
-            // Save As — explicit destination picker; also the only way to save
+            // Save As - explicit destination picker; also the only way to save
             // an untitled or freshly-recovered scene from a path-less state.
             if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S", false, m_CurrentScene != nullptr))
             {
@@ -276,7 +276,7 @@ void EditorApp::DrawMenuBar()
                 // No Delete entry here on purpose: deletion lives in the Hierarchy
                 // panel (Del key and context menu), which guards protected objects
                 // and instance children. A second entry on this menu would have to
-                // restate those guards, and the one that used to sit here did not —
+                // restate those guards, and the one that used to sit here did not -
                 // it was enabled on any selection and did nothing when clicked.
                 ImGui::Separator();
                 {
@@ -311,7 +311,7 @@ void EditorApp::DrawMenuBar()
                 }
 
                 // Maintenance: delete generated state to recover from a bad build or
-                // stale assets. Disabled while play mode or a build holds those files —
+                // stale assets. Disabled while play mode or a build holds those files -
                 // removing a mapped DLL fails partway and leaves a worse mess than it
                 // started with, so the guard is here rather than in the error path.
                 {
@@ -365,7 +365,7 @@ void EditorApp::DrawMenuBar()
             if (buildOpen)
             {
                 // No "Build"/"Upload" entries here. They existed as permanently
-                // disabled items advertising Ctrl+B / Ctrl+U, which do nothing —
+                // disabled items advertising Ctrl+B / Ctrl+U, which do nothing -
                 // an advertised shortcut that never fires is worse than no entry.
                 // Build Panel below is the working route. Restore them together
                 // with an implementation, not before.
@@ -406,7 +406,7 @@ void EditorApp::DrawMenuBar()
             if (viewOpen)
             {
                 // Helper: open the panel and focus its (possibly docked) tab. Plain
-                // press-to-open — no checkmark, no toggle-off. Clicking always brings
+                // press-to-open - no checkmark, no toggle-off. Clicking always brings
                 // the window up, even if it was already open (just re-focuses it).
                 auto PanelMenuItem = [](const char* label, bool& openFlag, const char* windowName)
                 {
@@ -477,7 +477,7 @@ void EditorApp::DrawMenuBar()
                     RequestRestoreLayout();
                 }
 #ifndef NDEBUG
-                // ImGui's own debug windows. Debug builds only — these are
+                // ImGui's own debug windows. Debug builds only - these are
                 // developer tools for working on the editor, not features of it.
                 ImGui::Separator();
                 if (ImGui::MenuItem("ImGui Demo"))
@@ -550,7 +550,7 @@ void EditorApp::DrawGlobalToolbar()
     const ImU32 colLine2 = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Line2);
     dl->AddRectFilled(startPos, ImVec2(startPos.x + availW, startPos.y + toolbarH),
                       ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Bg2));
-    // Bottom border only — the menu bar above already draws its own bottom
+    // Bottom border only - the menu bar above already draws its own bottom
     // border, so a top one here would double up. A 2px (DPI-scaled) AddRectFilled
     // on a floored y row gives a crisp hard line that matches the thicker dock
     // separators (AddLineH at the same thickness would AA-bleed).
@@ -684,7 +684,7 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
     for (int i = 0; i < 3; i++)
     {
         float slotX = controlsStartX + buttonW * i;
-        // Button rect spans the full bar height — same vertical
+        // Button rect spans the full bar height - same vertical
         // extents as the menu items, sourced from MenuBarRect.
         ImVec2 btnMin(barMin.x + slotX, barMin.y);
         ImVec2 btnMax(btnMin.x + buttonW, barMax.y);

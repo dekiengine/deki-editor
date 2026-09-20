@@ -2,7 +2,7 @@
 //
 // Stored values are SI and never anything else; these pin the one place that
 // turns them into something a person reads. They exist because the conversions
-// used to live in three files and nothing checked any of them — a swapped
+// used to live in three files and nothing checked any of them - a swapped
 // multiplier would have reached a release and been noticed by someone squinting
 // at the inspector.
 

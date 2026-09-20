@@ -83,7 +83,7 @@ float Smooth(float t)
 
 // Rotate everything a draw call appended since `vtxStart` around its own
 // center. ImGui cannot draw rotated text, so the glyph is emitted normally
-// and its vertices are spun afterwards — the icon stays the icon, at any
+// and its vertices are spun afterwards - the icon stays the icon, at any
 // angle, instead of being redrawn as hand-built strokes that would not
 // match the ones next to it.
 void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
@@ -99,8 +99,8 @@ void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
     }
     const ImVec2 center((lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f);
 
-    // (No ImVec2 operators in this TU — IMGUI_DEFINE_MATH_OPERATORS is not
-    // set — so the rotation is written out by hand.)
+    // (No ImVec2 operators in this TU - IMGUI_DEFINE_MATH_OPERATORS is not
+    // set - so the rotation is written out by hand.)
     // ImRotate takes COSINE first, then sine. Passing them the other way
     // round rotates by (90° - angle), which turns the icon backwards: fully
     // open it landed exactly where it started.
@@ -117,7 +117,7 @@ void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
 
 // Nudge everything appended since `vtxStart` so its bounding box starts on
 // whole pixels. A glyph landing on a half pixel samples between texels and
-// comes out soft and thick — which is the whole difference between a
+// comes out soft and thick - which is the whole difference between a
 // chevron that looks drawn and one that looks smeared. Only worth doing
 // when the icon is at rest; snapping every frame of the turn would make it
 // jitter by half a pixel as it goes.
@@ -148,7 +148,7 @@ void SnapVerticesFrom(ImDrawList* dl, int vtxStart)
 //
 // `center` is the middle of the zone the icon lives in, not a pen position:
 // the glyph is centered on it by its own metrics, so the icon does not
-// wander as it turns. The one glyph is used at every angle — swapping in
+// wander as it turns. The one glyph is used at every angle - swapping in
 // chevron-down at the end would land it wherever THAT glyph's ink sits,
 // which is not where the turning one arrives.
 void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center,
@@ -174,7 +174,7 @@ void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center,
 // id scope and its own storage, so every nested foldout inside a section
 // would read as shut for the length of the animation and every id inside
 // would change identity mid-interaction. Clipping in place keeps the body
-// exactly the widgets it already was — ItemAdd treats anything outside the
+// exactly the widgets it already was - ItemAdd treats anything outside the
 // clip as culled, so the hidden part stops being hoverable too.
 struct SectionScope
 {
@@ -204,7 +204,7 @@ ImGuiID SectionBodyKey(ImGuiID headerId)
 //
 // This band names a THING, so it is typeset like the object name in the
 // Inspector header: display face, heading size, accent. The uppercase
-// letter-spaced treatment belongs to the foldouts, which name sections —
+// letter-spaced treatment belongs to the foldouts, which name sections -
 // and could never be matched by a field, since nobody types in caps.
 ImFont* BandTitleFont()
 {
@@ -239,8 +239,8 @@ ImU32 BandTitleColor()
 //
 // A cursor advance, NOT an item: an item here would become the window's
 // last one, and a caller that hangs something off the band by reading the
-// previous item's rect — the `EDIT ->` link on a component header does
-// exactly that — would measure this spacer instead and drop its control a
+// previous item's rect - the `EDIT ->` link on a component header does
+// exactly that - would measure this spacer instead and drop its control a
 // band lower. The body's height is measured from the cursor either way, so
 // the gap is still counted. SchematicSectionEnd closes the body with a zero
 // item so a section whose body is empty still cannot end a window on a
@@ -327,7 +327,7 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
     // Opening for the very first time, with no height on record yet: submit the
     // body clipped to nothing. Clipping culls drawing and hit-testing but does
     // NOT change layout, so the cursor still travels the body's full height and
-    // End can measure it — the section is invisible for the one frame it takes
+    // End can measure it - the section is invisible for the one frame it takes
     // to learn its own size, and animates properly from the next. The
     // alternative was to show it at full height and then animate it from a
     // fifth of that, which is why the first click used to just snap open.
@@ -435,8 +435,8 @@ void SchematicSectionEnd()
     if (!w)
         return;
 
-    // The body was submitted whole either way — a clip hides items, it does not
-    // shorten the layout — so this is the full height whatever the state, and
+    // The body was submitted whole either way - a clip hides items, it does not
+    // shorten the layout - so this is the full height whatever the state, and
     // recording it every frame keeps the animation honest when the content
     // itself changes size.
     const float h = ImGui::GetCursorScreenPos().y - sc.startY;
@@ -537,7 +537,7 @@ void EndSchematicModal()
     ImGui::PopStyleVar();  // WindowPadding
 }
 
-// Schematic typography ladder — definitions. Loaded in main.cpp.
+// Schematic typography ladder - definitions. Loaded in main.cpp.
 ImFont* g_FontUI = nullptr;
 ImFont* g_FontUISmall = nullptr;
 ImFont* g_FontUIMed = nullptr;
@@ -623,17 +623,17 @@ void SetupEditorTheme(float dpiScale)
 
     // FontSizeBase is the default size used by PushFont(NULL, ...) and is
     // multiplied by FontScaleMain × FontScaleDpi at draw time. A sensible
-    // fallback (CSS 13 × Inter's typical ratio) — main.cpp overrides this
+    // fallback (CSS 13 × Inter's typical ratio) - main.cpp overrides this
     // to the precise value via Fonts::CssPx(g_FontUI, 13) once fonts load.
     style.FontSizeBase = 13.0f;
     style.FontScaleMain = 1.0f;
-    // Initial FontScaleDpi — io.ConfigDpiScaleFonts only AUTO-OVERWRITES this
+    // Initial FontScaleDpi - io.ConfigDpiScaleFonts only AUTO-OVERWRITES this
     // on monitor-DPI-change events, not at startup. Without this line, fonts
     // would render at 1.0× even on a 2.0× display until the user dragged the
     // window between monitors. All ImGui's official examples do the same.
     style.FontScaleDpi = dpiScale;
 
-    // ScaleAllSizes is still required in 1.92 — ImGui's auto-DPI handles fonts
+    // ScaleAllSizes is still required in 1.92 - ImGui's auto-DPI handles fonts
     // but explicitly NOT sizes/padding. Calling here scales the style fields
     // we just set above by dpiScale, so frame padding / item spacing / etc.
     // match the font scale at startup.
@@ -746,7 +746,7 @@ void SetupEditorTheme(float dpiScale)
 
 // Draw `text` with `letterSpacing` extra pixels between glyphs at the given
 // font size. Walks UTF-8 codepoints; uses CalcTextSizeA for per-char advance
-// (kerning ignored — fine for short uppercase labels). Returns total width.
+// (kerning ignored - fine for short uppercase labels). Returns total width.
 static float DrawSpacedText(ImDrawList* dl, ImFont* font, float fontSize,
                             ImVec2 pos, ImU32 col, const char* text,
                             float letterSpacing)
@@ -790,7 +790,7 @@ static void Upper(const char* in, char* out, size_t outCap)
 // 2px accent underline on the visible tab and a 1px hairline along the bar
 // bottom (matching the mockup's tab row chrome).
 //
-// `leftEdgeX` / `rightEdgeX` are the visual edges of the dock column — the
+// `leftEdgeX` / `rightEdgeX` are the visual edges of the dock column - the
 // bar's own BarRect is inset on both sides by WindowBorderSize +
 // FramePadding.x, so the accent underline and hairline would otherwise leave
 // gaps before the column separators. For standalone (non-dock) bars, pass
@@ -810,7 +810,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
     const float barY0 = bar->BarRect.Min.y;
     const float barY1 = bar->BarRect.Max.y;
     // Tab labels: ImGui's text-rendering metrics make Inter at the mockup's
-    // raw 11px read smaller than the browser equivalent — bump to ~12.5px for
+    // raw 11px read smaller than the browser equivalent - bump to ~12.5px for
     // visual parity. Letter-spacing stays at the mockup's ~0.08em.
     // Expressed as ratios of GetFontSize() so DPI scaling is automatic.
     const float bodyFont = ImGui::GetFontSize();  // = FontSizeBase * FontScaleDpi
@@ -823,7 +823,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
     // and clip central tabs to ScrollingRectMinX..ScrollingRectMaxX so that
     // tabs scrolled past the leading section don't overdraw it.
     const float scroll = bar->ScrollingAnim;
-    // Close button strip reserved on the right edge of every dock tab —
+    // Close button strip reserved on the right edge of every dock tab -
     // FramePadding.x + ItemInnerSpacing.x + FontSize, matching what
     // TabItemCalcSize adds when has_close_button_or_unsaved_marker is true.
     // We trim our background overdraw by this much so the native close (X)
@@ -849,7 +849,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
 
         // Wipe the native label area so the default-font text is hidden.
         // Reserve the close-button strip on the right so the native (X) glyph
-        // stays visible — ImGui drew it earlier in this frame and our fill
+        // stays visible - ImGui drew it earlier in this frame and our fill
         // would otherwise paint over it.
         const float labelAreaRight = ImMax(x0, x1 - closeStripW);
         dl->AddRectFilled(ImVec2(x0, barY0), ImVec2(labelAreaRight, barY1),
@@ -877,7 +877,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
 
         // Compute label width with our font + letter-spacing.
         // Tabs use ImGuiTabBarFlags_FittingPolicyScroll (patched in imgui.cpp),
-        // so the tab keeps its natural size and the bar scrolls when full —
+        // so the tab keeps its natural size and the bar scrolls when full -
         // no need to shrink labels or clip to fit.
         ImFont* font = g_FontUIBold;
         int chars = 0;
@@ -893,7 +893,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         if (chars > 1) labelW += letterSpacing * (chars - 1);
 
         // Request a tab width that fits our drawn label exactly the way
-        // TabItemCalcSize would — but using OUR measured label width instead
+        // TabItemCalcSize would - but using OUR measured label width instead
         // of ImGui's (default-font) measurement. With this width plus the
         // label positioned at tabStartX + FramePadding.x (mirroring the X's
         // right inset), the LABEL + X group lands symmetrically in the tab.
@@ -901,7 +901,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         tab->RequestedWidth = labelW + 2.0f * style.FramePadding.x + style.ItemInnerSpacing.x + ImGui::GetFontSize();
 
         // Position the label so the (LABEL + X) group is centered in the
-        // natural tab [x0, x1]. Mirror the X's right inset on the left —
+        // natural tab [x0, x1]. Mirror the X's right inset on the left -
         // labelX = x0 + FramePadding.x. We use x0 (not tabStartX) on
         // purpose: the leftmost-tab extension to leftEdgeX is a *visual*
         // fix for the dock-column gap, but the label should sit at the
@@ -912,7 +912,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         DrawSpacedText(dl, font, fontSize, ImVec2(labelX, labelY),
                        active ? colFg : colDim, upper, letterSpacing);
 
-        // 2px accent bottom underline for the active tab — spans the full
+        // 2px accent bottom underline for the active tab - spans the full
         // tab width (label + X + surrounding padding).
         if (active)
         {
@@ -924,7 +924,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
             dl->PopClipRect();
     }
 
-    // 1px hairline along the bar's bottom edge — extend to the dock node's
+    // 1px hairline along the bar's bottom edge - extend to the dock node's
     // true edges on both sides so it meets the column separators with no gap.
     dl->AddLine(ImVec2(leftEdgeX, barY1),
                 ImVec2(rightEdgeX, barY1), colLine, 1.0f);
@@ -933,7 +933,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
 // The seam line between two docked panels is drawn by ImGui itself: its dock
 // splitter fills the (now 1px) separator gap with ImGuiCol_Border. With
 // WindowBorderSize = 0 the panels no longer stroke their own borders alongside
-// it, so each seam is a single hairline — nothing to draw here for docked
+// it, so each seam is a single hairline - nothing to draw here for docked
 // panels.
 //
 // What IS still needed: WindowBorderSize = 0 also dropped the frame around
@@ -971,7 +971,7 @@ void DrawAllTabTopAccents()
 {
     ImGuiContext& g = *GImGui;
 
-    // Draw onto each tab bar's owning window's draw list — NOT the foreground
+    // Draw onto each tab bar's owning window's draw list - NOT the foreground
     // draw list. The foreground layer renders above all windows including
     // tooltips and popups, which makes our accent stripes paint over them.
     // Using the host/owner window's draw list places the accent at the same
@@ -1003,7 +1003,7 @@ void DrawAllTabTopAccents()
 
     // 2) Standalone tab bars created via BeginTabBar (e.g. Asset Browser's
     //    Assets/Scripts sub-tabs). These live in the global pool with no back
-    //    pointer to the owning window — find it by hit-testing the bar rect
+    //    pointer to the owning window - find it by hit-testing the bar rect
     //    against active windows and picking the innermost match.
     for (int i = 0; i < g.TabBars.GetMapSize(); ++i)
     {
@@ -1021,7 +1021,7 @@ void DrawAllTabTopAccents()
             ImGuiWindow* w = g.Windows[wi];
             if (!w || !w->Active || w->Hidden)
                 continue;
-            // Skip tooltip / popup / menu layers — we want the underlying panel.
+            // Skip tooltip / popup / menu layers - we want the underlying panel.
             if (w->Flags & (ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_Popup))
                 continue;
             ImRect r = w->Rect();
@@ -1077,7 +1077,7 @@ bool SchematicCheckbox(const char* label, bool* v, const ImVec4& fillColor)
     const ImU32 borderCol = ImGui::ColorConvertFloat4ToU32(
         hovered ? Palette::Line3 : Palette::Line2);
 
-    // Outer box (1px border, fully transparent fill — matches mockup where the
+    // Outer box (1px border, fully transparent fill - matches mockup where the
     // box sits flush on the panel background). Rounded to the same radius as the
     // themed frames, clamped so it never exceeds half the box size.
     const ImVec2 bMin = boxPos;
@@ -1212,7 +1212,7 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     // No row gap charged after the band. The gap belongs to the BODY (see
     // SchematicSectionBegin, which emits it), so a collapsed section sits flush
     // on the hairline under it instead of leaving a row of air with nothing in
-    // it — and so that gap slides away with the body rather than outliving it.
+    // it - and so that gap slides away with the body rather than outliving it.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                         ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     const bool open = ImGui::CollapsingHeader(idStr, flags);
@@ -1284,7 +1284,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // hand and any "###id" tail only identifies the row, so a band whose text
     // changes keeps one identity.
     //
-    // Drawn VERBATIM though — no uppercasing, no extra tracking. This band
+    // Drawn VERBATIM though - no uppercasing, no extra tracking. This band
     // titles a thing by its name rather than naming a section, and a name is
     // not a label to shout: "myState" is not "MYSTATE". It also lets the inline
     // rename field (SchematicBandTitleField) look exactly like the title it
@@ -1313,7 +1313,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     const float bandRight = w->Pos.x + w->Size.x - w->ScrollbarSizes.x;
 
     // Label one step outside the content-left, floored at a margin from the
-    // panel edge — the same offset the collapsing header uses, so the two kinds
+    // panel edge - the same offset the collapsing header uses, so the two kinds
     // of band line up with each other and the rows nest under both.
     const float labelBaseX = ImMax(bandLeft + Metrics::SectionHeaderMargin * dpi,
                                    pos.x - Metrics::SectionHeaderOutdent * dpi);
@@ -1327,7 +1327,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     ImGui::SetCursorScreenPos(ImVec2(bandLeft, pos.y));
     const float rowW = ImMax(1.0f, w->WorkRect.Max.x - bandLeft);
     // The row claims the whole band, so anything a caller then places ON the
-    // band — the node graph's inline rename field — would be submitted second
+    // band - the node graph's inline rename field - would be submitted second
     // and never get the hover, since the first item to claim it in a frame
     // keeps it. Allowing overlap hands hover and clicks to whatever is drawn on
     // top, which is how a click inside that field can move its caret instead of
@@ -1340,7 +1340,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // cursor's x back at the indent for the content that follows, so no restore
     // is needed, and closing with a zero-size Dummy (as this used to) made THAT
     // the window's last item: a caller reading GetItemRect to place a control on
-    // the band — the inline rename field does exactly this — measured the dummy
+    // the band - the inline rename field does exactly this - measured the dummy
     // sitting on the band's bottom edge and dropped its field half a band lower,
     // over the row underneath. The button IS the band's item; leave it that way.
 
@@ -1380,7 +1380,7 @@ bool SchematicBandTitleField(const char* id, char* buf, int bufSize,
     // Everything that makes an ImGui field LOOK like a field is turned off:
     // no frame background, no border, no padding. What is left is text in the
     // band's own type, on the band's own line, at the same x the label sits at
-    // — so entering a rename does not restyle the header, and the caret is the
+    // - so entering a rename does not restyle the header, and the caret is the
     // only thing that says it is editable now.
     ImFont* font = BandTitleFont();
 
@@ -1535,7 +1535,7 @@ void DrawTreeNodeChevronLabel(bool open, bool expandable, const char* label, ImU
                            gray, ICON_TI_CHEVRON_RIGHT, openT, IM_PI * 0.5f);
     }
 
-    // Label — same font/size ImGui would have used, after the arrow zone.
+    // Label - same font/size ImGui would have used, after the arrow zone.
     if (label && *label)
     {
         ImFont* f = ImGui::GetFont();
@@ -1567,7 +1567,7 @@ void FullBleedSeparator()
 
     // The line costs exactly its own pixel: no ItemSpacing charged above or
     // below it. A separator is a BOUNDARY, and the band or content on either
-    // side owns whatever air it needs — charged spacing put a gap between the
+    // side owns whatever air it needs - charged spacing put a gap between the
     // hairline and the section header hanging off it, and the gap grew with
     // whatever row spacing the panel happened to be using (the property context
     // uses 12, so the boundary opened to 24). Tight here, deliberate there.
@@ -1584,7 +1584,7 @@ bool PanelToolbar(bool* pinnedExt)
 {
     // The toolbar exists solely to host the Pin (lock-to-selection) control,
     // which only the Inspector wires up. Panels that don't pin pass no flag and
-    // get no toolbar — no Pin button, no kebab, no reserved strip.
+    // get no toolbar - no Pin button, no kebab, no reserved strip.
     if (!pinnedExt)
         return false;
 
@@ -1760,7 +1760,7 @@ void SearchField(const char* id, char* buf, size_t bufSize,
     ImGui::SetNextItemWidth((inputRight - clearWidth) - inputLeftX);
     ImGui::InputTextWithHint(id, hint ? hint : "Search", buf, bufSize);
     // Escape empties the field rather than only dropping focus. In a popup ImGui
-    // takes Escape to close, so this is checked while the input is active — and
+    // takes Escape to close, so this is checked while the input is active - and
     // an emptied field is the same state as a closed popup would leave anyway.
     const bool inputActive = ImGui::IsItemActive();
     ImGui::PopStyleColor(4);
@@ -1935,9 +1935,9 @@ bool SchematicDragInt(const char* id, int* v, float v_speed,
 // Reds / greens / blues are oklch-derived to match the mockup's TwoColD axis stamps.
 static const char* const kAxisLabels[3] = { "X", "Y", "Z" };
 static const ImVec4 kAxisColors[3] = {
-    ImVec4(0.91f, 0.42f, 0.31f, 1.0f),  // X — red oklch(0.72 0.2 25)
-    ImVec4(0.45f, 0.83f, 0.45f, 1.0f),  // Y — green oklch(0.78 0.2 145)
-    ImVec4(0.40f, 0.65f, 1.00f, 1.0f),  // Z — blue oklch(0.7 0.18 240)
+    ImVec4(0.91f, 0.42f, 0.31f, 1.0f),  // X - red oklch(0.72 0.2 25)
+    ImVec4(0.45f, 0.83f, 0.45f, 1.0f),  // Y - green oklch(0.78 0.2 145)
+    ImVec4(0.40f, 0.65f, 1.00f, 1.0f),  // Z - blue oklch(0.7 0.18 240)
 };
 
 template <int N>
@@ -2153,7 +2153,7 @@ bool SchematicBeginCombo(const char* id, const char* preview)
     if (preview && preview[0])
         DrawLeftAlignedValue(w->DrawList, boxMin, boxMax, preview);
 
-    // Right-aligned chevron, matching the section-header chevron — and turning
+    // Right-aligned chevron, matching the section-header chevron - and turning
     // like it: down when the list is shut, flipped up while it is open, so the
     // box itself says whether the popup below belongs to it.
     {
@@ -2198,7 +2198,7 @@ bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items,
 
     // Flat, toolbar-styled box: a transparent frame with a subtle white hover (the
     // same alphas the toolbar cells use), no border, squared. FramePadding.y is set
-    // so the box is exactly `height` tall — matching the toolbar strip — while the
+    // so the box is exactly `height` tall - matching the toolbar strip - while the
     // schematic preview value + chevron center within it.
     const float fontH = ImGui::GetFontSize();
     const float padY = ImMax(0.0f, (height - fontH) * 0.5f);

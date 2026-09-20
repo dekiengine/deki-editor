@@ -6,7 +6,7 @@
 namespace DekiEditor
 {
 
-// The editor's invariant is that a scene is always available to edit — there is
+// The editor's invariant is that a scene is always available to edit - there is
 // no usable "no scene" state. This helper backs that guarantee: if `scene` is
 // null it installs a fresh empty scene, and it always returns the (now non-null)
 // pointer. EditorApp::GetCurrentScene() routes through it so the rest of the

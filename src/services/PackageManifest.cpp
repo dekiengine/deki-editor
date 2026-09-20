@@ -73,28 +73,28 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
 
         // Two things belong in the manifest, and only these two:
         //
-        //   declared — the project names it in deki-packages.json. It stays,
+        //   declared - the project names it in deki-packages.json. It stays,
         //     full stop, even when another package also requires it. Keying
         //     this off resolvedBy instead used to delete the declaration: a
         //     project declaring 25 packages was rewritten down to 13 the first
         //     time it opened, losing exactly the ones some other package
         //     happened to require.
         //
-        //   adopted — installed on disk with nothing else pulling it in, i.e.
+        //   adopted - installed on disk with nothing else pulling it in, i.e.
         //     someone cloned it into project/packages/ by hand. Recording it
         //     is what makes that stick across a fresh checkout.
         //
         // Everything else is excluded, and the important exclusion is the
         // registry catalogue: a refresh merges every available package into
-        // the list so the panel can show it. Those are offers, not intent —
+        // the list so the panel can show it. Those are offers, not intent -
         // writing them would make the next open restore the whole registry.
         // They are neither declared nor installed, so they fall out here.
-        //   developing — marked editable. That is a statement of intent in its
+        //   developing - marked editable. That is a statement of intent in its
         //     own right, and it has to survive a reload or it means nothing.
         //     A package pulled in by another (resolvedBy set) is neither
         //     declared nor adopted, so without this its editable flag was
         //     dropped on every save while the caller was told it had been set
-        //     — and the package stayed exposed to the restore pass that stashes
+        //     - and the package stayed exposed to the restore pass that stashes
         //     local edits and resets the checkout.
         //
         //     This only ever ADDS entries, so it cannot bring back the bug

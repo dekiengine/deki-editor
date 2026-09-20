@@ -22,7 +22,7 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath,
     // from the editor being launched without vcvars). Reading CMAKE_GENERATOR
     // and CMAKE_CXX_COMPILER from CMakeCache.txt tells us if the existing cache
     // matches the toolchain we now want (Ninja + cl.exe). If not, wipe the
-    // build dir — otherwise we'd run Ninja against old build files that still
+    // build dir - otherwise we'd run Ninja against old build files that still
     // invoke g++/ld and get the confusing "collect2.exe: ld returned 1" error.
     auto readCacheVar = [&](const std::string& key) -> std::string
     {
@@ -64,7 +64,7 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath,
         bool wrongGenerator = !cacheGen.empty() && cacheGen != "Ninja";
         // A cache written by a different compiler (a manual cmake run, or an
         // editor build that used another toolchain) must be wiped rather than
-        // reused — mixing ABIs in one build dir produces link errors that look
+        // reused - mixing ABIs in one build dir produces link errors that look
         // nothing like a toolchain mismatch.
         //
         // Compare against the compiler *this* branch actually configures below,
@@ -107,11 +107,11 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath,
             };
             DEKI_LOG_WARNING("HotReloadService: stale toolchain in CMakeCache "
                              "(generator='%s' [len=%zu hex=%s], compiler='%s' [len=%zu hex=%s]) "
-                             "— wiping build dir",
+                             "- wiping build dir",
                              cacheGen.c_str(), cacheGen.size(), hexDump(cacheGen).c_str(),
                              cacheCxx.c_str(), cacheCxx.size(), hexDump(cacheCxx).c_str());
             if (console)
-                console->LogEditor("Stale toolchain in CMake cache — wiping and reconfiguring with Ninja + MSVC...");
+                console->LogEditor("Stale toolchain in CMake cache - wiping and reconfiguring with Ninja + MSVC...");
             std::error_code ec;
             fs::remove_all(buildPath, ec);
             fs::create_directories(buildPath, ec);

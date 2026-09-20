@@ -54,7 +54,7 @@ public:
     // IsItemDeactivatedAfterEdit while the user is dragging or typing into
     // a transform field or any deferred property widget. SceneView reads
     // IsAnyLiveEditing() to force a buffer re-render each frame during the
-    // edit — without this, the scene view stays frozen on the pre-edit
+    // edit - without this, the scene view stays frozen on the pre-edit
     // value until the field commits, and only gizmos follow the live value.
     bool IsLiveEditing() const { return m_LiveEditCount > 0; }
     void BeginLiveEdit()
@@ -95,7 +95,7 @@ private:
     char m_RenameBuffer[256] = {};
     std::string m_RenameOldName;
 
-    // Transform's expansion while a filter is active — same deal as the
+    // Transform's expansion while a filter is active - same deal as the
     // components' (see ComponentManager): forced open so a match is visible,
     // with the pre-filter state recorded on the first frame and restored when
     // the filter clears.
@@ -138,7 +138,7 @@ private:
     size_t m_OverrideCacheUndoCount = 0;
     bool m_OverrideCacheHasOverrides = false;
 
-    // Pending Apply confirmation — populated when the user clicks Apply,
+    // Pending Apply confirmation - populated when the user clicks Apply,
     // drained when the modal is confirmed or cancelled.
     struct ApplyPopupEntry
     {

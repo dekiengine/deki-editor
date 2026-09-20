@@ -53,7 +53,7 @@ public:
     /**
      * @brief Set the directory that the virtual "S:/" mount maps to.
      *
-     * Must be set before any S:/ path is opened — UserData and other runtime
+     * Must be set before any S:/ path is opened - UserData and other runtime
      * state writes through this mount. In playmode the SD card doesn't exist,
      * so EditorProjectManager points this at %APPDATA%/DekiEditor/<project>/
      * to keep runtime files out of the project tree (storage/ is for compiled

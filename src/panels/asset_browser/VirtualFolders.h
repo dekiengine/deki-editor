@@ -13,7 +13,7 @@ namespace DekiEditor
 ///
 /// Scripts live wherever they live on disk; these folders are a presentation
 /// layer over them, persisted to `script_folders.json` at the project root. A
-/// script's assignment is a plain string, and the empty string means root — so
+/// script's assignment is a plain string, and the empty string means root - so
 /// deleting a folder reassigns its scripts rather than losing them.
 ///
 /// Split out of AssetBrowserPanel, which had grown to 2904 lines covering the
@@ -24,7 +24,7 @@ class VirtualFolders
 {
 public:
     /// Load from `<projectRoot>/script_folders.json`. Missing or malformed file
-    /// leaves the set empty rather than failing — a broken presentation file
+    /// leaves the set empty rather than failing - a broken presentation file
     /// must never stop the panel from listing the actual scripts.
     void Load(const std::string& projectRoot);
 
@@ -47,7 +47,7 @@ public:
     void Rename(const std::string& oldName, const std::string& newName);
 
     /// Delete @p name and return its scripts to root. The scripts themselves
-    /// are untouched — this is a view, not storage.
+    /// are untouched - this is a view, not storage.
     void Remove(const std::string& name);
 
     /// Assign a script to a folder, or to root when @p folder is empty.
@@ -58,7 +58,7 @@ public:
     /// a new file that later takes the same path.
     void PruneMissing(const std::function<bool(const std::string&)>& stillExists);
 
-    // Expansion state — presentation only, not persisted.
+    // Expansion state - presentation only, not persisted.
     bool IsExpanded(const std::string& name) const;
     void SetExpanded(const std::string& name, bool expanded);
 

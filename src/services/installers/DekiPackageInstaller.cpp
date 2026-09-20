@@ -244,13 +244,13 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
 
             // Last resort: the directory name. Install() clones each package into
             // a directory named after its repo, so the folder name IS the
-            // canonical registry id ("deki-wifi") — this is a recovery, not a
+            // canonical registry id ("deki-wifi") - this is a recovery, not a
             // guess.
             //
             // Everything above depends on .deki-package.json, which only exists
             // for packages this installer wrote. A directory that has package.cmake
-            // but no metadata — a hand-cloned package, a checkout predating that
-            // file, or one where it was deleted — otherwise yielded an entry with
+            // but no metadata - a hand-cloned package, a checkout predating that
+            // file, or one where it was deleted - otherwise yielded an entry with
             // an empty id, and SavePackages then wrote it to the manifest and lock
             // keyed on "". That entry can never match a real package again, so it
             // shows up forever as declared-but-never-installable.
@@ -276,7 +276,7 @@ void DekiPackageInstaller::ExcludeFromGitLocally(const fs::path& repoDir,
     std::error_code ec;
     const fs::path infoDir = repoDir / ".git" / "info";
     if (!fs::exists(infoDir) && !fs::create_directories(infoDir, ec))
-        return;  // worktree or unusual layout — skip silently, this is a nicety
+        return;  // worktree or unusual layout - skip silently, this is a nicety
 
     const fs::path excludePath = infoDir / "exclude";
 
@@ -441,7 +441,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
 
     // Validate before anything is spawned. These values come from a registry
     // index.json fetched over the network, from a user-added custom registry, or
-    // from a URL typed into the Package Manager — none of which is trusted input.
+    // from a URL typed into the Package Manager - none of which is trusted input.
     {
         std::string reason;
         if (!IsSafeGitUrl(gitUrl, reason))
@@ -469,7 +469,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         RunGit({ "-C", dirArg, "status", "--porcelain" }, status);
         if (!status.empty())
         {
-            callback(false, "'" + repoName + "' has uncommitted changes — commit, stash or "
+            callback(false, "'" + repoName + "' has uncommitted changes - commit, stash or "
                                              "revert them before switching version (project/packages/" +
                                 repoName + ")");
             return;
@@ -484,7 +484,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         if (pkg.editable && HasUnpushedCommits(dirArg))
         {
             callback(false, "'" + repoName + "' is marked editable and has commits that are not "
-                                             "pushed — push them before switching version "
+                                             "pushed - push them before switching version "
                                              "(project/packages/" +
                                 repoName + ")");
             return;
@@ -540,7 +540,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     fs::path packageCmake = packageDir / "package.cmake";
     if (!fs::exists(packageCmake))
     {
-        // Only discard a directory this call created — never one that already
+        // Only discard a directory this call created - never one that already
         // held a clone, which may carry the developer's branches.
         if (!isExistingClone)
             fs::remove_all(packageDir, ec);
@@ -644,13 +644,13 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
 
     // Already absent is a success, not a failure: removal is idempotent, and the
     // caller's real goal is to drop the package from the project. Failing here
-    // made a package that is declared but not installed impossible to remove —
+    // made a package that is declared but not installed impossible to remove -
     // the manifest entry could never be cleared, so it showed up forever as
     // declared-and-missing. Fall through so stray build artifacts are cleaned
     // up too.
     const bool wasInstalled = fs::exists(packageDir);
 
-    // Never remove junction targets — only delete regular directories.
+    // Never remove junction targets - only delete regular directories.
     // See the note on the matching guard in Install() for why this is not
     // fs::is_symlink.
     if (wasInstalled && DekiEditor::IsReparsePoint(packageDir))
@@ -671,7 +671,7 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         RunGit({ "-C", dirArg, "status", "--porcelain" }, out);
         if (!out.empty())
         {
-            callback(false, "'" + repoName + "' has uncommitted changes — commit or discard "
+            callback(false, "'" + repoName + "' has uncommitted changes - commit or discard "
                                              "them before removing (project/packages/" +
                                 repoName + ")");
             return;
@@ -679,7 +679,7 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
 
         if (HasUnpushedCommits(dirArg))
         {
-            callback(false, "'" + repoName + "' has commits that are not pushed — push them "
+            callback(false, "'" + repoName + "' has commits that are not pushed - push them "
                                              "before removing (project/packages/" +
                                 repoName + ")");
             return;
@@ -713,7 +713,7 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
     // Delete the built artifacts too. PackageLoader discovers packages by scanning
     // bin/ for deki-* libraries, not by consulting the manifest, so a leftover
     // library from a removed package keeps being loaded and its components keep
-    // registering — the package looks uninstalled everywhere except at runtime.
+    // registering - the package looks uninstalled everywhere except at runtime.
     // Also clear the loader's shadow copy, or the next launch re-copies from it.
     //
     // Matched on stem so every per-platform companion goes with it: the import

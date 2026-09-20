@@ -148,9 +148,9 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
     // Sources: what code names. Bounded to the known types.
     //
     // Both the project's own sources AND the installed packages' sources count.
-    // A package may use another package's component — deki-fsm calls
+    // A package may use another package's component - deki-fsm calls
     // Deki2D::AnimationComponent::Play() and ButtonComponent::AddOnClickCallback()
-    // — and that reference is as real as one in the project. Scanning only the
+    // - and that reference is as real as one in the project. Scanning only the
     // project's src/ stripped those two deki-2d features out of a build whose
     // deki-fsm still referenced them, and the link failed with an undefined
     // reference rather than anything pointing at stripping.

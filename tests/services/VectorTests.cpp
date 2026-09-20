@@ -1,9 +1,9 @@
-// Deki::Vector<T> — a growable array whose growth can fail.
+// Deki::Vector<T> - a growable array whose growth can fail.
 //
 // std::vector cannot fail gracefully here: push_back calls operator new,
 // which with exceptions off aborts, and the board reboots. The point of this
 // type is the bool, so most of what follows is about what happens when the
-// answer is false — and about the moved-from state, which is where a
+// answer is false - and about the moved-from state, which is where a
 // hand-written move constructor earns its keep.
 
 #include <gtest/gtest.h>
@@ -31,7 +31,7 @@ public:
 
     bool Initialize() override { return true; }
     void Shutdown() override {}
-    // One heap, a fixed number of allocations, then refusal — which is the
+    // One heap, a fixed number of allocations, then refusal - which is the
     // only way to reach the out-of-memory paths from a host test, where a
     // 64-bit heap will commit anything a size_t can express.
     bool Serves(Deki::Memory::Region region) const override

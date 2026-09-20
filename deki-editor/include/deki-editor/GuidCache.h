@@ -116,7 +116,7 @@ public:
     /**
      * @brief Number of GUID collisions resolved during the last Rebuild/Sync.
      *
-     * A collision is two live assets carrying the same GUID — normally because a
+     * A collision is two live assets carrying the same GUID - normally because a
      * folder was copied with its .data sidecars. The cache mints a fresh GUID for
      * the newcomer and rewrites its sidecar; this counter exists so callers can
      * report that it happened rather than have references silently move.
@@ -150,7 +150,7 @@ private:
     /// Decide what to do when `relativePath` presents a GUID already bound to a
     /// different path. Returns the GUID that `relativePath` should actually use:
     /// the same one when the previous holder is gone (a move), or a freshly
-    /// minted one — persisted to the sidecar — when both files still exist.
+    /// minted one - persisted to the sidecar - when both files still exist.
     std::string ResolveGuidConflict(const std::string& relativePath,
                                     const std::string& guid);
 };

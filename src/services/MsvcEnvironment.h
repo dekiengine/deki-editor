@@ -15,7 +15,7 @@ class MsvcEnvironment
 public:
     static MsvcEnvironment& Get();
 
-    // One-shot initialization. Safe to call multiple times — subsequent calls are
+    // One-shot initialization. Safe to call multiple times - subsequent calls are
     // no-ops. Returns true if the MSVC environment was captured successfully.
     // On non-Windows, returns true immediately without doing anything.
     bool Initialize();

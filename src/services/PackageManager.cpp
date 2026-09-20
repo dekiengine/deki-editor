@@ -193,7 +193,7 @@ bool PackageManager::AddPackageFromUrl(const std::string& url, PackageEntry& out
     {
         if (pkg.id == outInfo.id)
         {
-            // Adding by URL something already known — typically a package that was
+            // Adding by URL something already known - typically a package that was
             // only present as another's dependency. That is the user asking for it
             // directly, so promote it to a declaration rather than leaving it
             // implicit and losing it when the package that required it goes away.
@@ -394,7 +394,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                     pkg.name = id;
                     // Read from the manifest, so this is the project's own
                     // dependency. Set before the lock merge below, which may also
-                    // mark it resolvedBy — being both is normal and must not cost
+                    // mark it resolvedBy - being both is normal and must not cost
                     // it the declaration.
                     pkg.declaredInManifest = true;
 
@@ -600,7 +600,7 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
                     // out. Say so: installedVersion is what gets written back to
                     // the lock, so staying quiet here means simply opening a
                     // project silently rewrites a committed file to match
-                    // whatever happens to be on this machine — and the next
+                    // whatever happens to be on this machine - and the next
                     // person gets that version. It is not corrected
                     // automatically, because the checkout may be one the
                     // developer is editing on purpose and clobbering it would be
@@ -691,7 +691,7 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
 
     for (const auto& depId : pkg.requiredPackages)
     {
-        // Check if already in our list — if so, mark as resolved
+        // Check if already in our list - if so, mark as resolved
         bool found = false;
         for (auto& existing : m_Packages)
         {
@@ -700,7 +700,7 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
                 // Never demote a package the user installed on purpose. Marking
                 // an installed entry as auto-resolved drops it out of
                 // deki-packages.json (which skips resolved deps) and makes
-                // RemoveWithOrphans treat it as an orphan — so uninstalling the
+                // RemoveWithOrphans treat it as an orphan - so uninstalling the
                 // package that happens to depend on it would delete it too.
                 // Install deki-2d, then deki-particles, and deki-2d silently
                 // stops being something the project asked for.
@@ -823,7 +823,7 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
 
                                    // Prefer the version the lock recorded for this dependency
                                    // over availableVersions, which is only a cache of what the
-                                   // registry offered when the lock was last written — a lock
+                                   // registry offered when the lock was last written - a lock
                                    // pinning 1.0.1 alongside a stale ["1.0.0"] cache would
                                    // otherwise reinstall 1.0.0. "master" is the last resort
                                    // because every dekiengine package uses it; "main" matched
@@ -992,7 +992,7 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
     }
 
     // Report the real outcome. This used to be an unconditional
-    // callback(true, ""), so a failed removal read as success — and the orphan
+    // callback(true, ""), so a failed removal read as success - and the orphan
     // list the header promises was never actually passed to anyone.
     callback(primary->first, primary->first ? *orphansOut : primary->second);
 }

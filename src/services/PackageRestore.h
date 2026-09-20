@@ -2,14 +2,14 @@
 
 // Restoring a project's declared packages onto disk.
 //
-// project/packages/ holds cloned third-party sources, so projects gitignore it —
+// project/packages/ holds cloned third-party sources, so projects gitignore it -
 // a fresh checkout has the manifest and lock but no packages at all. Something
 // has to turn that manifest back into working sources, the way `npm install`
 // does, or opening the project yields a build with no components in it.
 //
 // This is the single implementation behind both front ends: the editor calls it
 // when opening a project, and `--packages-restore` calls it from the CLI. They
-// must not drift — a project that opens cleanly in the GUI has to restore
+// must not drift - a project that opens cleanly in the GUI has to restore
 // identically from a script, and vice versa.
 
 #include "PackageManager.h"  // PackageEntry, IPackageInstaller
@@ -37,8 +37,8 @@ struct PackageRestoreResult
 using PackageRestoreProgress =
     std::function<void(const std::string& packageId, int done, int total)>;
 
-/// True if the project declares packages that are not on disk. Purely local —
-/// no network — so it is cheap enough to call on every project open.
+/// True if the project declares packages that are not on disk. Purely local -
+/// no network - so it is cheap enough to call on every project open.
 bool HasMissingPackages(const std::string& projectPath, PackageManager& mgr);
 
 /// Fetch the registry index into DekiRegistrySource's cache, blocking until it
@@ -46,7 +46,7 @@ bool HasMissingPackages(const std::string& projectPath, PackageManager& mgr);
 /// cache; in the GUI it happens to be warmed by the Package Manager panel
 /// listing packages, so anything that resolves dependencies without the panel
 /// open has to warm it explicitly. Returns false if the registry is
-/// unreachable — callers can still proceed on whatever URLs they already have.
+/// unreachable - callers can still proceed on whatever URLs they already have.
 bool WarmRegistryIndex(PackageManager& mgr);
 
 /// Fill in a package's source URL from the registry index when the project

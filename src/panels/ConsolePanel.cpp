@@ -108,7 +108,7 @@ void ConsolePanel::Draw()
         m_FocusFrames--;
     }
 
-    // NoScrollWithMouse/NoScrollbar: the window itself never scrolls — the log
+    // NoScrollWithMouse/NoScrollbar: the window itself never scrolls - the log
     // lives in its own child (which scrolls independently). This frees the mouse
     // wheel for the toolbar's horizontal scroll when the cursor is over the
     // toolbar, instead of ImGui scrolling the whole window (which dragged the
@@ -120,7 +120,7 @@ void ConsolePanel::Draw()
         return;
     }
 
-    // Toolbar — schematic style: dim ALL CAPS labels with accent check marks.
+    // Toolbar - schematic style: dim ALL CAPS labels with accent check marks.
     // Mockup-style segmented filter row (mockup line 502-541):
     //   [ICO][ICO][ICO]  [Editor][Debug][Info][Warnings ▪][Errors ▪]   [search Filter…]
     // All cells share a 1px Line2 left divider; no internal padding gaps;
@@ -268,7 +268,7 @@ void ConsolePanel::Draw()
         cursorX = filterX + filterW + padR;         // trailing pad
         const float contentW = cursorX - stripStartX;
 
-        // Search bar — borderless and full toolbar height, like the hierarchy
+        // Search bar - borderless and full toolbar height, like the hierarchy
         // search: a dim magnifier + a transparent input, no box. The input frame
         // is padded to fill the whole row so its height/hit-area match the
         // toolbar, with the text kept vertically centered.
@@ -296,7 +296,7 @@ void ConsolePanel::Draw()
         ImGui::PopClipRect();
 
         // Wheel over the toolbar scrolls the strip horizontally (vertical or
-        // horizontal wheel), clamped to the overflow — like dock-tab scrolling.
+        // horizontal wheel), clamped to the overflow - like dock-tab scrolling.
         const float maxScroll = std::max(0.0f, contentW - trackW);
         ImGuiIO& io = ImGui::GetIO();
         const ImVec2 mp = io.MousePos;
@@ -322,7 +322,7 @@ void ConsolePanel::Draw()
     // Log entries with colors (no horizontal scrollbar since we wrap text)
     ImGui::BeginChild("LogEntries", ImVec2(0, 0), false);
 
-    // Zero the vertical item spacing so consecutive entry rows sit flush — each
+    // Zero the vertical item spacing so consecutive entry rows sit flush - each
     // row reserves its own InvisibleButton and the default ItemSpacing.y would
     // otherwise leave an unpainted gap between the zebra/severity backgrounds.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
@@ -334,7 +334,7 @@ void ConsolePanel::Draw()
     std::transform(filterStr.begin(), filterStr.end(), filterStr.begin(), ::tolower);
 
     // Everything that does not depend on the entry is computed once per frame.
-    // All sizes are logical px scaled by the window DPI — the custom draw
+    // All sizes are logical px scaled by the window DPI - the custom draw
     // here bypasses ImGui's auto-DPI font scaling, so without this the log
     // text renders at 1x while the rest of the UI scales up (tiny text).
     const float dpi = m_App->Dpi(1.0f);
@@ -443,7 +443,7 @@ void ConsolePanel::Draw()
         if (body.empty())
             buildBody(body);
 
-        // Format timestamp HH:MM:SS — mono dim.
+        // Format timestamp HH:MM:SS - mono dim.
         auto time_t_val = std::chrono::system_clock::to_time_t(entry.timestamp);
         std::tm tm_val;
 #ifdef _WIN32

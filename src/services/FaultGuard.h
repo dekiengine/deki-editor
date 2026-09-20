@@ -1,12 +1,12 @@
 #pragma once
 
-// FaultGuard — containment for hardware faults, for compilers without SEH syntax.
+// FaultGuard - containment for hardware faults, for compilers without SEH syntax.
 //
 // MSVC has __try/__except and does not use this header. Everything else does:
 // MinGW is the supported Windows toolchain (see docs/linux-port-status.md), and
 // Linux/macOS have no SEH at all. Without something here, a single null deref
 // inside a package library, a panel's Draw or a play-mode Update takes the
-// whole editor down with no diagnostic — exactly the failure the Safe* wrappers
+// whole editor down with no diagnostic - exactly the failure the Safe* wrappers
 // and PlayModeGuard exist to prevent.
 //
 // The call-site shape is identical on every platform:
@@ -21,7 +21,7 @@
 // implementation rather than one per OS. Guards nest: an outer guarded call may
 // contain an inner one.
 //
-// Both macros expand to several statements and are NOT do/while-wrapped — the
+// Both macros expand to several statements and are NOT do/while-wrapped - the
 // capture point has to be a real statement in the enclosing function, because it
 // is also the resume point. Always brace the surrounding if/else.
 //
@@ -53,7 +53,7 @@
 //
 // --- Trade-off, both platforms ---------------------------------------------
 // Recovery does not unwind, so destructors do not run for frames abandoned
-// inside the faulting code. That is the right call — it has just crashed, its
+// inside the faulting code. That is the right call - it has just crashed, its
 // state is not trustworthy, and running its cleanup is likelier to fault again
 // than to help. MSVC's __except does unwind, so that path differs; either way
 // the callee is treated as unusable afterwards.
@@ -61,7 +61,7 @@
 // What is deliberately NOT caught, so that normal execution is untouched:
 // C++ exceptions, breakpoints/traps, and (on Windows) the guard-page
 // notification the OS uses to grow a thread stack. A fault with no guard active
-// on the current thread stays fatal — this contains crashes, it does not hide
+// on the current thread stays fatal - this contains crashes, it does not hide
 // them.
 
 #ifndef _MSC_VER

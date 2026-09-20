@@ -1,4 +1,4 @@
-// SafeDispatch.cpp — per-frame exception barrier.
+// SafeDispatch.cpp - per-frame exception barrier.
 //
 // Catches both C++ exceptions and hardware faults, by two mechanisms:
 //
@@ -107,11 +107,11 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
     return ok;
 }
 
-#else  // !_MSC_VER — MinGW and POSIX.
+#else  // !_MSC_VER - MinGW and POSIX.
 
 // No __try/__except here, so hardware faults are contained via FaultGuard.h.
 // Without it this path caught only C++ exceptions, so a null deref in a panel's
-// Draw killed the editor — and a Draw is exactly where that is most likely
+// Draw killed the editor - and a Draw is exactly where that is most likely
 // during development.
 //
 // The ImGui state save/restore is unchanged and still matters here: a fault
@@ -130,7 +130,7 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
     // Read after recovery, so they go in volatile storage: on the POSIX path
     // recovery is a siglongjmp, which restores only callee-saved registers, and
     // anything parked in a caller-saved one would be indeterminate (-Wclobbered).
-    // `saved` needs no such treatment — its address escapes, so it lives in memory.
+    // `saved` needs no such treatment - its address escapes, so it lives in memory.
     const char* volatile safeContext = context;
     const volatile bool safeCanRecover = canRecover;
 

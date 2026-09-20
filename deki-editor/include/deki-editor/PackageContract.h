@@ -47,7 +47,7 @@ struct DEKI_EDITOR_API PackageEntry
     std::string installedVersion;  // Currently installed version (empty if not installed)
     // Version the lock file records for this package. Distinct from
     // installedVersion, which RefreshInstalledStatus recomputes from what is
-    // actually on disk and therefore clears for anything not installed — the
+    // actually on disk and therefore clears for anything not installed - the
     // lock's pin has to survive that, or a restore cannot reproduce it.
     std::string lockedVersion;
     std::vector<std::string> availableVersions;  // ["7.0.0", "6.21.0", ...]
@@ -68,7 +68,7 @@ struct DEKI_EDITOR_API PackageEntry
     // Distinct from resolvedBy being empty: a package can be BOTH declared by the
     // project and required by another package, and in that case it is still the
     // project's own dependency. Conflating the two deleted declarations from the
-    // manifest on save — declare deki-2d, have deki-fsm require it, and the
+    // manifest on save - declare deki-2d, have deki-fsm require it, and the
     // declaration silently disappeared, so removing deki-fsm later took deki-2d
     // with it.
     bool declaredInManifest = false;
@@ -78,8 +78,8 @@ struct DEKI_EDITOR_API PackageEntry
     // Default false, so a package behaves like a resolved dependency: edits to
     // it are stashed and its checkout is put back on the pinned version when
     // the editor regains focus (see services/PackageIntegrity.h). Setting it
-    // true makes the editor keep its hands off the directory entirely — no
-    // status check, no checkout — and makes a version switch refuse to run over
+    // true makes the editor keep its hands off the directory entirely - no
+    // status check, no checkout - and makes a version switch refuse to run over
     // unpushed commits. Persisted as "editable": true in deki-packages.json.
     bool editable = false;
     // From the registry: the author says this one can change under you.

@@ -428,7 +428,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
     {
         // Helper: build and execute the undoable drop command. Pre-computes any
         // auto-populated width/height by snapshotting the component's current values,
-        // applying the auto-populate, capturing the new values, then restoring —
+        // applying the auto-populate, capturing the new values, then restoring -
         // so all changes are applied through commands and a single Undo reverts them.
         auto applyDrop = [&](const std::string& newGuid, const std::string& newSource,
                              const std::string& dimGuid, bool autoPopulate)

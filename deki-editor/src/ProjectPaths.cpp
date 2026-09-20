@@ -136,8 +136,8 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
         if (moveEc)
         {
             // Put back what already moved. A rename here fails for reasons that
-            // have nothing to do with the project — a watcher or an indexer
-            // holding a directory is enough — and stopping halfway would leave
+            // have nothing to do with the project - a watcher or an indexer
+            // holding a directory is enough - and stopping halfway would leave
             // the user's source split across two layouts, with the version
             // already advanced so nothing would ever retry it.
             for (auto it = done.rbegin(); it != done.rend(); ++it)

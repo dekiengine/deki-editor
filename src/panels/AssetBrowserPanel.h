@@ -83,7 +83,7 @@ public:
     // Public accessors for dialog classes
     const std::string& GetCurrentPath() const { return m_CurrentPath; }
     /// Project root. Delete commands need it so their trash directory lands on
-    /// the same volume as the assets — std::filesystem::rename cannot cross one.
+    /// the same volume as the assets - std::filesystem::rename cannot cross one.
     const std::string& GetProjectRoot() const { return m_ProjectRoot; }
     const std::string& GetHoveredFolderPath() const { return m_HoveredFolderPath; }
     const std::vector<AssetEntry>& GetEntries() const { return m_Entries; }
@@ -123,7 +123,7 @@ private:
     };
     std::vector<VFNode> m_VFTree;
     std::vector<std::string> m_VFTreeNames;  // the folder names m_VFTree was built from
-    /// Assign a script and persist immediately — the panel has no other save
+    /// Assign a script and persist immediately - the panel has no other save
     /// point, so a grouping change must survive a crash before the next open.
     void MoveScriptToFolder(const std::string& relativePath, const std::string& folder);
     void DrawAssetDetails();
@@ -150,7 +150,7 @@ private:
     // Helper to duplicate an asset (file or folder) with its .data sidecar
     void DuplicateAsset(const std::string& srcPath);
 
-    // A copied asset must never inherit the source's GUID — two files claiming
+    // A copied asset must never inherit the source's GUID - two files claiming
     // one identity make every reference to either of them ambiguous.
 
     // Save a hierarchy object as a new .scene file in the given folder

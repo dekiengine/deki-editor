@@ -39,7 +39,7 @@ std::string EditorPlayModeFileSystem::ResolvePath(const char* path)
 
     std::string pathStr(path);
 
-    // Virtual S:/ mount must be checked before the is_absolute() branch — on
+    // Virtual S:/ mount must be checked before the is_absolute() branch - on
     // Windows, "S:/..." is parsed as drive-absolute, which would skip the
     // resolver and fopen would fail with "no such drive".
     if (pathStr.length() >= 3 && pathStr.compare(0, 3, "S:/") == 0)

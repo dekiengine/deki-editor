@@ -7,7 +7,7 @@
 // ToolchainComponentManager used to call ActivityPanel directly at ~20 sites,
 // which tied the build machinery to a GUI panel in the editor executable. That
 // blocked moving the stack into deki-editor.dll, where a third-party builder
-// can link it — and it was already wrong for the headless CLI and the MCP
+// can link it - and it was already wrong for the headless CLI and the MCP
 // server, which have no panels and were silently driving a UI widget.
 //
 // The editor installs a sink that forwards to ActivityPanel; a headless run

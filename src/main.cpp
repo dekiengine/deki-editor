@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
     }
 
     // The short list of verbs that read the project directory and nothing
-    // else. See EditorCli.h — everything not on it boots.
+    // else. See EditorCli.h - everything not on it boots.
     if (headless && DekiEditor::IsLightCommand(cli))
         return DekiEditor::RunLightCommand(cli);
 
@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
         // Exit without unwinding, and without ShutdownPlatform. Package DLLs
         // handed engine-side registries function pointers into their own code
         // at load time and nothing unregisters them, so any teardown here
-        // risks running through code those registries still point at — the
+        // risks running through code those registries still point at - the
         // crash-at-exit --verify-scenes used to have. Everything the command
         // produced is already flushed to disk, and the process is a moment
         // from gone, so there is nothing to reclaim.
@@ -254,7 +254,7 @@ int main(int argc, char* argv[])
         // bottom border.
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
         // FramePadding controls menu bar height AND menu item vertical centering.
-        // Pin the bar at 36 logical pixels regardless of font size — pad.y is
+        // Pin the bar at 36 logical pixels regardless of font size - pad.y is
         // computed to fill the remainder around the current font. DrawMenuBar
         // re-pushes the same pad.y so AlignTextToFramePadding centers items.
         {
@@ -271,13 +271,13 @@ int main(int argc, char* argv[])
 
         // No project open: the project manager screen owns the window. It
         // draws its own title bar and fills the frame, so the toolbar,
-        // dockspace and status bar are all skipped — a dockspace here would
+        // dockspace and status bar are all skipped - a dockspace here would
         // put empty panel chrome behind it.
         const bool projectManagerMode = editor.IsProjectManagerMode();
 
         // Schematic global toolbar (RUN / PAUSE / STOP transport, future
         // mode/target chips). Drawn BEFORE DockSpace so it claims a 36px
-        // strip above the docked panels — the DockSpace call below uses
+        // strip above the docked panels - the DockSpace call below uses
         // ImVec2(0, -statusBarHeight) which fills the remaining height.
         if (!projectManagerMode)
             editor.DrawGlobalToolbar();
@@ -290,11 +290,11 @@ int main(int argc, char* argv[])
             // NoWindowMenuButton hides the small dropdown arrow on every dock
             // node. That arrow opens the dock context menu whose "Hide tab bar"
             // entry is a one-way trap (no UI to undo). With it gone, the menu is
-            // unreachable — it's the only entry point per imgui.cpp:19583.
+            // unreachable - it's the only entry point per imgui.cpp:19583.
             //
             // NoCloseButton hides the close (X) at the dock-node level (the one
             // that closes the currently visible tab). Per-tab close buttons on
-            // the tab strip itself remain visible — those come from each
+            // the tab strip itself remain visible - those come from each
             // window's p_open and are unaffected by this flag.
             // A restored panel's tab is put back in its old slot here, BEFORE the
             // layout below: the tab already exists (the dock request was processed

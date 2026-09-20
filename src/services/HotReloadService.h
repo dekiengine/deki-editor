@@ -135,11 +135,11 @@ public:
     // start of OpenProject, ahead of LoadPackagesFromDirectory, so the editor never
     // loads package binaries that were built against an older editor.
     // Returns true if a build was run. No-op (returns false) when nothing is built
-    // yet (first open) — the normal post-open build path handles that.
+    // yet (first open) - the normal post-open build path handles that.
     bool BuildPackagesIfStale(const std::string& projectPath);
 
     /// Build a project that has never been built (no package libraries in bin/).
-    /// Returns true if the project is built afterwards — including the common
+    /// Returns true if the project is built afterwards - including the common
     /// case where it already was, which is a no-op.
     ///
     /// Called during project open, before packages are loaded: a first build has
@@ -201,7 +201,7 @@ private:
     // editor currently has mapped; nothing loads from there, so promoting is
     // what makes a build take effect. MUST run after the plugin is unloaded
     // (the bin/ copy is locked while loaded) and before ReloadPlugins(), on
-    // EVERY path that reloads the plugin — skipping it means loading the stale
+    // EVERY path that reloads the plugin - skipping it means loading the stale
     // bin/ copy, whose reflection property tables can have a different stride
     // (see DekiReflectionAbi.h).
     void PromoteBuiltDlls();
@@ -250,7 +250,7 @@ private:
     std::string m_LastRawOutput;
     // Set by RunBuild when it found no package binaries and therefore built every
     // target. CheckAndReload's reload step needs it: its normal path is a
-    // plugin-only reload, which assumes the loaded packages already match disk —
+    // plugin-only reload, which assumes the loaded packages already match disk -
     // untrue when the build just produced them for the first time.
     bool m_LastBuildWasCold = false;
     bool m_HasBuildErrors = false;
@@ -299,7 +299,7 @@ private:
     // Snapshot of plugin-owned project-settings field values across hot reload.
     // Captured before UnloadAllPackages; restored after packages re-register.
     // Keyed by section name (e.g. "Rendering"), value is a JSON object of
-    // { propertyName: value }. Engine-core settings are not snapshotted —
+    // { propertyName: value }. Engine-core settings are not snapshotted -
     // their instances persist across the reload (registry baseline).
     std::string m_SettingsSnapshotJson;
 };

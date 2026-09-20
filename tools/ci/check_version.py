@@ -45,7 +45,7 @@ def changelog_has_section(version: str) -> bool:
     """
     if not CHANGELOG.exists():
         return False
-    pattern = r"^## " + re.escape(version) + r"\s*(?:[-–—]\s*\S.*)?$"
+    pattern = r"^## " + re.escape(version) + r"\s*(?:[---]\s*\S.*)?$"
     return re.search(pattern, CHANGELOG.read_text(encoding="utf-8"), re.M) is not None
 
 

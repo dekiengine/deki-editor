@@ -505,7 +505,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             // AssetRef is a (guid, source) pair, not a plain value, and the
                             // generic property command's handler table deliberately no-ops on
                             // it. Routing it here is what makes "give this sprite a texture"
-                            // reachable from automation at all — otherwise the call silently
+                            // reachable from automation at all - otherwise the call silently
                             // succeeds and leaves the reference null.
                             if (prop->type == Deki::PropertyType::AssetRef)
                             {
@@ -703,7 +703,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                         } });
 
     registry.Register({ "save_scene",
-                        "Save the current scene to disk. Fails if it has never been saved — "
+                        "Save the current scene to disk. Fails if it has never been saved - "
                         "use save_scene_as to give it a path first.",
                         { { "type", "object" }, { "properties", nlohmann::json::object() } },
                         [editor](const nlohmann::json&) -> nlohmann::json
@@ -711,7 +711,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             if (!editor->SaveScene())
                                 throw std::runtime_error(
                                     editor->GetCurrentScenePath().empty()
-                                        ? "Scene has no path yet — use save_scene_as"
+                                        ? "Scene has no path yet - use save_scene_as"
                                         : "Failed to write " + editor->GetCurrentScenePath());
                             return { { "saved", editor->GetCurrentScenePath() } };
                         } });

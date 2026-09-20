@@ -147,7 +147,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "install_package",
                         "Install a package by registry id (e.g. \"deki-2d\") into the open project, "
-                        "with its declared dependencies. Clones via git and queues a rebuild — this "
+                        "with its declared dependencies. Clones via git and queues a rebuild - this "
                         "blocks for as long as the clone takes.",
                         { { "type", "object" }, { "properties", { { "id", { { "type", "string" }, { "description", "Registry package id, e.g. deki-2d" } } }, { "version", { { "type", "string" }, { "description", "Tag or \"branch:name\". Omit for the registry's latest." } } } } }, { "required", nlohmann::json::array({ "id" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -313,7 +313,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "focus_panel",
                         "Select a docked panel's tab so it is actually drawn. Takes effect on the "
-                        "next frame — screenshot it with wait_frames >= 2.",
+                        "next frame - screenshot it with wait_frames >= 2.",
                         { { "type", "object" }, { "properties", { { "name", { { "type", "string" }, { "description", "Panel name from list_panels" } } } } }, { "required", nlohmann::json::array({ "name" }) } },
                         [](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -325,7 +325,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register({ "screenshot",
                         "Capture the editor window (or one panel) to a PNG. The capture is queued "
                         "and taken at the end of a later frame, so this returns as soon as it is "
-                        "scheduled — poll for the file. The PNG is renamed into place, so seeing "
+                        "scheduled - poll for the file. The PNG is renamed into place, so seeing "
                         "the path means the file is complete.",
                         { { "type", "object" }, { "properties", { { "path", { { "type", "string" }, { "description", "Absolute output .png path" } } }, { "panel", { { "type", "string" }, { "description", "Panel name to crop to. Omit for the whole window." } } }, { "x", { { "type", "number" }, { "description", "Explicit rect, used when panel is omitted" } } }, { "y", { { "type", "number" } } }, { "width", { { "type", "number" } } }, { "height", { { "type", "number" } } }, { "padding", { { "type", "number" }, { "description", "Grow the rect by this many pixels on each side (default 0)" } } }, { "wait_frames", { { "type", "integer" }, { "description", "Frames to let pass before capturing (default 2)" } } } } }, { "required", nlohmann::json::array({ "path" }) } },
                         [](const nlohmann::json& args) -> nlohmann::json

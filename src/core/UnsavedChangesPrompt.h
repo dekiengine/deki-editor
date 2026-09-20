@@ -29,17 +29,17 @@ enum class DialogAnswer
 
 /// The state machine behind "you have unsaved changes".
 ///
-/// Owns *when* — whether to interrupt, what was interrupted, and what the user
+/// Owns *when* - whether to interrupt, what was interrupted, and what the user
 /// answered. It deliberately does not own *what*: carrying out the deferred
 /// NewScene / OpenScene / CloseProject stays with EditorApp, which is the thing
 /// that can actually do them. That split is what keeps this free of EditorApp.h
-/// and ImGui, and therefore testable — the test supplies its own recorder in
+/// and ImGui, and therefore testable - the test supplies its own recorder in
 /// place of the editor and asserts on the sequence.
 class UnsavedChangesPrompt
 {
 public:
     /// Ask to interrupt @p action. Returns true when the prompt was raised, in
-    /// which case the caller must NOT proceed — the action is now deferred.
+    /// which case the caller must NOT proceed - the action is now deferred.
     ///
     /// @p sceneIsDirty is the caller's verdict (a scene is open and the command
     /// history is dirty); this class does not reach for that state itself.
@@ -58,7 +58,7 @@ public:
     const std::string& PendingPath() const { return m_PendingPath; }
 
     /// Hand the deferred action to the caller and clear it. Cleared up front so
-    /// a re-entrant call — a failed open that surfaces its own dialog — cannot
+    /// a re-entrant call - a failed open that surfaces its own dialog - cannot
     /// see a stale pending action. Returns None when nothing is pending.
     PendingSceneAction TakePending(std::string& outPath);
 

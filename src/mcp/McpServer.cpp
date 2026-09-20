@@ -21,7 +21,7 @@ namespace
 // See the wait_for() call in Start() for why this is minutes rather than seconds.
 constexpr int kRequestTimeoutSeconds = 900;
 
-// Loopback only. The MCP surface is the whole editor — install_package clones and
+// Loopback only. The MCP surface is the whole editor - install_package clones and
 // rebuild compiles, so reaching it is equivalent to running code on this machine.
 // Binding every interface put that behind nothing more than being on the same
 // network. Clients that genuinely need remote access should forward the port
@@ -34,7 +34,7 @@ constexpr const char* kBindAddress = "127.0.0.1";
 // client configuration that outlives the session, so a developer who wants a
 // stable one sets the env var for both the editor and the client instead
 // (SETUP.md section 8). Anything shorter than 16
-// characters is refused rather than silently accepted — a weak fixed token on a
+// characters is refused rather than silently accepted - a weak fixed token on a
 // surface that can execute code is worse than the rotating one it replaces.
 std::string GenerateSessionToken()
 {
@@ -107,7 +107,7 @@ bool McpServer::Authorize(const httplib::Request& req, httplib::Response& res) c
     }
 
     // A browser can be made to POST to localhost by any page the user visits, so
-    // reject anything carrying an Origin outright — a legitimate MCP client is
+    // reject anything carrying an Origin outright - a legitimate MCP client is
     // not a web page and never sends one. This is what stops a visited site from
     // driving the editor even while the user has the server running.
     if (req.has_header("Origin"))
@@ -159,7 +159,7 @@ void McpServer::Start(int port)
     m_HttpServer->set_read_timeout(kRequestTimeoutSeconds, 0);
     m_HttpServer->set_write_timeout(kRequestTimeoutSeconds, 0);
 
-    // POST /message — receive JSON-RPC requests from MCP client
+    // POST /message - receive JSON-RPC requests from MCP client
     m_HttpServer->Post("/message", [this](const httplib::Request& req, httplib::Response& res)
                        {
         if (!Authorize(req, res))
@@ -169,7 +169,7 @@ void McpServer::Start(int port)
         {
             auto msg = nlohmann::json::parse(req.body);
 
-            // Check if this is a notification (no id field) — process directly
+            // Check if this is a notification (no id field) - process directly
             if (!msg.contains("id"))
             {
                 // Notifications don't need responses. Queue for main thread processing anyway.
@@ -217,7 +217,7 @@ void McpServer::Start(int port)
             res.set_content(errJson.dump(), "application/json");
         } });
 
-    // GET /sse — Server-Sent Events stream for MCP client
+    // GET /sse - Server-Sent Events stream for MCP client
     m_HttpServer->Get("/sse", [this](const httplib::Request& req, httplib::Response& res)
                       {
         if (!Authorize(req, res))
@@ -292,7 +292,7 @@ void McpServer::ProcessMessages()
     // Process up to 10 messages per frame to avoid blocking UI
     int processed = 0;
     // Count check FIRST: with TryPop first, the 11th message was popped and
-    // then dropped on the loop exit, its promise never set — the client waited
+    // then dropped on the loop exit, its promise never set - the client waited
     // out the full request timeout.
     while (processed < 10 && m_IncomingRequests.TryPop(req))
     {

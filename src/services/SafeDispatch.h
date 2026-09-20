@@ -1,6 +1,6 @@
 #pragma once
 
-// SafeDispatch — per-frame exception barrier for editor dispatch sites.
+// SafeDispatch - per-frame exception barrier for editor dispatch sites.
 //
 // Wraps panel Draw, tool window OnUpdate/OnGUI, and CustomEditor virtual
 // calls so a single faulty source (a buggy CustomEditor in a package DLL,

@@ -4,7 +4,7 @@
 //
 // Use these from AssetPipeline.cpp, GuidCache.cpp, AssetData.cpp, and
 // AssetExporter.cpp. The broader codebase still uses std::ifstream /
-// std::ofstream directly — refactoring all 50+ call sites is out of scope.
+// std::ofstream directly - refactoring all 50+ call sites is out of scope.
 // The intent of this header is to give the asset-pipeline path a single
 // place to add atomic-write semantics, structured error reporting, and
 // future locking, without spreading those across every site.
@@ -66,7 +66,7 @@ inline bool ReadFileToString(const std::string& path, std::string& out, std::str
 //
 // On failure the destination is left exactly as it was. The previous version
 // fell back to remove-then-rename when the first rename failed, which deleted
-// the target *before* knowing the retry would succeed — so a lock or a full
+// the target *before* knowing the retry would succeed - so a lock or a full
 // disk at that moment destroyed the old file and never wrote the new one.
 inline bool AtomicWriteFile(const std::string& path,
                             std::string_view content,

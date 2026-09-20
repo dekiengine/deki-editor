@@ -42,11 +42,11 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
 
     // The panel BELOW the separator (child_1) is the one whose tab top moves with
     // the drag. It sits one separator-thickness below the separator line, so we
-    // align THAT tab top — not the separator — with other panels' tab tops.
+    // align THAT tab top - not the separator - with other panels' tab tops.
     // Aligning the separator instead would leave the tabs offset by the gap.
     const float moving_tab_top = child_0->Pos[axis] + *size_0 + spacing;
 
-    // Snap only to the NEAR edge of other dock nodes — the top of a node, where
+    // Snap only to the NEAR edge of other dock nodes - the top of a node, where
     // its tab bar sits. The far/bottom edge is intentionally not a target.
     float best = moving_tab_top;
     float best_dist = snap_dist;
@@ -76,7 +76,7 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
             continue;
 
         // Only real tabbed panels (leaf nodes that actually host windows), and
-        // only their top edge — where the tab bar sits, never the bottom.
+        // only their top edge - where the tab bar sits, never the bottom.
         if (!n->IsLeafNode() || n->Windows.Size == 0)
             continue;
 
@@ -102,7 +102,7 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
 
 // Install the hook at static-init time. DockSnap.cpp is a direct source of
 // DekiEditor.exe (not a static-lib member), so this object is always linked and
-// this initializer always runs — before the first frame draws the DockSpace.
+// this initializer always runs - before the first frame draws the DockSpace.
 const bool s_dock_snap_installed = []
 {
     GDekiDockSnapFn = &SnapDockSplitter;

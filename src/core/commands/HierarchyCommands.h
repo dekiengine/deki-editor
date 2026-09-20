@@ -15,7 +15,7 @@ namespace DekiEditor
 /**
  * Command for creating a Deki::Object in the scene.
  *
- * Undo detaches the object and keeps it alive rather than destroying it — the
+ * Undo detaches the object and keeps it alive rather than destroying it - the
  * same ownership model DeleteObjectCommand uses, and for the same reason.
  * Destroying on undo and re-creating on redo handed back a *different* object
  * with a different id, which (a) left every other command still holding the old

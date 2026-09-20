@@ -199,7 +199,7 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
     if (hasChildren && selfMs > 0.001)
         ImGui::Text("%.3f", selfMs);
     else
-        ImGui::TextUnformatted("—");
+        ImGui::TextUnformatted("-");
 
     // Percent column
     ImGui::TableNextColumn();

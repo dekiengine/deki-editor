@@ -339,7 +339,7 @@ void BuildPanel::StartBuild()
 
     // Toolchain check, boot payload, package defines, build files. Shared
     // with the CLI so a firmware image built from a terminal is the image this
-    // button produces — see FirmwareBuildService::PrepareBuild.
+    // button produces - see FirmwareBuildService::PrepareBuild.
     const FirmwareOpResult prepared = FirmwareBuildService::PrepareBuild(
         m_App->GetProject()->GetPath(), *platform, *builder, m_App, options,
         [](const std::string& line, bool isError)

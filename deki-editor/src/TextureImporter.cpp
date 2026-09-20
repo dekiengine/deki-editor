@@ -103,7 +103,7 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
 
     // dataSize is a raw uint32 straight out of the file, so it can claim up to
     // 4 GiB. Passing it to resize() unchecked turned any corrupt or crafted
-    // .dtex into an uncaught std::bad_alloc that killed the editor — reachable
+    // .dtex into an uncaught std::bad_alloc that killed the editor - reachable
     // just by opening a project with a damaged cache. Bound it by what the file
     // actually contains before allocating anything.
     const std::streamoff available = fileSize - kHeaderBytes;

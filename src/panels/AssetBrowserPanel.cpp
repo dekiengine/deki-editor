@@ -41,7 +41,7 @@ namespace
 {
 // RAII: hold a bool at true for the scope, restore its prior value on exit
 // (including exceptions). Used to mark "asset view is mid-iteration" so a draw
-// path that throws — caught upstream by SafeDispatch — can't leave the flag
+// path that throws - caught upstream by SafeDispatch - can't leave the flag
 // stuck true, which would freeze all future tree rebuilds.
 struct ScopedTrue
 {
@@ -57,7 +57,7 @@ struct ScopedTrue
 // Repaint the folder glyph baked into a TreeNodeEx label with the palette
 // folder tint. Call immediately after the TreeNodeEx so GetItemRect* refer to
 // the node just drawn. Draws the same glyph at the same position the tree node
-// placed its label, so layout and hit-testing are untouched — it only recolors.
+// placed its label, so layout and hit-testing are untouched - it only recolors.
 void TintTreeNodeFolderIcon()
 {
     ImVec2 mn = ImGui::GetItemRectMin();
@@ -70,7 +70,7 @@ void TintTreeNodeFolderIcon()
 
 // Context-menu styling helpers (PushContextMenuPopupStyle /
 // PushContextMenuItemStyle) now live in EditorTheme so every panel shares one
-// look. The callsites below are unchanged — they resolve to the shared versions.
+// look. The callsites below are unchanged - they resolve to the shared versions.
 
 // Open the OS file explorer at the given path. For files, the parent folder is
 // opened with the file selected. For folders, the folder itself is opened.
@@ -154,7 +154,7 @@ void AssetBrowserPanel::Draw()
     const ImVec2 abItemSp = ImGui::GetStyle().ItemSpacing;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(abItemSp.x, 0.0f));
     // Mark the iteration window so any asset mutation triggered from inside the
-    // tree/list (drop targets, context menus) defers its rebuild — the Build*
+    // tree/list (drop targets, context menus) defers its rebuild - the Build*
     // mutators check this flag. RAII so a throwing draw (caught by SafeDispatch)
     // can't leave it stuck true.
     {
@@ -216,7 +216,7 @@ void AssetBrowserPanel::Draw()
     // can safely rebuild the tree.
     RunDeferredActions();
 
-    // Deferred rebuild — must happen after tree iteration is complete
+    // Deferred rebuild - must happen after tree iteration is complete
     if (m_PendingTreeRebuild)
     {
         m_PendingTreeRebuild = false;
@@ -450,7 +450,7 @@ void AssetBrowserPanel::DrawModeTabs()
 {
     namespace fs = std::filesystem;
 
-    // Mockup-style sub-nav row: NOT a tab bar — two text links with a 2px
+    // Mockup-style sub-nav row: NOT a tab bar - two text links with a 2px
     // accent bottom underline on the active one, dim hover on the inactive,
     // plus a right-aligned mono item count. See React mockup line 444-464.
     const float dpi = m_App->Dpi(1.0f);
@@ -792,7 +792,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
 void AssetBrowserPanel::DrawHierarchyStyleSearch(const char* id, char* buf, size_t bufSize)
 {
     // Shared with the Package Manager and any other panel that wants the same
-    // borderless magnifier search — see DekiEditor::SearchField (EditorTheme).
+    // borderless magnifier search - see DekiEditor::SearchField (EditorTheme).
     DekiEditor::SearchField(id, buf, bufSize);
 }
 
@@ -1381,7 +1381,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         ImU32 textCol = ImGui::GetColorU32(ImGuiCol_Text);
         float centerY = selectablePos.y + rowHeight * 0.5f;
 
-        // Expand arrow for spritesheets — centered in the row
+        // Expand arrow for spritesheets - centered in the row
         if (drawExpandArrow)
         {
             bool expanded = m_ExpandedAssets.count(entry.guid) > 0;
@@ -1408,13 +1408,13 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             }
         }
 
-        // Icon — center vertically, offset past arrow if expandable
+        // Icon - center vertically, offset past arrow if expandable
         float contentX = selectablePos.x + arrowOffset;
         ImVec2 iconSize = ImGui::CalcTextSize(icon.c_str());
         float iconY = centerY - iconSize.y * 0.5f;
         dl->AddText(ImVec2(contentX, iconY), textCol, icon.c_str());
 
-        // Text — center vertically in the row
+        // Text - center vertically in the row
         float textX = contentX + iconSize.x;
         float textY = centerY - ImGui::GetFontSize() * 0.5f;
         dl->AddText(ImVec2(textX, textY), textCol, entry.name.c_str());
@@ -1524,7 +1524,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
     // Drag source
     if (!entry.isSubAsset && ImGui::BeginDragDropSource())
     {
-        m_DeferredSingleSelect = -1;  // Cancel deferred select — dragging started
+        m_DeferredSingleSelect = -1;  // Cancel deferred select - dragging started
 
         if (m_SelectedIndices.size() > 1 && m_SelectedIndices.count(flatIndex) > 0 && !m_CachedMultiDragPayload.empty())
         {
@@ -2315,7 +2315,7 @@ void AssetBrowserPanel::DeferMove(std::string srcPath, std::string destPath)
         [this, src = std::move(srcPath), dest = std::move(destPath)]()
         {
             // Skip if something already occupies the destination (e.g. two
-            // dropped files share a name — the first move wins). Checked at run
+            // dropped files share a name - the first move wins). Checked at run
             // time, not enqueue time, so the order is respected.
             if (!std::filesystem::exists(dest))
                 AssetFileOps::MoveWithData(src, dest, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);

@@ -11,7 +11,7 @@
 namespace DekiEditor
 {
 
-// The family — "espressif", "native", "rp2040", a console's name — used to be
+// The family - "espressif", "native", "rp2040", a console's name - used to be
 // a closed enum. It cannot be: the editor is target-agnostic, and an enum here
 // means every new target patches the editor, which is exactly what a vendor
 // under NDA cannot do. It is a free-form string, like `framework`, and the
@@ -34,7 +34,7 @@ struct DEKI_EDITOR_API PlatformConfig
     // Identification
     std::string id;           // Unique identifier; also its directory under platforms/
     std::string displayName;  // Human-readable
-    std::string family;       // Vendor family — descriptive, see above
+    std::string family;       // Vendor family - descriptive, see above
 
     // The id of the build framework; whichever backend claims it builds this
     // platform. No default: a platform that does not say gets no backend.
@@ -44,10 +44,10 @@ struct DEKI_EDITOR_API PlatformConfig
     // form. The editor round-trips it WITHOUT interpreting it; only the
     // builder claiming `framework` knows what is in there.
     //
-    // This used to be a dozen named fields on this struct — idfTarget,
+    // This used to be a dozen named fields on this struct - idfTarget,
     // sdkconfig, partitionTable, uploadProtocol ("esptool"), useIramAttr,
     // psramMode ("quad"/"oct"), toolchainPrefix ("xtensa-esp32s3-elf-"),
-    // debugInterface, flashFreqHz — which made a supposedly generic platform
+    // debugInterface, flashFreqHz - which made a supposedly generic platform
     // type into an ESP-IDF config file. A console platform would have
     // inherited flash-frequency fields, and a new setting for any target
     // meant editing the editor.
@@ -88,7 +88,7 @@ struct DEKI_EDITOR_API PlatformConfig
     // Display
     int screenWidth = 0;
     int screenHeight = 0;
-    std::string colorFormat;    // "RGB565", "RGB888", "RGBA8888" — maps to Deki::ColorFormat
+    std::string colorFormat;    // "RGB565", "RGB888", "RGBA8888" - maps to Deki::ColorFormat
 
     // Compiler flags
     std::vector<std::string> defines;    // Preprocessor defines
@@ -102,7 +102,7 @@ struct DEKI_EDITOR_API PlatformConfig
     // A package says what it needs rather than which platforms it likes, so a
     // platform nobody has heard of yet still works: it declares what it can
     // supply and the packages that need only those things build on it. The
-    // allowlist this replaces got that backwards — a third-party board was
+    // allowlist this replaces got that backwards - a third-party board was
     // refused for the sole reason that its name was not on a list written
     // before it existed.
     //
@@ -116,7 +116,7 @@ struct DEKI_EDITOR_API PlatformConfig
     std::set<std::string> Capabilities() const;
 
     // Packages this platform needs whether or not any scene names one of their
-    // components — its hardware abstraction layer, typically. Package ids, e.g.
+    // components - its hardware abstraction layer, typically. Package ids, e.g.
     // ["deki-esp32-integration"].
     //
     // The ESP-IDF builder used to force its own HAL on by name, which works for

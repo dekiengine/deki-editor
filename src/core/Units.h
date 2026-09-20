@@ -2,7 +2,7 @@
 
 // Everything that converts a stored value into something a person reads.
 //
-// Stored values are SI and never anything else — metres, radians, seconds; see
+// Stored values are SI and never anything else - metres, radians, seconds; see
 // docs/units.md. Display is the only place a conversion happens, and this is
 // the only place a display conversion is written. It used to be three: the
 // inspector's multiplier table, the pixel-snapping helpers, and a separate
@@ -70,7 +70,7 @@ inline float FromDisplay(float shown, const UnitDisplay& ud)
  *
  * Pixels mode scales the distance family by pixelsPerMeter; Meters mode shows
  * them unchanged. Angle is always degrees whichever mode is set, because
- * nobody reads radians — storage stays radians regardless.
+ * nobody reads radians - storage stays radians regardless.
  */
 inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
 {
@@ -130,7 +130,7 @@ inline const char* CanonicalUnitSymbol(Deki::PhysicalUnit unit)
 }
 
 /// Whether an edited value of `unit` should land on a whole pixel. Only
-/// distances, and only when the user is working in pixels — snapping a
+/// distances, and only when the user is working in pixels - snapping a
 /// velocity or an angle would be meaningless.
 inline bool ShouldSnapToPixel(Deki::PhysicalUnit unit)
 {
@@ -150,7 +150,7 @@ inline float SnapMetersToPixel(float meters)
 
     // Read the setting directly rather than through PixelsPerMeter(), which
     // clamps an invalid value to 1.0. That clamp is right for a display
-    // multiplier — showing metres beats showing zeroes — and wrong here: it
+    // multiplier - showing metres beats showing zeroes - and wrong here: it
     // would round to whole METRES and flatten every value in the project. A
     // broken setting means "do not snap", not "snap to something else".
     const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;

@@ -91,7 +91,7 @@ std::filesystem::path EditorImGuiInternalHeader()
 // the editor executable + the DLLs/import-libs the packages link against, plus the
 // ImGui header. When any of these is newer than a package DLL, that DLL was built
 // against an older editor (different ABI) and must be rebuilt before it is loaded
-// — exactly the case a fresh editor opening a project with old package binaries.
+// - exactly the case a fresh editor opening a project with old package binaries.
 std::vector<std::filesystem::path> EditorAbiInputs()
 {
     namespace fs = std::filesystem;
@@ -99,7 +99,7 @@ std::vector<std::filesystem::path> EditorAbiInputs()
     fs::path libDir = editorDir / ".." / "lib";
     // Rebuild-detection fingerprint: any of these being newer than the project's
     // artifacts means the editor itself changed and plugins must be rebuilt
-    // against it. Names are platform-decorated, and the two layouts differ —
+    // against it. Names are platform-decorated, and the two layouts differ -
     // MSVC splits a DLL from its import .lib, ELF/Mach-O have only the .so /
     // .dylib. Missing entries are tolerated by the caller, but listing the wrong
     // ones everywhere would silently disable the check.
@@ -107,7 +107,7 @@ std::vector<std::filesystem::path> EditorAbiInputs()
     // Both toolchains' spellings: MSVC (deki-editor.dll + deki-editor.lib) and
     // MinGW (libdeki-editor.dll + libdeki-editor.dll.a). Only the MSVC names
     // were listed, so on the MinGW build every entry was missing and a rebuilt
-    // editor never made the packages stale — the stale DLLs then crashed on
+    // editor never made the packages stale - the stale DLLs then crashed on
     // load whenever an engine header had changed.
     std::vector<fs::path> inputs = {
         editorDir / "DekiEditor.exe",
@@ -208,8 +208,8 @@ HotReloadService::HotReloadService(PluginLoader* loader, PackageLoader* packageL
 
     // Capture the MSVC toolchain environment up-front so hot-reload builds can
     // run Ninja + cl.exe even when the editor wasn't launched from a Developer
-    // Command Prompt. Costs ~200–400ms on first call; cached for subsequent use.
-    // Skipped entirely for a GNU-ABI editor, where Visual Studio is irrelevant —
+    // Command Prompt. Costs ~200-400ms on first call; cached for subsequent use.
+    // Skipped entirely for a GNU-ABI editor, where Visual Studio is irrelevant -
     // probing for it there only produces an alarming error on a healthy machine.
     if (toolchain.needsMsvcEnv && !MsvcEnvironment::Get().Initialize())
     {
@@ -300,7 +300,7 @@ void HotReloadService::StartWatching(const std::string& projectPath)
     // watcher has no event history at startup, so we compare source mtimes
     // against the existing plugin DLL on disk. If any .cpp/.h is newer (or
     // the DLL doesn't exist yet), flag dirty so the first focus event runs
-    // a build. If everything is older than the DLL there is nothing to do —
+    // a build. If everything is older than the DLL there is nothing to do -
     // avoids a wasted plugin unload+reload (and the asset-epoch bump that
     // comes with it) on every project open.
     namespace fsx = std::filesystem;
@@ -323,7 +323,7 @@ void HotReloadService::StartWatching(const std::string& projectPath)
             // sizeof(ImGuiContext) diverges and any ImGui call from a package reads
             // fields at the wrong offset and corrupts memory. The watcher only
             // tracks project/ sources, so an editor-only ImGui bump would never
-            // rebuild the packages — detect it by comparing the editor's
+            // rebuild the packages - detect it by comparing the editor's
             // imgui_internal.h mtime against the DLL and force a rebuild.
             bool imguiNewer = false;
             const fsx::path imguiHeader = EditorImGuiInternalHeader();
@@ -339,7 +339,7 @@ void HotReloadService::StartWatching(const std::string& projectPath)
             }
             if (imguiNewer)
             {
-                DEKI_LOG_EDITOR("HotReload: editor ImGui newer than %s — forcing rebuild "
+                DEKI_LOG_EDITOR("HotReload: editor ImGui newer than %s - forcing rebuild "
                                 "to avoid ImGuiContext ABI skew",
                                 pluginDll.filename().string().c_str());
             }
@@ -470,7 +470,7 @@ void HotReloadService::CheckAndReload(const std::string& projectPath)
     // focus event during a long first build, say) started a second
     // `cmake --build` against the same build directory. Two Ninja instances
     // then raced over the same outputs: both stalled, some targets were left
-    // unbuilt, and neither reported an error. The dropped request is not lost —
+    // unbuilt, and neither reported an error. The dropped request is not lost -
     // the caller re-requests on the next focus, and m_SourcesDirty is still set.
     if (m_Active)
     {
@@ -529,7 +529,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         reloadPhaseStart = now;
     };
 
-    // Each new compilation replaces its own pinned errors — clear plugin's
+    // Each new compilation replaces its own pinned errors - clear plugin's
     // previous errors before logging fresh ones (package errors are untouched).
     if (m_Console)
         m_Console->ClearBuildErrorsForPackage("__plugin__");
@@ -562,7 +562,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
             if (!fs::exists(tempDll, ec))
             {
                 if (m_Console)
-                    m_Console->LogEditor("Plugin unchanged — skipping reload");
+                    m_Console->LogEditor("Plugin unchanged - skipping reload");
                 m_SourcesDirty = false;
                 return;
             }
@@ -584,11 +584,11 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         // loaded along with everything they registered (editors, callbacks,
         // asset unloaders). ClearPackageReferencingState() is skipped because
         // its only purpose is to scrub pointers into package code before package
-        // DLLs are freed — which isn't happening here.
+        // DLLs are freed - which isn't happening here.
 
         // Snapshot plugin-owned project settings (e.g. RenderingProjectSettings)
         // so the user's edits survive the DLL unload. Engine-core and package
-        // settings don't need this — their instances live in their respective
+        // settings don't need this - their instances live in their respective
         // DLLs and persist across the plugin reload.
         m_SettingsSnapshotJson = Deki::SettingsRegistry::Instance().SnapshotPluginSettingsAsJson();
         reportReloadPhase("SnapshotPluginSettings");
@@ -606,9 +606,9 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         if (m_LastBuildWasCold)
         {
             // The build just created the package libraries, so the loader has
-            // none of them — project open ran before they existed. Load them
+            // none of them - project open ran before they existed. Load them
             // before the plugin, which links against them.
-            DEKI_LOG_EDITOR("HotReload: first build produced the packages — loading them now");
+            DEKI_LOG_EDITOR("HotReload: first build produced the packages - loading them now");
             ReloadPackagesAndPlugins();
             reportReloadPhase("ReloadPackagesAndPlugins (cold)");
         }
@@ -625,7 +625,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         // node types die with the plugin DLL), but still-loaded PACKAGES can
         // own node types too (e.g. deki-fsm's states/actions) and their
         // static registrars never rerun. Their RegisterComponents exports are
-        // idempotent re-registration paths — invoke them all.
+        // idempotent re-registration paths - invoke them all.
         if (m_PackageLoader)
             m_PackageLoader->ReRegisterAllPackages();
         reportReloadPhase("ReRegisterAllPackages");
@@ -759,7 +759,7 @@ bool HotReloadService::EnsureFirstBuild(const std::string& projectPath)
             return true;  // already built; the normal incremental paths apply
     }
 
-    DEKI_LOG_EDITOR("HotReload: project has no package binaries — running the first build");
+    DEKI_LOG_EDITOR("HotReload: project has no package binaries - running the first build");
     std::string output;
     const bool ok = RunBuild(projectPath, output);
     if (!ok)
@@ -783,7 +783,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
 
     std::error_code ec;
     if (!fs::exists(bin, ec) || ec)
-        return false;  // nothing built yet — normal post-open path handles it
+        return false;  // nothing built yet - normal post-open path handles it
 
     // Promote before measuring staleness, and before anything is loaded. A DLL
     // left in bin/.build_temp/ is a build whose promotion never happened (the
@@ -828,7 +828,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
             oldestOutput = t;
     }
     if (!anyOutput)
-        return false;  // first build — handled by the normal post-open path
+        return false;  // first build - handled by the normal post-open path
 
     // Reference time: the oldest output OR the last successful build, whichever
     // is later. An unchanged package DLL keeps its old mtime through every
@@ -895,7 +895,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     if (!stale)
         return false;
 
-    DEKI_LOG_EDITOR("HotReload: package binaries stale (%s) — rebuilding before load", reason);
+    DEKI_LOG_EDITOR("HotReload: package binaries stale (%s) - rebuilding before load", reason);
     if (m_Console)
         m_Console->LogEditor((std::string("Rebuilding packages before load (") + reason + ")...").c_str());
     if (m_Headless || !m_Console)
@@ -906,7 +906,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     std::string buildOutput;
     const bool ok = RunBuild(projectPath, buildOutput);
 
-    // This build's plugin DLL landed in bin/.build_temp/ — move it into bin/
+    // This build's plugin DLL landed in bin/.build_temp/ - move it into bin/
     // before OpenProject loads plugins from there. Without this the freshly
     // built packages load alongside the PREVIOUS plugin, and the moment the
     // reflection structs changed size, that plugin's property arrays are walked
@@ -936,14 +936,14 @@ bool HotReloadService::DetectSourceChanges(const std::string& projectPath)
     // The watcher is the sole source-of-truth for *edits*: any save under
     // project/src or project/packages sets m_SourcesDirty via Tick(). Build
     // attempts clear it. Save-with-identical-content is treated as a real change
-    // (accepted false positive — incremental cmake resolves to a fast no-op).
+    // (accepted false positive - incremental cmake resolves to a fast no-op).
     if (m_SourcesDirty)
         return true;
 
     // Bootstrap case the watcher cannot see: a freshly cloned project has never
     // been built, and nothing has changed since the editor started, so it looks
     // clean forever and the plugin/package DLLs are never produced. Without this
-    // a clean checkout can't build at all — and the package reflection codegen,
+    // a clean checkout can't build at all - and the package reflection codegen,
     // which only runs in this build, never populates project/packages/*/generated.
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -962,7 +962,7 @@ bool HotReloadService::DetectSourceChanges(const std::string& projectPath)
                        [](unsigned char c)
                        { return static_cast<char>(std::tolower(c)); });
         if (ext == ".dll" || ext == ".so" || ext == ".dylib")
-            return false;  // something has been built before — trust the watcher
+            return false;  // something has been built before - trust the watcher
     }
 
     return true;  // bin/ exists but holds no binaries: still never built
@@ -993,7 +993,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     fs::path cmakeCachePath = buildPath / "CMakeCache.txt";
     fs::path cmakeListsPath = fs::path(projectPath) / "CMakeLists.txt";
 
-    // Generate CMakeLists.txt (uses write-if-different — only updates timestamp when content changes)
+    // Generate CMakeLists.txt (uses write-if-different - only updates timestamp when content changes)
     if (!BuildFileGenerator::GenerateDesktopCMakeLists(projectPath, m_Console))
     {
         if (m_Console)
@@ -1041,7 +1041,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         DEKI_LOG_ERROR("HotReloadService: MSVC environment unavailable: %s",
                        MsvcEnvironment::Get().GetStatus().c_str());
         if (m_Console)
-            m_Console->LogError(("MSVC toolchain unavailable — " +
+            m_Console->LogError(("MSVC toolchain unavailable - " +
                                  MsvcEnvironment::Get().GetStatus())
                                     .c_str());
         return false;
@@ -1050,7 +1050,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
 
     // Locate the bundled Ninja that CMake copies next to DekiEditor.exe. No
     // fallback: if ninja.exe is missing, it's a broken editor install and must
-    // hard-fail — MSBuild's configure + no-op build dominates hot-reload time,
+    // hard-fail - MSBuild's configure + no-op build dominates hot-reload time,
     // so silently degrading defeats the purpose.
     fs::path srcPath = fs::path(GetSourceDirectory(projectPath));
     std::string editorDir = EditorPaths::GetExecutableDir();
@@ -1066,7 +1066,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
             DEKI_LOG_ERROR("HotReloadService: ninja not found at %s or on PATH",
                            ninjaPath.string().c_str());
             if (m_Console)
-                m_Console->LogError("ninja not found — install it or reinstall the editor.");
+                m_Console->LogError("ninja not found - install it or reinstall the editor.");
             return false;
         }
         ninjaPath = onPath;
@@ -1117,7 +1117,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     // The editor's own locations (engine sources, executable directory, fetched
     // third-party sources) are handed to CMake as -D arguments, not written into
     // CMakeLists.txt, so the hash above cannot see them change. A cache written
-    // by another editor build — or before DEKI_DEPS_DIR existed — would keep the
+    // by another editor build - or before DEKI_DEPS_DIR existed - would keep the
     // old paths through CMake's automatic re-run, so compare them explicitly.
     if (!needsConfigure)
     {
@@ -1187,7 +1187,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         // PluginToolchain picks the compiler rather than hardcoding clang-cl:
         // it prefers clang-cl (MSVC-compatible driver, MSVC ABI, and CMake keeps
         // `MSVC` TRUE for it so the generated if(MSVC) blocks still apply), falls
-        // back to cl.exe, and supports a MinGW editor build — which a hardcoded
+        // back to cl.exe, and supports a MinGW editor build - which a hardcoded
         // clang-cl lookup would reject outright on a machine without LLVM.
         if (m_Console)
             m_Console->LogEditor(("Plugin toolchain: " + toolchain.displayName).c_str());
@@ -1244,7 +1244,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
 
 
     // Scope the build to the plugin target only. Without --target, "all" is
-    // built, which re-evaluates every package DLL each cycle — Ninja sometimes
+    // built, which re-evaluates every package DLL each cycle - Ninja sometimes
     // ends up touching them even when no package source changed, which then
     // trips CheckAndReloadPackages Phase 2 (CheckForUpdates mtime compare) on
     // the next focus and reloads every package unnecessarily. Package builds
@@ -1254,7 +1254,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     // only depends on the packages it links; packages that are loaded dynamically
     // (deki-2d, deki-fsm, deki-tiledmap...) are not in that graph and would
     // simply never be built. The dedicated package path does not cover it
-    // either — BuildPackagesIfStale returns early when bin/ holds no outputs,
+    // either - BuildPackagesIfStale returns early when bin/ holds no outputs,
     // deferring the first build to here. So here has to do it: build everything
     // once, then let the incremental logic above apply from the next cycle on.
     std::string projectName = fs::path(projectPath).filename().string();
@@ -1289,7 +1289,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
 
     m_LastBuildWasCold = coldBuild;
     if (coldBuild)
-        DEKI_LOG_EDITOR("HotReload: no package binaries yet — building all targets once");
+        DEKI_LOG_EDITOR("HotReload: no package binaries yet - building all targets once");
 
     ActiveBuild::Step compile;
     compile.phase = "Compiling...";
@@ -1340,7 +1340,7 @@ void HotReloadService::ArchivePackagePdbs(const std::string& projectPath)
             if (path.extension() != ".pdb") continue;
             std::string filename = path.filename().string();
             // Only package PDBs (deki-*.pdb). Leave the plugin DLL's PDB
-            // alone — its embedded path points to .build_temp and is
+            // alone - its embedded path points to .build_temp and is
             // already unreachable to the debugger after the move.
             if (filename.rfind("deki-", 0) != 0) continue;
             std::error_code mec;
@@ -1756,7 +1756,7 @@ void HotReloadService::UnloadPlugins()
     // AssetTypeEditorRegistry holds raw AssetTypeEditor* prototypes that live in
     // package DLLs, and AssetTypeRegistry's handlers are std::functions built by
     // package code that capture those same pointers. Both must go before
-    // FreeLibrary for the same reason as the registries above — this pair used
+    // FreeLibrary for the same reason as the registries above - this pair used
     // to be missed, so the first hot reload left AssetTypeInspector reading a
     // freed prototype.
     DekiEditor::AssetTypeEditorRegistry::Instance().Clear();
@@ -1840,7 +1840,7 @@ void HotReloadService::ReloadPlugins()
     //
     // A COUNT, deliberately, not a copy of the entries. Copying an
     // EditorFactoryInfo copies its std::function, which runs manager code
-    // inside the DLL that created it — so the old snapshot-and-restore faulted
+    // inside the DLL that created it - so the old snapshot-and-restore faulted
     // outright whenever it ran after that DLL had been freed, which is exactly
     // what the plugin-only reload path does.
     const size_t editorFactoryMark = DekiEditorInternal::EditorRegistry::Instance().GetTotalCount();
@@ -1905,7 +1905,7 @@ void HotReloadService::ClearPackageReferencingState()
     // AssetTypeEditorRegistry holds raw AssetTypeEditor* prototypes that live in
     // package DLLs, and AssetTypeRegistry's handlers are std::functions built by
     // package code that capture those same pointers. Both must go before
-    // FreeLibrary for the same reason as the registries above — this pair used
+    // FreeLibrary for the same reason as the registries above - this pair used
     // to be missed, so the first hot reload left AssetTypeInspector reading a
     // freed prototype.
     DekiEditor::AssetTypeEditorRegistry::Instance().Clear();
@@ -1982,7 +1982,7 @@ bool HotReloadService::ReloadPackagesAndPlugins()
 
     if (loadedCount == 0)
     {
-        DEKI_LOG_ERROR("HotReloadService: No packages could be loaded — skipping plugin reload");
+        DEKI_LOG_ERROR("HotReloadService: No packages could be loaded - skipping plugin reload");
         if (m_Console)
             m_Console->LogBuildError("CRITICAL: No packages loaded. Editor may be unstable. Restart recommended.");
 
@@ -2009,10 +2009,10 @@ bool HotReloadService::ReloadPackagesAndPlugins()
     // lookup during scene compilation.
     PromoteBuiltDlls();
 
-    // Reload plugin — its imports now resolve to the newly loaded package DLLs
+    // Reload plugin - its imports now resolve to the newly loaded package DLLs
     ReloadPlugins();
 
-    // Re-set editor time provider — SDL3 package's static initializer overwrites
+    // Re-set editor time provider - SDL3 package's static initializer overwrites
     // it with an SDL3TimeProvider whose vtable lives in the package DLL
     Deki::Time::SetTimeProvider(std::make_unique<EditorTimeProvider>());
 
@@ -2110,7 +2110,7 @@ void HotReloadService::CheckAndReloadPackages()
 
     // Phase 1: Detect which packages have source changes and need rebuilding.
     // Skipped entirely when the watcher hasn't seen any source activity since
-    // the last attempt — Phase 2 (external DLL replacement) still runs below.
+    // the last attempt - Phase 2 (external DLL replacement) still runs below.
     std::vector<PackageRebuildInfo> packagesToRebuild;
 
     // The live project (the one Tick watches); the persisted last-project
@@ -2127,7 +2127,7 @@ void HotReloadService::CheckAndReloadPackages()
             if (sourceDir.empty())
                 continue;
 
-            // Only check package's own source files — engine core headers are NOT
+            // Only check package's own source files - engine core headers are NOT
             // tracked here because deki-engine-core is statically linked to the
             // editor exe. Engine changes require a full editor rebuild + restart.
             if (!PackageLoader::HasNewerSources(sourceDir, pkg.lastModified))
@@ -2160,7 +2160,7 @@ void HotReloadService::CheckAndReloadPackages()
 
     if (!packagesToRebuild.empty())
     {
-        DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 1 — rebuilding %zu package(s)",
+        DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 1 - rebuilding %zu package(s)",
                         packagesToRebuild.size());
         // Log which packages need rebuilding
         for (const auto& info : packagesToRebuild)
@@ -2223,11 +2223,11 @@ void HotReloadService::CheckAndReloadPackages()
         auto changedPackages = m_PackageLoader->CheckForUpdates();
         if (changedPackages.empty())
         {
-            DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 — no DLL mtime changes, nothing to do");
+            DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 - no DLL mtime changes, nothing to do");
             return;
         }
 
-        DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 — %zu package DLL(s) changed externally, reloading",
+        DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 - %zu package DLL(s) changed externally, reloading",
                         changedPackages.size());
 
         if (m_Console)

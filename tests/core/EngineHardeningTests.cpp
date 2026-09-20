@@ -2,7 +2,7 @@
 // editor-side settings write).
 //
 // The parser tests matter most: SceneMsgPackParser is the device-side loader
-// for .scene caches read off SD/SPIFFS, so its input is untrusted by default —
+// for .scene caches read off SD/SPIFFS, so its input is untrusted by default -
 // a failing card produces malformed data without anyone attacking anything.
 
 #include <gtest/gtest.h>
@@ -25,14 +25,14 @@
 namespace fs = std::filesystem;
 
 // ============================================================================
-// MessagePack parser — nesting depth
+// MessagePack parser - nesting depth
 // ============================================================================
 
 namespace
 {
 /// A scene-shaped document whose single value is `depth` nested fixarrays.
 /// A fixarray header is one byte (0x91 = "array of 1"), so this costs one input
-/// byte per nesting level — which is what made unbounded recursion so cheap to
+/// byte per nesting level - which is what made unbounded recursion so cheap to
 /// trigger.
 std::vector<uint8_t> MakeNestedDoc(int depth)
 {
@@ -48,7 +48,7 @@ std::vector<uint8_t> MakeNestedDoc(int depth)
 
 TEST(MsgPackDepth, ShallowNestingStillParses)
 {
-    // Well below the cap — must not be rejected by the new limit.
+    // Well below the cap - must not be rejected by the new limit.
     auto doc = MakeNestedDoc(8);
     Deki::Scene scene;
     Deki::SceneFormat::SceneMsgPackParser parser(doc.data(), doc.size());
@@ -77,7 +77,7 @@ TEST(MsgPackDepth, NestingJustPastTheCapIsRejected)
 TEST(MsgPackDepth, DeeplyNestedChildObjectsAreRejected)
 {
     // The object tree recurses through ParseObjectInternal, which allocates a
-    // Deki::Object per level — so an unbounded chain burned heap as well as stack.
+    // Deki::Object per level - so an unbounded chain burned heap as well as stack.
     std::vector<uint8_t> doc;
     doc.push_back(0x81);                                     // scene map
     doc.push_back(0xa7); for (char c : std::string("objects")) doc.push_back(c);
@@ -115,7 +115,7 @@ TEST(MsgPackDepth, EmptyInputFailsCleanly)
 }
 
 // ============================================================================
-// AssetLookupTable — header arithmetic and terminator validation
+// AssetLookupTable - header arithmetic and terminator validation
 // ============================================================================
 
 namespace
@@ -143,7 +143,7 @@ std::vector<uint8_t> MakeLookupTable(uint32_t declaredCount, uint32_t realEntrie
 
 TEST(AssetLookupTableHardening, RejectsCountLargerThanTheBuffer)
 {
-    // Declares 1000 entries, supplies 2. The size check must catch it —
+    // Declares 1000 entries, supplies 2. The size check must catch it -
     // otherwise Lookup binary-searches past the end of the buffer.
     auto buf = MakeLookupTable(/*declared*/ 1000, /*real*/ 2);
     EXPECT_FALSE(Deki::AssetLookupTable::Load(buf.data(), buf.size()));
@@ -234,13 +234,13 @@ TEST(SettingsDurability, AtomicWriteReplacesWithoutAnIntermediateEmptyState)
 }
 
 // ============================================================================
-// PERF-3 — lifecycle phases must not allocate every frame
+// PERF-3 - lifecycle phases must not allocate every frame
 // ============================================================================
 
 // Measuring allocations directly needs a counter inside deki-engine-core: on
 // Windows each DLL resolves its own operator new, so an override here never
 // sees the engine's. Rather than ship that instrumentation, this pins the
-// property that makes the steady state allocation-free — the scratch buffers
+// property that makes the steady state allocation-free - the scratch buffers
 // keep their capacity across frames, so repeated phases reuse storage instead
 // of building a fresh vector each time.
 //
@@ -259,7 +259,7 @@ TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
     ASSERT_NE(lm, nullptr);
 
     // Two identical frames. The second must not need to grow anything the
-    // first already sized — that is what a fresh local vector per phase
+    // first already sized - that is what a fresh local vector per phase
     // could not provide.
     for (int frame = 0; frame < 2; ++frame)
     {

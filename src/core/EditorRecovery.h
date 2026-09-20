@@ -30,8 +30,8 @@ struct RecoveryEntry
 ///
 /// Deliberately free of EditorApp.h and of any UI: the dialogs that present
 /// this state still live in EditorApp.cpp and call in here. That is what lets
-/// this compile into DekiEditorTests, where the interesting behaviour — sidecar
-/// parsing, newest-first ordering, per-entry consumption, timer policy — can be
+/// this compile into DekiEditorTests, where the interesting behaviour - sidecar
+/// parsing, newest-first ordering, per-entry consumption, timer policy - can be
 /// exercised without standing up an editor.
 ///
 /// The class deliberately takes the scene and paths it needs as parameters
@@ -77,10 +77,10 @@ public:
     /// Write @p scene to the project's recovery directory with its metadata
     /// sidecar, recording @p scenePath as the original location so a restore
     /// can rebind to it. Returns false if there was nothing to write or the
-    /// write failed; never throws — this also runs from the crash handler.
+    /// write failed; never throws - this also runs from the crash handler.
     ///
     /// @param outWrittenPath optional; receives the file actually written. The
-    ///        caller reports it (the crash dialog shows it) — this class stays
+    ///        caller reports it (the crash dialog shows it) - this class stays
     ///        free of the crash handler, which lives in the editor executable
     ///        and drags in SDL and ImGui.
     bool WriteSnapshot(Deki::Scene* scene, const std::string& scenePath,
@@ -91,7 +91,7 @@ public:
     /// snapshot is due, at which point the caller should call WriteSnapshot.
     ///
     /// @p ready is the caller's "a snapshot would be meaningful right now"
-    /// verdict — a project and scene are open, we are not in play mode, and the
+    /// verdict - a project and scene are open, we are not in play mode, and the
     /// history is dirty. When it is false the timer parks at zero, so the first
     /// change after a save gets a full interval rather than an immediate write.
     bool TickAutosaveTimer(float deltaSeconds, bool ready);

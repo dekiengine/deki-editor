@@ -47,7 +47,7 @@ DEFAULT_PACKAGES = REPO.parent / "packages"
 # The engine's own runtime is held to the same rule as a package's, and for
 # longer: a `realloc` in the engine reaches every project on every board,
 # where a package's only reaches the projects that installed it. It was left
-# out of the first version of this lint and immediately proved the point —
+# out of the first version of this lint and immediately proved the point -
 # ProjectSettings kept the on-device package-settings chunk with a bare
 # realloc, bypassing the placement, the accounting and the double-free guard
 # that everything else goes through.

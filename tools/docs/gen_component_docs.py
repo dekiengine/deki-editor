@@ -409,8 +409,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
     if info.get("features"):
         out.append("## Feature flags")
         out.append("")
-        out.append("Parts you can leave out of a build. A feature with no define is "
-                   "stripped with its components instead.")
+        out.append("Parts you can leave out of a build. A feature with a define is "
+                   "switched there; the rest are stripped with their components.")
         out.append("")
         out.append("| Feature | Define | Default |")
         out.append("| --- | --- | --- |")
@@ -429,8 +429,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
         for sec in settings:
             out.extend(settings_section(sec, "s", "###", base_links))
     if not comps and not settings:
-        out.append("No components. This one is a driver or a library the engine calls "
-                   "into, so its README is the place to look.")
+        out.append("This package is a driver or a library the engine calls into. Its "
+                   "README has the details.")
         out.append("")
     if info.get("changelog"):
         out.append("## Changelog")

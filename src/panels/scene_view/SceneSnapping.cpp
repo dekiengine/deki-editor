@@ -51,7 +51,7 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
     float objTop = y + halfH;
     float objBottom = y - halfH;
 
-    // Snap X axis — find closest vertical target to any object edge or center
+    // Snap X axis - find closest vertical target to any object edge or center
     float bestSnapX = FLT_MAX;
     float bestDeltaX = FLT_MAX;
     float bestLineX = 0.0f;
@@ -90,7 +90,7 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
         m_ActiveLines.push_back({ bestLineX, SnapAxis::Vertical });
     }
 
-    // Snap Y axis — find closest horizontal target to any object edge or center
+    // Snap Y axis - find closest horizontal target to any object edge or center
     float bestSnapY = FLT_MAX;
     float bestDeltaY = FLT_MAX;
     float bestLineY = 0.0f;
@@ -187,7 +187,7 @@ void SceneSnapping::DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coord
     {
         if (line.axis == SnapAxis::Vertical)
         {
-            // Vertical line at world X — convert to screen X, span full canvas height
+            // Vertical line at world X - convert to screen X, span full canvas height
             ImVec2 screenPos = coords->WorldToScreen(line.worldCoord, 0.0f);
             drawList->AddLine(
                 ImVec2(screenPos.x, canvasTopLeft.y),
@@ -196,7 +196,7 @@ void SceneSnapping::DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coord
         }
         else
         {
-            // Horizontal line at world Y — convert to screen Y, span full canvas width
+            // Horizontal line at world Y - convert to screen Y, span full canvas width
             ImVec2 screenPos = coords->WorldToScreen(0.0f, line.worldCoord);
             drawList->AddLine(
                 ImVec2(canvasTopLeft.x, screenPos.y),

@@ -33,7 +33,7 @@ public:
 })";
     }
 
-    int GetCompileTarget() const override { return 3; }  // None — packing is handled by AssetPacker
+    int GetCompileTarget() const override { return 3; }  // None - packing is handled by AssetPacker
 
     bool Compile(const std::string& jsonData,
                  std::vector<uint8_t>& rgba,

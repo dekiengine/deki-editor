@@ -78,7 +78,7 @@ void SceneCoordinates::GetBufferScreenBounds(int bufferWidth, int bufferHeight,
     // The buffer is in framebuffer pixels; its center maps to (centerWorldX,
     // centerWorldY) in world units. To find the display bounds, project the
     // center to screen and extend by half the buffer size in screen pixels
-    // (i.e. buffer pixels × editor zoom — PPM does not enter because buffer
+    // (i.e. buffer pixels × editor zoom - PPM does not enter because buffer
     // pixels are already in framebuffer space).
     int halfW = bufferWidth / 2;
     int halfH = bufferHeight / 2;

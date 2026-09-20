@@ -11,7 +11,7 @@ namespace DekiEditor
  * @brief Where a project's generated content lives.
  *
  * This is the public, package-visible definition of the layout, and the only one.
- * `src/core/ProjectPaths.h` delegates here rather than restating it — an earlier
+ * `src/core/ProjectPaths.h` delegates here rather than restating it - an earlier
  * split between the two is exactly how `cache/` ended up being recreated at the
  * project root after everything else had moved under `generated/`.
  *
@@ -48,7 +48,7 @@ inline std::string GetGeneratedDirectory(const std::string& projectPath)
  *
  * The asset database stores cache locations relative to the project so a project
  * stays portable between machines. That relative form has to agree with the
- * absolute one below — when they were separate literals, the pipeline wrote to one
+ * absolute one below - when they were separate literals, the pipeline wrote to one
  * location and recorded the other.
  */
 inline std::string GetCacheDirectoryRelative()
@@ -143,7 +143,7 @@ inline std::string GetPlatformsDirectory(const std::string& projectPath)
 
 // Project-relative forms, forward-slashed. Asset display paths, export paths and
 // the bootScene reference in a platform config are all stored relative to the
-// project, and must agree with the absolute forms above — when the cache had a
+// project, and must agree with the absolute forms above - when the cache had a
 // separate literal for each, the pipeline wrote to one and recorded the other.
 inline std::string GetAssetsDirectoryRelative()
 {

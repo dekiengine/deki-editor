@@ -673,7 +673,7 @@ std::vector<AnsiSegment> SerialMonitorPanel::ParseAnsi(const std::string& text)
                             currentColor = AnsiCodeToColor(0);
                         else if (code >= 30 && code <= 37)
                             currentColor = AnsiCodeToColor(code);
-                        // Ignore bold (1), dim (2), etc. — just use color
+                        // Ignore bold (1), dim (2), etc. - just use color
                     }
                 }
             }

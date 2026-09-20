@@ -70,7 +70,7 @@ extern "C"
 /**
  * @brief What the plugin was compiled against.
  *
- * A builder plugin shares C++ objects with the editor — PlatformConfig by
+ * A builder plugin shares C++ objects with the editor - PlatformConfig by
  * reference, std::string and std::vector across the boundary, a vtable it
  * inherits. That only works when both sides agree on the layout of those
  * things, and when they disagree the failure is a corrupted field or a crash

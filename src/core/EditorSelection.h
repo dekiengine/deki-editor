@@ -14,8 +14,8 @@ namespace DekiEditor
 // Invariant: selecting an object clears all asset selection fields,
 //            and selecting an asset clears object selection.
 //
-// This is the ONLY owner of selection. Anything that needs to observe it —
-// notably EditorApplication, the facade package DLLs read through — registers
+// This is the ONLY owner of selection. Anything that needs to observe it -
+// notably EditorApplication, the facade package DLLs read through - registers
 // via SetOnChanged rather than being updated at each call site. It was the
 // latter, and three of the eight mutators forgot: Add/Remove/ToggleSelection
 // left EditorApplication::GetActiveObject() pointing at the previously selected

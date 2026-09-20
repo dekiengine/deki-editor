@@ -52,7 +52,7 @@ public:
     bool IsToolchainBusy() const override;
 
 protected:
-    // Thread management helpers — subclasses call from their overrides
+    // Thread management helpers - subclasses call from their overrides
     bool RunOnBuildThread(std::function<void()> work);
     // Progress management
     void SetProgress(BuildState state, const std::string& text, float progress);

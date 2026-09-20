@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 
 namespace
 {
-/// Project-relative, forward-slashed — the form the pipeline indexes by.
+/// Project-relative, forward-slashed - the form the pipeline indexes by.
 std::string ToPipelinePath(const std::string& absolute, const std::string& projectRoot)
 {
     std::error_code ec;
@@ -41,7 +41,7 @@ bool MoveWithData(const std::string& srcPath, const std::string& destPath,
 
     // The sidecar follows. Not every file is an imported asset, so its absence
     // is normal; a failure to move an existing one is not fatal either, since
-    // the pipeline can regenerate it — but it is worth a line, because the
+    // the pipeline can regenerate it - but it is worth a line, because the
     // asset comes back with a fresh GUID and references to it will not resolve.
     const std::string srcData = srcPath + ".data";
     if (fs::exists(srcData))

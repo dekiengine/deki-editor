@@ -45,7 +45,7 @@ static void ParseComponent(const json& j, ComponentDef& comp)
             comp.sha256 = fb.value("sha256", "");
     }
 
-    // Detection — map of platform -> path pattern
+    // Detection - map of platform -> path pattern
     if (j.contains("detection") && j["detection"].is_object())
     {
         for (auto& [key, val] : j["detection"].items())

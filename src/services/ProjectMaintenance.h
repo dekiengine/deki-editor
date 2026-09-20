@@ -12,7 +12,7 @@ namespace DekiEditor
  * Everything the editor generates for a project can be thrown away and rebuilt,
  * but not at the same price: a shadow copy costs seconds to restore while the
  * build tree costs a full recompile. Before this existed the only way to recover
- * from stale generated state was deleting folders by hand and guessing which —
+ * from stale generated state was deleting folders by hand and guessing which -
  * and the error messages that suggested it named raw paths, so the guess had to
  * be informed by knowing the layout.
  *
@@ -21,9 +21,9 @@ namespace DekiEditor
  */
 enum class MaintenanceAction
 {
-    ResetPackageCopies,  // shadow dir — re-copied on next load
-    ClearAssetCache,     // cache dir  — assets reimport
-    CleanBuild,          // build dir  — full recompile
+    ResetPackageCopies,  // shadow dir - re-copied on next load
+    ClearAssetCache,     // cache dir  - assets reimport
+    CleanBuild,          // build dir  - full recompile
     FullClean            // all of the above
 };
 
@@ -45,7 +45,7 @@ public:
     /** Menu text and cost description for an action. */
     static MaintenanceInfo Describe(MaintenanceAction action);
 
-    /** Every action, cheapest first — for building the menu. */
+    /** Every action, cheapest first - for building the menu. */
     static std::vector<MaintenanceAction> AllActions();
 
     /**
@@ -60,7 +60,7 @@ public:
      * @brief Delete the generated state the action covers.
      *
      * Never touches tracked project content: each action resolves to a directory
-     * the editor itself generates. A missing directory is success, not an error —
+     * the editor itself generates. A missing directory is success, not an error -
      * "already clean" is the desired end state either way.
      *
      * The caller is responsible for not running this while the editor holds those

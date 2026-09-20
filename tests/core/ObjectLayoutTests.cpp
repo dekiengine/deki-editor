@@ -1,6 +1,6 @@
 // Layout guards for the types package DLLs reach into.
 //
-// These are not testing behaviour — they are testing an ABI contract. Package
+// These are not testing behaviour - they are testing an ABI contract. Package
 // DLLs and the game plugin read Deki::Object's `parent`/`children` and walk its
 // component vector through INLINE accessors in Object.h, and they derive
 // from Deki::Component. Both layouts are therefore compiled into every package
@@ -11,7 +11,7 @@
 // sit ahead of `parent` in Deki::Object, so sizeof(Deki::Object) was 224 in the
 // editor build and 152 in a runtime build, and every inline GetParent() call in
 // a package compiled with the other setting read ~72 bytes off. No crash, no
-// warning — just wrong pointers.
+// warning - just wrong pointers.
 //
 // If one of these fails, do NOT simply update the number. See the note in
 // Object.cpp: the layout changing means every prebuilt package is now wrong,
@@ -55,14 +55,14 @@ TEST(ObjectLayout, SceneSizeIsPinned)
 
 // The point of moving the editor-only instance payload into a side table was to
 // make the layout independent of DEKI_EDITOR. This suite always compiles WITH
-// that define, so it cannot prove the runtime half on its own — that check is
+// that define, so it cannot prove the runtime half on its own - that check is
 // the static_assert in Object.cpp, verified by building
 // `-DDEKI_EDITOR=OFF -DSIMULATOR=ON`. What this can prove is that no
 // editor-only storage crept back into the object.
 TEST(ObjectLayout, EditorOnlyPayloadIsNotStoredInTheObject)
 {
     // Two std::strings and a bool used to live in Deki::Object under #ifdef. If
-    // anything like that returns, the size assertion above fires first — but
+    // anything like that returns, the size assertion above fires first - but
     // this states the intent explicitly for whoever reads the failure.
     EXPECT_LT(sizeof(Deki::Object), 184u + sizeof(std::string))
         << "Deki::Object appears to have regained editor-only storage. Editor-only "

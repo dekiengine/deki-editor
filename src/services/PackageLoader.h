@@ -112,7 +112,7 @@ public:
      * The mirror of ReRegisterAllPackages. A package that owns a shared registry
      * (deki-nodegraph owns the node factory, node-type and graph-domain
      * registries) exports the optional `DekiPlugin_ClearRegistries` and wipes
-     * it here — the entries are meta and thunk pointers into the DLLs about to
+     * it here - the entries are meta and thunk pointers into the DLLs about to
      * be freed, and reading one after FreeLibrary is a crash.
      *
      * Deliberately generic: the editor knows only that packages may hold such
@@ -144,7 +144,7 @@ public:
      *
      * Discovery used to be a name test: a library was a package if it was called
      * "deki-*". That hardcodes one vendor into the loader, so a package published
-     * by anyone else could not load at all — it was skipped silently and every
+     * by anyone else could not load at all - it was skipped silently and every
      * component it provided came back "not registered".
      *
      * A project's runtime/ directory holds exactly what that project's build
@@ -169,7 +169,7 @@ public:
      * @brief The shadow directory for a project, the one place that decides it.
      *
      * Lives under cache/ because that folder is already transient, already
-     * gitignored, and — unlike bin/ — is not itself a shadow *source*, so the
+     * gitignored, and - unlike bin/ - is not itself a shadow *source*, so the
      * loader never ends up scanning its own copies.
      *
      * Anything that removes a package's artifacts must clear this too, or the

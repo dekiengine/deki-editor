@@ -12,7 +12,7 @@
 #include <shlobj.h>
 #else
 #include <cstdlib>
-#include <unistd.h>  // readlink — for resolving /proc/self/exe
+#include <unistd.h>  // readlink - for resolving /proc/self/exe
 #endif
 
 #ifdef __APPLE__

@@ -2,7 +2,7 @@
 
 The rule it enforces is not stylistic: on the device a failed `new[]` reaches
 __cxa_allocate_exception with exceptions off and aborts, which reboots the
-board. The tests below pin the two ways a lint like this stops being useful —
+board. The tests below pin the two ways a lint like this stops being useful -
 false positives that get it switched off, and blind spots that let the thing
 back in.
 """

@@ -26,7 +26,7 @@ namespace
 {
 
 // The last-opened stamp, in the words a person would use. Deliberately coarse
-// past a day — the list is sorted by recency, so the exact hour of a project
+// past a day - the list is sorted by recency, so the exact hour of a project
 // touched last month tells the reader nothing.
 std::string RelativeTime(int64_t stamp)
 {
@@ -77,7 +77,7 @@ bool ContainsNoCase(const std::string& haystack, const std::string& needle)
 
 // Draw text in one of the theme fonts at a CSS-px size. PushFont is what
 // applies FontScaleDpi, and GetFontSize() reads back the physical size that
-// AddText wants — the same dance the menu bar's window controls do.
+// AddText wants - the same dance the menu bar's window controls do.
 void TextAt(ImDrawList* dl, ImFont* font, float cssPx, ImVec2 pos, ImU32 col, const char* text)
 {
     ImGui::PushFont(font ? font : ImGui::GetFont(), cssPx);
@@ -93,7 +93,7 @@ ImVec2 MeasureIn(ImFont* font, float cssPx, const char* text)
     return size;
 }
 
-// A small bordered label — the platform id, or the MISSING marker.
+// A small bordered label - the platform id, or the MISSING marker.
 void DrawChip(ImDrawList* dl, ImVec2 rightEdge, ImU32 fg, ImU32 border, const char* text, float S)
 {
     const ImVec2 textSize = MeasureIn(g_FontUISmall, 10.5f, text);
@@ -116,7 +116,7 @@ void ProjectManagerScreen::OnShown()
     m_PendingOpen.clear();
 
     // Preselect the most recent project so Enter alone reopens what the user
-    // was last in — the common case for a screen passed through every launch.
+    // was last in - the common case for a screen passed through every launch.
     m_Selected = ProjectRegistry::Get().Entries().empty() ? -1 : 0;
 }
 
@@ -157,7 +157,7 @@ void ProjectManagerScreen::ImportProject()
                                 if (!ProjectRegistry::IsProjectDir(path))
                                 {
                                     m_Error = fs::path(path).filename().string() +
-                                              " is not a Deki project — there is no deki.json in "
+                                              " is not a Deki project - there is no deki.json in "
                                               "that folder.";
                                     return;
                                 }
@@ -349,7 +349,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
 
         const float textX = rowMin.x + 66.0f * S;
 
-        // Right column first — the name and path clip against what it leaves.
+        // Right column first - the name and path clip against what it leaves.
         float rightEdge = rowMax.x - 16.0f * S;
         {
             const std::string when = RelativeTime(entry.lastOpened);
@@ -423,7 +423,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
 
     const ImVec2 buttonSize(-FLT_MIN, 34.0f * S);
 
-    // Primary action, filled in the accent — the one thing on this screen a
+    // Primary action, filled in the accent - the one thing on this screen a
     // first-time user has to be able to find.
     ImGui::PushStyleColor(ImGuiCol_Button, Palette::Accent);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.36f, 0.82f, 1.0f, 1.0f));

@@ -46,7 +46,7 @@ TEST(ProjectVersionGate, TheStaleScaffoldValueDoesNotReachTheGate)
 {
     // The exact shape of the bug: deki-demo carried engineVersion "1.0.0" from
     // a scaffold fallback while running 0.15.0. Read as lastSavedBy it would
-    // refuse the project, so the gate must not read that key at all — which is
+    // refuse the project, so the gate must not read that key at all - which is
     // enforced by the key being absent, i.e. the empty case above. This test
     // documents why "1.0.0" being refused (the case just above) is correct for
     // lastSavedBy and wrong for engineVersion.

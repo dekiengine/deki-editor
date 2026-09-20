@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0077 NEW)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version")
 
-# Default to GCC 16 — one compiler for everything.
+# Default to GCC 16 - one compiler for everything.
 #
 # The reflection codegen needs GCC 16+ for C++26 static reflection, and project
 # builds are pinned to whatever compiler the editor was built with (packages are
@@ -11,7 +11,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version"
 # machine needs two compilers and the ABI match becomes a coincidence.
 #
 # Windows included. This was gated on NOT WIN32 while the Windows toolchain was
-# undecided — the alternative there was the MSVC ABI via clang-cl, and switching
+# undecided - the alternative there was the MSVC ABI via clang-cl, and switching
 # the default out from under an MSVC build would have been rude. That is settled:
 # Windows is MinGW GCC 16, so the default is now the same everywhere.
 #
@@ -21,7 +21,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version"
 # would have picked.
 if(NOT DEFINED CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
     # MSYS2 first on Windows, matching how the generated project CMakeLists
-    # locates DEKI_GXX16 (see BuildFileGenerator) — a GUI-launched editor often
+    # locates DEKI_GXX16 (see BuildFileGenerator) - a GUI-launched editor often
     # has nothing from MSYS2 on PATH.
     if(WIN32)
         find_program(_deki_gxx16 NAMES g++-16 g++ PATHS "C:/msys64/mingw64/bin" NO_DEFAULT_PATH)
@@ -38,7 +38,7 @@ if(NOT DEFINED CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
             if(EXISTS "${_deki_gcc16}")
                 set(CMAKE_C_COMPILER "${_deki_gcc16}" CACHE FILEPATH "C compiler" FORCE)
             endif()
-            message(STATUS "Deki: building with ${_deki_gxx16} (${_deki_gxx16_ver}) — "
+            message(STATUS "Deki: building with ${_deki_gxx16} (${_deki_gxx16_ver}) - "
                            "also used for project builds and the reflection codegen")
         endif()
     endif()
@@ -65,7 +65,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # only go into a .so if its objects were built -fPIC, otherwise the link dies
 # with "relocation R_X86_64_PC32 against symbol `GImGui' can not be used when
 # making a shared object". PE/COFF has no such rule, so this is a no-op on
-# Windows — set globally (before the FetchContent calls) so the fetched
+# Windows - set globally (before the FetchContent calls) so the fetched
 # dependencies inherit it as they are declared.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(SDL_STATIC_PIC ON CACHE BOOL "" FORCE)
@@ -133,7 +133,7 @@ find_package(OpenGL REQUIRED)
 # ImGui sources (docking branch for DockSpace support).
 # PINNED to an exact commit, not the moving `docking` branch: the Deki patches
 # below live as working-tree edits on this checkout, and FetchContent's update
-# step stash/pops them on every reconfigure — when the branch tip moves, the
+# step stash/pops them on every reconfigure - when the branch tip moves, the
 # pop can conflict and break configure (and an unreviewed tip once shipped the
 # GL_UNPACK_ROW_LENGTH regression patch F fixes). Bump deliberately: change the
 # SHA, reconfigure, and re-verify patches A-F against the new source.
@@ -159,15 +159,15 @@ FetchContent_MakeAvailable(imgui)
 # =============================================================================
 # Each patch is an exact-match string substitution on the ImGui source pulled
 # by FetchContent. Because they're exact-match, an upstream rewrite would
-# silently no-op the patch and we'd regress without a build error — so each
+# silently no-op the patch and we'd regress without a build error - so each
 # block below checks that the substitution actually changed something and
 # FATAL_ERRORs if it didn't.
 #
-# Tracking upstream issues — when bumping ImGui's GIT_TAG, re-check these:
-#   1. github.com/ocornut/imgui/issues/8800 — exposing tab bar fitting policy
+# Tracking upstream issues - when bumping ImGui's GIT_TAG, re-check these:
+#   1. github.com/ocornut/imgui/issues/8800 - exposing tab bar fitting policy
 #      on dock nodes. If resolved, patches A+B in imgui.cpp become unnecessary
 #      (would be expressible via DockSpace flags).
-#   2. github.com/ocornut/imgui/issues/3421 — related: dock tab bar policy.
+#   2. github.com/ocornut/imgui/issues/3421 - related: dock tab bar policy.
 #   3. No tracked issue for patch C (imgui_widgets.cpp wheel/button coupling).
 #      Worth filing if it stays an issue after the next 1-2 releases.
 #   4. No tracked issue for patch D (dock tab bar left FramePadding.x inset).
@@ -242,7 +242,7 @@ if(EXISTS "${_imgui_dock_cpp}")
         _imgui_src_patched "${_imgui_src_patched}")
     string(REPLACE
         "    float button_sz = g.FontSize;\n    r.Min.x += style.FramePadding.x;\n    r.Max.x -= style.FramePadding.x;"
-        "    float button_sz = g.FontSize;\n    // Deki patch: no left or right inset — tabs sit flush with column edges.\n    // (Was: r.Min.x += style.FramePadding.x; r.Max.x -= style.FramePadding.x;)"
+        "    float button_sz = g.FontSize;\n    // Deki patch: no left or right inset - tabs sit flush with column edges.\n    // (Was: r.Min.x += style.FramePadding.x; r.Max.x -= style.FramePadding.x;)"
         _imgui_src_patched "${_imgui_src_patched}")
     # Patch E applies two non-self-consuming replacements, so guard on the marker
     # to stay idempotent across repeated `cmake` configures (the build/_deps copy
@@ -266,7 +266,7 @@ endif()
 
 # Patch C (imgui_widgets.cpp): decouple tab-bar mouse wheel scrolling from the
 # ScrollButtonEnabled flag. Upstream gates both the wheel handler and the
-# visible arrow buttons on the same condition — disabling
+# visible arrow buttons on the same condition - disabling
 # NoTabListScrollingButtons therefore also kills wheel scrolling. We want
 # buttons hidden but wheel scrolling alive.
 set(_imgui_widgets_cpp "${imgui_SOURCE_DIR}/imgui_widgets.cpp")
@@ -290,7 +290,7 @@ endif()
 # Patch F (backends/imgui_impl_opengl3.cpp): fix dead GL_UNPACK state restore.
 # Upstream's 2026-07-15 commit (#8802, #9473) backs up GL_UNPACK_ROW_LENGTH /
 # GL_UNPACK_ALIGNMENT in ImGui_ImplOpenGL3_UpdateTexture() and gates the restore
-# on Status == WantCreate/WantUpdates — but both paths set Status to OK before
+# on Status == WantCreate/WantUpdates - but both paths set Status to OK before
 # that check, so the restore never runs. After every dynamic-font glyph upload
 # GL_UNPACK_ROW_LENGTH stays = the font atlas width, and any narrower
 # glTexImage2D afterwards is read at that stride: sheared textures, or OOB reads
@@ -315,7 +315,7 @@ if(EXISTS "${_imgui_gl3_cpp}")
         _imgui_gl3_patched "${_imgui_gl3_patched}")
     string(REPLACE
         "    // Restore GL_UNPACK state\n    if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates)"
-        "    // Restore GL_UNPACK state (Deki patch F: upstream gate was dead code — Status is already OK here)\n    if (deki_did_backup_unpack)"
+        "    // Restore GL_UNPACK state (Deki patch F: upstream gate was dead code - Status is already OK here)\n    if (deki_did_backup_unpack)"
         _imgui_gl3_patched "${_imgui_gl3_patched}")
     if(NOT _imgui_gl3_src STREQUAL _imgui_gl3_patched)
         file(WRITE "${_imgui_gl3_cpp}" "${_imgui_gl3_patched}")
@@ -468,7 +468,7 @@ add_subdirectory(${DEKI_ENGINE_PATH} deki-engine-build)
 
 # Editor units that are free of EditorApp.h and ImGui, so DekiEditorTests can
 # link them directly. tests/CMakeLists.txt consumes this variable via parent
-# scope (add_subdirectory(tests) below) — do NOT maintain a second copy of this
+# scope (add_subdirectory(tests) below) - do NOT maintain a second copy of this
 # list there; the two drifting apart is how a unit ends up silently untested.
 #
 # CommandHistory is deliberately absent: it lives in deki-editor.dll (which the
@@ -765,7 +765,7 @@ target_precompile_headers(DekiEditor PRIVATE
 # std::string, std::vector and the ImGui context across that boundary. Two
 # different C++ standard libraries there corrupt rather than fail cleanly, so
 # "the project compiler must match the editor compiler" is a hard requirement,
-# not a preference — and the only way to guarantee it is for the editor to
+# not a preference - and the only way to guarantee it is for the editor to
 # report what it was built with instead of letting CMake guess per project.
 #
 # It doubles as the reflection codegen compiler (DEKI_GXX16): one GCC 16+ now
@@ -829,7 +829,7 @@ endif()
 #
 # DekiEditor.exe imports libstdc++-6.dll, libwinpthread-1.dll and
 # libgcc_s_seh-1.dll by name, and nothing put them in bin/, so Windows
-# resolved them through PATH — which means whichever mingw happened to lead
+# resolved them through PATH - which means whichever mingw happened to lead
 # it. Git for Windows ships its own copies, and a Git Bash PATH leads with
 # them, so the editor could load a libstdc++ and libwinpthread it was not
 # built against.
@@ -837,7 +837,7 @@ endif()
 # That is not theoretical: three --render-scenes runs wedged permanently,
 # surviving even Stop-Process -Force, and a gdb backtrace of one showed the
 # main thread parked in WaitForMultipleObjects inside
-# `C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll` — a thread primitive
+# `C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll` - a thread primitive
 # that never woke, from a runtime that did not match the build. It is the same
 # failure as the reflection codegen's cc1plus dying silently: on Windows, do
 # not let PATH choose which runtime you load.
@@ -865,7 +865,7 @@ endif()
 # Windows-specific settings
 if(WIN32)
     # dwmapi/psapi come from #pragma comment(lib) in main.cpp / CrashHandler.cpp /
-    # ProfilingService.cpp, which MSVC honours but MinGW ignores — list them here
+    # ProfilingService.cpp, which MSVC honours but MinGW ignores - list them here
     # so both toolchains link. Redundant but harmless under MSVC.
     target_link_libraries(DekiEditor PRIVATE imm32 winmm setupapi version ole32 shell32 comdlg32 winhttp dbghelp dwmapi psapi)
     # Hide console window (use /SUBSYSTEM:WINDOWS for all configurations)
@@ -954,7 +954,7 @@ if(WIN32)
     )
 
     # -------------------------------------------------------------------------
-    # Bundle sccache (Apache 2.0) — used as CMAKE_CXX_COMPILER_LAUNCHER so
+    # Bundle sccache (Apache 2.0) - used as CMAKE_CXX_COMPILER_LAUNCHER so
     # repeat builds of unchanged TUs return from cache instantly.
     # -------------------------------------------------------------------------
     set(DEKI_SCCACHE_VERSION "0.8.2")

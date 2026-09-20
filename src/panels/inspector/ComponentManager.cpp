@@ -221,7 +221,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
 
     // Filtering forces matching components open (below). The moment the filter
     // clears, every component that was forced goes back to the state it had
-    // before — written straight into ImGui's storage, which is where a
+    // before - written straight into ImGui's storage, which is where a
     // collapsing header keeps it.
     const bool filtering = InspectorUtils::PropertyFilterActive();
     if (!filtering && m_FilterWasActive)
@@ -242,11 +242,11 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         // Nothing to pull back: FullBleedSeparator charges no spacing after its
         // line, so the header already starts on it and each component reads as
         // its own window bounded by hairlines. This used to subtract a row gap
-        // here to cancel the spacing the separator charged — with the separator
+        // here to cancel the spacing the separator charged - with the separator
         // now tight, that same subtraction dragged the band 11px UP, painting
         // its background over the very hairline it was supposed to sit under.
 
-        // Missing component — special red header, no property editing
+        // Missing component - special red header, no property editing
         if (comp->GetType() == Deki::MissingComponent::StaticType)
         {
             auto* missing = static_cast<Deki::MissingComponent*>(comp);
@@ -268,7 +268,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             ImGui::PopStyleVar();
             if (f) ImGui::PopFont();
 
-            // Context menu — only allow remove
+            // Context menu - only allow remove
             PushContextMenuPopupStyle();
             if (ImGui::BeginPopupContextItem())
             {
@@ -316,7 +316,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
 
         // With a filter typed, a component none of whose properties match is
-        // dropped whole — header included — instead of leaving empty sections
+        // dropped whole - header included - instead of leaving empty sections
         // to scroll past.
         if (!InspectorUtils::ComponentHasFilterMatch(meta))
         {
@@ -343,7 +343,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         // Section, not a bare header: `open` stays true while the component is
         // closing, which is when its rows still have to be submitted for the
         // slide-up. Every path out of this iteration that took the flag must
-        // close the section — including the removal below, which returns.
+        // close the section - including the removal below, which returns.
         ImGuiID headerId = 0;
         const bool open = DekiEditor::SchematicSectionBegin(compDisplayName,
                                                             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap, &headerId);
@@ -528,7 +528,7 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
 
     // ...and place it ourselves, from the button's rect. ImGui's popup
     // placement needs the window's size to decide where it fits, which is
-    // exactly what does not exist on the frame the popup first appears — hence
+    // exactly what does not exist on the frame the popup first appears - hence
     // the first open landing off screen while every later one was fine. The cap
     // above makes the height knowable in advance, so the choice of dropping
     // below the button or flipping above it can be made on frame one.
@@ -549,7 +549,7 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
             top = m_AddPopupAnchor.workTop + margin;
 
         // Horizontal: the picker is wider than the panel it opens from, so left
-        // aligning it with the button pushes it past the right edge — and a
+        // aligning it with the button pushes it past the right edge - and a
         // popup that does not fit its viewport becomes a separate OS window,
         // which is how it lands off the desktop.
         float left = m_AddPopupAnchor.x;

@@ -70,7 +70,7 @@ SceneViewPanel::SceneViewPanel(EditorApp* app)
     m_EditorCameraObject->SetName("__EditorCamera");
     m_EditorCameraObject->SetEditorOnly(true);  // Never saved to scene
 
-    // Camera component created lazily in DrawSceneCanvas() — packages may not be loaded yet
+    // Camera component created lazily in DrawSceneCanvas() - packages may not be loaded yet
 }
 
 SceneViewPanel::~SceneViewPanel() = default;
@@ -222,7 +222,7 @@ void SceneViewPanel::HandleInput()
 
     // Delete key. Goes through EditorApp::DeleteObject so the protection rules
     // (scene root, boot Setup, instance children) apply here exactly as in
-    // the Hierarchy — this path used to have none.
+    // the Hierarchy - this path used to have none.
     Deki::Object* selected = m_App->GetSelectedObject();
     if (selected && isCanvasHovered && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Delete))
         m_App->DeleteObject(selected);
@@ -367,7 +367,7 @@ void SceneViewPanel::DrawSceneCanvas()
 
     // CameraComponent's vtable lives in deki-rendering.dll. Querying ICamera on
     // a scene component before that package is fully loaded (e.g. mid project
-    // open) would dereference an unmapped vtable. Bail out — the next frame
+    // open) would dereference an unmapped vtable. Bail out - the next frame
     // re-enters once the rendering package is registered.
     if (!Deki::ComponentRegistry::Instance().GetMetaByClassName("CameraComponent"))
         return;
@@ -671,7 +671,7 @@ void SceneViewPanel::DrawSceneCanvas()
     }
 
     // Device preview rect at world (0,0) is only shown when the scene has no
-    // camera — the camera gizmo replaces it (see CameraCustomEditor).
+    // camera - the camera gizmo replaces it (see CameraCustomEditor).
     if (!sceneCam && m_Toolbar->ShowGizmos())
     {
         float halfDevW = SceneViewConstants::DeviceScreenWidth * 0.5f;
@@ -752,20 +752,20 @@ void SceneViewPanel::DrawSceneCanvas()
             ImGui::Text("World: (%.1f, %.1f)", worldPos.x, worldPos.y);
         }
 
-        // Edit-mode buffer is stale once we re-enter edit mode — force a
+        // Edit-mode buffer is stale once we re-enter edit mode - force a
         // fresh render on the first Stop frame.
         m_EditRenderHasRendered = false;
         return;
     }
 
     // Edit mode: ensure assets are loaded via reflection-based asset
-    // resolution. ProcessInternalAwake is idempotent — only loads unloaded
+    // resolution. ProcessInternalAwake is idempotent - only loads unloaded
     // assets.
     m_EditModeLifecycle->ProcessInternalAwake(scene);
 
     // Calculate render buffer size to cover the full canvas area (not just
     // device bounds). Forced even so the camera's center (bufferWidth * 0.5)
-    // lands on an integer buffer pixel — odd widths put quad screen
+    // lands on an integer buffer pixel - odd widths put quad screen
     // positions on half-pixels, and lround() then splits adjacent tiles to
     // opposite sides of the buffer-center boundary, producing 1-pixel gaps
     // (visible as clear-color stripes at tile joins).
@@ -857,7 +857,7 @@ void SceneViewPanel::DrawSceneCanvas()
     }
 
     // Display the rendered texture using WorldToScreen with the same snapped
-    // camera position used for rendering — keeps the off-screen render and
+    // camera position used for rendering - keeps the off-screen render and
     // on-screen ImGui display pixel-aligned even as the camera drifts.
     ImVec2 bufferCanvasTopLeft, bufferCanvasBottomRight;
     m_Coords->GetBufferScreenBounds(renderWidth, renderHeight, camRenderX, camRenderY,
@@ -889,7 +889,7 @@ void SceneViewPanel::DrawSceneCanvas()
     // Always draw the camera's rect (regardless of selection) when gizmos are on.
     // TODO: replace with CustomEditor::OnDrawGizmos dispatch once project package
     // DLLs are rebuilt against the new CustomEditor header (calling the new
-    // virtual on a stale package DLL crashes — its vtable lacks the slot).
+    // virtual on a stale package DLL crashes - its vtable lacks the slot).
     if (m_Toolbar->ShowGizmos())
     {
         if (auto* camObj = GetSceneCameraObject())

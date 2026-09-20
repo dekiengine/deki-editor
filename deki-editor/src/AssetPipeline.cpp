@@ -236,7 +236,7 @@ std::string AssetPipeline::MakeProjectRelative(const std::string& absolutePath) 
 }
 
 // =========================================================================
-// Built-in cache handlers — only editor-core types live here. Package-owned
+// Built-in cache handlers - only editor-core types live here. Package-owned
 // extensions (images, frame animations, fonts, tilemaps, etc.) register their
 // own handlers via AssetPipeline::OnStarted from the owning package's editor
 // translation units. See e.g. packages/deki-2d/editor/ImageCacheHandler.cpp.
@@ -309,7 +309,7 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     // Set singleton instance
     s_Instance = this;
 
-    // Check cache version — wipe compiled assets if engine format changed
+    // Check cache version - wipe compiled assets if engine format changed
     {
         fs::path cacheDir = fs::path(GetCacheDirectory(projectPath));
         fs::path versionFile = cacheDir / "version";
@@ -1090,7 +1090,7 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
 
     // Generic data asset (ScriptableObject-style): a .asset whose "type" has a
     // runtime loader but no texture compiler is compiled straight to a MessagePack
-    // cache — no per-type editor needed. The source JSON keys match the struct
+    // cache - no per-type editor needed. The source JSON keys match the struct
     // fields, so the generated DeserializeMsgPack reads it back on desktop + device.
     const bool isTextureType = handler && handler->compilesTo == AssetCompileTarget::Texture;
     if (!isTextureType && !assetType.empty() && Deki::AssetManager::HasLoader(assetType.c_str()))
@@ -1117,7 +1117,7 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
     }
 
     // Skip .asset files whose type has no registered compile handler (e.g. iconexport manifests)
-    // or whose compile target is None (e.g. RenderPipeline — configuration only, no output)
+    // or whose compile target is None (e.g. RenderPipeline - configuration only, no output)
     if (!handler || handler->compilesTo == AssetCompileTarget::None)
     {
         return false;
@@ -1279,7 +1279,7 @@ int AssetPipeline::CleanCache()
     // Format matches FontFileInspector: fontGuid:size and fontGuid:size:atlas
     // Ask each registered cache-variant provider to enumerate its derived GUIDs
     // (e.g. font baking emits one variant per requested size + atlas siblings).
-    // Packages register providers via RegisterCacheVariantProvider — engine has
+    // Packages register providers via RegisterCacheVariantProvider - engine has
     // no built-in knowledge of which extensions produce variants.
     for (const auto& [path, info] : m_Assets)
     {
@@ -1534,7 +1534,7 @@ void AssetPipeline::ValidateCache()
 
     // Generate deterministic font cache GUIDs for all fonts at common sizes
     // This matches CleanCache() logic
-    // Same provider-driven enumeration as CleanCache — see comment there.
+    // Same provider-driven enumeration as CleanCache - see comment there.
     for (const auto& [path, info] : m_Assets)
     {
         std::string ext = fs::path(path).extension().string();

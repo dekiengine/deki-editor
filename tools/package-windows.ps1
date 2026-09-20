@@ -1,8 +1,8 @@
 ﻿# Assemble a self-contained Deki Editor distribution for Windows.
 #
 # The Windows counterpart of tools/package-linux.sh, and it exists for the same
-# reason: Deki compiles C++ to open a project — packages and the game plugin are
-# native code — so it cannot ship as a single binary. What it can do is carry the
+# reason: Deki compiles C++ to open a project - packages and the game plugin are
+# native code - so it cannot ship as a single binary. What it can do is carry the
 # toolchain, so a user downloads one archive and never installs a compiler.
 #
 # That matters most for GCC. The reflection codegen needs C++26 static
@@ -40,7 +40,7 @@ $Mingw  = Join-Path $Msys2 'mingw64'
 $editorExe = Join-Path $BuildDir 'bin\DekiEditor.exe'
 if (-not (Test-Path $editorExe)) {
     Write-Error @"
-$editorExe not found — build first:
+$editorExe not found - build first:
   cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
   cmake --build build --target DekiEditor
 "@
@@ -51,7 +51,7 @@ if (-not (Test-Path "$Mingw\bin\g++.exe")) {
 
 # --- ABI guard -------------------------------------------------------------
 # The bundled compiler builds the project's packages, which are then loaded into
-# this editor binary — std::string, std::vector and the ImGui context all cross
+# this editor binary - std::string, std::vector and the ImGui context all cross
 # that boundary. Two different standard libraries there corrupt rather than fail
 # cleanly, so the compiler being shipped must be the one the editor was built
 # with. Same check as the Linux script.
@@ -172,7 +172,7 @@ $probeFiles = @(
     '/mingw64/bin/libstdc++-6.dll',    # gcc-libs
     '/mingw64/bin/libwinpthread-1.dll',# libwinpthread: the runtime DLL
     # winpthreads: libpthread.a. A separate package from the DLL above, and
-    # needed because GCC links -lpthread implicitly — without it every link
+    # needed because GCC links -lpthread implicitly - without it every link
     # fails with "cannot find -lpthread" even though nothing mentions threads.
     '/mingw64/lib/libpthread.a',
     # windows-default-manifest: default-manifest.o, also linked implicitly.
@@ -203,7 +203,7 @@ foreach ($f in $fileList) {
 }
 Write-Host "    + $copied toolchain files"
 
-# An unstripped GCC is mostly debug info — cc1plus, cc1 and lto1 alone are over
+# An unstripped GCC is mostly debug info - cc1plus, cc1 and lto1 alone are over
 # 110 MB of it. Same reasoning as package-linux.sh; nobody debugging their game
 # needs symbols for the compiler.
 #
@@ -288,7 +288,7 @@ int main() { std::vector<std::string> v{"ok"}; return v.empty(); }' | Set-Conten
 
 $savedPath = $env:PATH
 try {
-    # Only the bundle's own bin — a leak from the host toolchain would make a
+    # Only the bundle's own bin - a leak from the host toolchain would make a
     # broken bundle look fine.
     $env:PATH = "$TC\bin"
     & "$TC\bin\g++.exe" -std=c++26 -freflection $probeCc -o $probeOut 2>&1 | ForEach-Object { "    $_" }
@@ -299,7 +299,7 @@ try {
 
 Remove-Item $probeCc, $probeOut -Force -ErrorAction SilentlyContinue
 if ($rc -ne 0) {
-    Write-Error "The bundled toolchain could not compile with an empty PATH — the bundle is incomplete."
+    Write-Error "The bundled toolchain could not compile with an empty PATH - the bundle is incomplete."
 }
 Write-Host "    compiled C++26 + reflection with PATH set to the bundle only"
 

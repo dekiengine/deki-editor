@@ -39,8 +39,8 @@ public:
 
     // Download and verify against an expected lowercase hex SHA-256.
     //
-    // Anything fetched here ends up being executed — toolchain archives become
-    // the compilers that build the user's firmware — so a download with no
+    // Anything fetched here ends up being executed - toolchain archives become
+    // the compilers that build the user's firmware - so a download with no
     // integrity check trusts both the network and the mirror. On mismatch the
     // partial file is deleted and this returns false. An empty expectedSha256
     // skips verification and logs that it did, so an unpinned component is
@@ -73,7 +73,7 @@ public:
     static bool IsSafeArchiveEntry(const std::string& entry);
 
     // Cap on redirect hops. The handler used to recurse into itself with no
-    // limit, so a server redirecting to itself exhausted the stack — roughly
+    // limit, so a server redirecting to itself exhausted the stack - roughly
     // 17 KB of locals per frame meant about sixty hops crashed the process.
     static constexpr int kMaxRedirects = 10;
 

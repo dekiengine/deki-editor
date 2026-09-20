@@ -7,7 +7,7 @@ using nlohmann::json;
 
 // The crash-recovery dialog reports this number to help decide whether a
 // recovered scene is worth keeping, so getting it wrong is worse than showing
-// nothing — it would make the dialog confidently misdescribe unsaved work.
+// nothing - it would make the dialog confidently misdescribe unsaved work.
 
 TEST(SceneStats, EmptyDocumentHasNoObjects)
 {
@@ -68,7 +68,7 @@ TEST(SceneStats, LoneRootReadsAsOneObject)
 }
 
 // ---------------------------------------------------------------------------
-// Outline — what the recovery preview shows when an entry is double-clicked.
+// Outline - what the recovery preview shows when an entry is double-clicked.
 // ---------------------------------------------------------------------------
 
 TEST(SceneOutline, CapturesNamesComponentsAndNesting)
@@ -93,7 +93,7 @@ TEST(SceneOutline, CapturesNamesComponentsAndNesting)
 
 TEST(SceneOutline, NamesMissingObjectsRatherThanSkippingThem)
 {
-    // An object with no name still occupies a row — dropping it would make the
+    // An object with no name still occupies a row - dropping it would make the
     // preview disagree with the object count shown on the card.
     const auto doc = json::parse(R"({"objects":[{"children":[]},{"name":"B","children":[]}]})");
     const auto outline = BuildSceneOutline(doc);

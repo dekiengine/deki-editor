@@ -2,8 +2,8 @@
 
 // Locating the build tools the editor drives.
 //
-// Deki compiles C++ to open a project — packages and the game plugin are native
-// code — so unlike an engine with an interpreted scripting language it cannot
+// Deki compiles C++ to open a project - packages and the game plugin are native
+// code - so unlike an engine with an interpreted scripting language it cannot
 // ship as a single binary with no external dependencies. The next best thing is
 // to carry the toolchain in the distribution, so a user downloads one archive
 // and never installs a compiler.

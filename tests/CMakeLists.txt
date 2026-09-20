@@ -7,7 +7,7 @@ enable_testing()
 # Editor sources the tests compile in. This list is NOT maintained here: it is
 # EDITOR_TESTABLE_SOURCES from the parent CMakeLists, visible through the
 # add_subdirectory(tests) that pulled us in. To make a new unit testable, add it
-# there — one list, one place.
+# there - one list, one place.
 if(NOT DEFINED EDITOR_TESTABLE_SOURCES)
     message(FATAL_ERROR
         "EDITOR_TESTABLE_SOURCES is not set. tests/ is meant to be reached via "
@@ -427,7 +427,7 @@ if(_pkgtests)
 endif()
 
 # =============================================================================
-# Package compile checks — every package, against THIS engine, no project
+# Package compile checks - every package, against THIS engine, no project
 # =============================================================================
 # A package is normally only compiled by a *project* build, and a project holds
 # a git clone pinned to a released tag. So editing a package in modules/ and
@@ -437,7 +437,7 @@ endif()
 # This target compiles each package's own sources against the engine built
 # here, straight out of DEKI_PACKAGES_DIR. Reflection codegen runs per package
 # because some headers include their generated tables (FrameAnimationData.h
-# does). OBJECT libraries, so this is a compile check and nothing has to link —
+# does). OBJECT libraries, so this is a compile check and nothing has to link -
 # a package that needs a sibling's symbols still passes, which is right: the
 # question is whether it still compiles against the engine's API.
 # A package compiles under the defines a project build would give it: its own

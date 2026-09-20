@@ -35,11 +35,11 @@ public:
 
     // Record a project as opened now: adds it when unknown, re-reads its
     // name/platform from deki.json, moves it to the front, saves. This is the
-    // only way an entry is created — the manager screen's Import and the new
+    // only way an entry is created - the manager screen's Import and the new
     // project dialog both reach it through EditorApp::OpenProject.
     void Touch(const std::string& path);
 
-    // Add without opening (Import picks a folder, then opens it — this exists
+    // Add without opening (Import picks a folder, then opens it - this exists
     // for callers that want the entry to survive a failed open).
     void Add(const std::string& path);
 
@@ -66,7 +66,7 @@ private:
     std::vector<ProjectEntry> m_Entries;
 
     // Upper bound on remembered projects. The list is a convenience, not an
-    // archive — past this the oldest entry falls off the back.
+    // archive - past this the oldest entry falls off the back.
     static constexpr size_t kMaxEntries = 64;
 };
 

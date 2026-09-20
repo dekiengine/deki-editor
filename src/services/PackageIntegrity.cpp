@@ -67,7 +67,7 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
     std::error_code ec;
 
     // A junction here would mean every command below runs inside whatever repo
-    // it points at — which is how the sibling package repos previously got left
+    // it points at - which is how the sibling package repos previously got left
     // on a detached tag. Refuse before any git runs, not after.
     if (IsReparsePoint(packageDir))
     {
@@ -89,7 +89,7 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
 
     // The presence of a .git entry is not proof this directory IS a repository.
     // A half-deleted clone can leave an empty one behind, and git then walks UP
-    // looking for a real repository — so every command below, `stash push -u`
+    // looking for a real repository - so every command below, `stash push -u`
     // included, lands on whatever encloses the package.
     //
     // That is not hypothetical. The docs build puts a project inside the editor
@@ -174,7 +174,7 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
     std::string pinSha;
     if (RunGit({ "-C", dirArg, "rev-parse", pinnedRef + "^{commit}" }, pinSha) != 0)
     {
-        // The pinned tag is not present locally — a fetch would be needed, and
+        // The pinned tag is not present locally - a fetch would be needed, and
         // that is the installer's job, not a focus-gain check's.
         return result;
     }

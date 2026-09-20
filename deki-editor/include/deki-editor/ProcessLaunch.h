@@ -4,7 +4,7 @@
 
 // Spawning external programs without a shell.
 //
-// The editor launches a few things on the user's behalf — the code editor, the
+// The editor launches a few things on the user's behalf - the code editor, the
 // file manager, an image viewer. Each call site used to build a command string
 // by hand and pass it to system() or ShellExecuteA, so any quote or shell
 // metacharacter in a path escaped the quoting. The values involved are project

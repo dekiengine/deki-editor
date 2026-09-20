@@ -84,7 +84,7 @@ public:
      *
      * MUST run while the owning DLL is still loaded. A std::function carries a
      * pointer to manager code inside the DLL that created it, and that code
-     * runs on COPY and on DESTRUCTION alike — so after FreeLibrary even
+     * runs on COPY and on DESTRUCTION alike - so after FreeLibrary even
      * discarding the entry faults, and there is no way to recover. This is the
      * only safe order: trim, then unload.
      */

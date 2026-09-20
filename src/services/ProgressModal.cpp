@@ -191,7 +191,7 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
 
     // Pump SDL events to prevent "not responding". Everything is forwarded to
     // ImGui (so focus/mouse state stays coherent) except a close request,
-    // which is parked for the main loop — see TakeDeferredQuit().
+    // which is parked for the main loop - see TakeDeferredQuit().
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {

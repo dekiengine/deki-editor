@@ -61,25 +61,25 @@ public:
     /// Base URLs to try, in order, for registry documents.
     ///
     /// The registry is one static JSON tree published from the dekiengine/registry
-    /// repo, reachable at more than one address — and it needs to be, because a
+    /// repo, reachable at more than one address - and it needs to be, because a
     /// single endpoint has proven not to be dependable.
     ///
     /// It used to be served as registry.dekiengine.com, a Pages site behind a
     /// Cloudflare CNAME. Whole Cloudflare IP ranges get null-routed by some ISPs
     /// (Spanish ISPs have repeatedly blocked them wholesale to disrupt football
-    /// piracy); during a block the domain failed the TLS handshake outright — and
+    /// piracy); during a block the domain failed the TLS handshake outright - and
     /// it was separately seen returning 404 for index.json and packages/<repo>.json,
     /// which silently resolved the whole registry to zero packages. GitHub stayed
     /// reachable throughout both.
     ///
     /// Nothing here needs a custom domain: this is machine-read JSON, not a site
-    /// anyone visits. So it is served from github.io directly — GitHub IPs, the
+    /// anyone visits. So it is served from github.io directly - GitHub IPs, the
     /// correct application/json, and a real CDN. raw.githubusercontent.com carries
     /// the same content and stays as the backup, but only as a backup: GitHub asks
     /// that it not be used as a CDN, and it serves text/plain.
     ///
-    /// $DEKI_REGISTRY_URL overrides both, so a user behind a filter — or anyone
-    /// self-hosting a mirror — can point the editor elsewhere without a rebuild.
+    /// $DEKI_REGISTRY_URL overrides both, so a user behind a filter - or anyone
+    /// self-hosting a mirror - can point the editor elsewhere without a rebuild.
     static std::vector<std::string> BaseUrls();
 
 private:

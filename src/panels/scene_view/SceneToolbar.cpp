@@ -105,7 +105,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
             [&]
             { m_ShowGrid = !m_ShowGrid; });
 
-    // Grid size — borderless transparent numeric cell that fills the row
+    // Grid size - borderless transparent numeric cell that fills the row
     // height, like the console's search input.
     {
         const float cellW = 64.0f * dpi;

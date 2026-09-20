@@ -66,7 +66,7 @@ namespace
 /// Where crash recovery for a project is kept: ~/.deki-editor/Recovery/<key>.
 ///
 /// Not inside the project. It is editor state, not part of the game, and it
-/// showed up as an untracked Recovery/ folder in every git status — one stray
+/// showed up as an untracked Recovery/ folder in every git status - one stray
 /// `git add .` from being committed into someone's repo.
 ///
 /// Not the OS temp directory either, tempting as that is for scratch state:
@@ -82,7 +82,7 @@ EditorApp::EditorApp()
 {
     // EditorSelection owns selection; EditorApplication is the facade package
     // DLLs read. Mirror one into the other here, once, instead of at each
-    // mutator — three of them used to forget, leaving GetActiveObject() stale.
+    // mutator - three of them used to forget, leaving GetActiveObject() stale.
     m_Selection.SetOnChanged([](Deki::Object* active)
                              { EditorApplication::Get().SetActiveObject(active); });
 
@@ -139,7 +139,7 @@ EditorApp::EditorApp()
     RegisterAssetTypes();
 
     // Construct ToolHost and wire the per-tool progress callback. The actual
-    // DiscoverTools() walk is deferred to OpenProject — bin/ packages may
+    // DiscoverTools() walk is deferred to OpenProject - bin/ packages may
     // register additional windows and that path always rebuilds the list
     // anyway, so doing it here just duplicates work.
     m_ToolHost = std::make_unique<ToolHost>(this);
@@ -349,7 +349,7 @@ void EditorApp::Update()
 
     // No project: the window belongs to the project manager screen, and none
     // of the work below has anything to act on. Everything the screen needs is
-    // drawn here — its title bar, itself, and the new-project wizard it opens.
+    // drawn here - its title bar, itself, and the new-project wizard it opens.
     if (IsProjectManagerMode())
     {
         DrawProjectManagerMenuBar();
@@ -413,7 +413,7 @@ void EditorApp::Update()
 
     DrawMenuBar();
 
-    // Draw panels — each guarded so a crash in one doesn't take the rest down.
+    // Draw panels - each guarded so a crash in one doesn't take the rest down.
     for (IPanel* panel : m_Panels)
     {
         DekiEditor::Guard(panel->Id(), [&]
@@ -608,7 +608,7 @@ Deki::Scene* EditorApp::GetCurrentScene()
             return engineScene;
     }
 
-    // The editor always has a scene to edit — there is no usable "no scene"
+    // The editor always has a scene to edit - there is no usable "no scene"
     // state. On the first access with no project open (m_CurrentScene still
     // null), install a fresh empty scene and wire it up exactly like New Scene.
     // This makes the invariant real so the rest of the editor never null-checks.
@@ -686,7 +686,7 @@ void EditorApp::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
 
     // Drop undo/redo entries that point into the memory about to be freed.
     //
-    // Commands address their targets by raw pointer — objects, components, and
+    // Commands address their targets by raw pointer - objects, components, and
     // (via the EditorUI field helpers) interior addresses like &obj->x. Without
     // this, a command left on either stack after its target dies writes through
     // a dangling pointer the next time it is undone or redone.
@@ -796,8 +796,8 @@ void EditorApp::ReportIncompatiblePackages()
     // state, needs the hot-reload service, and returns early without it, so
     // headless verbs would never have run this.
     //
-    // Editable packages are checked too — a working tree from an older
-    // generation does not build either — and nothing here changes disk.
+    // Editable packages are checked too - a working tree from an older
+    // generation does not build either - and nothing here changes disk.
     const std::string projectPath = m_Project->GetPath();
     PackageManager mgr(this);
     mgr.LoadPackages(projectPath);  // also refreshes installed status
@@ -996,7 +996,7 @@ inline uint32_t PackColor(const ImVec4& c)
                           static_cast<uint8_t>(c.z * 255.0f), static_cast<uint8_t>(c.w * 255.0f));
 }
 
-/// "2026-08-16 14:32  (2 hours ago)" — absolute so it can be matched against
+/// "2026-08-16 14:32  (2 hours ago)" - absolute so it can be matched against
 /// what the user remembers doing, relative because that is what actually tells
 /// them whether it is worth taking.
 std::string FormatRecoveryTime(std::time_t when)
@@ -1076,7 +1076,7 @@ void EditorApp::DrawRecoveryDialog()
         // selected one. Hand-rolling this was what made the selection invisible.
         //
         // Height mirrors DrawSelectableCard's own layout (padY*2 + title + gap +
-        // subtitle) rather than a guessed constant — guessing it clipped the last
+        // subtitle) rather than a guessed constant - guessing it clipped the last
         // card. Using the title height for the subtitle too rounds up slightly,
         // which is the safe direction.
         const float cardDpi = ImGui::GetStyle().FontScaleDpi;
@@ -1104,7 +1104,7 @@ void EditorApp::DrawRecoveryDialog()
                              static_cast<unsigned long long>(rec.fileSize));
 
                 // An unreadable scene is flagged amber rather than left to read
-                // like the others — it may still restore, but it is the one entry
+                // like the others - it may still restore, but it is the one entry
                 // worth hesitating over.
                 const uint32_t subCol = (rec.objectCount < 0) ? PackColor(Palette::Amber) : 0u;
 
@@ -1193,7 +1193,7 @@ void EditorApp::DrawRecoveryDialog()
 
         ui.SameLine(0.0f, gap);
 
-        // Closing without deciding must not destroy anything — the files stay
+        // Closing without deciding must not destroy anything - the files stay
         // and are offered again next time the project opens.
         if (ui.Button("Later", btnW, 0.0f))
         {
@@ -1366,10 +1366,10 @@ void EditorApp::RestoreSelectedRecovery()
 
     CustomEditorRegistry::Instance().ClearCache();
     SetCurrentScene(std::move(scene));
-    m_CurrentScenePath = rec.originalPath;  // empty if untitled — Save routes to Save-As
+    m_CurrentScenePath = rec.originalPath;  // empty if untitled - Save routes to Save-As
     ClearSelection();
     CommandHistory::Instance().Clear();
-    // Recovered content differs from whatever is on disk — mark dirty so the
+    // Recovered content differs from whatever is on disk - mark dirty so the
     // user is prompted to save before quit.
     CommandHistory::Instance().MarkDirty();
 
@@ -1377,7 +1377,7 @@ void EditorApp::RestoreSelectedRecovery()
     // folder, so with two crashed scenes the second was destroyed without ever
     // being offered.
     // ConsumeEntry deletes this entry's files, drops it from the list, and
-    // removes the directory only once nothing is left — so a second crashed
+    // removes the directory only once nothing is left - so a second crashed
     // scene is still offered rather than destroyed alongside the first.
     m_Recovery.ConsumeEntry(m_Recovery.SelectedIndex());
 
@@ -1460,7 +1460,7 @@ void EditorApp::RegisterAssetTypes()
     sceneHandler.category = AssetCategory::Scene;
     AssetTypeRegistry::Instance().Register(sceneHandler);
 
-    // Register .asset — the generic JSON envelope for procedural / custom asset types.
+    // Register .asset - the generic JSON envelope for procedural / custom asset types.
     // Packages that own a specific asset shape (e.g. ProceduralSprite) layer their own
     // AssetTypeEditor on top via REGISTER_EDITOR; this registration makes the bare
     // ".asset" extension resolve to the "Asset" type for AssetPipeline lookups.
@@ -1571,7 +1571,7 @@ void EditorApp::DrawUnsavedChangesDialog()
             // discarding: cancel, and leave the scene untouched.
             if (m_CurrentScenePath.empty())
             {
-                DEKI_LOG_ERROR("AnswerUnsavedChangesDialog(Save): scene has no path — "
+                DEKI_LOG_ERROR("AnswerUnsavedChangesDialog(Save): scene has no path - "
                                "save it with an explicit path first. Cancelling.");
                 m_UnsavedPrompt.Cancel();
                 m_NavigationSourcePath.clear();
@@ -1581,11 +1581,11 @@ void EditorApp::DrawUnsavedChangesDialog()
             }
             // Only discard the current scene once the save actually landed.
             // ExecutePendingAction replaces m_CurrentScene outright, so running
-            // it after a failed write throws the work away — the exact outcome
+            // it after a failed write throws the work away - the exact outcome
             // the user chose "Save" to avoid.
             if (!SaveScene())
             {
-                DEKI_LOG_ERROR("AnswerUnsavedChangesDialog(Save): write failed — "
+                DEKI_LOG_ERROR("AnswerUnsavedChangesDialog(Save): write failed - "
                                "keeping the scene open and cancelling the pending action.");
                 m_UnsavedPrompt.Cancel();
                 m_NavigationSourcePath.clear();
@@ -1749,7 +1749,7 @@ void EditorApp::ExecutePendingAction()
     // The duplicated versions that used to live here drifted: the new-scene
     // path never created the "Root" object NewScene creates, neither path
     // captured the inspector's saved-state baseline or ran EnsurePlatformSetup,
-    // the open path never recorded lastScene, and a failed load was silent —
+    // the open path never recorded lastScene, and a failed load was silent -
     // leaving the previous scene open after the user chose to discard it.
     //
     // m_SuppressUnsavedCheck stands in for "the dirty check already happened":

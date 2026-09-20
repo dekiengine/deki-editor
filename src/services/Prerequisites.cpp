@@ -104,7 +104,7 @@ Prerequisite CheckReflectionCompiler()
     return p;
 }
 
-/// The compiler PluginToolchain resolves for the editor's ABI — the one the
+/// The compiler PluginToolchain resolves for the editor's ABI - the one the
 /// package and plugin builds actually invoke.
 [[maybe_unused]] Prerequisite CheckPluginToolchain()
 {

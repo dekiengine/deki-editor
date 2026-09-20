@@ -290,7 +290,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         if (!s_RecoveryMessage.empty())
         {
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), " — %s", s_RecoveryMessage.c_str());
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), " - %s", s_RecoveryMessage.c_str());
         }
         ImGui::Separator();
         ImGui::Spacing();
@@ -763,7 +763,7 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     if (code == EXCEPTION_BREAKPOINT || code == EXCEPTION_SINGLE_STEP)
         return EXCEPTION_CONTINUE_SEARCH;
 
-    // Write minidump first — this is the most valuable artifact
+    // Write minidump first - this is the most valuable artifact
     std::string dumpPath = WriteMiniDump(exceptionInfo);
 
     // Refresh symbols in case new packages were loaded since startup
@@ -1411,7 +1411,7 @@ std::string CrashHandler::CaptureStackTrace(void* contextPtr)
     // Pick up packages loaded after Initialize() (plugin DLLs, hot-reload copies).
     // Without their unwind info, StackWalk64 produces garbage frames on x64.
     SymRefreshModuleList(GetCurrentProcess());
-    // StackWalk64 mutates the CONTEXT — work on a copy so the caller's
+    // StackWalk64 mutates the CONTEXT - work on a copy so the caller's
     // EXCEPTION_POINTERS->ContextRecord is left untouched.
     CONTEXT ctxCopy = *static_cast<CONTEXT*>(contextPtr);
     return CaptureStackTraceWindows(&ctxCopy);

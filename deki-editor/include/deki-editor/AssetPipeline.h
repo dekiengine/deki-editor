@@ -49,7 +49,7 @@ struct DEKI_EDITOR_API AssetCacheContext
  * @brief Result of a cache-handler invocation
  *
  * The handler's return value tells ProcessAsset what to do with the asset's
- * cache state — without the handler having to mutate AssetCacheContext or
+ * cache state - without the handler having to mutate AssetCacheContext or
  * touch AssetInfo directly.
  */
 enum class AssetCacheResult
@@ -148,7 +148,7 @@ public:
     {
         OnSourceChange,  // Fire only when source mtime is newer than cache, or no cache exists
                          // (warm-cache reopens skip this handler entirely)
-        Always,          // Fire on every ProcessAsset call (use sparingly — defeats warm-cache fast path)
+        Always,          // Fire on every ProcessAsset call (use sparingly - defeats warm-cache fast path)
     };
 
     /**
@@ -189,7 +189,7 @@ public:
      * needed variants are not deleted.
      *
      * The provider should insert all derived GUIDs into outValidGuids. The
-     * source asset's own GUID is already kept by the pipeline — providers only
+     * source asset's own GUID is already kept by the pipeline - providers only
      * need to enumerate variants.
      */
     using CacheVariantProvider = std::function<void(

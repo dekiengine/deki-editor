@@ -97,7 +97,7 @@ void EditorApp::Play()
     if ((m_HotReloadService && m_HotReloadService->HasBuildErrors()) ||
         (m_PackageLoader && m_PackageLoader->HasBuildErrors()))
     {
-        DEKI_LOG_ERROR("Cannot enter play mode — fix compilation errors first");
+        DEKI_LOG_ERROR("Cannot enter play mode - fix compilation errors first");
         if (m_ConsolePanel)
         {
             m_ConsolePanel->m_Open = true;
@@ -345,7 +345,7 @@ void EditorApp::InitPlayMode()
         // Assets are now auto-loaded via ProcessStart() in LifecycleManager
     }
 
-    // Enter runtime mode — components follow device code paths (no editor GUID sync/baking)
+    // Enter runtime mode - components follow device code paths (no editor GUID sync/baking)
     Deki::Engine::SetRuntimeMode(true);
 
     // Set the play mode COPY on Deki::Engine (not the edit scene)
@@ -361,7 +361,7 @@ void EditorApp::ShutdownPlayMode()
     if (m_PackageLoader)
         m_PackageLoader->NotifyPlayModeStop();
 
-    // Exit runtime mode — components revert to editor code paths
+    // Exit runtime mode - components revert to editor code paths
     Deki::Engine::SetRuntimeMode(false);
 
     // Clear Deki::Engine's root scene reference.
@@ -371,7 +371,7 @@ void EditorApp::ShutdownPlayMode()
     Deki::Engine::GetInstance().GetSceneSystem().FlushPendingDeletions();
 
     // Drop asset lookup cache so next play session loads fresh copies from disk.
-    // Don't UnloadAll() — edit-mode components still reference loaded fonts/textures.
+    // Don't UnloadAll() - edit-mode components still reference loaded fonts/textures.
     Deki::AssetManager::Get()->DropCache();
 
     // Unload binary lookup table so edit mode reverts to m_GuidToPath map
@@ -380,7 +380,7 @@ void EditorApp::ShutdownPlayMode()
     // Clear Persistent objects (they only exist during play mode)
     Deki::Engine::GetInstance().GetSceneSystem().ClearPersistentObjects();
 
-    // Clear selection — may point to play scene objects
+    // Clear selection - may point to play scene objects
     ClearSelection();
 
     // Clear any cached object/component references in panels
@@ -405,7 +405,7 @@ void EditorApp::ShutdownPlayMode()
     Deki::Engine::GetInstance().SetDisplay(nullptr, "");
     s_EditorDisplay.reset();
 
-    // Destroy the play mode scene copy — edit scene was never modified
+    // Destroy the play mode scene copy - edit scene was never modified
     m_Play.scene.reset();
     m_Play.sceneBackup.clear();
 
@@ -524,7 +524,7 @@ void EditorApp::UpdatePlayMode()
     // Spiral-of-death guard (capped only): if we fell catastrophically behind
     // drop the slack so we don't try to catch up over many frames. Game
     // appears to "pause" rather than chew CPU. Uncapped mode can't fall
-    // behind — it drains the entire accumulator each frame.
+    // behind - it drains the entire accumulator each frame.
     if (capFps)
     {
         const float kMaxAccumulator = targetFrameTimeMs * 4.0f;
@@ -536,7 +536,7 @@ void EditorApp::UpdatePlayMode()
     //   capped:   drain accumulator in fixed targetFrameTimeMs increments,
     //             up to kMaxSubStepsPerEditorFrame ticks per editor frame
     //             (lets a high targetFps run multiple ticks per editor frame).
-    //   uncapped: time-budgeted loop — keep ticking until kUncappedBudgetNs
+    //   uncapped: time-budgeted loop - keep ticking until kUncappedBudgetNs
     //             of real wall-clock has been consumed (or the sanity cap is
     //             hit). Each tick uses the actual elapsed wall-clock since
     //             the previous tick as its dt, so game time advances at real
@@ -792,7 +792,7 @@ void EditorApp::UpdatePlayMode()
 
     // Render once per editor frame using the latest simulated state. If the
     // accumulator didn't yield any sub-steps this editor frame, skip the
-    // render too — nothing changed since the previous editor frame's render,
+    // render too - nothing changed since the previous editor frame's render,
     // and PlayView keeps displaying the existing texture.
     if (subStepsThisFrame > 0)
     {

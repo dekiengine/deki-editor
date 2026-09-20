@@ -35,7 +35,7 @@ private:
     void DrawDeployProperties(const std::string& assetGuid);
 
     // True if the typed JSON asset's registered handler compiles to a texture
-    // (e.g. ProceduralSprite). Cached per path — the type field of an asset
+    // (e.g. ProceduralSprite). Cached per path - the type field of an asset
     // doesn't change while it is selected.
     bool CompilesToTexture(const std::string& assetPath);
 

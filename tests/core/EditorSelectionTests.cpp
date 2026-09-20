@@ -207,7 +207,7 @@ TEST_F(EditorSelectionTest, SetSelectedObjectClearsBakedCacheOnlyAsset)
     // 2. Click on an object in the hierarchy
     sel.SetSelectedObject(m_ObjA);
 
-    // 3. ALL asset fields must be cleared — not just the path
+    // 3. ALL asset fields must be cleared - not just the path
     EXPECT_FALSE(sel.HasAssetSelection());
     EXPECT_TRUE(sel.GetSelectedAssetPath().empty());
     EXPECT_TRUE(sel.GetSelectedAssetCachePath().empty());
@@ -247,7 +247,7 @@ TEST_F(EditorSelectionTest, ToggleSelectionClearsBakedCacheOnlyAsset)
 //
 // EditorApp mirrors selection into the EditorApplication facade (the one package
 // CustomEditors read) through this callback. It used to be mirrored at each call
-// site instead, and Add/Remove/ToggleSelection all forgot — so a Ctrl+click in
+// site instead, and Add/Remove/ToggleSelection all forgot - so a Ctrl+click in
 // the Hierarchy left GetActiveObject() naming the previously selected object,
 // which then dangled once that object was deleted. Every mutator must notify.
 

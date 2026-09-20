@@ -103,7 +103,7 @@ inline std::string g_PropertyFilter;
 inline std::string g_PropertyFilterLower;
 // Set while drawing a component whose own NAME is what the filter matched.
 // Searching "rigidbody" means "show me the rigidbody", not "show me fields
-// called rigidbody" — of which there are none, so the honest reading of the
+// called rigidbody" - of which there are none, so the honest reading of the
 // query left the inspector blank.
 inline bool g_ComponentNameMatched = false;
 // How many things the filter let through this frame, so the panel can say a
@@ -158,7 +158,7 @@ inline void SetComponentNameMatched(bool matched)
     g_ComponentNameMatched = matched;
 }
 
-// Counted by whoever draws something the filter allowed through — a property
+// Counted by whoever draws something the filter allowed through - a property
 // row, or a component header whose name was the match.
 inline void NoteFilterHit()
 {
@@ -188,7 +188,7 @@ void ClearSavedState();
 uint64_t SavedStateEpoch();
 const nlohmann::json* SavedValueFor(const Deki::Component* comp, const Deki::PropertyInfo& prop);
 
-// Does the filter name this component type itself — its label or its type
+// Does the filter name this component type itself - its label or its type
 // name, the way the Add Component list matches them?
 bool ComponentNameMatchesFilter(const Deki::ComponentMeta* meta);
 
@@ -203,7 +203,7 @@ bool ComponentHasFilterMatch(const Deki::ComponentMeta* meta);
 // A band's left edge is its chevron, one step outside the content-left
 // (floored at a margin from the panel edge); its text starts one chevron
 // zone further in. Content lines up with the text, not the chevron, so the
-// band reads as containing its rows — align to the chevron instead and the
+// band reads as containing its rows - align to the chevron instead and the
 // rows stick out to the left of the very title that names them. The chevron
 // zone is added even for a band that has no chevron, so both kinds of band
 // and their content sit on one column.
@@ -308,7 +308,7 @@ inline void BeginPropertyRow(const char* displayName)
     // The label is PAINTED, not submitted as an ImGui item. Two reasons:
     // it is not interactive anyway (the invisible button above owns the
     // hover, the drag and the right-click), and an item here would move
-    // CursorPosPrevLine off the row top — SameLine below reads exactly that
+    // CursorPosPrevLine off the row top - SameLine below reads exactly that
     // to put the value widget back on this line, so a shifted label would
     // drag the value widget down with it.
     //
@@ -371,7 +371,7 @@ inline void BeginPropertyRow(const char* displayName)
     // Restore the text baseline offset the value column used to inherit
     // from the label's text item. Now that the label is painted, the last
     // item on this line is the invisible button, which leaves the offset at
-    // zero — without this, a value control that draws plain text would ride
+    // zero - without this, a value control that draws plain text would ride
     // the top of the row instead of its frame padding.
     ImGui::AlignTextToFramePadding();
     // Right gutter (DPI-scaled) so framed value controls don't sit flush

@@ -79,7 +79,7 @@ public:
     {
         // Pointer mode aims into component/object storage. Value mode has a null
         // target and applies through callbacks, which may still capture a dead
-        // object — those call sites must not outlive their target, same as before.
+        // object - those call sites must not outlive their target, same as before.
         return CommandRefs::Has(dead, m_Target);
     }
 

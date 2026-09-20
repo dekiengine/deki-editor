@@ -234,7 +234,7 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
             else
             {
                 // A package naming its OWN component is not evidence that the
-                // game needs it — AnimationComponent.cpp obviously mentions
+                // game needs it - AnimationComponent.cpp obviously mentions
                 // AnimationComponent, and counting that would keep every
                 // feature alive forever. What counts is a scene, the project's
                 // own code, or ANOTHER package: deki-fsm calling
@@ -506,7 +506,7 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
     // Scoped to this target, and with the objects it will not carry already
     // dropped: an object excluded by its own "requires" is not this target's
     // content and must not be reported against it. Likewise only the packages
-    // this target can actually build are scanned — an ineligible package's
+    // this target can actually build are scanned - an ineligible package's
     // sources are not its content either.
     std::vector<std::string> eligibleIds;
     for (const auto& pkg : all)

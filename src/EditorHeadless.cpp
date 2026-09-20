@@ -5,7 +5,7 @@
 // same startup the GUI runs, so by the time a command executes the project is
 // in exactly the state a person double-clicking the editor would find it in.
 //
-// What this file used to be was the opposite — each verb bootstrapping the
+// What this file used to be was the opposite - each verb bootstrapping the
 // slice of startup it thought it needed, with its own PackageManager, its own
 // PackageLoader, its own cmake invocation. Those slices diverged from
 // EditorApp::OpenProject in ways nothing reported: --verify-scenes read a
@@ -81,7 +81,7 @@ std::string Str(const char* s)
 
 /// The project the booted editor has open. Null only if the open failed, which
 /// EditorBoot already reported and the CLI already turned into a non-zero exit
-/// — so this is a guard against a bug, not a user-facing error path.
+/// - so this is a guard against a bug, not a user-facing error path.
 Project* ProjectOf(EditorApp& editor, const char* verb)
 {
     Project* project = editor.GetProject();
@@ -240,7 +240,7 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
         // "installed" would overstate a framework component: nothing of it lives
         // in the project. It is a line in the firmware build's dependency
         // manifest, fetched by ESP-IDF at build time. Reporting it as declared
-        // says what is actually true, and it is never counted as missing —
+        // says what is actually true, and it is never counted as missing -
         // there is no per-project install step it could be missing from.
         const bool frameworkComponent = (p.packageType == PackageType::FrameworkComponent);
         if (frameworkComponent) anyFrameworkComponent = true;
@@ -298,7 +298,7 @@ int CmdBuildAssets(EditorApp& editor)
         return 1;
     }
 
-    // ImportAllAssets already ran, as part of opening the project — the same
+    // ImportAllAssets already ran, as part of opening the project - the same
     // call, on the same pipeline, that the GUI makes. Compiling again here
     // would only repeat it.
     size_t total = 0, cached = 0;
@@ -358,7 +358,7 @@ int CmdBuildCode(EditorApp& editor)
     }
 
     // Generating build files, configuring, compiling the packages and the
-    // plugin, and promoting the built DLLs all happened during the open —
+    // plugin, and promoting the built DLLs all happened during the open -
     // EnsureFirstBuild, BuildPackagesIfStale and the pending build EditorBoot
     // drove to completion. There is nothing left for this verb to do but say
     // how it went.
@@ -465,7 +465,7 @@ int CmdPackagesAdd(EditorApp& editor, const char* url, const char* version)
         return 1;
     }
 
-    // A registry id ("deki-fsm") parses into an entry that carries only the id —
+    // A registry id ("deki-fsm") parses into an entry that carries only the id -
     // the repo it maps to lives in the registry index. Fill that in before
     // storing, so the manifest records a usable URL and the version lookup has
     // something to work with. Adding by bare id is also what keeps the canonical
@@ -727,7 +727,7 @@ int CmdFirmwareBuild(EditorApp& editor, const char* platformId)
 
     // Passing the editor is what gives this build the boot payload and the
     // scene-scanned package defines the Build panel produces. Without it the
-    // image would flash with no assets — see FirmwareBuildService::PrepareBuild.
+    // image would flash with no assets - see FirmwareBuildService::PrepareBuild.
     auto r = FirmwareBuildService::Build(project->GetPath(), Str(platformId), EchoLine, &editor);
     return Report(r, "Firmware build");
 }
@@ -930,7 +930,7 @@ Deki::ICamera* FindCameraInSubtree(Deki::Object* obj)
 
 // The renderer a project's pipeline names, which is how the engine picks one
 // (Deki::ProjectSettings). The engine's public headers only forward-declare
-// DekiRenderer — it lives in the rendering package — so the name is read from
+// DekiRenderer - it lives in the rendering package - so the name is read from
 // the pipeline asset rather than asked of the renderer itself.
 std::string RendererNameOf(Project* project, AssetPipeline* pipeline)
 {

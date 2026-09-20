@@ -10,7 +10,7 @@ namespace DekiEditor
 {
 
 // ============================================================================
-// Toolchain definition structs — parsed from JSON a build backend supplies
+// Toolchain definition structs - parsed from JSON a build backend supplies
 // ============================================================================
 
 struct DEKI_EDITOR_API VersionCheckDef

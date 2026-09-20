@@ -16,7 +16,7 @@ class EditorApp;
 // is called.
 //
 // So they do only the verb's own work. Where the verb's work IS part of
-// opening a project — restoring packages, building code — the command reports
+// opening a project - restoring packages, building code - the command reports
 // on what the open already did rather than doing a second, differently-written
 // version of it. That is the point: there is no longer a headless spelling of
 // these operations that can drift from the editor's.
@@ -33,7 +33,7 @@ int CmdBuildCode(EditorApp& editor);
 /// Report on the package restore the project open performed.
 int CmdPackagesRestore(EditorApp& editor);
 
-/// Add a package by repo URL or registry id, install it, and rebuild — the
+/// Add a package by repo URL or registry id, install it, and rebuild - the
 /// same PackageManager, installers and hot-reload rebuild the Package Manager
 /// panel drives.
 int CmdPackagesAdd(EditorApp& editor, const char* url, const char* version);
@@ -102,10 +102,10 @@ int CmdStripPlan(EditorApp& editor, const char* platformId);
 int CmdPlatformCompat(EditorApp& editor);
 int CmdBuildAllTargets(EditorApp& editor);
 
-/// Write the reflection metadata of everything the project open loaded —
+/// Write the reflection metadata of everything the project open loaded -
 /// each package's components (name, GUID, category, description, every
 /// property with type, tooltip, range, enum values, default value) and
-/// project-settings sections — as one JSON file. Components are attributed to
+/// project-settings sections - as one JSON file. Components are attributed to
 /// the package DLL that registered them; engine-core ones go under "engine";
 /// the project's own only with `includeProject`. The docs build reads this.
 int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject);
@@ -121,7 +121,7 @@ int CmdClean(EditorApp& editor, const char* platformId);
 // ===========================================================================
 //
 // These deliberately do not boot. See EditorCli.h / IsLightCommand for why
-// each one qualifies — it is a short, closed list, not a default.
+// each one qualifies - it is a short, closed list, not a default.
 
 int CmdPackagesList(const char* projectPath);
 

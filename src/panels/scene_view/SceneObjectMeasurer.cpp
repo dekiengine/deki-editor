@@ -48,7 +48,7 @@ bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta
         }
     };
 
-    // Base class first, then derived — derived can override.
+    // Base class first, then derived - derived can override.
     searchProperties(baseMeta);
     searchProperties(meta);
 

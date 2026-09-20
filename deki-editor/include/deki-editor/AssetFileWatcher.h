@@ -18,7 +18,7 @@ namespace DekiEditor
  * on its own worker thread. The listener pushes raw events into a thread-safe
  * map keyed by project-relative path. AssetPipeline::Tick() calls
  * DrainReadyEvents() once per frame to receive coalesced, debounced events on
- * the main thread — required because downstream OnAssetChanged subscribers
+ * the main thread - required because downstream OnAssetChanged subscribers
  * touch GPU resources.
  *
  * Coalescing rules per path (when a new event arrives for a path already pending):
@@ -63,7 +63,7 @@ public:
     /**
      * @brief Start watching a directory recursively.
      * @param watchPath Absolute path to the directory to watch (recursive).
-     *                  Typically project/assets, but the class is generic — also
+     *                  Typically project/assets, but the class is generic - also
      *                  used by HotReloadService for project/src and project/packages.
      * @param projectPath Absolute path to the project root, used to compute
      *                    project-relative paths for emitted events.

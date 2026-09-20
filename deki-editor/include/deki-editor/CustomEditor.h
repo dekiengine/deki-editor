@@ -168,7 +168,7 @@ public:
     // SceneView::Get() exposes drawList, screen position, display size, and
     // zoom for the current object.
     //
-    // Keep these at the END of the class — adding virtuals in the middle
+    // Keep these at the END of the class - adding virtuals in the middle
     // changes vtable indices and breaks already-built package DLLs.
 
     virtual void OnDrawGizmos(Deki::Component* comp) {}

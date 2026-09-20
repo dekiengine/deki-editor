@@ -1,6 +1,6 @@
 #pragma once
 
-// PluginToolchain — picks the compiler used to build project plugin/package DLLs.
+// PluginToolchain - picks the compiler used to build project plugin/package DLLs.
 //
 // The plugin is not a standalone program: it links against deki-engine-core and
 // passes C++ objects (std::string, Scene*, std::vector) across the DLL boundary.
@@ -8,7 +8,7 @@
 // so a plugin built with a different ABI than the editor will fail to link or
 // crash at runtime in ways that look nothing like a toolchain problem.
 //
-// The required ABI is therefore not a preference — it is fixed by how the editor
+// The required ABI is therefore not a preference - it is fixed by how the editor
 // itself was compiled, which we can read off the preprocessor. Everything here
 // resolves a concrete compiler that satisfies that ABI.
 
@@ -19,8 +19,8 @@ namespace DekiEditor
 
 enum class PluginAbi
 {
-    Msvc,  // MSVC ABI — cl.exe or clang-cl. Needs the vcvars environment.
-    Gnu    // Itanium ABI — g++ / clang++ (MinGW on Windows, native elsewhere).
+    Msvc,  // MSVC ABI - cl.exe or clang-cl. Needs the vcvars environment.
+    Gnu    // Itanium ABI - g++ / clang++ (MinGW on Windows, native elsewhere).
 };
 
 struct PluginToolchainInfo

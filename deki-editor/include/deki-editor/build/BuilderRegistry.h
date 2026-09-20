@@ -63,7 +63,7 @@ public:
     /// Who supplies the builders that ship with the editor.
     ///
     /// The registry used to construct ESPIDFBuilder and NativeBuilder itself,
-    /// which meant this generic machinery named two concrete backends — and
+    /// which meant this generic machinery named two concrete backends - and
     /// would have made deki-editor.dll depend on the executable once it moved
     /// there. The owner of those builders installs a provider instead, and the
     /// registry knows nothing about what it will be handed.

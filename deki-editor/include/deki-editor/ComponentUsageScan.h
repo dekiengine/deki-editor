@@ -41,11 +41,11 @@ struct DEKI_EDITOR_API ComponentUsage
 // `targetCapabilities` is what the target platform offers. Objects a scene
 // marks as needing something it does not offer are not part of that target's
 // build (services/SceneTargetFilter), so their components must not count as
-// used here either — otherwise the stripper keeps a package alive for an object
+// used here either - otherwise the stripper keeps a package alive for an object
 // the build will not contain.
 // `scanPackageIds` names the packages whose own sources count as usage. A
-// package may use another package's component — deki-fsm calls
-// Deki2D::AnimationComponent::Play() — and that reference is as real as one in
+// package may use another package's component - deki-fsm calls
+// Deki2D::AnimationComponent::Play() - and that reference is as real as one in
 // the project's own code; scanning only the project stripped deki-2d's
 // animation feature out of a build whose deki-fsm still called it, and the
 // link failed with an undefined reference pointing nowhere near stripping.

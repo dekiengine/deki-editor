@@ -41,6 +41,6 @@ page and site that ever quoted it.
 `build_docs.py --reuse-metadata` skips the editor run and rebuilds the HTML
 from the metadata already in `build/docs/`, which takes seconds rather than
 minutes. Add `--no-packages` to build only the main site. Nothing serves the
-result, so open `build/docs/html/index.html` or point a static server at it —
+result, so open `build/docs/html/index.html` or point a static server at it -
 but not with that directory as its working directory, or the next build cannot
 delete it on Windows.

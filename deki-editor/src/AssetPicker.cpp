@@ -72,7 +72,7 @@ IconKind ClassifyByExtension(const std::string& path)
 }
 
 // Icon painters draw at an explicit position on the given draw list and
-// advance no cursor — rows place them inside their own (clipped) rect.
+// advance no cursor - rows place them inside their own (clipped) rect.
 
 void DrawPlaceholderIconAt(ImDrawList* dl, ImVec2 p, float size, IconKind kind)
 {
@@ -256,13 +256,13 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             RefreshAssets(m_CurrentFilter);
         ImGui::Spacing();
 
-        // Asset list — fills the space above the footer (hairline + buttons)
+        // Asset list - fills the space above the footer (hairline + buttons)
         const float footerH = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y * 2.0f + Dpi(8.0f);
         ImGui::BeginChild("AssetList", ImVec2(0, -footerH), ImGuiChildFlags_None);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                             ImVec2(ImGui::GetStyle().ItemSpacing.x, Dpi(2.0f)));
 
-        // Row metrics — compact schematic rows; every icon/text draw is
+        // Row metrics - compact schematic rows; every icon/text draw is
         // clipped to the row rect so nothing bleeds outside the list.
         const float rowH = Dpi(48.0f);
         const float rowPadX = Dpi(6.0f);

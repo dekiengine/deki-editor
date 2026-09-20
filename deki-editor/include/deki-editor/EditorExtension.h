@@ -53,7 +53,7 @@ public:
     EditorType GetEditorType() const override { return EditorType::AssetTypeEditor; }
     const char* GetName() const override { return GetTypeName(); }
 
-    // Identity — required for every subclass.
+    // Identity - required for every subclass.
     virtual const char* GetTypeName() const = 0;
     virtual const char* GetDisplayName() const = 0;
 
@@ -87,7 +87,7 @@ public:
     virtual bool CompileToFile(const std::string& /*jsonData*/,
                                const std::string& /*cachePath*/) { return false; }
 
-    // Custom inspector UI. Default no-op — native types let the generic inspector handle them.
+    // Custom inspector UI. Default no-op - native types let the generic inspector handle them.
     virtual bool OnInspectorGUI(std::string& /*jsonData*/,
                                 const std::string& /*assetPath*/,
                                 const std::string& /*assetGuid*/) { return false; }

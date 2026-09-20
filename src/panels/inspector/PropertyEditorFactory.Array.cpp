@@ -464,7 +464,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             }
         }
 
-        // End drag on mouse release — commit undo command
+        // End drag on mouse release - commit undo command
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
             nlohmann::json finalArray = CaptureArray(comp, prop);

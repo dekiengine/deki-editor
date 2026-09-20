@@ -341,7 +341,7 @@ void PlatformEditorDialog::Draw()
 }
 
 // ============================================================================
-// DrawInline — embed in parent panel (no window wrapper)
+// DrawInline - embed in parent panel (no window wrapper)
 // Returns true if Save was clicked successfully.
 // ============================================================================
 

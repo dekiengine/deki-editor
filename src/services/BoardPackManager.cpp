@@ -15,7 +15,7 @@ namespace DekiEditor
 
 BoardPackManager::BoardPackManager()
 {
-    // No default sources — user adds sources via Boards Manager
+    // No default sources - user adds sources via Boards Manager
 }
 
 BoardPackManager::~BoardPackManager()
@@ -511,7 +511,7 @@ bool BoardPackManager::ParsePackJson(const std::string& packDir, BoardPackInfo& 
 
     if (!fs::exists(packJsonPath))
     {
-        // No pack.json — try to infer from directory contents
+        // No pack.json - try to infer from directory contents
         // Scan for platform JSON files
         outPack.id = fs::path(packDir).filename().string();
         outPack.name = outPack.id;

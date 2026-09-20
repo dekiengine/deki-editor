@@ -156,7 +156,7 @@ bool EditorApp::OpenProject(const std::string& path)
                 DEKI_LOG_ERROR("EditorApp: failed to install package '%s'", id.c_str());
             for (const auto& id : restored.unresolvable)
                 DEKI_LOG_WARNING("EditorApp: package '%s' has no source URL and is not in the "
-                                 "Deki registry — install it manually from the Package Manager",
+                                 "Deki registry - install it manually from the Package Manager",
                                  id.c_str());
 
             if (restored.DidWork())
@@ -209,18 +209,18 @@ bool EditorApp::OpenProject(const std::string& path)
     {
         // Check the tools the build shells out to first. Without this a missing
         // compiler surfaces minutes later as a CMake error that says nothing
-        // about the machine lacking a prerequisite — and the reflection codegen
+        // about the machine lacking a prerequisite - and the reflection codegen
         // needs GCC 16+, which no current distro ships, so it is the common case
         // on a new machine rather than an exotic one.
         const auto prereqs = CheckPrerequisites();
         if (!PrerequisitesSatisfied(prereqs))
         {
-            DEKI_LOG_ERROR("Cannot build this project — required build tools are missing:");
+            DEKI_LOG_ERROR("Cannot build this project - required build tools are missing:");
             for (const auto& line : DescribeMissing(prereqs))
                 DEKI_LOG_ERROR("  %s", line.c_str());
             if (m_ConsolePanel)
             {
-                m_ConsolePanel->LogError("Cannot build this project — required build tools are missing.");
+                m_ConsolePanel->LogError("Cannot build this project - required build tools are missing.");
                 for (const auto& line : DescribeMissing(prereqs))
                     m_ConsolePanel->LogError(line.c_str());
             }
@@ -235,7 +235,7 @@ bool EditorApp::OpenProject(const std::string& path)
         }
     }
 
-    // Rebuild package/plugin DLLs first if they are stale — vs their own sources,
+    // Rebuild package/plugin DLLs first if they are stale - vs their own sources,
     // or vs a freshly rebuilt editor (which changes the package ABI). The loader
     // must never pick up package binaries built against an older editor; that
     // fails deep in LoadLibrary. This is a no-op when everything is up to date.
@@ -244,7 +244,7 @@ bool EditorApp::OpenProject(const std::string& path)
 
     // The filesystem has to exist before the packages do. Loading a package
     // runs its editor-auto SetupComponents (SetupComponent::RunEditorAutoSetups,
-    // from PackageLoader), and a setup may read or write S:/ — deki-gps caches
+    // from PackageLoader), and a setup may read or write S:/ - deki-gps caches
     // its last location there, for one. This used to be created near the end of
     // OpenProject, so those writes landed on no filesystem at all and vanished
     // without an error: the GPS lookup ran again on every project open, which is
@@ -265,7 +265,7 @@ bool EditorApp::OpenProject(const std::string& path)
     }
 
     // Load engine packages with per-project shadow copies
-    // Must happen before plugin loading — plugins link against package import libs
+    // Must happen before plugin loading - plugins link against package import libs
     StartupProgress::Update("Loading packages...");
     m_PackageLoader->OnPackageLoading = [](const std::string& name)
     {
@@ -294,7 +294,7 @@ bool EditorApp::OpenProject(const std::string& path)
         m_PackageLoader->LoadPackagesFromDirectory(exeDir, ImGui::GetCurrentContext());
 
         // PDB symbol refresh is only needed for richer crash-dump stack walks.
-        // Push it off the critical path — the open-project flow does not depend
+        // Push it off the critical path - the open-project flow does not depend
         // on it, and a crash before it completes still produces a stack (just
         // with less symbol detail).
         std::thread([]
@@ -302,7 +302,7 @@ bool EditorApp::OpenProject(const std::string& path)
             .detach();
     }
 
-    // RegisterEngineEditors for exe-dir packages is skipped here on purpose —
+    // RegisterEngineEditors for exe-dir packages is skipped here on purpose -
     // the same call after bin/ packages load picks up both sets, and running it
     // twice just registers the exe-dir factories twice.
 
@@ -319,7 +319,7 @@ bool EditorApp::OpenProject(const std::string& path)
         DEKI_LOG_INFO("Project transform: %s", why.c_str());
     }
 
-    // A project is open, so runtime/ is authoritative about what a package is —
+    // A project is open, so runtime/ is authoritative about what a package is -
     // the loader no longer needs a vendor name prefix to recognise one.
     m_PackageLoader->SetVendorAgnosticDiscovery(true);
 
@@ -350,7 +350,7 @@ bool EditorApp::OpenProject(const std::string& path)
     //
     // Project::Load runs before any package is loaded, so at that point the
     // settings registry holds engine-core sections only and a package's section
-    // resolves to nothing. That silently dropped every package setting on load —
+    // resolves to nothing. That silently dropped every package setting on load -
     // "Rendering" sat in the project file and was never applied, because the
     // package that owns it had not registered yet. Settings are only fully
     // knowable once the packages are in, so this is where they are read.
@@ -375,7 +375,7 @@ bool EditorApp::OpenProject(const std::string& path)
     //
     // Skipped headless: a tool window is pure UI, and discovering one means
     // running a package DLL's window constructor, which is entitled to touch
-    // ImGui — there is no context for it to touch. Nothing else in the open
+    // ImGui - there is no context for it to touch. Nothing else in the open
     // path depends on the discovered list, so this is the one stage a CLI run
     // legitimately does not need.
     if (!m_Headless)
@@ -465,7 +465,7 @@ bool EditorApp::OpenProject(const std::string& path)
     };
 
     // Set up progress callback BEFORE importing. Also propagates newly
-    // discovered assets into AssetManager — the file watcher (Tick) calls
+    // discovered assets into AssetManager - the file watcher (Tick) calls
     // ProcessAsset for live additions and ProcessAsset fires this callback,
     // so a freshly authored .asset file becomes runtime-resolvable on the
     // next editor frame without a project reopen or import button.
@@ -528,7 +528,7 @@ bool EditorApp::OpenProject(const std::string& path)
         if (!typeName.empty())
             Deki::AssetManager::Get()->InvalidateAsset(typeName.c_str(), guid);
 
-        // 3. Editor-side GPU texture caches (sprite previews etc. — harmless
+        // 3. Editor-side GPU texture caches (sprite previews etc. - harmless
         //    no-op for non-texture assets).
         EditorAssets::Get()->InvalidateTexture(guid);
         if (GetSceneViewPanel())
@@ -560,7 +560,7 @@ bool EditorApp::OpenProject(const std::string& path)
             Deki::AssetManager::Get()->InvalidateAsset(typeName.c_str(), guid);
 
         // 3. Forget the GUID entirely so the now-missing asset resolves to null
-        //    (empty), exactly like a deleted reference in Unity — no ref ever
+        //    (empty), exactly like a deleted reference in Unity - no ref ever
         //    re-opens the deleted file, so nothing floods the console. Must run
         //    after InvalidateAsset, which needs the GUID->path mapping to free
         //    the cached instance.
@@ -610,7 +610,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // brand-new project entering play mode and reporting "No render pipeline
     // configured" with a perfectly good pipeline sitting in its assets folder.
     //
-    // Only adopt when there is exactly one candidate — with several, guessing
+    // Only adopt when there is exactly one candidate - with several, guessing
     // would be worse than asking.
     if (m_Project && m_Project->GetRenderPipelineGuid().empty())
     {
@@ -648,7 +648,7 @@ bool EditorApp::OpenProject(const std::string& path)
         }
         else if (candidates > 1)
         {
-            DEKI_LOG_WARNING("OpenProject: %d render pipelines found and none selected — "
+            DEKI_LOG_WARNING("OpenProject: %d render pipelines found and none selected - "
                              "set one in Project Settings",
                              candidates);
         }
@@ -696,8 +696,8 @@ bool EditorApp::OpenProject(const std::string& path)
 
     // ...and remember it for the project manager screen, which sorts by this
     // stamp. Done here rather than at the call sites so every route into a
-    // project — the screen, File > Open, the CLI argument, the new-project
-    // wizard, MCP — lands in the list.
+    // project - the screen, File > Open, the CLI argument, the new-project
+    // wizard, MCP - lands in the list.
     ProjectRegistry::Get().Touch(path);
 
     // Mark the asset browser tree dirty; the actual disk walk runs lazily on
@@ -753,8 +753,8 @@ void EditorApp::CloseProject()
 {
     // Tear the scene down BEFORE any DLL is unloaded.
     //
-    // A scene's objects own components whose code — vtables and destructors
-    // included — lives in the package and plugin DLLs. Freeing those libraries
+    // A scene's objects own components whose code - vtables and destructors
+    // included - lives in the package and plugin DLLs. Freeing those libraries
     // while the scene is still alive leaves ~Deki::Object calling through
     // vtable pointers into unmapped memory, which crashes in
     // Scene::ClearScene with an access violation on a plausible-looking
@@ -783,7 +783,7 @@ void EditorApp::CloseProject()
     //
     // Every EditorWindow instance comes from a createFunc in a package or plugin
     // DLL, so its destructor lives there too. ToolHost was only cleared later,
-    // by DiscoverTools() near the end of the *next* OpenProject — by which point
+    // by DiscoverTools() near the end of the *next* OpenProject - by which point
     // the DLLs were long gone and ~WindowInstance ran `delete` through a vtable
     // in unmapped memory. Hot reload already clears them first for exactly this
     // reason; project close simply never did.
@@ -910,7 +910,7 @@ bool EditorApp::OpenScene(const std::string& rawPath)
         }
 
         // Open and focus the Scene View panel. The focus call goes through
-        // ImGui, so it is GUI-only — headless there is no context to focus in.
+        // ImGui, so it is GUI-only - headless there is no context to focus in.
         m_SceneViewPanel->m_Open = true;
         if (!m_Headless)
             ImGui::SetWindowFocus("SCENE VIEW###Scene View");
@@ -923,7 +923,7 @@ bool EditorApp::OpenScene(const std::string& rawPath)
 
 void EditorApp::NavigateIntoScene(const std::string& path)
 {
-    // Don't push breadcrumb yet — OpenScene may show an unsaved changes dialog
+    // Don't push breadcrumb yet - OpenScene may show an unsaved changes dialog
     // that the user can cancel. Store the source path and push it only when the
     // scene actually loads (in OpenScene or ExecutePendingAction).
     m_NavigationSourcePath = m_CurrentScenePath;
@@ -1188,7 +1188,7 @@ void EditorApp::OnBeforePluginReload()
     Deki::Engine::GetInstance().GetSceneSystem().ClearPersistentObjects();
 
     // Destroy tool window instances while package DLLs are still loaded
-    // (their vtables live in package code — must delete before FreeLibrary)
+    // (their vtables live in package code - must delete before FreeLibrary)
     m_ToolHost->ClearWindows();
 
     // Drop inspector pointers into plugin-DLL data (Deki::PropertyInfo*, etc.)
@@ -1208,7 +1208,7 @@ void EditorApp::OnBeforePluginReload()
     m_HotReloadSceneBackup = m_CurrentScene->SaveToJsonString();
 
     // Unload all runtime assets BEFORE DLL unload
-    // Components in loaded scenes have vtables from the current DLL —
+    // Components in loaded scenes have vtables from the current DLL -
     // must delete them while DLL is still loaded
     auto* assetMgr = Deki::AssetManager::Get();
     if (assetMgr)

@@ -4,7 +4,7 @@
 #include <windows.h>
 #else
 #include <cstdio>
-// fork/execvp/waitpid — used instead of popen so git arguments never reach a shell.
+// fork/execvp/waitpid - used instead of popen so git arguments never reach a shell.
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
@@ -17,7 +17,7 @@ namespace
 {
 // Quote one argument per the rules CommandLineToArgvW parses, so the child sees
 // exactly the string we intended. This is argument encoding for a single
-// process, not shell quoting — no shell is involved.
+// process, not shell quoting - no shell is involved.
 std::string QuoteWindowsArg(const std::string& arg)
 {
     if (!arg.empty() &&

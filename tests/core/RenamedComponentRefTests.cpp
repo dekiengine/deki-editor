@@ -2,7 +2,7 @@
 // component itself.
 //
 // A scene stores a component's identity three ways. The "type" key is a name,
-// and DEKI_FORMER_NAME resolves an old one — that path is covered by
+// and DEKI_FORMER_NAME resolves an old one - that path is covered by
 // RenamedComponentTests. The other two store no name at all:
 //
 //   ObjectRef   -> {"id": <object>, "typeId": <hash of the class name>}

@@ -27,7 +27,7 @@ std::string EditorRecovery::RecoveryDirFor(const std::string& projectPath)
         return "";
 
     // Normalised before hashing so the same project always lands in the same
-    // folder however it was typed — "C:\Foo" and "c:/foo/" are one project.
+    // folder however it was typed - "C:\Foo" and "c:/foo/" are one project.
     // Skipping this is what silently broke the dialog's relative paths.
     std::string norm = projectPath;
     for (char& c : norm)
@@ -145,7 +145,7 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
         }
         catch (const std::exception&)
         {
-            rec.objectCount = -1;  // shown as "unreadable" — still offered, the loader may cope
+            rec.objectCount = -1;  // shown as "unreadable" - still offered, the loader may cope
         }
 
         m_Files.push_back(std::move(rec));
@@ -216,7 +216,7 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
         nlohmann::json meta;
         meta["originalPath"] = scenePath;
         // When the snapshot was taken, so the dialog can say how old this is.
-        // Deliberately just a time() call — this also runs inside the crash
+        // Deliberately just a time() call - this also runs inside the crash
         // handler, where anything expensive risks losing the recovery it is
         // trying to describe. Size and object count are derived at read time.
         meta["savedAt"] = static_cast<long long>(std::time(nullptr));
@@ -270,7 +270,7 @@ void EditorRecovery::BuildPreview(const RecoveryEntry& entry)
     }
     catch (const std::exception&)
     {
-        // Truncated or otherwise unparseable — the popup says so rather than
+        // Truncated or otherwise unparseable - the popup says so rather than
         // showing an empty tree that reads like "this scene has nothing in it".
         m_Preview.clear();
     }

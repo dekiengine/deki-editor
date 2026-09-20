@@ -74,7 +74,7 @@ std::string ReadFile(const fs::path& path)
 } // namespace
 
 // ============================================================================
-// CRASH-1 — undoing a create must not free the object
+// CRASH-1 - undoing a create must not free the object
 // ============================================================================
 
 TEST(AuditCreateObjectCommand, RedoRestoresTheSameObjectInstance)
@@ -144,7 +144,7 @@ TEST(AuditCreateObjectCommand, RedoRestoresOriginalSiblingIndex)
 }
 
 // ============================================================================
-// CRASH-2 — history must drop commands pointing at freed memory
+// CRASH-2 - history must drop commands pointing at freed memory
 // ============================================================================
 
 namespace
@@ -209,7 +209,7 @@ TEST(AuditCommandHistory, DiscardsCommandsReferencingFreedMemory)
     history.DiscardCommandsReferencing(dead);
 
     // The dead entry sat at index 1. Undo walks newest-to-oldest, so keeping
-    // index 0 would mean stepping through index 1 to reach it — everything up to
+    // index 0 would mean stepping through index 1 to reach it - everything up to
     // and including the dead command goes.
     EXPECT_EQ(history.GetUndoCount(), 1u);
 
@@ -258,7 +258,7 @@ TEST(AuditCommandHistory, DiscardLeavesUnrelatedHistoryAlone)
 }
 
 // ============================================================================
-// GUID-1 / GUID-2 — duplicate GUIDs must not repoint references
+// GUID-1 / GUID-2 - duplicate GUIDs must not repoint references
 // ============================================================================
 
 class AuditGuidCacheTest : public ::testing::Test
@@ -387,7 +387,7 @@ TEST_F(AuditGuidCacheTest, DeletingOneAssetKeepsTheOthersResolvable)
 }
 
 // ============================================================================
-// DATA-1 / DATA-4 — writes must never truncate the previous good file
+// DATA-1 / DATA-4 - writes must never truncate the previous good file
 // ============================================================================
 
 TEST(AuditAtomicWrite, ReplacesExistingContent)
@@ -439,7 +439,7 @@ TEST(AuditSceneSave, DoesNotDestroyTheExistingFileWhenTheWriteFails)
     ASSERT_FALSE(saved.empty());
 
     // Re-saving over it must either succeed or leave the previous contents
-    // intact — never truncate first and then fail.
+    // intact - never truncate first and then fail.
     Deki::Scene second;
     second.CreateDekiObject("Root");
     second.CreateDekiObject("Extra");
@@ -451,7 +451,7 @@ TEST(AuditSceneSave, DoesNotDestroyTheExistingFileWhenTheWriteFails)
 }
 
 // ============================================================================
-// DATA-2 — delete/undo must restore files to their own paths
+// DATA-2 - delete/undo must restore files to their own paths
 // ============================================================================
 
 TEST(AuditDeleteAssetsCommand, UndoRestoresEachFileToItsOwnPath)
@@ -484,7 +484,7 @@ TEST(AuditDeleteAssetsCommand, UndoStaysAlignedWhenAPathIsMissing)
 
     // `missing` does not exist, so Execute skips it. Pairing backups with
     // originals by index used to drift here and restore `here.png`'s bytes to
-    // `gone.png` — a silent rename of the user's asset.
+    // `gone.png` - a silent rename of the user's asset.
     DeleteAssetsCommand cmd({missing.string(), present.string()}, nullptr, dir.Path().string());
     cmd.Execute();
     ASSERT_FALSE(fs::exists(present));
@@ -535,7 +535,7 @@ TEST(AuditDeleteAssetsCommand, SidecarTravelsWithTheAsset)
 }
 
 // ============================================================================
-// SEC-2 — registry-supplied values must not reach a shell or become git options
+// SEC-2 - registry-supplied values must not reach a shell or become git options
 // ============================================================================
 
 TEST(AuditGitArgumentValidation, RejectsShellMetacharactersInUrls)
@@ -575,7 +575,7 @@ TEST(AuditGitArgumentValidation, RejectsRefsGitWouldReadAsOptions)
 }
 
 // ============================================================================
-// SEC-2b — names from a registry, manifest or pack never become paths unchecked
+// SEC-2b - names from a registry, manifest or pack never become paths unchecked
 // ============================================================================
 
 TEST(AuditPackageNameValidation, RejectsTraversalAndOptionLookalikes)
@@ -671,7 +671,7 @@ TEST(AuditPackageNameValidation, SerialPortsAndDefinesAreAllowlisted)
 }
 
 // ============================================================================
-// SEC-2c — every fetch and download is https and free of shell metacharacters
+// SEC-2c - every fetch and download is https and free of shell metacharacters
 // ============================================================================
 
 TEST(AuditUrlValidation, HttpsOnlyAndNoMetacharacters)
@@ -726,7 +726,7 @@ TEST(AuditUrlValidation, UnpinnedDownloadIsRefused)
 }
 
 // ============================================================================
-// SEC-3 — downloads are verified against a pinned digest
+// SEC-3 - downloads are verified against a pinned digest
 // ============================================================================
 
 TEST(AuditSha256, MatchesKnownVectors)
@@ -757,7 +757,7 @@ TEST(AuditSha256, ReportsFailureForAMissingFile)
 }
 
 // ============================================================================
-// CRASH-4 — a corrupt texture header must not drive the allocator
+// CRASH-4 - a corrupt texture header must not drive the allocator
 // ============================================================================
 
 namespace

@@ -69,7 +69,7 @@ bool HasCommand(const CliOptions& o);
 /// Everything else boots the editor, because everything else depends on state
 /// the editor produces (restored packages, generated build files, a compiled
 /// and promoted plugin, imported assets). These few do not, and booting for
-/// them would turn a sub-second command into a multi-minute one — so the fast
+/// them would turn a sub-second command into a multi-minute one - so the fast
 /// lane exists, but as this explicit list rather than as an accident of which
 /// verb happened to be written first.
 bool IsLightCommand(const CliOptions& o);
@@ -84,7 +84,7 @@ int RunCommand(const CliOptions& o, EditorApp& editor);
 /// a process launched from a terminal starts with no console attached and
 /// every printf goes nowhere. Reattach to the parent's console for CLI runs.
 /// No-op elsewhere, and no-op when output is already redirected to a file or
-/// a pipe — that handle is the one the caller wants.
+/// a pipe - that handle is the one the caller wants.
 void AttachParentConsole();
 
 }  // namespace DekiEditor

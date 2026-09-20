@@ -42,4 +42,4 @@ doxygen-awesome  MIT                     doxygen-awesome-css-LICENSE.txt   https
 
 The FreeType License requires a credit in the documentation of a product that
 uses FreeType: "Portions of this software are copyright © The FreeType Project
-(www.freetype.org). All rights reserved." — this file is that credit.
+(www.freetype.org). All rights reserved." - this file is that credit.

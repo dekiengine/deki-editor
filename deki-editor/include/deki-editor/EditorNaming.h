@@ -8,7 +8,7 @@
  *
  * Lives in deki-editor.dll because package DLLs draw reflected properties too
  * (node-graph node inspectors, custom editors) and must produce labels
- * identical to the app's — one nicifier, not a copy per tool.
+ * identical to the app's - one nicifier, not a copy per tool.
  */
 
 #include <string>

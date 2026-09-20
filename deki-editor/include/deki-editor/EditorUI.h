@@ -270,7 +270,7 @@ public:
     void GetItemRect(float* outMinX, float* outMinY, float* outMaxX, float* outMaxY);
     float GetFrameHeight();
     // Width the next framed control would take with the current item width /
-    // indent settings — the basis for splitting a row between two controls.
+    // indent settings - the basis for splitting a row between two controls.
     float CalcItemWidth();
     float GetFontSize();
     void MeasureText(const char* text, float* outW, float* outH);
@@ -488,9 +488,9 @@ public:
     // Unity-style fields: label column + styled control as one call. Returns true
     // the frame the value changed. The field always records its own undo. Two
     // modes:
-    //   - Pointer mode: pass T* — the field reads/writes it and its command
+    //   - Pointer mode: pass T* - the field reads/writes it and its command
     //     restores/reapplies the bytes; callbacks add side-effects.
-    //   - Value mode: pass the current value(s) by value — the field holds an
+    //   - Value mode: pass the current value(s) by value - the field holds an
     //     internal copy and routes every change through the callbacks; its command
     //     stores old/new copies and calls onUndo(old)/onRedo(new). YOU apply the
     //     value in onChange/onUndo/onRedo (it never writes your storage).

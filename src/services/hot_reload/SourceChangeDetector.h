@@ -13,8 +13,8 @@ namespace DekiEditor
 /// change detection, CMake input hashing, process spawning, DLL promotion,
 /// plugin/package swapping and its own ImGui progress modal. This is the part
 /// that owns the "why didn't it rebuild?" and "why did it rebuild again?"
-/// questions, and — being pure filesystem and hashing, with no service state,
-/// no ImGui and no process spawning — the part that can actually be tested.
+/// questions, and - being pure filesystem and hashing, with no service state,
+/// no ImGui and no process spawning - the part that can actually be tested.
 namespace SourceChangeDetector
 {
 
@@ -47,7 +47,7 @@ std::string PackageNameFromEventPath(const std::string& relativePath);
 /// follow_directory_symlink: a junction carries IO_REPARSE_TAG_MOUNT_POINT
 /// rather than IO_REPARSE_TAG_SYMLINK, so is_symlink() returns false and the
 /// iterator declines to descend. Starting a fresh iterator rooted at each
-/// junction sidesteps it — CreateFileW follows reparse points at open time, so
+/// junction sidesteps it - CreateFileW follows reparse points at open time, so
 /// enumeration inside works transparently.
 void WalkSourceTree(const std::filesystem::path& root,
                     const std::function<void(const std::filesystem::directory_entry&)>& cb);

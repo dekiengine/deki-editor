@@ -13,7 +13,7 @@ using namespace DekiEditor;
 namespace
 {
 // Only the identity matters here, so everything else is left to throw if the
-// dispatcher ever calls it — which it must not.
+// dispatcher ever calls it - which it must not.
 class StubBuilder : public ITargetBuilder
 {
    public:

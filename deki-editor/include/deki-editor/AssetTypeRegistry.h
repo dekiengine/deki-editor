@@ -87,7 +87,7 @@ public:
     ///
     /// Required before FreeLibrary on any package DLL: AssetTypeHandler holds
     /// std::functions built by package code, and a std::function carries a
-    /// pointer to its manager inside the DLL that created it — which runs on
+    /// pointer to its manager inside the DLL that created it - which runs on
     /// destruction as well as on copy. Handlers also capture the raw
     /// AssetTypeEditor* prototypes owned by AssetTypeEditorRegistry.
     void Clear();

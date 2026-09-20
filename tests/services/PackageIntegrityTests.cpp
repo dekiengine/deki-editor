@@ -100,7 +100,7 @@ public:
 
 private:
     // Each construction gets its own directory. A repo stranded by a previous
-    // run must never be re-inited over and have its history inherited — that
+    // run must never be re-inited over and have its history inherited - that
     // makes these tests pass or fail depending on what ran before them.
     static std::string UniqueDirName(const char* name)
     {
@@ -151,7 +151,7 @@ TEST(PackageIntegrity, UntouchedPackageIsClean)
 
 // Build output lives INSIDE the package tree (BuildFileGenerator creates
 // ${PACKAGE_DIR}/generated), and .deki-package.json is written by the installer.
-// Both are gitignored, so neither may count as a modification — otherwise every
+// Both are gitignored, so neither may count as a modification - otherwise every
 // built package would look dirty and be "restored" on every focus.
 TEST(PackageIntegrity, BuildOutputIsNotAModification)
 {
@@ -284,7 +284,7 @@ TEST(PackageIntegrity, UnsafePinIsRefused)
 }
 
 // A real directory is not a reparse point. The Windows branch of this is what
-// stands between an auto-restore and a junctioned sibling repo — std::filesystem
+// stands between an auto-restore and a junctioned sibling repo - std::filesystem
 // ::is_symlink cannot see a junction, which is the bug this replaces.
 TEST(PackageIntegrity, PlainDirectoryIsNotAReparsePoint)
 {
@@ -300,7 +300,7 @@ TEST(PackageIntegrity, PlainDirectoryIsNotAReparsePoint)
 
 // A directory INSIDE another repository, carrying a .git that is not a usable
 // repository of its own. git walks up from there and finds the enclosing one,
-// so every command — `stash push -u` included — would land on a repository this
+// so every command - `stash push -u` included - would land on a repository this
 // function was never pointed at.
 //
 // This is what happened: the docs build puts a project inside the editor

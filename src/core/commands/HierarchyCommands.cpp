@@ -134,7 +134,7 @@ void ReparentObjectCommand::Execute()
         m_OldParent->RemoveChild(m_Object);
     }
 
-    // Resolve target parent — if nullptr, reparent to scene root (single-root model)
+    // Resolve target parent - if nullptr, reparent to scene root (single-root model)
     Deki::Object* targetParent = m_NewParent;
     if (!targetParent && m_Scene)
     {
@@ -209,7 +209,7 @@ std::string MoveObjectsCommand::GetDescription() const
 
 void MoveObjectsCommand::Execute()
 {
-    // Resolve target parent — single-root model: nullptr means scene root
+    // Resolve target parent - single-root model: nullptr means scene root
     Deki::Object* resolvedParent = m_TargetParent;
     if (!resolvedParent && m_Scene)
     {
@@ -257,7 +257,7 @@ void MoveObjectsCommand::Execute()
     }
     else
     {
-        // No root available — fallback to adding as root objects
+        // No root available - fallback to adding as root objects
         size_t maxIdx = m_Scene->GetObjects().size();
         size_t insertIdx = std::min(m_TargetIndex, maxIdx);
         for (size_t i = 0; i < m_Objects.size(); i++)

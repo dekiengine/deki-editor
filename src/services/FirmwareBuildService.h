@@ -1,6 +1,6 @@
 #pragma once
 
-// FirmwareBuildService — GUI-free firmware build operations.
+// FirmwareBuildService - GUI-free firmware build operations.
 //
 // Owns the sequence a firmware build goes through (load project -> resolve
 // platform -> resolve builder -> prepare -> Build/Flash/Clean) so the Build
@@ -40,7 +40,7 @@ class FirmwareBuildService
 {
 public:
     /// Preprocessor defines contributed by installed project packages.
-    /// Mirrors PackageManagerPanel::GetRequiredBuildDefines() — reads
+    /// Mirrors PackageManagerPanel::GetRequiredBuildDefines() - reads
     /// <project>/project/packages/<pkg>/package.json for buildDefine plus each
     /// feature's buildDefine. Pure filesystem work, no GUI state.
     static std::vector<std::string> CollectPackageDefines(const std::string& projectPath,
@@ -66,8 +66,8 @@ public:
     /// The Build panel calls it and then drives the builder itself (so it can
     /// wire its own progress and cancel UI); Build/StartBuild below call it and
     /// drive the builder for you. Before it existed the two had drifted, and a
-    /// firmware image built from the CLI shipped with no boot payload at all —
-    /// no dproject.bin, no boot scene — because that step lived only in the
+    /// firmware image built from the CLI shipped with no boot payload at all -
+    /// no dproject.bin, no boot scene - because that step lived only in the
     /// panel.
     ///
     /// `editor` may be null, in which case the defines fall back to every
@@ -90,7 +90,7 @@ public:
                                   EditorApp* editor = nullptr);
 
     /// Same preparation as Build(), but returns as soon as the build thread is
-    /// running. success==true means "started", not "finished" — poll QueryStatus().
+    /// running. success==true means "started", not "finished" - poll QueryStatus().
     /// Used by MCP, whose handlers run on the editor's frame loop and must not
     /// block for the minutes a firmware build takes.
     static FirmwareOpResult StartBuild(const std::string& projectPath,

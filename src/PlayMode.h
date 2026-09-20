@@ -25,8 +25,8 @@ enum class PlayModeState
 /// Everything play mode needs while it is running.
 ///
 /// This is a state bag, not a controller, and that is deliberate. PlayMode.cpp
-/// reaches back into nine EditorApp collaborators — the current scene, project,
-/// asset pipeline, package loader, hot reload, frame capture and three panels —
+/// reaches back into nine EditorApp collaborators - the current scene, project,
+/// asset pipeline, package loader, hot reload, frame capture and three panels -
 /// so a "PlayModeController" would either take a ten-field context (EditorApp
 /// with extra steps) or hold an EditorApp back-pointer, which is the coupling
 /// pattern we are trying to get away from. The coupling there is real, not
@@ -38,7 +38,7 @@ enum class PlayModeState
 /// header sheds nineteen fields and gains one, and the file that owns this
 /// state is now the only file that names it.
 ///
-/// m_PlayModeState is deliberately NOT here — six sites outside PlayMode.cpp
+/// m_PlayModeState is deliberately NOT here - six sites outside PlayMode.cpp
 /// read it, so it stays a first-class member of EditorApp.
 struct PlayModeRuntime
 {

@@ -85,7 +85,7 @@ private:
     // hidden under a collapsed header reads as no hit at all. ImGui writes a
     // forced-open state straight into its own storage, so the state each
     // component had BEFORE the filter is remembered and put back when the
-    // filter clears — searching must not quietly rearrange the inspector.
+    // filter clears - searching must not quietly rearrange the inspector.
     //
     // Captured lazily: a component is left alone for the one frame it takes to
     // read its real state, and forced from the next. Keyed by type + slot so

@@ -89,7 +89,7 @@ private:
     // Builder-provided editor UI (draws all builder-specific fields)
     std::unique_ptr<IPlatformEditorUI> m_EditorUI;
 
-    // Native fallback (only used when no builder — Desktop Simulator)
+    // Native fallback (only used when no builder - Desktop Simulator)
     int m_ScreenWidth = 320;
     int m_ScreenHeight = 240;
 

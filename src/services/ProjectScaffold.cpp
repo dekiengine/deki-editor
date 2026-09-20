@@ -151,15 +151,15 @@ bool WritePackageManifestFor(const std::string& projectPath,
 bool WriteGitIgnore(const std::string& projectPath, std::string& err)
 {
     // One ignored folder for editor state instead of an inventory of them. A
-    // previous version listed twelve entries and two were wrong — one named a
-    // directory nothing creates, another hid a tracked file — because nothing
+    // previous version listed twelve entries and two were wrong - one named a
+    // directory nothing creates, another hid a tracked file - because nothing
     // forced the list to track reality. With all generated state under
     // generated/, there is no list to drift.
     const std::string text =
         "# Everything the Deki Editor generates. Safe to delete; recreated on open/build.\n"
         "generated/\n"
         "\n"
-        "# Package sources — Package Manager clones of the source repos\n"
+        "# Package sources - Package Manager clones of the source repos\n"
         "packages/deki-*/\n"
         "\n"
         "# Exported asset packs (--export / the Build panel); rebuilt from assets/\n"
@@ -178,7 +178,7 @@ bool WriteGitIgnore(const std::string& projectPath, std::string& err)
 bool WriteRenderPipeline(const std::string& projectPath, std::string& err)
 {
     // No passes. This used to write a "clip2d" entry, with a comment saying a
-    // pipeline needs it or the project renders black — which was true once and
+    // pipeline needs it or the project renders black - which was true once and
     // is not now: clipping became a builtin of Standard2DRenderer, which
     // pushes and pops a clip rect around any object exposing IClipProvider,
     // and nothing registers a pass by that name. So every new project logged

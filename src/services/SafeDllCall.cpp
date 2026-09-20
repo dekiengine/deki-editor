@@ -1,11 +1,11 @@
-// SafeDllCall.cpp — hardware-fault protection for DLL function calls
+// SafeDllCall.cpp - hardware-fault protection for DLL function calls
 //
 // Two implementations of the same contract, because the mechanism differs by
 // compiler but the guarantee must not:
 //
 //   MSVC        __try/__except. Requires /EHa (async SEH exceptions), set for
 //               this file in CMakeLists.txt.
-//   Everything  A guard from FaultGuard.h — a vectored exception handler on
+//   Everything  A guard from FaultGuard.h - a vectored exception handler on
 //   else        Windows/MinGW, sigaction + siglongjmp on POSIX. One body serves
 //               both, since the guard hides the difference.
 //
@@ -110,7 +110,7 @@ int SafeCallInit(int (*fn)(), const char* context)
     }
 }
 
-#else  // !_MSC_VER — MinGW and POSIX.
+#else  // !_MSC_VER - MinGW and POSIX.
 
 // No __try/__except here, so the same protection comes from FaultGuard.h.
 // Mechanism and trade-offs are documented there; this body is platform-neutral.
@@ -135,15 +135,15 @@ void LogFault(const FaultGuard& g, const char* context)
 }  // namespace
 
 // Each wrapper pushes a guard, runs the call, and pops it on both paths.
-// The capture has to sit in the function that returns — the capture point is
-// the resume point — so it cannot be factored into a helper, and an RAII scope
+// The capture has to sit in the function that returns - the capture point is
+// the resume point - so it cannot be factored into a helper, and an RAII scope
 // guard is no good either since recovery bypasses destructors by design. Hence
 // the repetition, which mirrors the MSVC block above.
 //
 // Anything read *after* recovery is copied into volatile storage first. On the
 // POSIX path recovery is a siglongjmp, which restores only callee-saved
 // registers, so a value the compiler happened to park in a caller-saved one is
-// indeterminate afterwards — GCC diagnoses exactly this as -Wclobbered. The
+// indeterminate afterwards - GCC diagnoses exactly this as -Wclobbered. The
 // parameters themselves are fine to use on the normal path; it is only the
 // fault branch that needs the copies.
 

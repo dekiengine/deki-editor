@@ -7,7 +7,7 @@
 // registry). None of that is bundled on Linux/macOS, and only ninja + sccache
 // are on Windows. When something is missing the failure surfaces three minutes
 // into a build as a CMake or clone error with no hint that the machine is
-// simply missing a tool — most sharply for the reflection codegen, which needs
+// simply missing a tool - most sharply for the reflection codegen, which needs
 // GCC 16+ for C++26 static reflection and is therefore newer than anything the
 // current distros ship.
 //
@@ -29,7 +29,7 @@ struct Prerequisite
     bool ok = false;
 };
 
-/// Probe every prerequisite. Runs the tools, so it is not free — call it on
+/// Probe every prerequisite. Runs the tools, so it is not free - call it on
 /// project open, not per frame.
 std::vector<Prerequisite> CheckPrerequisites();
 

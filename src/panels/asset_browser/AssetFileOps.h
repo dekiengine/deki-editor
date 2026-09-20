@@ -13,7 +13,7 @@ class AssetPipeline;
 /// settings. Scene files, prefabs and component references all address assets
 /// by that GUID, so an operation that moves the asset but not the sidecar, or
 /// that leaves two assets sharing one GUID, silently breaks references
-/// somewhere else in the project — usually noticed much later, in a scene that
+/// somewhere else in the project - usually noticed much later, in a scene that
 /// has nothing obviously to do with the file that was moved.
 ///
 /// Split out of AssetBrowserPanel so these rules live in one place and can be
@@ -47,7 +47,7 @@ bool RenameWithData(const std::string& oldPath, const std::string& newName,
 /// A copy starts out sharing the original's sidecar, so until this runs there
 /// are two assets claiming one GUID and references resolve to whichever the
 /// pipeline indexed last. If the new sidecar cannot be written the copy is
-/// REMOVED — a duplicate GUID is worse than a missing file, because it corrupts
+/// REMOVED - a duplicate GUID is worse than a missing file, because it corrupts
 /// references to the original.
 void ReassignGuidForCopy(const std::string& srcPath, const std::string& destPath);
 

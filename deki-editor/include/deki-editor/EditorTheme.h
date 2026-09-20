@@ -33,12 +33,12 @@ constexpr ImVec4 Fg = ImVec4(0.910f, 0.902f, 0.882f, 1.0f);    // #e8e6e1 primar
 constexpr ImVec4 Dim = ImVec4(0.478f, 0.478f, 0.463f, 1.0f);   // #7a7a76 secondary
 constexpr ImVec4 Dim2 = ImVec4(0.322f, 0.322f, 0.310f, 1.0f);  // #52524f tertiary
 
-// Schematic accent — oklch(0.78 0.16 240) converted to sRGB.
+// Schematic accent - oklch(0.78 0.16 240) converted to sRGB.
 // Reads as cyan-blue at #3ac2ff. Matches the mockup exactly.
 constexpr ImVec4 Accent = ImVec4(0.230f, 0.764f, 1.000f, 1.0f);
 constexpr ImVec4 AccentDim = ImVec4(0.230f, 0.764f, 1.000f, 0.40f);
 
-// Folder icon tint — oklch(0.62 0.13 240) converted to sRGB (#248fcc).
+// Folder icon tint - oklch(0.62 0.13 240) converted to sRGB (#248fcc).
 // A deeper, less saturated cousin of Accent on the same 240 hue.
 constexpr ImVec4 FolderIcon = ImVec4(0.141f, 0.561f, 0.800f, 1.0f);
 
@@ -65,7 +65,7 @@ constexpr float SectionHeaderMargin = 8.0f;
 // TITLE TEXT and its CONTENT share. One fixed number on purpose: this used
 // to be ImGui::GetTreeNodeToLabelSpacing(), which is fontSize +
 // FramePadding.x * 2 and therefore different in every panel that pushes its
-// own frame padding — the Inspector's 8 and the theme's 14 put the "same"
+// own frame padding - the Inspector's 8 and the theme's 14 put the "same"
 // aligned column 12 px apart, so a header in the node graph and a header in
 // the Inspector did not line up even though both claimed to be aligned.
 // Wide enough to clear the chevron glyph (one font size) with air on both
@@ -80,18 +80,18 @@ constexpr float PreviewMaxHeight = 200.0f;  // cap for the anchored texture prev
 // Schematic typography ladder, loaded in main.cpp. Three families across the
 // pixel sizes the mockup uses; merged with Tabler Icons on the UI sizes.
 //
-// UI — Inter
+// UI - Inter
 extern DEKI_EDITOR_API ImFont* g_FontUI;       // Regular 13px, DEFAULT body (rows, breadcrumbs)
 extern DEKI_EDITOR_API ImFont* g_FontUISmall;  // Regular 11.5px, status bar / filter chips / sub-labels
 extern DEKI_EDITOR_API ImFont* g_FontUIMed;    // Medium 12.5px, inspector property labels
 extern DEKI_EDITOR_API ImFont* g_FontUIBold;   // SemiBold 11px, tab labels + section headers (rendered uppercased)
 //
-// Mono — JetBrains Mono
+// Mono - JetBrains Mono
 extern DEKI_EDITOR_API ImFont* g_FontMono;       // Regular 12px, inspector value cells / code
 extern DEKI_EDITOR_API ImFont* g_FontMonoSmall;  // Regular 11.5px, log timestamps / hash / stats
 extern DEKI_EDITOR_API ImFont* g_FontMonoBold;   // Medium 12px, menubar DEKI/EDITOR wordmark
 //
-// Display — Space Grotesk Medium
+// Display - Space Grotesk Medium
 extern DEKI_EDITOR_API ImFont* g_FontDisplay;       // 20px, inspector selection banner ("Hero / Sprite")
 extern DEKI_EDITOR_API ImFont* g_FontDisplaySmall;  // 12px, section-header alt usage
 extern DEKI_EDITOR_API ImFont* g_FontLogo;          // 13px, the "D" letter in the menubar logo box
@@ -106,7 +106,7 @@ namespace Fonts
 // Register a loaded font with its TTF source path so we can compute the
 // CSS-pixel-to-FreeType-pixel conversion ratio. Call ONCE per font
 // immediately after ImFontAtlas::AddFontFromFileTTF returns. The ratio
-// comes from the font's own metrics — no hardcoded constants per font.
+// comes from the font's own metrics - no hardcoded constants per font.
 DEKI_EDITOR_API void RegisterTtf(ImFont* font, const char* ttfPath);
 
 // Convert a CSS pixel size to the ImGui+FreeType size that produces an
@@ -130,8 +130,8 @@ DEKI_EDITOR_API float CssPx(ImFont* font, float cssPx);
 // user actually asked by stopping.
 //
 // Same signature as ImGui::SetTooltip, so a call site only changes name. The
-// wait is measured on the hovered item, and — for tooltips drawn over
-// hand-drawn regions that are not ImGui items — on the pointer standing still,
+// wait is measured on the hovered item, and - for tooltips drawn over
+// hand-drawn regions that are not ImGui items - on the pointer standing still,
 // so no call site has to prove which kind it is.
 constexpr float TooltipDelaySeconds = 1.0f;
 DEKI_EDITOR_API void Tooltip(const char* fmt, ...) IM_FMTARGS(1);
@@ -174,7 +174,7 @@ DEKI_EDITOR_API int SchematicPicker(const char* id, const char* title,
 // numbers. Doing it by hand is how the Inspector and the package tool windows
 // drifted apart: the Inspector pushed FramePadding 8 and a 12px row gap, a tool
 // window inherited the theme's 14/10 and the default gap, and the same widget
-// came out a different height with different spacing in each — a difference no
+// came out a different height with different spacing in each - a difference no
 // user could name a reason for. Must be paired with EndPropertyContext.
 DEKI_EDITOR_API void BeginPropertyContext();
 DEKI_EDITOR_API void EndPropertyContext();
@@ -191,7 +191,7 @@ DEKI_EDITOR_API bool SchematicCollapsingHeader(const char* label,
 //
 //     if (SchematicSectionBegin("Transform")) { ...rows...; SchematicSectionEnd(); }
 //
-// Returns true whenever the body must be submitted — which includes the frames
+// Returns true whenever the body must be submitted - which includes the frames
 // where the section is closing, since a body that is not submitted cannot be
 // animated away. During those frames the body is clipped to the animated
 // height, which also makes the hidden part unhittable, and the layout below is
@@ -221,7 +221,7 @@ DEKI_EDITOR_API void SchematicSectionEnd();
 // Returns true whenever the children must be submitted, which includes the
 // frames where the node is closing. While closing, ImGui has already dropped
 // the indent and id scope it pushes for an open node, so this pushes them back
-// (and pops them in End) — otherwise the children would lay out at the wrong
+// (and pops them in End) - otherwise the children would lay out at the wrong
 // depth and change identity for the length of the animation.
 //
 // Unlike the section pair, End is called unconditionally: `open` and "submit
@@ -258,8 +258,8 @@ DEKI_EDITOR_API bool SchematicBandTitleField(const char* id, char* buf, int bufS
 DEKI_EDITOR_API void SchematicSubHeader(const char* label);
 
 // The "add one more" affordance at the end of a list (Add Component, Add
-// Transition): a centered outlined box — transparent fill, hairline border, dim
-// label — that takes the accent only on hover. Deliberately quieter than a
+// Transition): a centered outlined box - transparent fill, hairline border, dim
+// label - that takes the accent only on hover. Deliberately quieter than a
 // filled button: at the bottom of a list, an invitation, not another control to
 // fill in. `width` 0 uses a comfortable default, clamped to the space available.
 // Returns true when clicked.
@@ -387,7 +387,7 @@ DEKI_EDITOR_API void DrawAllTabTopAccents();
 // Re-draw the 1px frame for standalone floating windows (dialogs, undocked
 // tool windows). With WindowBorderSize = 0 (so docked panels don't double the
 // dock separator) those windows would otherwise lose their border. Docked
-// panels need nothing here — ImGui's own 1px dock separator is their seam line.
+// panels need nothing here - ImGui's own 1px dock separator is their seam line.
 // Call once per frame after all panels have rendered (right before
 // ImGui::Render). Pairs with the border settings in SetupEditorTheme.
 DEKI_EDITOR_API void DrawDockSeams();
@@ -420,7 +420,7 @@ DEKI_EDITOR_API bool SchematicCheckbox(const char* label, bool* v, const ImVec4&
 DEKI_EDITOR_API void PushContextMenuPopupStyle();
 DEKI_EDITOR_API void PushContextMenuItemStyle();
 
-// Schematic modal dialog shell — centered over the main viewport, fixed
+// Schematic modal dialog shell - centered over the main viewport, fixed
 // css-px width (auto height), generous window padding, no saved settings.
 // Same look as the Package Manager's Add Package dialog so every modal in the
 // editor reads the same. Follows Begin/End popup semantics: only call

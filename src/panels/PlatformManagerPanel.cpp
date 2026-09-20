@@ -286,7 +286,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
     ui.Unindent(pad);
 
-    // Delete confirmation popup — fixed width, generous padding, dim warning copy,
+    // Delete confirmation popup - fixed width, generous padding, dim warning copy,
     // and a destructive (red) Delete next to a neutral Cancel.
     auto* project = m_App->GetProject();
     if (m_ShowDeleteConfirm)
@@ -871,7 +871,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         }
     }
 
-    // Setup card — shown when the setup component + python are installed.
+    // Setup card - shown when the setup component + python are installed.
     // Clicking runs (or re-runs) the setup.
     for (const auto& comp : components)
     {

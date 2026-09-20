@@ -3,7 +3,7 @@
 # This describes the style the codebase ALREADY uses; it was derived by
 # measuring, not chosen. Allman braces outnumber K&R 5515 to 673, indentation is
 # 4 spaces with no 2-space code anywhere, and `T* p` outnumbers `T *p` 1567 to
-# 13. Applying this should be close to a no-op on existing files — if it is not,
+# 13. Applying this should be close to a no-op on existing files - if it is not,
 # the setting is wrong, not the code.
 #
 # Naming is a separate matter and clang-format does not enforce it. See the
@@ -40,7 +40,7 @@ AllowShortCaseLabelsOnASingleLine: true
 
 # Include order here is deliberate: a file's own header first, then project
 # headers, then engine, then third-party. Sorting would reorder that and produce
-# a large diff for no benefit — and in a few places the order is load-bearing.
+# a large diff for no benefit - and in a few places the order is load-bearing.
 SortIncludes: Never
 
 # Likewise leave using-declarations where the author put them; sorting them

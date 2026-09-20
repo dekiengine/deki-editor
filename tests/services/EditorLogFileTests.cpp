@@ -3,7 +3,7 @@
 // What is pinned here is the contract a support request relies on: the file
 // exists where Initialize said, the previous session's log survives one
 // generation, Debug lines stay out unless verbose, and a session that never
-// ends cannot grow the file without bound — it rotates at the size limit and
+// ends cannot grow the file without bound - it rotates at the size limit and
 // keeps writing.
 
 #include <gtest/gtest.h>

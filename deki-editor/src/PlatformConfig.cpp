@@ -165,7 +165,7 @@ std::set<std::string> PlatformConfig::Capabilities() const
     //
     // Every platform has a heap, so memory:internal is universal. memory:external
     // comes from externalMemorySize, the same field a backend reads to switch
-    // that memory on in its build — one source of truth, because when it was
+    // that memory on in its build - one source of truth, because when it was
     // two they drifted: a target created by copying a board without external
     // memory and then given some had the memory, booted with it detected, and
     // still failed to satisfy a package that asked for it.
@@ -430,7 +430,7 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         fs::path platformDir = fs::path(directory) / config.id;
         fs::create_directories(platformDir);
 
-        // Build JSON — only write non-default values to keep files clean
+        // Build JSON - only write non-default values to keep files clean
         json j;
         j["id"] = config.id;
         j["displayName"] = config.displayName;

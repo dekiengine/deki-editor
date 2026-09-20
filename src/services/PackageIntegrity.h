@@ -1,6 +1,6 @@
 #pragma once
 
-// PackageIntegrity — put a package that is NOT marked editable back the way the
+// PackageIntegrity - put a package that is NOT marked editable back the way the
 // project pinned it.
 //
 // A project's packages are real git clones, and the desktop build globs
@@ -45,7 +45,7 @@ struct PackageIntegrityResult
     enum class Action
     {
         Clean,       // already matched the pin; nothing done
-        Skipped,     // not a clone, or a reparse point — deliberately left alone
+        Skipped,     // not a clone, or a reparse point - deliberately left alone
         Stashed,     // local modifications were stashed
         CheckedOut,  // HEAD was moved back to the pinned ref
         Failed,      // a git command failed; the package was left as found
@@ -71,7 +71,7 @@ struct PackageIntegrityResult
 
 /// Restore one package directory to @p pinnedRef.
 ///
-/// Call only for packages that are NOT marked editable — an editable package is
+/// Call only for packages that are NOT marked editable - an editable package is
 /// the developer's, and must be left untouched.
 ///
 /// @param pinnedRef the version the project pins (a tag, usually). May be empty,

@@ -275,7 +275,7 @@ void InspectorPanel::Draw()
     // Single selection
     Deki::Object* obj = selectedObjects[0];
 
-    // Schematic selection banner — small stamp + large display-font heading
+    // Schematic selection banner - small stamp + large display-font heading
     // showing `<parent>/<selected>`. Provides at-a-glance context above the
     // existing instance header and component sections.
     {
@@ -449,14 +449,14 @@ void InspectorPanel::Draw()
             ImGui::PopStyleColor();
         }
 
-        // Apply / Revert buttons — push instance changes to the source scene
+        // Apply / Revert buttons - push instance changes to the source scene
         // asset, or discard them and re-expand from source. Both support undo.
         if (::Deki::Scene* scene = m_App->GetCurrentScene())
         {
             // Apply only makes sense when this instance actually differs from
             // its source. CollectOverrides is expensive (loads source from
             // disk, walks the tree), so cache the result keyed on the object
-            // + command history version — recompute only on selection change
+            // + command history version - recompute only on selection change
             // or after a new command/undo/redo.
             const size_t undoCount = CommandHistory::Instance().GetUndoCount();
             if (obj != m_OverrideCacheObj || undoCount != m_OverrideCacheUndoCount)
@@ -591,8 +591,8 @@ void InspectorPanel::Draw()
     }
 
     // Name lives on the header now (click the heading). Active stays here, but
-    // as a row like every other boolean in the inspector — label in the left
-    // column, box in the value column — instead of a labeled checkbox starting
+    // as a row like every other boolean in the inspector - label in the left
+    // column, box in the value column - instead of a labeled checkbox starting
     // wherever its own text happened to end.
     //
     // It gets its own band between the header hairline and the filter strip, and
@@ -600,7 +600,7 @@ void InspectorPanel::Draw()
     // row (a boundary owns no air) while the row charges RowSpacing below, so
     // left to the default flow the row hugs the hairline and the whole band
     // reads top-heavy. Pad it explicitly on both sides with half the row gap
-    // each — the band keeps exactly the height it has today, but the air is
+    // each - the band keeps exactly the height it has today, but the air is
     // split evenly, which puts the checkbox on the band's center line.
     const float activeBandPad = m_App->Dpi(Metrics::RowSpacing * 0.5f);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
@@ -622,10 +622,10 @@ void InspectorPanel::Draw()
     // thirty fields, typing three letters beats scrolling, and it spans
     // components so you do not have to know which one owns the property. It
     // takes component names too, so the field answers both questions you arrive
-    // with — "where is that property" and "where is that component".
+    // with - "where is that property" and "where is that component".
     //
-    // Drawn as a band of its own — hairline above, hairline below, no row
-    // spacing inside — so it reads as panel chrome the way a toolbar strip
+    // Drawn as a band of its own - hairline above, hairline below, no row
+    // spacing inside - so it reads as panel chrome the way a toolbar strip
     // does, rather than as one more property row that happens to have a
     // magnifier. Its bottom hairline IS the divider the Transform band hangs
     // from, so that boundary stays one line instead of two.
@@ -676,7 +676,7 @@ void InspectorPanel::Draw()
 
         // Tell the picker where to hang from, every frame rather than on the
         // click alone, so it has a real anchor on the very first frame it opens
-        // — the frame ImGui has no size for it and its own placement has
+        // - the frame ImGui has no size for it and its own placement has
         // nothing to work from.
         {
             ComponentManager::AddPopupAnchor anchor;
@@ -862,7 +862,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
 {
     // Transform draws its rows by hand rather than through DrawProperty, so the
     // filter is applied here: with one typed, the section appears only when one
-    // of its three fields — or its own name, as for any other component — is
+    // of its three fields - or its own name, as for any other component - is
     // what you are looking for.
     const bool filtering = InspectorUtils::PropertyFilterActive();
 
@@ -885,13 +885,13 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
     if (filtering)
         InspectorUtils::NoteFilterHit();
 
-    // Matched under a filter, so it is shown open — a hit behind a collapsed
+    // Matched under a filter, so it is shown open - a hit behind a collapsed
     // header reads as no hit. State recorded the first frame, forced after.
     if (filtering && m_TransformStateKnown)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
     // Section, not a bare header: the body slides shut instead of vanishing.
-    // Note the flag is the SECTION's, not the header's — it stays true while the
+    // Note the flag is the SECTION's, not the header's - it stays true while the
     // section is closing, which is when the body still has to be submitted.
     ImGuiID transformHeaderId = 0;
     const bool transformBody =

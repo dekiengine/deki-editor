@@ -881,7 +881,7 @@ TEST_F(SceneInstanceTest, SmallEnumSerialize_AdjacentFields_NoOverwrite)
     EXPECT_EQ(static_cast<int>(target.mediumEnum), 2);
 
     // trailingPointer is NOT in the property metadata, so it should
-    // retain its canary value — NOT be zeroed or corrupted by enum writes
+    // retain its canary value - NOT be zeroed or corrupted by enum writes
     EXPECT_EQ(target.trailingPointer, reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(0xCAFEBABE)))
         << "Enum restore must not overwrite fields outside property metadata";
 }

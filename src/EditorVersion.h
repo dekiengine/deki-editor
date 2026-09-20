@@ -35,7 +35,7 @@ inline const char* EngineVersionString()
 #endif
 }
 
-/// "Deki Editor 0.10.0 (engine 0.10.0, reflection ABI 6)" — what `-V` prints,
+/// "Deki Editor 0.10.0 (engine 0.10.0, reflection ABI 6)" - what `-V` prints,
 /// what the About box shows, and what a bug report should quote.
 inline std::string EditorVersionLine()
 {

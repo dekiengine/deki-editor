@@ -8,7 +8,7 @@
 // an MCUFamily enum, which cannot express the question: a Tactility board IS
 // an ESP32-S3, so both its platform and ESP-IDF's claim the Espressif family
 // and a family lookup hands the Tactility build to ESP-IDF. Consoles make it
-// worse — "MCU family" means nothing there.
+// worse - "MCU family" means nothing there.
 //
 // There is deliberately NO fallback. A platform whose framework nobody claims
 // is an error naming what was asked for and what is available, not a quiet

@@ -143,7 +143,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // tools/cmake/build.cmake in the IDF), unconditionally. Generating 17 here
     // meant a package compiled at two different standards depending on the
     // target, so a C++20 feature would build for the board and fail on the
-    // desktop — the wrong way round, since the desktop is where authoring
+    // desktop - the wrong way round, since the desktop is where authoring
     // happens.
     file << "set(CMAKE_CXX_STANDARD 23)\n";
     file << "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\n";
@@ -157,12 +157,12 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // current include resolution, and ninja's deps stay accurate even when
     // sources move/rename/delete in this fast-moving codebase.
 
-    // Package DLLs output directly to generated/runtime/ — they're loaded via
+    // Package DLLs output directly to generated/runtime/ - they're loaded via
     // PackageLoader's shadow-copy mechanism, so overwriting runtime/<package>.dll
     // mid-edit is safe. Routing them through .build_temp/ would mean every build
     // sees its own outputs as "missing" (the editor moves them to runtime/ after
     // each build), which makes Ninja rebuild every package on every plugin edit.
-    // The plugin DLL is the one exception — see the per-target override below.
+    // The plugin DLL is the one exception - see the per-target override below.
     file << "# Default output: generated/runtime/ (packages). Plugin target overrides to .build_temp/.\n";
     file << "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY \"${DEKI_PROJECT_ROOT}/generated/runtime\")\n";
     file << "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG \"${DEKI_PROJECT_ROOT}/generated/runtime\")\n";
@@ -175,10 +175,10 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // (-DDEKI_ENGINE_PATH / -DDEKI_EDITOR_DIR) rather than written in as literals.
     // A baked path is a snapshot of wherever the editor happened to live when this
     // file was generated, and it goes stale the moment the install is moved or
-    // renamed — which is exactly when nothing regenerates it, so the project fails
+    // renamed - which is exactly when nothing regenerates it, so the project fails
     // pointing at a directory that no longer exists. Projects are always built
     // through the editor, so the caller already knows both locations.
-    file << "# Deki Engine paths — supplied by the editor at configure time\n";
+    file << "# Deki Engine paths - supplied by the editor at configure time\n";
     file << "if(NOT DEKI_ENGINE_PATH OR NOT DEKI_EDITOR_DIR)\n";
     file << "    message(FATAL_ERROR\n";
     file << "        \"DEKI_ENGINE_PATH and DEKI_EDITOR_DIR must be supplied by the Deki Editor.\\n\"\n";
@@ -261,7 +261,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
 
     // Find deki engine libraries.
     //
-    // Sanity check only — the link itself does not depend on this glob, so a
+    // Sanity check only - the link itself does not depend on this glob, so a
     // spelling missed here warns on every configure for that toolchain even
     // though the build is fine. Cover all of them: MSVC import libraries
     // (deki-foo.lib), GNU on Windows (libdeki-foo.dll.a / libdeki-foo.a), and
@@ -319,7 +319,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // here cuts ~15-25% off per-cpp compile without dragging editor-side or
     // package headers (which are volatile) into the PCH. Editing one of the
     // included engine headers does invalidate the PCH and force a full
-    // project-source rebuild — accepted trade-off.
+    // project-source rebuild - accepted trade-off.
     // Write-if-different: bare file(WRITE) bumps mtime on every reconfigure,
     // which invalidates the PCH and forces every plugin .cpp to recompile.
     file << "# Shared PCH (stdlib + stable deki-engine-core headers only)\n";
@@ -367,14 +367,14 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // First pass: collect every package's codegen inputs. The reflection codegen is
     // planned across ALL packages at once (see DekiReflectionCodegen.cmake) so it can
     // pack small packages into one generator TU and split large ones into parallel
-    // shards — a per-package call can do neither. It has to run before the targets are
+    // shards - a per-package call can do neither. It has to run before the targets are
     // created because the .gen.cpp glob below needs the files on disk.
     file << "# Collect package codegen inputs (the codegen is planned across all packages at once)\n";
     file << "set(_RC_PKG_DIRS \"\")\n";
     file << "set(_RC_PKG_TAGS \"\")\n";
     file << "set(_RC_PKG_PREFIXES \"\")\n";
     file << "set(_RC_PKG_OUTDIRS \"\")\n";
-    // Pass 1 — read every package's descriptor. Order is the glob's (alphabetical);
+    // Pass 1 - read every package's descriptor. Order is the glob's (alphabetical);
     // pass 2 reorders by dependency before any of this reaches the codegen.
     file << "set(_RC_RAW_DIRS \"\")\n";
     file << "set(_RC_RAW_TAGS \"\")\n";
@@ -389,7 +389,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    unset(PACKAGE_LINK_DEPS)\n";
     file << "    include(\"${PACKAGE_CMAKE}\")\n";
     // The four lists below are passed to the codegen unquoted, and unquoted expansion
-    // drops empty elements — a package without PACKAGE_PREFIX would silently shift every
+    // drops empty elements - a package without PACKAGE_PREFIX would silently shift every
     // later package onto the wrong prefix. Refuse it here, where the cause is obvious.
     file << "    if(NOT PACKAGE_PREFIX)\n";
     file << "        message(FATAL_ERROR \"package.cmake for '${PACKAGE_DIR_NAME}' does not set PACKAGE_PREFIX\")\n";
@@ -405,7 +405,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    list(APPEND _RC_RAW_DEPS \"${_RC_DEPS_FLAT}\")\n";
     file << "endforeach()\n\n";
 
-    // Pass 2 — order packages so a package's dependencies are generated first.
+    // Pass 2 - order packages so a package's dependencies are generated first.
     //
     // Codegen compiles each package's headers, and a component inheriting from
     // another package's component pulls in that package's generated header:
@@ -415,13 +415,13 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // deki-rendering's codegen unit has run. The glob above is alphabetical, so
     // deki-2d was planned first and its unit died with
     //   fatal error: generated/RendererComponent.gen.h: No such file or directory
-    // on any tree where the generated files were not already present — i.e.
+    // on any tree where the generated files were not already present - i.e.
     // every fresh checkout. Warm trees hid it, because the previous build had
     // left the header behind.
     //
     // PACKAGE_LINK_DEPS already declares the relationship; it just was not being
     // honoured here. Non-package entries in it (freetype, deki-editor) are
-    // ignored — only deps naming a PACKAGE_TARGET present in this project order
+    // ignored - only deps naming a PACKAGE_TARGET present in this project order
     // anything.
     file << "# Order packages so each one's dependencies are code-generated before it\n";
     file << "set(_RC_PKG_DIRS \"\")\n";
@@ -568,7 +568,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // Create package DLL. No PCH on packages: MSVC's `_PchSym_` COMDAT symbols
     // get picked up by WINDOWS_EXPORT_ALL_SYMBOLS and land in the auto-generated
     // exports.def, which breaks linking (LNK2001 "unresolved external symbol __").
-    // This is a known CMake interaction — see issues #22863 and related.
+    // This is a known CMake interaction - see issues #22863 and related.
     // The plugin DLL still uses PCH since it doesn't set WINDOWS_EXPORT_ALL_SYMBOLS.
     file << "    # Create package DLL\n";
     file << "    add_library(${PACKAGE_TARGET} SHARED ${PACKAGE_ALL_SOURCES})\n";
@@ -585,7 +585,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // and the front-end work of that set dwarfs the per-file body. Compiling 8 sources
     // as one translation unit measures ~2.75x faster than 8 separate ones, which is
     // most of the cost of an engine-header change (it invalidates every package TU).
-    // The generated .gen.cpp files batch too — they are plain, self-contained sources.
+    // The generated .gen.cpp files batch too - they are plain, self-contained sources.
     file << "    set_target_properties(${PACKAGE_TARGET} PROPERTIES\n";
     file << "        UNITY_BUILD ON\n";
     file << "        UNITY_BUILD_BATCH_SIZE 8)\n";
@@ -596,7 +596,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // WINDOWS_EXPORT_ALL_SYMBOLS is implemented only for MS-compatible tools, so
     // under MinGW it silently does nothing. GNU ld would normally auto-export
     // everything, but the DEKI_*_EXPORTS __declspec(dllexport) markers switch that
-    // default off — leaving a package exporting almost nothing, and any package that
+    // default off - leaving a package exporting almost nothing, and any package that
     // links against it (deki-2d -> deki-rendering) failing with undefined
     // references to constructors and vtables. Restore the property's intent.
     file << "    if(MINGW)\n";
@@ -608,7 +608,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "        \"${PACKAGE_GEN_DIR}\"\n";
     file << "    )\n\n";
 
-    // Package compile definitions (NOT DEKI_PLUGIN_EXPORTS — package keeps its own DekiPlugin_* exports)
+    // Package compile definitions (NOT DEKI_PLUGIN_EXPORTS - package keeps its own DekiPlugin_* exports)
     file << "    # Package definitions\n";
     file << "    string(TOUPPER \"${PACKAGE_DIR_NAME}\" PACKAGE_UPPER_AUTO)\n";
     file << "    string(REPLACE \"-\" \"_\" PACKAGE_UPPER_AUTO \"${PACKAGE_UPPER_AUTO}\")\n";
@@ -624,7 +624,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // every translation unit that touches ImGui, otherwise struct layouts
     // diverge and a package sharing the editor's ImGuiContext corrupts memory.
     // Packages link the editor's imgui.lib as a raw file (not the CMake target),
-    // so they don't inherit its PUBLIC define — set it here to keep them ABI-
+    // so they don't inherit its PUBLIC define - set it here to keep them ABI-
     // identical to the editor.
     file << "        IMGUI_ENABLE_FREETYPE\n";
     file << "    )\n";
@@ -671,7 +671,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // include path so `#include "DekiHttp.h"` from deki-gps resolves to the
     // deki-http package's header without each package having to know its siblings'
     // layout.
-    file << "# Inter-package wiring (second pass — all targets defined)\n";
+    file << "# Inter-package wiring (second pass - all targets defined)\n";
     file << "foreach(PACKAGE_CMAKE ${PACKAGE_CMAKE_FILES})\n";
     file << "    get_filename_component(PACKAGE_DIR \"${PACKAGE_CMAKE}\" DIRECTORY)\n";
     file << "    unset(PACKAGE_TARGET)\n";
@@ -693,10 +693,10 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "endforeach()\n\n";
 
     // =========================================================================
-    // Plugin DLL (game code only — packages are separate DLLs)
+    // Plugin DLL (game code only - packages are separate DLLs)
     // =========================================================================
     file << "# =============================================================================\n";
-    file << "# Plugin DLL (game code only — packages are separate DLLs above)\n";
+    file << "# Plugin DLL (game code only - packages are separate DLLs above)\n";
     file << "# =============================================================================\n\n";
 
     // Generate metadata for user source via the C++26 reflection generator (PLUGIN

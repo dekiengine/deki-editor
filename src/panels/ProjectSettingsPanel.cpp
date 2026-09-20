@@ -38,7 +38,7 @@ void ShowTooltip(const Deki::PropertyInfo& prop)
 
 // Visibility check for DEKI_VISIBLE_WHEN(...). Returns true if the
 // property should be rendered. Mirrors InspectorUtils::IsPropertyVisible
-// for the bool-toggle and threshold cases — sufficient for settings.
+// for the bool-toggle and threshold cases - sufficient for settings.
 bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props,
                int propCount, const Deki::PropertyInfo& prop)
 {
@@ -80,7 +80,7 @@ bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props,
 // Render one settings property using the same widget style as the
 // inspector (left-aligned label via BeginPropertyRow, drag widgets for
 // numerics). Returns true when the user has finished an edit and the
-// change should be persisted — atomic widgets (Checkbox/Combo) commit
+// change should be persisted - atomic widgets (Checkbox/Combo) commit
 // on click; drag and text widgets commit on IsItemDeactivatedAfterEdit
 // so we don't write deki.json every frame during a drag.
 // One project-settings row. Every edit goes through CommandHistory, so
@@ -427,14 +427,14 @@ void ProjectSettingsPanel::Draw()
             return;
         }
 
-        // Asset-picker sections — engine-ignorant of feature packages but tied
+        // Asset-picker sections - engine-ignorant of feature packages but tied
         // to the editor-only AssetPipeline, so they stay hardcoded.
         DrawStartupSceneSection(project);
         ImGui::Spacing();
         DrawRenderPipelineSection(project);
         ImGui::Spacing();
 
-        // Package-extensible settings — render every registered settings type
+        // Package-extensible settings - render every registered settings type
         // generically by walking the registry and the type's reflection
         // metadata. Tooltips, ranges, and visibility conditions all come from
         // the same Deki::PropertyInfo machinery that drives the inspector.

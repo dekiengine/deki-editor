@@ -1,4 +1,4 @@
-// McpBuildTools — MCP tools for firmware build / flash / toolchain management.
+// McpBuildTools - MCP tools for firmware build / flash / toolchain management.
 //
 // Handlers run on the editor's frame loop (McpServer::ProcessMessages), so the
 // long-running operations are start-and-poll rather than blocking: build_firmware
@@ -671,7 +671,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "build_firmware",
                         "Start a firmware build for the project. Regenerates build files first. "
-                        "Returns as soon as the build starts — poll build_status for progress "
+                        "Returns as soon as the build starts - poll build_status for progress "
                         "and the final result. Fails immediately if the toolchain is missing.",
                         { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
@@ -683,7 +683,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
                             nlohmann::json j = OpToJson(r);
                             j["started"] = true;
-                            j["note"] = "Build running in background — poll build_status.";
+                            j["note"] = "Build running in background - poll build_status.";
                             return j;
                         } });
 
@@ -726,7 +726,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             nlohmann::json j = OpToJson(r);
                             j["componentId"] = componentId;
                             j["started"] = true;
-                            j["note"] = "Install running in background — poll build_status "
+                            j["note"] = "Install running in background - poll build_status "
                                         "(state \"installing\").";
                             return j;
                         } });
@@ -738,7 +738,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register({ "deploy_build",
                         "Deploy the last build the way the platform's backend defines it: flash a "
                         "device, run the executable, install an app. Refused when the backend has "
-                        "no deploy step. Returns once it starts — poll build_status for the result.",
+                        "no deploy step. Returns once it starts - poll build_status for the result.",
                         { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "target", { { "type", "string" }, { "description", "What to deploy to, in the backend's own terms (a serial port for a board that is flashed); omit to let the backend choose" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -750,7 +750,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
                             nlohmann::json j = OpToJson(r);
                             j["started"] = true;
-                            j["note"] = "Deploy running in background — poll build_status.";
+                            j["note"] = "Deploy running in background - poll build_status.";
                             return j;
                         } });
 

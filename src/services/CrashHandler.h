@@ -13,7 +13,7 @@ public:
     static void Initialize();
 
     // Set a callback to run before showing the crash dialog (e.g. save recovery data).
-    // Must be safe to call from a crash context — avoid allocations where possible.
+    // Must be safe to call from a crash context - avoid allocations where possible.
     static void SetPreCrashCallback(std::function<void()> callback);
 
     // Set a message to display in the crash dialog (e.g. recovery file path).

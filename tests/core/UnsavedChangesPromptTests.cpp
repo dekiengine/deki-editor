@@ -58,7 +58,7 @@ TEST(UnsavedChangesPrompt, TakePendingClearsUpFrontSoReentryCannotSeeAStaleActio
     EXPECT_EQ(p.TakePending(path), PendingSceneAction::OpenScene);
     EXPECT_EQ(path, "a.scene");
 
-    // A re-entrant call — e.g. the open failed and raised its own dialog.
+    // A re-entrant call - e.g. the open failed and raised its own dialog.
     std::string second;
     EXPECT_EQ(p.TakePending(second), PendingSceneAction::None);
     EXPECT_TRUE(second.empty());

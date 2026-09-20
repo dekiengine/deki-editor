@@ -6,7 +6,7 @@
 
 using namespace DekiEditor;
 
-// The editor's invariant is that a scene is always available to edit — there is
+// The editor's invariant is that a scene is always available to edit - there is
 // no usable "no scene" state (EditorApp::GetCurrentScene() never returns null).
 // EnsureScene backs that guarantee; these tests pin its behavior.
 
@@ -39,7 +39,7 @@ TEST(SceneGuaranteeTest, AlwaysNonNullAcrossCalls)
 {
     std::unique_ptr<::Deki::Scene> scene;
     ::Deki::Scene* first  = EnsureScene(scene);
-    ::Deki::Scene* second = EnsureScene(scene);  // idempotent — does not re-create
+    ::Deki::Scene* second = EnsureScene(scene);  // idempotent - does not re-create
 
     EXPECT_NE(first, nullptr);
     EXPECT_EQ(first, second);

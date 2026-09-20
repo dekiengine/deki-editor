@@ -241,7 +241,7 @@ protected:
 // The loader finds packages by name, so the decoration rules have to match what
 // the build actually emits. Getting this wrong is silent and total: every
 // package fails the "deki-*" test and the editor loads none of them, with no
-// error beyond components not existing. It has happened twice — once for the
+// error beyond components not existing. It has happened twice - once for the
 // ELF "lib" prefix, once for MinGW, which adds the same prefix on Windows where
 // the rule had been keyed on the OS rather than the toolchain.
 // ============================================================================
@@ -257,7 +257,7 @@ TEST(SharedLibNaming, StemRoundTripsFileNameForThisToolchain)
 TEST(SharedLibNaming, StripsThePrefixWhenTheToolchainAddsOne)
 {
     // GNU toolchains prefix shared libraries everywhere they run, MSVC never
-    // does — so this asserts against the prefix the build is actually using
+    // does - so this asserts against the prefix the build is actually using
     // rather than against a fixed platform expectation.
     const std::string prefixed = std::string(kSharedLibPrefix) + "deki-2d" + kSharedLibExt;
     EXPECT_EQ(SharedLibStem(prefixed), "deki-2d");

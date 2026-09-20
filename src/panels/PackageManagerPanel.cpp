@@ -380,7 +380,7 @@ void PackageManagerPanel::DrawPackageList()
 
     // Built-in Deki registry, then each custom registry, then manually-added.
     // Custom-registry packages are DekiPackages too, so exclude any with a
-    // registrySource here — they belong to (and are drawn once in) their own
+    // registrySource here - they belong to (and are drawn once in) their own
     // registry group below, not the built-in one.
     drawGroup("Deki Registry", [&](const PackageEntry& pkg)
               { return isFromRegistry(pkg, "Deki") && pkg.registrySource.empty(); });
@@ -473,7 +473,7 @@ void PackageManagerPanel::DrawPackageDetails()
 
     DrawFeatures(pkg);
 
-    // Framework / builder — only when the package relies on the active platform's
+    // Framework / builder - only when the package relies on the active platform's
     // framework (declares deps under that framework key, or is one of that
     // framework's own components). Otherwise the labels describe the project,
     // not the package.
@@ -1117,7 +1117,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         }
         catch (const nlohmann::json::exception&)
         {
-            // Malformed package.json — silently skip the fallback
+            // Malformed package.json - silently skip the fallback
         }
     }
 
@@ -1429,7 +1429,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
     }
     if (!pkg)
     {
-        outMessage = "Package '" + id + "' not found in the registry — call refresh first";
+        outMessage = "Package '" + id + "' not found in the registry - call refresh first";
         return false;
     }
 
@@ -1466,7 +1466,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
         return false;
     }
 
-    // Install() does not flip isInstalled on the entry itself — the panel picks
+    // Install() does not flip isInstalled on the entry itself - the panel picks
     // that up on its next refresh. Automation saves immediately, so re-scan
     // first or the package just installed is written out as "not wanted".
     m_PackageManager->RefreshInstalledStatus(projectPath);

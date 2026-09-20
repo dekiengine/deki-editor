@@ -2,8 +2,8 @@
 
 // deki-packages.json: the project's declared packages (user intent only).
 //
-// Two writers need it — the Package Manager when it saves, and the project
-// scaffold when it creates a project — so the JSON shape lives here once.
+// Two writers need it - the Package Manager when it saves, and the project
+// scaffold when it creates a project - so the JSON shape lives here once.
 
 #include <map>
 #include <string>

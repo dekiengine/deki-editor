@@ -110,7 +110,7 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip,
 
     // A cell whose verb removes something says so before it is pressed: red at
     // rest, full red and a red fill under the cursor. Same shape as its
-    // neighbours — the color is the whole warning.
+    // neighbours - the color is the whole warning.
     const ImU32 colRed = ImGui::ColorConvertFloat4ToU32(Palette::Red);
     const ImU32 colRedDim = ImGui::ColorConvertFloat4ToU32(
         ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.75f));
@@ -320,8 +320,8 @@ static void InstallEditorUIBackend()
         //
         // The cursor lands one pixel BELOW that hairline, not on it. Everything
         // in the window is one draw list, so whatever is submitted next paints
-        // over the strip's edge — a log row's background, a hovered row's fill
-        // — and the boundary silently disappears exactly when the panel has
+        // over the strip's edge - a log row's background, a hovered row's fill
+        // - and the boundary silently disappears exactly when the panel has
         // content near the top. A pixel of reserved space costs nothing and
         // keeps the strip bounded whatever follows it.
         ImDrawList* dl = ImGui::GetWindowDrawList();

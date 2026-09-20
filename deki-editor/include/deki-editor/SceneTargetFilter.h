@@ -5,8 +5,8 @@
 // Which objects of a scene exist on a given target.
 //
 // One project serves several targets, and a scene is shared by all of them. An
-// object that only makes sense on one — a WiFi setup, a desktop-only debug
-// overlay — says what it needs from the platform in the same vocabulary a
+// object that only makes sense on one - a WiFi setup, a desktop-only debug
+// overlay - says what it needs from the platform in the same vocabulary a
 // package uses:
 //
 //     { "name": "WiFi", "requires": ["wifi"], "components": [ ... ] }
@@ -50,8 +50,8 @@ DEKI_EDITOR_API bool SceneHasTargetRequirements(const nlohmann::json& scene);
 // Carry every object's "requires" from the file as it was into the file as the
 // editor has just rewritten it, matching objects by id.
 //
-// The engine's Object does not model "requires" — it is a build-time key and
-// deliberately invisible to the runtime — so saving a scene rebuilds the JSON
+// The engine's Object does not model "requires" - it is a build-time key and
+// deliberately invisible to the runtime - so saving a scene rebuilds the JSON
 // from objects that never knew about it and the authoring is lost. Silently,
 // which is the worst way to lose it. Re-applying afterwards keeps one file and
 // costs no engine ABI. An object deleted meanwhile is simply not found, so its

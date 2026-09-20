@@ -15,7 +15,7 @@ enum class MCUFamily;
 class EditorApp;
 
 // ============================================================================
-// Platform Editor UI — builders create custom editor UIs via this interface
+// Platform Editor UI - builders create custom editor UIs via this interface
 // ============================================================================
 
 /**
@@ -111,11 +111,11 @@ struct DeployTarget
 using BuildOutputCallback = std::function<void(const std::string& line, bool isError)>;
 using BuildProgressCallback = std::function<void(const BuildProgress&)>;
 
-// MCUFamily is defined in PlatformConfig.h — forward-declare the enum
+// MCUFamily is defined in PlatformConfig.h - forward-declare the enum
 // We include PlatformConfig.h in the .cpp files that need it
 
 // ============================================================================
-// ITargetBuilder — Abstract interface for platform-specific builders
+// ITargetBuilder - Abstract interface for platform-specific builders
 // ============================================================================
 
 /**

@@ -76,7 +76,7 @@ public:
     }
 
 private:
-    // Update without touching m_BitLen — used by the padding step, whose bytes
+    // Update without touching m_BitLen - used by the padding step, whose bytes
     // must not count toward the message length.
     void Update2(const uint8_t* data, size_t len)
     {
@@ -581,7 +581,7 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
 
     // Treat a non-2xx as failure rather than returning the error body. Callers
     // test the result for emptiness to decide whether to fall back to a mirror,
-    // and a 404's HTML page is not empty — so without this check a dead endpoint
+    // and a 404's HTML page is not empty - so without this check a dead endpoint
     // silently wins over a working fallback and parses to nothing.
     {
         DWORD statusCode = 0;
@@ -620,12 +620,12 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     // above: callers see "" and can fall back to a mirror, rather than handing an
     // error page to a JSON parser.
     //
-    // -L because the registry's addresses redirect between each other — while a
+    // -L because the registry's addresses redirect between each other - while a
     // Pages custom domain is configured, the github.io URL 301s to it.
     //
     // Bounded, because "unreachable" does not always mean "refused". When a host
-    // is null-routed rather than rejecting — as happens to Cloudflare IP ranges
-    // during the ISP-level blocks used against football piracy — the connect
+    // is null-routed rather than rejecting - as happens to Cloudflare IP ranges
+    // during the ISP-level blocks used against football piracy - the connect
     // simply hangs. Without a cap the caller waits out curl's ~2 minute default,
     // which is long enough that a registry fallback times out before it is ever
     // tried, and long enough to look like the editor has frozen.
@@ -687,7 +687,7 @@ bool EditorHttpUtils::DownloadFileVerified(const std::string& url,
     if (expectedSha256.empty())
     {
         if (status)
-            status("WARNING: no SHA-256 pinned for " + url + " — contents not verified");
+            status("WARNING: no SHA-256 pinned for " + url + " - contents not verified");
         return true;
     }
 
@@ -830,7 +830,7 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
 
     // Redirects are followed with a loop and a hop budget. The previous version
     // recursed into DownloadFile for every hop with no cap, so a server pointing
-    // Location: at itself walked the stack until the process died — each frame
+    // Location: at itself walked the stack until the process died - each frame
     // carries an 8 KB read buffer plus two 4 KB wide-char arrays, so roughly
     // sixty hops was enough.
     std::string currentUrl = url;

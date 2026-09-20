@@ -53,7 +53,7 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
 {
     if (!fs::exists(fs::path(projectPath) / "deki.json"))
     {
-        err = "No deki.json found in " + projectPath + " — not a Deki project.";
+        err = "No deki.json found in " + projectPath + " - not a Deki project.";
         return false;
     }
 
@@ -380,7 +380,7 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // build won. Two boards in one project overwrote each other's assets.
     builder.SetPlatformConfig(platform);
 
-    // Boot payload — dproject.bin plus the platform's boot scene — written
+    // Boot payload - dproject.bin plus the platform's boot scene - written
     // where the backend asks for it, before it assembles anything. Without it
     // a device comes up with no assets at all, which is exactly what every
     // CLI build produced while this step lived only in BuildPanel::StartBuild.

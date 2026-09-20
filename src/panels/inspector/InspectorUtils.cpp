@@ -134,7 +134,7 @@ nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInf
     return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
 }
 
-// The component's position among its object's components — the half of the key
+// The component's position among its object's components - the half of the key
 // that a pointer would otherwise have to provide.
 bool FindComponentIndex(const Deki::Component* comp, uint32_t* outObjectId, uint32_t* outIndex)
 {

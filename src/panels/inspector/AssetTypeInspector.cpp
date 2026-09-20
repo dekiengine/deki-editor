@@ -57,7 +57,7 @@ void AssetTypeInspector::Draw()
     std::string selectedGuid = m_App->GetSelectedAssetGuid();
     std::string assetGuid = pipelineGuid.empty() ? selectedGuid : pipelineGuid;
 
-    // Sub-asset with preview (e.g., font atlas) — skip editable properties
+    // Sub-asset with preview (e.g., font atlas) - skip editable properties
     bool isSubAssetWithPreview = false;
     if (pipeline && !selectedGuid.empty() && m_App->GetSelectedAssetHasCached())
     {
@@ -66,10 +66,10 @@ void AssetTypeInspector::Draw()
             isSubAssetWithPreview = true;
     }
 
-    // Baked cache-only asset (e.g., font atlas from deploy analysis) — no source path
+    // Baked cache-only asset (e.g., font atlas from deploy analysis) - no source path
     bool isBakedCacheAsset = assetPath.empty() && m_App->GetSelectedAssetHasCached();
 
-    // Typed JSON asset whose handler compiles to a texture (e.g. ProceduralSprite) —
+    // Typed JSON asset whose handler compiles to a texture (e.g. ProceduralSprite) -
     // gets the anchored preview of its baked DTEX cache like a raster image
     bool isCompiledTextureAsset = (ext == ".asset" || ext == ".dpack") && CompilesToTexture(assetPath);
 
@@ -246,7 +246,7 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
                 if (m_App->GetSceneViewPanel())
                     m_App->GetSceneViewPanel()->InvalidateTexture(assetGuid);
 
-                // Refresh the anchored inspector preview — the cache path is
+                // Refresh the anchored inspector preview - the cache path is
                 // unchanged, so it would otherwise keep the stale GL texture
                 m_TextureInspector->InvalidatePreview();
             });
@@ -285,7 +285,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
         }
     }
 
-    // Scenes are always deployed — treat them as always included
+    // Scenes are always deployed - treat them as always included
     const std::string& assetPath = m_App->GetSelectedAssetPath();
     bool isScene = assetPath.size() >= 7 &&
                    assetPath.compare(assetPath.size() - 7, 7, ".scene") == 0;
@@ -305,7 +305,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
     else
         ImGui::TextColored(Palette::Dim, "No");
 
-    // Force Include (not needed for scenes — they're always included). A row
+    // Force Include (not needed for scenes - they're always included). A row
     // with its label in the left column and the box in the value column, like
     // every other boolean in the inspector, instead of a labeled checkbox that
     // starts wherever its text happens to end.

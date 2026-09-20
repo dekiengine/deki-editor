@@ -460,7 +460,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     }
     // Auto-flatten: if extractedName is empty and destDir contains exactly one subfolder
     // (common with zips that have a root folder), move its contents up.
-    // Skip if detection uses a wildcard — that means it expects the nested structure.
+    // Skip if detection uses a wildcard - that means it expects the nested structure.
     else if (extracted && comp.extractedName.empty())
     {
         bool detectionUsesGlob = false;

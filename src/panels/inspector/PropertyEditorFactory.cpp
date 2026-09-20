@@ -93,7 +93,7 @@ EditorUI::VecCallbacks NotifyVec(Deki::Component* comp, const char* name)
 // not free of risk: a game component's constructor and destructor are arbitrary
 // project code, and running them on an instance that belongs to no object can
 // fault. So it happens ONCE per type, inside the editor's exception barrier,
-// and what survives is the captured VALUES, not the instance — nothing of the
+// and what survives is the captured VALUES, not the instance - nothing of the
 // throwaway component outlives the snapshot, and a type whose construction
 // faults is simply recorded as having no defaults instead of taking the panel
 // down with it every frame.
@@ -110,7 +110,7 @@ struct DefaultsSnapshot
 };
 DefaultsSnapshot g_Defaults;
 
-// Current value of one property, as the undo system already captures it — so
+// Current value of one property, as the undo system already captures it - so
 // "differs from default" means exactly what "this edit changed something"
 // means, for every type including arrays and sized enums.
 nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
@@ -501,7 +501,7 @@ void PropertyEditorFactory::DrawFloatProperty(Deki::Component* comp, const Deki:
     else if (prop.hasRange && prop.useSlider)
     {
         // DEKI_SLIDER asked for a slider. DEKI_RANGE sets the same min/max but
-        // leaves useSlider false, so the two macros have to be told apart here —
+        // leaves useSlider false, so the two macros have to be told apart here -
         // checking hasRange alone made DEKI_SLIDER a no-op that rendered an
         // ordinary drag field.
         EditorUI::Get().SliderField(displayName, &value,

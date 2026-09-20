@@ -18,7 +18,7 @@ namespace DekiEditor
  * has one place to look rather than four.
  *
  * Call sites must not join these paths by hand. They did before, in 26 places,
- * and the copies disagreed — an uninstall routine cleaned a `bin/_hotreload_active`
+ * and the copies disagreed - an uninstall routine cleaned a `bin/_hotreload_active`
  * that had never existed at that path, so stale package copies survived and were
  * loaded again on the next launch.
  *
@@ -29,15 +29,15 @@ namespace DekiEditor
 namespace ProjectPaths
 {
 
-// Generated — all of this is disposable and gitignored as one folder.
+// Generated - all of this is disposable and gitignored as one folder.
 DEKI_EDITOR_API std::filesystem::path Generated(const std::string& projectRoot);  // generated/
-DEKI_EDITOR_API std::filesystem::path Runtime(const std::string& projectRoot);    // generated/runtime/ — loadable DLLs
-DEKI_EDITOR_API std::filesystem::path Build(const std::string& projectRoot);      // generated/build/   — CMake tree
-DEKI_EDITOR_API std::filesystem::path Cache(const std::string& projectRoot);      // generated/cache/   — asset cache
-DEKI_EDITOR_API std::filesystem::path Shadow(const std::string& projectRoot);     // generated/shadow/  — hot-reload copies
+DEKI_EDITOR_API std::filesystem::path Runtime(const std::string& projectRoot);    // generated/runtime/ - loadable DLLs
+DEKI_EDITOR_API std::filesystem::path Build(const std::string& projectRoot);      // generated/build/   - CMake tree
+DEKI_EDITOR_API std::filesystem::path Cache(const std::string& projectRoot);      // generated/cache/   - asset cache
+DEKI_EDITOR_API std::filesystem::path Shadow(const std::string& projectRoot);     // generated/shadow/  - hot-reload copies
 DEKI_EDITOR_API std::filesystem::path CMakeListsFile(const std::string& projectRoot);
 
-// Authored — tracked, the user's.
+// Authored - tracked, the user's.
 DEKI_EDITOR_API std::filesystem::path Settings(const std::string& projectRoot);  // settings/
 
 /** Directories a project must have; created on new projects and repaired on open. */
@@ -64,7 +64,7 @@ DEKI_EDITOR_API bool MigrateFlattenProjectFolder(const std::string& projectRoot,
 /**
  * @brief Rename a project's "modules" to "packages" (the pre-0.9 layout; "modules" is the legacy name).
  *
- * They were always packages — versioned, published, resolved from a registry and
+ * They were always packages - versioned, published, resolved from a registry and
  * pinned by a lockfile. Calling them packages collided with the C++ and CMake
  * senses of the word in the same codebase.
  *

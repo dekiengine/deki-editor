@@ -50,7 +50,7 @@ std::string ResolveTool(const std::string& name)
 
 std::string ProjectCxxCompiler()
 {
-    // Bundled first — the whole point is not needing a system compiler.
+    // Bundled first - the whole point is not needing a system compiler.
     for (const char* name : { "g++", "g++-16" })
     {
         const std::string bundled = BundledPath(name);

@@ -189,7 +189,7 @@ const PluginToolchainInfo& PluginToolchain::Get()
 {
     static const PluginToolchainInfo cached = []()
     {
-        // An explicit override still has to satisfy the host ABI — it selects
+        // An explicit override still has to satisfy the host ABI - it selects
         // *which* matching compiler to use, not whether to match.
         PluginToolchainInfo info = (HostAbi() == PluginAbi::Msvc) ? ResolveMsvc() : ResolveGnu();
 

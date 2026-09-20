@@ -10,7 +10,7 @@
  * for its toggle, and on `html:not(.light-mode)` inside a
  * `prefers-color-scheme: dark` media query. Doxygen does not put a class on
  * <html> at all here, so a bare `html { --x: y }` (0,0,1) LOST to that
- * media-query rule (0,1,1) on any machine set to dark — the pages rendered in
+ * media-query rule (0,1,1) on any machine set to dark - the pages rendered in
  * doxygen-awesome's #1C1D1F rather than the site's #0a0b0d, and would have
  * differed from one visitor to the next depending on an OS setting. Matching
  * all three selectors is what makes these values win everywhere. The site has
@@ -65,8 +65,8 @@ html:not(.light-mode) {
 
     /* The site sets everything in JetBrains Mono, which suits pages that are
      * a screen long. Reference pages are not: they are read in paragraphs, and
-     * mono is tiring at that length. Prose here takes Space Grotesk — the
-     * site's other face, so this adds no third typeface — and everything that
+     * mono is tiring at that length. Prose here takes Space Grotesk - the
+     * site's other face, so this adds no third typeface - and everything that
      * is code stays mono: signatures, fragments, inline code, the type names
      * in the tree, and the bar, which mirrors the site's own mono nav. */
     --font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

@@ -81,7 +81,7 @@ private:
     Deki::Object* m_LinkTargetObject = nullptr;  // Object being linked to a scene
     bool m_OpenLinkPicker = false;             // Deferred open (can't open modal from context menu)
 
-    // Deferred navigation (can't navigate during draw loop — destroys scene mid-iteration)
+    // Deferred navigation (can't navigate during draw loop - destroys scene mid-iteration)
     std::string m_PendingNavigatePath;
 
     // Tree search filter text (entered in the search bar under the breadcrumb).

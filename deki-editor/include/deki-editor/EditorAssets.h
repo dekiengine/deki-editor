@@ -51,7 +51,7 @@ public:
     static ImageLoaderFn GetImageLoader();
 
     /// Null all package-injected function pointers. Must be called before a package
-    /// DLL is unloaded — otherwise any subsequent LoadTexture/LoadFontAtlas would
+    /// DLL is unloaded - otherwise any subsequent LoadTexture/LoadFontAtlas would
     /// invoke code that no longer exists, crashing the editor.
     static void ClearPackageInjectedCallbacks();
 

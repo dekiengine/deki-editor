@@ -40,7 +40,7 @@ public:
     // repository references. Returns false and fills `reason` on rejection.
     //
     // Public because these decide whether registry-supplied content is allowed
-    // to reach a process spawn — that rule belongs in one place, is worth
+    // to reach a process spawn - that rule belongs in one place, is worth
     // testing directly, and other install paths should be able to reuse it.
     static bool IsSafeGitRef(const std::string& ref, std::string& reason);
     static bool IsSafeGitUrl(const std::string& url, std::string& reason);
@@ -65,7 +65,7 @@ public:
 
     // Extract repo name from package info (e.g., "owner/repo" -> "repo").
     // This IS the directory name under packages/, so anything that needs to
-    // locate a package on disk needs it — public and static so the integrity
+    // locate a package on disk needs it - public and static so the integrity
     // check does not carry a second copy of the rule.
     static std::string GetRepoName(const PackageEntry& pkg);
 

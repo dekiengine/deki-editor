@@ -20,7 +20,7 @@ namespace
 #ifdef _WIN32
 /// Encode one argument the way CommandLineToArgvW parses it, so the child
 /// receives exactly the string we intended. This is argument encoding for a
-/// single process — no shell is involved, so there is nothing else to escape.
+/// single process - no shell is involved, so there is nothing else to escape.
 std::string QuoteWindowsArg(const std::string& arg)
 {
     if (!arg.empty() && arg.find_first_of(" \t\n\v\"") == std::string::npos)

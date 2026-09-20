@@ -11,7 +11,7 @@ namespace DekiEditor
 //
 // Distinct from FrameCaptureService, which captures the *game* render buffer in
 // play mode. This one reads the editor's OpenGL backbuffer, so it sees the real
-// ImGui chrome — panels, tabs, gizmos — exactly as a user sees them.
+// ImGui chrome - panels, tabs, gizmos - exactly as a user sees them.
 //
 // Requests are queued (usually from the MCP tool thread's main-thread pump,
 // which runs mid-frame) and serviced by ProcessEndOfFrame(), called after
@@ -90,7 +90,7 @@ private:
         int stride = 1;
         int strideCounter = 0;
         int frameIndex = 0;
-        // Consecutive frames where the target rect could not be resolved —
+        // Consecutive frames where the target rect could not be resolved -
         // usually a docked panel whose tab is not currently selected. Transient,
         // so wait it out rather than abandoning the request.
         int misses = 0;

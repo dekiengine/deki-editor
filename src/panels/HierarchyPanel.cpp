@@ -66,7 +66,7 @@ void HierarchyPanel::Draw()
 
     // Header band: the breadcrumb text is vertically centered between the
     // panel's top edge (the tab bar separator above) and the 1px divider
-    // below. Equal padding top and bottom — explicit cursor positioning is
+    // below. Equal padding top and bottom - explicit cursor positioning is
     // used instead of stacked Dummy() items so ImGui's per-item ItemSpacing
     // can't make the two gaps uneven.
     const float headerPadY = m_App->Dpi(8.0f);
@@ -115,7 +115,7 @@ void HierarchyPanel::Draw()
     {
         // Just the scene name in foreground (dirty asterisk if unsaved).
         // The earlier "scene /" prefix and right-aligned "live" indicator
-        // were dropped at the user's request — only the name is shown now.
+        // were dropped at the user's request - only the name is shown now.
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Fg);
         std::string displayName = sceneName + (isDirty ? " *" : "");
         ImGui::TextUnformatted(displayName.c_str());
@@ -135,11 +135,11 @@ void HierarchyPanel::Draw()
                           ImGui::GetColorU32(ImGuiCol_Border));
     }
 
-    // Position the layout cursor just below the breadcrumb divider — this is
+    // Position the layout cursor just below the breadcrumb divider - this is
     // the top of the search band.
     ImGui::SetCursorScreenPos(ImVec2(headerStart.x, ImFloor(headerEndY) + 1.0f));
 
-    // Search band — the search row is vertically centered between the
+    // Search band - the search row is vertically centered between the
     // breadcrumb divider above and the tree separator below. Equal padding
     // top and bottom, positioned explicitly (same approach as the header
     // band) so ItemSpacing can't skew the two gaps. The magnifier icon is
@@ -161,7 +161,7 @@ void HierarchyPanel::Draw()
 
         // Measure the *rendered* (DPI-scaled) sizes with each font pushed.
         // Cursor coords are physical pixels, so the vertical math must use the
-        // scaled line/frame heights — using the base CssPx sizes here is what
+        // scaled line/frame heights - using the base CssPx sizes here is what
         // previously threw the centering off (they're ~half the rendered size
         // at 200% DPI).
         ImGui::PushFont(g_FontUI, inputSize);
@@ -348,7 +348,7 @@ void HierarchyPanel::Draw()
     }
 
     // Up/Down arrow keys to navigate objects (macOS-style)
-    // Uses m_FlattenedObjects built during DrawObjectNode() — only includes visible (not collapsed) items
+    // Uses m_FlattenedObjects built during DrawObjectNode() - only includes visible (not collapsed) items
     if (ImGui::IsWindowFocused() && !m_RenamingObject &&
         (ImGui::IsKeyPressed(ImGuiKey_UpArrow) || ImGui::IsKeyPressed(ImGuiKey_DownArrow)))
     {
@@ -369,7 +369,7 @@ void HierarchyPanel::Draw()
     }
 
     // Delete key. EditorApp::DeleteObject applies the protection rules
-    // (root, boot Setup, instance children) — the same ones the Scene View uses.
+    // (root, boot Setup, instance children) - the same ones the Scene View uses.
     if (keysActive && selected && ImGui::IsKeyPressed(ImGuiKey_Delete))
         m_App->DeleteObject(selected);
 
@@ -631,7 +631,7 @@ static bool SubtreeMatchesSearch(Deki::Object* obj, const std::string& needle)
 
 bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
 {
-    // Search filter — collapse this subtree if neither it nor any descendant matches.
+    // Search filter - collapse this subtree if neither it nor any descendant matches.
     if (m_SearchBuf[0])
     {
         // Lower-cased once per change of the search text, not once per node.
@@ -740,7 +740,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // than recolored, so a scene instance stays blue and an instance child
     // stays gray while both still say "inactive". IsActiveInHierarchy, not
     // IsActive, because a live object under a disabled parent is just as
-    // switched off — and looking active while its parent is not is exactly the
+    // switched off - and looking active while its parent is not is exactly the
     // thing that sends you hunting for why nothing happens.
     if (!obj->IsActiveInHierarchy())
     {
@@ -805,8 +805,8 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // Enter/F2 to rename selected object (not for read-only or protected
     // objects). Only when this panel actually has focus and nothing anywhere is
     // taking typed input: the shortcut used to fire on any Enter, so committing
-    // a rename in the Inspector — or in any other text field, with the object
-    // still selected — immediately opened a second rename here.
+    // a rename in the Inspector - or in any other text field, with the object
+    // still selected - immediately opened a second rename here.
     if (!readOnly && !IsProtectedObject(obj) && m_App->GetSelectedObject() == obj &&
         ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
         !ImGui::GetIO().WantTextInput &&
@@ -827,7 +827,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                 ImGuiID nodeId = ImGui::GetCurrentWindow()->GetID((void*)obj);
                 ImGui::GetStateStorage()->SetInt(nodeId, 1);
             }
-            // Selection stays on current node — use Down arrow to enter children
+            // Selection stays on current node - use Down arrow to enter children
             ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
             m_ArrowKeyHandled = true;
             ImGui::NavMoveRequestCancel();
@@ -1049,7 +1049,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // Drag source - start dragging this object (not for read-only, Persistent, or instance children)
     if (!instanceReadOnly && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        m_PendingClickObject = nullptr;  // Cancel deferred click — drag started
+        m_PendingClickObject = nullptr;  // Cancel deferred click - drag started
         // Snapshot dragged objects: all selected if this obj is in selection, otherwise just this obj
         if (m_App->IsSelected(obj) && m_App->GetSelectionCount() > 1)
         {
@@ -1249,7 +1249,7 @@ void HierarchyPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
             m_DraggedObjects.end());
     }
 
-    // m_FlattenedObjects is rebuilt every Draw — no action needed here.
+    // m_FlattenedObjects is rebuilt every Draw - no action needed here.
 }
 
 void HierarchyPanel::RebuildFlattenedList()

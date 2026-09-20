@@ -3,7 +3,7 @@
 // Extracted from HotReloadService, which was 2446 lines covering watching,
 // detection, hashing, process spawning, DLL swapping and its own ImGui modal.
 // These functions decide when the editor rebuilds, and getting them wrong shows
-// up as either "my change did nothing" or a rebuild loop that never settles —
+// up as either "my change did nothing" or a rebuild loop that never settles -
 // both previously untestable.
 
 #include <gtest/gtest.h>
@@ -182,7 +182,7 @@ TEST_F(ConfigureHashTest, ChangesWhenAHeaderChanges)
 // The packages watcher is rooted at <project>/packages but reports paths
 // relative to <project>, so every event begins with the literal "packages".
 // Getting this wrong makes the focus-gain integrity check silently match no
-// package at all — which is exactly what happened before this was extracted.
+// package at all - which is exactly what happened before this was extracted.
 TEST(PackageNameFromEventPath, NamesThePackageDirectory)
 {
     using DekiEditor::SourceChangeDetector::PackageNameFromEventPath;

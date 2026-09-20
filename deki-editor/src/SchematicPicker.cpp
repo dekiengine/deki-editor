@@ -1,7 +1,7 @@
 // The editor's search-first picker, shared by everything that adds a thing from
 // a list: Add Component in the Inspector, Add Action in the node graph's stacks.
 //
-// It browses in TWO levels — categories, then what is inside one — because
+// It browses in TWO levels - categories, then what is inside one - because
 // browsing beats one long list for the thing you cannot name yet ("it was
 // something under Animation"), and searching beats browsing for the thing you
 // can. So typing cuts across every level at once, results grouped under their
@@ -439,7 +439,7 @@ int SchematicPicker(const char* id, const char* title,
     // whatever it is showing: eight components, two, or none while a query
     // matches nothing. A picker that resizes as you type moves the very rows
     // you are aiming at, and stepping into a small category made the whole
-    // window jump — the same reason a menu does not shrink around its items.
+    // window jump - the same reason a menu does not shrink around its items.
     ImGui::BeginChild("##picker_list", ImVec2(listW, listHeight), ImGuiChildFlags_None);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                         ImVec2(ImGui::GetStyle().ItemSpacing.x, 4.0f * dpi));

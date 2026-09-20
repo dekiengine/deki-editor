@@ -52,7 +52,7 @@ void PlayViewPanel::Draw()
 
     // Forward keyboard state to the game while playing and the play view is
     // focused (InputKeys.h codes, same as the desktop simulator's keyboard).
-    // Runs on every draw — including stopped/unfocused — so releases always
+    // Runs on every draw - including stopped/unfocused - so releases always
     // flow and no key sticks pressed inside the game's injected keyboard.
     {
         const bool acceptKeys = m_App->IsPlaying() && ImGui::IsWindowFocused();
@@ -106,7 +106,7 @@ void PlayViewPanel::Draw()
         // Leading divider at strip start.
         drawDivider(cursorX);
 
-        // Simulate-touch cell — hand-finger, accent while enabled, dim when off.
+        // Simulate-touch cell - hand-finger, accent while enabled, dim when off.
         {
             const bool on = m_TouchInputMode;
             const char* icon = ICON_TI_HAND_FINGER;

@@ -76,7 +76,7 @@ public:
     /** @brief Rotation in radians (engine convention). */
     float GetRotation() const { return m_Rotation; }
 
-    /** @brief View zoom level (editor wheel zoom * dpi only — no PPM) */
+    /** @brief View zoom level (editor wheel zoom * dpi only - no PPM) */
     float GetZoom() const { return m_Zoom; }
 
     /** @brief Pixels per meter for the active project camera (world scale) */

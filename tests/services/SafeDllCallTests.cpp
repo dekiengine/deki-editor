@@ -6,7 +6,7 @@
 using namespace DekiEditor;
 
 // ============================================================================
-// Valid function calls — should succeed normally
+// Valid function calls - should succeed normally
 // ============================================================================
 
 static bool g_WasCalled = false;
@@ -85,7 +85,7 @@ TEST(SafeDllCall, ValidInitReturnsZero)
 }
 
 // ============================================================================
-// Crashing function calls — SEH should catch and return failure
+// Crashing function calls - SEH should catch and return failure
 // ============================================================================
 
 // These functions deliberately trigger access violations.

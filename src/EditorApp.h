@@ -69,7 +69,7 @@ public:
     /// Asset-cache epoch. Bump when a change makes previously imported assets
     /// stale, to force a reimport on next open; leave alone otherwise.
     ///
-    /// This is NOT the editor's release version — that lives in
+    /// This is NOT the editor's release version - that lives in
     /// `project(DekiEditor VERSION ...)` in CMakeLists.txt, and the two are
     /// free to differ. It was named EDITOR_VERSION and stored in
     /// settings/editor_version.txt, which made it look like the release
@@ -84,7 +84,7 @@ public:
     void SaveLayout();
 
     /// Open a project. Returns false (and logs why) if the .dproj could not be
-    /// loaded — it used to return void and bail silently, so pointing the editor
+    /// loaded - it used to return void and bail silently, so pointing the editor
     /// at a corrupt deki.json did visibly nothing at all.
     bool OpenProject(const std::string& path);
     void CloseProject();
@@ -112,7 +112,7 @@ public:
     /// Delete `obj` through the command system, with selection follow-up.
     /// Refuses protected objects (scene root, boot-scene Setup, instance
     /// children). This is the one rule; the Hierarchy and Scene View delete
-    /// keys both call it — they used to implement it separately and the Scene
+    /// keys both call it - they used to implement it separately and the Scene
     /// View's copy applied no protection at all.
     bool DeleteObject(Deki::Object* obj);
     bool IsProtectedObject(Deki::Object* obj);
@@ -122,7 +122,7 @@ public:
     void NavigateBackTo(size_t stackIndex);
 
     // Scene file operations. These report whether the file was actually read
-    // or written — callers used to have no way to tell a successful save from a
+    // or written - callers used to have no way to tell a successful save from a
     // path that went nowhere, which is how a scripted save could report success
     // while writing nothing.
     //
@@ -130,7 +130,7 @@ public:
     // ResolveProjectPath), not the process working directory.
     //
     // OpenScene returns false when the load failed AND when the open was
-    // deferred behind the unsaved-changes dialog — in both cases the requested
+    // deferred behind the unsaved-changes dialog - in both cases the requested
     // scene is not what is open when it returns.
     bool OpenScene(const std::string& path);
     bool SaveScene();
@@ -156,7 +156,7 @@ public:
     SDL_Window* GetWindow() const { return m_Window; }
 
     // Headless: started from the CLI, with no window, no GL context and no
-    // ImGui context. The project still opens in full — this flag guards only
+    // ImGui context. The project still opens in full - this flag guards only
     // the few steps that exist for a UI that is not there. Every such site is
     // an explicit, commented decision; anything not marked runs identically in
     // both modes, which is what makes a CLI run and a GUI run comparable.
@@ -277,7 +277,7 @@ public:
 
     // No project open means the project manager screen is up instead of the
     // editor. main.cpp asks before it builds the toolbar, dockspace and status
-    // bar — none of which that screen wants behind it.
+    // bar - none of which that screen wants behind it.
     bool IsProjectManagerMode() const { return m_Project == nullptr; }
 
     // Opens the new-project wizard. Reachable from File > New Project and from
@@ -310,8 +310,8 @@ private:
     // registering its callbacks are three steps that must happen together. They
     // were open-coded at six sites and two of them skipped a step: the
     // hot-reload path reset the scene without clearing the facade and rebuilt it
-    // without re-publishing, so EditorApplication::GetActiveScene() — public API
-    // for package DLLs — held a freed pointer from the first reload onward.
+    // without re-publishing, so EditorApplication::GetActiveScene() - public API
+    // for package DLLs - held a freed pointer from the first reload onward.
     void SetCurrentScene(std::unique_ptr<::Deki::Scene> scene);
 
     // Check if editor version changed and return true if reimport is needed
@@ -368,7 +368,7 @@ private:
     void DrawAboutWindow();
 
 #ifndef NDEBUG
-    // ImGui debug windows — debug builds only (see EditorMenuBar's View menu).
+    // ImGui debug windows - debug builds only (see EditorMenuBar's View menu).
     bool m_ShowDemoWindow = false;
     bool m_ShowMetricsWindow = false;
 #endif
@@ -391,7 +391,7 @@ public:
 
 private:
     // Play/pause/stop. Stays here rather than in PlayModeRuntime because six
-    // sites outside PlayMode.cpp read it — including GetCurrentScene(), which
+    // sites outside PlayMode.cpp read it - including GetCurrentScene(), which
     // returns the engine root scene while not Stopped.
     PlayModeState m_PlayModeState = PlayModeState::Stopped;
 
@@ -463,7 +463,7 @@ private:
     void DrawRecoveryDiscardConfirm();
     void DrawRecoveryPreview();
     /// Load the selected recovery, rebind it to its original path, and consume
-    /// only that entry — the others stay on disk and are offered again.
+    /// only that entry - the others stay on disk and are offered again.
     void RestoreSelectedRecovery();
     /// Write the current scene to the recovery directory. Used by the crash
     /// handler and the autosave timer alike, so a hard kill (which never reaches
@@ -487,15 +487,15 @@ private:
     const std::vector<std::string>& SceneGuidsIn(const std::string& absPath);
 
 public:
-    // Default 3000. Overridable so a second editor — or one
-    // launched while a dead instance still holds the socket — can still be
+    // Default 3000. Overridable so a second editor - or one
+    // launched while a dead instance still holds the socket - can still be
     // driven; the listen socket uses SO_REUSEADDR, so a colliding bind succeeds
     // and then silently refuses every connection.
     void StartMcpServer(int port = 3000);
     void StopMcpServer();
     bool IsMcpServerRunning() const;
     // Loopback SSE endpoint including the session token, or "" when not running.
-    // This is what an MCP client must be pointed at — the token changes on every
+    // This is what an MCP client must be pointed at - the token changes on every
     // Start(), so it cannot be baked into a config file.
     std::string GetMcpSseUrl() const;
 };

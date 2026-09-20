@@ -1,13 +1,13 @@
 #pragma once
 
-// SafeDllCall — hardware-fault protection for DLL function calls
+// SafeDllCall - hardware-fault protection for DLL function calls
 //
 // Wraps calls to GetProcAddress-resolved function pointers so that a crashing
 // DLL function (bad vtable, null deref, corrupted state) is contained and
 // logged rather than terminating the editor. Packages are loaded into this
 // process, so without this one bad DekiPlugin_* entry point kills everything.
 //
-// Every platform is covered, by different mechanisms — see SafeDllCall.cpp and
+// Every platform is covered, by different mechanisms - see SafeDllCall.cpp and
 // FaultGuard.h. On MSVC that needs /EHa, set for that file in CMakeLists.txt.
 
 #include <cstdint>

@@ -229,7 +229,7 @@ inline bool WriteStringToFile(const std::string& path, const std::string& conten
 
 // Collect all DekiObjects in the scene (roots + descendants) whose
 // SourceSceneGuid matches `guid`, excluding `exclude`. Caller gets raw
-// pointers — safe for the duration of a single command invocation.
+// pointers - safe for the duration of a single command invocation.
 inline void CollectInstancesByGuid(Deki::Scene* scene, const std::string& guid,
                                    Deki::Object* exclude,
                                    std::vector<Deki::Object*>& out)
@@ -335,7 +335,7 @@ private:
 };
 
 /**
- * Command for reverting a scene instance back to its source — drops all
+ * Command for reverting a scene instance back to its source - drops all
  * local overrides and re-expands from the source file on disk. Undo
  * restores the previously stored override JSON and re-expands.
  */

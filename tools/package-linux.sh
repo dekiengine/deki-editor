@@ -2,8 +2,8 @@
 #
 # Assemble a self-contained Deki Editor distribution for Linux.
 #
-# Deki compiles C++ to open a project — packages and the game plugin are native
-# code — so it cannot ship as a single binary the way an engine with an
+# Deki compiles C++ to open a project - packages and the game plugin are native
+# code - so it cannot ship as a single binary the way an engine with an
 # interpreted scripting language can. What it can do is carry the toolchain, so
 # a user downloads one archive and never installs a compiler.
 #
@@ -30,7 +30,7 @@ BUILD_DIR="${1:-$REPO_ROOT/build}"
 DIST="$REPO_ROOT/dist/DekiEditor-linux-x86_64"
 
 if [[ ! -x "$BUILD_DIR/bin/DekiEditor" ]]; then
-    echo "error: $BUILD_DIR/bin/DekiEditor not found — build first:" >&2
+    echo "error: $BUILD_DIR/bin/DekiEditor not found - build first:" >&2
     echo "  cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build" >&2
     exit 1
 fi
@@ -49,7 +49,7 @@ cp -a "$REPO_ROOT/LICENSE" "$DIST/LICENSE"
 mkdir -p "$DIST/lib"
 cp -a "$BUILD_DIR"/lib/*.so "$DIST/lib/" 2>/dev/null || true
 patchelf --set-rpath '$ORIGIN/lib:$ORIGIN' "$DIST/DekiEditor" 2>/dev/null \
-    || echo "    (patchelf not installed — set LD_LIBRARY_PATH, or install patchelf for a relocatable rpath)"
+    || echo "    (patchelf not installed - set LD_LIBRARY_PATH, or install patchelf for a relocatable rpath)"
 
 echo "==> Staging toolchain"
 # The compiler the editor was built with, so project builds match its ABI
@@ -59,7 +59,7 @@ CXX_MAJOR="$("$CXX_PATH" -dumpversion 2>/dev/null | cut -d. -f1)"
 echo "    editor was built with: $CXX_PATH (${CXX_MAJOR:-unknown})"
 
 # The bundled compiler builds the project's packages, which are then dlopen'd
-# into this editor binary — std::string, std::vector and the ImGui context all
+# into this editor binary - std::string, std::vector and the ImGui context all
 # cross that boundary. If the editor was built by a different major GCC than the
 # one being bundled, that is two standard libraries in one process, which
 # corrupts rather than failing cleanly. Refuse to ship it.
@@ -113,8 +113,8 @@ find "$TC" -type f -executable -exec strip --strip-unneeded {} \; 2>/dev/null ||
 # Stable names for BundledToolchain::ProjectCxxCompiler / ResolveTool, as
 # wrappers rather than symlinks.
 #
-# GCC relocates its *own* internals by argv[0] — that is how it finds cc1plus in
-# libexec — but it looks up the assembler and linker under the prefix it was
+# GCC relocates its *own* internals by argv[0] - that is how it finds cc1plus in
+# libexec - but it looks up the assembler and linker under the prefix it was
 # configured with (/usr) and then PATH. Bundling binutils is therefore not
 # enough on a machine with an empty PATH:
 #

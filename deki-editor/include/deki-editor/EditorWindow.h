@@ -140,7 +140,7 @@ public:
     // Part of the cross-DLL EditorWindow ABI on purpose: package windows survive
     // reload exactly like app ones (the old app-internal IWindowSession did it
     // via dynamic_cast, which does not cross a DLL boundary reliably).
-    // These are the LAST virtuals of this class — append below them only, never
+    // These are the LAST virtuals of this class - append below them only, never
     // in the middle, or every already-built package DLL gets a shifted vtable.
     // =========================================================================
 

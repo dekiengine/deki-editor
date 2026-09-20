@@ -455,7 +455,7 @@ void ActivityPanel::DrawStatusBar()
     ImVec2 mcpSize = ImGui::CalcTextSize(mcpLabel);
     float mcpBtnWidth = mcpSize.x + 12.0f;
 
-    // Clickable area — opens the Activity panel (excludes MCP button on the right)
+    // Clickable area - opens the Activity panel (excludes MCP button on the right)
     ImGui::SetCursorScreenPos(barMin);
     if (ImGui::InvisibleButton("##StatusBarClick", ImVec2(barMax.x - barMin.x - mcpBtnWidth, barHeight)))
     {
@@ -561,7 +561,7 @@ void ActivityPanel::DrawStatusBar()
     }
     else
     {
-        // Accent square + "Ready" — schematic idle state.
+        // Accent square + "Ready" - schematic idle state.
         const float dotSize = 7.0f;
         const float lineH = ImGui::GetTextLineHeight();
         drawList->AddRectFilled(ImVec2(cursorX, textY + (lineH - dotSize) * 0.5f),
@@ -619,7 +619,7 @@ void ActivityPanel::DrawStatusBar()
 
         // Right-click copies the connection URL. The server binds loopback and
         // mints a fresh token each start, so the URL cannot be written down in
-        // advance — the user needs a way to get the current one.
+        // advance - the user needs a way to get the current one.
         if (mcpRunning && ImGui::IsItemClicked(ImGuiMouseButton_Right))
             ImGui::SetClipboardText(m_App->GetMcpSseUrl().c_str());
 

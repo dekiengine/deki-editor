@@ -358,7 +358,7 @@ TEST_F(GuidCacheTest, BidirectionalLookup_AfterModification_StillConsistent)
 }
 
 // ============================================================================
-// Save/Load version handling — a stale cache from a previous schema must be
+// Save/Load version handling - a stale cache from a previous schema must be
 // rejected so the pipeline rebuilds from .data sidecars.
 // ============================================================================
 

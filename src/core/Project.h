@@ -7,7 +7,7 @@
 
 // Settings types live in deki-engine/src/settings/. Including them here
 // means call sites that read settings fields don't have to add the per-file
-// includes — most editor code that touches settings already includes this
+// includes - most editor code that touches settings already includes this
 // header.
 #include <deki/settings/DisplayProjectSettings.h>
 #include <deki/settings/UnitProjectSettings.h>
@@ -50,13 +50,13 @@ inline bool ProjectNeedsNewerEditor(const std::string& lastSavedBy,
 }
 
 /**
- * @brief Project file (deki.json) — paths and asset/build wiring.
+ * @brief Project file (deki.json) - paths and asset/build wiring.
  *
  * Numeric/typed settings (display, profiling, units, rendering, ...) live in
  * `Deki::SettingsRegistry`. Packages declare their settings types via
  * `DEKI_PROJECT_SETTINGS_SECTION` and the editor's Project Settings panel
  * renders them via reflection. Persistence round-trips through the
- * `"packageSettings"` block in deki.json — see Project::Save/Load.
+ * `"packageSettings"` block in deki.json - see Project::Save/Load.
  *
  * The fields that stay here are the asset-and-build references that don't
  * fit the generic registry model (startup scene path, render-pipeline GUID,

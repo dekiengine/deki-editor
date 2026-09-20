@@ -146,8 +146,8 @@ TEST(ProjectScaffold, GitIgnoreCoversGeneratedPackagesAndStorage)
 
 TEST(ProjectScaffold, RenderPipelineNamesTheRendererAndNoPasses)
 {
-    // It used to write a "clip2d" pass. Nothing registers one — clipping is a
-    // builtin of Standard2DRenderer — so every new project logged "No pass
+    // It used to write a "clip2d" pass. Nothing registers one - clipping is a
+    // builtin of Standard2DRenderer - so every new project logged "No pass
     // registered for 'clip2d'" on its first run while rendering correctly.
     // Passes are opt-in extras, and the ones that exist attach themselves.
     TempProject t;

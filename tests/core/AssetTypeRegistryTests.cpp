@@ -416,7 +416,7 @@ TEST_F(AssetTypeRegistryTest, CompileTarget_DataType_HasCompileToFileFunc)
 // =============================================================================
 // Invariant: every registered handler ships a defaultContent string that is
 // itself valid JSON. CreateAsset writes this string verbatim to a new .asset
-// file, and the subsequent OnInspectorGUI deserializes it — so a malformed
+// file, and the subsequent OnInspectorGUI deserializes it - so a malformed
 // default would crash the inspector the moment the user creates the type.
 // =============================================================================
 

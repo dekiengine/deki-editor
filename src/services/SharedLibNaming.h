@@ -10,7 +10,7 @@
 //                               macOS:   libdeki-2d.dylib
 //
 // Anything that turns a CMake target name into a filename, or a filename back
-// into a target name, has to agree on those rules — so they live here rather
+// into a target name, has to agree on those rules - so they live here rather
 // than being open-coded at each call site. Before this existed the loaders
 // tested `filename.rfind("deki-") == 0` and `extension() == ".dll"`, which
 // rejects every package on ELF/Mach-O because of the "lib" prefix.
@@ -39,7 +39,7 @@ inline constexpr const char* kSharedLibExt = ".so";
 // and the editor silently loaded none of them.
 //
 // Compile-time detection is the right granularity because the editor only ever
-// loads packages built with its own compiler — that ABI match is a hard
+// loads packages built with its own compiler - that ABI match is a hard
 // requirement (see DEKI_EDITOR_CXX_COMPILER in CMakeLists.txt).
 #if defined(_WIN32) && !defined(__MINGW32__)
 inline constexpr const char* kSharedLibPrefix = "";

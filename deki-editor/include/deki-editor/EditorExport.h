@@ -5,7 +5,7 @@
  * @brief The one definition of deki-editor.dll's export macro.
  *
  * Every public header in this directory needs this and used to paste its own
- * copy of the ifdef ladder below — 24 copies of the same six lines. Three extra
+ * copy of the ifdef ladder below - 24 copies of the same six lines. Three extra
  * spellings had also accumulated (DEKI_THEME_API, DEKI_NAMING_API,
  * DEKI_COMMAND_API) that expanded to exactly the same thing, and CommandHistory.h
  * used one it never defined, compiling only because Command.h happened to be

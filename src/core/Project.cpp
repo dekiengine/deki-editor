@@ -40,7 +40,7 @@ namespace
 {
 // Per-property JSON round-trip for settings types. Settings declare a
 // constrained property set (bool / int / float / enum / string), so this
-// is intentionally narrower than Scene::SavePropertyToJson — no arrays,
+// is intentionally narrower than Scene::SavePropertyToJson - no arrays,
 // no asset/object refs, no colors. Adding more types here is mechanical.
 
 void SaveSettingProperty(const Deki::Component* comp, const Deki::PropertyInfo& prop, nlohmann::json& out)
@@ -148,7 +148,7 @@ namespace
 // Where a settings section is stored.
 //
 // Package-owned sections get a folder per package so uninstalling one takes its
-// settings with it. Engine-core sections share core.json — they are few, small
+// settings with it. Engine-core sections share core.json - they are few, small
 // and always present, so a file each would be noise. The framebuffer is the
 // exception: it is the device contract also written to dproject.bin and the
 // one most likely to be edited per-platform, so it stays addressable on its own.
@@ -193,7 +193,7 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
 
     // Group by destination file, then merge into whatever is already there. The
     // read-then-merge keeps sections belonging to packages that are not currently
-    // loaded — the same guarantee the single packageSettings block used to give,
+    // loaded - the same guarantee the single packageSettings block used to give,
     // and stronger here, since an absent package's file is never even opened.
     std::map<fs::path, nlohmann::json> byFile;
 
@@ -287,7 +287,7 @@ bool Project::Load(const std::string& path)
         projectPath = m_Path;
 
         // Migrate before validating. The check below asks whether the project has
-        // an assets/ directory, which is a question about the *current* layout —
+        // an assets/ directory, which is a question about the *current* layout -
         // ask it of an unmigrated project and it says no, Load bails, and the
         // migration that would have fixed it never runs. The project simply stops
         // opening.
@@ -329,13 +329,13 @@ bool Project::Load(const std::string& path)
         {
             std::string summary;
             if (ProjectPaths::MigrateToGeneratedLayout(m_Path, summary))
-                DEKI_LOG_EDITOR("Project: layout migration — %s", summary.c_str());
+                DEKI_LOG_EDITOR("Project: layout migration - %s", summary.c_str());
 
             // After the generated/ move so the two never contend for a name.
             std::string flattenSummary;
             const bool flattened = ProjectPaths::MigrateFlattenProjectFolder(m_Path, flattenSummary);
             if (flattened)
-                DEKI_LOG_EDITOR("Project: layout migration — %s", flattenSummary.c_str());
+                DEKI_LOG_EDITOR("Project: layout migration - %s", flattenSummary.c_str());
             else if (!flattenSummary.empty())
                 DEKI_LOG_ERROR("Project: %s", flattenSummary.c_str());
 
@@ -344,7 +344,7 @@ bool Project::Load(const std::string& path)
             // the gate would then stop it ever being retried.
             std::string pkgSummary;
             if (ProjectPaths::MigrateModulesToPackages(m_Path, pkgSummary))
-                DEKI_LOG_EDITOR("Project: layout migration — %s", pkgSummary.c_str());
+                DEKI_LOG_EDITOR("Project: layout migration - %s", pkgSummary.c_str());
 
             const bool stillOnOldLayout = std::filesystem::exists(fs::path(m_Path) / "project");
             if (!stillOnOldLayout)
@@ -356,7 +356,7 @@ bool Project::Load(const std::string& path)
 
         if (!fs::exists(assetsPath))
         {
-            DEKI_LOG_ERROR("Project: no assets directory at '%s' — not a Deki project, "
+            DEKI_LOG_ERROR("Project: no assets directory at '%s' - not a Deki project, "
                            "or a migration did not complete",
                            assetsPath.string().c_str());
             return false;
@@ -445,7 +445,7 @@ bool Project::Load(const std::string& path)
             }
         }
 
-        // A freshly loaded project is clean — except when this load migrated it.
+        // A freshly loaded project is clean - except when this load migrated it.
         // Marking dirty earlier would not survive: this assignment runs at the end
         // of the same function and silently cleared it, so the migration never got
         // written and re-ran on every open.
@@ -494,7 +494,7 @@ bool Project::Save()
     //
     // Only the sections actually written are dropped from the legacy block below.
     // A section whose package is not currently loaded is not in the registry, so it
-    // cannot be written — erasing the whole block regardless would delete it. That
+    // cannot be written - erasing the whole block regardless would delete it. That
     // is not hypothetical: it is how this project's "Rendering" settings were lost
     // on a run where the packages had failed to load.
     const std::vector<std::string> writtenSections = SaveSettingsFiles(m_Path);
@@ -556,7 +556,7 @@ bool Project::Save()
         if (legacy.empty())
             json.erase("packageSettings");
     }
-    // Only ever written, never read by anything — dropped rather than migrated.
+    // Only ever written, never read by anything - dropped rather than migrated.
     json.erase("assetSettings");
 
     // Write back atomically: a crash mid-write used to leave a truncated

@@ -31,7 +31,7 @@ Result PromoteStaged(const std::string& runtimeDir)
     for (const auto& entry : fs::directory_iterator(tempDir, ec))
     {
         const auto ext = entry.path().extension();
-        // PDBs move too, or the debugger keeps the old one locked. (MSVC only —
+        // PDBs move too, or the debugger keeps the old one locked. (MSVC only -
         // ELF/Mach-O carry their debug info inside the library.)
         if (ext == kSharedLibExt || ext == ".pdb")
             staged.push_back(entry.path());

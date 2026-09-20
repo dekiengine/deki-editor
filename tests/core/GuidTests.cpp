@@ -182,7 +182,7 @@ TEST_F(GuidTest, GenerateDeterministicGuid_100kSeeds_NoCollisions)
 
 // ============================================================================
 // Golden-value stability test. These values pin the deterministic GUID
-// algorithm in place — any change to the hash would break already-shipped
+// algorithm in place - any change to the hash would break already-shipped
 // asset references. If this test fails, it means the algorithm was modified
 // and every cached/checked-in asset GUID in user projects will be invalidated.
 // Update intentionally only when migrating the format with a version bump.

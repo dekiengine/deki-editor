@@ -10,7 +10,7 @@
  * every frame; the canvas owns only view state (pan/zoom, in-progress drags)
  * and reports interactions through NodeCanvasEvents. It draws exclusively via
  * EditorUI (it lives in deki-editor.dll and crosses the DLL boundary), and it
- * deliberately knows nothing about node types, documents, or undo — the
+ * deliberately knows nothing about node types, documents, or undo - the
  * hosting window (app-side) translates events into commands.
  *
  * Coordinates: node x/y are graph units (css px at zoom 1). The canvas applies

@@ -232,7 +232,7 @@ void ApplyInstanceToSceneCommand::Execute()
     if (sourceRoots.empty()) return;
     if (sourceRoots.size() > 1)
     {
-        DEKI_LOG_WARNING("ApplyInstanceToScene: multi-root source '%s' — "
+        DEKI_LOG_WARNING("ApplyInstanceToScene: multi-root source '%s' - "
                          "only the first root is targeted by overrides",
                          m_SourcePath.c_str());
     }
@@ -257,7 +257,7 @@ void ApplyInstanceToSceneCommand::Execute()
 
     // Refresh sibling instances of this same scene in the current scene
     // so they render against the new source. The applied instance itself
-    // is left alone — its in-memory render is already correct, and
+    // is left alone - its in-memory render is already correct, and
     // touching it would discard any uncommitted live edits.
     std::vector<Deki::Object*> siblings;
     CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance,

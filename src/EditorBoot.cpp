@@ -3,7 +3,7 @@
 // Before this existed, every CLI verb bootstrapped whatever slice of startup it
 // happened to need: its own PackageManager, its own PackageLoader, its own
 // cmake invocation. Each slice drifted from what EditorApp::OpenProject
-// actually does, and the drift was invisible — a verb did not fail, it just
+// actually does, and the drift was invisible - a verb did not fail, it just
 // operated on a project in a state the editor never leaves it in.
 // --verify-scenes ended up shipping a staleness warning purely to describe one
 // of those gaps.
@@ -78,7 +78,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     {
         case WM_NCCALCSIZE:
         {
-            // Remove the title bar — client area fills entire window.
+            // Remove the title bar - client area fills entire window.
             // When maximized, clamp to the work area so we don't overlap the taskbar.
             if (wParam == TRUE)
             {
@@ -139,7 +139,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 h = clientRc.bottom;
             }
 
-            // Caption buttons FIRST — they take priority over resize borders
+            // Caption buttons FIRST - they take priority over resize borders
             // so the close button reaches the top-right corner (Chromium behavior).
             int btn = GetTitleBarButton(hwnd, x, y);
             if (btn == 1) return HTMINBUTTON;
@@ -167,10 +167,10 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 if (x > w - border) return HTRIGHT;
             }
 
-            // Title bar drag — only the "D DEKI/EDITOR" block on the left side of
+            // Title bar drag - only the "D DEKI/EDITOR" block on the left side of
             // the menu bar. The menu-items strip (File/Edit/...) and everything to
             // the right of it always reports HTCLIENT so ImGui receives mouse
-            // moves and clicks — required for hover-based features like the item
+            // moves and clicks - required for hover-based features like the item
             // picker, which would otherwise be starved of WM_MOUSEMOVE events
             // (HTCAPTION regions get WM_NCMOUSEMOVE instead).
             if (y < (int)g_MenuBarHeight && g_MenuItemsStartX > 0.0f && x < (int)g_MenuItemsStartX)
@@ -256,7 +256,7 @@ namespace DekiEditor
 namespace
 {
 
-/// Window, GL context, ImGui context, theme and fonts. GUI only — a headless
+/// Window, GL context, ImGui context, theme and fonts. GUI only - a headless
 /// boot never calls this, which is the whole point: no display is required.
 bool BootDisplay(BootContext& ctx)
 {
@@ -385,12 +385,12 @@ bool BootDisplay(BootContext& ctx)
     // ImGui 1.92+ font auto-DPI. With this, fonts are loaded at base sizes
     // (no `px * dpiScale` baking) and ImGui scales them via style.FontScaleDpi
     // which the backend updates as monitor DPI changes. Sizes/padding still
-    // need style.ScaleAllSizes() at setup — FAQ note: "scales fonts but NOT
+    // need style.ScaleAllSizes() at setup - FAQ note: "scales fonts but NOT
     // sizes/padding for now." See FAQ "How should I handle DPI in my application?".
     io.ConfigDpiScaleFonts = true;
 
     // FreeType font loader is enabled at build time (IMGUI_ENABLE_FREETYPE in
-    // CMakeLists.txt). Switch the hinting strategy to LightHinting — FreeType
+    // CMakeLists.txt). Switch the hinting strategy to LightHinting - FreeType
     // snaps glyphs only on Y, leaving horizontal spacing unsnapped. This is
     // the same algorithm Microsoft's ClearType uses, which is why Inter looks
     // fuller in Chrome than under FreeType's default native hinter. Closes
@@ -402,7 +402,7 @@ bool BootDisplay(BootContext& ctx)
     // when SafeDispatch unwinds a panel that faulted mid-BeginChild. With a
     // debugger that's a pause; without one (or in release) it aborts the
     // process. The recovery itself (the EndChild/End calls that follow the
-    // assert) still runs — we just don't want the assert to be fatal. The
+    // assert) still runs - we just don't want the assert to be fatal. The
     // error is still surfaced via the callback wired below.
     io.ConfigErrorRecoveryEnableAssert = false;
 
@@ -424,7 +424,7 @@ bool BootDisplay(BootContext& ctx)
     ctx.dpiScale = SDL_GetWindowDisplayScale(ctx.window);
     if (ctx.dpiScale <= 0.0f) ctx.dpiScale = 1.0f;
 
-    // Setup Dear ImGui style — Godot 4.6 Modern theme
+    // Setup Dear ImGui style - Godot 4.6 Modern theme
     DekiEditor::SetupEditorTheme(ctx.dpiScale);
 
     // Setup Platform/Renderer backends
@@ -474,7 +474,7 @@ bool BootDisplay(BootContext& ctx)
         static const ImWchar iconRanges[] = { ICON_MIN_TI, 0xFFFF, 0 };
 
         // The text fonts (Inter, JetBrains Mono, …) carry a handful of stray
-        // Private-Use-Area glyph mappings that overlap the Tabler icon range —
+        // Private-Use-Area glyph mappings that overlap the Tabler icon range -
         // e.g. Inter maps U+EE94 to a Greek-accent glyph. In MergeMode the base
         // font wins, which silently shadows those icons (this is why hand-finger
         // rendered blank while hand-finger-off was fine). Exclude the icon range
@@ -513,32 +513,32 @@ bool BootDisplay(BootContext& ctx)
         DekiEditor::g_FontUISmall = loadAndRegister(interReg, 11.5f);
         mergeIcons(11.5f);
 
-        // Inter Medium 12.5px — inspector property labels, outlined action
+        // Inter Medium 12.5px - inspector property labels, outlined action
         // buttons. Icons merged: a label like ICON_TI_PLUS "  Add Component"
         // rendered its glyph as nothing at all without them.
         DekiEditor::g_FontUIMed = loadAndRegister(interMed, 12.5f);
         mergeIcons(12.5f);
 
-        // Inter SemiBold 11px — tab labels, section headers (rendered uppercased).
+        // Inter SemiBold 11px - tab labels, section headers (rendered uppercased).
         DekiEditor::g_FontUIBold = loadAndRegister(interSemi, 11.0f);
         mergeIcons(11.0f);
 
-        // JetBrains Mono Regular 12px — value cells, code.
+        // JetBrains Mono Regular 12px - value cells, code.
         DekiEditor::g_FontMono = loadAndRegister(monoReg, 12.0f);
 
-        // JetBrains Mono Regular 11.5px — log timestamps, commit hash, stats.
+        // JetBrains Mono Regular 11.5px - log timestamps, commit hash, stats.
         DekiEditor::g_FontMonoSmall = loadAndRegister(monoReg, 11.5f);
 
-        // JetBrains Mono Medium 12px — menubar DEKI/EDITOR wordmark.
+        // JetBrains Mono Medium 12px - menubar DEKI/EDITOR wordmark.
         DekiEditor::g_FontMonoBold = loadAndRegister(monoMed, 12.0f);
 
-        // Space Grotesk Medium 20px — inspector selection banner.
+        // Space Grotesk Medium 20px - inspector selection banner.
         DekiEditor::g_FontDisplay = loadAndRegister(displayPath, 20.0f);
 
-        // Space Grotesk Medium 12px — section-header alt usage.
+        // Space Grotesk Medium 12px - section-header alt usage.
         DekiEditor::g_FontDisplaySmall = loadAndRegister(displayPath, 12.0f);
 
-        // Space Grotesk Medium 13px — the "D" letter in the menubar logo box.
+        // Space Grotesk Medium 13px - the "D" letter in the menubar logo box.
         DekiEditor::g_FontLogo = loadAndRegister(displayPath, 13.0f);
     }
 
@@ -565,7 +565,7 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     {
         // SDL still comes up headless: the editor installs an SDL-backed time
         // provider (Deki::Time) while opening a project, and ProgressModal pumps
-        // SDL events. Video is the part a CLI run must not require — a build
+        // SDL events. Video is the part a CLI run must not require - a build
         // machine has no display and SDL_INIT_VIDEO fails outright there.
         if (!SDL_Init(SDL_INIT_EVENTS))
         {
@@ -608,7 +608,7 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     editor.SetWindow(ctx.window);
 
     // With no path the GUI comes up on the project manager screen rather than
-    // reopening whatever was last open. A headless boot always has one — the
+    // reopening whatever was last open. A headless boot always has one - the
     // CLI rejects a verb without a project path before it gets here.
     bool opened = true;
     if (opts.projectPath)
@@ -638,7 +638,7 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     // OpenProject defers a package check and a build check to
     // EditorApp::ProcessDeferredTasks, which only the interactive loop calls.
     // Headless there is no loop, so run the package half here in the order the
-    // loop would — this is the same work the GUI does on its first frames, not
+    // loop would - this is the same work the GUI does on its first frames, not
     // an extra step. The build half is driven below for both modes.
     if (ctx.headless)
     {

@@ -1,6 +1,6 @@
 #pragma once
 
-// Toast — transient, self-dismissing notification cards.
+// Toast - transient, self-dismissing notification cards.
 //
 // The editor had two notification surfaces and neither fits a passing
 // message. The Console's pinned entries (ConsolePanel::LogBuildError) are the

@@ -67,7 +67,7 @@ bool WriteRenderPipeline(const std::string& projectPath, std::string& err);
 
 /// Copies kStarterFontFile from `editorFontsDir` into assets/fonts/ and
 /// writes its .data sidecar (GUID + kStarterFontSize baked). Returns the
-/// font's GUID, or "" when the editor's font is not available — the caller
+/// font's GUID, or "" when the editor's font is not available - the caller
 /// then writes the scene without the text object.
 std::string InstallStarterFont(const std::string& projectPath, const std::string& editorFontsDir,
                                std::string& err);

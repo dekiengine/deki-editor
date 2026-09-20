@@ -13,7 +13,7 @@ class EditorApp;
  *
  * Godot's project manager, in the editor's own window: a list of remembered
  * projects (see ProjectRegistry) with New / Import / Open / Remove actions.
- * Fills the whole DockSpace window — main.cpp skips the toolbar, dockspace and
+ * Fills the whole DockSpace window - main.cpp skips the toolbar, dockspace and
  * status bar for the frames this is up, so there is nothing behind it.
  *
  * Opening is deferred rather than done from inside Draw(): OpenProject loads
@@ -34,7 +34,7 @@ public:
     // Draws into the current window's content region.
     void Draw();
 
-    // Returns the project path the user asked to open, or "" — one shot.
+    // Returns the project path the user asked to open, or "" - one shot.
     std::string ConsumePendingOpen();
 
 private:

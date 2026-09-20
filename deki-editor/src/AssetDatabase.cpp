@@ -27,7 +27,7 @@ void AssetDatabase::ImportAsset(const std::string& path)
 void AssetDatabase::Refresh()
 {
     // Drains pending OS-watcher events. The watcher is the authoritative
-    // change source — there is no full-tree scan to fall back to.
+    // change source - there is no full-tree scan to fall back to.
     if (s_Pipeline)
         s_Pipeline->Tick();
 }

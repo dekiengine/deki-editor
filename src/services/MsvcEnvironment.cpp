@@ -27,7 +27,7 @@ bool MsvcEnvironment::Initialize()
     // Non-Windows: system GCC/Clang is picked up from the parent env.
     m_Initialized = true;
     m_Available = true;
-    m_Status = "Non-Windows platform — using inherited toolchain environment.";
+    m_Status = "Non-Windows platform - using inherited toolchain environment.";
     return true;
 }
 
@@ -176,12 +176,12 @@ bool MsvcEnvironment::CaptureEnvironment(const std::string& vcvarsallPath)
         m_Vars[UpperAscii(key)] = std::move(val);
     }
 
-    // Sanity check — vcvars always sets these.
+    // Sanity check - vcvars always sets these.
     if (m_Vars.find("INCLUDE") == m_Vars.end() ||
         m_Vars.find("LIB") == m_Vars.end() ||
         m_Vars.find("PATH") == m_Vars.end())
     {
-        m_Status = "vcvars output missing INCLUDE/LIB/PATH — environment not usable";
+        m_Status = "vcvars output missing INCLUDE/LIB/PATH - environment not usable";
         return false;
     }
 
@@ -196,7 +196,7 @@ bool MsvcEnvironment::Initialize()
     std::string vswhere = FindVswhere();
     if (vswhere.empty())
     {
-        m_Status = "vswhere.exe not found — install Visual Studio or Build Tools with the C++ workload.";
+        m_Status = "vswhere.exe not found - install Visual Studio or Build Tools with the C++ workload.";
         DEKI_LOG_ERROR("MsvcEnvironment: %s", m_Status.c_str());
         return false;
     }

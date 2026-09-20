@@ -34,8 +34,8 @@ std::string EditorSettings::GetSettingsDir()
     // The WIDE call, and a wide std::filesystem::path all the way to the end.
     //
     // SHGetFolderPathA returns the ANSI-code-page spelling of the path, so on
-    // an account whose name does not fit that code page — anything Cyrillic,
-    // Greek, Chinese, Japanese — it comes back mangled or fails outright, and
+    // an account whose name does not fit that code page - anything Cyrillic,
+    // Greek, Chinese, Japanese - it comes back mangled or fails outright, and
     // the editor then has nowhere to keep its settings, layout or log. Building
     // the path as wchar_t avoids the conversion entirely; .string() at the end
     // is UTF-8 out of std::filesystem.
@@ -182,7 +182,7 @@ void EditorSettings::Save()
     // Atomic: Save() runs on a lot of ordinary actions (panel toggles, project
     // and scene changes), so a crash lands in the middle of one often enough
     // to matter. Streaming straight into the file truncated it first, and a
-    // torn settings.json is discarded on the next launch — losing the last
+    // torn settings.json is discarded on the next launch - losing the last
     // project, the last scene per project, and the whole panel layout.
     std::string err;
     if (!AtomicWriteFile(settingsPath, data.dump(2), err))

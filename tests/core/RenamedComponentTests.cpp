@@ -14,7 +14,7 @@ using DekiEditor::Tests::MockComponent;
 // namespace, without orphaning every instance already saved: the old name
 // resolves to the current class and the next save writes the current name.
 //
-// The mock declares two former names, so the chain case is covered too — a class
+// The mock declares two former names, so the chain case is covered too - a class
 // renamed twice must still load a scene written before either rename.
 class RenamedComponent : public ::testing::Test
 {

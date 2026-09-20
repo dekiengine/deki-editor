@@ -39,7 +39,7 @@ bool IsBuildArtifact(const std::string& relativePath)
     // watchers in StartWatching are rooted at the package repo itself, so their
     // relative paths start at the repo root ("generated/Foo.gen.cpp") with no
     // leading slash. A substring check misses those, and every build's codegen
-    // then re-marks sources dirty — the editor rebuilds on each alt-tab forever.
+    // then re-marks sources dirty - the editor rebuilds on each alt-tab forever.
     auto hasSegment = [&relativePath](const char* seg)
     {
         const std::string s(seg);
@@ -112,14 +112,14 @@ void WalkSourceTree(const std::filesystem::path& root,
     if (!fs::exists(root)) return;
 
     // Step 1: Enumerate immediate children non-recursively. Any directory
-    // child — whether a plain directory or a Windows junction — is treated as
+    // child - whether a plain directory or a Windows junction - is treated as
     // a subtree root in Step 2.
     std::vector<fs::path> subtreeRoots;
     std::error_code ec;
     for (const auto& child : fs::directory_iterator(root, ec))
     {
         // is_directory() follows reparse points on Windows, so junctions
-        // report true here — that's what we want.
+        // report true here - that's what we want.
         if (child.is_directory(ec))
             subtreeRoots.push_back(child.path());
         else if (child.is_regular_file(ec))
@@ -146,7 +146,7 @@ void WalkSourceTree(const std::filesystem::path& root,
         }
         catch (const fs::filesystem_error&)
         {
-            // Partial walks are fine — next tick retries.
+            // Partial walks are fine - next tick retries.
         }
     }
 }
@@ -217,7 +217,7 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
         mixStr(name);
 
     // 3. Every header under project/src and project/packages: path, size and
-    // mtime. The reflection codegen parses headers for DEKI_EXPORT — header
+    // mtime. The reflection codegen parses headers for DEKI_EXPORT - header
     // edits must trigger reconfigure; .cpp edits (compile-only) must not.
     // Uses WalkSourceTree so junctioned package trees are included.
     auto mixHeaders = [&](const fs::path& root)
@@ -241,7 +241,7 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
     mixStr("package-headers:");
     mixHeaders(packagesPath);
 
-    // Never return 0 — 0 is our "no stamp on disk" sentinel.
+    // Never return 0 - 0 is our "no stamp on disk" sentinel.
     return h == 0 ? 1 : h;
 }
 

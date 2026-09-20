@@ -20,7 +20,7 @@ std::vector<std::string> DekiRegistrySource::BaseUrls()
             u.pop_back();
         if (!u.empty())
         {
-            // An explicit override is a decision, not a hint — don't second-guess
+            // An explicit override is a decision, not a hint - don't second-guess
             // it by falling back to the defaults behind the user's back.
             urls.push_back(u);
             return urls;
