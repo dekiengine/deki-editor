@@ -469,3 +469,26 @@ div.contents table.markdownTable td:first-child {
     font-size: 11px;
 }
 #nav-path li.footer { color: var(--page-secondary-foreground-color); }
+
+/* The package header image. Two files, one drawing: the wide banner, and an
+ * upright cut for a phone, where the banner's schematic would land at about
+ * 120 pixels across, present but not legible. The page carries both and this
+ * chooses; a <picture> would be the honest way to say it, but doxygen drops
+ * tags it does not know and picture is one of them.
+ *
+ * Matched on the file name because that is all doxygen leaves to match on: it
+ * emits every markdown image as <img class="inline"> and keeps nothing else.
+ * Covers are the only deki-*.png a package page has. */
+p img[src^="deki-"] {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 4px 0 24px;
+    border: 1px solid var(--separator-color);
+}
+p img[src$="-sm.png"] { display: none; }
+
+@media (max-width: 640px) {
+    p img[src^="deki-"]:not([src$="-sm.png"]) { display: none; }
+    p img[src$="-sm.png"] { display: block; }
+}
