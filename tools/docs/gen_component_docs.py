@@ -364,19 +364,12 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
     pkg_id = pkg["id"]
     display = info.get("displayName") or pkg_id
     out = [f"# {pkg_id} {{#mainpage}}", ""]
-    # The same header image the website uses for this package, if one exists.
+    # The same small drawing the website uses for this package, if one exists.
     # Doxygen resolves it through IMAGE_PATH and copies it into the output, so
     # a package with no cover simply has no picture rather than a broken one.
-    #
-    # Two images, not one: the wide banner, and an upright cut of the same
-    # drawing for a phone, where the banner's schematic would land at about
-    # 120 pixels across. The theme shows one and hides the other by width.
-    # A <picture> would say this properly, but doxygen drops tags it does not
-    # know, and picture and source are two of them.
+    # The theme keeps it small; it is a label, not a figure.
     if (COVERS / f"{pkg_id}.png").is_file():
         out.append(f"![]({pkg_id}.png)")
-        if (COVERS / f"{pkg_id}-sm.png").is_file():
-            out.append(f"![]({pkg_id}-sm.png)")
         out.append("")
     if info.get("summary"):
         out.append(esc(info["summary"]))

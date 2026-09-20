@@ -470,28 +470,22 @@ div.contents table.markdownTable td:first-child {
 }
 #nav-path li.footer { color: var(--page-secondary-foreground-color); }
 
-/* The package header image. Two files, one drawing: the wide banner, and an
- * upright cut for a phone, where the banner's schematic would land at about
- * 120 pixels across, present but not legible. The page carries both and this
- * chooses; a <picture> would be the honest way to say it, but doxygen drops
- * tags it does not know and picture is one of them.
+/* The package's drawing. Small on purpose: it says what kind of thing the
+ * package is, and the reference below it is what the page is for.
  *
  * Matched on the file name because that is all doxygen leaves to match on: it
  * emits every markdown image as <img class="inline"> and keeps nothing else.
  * Covers are the only deki-*.png a package page has. */
-p img[src^="deki-"] {
+div.contents img[src^="deki-"] {
     display: block;
     width: 100%;
+    max-width: 320px;
     height: auto;
     margin: 4px 0 24px;
     border: 1px solid var(--separator-color);
 }
-p img[src$="-sm.png"] { display: none; }
-
-@media (max-width: 640px) {
-    p img[src^="deki-"]:not([src$="-sm.png"]) { display: none; }
-    p img[src$="-sm.png"] { display: block; }
-}
+/* Doxygen wraps a lone image in div.image and centres it. */
+div.contents div.image { margin: 0; text-align: left; }
 
 /* The donate chip, the same solid one the website's bar carries. The
  * !important is not decoration: doxygen's own sheet paints every anchor's
