@@ -29,6 +29,7 @@ QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO
 WARN_IF_INCOMPLETE_DOC = NO
 
+IMAGE_PATH             = tools/docs/covers
 INPUT                  = $(DEKI_PKG_MD)
 USE_MDFILE_AS_MAINPAGE = $(DEKI_PKG_MD)/index.md
 RECURSIVE              = NO

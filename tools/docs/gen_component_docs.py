@@ -350,6 +350,13 @@ def settings_type_names(data):
     return names
 
 
+# Category artwork shared with the website, one PNG per package id. Generated
+# by hugo-dekiengine/tools/make-package-covers.py and copied in; Doxyfile.package
+# points IMAGE_PATH here.
+COVERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "covers")
+COVERS = __import__("pathlib").Path(COVERS)
+
+
 # ----------------------------------------------------------------- package site
 
 def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip_names=()):
@@ -357,6 +364,12 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
     pkg_id = pkg["id"]
     display = info.get("displayName") or pkg_id
     out = [f"# {pkg_id} {{#mainpage}}", ""]
+    # The same header image the website uses for this package, if one exists.
+    # Doxygen resolves it through IMAGE_PATH and copies it into the output, so
+    # a package with no cover simply has no picture rather than a broken one.
+    if (COVERS / f"{pkg_id}.png").is_file():
+        out.append(f"![]({pkg_id}.png)")
+        out.append("")
     if info.get("summary"):
         out.append(esc(info["summary"]))
         out.append("")
