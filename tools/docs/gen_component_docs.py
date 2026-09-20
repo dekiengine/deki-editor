@@ -387,8 +387,9 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
         facts.append("Requires: " + ", ".join(links))
     out.append(" · ".join(facts))
     out.append("")
-    out.append(f"Install with `DekiEditor --packages-add {pkg_id} <project>`, or from the Package "
-               f"Manager. The engine's own components and C++ API are in the [Deki docs]({main_url}).")
+    out.append(f"Install with `DekiEditor --packages-add {pkg_id} <project>`, or from the "
+               f"Package Manager. The engine's own components and C++ API are in the "
+               f"[Deki docs]({main_url}).")
     out.append("")
     if display != pkg_id:
         out.append(f"Shown in the editor as **{display}**.")
@@ -408,8 +409,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
     if info.get("features"):
         out.append("## Feature flags")
         out.append("")
-        out.append("Features this package can be built without. One with no define is stripped "
-                   "by its component types instead.")
+        out.append("Parts you can leave out of a build. A feature with no define is "
+                   "stripped with its components instead.")
         out.append("")
         out.append("| Feature | Define | Default |")
         out.append("| --- | --- | --- |")
@@ -428,8 +429,8 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
         for sec in settings:
             out.extend(settings_section(sec, "s", "###", base_links))
     if not comps and not settings:
-        out.append("This package registers no components; it provides a driver or a library the")
-        out.append("engine calls into (see its README).")
+        out.append("No components. This one is a driver or a library the engine calls "
+                   "into, so its README is the place to look.")
         out.append("")
     if info.get("changelog"):
         out.append("## Changelog")
@@ -444,9 +445,9 @@ def package_site_page(pkg, info, infos, main_url, version, base_links=None, skip
 
     out.append("---")
     out.append("")
-    out.append("Generated from this package's reflection metadata"
+    out.append("Generated from the package's reflection data"
                + (f" (engine {version})." if version else ".")
-               + " Property names are the keys scene files use, and a rename ships with an alias "
+               + " Property names are the keys used in scene files. Renames keep an alias "
                + "([compatibility](https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md)).")
     out.append("")
     return out
@@ -483,8 +484,8 @@ def engine_page(engine, base_links=None, skip_names=()):
 
 def settings_page(data, infos):
     out = ["# Project settings {#settings}", "",
-           "Every settings section a project can carry under `settings/`, by the package that",
-           "defines it. Values are reflected properties: the key in the file is the property name.", ""]
+           "Every settings section a project can have under `settings/`, and who defines it.",
+           "The key in the file is the property name.", ""]
     rows = []
     for s in data.get("engine", {}).get("settings", []):
         rows.append(("engine", s))
@@ -492,7 +493,7 @@ def settings_page(data, infos):
         for s in pkg.get("settings", []):
             rows.append((pkg["id"], s))
     if not rows:
-        out.append("No settings sections were registered.")
+        out.append("No settings sections.")
         return out
     out.append("| Section | Defined by | Properties |")
     out.append("| --- | --- | --- |")
@@ -510,7 +511,7 @@ def settings_page(data, infos):
         out.append("")
         for sec in engine_rows:
             out.extend(settings_section(sec, "settings", "###"))
-    out.append("Sections defined by packages are documented on each package's own site (linked above).")
+    out.append("Package sections are documented on each package's own site, linked above.")
     out.append("")
     return out
 
@@ -520,8 +521,8 @@ def index_page(data, infos):
     out = ["# Deki {#mainpage}", ""]
     out.append("A modular C++ 2D engine for embedded displays and desktop, with a visual editor.")
     out.append("")
-    out.append("The engine core and its C++ API are here. Each package documents itself, linked"
-               " below. All of it is generated from the code"
+    out.append("The engine core and its C++ API are here. Packages document themselves,"
+               " linked below. All of it is generated from the code"
                + (f" (engine {version})." if version else "."))
     out.append("")
     out.append("- [Engine core](engine-core.html): components and settings the engine provides itself")
