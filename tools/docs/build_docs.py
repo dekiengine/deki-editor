@@ -27,6 +27,7 @@ Run from the deki-editor checkout, or pass --root.
 import argparse
 import hashlib
 import io
+import json
 import os
 import platform
 import shutil
@@ -135,6 +136,8 @@ def main(argv):
     ap.add_argument("--reuse-project", action="store_true", help="keep an existing docs project")
     ap.add_argument("--reuse-metadata", action="store_true", help="skip the editor run; use the existing metadata.json")
     ap.add_argument("--no-packages", action="store_true", help="build only the main site")
+    ap.add_argument("--allow-no-packages", action="store_true",
+                    help="proceed even when the metadata contains no packages")
     ap.add_argument("--publish", action="store_true", help="push the main site and the package sites")
     a = ap.parse_args(argv)
 
@@ -163,6 +166,24 @@ def main(argv):
         run([editor, "--dump-metadata", metadata, project])
     elif not os.path.isfile(metadata):
         raise SystemExit(f"--reuse-metadata given but {metadata} does not exist")
+
+    # A metadata dump with no packages in it still exits 0, and every step
+    # after this one happily produces a site: the main page's package table
+    # renders as literal "| --- |" markdown and not a single package site is
+    # written. That shipped once, unnoticed, because the build looked fine.
+    # The usual cause is a stale docs project whose package clones predate the
+    # current engine, so the editor refuses them and CMake never configures
+    # them -- rerun without --reuse-project to re-clone.
+    with open(metadata, encoding="utf-8") as f:
+        found = len(json.load(f).get("packages") or [])
+    if found == 0 and not a.allow_no_packages:
+        raise SystemExit(
+            f"{metadata} lists no packages, so the docs would publish with an empty "
+            "catalog and no package sites. Check %APPDATA%/DekiEditor/Editor.log for "
+            "'Package compatibility' errors, then rebuild the docs project by running "
+            "this without --reuse-project. Pass --allow-no-packages if an empty catalog "
+            "is genuinely what you want.")
+    log(f"metadata lists {found} package(s)")
 
     packages = a.packages
     if packages is None:
