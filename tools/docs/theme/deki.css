@@ -492,3 +492,20 @@ p img[src$="-sm.png"] { display: none; }
     p img[src^="deki-"]:not([src$="-sm.png"]) { display: none; }
     p img[src$="-sm.png"] { display: block; }
 }
+
+/* The donate chip, the same solid one the website's bar carries. The
+ * !important is not decoration: doxygen's own sheet paints every anchor's
+ * background and colour from a more specific selector, which is why the chip
+ * above does the same. Without it this came out as an outline. */
+.deki-chip-solid {
+    border-color: var(--primary-color);
+    background: var(--primary-color) !important;
+    font-weight: 600;
+}
+/* Spelled out through .deki-bar because that is what the rule it has to beat
+ * looks like: .deki-bar a:link paints every link in the bar, !important and
+ * all, and a plain .deki-chip-solid loses to it on specificity. */
+.deki-bar a.deki-chip-solid:link,
+.deki-bar a.deki-chip-solid:visited { color: #0a0b0d !important; }
+.deki-chip-solid:hover { background: transparent !important; }
+.deki-bar a.deki-chip-solid:hover { color: var(--primary-color) !important; }
