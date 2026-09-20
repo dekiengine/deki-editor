@@ -20,10 +20,11 @@ PAGE_OUTLINE_PANEL     = NO
 DISABLE_INDEX          = NO
 FULL_SIDEBAR           = NO
 SEARCHENGINE           = NO
+HTML_HEADER            = tools/docs/theme/header.html
 HTML_EXTRA_STYLESHEET  = tools/docs/theme/doxygen-awesome.css \
                          tools/docs/theme/doxygen-awesome-sidebar-only.css \
                          tools/docs/theme/deki.css
-HTML_COLORSTYLE        = LIGHT
+HTML_COLORSTYLE        = DARK
 QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO
 WARN_IF_INCOMPLETE_DOC = NO

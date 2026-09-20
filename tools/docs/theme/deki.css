@@ -1,19 +1,379 @@
-/* Deki additions on top of doxygen-awesome.
+/* Deki theme on top of doxygen-awesome.
  *
- * Doxygen 1.18 emits inline code from Markdown as <span class="tt">, which
+ * The palette, the fonts and the square-cornered schematic look are
+ * dekiengine.com's, so the docs and the site read as one product. The site's
+ * values live in hugo-dekiengine/static/css/main.css; the accent is also
+ * EditorTheme.h's Accent, which is why the editor matches too.
+ *
+ * Loaded last of the three stylesheets, so plain `html { --x: y }` overrides
+ * doxygen-awesome's defaults. Its dark values sit on `html.dark-mode`, which
+ * outranks a bare `html`, so every variable is declared for both selectors.
+ */
+
+html,
+html.dark-mode {
+    color-scheme: dark;
+
+    --primary-color: #3ac3ff;
+    --primary-dark-color: #7ad6ff;
+    --primary-light-color: #3ac3ff;
+    --primary-lighter-color: rgba(58, 195, 255, 0.14);
+    --primary-lightest-color: rgba(58, 195, 255, 0.07);
+
+    --page-background-color: #0a0b0d;
+    --page-foreground-color: #e8e6e1;
+    --page-secondary-foreground-color: #7a7a76;
+    --separator-color: #1d1f23;
+    --side-nav-background: #0d0e11;
+    --side-nav-foreground: #e8e6e1;
+    --header-background: #0d0e11;
+    --header-foreground: #e8e6e1;
+
+    --menu-selected-background: rgba(58, 195, 255, 0.12);
+    --menu-focus-background: rgba(58, 195, 255, 0.18);
+    --menu-focus-foreground: #e8e6e1;
+    --searchbar-background: #101113;
+    --searchbar-foreground: #e8e6e1;
+    --searchbar-border-radius: 0;
+    --search-background-color: #101113;
+    --search-foreground-color: #e8e6e1;
+    --search-filter-background-color: #101113;
+    --search-filter-foreground-color: #e8e6e1;
+
+    --code-background: #060709;
+    --code-foreground: #e8e6e1;
+    --tablehead-background: #101113;
+    --tablehead-foreground: #e8e6e1;
+    --blockquote-background: #101113;
+    --blockquote-foreground: #9a9a95;
+
+    --odd-color: rgba(255, 255, 255, 0.022);
+    --box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+
+    /* The site draws hairlines and right angles; nothing on it is rounded. */
+    --border-radius-large: 0;
+    --border-radius-medium: 0;
+    --border-radius-small: 0;
+
+    /* Mono for text, Space Grotesk for headings — the site's pairing. */
+    --font-family: "JetBrains Mono", "Fira Code", ui-monospace, Consolas, monospace;
+    --font-family-monospace: "JetBrains Mono", "Fira Code", ui-monospace, Consolas, monospace;
+    --font-family-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+    --page-font-size: 14px;
+    --navigation-font-size: 13px;
+    --toc-font-size: 12.5px;
+    --code-font-size: 13px;
+    --title-font-size: 20px;
+    --content-line-height: 25px;
+
+    /* Admonitions, keyed to the site's blue and its warm syntax colours. */
+    --warning-color: #241d08;
+    --warning-color-dark: #e2c799;
+    --warning-color-darker: #f0e0c4;
+    --note-color: #0c1f2b;
+    --note-color-dark: #3ac3ff;
+    --note-color-darker: #cdecfb;
+    --todo-color: #141a26;
+    --todo-color-dark: #8ab4f8;
+    --todo-color-darker: #d6e4fb;
+    --deprecated-color: #16171a;
+    --deprecated-color-dark: #7a7a76;
+    --deprecated-color-darker: #c7c6c2;
+    --bug-color: #23120f;
+    --bug-color-dark: #e08a7d;
+    --bug-color-darker: #f5cdc7;
+    --invariant-color: #11201a;
+    --invariant-color-dark: #9bd0a0;
+    --invariant-color-darker: #d3ecd6;
+
+    --fragment-background: #060709;
+    --fragment-foreground: #e8e6e1;
+    --fragment-keyword: #3ac3ff;
+    --fragment-keywordtype: #7ad6ff;
+    --fragment-keywordflow: #e2c799;
+    --fragment-token: #9bd0a0;
+    --fragment-comment: #6a6a66;
+    --fragment-link: #3ac3ff;
+    --fragment-preprocessor: #9bd0a0;
+    --fragment-linenumber-color: #52524f;
+    --fragment-linenumber-background: #0a0b0d;
+    --fragment-linenumber-border: #1d1f23;
+
+    /* Height of the site bar in the header; the layout below offsets by it. */
+    --deki-bar-height: 52px;
+
+    /* Doxygen-awesome's sidebar header block, which holds the project name,
+     * the brief and the search box. Its 120px default was sized for the
+     * stock font; the mono face and the brief at this size overflow it, and
+     * the search box then lands on top of the first tree item. */
+    --top-height: 148px;
+}
+
+/* The package sites build with SEARCHENGINE = NO, so their header has no
+ * search box and the reserved height left a gap above the tree. Keyed off the
+ * box itself rather than a per-site stylesheet, so one theme serves both. */
+html:not(:has(#MSearchBox)),
+html.dark-mode:not(:has(#MSearchBox)) {
+    --top-height: 96px;
+}
+
+/* The 32px grid the site draws across every page. */
+body {
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+    background-size: 32px 32px;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6,
+div.title, .title, #projectname {
+    font-family: var(--font-family-display);
+    letter-spacing: -0.01em;
+}
+
+/* ───────────────────────────── site bar ───────────────────────────── */
+.deki-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    height: var(--deki-bar-height);
+    padding: 0 20px;
+    border-bottom: 1px solid var(--separator-color);
+    background: rgba(10, 11, 13, 0.86);
+    backdrop-filter: blur(12px) saturate(1.2);
+    font-size: 12px;
+}
+
+.deki-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    flex-shrink: 0;
+}
+.deki-bar a:link,
+.deki-bar a:visited {
+    color: var(--page-foreground-color) !important;
+    font-weight: 400;
+    text-decoration: none;
+}
+.deki-mark {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--primary-color);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+.deki-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--primary-color);
+}
+.deki-brand-name {
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+.deki-slash { color: var(--page-secondary-foreground-color); }
+
+.deki-bar-tag {
+    padding: 2px 7px;
+    border: 1px solid rgba(58, 195, 255, 0.45);
+    color: var(--primary-color);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.deki-bar-links {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.deki-nav-label {
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+.deki-bar-links > a {
+    padding: 7px 10px;
+    transition: background-color 120ms linear, color 120ms linear;
+}
+.deki-bar-links > a:not(.deki-chip):hover {
+    background: #101113;
+    color: var(--primary-color) !important;
+}
+.deki-bar-sep {
+    width: 1px;
+    height: 20px;
+    margin: 0 8px;
+    background: var(--separator-color);
+}
+
+.deki-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 11px !important;
+    border: 1px solid #26282d;
+    background: #101113;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.deki-chip:hover {
+    border-color: var(--primary-color);
+    background: rgba(58, 195, 255, 0.12);
+}
+.deki-chip-accent {
+    border-color: rgba(58, 195, 255, 0.45);
+    background: rgba(58, 195, 255, 0.12);
+    color: var(--primary-color) !important;
+}
+.deki-chip-accent:hover {
+    background: var(--primary-color);
+    color: #0a0b0d !important;
+}
+
+/* ─────────────────────── room for the site bar ───────────────────────
+ * Doxygen's treeview layout fixes the sidebar and scrolls #doc-content
+ * rather than the page, so nothing moves out of the bar's way on its own:
+ * each fixed piece is offset by the bar's height here. */
+#top { margin-top: var(--deki-bar-height); }
+
+@media screen and (min-width: 768px) {
+    #side-nav {
+        top: calc(var(--top-height) + var(--deki-bar-height));
+    }
+    #nav-tree,
+    #side-nav {
+        height: calc(100vh - var(--top-height) - var(--deki-bar-height)) !important;
+    }
+    #doc-content {
+        height: calc(100vh - 31px - var(--deki-bar-height)) !important;
+        margin-top: var(--deki-bar-height);
+    }
+    /* The splitter draws its own shadow up the full height of the header;
+     * without the extra reach it stops short of the bar. */
+    .ui-resizable-handle {
+        box-shadow: 0 calc(-2 * (var(--top-height) + var(--deki-bar-height))) 0 0 var(--separator-color);
+    }
+}
+
+@media screen and (max-width: 767px) {
+    /* Doxygen's own layout scrolls the page at this width, so the bar rides
+     * along instead of being fixed. It also has to be free to grow: at a
+     * fixed 52px the links wrapped to a second row that overlapped the
+     * project title underneath. The three word links go -- the brand is the
+     * way back to the site -- and the two chips stay, since those are what
+     * someone reaching for the code or the room is after. */
+    .deki-bar {
+        position: static;
+        height: auto;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 8px 14px;
+    }
+    #top { margin-top: 0; }
+    .deki-bar-tag,
+    .deki-bar-sep,
+    .deki-bar-links > a:not(.deki-chip) { display: none; }
+}
+
+/* ───────────────────────── doxygen chrome ───────────────────────── */
+/* Doxygen paints the page title in the primary colour. On the site a heading
+ * is foreground and the blue is kept for links and marks, so it reads as
+ * emphasis rather than as the default. */
+div.title, .title { color: var(--page-foreground-color); }
+/* Doxygen wraps the main page's own title in a link to itself, and
+ * doxygen-awesome colours every link with !important, so the title above
+ * stayed blue on exactly one page until this took it back. */
+div.title a, .title a { color: inherit !important; }
+
+#titlearea { border-bottom: 1px solid var(--separator-color); }
+#projectname { font-size: var(--title-font-size); letter-spacing: 0; }
+#projectnumber {
+    font-family: var(--font-family);
+    font-size: 11px;
+    color: var(--primary-color);
+}
+#projectbrief { color: var(--page-secondary-foreground-color); font-size: 11.5px; }
+
+#nav-tree .item > a,
+#nav-tree .label { font-size: var(--navigation-font-size); }
+#nav-tree .selected {
+    background: var(--menu-selected-background);
+    box-shadow: inset 2px 0 0 0 var(--primary-color);
+    text-shadow: none;
+}
+
+div.contents .doxysection,
+h1.groupheader,
+h2.groupheader {
+    border-bottom: 1px solid var(--separator-color);
+    color: var(--page-foreground-color);
+}
+
+table.doxtable th,
+table.markdownTable th {
+    background: var(--tablehead-background);
+    color: var(--page-foreground-color);
+    border-bottom: 1px solid var(--separator-color);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 11.5px;
+}
+table.doxtable td,
+table.markdownTable td { border-color: var(--separator-color); }
+
+div.memitem,
+div.memproto,
+div.fragment,
+pre.fragment,
+div.toc {
+    border-color: var(--separator-color);
+}
+div.memproto { background: #101113; }
+
+/* Doxygen 1.18 emits inline code from Markdown as <span class="tt">, which
  * doxygen-awesome 2.3 does not style, so it fell back to the browser's
  * light background in dark mode. Give it the theme's code colours. */
 span.tt,
 .tt {
     font-family: var(--font-family-monospace);
-    font-size: var(--code-font-size, 14px);
+    font-size: var(--code-font-size, 13px);
     background: var(--code-background);
     color: var(--code-foreground);
-    border-radius: var(--border-radius-small);
-    padding: 1px 4px;
+    border: 1px solid var(--separator-color);
+    padding: 1px 5px;
 }
 
 /* Generated property tables are wide; let the first column keep its name on one line. */
 div.contents table.markdownTable td:first-child {
     white-space: nowrap;
 }
+
+/* The breadcrumb strip Doxygen puts at the bottom of every page. Its
+ * chevrons are drawn by doxygen-awesome as CSS triangles in
+ * --page-background-color, so the strip has to keep that background or the
+ * notch in each chevron shows up as a black wedge. */
+#nav-path ul {
+    background: var(--page-background-color);
+    border-top: 1px solid var(--separator-color);
+    font-size: 11px;
+}
+#nav-path li.footer { color: var(--page-secondary-foreground-color); }
