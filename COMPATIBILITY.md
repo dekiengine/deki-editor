@@ -18,7 +18,7 @@ engine and package versions, what may change, and how a change reaches you.
   is also the engine generation the package was built against, and an engine
   refuses a package older than it can still build
   (`DEKI_OLDEST_SUPPORTED_PACKAGE`). Without that a package installs, fails the
-  ABI handshake, is rebuilt from source, and fails to compile — a build error
+  ABI handshake, is rebuilt from source, and fails to compile - a build error
   with nothing naming the package. A package only has to move when a release
   actually breaks it, not on every release.
 - Before 1.0, breaking changes can still happen between minor versions. They

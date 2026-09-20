@@ -27,7 +27,7 @@ generated state goes bad.
 ```
 
 Everything under `generated/` is disposable. That is why the project `.gitignore` is one line
-rather than an inventory: an inventory drifts, and it did — it listed a `build_refl/` that nothing
+rather than an inventory: an inventory drifts, and it did - it listed a `build_refl/` that nothing
 creates while hiding a `settings/` folder that was tracked.
 
 ## Portability
@@ -35,7 +35,7 @@ creates while hiding a `settings/` folder that was tracked.
 A project directory can be copied to another machine and opened as-is. Nothing in a project
 records an absolute path:
 
-- Paths are derived from the project root at runtime — see `src/core/ProjectPaths.h`, the single
+- Paths are derived from the project root at runtime - see `src/core/ProjectPaths.h`, the single
   definition of the layout.
 - The generated `CMakeLists.txt` derives `DEKI_PROJECT_ROOT` from its own location and receives
   the engine and editor locations from the editor at configure time
@@ -53,7 +53,7 @@ did not help.
 
 | Symptom | Action | Cost |
 |---|---|---|
-| A package is stale, or an uninstalled one still loads | Reset Package Copies | seconds — re-copied on next load |
+| A package is stale, or an uninstalled one still loads | Reset Package Copies | seconds - re-copied on next load |
 | Assets look wrong or stale after an import | Clear Asset Cache | assets reimport |
 | Linker or CMake confusion, configure failures | Clean Build | full recompile |
 | Start over | Full Clean | rebuild + reimport |

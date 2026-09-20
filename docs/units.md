@@ -7,7 +7,7 @@ a unit, it is on this page.
 
 **Stored values are SI. Always.** Metres, radians, seconds, kilograms, degrees
 Celsius. A `float` in a component, a scene file, or a package API is in the unit
-this page gives — no exceptions, no per-project variation.
+this page gives - no exceptions, no per-project variation.
 
 Conversion happens at exactly one boundary: **display**. The inspector may show
 a distance in pixels, an angle in degrees, a temperature in Fahrenheit. What
@@ -32,11 +32,11 @@ This is not a style preference. Three things break without it:
 | Angle | **radians** | `Angle` | degrees, always |
 | Angular velocity | **radians per second** | `AngularVelocity` | degrees/s, always |
 | Temperature | **degrees Celsius** | `Temperature` | °C or °F |
-| Simulation time | **seconds**, as `float` | — | — |
-| Durations, timeouts | **milliseconds**, as an integer | — | — |
-| Frequency | **hertz** | — | — |
-| Data size | **bytes** | — | — |
-| Mass | **kilograms** | — | reserved; nothing uses it yet |
+| Simulation time | **seconds**, as `float` | - | - |
+| Durations, timeouts | **milliseconds**, as an integer | - | - |
+| Frequency | **hertz** | - | - |
+| Data size | **bytes** | - | - |
+| Mass | **kilograms** | - | reserved; nothing uses it yet |
 
 `PhysicalUnit` is a **display hint**, not a statement about storage. Omitting it
 means the inspector shows a bare number; it never changes what the value means.
@@ -45,7 +45,7 @@ means the inspector shows a bare number; it never changes what the value means.
 
 Both are deliberate, and **the type tells you which you have**.
 
-A **`float` in seconds** is a simulation delta — how much world time a frame
+A **`float` in seconds** is a simulation delta - how much world time a frame
 advances. Seconds keep the numbers near 1.0 where float precision is best, and
 it is what an integration step multiplies by.
 
@@ -59,7 +59,7 @@ time is seconds.
 ## Datasheets do not use SI, and that is fine
 
 Sensor datasheets quote g and degrees per second. An API that returns those is
-not wrong — an API that returns them from a method whose name does not say so
+not wrong - an API that returns them from a method whose name does not say so
 is. `IDekiIMU` shows the pattern:
 
 ```cpp
@@ -92,15 +92,15 @@ into a rotation on the wrong assumption is out by 57.3×.
 All of it lives in `deki-editor/src/core/Units.h`. One file, so adding a unit
 means editing one place:
 
-- `GetUnitDisplay(unit)` — multiplier, offset, printf format, drag speed.
-- `ToDisplay(stored, ud)` / `FromDisplay(shown, ud)` — an inverse pair, kept
+- `GetUnitDisplay(unit)` - multiplier, offset, printf format, drag speed.
+- `ToDisplay(stored, ud)` / `FromDisplay(shown, ud)` - an inverse pair, kept
   together. While every conversion was a bare multiply a caller could invert it
   inline; with Fahrenheit's offset, an open-coded `shown / multiplier` is wrong
   by 32 degrees and still looks reasonable.
-- `CanonicalUnitSymbol(unit)` — the SI symbol a value is *stored* in, for
+- `CanonicalUnitSymbol(unit)` - the SI symbol a value is *stored* in, for
   machine-readable output. Unaffected by display preference: writing "px" into a
   metadata dump would make the dump a lie.
-- `SnapMetersToPixel` / `ShouldSnapToPixel` — only distances, only in pixels
+- `SnapMetersToPixel` / `ShouldSnapToPixel` - only distances, only in pixels
   mode.
 
 Project settings that steer it, all display-only:

@@ -38,15 +38,18 @@ components rebuild and reload in place.
 
 ## Packages
 
-The engine core is deliberately small: objects, components, the lifecycle,
-assets and provider interfaces. Rendering, 2D content, input, tweens, state
-machines, particles and every hardware integration are **packages**, each its
-own repository under [github.com/dekiengine](https://github.com/dekiengine)
-and listed in the [registry](https://github.com/dekiengine/registry). A project
-declares the ones it uses in `deki-packages.json`; the editor clones them into
-`packages/`, builds them as DLLs (desktop) or links them statically (firmware),
-and the Package Manager panel adds, removes and updates them. A new project
-starts with rendering, 2D, input and the desktop/SDL3 integrations.
+The engine core is small on purpose: objects, components, the lifecycle,
+assets and provider interfaces. Everything else is a **package** - rendering,
+2D content, input, tweens, state machines, particles, every hardware
+integration - each its own repository under
+[github.com/dekiengine](https://github.com/dekiengine) and listed in the
+[registry](https://github.com/dekiengine/registry).
+
+A project lists the ones it uses in `deki-packages.json`. The editor clones
+them into `packages/` and builds them as DLLs on desktop or links them
+statically for firmware; the Package Manager panel adds, removes and updates
+them. New projects start with rendering, 2D, input and the desktop/SDL3
+integrations.
 
 ## Layout
 
@@ -67,8 +70,8 @@ build/bin/DekiEditorTests
 build/bin/DekiRenderingTests        # the rendering package's rasterizer and renderer tests
 ```
 
-Beyond unit tests, the editor's command line is the integration harness, and
-every verb boots the editor exactly as the GUI does:
+The editor's command line is the integration harness. Every verb boots the
+editor the same way the GUI does:
 
 ```bash
 DekiEditor --build-code <project>       # generate build files, compile packages + plugin
@@ -76,10 +79,9 @@ DekiEditor --verify-scenes <project>    # every scene property key must resolve 
 DekiEditor --render-scenes <project>    # one framebuffer hash per scene: the pixel gate
 ```
 
-`--verify-scenes` is how a reflected-field rename is caught before it silently
-resets values in somebody's scene, and `--render-scenes` is how renderer changes
-prove they changed nothing they should not have. See [SETUP.md](SETUP.md) for
-the full list.
+`--verify-scenes` catches a renamed reflected field before it silently resets
+values in someone's scene. `--render-scenes` makes renderer changes prove they
+changed nothing they should not have. Full list in [SETUP.md](SETUP.md).
 
 ## Documentation
 
@@ -90,26 +92,25 @@ and one site per package with its components and properties, published on that
 package's own repository (for example https://dekiengine.github.io/deki-2d/).
 
 Hand-written notes on the subsystems live in [docs/](docs/), including
-[docs/memory.md](docs/memory.md) — how allocation works and the rule that every
+[docs/memory.md](docs/memory.md) - how allocation works and the rule that every
 device-side allocation goes through `Deki::Memory`, which is enforced rather
 than advisory.
 
 ## How this is built
 
-I designed Deki and I direct every change in it. I work with AI coding tools as
-a pair programmer, which is why many commits carry a co-author trailer, and I
-keep that history as it is rather than pretend otherwise. What makes the code
-trustworthy is not who typed it but what it has to pass: the unit suites above,
-`--verify-scenes` on real projects, golden pixel hashes for the rasterizer and
-the renderer, and a headless build of a fresh project on a machine that is not
-mine. Nothing lands without those.
+I designed Deki and I direct every change in it. I pair with AI coding tools,
+which is why many commits carry a co-author trailer, and I leave that history
+as it is. What makes the code trustworthy is what it has to pass, not who
+typed it: the unit suites above, `--verify-scenes` on real projects, golden
+pixel hashes for the rasterizer and the renderer, and a headless build of a
+fresh project on a machine that is not mine. Nothing lands without those.
 
 ## Contributing
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has
-the conventions (naming, the rule that reflected field names are the file
-format, the rule that every allocation goes through the engine, how to run the
-gates); [SECURITY.md](SECURITY.md) has the contact for vulnerabilities.
+the conventions: naming, reflected field names being the file format, every
+allocation going through the engine, and how to run the gates.
+[SECURITY.md](SECURITY.md) has the contact for vulnerabilities.
 
 ## Credits
 

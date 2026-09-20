@@ -27,7 +27,7 @@ one: ESP-IDF forces `-std=gnu++2b` for chip targets unconditionally (see
 C++23 for a long time while the editor, the desktop simulator and the
 generated project builds were pinned at 17. The same package source was being
 compiled at two different standards depending on the target, which meant a
-C++20 feature would build for the board and fail on the desktop — the wrong
+C++20 feature would build for the board and fail on the desktop - the wrong
 way round, since the desktop is where authoring happens. Package code may use
 C++23 freely now.
 
@@ -108,7 +108,7 @@ suits something cheap and local that the editor itself may want live: a clock
 source, installing a client object.
 
 The second waits for Play. Use it for anything with a side effect beyond the
-editor — a network request, hardware, something that costs the user money or
+editor - a network request, hardware, something that costs the user money or
 privacy. The rule of thumb is whether a user who opened a project to look at a
 scene would be surprised it happened. `deki-gps` is the worked example: it
 geolocates by asking a third party where the machine is, and as an editor-load
@@ -138,7 +138,7 @@ silently takes its default. So:
 
 ## Every allocation goes through the engine
 
-Runtime code — the engine's and every package's — allocates through
+Runtime code - the engine's and every package's - allocates through
 `Deki::Memory`, and in practice through `Deki::Buffer<T>`, which owns its
 memory and frees itself. **No `new[]`, no `malloc`, no `heap_caps_*`.**
 
@@ -150,7 +150,7 @@ if (!pixels.Allocate(w * h * 2, Deki::Memory::External))
 
 This is enforced, not advisory: `python tools/ci/check_allocations.py` fails on
 raw allocations in package runtime code. It exists because `new[]` cannot fail
-gracefully on a device — ESP-IDF builds with exceptions off, so a failed
+gracefully on a device - ESP-IDF builds with exceptions off, so a failed
 allocation reaches `__cxa_allocate_exception` and reboots the board, and
 `std::nothrow` aborts identically because libstdc++ implements it by calling
 the throwing form inside a `try`/`catch` that `-fno-exceptions` has removed.
@@ -168,14 +168,14 @@ Two rules that follow, and that a patch is most likely to get wrong:
   and a target advertises what it has as `memory:esp32.rtc`. See
   [docs/memory.md](docs/memory.md).
 - **Placement resolves once and there is no fallback.** A full region means the
-  allocation returns null; it is not retried elsewhere. Do not add a fallback —
+  allocation returns null; it is not retried elsewhere. Do not add a fallback
   moving an `Internal` buffer to external RAM turns a placement mistake into
   unaccountable frame drops, and the other direction exhausts the heap the next
   internal allocation needed. Handle the null.
 - **You do not have to name the allocation.** The `context` argument is
   optional: in a debug build the call site fills itself in, so a failure says
   which file and line asked. Pass a literal only where the call site is not
-  the useful name — one function allocating three different things.
+  the useful name - one function allocating three different things.
 
 `editor/`, `tests/`, `generated/` and `third_party/` are exempt: they run on
 the host, where exceptions are on and the heap is a desktop's.
@@ -219,20 +219,20 @@ python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt
   `SOURCES` names the package files the tests actually call, so a test does not
   drag the rest of the package (and its codegen) behind it. Pass `ALL_SOURCES`
   instead when the code under test is a component or its headers include
-  generated tables — that compiles the package's whole runtime and runs
+  generated tables - that compiles the package's whole runtime and runs
   reflection codegen, and is an order of magnitude slower. Pass nothing at all
   when the code under test is header-only. The editor sources a test can link
   are listed in `EDITOR_TESTABLE_SOURCES` in the root `CMakeLists.txt`.
 
   Note what `ALL_SOURCES` implies: the package has to *link*, so a package that
   calls into its `requires` closure cannot use it. That is why deki-fsm has no
-  target — its action library calls deki-tween and deki-2d, so linking it is a
+  target - its action library calls deki-tween and deki-2d, so linking it is a
   project-shaped build. Covering a package like that needs a fake runtime.
 - `DekiPackageCompileCheck` compiles every package in `modules/` against the
   engine built here, straight out of the checkout. A project build compiles a
   git clone pinned to a released tag instead, so a package edit can sit unbuilt
   while every other gate stays green; this is the gate that sees it. Each
-  package gets the defines its descriptor asks for — its `buildDefine`, those
+  package gets the defines its descriptor asks for - its `buildDefine`, those
   of its `requires` closure, and the transform width from that closure's
   `tags`. Packages that need a host library (`dependencies.native` or
   `dependencies.default`: SDL3, LovyanGFX) are skipped and say so at configure
@@ -242,12 +242,12 @@ python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt
   (`golden-scaffold.txt`) against a project it creates itself; the demo golden
   (`golden-demo.txt`) is the one on real content and is run by hand, because
   deki-demo is a separate repository CI does not check out. The tool tests
-  check that both files still parse and still hold real hashes — a golden that
+  check that both files still parse and still hold real hashes - a golden that
   gates nothing used to pass every test.
 - Engine changes go to the engine repository first; the editor then bumps the
   submodule pointer. Anything that changes `DekiComponent`/`DekiObject` layout
   bumps `kDekiReflectionAbiVersion` (`deki-engine/include/deki/interop/
-  ReflectionAbi.h`) and its changelog — and so does adding, removing or
+  ReflectionAbi.h`) and its changelog - and so does adding, removing or
   reordering a virtual on any of the package-facing interfaces
   (`Deki::Component`, the `I*` providers, the editor extension points), because
   that moves vtable slots. `check_abi.py` lists them and fails when the lock

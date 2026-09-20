@@ -13,7 +13,7 @@ reasons it has to hold:
 
 1. **`new[]` cannot fail gracefully.** ESP-IDF builds with exceptions off
    (`CONFIG_COMPILER_CXX_EXCEPTIONS` is not set), so a failed allocation
-   reaches `__cxa_allocate_exception` and calls `abort()` — the board reboots.
+   reaches `__cxa_allocate_exception` and calls `abort()` - the board reboots.
    There is no catch site to add. `std::nothrow` does *not* help: libstdc++
    implements the nothrow form by calling the throwing form inside a
    `try`/`catch` that `-fno-exceptions` has removed, so it aborts identically.
@@ -28,7 +28,7 @@ reasons it has to hold:
    the double-free guard and (in debug builds) the leak table all live behind
    it. An allocation that skips it is invisible.
 
-## `Deki::Buffer<T>` — use this
+## `Deki::Buffer<T>` - use this
 
 `<deki/providers/Buffer.h>`. An owning array that allocates through
 `Deki::Memory` and frees itself.
@@ -50,7 +50,7 @@ RenderInto(baked.Data());  // Data(), Count(), Bytes(), operator[], begin/end
 - **Move-only.** Copying would need a second allocation that could fail, and a
   copy constructor cannot report that.
 - **`T` must be trivially copyable and trivially destructible**, both enforced
-  by `static_assert`. Nothing here constructs or destroys elements — these are
+  by `static_assert`. Nothing here constructs or destroys elements - these are
   the raw pixel, glyph, span and sample buffers the engine hands to blitters
   and drivers. A `T` with a destructor would silently never run it.
 - **The region is required**, here as everywhere else.
@@ -78,10 +78,10 @@ front. One large enough for a single full-screen gradient bake reserves 150 KB
 whether or not a project has a gradient, which on a part with a few hundred KB
 of heap is half the memory held against a feature that may not exist. Arenas
 pay off where there is headroom. Most allocations here are long-lived and owned
-by something anyway — glyph tables, pixel data, particle columns, framebuffers
-— which is what RAII serves and an arena does not.
+by something anyway - glyph tables, pixel data, particle columns, framebuffers
+which is what RAII serves and an arena does not.
 
-## Regions — you choose, every time
+## Regions - you choose, every time
 
 `<deki/providers/Memory.h>`. **There is no default and nothing is inferred.**
 Every allocating call names a region, and omitting it does not compile.
@@ -89,7 +89,7 @@ Every allocating call names a region, and omitting it does not compile.
 | Region | Where it goes |
 | --- | --- |
 | `Deki::Memory::Internal` | Internal RAM. Fast, and the scarce one |
-| `Deki::Memory::External` | PSRAM where the board has it. Megabytes, and markedly slower — it is reached over SPI |
+| `Deki::Memory::External` | PSRAM where the board has it. Megabytes, and markedly slower - it is reached over SPI |
 
 `Deki::Memory::AllocateDma(bytes, region)` adds the constraint that a DMA
 engine must be able to read the block. That is orthogonal to placement: a
@@ -101,7 +101,7 @@ PSRAM, which is why it is a separate entry point rather than a third region.
 The engine ships two. The set is open:
 
 ```cpp
-// in a board-support package — no engine change, no registration call
+// in a board-support package - no engine change, no registration call
 namespace DekiEsp32
 {
 inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
@@ -110,7 +110,7 @@ inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
 battery.Allocate(count, DekiEsp32::Rtc);
 ```
 
-A package keeps its regions in **its own namespace**, not in `Deki::Memory` —
+A package keeps its regions in **its own namespace**, not in `Deki::Memory`
 which it could not do anyway, a class being closed, and that is the point. Two
 board packages that both want an `Rtc` constant cannot collide, because the
 language keeps them apart. Where the constant lives is never load-bearing: a
@@ -120,7 +120,7 @@ nothing at all.
 `Region()` hashes the name at compile time with the same FNV-1a the rest of the
 engine uses, so a region is a constant expression a provider can switch on.
 
-**Two packages naming the same region mean the same region** — that is how two
+**Two packages naming the same region mean the same region** - that is how two
 board packages agree on `"rtc"` without coordinating, exactly like two packages
 both requiring the `spi` capability. What that does not survive is two packages
 meaning *different* things by one word, so qualify names you did not invent:
@@ -149,8 +149,8 @@ A target advertises the regions it has as capabilities, prefixed `memory:`:
 
 | Capability | Comes from |
 | --- | --- |
-| `memory:internal` | every platform — derived |
-| `memory:external` | the platform's `psramSize` — derived |
+| `memory:internal` | every platform - derived |
+| `memory:external` | the platform's `psramSize` - derived |
 | `memory:esp32.rtc` | the board's `provides`, because only it knows |
 
 So a package that needs one declares it and the build refuses a target that
@@ -224,10 +224,10 @@ Deki::Memory::LogStats("after level load");
 - `GetStats()` returns the same numbers as a struct;
   `GetAvailableInternal()` and `GetAvailablePSRAM()` give the free side.
   `IsPSRAMAvailable()` says whether there is an external region at all. None
-  of these is a licence to place memory yourself — they are for sizing a
+  of these is a licence to place memory yourself - they are for sizing a
   project and for finding what is holding memory it should have released.
 
-## `AllocContext` — the label writes itself
+## `AllocContext` - the label writes itself
 
 Every allocating call takes one, and almost nobody writes one:
 
@@ -267,7 +267,7 @@ storage duration, which is what lets the debug leak table hold the pointer.
 ### Stripping it
 
 Capture is on in every build. It costs **4,272 bytes on the ESP32-S3
-firmware — 0.28%** of a 1.5 MB image, about 40 bytes per call site, which is
+firmware - 0.28%** of a 1.5 MB image, about 40 bytes per call site, which is
 cheap enough not to think about.
 
 Define `DEKI_STRIP_ALLOC_CONTEXT` for a build that needs the flash back.
@@ -280,17 +280,17 @@ Failed to allocate 153600 bytes in internal RAM (126556 bytes free there)
 ```
 
 Note the layout differs between a stripped and an unstripped build, so an
-engine and the packages calling it have to agree — the same constraint
+engine and the packages calling it have to agree - the same constraint
 `MemoryStats` already imposes.
 
-## `Deki::Vector<T>` — when the count changes at runtime
+## `Deki::Vector<T>` - when the count changes at runtime
 
 `<deki/providers/Vector.h>`. `Buffer<T>` covers a count you know when you
 allocate. When it changes and has no fixed bound, `std::vector` is the wrong
 answer on a device: `push_back` calls `operator new`, which cannot report
 exhaustion with exceptions off, so it aborts and the board reboots.
 
-`Deki::Vector` is that shape with the one thing changed that matters here —
+`Deki::Vector` is that shape with the one thing changed that matters here
 everything that can allocate returns `bool`:
 
 ```cpp
@@ -315,7 +315,7 @@ if (!enemies.PushBack(spawned))      // and per growth, if it has to grow
   do.
 - **A failed growth leaves everything already stored intact**, so a caller
   that drops the new element still has a working vector.
-- `RemoveUnordered(i)` is O(1) and fills the hole with the last element — the
+- `RemoveUnordered(i)` is O(1) and fills the hole with the last element - the
   same trick `ParticlePool::KillSwap` uses, and what a list of live entities
   wants. `Clear()` keeps the memory for refilling next frame; `Reset()`
   releases it.
@@ -349,7 +349,7 @@ and can substitute its heap for all of them.
 What it is *not* is `Memory::Allocate`. That would put a 16-byte header before
 every `std::string` that outgrows its small-string buffer, memset memory a
 vector is about to overwrite, and pay the ESP32 provider's 16-byte SIMD
-alignment on small blocks — and ESP-IDF implements aligned allocation by
+alignment on small blocks - and ESP-IDF implements aligned allocation by
 over-allocating, so that is more waste than the header. `AllocateRaw` has none
 of it: natural alignment, no header, the pointer the heap returned.
 
@@ -357,9 +357,9 @@ Measured, 1.6M paired 48-byte allocations, engine at `-O2`:
 
 | | ns/op |
 |---|---|
-| `malloc` + `free` | 47–52 |
-| routed through the provider | 46–51 — indistinguishable |
-| routed, plus `DEKI_MEMORY_TRACK_RAW` | 63–71 (+35%) |
+| `malloc` + `free` | 47-52 |
+| routed through the provider | 46-51 - indistinguishable |
+| routed, plus `DEKI_MEMORY_TRACK_RAW` | 63-71 (+35%) |
 
 So the routing is free and always on; **counting the bytes is opt-in**, because
 with no header the block size has to come from the heap and on Windows that is
@@ -379,7 +379,7 @@ PSRAM and make a hot loop slow for reasons invisible in the code. A caller who
 wants external memory names `Deki::Memory::External` and gets `Deki::Buffer`;
 `operator new` cannot know, so it does not guess.
 
-It is compiled only where `__cpp_exceptions` is undefined — i.e. exactly the
+It is compiled only where `__cpp_exceptions` is undefined - i.e. exactly the
 builds where the abort problem exists. Host and editor builds keep the standard
 operators. The over-aligned forms (`align_val_t`) are left to libstdc++ so they
 stay a matched pair.
@@ -404,14 +404,14 @@ The interface reports external RAM (`HasExternalRAM`, totals, free) and
 allocates from each region: `AllocateExternal` / `FreeExternal`,
 `AllocateInternal` / `FreeInternal`, and `AllocateDMA`.
 
-**Every placement virtual is pure — implement all of them.** A provider states
+**Every placement virtual is pure - implement all of them.** A provider states
 what each region means on its platform, even when the answer is "the same as
 the others here". A desktop provider writing `return malloc(size);` in
 `AllocateDMA` has made a claim you can read and check.
 
 `AllocateDMA` is the one that matters. A provider that could inherit it from
 `AllocateInternal` would hand a display peripheral memory it cannot reach on
-any part where those differ — silent corruption, with nothing in the build to
+any part where those differ - silent corruption, with nothing in the build to
 say so.
 
 `GetAvailableInternalRAM` is required for the same reason: a provider that
@@ -424,7 +424,7 @@ no ABI version. It stops a provider compiling until it decides.
 the plain natural-alignment allocator the global `operator new` routes through,
 so a board's heap serves `std::vector` and scalar `new` as well as everything
 the engine places. They default to `malloc`/`free`, and `GetRawBlockSize`
-returns 0 where the platform cannot answer — which only costs accuracy in
+returns 0 where the platform cannot answer - which only costs accuracy in
 `LogStats`. Override both of the pair or neither.
 
 `AllocateDMA` is separate from `AllocateInternal` because on the ESP32-S3 most
@@ -432,8 +432,8 @@ internal RAM is DMA-reachable but not all of it, and a display peripheral
 reading a framebuffer that is not gets silent corruption rather than an error.
 The ESP32 provider asks for `MALLOC_CAP_DMA` explicitly. Whoever overrides one
 of `AllocateInternal`/`FreeInternal` must override both: the pair has to match
-(the ESP32 provider uses `heap_caps_aligned_alloc` with 16-byte alignment — it
-also lets the blit dispatcher engage the S3 SIMD kernels — and
+(the ESP32 provider uses `heap_caps_aligned_alloc` with 16-byte alignment - it
+also lets the blit dispatcher engage the S3 SIMD kernels - and
 `heap_caps_free`).
 
 **`IMemoryProvider` is part of the package ABI**, so its virtuals are locked by
@@ -449,7 +449,7 @@ python tools/ci/check_allocations.py --verbose  # also list files and waivers
 ```
 
 Fails on `new[]`, `delete[]`, `malloc`/`calloc`/`realloc` and `heap_caps_*` in
-runtime code — **the engine's own as well as every package's**. An allocation
+runtime code - **the engine's own as well as every package's**. An allocation
 in the engine reaches every project on every board, where a package's reaches
 only the projects that installed it, so if anything the engine is the more
 important half; leaving it out of the first version of this lint immediately
@@ -461,13 +461,13 @@ Skipped: `editor/`, `tests/`, `generated/`, `third_party/` and the engine's
 where exceptions are on and the heap is a desktop's. Exempt by path, because
 they are the bottom of the stack rather than code with permission to break the
 rule: `providers/Memory.cpp`, `providers/IMemoryProvider.h`, any
-`*MemoryProvider.*`, and `providers/OperatorNew.cpp` — which has to define
+`*MemoryProvider.*`, and `providers/OperatorNew.cpp` - which has to define
 `operator new[]` so that nothing else needs to.
 
 Comments and string literals are blanked before matching, so a comment
 explaining this rule does not trip it.
 
-A genuinely unavoidable case takes a waiver **with a reason** — one without a
+A genuinely unavoidable case takes a waiver **with a reason** - one without a
 reason does not count, so a diff always shows which exceptions were argued for:
 
 ```cpp

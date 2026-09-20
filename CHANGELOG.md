@@ -181,7 +181,7 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Added
 - **The engine says how old a package may be.** `minEngine` was a floor with
   nothing above it, so a package from an older generation installed, failed the
-  ABI handshake, was rebuilt from source, and failed to compile — a compile
+  ABI handshake, was rebuilt from source, and failed to compile - a compile
   error deep in a project build with nothing naming the package. The engine now
   declares the oldest package generation it can build and the editor refuses
   anything below it, by name and version.
@@ -224,7 +224,7 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   component.** A scene stores a component's identity three ways: the `type`
   name, `ObjectRef`'s numeric `typeId`, and `PropertyRef`'s `component` name.
   `DEKI_FORMER_NAME` only reached the first, so moving every package component
-  into a namespace changed the other two and broke them silently — the
+  into a namespace changed the other two and broke them silently - the
   component loaded, the object resolved, and the reference pointed at nothing.
   Saving then wrote the dead id back, so the file never healed. A hash cannot
   be turned back into the name it came from, so the registry now also indexes

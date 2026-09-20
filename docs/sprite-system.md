@@ -2,7 +2,7 @@
 
 ## Overview
 
-Spritesheets go through an import pipeline: PNG source file -> compiled .tex file with embedded frame metadata. All frames live **inside the parent .tex file** as regions — no separate files are generated per frame.
+Spritesheets go through an import pipeline: PNG source file -> compiled .tex file with embedded frame metadata. All frames live **inside the parent .tex file** as regions - no separate files are generated per frame.
 
 ```
 assets/sprites/player.png (source)
@@ -226,7 +226,7 @@ const SpriteFrame* Sprite::FindFrame(const std::string& guid) const {
 }
 ```
 
-Linear search — frame counts are small (typically < 100).
+Linear search - frame counts are small (typically < 100).
 
 ## Assignment in Editor
 
@@ -274,7 +274,7 @@ During `AssetExporter::ExportToStorage()`:
    -> At runtime, frames are found via FindFrame() after loading parent
 ```
 
-**Key difference from fonts:** Font variants need separate entries in the lookup table because they are separate files. Sprite frames do not — they are found via `FindFrame()` after the parent is loaded.
+**Key difference from fonts:** Font variants need separate entries in the lookup table because they are separate files. Sprite frames do not - they are found via `FindFrame()` after the parent is loaded.
 
 ## Comparison: Fonts vs Sprites
 

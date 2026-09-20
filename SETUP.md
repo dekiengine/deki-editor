@@ -22,10 +22,10 @@ Keep the package checkouts as a **sibling** of `deki-editor`:
 `deki-editor/tests/CMakeLists.txt` defaults `DEKI_PACKAGES_DIR` to
 `${CMAKE_SOURCE_DIR}/../packages`, which is `<root>/packages`, and compiles
 `DekiRenderingTests` from the checkout it finds there. Cloning the editor
-somewhere else works — pass `-DDEKI_PACKAGES_DIR=<dir>` — but keep that
+somewhere else works - pass `-DDEKI_PACKAGES_DIR=<dir>` - but keep that
 relationship or the package tests silently skip.
 
-Game projects (e.g. `deki-demo`) live wherever you like — they are located by path,
+Game projects (e.g. `deki-demo`) live wherever you like - they are located by path,
 not by layout.
 
 ```bash
@@ -47,7 +47,7 @@ git submodule update --init --recursive
 | CMake ≥ 3.16 | build system | 3.29 used in practice |
 | Ninja | generator | CMake copies one next to `DekiEditor.exe` for project builds |
 | **GCC 16.1+** | reflection codegen | **hard requirement**, see below |
-| A C++23 compiler | editor + engine | MinGW-w64 **or** MSVC — see §3 |
+| A C++23 compiler | editor + engine | MinGW-w64 **or** MSVC - see §3 |
 | git (+ git-lfs) | package install shells out to `git` | must be on `PATH` |
 | Network access | packages and the registry | `github.com`, `raw.githubusercontent.com` |
 
@@ -56,7 +56,7 @@ git submodule update --init --recursive
 The engine generates component reflection with a **C++26 static-reflection**
 generator (`deki-engine/tools/reflection_codegen.cpp`). It needs GCC 16.1 or
 newer, and it runs as a plain `g++` invocation **independent of the compiler you
-build the project with** — so an MSVC build still needs GCC 16.1 installed.
+build the project with** - so an MSVC build still needs GCC 16.1 installed.
 
 CMake looks for it in this order:
 
@@ -90,7 +90,7 @@ editor binary was compiled and picks a matching compiler automatically:
 | MinGW / GCC / Clang | `g++` / `clang++` | no |
 
 Override *which* matching compiler with `DEKI_PLUGIN_CXX` (and optionally
-`DEKI_PLUGIN_CC`). It selects among compilers of the correct ABI — it cannot make
+`DEKI_PLUGIN_CC`). It selects among compilers of the correct ABI - it cannot make
 a mismatched ABI work.
 
 Pick one and stay consistent: mixing produces link errors that look nothing like
@@ -176,22 +176,22 @@ The archives are produced by `tools/package-windows.ps1` and
 
 ---
 
-## 5. Opening a project — packages download themselves
+## 5. Opening a project - packages download themselves
 
 Nothing under `packages/` is committed to a game repo (it is gitignored).
 On project open the editor reconstructs it:
 
-1. **From the manifest** — reads `deki-packages.json` + `deki-packages-lock.json`
+1. **From the manifest** - reads `deki-packages.json` + `deki-packages-lock.json`
    and clones anything missing, at the version the project pins. Resolution order
    is: manifest pin → lock `installedVersion` → registry `latest`. The lock
    does not cache a list of available versions: it records what is installed,
    and a cache nobody refreshes goes stale.
-2. **Transitive requires** — scans each installed package's `package.json`
+2. **Transitive requires** - scans each installed package's `package.json`
    `requires` and pulls those through the registry, repeating until nothing new
    appears. This is how `deki-esp32-integration` drags in `deki-ble`, `deki-http`,
    `deki-i2c`, `deki-i2s`, `deki-uart`, `deki-sdcard` and `deki-wifi` without the
    project naming them.
-3. **First build** — with no `generated/runtime/` yet, the plugin build runs, codegen produces
+3. **First build** - with no `generated/runtime/` yet, the plugin build runs, codegen produces
    reflection, and the package DLLs plus the game plugin are compiled.
 
 Both restore passes are idempotent and skip the network entirely when nothing is
@@ -199,19 +199,19 @@ missing. Failures are per-package: one unreachable repo is reported and the rest
 still restore.
 
 So a fresh clone of a project on a new machine only needs the prerequisites in §2
-— the packages and binaries rebuild themselves.
+the packages and binaries rebuild themselves.
 
 ### Packages are working clones
 
 Each installed package is a **real git clone**, not a snapshot: `.git` retained,
 full history, `origin` on `dekiengine/<package>`, checked out at the tag the
-project pins. Edit and push directly from `packages/<package>` — no
+project pins. Edit and push directly from `packages/<package>` - no
 junctions or symlinks.
 
 **Mark it editable first.** A package is read-only unless the project says
 otherwise: tick *Editable* in the Package Manager (or set `"editable": true` on
 it in `deki-packages.json`). Without that, the editor treats the directory as
-its own and puts it back on the pinned version when the window regains focus —
+its own and puts it back on the pinned version when the window regains focus
 your edits are stashed, not destroyed, and a toast tells you where they went,
 but you will be doing that repeatedly until you set the flag.
 
@@ -237,7 +237,7 @@ Package metadata comes from `https://dekiengine.github.io/registry`, serving
 `index.json` and `packages/<repo>.json`, with
 `https://raw.githubusercontent.com/dekiengine/registry/master` as a fallback if
 the first is unreachable. Both are the same static tree published from the
-`dekiengine/registry` repo — there is no registry host to keep alive.
+`dekiengine/registry` repo - there is no registry host to keep alive.
 
 `DEKI_REGISTRY_URL` overrides both without a rebuild, for a mirror or a machine
 behind a filter.
@@ -258,7 +258,7 @@ Produces package DLLs in `<project>/generated/runtime/` and the game plugin in
 `<project>/generated/runtime/.build_temp/`.
 
 `<project>/generated/CMakeLists.txt` is **generated** by the editor and rewritten before
-each build — it contains absolute paths to your engine and editor checkouts, so
+each build - it contains absolute paths to your engine and editor checkouts, so
 do not hand-edit it and do not expect it to be portable between machines.
 
 ### Desktop simulator
@@ -270,7 +270,7 @@ DekiEditor --build-firmware --platform native_simulator <project>
 Produces `<project>/generated/build/native/build/bin/DekiGame.exe`. This target generates
 its **own** reflection with runtime defines (no `DEKI_EDITOR`) into
 `<project>/generated/build/native/build/refl/`, because reflection is configuration
-specific — the editor's copy references editor-only members.
+specific - the editor's copy references editor-only members.
 
 ### ESP32 firmware
 
@@ -300,7 +300,7 @@ That is deliberate. It means `--build-firmware` produces the image the Build
 panel produces, `--verify-scenes` reads the game code a build just promoted
 rather than whatever was left in `runtime/`, and `--packages-restore` leaves the
 project built rather than merely downloaded. The cost is that a first run on a
-fresh checkout takes as long as the editor's first open — because it is the same
+fresh checkout takes as long as the editor's first open - because it is the same
 work.
 
 ```
@@ -385,7 +385,7 @@ Alongside the scene and asset tools it exposes:
 `list_platforms`, `toolchain_status`, `build_firmware`, `build_status`,
 `cancel_build`, `install_toolchain_component`, `deploy_build`, `clean_build`
 
-Long operations are start-and-poll — `build_firmware`, `deploy_build` and
+Long operations are start-and-poll - `build_firmware`, `deploy_build` and
 `install_toolchain_component` return once the work is running, and you poll
 `build_status` (`idle|building|flashing|installing|completed|failed`). MCP
 handlers run on the editor's frame loop, so blocking would freeze the UI.
@@ -393,7 +393,7 @@ handlers run on the editor's frame loop, so blocking would freeze the UI.
 **Connecting a client.** The server binds `127.0.0.1` only and wants a bearer
 token on every route. By default it mints a fresh one per session and prints
 the full URL on startup, which is also on the right-click menu of the MCP
-status-bar button — paste that into the client and nothing else is needed. For
+status-bar button - paste that into the client and nothing else is needed. For
 a client configuration that survives restarts, set `DEKI_MCP_TOKEN` (16
 characters or more, refused below that) in the environment of both the editor
 and the client, and use `http://127.0.0.1:3000/sse?token=$DEKI_MCP_TOKEN`.
@@ -428,7 +428,7 @@ Install it (§2) or pass `-DDEKI_GXX16=<path to g++>`.
 
 **`'uint32_t' has not been declared` in a package**
 Missing `#include <cstdint>`. MSVC supplies it transitively, GCC does not. Fix it
-in the package — it is a working clone, so you can commit and push the fix.
+in the package - it is a working clone, so you can commit and push the fix.
 
 **`undefined reference` to a class's constructor/destructor/vtable across packages**
 The exporting package isn't exporting. `WINDOWS_EXPORT_ALL_SYMBOLS` is implemented
@@ -449,12 +449,12 @@ also skipped, with a message in the log.
 **Two headers with the same filename**
 The desktop simulator compiles game and package code into one target, so a game
 header sharing a name with a package header will shadow it and break the other's
-generated reflection. Rename one — package include dirs are searched before
+generated reflection. Rename one - package include dirs are searched before
 `project/src`.
 
 **A clean checkout doesn't build anything**
 It should: a missing/empty `generated/runtime/` is treated as "never built" and triggers the
-first build. If it stays idle, check the log for package restore failures first —
+first build. If it stays idle, check the log for package restore failures first
 the build is skipped when there is nothing to compile.
 
 **Unity build surprises**
