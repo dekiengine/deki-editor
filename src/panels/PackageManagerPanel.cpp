@@ -12,6 +12,7 @@
 #include <deki-editor/EditorHttpUtils.h>
 #include <deki-editor/build/BuilderRegistry.h>
 #include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/PlatformTemplates.h>
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include <deki-editor/EditorUI.h>
@@ -1169,6 +1170,9 @@ void PackageManagerPanel::OnInstallClicked()
                                                       {
                                                           m_PackageManager->SavePackages(proj->GetPath());
 
+                                                          // The package may offer boards: list them now
+                                                          DekiEditor::ReloadProjectPlatforms(proj->GetPath());
+
                                                           // For Deki packages, force CMakeLists.txt regeneration and trigger rebuild
                                                           if (dekiPackage)
                                                           {
@@ -1225,6 +1229,9 @@ void PackageManagerPanel::OnRemoveClicked()
                                                 if (auto* proj = m_App->GetProject())
                                                 {
                                                     m_PackageManager->SavePackages(proj->GetPath());
+
+                                                    // Boards only that package offered go with it
+                                                    DekiEditor::ReloadProjectPlatforms(proj->GetPath());
 
                                                     namespace fs = std::filesystem;
                                                     std::string path = proj->GetPath();
@@ -1472,6 +1479,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
     m_PackageManager->RefreshInstalledStatus(projectPath);
     m_PackageManager->SavePackages(projectPath);
     m_NeedsRefresh = true;
+    DekiEditor::ReloadProjectPlatforms(projectPath);
 
     // Deki packages change the generated build graph, so drop the stale
     // CMakeLists.txt and force a rebuild that bypasses timestamp detection.
@@ -1575,6 +1583,26 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
         }
         if (ImGui::IsItemHovered() && !d->reason.empty())
             ImGui::SetTooltip("%s", d->reason.c_str());
+
+        // Packages this feature needs that installing its package does not
+        // bring (the board or project that uses the feature does).
+        for (const auto& dep : d->requiredPackages)
+        {
+            bool installed = false;
+            for (const auto& p : m_PackageManager->GetPackages())
+                if (p.id == dep && p.isInstalled)
+                    installed = true;
+            ImGui::SameLine();
+            if (installed)
+                ImGui::TextDisabled("needs %s", dep.c_str());
+            else
+                ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.35f, 1.0f), "needs %s (not installed)", dep.c_str());
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(installed ? "%s is installed, so this feature builds."
+                                            : "Install %s to use this feature. Until then it builds as a step that "
+                                              "logs what is missing.",
+                                  dep.c_str());
+        }
         ImGui::PopID();
     }
     ui.Unindent();

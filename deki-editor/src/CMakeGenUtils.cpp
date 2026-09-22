@@ -99,6 +99,10 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                         for (const auto& t : f["componentTypes"])
                             if (t.is_string())
                                 fe.componentTypes.push_back(t.get<std::string>());
+                    if (f.contains("requires") && f["requires"].is_array())
+                        for (const auto& r : f["requires"])
+                            if (r.is_string() && r.get<std::string>().rfind("deki-", 0) == 0)
+                                fe.requiredPackages.push_back(r.get<std::string>());
                     if (!fe.id.empty())
                         info.features.push_back(fe);
                 }
@@ -276,6 +280,31 @@ bool PackageSupportsPlatform(const PackageEntry& pkg,
     return MissingCapabilities(pkg, platformCapabilities).empty();
 }
 
+bool FeatureInBuild(const FeatureEntry& feature, const std::vector<std::string>& packageDefines)
+{
+    // Without a feature plan every feature is compiled in (the package headers
+    // define them all), so every feature's packages are needed.
+    const bool configured = std::find(packageDefines.begin(), packageDefines.end(),
+                                      "DEKI_PACKAGE_FEATURES_CONFIGURED") != packageDefines.end();
+    if (!configured || feature.required || feature.buildDefine.empty())
+        return true;
+    return std::find(packageDefines.begin(), packageDefines.end(), feature.buildDefine) != packageDefines.end();
+}
+
+std::vector<std::string> RequiredPackagesInBuild(const PackageEntry& pkg, const std::vector<std::string>& packageDefines)
+{
+    std::vector<std::string> out = pkg.dekiDeps;
+    for (const auto& feature : pkg.features)
+    {
+        if (!FeatureInBuild(feature, packageDefines))
+            continue;
+        for (const auto& dep : feature.requiredPackages)
+            if (std::find(out.begin(), out.end(), dep) == out.end())
+                out.push_back(dep);
+    }
+    return out;
+}
+
 std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
                                             const std::vector<std::string>& packageDefines,
                                             const std::set<std::string>& platformCapabilities)
@@ -305,7 +334,7 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
         for (const auto& pkg : allPackages)
         {
             if (activeIds.count(pkg.id) == 0) continue;
-            for (const auto& dep : pkg.dekiDeps)
+            for (const auto& dep : RequiredPackagesInBuild(pkg, packageDefines))
             {
                 auto it = byId.find(dep);
                 if (it != byId.end() && !PackageSupportsPlatform(*it->second, platformCapabilities))

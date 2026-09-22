@@ -204,6 +204,7 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
             d.displayName = feat.displayName.empty() ? feat.id : feat.displayName;
             d.buildDefine = feat.buildDefine;
             d.componentTypes = feat.componentTypes;
+            d.requiredPackages = feat.requiredPackages;
 
             const std::string ov = settings.Override(pkg.id, feat.id);
             if (feat.required)
@@ -352,7 +353,8 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
         }
         plan.packages.push_back(p);
     }
-    // Dependencies of kept packages stay, however their own features fared.
+    // Dependencies of kept packages stay, however their own features fared:
+    // the package's own, and those of each of its features left on.
     bool depChanged = true;
     while (depChanged)
     {
@@ -363,7 +365,12 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                                      [&](const PackageDecision& p) { return p.packageId == pkg.id; });
             if (self == plan.packages.end() || !self->on)
                 continue;
-            for (const auto& dep : pkg.dekiDeps)
+            std::vector<std::string> needed = pkg.dekiDeps;
+            for (const auto& d : plan.features)
+                if (d.packageDir == pkg.dirName && d.on)
+                    for (const auto& dep : d.requiredPackages)
+                        needed.push_back(dep);
+            for (const auto& dep : needed)
             {
                 for (auto& other : plan.packages)
                 {
@@ -377,6 +384,22 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                     }
                 }
             }
+        }
+    }
+
+    // A feature left on that needs a package not installed builds as nothing.
+    for (const auto& d : plan.features)
+    {
+        if (!d.on)
+            continue;
+        for (const auto& dep : d.requiredPackages)
+        {
+            const bool installed = std::any_of(allPackages.begin(), allPackages.end(), [&](const CMakeGen::PackageEntry& p)
+                                               { return p.id == dep || p.dirName == dep; });
+            if (!installed)
+                plan.warnings.push_back(d.packageId + ": feature '" + d.featureId + "' needs package '" + dep +
+                                        "', which is not installed; it is built without it. Install " + dep +
+                                        " to use it.");
         }
     }
 

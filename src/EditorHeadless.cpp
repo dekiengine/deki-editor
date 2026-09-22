@@ -1702,6 +1702,8 @@ int CmdStripPlan(EditorApp& editor, const char* platformId)
         if (!p.on)
             printf("%s stripped: %s\n", p.packageId.c_str(), p.reason.c_str());
     printf("%s\n", plan.summary.c_str());
+    for (const auto& w : plan.warnings)
+        printf("warning: %s\n", w.c_str());
     return 0;
 }
 

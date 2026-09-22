@@ -3,6 +3,8 @@
 
 #include <deki-editor/Paths.h>
 #include <deki/LogSystem.h>
+#include <deki/reflection/ComponentRegistry.h>
+#include <deki/reflection/Property.h>
 
 #include <nlohmann/json.hpp>
 
@@ -34,6 +36,19 @@ std::string Relative(const fs::path& p, const fs::path& root)
     return s;
 }
 
+// The name a component answers to now. A scene saved before a rename (or a
+// move to another package) names the old one, which DEKI_FORMER_NAME maps;
+// counted under the old name, the component itself looked unused and was
+// stripped while the scene still loaded as it. Without the component loaded
+// (the unit tests) the name is taken as written.
+std::string CurrentTypeName(const std::string& written)
+{
+    if (const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(written))
+        if (meta->serializedName && *meta->serializedName)
+            return meta->serializedName;
+    return written;
+}
+
 // A component node in a scene is an object carrying "type" and "properties";
 // everything else is walked through. Instances and children nest, so this
 // is recursive.
@@ -42,7 +57,7 @@ void CollectSceneTypes(const nlohmann::json& node, std::set<std::string>& out)
     if (node.is_object())
     {
         if (node.contains("type") && node["type"].is_string() && node.contains("properties"))
-            out.insert(ShortTypeName(node["type"].get<std::string>()));
+            out.insert(ShortTypeName(CurrentTypeName(node["type"].get<std::string>())));
         for (const auto& item : node.items())
             CollectSceneTypes(item.value(), out);
     }

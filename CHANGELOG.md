@@ -7,6 +7,29 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **A platform adopted from a package can be updated and restored.** Choosing
+  a platform a package offers still copies it into the project, where it is
+  edited like any other. The copy now remembers what it was copied from
+  (`platforms/<id>/origin.json`: the package, and the template as adopted), so
+  the Build panel shows `From package <id>`, whether the project has modified
+  it, and whether the package has changed it since.
+  - **Update** takes what the package changed and keeps what the project
+    changed, setting by setting, and file by file for the boot scene. Where
+    both changed the same thing the project's is kept and named.
+  - **Restore defaults** replaces the copy with the package's version. Files
+    only the project has are left.
+  - A copy the editor merely re-saved, or whose line endings git changed, does
+    not count as modified.
+  - Platforms adopted before this get a record the next time they are used,
+    if they still match the package. One that differs can be restored, not
+    updated: nothing says whose change it was.
+  - CLI: `update_platform`, `restore_platform`, and `origin` on each entry of
+    `list_platforms`.
+- [docs/platforms.md](docs/platforms.md): what a platform is, how a package
+  ships boards, and adopting, updating and restoring one. `deki-lilygo-boards`
+  (T-Deck Plus, T-Display S3 AMOLED) is the first package that is only boards.
+- CLI `open_panel`: open or close a panel by id, as the Window menu does.
+  `list_panels` and `focus_panel` only see panels that are already open.
 - **Packages can add command-line tools.** A `CliTool` (`deki-editor/CliTool.h`),
   registered with `REGISTER_EDITOR`, appears in `--list-tools` and the MCP
   server while its package is loaded, and is callable from `--tool` /
@@ -22,6 +45,19 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they overwrite or delete a person's work.
 
 ### Changed
+- **"Strip unused packages" is on by default.** A package none of whose
+  components a target uses is left out of that target's build, not only its
+  unused features. Packages without components (buses, drivers) are kept
+  whenever something kept needs them. A project that saved the setting keeps
+  its choice (`settings/build.json`); others get the new default. On the
+  LilyGO targets it took FSM, tilemap and tween out of the firmware, about
+  49 KB each.
+- **A package feature can name its own `requires`.** Those packages are not
+  installed with the package; whoever uses the feature brings them (a board
+  package, typically). A build pulls them in only while the feature is on,
+  and says so when a feature in use lacks one. `deki-input`'s keyboard needs
+  `deki-i2c` and its trackball `deki-gpio` this way, so a desktop project
+  installs neither.
 - `deki-editor/ShellCommand.h`: `RunShellCommand`, one shell command line with its
   output streamed back line by line and a cancel that reaches the whole process
   tree, for the tool steps a build backend drives (an SDK installer, a checkout,
@@ -89,6 +125,23 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **A component renamed or moved to another package was stripped from builds**
+  while scenes still used it. The usage scan counted the name the scene was
+  saved with; the scene loaded as the new component through
+  `DEKI_FORMER_NAME`, but its code was left out. Found on the LilyGO boards,
+  whose power pin step moved from the ESP32 package to deki-gpio: the pin
+  would never have been driven. The scan resolves former names now.
+- The Package Manager shows what each feature needs beyond its package, and
+  whether that is installed.
+- **A package's boards did not appear until the project was reopened.** The
+  platforms a package offers under `platforms/` were only read when a project
+  opened or a build started, so installing a board package left the Build
+  panel's target list unchanged. Installing or removing a package now reloads
+  the list at once. Boards the project has already adopted stay.
+- Editing a platform that a package offers but the project had not adopted yet
+  saved only its JSON, leaving it without its boot scene. It is adopted first.
+- Deleting a platform that came from a package removed it from the target list
+  until the project was reopened. It goes back to being on offer.
 - **A failed package rebuild was invisible on the command line.** Opening a
   project whose package sources changed rebuilds them first; when that build
   failed, its errors went only to the Console panel, which a command-line run

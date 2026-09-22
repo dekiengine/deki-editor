@@ -23,7 +23,7 @@ struct DEKI_EDITOR_API BuildStripSettings
     // and that no kept package requires. Packages with no component features
     // (drivers, protocols) are never touched by this; they have nothing to
     // scan for.
-    bool stripUnusedPackages = false;
+    bool stripUnusedPackages = true;
 
     // package id -> feature id -> "on" | "off". Absent means automatic.
     std::map<std::string, std::map<std::string, std::string>> featureOverrides;

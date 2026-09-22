@@ -402,8 +402,10 @@ deki_add_package_tests(deki-nodegraph TARGET DekiNodeGraphTests
 
 # InputDispatch is a static claim; InputCollider's HitTest needs a Deki::Object
 # to take a world position from, which a test can build without codegen.
+# The keyboard and trackball drivers take how a device is read as a function,
+# so they need no bus here.
 deki_add_package_tests(deki-input TARGET DekiInputTests
-                       SOURCES InputCollider.cpp InputDispatch.cpp)
+                       SOURCES InputCollider.cpp InputDispatch.cpp I2CKeyboard.cpp Trackball.cpp)
 
 # BuildOpaqueRowSpans is header-inline, so the tests need no package sources.
 # It decides which pixels the blitter copies straight, and getting it wrong is

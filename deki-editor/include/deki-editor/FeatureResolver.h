@@ -50,6 +50,7 @@ struct DEKI_EDITOR_API FeatureDecision
     std::string displayName;
     std::string buildDefine;
     std::vector<std::string> componentTypes;
+    std::vector<std::string> requiredPackages;  // needed only while this is on
     bool on = true;
     FeatureState state = FeatureState::DefaultOn;
     std::string reason;
@@ -79,6 +80,11 @@ struct DEKI_EDITOR_API StripPlan
 
     // One line for the build log.
     std::string summary;
+
+    // A feature that is on but needs a package the project does not have: its
+    // code compiles out, so the part is silently missing. One line each, for
+    // the build to say.
+    std::vector<std::string> warnings;
 
     bool AnythingStripped() const;
 

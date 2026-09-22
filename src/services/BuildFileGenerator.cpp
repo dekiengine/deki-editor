@@ -46,8 +46,9 @@ static std::string ProjectFolderName(const std::string& projectPath)
 }
 
 // A package that links another deki package (PACKAGE_LINK_DEPS) must also
-// declare it in package.json "requires", or installing it alone leaves the
-// link target missing. The two lists are hand-maintained in different files,
+// declare it in package.json "requires" (or a feature's, for a dependency the
+// feature makes optional), or installing it alone leaves the link target
+// missing. The two lists are hand-maintained in different files,
 // so drift is reported here, where every package of the project is seen.
 static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePanel* console)
 {
@@ -84,6 +85,12 @@ static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePane
             for (const auto& r : j.value("requires", nlohmann::json::array()))
                 if (r.is_string())
                     declaredRequires.push_back(r.get<std::string>());
+            // A feature's own requires count too: linked only when installed.
+            for (const auto& f : j.value("features", nlohmann::json::array()))
+                if (f.is_object())
+                    for (const auto& r : f.value("requires", nlohmann::json::array()))
+                        if (r.is_string())
+                            declaredRequires.push_back(r.get<std::string>());
         }
         catch (const std::exception&)
         {

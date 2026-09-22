@@ -18,7 +18,7 @@ TEST(BuildStripSettings, DefaultsWhenMissing)
     fs::create_directories(root);
     const BuildStripSettings s = BuildStripSettings::Load(root.string());
     EXPECT_TRUE(s.stripUnusedComponents);
-    EXPECT_FALSE(s.stripUnusedPackages);
+    EXPECT_TRUE(s.stripUnusedPackages);
     EXPECT_TRUE(s.featureOverrides.empty());
     fs::remove_all(root);
 }

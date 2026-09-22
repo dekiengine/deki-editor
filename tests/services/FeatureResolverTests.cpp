@@ -188,6 +188,7 @@ TEST(FeatureResolver, AnEditorOnlyOrFeatureGuardedIncludeKeepsNothing)
               Feat("gradient", "DEKI_FEATURE_GRADIENT", { "GradientComponent" }) }),
     };
     BuildStripSettings s;
+    s.stripUnusedPackages = false;  // the features are the question here
     const StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, root.string());
     EXPECT_FALSE(plan.Find("deki-2d", "clip")->on) << plan.Find("deki-2d", "clip")->reason;
     EXPECT_TRUE(plan.Find("deki-2d", "sorting_group")->on) << plan.Find("deki-2d", "sorting_group")->reason;
@@ -230,6 +231,7 @@ TEST(FeatureResolver, PackagesGoOnlyWhenAskedAndOnlyWhenNothingNeedsThem)
     // Not asked: both stay, whatever their features did.
     {
         BuildStripSettings s;
+        s.stripUnusedPackages = false;
         const StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, "");
         EXPECT_TRUE(plan.packages[0].on);
         EXPECT_TRUE(plan.packages[1].on);
@@ -273,6 +275,7 @@ TEST(FeatureResolver, AFeatureKeptByItsOwnPackageDoesNotKeepThePackage)
     };
     {
         BuildStripSettings s;  // components only: the feature is kept, the package stays
+        s.stripUnusedPackages = false;
         const StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, root.string());
         EXPECT_EQ(plan.Find("deki-tween", "tween")->state, FeatureState::Kept);
         EXPECT_TRUE(plan.packages[0].on);
@@ -303,4 +306,81 @@ TEST(FeatureResolver, RegexesNameTheExcludedFiles)
     const StripPlan plan = ResolveStripPlan(kTwoD, Using({ "SpriteComponent" }), s, "");
     ASSERT_EQ(plan.CodegenExcludeRegexes(), std::vector<std::string>{ "/deki-2d/GradientComponent\\.(h|cpp|c)$" });
     ASSERT_EQ(plan.SourceExcludeRegexes(), std::vector<std::string>{ "/deki-2d/GradientComponent\\.(cpp|c)$" });
+}
+
+// ---------------------------------------------------------------------------
+// A feature's own requires: packages one part of a package needs and the rest
+// does not. They count only while that feature is in the build.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+CMakeGen::FeatureEntry FeatNeeding(const char* id, const char* define, const char* type, const char* needs)
+{
+    CMakeGen::FeatureEntry f = Feat(id, define, { type });
+    f.requiredPackages = { needs };
+    return f;
+}
+
+// An input package whose keyboard needs a bus package; the bus has components
+// of its own, so the stripper can judge it.
+std::vector<CMakeGen::PackageEntry> InputWithBus(bool busInstalled)
+{
+    std::vector<CMakeGen::PackageEntry> all = {
+        Pkg("deki-input", "DEKI_PACKAGE_INPUT",
+            { Feat("colliders", "DEKI_FEATURE_INPUT", { "InputCollider" }),
+              FeatNeeding("keyboard", "DEKI_FEATURE_KEYBOARD", "KeyboardComponent", "deki-bus") }),
+    };
+    if (busInstalled)
+        all.push_back(Pkg("deki-bus", "DEKI_PACKAGE_BUS", { Feat("bus", "DEKI_FEATURE_BUS", { "BusComponent" }) }));
+    return all;
+}
+}  // namespace
+
+TEST(FeatureRequires, APackageIsPulledInOnlyWhileTheFeatureNeedingItIsOn)
+{
+    const auto all = InputWithBus(true);
+    const std::vector<std::string> keyboardOff = { "DEKI_PACKAGE_FEATURES_CONFIGURED", "DEKI_PACKAGE_INPUT",
+                                                   "DEKI_FEATURE_INPUT" };
+    EXPECT_EQ(CMakeGen::ResolveActivePackages(all, keyboardOff).count("deki-bus"), 0u);
+
+    std::vector<std::string> keyboardOn = keyboardOff;
+    keyboardOn.push_back("DEKI_FEATURE_KEYBOARD");
+    EXPECT_EQ(CMakeGen::ResolveActivePackages(all, keyboardOn).count("deki-bus"), 1u);
+}
+
+TEST(FeatureRequires, WithoutAFeaturePlanEveryFeatureCounts)
+{
+    // The editor's own build compiles every feature in, so it needs them all.
+    const auto all = InputWithBus(true);
+    EXPECT_EQ(CMakeGen::ResolveActivePackages(all, { "DEKI_PACKAGE_INPUT" }).count("deki-bus"), 1u);
+}
+
+TEST(FeatureRequires, StrippingKeepsTheBusForAKeyboardInUseAndDropsItOtherwise)
+{
+    BuildStripSettings s;
+    s.stripUnusedPackages = true;
+
+    const StripPlan used = ResolveStripPlan(InputWithBus(true), Using({ "KeyboardComponent" }), s, "");
+    const PackageDecision* bus = nullptr;
+    for (const auto& p : used.packages)
+        if (p.packageId == "deki-bus") bus = &p;
+    ASSERT_NE(bus, nullptr);
+    EXPECT_TRUE(bus->on) << bus->reason;
+
+    const StripPlan unused = ResolveStripPlan(InputWithBus(true), Using({ "InputCollider" }), s, "");
+    for (const auto& p : unused.packages)
+        if (p.packageId == "deki-bus") EXPECT_FALSE(p.on) << "no keyboard in use, so nothing needs the bus";
+}
+
+TEST(FeatureRequires, AFeatureInUseWithoutItsPackageIsReported)
+{
+    BuildStripSettings s;
+    const StripPlan plan = ResolveStripPlan(InputWithBus(false), Using({ "KeyboardComponent" }), s, "");
+    ASSERT_EQ(plan.warnings.size(), 1u);
+    EXPECT_NE(plan.warnings[0].find("deki-bus"), std::string::npos);
+    EXPECT_NE(plan.warnings[0].find("keyboard"), std::string::npos);
+
+    const StripPlan notUsed = ResolveStripPlan(InputWithBus(false), Using({ "InputCollider" }), s, "");
+    EXPECT_TRUE(notUsed.warnings.empty()) << "a stripped feature needs nothing";
 }

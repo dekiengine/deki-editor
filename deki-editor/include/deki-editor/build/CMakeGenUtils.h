@@ -52,6 +52,14 @@ struct DEKI_EDITOR_API FeatureEntry
     std::string buildDefine;
     bool required = false;
     std::vector<std::string> componentTypes;
+
+    // Packages this feature needs, beyond what the whole package needs.
+    // Optional: installing the package does not bring them, and the feature's
+    // code compiles only where they are installed. A build takes them only
+    // while the feature is on. So a package can offer one part that needs a
+    // bus or a renderer without every project that uses its other parts having
+    // to carry them. (Not `requires`: a keyword.)
+    std::vector<std::string> requiredPackages;
 };
 
 struct DEKI_EDITOR_API PackageEntry
@@ -109,6 +117,15 @@ DEKI_EDITOR_API bool PackageSupportsPlatform(const PackageEntry& pkg,
 
 // Scan all package manifests in project/packages/
 DEKI_EDITOR_API std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath);
+
+// Whether a feature is compiled into a build with these defines: always when
+// no feature plan is in force (the editor's own build), else when its define is.
+DEKI_EDITOR_API bool FeatureInBuild(const FeatureEntry& feature, const std::vector<std::string>& packageDefines);
+
+// The packages `pkg` needs in a build with these defines: the package's own
+// requires plus those of each feature in the build.
+DEKI_EDITOR_API std::vector<std::string> RequiredPackagesInBuild(const PackageEntry& pkg,
+                                                                 const std::vector<std::string>& packageDefines);
 
 // Resolve which packages are active given the build defines, including transitive deps.
 // `platformCapabilities` drops packages the target cannot satisfy, dependency edges
