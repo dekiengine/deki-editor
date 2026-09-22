@@ -191,6 +191,7 @@ public:
     InspectorPanel* GetInspectorPanel() { return m_InspectorPanel.get(); }
     AssetBrowserPanel* GetAssetBrowserPanel() { return m_AssetBrowserPanel.get(); }
     BuildPanel* GetBuildPanel() { return m_BuildPanel.get(); }
+    const std::vector<IPanel*>& GetPanels() const { return m_Panels; }
     PackageManagerPanel* GetPackageManagerPanel() { return m_PackageManagerPanel.get(); }
 
     // Put packages that are NOT marked editable back the way the project pinned

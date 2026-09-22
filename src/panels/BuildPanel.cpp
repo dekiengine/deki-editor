@@ -26,6 +26,19 @@
 namespace DekiEditor
 {
 
+namespace
+{
+
+std::string JoinNames(const std::vector<std::string>& names)
+{
+    std::string joined;
+    for (const std::string& name : names)
+        joined += (joined.empty() ? "" : ", ") + name;
+    return joined;
+}
+
+}  // namespace
+
 BuildPanel::BuildPanel(EditorApp* app)
     : m_App(app), m_PlatformEditor(app)
 {
@@ -54,20 +67,25 @@ BuildPanel::BuildPanel(EditorApp* app)
             project->SetActivePlatformId(config.id);
             project->Save();
 
-            // Regenerate build files for the saved platform
-            ITargetBuilder* builder = GetActiveBuilder();
-            if (builder)
-            {
-                std::vector<std::string> packageDefines;
-                if (auto* pkgPanel = m_App->GetPackageManagerPanel())
-                {
-                    pkgPanel->ScanProjectForPackageUsage();
-                    packageDefines = pkgPanel->GetRequiredBuildDefines();
-                }
-
-                builder->GenerateBuildFiles(project->GetPath(), config, packageDefines);
-            }
+            RegenerateBuildFiles(config);
         } });
+}
+
+void BuildPanel::RegenerateBuildFiles(const PlatformConfig& config)
+{
+    auto* project = m_App ? m_App->GetProject() : nullptr;
+    ITargetBuilder* builder = GetActiveBuilder();
+    if (!project || !builder)
+        return;
+
+    std::vector<std::string> packageDefines;
+    if (auto* pkgPanel = m_App->GetPackageManagerPanel())
+    {
+        pkgPanel->ScanProjectForPackageUsage();
+        packageDefines = pkgPanel->GetRequiredBuildDefines();
+    }
+
+    builder->GenerateBuildFiles(project->GetPath(), config, packageDefines);
 }
 
 BuildPanel::~BuildPanel()
@@ -134,6 +152,10 @@ void BuildPanel::Draw()
     if (ImGui::BeginPopupModal("Delete Platform?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Text("Are you sure you want to delete platform '%s'?", m_PlatformToDelete.c_str());
+        if (m_PlatformToDelete == m_OriginFor && m_Origin.packageInstalled)
+            ImGui::TextDisabled("Package '%s' still offers it, so it stays in the list\n"
+                                "and choosing it again copies the package's version in.",
+                                m_Origin.packageId.c_str());
         ImGui::Spacing();
 
         float buttonWidth = 100.0f;
@@ -148,6 +170,9 @@ void BuildPanel::Draw()
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
                 PlatformRegistry::Instance().DeletePlatform(m_PlatformToDelete, platformsDir);
+
+                // A platform a package offers is on offer again
+                ReloadProjectPlatforms(project->GetPath());
 
                 // Select another platform if available
                 auto platforms = PlatformRegistry::Instance().GetAvailablePlatforms();
@@ -169,6 +194,55 @@ void BuildPanel::Draw()
         if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
         {
             m_PlatformToDelete.clear();
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // Restore confirmation popup
+    if (m_ShowRestoreConfirm)
+    {
+        ImGui::OpenPopup("Restore Platform?");
+        m_ShowRestoreConfirm = false;
+    }
+
+    if (ImGui::BeginPopupModal("Restore Platform?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Replace platform '%s' with the version from package '%s'?", m_OriginFor.c_str(),
+                    m_Origin.packageId.c_str());
+        if (m_Origin.modified)
+            ImGui::TextDisabled("Your changes will be lost: %s", JoinNames(m_Origin.modifiedItems).c_str());
+        ImGui::Spacing();
+
+        float buttonWidth = 100.0f;
+        float totalWidth = buttonWidth * 2 + ImGui::GetStyle().ItemSpacing.x;
+        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - totalWidth) * 0.5f);
+
+        if (ImGui::Button("Restore", ImVec2(buttonWidth, 0)))
+        {
+            if (auto* project = m_App->GetProject())
+            {
+                const PlatformSyncResult result = RestorePlatformFromPackage(project->GetPath(), m_OriginFor);
+                if (!result.ok)
+                {
+                    ActivityPanel::LogError("Build", result.error);
+                    m_OriginNotice = result.error;
+                }
+                else
+                {
+                    m_OriginNotice = "Restored from " + m_Origin.packageId + ".";
+                    if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_OriginFor))
+                        RegenerateBuildFiles(*config);
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
+        {
             ImGui::CloseCurrentPopup();
         }
 
@@ -544,6 +618,15 @@ void BuildPanel::DrawPlatformSelector()
     if (!canEdit) ImGui::BeginDisabled();
     if (ImGui::Button("E", ImVec2(buttonWidth, 0)))
     {
+        // One a package only offers becomes the project's own first, boot
+        // scene included: saving the dialog alone would write just the JSON.
+        if (m_App && m_App->GetProject())
+        {
+            std::string adoptErr;
+            if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
+                ActivityPanel::LogError("Build", adoptErr);
+        }
+
         const PlatformConfig* platform = registry.GetPlatform(m_SelectedPlatform);
         if (platform)
         {
@@ -565,6 +648,101 @@ void BuildPanel::DrawPlatformSelector()
     if (!canEdit) ImGui::EndDisabled();
     if (ImGui::IsItemHovered())
         DekiEditor::Tooltip("Delete selected platform");
+
+    DrawPlatformOrigin();
+}
+
+void BuildPanel::DrawPlatformOrigin()
+{
+    auto* project = m_App ? m_App->GetProject() : nullptr;
+    if (!project || m_SelectedPlatform.empty())
+        return;
+
+    if (m_OriginFor != m_SelectedPlatform || m_OriginRevision != ProjectPlatformsRevision())
+    {
+        if (m_OriginFor != m_SelectedPlatform)
+            m_OriginNotice.clear();
+        m_Origin = GetPlatformOrigin(project->GetPath(), m_SelectedPlatform);
+        m_OriginFor = m_SelectedPlatform;
+        m_OriginRevision = ProjectPlatformsRevision();
+    }
+
+    if (!m_Origin.fromPackage)
+        return;
+
+    std::string source = "From package " + m_Origin.packageId;
+    if (!m_Origin.adoptedVersion.empty())
+        source += " " + m_Origin.adoptedVersion;
+    ImGui::TextDisabled("%s", source.c_str());
+
+    if (!m_Origin.packageInstalled)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(not installed)");
+        if (ImGui::IsItemHovered())
+            DekiEditor::Tooltip("The platform is the project's own copy and still builds.\n"
+                                "Install the package to update or restore it.");
+    }
+
+    if (m_Origin.modified)
+    {
+        ImGui::SameLine();
+        ImGui::Text("%s", m_Origin.recorded ? "- modified" : "- differs from the package");
+        if (ImGui::IsItemHovered())
+            DekiEditor::Tooltip("Changed in this project: %s", JoinNames(m_Origin.modifiedItems).c_str());
+    }
+
+    if (m_Origin.updateAvailable)
+    {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "- update available");
+        if (ImGui::IsItemHovered())
+        {
+            std::string tip = "Changed in the package";
+            if (!m_Origin.offeredVersion.empty() && m_Origin.offeredVersion != m_Origin.adoptedVersion)
+                tip += " (" + m_Origin.offeredVersion + ")";
+            DekiEditor::Tooltip("%s: %s", tip.c_str(), JoinNames(m_Origin.updatedItems).c_str());
+        }
+    }
+
+    if (m_Origin.CanUpdate())
+    {
+        if (ImGui::SmallButton("Update"))
+        {
+            const std::string package = m_Origin.packageId;
+            const PlatformSyncResult result = UpdatePlatformFromPackage(project->GetPath(), m_SelectedPlatform);
+            if (!result.ok)
+            {
+                ActivityPanel::LogError("Build", result.error);
+                m_OriginNotice = result.error;
+            }
+            else
+            {
+                m_OriginNotice = "Updated from " + package + ".";
+                if (!result.taken.empty())
+                    m_OriginNotice += " Took: " + JoinNames(result.taken) + ".";
+                if (!result.kept.empty())
+                    m_OriginNotice += " Kept yours, which the package also changed: " + JoinNames(result.kept) + ".";
+                if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform))
+                    RegenerateBuildFiles(*config);
+            }
+        }
+        if (ImGui::IsItemHovered())
+            DekiEditor::Tooltip("Take the package's changes and keep this project's own.");
+    }
+
+    if (m_Origin.CanRestore())
+    {
+        if (m_Origin.CanUpdate())
+            ImGui::SameLine();
+        if (ImGui::SmallButton("Restore defaults"))
+            m_ShowRestoreConfirm = true;
+        if (ImGui::IsItemHovered())
+            DekiEditor::Tooltip("Replace this platform with the package's version.");
+    }
+
+    if (!m_OriginNotice.empty())
+        ImGui::TextWrapped("%s", m_OriginNotice.c_str());
 }
 
 void BuildPanel::DrawToolchainStatusSummary()

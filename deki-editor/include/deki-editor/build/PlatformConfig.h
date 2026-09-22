@@ -131,6 +131,12 @@ struct DEKI_EDITOR_API PlatformConfig
     std::string bootScene;
 };
 
+/// A platform as JSON text, in the one form SavePlatformToFile writes. Reading
+/// accepts every older spelling; writing produces only this one, so two
+/// platform files say the same thing exactly when their round trips are equal.
+DEKI_EDITOR_API bool PlatformFromJson(const std::string& text, PlatformConfig& config);
+DEKI_EDITOR_API std::string PlatformToJson(const PlatformConfig& config);
+
 /**
  * @brief Registry for available platforms
  *

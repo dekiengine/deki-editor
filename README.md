@@ -94,7 +94,8 @@ package's own repository (for example https://dekiengine.github.io/deki-2d/).
 Hand-written notes on the subsystems live in [docs/](docs/), including
 [docs/memory.md](docs/memory.md) - how allocation works and the rule that every
 device-side allocation goes through `Deki::Memory`, which is enforced rather
-than advisory.
+than advisory - and [docs/platforms.md](docs/platforms.md) - build targets, how
+a package ships boards, and how a project updates or restores one it has taken.
 
 ## How this is built
 

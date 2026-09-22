@@ -1,4 +1,5 @@
 #include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/PlatformTemplates.h>
 #include <deki/LogSystem.h>
 #include <deki-editor/EditorPaths.h>
 #include <filesystem>
@@ -322,6 +323,53 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     return true;
 }
 
+bool PlatformFromJson(const std::string& text, PlatformConfig& config)
+{
+    const json j = json::parse(text, nullptr, false);
+    if (!j.is_object())
+        return false;
+    config = PlatformConfig();
+    return LoadPlatformFromJson(j, config);
+}
+
+std::string PlatformToJson(const PlatformConfig& config)
+{
+    // Only non-default values, to keep files clean
+    json j;
+    j["id"] = config.id;
+    j["displayName"] = config.displayName;
+
+    j["family"] = config.family.empty() ? kDefaultFamily : config.family;
+
+    // Written back as one nested object, never as the legacy top-level
+    // keys: the editor does not know what any of them mean.
+    if (!config.frameworkOptions.empty())
+    {
+        json options = json::parse(config.frameworkOptions, nullptr, false);
+        if (options.is_object() && !options.empty())
+            j["frameworkOptions"] = options;
+    }
+
+    j["framework"] = config.framework;
+
+    if (config.externalMemorySize > 0) j["externalMemorySize"] = config.externalMemorySize;
+
+    if (config.screenWidth > 0) j["screenWidth"] = config.screenWidth;
+    if (config.screenHeight > 0) j["screenHeight"] = config.screenHeight;
+    if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
+
+    if (!config.provides.empty()) j["provides"] = config.provides;
+    if (!config.requiresPackages.empty()) j["requiresPackages"] = config.requiresPackages;
+    if (!config.defines.empty()) j["defines"] = config.defines;
+    if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
+    if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
+    if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
+
+    if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
+
+    return j.dump(2);
+}
+
 bool PlatformRegistry::LoadPlatformsFromDirectory(const std::string& path)
 {
     if (!fs::exists(path) || !fs::is_directory(path))
@@ -430,47 +478,15 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         fs::path platformDir = fs::path(directory) / config.id;
         fs::create_directories(platformDir);
 
-        // Build JSON - only write non-default values to keep files clean
-        json j;
-        j["id"] = config.id;
-        j["displayName"] = config.displayName;
-
-        j["family"] = config.family.empty() ? kDefaultFamily : config.family;
-
-        // Written back as one nested object, never as the legacy top-level
-        // keys: the editor does not know what any of them mean.
-        if (!config.frameworkOptions.empty())
-        {
-            json options = json::parse(config.frameworkOptions, nullptr, false);
-            if (options.is_object() && !options.empty())
-                j["frameworkOptions"] = options;
-        }
-
-        j["framework"] = config.framework;
-
-        if (config.externalMemorySize > 0) j["externalMemorySize"] = config.externalMemorySize;
-
-        if (config.screenWidth > 0) j["screenWidth"] = config.screenWidth;
-        if (config.screenHeight > 0) j["screenHeight"] = config.screenHeight;
-        if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
-
-        if (!config.provides.empty()) j["provides"] = config.provides;
-        if (!config.requiresPackages.empty()) j["requiresPackages"] = config.requiresPackages;
-        if (!config.defines.empty()) j["defines"] = config.defines;
-        if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
-        if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
-        if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
-
-        if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
-
         // Write to file: <dir>/<id>/<id>.json
         fs::path filePath = platformDir / (config.id + ".json");
         std::ofstream file(filePath);
-        file << j.dump(2);
+        file << PlatformToJson(config);
         file.close();
 
         // Also register in memory
         RegisterPlatform(config);
+        NoteProjectPlatformsChanged();
 
         return true;
     }
@@ -486,6 +502,7 @@ bool PlatformRegistry::DeletePlatform(const std::string& id, const std::string& 
     {
         // Remove from registry
         UnregisterPlatform(id);
+        NoteProjectPlatformsChanged();
 
         // Delete entire platform subdirectory: <dir>/<id>/
         fs::path platformDir = fs::path(directory) / id;

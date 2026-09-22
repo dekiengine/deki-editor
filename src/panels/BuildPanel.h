@@ -8,6 +8,7 @@
 #include "PlatformEditorDialog.h"
 #include <deki-editor/BuildStripSettings.h>
 #include <deki-editor/build/TargetBuilder.h>
+#include <deki-editor/build/PlatformTemplates.h>
 
 namespace DekiEditor
 {
@@ -86,6 +87,16 @@ private:
     PlatformEditorDialog m_PlatformEditor;
     bool m_ShowDeleteConfirm = false;
     std::string m_PlatformToDelete;
+
+    // Where the selected platform came from (build/PlatformTemplates), read
+    // again only when the platforms change: it compares files.
+    void DrawPlatformOrigin();
+    void RegenerateBuildFiles(const PlatformConfig& config);
+    PlatformOriginStatus m_Origin;
+    std::string m_OriginFor;
+    unsigned m_OriginRevision = 0;
+    std::string m_OriginNotice;  // what the last update or restore did
+    bool m_ShowRestoreConfirm = false;
 };
 
 }  // namespace DekiEditor

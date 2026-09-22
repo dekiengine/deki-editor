@@ -65,10 +65,7 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     }
 
     auto& platforms = PlatformRegistry::Instance();
-    platforms.Clear();
-    platforms.LoadPlatformsFromBoardPacks();
-    RegisterPlatformTemplates(projectPath);
-    platforms.LoadPlatformsFromDirectory(GetPlatformsDirectory(projectPath));
+    ReloadProjectPlatforms(projectPath);
 
     ctx.platformId = platformId.empty() ? ctx.project->GetActivePlatformId() : platformId;
     if (ctx.platformId.empty())
@@ -312,6 +309,22 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
         j["screenHeight"] = p->screenHeight;
         j["builder"] = b ? b->GetName() : "";
         j["toolchainInstalled"] = b ? b->IsToolchainInstalled() : false;
+
+        // Where it came from, for the ones a package offers
+        const PlatformOriginStatus origin = GetPlatformOrigin(projectPath, p->id);
+        if (origin.fromPackage)
+        {
+            nlohmann::json o;
+            o["package"] = origin.packageId;
+            o["packageInstalled"] = origin.packageInstalled;
+            if (!origin.adoptedVersion.empty()) o["adoptedVersion"] = origin.adoptedVersion;
+            if (!origin.offeredVersion.empty()) o["offeredVersion"] = origin.offeredVersion;
+            o["modified"] = origin.modifiedItems;
+            o["updateAvailable"] = origin.updatedItems;
+            o["canUpdate"] = origin.CanUpdate();
+            o["canRestore"] = origin.CanRestore();
+            j["origin"] = o;
+        }
         arr.push_back(j);
     }
 

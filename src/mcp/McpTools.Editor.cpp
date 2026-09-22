@@ -311,6 +311,39 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             return { { "panels", panels } };
                         } });
 
+    // list_panels and focus_panel only see windows that are being drawn, and a
+    // panel closed in the layout is not: this is the Window menu's checkbox.
+    registry.Register({ "open_panel",
+                        "Open or close one of the editor's panels, as its Window menu entry does. "
+                        "Ids are the panels' own (\"Build\", \"Console\", \"Hierarchy\", ...); the "
+                        "error for an unknown id lists them. A panel opened this way appears in "
+                        "list_panels from the next frame.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "id", { { "type", "string" }, { "description", "Panel id" } } },
+                              { "open", { { "type", "boolean" }, { "description", "false to close it (default true)" } } } } },
+                          { "required", nlohmann::json::array({ "id" }) } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            if (!editor)
+                                throw std::runtime_error("open_panel needs the editor window");
+
+                            const std::string id = args.at("id").get<std::string>();
+                            const bool open = args.value("open", true);
+
+                            std::string known;
+                            for (IPanel* panel : editor->GetPanels())
+                            {
+                                if (id == panel->Id())
+                                {
+                                    panel->SetOpen(open);
+                                    return { { "id", id }, { "open", open } };
+                                }
+                                known += (known.empty() ? "" : ", ") + std::string(panel->Id());
+                            }
+                            throw std::runtime_error("no panel '" + id + "'. Panels: " + known);
+                        } });
+
     registry.Register({ "focus_panel",
                         "Select a docked panel's tab so it is actually drawn. Takes effect on the "
                         "next frame - screenshot it with wait_frames >= 2.",

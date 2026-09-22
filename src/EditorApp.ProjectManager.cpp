@@ -184,10 +184,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // nobody offers is an error said here rather than a quiet substitute.
     {
         const std::string activePlatform = m_Project->GetActivePlatformId();
-        PlatformRegistry::Instance().Clear();
-        PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
-        RegisterPlatformTemplates(path);
-        PlatformRegistry::Instance().LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
+        ReloadProjectPlatforms(path);
 
         std::string platformErr;
         if (!EnsureProjectPlatform(path, activePlatform, platformErr))

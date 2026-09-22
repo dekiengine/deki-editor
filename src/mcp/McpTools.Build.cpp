@@ -375,6 +375,51 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             return { { "activePlatformId", id } };
                         } });
 
+    // A platform adopted from a package is the project's copy, and remembers
+    // what it was copied from (build/PlatformTemplates). list_platforms reports
+    // that under "origin"; these two act on it.
+    auto syncPlatform = [editor](const nlohmann::json& args, const char* tool, bool restore) -> nlohmann::json
+    {
+        const std::string path = ResolveProjectPath(editor, args);
+        const std::string id = ArgPlatform(args);
+        if (id.empty())
+            throw std::runtime_error(std::string(tool) + " needs a platform_id");
+
+        const PlatformSyncResult r =
+            restore ? RestorePlatformFromPackage(path, id) : UpdatePlatformFromPackage(path, id);
+        if (!r.ok)
+            throw std::runtime_error(r.error);
+
+        return { { "platformId", id }, { "taken", r.taken }, { "kept", r.kept } };
+    };
+
+    registry.Register({ "update_platform",
+                        "Bring a platform adopted from a package up to date with what the package "
+                        "offers now. Settings and files only the package changed are taken; what "
+                        "the project changed is kept. Where both changed the same thing the "
+                        "project's is kept and listed under \"kept\". list_platforms says when an "
+                        "update is available (origin.canUpdate).",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "platform_id" }) },
+                          { "properties",
+                            { { "platform_id", { { "type", "string" }, { "description", "Platform to update" } } },
+                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+                        [syncPlatform](const nlohmann::json& args) -> nlohmann::json
+                        { return syncPlatform(args, "update_platform", false); } });
+
+    registry.Register({ "restore_platform",
+                        "Replace a platform adopted from a package with the package's version as "
+                        "it is now: its settings and its files, the boot scene included. The "
+                        "project's changes to them are lost; files only the project has are left. "
+                        "\"taken\" lists what changed.",
+                        { { "type", "object" },
+                          { "required", nlohmann::json::array({ "platform_id" }) },
+                          { "properties",
+                            { { "platform_id", { { "type", "string" }, { "description", "Platform to restore" } } },
+                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+                        [syncPlatform](const nlohmann::json& args) -> nlohmann::json
+                        { return syncPlatform(args, "restore_platform", true); } });
+
     // The CLI equivalent of the Package Manager's "Editable (I am developing
     // this package)" checkbox. Without it, a package directory belongs to the
     // editor: PackageIntegrity stashes local edits and puts the checkout back

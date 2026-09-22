@@ -26,6 +26,9 @@ generated state goes bad.
     └── CMakeLists.txt           regenerated on open/build
 ```
 
+`platforms/` holds one directory per build target, including the ones copied in from a
+package: see [platforms.md](platforms.md).
+
 Everything under `generated/` is disposable. That is why the project `.gitignore` is one line
 rather than an inventory: an inventory drifts, and it did - it listed a `build_refl/` that nothing
 creates while hiding a `settings/` folder that was tracked.
