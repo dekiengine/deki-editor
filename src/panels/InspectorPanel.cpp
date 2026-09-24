@@ -1119,7 +1119,9 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                                        // DrawDefaultProperties callback
                                        [this, comp, meta, &registry]()
                                        {
-                // Draw base class properties first
+                // Draw base class properties first. DEKI_VISIBLE_WHEN applies
+                // here as in the plain inspector: a custom editor that draws
+                // the defaults gets the same fields shown and hidden.
                 if (meta->baseTypeId != 0)
                 {
                     const Deki::ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
@@ -1127,14 +1129,16 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                     {
                         for (int i = 0; i < baseMeta->propertyCount; ++i)
                         {
-                            m_PropertyEditor->DrawProperty(comp, baseMeta->properties[i]);
+                            if (InspectorUtils::EvaluateVisibility(comp, baseMeta->properties[i], baseMeta))
+                                m_PropertyEditor->DrawProperty(comp, baseMeta->properties[i]);
                         }
                     }
                 }
                 // Draw this component's properties
                 for (int i = 0; i < meta->propertyCount; ++i)
                 {
-                    m_PropertyEditor->DrawProperty(comp, meta->properties[i]);
+                    if (InspectorUtils::EvaluateVisibility(comp, meta->properties[i], meta))
+                        m_PropertyEditor->DrawProperty(comp, meta->properties[i]);
                 } },
                                        // ResolveAssetName callback
                                        [this](const std::string& guid) -> std::string
