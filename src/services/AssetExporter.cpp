@@ -96,17 +96,11 @@ AssetExporter::AssetExporter(Project* project, AssetPipeline* pipeline, PackageL
 {
 }
 
-// The board's own screen wins over the project's. One project serves several
-// targets and they do not all have the same panel; without this a 480x320 board
-// was flashed with whatever geometry the project happened to be set to. No
-// target set leaves everything as it was.
-void AssetExporter::ApplyTargetDisplay(int32_t& width, int32_t& height, uint8_t& colorFormat) const
+// The board's own colour format wins over the project's. One project serves
+// several targets and they do not all have the same panel. No target set leaves
+// the project's.
+void AssetExporter::ApplyTargetColorFormat(uint8_t& colorFormat) const
 {
-    if (m_TargetWidth > 0 && m_TargetHeight > 0)
-    {
-        width = m_TargetWidth;
-        height = m_TargetHeight;
-    }
     if (m_TargetColorFormat.empty())
         return;
 
@@ -759,15 +753,12 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
 
     auto* displaySettings = DekiEditor::GetDisplaySettings();
     const auto& startupScene = m_Project->GetStartupScene();
-    // Frame pacing moved to the Core section; the framebuffer geometry below
-    // still comes from Framebuffer. Both are written to dproject.bin for the
-    // device runtime, which has no editor and no package system.
+    // Frame pacing comes from Core and the colour format from Framebuffer.
+    // The design area travels in the settings chunk with every other section.
     auto* coreSettings = DekiEditor::GetCoreSettings();
     int32_t targetFPS = coreSettings ? coreSettings->targetFps : 60;
-    int32_t displayWidth = displaySettings ? displaySettings->targetWidth : 320;
-    int32_t displayHeight = displaySettings ? displaySettings->targetHeight : 240;
     uint8_t displayColorFormat = displaySettings ? static_cast<uint8_t>(displaySettings->colorFormat) : 0;
-    ApplyTargetDisplay(displayWidth, displayHeight, displayColorFormat);
+    ApplyTargetColorFormat(displayColorFormat);
 
     // Resolve render pipeline config from .rpipeline asset
     std::string rendererName;
@@ -779,8 +770,6 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
         passNamePtrs.push_back(name.c_str());
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        displayWidth,
-        displayHeight,
         displayColorFormat,
         targetFPS,
         startupScene.empty() ? nullptr : startupScene.c_str(),
@@ -834,15 +823,12 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
 
     auto* displaySettings = DekiEditor::GetDisplaySettings();
     const auto& startupScene = m_Project->GetStartupScene();
-    // Frame pacing moved to the Core section; the framebuffer geometry below
-    // still comes from Framebuffer. Both are written to dproject.bin for the
-    // device runtime, which has no editor and no package system.
+    // Frame pacing comes from Core and the colour format from Framebuffer.
+    // The design area travels in the settings chunk with every other section.
     auto* coreSettings = DekiEditor::GetCoreSettings();
     int32_t targetFPS = coreSettings ? coreSettings->targetFps : 60;
-    int32_t displayWidth = displaySettings ? displaySettings->targetWidth : 320;
-    int32_t displayHeight = displaySettings ? displaySettings->targetHeight : 240;
     uint8_t displayColorFormat = displaySettings ? static_cast<uint8_t>(displaySettings->colorFormat) : 0;
-    ApplyTargetDisplay(displayWidth, displayHeight, displayColorFormat);
+    ApplyTargetColorFormat(displayColorFormat);
 
     // Resolve render pipeline config from .rpipeline asset
     std::string rendererName2;
@@ -854,8 +840,6 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
         passNamePtrs2.push_back(name.c_str());
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        displayWidth,
-        displayHeight,
         displayColorFormat,
         targetFPS,
         startupScene.empty() ? nullptr : startupScene.c_str(),

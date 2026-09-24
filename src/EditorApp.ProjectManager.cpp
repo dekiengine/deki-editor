@@ -99,8 +99,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // zoom. inspectorUnit is purely a display preference. The registry-owned
     // UnitProjectSettings instance is the source of truth; Deki::EngineSettings::Global
     // is a runtime-frequent cache that hot paths read on every frame.
-    if (auto* units = DekiEditor::GetUnitSettings())
-        units->ApplyToGlobalCache();
+    DekiEditor::ApplySettingsToGlobalCache();
 
     // Asset cache epoch: a bumped ASSET_CACHE_EPOCH means the compiled asset
     // format changed, so the cache is wiped here and ImportAllAssets below
@@ -354,8 +353,7 @@ bool EditorApp::OpenProject(const std::string& path)
     if (m_Project)
     {
         m_Project->LoadSettingsFiles(path);
-        if (auto* units = DekiEditor::GetUnitSettings())
-            units->ApplyToGlobalCache();
+        DekiEditor::ApplySettingsToGlobalCache();
 
         // Persist a migration as soon as it has happened, rather than waiting for
         // the user to change something. Project::Load only marks the project dirty;

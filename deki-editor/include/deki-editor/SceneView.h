@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include <deki-editor/EditorExport.h>
+#include <deki/ScreenScale.h>
 // Forward declarations
 namespace Deki { class Object; }
 struct ImDrawList;
@@ -79,14 +80,14 @@ public:
     /** @brief View zoom level (editor wheel zoom * dpi only - no PPM) */
     float GetZoom() const { return m_Zoom; }
 
-    /** @brief Pixels per meter for the active project camera (world scale) */
+    /** @brief Pixels per meter of the scene view: the project's art density */
     float GetPixelsPerMeter() const { return m_PixelsPerMeter; }
 
     /**
      * @brief World meters to screen pixels (= zoom * pixelsPerMeter).
      *
      * Use this for any gizmo dimension that originates in world units
-     * (e.g. CameraComponent::GetVisibleWidth, or an emission shape's radius).
+     * (e.g. the camera's visible area, or an emission shape's radius).
      * For fixed-screen-size accents (crosshairs, handle dots) use GetZoom().
      */
     float GetWorldToScreenScale() const { return m_Zoom * m_PixelsPerMeter; }
@@ -104,20 +105,36 @@ public:
     Deki::Object* GetCurrentObject() const { return m_CurrentObject; }
 
     // =========================================================================
-    // Project Render Target (set by SceneViewPanel each frame)
+    // Preview screen (set by the editor each frame)
     // =========================================================================
 
-    /** @brief Project render target width in pixels (DisplaySettings.targetWidth) */
-    int GetTargetWidth() const { return m_TargetWidth; }
-
-    /** @brief Project render target height in pixels (DisplaySettings.targetHeight) */
-    int GetTargetHeight() const { return m_TargetHeight; }
-
-    /** @brief Set project render target size (called by SceneViewPanel) */
-    void SetTargetSize(int width, int height)
+    /** @brief Width in pixels of the screen the Play view previews: the target
+     *  picked in its toolbar, or the design size when none is. Play mode runs
+     *  at it, and gizmos use it to show what that screen sees under the
+     *  project's Screen Fit. */
+    int GetPreviewWidth() const
     {
-        m_TargetWidth = width;
-        m_TargetHeight = height;
+        if (m_PreviewWidth > 0) return m_PreviewWidth;
+        int w = 0, h = 0;
+        Deki::DesignSizePixels(w, h);
+        return w;
+    }
+
+    /** @brief Height in pixels of the previewed screen (see GetPreviewWidth). */
+    int GetPreviewHeight() const
+    {
+        if (m_PreviewHeight > 0) return m_PreviewHeight;
+        int w = 0, h = 0;
+        Deki::DesignSizePixels(w, h);
+        return h;
+    }
+
+    /** @brief Preview a screen of this size; 0 x 0 previews the design size,
+     *  following the project's design area as it changes. */
+    void SetPreviewSize(int width, int height)
+    {
+        m_PreviewWidth = width;
+        m_PreviewHeight = height;
     }
 
     // =========================================================================
@@ -185,8 +202,8 @@ private:
     float m_DisplayHeight = 0.0f;
     bool m_IsSelected = false;
 
-    int m_TargetWidth = 0;
-    int m_TargetHeight = 0;
+    int m_PreviewWidth = 0;
+    int m_PreviewHeight = 0;
 };
 
 }  // namespace DekiEditor

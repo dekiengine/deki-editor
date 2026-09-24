@@ -84,10 +84,6 @@ constexpr float GizmoHitThickness = 16.0f;
 // Resize handle dimensions
 constexpr float ResizeHandleSize = 20.0f;
 constexpr float ResizeHandleHitSize = 28.0f;
-
-// Device screen dimensions
-constexpr int DeviceScreenWidth = 320;
-constexpr int DeviceScreenHeight = 240;
 }  // namespace SceneViewConstants
 
 }  // namespace DekiEditor

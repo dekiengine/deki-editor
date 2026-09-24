@@ -449,8 +449,7 @@ void ProjectSettingsPanel::Draw()
                 const std::function<void()> onChanged = [project]()
                 {
                     project->Save();
-                    if (auto* units = DekiEditor::GetUnitSettings())
-                        units->ApplyToGlobalCache();
+                    DekiEditor::ApplySettingsToGlobalCache();
                 };
                 for (int i = 0; i < info.meta->propertyCount; ++i)
                 {
@@ -467,8 +466,7 @@ void ProjectSettingsPanel::Draw()
                 if (sectionCommitted)
                 {
                     project->Save();
-                    if (auto* units = DekiEditor::GetUnitSettings())
-                        units->ApplyToGlobalCache();
+                    DekiEditor::ApplySettingsToGlobalCache();
                 }
                 DekiEditor::SchematicSectionEnd();
             }

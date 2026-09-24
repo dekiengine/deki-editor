@@ -13,6 +13,7 @@
 // stopped before the build the editor performs, and firmware built from here
 // carried no boot payload at all. None of that bootstrap survives.
 
+#include <deki/ScreenScale.h>
 #include "EditorHeadless.h"
 #include "EditorVersion.h"
 #include <deki-editor/VersionCompare.h>
@@ -1083,12 +1084,31 @@ int CmdRenderScenes(EditorApp& editor)
     }
     float clockMs = 0.0f;
 
-    // Same source as play mode: the project's display settings, else 320x240.
-    int32_t width = 320, height = 240;
-    if (auto* settings = DekiEditor::GetDisplaySettings())
+    // The design size, as play mode previews by default. DEKI_RENDER_SIZE=WxH
+    // renders a screen of another size instead, to see what it shows under
+    // the project's Screen Fit.
+    int32_t width = 0, height = 0;
     {
-        width = std::max<int32_t>(1, settings->targetWidth);
-        height = std::max<int32_t>(1, settings->targetHeight);
+        int w = 0, h = 0;
+        Deki::DesignSizePixels(w, h);
+        width = w;
+        height = h;
+    }
+    if (const char* env = std::getenv("DEKI_RENDER_SIZE"))
+    {
+        int w = 0, h = 0;
+        if (std::sscanf(env, "%dx%d", &w, &h) != 2 || w <= 0 || h <= 0 || w > 16384 || h > 16384)
+        {
+            printf("Error: DEKI_RENDER_SIZE must be WxH, e.g. 320x240 (got '%s')\n", env);
+            return 1;
+        }
+        width = w;
+        height = h;
+    }
+    if (width <= 0 || height <= 0)
+    {
+        printf("Error: the project's design area is empty (%dx%d px)\n", width, height);
+        return 1;
     }
     std::vector<uint8_t> buffer(static_cast<size_t>(width) * height * 2);
 

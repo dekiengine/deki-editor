@@ -65,6 +65,7 @@ set(TEST_SOURCES
     core/SceneFormatVersionTests.cpp
     core/AssetDataTests.cpp
     core/RenamedPropertyTests.cpp
+    core/SceneMigrationTests.cpp
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
     core/RenamedComponentRefTests.cpp
@@ -319,7 +320,6 @@ function(deki_add_package_tests pkg_id)
             INCLUDE_DIRS "${DEKI_ENGINE_PATH}/include" "${DEKI_ENGINE_PATH}/third_party"
                          "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}"
             DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
-                    "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240"
                     "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
                     "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
         file(GLOB _all_srcs CONFIGURE_DEPENDS "${_pkg}/*.cpp")
@@ -498,7 +498,6 @@ function(deki_add_package_compile_check pkg_id)
                      "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}"
                      ${DEKI_PKG_INCLUDE_ROOTS}
         DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
-                "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240"
                 "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
 
@@ -521,7 +520,6 @@ function(deki_add_package_compile_check pkg_id)
         "DEKI_PACKAGE_VERSION=\"pkgcheck\""
         ${_pkg_defines}
         "DEKI_${PACKAGE_UPPER}_EXPORTS"
-        "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240"
         "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
         "DEKI_ENABLE_TRANSPARENCY=true"
     )

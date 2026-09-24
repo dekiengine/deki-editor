@@ -12,6 +12,7 @@
 #include <deki/settings/DisplayProjectSettings.h>
 #include <deki/settings/UnitProjectSettings.h>
 #include <deki/settings/CoreProjectSettings.h>
+#include <deki/ScreenScale.h>
 
 // CompareVersions, for the ProjectNeedsNewerEditor rule below.
 #include <deki-editor/VersionCompare.h>
@@ -20,13 +21,30 @@ namespace DekiEditor
 {
 
 // Free-function accessors. Return nullptr if the registry isn't populated yet
-// (engine not initialized, or settings package not yet loaded). Hot-path
-// readers that want a stable default should fall back: e.g.
-//   auto* d = DekiEditor::GetDisplaySettings();
-//   int w = d ? d->targetWidth : 320;
+// (engine not initialized, or settings package not yet loaded). Hot paths read
+// the cached copy in Deki::EngineSettings::Global() instead.
 Deki::DisplayProjectSettings* GetDisplaySettings();
 Deki::UnitProjectSettings* GetUnitSettings();
 Deki::CoreProjectSettings* GetCoreSettings();
+
+/// Copy the Units and Framebuffer (design area) settings into
+/// Deki::EngineSettings::Global(). Call after loading settings and after any
+/// edit to them, so cameras and the inspector see the new values.
+void ApplySettingsToGlobalCache();
+
+/// The design area in pixels at the project's art density (Deki::DesignSizePixels).
+inline int DesignWidthPx()
+{
+    int w = 0, h = 0;
+    Deki::DesignSizePixels(w, h);
+    return w;
+}
+inline int DesignHeightPx()
+{
+    int w = 0, h = 0;
+    Deki::DesignSizePixels(w, h);
+    return h;
+}
 
 /// True when a project saved by editor `lastSavedBy` must not be opened by
 /// editor `thisEditor`, because opening it would write its scenes back in the

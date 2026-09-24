@@ -7,6 +7,21 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **One project, any screen.** The project sets a design area, how much world
+  the player sees in meters, and each target renders at its own resolution.
+  Project Settings > Framebuffer holds it with two more settings: **Screen
+  Fit** (Show All keeps the whole area visible, Fill covers the screen) and
+  **Pixel Perfect** (whole-number scaling and art-grid snapping). See
+  [docs/screens.md](docs/screens.md).
+  - The Play view's toolbar picks the screen to preview: the design size, any
+    platform, or a custom size. Play runs at it, and the view scales down to
+    fit the panel.
+  - The camera's inspector says what it shows on the design screen and on the
+    previewed one; its gizmo draws the latter dashed.
+  - `DEKI_RENDER_SIZE=WxH` makes `--render-scenes` render another screen size.
+  - Scene migrations: `Deki::RegisterComponentsMigration` lets a package
+    rewrite an object's saved components before they load, for changes a
+    rename cannot express.
 - **A platform adopted from a package can be updated and restored.** Choosing
   a platform a package offers still copies it into the project, where it is
   edited like any other. The copy now remembers what it was copied from
@@ -45,6 +60,19 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they overwrite or delete a person's work.
 
 ### Changed
+- **Project Settings > Framebuffer is the design area.** `targetWidth` and
+  `targetHeight` (pixels) became `designWidth` and `designHeight` (meters). A
+  project converts on open at its pixels per meter, so 1280 x 720 at 16 px/m
+  becomes 80 x 45 m and looks the same; the next save writes the new keys.
+- **The scene view shows the world at the project's pixels per meter**,
+  whatever the scene camera's zoom. The rectangle drawn when a scene has no
+  camera is the design area; it used the hard-coded 320x240 as meters.
+- A target's framebuffer is its display's size, so the exporter no longer
+  writes the platform's screen size into `dproject.bin`, and ESP-IDF builds no
+  longer define `DEKI_SCREEN_WIDTH`/`HEIGHT`. The desktop and Tactility window
+  builds still do: they are the size of the screen those windows emulate.
+- MCP `project` info reports `designWidth`/`designHeight` (meters) and
+  `designWidthPx`/`designHeightPx` in place of `displayWidth`/`displayHeight`.
 - **"Strip unused packages" is on by default.** A package none of whose
   components a target uses is left out of that target's build, not only its
   unused features. Packages without components (buses, drivers) are kept

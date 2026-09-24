@@ -786,8 +786,10 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 { "hasProject", true },
                                 { "name", project->GetName() },
                                 { "path", project->GetPath() },
-                                { "displayWidth", display ? display->targetWidth : 320 },
-                                { "displayHeight", display ? display->targetHeight : 240 },
+                                { "designWidth", display ? display->designWidth : 0.0f },
+                                { "designHeight", display ? display->designHeight : 0.0f },
+                                { "designWidthPx", DesignWidthPx() },
+                                { "designHeightPx", DesignHeightPx() },
                                 { "colorFormat", display ? static_cast<int>(display->colorFormat) : 0 },
                                 { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
                                 { "startupScene", project->GetStartupScene() }
@@ -925,7 +927,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
     // open_scene stopped at a save-changes prompt no command line can answer.
     registry.Register({ "set_project_setting",
                         "Set a project setting: a property of one of the Project Settings sections (e.g. "
-                        "section \"Framebuffer\", property \"targetWidth\"), then save the project. Enum values "
+                        "section \"Framebuffer\", property \"designWidth\"), then save the project. Enum values "
                         "take their index or name.",
                         { { "type", "object" },
                           { "properties",
@@ -961,8 +963,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                                prop->enumSize);
                             else
                                 GetPropertyTypeHandler(prop->type).apply(info->instance, prop->offset, args["value"]);
-                            if (auto* units = DekiEditor::GetUnitSettings())
-                                units->ApplyToGlobalCache();
+                            DekiEditor::ApplySettingsToGlobalCache();
                             if (!project->Save())
                                 throw std::runtime_error("could not save the project");
 

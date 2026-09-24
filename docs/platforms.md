@@ -22,7 +22,7 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `framework` | Which build backend builds it (`espidf`, `native`, ...). No default: a platform that does not say has no backend, and the build says so. |
 | `frameworkOptions` | That backend's own settings: chip, flash size, sdkconfig lines, pins. The editor carries them and does not read them; the backend validates them when it builds. |
 | `family` | Descriptive only. Becomes the capability `family:<x>`. |
-| `screenWidth`, `screenHeight`, `colorFormat` | The size the game renders and assets are exported at, per target. |
+| `screenWidth`, `screenHeight`, `colorFormat` | The screen the editor previews for this target, and the window the desktop simulator opens. A device renders at its display's own size; see [screens.md](screens.md). |
 | `externalMemorySize` | Bytes of memory beyond the internal heap (PSRAM on a microcontroller). Grants packages `memory:external`. |
 | `provides` | What the target can offer a package: `wifi`, `spi`, `desktop-os`, ... |
 | `requiresPackages` | Packages the target always needs, whatever the scenes use. Its hardware abstraction layer, typically. |

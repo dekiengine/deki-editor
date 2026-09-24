@@ -4,6 +4,7 @@
 
 #include "imgui.h"
 #include <memory>
+#include <string>
 
 class CameraComponent;
 
@@ -42,6 +43,15 @@ private:
     // Last key state forwarded to the game (one slot per entry of the
     // forward() table in Draw: space/enter/esc/backspace + 4 arrows + A-Z).
     bool m_PlayKeyDown[34] = {};
+
+    // Previewed screen: empty id = the design size, "custom" = m_Custom*, else
+    // a platform id whose screen size is used. Pushed to SceneView every frame.
+    std::string m_PreviewId;
+    int m_CustomWidth = 320;
+    int m_CustomHeight = 240;
+
+    void DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
+    void ApplyPreviewSize();
 };
 
 }  // namespace DekiEditor

@@ -419,8 +419,8 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         // So a scene object that asks for something this board has not got is
         // left out of what gets flashed, rather than shipped and dead.
         exporter.SetTargetCapabilities(platform.Capabilities());
-        // And the board's own screen, rather than whatever the project is set to.
-        exporter.SetTargetDisplay(platform.screenWidth, platform.screenHeight, platform.colorFormat);
+        // And the board's own colour format, rather than whatever the project is set to.
+        exporter.SetTargetColorFormat(platform.colorFormat);
         if (exporter.ExportBootPayload(bootPayloadDir, bootScene))
         {
             log(std::string("Exported boot payload: dproject.bin") +

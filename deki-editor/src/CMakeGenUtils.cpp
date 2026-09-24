@@ -568,11 +568,7 @@ void EmitPlatformDefines(std::ostream& out,
         out << "    " << define << "\n";
     }
 
-    // Screen dimensions
-    if (config.screenWidth > 0)
-        out << "    DEKI_SCREEN_WIDTH=" << config.screenWidth << "\n";
-    if (config.screenHeight > 0)
-        out << "    DEKI_SCREEN_HEIGHT=" << config.screenHeight << "\n";
+    // No screen size: a device renders at whatever its display reports.
 
     // Color format (unless already in defines)
     bool hasColorFmt = false;

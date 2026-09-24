@@ -236,13 +236,13 @@ std::string InstallStarterFont(const std::string& projectPath, const std::string
 bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid,
                        std::string& err)
 {
-    // A 320x240 display at the default pixels-per-metre is 20x15 world units,
-    // so the gradient fills it exactly.
+    // The default design area is 20x15 m (320x240 px at 16 px/m), and the
+    // camera at zoom 1 shows exactly that, so the gradient fills it.
     json children = json::array();
 
     children.push_back(Object(2, "Camera",
         json::array({ Component(kCameraType, "CameraComponent",
-            json{ { "pixelsPerMeter", 0.0 }, { "clearColor", 202250495 }, { "pixelSnap", false } }) }),
+            json{ { "zoom", 1.0 }, { "clearColor", 202250495 } }) }),
         json::array()));
 
     children.push_back(Object(3, "Sky",

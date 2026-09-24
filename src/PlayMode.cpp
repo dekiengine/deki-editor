@@ -5,6 +5,7 @@
 // methods (LoadAssets, UnloadAssets, RuntimeUpdate) and DekiInputSystem instead of
 // hardcoded GetComponent<SpriteComponent> etc. calls.
 
+#include <deki-editor/SceneView.h>
 #include "EditorApp.h"
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/CommandHistory.h>
@@ -236,17 +237,10 @@ void EditorApp::InitPlayMode()
     // Clear selection - we're switching to the play scene copy
     ClearSelection();
 
-    // Get display settings from project (or use defaults)
-    if (auto* settings = DekiEditor::GetDisplaySettings())
-    {
-        m_Play.width = settings->targetWidth;
-        m_Play.height = settings->targetHeight;
-    }
-    else
-    {
-        m_Play.width = 320;
-        m_Play.height = 240;
-    }
+    // Play on the screen the Play view previews: the design size, or the
+    // target picked in its toolbar. The camera fits the design area to it.
+    m_Play.width = DekiEditor::SceneView::Get().GetPreviewWidth();
+    m_Play.height = DekiEditor::SceneView::Get().GetPreviewHeight();
 
     // Create EditorDisplay directly (same pattern as Deki::Engine::Initialize editor path)
     // Memory, filesystem, logging, and timing are already initialized by OpenProject/editor startup
@@ -259,11 +253,12 @@ void EditorApp::InitPlayMode()
     }
     Deki::Engine::GetInstance().SetDisplay(s_EditorDisplay.get(), "Editor");
 
-    // Reuse engine's render system (resize to project dimensions)
+    // SetDisplay sized the engine's framebuffer to the display, as on a device.
     Deki::IRenderSystem* renderSystem = Deki::Engine::GetInstance().GetRenderSystem();
-    if (!renderSystem->Setup(m_Play.width, m_Play.height, Deki::ColorFormat::RGB565))
+    if (!renderSystem || renderSystem->GetScreenWidth() != m_Play.width ||
+        renderSystem->GetScreenHeight() != m_Play.height)
     {
-        DEKI_LOG_ERROR("Failed to setup DekiRenderSystem");
+        DEKI_LOG_ERROR("Play mode could not get a %dx%d framebuffer", m_Play.width, m_Play.height);
         Deki::Engine::GetInstance().SetDisplay(nullptr, "");
         s_EditorDisplay.reset();
         return;

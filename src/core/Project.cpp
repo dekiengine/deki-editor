@@ -36,6 +36,14 @@ Deki::CoreProjectSettings* GetCoreSettings()
     return Deki::SettingsRegistry::Instance().Get<Deki::CoreProjectSettings>();
 }
 
+void ApplySettingsToGlobalCache()
+{
+    if (auto* units = GetUnitSettings())
+        units->ApplyToGlobalCache();
+    if (auto* display = GetDisplaySettings())
+        display->ApplyToGlobalCache();
+}
+
 namespace
 {
 // Per-property JSON round-trip for settings types. Settings declare a
@@ -227,8 +235,36 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
     return written;
 }
 
+namespace
+{
+// Before 0.18 the Framebuffer section stored the render size in pixels
+// (targetWidth/targetHeight). It is now the design area in meters, so an old
+// section converts at the project's pixels per meter: 1280 x 720 at 16 px/m
+// becomes 80 x 45 m, which is exactly what those projects showed. Runs after
+// every section has loaded, since the conversion needs Units. The next save
+// writes only the new keys.
+void MigrateDesignArea(const nlohmann::json& framebufferJson)
+{
+    if (!framebufferJson.is_object() || framebufferJson.contains("designWidth") ||
+        !framebufferJson.contains("targetWidth") || !framebufferJson.contains("targetHeight"))
+        return;
+    auto* display = GetDisplaySettings();
+    auto* units = GetUnitSettings();
+    if (display == nullptr || units == nullptr || units->pixelsPerMeter <= 0.0f)
+        return;
+    const float w = framebufferJson["targetWidth"].get<float>();
+    const float h = framebufferJson["targetHeight"].get<float>();
+    display->designWidth = w / units->pixelsPerMeter;
+    display->designHeight = h / units->pixelsPerMeter;
+    DEKI_LOG_INFO("Framebuffer: %gx%g px became a design area of %g x %g m at %g px/m",
+                  (double)w, (double)h, (double)display->designWidth, (double)display->designHeight,
+                  (double)units->pixelsPerMeter);
+}
+}  // namespace
+
 void Project::LoadSettingsFiles(const std::string& root)
 {
+    nlohmann::json framebufferJson;
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
     {
         if (info.meta == nullptr || info.sectionName == nullptr || info.instance == nullptr)
@@ -244,7 +280,10 @@ void Project::LoadSettingsFiles(const std::string& root)
 
         for (int i = 0; i < info.meta->propertyCount; ++i)
             LoadSettingProperty(info.instance, info.meta->properties[i], sectionJson);
+        if (std::string(info.sectionName) == "Framebuffer")
+            framebufferJson = sectionJson;
     }
+    MigrateDesignArea(framebufferJson);
 }
 
 bool Project::Load(const std::string& path)
@@ -374,6 +413,7 @@ bool Project::Load(const std::string& path)
         // this block, so the migration completes without a separate pass.
         if (json.contains("packageSettings") && json["packageSettings"].is_object())
         {
+            nlohmann::json legacyFramebuffer;
             const auto& packageSettingsJson = json["packageSettings"];
             for (auto it = packageSettingsJson.begin(); it != packageSettingsJson.end(); ++it)
             {
@@ -407,7 +447,10 @@ bool Project::Load(const std::string& path)
                 {
                     LoadSettingProperty(inst, compMeta->properties[i], sectionJson);
                 }
+                if (section == "Framebuffer")
+                    legacyFramebuffer = sectionJson;
             }
+            MigrateDesignArea(legacyFramebuffer);
         }
 
         // Current source of truth. Applied after the legacy block so a project that

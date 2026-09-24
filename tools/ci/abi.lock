@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 17
+abi_version: 18
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -125,15 +125,20 @@ class Deki::IMemoryProvider (10 virtual)
   void FreeRaw(void* ptr)
   size_t GetRawBlockSize(void* ptr) const
 
-class Deki::ICamera (10 virtual)
+class Deki::ICamera (15 virtual)
   void ScreenToWorld(float screenX, float screenY, int bufferWidth, int bufferHeight, float& worldX, float& worldY) const
   void WorldToScreen(float worldX, float worldY, int bufferWidth, int bufferHeight, float& screenX, float& screenY) const
   void GetClearColor(uint8_t& r, uint8_t& g, uint8_t& b) const
   void SetClearColor(uint8_t r, uint8_t g, uint8_t b)
-  float GetPixelsPerMeter() const
-  void SetPixelsPerMeter(float pixelsPerMeter)
+  float GetPixelsPerMeter(int bufferWidth, int bufferHeight) const
+  float GetZoom() const
+  void SetZoom(float zoom)
+  void SetFixedPixelsPerMeter(float pixelsPerMeter)
   ProjectionMode GetProjectionMode() const
-  void SetProjectionMode(ProjectionMode)
+  void SetProjectionMode(ProjectionMode mode)
+  float GetFieldOfView() const
+  float GetNearPlane() const
+  float GetFarPlane() const
   Mat4 GetProjectionMatrix(int bufferWidth, int bufferHeight) const
   ~ICamera()
 

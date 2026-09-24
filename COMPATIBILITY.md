@@ -178,6 +178,29 @@ legacy key as a warning ("renamed since save; re-save to migrate"); a save
 writes the new name. The alias stays for at least one minor version after the
 rename. Renaming without the alias is a bug.
 
+## Changing what a field means
+
+When a value has to be converted, or fields move between components, a rename
+is not enough. A package registers a migration that rewrites an object's saved
+components before they load:
+
+```cpp
+static Deki::ComponentsMigrationRegistrar s_Migration(&MigrateCamera);  // <deki/SceneMigration.h>
+```
+
+It runs on every object, so it checks for the old shape and leaves anything
+else alone. Device scenes are compiled from the editor's load, so they follow
+after a rebuild; a save writes the new shape. Keep a migration for at least one
+minor version.
+
+In 0.18: the camera's `pixelsPerMeter` became `zoom` (p divided by the
+project's pixels per meter, 0 becomes 1), its `pixelSnap` became the project's
+Pixel Perfect, deki-3d's `Camera3DComponent` gave its field of view and clip
+planes to the camera and became `Mesh3DSettings`, and the Framebuffer
+section's `targetWidth`/`targetHeight` in pixels became `designWidth`/
+`designHeight` in meters. Every one of them looks the same on the design
+screen. See [docs/screens.md](docs/screens.md).
+
 ## Checking a project
 
 ```bash

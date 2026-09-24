@@ -1,5 +1,6 @@
 #include "ObjectInternal.h"
 #include "SceneViewPanel.h"
+#include <deki/ScreenScale.h>
 #include "../PanelMaximize.h"
 #include "scene_view/SceneTextureCache.h"
 #include "scene_view/SceneCoordinates.h"
@@ -267,19 +268,16 @@ void SceneViewPanel::HandleInput()
                             SceneViewConstants::MaxZoom);
 
         // Recalculate scene center after zoom change. World→screen is
-        // editorZoom * dpi * pixelsPerMeter (world is meters now, not pixels).
-        auto* dispSettings = DekiEditor::GetDisplaySettings();
-        int vpWidth = dispSettings ? dispSettings->targetWidth : 320;
-        int vpHeight = dispSettings ? dispSettings->targetHeight : 240;
+        // editorZoom * dpi * the project's pixels per meter: the scene view
+        // shows the world at its art density, whatever the camera does.
+        int vpWidth = 0, vpHeight = 0;
+        Deki::DesignSizePixels(vpWidth, vpHeight);
 
         float dpi = ImGui::GetWindowDpiScale();
         float sceneWidth = vpWidth * m_Zoom * dpi;
         float sceneHeight = vpHeight * m_Zoom * dpi;
 
-        Deki::ICamera* sceneCamForZoom = GetSceneCamera();
-        const float zoomPPM = sceneCamForZoom ? sceneCamForZoom->GetPixelsPerMeter()
-                                              : Deki::EngineSettings::Global().pixelsPerMeter;
-        const float worldToScreen = m_Zoom * dpi * (zoomPPM > 0.0f ? zoomPPM : 1.0f);
+        const float worldToScreen = m_Zoom * dpi * Deki::EngineSettings::Global().pixelsPerMeter;
 
         float sceneCenterX = m_CanvasTopLeft.x + m_PanOffsetX + sceneWidth * 0.5f;
         float sceneCenterY = m_CanvasTopLeft.y + m_PanOffsetY + sceneHeight * 0.5f;
@@ -336,13 +334,9 @@ void SceneViewPanel::DrawSceneCanvas()
     m_PannedForCanvasSize = availSize;
 
     // Handle centering BEFORE setting viewport to avoid one-frame glitch
-    auto* dispSettings = DekiEditor::GetDisplaySettings();
-    int vpWidth = dispSettings ? dispSettings->targetWidth : 320;
-    int vpHeight = dispSettings ? dispSettings->targetHeight : 240;
-
-    DekiEditor::SceneView::Get().SetTargetSize(
-        dispSettings ? dispSettings->targetWidth : 0,
-        dispSettings ? dispSettings->targetHeight : 0);
+    // The scene rectangle is the design area at the project's art density.
+    int vpWidth = 0, vpHeight = 0;
+    Deki::DesignSizePixels(vpWidth, vpHeight);
 
     float dpi = ImGui::GetWindowDpiScale();
 
@@ -373,13 +367,10 @@ void SceneViewPanel::DrawSceneCanvas()
         return;
 
     Deki::ICamera* sceneCam = GetSceneCamera();
-    // Must match the fallback used in HandleInput's zoom-to-cursor math
-    // (Deki::EngineSettings::Global().pixelsPerMeter). Using 1.0 here while the
-    // zoom branch used global PPM made ScreenToWorld and the post-zoom
-    // projection non-inverses, so each wheel notch drove the pan offset toward
-    // inf/NaN when the scene had no camera.
-    const float projectPPM = sceneCam ? sceneCam->GetPixelsPerMeter()
-                                      : Deki::EngineSettings::Global().pixelsPerMeter;
+    // Must match HandleInput's zoom-to-cursor math, or ScreenToWorld and the
+    // post-zoom projection stop being inverses and each wheel notch drives the
+    // pan offset toward inf/NaN.
+    const float projectPPM = Deki::EngineSettings::Global().pixelsPerMeter;
 
     m_Coords->SetViewport(m_CanvasTopLeft, m_CanvasSize, m_Zoom, m_PanOffsetX, m_PanOffsetY, projectPPM);
 
@@ -674,8 +665,9 @@ void SceneViewPanel::DrawSceneCanvas()
     // camera - the camera gizmo replaces it (see CameraCustomEditor).
     if (!sceneCam && m_Toolbar->ShowGizmos())
     {
-        float halfDevW = SceneViewConstants::DeviceScreenWidth * 0.5f;
-        float halfDevH = SceneViewConstants::DeviceScreenHeight * 0.5f;
+        // The design area, in meters: what a camera at the origin would show.
+        float halfDevW = Deki::EngineSettings::Global().designWidth * 0.5f;
+        float halfDevH = Deki::EngineSettings::Global().designHeight * 0.5f;
         ImVec2 devTopLeft = m_Coords->WorldToScreen(-halfDevW, halfDevH);
         ImVec2 devBottomRight = m_Coords->WorldToScreen(halfDevW, -halfDevH);
 
@@ -705,8 +697,7 @@ void SceneViewPanel::DrawSceneCanvas()
         drawList->AddRect(borderTopLeft, borderBottomRight, deviceColor, 0.0f, 0, 1.0f);
 
         char deviceLabel[64];
-        snprintf(deviceLabel, sizeof(deviceLabel), "%dx%d",
-                 SceneViewConstants::DeviceScreenWidth, SceneViewConstants::DeviceScreenHeight);
+        snprintf(deviceLabel, sizeof(deviceLabel), "%dx%d", vpWidth, vpHeight);
         drawList->AddText(ImVec2(devTopLeft.x + 4, devTopLeft.y + 4), deviceColor, deviceLabel);
     }
 
@@ -817,7 +808,7 @@ void SceneViewPanel::DrawSceneCanvas()
     m_EditorCameraObject->SetWorldPosition(camRenderX, camRenderY);
     // Render the scene edit-mode buffer at the project's native scale; the
     // editor's wheel-zoom is applied separately when uploading the texture.
-    m_EditorCamera->SetPixelsPerMeter(Deki::EngineSettings::Global().pixelsPerMeter);
+    m_EditorCamera->SetFixedPixelsPerMeter(Deki::EngineSettings::Global().pixelsPerMeter);
     m_EditorCamera->SetClearColor(clearR, clearG, clearB);
 
     // Initialize/resize renderer if needed. A buffer resize forces a re-render.

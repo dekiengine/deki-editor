@@ -4,6 +4,8 @@
 #include <deki-editor/IconsTabler.h>
 #include "EditorApp.h"
 #include "core/Project.h"
+#include <deki-editor/SceneView.h>
+#include <deki-editor/build/PlatformConfig.h>
 #include "scene_view/EditModeRenderer.h"
 #include "services/FrameCaptureService.h"
 #include <deki/Scene.h>
@@ -36,6 +38,46 @@ static void AddImageNearest(ImDrawList* drawList, ImTextureID texId, const ImVec
     drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
 }
 
+// Where a w x h game image goes in the canvas: 1:1 at the display's DPI,
+// centred, and scaled down to fit when the panel is smaller. `scale` is canvas
+// pixels per game pixel, which input mapping divides by.
+struct FittedRect
+{
+    ImVec2 p1, p2;
+    float scale = 1.0f;
+};
+
+static FittedRect FitToCanvas(int w, int h, const ImVec2& canvasTopLeft, const ImVec2& avail)
+{
+    FittedRect r;
+    const float dpiScale = ImGui::GetWindowDpiScale();
+    r.scale = dpiScale;
+    if (w > 0 && h > 0 && avail.x > 0.0f && avail.y > 0.0f)
+    {
+        const float fit = std::min(avail.x / static_cast<float>(w), avail.y / static_cast<float>(h));
+        if (fit < r.scale)
+            r.scale = fit;
+    }
+    const float texW = std::round(w * r.scale);
+    const float texH = std::round(h * r.scale);
+    const float offsetX = std::max((avail.x - texW) * 0.5f, 0.0f);
+    const float offsetY = std::max((avail.y - texH) * 0.5f, 0.0f);
+    r.p1 = ImVec2(std::floor(canvasTopLeft.x + offsetX), std::floor(canvasTopLeft.y + offsetY));
+    r.p2 = ImVec2(r.p1.x + texW, r.p1.y + texH);
+    return r;
+}
+
+// Pixels stay sharp at 1:1 and above. Scaled down to fit the panel, nearest
+// sampling drops whole rows and columns and turns dithering into moire, so the
+// image is filtered instead.
+static void AddGameImage(ImDrawList* drawList, ImTextureID texId, const FittedRect& fit)
+{
+    if (fit.scale < ImGui::GetWindowDpiScale())
+        drawList->AddImage(texId, fit.p1, fit.p2);
+    else
+        AddImageNearest(drawList, texId, fit.p1, fit.p2);
+}
+
 PlayViewPanel::PlayViewPanel(EditorApp* app)
     : m_App(app), m_PreviewRenderer(std::make_unique<EditModeRenderer>())
 {
@@ -47,6 +89,8 @@ void PlayViewPanel::Draw()
 {
     if (!m_Open)
         return;
+
+    ApplyPreviewSize();
 
     ImGui::Begin("PLAY VIEW###Play View", &m_Open, DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -125,6 +169,9 @@ void PlayViewPanel::Draw()
             if (clicked) m_TouchInputMode = !m_TouchInputMode;
         }
 
+        DrawPreviewPicker(cursorX, rowMin, rowH, dpi);
+        drawDivider(cursorX);
+
         // Right-aligned mono fps readout (editor + game). Game fps is sampled
         // per game tick in EditorApp::UpdatePlayMode and stays at 0 outside play.
         {
@@ -160,23 +207,14 @@ void PlayViewPanel::Draw()
     auto* project = m_App->GetProject();
     if (project && project->GetRenderPipelineGuid().empty())
     {
-        auto* settings = DekiEditor::GetDisplaySettings();
-        int vpW = settings ? settings->targetWidth : 320;
-        int vpH = settings ? settings->targetHeight : 240;
+        const int vpW = SceneView::Get().GetPreviewWidth();
+        const int vpH = SceneView::Get().GetPreviewHeight();
 
         if (vpW > 0 && vpH > 0)
         {
-            // Game-texture-to-screen scaling: use ImGui's live per-viewport DPI
-            // so dragging the editor between monitors of different DPI updates
-            // immediately (m_App->GetDpiScale() is captured at startup).
-            float dpiScale = ImGui::GetWindowDpiScale();
-            float texScreenW = std::round(vpW * dpiScale);
-            float texScreenH = std::round(vpH * dpiScale);
-            float offsetX = std::max((availSize.x - texScreenW) * 0.5f, 0.0f);
-            float offsetY = std::max((availSize.y - texScreenH) * 0.5f, 0.0f);
-
-            ImVec2 p1(std::floor(m_CanvasTopLeft.x + offsetX), std::floor(m_CanvasTopLeft.y + offsetY));
-            ImVec2 p2(p1.x + texScreenW, p1.y + texScreenH);
+            const FittedRect fit = FitToCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
+            const ImVec2 p1 = fit.p1, p2 = fit.p2;
+            const float texScreenW = p2.x - p1.x, texScreenH = p2.y - p1.y;
 
             // Draw viewport border
             drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
@@ -201,9 +239,8 @@ void PlayViewPanel::Draw()
 
         if (scene && project)
         {
-            auto* settings = DekiEditor::GetDisplaySettings();
-            int vpW = settings ? settings->targetWidth : 320;
-            int vpH = settings ? settings->targetHeight : 240;
+            const int vpW = SceneView::Get().GetPreviewWidth();
+            const int vpH = SceneView::Get().GetPreviewHeight();
 
             // Find scene camera via ICamera interface (search recursively)
             Deki::ICamera* cam = nullptr;
@@ -242,20 +279,10 @@ void PlayViewPanel::Draw()
                 uint32_t texId = m_PreviewRenderer->GetTextureId();
                 if (texId != 0)
                 {
-                    float dpiScale = ImGui::GetWindowDpiScale();
-                    float texScreenW = std::round(vpW * dpiScale);
-                    float texScreenH = std::round(vpH * dpiScale);
+                    const FittedRect fit = FitToCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
+                    const ImVec2 p1 = fit.p1, p2 = fit.p2;
 
-                    // Center texture in available space
-                    float offsetX = (availSize.x - texScreenW) * 0.5f;
-                    float offsetY = (availSize.y - texScreenH) * 0.5f;
-                    offsetX = std::max(offsetX, 0.0f);
-                    offsetY = std::max(offsetY, 0.0f);
-
-                    ImVec2 p1(std::floor(m_CanvasTopLeft.x + offsetX), std::floor(m_CanvasTopLeft.y + offsetY));
-                    ImVec2 p2(p1.x + texScreenW, p1.y + texScreenH);
-
-                    AddImageNearest(drawList, (ImTextureID)(intptr_t)texId, p1, p2);
+                    AddGameImage(drawList, (ImTextureID)(intptr_t)texId, fit);
                     drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
 
                     // Resolution info
@@ -278,21 +305,10 @@ void PlayViewPanel::Draw()
         uint32_t previewTex = m_PreviewRenderer->GetTextureId();
         if (previewTex != 0)
         {
-            auto* settings = DekiEditor::GetDisplaySettings();
-            if (settings)
-            {
-                int vpW = settings->targetWidth;
-                int vpH = settings->targetHeight;
-                float dpiScale = ImGui::GetWindowDpiScale();
-                float texScreenW = std::round(vpW * dpiScale);
-                float texScreenH = std::round(vpH * dpiScale);
-                float offsetX = std::max((availSize.x - texScreenW) * 0.5f, 0.0f);
-                float offsetY = std::max((availSize.y - texScreenH) * 0.5f, 0.0f);
-                ImVec2 p1(std::floor(m_CanvasTopLeft.x + offsetX), std::floor(m_CanvasTopLeft.y + offsetY));
-                ImVec2 p2(p1.x + texScreenW, p1.y + texScreenH);
-                AddImageNearest(drawList, (ImTextureID)(intptr_t)previewTex, p1, p2);
-                drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
-            }
+            const FittedRect fit = FitToCanvas(m_PreviewRenderer->GetWidth(), m_PreviewRenderer->GetHeight(),
+                                               m_CanvasTopLeft, availSize);
+            AddGameImage(drawList, (ImTextureID)(intptr_t)previewTex, fit);
+            drawList->AddRect(fit.p1, fit.p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
         }
 
         ImGui::InvisibleButton("PlayViewCanvas", availSize);
@@ -307,21 +323,12 @@ void PlayViewPanel::Draw()
 
     if (playTexId != 0 && playW > 0 && playH > 0)
     {
-        float dpiScale = ImGui::GetWindowDpiScale();
-        float texScreenW = std::round(playW * dpiScale);
-        float texScreenH = std::round(playH * dpiScale);
-
-        // Center texture in available space
-        float offsetX = (availSize.x - texScreenW) * 0.5f;
-        float offsetY = (availSize.y - texScreenH) * 0.5f;
-        offsetX = std::max(offsetX, 0.0f);
-        offsetY = std::max(offsetY, 0.0f);
-
-        ImVec2 p1(std::floor(m_CanvasTopLeft.x + offsetX), std::floor(m_CanvasTopLeft.y + offsetY));
-        ImVec2 p2(p1.x + texScreenW, p1.y + texScreenH);
+        const FittedRect fit = FitToCanvas(playW, playH, m_CanvasTopLeft, availSize);
+        const ImVec2 p1 = fit.p1, p2 = fit.p2;
+        const float dpiScale = fit.scale;  // canvas pixels per game pixel
 
         // Draw play mode texture
-        AddImageNearest(drawList, (ImTextureID)(intptr_t)playTexId, p1, p2);
+        AddGameImage(drawList, (ImTextureID)(intptr_t)playTexId, fit);
         drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
 
         // Status indicator
@@ -331,7 +338,11 @@ void PlayViewPanel::Draw()
 
         // Resolution info
         char resInfo[64];
-        snprintf(resInfo, sizeof(resInfo), "%dx%d (1:1)", playW, playH);
+        if (fit.scale < ImGui::GetWindowDpiScale())
+            snprintf(resInfo, sizeof(resInfo), "%dx%d (%.0f%%)", playW, playH,
+                     100.0f * fit.scale / ImGui::GetWindowDpiScale());
+        else
+            snprintf(resInfo, sizeof(resInfo), "%dx%d (1:1)", playW, playH);
         drawList->AddText(ImVec2(m_CanvasTopLeft.x + 10, m_CanvasTopLeft.y + 25),
                           IM_COL32(200, 200, 200, 200), resInfo);
 
@@ -405,6 +416,107 @@ void PlayViewPanel::Draw()
     }
 
     ImGui::End();
+}
+
+void PlayViewPanel::ApplyPreviewSize()
+{
+    if (m_PreviewId.empty())
+    {
+        SceneView::Get().SetPreviewSize(0, 0);  // follows the design size
+        return;
+    }
+    if (m_PreviewId == "custom")
+    {
+        SceneView::Get().SetPreviewSize(m_CustomWidth, m_CustomHeight);
+        return;
+    }
+    const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_PreviewId);
+    if (!platform || platform->screenWidth <= 0 || platform->screenHeight <= 0)
+    {
+        // The platform went away (another project, a removed package): the
+        // picker goes back to the design size and says so.
+        m_PreviewId.clear();
+        SceneView::Get().SetPreviewSize(0, 0);
+        return;
+    }
+    SceneView::Get().SetPreviewSize(platform->screenWidth, platform->screenHeight);
+}
+
+// Toolbar cell naming the previewed screen; opens a list of the design size,
+// every known platform with a screen, and a custom size. Play mode runs at the
+// previewed size, so the choice is locked while it runs.
+void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
+{
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImU32 colText = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
+    const ImU32 colHoverBg = IM_COL32(255, 255, 255, 6);
+
+    const int w = SceneView::Get().GetPreviewWidth();
+    const int h = SceneView::Get().GetPreviewHeight();
+    char label[128];
+    if (m_PreviewId.empty())
+        snprintf(label, sizeof(label), "%dx%d  Design", w, h);
+    else if (m_PreviewId == "custom")
+        snprintf(label, sizeof(label), "%dx%d  Custom", w, h);
+    else
+    {
+        const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(m_PreviewId);
+        snprintf(label, sizeof(label), "%dx%d  %s", w, h, p ? p->displayName.c_str() : m_PreviewId.c_str());
+    }
+
+    const ImVec2 textSz = ImGui::CalcTextSize(label);
+    const float cellW = textSz.x + 22.0f * dpi;
+    ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
+    const bool locked = !m_App->IsStopped();
+    ImGui::BeginDisabled(locked);
+    const bool clicked = ImGui::InvisibleButton("##previewsize", ImVec2(cellW, rowH));
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        DekiEditor::Tooltip(locked ? "The screen size is fixed while playing"
+                                   : "Screen to preview. Play runs at this size, and the camera fits the design area to it.");
+        dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + cellW, rowMin.y + rowH), colHoverBg);
+    }
+    dl->AddText(ImVec2(cursorX + 11.0f * dpi, rowMin.y + (rowH - textSz.y) * 0.5f), colText, label);
+    if (clicked)
+        ImGui::OpenPopup("##previewsizes");
+    ImGui::SetNextWindowPos(ImVec2(cursorX, rowMin.y + rowH));
+    cursorX += cellW;
+
+    if (!ImGui::BeginPopup("##previewsizes"))
+        return;
+
+    int dw = 0, dh = 0;
+    Deki::DesignSizePixels(dw, dh);
+    char item[192];
+    snprintf(item, sizeof(item), "Design size  %dx%d", dw, dh);
+    if (ImGui::Selectable(item, m_PreviewId.empty()))
+        m_PreviewId.clear();
+
+    ImGui::Separator();
+    for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
+    {
+        const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id);
+        if (!p || p->screenWidth <= 0 || p->screenHeight <= 0)
+            continue;
+        snprintf(item, sizeof(item), "%s  %dx%d##%s", name.c_str(), p->screenWidth, p->screenHeight, id.c_str());
+        if (ImGui::Selectable(item, m_PreviewId == id))
+            m_PreviewId = id;
+    }
+
+    ImGui::Separator();
+    if (ImGui::Selectable("Custom size", m_PreviewId == "custom", ImGuiSelectableFlags_NoAutoClosePopups))
+        m_PreviewId = "custom";
+    if (m_PreviewId == "custom")
+    {
+        ImGui::SetNextItemWidth(120.0f * dpi);
+        ImGui::InputInt("Width##customw", &m_CustomWidth);
+        ImGui::SetNextItemWidth(120.0f * dpi);
+        ImGui::InputInt("Height##customh", &m_CustomHeight);
+        m_CustomWidth = std::clamp(m_CustomWidth, 1, 8192);
+        m_CustomHeight = std::clamp(m_CustomHeight, 1, 8192);
+    }
+    ImGui::EndPopup();
 }
 
 }  // namespace DekiEditor
