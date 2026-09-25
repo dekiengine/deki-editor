@@ -10,8 +10,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - **Images are stored for the screen they are shown on.** A texture's Format
   is Automatic by default (RGB565 or RGB565A8 on an RGB565 target, RGB888 or
   RGBA8888 on a full-colour one), can be fixed for every target, and can be
-  set per target under **Per target** in the texture inspector
-  (`settings.texture.targets`). The export stores each image as its target
+  overridden for one target (**Add override** in the texture inspector, which
+  lists only the overrides that exist and sums up the rest under **Stored
+  as**; `settings.texture.targets`). The export stores each image as its target
   wants it; `--export --platform <id>` exports for a target other than the
   active one. The editor's cache follows the active platform. 3D models take
   the same settings. See [docs/screens.md](docs/screens.md).

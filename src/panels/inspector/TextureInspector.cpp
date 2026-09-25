@@ -284,45 +284,125 @@ void TextureInspector::DrawSettings()
             }
         }
 
-        // Per target: override the format for one platform, and see what each
-        // gets. "Automatic" here means the Format above.
+        // Targets: what each stores, and the overrides that exist. A project
+        // can have many targets (boards, Tactility, a PC, a phone), so only
+        // the overrides are listed, with a summary of the rest.
         if (hasCached && m_App->GetProject())
         {
             const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
-            for (const PlatformConfig* platform : ProjectPlatforms(m_App->GetProject()->GetPath()))
+            const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
+
+            // Stored as: each format and how many targets store it.
+            std::map<std::string, int> storedCounts;
+            for (const PlatformConfig* platform : targets)
             {
-                ImGui::PushID(platform->id.c_str());
-                int& index = m_TargetFormatIndex[platform->id];
-                InspectorUtils::BeginPropertyRow(platform->displayName.empty() ? platform->id.c_str()
-                                                                               : platform->displayName.c_str());
-                // What this target stores, shown in the combo itself: Automatic
-                // reads "Automatic (RGB565A8)", an explicit choice is its name.
-                std::string automaticLabel = s_FormatNames[0];
                 Deki::ColorFormat screen;
-                if (ParseColorFormat(platform->colorFormat, screen))
+                if (!ParseColorFormat(platform->colorFormat, screen))
+                    continue;
+                auto it = m_TargetFormatIndex.find(platform->id);
+                const std::string targetFormat =
+                    (it != m_TargetFormatIndex.end() && it->second > 0) ? s_FormatNames[it->second] : "";
+                ++storedCounts[TextureFormatName(ResolveTextureFormat(assetFormat, targetFormat, screen, m_SourceHasAlpha))];
+            }
+            if (!storedCounts.empty())
+            {
+                std::string summary;
+                for (const auto& [format, count] : storedCounts)
                 {
-                    const TextureFormat stored = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
-                    automaticLabel += std::string(" (") + TextureFormatName(stored) + ")";
+                    if (!summary.empty())
+                        summary += "  ·  ";
+                    summary += format + " on " + std::to_string(count) + (count == 1 ? " target" : " targets");
                 }
-                const char* items[s_FormatCount];
-                items[0] = automaticLabel.c_str();
-                for (int i = 1; i < s_FormatCount; ++i)
-                    items[i] = s_FormatNames[i];
-                if (DekiEditor::SchematicCombo("##TargetFormat", &index, items, s_FormatCount))
+                InspectorUtils::BeginPropertyRow("Stored as");
+                ImGui::TextWrapped("%s", summary.c_str());
+            }
+
+            auto findTarget = [&](const std::string& id) -> const PlatformConfig* {
+                for (const PlatformConfig* platform : targets)
+                    if (platform->id == id)
+                        return platform;
+                return nullptr;
+            };
+            auto writeOverride = [&](const std::string& id, int chosen) {
+                writeTextureSettings([&](nlohmann::json& tex) {
+                    if (chosen <= 0)
+                    {
+                        if (tex.contains("targets"))
+                            tex["targets"].erase(id);
+                    }
+                    else
+                        tex["targets"][id] = s_FormatNames[chosen];
+                });
+            };
+
+            // The overrides that exist, one row each.
+            std::string removeId;
+            for (auto& [id, index] : m_TargetFormatIndex)
+            {
+                if (index <= 0)
+                    continue;
+                ImGui::PushID(id.c_str());
+                const PlatformConfig* platform = findTarget(id);
+                const std::string label = platform ? (platform->displayName.empty() ? id : platform->displayName)
+                                                   : id + " (not in this project)";
+                InspectorUtils::BeginPropertyRow(label.c_str());
+                // Explicit formats only here; removing the row is going back to Automatic.
+                int choice = index - 1;
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight() -
+                                        ImGui::GetStyle().ItemSpacing.x);
+                if (DekiEditor::SchematicCombo("##TargetFormat", &choice, s_FormatNames + 1, s_FormatCount - 1))
                 {
-                    const std::string id = platform->id;
-                    const int chosen = index;
-                    writeTextureSettings([&](nlohmann::json& tex)
-                                         {
-                        if (chosen == 0)
-                        {
-                            if (tex.contains("targets"))
-                                tex["targets"].erase(id);
-                        }
-                        else
-                            tex["targets"][id] = s_FormatNames[chosen]; });
+                    index = choice + 1;
+                    writeOverride(id, index);
                 }
+                ImGui::SameLine();
+                if (ImGui::SmallButton(ICON_TI_X))
+                    removeId = id;
+                if (ImGui::IsItemHovered())
+                    DekiEditor::Tooltip("Remove the override: this target goes back to the Format above");
                 ImGui::PopID();
+            }
+            if (!removeId.empty())
+            {
+                m_TargetFormatIndex.erase(removeId);
+                writeOverride(removeId, 0);
+            }
+
+            // Add one: the targets without an override.
+            if (DekiEditor::SchematicAddButton(ICON_TI_PLUS "  Add override"))
+                ImGui::OpenPopup("##addoverride");
+            if (ImGui::BeginPopup("##addoverride"))
+            {
+                bool any = false;
+                for (const PlatformConfig* platform : targets)
+                {
+                    auto it = m_TargetFormatIndex.find(platform->id);
+                    if (it != m_TargetFormatIndex.end() && it->second > 0)
+                        continue;
+                    any = true;
+                    Deki::ColorFormat screen;
+                    std::string item = platform->displayName.empty() ? platform->id : platform->displayName;
+                    TextureFormat now = TextureFormat::RGB565A8;
+                    if (ParseColorFormat(platform->colorFormat, screen))
+                    {
+                        now = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
+                        item += std::string("  (") + TextureFormatName(now) + ")";
+                    }
+                    if (ImGui::Selectable((item + "##" + platform->id).c_str()))
+                    {
+                        // Starts at what it stores now, so adding changes nothing
+                        // until a format is picked.
+                        int index = 0;
+                        for (int i = 1; i < s_FormatCount; ++i)
+                            if (TextureFormatName(now) == std::string(s_FormatNames[i]))
+                                index = i;
+                        m_TargetFormatIndex[platform->id] = index;
+                        writeOverride(platform->id, index);
+                    }
+                }
+                if (!any)
+                    ImGui::TextDisabled("Every target has an override");
+                ImGui::EndPopup();
             }
         }
 

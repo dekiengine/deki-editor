@@ -78,9 +78,9 @@ colour on a desktop. Two things follow it.
   (the texture inspector) is **Automatic** by default: RGB565 on an RGB565
   target, or RGB565A8 when the image has transparency; RGB888, or RGBA8888 with
   transparency, on a full-colour target. Pick a format to use it on every
-  target, and under **Per target** pick one for a single target, e.g. a big
-  background kept small on a board. The export stores each image as the
-  target it is for wants it.
+  target, or **Add override** to pick one for a single target, e.g. a big
+  background kept small on one board. **Stored as** sums up what every target
+  gets. The export stores each image as the target it is for wants it.
 
 A platform's `colorFormat` is the format of its screen. The editor's own cache
 follows the active platform, so what the scene view shows is what that target
