@@ -50,8 +50,9 @@ A build keeps the game's assets in one of two places:
   card's storage package loads them (`S:/`) once it is mounted.
 
 Only a platform that `provides` `external-storage` can choose external; the platform editor
-shows the choice (**Storage > Assets on**) only for those. The LilyGO T-Deck Plus is one, and
-keeps its assets on the card.
+shows the choice (**Storage > Assets on**) only for those. Choose it only for a game too big
+for the flash: with external storage and no card in the slot, the game has no assets. The
+LilyGO T-Deck Plus can choose; it keeps its assets in its flash unless told otherwise.
 
 `project_data.bin` records the choice, so the engine knows where to look.
 
