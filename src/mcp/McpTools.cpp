@@ -16,6 +16,7 @@
 #include <deki-editor/CliTool.h>
 #include <deki-editor/EditorRegistry.h>
 #include <deki-editor/Paths.h>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -865,6 +866,39 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             if (!editor->GetToolHost()->OpenToolForFile(abs.string().c_str(), cache.c_str()))
                                 throw std::runtime_error("No editor window opens '" + rel + "'");
                             return { { "path", rel }, { "opened", true } };
+                        } });
+
+    registry.Register({ "select_asset",
+                        "Select an asset, as clicking it in the Asset Browser does: the inspector then shows "
+                        "its settings (a texture's format, a model's, ...). Give the project-relative path or "
+                        "the GUID.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "path", { { "type", "string" }, { "description", "Project-relative path" } } },
+                              { "guid", { { "type", "string" }, { "description", "Asset GUID" } } } } } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            namespace fs = std::filesystem;
+                            auto* project = editor->GetProject();
+                            auto* pipeline = editor->GetAssetPipeline();
+                            if (!project || !pipeline) throw std::runtime_error("No project open");
+
+                            const AssetInfo* info = nullptr;
+                            if (args.contains("path") && args["path"].is_string())
+                                info = pipeline->GetAssetInfo(args["path"].get<std::string>());
+                            else if (args.contains("guid") && args["guid"].is_string())
+                                info = pipeline->GetAssetInfoByGuid(args["guid"].get<std::string>());
+                            else
+                                throw std::runtime_error("select_asset takes \"path\" or \"guid\"");
+                            if (!info)
+                                throw std::runtime_error("no such asset in this project");
+
+                            // The Asset Browser's own form: absolute, forward slashes.
+                            std::string abs = pipeline->GetAbsolutePath(info->path);
+                            std::replace(abs.begin(), abs.end(), '\\', '/');
+                            const std::string cache = GetCachePath(project->GetPath(), info->guid);
+                            editor->SetSelectedAsset(abs, cache, fs::exists(cache), info->guid);
+                            return { { "path", info->path }, { "guid", info->guid }, { "selected", true } };
                         } });
 
     // Tools the loaded packages add (CliTool). Looked up by name on every call

@@ -19,6 +19,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     `AssetPipeline::RegisterExportEncoder`, next to their cache handler.
   - The Play view has a pixel-format dropdown next to its screen picker; play
     renders in it. `--render-scenes` takes `DEKI_RENDER_FORMAT`.
+- MCP `select_asset` (`path` or `guid`) selects an asset as clicking it in the
+  Asset Browser does, so the inspector shows its settings.
 - **One project, any screen.** The project sets a design area, how much world
   the player sees in meters, and each target renders at its own resolution.
   Project Settings > Framebuffer holds it with two more settings: **Screen

@@ -295,7 +295,20 @@ void TextureInspector::DrawSettings()
                 int& index = m_TargetFormatIndex[platform->id];
                 InspectorUtils::BeginPropertyRow(platform->displayName.empty() ? platform->id.c_str()
                                                                                : platform->displayName.c_str());
-                if (DekiEditor::SchematicCombo("##TargetFormat", &index, s_FormatNames, s_FormatCount))
+                // What this target stores, shown in the combo itself: Automatic
+                // reads "Automatic (RGB565A8)", an explicit choice is its name.
+                std::string automaticLabel = s_FormatNames[0];
+                Deki::ColorFormat screen;
+                if (ParseColorFormat(platform->colorFormat, screen))
+                {
+                    const TextureFormat stored = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
+                    automaticLabel += std::string(" (") + TextureFormatName(stored) + ")";
+                }
+                const char* items[s_FormatCount];
+                items[0] = automaticLabel.c_str();
+                for (int i = 1; i < s_FormatCount; ++i)
+                    items[i] = s_FormatNames[i];
+                if (DekiEditor::SchematicCombo("##TargetFormat", &index, items, s_FormatCount))
                 {
                     const std::string id = platform->id;
                     const int chosen = index;
@@ -308,14 +321,6 @@ void TextureInspector::DrawSettings()
                         }
                         else
                             tex["targets"][id] = s_FormatNames[chosen]; });
-                }
-                Deki::ColorFormat screen;
-                if (ParseColorFormat(platform->colorFormat, screen))
-                {
-                    const std::string targetFormat = index > 0 ? s_FormatNames[index] : "";
-                    const TextureFormat stored = ResolveTextureFormat(assetFormat, targetFormat, screen, m_SourceHasAlpha);
-                    ImGui::SameLine();
-                    ImGui::TextDisabled("%s", TextureFormatName(stored));
                 }
                 ImGui::PopID();
             }
