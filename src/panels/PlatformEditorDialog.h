@@ -93,6 +93,16 @@ private:
     int m_ScreenWidth = 320;
     int m_ScreenHeight = 240;
 
+    // The platform being edited, as loaded. Save starts from it, so what this
+    // dialog does not show (capabilities, required packages, colour format,
+    // backend options) is kept rather than dropped.
+    PlatformConfig m_Loaded;
+
+    // Where the target keeps its assets: 0 internal, 1 external. Offered only
+    // when the platform has external storage.
+    int m_AssetStorageIndex = 0;
+    void DrawStorageSection();
+
     // Error display
     std::string m_ErrorMessage;
     bool m_ShowError = false;

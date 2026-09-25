@@ -9,6 +9,7 @@
 #include "EditorApp.h"
 #include "panels/PackageManagerPanel.h"
 #include "services/AssetExporter.h"
+#include "services/ExportTarget.h"
 #include <deki-editor/FeatureResolver.h>
 
 #include <chrono>
@@ -393,7 +394,7 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // build won. Two boards in one project overwrote each other's assets.
     builder.SetPlatformConfig(platform);
 
-    // Boot payload - dproject.bin plus the platform's boot scene - written
+    // Boot payload - project_data.bin plus the platform's boot scene - written
     // where the backend asks for it, before it assembles anything. Without it
     // a device comes up with no assets at all, which is exactly what every
     // CLI build produced while this step lived only in BuildPanel::StartBuild.
@@ -415,19 +416,34 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
             std::replace(bootScene.begin(), bootScene.end(), '\\', '/');
         }
 
+        AssetExportTarget target;
+        if (!ExportTargetForPlatform(platform.id, target))
+            return Failure("Cannot export for '" + platform.id + "'; the log says why.");
+
         AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline());
+        exporter.SetTarget(target);
         // So a scene object that asks for something this board has not got is
         // left out of what gets flashed, rather than shipped and dead.
         exporter.SetTargetCapabilities(platform.Capabilities());
         if (exporter.ExportBootPayload(bootPayloadDir, bootScene))
         {
-            log(std::string("Exported boot payload: dproject.bin") +
+            log(std::string("Exported boot payload: project_data.bin") +
                     (bootScene.empty() ? "" : ", boot.scene (" + bootScene + ")"),
                 false);
         }
         else
         {
             log("Failed to export the boot payload", true);
+        }
+
+        // Internal storage: the assets ship in the build, in the payload's
+        // assets/ folder (F:/assets/ on the device). External storage gets
+        // them from the SD Card Deploy panel instead.
+        if (target.assetStorage == Deki::Storage::Internal)
+        {
+            if (!exporter.ExportAssets((std::filesystem::path(bootPayloadDir) / "assets").string()))
+                return Failure("Failed to export the assets into the build");
+            log("Exported the assets into the build (internal storage)", false);
         }
     }
 

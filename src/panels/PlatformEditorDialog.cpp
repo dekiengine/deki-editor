@@ -129,6 +129,8 @@ void PlatformEditorDialog::ResetToDefaults()
     m_SelectedBuilderIndex = -1;
     m_ScreenWidth = 320;
     m_ScreenHeight = 240;
+    m_Loaded = PlatformConfig{};
+    m_AssetStorageIndex = 0;
     m_EditorUI.reset();
 }
 
@@ -154,6 +156,9 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     m_ScreenWidth = config->screenWidth > 0 ? config->screenWidth : 320;
     m_ScreenHeight = config->screenHeight > 0 ? config->screenHeight : 240;
 
+    m_Loaded = *config;
+    m_AssetStorageIndex = config->assetStorage == "external" ? 1 : 0;
+
     // Create editor UI from builder (loads all fields from config)
     CreateEditorUI(*config);
 }
@@ -178,7 +183,7 @@ void PlatformEditorDialog::CreateEditorUI(const PlatformConfig& config)
 
 PlatformConfig PlatformEditorDialog::BuildConfig()
 {
-    PlatformConfig config;
+    PlatformConfig config = m_IsEditing ? m_Loaded : PlatformConfig{};
 
     config.id = m_Id;
     config.displayName = m_DisplayName;
@@ -193,6 +198,8 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
     {
         config.family = "custom";
     }
+
+    config.assetStorage = m_AssetStorageIndex == 1 ? "external" : "internal";
 
     // Delegate builder-specific fields to editor UI
     if (m_EditorUI)
@@ -297,6 +304,7 @@ void PlatformEditorDialog::Draw()
                 m_EditorUI->Draw();
             else
                 DrawNativeEditor();
+            DrawStorageSection();
 
             ImGui::EndChild();
 
@@ -363,6 +371,7 @@ bool PlatformEditorDialog::DrawInline()
         m_EditorUI->Draw();
     else
         DrawNativeEditor();
+    DrawStorageSection();
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -547,6 +556,29 @@ void PlatformEditorDialog::DrawBasicSection()
             ImGui::TextDisabled("Configure build settings in your project's CMakeLists.txt.");
         }
 
+        ImGui::Unindent();
+    }
+}
+
+// ============================================================================
+// Storage: where the target keeps its assets. Only a target with external
+// storage (an SD card) has a choice; every other one keeps them inside.
+// ============================================================================
+
+void PlatformEditorDialog::DrawStorageSection()
+{
+    if (!m_IsEditing || m_Loaded.Capabilities().count("external-storage") == 0)
+        return;
+
+    if (ImGui::CollapsingHeader("Storage", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+        ImGui::Text("Assets on");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::Combo("##AssetStorage", &m_AssetStorageIndex, "Internal storage\0External storage\0");
+        ImGui::TextDisabled(m_AssetStorageIndex == 1
+                                ? "Copy the assets to the card with SD Card Deploy."
+                                : "The assets are flashed with the game.");
         ImGui::Unindent();
     }
 }

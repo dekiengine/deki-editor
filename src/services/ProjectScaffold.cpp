@@ -137,7 +137,6 @@ bool WriteDekiJson(const std::string& projectPath, const std::string& projectNam
     // same way an existing project without one is handled.
     j["renderPipelineGuid"] = "";
     j["forceIncludeGuids"] = json::array();
-    j["flashGuids"] = json::array();
     return WriteText(fs::path(projectPath) / "deki.json", j.dump(2), err);
 }
 

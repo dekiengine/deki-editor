@@ -67,7 +67,7 @@ public:
     /// wire its own progress and cancel UI); Build/StartBuild below call it and
     /// drive the builder for you. Before it existed the two had drifted, and a
     /// firmware image built from the CLI shipped with no boot payload at all -
-    /// no dproject.bin, no boot scene - because that step lived only in the
+    /// no project_data.bin, no boot scene - because that step lived only in the
     /// panel.
     ///
     /// `editor` may be null, in which case the defines fall back to every

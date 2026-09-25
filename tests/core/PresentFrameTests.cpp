@@ -3,7 +3,7 @@
  * @brief Deki::Engine::PresentFrame routes the render system's changed
  *        rectangles to a display that can present partial frames, falls back
  *        to a whole-frame present otherwise, and the runtime package-setting
- *        reader finds values in a v5 dproject.bin without the settings registry.
+ *        reader finds values in a v5 project_data.bin without the settings registry.
  */
 
 #include <gtest/gtest.h>
@@ -191,7 +191,7 @@ void Put(std::vector<uint8_t>& out, const void* p, size_t n)
     out.insert(out.end(), b, b + n);
 }
 
-// A v5 dproject.bin with one package section, "Rendering", holding a Bool and
+// A v5 project_data.bin with one package section, "Rendering", holding a Bool and
 // an Int32, laid out the way Deki::ProjectSettings::Write emits them.
 std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
 {

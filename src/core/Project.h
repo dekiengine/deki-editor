@@ -151,20 +151,6 @@ public:
     }
     bool IsForceIncluded(const std::string& guid) const { return m_ForceIncludeGuids.count(guid) > 0; }
 
-    // Flash-targeted GUIDs - assets to deploy to flash instead of SD card
-    const std::unordered_set<std::string>& GetFlashGuids() const { return m_FlashGuids; }
-    void AddFlashGuid(const std::string& guid)
-    {
-        m_FlashGuids.insert(guid);
-        MarkDirty();
-    }
-    void RemoveFlashGuid(const std::string& guid)
-    {
-        m_FlashGuids.erase(guid);
-        MarkDirty();
-    }
-    bool IsFlashTargeted(const std::string& guid) const { return m_FlashGuids.count(guid) > 0; }
-
     // Mark project as modified (needs save)
     void MarkDirty() { m_IsDirty = true; }
     bool IsDirty() const { return m_IsDirty; }
@@ -182,7 +168,6 @@ private:
     std::string m_RenderPipelineGuid;                     // GUID of .rpipeline asset
     std::string m_ActivePlatformId;                       // Selected build target platform
     std::unordered_set<std::string> m_ForceIncludeGuids;  // Assets to always deploy
-    std::unordered_set<std::string> m_FlashGuids;         // Assets targeted for flash
     bool m_IsDirty = false;
 };
 

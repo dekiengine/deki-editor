@@ -77,6 +77,21 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they overwrite or delete a person's work.
 
 ### Changed
+- **A target keeps its assets in internal or external storage**
+  (`assetStorage` in the platform, **Storage > Assets on** in the platform
+  editor; only a platform that provides `external-storage` can choose
+  external). Internal, the default, ships the assets in the build: an ESP32
+  board flashes them with the game, its data partition taking the rest of the
+  flash (about 13 MB on a 16 MB board), and the build says so if they do not
+  fit. The desktop simulator and Tactility take them the same way, so neither
+  needs `--export` first any more. External leaves them to SD Card Deploy. A
+  board with no SD card can now run a game. See
+  [docs/platforms.md](docs/platforms.md#where-the-assets-go).
+  - The per-asset **Flash / SD Card** choice is gone: no build ever read it.
+    `flashGuids` is dropped from `deki.json` on save, and the Deploy Analysis
+    panel loses its Target column.
+  - `dproject.bin` is `project_data.bin`.
+  - `set_platform_provides` takes `asset_storage`.
 - Deploy's **Referenced** and **Force Include** rows are one row, **Included
   in builds**: ticked and locked when a scene uses the asset, a checkbox
   otherwise.
@@ -182,6 +197,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- Saving a platform in the platform editor dropped what the dialog does not
+  show (its capabilities, required packages, colour format and backend
+  options); it now starts from the platform as loaded.
 - Force-included assets now ship in every export (`--export`, the
   simulator, Tactility), not only in an SD card deploy.
 - A texture set to RGB888 failed to import: the writer had no RGB888 case.

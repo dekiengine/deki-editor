@@ -523,6 +523,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                               { "screen_width", { { "type", "integer" }, { "description", "Screen width in pixels, the size the game renders and exports assets at. Give with screen_height. Unchanged when omitted." } } },
                               { "screen_height", { { "type", "integer" }, { "description", "Screen height in pixels. Give with screen_width. Unchanged when omitted." } } },
                               { "framework_options", { { "type", "object" }, { "description", "Settings for the platform's build backend, merged key by key into what it already has. The editor does not interpret them; the backend validates them when it builds." } } },
+                              { "asset_storage", { { "type", "string" }, { "enum", nlohmann::json::array({ "internal", "external" }) }, { "description", "Where builds keep the assets: internal (flashed with the game) or external (an SD card; needs the external-storage capability). Unchanged when omitted." } } },
                               { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -599,6 +600,16 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                     options[it.key()] = it.value();
                                 config.frameworkOptions = options.dump();
                             }
+                            if (args.contains("asset_storage"))
+                            {
+                                const std::string storage = args.value("asset_storage", "");
+                                if (storage != "internal" && storage != "external")
+                                    throw std::runtime_error("asset_storage is internal or external");
+                                config.assetStorage = storage;
+                            }
+                            if (config.assetStorage == "external" && config.Capabilities().count("external-storage") == 0)
+                                throw std::runtime_error("'" + id + "' keeps its assets on external storage, so it "
+                                                         "must provide \"external-storage\"");
 
                             registryRef.RegisterPlatform(config);
                             if (!registryRef.SavePlatformToFile(config, GetPlatformsDirectory(path)))
@@ -612,7 +623,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                      { "requiresPackages", config.requiresPackages },
                                      { "capabilities", caps },
                                      { "screenWidth", config.screenWidth },
-                                     { "screenHeight", config.screenHeight } };
+                                     { "screenHeight", config.screenHeight },
+                                     { "assetStorage", config.assetStorage } };
                         } });
 
     // Per-target content. "requires" is a BUILD-time key: the exporter drops

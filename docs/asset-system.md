@@ -121,7 +121,12 @@ prime = 16777619
 | File | Scope | Written by |
 |------|-------|------------|
 | `cache/asset_table.bin` | All project assets | `AssetPipeline::UpdateAssetTable()` |
-| `storage/asset_table.bin` | Only used assets | `AssetExporter::ExportAssetLookupTable()` |
+| `<build's assets>/asset_table.bin` | Only used assets | `AssetExporter::ExportAssetLookupTable()` |
+
+A build's assets are exported next to its boot payload (`assets/`, read as `F:/assets/`) when
+the target keeps them in internal storage, or to `<project>/storage/` for an SD card (`S:/`).
+`AssetManager::LoadAssetRoot` loads the table, the pack index and every asset from there; see
+[platforms.md](platforms.md#where-the-assets-go).
 
 ## Asset Loading Flow
 

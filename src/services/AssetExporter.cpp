@@ -157,6 +157,16 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
 
 bool AssetExporter::ExportToStorage()
 {
+    if (!m_Project)
+    {
+        DEKI_LOG_ERROR("AssetExporter: No project");
+        return false;
+    }
+    return ExportAssets((std::filesystem::path(m_Project->GetPath()) / "storage").string());
+}
+
+bool AssetExporter::ExportAssets(const std::string& outDir)
+{
     namespace fs = std::filesystem;
 
     if (!m_Project)
@@ -177,7 +187,7 @@ bool AssetExporter::ExportToStorage()
     std::string projectPath = m_Project->GetPath();
     std::string cachePath = ProjectPaths::Cache(projectPath).string();
 
-    fs::path storagePath = fs::path(projectPath) / "storage";
+    fs::path storagePath = outDir;
 
     // Clear and recreate storage directory
     if (fs::exists(storagePath))
@@ -272,7 +282,7 @@ bool AssetExporter::ExportToStorage()
     std::string lookupTablePath = (storagePath / "asset_table.bin").string();
     ExportAssetLookupTable(lookupTablePath, usedAssets.usedGuids);
 
-    // Step 6: Write project settings (dproject.bin)
+    // Step 6: Write project settings (project_data.bin)
     WriteProjectSettings(storagePath.string());
 
     // Summary: count pack files and their total size
@@ -289,12 +299,12 @@ bool AssetExporter::ExportToStorage()
 
     if (packCount > 0)
     {
-        DEKI_LOG_INFO("Export complete: %d individual assets + %d pack files (%.1f KB packed) in storage/",
-                      m_ExportedCount, packCount, packTotalBytes / 1024.0f);
+        DEKI_LOG_INFO("Export complete: %d individual assets + %d pack files (%.1f KB packed) in %s",
+                      m_ExportedCount, packCount, packTotalBytes / 1024.0f, storagePath.string().c_str());
     }
     else
     {
-        DEKI_LOG_INFO("Export complete: %d assets copied from cache to storage/", m_ExportedCount);
+        DEKI_LOG_INFO("Export complete: %d assets in %s", m_ExportedCount, storagePath.string().c_str());
     }
     return true;
 }
@@ -807,7 +817,7 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
         passNamePtrs.push_back(name.c_str());
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        targetFPS,
+        m_Target.assetStorage, targetFPS,
         startupScene.empty() ? nullptr : startupScene.c_str(),
         rendererName.empty() ? nullptr : rendererName.c_str(),
         passNamePtrs.empty() ? nullptr : passNamePtrs.data(),
@@ -847,13 +857,13 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
         return false;
     }
 
-    // Write dproject.bin (uses the raw filename, not the F:/ prefixed path)
-    fs::path projectSettingsPath = fs::path(payloadDir) / "dproject.bin";
+    // Write project_data.bin (uses the raw filename, not the F:/ prefixed path)
+    fs::path projectSettingsPath = fs::path(payloadDir) / "project_data.bin";
     std::ofstream settingsFile(projectSettingsPath, std::ios::binary);
 
     if (!settingsFile.is_open())
     {
-        DEKI_LOG_ERROR("Failed to create dproject.bin in the boot payload directory");
+        DEKI_LOG_ERROR("Failed to create project_data.bin in the boot payload directory");
         return false;
     }
 
@@ -874,7 +884,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
         passNamePtrs2.push_back(name.c_str());
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        targetFPS,
+        m_Target.assetStorage, targetFPS,
         startupScene.empty() ? nullptr : startupScene.c_str(),
         rendererName2.empty() ? nullptr : rendererName2.c_str(),
         passNamePtrs2.empty() ? nullptr : passNamePtrs2.data(),
@@ -882,7 +892,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
     settingsFile.close();
 
-    DEKI_LOG_INFO("Wrote dproject.bin to the boot payload (%zu bytes)", settingsBuffer.size());
+    DEKI_LOG_INFO("Wrote project_data.bin to the boot payload (%zu bytes)", settingsBuffer.size());
 
     // Compile and export boot scene if specified
     if (!bootSceneAssetPath.empty() && m_Pipeline)

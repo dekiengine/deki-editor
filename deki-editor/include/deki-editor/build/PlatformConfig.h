@@ -125,6 +125,12 @@ struct DEKI_EDITOR_API PlatformConfig
     // declares nothing gets nothing.
     std::vector<std::string> requiresPackages;
 
+    // Where a build keeps its assets: "internal" (part of the device: a
+    // board's flash, an app bundle, the disk) or "external" (removable, an SD
+    // card). External needs the "external-storage" capability, so only a
+    // target that has a card can choose it.
+    std::string assetStorage = "internal";
+
     // The scene a build of this platform boots: a PlatformSetupComponent and
     // the setup components that bring the target's display, input and storage
     // up. Relative to the project.

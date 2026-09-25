@@ -239,7 +239,7 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
         static const std::set<std::string> kOwnKeys = {
             "id",          "displayName", "family",   "framework", "frameworkOptions",  "externalMemorySize",
             "psramSize",   "screenWidth", "screenHeight", "colorFormat", "defines",     "cFlags",
-            "cxxFlags",    "linkFlags",   "provides", "requiresPackages", "bootScene" };
+            "cxxFlags",    "linkFlags",   "provides", "requiresPackages", "bootScene", "assetStorage" };
 
         json options = json::object();
         if (j.contains("frameworkOptions") && j["frameworkOptions"].is_object())
@@ -260,6 +260,7 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.screenWidth = j.value("screenWidth", 0);
     config.screenHeight = j.value("screenHeight", 0);
     config.colorFormat = j.value("colorFormat", "RGB565");
+    config.assetStorage = j.value("assetStorage", "internal");
 
     if (j.contains("requiresPackages") && j["requiresPackages"].is_array())
         for (const auto& id : j["requiresPackages"])
@@ -366,6 +367,7 @@ std::string PlatformToJson(const PlatformConfig& config)
     if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
 
     if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
+    if (config.assetStorage != "internal") j["assetStorage"] = config.assetStorage;
 
     return j.dump(2);
 }

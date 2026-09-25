@@ -74,7 +74,7 @@ struct AssetUsageCollection
  * Assets are exported with their original path structure:
  * - assets/Demo.scene -> storage/Demo.scene
  * - assets/textures/player.png -> storage/textures/player.tex
- * - storage/dproject.bin (project settings for runtime)
+ * - storage/project_data.bin (project settings for runtime)
  */
 class AssetExporter
 {
@@ -82,11 +82,15 @@ public:
     AssetExporter(Project* project, AssetPipeline* pipeline, PackageLoader* packageLoader = nullptr);
 
     // Export what the scenes use, plus the project's force-included assets,
-    // to the storage directory. Returns true on success
+    // to <project>/storage (for copying to an SD card). Returns true on success
     bool ExportToStorage();
 
+    // The same, into outDir: a build's asset folder (Storage::AssetRoot on
+    // the target). outDir is cleared first.
+    bool ExportAssets(const std::string& outDir);
+
     // Export what a target needs before it can load anything else: the
-    // compiled project settings (dproject.bin) and the boot scene.
+    // compiled project settings (project_data.bin) and the boot scene.
     // payloadDir: where the build backend wants it
     // (ITargetBuilder::GetBootPayloadDirectory); cleared first.
     // bootSceneAssetPath: relative asset path for boot scene (e.g., "boot.scene"), empty to skip

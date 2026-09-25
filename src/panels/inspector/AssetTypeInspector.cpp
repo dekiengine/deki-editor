@@ -9,7 +9,6 @@
 #include <deki-editor/CommandHistory.h>
 #include "../../core/commands/AssetCommands.h"
 #include "../../services/AssetExporter.h"
-#include <deki-editor/build/PlatformConfig.h>
 #include "../SceneViewPanel.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/SubAsset.h>
@@ -304,74 +303,6 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
             proj->AddForceIncludeGuid(assetGuid);
         else
             proj->RemoveForceIncludeGuid(assetGuid);
-    }
-
-    // Target selector
-    if (isUsed || isForceIncluded)
-    {
-        bool isBootScene = false;
-        if (proj && !assetGuid.empty())
-        {
-            // Get assets-relative path for this asset (e.g., "scenes/boot.scene")
-            std::string assetsRelPath;
-            auto* pl = m_App->GetAssetPipeline();
-            if (pl)
-            {
-                const AssetInfo* info = pl->GetAssetInfoByGuid(assetGuid);
-                if (info)
-                {
-                    assetsRelPath = info->path;
-                    const std::string prefix = GetAssetsDirectoryRelative() + "/";
-                    if (assetsRelPath.rfind(prefix, 0) == 0)
-                        assetsRelPath = assetsRelPath.substr(prefix.size());
-                }
-            }
-
-            // bootScene in PlatformConfig is an assets-relative path
-            // (backward compat: old configs may still have a GUID)
-            auto& registry = PlatformRegistry::Instance();
-            for (const auto& id : registry.GetAvailablePlatforms())
-            {
-                const PlatformConfig* platform = registry.GetPlatform(id);
-                if (platform && !platform->bootScene.empty())
-                {
-                    if (platform->bootScene == assetsRelPath || platform->bootScene == assetGuid)
-                    {
-                        isBootScene = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        InspectorUtils::BeginPropertyRow("Target");
-        if (isBootScene)
-        {
-            // Boot scene always goes to flash (locked).
-            ImGui::BeginDisabled();
-            int locked = 0;
-            DekiEditor::SchematicCombo("##Target", &locked, "Flash\0");
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            {
-                DekiEditor::Tooltip("Boot scene is always stored in flash");
-            }
-        }
-        else
-        {
-            bool isFlash = proj && proj->IsFlashTargeted(assetGuid);
-            int targetIndex = isFlash ? 0 : 1;
-            if (DekiEditor::SchematicCombo("##Target", &targetIndex, "Flash\0SD Card\0"))
-            {
-                if (proj)
-                {
-                    if (targetIndex == 0)
-                        proj->AddFlashGuid(assetGuid);
-                    else
-                        proj->RemoveFlashGuid(assetGuid);
-                }
-            }
-        }
     }
 
     DekiEditor::SchematicSectionEnd();

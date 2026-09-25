@@ -35,7 +35,6 @@ private:
         uintmax_t cacheSize;   // cache file size in bytes
         bool isUsed;           // referenced by a scene
         bool forceIncluded;    // user override
-        bool flashTargeted;    // goes to flash instead of SD card
         std::string packName;  // name of .dpack this asset belongs to (empty = individual)
     };
     std::vector<AssetEntry> m_AssetEntries;

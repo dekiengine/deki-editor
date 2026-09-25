@@ -118,7 +118,7 @@ Build output, regenerated from the above on every open or build. Do not track
 or depend on it:
 
 - `generated/` in a project (CMake tree, caches, promoted DLLs, `src/generated/`)
-- The MessagePack scene compiled from `.scene` (`SCENE_FORMAT_VERSION`), `dproject.bin`, asset packs (`.dpack`)
+- The MessagePack scene compiled from `.scene` (`SCENE_FORMAT_VERSION`), `project_data.bin`, asset packs (`.dpack`)
 - `packages/deki-*/` clones (the manifest is the source of truth)
 - The editor's own `build/`
 

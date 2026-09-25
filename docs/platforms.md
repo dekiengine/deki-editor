@@ -28,6 +28,7 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `requiresPackages` | Packages the target always needs, whatever the scenes use. Its hardware abstraction layer, typically. |
 | `defines`, `cFlags`, `cxxFlags`, `linkFlags` | Compiler settings for the game's own code. |
 | `bootScene` | Path of the boot scene, relative to the project. |
+| `assetStorage` | Where a build keeps the game's assets: `internal` (the default) or `external`. See below. |
 
 The **boot scene** holds a `Deki::PlatformSetupComponent` whose `setupComponents` list names,
 in order, the setup steps that bring the hardware up: a power pin, the display, an I2C bus,
@@ -35,6 +36,24 @@ touch. Each entry is `{id, typeId}`: the id of the child object holding the step
 hash of the step's qualified class name (`Deki::HashString`). A wrong `typeId` does not fail;
 the step silently never runs. `ShippedPlatformTemplates` in the editor's tests checks every
 boot scene the packages ship.
+
+## Where the assets go
+
+A build keeps the game's assets in one of two places:
+
+- **Internal storage**, the default: part of the device. The build carries them, in `assets/`
+  next to the boot scene (`F:/assets/` at runtime). On an ESP32 that is the flash: the data
+  partition takes the rest of the chip (about 13 MB on a 16 MB board), and the build fails if
+  the game does not fit. The desktop simulator and Tactility apps work the same way.
+- **External storage**: removable, an SD card. The build carries only the boot scene and
+  `project_data.bin`; the **SD Card Deploy** panel copies the assets to the card, and the
+  card's storage package loads them (`S:/`) once it is mounted.
+
+Only a platform that `provides` `external-storage` can choose external; the platform editor
+shows the choice (**Storage > Assets on**) only for those. The LilyGO T-Deck Plus is one, and
+keeps its assets on the card.
+
+`project_data.bin` records the choice, so the engine knows where to look.
 
 ## Where platforms come from
 
@@ -157,7 +176,7 @@ current version in.
 | --- | --- |
 | `list_platforms` (or `--list-platforms`) | Every target, with `origin` on the ones from a package: `package`, `modified`, `updateAvailable`, `canUpdate`, `canRestore`. |
 | `set_active_platform` | Choose the project's default target, adopting it if needed. |
-| `create_platform`, `set_platform_provides` | Make or change a platform of the project's own. |
+| `create_platform`, `set_platform_provides` | Make or change a platform of the project's own. `set_platform_provides` takes `asset_storage`. |
 | `update_platform` | Update from the package. Returns `taken` and `kept`. |
 | `restore_platform` | Restore the package's version. Returns `taken`. |
 

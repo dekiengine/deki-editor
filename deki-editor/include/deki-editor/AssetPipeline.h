@@ -10,6 +10,7 @@
 #include <deki-editor/SubAsset.h>
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/GuidCache.h>
+#include <deki/Storage.h>
 #include <deki/Engine.h>  // Deki::ColorFormat
 
 #include <deki-editor/EditorExport.h>
@@ -85,6 +86,8 @@ struct AssetExportTarget
 {
     std::string platformId;  // empty: no platform, the editor itself
     Deki::ColorFormat colorFormat = Deki::ColorFormat::ARGB8888;
+    // Where the build keeps its assets (PlatformConfig::assetStorage).
+    Deki::Storage::Location assetStorage = Deki::Storage::Internal;
 };
 
 /**

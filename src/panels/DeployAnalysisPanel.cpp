@@ -160,7 +160,6 @@ void DeployAnalysisPanel::Draw()
             ui.TableSetupColumn("Size", EditorUI::TableColumnWidthFixed, 70);
             ui.TableSetupColumn("Status", EditorUI::TableColumnWidthFixed, 70);
             ui.TableSetupColumn("Pack", EditorUI::TableColumnWidthFixed, 90);
-            ui.TableSetupColumn("Target", EditorUI::TableColumnWidthFixed, 60);
             ui.TableHeadersRow();
 
             for (size_t i = 0; i < m_AssetEntries.size(); i++)
@@ -213,11 +212,6 @@ void DeployAnalysisPanel::Draw()
                 if (!entry.packName.empty())
                     ui.TextColored(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, Palette::Accent.w,
                                    entry.packName.c_str());
-
-                // Column 4: Target
-                ui.TableNextColumn();
-                if (entry.isUsed || entry.forceIncluded)
-                    ui.Text(entry.flashTargeted ? "Flash" : "SD");
             }
 
             ui.EndTable();
@@ -293,9 +287,8 @@ void DeployAnalysisPanel::ScanAssets()
         usage.usedGuids.insert(GenerateDeterministicGuid(seed + ":atlas"));
     }
 
-    // Load force-include and flash-targeted sets from project
+    // Load the force-include set from the project
     const auto& forceGuids = project->GetForceIncludeGuids();
-    const auto& flashGuids = project->GetFlashGuids();
 
     // Build GUID→pack name map from .dpack files
     std::unordered_map<std::string, std::string> guidToPackName;
@@ -384,7 +377,6 @@ void DeployAnalysisPanel::ScanAssets()
 
         entry.isUsed = usage.usedGuids.count(info.guid) > 0;
         entry.forceIncluded = forceGuids.count(info.guid) > 0;
-        entry.flashTargeted = flashGuids.count(info.guid) > 0;
 
         auto packIt = guidToPackName.find(info.guid);
         if (packIt != guidToPackName.end())
@@ -423,7 +415,6 @@ void DeployAnalysisPanel::ScanAssets()
                 entry.cacheSize = entry.hasCached ? fs::file_size(cPath) : 0;
                 entry.isUsed = usage.usedGuids.count(guid) > 0;
                 entry.forceIncluded = false;
-                entry.flashTargeted = false;
 
                 auto packIt = guidToPackName.find(guid);
                 if (packIt != guidToPackName.end())

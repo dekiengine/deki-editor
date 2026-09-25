@@ -67,6 +67,7 @@ set(TEST_SOURCES
     core/RenamedPropertyTests.cpp
     core/SceneMigrationTests.cpp
     core/EditorNamingTests.cpp
+    core/AssetStorageTests.cpp
     core/TextureFormatResolveTests.cpp
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp

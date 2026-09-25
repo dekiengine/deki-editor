@@ -63,7 +63,7 @@ TEST(ProjectScaffold, DekiJsonIsCurrentAndComplete)
     EXPECT_EQ(j.at("activePlatformId"), "native_simulator");
     EXPECT_EQ(j.at("startupScene"), ProjectScaffold::kStartupScene);
     EXPECT_TRUE(j.at("forceIncludeGuids").is_array());
-    EXPECT_TRUE(j.at("flashGuids").is_array());
+    EXPECT_FALSE(j.contains("flashGuids"));
     EXPECT_TRUE(j.contains("renderPipelineGuid"));
     EXPECT_FALSE(j.contains("displaySettings"));  // lives in settings/, Project::Save erases it
 }

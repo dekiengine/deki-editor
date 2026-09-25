@@ -361,7 +361,9 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
         if (!packFile || memcmp(packHeader.magic, Deki::DPACK_MAGIC, 4) != 0 || packHeader.entryCount == 0)
             continue;
 
-        std::string sdPackPath = "S:/" + packGuid + ".pack";
+        // The name only: the runtime finds a pack next to the index, on
+        // whichever storage the build's assets are.
+        std::string packFileName = packGuid + ".pack";
 
         std::vector<Deki::DPackEntry> packEntries(packHeader.entryCount);
         packFile.read(reinterpret_cast<char*>(packEntries.data()),
@@ -371,7 +373,7 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
         {
             IndexEntry ie;
             ie.assetGuid = std::string(pe.guid);
-            ie.packGuid = sdPackPath;
+            ie.packGuid = packFileName;
             indexEntries.push_back(ie);
 
             if (outPackedGuids)

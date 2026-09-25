@@ -106,6 +106,7 @@ struct DekiBuilderAbi
 ///    handshake also gained packageEntrySize, because ScanPackageManifests
 ///    returns those by value: a backend built against another layout destroyed
 ///    them with the wrong destructor and took the editor down with it.
+///    PlatformConfig gains assetStorage.
 constexpr uint32_t kDekiBuilderAbiVersion = 2;
 
 /// The compiler and standard library this translation unit is using. A MinGW

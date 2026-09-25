@@ -158,7 +158,7 @@ namespace
 // Package-owned sections get a folder per package so uninstalling one takes its
 // settings with it. Engine-core sections share core.json - they are few, small
 // and always present, so a file each would be noise. The framebuffer is the
-// exception: it is the device contract also written to dproject.bin and the
+// exception: it is the device contract also written to project_data.bin and the
 // one most likely to be edited per-platform, so it stays addressable on its own.
 std::filesystem::path SectionFilePath(const std::string& root, const std::string& section)
 {
@@ -478,16 +478,6 @@ bool Project::Load(const std::string& path)
             }
         }
 
-        // Load flash-targeted GUIDs
-        m_FlashGuids.clear();
-        if (json.contains("flashGuids") && json["flashGuids"].is_array())
-        {
-            for (const auto& guid : json["flashGuids"])
-            {
-                m_FlashGuids.insert(guid.get<std::string>());
-            }
-        }
-
         // A freshly loaded project is clean - except when this load migrated it.
         // Marking dirty earlier would not survive: this assignment runs at the end
         // of the same function and silently cleared it, so the migration never got
@@ -572,12 +562,9 @@ bool Project::Save()
         json["forceIncludeGuids"].push_back(guid);
     }
 
-    // Update flash-targeted GUIDs
-    json["flashGuids"] = nlohmann::json::array();
-    for (const auto& guid : m_FlashGuids)
-    {
-        json["flashGuids"].push_back(guid);
-    }
+    // Where assets are kept is the target's (PlatformConfig::assetStorage);
+    // the per-asset flash list this used to hold was never read by a build.
+    json.erase("flashGuids");
 
     // Settings now live in settings/; drop the copies that used to sit here so the
     // two cannot disagree. Written out by SaveSettingsFiles above first, so this
