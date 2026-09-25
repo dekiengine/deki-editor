@@ -283,12 +283,13 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
             // If not a spritesheet, use full texture dimensions
             if (!usedFrameSize)
             {
+                // The image's size, which a texture shrunk by Max Size records.
                 std::string cachePath = DekiEditor::GetCachePath(project->GetPath(), selectedGuid);
-                DekiEditor::TexData texData;
-                if (DekiEditor::TextureImporter::ReadTexFile(cachePath, texData) && texData.isValid())
+                int imageW = 0, imageH = 0;
+                if (DekiEditor::TextureImporter::ReadSourceSize(cachePath, imageW, imageH))
                 {
-                    *widthPtr = static_cast<int32_t>(texData.header.width);
-                    *heightPtr = static_cast<int32_t>(texData.header.height);
+                    *widthPtr = static_cast<int32_t>(imageW);
+                    *heightPtr = static_cast<int32_t>(imageH);
                 }
             }
         }

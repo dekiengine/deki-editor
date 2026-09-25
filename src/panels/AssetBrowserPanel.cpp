@@ -2154,7 +2154,11 @@ void AssetBrowserPanel::DrawAssetDetails()
             {
                 ImGui::Separator();
                 ImGui::Text("TEX Info:");
-                ImGui::Text("  Size: %u x %u", texData.header.width, texData.header.height);
+                int imageW = 0, imageH = 0;
+                TextureImporter::ReadSourceSize(asset.cachePath, imageW, imageH);
+                ImGui::Text("  Size: %d x %d", imageW, imageH);
+                if (imageW != static_cast<int>(texData.header.width) || imageH != static_cast<int>(texData.header.height))
+                    ImGui::Text("  Stored: %u x %u (Max Size)", texData.header.width, texData.header.height);
                 ImGui::Text("  Format: %s", texData.getFormatName().c_str());
                 ImGui::Text("  Data: %.2f KB", texData.header.dataSize / 1024.0f);
 

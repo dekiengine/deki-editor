@@ -155,7 +155,7 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     return file.good() || file.eof();
 }
 
-bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaData, uint32_t width, uint32_t height, TextureFormat format, const SpriteSettings* spriteSettings, const std::vector<SubAssetInfo>* frameSubAssets, const ChromaKeySettings* chromaKey)
+bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaData, uint32_t width, uint32_t height, TextureFormat format, const SpriteSettings* spriteSettings, const std::vector<SubAssetInfo>* frameSubAssets, const ChromaKeySettings* chromaKey, uint32_t sourceWidth, uint32_t sourceHeight)
 {
     // Create cache directory if it doesn't exist
     fs::path filePath(path);
@@ -348,9 +348,18 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     bool hasFrameList = frameSubAssets && !frameSubAssets->empty();
     uint32_t numChunks = 0;
 
-    if (hasSpriteMetadata || hasFrameList || hasChromaKey)
+    // Stored smaller than the image (Max Size): record the image's size.
+    const bool hasSourceSize = sourceWidth > 0 && sourceHeight > 0 &&
+                               (sourceWidth != width || sourceHeight != height);
+
+    if (hasSpriteMetadata || hasFrameList || hasChromaKey || hasSourceSize)
     {
         metadataSize = 4;  // num_chunks
+    }
+    if (hasSourceSize)
+    {
+        metadataSize += 8 + 8;  // type + size, then u32 width + u32 height
+        numChunks++;
     }
 
     // Sprite chunk payload:
@@ -503,9 +512,59 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                            spansCount * sizeof(int16_t));
             }
         }
+
+        // Source size chunk
+        if (hasSourceSize)
+        {
+            const uint32_t chunkType = static_cast<uint32_t>(MetadataChunkType::SourceSize);
+            const uint32_t chunkSize = 8;
+            file.write(reinterpret_cast<const char*>(&chunkType), sizeof(uint32_t));
+            file.write(reinterpret_cast<const char*>(&chunkSize), sizeof(uint32_t));
+            file.write(reinterpret_cast<const char*>(&sourceWidth), sizeof(uint32_t));
+            file.write(reinterpret_cast<const char*>(&sourceHeight), sizeof(uint32_t));
+        }
     }
 
     return file.good();
+}
+
+bool TextureImporter::ReadSourceSize(const std::string& texPath, int& outWidth, int& outHeight)
+{
+    std::ifstream file(texPath, std::ios::binary);
+    if (!file.is_open())
+        return false;
+    TexHeader header;
+    if (!file.read(reinterpret_cast<char*>(&header), sizeof(header)) || std::string(header.magic, 4) != "2DTX")
+        return false;
+    outWidth = static_cast<int>(header.width);
+    outHeight = static_cast<int>(header.height);
+    if (header.metadataSize == 0)
+        return true;
+
+    file.seekg(header.dataSize, std::ios::cur);
+    uint32_t numChunks = 0;
+    if (!file.read(reinterpret_cast<char*>(&numChunks), sizeof(uint32_t)))
+        return true;
+    for (uint32_t i = 0; i < numChunks; ++i)
+    {
+        uint32_t chunkType = 0, chunkSize = 0;
+        if (!file.read(reinterpret_cast<char*>(&chunkType), sizeof(uint32_t)) ||
+            !file.read(reinterpret_cast<char*>(&chunkSize), sizeof(uint32_t)))
+            return true;
+        if (chunkType == static_cast<uint32_t>(MetadataChunkType::SourceSize) && chunkSize >= 8)
+        {
+            uint32_t w = 0, h = 0;
+            if (file.read(reinterpret_cast<char*>(&w), sizeof(uint32_t)) &&
+                file.read(reinterpret_cast<char*>(&h), sizeof(uint32_t)) && w > 0 && h > 0)
+            {
+                outWidth = static_cast<int>(w);
+                outHeight = static_cast<int>(h);
+            }
+            return true;
+        }
+        file.seekg(chunkSize, std::ios::cur);
+    }
+    return true;
 }
 
 bool TextureImporter::HasAlphaChannel(const uint8_t* rgbaData, size_t pixelCount)

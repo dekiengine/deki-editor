@@ -68,6 +68,7 @@ set(TEST_SOURCES
     core/SceneMigrationTests.cpp
     core/EditorNamingTests.cpp
     core/AssetStorageTests.cpp
+    core/TextureSettingsTests.cpp
     core/TextureFormatResolveTests.cpp
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
@@ -410,10 +411,11 @@ deki_add_package_tests(deki-nodegraph TARGET DekiNodeGraphTests
 deki_add_package_tests(deki-input TARGET DekiInputTests
                        SOURCES InputCollider.cpp InputDispatch.cpp I2CKeyboard.cpp Trackball.cpp)
 
-# BuildOpaqueRowSpans is header-inline, so the tests need no package sources.
-# It decides which pixels the blitter copies straight, and getting it wrong is
-# visible only as a wrong pixel in a finished frame.
-deki_add_package_tests(deki-2d TARGET Deki2DTests)
+# BuildOpaqueRowSpans is header-inline. It decides which pixels the blitter
+# copies straight, and getting it wrong is visible only as a wrong pixel in a
+# finished frame. Sprite.cpp is here for Max Size: the loader maps a shrunk
+# texture's frames the way the (header-only) encoder resampled them.
+deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES Sprite.cpp)
 
 # deki-fsm has no target, and the reason is structural rather than an
 # oversight. Its actions reach through FsmContext into an Object, a scene and

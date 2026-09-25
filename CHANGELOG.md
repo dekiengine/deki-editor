@@ -22,6 +22,20 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     `AssetPipeline::RegisterExportEncoder`, next to their cache handler.
   - The Play view has a pixel-format dropdown next to its screen picker; play
     renders in it. `--render-scenes` takes `DEKI_RENDER_FORMAT`.
+- **Max Size**, like Unity's: an image whose larger side is over it is stored
+  scaled so that side is exactly Max Size. A column of the texture inspector's
+  Targets table, set for every target in the Default row (None, the default,
+  never shrinks) and overridden per target. A shrunk sprite keeps its world
+  size and its frames, and the editor shows the active target's size. See
+  [docs/screens.md](docs/screens.md).
+  - The sidecar's per-target entry is an object, `{"format", "maxSize"}`; the
+    older `"<id>": "<format>"` still reads, and a save writes the object form.
+    `<deki-editor/TextureSettings.h>` reads and writes it (`ReadTextureSettings`,
+    `WriteTextureTarget`, `MaxSizeDims`).
+  - A shrunk texture has a SourceSize chunk (type 4) with its image's size;
+    `TextureImporter::WriteTexFile` takes it and `ReadSourceSize` reads it.
+    Frames, nine-slice borders and tilesets stay in the image's pixels.
+    `EditorAssets::LoadTexture` and the asset browser report the image's size.
 - MCP input tools: `click` (left, right, middle, double), `hover`, `scroll`,
   `key` (with Ctrl, Shift, Alt) and `type_text`. A point is given in the pixels
   of a panel's screenshot, so it can be read off one and clicked. Input goes
@@ -202,6 +216,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- Changing a texture's settings in the inspector did not rebuild its editor
+  cache. The sidecar was reimported while its file was still open, so the
+  import read it empty (and made up a GUID for the image), and under its
+  absolute path, which the pipeline does not key assets by.
 - **Every dropdown opened with its options invisible.** The list's fade-in
   asked whether the combo's own id was an open popup, but Dear ImGui opens the
   list under a different id, so the fade never started and the options were

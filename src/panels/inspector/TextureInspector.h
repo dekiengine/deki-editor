@@ -41,12 +41,16 @@ private:
     // Texture preview state
     uint32_t m_PreviewTextureId = 0;
     std::string m_PreviewTexturePath;
-    uint32_t m_PreviewWidth = 0;
+    uint32_t m_PreviewWidth = 0;   // the image's own size (frames and Max Size are in it)
     uint32_t m_PreviewHeight = 0;
+    uint32_t m_StoredWidth = 0;    // the cached texture's, smaller when Max Size shrank it
+    uint32_t m_StoredHeight = 0;
 
     // Format selection state
     int m_SelectedFormatIndex = 0;      // 0 = Automatic
     std::map<std::string, int> m_TargetFormatIndex;  // platform id -> index; absent/0 = the asset's own
+    int m_MaxSizeIndex = 0;                          // into kTextureMaxSizes; 0 = no limit
+    std::map<std::string, int> m_TargetMaxIndex;     // platform id -> index; absent = the asset's own
     bool m_SourceHasAlpha = false;       // from the cached header, for showing what Automatic gives
     std::string m_LastFormatAssetPath;  // Detect asset selection changes
 

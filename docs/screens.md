@@ -81,17 +81,30 @@ colour on a desktop. Two things follow it.
   table sets it: the **Default** row holds the Format for every target, and
   each target's row shows the format it stores (dimmed when it comes from
   Default) and how much memory the image takes there. Pick a format in a
-  target's row to override it, e.g. a big background kept small on one board;
-  a dot marks the override, and **Default (...)** at the top of its list goes
-  back. The export stores each image as the target it is for wants it.
+  target's row to override it; a dot marks the override, and **Default (...)**
+  at the top of its list goes back. The export stores each image as the target
+  it is for wants it.
+- **Max Size**, the table's next column, works like Unity's: an image whose
+  larger side is over it is stored scaled so that side is exactly Max Size,
+  e.g. a big background kept small on one board. **None** (the default) never
+  shrinks. A shrunk sprite keeps its size in the world and its frames: they
+  stay in the image's pixels, and each is resampled on its own so neighbours
+  do not bleed. Chroma-keyed images are shrunk by picking pixels rather than
+  blending them, so the key colour stays exact. The editor shows the active
+  target's size too; the Spritesheet editor always works on the original.
+  Sidecar: `settings.texture.maxSize`, and per target
+  `settings.texture.targets.<id>: {"format", "maxSize"}` (0 = None there; the
+  older `"<id>": "<format>"` still reads).
 
 A platform's `colorFormat` is the format of its screen. The editor's own cache
 follows the active platform, so what the scene view shows is what that target
 gets. The Play view's format dropdown previews another; images are converted
 as they are drawn, so any format draws on any screen.
 
-3D models take the same Format settings in their `.data` file, and draw into
-every framebuffer format.
+3D models take the same Format and Max Size settings in their `.data` file, and
+draw into every framebuffer format. A model's texture is stored at powers of
+two, so Max Size caps them; with None it is capped at 256, the size a small
+board can hold resident.
 
 ## On the device
 

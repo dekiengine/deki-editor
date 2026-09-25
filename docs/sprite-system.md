@@ -27,7 +27,7 @@ This means:
 ## .tex File Format (2DTX)
 
 ```
-[Header - 28 bytes]
+[Header - 32 bytes]
   magic: "2DTX" (4 bytes)
   version: uint32_t
   width, height: uint32_t
@@ -43,7 +43,7 @@ This means:
   numChunks: uint32_t
 
   For each chunk:
-    chunkType: uint32_t (1=Sprite, 2=FrameList)
+    chunkType: uint32_t (1=Sprite, 2=FrameList, 3=ChromaKey, 4=SourceSize)
     chunkSize: uint32_t
     ...chunk data...
 ```
@@ -71,6 +71,23 @@ For each frame (52 bytes):
   width:  int32_t
   height: int32_t
 ```
+
+### SourceSize Chunk (type 4)
+
+Present only when the texture is stored smaller than its image (Max Size):
+
+```
+width:  uint32_t   the image's size
+height: uint32_t
+```
+
+The Sprite and FrameList chunks, nine-slice borders and tilesets stay in the
+image's pixels. `Sprite::ApplySourceSize` brings frames, borders and
+`pixelsPerMeter` to the stored pixels at load, so a sprite keeps its size in
+the world; a tileset maps its tile rects with `Sprite::SourceToStoredX/Y`.
+Both use round(v x stored / image) on rect edges, the rule the encoder
+resampled each frame with, so frames that touch still touch and none bleeds
+into another.
 
 ## .data Sidecar File
 

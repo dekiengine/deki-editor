@@ -128,11 +128,16 @@ uint32_t EditorAssets::LoadTexture(const std::string& guid, uint32_t* outWidth, 
     if (texId == 0)
         return 0;
 
+    // Report the image's own size: frames and UVs are in its pixels, and a
+    // texture shrunk by Max Size (the GPU copy is then smaller) records it.
+    int imageW = w, imageH = h;
+    TextureImporter::ReadSourceSize(path, imageW, imageH);
+
     // Cache it
     CachedTexture cached;
     cached.textureId = texId;
-    cached.width = static_cast<uint32_t>(w);
-    cached.height = static_cast<uint32_t>(h);
+    cached.width = static_cast<uint32_t>(imageW);
+    cached.height = static_cast<uint32_t>(imageH);
     m_TextureCache[guid] = cached;
 
     if (outWidth) *outWidth = cached.width;

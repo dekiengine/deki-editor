@@ -29,7 +29,10 @@ enum class MetadataChunkType : uint32_t
 {
     Sprite = 1,     // frameWidth, frameHeight
     FrameList = 2,  // Frame list with GUIDs for sub-asset addressing
-    ChromaKey = 3   // 1-bit transparent color + per-row non-key column spans
+    ChromaKey = 3,  // 1-bit transparent color + per-row non-key column spans
+    SourceSize = 4  // u32 width, u32 height of the image before Max Size shrank it;
+                    // only present when it did. Frame rects and nine-slice borders
+                    // in the other chunks are in these (source) pixels.
 };
 
 // Optional chroma-key transparency for a texture. When enabled is true,
@@ -132,9 +135,20 @@ public:
                              TextureFormat format = TextureFormat::RGB565A8,
                              const SpriteSettings* spriteSettings = nullptr,
                              const std::vector<SubAssetInfo>* frameSubAssets = nullptr,
-                             const ChromaKeySettings* chromaKey = nullptr);
+                             const ChromaKeySettings* chromaKey = nullptr,
+                             uint32_t sourceWidth = 0, uint32_t sourceHeight = 0);
 
     static bool ReadTexFile(const std::string& path, TexData& outData);
+
+    /**
+     * @brief The size of the image a compiled texture was made from.
+     *
+     * A texture stored smaller than its image (Max Size) records the image's
+     * size; frames, nine-slice borders and tilesets are in those pixels. For
+     * any other texture it is the stored size. False when the file cannot be
+     * read.
+     */
+    static bool ReadSourceSize(const std::string& texPath, int& outWidth, int& outHeight);
 
     static std::vector<uint8_t> ConvertToRGBA(const TexData& data);
 

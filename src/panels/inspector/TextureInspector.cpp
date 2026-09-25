@@ -7,6 +7,7 @@
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetDatabase.h>
 #include <deki-editor/TextureFormatResolve.h>
+#include <deki-editor/TextureSettings.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "../../core/Project.h"
@@ -37,6 +38,26 @@ static int FormatNameToIndex(const std::string& name)
             return i;
     }
     return 0;  // absent, "Automatic" or unknown: Automatic
+}
+
+static int MaxSizeToIndex(int maxSize)
+{
+    for (int i = 0; i < kTextureMaxSizeCount; ++i)
+        if (kTextureMaxSizes[i] == maxSize)
+            return i;
+    // Not one of the choices (written by hand): the largest one within it.
+    int best = 0;
+    for (int i = 1; i < kTextureMaxSizeCount; ++i)
+        if (kTextureMaxSizes[i] <= maxSize)
+            best = i;
+    return best;
+}
+
+static const char* MaxSizeLabel(int index)
+{
+    static const char* labels[] = { "None", "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
+    static_assert(sizeof(labels) / sizeof(labels[0]) == kTextureMaxSizeCount, "one label per Max Size");
+    return labels[index];
 }
 
 static int BytesPerTexel(TextureFormat f)
@@ -165,7 +186,11 @@ void TextureInspector::DrawPreview()
                           ImVec2(imagePos.x + displayWidth, imagePos.y + displayHeight),
                           IM_COL32(128, 128, 128, 255), 0.0f, 0, 1.0f);
 
-        ImGui::TextDisabled("%d x %d", srcWidth, srcHeight);
+        if (!frameData && (m_StoredWidth != m_PreviewWidth || m_StoredHeight != m_PreviewHeight))
+            ImGui::TextDisabled("%d x %d, shown at %u x %u (Max Size)", srcWidth, srcHeight, m_StoredWidth,
+                                m_StoredHeight);
+        else
+            ImGui::TextDisabled("%d x %d", srcWidth, srcHeight);
     }
 }
 
@@ -202,6 +227,8 @@ void TextureInspector::DrawSettings()
         m_LastFormatAssetPath = assetPath;
         m_SelectedFormatIndex = 0;  // Automatic
         m_TargetFormatIndex.clear();
+        m_MaxSizeIndex = 0;  // no limit
+        m_TargetMaxIndex.clear();
         m_SourceHasAlpha = false;
         m_ChromaKeyEnabled = false;
         m_ChromaKeyColor[0] = 1.0f;
@@ -221,13 +248,15 @@ void TextureInspector::DrawSettings()
                         dataJson["settings"].contains("texture"))
                     {
                         auto& tex = dataJson["settings"]["texture"];
-                        if (tex.contains("format") && tex["format"].is_string())
-                            m_SelectedFormatIndex = FormatNameToIndex(tex["format"].get<std::string>());
-                        if (tex.contains("targets") && tex["targets"].is_object())
+                        const TextureSettings settings = ReadTextureSettings(tex);
+                        m_SelectedFormatIndex = FormatNameToIndex(settings.format);
+                        m_MaxSizeIndex = MaxSizeToIndex(settings.maxSize);
+                        for (const auto& [id, t] : settings.targets)
                         {
-                            for (auto it = tex["targets"].begin(); it != tex["targets"].end(); ++it)
-                                if (it.value().is_string())
-                                    m_TargetFormatIndex[it.key()] = FormatNameToIndex(it.value().get<std::string>());
+                            if (!t.format.empty())
+                                m_TargetFormatIndex[id] = FormatNameToIndex(t.format);
+                            if (t.maxSize >= 0)
+                                m_TargetMaxIndex[id] = MaxSizeToIndex(t.maxSize);
                         }
                         if (tex.contains("chroma_key"))
                         {
@@ -274,10 +303,16 @@ void TextureInspector::DrawSettings()
             }
         }
         mutate(dataJson["settings"]["texture"]);
-        std::ofstream outFile(dataPath);
-        if (outFile.is_open())
-            outFile << dataJson.dump(2);
-        AssetDatabase::ImportAsset(assetPath);
+        {
+            // Closed before the reimport below reads it: an open stream had
+            // not written anything yet, so the import saw an empty sidecar.
+            std::ofstream outFile(dataPath);
+            if (outFile.is_open())
+                outFile << dataJson.dump(2);
+        }
+        // The pipeline keys assets by their project-relative path; the
+        // selection holds the absolute one.
+        AssetDatabase::ImportAsset(AssetDatabase::GUIDToAssetPath(m_App->GetSelectedAssetGuid()));
         InvalidatePreview();
     };
 
@@ -334,9 +369,10 @@ void TextureInspector::DrawSettings()
         DrawTargets(writeTextureSettings);
 }
 
-// Every target at once: the Default row sets the Format all of them use, and
-// a target's row can override it. A row that follows Default says which
-// format that gives it; an overridden one is marked with a dot.
+// Every target at once: the Default row sets the Format and Max Size all of
+// them use, and a target's row can override either. A cell that follows
+// Default is dimmed and says what that gives the target; a row with an
+// override is marked with a dot.
 void TextureInspector::DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write)
 {
     DekiEditor::FullBleedSeparator();
@@ -345,19 +381,25 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
 
     const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
     const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
-    auto writeOverride = [&](const std::string& id, int chosen) {
-        write([&](nlohmann::json& tex) {
-            if (chosen <= 0)
-            {
-                if (tex.contains("targets"))
-                    tex["targets"].erase(id);
-            }
-            else
-                tex["targets"][id] = s_FormatNames[chosen];
-        });
+
+    auto targetFormatIndex = [&](const std::string& id) {
+        auto it = m_TargetFormatIndex.find(id);
+        return it == m_TargetFormatIndex.end() ? 0 : it->second;
     };
-    auto kilobytes = [this](TextureFormat f) {
-        return static_cast<double>(m_PreviewWidth) * m_PreviewHeight * BytesPerTexel(f) / 1024.0;
+    auto targetMaxIndex = [&](const std::string& id) {
+        auto it = m_TargetMaxIndex.find(id);
+        return it == m_TargetMaxIndex.end() ? -1 : it->second;
+    };
+    // A target's two values, written together as its entry.
+    auto writeTarget = [&](const std::string& id) {
+        TextureTargetSettings t;
+        const int fi = targetFormatIndex(id);
+        if (fi > 0)
+            t.format = s_FormatNames[fi];
+        const int mi = targetMaxIndex(id);
+        if (mi >= 0)
+            t.maxSize = kTextureMaxSizes[mi];
+        write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, t); });
     };
     auto rightAligned = [](const char* text) {
         const float w = ImGui::CalcTextSize(text).x;
@@ -390,15 +432,52 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         else
             ImGui::TextUnformatted(shown.c_str());
     };
+    // A dropdown whose closed box shows `preview` (dimmed when it comes from
+    // Default) and whose list starts with "Default (...)" (index -1 here).
+    // Returns true when `index` changed.
+    auto overrideCombo = [&](const char* id, const char* preview, bool fromDefault, const std::string& defaultLabel,
+                             const char* (*label)(int), int count, int firstIndex, int& index) {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (fromDefault)
+            ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        const bool open = DekiEditor::SchematicBeginCombo(id, preview);
+        if (fromDefault)
+            ImGui::PopStyleColor();
+        bool changed = false;
+        if (open)
+        {
+            if (ImGui::Selectable(defaultLabel.c_str(), fromDefault, ImGuiSelectableFlags_SpanAvailWidth) && !fromDefault)
+            {
+                index = firstIndex - 1;
+                changed = true;
+            }
+            for (int i = firstIndex; i < count; ++i)
+            {
+                const bool selected = !fromDefault && i == index;
+                if (ImGui::Selectable(label(i), selected, ImGuiSelectableFlags_SpanAvailWidth) && !selected)
+                {
+                    index = i;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            DekiEditor::SchematicEndCombo();
+        }
+        return changed;
+    };
+    static const char* (*formatLabel)(int) = [](int i) { return s_FormatNames[i]; };
+    static const char* (*maxLabel)(int) = [](int i) { return MaxSizeLabel(i); };
     char buf[64];
 
     // Ends where the other sections' rows end.
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp;
-    if (ImGui::BeginTable("##targetFormats", 3, flags, ImVec2(-m_App->Dpi(Metrics::InspectorRightPad), 0.0f)))
+    if (ImGui::BeginTable("##targetFormats", 4, flags, ImVec2(-m_App->Dpi(Metrics::InspectorRightPad), 0.0f)))
     {
         ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Format", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(112.0f));
-        ImGui::TableSetupColumn("Memory", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(56.0f));
+        ImGui::TableSetupColumn("Format", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(110.0f));
+        ImGui::TableSetupColumn("Max Size", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(64.0f));
+        ImGui::TableSetupColumn("Memory", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(52.0f));
 
         // Header, in the same quiet text as the rest of the labels.
         ImGui::TableNextRow();
@@ -408,6 +487,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         ImGui::TableNextColumn();
         ImGui::TextDisabled("Format");
         ImGui::TableNextColumn();
+        ImGui::TextDisabled("Max Size");
+        ImGui::TableNextColumn();
         rightAligned("Memory");
 
         // Default
@@ -415,85 +496,112 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         ImGui::TableNextColumn();
         nameCell(false, "Default", false);
         if (ImGui::IsItemHovered())
-            DekiEditor::Tooltip(m_SelectedFormatIndex == 0 ? "Automatic: each target stores it in its screen's format"
-                                                           : "Every target stores it in this format unless its row overrides it");
+            DekiEditor::Tooltip("What every target uses unless its row overrides it. Automatic stores the image in "
+                                "each target's screen format; Max Size shrinks an image whose larger side is over it "
+                                "(None: never)");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
             write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        {
+            const char* items[kTextureMaxSizeCount];
+            for (int i = 0; i < kTextureMaxSizeCount; ++i)
+                items[i] = MaxSizeLabel(i);
+            if (DekiEditor::SchematicCombo("##MaxSize", &m_MaxSizeIndex, items, kTextureMaxSizeCount))
+                write([&](nlohmann::json& tex) {
+                    if (m_MaxSizeIndex == 0)
+                        tex.erase("maxSize");
+                    else
+                        tex["maxSize"] = kTextureMaxSizes[m_MaxSizeIndex];
+                });
+        }
         ImGui::TableNextColumn();
 
         for (const PlatformConfig* platform : targets)
         {
             ImGui::PushID(platform->id.c_str());
             const std::string name = platform->displayName.empty() ? platform->id : platform->displayName;
-            int& index = m_TargetFormatIndex[platform->id];
-            const bool overridden = index > 0;
+            int formatIndex = targetFormatIndex(platform->id);
+            int maxIndex = targetMaxIndex(platform->id);
+            const bool formatOverridden = formatIndex > 0;
+            const bool maxOverridden = maxIndex >= 0;
 
             Deki::ColorFormat screen = Deki::ColorFormat::RGB565;
             const bool knownScreen = ParseColorFormat(platform->colorFormat, screen);
             const TextureFormat fromDefault = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
             TextureFormat stored = fromDefault;
-            if (overridden)
-                ParseTextureFormat(s_FormatNames[index], stored);
+            if (formatOverridden)
+                ParseTextureFormat(s_FormatNames[formatIndex], stored);
+            const int effectiveMax = kTextureMaxSizes[maxOverridden ? maxIndex : m_MaxSizeIndex];
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            nameCell(overridden, name, false);
+            nameCell(formatOverridden || maxOverridden, name, false);
             if (ImGui::IsItemHovered())
             {
                 std::string tip = name;
                 if (knownScreen)
                     tip += "\n" + platform->colorFormat + " screen";
-                if (overridden)
+                if (formatOverridden || maxOverridden)
                     tip += "\nOverrides Default";
                 DekiEditor::Tooltip(tip.c_str());
             }
 
-            // Closed, the box shows the format this target stores: dimmed when
-            // it comes from Default. Open, the first entry goes back to Default.
             ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
-            if (!overridden)
-                ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-            const bool open = DekiEditor::SchematicBeginCombo("##TargetFormat", TextureFormatName(stored));
-            if (!overridden)
-                ImGui::PopStyleColor();
-            if (open)
+            snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
+            if (overrideCombo("##TargetFormat", TextureFormatName(stored), !formatOverridden, buf, formatLabel,
+                              s_FormatCount, 1, formatIndex))
             {
-                snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
-                for (int i = 0; i < s_FormatCount; ++i)
-                {
-                    const bool selected = i == index;
-                    if (ImGui::Selectable(i == 0 ? buf : s_FormatNames[i], selected,
-                                          ImGuiSelectableFlags_SpanAvailWidth) &&
-                        !selected)
-                    {
-                        index = i;
-                        writeOverride(platform->id, index);
-                    }
-                    if (selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                DekiEditor::SchematicEndCombo();
+                m_TargetFormatIndex[platform->id] = formatIndex;
+                writeTarget(platform->id);
             }
 
+            ImGui::TableNextColumn();
+            snprintf(buf, sizeof(buf), "Default (%s)", MaxSizeLabel(m_MaxSizeIndex));
+            const std::string maxDefaultLabel = buf;
+            if (overrideCombo("##TargetMax", MaxSizeLabel(maxOverridden ? maxIndex : m_MaxSizeIndex), !maxOverridden,
+                              maxDefaultLabel, maxLabel, kTextureMaxSizeCount, 0, maxIndex))
+            {
+                if (maxIndex < 0)
+                    m_TargetMaxIndex.erase(platform->id);
+                else
+                    m_TargetMaxIndex[platform->id] = maxIndex;
+                writeTarget(platform->id);
+            }
+
+            // What it takes there: the stored format at the stored size.
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
             if (m_PreviewWidth > 0 && m_PreviewHeight > 0)
             {
-                snprintf(buf, sizeof(buf), "%.1f KB", kilobytes(stored));
+                int w = 0, h = 0;
+                MaxSizeDims(static_cast<int>(m_PreviewWidth), static_cast<int>(m_PreviewHeight), effectiveMax, w, h);
+                const double kb = static_cast<double>(w) * h * BytesPerTexel(stored) / 1024.0;
+                snprintf(buf, sizeof(buf), "%.1f KB", kb);
                 rightAligned(buf);
+                if (ImGui::IsItemHovered())
+                {
+                    snprintf(buf, sizeof(buf), "Stored at %d x %d", w, h);
+                    DekiEditor::Tooltip(buf);
+                }
             }
             ImGui::PopID();
         }
 
         // Overrides for targets this project no longer has, so they can be
         // removed.
-        for (auto& [id, index] : m_TargetFormatIndex)
+        std::vector<std::string> gone;
+        for (const auto& [id, index] : m_TargetFormatIndex)
+            if (index > 0)
+                gone.push_back(id);
+        for (const auto& [id, index] : m_TargetMaxIndex)
+            gone.push_back(id);
+        std::sort(gone.begin(), gone.end());
+        gone.erase(std::unique(gone.begin(), gone.end()), gone.end());
+        for (const std::string& id : gone)
         {
-            if (index <= 0)
-                continue;
             bool known = false;
             for (const PlatformConfig* platform : targets)
                 known = known || platform->id == id;
@@ -507,13 +615,18 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                 DekiEditor::Tooltip("Not a target of this project any more");
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("%s", s_FormatNames[index]);
+            const int fi = targetFormatIndex(id);
+            ImGui::TextDisabled("%s", fi > 0 ? s_FormatNames[fi] : "");
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            const int mi = targetMaxIndex(id);
+            ImGui::TextDisabled("%s", mi >= 0 ? MaxSizeLabel(mi) : "");
             ImGui::TableNextColumn();
             if (ImGui::SmallButton(ICON_TI_X))
             {
-                const std::string gone = id;
-                index = 0;
-                writeOverride(gone, 0);
+                m_TargetFormatIndex.erase(id);
+                m_TargetMaxIndex.erase(id);
+                write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, TextureTargetSettings{}); });
             }
             if (ImGui::IsItemHovered())
                 DekiEditor::Tooltip("Remove this override");
@@ -582,8 +695,12 @@ void TextureInspector::UpdatePreviewTexture(const std::string& cachePath)
 
     m_PreviewTextureId = textureId;
     m_PreviewTexturePath = cachePath;
-    m_PreviewWidth = texData.header.width;
-    m_PreviewHeight = texData.header.height;
+    m_StoredWidth = texData.header.width;
+    m_StoredHeight = texData.header.height;
+    int imageW = static_cast<int>(m_StoredWidth), imageH = static_cast<int>(m_StoredHeight);
+    TextureImporter::ReadSourceSize(cachePath, imageW, imageH);
+    m_PreviewWidth = static_cast<uint32_t>(imageW);
+    m_PreviewHeight = static_cast<uint32_t>(imageH);
 }
 
 void TextureInspector::CleanupPreviewTexture()
