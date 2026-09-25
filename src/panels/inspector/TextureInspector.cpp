@@ -9,6 +9,8 @@
 #include <deki-editor/TextureFormatResolve.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/build/TargetBuilder.h>
+#include <deki-editor/build/BuilderRegistry.h>
 #include "../../core/Project.h"
 #include "../../services/ToolHost.h"
 #include "imgui.h"
@@ -17,6 +19,7 @@
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 #include <cctype>
 #include <vector>
 
@@ -335,11 +338,23 @@ void TextureInspector::DrawSettings()
                 });
             };
 
-            // The overrides that exist, one row each.
+            // The overrides that exist, under one line that opens to a row
+            // each; open by default while there are few.
+            int overrideCount = 0;
+            for (const auto& [id, index] : m_TargetFormatIndex)
+                if (index > 0)
+                    ++overrideCount;
             std::string removeId;
+            bool showOverrides = false;
+            if (overrideCount > 0)
+            {
+                const std::string header = "Overrides (" + std::to_string(overrideCount) + ")###overrides";
+                ImGui::SetNextItemOpen(overrideCount <= 3, ImGuiCond_Appearing);
+                showOverrides = ImGui::TreeNodeEx(header.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
+            }
             for (auto& [id, index] : m_TargetFormatIndex)
             {
-                if (index <= 0)
+                if (!showOverrides || index <= 0)
                     continue;
                 ImGui::PushID(id.c_str());
                 const PlatformConfig* platform = findTarget(id);
@@ -362,6 +377,8 @@ void TextureInspector::DrawSettings()
                     DekiEditor::Tooltip("Remove the override: this target goes back to the Format above");
                 ImGui::PopID();
             }
+            if (showOverrides)
+                ImGui::TreePop();
             if (!removeId.empty())
             {
                 m_TargetFormatIndex.erase(removeId);
@@ -373,35 +390,71 @@ void TextureInspector::DrawSettings()
                 ImGui::OpenPopup("##addoverride");
             if (ImGui::BeginPopup("##addoverride"))
             {
-                bool any = false;
+                if (ImGui::IsWindowAppearing())
+                {
+                    m_OverrideSearch[0] = '\0';
+                    ImGui::SetKeyboardFocusHere();
+                }
+                ImGui::SetNextItemWidth(260.0f);
+                ImGui::InputTextWithHint("##search", "Search targets", m_OverrideSearch, sizeof(m_OverrideSearch));
+                std::string needle = m_OverrideSearch;
+                std::transform(needle.begin(), needle.end(), needle.begin(), [](unsigned char c) { return std::tolower(c); });
+
+                // Targets without an override, by builder, filtered.
+                std::map<std::string, std::vector<const PlatformConfig*>> byBuilder;
                 for (const PlatformConfig* platform : targets)
                 {
                     auto it = m_TargetFormatIndex.find(platform->id);
                     if (it != m_TargetFormatIndex.end() && it->second > 0)
                         continue;
-                    any = true;
-                    Deki::ColorFormat screen;
-                    std::string item = platform->displayName.empty() ? platform->id : platform->displayName;
-                    TextureFormat now = TextureFormat::RGB565A8;
-                    if (ParseColorFormat(platform->colorFormat, screen))
-                    {
-                        now = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
-                        item += std::string("  (") + TextureFormatName(now) + ")";
-                    }
-                    if (ImGui::Selectable((item + "##" + platform->id).c_str()))
-                    {
-                        // Starts at what it stores now, so adding changes nothing
-                        // until a format is picked.
-                        int index = 0;
-                        for (int i = 1; i < s_FormatCount; ++i)
-                            if (TextureFormatName(now) == std::string(s_FormatNames[i]))
-                                index = i;
-                        m_TargetFormatIndex[platform->id] = index;
-                        writeOverride(platform->id, index);
-                    }
+                    std::string hay = platform->id + " " + platform->displayName;
+                    std::transform(hay.begin(), hay.end(), hay.begin(), [](unsigned char c) { return std::tolower(c); });
+                    if (!needle.empty() && hay.find(needle) == std::string::npos)
+                        continue;
+                    std::string builder = platform->framework;
+                    if (ITargetBuilder* b = BuilderRegistry::Instance().GetBuilder(platform->framework))
+                        builder = b->GetName();
+                    if (builder.empty())
+                        builder = "Other";
+                    byBuilder[builder].push_back(platform);
                 }
-                if (!any)
-                    ImGui::TextDisabled("Every target has an override");
+
+                ImGui::BeginChild("##targets", ImVec2(260.0f, std::min(320.0f, 40.0f + 24.0f * targets.size())));
+                if (byBuilder.empty())
+                    ImGui::TextDisabled(needle.empty() ? "Every target has an override" : "No target matches");
+                for (const auto& [builder, list] : byBuilder)
+                {
+                    // Open while searching, or when there is only one builder.
+                    ImGui::SetNextItemOpen(!needle.empty() || byBuilder.size() == 1);
+                    const std::string header = builder + " (" + std::to_string(list.size()) + ")";
+                    if (!ImGui::TreeNodeEx(header.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
+                        continue;
+                    for (const PlatformConfig* platform : list)
+                    {
+                        Deki::ColorFormat screen;
+                        std::string item = platform->displayName.empty() ? platform->id : platform->displayName;
+                        TextureFormat now = TextureFormat::RGB565A8;
+                        if (ParseColorFormat(platform->colorFormat, screen))
+                        {
+                            now = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
+                            item += std::string("  (") + TextureFormatName(now) + ")";
+                        }
+                        if (ImGui::Selectable((item + "##" + platform->id).c_str()))
+                        {
+                            // Starts at what it stores now, so adding changes
+                            // nothing until a format is picked.
+                            int index = 0;
+                            for (int i = 1; i < s_FormatCount; ++i)
+                                if (TextureFormatName(now) == std::string(s_FormatNames[i]))
+                                    index = i;
+                            m_TargetFormatIndex[platform->id] = index;
+                            writeOverride(platform->id, index);
+                            ImGui::CloseCurrentPopup();
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+                ImGui::EndChild();
                 ImGui::EndPopup();
             }
         }
