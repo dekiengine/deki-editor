@@ -10,10 +10,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - **Images are stored for the screen they are shown on.** A texture's Format
   is Automatic by default (RGB565 or RGB565A8 on an RGB565 target, RGB888 or
   RGBA8888 on a full-colour one), can be fixed for every target, and can be
-  overridden for one target: the texture inspector has Unity's layout, a
-  Default tab and one tab per target with **Override for <target>**
-  (`settings.texture.targets`), each saying how much the image takes on that
-  target. The Data section (the editor cache's size, alpha flags and source
+  overridden for one target: the texture inspector's **Targets** table has a
+  Default row and one row per target with its format and the memory the image
+  takes there; picking a format in a target's row overrides it
+  (`settings.texture.targets`). The Data section (the editor cache's size, alpha flags and source
   size) is gone: it described a copy no target ships. The export stores each image as its target
   wants it; `--export --platform <id>` exports for a target other than the
   active one. The editor's cache follows the active platform. 3D models take

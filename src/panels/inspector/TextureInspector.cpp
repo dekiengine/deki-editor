@@ -12,6 +12,7 @@
 #include "../../core/Project.h"
 #include "../../services/ToolHost.h"
 #include "imgui.h"
+#include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth, as SchematicCombo uses
 #include <deki-editor/IconsTabler.h>
 #include <SDL3/SDL_opengl.h>
 #include <nlohmann/json.hpp>
@@ -192,99 +193,99 @@ void TextureInspector::DrawSettings()
 
     namespace fs = std::filesystem;
 
+    // Load format from .data sidecar when asset selection changes.
+    // When the sidecar lacks an explicit format, fall back to the format
+    // that was actually baked into the .tex cache (the auto-default in
+    // ImageCacheHandler picks RGB565 vs RGB565A8 based on alpha content).
+    if (assetPath != m_LastFormatAssetPath)
+    {
+        m_LastFormatAssetPath = assetPath;
+        m_SelectedFormatIndex = 0;  // Automatic
+        m_TargetFormatIndex.clear();
+        m_SourceHasAlpha = false;
+        m_ChromaKeyEnabled = false;
+        m_ChromaKeyColor[0] = 1.0f;
+        m_ChromaKeyColor[1] = 0.0f;
+        m_ChromaKeyColor[2] = 1.0f;
+
+        std::string dataPath = assetPath + ".data";
+        if (fs::exists(dataPath))
+        {
+            std::ifstream dataFile(dataPath);
+            if (dataFile.is_open())
+            {
+                try
+                {
+                    nlohmann::json dataJson = nlohmann::json::parse(dataFile);
+                    if (dataJson.contains("settings") &&
+                        dataJson["settings"].contains("texture"))
+                    {
+                        auto& tex = dataJson["settings"]["texture"];
+                        if (tex.contains("format") && tex["format"].is_string())
+                            m_SelectedFormatIndex = FormatNameToIndex(tex["format"].get<std::string>());
+                        if (tex.contains("targets") && tex["targets"].is_object())
+                        {
+                            for (auto it = tex["targets"].begin(); it != tex["targets"].end(); ++it)
+                                if (it.value().is_string())
+                                    m_TargetFormatIndex[it.key()] = FormatNameToIndex(it.value().get<std::string>());
+                        }
+                        if (tex.contains("chroma_key"))
+                        {
+                            auto& ck = tex["chroma_key"];
+                            m_ChromaKeyEnabled = ck.value("enabled", false);
+                            m_ChromaKeyColor[0] = ck.value("r", 255) / 255.0f;
+                            m_ChromaKeyColor[1] = ck.value("g", 0) / 255.0f;
+                            m_ChromaKeyColor[2] = ck.value("b", 255) / 255.0f;
+                        }
+                    }
+                }
+                catch (const nlohmann::json::exception&)
+                {
+                }
+            }
+        }
+
+        // Whether the source has alpha, which is what Automatic turns on.
+        if (hasCached && !cachePath.empty())
+        {
+            TexData texData;
+            if (TextureImporter::ReadTexFile(cachePath, texData))
+                m_SourceHasAlpha = texData.hasAlpha();
+        }
+    }
+
+    // Helper: read existing .data, apply mutate, write back, reimport.
+    auto writeTextureSettings = [&](auto mutate)
+    {
+        std::string dataPath = assetPath + ".data";
+        nlohmann::json dataJson;
+        if (fs::exists(dataPath))
+        {
+            std::ifstream dataFile(dataPath);
+            if (dataFile.is_open())
+            {
+                try
+                {
+                    dataJson = nlohmann::json::parse(dataFile);
+                }
+                catch (const nlohmann::json::exception&)
+                {
+                }
+            }
+        }
+        mutate(dataJson["settings"]["texture"]);
+        std::ofstream outFile(dataPath);
+        if (outFile.is_open())
+            outFile << dataJson.dump(2);
+        AssetDatabase::ImportAsset(assetPath);
+        InvalidatePreview();
+    };
+
     // Every section in the asset inspector opens the way a component does in the
     // object inspector: a full-bleed hairline, then the band hanging off it.
     DekiEditor::FullBleedSeparator();
     if (DekiEditor::SchematicSectionBegin("Settings"))
     {
-        // Load format from .data sidecar when asset selection changes.
-        // When the sidecar lacks an explicit format, fall back to the format
-        // that was actually baked into the .tex cache (the auto-default in
-        // ImageCacheHandler picks RGB565 vs RGB565A8 based on alpha content).
-        if (assetPath != m_LastFormatAssetPath)
-        {
-            m_LastFormatAssetPath = assetPath;
-            m_SelectedFormatIndex = 0;  // Automatic
-            m_TargetFormatIndex.clear();
-            m_SourceHasAlpha = false;
-            m_ChromaKeyEnabled = false;
-            m_ChromaKeyColor[0] = 1.0f;
-            m_ChromaKeyColor[1] = 0.0f;
-            m_ChromaKeyColor[2] = 1.0f;
-
-            std::string dataPath = assetPath + ".data";
-            if (fs::exists(dataPath))
-            {
-                std::ifstream dataFile(dataPath);
-                if (dataFile.is_open())
-                {
-                    try
-                    {
-                        nlohmann::json dataJson = nlohmann::json::parse(dataFile);
-                        if (dataJson.contains("settings") &&
-                            dataJson["settings"].contains("texture"))
-                        {
-                            auto& tex = dataJson["settings"]["texture"];
-                            if (tex.contains("format") && tex["format"].is_string())
-                                m_SelectedFormatIndex = FormatNameToIndex(tex["format"].get<std::string>());
-                            if (tex.contains("targets") && tex["targets"].is_object())
-                            {
-                                for (auto it = tex["targets"].begin(); it != tex["targets"].end(); ++it)
-                                    if (it.value().is_string())
-                                        m_TargetFormatIndex[it.key()] = FormatNameToIndex(it.value().get<std::string>());
-                            }
-                            if (tex.contains("chroma_key"))
-                            {
-                                auto& ck = tex["chroma_key"];
-                                m_ChromaKeyEnabled = ck.value("enabled", false);
-                                m_ChromaKeyColor[0] = ck.value("r", 255) / 255.0f;
-                                m_ChromaKeyColor[1] = ck.value("g", 0) / 255.0f;
-                                m_ChromaKeyColor[2] = ck.value("b", 255) / 255.0f;
-                            }
-                        }
-                    }
-                    catch (const nlohmann::json::exception&)
-                    {
-                    }
-                }
-            }
-
-            // Whether the source has alpha, which is what Automatic turns on.
-            if (hasCached && !cachePath.empty())
-            {
-                TexData texData;
-                if (TextureImporter::ReadTexFile(cachePath, texData))
-                    m_SourceHasAlpha = texData.hasAlpha();
-            }
-        }
-
-        // Helper: read existing .data, apply mutate, write back, reimport.
-        auto writeTextureSettings = [&](auto mutate)
-        {
-            std::string dataPath = assetPath + ".data";
-            nlohmann::json dataJson;
-            if (fs::exists(dataPath))
-            {
-                std::ifstream dataFile(dataPath);
-                if (dataFile.is_open())
-                {
-                    try
-                    {
-                        dataJson = nlohmann::json::parse(dataFile);
-                    }
-                    catch (const nlohmann::json::exception&)
-                    {
-                    }
-                }
-            }
-            mutate(dataJson["settings"]["texture"]);
-            std::ofstream outFile(dataPath);
-            if (outFile.is_open())
-                outFile << dataJson.dump(2);
-            AssetDatabase::ImportAsset(assetPath);
-            InvalidatePreview();
-        };
-
         // Chroma key (1-bit transparency). Most useful with RGB565 to avoid
         // paying for an alpha plane when only on/off transparency is needed.
         if (hasCached)
@@ -326,123 +327,202 @@ void TextureInspector::DrawSettings()
             }
         }
 
-        // Formats, as Unity's platform tabs: Default holds the Format every
-        // target uses, and each target's tab can override it. The tab bar
-        // scrolls and lists every tab under its arrow, so a project with many
-        // targets is still one strip.
-        if (hasCached && m_App->GetProject())
-        {
-            const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
-            const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
-            auto writeOverride = [&](const std::string& id, int chosen) {
-                writeTextureSettings([&](nlohmann::json& tex) {
-                    if (chosen <= 0)
-                    {
-                        if (tex.contains("targets"))
-                            tex["targets"].erase(id);
-                    }
-                    else
-                        tex["targets"][id] = s_FormatNames[chosen];
-                });
-            };
-            auto indexOf = [](TextureFormat f) {
-                for (int i = 1; i < s_FormatCount; ++i)
-                    if (TextureFormatName(f) == std::string(s_FormatNames[i]))
-                        return i;
-                return 0;
-            };
-
-            ImGui::Spacing();
-            if (ImGui::BeginTabBar("##formatTargets",
-                                   ImGuiTabBarFlags_FittingPolicyScroll | ImGuiTabBarFlags_TabListPopupButton))
-            {
-                if (ImGui::BeginTabItem("Default"))
-                {
-                    InspectorUtils::BeginPropertyRow("Format");
-                    if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
-                    {
-                        writeTextureSettings([&](nlohmann::json& tex)
-                                             { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
-                    }
-                    ImGui::TextDisabled(m_SelectedFormatIndex == 0
-                                            ? "Automatic: each target stores it in its screen's format."
-                                            : "Every target stores it in this format, unless its tab overrides it.");
-                    ImGui::EndTabItem();
-                }
-
-                for (const PlatformConfig* platform : targets)
-                {
-                    const std::string name = platform->displayName.empty() ? platform->id : platform->displayName;
-                    int& index = m_TargetFormatIndex[platform->id];
-                    const std::string tabLabel = name + (index > 0 ? " *" : "") + "###" + platform->id;
-                    if (!ImGui::BeginTabItem(tabLabel.c_str()))
-                        continue;
-
-                    Deki::ColorFormat screen = Deki::ColorFormat::RGB565;
-                    const bool knownScreen = ParseColorFormat(platform->colorFormat, screen);
-                    const TextureFormat fromDefault = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
-
-                    bool overridden = index > 0;
-                    InspectorUtils::BeginPropertyRow(("Override for " + name).c_str());
-                    if (DekiEditor::SchematicCheckbox("##override", &overridden))
-                    {
-                        // Turning it on starts at what the target stores now, so
-                        // nothing changes until a format is picked.
-                        index = overridden ? indexOf(fromDefault) : 0;
-                        writeOverride(platform->id, index);
-                    }
-
-                    // Not overridden: greyed, showing what the Default gives.
-                    InspectorUtils::BeginPropertyRow("Format");
-                    int shown = (overridden ? index : indexOf(fromDefault)) - 1;
-                    ImGui::BeginDisabled(!overridden);
-                    if (DekiEditor::SchematicCombo("##TargetFormat", &shown, s_FormatNames + 1, s_FormatCount - 1) &&
-                        overridden)
-                    {
-                        index = shown + 1;
-                        writeOverride(platform->id, index);
-                    }
-                    ImGui::EndDisabled();
-                    // What it costs there: the stored format at the image's size.
-                    if (knownScreen && m_PreviewWidth > 0 && m_PreviewHeight > 0)
-                    {
-                        TextureFormat f = fromDefault;
-                        if (overridden)
-                            ParseTextureFormat(s_FormatNames[index], f);
-                        const double kb = static_cast<double>(m_PreviewWidth) * m_PreviewHeight * BytesPerTexel(f) / 1024.0;
-                        ImGui::TextDisabled("%.2f KB on this target (%s screen)", kb, platform->colorFormat.c_str());
-                    }
-                    ImGui::EndTabItem();
-                }
-
-                // Overrides for targets this project no longer has, so they
-                // can be removed.
-                for (auto& [id, index] : m_TargetFormatIndex)
-                {
-                    if (index <= 0)
-                        continue;
-                    bool known = false;
-                    for (const PlatformConfig* platform : targets)
-                        known = known || platform->id == id;
-                    if (known)
-                        continue;
-                    const std::string tabLabel = id + " (removed) *###" + id;
-                    if (!ImGui::BeginTabItem(tabLabel.c_str()))
-                        continue;
-                    ImGui::TextDisabled("This target is not in the project any more.");
-                    if (DekiEditor::SchematicAddButton(ICON_TI_X "  Remove override"))
-                    {
-                        const std::string gone = id;
-                        index = 0;
-                        writeOverride(gone, 0);
-                    }
-                    ImGui::EndTabItem();
-                }
-                ImGui::EndTabBar();
-            }
-        }
         DekiEditor::SchematicSectionEnd();
     }
+
+    if (hasCached && m_App->GetProject())
+        DrawTargets(writeTextureSettings);
+}
+
+// Every target at once: the Default row sets the Format all of them use, and
+// a target's row can override it. A row that follows Default says which
+// format that gives it; an overridden one is marked with a dot.
+void TextureInspector::DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write)
+{
+    DekiEditor::FullBleedSeparator();
+    if (!DekiEditor::SchematicSectionBegin("Targets"))
+        return;
+
+    const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
+    const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
+    auto writeOverride = [&](const std::string& id, int chosen) {
+        write([&](nlohmann::json& tex) {
+            if (chosen <= 0)
+            {
+                if (tex.contains("targets"))
+                    tex["targets"].erase(id);
+            }
+            else
+                tex["targets"][id] = s_FormatNames[chosen];
+        });
+    };
+    auto kilobytes = [this](TextureFormat f) {
+        return static_cast<double>(m_PreviewWidth) * m_PreviewHeight * BytesPerTexel(f) / 1024.0;
+    };
+    auto rightAligned = [](const char* text) {
+        const float w = ImGui::CalcTextSize(text).x;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - w));
+        ImGui::TextDisabled("%s", text);
+    };
+    // A target's name, after a fixed slot for the override dot so every name
+    // starts at the same x (the x of the other sections' labels), shortened
+    // with "..." when the column is narrower.
+    const float dotSlot = m_App->Dpi(12.0f);
+    auto nameCell = [&](bool dot, const std::string& text, bool dim) {
+        ImGui::AlignTextToFramePadding();
+        const float x = ImGui::GetCursorPosX();
+        if (dot)
+        {
+            ImGui::TextColored(Palette::Accent, "%s", ICON_TI_POINT_FILLED);
+            ImGui::SameLine();
+        }
+        ImGui::SetCursorPosX(x + dotSlot);
+        std::string shown = text;
+        const float avail = ImGui::GetContentRegionAvail().x;
+        if (ImGui::CalcTextSize(shown.c_str()).x > avail)
+        {
+            while (!shown.empty() && ImGui::CalcTextSize((shown + "...").c_str()).x > avail)
+                shown.pop_back();
+            shown += "...";
+        }
+        if (dim)
+            ImGui::TextDisabled("%s", shown.c_str());
+        else
+            ImGui::TextUnformatted(shown.c_str());
+    };
+    char buf[64];
+
+    // Ends where the other sections' rows end.
+    const ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp;
+    if (ImGui::BeginTable("##targetFormats", 3, flags, ImVec2(-m_App->Dpi(Metrics::InspectorRightPad), 0.0f)))
+    {
+        ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("Format", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(112.0f));
+        ImGui::TableSetupColumn("Memory", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(56.0f));
+
+        // Header, in the same quiet text as the rest of the labels.
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + dotSlot);
+        ImGui::TextDisabled("Target");
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("Format");
+        ImGui::TableNextColumn();
+        rightAligned("Memory");
+
+        // Default
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        nameCell(false, "Default", false);
+        if (ImGui::IsItemHovered())
+            DekiEditor::Tooltip(m_SelectedFormatIndex == 0 ? "Automatic: each target stores it in its screen's format"
+                                                           : "Every target stores it in this format unless its row overrides it");
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
+            write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
+        ImGui::TableNextColumn();
+
+        for (const PlatformConfig* platform : targets)
+        {
+            ImGui::PushID(platform->id.c_str());
+            const std::string name = platform->displayName.empty() ? platform->id : platform->displayName;
+            int& index = m_TargetFormatIndex[platform->id];
+            const bool overridden = index > 0;
+
+            Deki::ColorFormat screen = Deki::ColorFormat::RGB565;
+            const bool knownScreen = ParseColorFormat(platform->colorFormat, screen);
+            const TextureFormat fromDefault = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
+            TextureFormat stored = fromDefault;
+            if (overridden)
+                ParseTextureFormat(s_FormatNames[index], stored);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            nameCell(overridden, name, false);
+            if (ImGui::IsItemHovered())
+            {
+                std::string tip = name;
+                if (knownScreen)
+                    tip += "\n" + platform->colorFormat + " screen";
+                if (overridden)
+                    tip += "\nOverrides Default";
+                DekiEditor::Tooltip(tip.c_str());
+            }
+
+            // Closed, the box shows the format this target stores: dimmed when
+            // it comes from Default. Open, the first entry goes back to Default.
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (!overridden)
+                ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+            const bool open = DekiEditor::SchematicBeginCombo("##TargetFormat", TextureFormatName(stored));
+            if (!overridden)
+                ImGui::PopStyleColor();
+            if (open)
+            {
+                snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
+                for (int i = 0; i < s_FormatCount; ++i)
+                {
+                    const bool selected = i == index;
+                    if (ImGui::Selectable(i == 0 ? buf : s_FormatNames[i], selected,
+                                          ImGuiSelectableFlags_SpanAvailWidth) &&
+                        !selected)
+                    {
+                        index = i;
+                        writeOverride(platform->id, index);
+                    }
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                DekiEditor::SchematicEndCombo();
+            }
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            if (m_PreviewWidth > 0 && m_PreviewHeight > 0)
+            {
+                snprintf(buf, sizeof(buf), "%.1f KB", kilobytes(stored));
+                rightAligned(buf);
+            }
+            ImGui::PopID();
+        }
+
+        // Overrides for targets this project no longer has, so they can be
+        // removed.
+        for (auto& [id, index] : m_TargetFormatIndex)
+        {
+            if (index <= 0)
+                continue;
+            bool known = false;
+            for (const PlatformConfig* platform : targets)
+                known = known || platform->id == id;
+            if (known)
+                continue;
+            ImGui::PushID(id.c_str());
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            nameCell(true, id + " (removed)", true);
+            if (ImGui::IsItemHovered())
+                DekiEditor::Tooltip("Not a target of this project any more");
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("%s", s_FormatNames[index]);
+            ImGui::TableNextColumn();
+            if (ImGui::SmallButton(ICON_TI_X))
+            {
+                const std::string gone = id;
+                index = 0;
+                writeOverride(gone, 0);
+            }
+            if (ImGui::IsItemHovered())
+                DekiEditor::Tooltip("Remove this override");
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+
+    DekiEditor::SchematicSectionEnd();
 }
 
 bool TextureInspector::IsTextureFile(const std::string& path)

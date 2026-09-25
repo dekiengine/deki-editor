@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <map>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <cstdint>
 
@@ -18,7 +20,10 @@ public:
     // Granular draw methods for orchestrated layout
     void DrawPreview();                             // Anchored texture preview (always visible)
     void BeginScrollRegion();                       // Opens scrollable child region
-    void DrawSettings();                            // Settings section (format dropdown + spritesheet button)
+    void DrawSettings();                            // Settings (chroma key, spritesheet button) and Targets
+    // Targets section: every target's stored format, Default first. `write`
+    // edits the image's settings.texture and reimports it.
+    void DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write);
     void EndScrollRegion();  // Closes scrollable child region
 
     // Draw a compact cache status bar at the bottom of any inspector
