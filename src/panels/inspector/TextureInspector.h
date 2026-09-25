@@ -47,7 +47,6 @@ private:
     int m_SelectedFormatIndex = 0;      // 0 = Automatic
     std::map<std::string, int> m_TargetFormatIndex;  // platform id -> index; absent/0 = the asset's own
     bool m_SourceHasAlpha = false;       // from the cached header, for showing what Automatic gives
-    char m_OverrideSearch[64] = {};      // filter in the Add override popup
     std::string m_LastFormatAssetPath;  // Detect asset selection changes
 
     // Chroma key state (loaded from / written to .data sidecar's

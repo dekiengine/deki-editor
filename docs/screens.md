@@ -77,10 +77,13 @@ colour on a desktop. Two things follow it.
 - **Images are stored for the screen they will be shown on.** An image's Format
   (the texture inspector) is **Automatic** by default: RGB565 on an RGB565
   target, or RGB565A8 when the image has transparency; RGB888, or RGBA8888 with
-  transparency, on a full-colour target. Pick a format to use it on every
-  target, or **Add override** to pick one for a single target, e.g. a big
-  background kept small on one board. **Stored as** sums up what every target
-  gets. The export stores each image as the target it is for wants it.
+  transparency, on a full-colour target. The texture inspector sets it the
+  way Unity does: the **Default** tab holds the Format for every target, and
+  each target's tab has **Override for <target>** to pick its own, e.g. a big
+  background kept small on one board. Unticked, the tab shows what that target
+  gets from Default; an overridden tab is marked `*`, and the arrow at the left
+  of the tabs lists every target. The export stores each image as the target
+  it is for wants it.
 
 A platform's `colorFormat` is the format of its screen. The editor's own cache
 follows the active platform, so what the scene view shows is what that target
