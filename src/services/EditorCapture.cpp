@@ -1,4 +1,5 @@
 #include "EditorCapture.h"
+#include "EditorInput.h"
 
 #include <SDL3/SDL_opengl.h>
 #include "imgui.h"
@@ -218,6 +219,11 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
 void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
 {
     if (m_Requests.empty() || fbW <= 0 || fbH <= 0)
+        return;
+
+    // A screenshot asked for after a click shows what the click did: the
+    // frames to wait start counting once the queued input has played out.
+    if (EditorInput::Get().HasPendingWork())
         return;
 
     for (size_t i = 0; i < m_Requests.size();)

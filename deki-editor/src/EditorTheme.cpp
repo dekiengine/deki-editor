@@ -2121,7 +2121,10 @@ bool SchematicBeginCombo(const char* id, const char* preview)
     // so it rides on whether the popup was open as of this moment: on the frame
     // it opens that is 0, which is exactly frame 0 of the fade.
     const ImGuiID comboId = ImGui::GetID(id);
-    const bool popupOpen = ImGui::IsPopupOpen(comboId, 0);
+    // The popup's own id, derived the way BeginCombo derives it. Asking about
+    // comboId instead always answered "shut", which held the fade at 0 and
+    // opened every dropdown with its options drawn fully transparent.
+    const bool popupOpen = ImGui::IsPopupOpen(ImHashStr("##ComboPopup", 0, comboId), 0);
     const float openT = AnimateTo(comboId, popupOpen ? 1.0f : 0.0f, 0.10f);
     const float fade = Smooth(openT);
     // Only when a popup will actually be begun: an unconsumed next-window value

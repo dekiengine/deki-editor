@@ -22,6 +22,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     `AssetPipeline::RegisterExportEncoder`, next to their cache handler.
   - The Play view has a pixel-format dropdown next to its screen picker; play
     renders in it. `--render-scenes` takes `DEKI_RENDER_FORMAT`.
+- MCP input tools: `click` (left, right, middle, double), `hover`, `scroll`,
+  `key` (with Ctrl, Shift, Alt) and `type_text`. A point is given in the pixels
+  of a panel's screenshot, so it can be read off one and clicked. Input goes
+  through Dear ImGui's own queue: the window needs no focus and the real
+  cursor does not move. A screenshot asked for after input waits for it.
 - MCP `select_asset` (`path` or `guid`) selects an asset as clicking it in the
   Asset Browser does, so the inspector shows its settings.
 - **One project, any screen.** The project sets a design area, how much world
@@ -197,6 +202,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **Every dropdown opened with its options invisible.** The list's fade-in
+  asked whether the combo's own id was an open popup, but Dear ImGui opens the
+  list under a different id, so the fade never started and the options were
+  drawn fully transparent. Found by the new MCP `click`.
 - Saving a platform in the platform editor dropped what the dialog does not
   show (its capabilities, required packages, colour format and backend
   options); it now starts from the platform as loaded.

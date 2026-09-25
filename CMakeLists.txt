@@ -716,6 +716,8 @@ set(EDITOR_SOURCES
     src/services/FrameCaptureService.h
     src/services/EditorCapture.cpp
     src/services/EditorCapture.h
+    src/services/EditorInput.cpp
+    src/services/EditorInput.h
     src/panels/ProfilerPanel.cpp
     src/panels/ProfilerPanel.h
     src/panels/ProfilerPanel.FlameGraph.cpp

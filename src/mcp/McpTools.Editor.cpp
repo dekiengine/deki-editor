@@ -7,6 +7,7 @@
 // automation (docs screenshots, smoke runs) actually needs.
 
 #include "McpTools.h"
+#include "services/EditorInput.h"
 #include <deki-editor/Paths.h>
 #include "McpToolRegistry.h"
 #include "../EditorApp.h"
@@ -371,6 +372,109 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                                 args.value("padding", 0.0f),
                                 args.value("wait_frames", 2));
                             return { { "path", path }, { "status", "queued" } };
+                        } });
+
+    // Input. Positions are in the same pixels as a screenshot of the panel
+    // (or of the window when no panel is named), so a point read off a
+    // screenshot can be clicked as is. Queued and played one step per frame; a
+    // screenshot asked for afterwards waits for them.
+    auto pointSchema = [](const char* extraName, nlohmann::json extra) {
+        nlohmann::json props = {
+            { "panel", { { "type", "string" }, { "description", "Panel name from list_panels; x and y are then relative to its top-left corner. Omit for the whole window." } } },
+            { "x", { { "type", "number" }, { "description", "Pixels from the left, as in a screenshot of the panel" } } },
+            { "y", { { "type", "number" }, { "description", "Pixels from the top" } } } };
+        if (extraName)
+            for (auto it = extra.begin(); it != extra.end(); ++it)
+                props[it.key()] = it.value();
+        return nlohmann::json{ { "type", "object" }, { "properties", props },
+                               { "required", nlohmann::json::array({ "x", "y" }) } };
+    };
+    auto checkPanel = [](const nlohmann::json& args) {
+        const std::string panel = args.value("panel", "");
+        if (!EditorInput::PanelExists(panel))
+            throw std::runtime_error("panel '" + panel + "' is not drawn; see list_panels, and focus_panel a docked tab first");
+        return panel;
+    };
+
+    registry.Register({ "click",
+                        "Click in the editor at a point: moves the mouse there, then presses and "
+                        "releases. Takes a few frames; a screenshot asked for after it shows the result.",
+                        pointSchema("button",
+                                    { { "button", { { "type", "string" }, { "enum", nlohmann::json::array({ "left", "right", "middle" }) }, { "description", "Default left" } } },
+                                      { "double", { { "type", "boolean" }, { "description", "Double click (default false)" } } } }),
+                        [checkPanel](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string panel = checkPanel(args);
+                            const std::string b = args.value("button", "left");
+                            EditorInput::Button button = EditorInput::Button::Left;
+                            if (b == "right")
+                                button = EditorInput::Button::Right;
+                            else if (b == "middle")
+                                button = EditorInput::Button::Middle;
+                            else if (b != "left")
+                                throw std::runtime_error("button is left, right or middle");
+                            const float x = args.at("x").get<float>(), y = args.at("y").get<float>();
+                            EditorInput::Get().RequestClick(panel, x, y, button, args.value("double", false) ? 2 : 1);
+                            return { { "status", "queued" }, { "x", x }, { "y", y } };
+                        } });
+
+    registry.Register({ "hover",
+                        "Move the mouse to a point and hold it there, for tooltips and hover "
+                        "states. A tooltip appears after about half a second, so wait that long "
+                        "before taking the screenshot, within the hold. The editor's frame rate "
+                        "varies (often well over 60), so wait_frames alone is not a time.",
+                        pointSchema("hold_seconds",
+                                    { { "hold_seconds", { { "type", "number" }, { "description", "How long to keep the mouse there (default 3)" } } } }),
+                        [checkPanel](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string panel = checkPanel(args);
+                            EditorInput::Get().RequestHover(panel, args.at("x").get<float>(), args.at("y").get<float>(),
+                                                            args.value("hold_seconds", 3.0f));
+                            return { { "status", "queued" } };
+                        } });
+
+    registry.Register({ "scroll",
+                        "Turn the mouse wheel over a point. Positive dy scrolls up (towards the top).",
+                        pointSchema("dy",
+                                    { { "dy", { { "type", "number" }, { "description", "Wheel steps, positive up" } } },
+                                      { "dx", { { "type", "number" }, { "description", "Horizontal wheel steps (default 0)" } } } }),
+                        [checkPanel](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string panel = checkPanel(args);
+                            EditorInput::Get().RequestScroll(panel, args.at("x").get<float>(), args.at("y").get<float>(),
+                                                             args.value("dx", 0.0f), args.value("dy", 0.0f));
+                            return { { "status", "queued" } };
+                        } });
+
+    registry.Register({ "key",
+                        "Press and release a key in the editor, with Ctrl, Shift or Alt held. Keys use "
+                        "Dear ImGui's names: Enter, Escape, Tab, Space, Backspace, Delete, LeftArrow, "
+                        "UpArrow, A..Z, 0..9, F1..F12.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "key", { { "type", "string" } } },
+                              { "ctrl", { { "type", "boolean" } } },
+                              { "shift", { { "type", "boolean" } } },
+                              { "alt", { { "type", "boolean" } } } } },
+                          { "required", nlohmann::json::array({ "key" }) } },
+                        [](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            std::string error;
+                            if (!EditorInput::Get().RequestKey(args.at("key").get<std::string>(), args.value("ctrl", false),
+                                                               args.value("shift", false), args.value("alt", false), error))
+                                throw std::runtime_error(error);
+                            return { { "status", "queued" } };
+                        } });
+
+    registry.Register({ "type_text",
+                        "Type text into whatever has keyboard focus, e.g. a field opened with click.",
+                        { { "type", "object" },
+                          { "properties", { { "text", { { "type", "string" } } } } },
+                          { "required", nlohmann::json::array({ "text" }) } },
+                        [](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            EditorInput::Get().RequestText(args.at("text").get<std::string>());
+                            return { { "status", "queued" } };
                         } });
 
     registry.Register({ "capture_sequence",

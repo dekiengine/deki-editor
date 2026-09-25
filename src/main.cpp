@@ -24,6 +24,7 @@
 #include <memory>
 #include "services/ProgressModal.h"
 #include "services/EditorCapture.h"
+#include "services/EditorInput.h"
 #include <deki/profiling/Profiler.h>
 
 #include <stdio.h>
@@ -218,6 +219,10 @@ int main(int argc, char* argv[])
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
+        // Automation input (MCP click, key, ...): after the backend's report of
+        // the real cursor so an injected position wins, before NewFrame so
+        // ImGui sees it this frame.
+        DekiEditor::EditorInput::Get().InjectPending();
         ImGui::NewFrame();
 
         // Focus requests queued by MCP tools between frames. Applied here, with
