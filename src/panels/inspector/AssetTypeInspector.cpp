@@ -97,7 +97,6 @@ void AssetTypeInspector::Draw()
         // the procedural compile path bakes RGB565A8 and ignores the sidecar
         if (!isCompiledTextureAsset)
             m_TextureInspector->DrawSettings();
-        m_TextureInspector->DrawData();
 
         if (!isSubAssetWithPreview && !isBakedCacheAsset)
             DrawDeployProperties(assetGuid);

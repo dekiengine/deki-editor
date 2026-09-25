@@ -12,7 +12,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   RGBA8888 on a full-colour one), can be fixed for every target, and can be
   overridden for one target: the texture inspector has Unity's layout, a
   Default tab and one tab per target with **Override for <target>**
-  (`settings.texture.targets`). The export stores each image as its target
+  (`settings.texture.targets`), each saying how much the image takes on that
+  target. The Data section (the editor cache's size, alpha flags and source
+  size) is gone: it described a copy no target ships. The export stores each image as its target
   wants it; `--export --platform <id>` exports for a target other than the
   active one. The editor's cache follows the active platform. 3D models take
   the same settings. See [docs/screens.md](docs/screens.md).

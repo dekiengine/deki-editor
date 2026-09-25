@@ -38,6 +38,19 @@ static int FormatNameToIndex(const std::string& name)
     return 0;  // absent, "Automatic" or unknown: Automatic
 }
 
+static int BytesPerTexel(TextureFormat f)
+{
+    switch (f)
+    {
+        case TextureFormat::RGB888: return 3;
+        case TextureFormat::RGBA8888: return 4;
+        case TextureFormat::RGB565: return 2;
+        case TextureFormat::RGB565A8: return 3;
+        case TextureFormat::ALPHA8: return 1;
+    }
+    return 3;
+}
+
 // The platforms this project has its own copy of (platforms/<id>/), in the
 // registry's order. Those are its targets.
 static std::vector<const PlatformConfig*> ProjectPlatforms(const std::string& projectPath)
@@ -392,8 +405,15 @@ void TextureInspector::DrawSettings()
                         writeOverride(platform->id, index);
                     }
                     ImGui::EndDisabled();
-                    if (knownScreen)
-                        ImGui::TextDisabled("Screen: %s", platform->colorFormat.c_str());
+                    // What it costs there: the stored format at the image's size.
+                    if (knownScreen && m_PreviewWidth > 0 && m_PreviewHeight > 0)
+                    {
+                        TextureFormat f = fromDefault;
+                        if (overridden)
+                            ParseTextureFormat(s_FormatNames[index], f);
+                        const double kb = static_cast<double>(m_PreviewWidth) * m_PreviewHeight * BytesPerTexel(f) / 1024.0;
+                        ImGui::TextDisabled("%.2f KB on this target (%s screen)", kb, platform->colorFormat.c_str());
+                    }
                     ImGui::EndTabItem();
                 }
 
@@ -422,56 +442,6 @@ void TextureInspector::DrawSettings()
                 }
                 ImGui::EndTabBar();
             }
-        }
-        DekiEditor::SchematicSectionEnd();
-    }
-}
-
-void TextureInspector::DrawData()
-{
-    const std::string& assetPath = m_App->GetSelectedAssetPath();
-    const std::string& cachePath = m_App->GetSelectedAssetCachePath();
-    bool hasCached = m_App->GetSelectedAssetHasCached();
-
-    namespace fs = std::filesystem;
-
-    TexData texData;
-    bool hasTexData = hasCached && !cachePath.empty() && TextureImporter::ReadTexFile(cachePath, texData);
-
-    DekiEditor::FullBleedSeparator();
-    if (DekiEditor::SchematicSectionBegin("Data"))
-    {
-        if (hasTexData)
-        {
-            InspectorUtils::BeginPropertyRow("Data Size");
-            ImGui::Text("%.2f KB", texData.header.dataSize / 1024.0f);
-
-            if (fs::exists(cachePath))
-            {
-                auto fileSize = fs::file_size(cachePath);
-                InspectorUtils::BeginPropertyRow("File Size");
-                ImGui::Text("%.2f KB", fileSize / 1024.0f);
-            }
-
-            if (texData.hasAlpha())
-            {
-                InspectorUtils::BeginPropertyRow("Has Alpha");
-                ImGui::TextUnformatted("Yes");
-            }
-            if (texData.hasTransparency())
-            {
-                InspectorUtils::BeginPropertyRow("Has Transparency");
-                ImGui::TextUnformatted("Yes");
-            }
-        }
-
-        // Source file info
-        fs::path path(assetPath);
-        if (fs::exists(assetPath))
-        {
-            auto sourceSize = fs::file_size(assetPath);
-            InspectorUtils::BeginPropertyRow("Source");
-            ImGui::Text("%s (%.2f KB)", path.filename().string().c_str(), sourceSize / 1024.0f);
         }
         DekiEditor::SchematicSectionEnd();
     }

@@ -19,7 +19,6 @@ public:
     void DrawPreview();                             // Anchored texture preview (always visible)
     void BeginScrollRegion();                       // Opens scrollable child region
     void DrawSettings();                            // Settings section (format dropdown + spritesheet button)
-    void DrawData();                                // Data section (sizes, alpha, source info)
     void DrawCacheStatus(int overrideCached = -1);  // Cache status indicator (-1 = use default, 0/1 = override)
     static float GetCacheStatusBarHeight();
     void EndScrollRegion();  // Closes scrollable child region
