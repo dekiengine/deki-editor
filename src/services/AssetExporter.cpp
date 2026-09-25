@@ -96,23 +96,63 @@ AssetExporter::AssetExporter(Project* project, AssetPipeline* pipeline, PackageL
 {
 }
 
-// The board's own colour format wins over the project's. One project serves
-// several targets and they do not all have the same panel. No target set leaves
-// the project's.
-void AssetExporter::ApplyTargetColorFormat(uint8_t& colorFormat) const
+std::string AssetExporter::ExportSourceFor(const std::string& guid)
 {
-    if (m_TargetColorFormat.empty())
-        return;
+    namespace fs = std::filesystem;
+    const AssetInfo* info = m_Pipeline->GetAssetInfoByGuid(guid);
+    const std::string editorCache =
+        (info && info->hasCachedVersion && !info->cachePath.empty()) ? m_Pipeline->GetAbsolutePath(info->cachePath)
+                                                                       : GetCachePath(m_Project->GetPath(), guid);
 
-    // Deki::ColorFormat, spelled as a platform JSON spells it.
-    if (m_TargetColorFormat == "RGB565")        colorFormat = 0;
-    else if (m_TargetColorFormat == "RGB888")   colorFormat = 1;
-    else if (m_TargetColorFormat == "ARGB8888") colorFormat = 2;
-    else if (m_TargetColorFormat == "RGB565A8") colorFormat = 3;
-    else
-        DEKI_LOG_WARNING("Platform colorFormat '%s' is not one of RGB565, RGB888, ARGB8888 or "
-                         "RGB565A8; keeping the project's",
-                         m_TargetColorFormat.c_str());
+    // Without a target the editor cache ships as it is. With one, an asset
+    // type that can encode for it always does: the editor cache may have been
+    // made for an earlier active platform.
+    if (!m_HasTarget || !info)
+        return fs::exists(editorCache) ? editorCache : std::string();
+
+    std::string ext = fs::path(info->path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    const AssetExportEncoder* encoder = m_Pipeline->FindExportEncoder(ext);
+    if (!encoder)
+        return fs::exists(editorCache) ? editorCache : std::string();
+
+    // This target's version, kept between exports and rebuilt when the source
+    // or its settings are newer.
+    const std::string source = m_Pipeline->GetAbsolutePath(info->path);
+    const fs::path outDir = ProjectPaths::Generated(m_Project->GetPath()) / "export-cache" /
+                            (m_Target.platformId.empty() ? std::string("editor") : m_Target.platformId);
+    const fs::path out = outDir / guid;
+    std::error_code ec;
+    bool fresh = fs::exists(out, ec);
+    if (fresh)
+    {
+        const auto outTime = fs::last_write_time(out, ec);
+        if (fs::last_write_time(source, ec) > outTime)
+            fresh = false;
+        const std::string sidecar = source + ".data";
+        if (fs::exists(sidecar, ec) && fs::last_write_time(sidecar, ec) > outTime)
+            fresh = false;
+    }
+    if (!fresh)
+    {
+        fs::create_directories(outDir, ec);
+        AssetExportContext ctx;
+        ctx.relativePath = info->path;
+        ctx.absolutePath = source;
+        ctx.guid = guid;
+        ctx.extension = ext;
+        ctx.projectPath = m_Project->GetPath();
+        ctx.outPath = out.string();
+        ctx.target = m_Target;
+        ctx.pipeline = m_Pipeline;
+        if (!(*encoder)(ctx))
+        {
+            DEKI_LOG_ERROR("  Could not store %s for target '%s'; it is left out of this export",
+                           info->path.c_str(), m_Target.platformId.c_str());
+            return std::string();
+        }
+    }
+    return out.string();
 }
 
 bool AssetExporter::ExportToStorage()
@@ -223,7 +263,8 @@ bool AssetExporter::ExportToStorage(const std::unordered_set<std::string>& addit
         std::string assetsPath = m_Project->GetAssetsPath();
         std::string packIndexPath = (storagePath / "pack_index.bin").string();
         AssetPacker::BuildPackIndex(assetsPath, cachePath, storagePath.string(), packIndexPath,
-                                    usedAssets.fontUsages, &packedGuids);
+                                    usedAssets.fontUsages, &packedGuids,
+                                    [this](const std::string& guid) { return ExportSourceFor(guid); });
     }
 
     // Step 4: Copy only used assets that aren't already in packs
@@ -680,10 +721,11 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
             continue;
         }
 
-        std::string absoluteCachePath = m_Pipeline->GetAbsolutePath(info.cachePath);
-        if (!fs::exists(absoluteCachePath))
+        // This target's version of it, or the editor cache.
+        std::string absoluteCachePath = ExportSourceFor(info.guid);
+        if (absoluteCachePath.empty())
         {
-            DEKI_LOG_WARNING("  Skipping %s - cache file missing: %s", info.path.c_str(), info.cachePath.c_str());
+            DEKI_LOG_WARNING("  Skipping %s - nothing to export: %s", info.path.c_str(), info.cachePath.c_str());
             continue;
         }
 
@@ -716,9 +758,9 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         if (skipGuids.find(guid) != skipGuids.end())
             continue;
 
-        // Check if this GUID exists in cache directory
-        std::string cachePath = GetCachePath(projectPath, guid);
-        if (!fs::exists(cachePath))
+        // This target's version of it, or what the cache directory holds
+        std::string cachePath = ExportSourceFor(guid);
+        if (cachePath.empty())
             continue;
 
         // Export as GUID-named file (no subdirectory)
@@ -751,14 +793,12 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
         return;
     }
 
-    auto* displaySettings = DekiEditor::GetDisplaySettings();
     const auto& startupScene = m_Project->GetStartupScene();
-    // Frame pacing comes from Core and the colour format from Framebuffer.
-    // The design area travels in the settings chunk with every other section.
+    // Frame pacing comes from Core. The design area travels in the settings
+    // chunk with every other section; the framebuffer's size and format come
+    // from the device's display.
     auto* coreSettings = DekiEditor::GetCoreSettings();
     int32_t targetFPS = coreSettings ? coreSettings->targetFps : 60;
-    uint8_t displayColorFormat = displaySettings ? static_cast<uint8_t>(displaySettings->colorFormat) : 0;
-    ApplyTargetColorFormat(displayColorFormat);
 
     // Resolve render pipeline config from .rpipeline asset
     std::string rendererName;
@@ -770,7 +810,6 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
         passNamePtrs.push_back(name.c_str());
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        displayColorFormat,
         targetFPS,
         startupScene.empty() ? nullptr : startupScene.c_str(),
         rendererName.empty() ? nullptr : rendererName.c_str(),
@@ -821,14 +860,12 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
         return false;
     }
 
-    auto* displaySettings = DekiEditor::GetDisplaySettings();
     const auto& startupScene = m_Project->GetStartupScene();
-    // Frame pacing comes from Core and the colour format from Framebuffer.
-    // The design area travels in the settings chunk with every other section.
+    // Frame pacing comes from Core. The design area travels in the settings
+    // chunk with every other section; the framebuffer's size and format come
+    // from the device's display.
     auto* coreSettings = DekiEditor::GetCoreSettings();
     int32_t targetFPS = coreSettings ? coreSettings->targetFps : 60;
-    uint8_t displayColorFormat = displaySettings ? static_cast<uint8_t>(displaySettings->colorFormat) : 0;
-    ApplyTargetColorFormat(displayColorFormat);
 
     // Resolve render pipeline config from .rpipeline asset
     std::string rendererName2;
@@ -840,7 +877,6 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
         passNamePtrs2.push_back(name.c_str());
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        displayColorFormat,
         targetFPS,
         startupScene.empty() ? nullptr : startupScene.c_str(),
         rendererName2.empty() ? nullptr : rendererName2.c_str(),

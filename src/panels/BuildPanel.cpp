@@ -66,6 +66,7 @@ BuildPanel::BuildPanel(EditorApp* app)
             m_SelectedPlatform = config.id;
             project->SetActivePlatformId(config.id);
             project->Save();
+            m_App->ApplyEditorTarget();
 
             RegenerateBuildFiles(config);
         } });
@@ -569,6 +570,7 @@ void BuildPanel::DrawPlatformSelector()
 
                 m_App->GetProject()->SetActivePlatformId(m_SelectedPlatform);
                 m_App->GetProject()->Save();
+                m_App->ApplyEditorTarget();
 
                 // Regenerate build files for the new platform
                 const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);

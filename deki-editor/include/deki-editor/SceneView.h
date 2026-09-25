@@ -129,6 +129,10 @@ public:
         return h;
     }
 
+    /** @brief Pixel format of the previewed screen; play mode renders in it. */
+    Deki::ColorFormat GetPreviewFormat() const { return m_PreviewFormat; }
+    void SetPreviewFormat(Deki::ColorFormat format) { m_PreviewFormat = format; }
+
     /** @brief Preview a screen of this size; 0 x 0 previews the design size,
      *  following the project's design area as it changes. */
     void SetPreviewSize(int width, int height)
@@ -204,6 +208,7 @@ private:
 
     int m_PreviewWidth = 0;
     int m_PreviewHeight = 0;
+    Deki::ColorFormat m_PreviewFormat = Deki::ColorFormat::ARGB8888;
 };
 
 }  // namespace DekiEditor

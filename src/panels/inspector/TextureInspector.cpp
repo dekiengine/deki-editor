@@ -6,6 +6,10 @@
 #include <deki-editor/AssetData.h>
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetDatabase.h>
+#include <deki-editor/TextureFormatResolve.h>
+#include <deki-editor/Paths.h>
+#include <deki-editor/build/PlatformConfig.h>
+#include "../../core/Project.h"
 #include "../../services/ToolHost.h"
 #include "imgui.h"
 #include <deki-editor/IconsTabler.h>
@@ -14,21 +18,41 @@
 #include <filesystem>
 #include <fstream>
 #include <cctype>
+#include <vector>
 
 namespace DekiEditor
 {
 
-static const char* s_FormatNames[] = { "RGB888", "RGBA8888", "RGB565", "RGB565A8", "ALPHA8" };
-static const int s_FormatCount = 5;
+// Index 0 is Automatic: follow the target's screen. The rest are stored as named.
+static const char* s_FormatNames[] = { "Automatic", "RGB888", "RGBA8888", "RGB565", "RGB565A8", "ALPHA8" };
+static const int s_FormatCount = 6;
 
 static int FormatNameToIndex(const std::string& name)
 {
-    for (int i = 0; i < s_FormatCount; i++)
+    for (int i = 1; i < s_FormatCount; i++)
     {
         if (name == s_FormatNames[i])
             return i;
     }
-    return 3;  // RGB565A8 default
+    return 0;  // absent, "Automatic" or unknown: Automatic
+}
+
+// The platforms this project has its own copy of (platforms/<id>/), in the
+// registry's order. Those are its targets.
+static std::vector<const PlatformConfig*> ProjectPlatforms(const std::string& projectPath)
+{
+    namespace fs = std::filesystem;
+    std::vector<const PlatformConfig*> out;
+    const std::string dir = GetPlatformsDirectory(projectPath);
+    for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
+    {
+        std::error_code ec;
+        if (!fs::is_directory(fs::path(dir) / id, ec))
+            continue;
+        if (const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id))
+            out.push_back(p);
+    }
+    return out;
 }
 
 TextureInspector::TextureInspector(EditorApp* app)
@@ -168,13 +192,14 @@ void TextureInspector::DrawSettings()
         if (assetPath != m_LastFormatAssetPath)
         {
             m_LastFormatAssetPath = assetPath;
-            m_SelectedFormatIndex = 3;  // RGB565A8 default
+            m_SelectedFormatIndex = 0;  // Automatic
+            m_TargetFormatIndex.clear();
+            m_SourceHasAlpha = false;
             m_ChromaKeyEnabled = false;
             m_ChromaKeyColor[0] = 1.0f;
             m_ChromaKeyColor[1] = 0.0f;
             m_ChromaKeyColor[2] = 1.0f;
 
-            bool sidecarHasFormat = false;
             std::string dataPath = assetPath + ".data";
             if (fs::exists(dataPath))
             {
@@ -188,11 +213,13 @@ void TextureInspector::DrawSettings()
                             dataJson["settings"].contains("texture"))
                         {
                             auto& tex = dataJson["settings"]["texture"];
-                            if (tex.contains("format"))
+                            if (tex.contains("format") && tex["format"].is_string())
+                                m_SelectedFormatIndex = FormatNameToIndex(tex["format"].get<std::string>());
+                            if (tex.contains("targets") && tex["targets"].is_object())
                             {
-                                std::string fmtStr = tex["format"].get<std::string>();
-                                m_SelectedFormatIndex = FormatNameToIndex(fmtStr);
-                                sidecarHasFormat = true;
+                                for (auto it = tex["targets"].begin(); it != tex["targets"].end(); ++it)
+                                    if (it.value().is_string())
+                                        m_TargetFormatIndex[it.key()] = FormatNameToIndex(it.value().get<std::string>());
                             }
                             if (tex.contains("chroma_key"))
                             {
@@ -210,15 +237,12 @@ void TextureInspector::DrawSettings()
                 }
             }
 
-            if (!sidecarHasFormat && hasCached && !cachePath.empty())
+            // Whether the source has alpha, which is what Automatic turns on.
+            if (hasCached && !cachePath.empty())
             {
                 TexData texData;
                 if (TextureImporter::ReadTexFile(cachePath, texData))
-                {
-                    int idx = static_cast<int>(texData.header.format);
-                    if (idx >= 0 && idx < s_FormatCount)
-                        m_SelectedFormatIndex = idx;
-                }
+                    m_SourceHasAlpha = texData.hasAlpha();
             }
         }
 
@@ -249,7 +273,7 @@ void TextureInspector::DrawSettings()
             InvalidatePreview();
         };
 
-        // Format dropdown
+        // Format: Automatic (each target's screen decides) or one for every target.
         if (hasCached)
         {
             InspectorUtils::BeginPropertyRow("Format");
@@ -257,6 +281,43 @@ void TextureInspector::DrawSettings()
             {
                 writeTextureSettings([&](nlohmann::json& tex)
                                      { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
+            }
+        }
+
+        // Per target: override the format for one platform, and see what each
+        // gets. "Automatic" here means the Format above.
+        if (hasCached && m_App->GetProject())
+        {
+            const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
+            for (const PlatformConfig* platform : ProjectPlatforms(m_App->GetProject()->GetPath()))
+            {
+                ImGui::PushID(platform->id.c_str());
+                int& index = m_TargetFormatIndex[platform->id];
+                InspectorUtils::BeginPropertyRow(platform->displayName.empty() ? platform->id.c_str()
+                                                                               : platform->displayName.c_str());
+                if (DekiEditor::SchematicCombo("##TargetFormat", &index, s_FormatNames, s_FormatCount))
+                {
+                    const std::string id = platform->id;
+                    const int chosen = index;
+                    writeTextureSettings([&](nlohmann::json& tex)
+                                         {
+                        if (chosen == 0)
+                        {
+                            if (tex.contains("targets"))
+                                tex["targets"].erase(id);
+                        }
+                        else
+                            tex["targets"][id] = s_FormatNames[chosen]; });
+                }
+                Deki::ColorFormat screen;
+                if (ParseColorFormat(platform->colorFormat, screen))
+                {
+                    const std::string targetFormat = index > 0 ? s_FormatNames[index] : "";
+                    const TextureFormat stored = ResolveTextureFormat(assetFormat, targetFormat, screen, m_SourceHasAlpha);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("%s", TextureFormatName(stored));
+                }
+                ImGui::PopID();
             }
         }
 

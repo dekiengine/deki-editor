@@ -13,6 +13,8 @@
 // stopped before the build the editor performs, and firmware built from here
 // carried no boot payload at all. None of that bootstrap survives.
 
+#include <deki-editor/TextureFormatResolve.h>
+#include "services/ExportTarget.h"
 #include <deki/ScreenScale.h>
 #include "EditorHeadless.h"
 #include "EditorVersion.h"
@@ -322,7 +324,7 @@ int CmdBuildAssets(EditorApp& editor)
     return 0;
 }
 
-int CmdExportAssets(EditorApp& editor)
+int CmdExportAssets(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--export");
     if (!project)
@@ -336,6 +338,19 @@ int CmdExportAssets(EditorApp& editor)
     }
 
     AssetExporter exporter(project, pipeline);
+    // Assets are stored for a target: the one named, else the active platform.
+    const std::string target = (platformId && *platformId) ? std::string(platformId) : project->GetActivePlatformId();
+    if (!target.empty())
+    {
+        AssetExportTarget exportTarget;
+        if (!ExportTargetForPlatform(target, exportTarget))
+        {
+            printf("Export failed: cannot export for platform '%s' (see the log).\n", target.c_str());
+            return 1;
+        }
+        exporter.SetTarget(exportTarget);
+        printf("Exporting for %s (%s)\n", exportTarget.platformId.c_str(), ColorFormatName(exportTarget.colorFormat));
+    }
     const bool ok = exporter.ExportToStorage();
     printf("Export: %s (%d assets)\n", ok ? "OK" : "FAILED", exporter.GetExportedAssetCount());
     return ok ? 0 : 1;
@@ -972,26 +987,60 @@ uint64_t Fnv1a(const uint8_t* bytes, size_t count)
     return h;
 }
 
-bool WritePpmFromRgb565(const fs::path& path, const uint8_t* rgb565, int w, int h)
+// One pixel of `format` at p as 8-bit RGB. RGB565 and RGB565A8 hold a
+// little-endian 565 word; ARGB8888 a 0xAARRGGBB word (B, G, R, A in memory).
+void PixelToRgb(Deki::ColorFormat format, const uint8_t* p, uint8_t& r, uint8_t& g, uint8_t& b)
+{
+    if (format == Deki::ColorFormat::RGB888)
+    {
+        r = p[0]; g = p[1]; b = p[2];
+    }
+    else if (format == Deki::ColorFormat::ARGB8888)
+    {
+        r = p[2]; g = p[1]; b = p[0];
+    }
+    else
+    {
+        const uint16_t v = static_cast<uint16_t>(p[0] | (p[1] << 8));
+        r = static_cast<uint8_t>(((v >> 11) & 0x1F) << 3);
+        g = static_cast<uint8_t>(((v >> 5) & 0x3F) << 2);
+        b = static_cast<uint8_t>((v & 0x1F) << 3);
+    }
+}
+
+bool WritePpm(const fs::path& path, const uint8_t* pixels, Deki::ColorFormat format, int w, int h)
 {
     FILE* f = std::fopen(path.string().c_str(), "wb");
     if (!f) return false;
     std::fprintf(f, "P6\n%d %d\n255\n", w, h);
+    const size_t bpp = Deki::FrameBufferBytes(format, 1, 1);
     std::vector<uint8_t> row(static_cast<size_t>(w) * 3);
     for (int y = 0; y < h; ++y)
     {
-        const uint8_t* src = rgb565 + static_cast<size_t>(y) * w * 2;
+        const uint8_t* src = pixels + static_cast<size_t>(y) * w * bpp;
         for (int x = 0; x < w; ++x)
-        {
-            const uint16_t p = static_cast<uint16_t>(src[x * 2] | (src[x * 2 + 1] << 8));
-            row[x * 3 + 0] = static_cast<uint8_t>(((p >> 11) & 0x1F) << 3);
-            row[x * 3 + 1] = static_cast<uint8_t>(((p >> 5) & 0x3F) << 2);
-            row[x * 3 + 2] = static_cast<uint8_t>((p & 0x1F) << 3);
-        }
+            PixelToRgb(format, src + x * bpp, row[x * 3 + 0], row[x * 3 + 1], row[x * 3 + 2]);
         std::fwrite(row.data(), 1, row.size(), f);
     }
     std::fclose(f);
     return true;
+}
+
+// The clear colour as one pixel of `format`, repeated over the buffer.
+void FillClear(std::vector<uint8_t>& buffer, Deki::ColorFormat format, uint8_t r, uint8_t g, uint8_t b)
+{
+    uint8_t px[4] = {};
+    const uint16_t v565 = static_cast<uint16_t>(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+    switch (format)
+    {
+        case Deki::ColorFormat::RGB565: px[0] = v565 & 0xFF; px[1] = v565 >> 8; break;
+        case Deki::ColorFormat::RGB565A8: px[0] = v565 & 0xFF; px[1] = v565 >> 8; px[2] = 255; break;
+        case Deki::ColorFormat::RGB888: px[0] = r; px[1] = g; px[2] = b; break;
+        case Deki::ColorFormat::ARGB8888: px[0] = b; px[1] = g; px[2] = r; px[3] = 255; break;
+    }
+    const size_t bpp = Deki::FrameBufferBytes(format, 1, 1);
+    for (size_t i = 0; i + bpp <= buffer.size(); i += bpp)
+        std::memcpy(buffer.data() + i, px, bpp);
 }
 
 }  // namespace
@@ -1110,7 +1159,18 @@ int CmdRenderScenes(EditorApp& editor)
         printf("Error: the project's design area is empty (%dx%d px)\n", width, height);
         return 1;
     }
-    std::vector<uint8_t> buffer(static_cast<size_t>(width) * height * 2);
+    // DEKI_RENDER_FORMAT picks the framebuffer format; RGB565 when unset, which
+    // is what every recorded hash was made in.
+    Deki::ColorFormat format = Deki::ColorFormat::RGB565;
+    if (const char* env = std::getenv("DEKI_RENDER_FORMAT"))
+    {
+        if (!DekiEditor::ParseColorFormat(env, format))
+        {
+            printf("Error: DEKI_RENDER_FORMAT must be RGB565, RGB888, ARGB8888 or RGB565A8 (got '%s')\n", env);
+            return 1;
+        }
+    }
+    std::vector<uint8_t> buffer(Deki::FrameBufferBytes(format, width, height));
 
     const std::string assetsDir = project->GetAssetsPath();
     std::vector<fs::path> scenePaths;
@@ -1131,17 +1191,18 @@ int CmdRenderScenes(EditorApp& editor)
     // is keyed by this line rather than being a single number the project is
     // expected to produce forever, and a second backend records its own
     // instead of forcing this one's check to be loosened to accommodate it.
-    printf("config: renderer=%s mode=%s size=%dx%d format=RGB565 frames=%d\n",
-           RendererNameOf(project, editor.GetAssetPipeline()).c_str(), mode.c_str(), width, height, frames);
+    printf("config: renderer=%s mode=%s size=%dx%d format=%s frames=%d\n",
+           RendererNameOf(project, editor.GetAssetPipeline()).c_str(), mode.c_str(), width, height,
+           DekiEditor::ColorFormatName(format), frames);
 
     if (clock)
-        printf("Rendering %zu scene(s) at %dx%d RGB565, %d frame(s) each, mode %s, ticking %.3f ms per frame\n",
-               scenePaths.size(), width, height, frames, mode.c_str(), tickMs);
+        printf("Rendering %zu scene(s) at %dx%d %s, %d frame(s) each, mode %s, ticking %.3f ms per frame\n",
+               scenePaths.size(), width, height, DekiEditor::ColorFormatName(format), frames, mode.c_str(), tickMs);
     else
-        printf("Rendering %zu scene(s) at %dx%d RGB565, %d frame(s) each, mode %s\n",
-               scenePaths.size(), width, height, frames, mode.c_str());
+        printf("Rendering %zu scene(s) at %dx%d %s, %d frame(s) each, mode %s\n",
+               scenePaths.size(), width, height, DekiEditor::ColorFormatName(format), frames, mode.c_str());
 
-    if (useSystem && !rs->Setup(width, height, Deki::ColorFormat::RGB565))
+    if (useSystem && !rs->Setup(width, height, format))
     {
         printf("Error: render system Setup(%dx%d) failed\n", width, height);
         return 1;
@@ -1168,7 +1229,6 @@ int CmdRenderScenes(EditorApp& editor)
 
         uint8_t cr, cg, cb;
         camera->GetClearColor(cr, cg, cb);
-        const uint16_t clear = static_cast<uint16_t>(((cr >> 3) << 11) | ((cg >> 2) << 5) | (cb >> 3));
         std::string name = rel;
         for (char& c : name)
             if (c == '/' || c == '\\') c = '_';
@@ -1199,9 +1259,8 @@ int CmdRenderScenes(EditorApp& editor)
             }
             else
             {
-                uint16_t* px = reinterpret_cast<uint16_t*>(buffer.data());
-                std::fill(px, px + static_cast<size_t>(width) * height, clear);
-                rs->RenderToBuffer(&scene, camera, buffer.data(), width, height, Deki::ColorFormat::RGB565);
+                FillClear(buffer, format, cr, cg, cb);
+                rs->RenderToBuffer(&scene, camera, buffer.data(), width, height, format);
             }
             if (clock && outDir)
             {
@@ -1212,7 +1271,7 @@ int CmdRenderScenes(EditorApp& editor)
                 }
                 char num[16];
                 snprintf(num, sizeof(num), "_%04d", f);
-                WritePpmFromRgb565(fs::path(outDir) / (name + num + ".ppm"), buffer.data(), width, height);
+                WritePpm(fs::path(outDir) / (name + num + ".ppm"), buffer.data(), format, width, height);
             }
         }
         if (useSystem)
@@ -1230,7 +1289,7 @@ int CmdRenderScenes(EditorApp& editor)
         ++rendered;
 
         if (outDir)
-            WritePpmFromRgb565(fs::path(outDir) / (name + ".ppm"), buffer.data(), width, height);
+            WritePpm(fs::path(outDir) / (name + ".ppm"), buffer.data(), format, width, height);
     }
 
     if (rendered == 0)

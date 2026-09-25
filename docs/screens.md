@@ -58,15 +58,41 @@ screens so nothing designed is lost; Fill crops.
 ## Previewing
 
 The Play view's toolbar picks the screen: the design size, any platform the
-project knows, or a custom size. Play runs at that size, and the camera's
-gizmo in the scene view shows what that screen sees as a dashed outline.
+project knows, or a custom size, and next to it the screen's pixel format.
+Play runs at that size and format, and the camera's gizmo in the scene view
+shows what that screen sees as a dashed outline.
 
-`DekiEditor --render-scenes` renders at the design size; `DEKI_RENDER_SIZE=WxH`
-renders another.
+`DekiEditor --render-scenes` renders at the design size in RGB565;
+`DEKI_RENDER_SIZE=WxH` renders another size and `DEKI_RENDER_FORMAT` another
+format. `--export --platform <id>` exports for a target other than the active
+one.
+
+## Colour formats
+
+Every screen also has its own pixel format: RGB565 on most small panels, full
+colour on a desktop. Two things follow it.
+
+- **The game draws in the screen's format.** The display says what it takes
+  when it starts, like its size. There is no project-wide colour format.
+- **Images are stored for the screen they will be shown on.** An image's Format
+  (the texture inspector) is **Automatic** by default: RGB565 on an RGB565
+  target, or RGB565A8 when the image has transparency; RGB888, or RGBA8888 with
+  transparency, on a full-colour target. Pick a format to use it on every
+  target, and under **Per target** pick one for a single target, e.g. a big
+  background kept small on a board. The export stores each image as the
+  target it is for wants it.
+
+A platform's `colorFormat` is the format of its screen. The editor's own cache
+follows the active platform, so what the scene view shows is what that target
+gets. The Play view's format dropdown previews another; images are converted
+as they are drawn, so any format draws on any screen.
+
+3D models take the same Format settings in their `.data` file, and draw into
+every framebuffer format.
 
 ## On the device
 
-The framebuffer is the display's own size, read when the display starts. One
-build runs on screens of different sizes. A platform's `screenWidth` and
-`screenHeight` are what the editor previews and what the desktop simulator
-opens its window at.
+The framebuffer is the display's own size and format, read when the display
+starts. One build runs on screens of different sizes. A platform's
+`screenWidth`, `screenHeight` and `colorFormat` are what the editor previews
+and what the desktop simulator opens its window as.

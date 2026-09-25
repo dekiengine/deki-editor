@@ -10,6 +10,7 @@
 #include <deki-editor/SubAsset.h>
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/GuidCache.h>
+#include <deki/Engine.h>  // Deki::ColorFormat
 
 #include <deki-editor/EditorExport.h>
 namespace DekiEditor
@@ -71,6 +72,44 @@ enum class AssetCacheResult
  * handlers or add support for new file types.
  */
 using AssetCacheHandler = std::function<AssetCacheResult(const AssetCacheContext& ctx)>;
+
+/**
+ * @brief The target an asset is stored for: a platform and its screen's format.
+ *
+ * An image set to Automatic is stored in the format that suits this screen
+ * (TextureFormatResolve.h). The editor's own cache is stored for the
+ * project's active platform, so what the editor shows is what that target
+ * gets; an export for another target re-encodes through an AssetExportEncoder.
+ */
+struct AssetExportTarget
+{
+    std::string platformId;  // empty: no platform, the editor itself
+    Deki::ColorFormat colorFormat = Deki::ColorFormat::ARGB8888;
+};
+
+/**
+ * @brief Context passed to an asset export encoder
+ */
+struct DEKI_EDITOR_API AssetExportContext
+{
+    std::string relativePath;  // Project-relative source path
+    std::string absolutePath;  // Source file
+    std::string guid;          // Asset GUID
+    std::string extension;     // Lowercase with dot
+    std::string projectPath;   // Absolute project root
+    std::string outPath;       // Where to write this target's version
+    AssetExportTarget target;
+    AssetPipeline* pipeline;
+};
+
+/**
+ * @brief Writes an asset as a given target stores it.
+ *
+ * Registered per extension by the package that owns the asset type, next to
+ * its cache handler. Returns false when it could not write outPath; the
+ * export then reports it and ships nothing for that asset.
+ */
+using AssetExportEncoder = std::function<bool(const AssetExportContext& ctx)>;
 
 /**
  * @brief Information about a discovered asset
@@ -172,6 +211,26 @@ public:
      * @param handler Callback to invoke for assets with this extension
      */
     void RegisterCacheHandler(const std::string& extension, AssetCacheHandler handler);
+
+    /**
+     * @brief Register the encoder that writes this extension's assets for a target
+     *
+     * Cleared with the cache handlers when a package unloads.
+     */
+    void RegisterExportEncoder(const std::string& extension, AssetExportEncoder encoder);
+
+    /// The encoder for an extension (lowercase, with dot), or null.
+    const AssetExportEncoder* FindExportEncoder(const std::string& extension) const;
+
+    /**
+     * @brief The target the editor's own cache is stored for
+     *
+     * The project's active platform, set when a project opens and when the
+     * active platform changes. Changing it re-imports what depends on it.
+     */
+    void SetEditorTarget(const AssetExportTarget& target) { m_EditorTarget = target; }
+    bool IsRunning() const { return m_Running; }
+    const AssetExportTarget& GetEditorTarget() const { return m_EditorTarget; }
 
     /**
      * @brief Set the default cache handler for extensions without a specific handler
@@ -388,6 +447,11 @@ private:
 
     // Default cache handler for extensions without a specific handler
     AssetCacheHandler m_DefaultCacheHandler;
+
+    // Export encoders - maps extension (lowercase) to encoder.
+    std::unordered_map<std::string, AssetExportEncoder> m_ExportEncoders;
+
+    AssetExportTarget m_EditorTarget;
 
     // Cache-variant providers - maps extension (lowercase) to provider.
     // Consulted during cache cleanup so package-produced derived cache files

@@ -568,23 +568,8 @@ void EmitPlatformDefines(std::ostream& out,
         out << "    " << define << "\n";
     }
 
-    // No screen size: a device renders at whatever its display reports.
-
-    // Color format (unless already in defines)
-    bool hasColorFmt = false;
-    for (const auto& d : config.defines)
-    {
-        if (d.find("DEKI_DEFAULT_COLOR_FORMAT") != std::string::npos)
-        {
-            hasColorFmt = true;
-            break;
-        }
-    }
-    if (!hasColorFmt)
-    {
-        std::string fmt = config.colorFormat.empty() ? "RGB565" : config.colorFormat;
-        out << "    DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::" << fmt << "\n";
-    }
+    // No screen size or colour format: a device renders at whatever its
+    // display reports.
 
     // Package feature defines (skip any in skipDefines)
     std::set<std::string> skipSet(skipDefines.begin(), skipDefines.end());

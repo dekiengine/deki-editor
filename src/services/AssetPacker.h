@@ -37,6 +37,10 @@ struct FontUsageInfo;
 class AssetPacker
 {
 public:
+    // Where an asset's bytes come from, by GUID: the export target's version
+    // when it has one. Empty result (or no resolver): the editor cache.
+    using SourceResolver = std::function<std::string(const std::string& guid)>;
+
     struct PackEntry
     {
         std::string guid;
@@ -56,7 +60,8 @@ public:
     static bool BuildPack(const std::string& dpackJsonPath,
                           const std::string& cacheDir,
                           const std::string& outputPath,
-                          const std::set<FontUsageInfo>& fontUsages = {});
+                          const std::set<FontUsageInfo>& fontUsages = {},
+                          const SourceResolver& resolveSource = {});
 
     /**
      * @brief Build pack index file mapping GUID → pack file path
@@ -74,7 +79,8 @@ public:
                                const std::string& storageDir,
                                const std::string& outputPath,
                                const std::set<FontUsageInfo>& fontUsages = {},
-                               std::unordered_set<std::string>* outPackedGuids = nullptr);
+                               std::unordered_set<std::string>* outPackedGuids = nullptr,
+                               const SourceResolver& resolveSource = {});
 
 private:
     // Read a .dfont cache file and extract the atlas GUID (stored as relative path after glyph data)

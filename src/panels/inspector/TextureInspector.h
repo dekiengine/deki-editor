@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <cstdint>
 
@@ -43,7 +44,9 @@ private:
     uint32_t m_PreviewHeight = 0;
 
     // Format selection state
-    int m_SelectedFormatIndex = 3;      // RGB565A8 default
+    int m_SelectedFormatIndex = 0;      // 0 = Automatic
+    std::map<std::string, int> m_TargetFormatIndex;  // platform id -> index; absent/0 = the asset's own
+    bool m_SourceHasAlpha = false;       // from the cached header, for showing what Automatic gives
     std::string m_LastFormatAssetPath;  // Detect asset selection changes
 
     // Chroma key state (loaded from / written to .data sidecar's

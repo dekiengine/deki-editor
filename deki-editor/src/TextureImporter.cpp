@@ -236,6 +236,18 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
             break;
         }
 
+        case TextureFormat::RGB888:
+        {
+            pixelData.resize(pixelCount * 3);
+            for (size_t i = 0; i < pixelCount; i++)
+            {
+                pixelData[i * 3 + 0] = rgbaData[i * 4 + 0];
+                pixelData[i * 3 + 1] = rgbaData[i * 4 + 1];
+                pixelData[i * 3 + 2] = rgbaData[i * 4 + 2];
+            }
+            break;
+        }
+
         case TextureFormat::ALPHA8:
         {
             pixelData.resize(pixelCount);

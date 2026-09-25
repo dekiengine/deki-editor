@@ -1,6 +1,7 @@
 // EditorApp Project & Scene Management
 // Extracted from EditorApp.cpp - project open/close, scene lifecycle, hot reload callbacks
 
+#include "services/ExportTarget.h"
 #include "ObjectInternal.h"
 #include "EditorApp.h"
 #include "services/BuildersFromPackages.h"
@@ -580,6 +581,9 @@ bool EditorApp::OpenProject(const std::string& path)
             return info ? pl->GetAbsolutePath(info->path) : "";
         };
     }
+
+    // Images are cached as the active platform stores them.
+    ApplyEditorTarget(/*reimport=*/false);
 
     {
         ScopedTimer __t_import("OpenProject AssetPipeline::ImportAllAssets");
@@ -1161,6 +1165,29 @@ bool EditorApp::SaveSceneAs(const std::string& path)
     return true;
 }
 
+void EditorApp::ApplyEditorTarget(bool reimport)
+{
+    if (!m_AssetPipeline || !m_Project)
+        return;
+    // No active platform, or one that cannot be used (said by
+    // ExportTargetForPlatform): the editor stores for its own screen.
+    AssetExportTarget target;
+    const std::string platformId = m_Project->GetActivePlatformId();
+    if (!platformId.empty() && !ExportTargetForPlatform(platformId, target))
+        target = AssetExportTarget{};
+
+    const AssetExportTarget current = m_AssetPipeline->GetEditorTarget();
+    m_AssetPipeline->SetEditorTarget(target);
+    const bool changed = current.platformId != target.platformId || current.colorFormat != target.colorFormat;
+    if (reimport && changed && m_AssetPipeline->IsRunning())
+    {
+        DEKI_LOG_INFO("Assets are now stored for '%s' (%s); re-importing what that changes",
+                      target.platformId.empty() ? "the editor" : target.platformId.c_str(),
+                      ColorFormatName(target.colorFormat));
+        m_AssetPipeline->ImportAllAssets();
+    }
+}
+
 bool EditorApp::ExportToStorage()
 {
     if (!m_Project || !m_AssetPipeline)
@@ -1170,6 +1197,10 @@ bool EditorApp::ExportToStorage()
     }
 
     AssetExporter exporter(m_Project.get(), m_AssetPipeline.get());
+    AssetExportTarget target;
+    const std::string platformId = m_Project->GetActivePlatformId();
+    if (!platformId.empty() && ExportTargetForPlatform(platformId, target))
+        exporter.SetTarget(target);
     return exporter.ExportToStorage();
 }
 

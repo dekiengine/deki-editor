@@ -43,7 +43,8 @@ void PrintUsage(const char* program)
     printf("  --new-project <name>  Create <project_path>/<name>: the desktop packages declared,\n");
     printf("                        a starter scene, the simulator platform. Open it to build.\n");
     printf("  --build               Compile all assets to cache/ (headless)\n");
-    printf("  --export              Build and export assets to storage/\n");
+    printf("  --export              Build and export assets to storage/, stored for the\n");
+    printf("                        active platform, or for --platform <id>\n");
     printf("  --packages-list        List the project's packages and their install state\n");
     printf("  --packages-restore     Install every declared package that is missing on disk\n");
     printf("  --packages-add <url>   Add a package by repo URL or registry id, and install it\n");
@@ -376,7 +377,7 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
     if (o.scriptPath)
         return CmdRunScript(editor, o.scriptPath);
     if (o.exportAssets)
-        return CmdExportAssets(editor);
+        return CmdExportAssets(editor, o.platformId);
     if (o.build)
         return CmdBuildAssets(editor);
     if (o.toolchainStatus)

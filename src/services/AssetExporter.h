@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <set>
+#include <deki-editor/AssetPipeline.h>  // AssetExportTarget
 
 // Forward declarations
 namespace Deki { class Object; }
@@ -100,9 +101,15 @@ public:
     // export with no target in mind should do.
     void SetTargetCapabilities(const std::set<std::string>& caps) { m_TargetCapabilities = caps; }
 
-    // The colour format this target's screen uses; empty leaves the project's.
-    // Its size needs no counterpart: the device reads it from its display.
-    void SetTargetColorFormat(const std::string& colorFormat) { m_TargetColorFormat = colorFormat; }
+    // The target this export is for. Assets are stored as that target wants
+    // them: an image set to Automatic follows its screen format, and per-asset
+    // and per-target overrides apply (TextureFormatResolve.h). Without one the
+    // editor cache ships as it is, which is the editor's own target.
+    void SetTarget(const AssetExportTarget& target)
+    {
+        m_Target = target;
+        m_HasTarget = true;
+    }
 
     // Get the last export statistics
     int GetExportedAssetCount() const { return m_ExportedCount; }
@@ -192,15 +199,18 @@ private:
 
     void WriteProjectSettings(const std::string& storagePath);
 
-    // Overlay the target platform's colour format onto the project's, where it has one.
-    void ApplyTargetColorFormat(uint8_t& colorFormat) const;
+    // The file whose bytes ship for this asset: its version for the export
+    // target when there is one and the asset type can encode it, else the
+    // editor cache. Empty when neither exists.
+    std::string ExportSourceFor(const std::string& guid);
 
     Project* m_Project;
     AssetPipeline* m_Pipeline;
     PackageLoader* m_PackageLoader = nullptr;
     int m_ExportedCount = 0;
     std::set<std::string> m_TargetCapabilities;
-    std::string m_TargetColorFormat;
+    AssetExportTarget m_Target;
+    bool m_HasTarget = false;
 };
 
 }  // namespace DekiEditor

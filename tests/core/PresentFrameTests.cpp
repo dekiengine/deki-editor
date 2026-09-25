@@ -44,6 +44,7 @@ public:
         lastRects.assign(rects, rects + (count > 0 ? count : 0));
     }
     void GetDisplaySize(int32_t* w, int32_t* h) const override { if (w) *w = 8; if (h) *h = 8; }
+    Deki::ColorFormat GetColorFormat() const override { return Deki::ColorFormat::RGB565; }
     bool IsInitialized() const override { return true; }
     void RequestFullRefresh() override { ++refreshCalls; }
     bool ProcessEvents() override { return true; }

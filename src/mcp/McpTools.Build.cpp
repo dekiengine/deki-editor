@@ -371,6 +371,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                             project->SetActivePlatformId(id);
                             if (!project->Save())
                                 throw std::runtime_error("could not save the project");
+                            editor->ApplyEditorTarget();
 
                             return { { "activePlatformId", id } };
                         } });

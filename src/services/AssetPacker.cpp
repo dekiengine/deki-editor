@@ -19,7 +19,8 @@ namespace DekiEditor
 bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
                             const std::string& cacheDir,
                             const std::string& outputPath,
-                            const std::set<FontUsageInfo>& fontUsages)
+                            const std::set<FontUsageInfo>& fontUsages,
+                            const SourceResolver& resolveSource)
 {
     // Read .dpack JSON
     std::ifstream jsonFile(dpackJsonPath);
@@ -58,8 +59,11 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
         entry.guid = asset["guid"].get<std::string>();
         entry.typeName = asset["type"].get<std::string>();
 
-        // Find compiled asset in cache directory
-        entry.cachePath = cacheDir + "/" + entry.guid;
+        // The export target's version when it has one, else the compiled asset
+        // in the cache directory
+        entry.cachePath = resolveSource ? resolveSource(entry.guid) : std::string();
+        if (entry.cachePath.empty())
+            entry.cachePath = cacheDir + "/" + entry.guid;
         if (!fs::exists(entry.cachePath))
         {
             // For fonts, the .dpack may list the source/TTF GUID.
@@ -286,7 +290,8 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
                                  const std::string& storageDir,
                                  const std::string& outputPath,
                                  const std::set<FontUsageInfo>& fontUsages,
-                                 std::unordered_set<std::string>* outPackedGuids)
+                                 std::unordered_set<std::string>* outPackedGuids,
+                                 const SourceResolver& resolveSource)
 {
     // Find all .dpack files in asset directory
     std::vector<std::string> dpackFiles;
@@ -340,7 +345,7 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
 
         // Build the .pack file
         std::string packOutputPath = storageDir + "/" + packGuid + ".pack";
-        if (!BuildPack(dpackPath, cacheDir, packOutputPath, fontUsages))
+        if (!BuildPack(dpackPath, cacheDir, packOutputPath, fontUsages, resolveSource))
             continue;
 
         // Only add index entries if the .pack file was actually created

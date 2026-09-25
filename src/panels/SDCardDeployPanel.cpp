@@ -1,4 +1,5 @@
 #include "SDCardDeployPanel.h"
+#include "../services/ExportTarget.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
@@ -115,6 +116,11 @@ void SDCardDeployPanel::Draw()
             std::unordered_set<std::string> additionalGuids = m_App->GetProject()->GetForceIncludeGuids();
 
             AssetExporter exporter(m_App->GetProject(), m_App->GetAssetPipeline());
+            // Stored as the active platform wants its assets.
+            AssetExportTarget target;
+            const std::string platformId = m_App->GetProject()->GetActivePlatformId();
+            if (!platformId.empty() && ExportTargetForPlatform(platformId, target))
+                exporter.SetTarget(target);
             bool exportOk = exporter.ExportToStorage(additionalGuids);
 
             if (exportOk)

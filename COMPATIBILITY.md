@@ -201,6 +201,12 @@ section's `targetWidth`/`targetHeight` in pixels became `designWidth`/
 `designHeight` in meters. Every one of them looks the same on the design
 screen. See [docs/screens.md](docs/screens.md).
 
+Also in 0.18: the Framebuffer section's `colorFormat` is gone (the display
+decides), an image's missing Format now means Automatic rather than
+RGB565A8 (the same on an RGB565 target for an image with transparency;
+RGB565 for an opaque one, which draws the same), and deki-3d mesh files are
+version 4, reading version 3.
+
 ## Checking a project
 
 ```bash

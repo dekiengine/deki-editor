@@ -522,7 +522,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "        PACKAGE_OUTDIRS ${_RC_PKG_OUTDIRS}\n";
     file << "        GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "        INCLUDE_DIRS ${_RC_INCS}\n";
-    file << "        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565\" \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n";
+    file << "        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n";
     file << "endif()\n\n";
 
     file << "foreach(PACKAGE_CMAKE ${PACKAGE_CMAKE_FILES})\n";
@@ -727,7 +727,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    PACKAGE_OUTDIRS \"${GENERATED_DIR}\"\n";
     file << "    GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "    INCLUDE_DIRS ${_RC_INCS}\n";
-    file << "    DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565\" \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n\n";
+    file << "    DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n\n";
 
     // Game sources
     file << "# Game component sources\n";

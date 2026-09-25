@@ -25,7 +25,7 @@ class EditorApp;
 int CmdBuildAssets(EditorApp& editor);
 
 /// Export built assets to storage/ via the editor's AssetExporter.
-int CmdExportAssets(EditorApp& editor);
+int CmdExportAssets(EditorApp& editor, const char* platformId);
 
 /// Report on the build the project open performed.
 int CmdBuildCode(EditorApp& editor);

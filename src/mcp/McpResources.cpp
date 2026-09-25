@@ -165,7 +165,6 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
             { "designHeight", display ? display->designHeight : 0.0f },
             { "designWidthPx", DesignWidthPx() },
             { "designHeightPx", DesignHeightPx() },
-            { "colorFormat", display ? static_cast<int>(display->colorFormat) : 0 },
             { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
             { "startupScene", project->GetStartupScene() }
         };

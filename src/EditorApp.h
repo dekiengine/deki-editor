@@ -145,8 +145,14 @@ public:
     std::string ResolveProjectPath(const std::string& path) const;
     void EnsurePlatformSetup();
 
-    // Export all assets from cache/ to storage/ for runtime
+    // Export all assets from cache/ to storage/ for runtime, stored as the
+    // active platform wants them
     bool ExportToStorage();
+
+    // Point the asset cache at the project's active platform: images set to
+    // Automatic are stored as that target's screen wants them. Call after the
+    // active platform changes; with `reimport`, re-imports what that changed.
+    void ApplyEditorTarget(bool reimport = true);
 
     // Propagate changes to all scenes that contain instances of the given scene
     void PropagateInstanceChanges(const std::string& changedSceneGuid);

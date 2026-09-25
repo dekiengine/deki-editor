@@ -7,6 +7,18 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **Images are stored for the screen they are shown on.** A texture's Format
+  is Automatic by default (RGB565 or RGB565A8 on an RGB565 target, RGB888 or
+  RGBA8888 on a full-colour one), can be fixed for every target, and can be
+  set per target under **Per target** in the texture inspector
+  (`settings.texture.targets`). The export stores each image as its target
+  wants it; `--export --platform <id>` exports for a target other than the
+  active one. The editor's cache follows the active platform. 3D models take
+  the same settings. See [docs/screens.md](docs/screens.md).
+  - Packages add an asset type's per-target encoding with
+    `AssetPipeline::RegisterExportEncoder`, next to their cache handler.
+  - The Play view has a pixel-format dropdown next to its screen picker; play
+    renders in it. `--render-scenes` takes `DEKI_RENDER_FORMAT`.
 - **One project, any screen.** The project sets a design area, how much world
   the player sees in meters, and each target renders at its own resolution.
   Project Settings > Framebuffer holds it with two more settings: **Screen
@@ -60,6 +72,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they overwrite or delete a person's work.
 
 ### Changed
+- **No project-wide colour format.** The framebuffer takes the display's
+  format; the Framebuffer settings' `colorFormat` is gone and `dproject.bin`
+  no longer carries one. A platform's `colorFormat` is its screen's, which
+  Automatic images are stored in.
+- Frame capture (F9), `--render-scenes` PPMs and the editor display handle
+  every framebuffer format; ARGB8888 frames were shown with red and blue
+  swapped.
 - **Project Settings > Framebuffer is the design area.** `targetWidth` and
   `targetHeight` (pixels) became `designWidth` and `designHeight` (meters). A
   project converts on open at its pixels per meter, so 1280 x 720 at 16 px/m
@@ -153,6 +172,7 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- A texture set to RGB888 failed to import: the writer had no RGB888 case.
 - **A component renamed or moved to another package was stripped from builds**
   while scenes still used it. The usage scan counted the name the scene was
   saved with; the scene loaded as the new component through

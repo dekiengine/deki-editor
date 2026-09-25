@@ -245,6 +245,8 @@ void EditorApp::InitPlayMode()
     // Create EditorDisplay directly (same pattern as Deki::Engine::Initialize editor path)
     // Memory, filesystem, logging, and timing are already initialized by OpenProject/editor startup
     s_EditorDisplay = std::make_unique<Deki::EditorDisplay>();
+    // ... in the previewed screen's pixel format, which SetDisplay gives the framebuffer.
+    s_EditorDisplay->SetColorFormat(DekiEditor::SceneView::Get().GetPreviewFormat());
     if (!s_EditorDisplay->Initialize(m_Play.width, m_Play.height))
     {
         DEKI_LOG_ERROR("Failed to initialize EditorDisplay");
@@ -256,7 +258,8 @@ void EditorApp::InitPlayMode()
     // SetDisplay sized the engine's framebuffer to the display, as on a device.
     Deki::IRenderSystem* renderSystem = Deki::Engine::GetInstance().GetRenderSystem();
     if (!renderSystem || renderSystem->GetScreenWidth() != m_Play.width ||
-        renderSystem->GetScreenHeight() != m_Play.height)
+        renderSystem->GetScreenHeight() != m_Play.height ||
+        renderSystem->GetColorFormat() != s_EditorDisplay->GetColorFormat())
     {
         DEKI_LOG_ERROR("Play mode could not get a %dx%d framebuffer", m_Play.width, m_Play.height);
         Deki::Engine::GetInstance().SetDisplay(nullptr, "");
@@ -835,7 +838,8 @@ void EditorApp::RenderPlayMode()
         m_FrameCaptureService->CaptureFrame(
             m_Play.renderSystem->GetFrameBuffer(),
             m_Play.width,
-            m_Play.height);
+            m_Play.height,
+            m_Play.renderSystem->GetColorFormat());
     }
 
     // Present the frame buffer through DekiDisplayBackend (editor-only: GL texture upload)
@@ -844,7 +848,7 @@ void EditorApp::RenderPlayMode()
         if (Deki::Engine::GetInstance().GetDisplay())
         {
             // Partial upload of the changed rectangles when dirty tracking is
-            // on, the whole RGB565 frame otherwise (same path as the device).
+            // on, the whole frame otherwise (same path as the device).
             Deki::Engine::GetInstance().PresentFrame();
             m_Play.ready = true;  // First frame rendered, safe to show play mode texture
         }

@@ -6,6 +6,7 @@
 #include "core/Project.h"
 #include <deki-editor/SceneView.h>
 #include <deki-editor/build/PlatformConfig.h>
+#include <deki-editor/TextureFormatResolve.h>
 #include "scene_view/EditModeRenderer.h"
 #include "services/FrameCaptureService.h"
 #include <deki/Scene.h>
@@ -170,6 +171,8 @@ void PlayViewPanel::Draw()
         }
 
         DrawPreviewPicker(cursorX, rowMin, rowH, dpi);
+        drawDivider(cursorX);
+        DrawFormatPicker(cursorX, rowMin, rowH, dpi);
         drawDivider(cursorX);
 
         // Right-aligned mono fps readout (editor + game). Game fps is sampled
@@ -418,8 +421,23 @@ void PlayViewPanel::Draw()
     ImGui::End();
 }
 
+void PlayViewPanel::SelectPreview(const std::string& id)
+{
+    m_PreviewId = id;
+    // A platform's own format; full colour for the design size or a custom one.
+    m_PreviewFormat = Deki::ColorFormat::ARGB8888;
+    if (!id.empty() && id != "custom")
+    {
+        const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(id);
+        Deki::ColorFormat f;
+        if (platform && ParseColorFormat(platform->colorFormat, f))
+            m_PreviewFormat = f;
+    }
+}
+
 void PlayViewPanel::ApplyPreviewSize()
 {
+    SceneView::Get().SetPreviewFormat(m_PreviewFormat);
     if (m_PreviewId.empty())
     {
         SceneView::Get().SetPreviewSize(0, 0);  // follows the design size
@@ -435,7 +453,7 @@ void PlayViewPanel::ApplyPreviewSize()
     {
         // The platform went away (another project, a removed package): the
         // picker goes back to the design size and says so.
-        m_PreviewId.clear();
+        SelectPreview(std::string());
         SceneView::Get().SetPreviewSize(0, 0);
         return;
     }
@@ -491,7 +509,7 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
     char item[192];
     snprintf(item, sizeof(item), "Design size  %dx%d", dw, dh);
     if (ImGui::Selectable(item, m_PreviewId.empty()))
-        m_PreviewId.clear();
+        SelectPreview(std::string());
 
     ImGui::Separator();
     for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
@@ -501,12 +519,13 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
             continue;
         snprintf(item, sizeof(item), "%s  %dx%d##%s", name.c_str(), p->screenWidth, p->screenHeight, id.c_str());
         if (ImGui::Selectable(item, m_PreviewId == id))
-            m_PreviewId = id;
+            SelectPreview(id);
     }
 
     ImGui::Separator();
-    if (ImGui::Selectable("Custom size", m_PreviewId == "custom", ImGuiSelectableFlags_NoAutoClosePopups))
-        m_PreviewId = "custom";
+    if (ImGui::Selectable("Custom size", m_PreviewId == "custom", ImGuiSelectableFlags_NoAutoClosePopups) &&
+        m_PreviewId != "custom")
+        SelectPreview("custom");
     if (m_PreviewId == "custom")
     {
         ImGui::SetNextItemWidth(120.0f * dpi);
@@ -515,6 +534,46 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
         ImGui::InputInt("Height##customh", &m_CustomHeight);
         m_CustomWidth = std::clamp(m_CustomWidth, 1, 8192);
         m_CustomHeight = std::clamp(m_CustomHeight, 1, 8192);
+    }
+    ImGui::EndPopup();
+}
+
+// Toolbar cell naming the previewed screen's pixel format, next to its size.
+// Picking a size selects that screen's format; this changes it. Play renders
+// in it, so it is locked while playing.
+void PlayViewPanel::DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
+{
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImU32 colText = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
+    const ImU32 colHoverBg = IM_COL32(255, 255, 255, 6);
+
+    const char* label = ColorFormatName(m_PreviewFormat);
+    const ImVec2 textSz = ImGui::CalcTextSize(label);
+    const float cellW = textSz.x + 22.0f * dpi;
+    ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
+    const bool locked = !m_App->IsStopped();
+    ImGui::BeginDisabled(locked);
+    const bool clicked = ImGui::InvisibleButton("##previewformat", ImVec2(cellW, rowH));
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        DekiEditor::Tooltip(locked ? "The pixel format is fixed while playing"
+                                   : "Pixel format of the previewed screen. Play renders in it.");
+        dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + cellW, rowMin.y + rowH), colHoverBg);
+    }
+    dl->AddText(ImVec2(cursorX + 11.0f * dpi, rowMin.y + (rowH - textSz.y) * 0.5f), colText, label);
+    if (clicked)
+        ImGui::OpenPopup("##previewformats");
+    ImGui::SetNextWindowPos(ImVec2(cursorX, rowMin.y + rowH));
+    cursorX += cellW;
+
+    if (!ImGui::BeginPopup("##previewformats"))
+        return;
+    for (Deki::ColorFormat f : { Deki::ColorFormat::RGB565, Deki::ColorFormat::RGB565A8, Deki::ColorFormat::RGB888,
+                                 Deki::ColorFormat::ARGB8888 })
+    {
+        if (ImGui::Selectable(ColorFormatName(f), m_PreviewFormat == f))
+            m_PreviewFormat = f;
     }
     ImGui::EndPopup();
 }

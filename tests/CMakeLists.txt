@@ -66,6 +66,7 @@ set(TEST_SOURCES
     core/AssetDataTests.cpp
     core/RenamedPropertyTests.cpp
     core/SceneMigrationTests.cpp
+    core/TextureFormatResolveTests.cpp
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
     core/RenamedComponentRefTests.cpp
@@ -320,7 +321,6 @@ function(deki_add_package_tests pkg_id)
             INCLUDE_DIRS "${DEKI_ENGINE_PATH}/include" "${DEKI_ENGINE_PATH}/third_party"
                          "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}"
             DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
-                    "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
                     "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
         file(GLOB _all_srcs CONFIGURE_DEPENDS "${_pkg}/*.cpp")
         list(APPEND _srcs ${_all_srcs})
@@ -376,11 +376,12 @@ deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEED
 # ParticlePool is a header, so the tests compile alone against the engine.
 deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
 
-# deki-3d is deliberately absent. Its tests/ holds two standalone programs
-# with their own main() -- MeshRoundTrip.cpp, and Raster3DBench.cpp which is a
-# benchmark rather than a test -- built by hand from the g++ line in their
-# header comments. They are wired into no target, so they have never run here;
-# turning MeshRoundTrip into gtest cases is worth doing and is its own job.
+# deki-3d: the rasteriser and the mesh file, every texture and framebuffer
+# format. tests/standalone/ holds two programs with their own main()
+# (MeshRoundTrip, and the Raster3DBench benchmark), built by hand from the g++
+# line in their header comments.
+deki_add_package_tests(deki-3d TARGET Deki3DTests
+    SOURCES Raster3D.cpp MeshAsset.cpp editor/ObjImporter.cpp)
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
 deki_add_package_tests(deki-imu TARGET DekiImuTests)
@@ -498,7 +499,6 @@ function(deki_add_package_compile_check pkg_id)
                      "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}"
                      ${DEKI_PKG_INCLUDE_ROOTS}
         DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
-                "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
 
     file(GLOB _gen_srcs CONFIGURE_DEPENDS "${_gen}/generated/*.cpp")
@@ -520,7 +520,6 @@ function(deki_add_package_compile_check pkg_id)
         "DEKI_PACKAGE_VERSION=\"pkgcheck\""
         ${_pkg_defines}
         "DEKI_${PACKAGE_UPPER}_EXPORTS"
-        "DEKI_DEFAULT_COLOR_FORMAT=DekiColorFormat::RGB565"
         "DEKI_ENABLE_TRANSPARENCY=true"
     )
     target_compile_options(pkgcheck_${_sfx} PRIVATE -Wno-invalid-offsetof)

@@ -45,9 +45,9 @@ void FrameCaptureService::StopCapture()
                                 m_FrameNumber, m_OutputDir.c_str());
 }
 
-void FrameCaptureService::CaptureFrame(const uint8_t* rgb565Data, int width, int height)
+void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, int height, Deki::ColorFormat format)
 {
-    if (!m_IsCapturing || !rgb565Data)
+    if (!m_IsCapturing || !framebuffer)
     {
         return;
     }
@@ -59,24 +59,34 @@ void FrameCaptureService::CaptureFrame(const uint8_t* rgb565Data, int width, int
         m_RgbaBuffer.resize(rgbaSize);
     }
 
-    // Convert RGB565 to RGBA
-    const uint16_t* src = reinterpret_cast<const uint16_t*>(rgb565Data);
+    // To RGBA, from whichever format the framebuffer is in. RGB565 and
+    // RGB565A8 carry the colour as a little-endian 565 word; ARGB8888 is a
+    // 0xAARRGGBB word, so B, G, R, A in memory.
+    const size_t bpp = Deki::FrameBufferBytes(format, 1, 1);
     uint8_t* dst = m_RgbaBuffer.data();
-
     for (int i = 0; i < width * height; i++)
     {
-        uint16_t pixel = src[i];
-
-        // RGB565: RRRRRGGGGGGBBBBB
-        // Extract and scale to 8-bit
-        uint8_t r = ((pixel >> 11) & 0x1F) << 3;  // 5 bits -> 8 bits
-        uint8_t g = ((pixel >> 5) & 0x3F) << 2;   // 6 bits -> 8 bits
-        uint8_t b = (pixel & 0x1F) << 3;          // 5 bits -> 8 bits
-
+        const uint8_t* p = framebuffer + static_cast<size_t>(i) * bpp;
+        uint8_t r, g, b;
+        if (format == Deki::ColorFormat::RGB888)
+        {
+            r = p[0]; g = p[1]; b = p[2];
+        }
+        else if (format == Deki::ColorFormat::ARGB8888)
+        {
+            r = p[2]; g = p[1]; b = p[0];
+        }
+        else  // RGB565, RGB565A8
+        {
+            const uint16_t pixel = static_cast<uint16_t>(p[0] | (p[1] << 8));
+            r = ((pixel >> 11) & 0x1F) << 3;
+            g = ((pixel >> 5) & 0x3F) << 2;
+            b = (pixel & 0x1F) << 3;
+        }
         dst[i * 4 + 0] = r;
         dst[i * 4 + 1] = g;
         dst[i * 4 + 2] = b;
-        dst[i * 4 + 3] = 255;  // Alpha
+        dst[i * 4 + 3] = 255;
     }
 
     // Generate filename: frame_00000.png

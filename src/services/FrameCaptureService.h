@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki/Engine.h>  // Deki::ColorFormat
+
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -28,7 +30,7 @@ public:
 
     // Capture a single frame from RGB565 data
     // Converts to RGBA and writes as PNG
-    void CaptureFrame(const uint8_t* rgb565Data, int width, int height);
+    void CaptureFrame(const uint8_t* framebuffer, int width, int height, Deki::ColorFormat format);
 
 private:
     bool m_IsCapturing = false;

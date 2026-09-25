@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include <memory>
 #include <string>
+#include <deki/Engine.h>  // Deki::ColorFormat
 
 class CameraComponent;
 
@@ -49,6 +50,12 @@ private:
     std::string m_PreviewId;
     int m_CustomWidth = 320;
     int m_CustomHeight = 240;
+
+    // Previewed screen format: a platform's own when one is picked, full
+    // colour for the design size or a custom size; the dropdown changes it.
+    Deki::ColorFormat m_PreviewFormat = Deki::ColorFormat::ARGB8888;
+    void DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
+    void SelectPreview(const std::string& id);
 
     void DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
     void ApplyPreviewSize();
