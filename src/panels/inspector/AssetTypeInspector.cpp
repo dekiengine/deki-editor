@@ -281,39 +281,29 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
     Project* proj = m_App->GetProject();
     bool isForceIncluded = proj && proj->IsForceIncluded(assetGuid);
 
-    // Referenced status. Palette colors, not hand-mixed greens and grays: green
-    // means "in the build" here for the same reason it does everywhere else.
-    InspectorUtils::BeginPropertyRow("Referenced");
-    ImGui::AlignTextToFramePadding();
-    if (isScene)
-        ImGui::TextColored(Palette::Green, "Always included");
-    else if (isUsed)
-        ImGui::TextColored(Palette::Green, "Yes");
-    else
-        ImGui::TextColored(Palette::Dim, "No");
-
-    // Force Include (not needed for scenes - they're always included). A row
-    // with its label in the left column and the box in the value column, like
-    // every other boolean in the inspector, instead of a labeled checkbox that
-    // starts wherever its text happens to end.
-    if (!isScene)
+    // One row: is it in the builds. Scenes always are, and so is anything a
+    // scene uses (ticked and locked, saying why); anything else ships only
+    // when ticked here (force include).
+    InspectorUtils::SetNextRowTooltip(isScene  ? "Every scene ships"
+                                      : isUsed ? "A scene uses it, so it ships"
+                                               : "Ship it even though no scene uses it");
+    InspectorUtils::BeginPropertyRow("Included in builds");
+    if (isScene || isUsed)
     {
-        if (isUsed) ImGui::BeginDisabled();
-        InspectorUtils::SetNextRowTooltip(
-            isUsed ? "Already referenced by a scene, so it ships either way"
-                   : "Ship this asset even though nothing references it");
-        InspectorUtils::BeginPropertyRow("Force Include");
-        if (DekiEditor::SchematicCheckbox("##ForceInclude", &isForceIncluded))
-        {
-            if (proj)
-            {
-                if (isForceIncluded)
-                    proj->AddForceIncludeGuid(assetGuid);
-                else
-                    proj->RemoveForceIncludeGuid(assetGuid);
-            }
-        }
-        if (isUsed) ImGui::EndDisabled();
+        bool included = true;
+        ImGui::BeginDisabled();
+        DekiEditor::SchematicCheckbox("##Included", &included);
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(Palette::Dim, isScene ? "scene" : "used by a scene");
+    }
+    else if (DekiEditor::SchematicCheckbox("##Included", &isForceIncluded) && proj)
+    {
+        if (isForceIncluded)
+            proj->AddForceIncludeGuid(assetGuid);
+        else
+            proj->RemoveForceIncludeGuid(assetGuid);
     }
 
     // Target selector
@@ -382,12 +372,6 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
                 }
             }
         }
-    }
-    else
-    {
-        InspectorUtils::BeginPropertyRow("Target");
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(Palette::Dim, "Not included in deploy");
     }
 
     DekiEditor::SchematicSectionEnd();

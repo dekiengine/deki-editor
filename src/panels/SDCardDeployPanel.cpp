@@ -112,16 +112,13 @@ void SDCardDeployPanel::Draw()
             ClearOutput();
             AddOutputLine("Deploying assets to SD card: " + m_SelectedDrivePath);
 
-            // Get force-included GUIDs from project
-            std::unordered_set<std::string> additionalGuids = m_App->GetProject()->GetForceIncludeGuids();
-
             AssetExporter exporter(m_App->GetProject(), m_App->GetAssetPipeline());
             // Stored as the active platform wants its assets.
             AssetExportTarget target;
             const std::string platformId = m_App->GetProject()->GetActivePlatformId();
             if (!platformId.empty() && ExportTargetForPlatform(platformId, target))
                 exporter.SetTarget(target);
-            bool exportOk = exporter.ExportToStorage(additionalGuids);
+            bool exportOk = exporter.ExportToStorage();
 
             if (exportOk)
             {

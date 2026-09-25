@@ -81,8 +81,8 @@ class AssetExporter
 public:
     AssetExporter(Project* project, AssetPipeline* pipeline, PackageLoader* packageLoader = nullptr);
 
-    // Export all assets to storage directory
-    // Returns true on success
+    // Export what the scenes use, plus the project's force-included assets,
+    // to the storage directory. Returns true on success
     bool ExportToStorage();
 
     // Export what a target needs before it can load anything else: the
@@ -91,9 +91,6 @@ public:
     // (ITargetBuilder::GetBootPayloadDirectory); cleared first.
     // bootSceneAssetPath: relative asset path for boot scene (e.g., "boot.scene"), empty to skip
     bool ExportBootPayload(const std::string& payloadDir, const std::string& bootSceneAssetPath);
-
-    // Export assets to storage with additional force-included GUIDs
-    bool ExportToStorage(const std::unordered_set<std::string>& additionalGuids);
 
     // What the target platform offers, so a scene's objects that ask for
     // something it has not got are left out of this target's build

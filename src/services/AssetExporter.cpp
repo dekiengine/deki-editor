@@ -157,11 +157,6 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
 
 bool AssetExporter::ExportToStorage()
 {
-    return ExportToStorage(std::unordered_set<std::string>{});
-}
-
-bool AssetExporter::ExportToStorage(const std::unordered_set<std::string>& additionalGuids)
-{
     namespace fs = std::filesystem;
 
     if (!m_Project)
@@ -230,8 +225,10 @@ bool AssetExporter::ExportToStorage(const std::unordered_set<std::string>& addit
     DEKI_LOG_INFO("Scanning scenes for used assets...");
     AssetUsageCollection usedAssets = CollectUsedAssets();
 
-    // Step 1.5: Merge in additional force-included GUIDs
-    for (const auto& guid : additionalGuids)
+    // Step 1.5: Merge in the force-included assets. Every build ships them,
+    // not only an SD card copy.
+    const std::unordered_set<std::string>& forceIncluded = m_Project->GetForceIncludeGuids();
+    for (const auto& guid : forceIncluded)
     {
         usedAssets.usedGuids.insert(guid);
     }
@@ -240,7 +237,7 @@ bool AssetExporter::ExportToStorage(const std::unordered_set<std::string>& addit
     AddAssetDependencies(usedAssets);
 
     DEKI_LOG_INFO("Found %zu used assets (%zu force-included), %zu font usages",
-                  usedAssets.usedGuids.size(), additionalGuids.size(), usedAssets.fontUsages.size());
+                  usedAssets.usedGuids.size(), forceIncluded.size(), usedAssets.fontUsages.size());
 
     // Step 2: Ensure fonts are baked in cache
     // (Fonts should already be cached via FontSyncHandler, but verify)

@@ -77,6 +77,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they overwrite or delete a person's work.
 
 ### Changed
+- Deploy's **Referenced** and **Force Include** rows are one row, **Included
+  in builds**: ticked and locked when a scene uses the asset, a checkbox
+  otherwise.
 - The asset inspector's heading is the asset's name as a title, set like an
   object's: `dirt_a.png` reads **Dirt A**.
 - **No project-wide colour format.** The framebuffer takes the display's
@@ -179,6 +182,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- Force-included assets now ship in every export (`--export`, the
+  simulator, Tactility), not only in an SD card deploy.
 - A texture set to RGB888 failed to import: the writer had no RGB888 case.
 - **A component renamed or moved to another package was stripped from builds**
   while scenes still used it. The usage scan counted the name the scene was
