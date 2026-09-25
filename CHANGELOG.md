@@ -77,6 +77,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   they overwrite or delete a person's work.
 
 ### Changed
+- The asset inspector's heading is the asset's name as a title, set like an
+  object's: `dirt_a.png` reads **Dirt A**.
 - **No project-wide colour format.** The framebuffer takes the display's
   format; the Framebuffer settings' `colorFormat` is gone and `dproject.bin`
   no longer carries one. A platform's `colorFormat` is its screen's, which

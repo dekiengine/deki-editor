@@ -22,7 +22,8 @@ namespace DekiEditor
 namespace EditorNaming
 {
 // Convert camelCase/PascalCase/snake_case to "Title Case"
-// e.g., "topColor" -> "Top Color", "scroll_speed" -> "Scroll Speed"
+// e.g., "topColor" -> "Top Color", "scroll_speed" -> "Scroll Speed",
+// "dirt-a" -> "Dirt A"
 DEKI_EDITOR_API std::string NicifyName(const char* name);
 
 // Get display name for a property (uses displayName if set, otherwise nicifies name).

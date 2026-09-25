@@ -22,8 +22,9 @@ std::string NicifyName(const char* name)
     {
         char c = name[i];
 
-        // Skip underscores but capitalize the next letter
-        if (c == '_')
+        // Separators (underscores, and the dashes and spaces of file names)
+        // become one space, and the next letter is capitalized
+        if (c == '_' || c == '-' || c == ' ')
         {
             if (!result.empty() && result.back() != ' ')
             {

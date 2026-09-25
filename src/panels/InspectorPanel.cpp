@@ -218,20 +218,28 @@ void InspectorPanel::Draw()
     bool isBakedCacheAsset = selectedAsset.empty() && m_App->GetSelectedAssetHasCached() && !m_App->GetSelectedAssetCachePath().empty();
     bool hasAssetSelection = !selectedAsset.empty() || isBakedCacheAsset;
 
-    // Asset header: filename (bold). Pin/lock now lives in the under-tab toolbar.
+    // Asset header: the file name as a title ("dirt_a.png" reads "Dirt A"),
+    // set like the object heading below. Pin/lock lives in the under-tab toolbar.
     if (hasAssetSelection)
     {
-        std::string headerName = isBakedCacheAsset
-                                     ? m_App->GetSelectedAssetGuid()
-                                     : std::filesystem::path(selectedAsset).filename().string();
-        if (g_FontUIMed) ImGui::PushFont(g_FontUIMed);
+        const std::string headerName = isBakedCacheAsset
+                                           ? m_App->GetSelectedAssetGuid()
+                                           : InspectorUtils::NicifyName(
+                                                 std::filesystem::path(selectedAsset).stem().string().c_str());
+        const float pathLeftPad = m_App->Dpi(16.0f);
+        ImGui::Unindent(bodyIndent - pathLeftPad);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // top padding
+        ImFont* display = g_DisplayFont;
+        if (display) ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
         ImGui::TextUnformatted(headerName.c_str());
-        if (g_FontUIMed) ImGui::PopFont();
-    }
-
-    if (hasAssetSelection)
-    {
-        ImGui::Separator();
+        ImGui::PopStyleColor();
+        if (display) ImGui::PopFont();
+        ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // bottom padding
+        ImGui::PopStyleVar();
+        DekiEditor::FullBleedSeparator();
+        ImGui::Indent(bodyIndent - pathLeftPad);
     }
 
     if (hasAssetSelection)
