@@ -170,13 +170,11 @@ void TextureInspector::DrawPreview()
 
 void TextureInspector::BeginScrollRegion()
 {
-    // Negative height reserves space at the bottom for the cache status bar.
     // Start the scroll child at the panel's left edge (cancel the inspector
     // body indent) so the section headers full-bleed like the component
     // windows; the indent is re-applied inside for the content.
-    float reservedHeight = GetCacheStatusBarHeight();
     ImGui::SetCursorPosX(0.0f);
-    ImGui::BeginChild("TextureInspectorScroll", ImVec2(0, -reservedHeight), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild("TextureInspectorScroll", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
     ImGui::Indent(m_App->Dpi(Metrics::InspectorIndent));
 }
 
@@ -444,97 +442,6 @@ void TextureInspector::DrawSettings()
             }
         }
         DekiEditor::SchematicSectionEnd();
-    }
-}
-
-float TextureInspector::GetCacheStatusBarHeight()
-{
-    return ImGui::GetTextLineHeight() + 4.0f;
-}
-
-void TextureInspector::DrawCacheStatus(int overrideCached)
-{
-    bool hasCached = (overrideCached >= 0) ? (overrideCached != 0) : m_App->GetSelectedAssetHasCached();
-    float barHeight = GetCacheStatusBarHeight();
-    float padding = 8.0f;
-
-    ImVec2 windowPos = ImGui::GetWindowPos();
-    ImVec2 windowSize = ImGui::GetWindowSize();
-    ImVec2 barMin(windowPos.x, windowPos.y + windowSize.y - barHeight);
-    ImVec2 barMax(windowPos.x + windowSize.x, windowPos.y + windowSize.y);
-
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-    // Background + hairline, from the palette (this is the same strip the
-    // activity status bar draws, and it should read as the same chrome).
-    drawList->AddRectFilled(barMin, barMax,
-                            ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Panel));
-    drawList->AddLine(barMin, ImVec2(barMax.x, barMin.y),
-                      ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Line2));
-
-    // Centered text
-    float textY = barMin.y + (barHeight - ImGui::GetTextLineHeight()) * 0.5f;
-    float cursorX = barMin.x + padding;
-
-    const char* label = hasCached ? ICON_TI_CIRCLE_CHECK " Cache" : ICON_TI_CIRCLE_X " Cache";
-    ImU32 color = ImGui::ColorConvertFloat4ToU32(hasCached ? DekiEditor::Palette::Green
-                                                           : DekiEditor::Palette::Red);
-    drawList->AddText(ImVec2(cursorX, textY), color, label);
-}
-
-void TextureInspector::DrawCacheStatusBar()
-{
-    const std::string& cachePath = m_App->GetSelectedAssetCachePath();
-    bool hasCached = m_App->GetSelectedAssetHasCached();
-
-    namespace fs = std::filesystem;
-
-    ImGui::Spacing();
-    ImGui::Separator();
-
-    if (!hasCached || cachePath.empty())
-    {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Cache: not built");
-        return;
-    }
-
-    // Cache info line
-    uintmax_t fileSize = 0;
-    try
-    {
-        if (fs::exists(cachePath)) fileSize = fs::file_size(cachePath);
-    }
-    catch (...)
-    { /* a size probe; the fileSize > 0 check below covers a failure */
-    }
-
-    if (fileSize > 0)
-    {
-        if (fileSize < 1024)
-            ImGui::Text("Cache: %llu B", (unsigned long long)fileSize);
-        else
-            ImGui::Text("Cache: %.1f KB", fileSize / 1024.0f);
-    }
-    else
-    {
-        ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Cached");
-    }
-
-    // Small thumbnail preview
-    UpdatePreviewTexture(cachePath);
-    if (m_PreviewTextureId != 0)
-    {
-        // Scale to fit in a small area (max 64px height)
-        float maxH = 64.0f;
-        float scale = maxH / static_cast<float>(m_PreviewHeight);
-        if (scale > 1.0f) scale = 1.0f;
-        float displayW = m_PreviewWidth * scale;
-        float displayH = m_PreviewHeight * scale;
-
-        ImGui::Image((ImTextureID)(intptr_t)m_PreviewTextureId,
-                     ImVec2(displayW, displayH));
-        ImGui::SameLine();
-        ImGui::TextDisabled("%d x %d", m_PreviewWidth, m_PreviewHeight);
     }
 }
 

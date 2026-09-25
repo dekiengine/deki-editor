@@ -102,7 +102,6 @@ void AssetTypeInspector::Draw()
             DrawDeployProperties(assetGuid);
 
         m_TextureInspector->EndScrollRegion();
-        m_TextureInspector->DrawCacheStatus();
     }
     else
     {
@@ -125,17 +124,6 @@ void AssetTypeInspector::Draw()
             DrawDeployProperties(assetGuid);
         }
 
-        // Check if file inspector overrides cache status (e.g., BDF variant caching)
-        int cacheOverride = -1;
-        {
-            auto* fi = FileInspectorRegistry::Instance().GetInspector(ext);
-            if (fi && fi->OverridesCacheStatus())
-                cacheOverride = fi->IsCached(assetGuid) ? 1 : 0;
-        }
-
-        bool showCacheBar = (cacheOverride >= 0) ? true : m_App->GetSelectedAssetHasCached();
-        if (showCacheBar)
-            m_TextureInspector->DrawCacheStatus(cacheOverride);
     }
 }
 

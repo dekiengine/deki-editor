@@ -19,13 +19,10 @@ public:
     void DrawPreview();                             // Anchored texture preview (always visible)
     void BeginScrollRegion();                       // Opens scrollable child region
     void DrawSettings();                            // Settings section (format dropdown + spritesheet button)
-    void DrawCacheStatus(int overrideCached = -1);  // Cache status indicator (-1 = use default, 0/1 = override)
-    static float GetCacheStatusBarHeight();
     void EndScrollRegion();  // Closes scrollable child region
 
     // Draw a compact cache status bar at the bottom of any inspector
     // Shows: cached status, file size, small thumbnail
-    void DrawCacheStatusBar();
 
     // Invalidate preview (call when asset is recompiled)
     void InvalidatePreview() { m_PreviewTexturePath.clear(); }
