@@ -78,13 +78,14 @@ colour on a desktop. Two things follow it.
   (the texture inspector) is **Automatic** by default: RGB565 on an RGB565
   target, or RGB565A8 when the image has transparency; RGB888, or RGBA8888 with
   transparency, on a full-colour target. The texture inspector's **Targets**
-  table sets it: the **Default** row holds the Format for every target, and
-  each target's row shows the format it stores (dimmed when it comes from
-  Default) and how much memory the image takes there. Pick a format in a
-  target's row to override it; a dot marks the override, and **Default (...)**
-  at the top of its list goes back. The export stores each image as the target
-  it is for wants it.
-- **Max Size**, the table's next column, works like Unity's: an image whose
+  section sets it, two lines per target so a narrow inspector cuts nothing:
+  the name, with the memory the image takes there on the right, then its
+  Format and Max Size. The **Default** block holds both for every target; a
+  target's block shows what it stores (dimmed when it comes from Default).
+  Pick a value in a target's block to override it; a dot marks the override,
+  and **Default (...)** at the top of the list goes back. The export stores
+  each image as the target it is for wants it.
+- **Max Size**, next to the Format, works like Unity's: an image whose
   larger side is over it is stored scaled so that side is exactly Max Size,
   e.g. a big background kept small on one board. **None** (the default) never
   shrinks. A shrunk sprite keeps its size in the world and its frames: they
