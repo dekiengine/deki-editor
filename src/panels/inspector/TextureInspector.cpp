@@ -369,10 +369,10 @@ void TextureInspector::DrawSettings()
         DrawTargets(writeTextureSettings);
 }
 
-// Two sections. Default holds what every target uses, as ordinary inspector
-// rows. Per Target is a stack of cards, one per target, each overriding any
-// of those values for itself: a card folds to its header, which with its
-// summary line says what the target stores without opening it. A value that
+// One Targets section, a stack of cards: Default first, holding what every
+// target uses, then one per target, each overriding any of those values for
+// itself. A card folds to its header, which with its summary line says what
+// it stores without opening it. A value that
 // follows Default is dimmed and says what that gives the target; a target
 // with an override has a dot. Each property is a row, so another one (a
 // compression setting, say) is another row, not a narrower control.
@@ -439,35 +439,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     static const char* (*maxLabel)(int) = [](int i) { return MaxSizeLabel(i); };
     char buf[96];
 
-    // ---- Default ----
     DekiEditor::FullBleedSeparator();
-    if (DekiEditor::SchematicSectionBegin("Default"))
-    {
-        InspectorUtils::SetNextRowTooltip("How every target stores the image, unless its card below overrides it. "
-                                          "Automatic uses each target's screen format.");
-        InspectorUtils::BeginPropertyRow("Format");
-        if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
-            write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
-
-        InspectorUtils::SetNextRowTooltip("An image whose larger side is over this is stored scaled down so that side "
-                                          "is exactly this. None never shrinks it.");
-        InspectorUtils::BeginPropertyRow("Max Size");
-        const char* items[kTextureMaxSizeCount];
-        for (int i = 0; i < kTextureMaxSizeCount; ++i)
-            items[i] = MaxSizeLabel(i);
-        if (DekiEditor::SchematicCombo("##MaxSize", &m_MaxSizeIndex, items, kTextureMaxSizeCount))
-            write([&](nlohmann::json& tex) {
-                if (m_MaxSizeIndex == 0)
-                    tex.erase("maxSize");
-                else
-                    tex["maxSize"] = kTextureMaxSizes[m_MaxSizeIndex];
-            });
-        DekiEditor::SchematicSectionEnd();
-    }
-
-    // ---- Per Target ----
-    DekiEditor::FullBleedSeparator();
-    if (!DekiEditor::SchematicSectionBegin("Per Target"))
+    if (!DekiEditor::SchematicSectionBegin("Targets"))
         return;
 
     const float dpi = m_App->Dpi(1.0f);
@@ -540,8 +513,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         }
         else
         {
-            // Controls line up with the Default section's, one value column
-            // down the inspector (never closer than a label's width).
+            // Controls line up with the inspector's value column (the other
+            // sections' controls), never closer than a label's width.
             const float sectionLabelX = InspectorUtils::SectionAlignedCursorX();
             const float columnX = ImGui::GetWindowPos().x + sectionLabelX + InspectorUtils::PropertyLabelWidth(sectionLabelX);
             const float valueX = std::max(labelX + 70.0f * dpi, columnX);
@@ -572,6 +545,36 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     };
 
     ImGui::Spacing();
+    {
+        const std::string summary = std::string(s_FormatNames[m_SelectedFormatIndex]) + "  \xC2\xB7  Max Size " +
+                                    MaxSizeLabel(m_MaxSizeIndex);
+        card("##default", false, "Default", false, "all targets", nullptr,
+             "What every target uses, unless its own card overrides it", summary, m_DefaultOpen,
+             [&](float labelX, float valueX, float valueW) {
+                 cardRow("Format", labelX, valueX);
+                 ImGui::SetNextItemWidth(valueW);
+                 if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
+                     write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
+                 if (ImGui::IsItemHovered())
+                     DekiEditor::Tooltip("Automatic stores the image in each target's screen format");
+
+                 cardRow("Max Size", labelX, valueX);
+                 const char* items[kTextureMaxSizeCount];
+                 for (int i = 0; i < kTextureMaxSizeCount; ++i)
+                     items[i] = MaxSizeLabel(i);
+                 ImGui::SetNextItemWidth(valueW);
+                 if (DekiEditor::SchematicCombo("##MaxSize", &m_MaxSizeIndex, items, kTextureMaxSizeCount))
+                     write([&](nlohmann::json& tex) {
+                         if (m_MaxSizeIndex == 0)
+                             tex.erase("maxSize");
+                         else
+                             tex["maxSize"] = kTextureMaxSizes[m_MaxSizeIndex];
+                     });
+                 if (ImGui::IsItemHovered())
+                     DekiEditor::Tooltip("An image whose larger side is over this is stored scaled down so that "
+                                         "side is exactly this. None never shrinks it.");
+             });
+    }
     for (const PlatformConfig* platform : targets)
     {
         const std::string name = platform->displayName.empty() ? platform->id : platform->displayName;

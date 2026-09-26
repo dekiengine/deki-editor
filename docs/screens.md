@@ -77,11 +77,11 @@ colour on a desktop. Two things follow it.
 - **Images are stored for the screen they will be shown on.** An image's Format
   (the texture inspector) is **Automatic** by default: RGB565 on an RGB565
   target, or RGB565A8 when the image has transparency; RGB888, or RGBA8888 with
-  transparency, on a full-colour target. The texture inspector sets it in two
-  sections: **Default** holds the Format (and Max Size) every target uses, and
-  **Per Target** has a card for each target, headed by its name and the memory
-  the image takes there. A folded card says what the target stores; open, it
-  shows the target's values (dimmed when they come from Default). Pick a value
+  transparency, on a full-colour target. The texture inspector's **Targets**
+  section sets it, as a stack of cards: **Default** first, with the Format (and
+  Max Size) every target uses, then one per target, headed by its name and the
+  memory the image takes there. A folded card says what it stores; open, it
+  shows its values (a target's are dimmed when they come from Default). Pick a value
   in a card to override it; a dot marks the override, and **Default (...)** at
   the top of the list goes back. The export stores each image as the target it
   is for wants it.
