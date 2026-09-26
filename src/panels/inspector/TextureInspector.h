@@ -21,8 +21,9 @@ public:
     void DrawPreview();                             // Anchored texture preview (always visible)
     void BeginScrollRegion();                       // Opens scrollable child region
     void DrawSettings();                            // Settings (chroma key, spritesheet button) and Targets
-    // Targets section: every target's stored format, Default first. `write`
-    // edits the image's settings.texture and reimports it.
+    // The Default and Per Target sections: the settings every target uses,
+    // then one card per target that can override them. `write` edits the
+    // image's settings.texture and reimports it.
     void DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write);
     void EndScrollRegion();  // Closes scrollable child region
 
@@ -51,6 +52,7 @@ private:
     std::map<std::string, int> m_TargetFormatIndex;  // platform id -> index; absent/0 = the asset's own
     int m_MaxSizeIndex = 0;                          // into kTextureMaxSizes; 0 = no limit
     std::map<std::string, int> m_TargetMaxIndex;     // platform id -> index; absent = the asset's own
+    std::map<std::string, bool> m_TargetOpen;         // platform id -> card unfolded (first seen: open if overridden)
     bool m_SourceHasAlpha = false;       // from the cached header, for showing what Automatic gives
     std::string m_LastFormatAssetPath;  // Detect asset selection changes
 

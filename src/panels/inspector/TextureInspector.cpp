@@ -369,18 +369,15 @@ void TextureInspector::DrawSettings()
         DrawTargets(writeTextureSettings);
 }
 
-// Every target at once, two lines each so a narrow inspector cuts nothing:
-// the name (with the memory the image takes there on the right), then its
-// Format and Max Size side by side. The Default block sets both for every
-// target and a target's block can override either; a value that follows
-// Default is dimmed and says what that gives the target, and a target with an
-// override is marked with a dot.
+// Two sections. Default holds what every target uses, as ordinary inspector
+// rows. Per Target is a stack of cards, one per target, each overriding any
+// of those values for itself: a card folds to its header, which with its
+// summary line says what the target stores without opening it. A value that
+// follows Default is dimmed and says what that gives the target; a target
+// with an override has a dot. Each property is a row, so another one (a
+// compression setting, say) is another row, not a narrower control.
 void TextureInspector::DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write)
 {
-    DekiEditor::FullBleedSeparator();
-    if (!DekiEditor::SchematicSectionBegin("Targets"))
-        return;
-
     const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
     const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
 
@@ -392,7 +389,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         auto it = m_TargetMaxIndex.find(id);
         return it == m_TargetMaxIndex.end() ? -1 : it->second;
     };
-    // A target's two values, written together as its entry.
+    // A target's values, written together as its entry.
     auto writeTarget = [&](const std::string& id) {
         TextureTargetSettings t;
         const int fi = targetFormatIndex(id);
@@ -403,39 +400,9 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
             t.maxSize = kTextureMaxSizes[mi];
         write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, t); });
     };
-    auto rightAligned = [](const char* text) {
-        const float w = ImGui::CalcTextSize(text).x;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - w));
-        ImGui::TextDisabled("%s", text);
-    };
-    // A target's name, after a fixed slot for the override dot so every name
-    // starts at the same x (the x of the other sections' labels), shortened
-    // with "..." when the column is narrower.
-    const float dotSlot = m_App->Dpi(12.0f);
-    auto nameCell = [&](bool dot, const std::string& text, bool dim, float avail) {
-        ImGui::AlignTextToFramePadding();
-        const float x = ImGui::GetCursorPosX();
-        if (dot)
-        {
-            ImGui::TextColored(Palette::Accent, "%s", ICON_TI_POINT_FILLED);
-            ImGui::SameLine();
-        }
-        ImGui::SetCursorPosX(x + dotSlot);
-        std::string shown = text;
-        if (ImGui::CalcTextSize(shown.c_str()).x > avail)
-        {
-            while (!shown.empty() && ImGui::CalcTextSize((shown + "...").c_str()).x > avail)
-                shown.pop_back();
-            shown += "...";
-        }
-        if (dim)
-            ImGui::TextDisabled("%s", shown.c_str());
-        else
-            ImGui::TextUnformatted(shown.c_str());
-    };
     // A dropdown whose closed box shows `preview` (dimmed when it comes from
-    // Default) and whose list starts with "Default (...)" (index -1 here).
-    // Returns true when `index` changed.
+    // Default) and whose list starts with "Default (...)" (index
+    // firstIndex - 1). Returns true when `index` changed.
     auto overrideCombo = [&](const char* id, float width, const char* preview, bool fromDefault,
                              const std::string& defaultLabel, const char* (*label)(int), int count, int firstIndex,
                              int& index) {
@@ -470,63 +437,21 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     };
     static const char* (*formatLabel)(int) = [](int i) { return s_FormatNames[i]; };
     static const char* (*maxLabel)(int) = [](int i) { return MaxSizeLabel(i); };
-    char buf[64];
+    char buf[96];
 
-    // Geometry: names start at the other sections' label x (after the dot
-    // slot), the controls line up under them, and everything ends where the
-    // other sections' rows end.
-    const float left = ImGui::GetCursorPosX();
-    const float right = left + ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::InspectorRightPad);
-    const float gap = m_App->Dpi(6.0f);
-    const float controlsX = left + dotSlot;
-    const float controlsW = std::max(m_App->Dpi(80.0f), right - controlsX);
-    const float formatW = std::floor((controlsW - gap) * 0.6f);
-    const float maxW = controlsW - gap - formatW;
-    const float maxX = controlsX + formatW + gap;
-    const float blockGap = m_App->Dpi(10.0f);
-    // A block's two lines sit close; the gap between blocks separates them.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, m_App->Dpi(4.0f)));
-
-    // First line of a block: the name, and `note` right-aligned at the end.
-    auto nameLine = [&](bool dot, const std::string& name, bool dim, const char* note, const char* noteTip) {
-        ImGui::SetCursorPosX(left);
-        const float noteW = note ? ImGui::CalcTextSize(note).x + gap : 0.0f;
-        const float lineY = ImGui::GetCursorPosY();
-        nameCell(dot, name, dim, right - noteW - (left + dotSlot));
-        const bool nameHovered = ImGui::IsItemHovered();
-        if (note)
-        {
-            ImGui::SetCursorPos(ImVec2(right - ImGui::CalcTextSize(note).x, lineY));
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("%s", note);
-            if (noteTip && ImGui::IsItemHovered())
-                DekiEditor::Tooltip(noteTip);
-        }
-        return nameHovered;
-    };
-
-    // The labels over the two controls, once.
+    // ---- Default ----
+    DekiEditor::FullBleedSeparator();
+    if (DekiEditor::SchematicSectionBegin("Default"))
     {
-        const float y = ImGui::GetCursorPosY();
-        ImGui::SetCursorPosX(controlsX);
-        ImGui::TextDisabled("Format");
-        ImGui::SetCursorPos(ImVec2(maxX, y));
-        ImGui::TextDisabled("Max Size");
-    }
+        InspectorUtils::SetNextRowTooltip("How every target stores the image, unless its card below overrides it. "
+                                          "Automatic uses each target's screen format.");
+        InspectorUtils::BeginPropertyRow("Format");
+        if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
+            write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
 
-    // Default
-    if (nameLine(false, "Default", false, nullptr, nullptr))
-        DekiEditor::Tooltip("What every target uses unless its own block overrides it. Automatic stores the image in "
-                            "each target's screen format; Max Size shrinks an image whose larger side is over it "
-                            "(None: never)");
-    ImGui::SetCursorPosX(controlsX);
-    ImGui::SetNextItemWidth(formatW);
-    if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
-        write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
-    ImGui::SameLine(0.0f, 0.0f);
-    ImGui::SetCursorPosX(maxX);
-    ImGui::SetNextItemWidth(maxW);
-    {
+        InspectorUtils::SetNextRowTooltip("An image whose larger side is over this is stored scaled down so that side "
+                                          "is exactly this. None never shrinks it.");
+        InspectorUtils::BeginPropertyRow("Max Size");
         const char* items[kTextureMaxSizeCount];
         for (int i = 0; i < kTextureMaxSizeCount; ++i)
             items[i] = MaxSizeLabel(i);
@@ -537,17 +462,124 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                 else
                     tex["maxSize"] = kTextureMaxSizes[m_MaxSizeIndex];
             });
+        DekiEditor::SchematicSectionEnd();
     }
 
+    // ---- Per Target ----
+    DekiEditor::FullBleedSeparator();
+    if (!DekiEditor::SchematicSectionBegin("Per Target"))
+        return;
+
+    const float dpi = m_App->Dpi(1.0f);
+    const float cardGap = 8.0f * dpi;
+    const float pad = 10.0f * dpi;
+    const float rounding = 3.0f * dpi;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    // One card. `body` draws its rows (only when open); returns whether the
+    // header was clicked.
+    auto card = [&](const char* id, bool dot, const std::string& name, bool dimName, const char* note,
+                    const char* noteTip, const char* nameTip, const std::string& summary, bool& open,
+                    const std::function<void(float labelX, float valueX, float valueW)>& body) {
+        ImGui::PushID(id);
+        const float left = ImGui::GetCursorScreenPos().x;
+        const float right = left + ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::InspectorRightPad);
+        const float innerL = left + pad, innerR = right - pad;
+        const ImVec2 top = ImGui::GetCursorScreenPos();
+
+        ImDrawListSplitter split;
+        split.Split(dl, 2);
+        split.SetCurrentChannel(dl, 1);
+
+        // Header: chevron, dot, name, and the note on the right. The whole
+        // header is the fold toggle.
+        const float headerH = ImGui::GetFrameHeight();
+        ImGui::SetCursorScreenPos(ImVec2(left, top.y + pad * 0.5f));
+        if (ImGui::InvisibleButton("##header", ImVec2(right - left, headerH)))
+            open = !open;
+        const bool headerHovered = ImGui::IsItemHovered();
+        const float textY = top.y + pad * 0.5f + (headerH - ImGui::GetTextLineHeight()) * 0.5f;
+        dl->AddText(ImVec2(innerL, textY), ImGui::GetColorU32(Palette::Dim),
+                    open ? ICON_TI_CHEVRON_DOWN : ICON_TI_CHEVRON_RIGHT);
+        float x = innerL + ImGui::CalcTextSize(ICON_TI_CHEVRON_DOWN).x + 6.0f * dpi;
+        if (dot)
+        {
+            dl->AddText(ImVec2(x, textY), ImGui::GetColorU32(Palette::Accent), ICON_TI_POINT_FILLED);
+            x += ImGui::CalcTextSize(ICON_TI_POINT_FILLED).x + 3.0f * dpi;
+        }
+        const float noteW = note ? ImGui::CalcTextSize(note).x : 0.0f;
+        const float nameRoom = innerR - x - (note ? noteW + 8.0f * dpi : 0.0f);
+        std::string shown = name;
+        if (ImGui::CalcTextSize(shown.c_str()).x > nameRoom)
+        {
+            while (!shown.empty() && ImGui::CalcTextSize((shown + "...").c_str()).x > nameRoom)
+                shown.pop_back();
+            shown += "...";
+        }
+        dl->AddText(ImVec2(x, textY), ImGui::GetColorU32(dimName ? Palette::Dim : Palette::Fg), shown.c_str());
+        if (note)
+            dl->AddText(ImVec2(innerR - noteW, textY), ImGui::GetColorU32(Palette::Dim), note);
+        if (headerHovered)
+        {
+            const float mx = ImGui::GetIO().MousePos.x;
+            if (note && noteTip && mx >= innerR - noteW)
+                DekiEditor::Tooltip(noteTip);
+            else if (nameTip)
+                DekiEditor::Tooltip(nameTip);
+        }
+
+        const float labelX = innerL + ImGui::CalcTextSize(ICON_TI_CHEVRON_DOWN).x + 6.0f * dpi;
+        if (!open)
+        {
+            // Folded: one dim line saying what the target stores.
+            if (!summary.empty())
+            {
+                ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
+                ImGui::TextDisabled("%s", summary.c_str());
+            }
+        }
+        else
+        {
+            // Controls line up with the Default section's, one value column
+            // down the inspector (never closer than a label's width).
+            const float sectionLabelX = InspectorUtils::SectionAlignedCursorX();
+            const float columnX = ImGui::GetWindowPos().x + sectionLabelX + InspectorUtils::PropertyLabelWidth(sectionLabelX);
+            const float valueX = std::max(labelX + 70.0f * dpi, columnX);
+            body(labelX, valueX, std::max(40.0f * dpi, innerR - valueX));
+        }
+        ImGui::SetCursorScreenPos(ImVec2(left, ImGui::GetCursorScreenPos().y));
+        ImGui::Dummy(ImVec2(0.0f, pad * 0.5f));
+        const float bottom = ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y;
+
+        // The card behind it, now that its height is known.
+        split.SetCurrentChannel(dl, 0);
+        dl->AddRectFilled(top, ImVec2(right, bottom),
+                          ImGui::GetColorU32(headerHovered ? Palette::Bg2 : Palette::Panel), rounding);
+        dl->AddRect(top, ImVec2(right, bottom), ImGui::GetColorU32(Palette::Line2), rounding);
+        split.Merge(dl);
+
+        ImGui::SetCursorScreenPos(ImVec2(left, bottom + cardGap));
+        ImGui::Dummy(ImVec2(0.0f, 0.0f));
+        ImGui::PopID();
+    };
+    // A row inside a card: the label, then the control at valueX.
+    auto cardRow = [&](const char* label, float labelX, float valueX) {
+        ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", label);
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::SetCursorScreenPos(ImVec2(valueX, ImGui::GetCursorScreenPos().y));
+    };
+
+    ImGui::Spacing();
     for (const PlatformConfig* platform : targets)
     {
-        ImGui::Dummy(ImVec2(0.0f, blockGap));
-        ImGui::PushID(platform->id.c_str());
         const std::string name = platform->displayName.empty() ? platform->id : platform->displayName;
         int formatIndex = targetFormatIndex(platform->id);
         int maxIndex = targetMaxIndex(platform->id);
         const bool formatOverridden = formatIndex > 0;
         const bool maxOverridden = maxIndex >= 0;
+        const bool overridden = formatOverridden || maxOverridden;
 
         Deki::ColorFormat screen = Deki::ColorFormat::RGB565;
         const bool knownScreen = ParseColorFormat(platform->colorFormat, screen);
@@ -555,7 +587,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         TextureFormat stored = fromDefault;
         if (formatOverridden)
             ParseTextureFormat(s_FormatNames[formatIndex], stored);
-        const int effectiveMax = kTextureMaxSizes[maxOverridden ? maxIndex : m_MaxSizeIndex];
+        const int shownMax = maxOverridden ? maxIndex : m_MaxSizeIndex;
 
         // What it takes there: the stored format at the stored size.
         char memory[32] = "";
@@ -563,46 +595,50 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         if (m_PreviewWidth > 0 && m_PreviewHeight > 0)
         {
             int w = 0, h = 0;
-            MaxSizeDims(static_cast<int>(m_PreviewWidth), static_cast<int>(m_PreviewHeight), effectiveMax, w, h);
+            MaxSizeDims(static_cast<int>(m_PreviewWidth), static_cast<int>(m_PreviewHeight),
+                        kTextureMaxSizes[shownMax], w, h);
             snprintf(memory, sizeof(memory), "%.1f KB", static_cast<double>(w) * h * BytesPerTexel(stored) / 1024.0);
             snprintf(memoryTip, sizeof(memoryTip), "Stored at %d x %d", w, h);
         }
-        if (nameLine(formatOverridden || maxOverridden, name, false, memory[0] ? memory : nullptr, memoryTip))
-        {
-            std::string tip = name;
-            if (knownScreen)
-                tip += "\n" + platform->colorFormat + " screen";
-            if (formatOverridden || maxOverridden)
-                tip += "\nOverrides Default";
-            DekiEditor::Tooltip(tip.c_str());
-        }
+        std::string nameTip = name;
+        if (knownScreen)
+            nameTip += "\n" + platform->colorFormat + " screen";
+        if (overridden)
+            nameTip += "\nOverrides Default";
+        const std::string summary = std::string(TextureFormatName(stored)) + "  \xC2\xB7  Max Size " +
+                                    MaxSizeLabel(shownMax);
 
-        ImGui::SetCursorPosX(controlsX);
-        snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
-        if (overrideCombo("##TargetFormat", formatW, TextureFormatName(stored), !formatOverridden, buf, formatLabel,
-                          s_FormatCount, 1, formatIndex))
-        {
-            m_TargetFormatIndex[platform->id] = formatIndex;
-            writeTarget(platform->id);
-        }
-        ImGui::SameLine(0.0f, 0.0f);
-        ImGui::SetCursorPosX(maxX);
-        snprintf(buf, sizeof(buf), "Default (%s)", MaxSizeLabel(m_MaxSizeIndex));
-        const std::string maxDefaultLabel = buf;
-        if (overrideCombo("##TargetMax", maxW, MaxSizeLabel(maxOverridden ? maxIndex : m_MaxSizeIndex), !maxOverridden,
-                          maxDefaultLabel, maxLabel, kTextureMaxSizeCount, 0, maxIndex))
-        {
-            if (maxIndex < 0)
-                m_TargetMaxIndex.erase(platform->id);
-            else
-                m_TargetMaxIndex[platform->id] = maxIndex;
-            writeTarget(platform->id);
-        }
-        ImGui::PopID();
+        auto openIt = m_TargetOpen.find(platform->id);
+        if (openIt == m_TargetOpen.end())
+            openIt = m_TargetOpen.emplace(platform->id, overridden).first;
+
+        card(platform->id.c_str(), overridden, name, false, memory[0] ? memory : nullptr, memoryTip, nameTip.c_str(),
+             summary, openIt->second, [&](float labelX, float valueX, float valueW) {
+                 cardRow("Format", labelX, valueX);
+                 snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
+                 if (overrideCombo("##TargetFormat", valueW, TextureFormatName(stored), !formatOverridden, buf,
+                                   formatLabel, s_FormatCount, 1, formatIndex))
+                 {
+                     m_TargetFormatIndex[platform->id] = formatIndex;
+                     writeTarget(platform->id);
+                 }
+                 cardRow("Max Size", labelX, valueX);
+                 snprintf(buf, sizeof(buf), "Default (%s)", MaxSizeLabel(m_MaxSizeIndex));
+                 const std::string maxDefaultLabel = buf;
+                 if (overrideCombo("##TargetMax", valueW, MaxSizeLabel(shownMax), !maxOverridden, maxDefaultLabel,
+                                   maxLabel, kTextureMaxSizeCount, 0, maxIndex))
+                 {
+                     if (maxIndex < 0)
+                         m_TargetMaxIndex.erase(platform->id);
+                     else
+                         m_TargetMaxIndex[platform->id] = maxIndex;
+                     writeTarget(platform->id);
+                 }
+             });
     }
 
     // Overrides for targets this project no longer has, so they can be
-    // removed: the name, what it held, and a button to drop it.
+    // removed.
     std::vector<std::string> gone;
     for (const auto& [id, index] : m_TargetFormatIndex)
         if (index > 0)
@@ -618,27 +654,27 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
             known = known || platform->id == id;
         if (known)
             continue;
-        ImGui::Dummy(ImVec2(0.0f, blockGap));
-        ImGui::PushID(id.c_str());
-        if (nameLine(true, id + " (removed)", true, nullptr, nullptr))
-            DekiEditor::Tooltip("Not a target of this project any more");
-        ImGui::SetCursorPosX(controlsX);
-        ImGui::AlignTextToFramePadding();
         const int fi = targetFormatIndex(id);
         const int mi = targetMaxIndex(id);
-        ImGui::TextDisabled("%s%s%s", fi > 0 ? s_FormatNames[fi] : "", fi > 0 && mi >= 0 ? " / " : "",
-                            mi >= 0 ? MaxSizeLabel(mi) : "");
-        ImGui::SameLine();
-        if (ImGui::SmallButton(ICON_TI_X " Remove"))
-        {
-            m_TargetFormatIndex.erase(id);
-            m_TargetMaxIndex.erase(id);
-            write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, TextureTargetSettings{}); });
-        }
-        ImGui::PopID();
+        std::string held;
+        if (fi > 0)
+            held += s_FormatNames[fi];
+        if (mi >= 0)
+            held += std::string(held.empty() ? "" : "  \xC2\xB7  ") + "Max Size " + MaxSizeLabel(mi);
+        bool open = true;
+        card(id.c_str(), true, id + " (removed)", true, nullptr, nullptr, "Not a target of this project any more",
+             held, open, [&](float labelX, float, float) {
+                 ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
+                 ImGui::TextDisabled("%s", held.c_str());
+                 ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
+                 if (ImGui::SmallButton(ICON_TI_X " Remove override"))
+                 {
+                     m_TargetFormatIndex.erase(id);
+                     m_TargetMaxIndex.erase(id);
+                     write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, TextureTargetSettings{}); });
+                 }
+             });
     }
-    ImGui::Dummy(ImVec2(0.0f, blockGap * 0.5f));  // room before the next section's line
-    ImGui::PopStyleVar();  // ItemSpacing
 
     DekiEditor::SchematicSectionEnd();
 }
