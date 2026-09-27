@@ -14,6 +14,17 @@
 #include <map>
 
 
+namespace
+{
+// package.cmake is only there when the package compiles something; a data-only
+// package (a board pack shipping platforms/<id>/) is package.json alone.
+bool IsPackageDirectory(const fs::path& dir)
+{
+    std::error_code ec;
+    return fs::exists(dir / "package.json", ec) || fs::exists(dir / "package.cmake", ec);
+}
+}
+
 DekiPackageInstaller::DekiPackageInstaller() = default;
 DekiPackageInstaller::~DekiPackageInstaller() = default;
 
@@ -165,7 +176,7 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
         return packages;
     }
 
-    // Scan for package.cmake files in each subdirectory
+    // Scan for package descriptors in each subdirectory
     try
     {
         for (const auto& entry : fs::directory_iterator(packagesDir))
@@ -173,7 +184,7 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
             if (!entry.is_directory()) continue;
 
             fs::path packageCmake = entry.path() / "package.cmake";
-            if (!fs::exists(packageCmake)) continue;
+            if (!IsPackageDirectory(entry.path())) continue;
 
             std::string dirName = entry.path().filename().string();
             std::string displayName = ParseDisplayName(packageCmake);
@@ -536,15 +547,15 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         }
     }
 
-    // Validate package.cmake exists
+    // Validate it is a package at all
     fs::path packageCmake = packageDir / "package.cmake";
-    if (!fs::exists(packageCmake))
+    if (!IsPackageDirectory(packageDir))
     {
         // Only discard a directory this call created - never one that already
         // held a clone, which may carry the developer's branches.
         if (!isExistingClone)
             fs::remove_all(packageDir, ec);
-        callback(false, "Not a valid Deki package (missing package.cmake)");
+        callback(false, "Not a valid Deki package (no package.json or package.cmake)");
         return;
     }
 
