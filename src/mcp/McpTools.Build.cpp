@@ -731,11 +731,15 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                         "Start a firmware build for the project. Regenerates build files first. "
                         "Returns as soon as the build starts - poll build_status for progress "
                         "and the final result. Fails immediately if the toolchain is missing.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
+                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "simulate", { { "type", "boolean" }, { "description", "Build the board's firmware for its backend's simulator (QEMU for ESP32), in its own build directory; the board's boot scene is not changed" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string path = ResolveProjectPath(editor, args);
-                            FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), nullptr);
+                            BuildOptions options;
+                            options.simulate = args.value("simulate", false);
+                            // The editor, so the build gets its boot payload and the
+                            // scene-scanned defines, as the CLI and the Build panel do.
+                            FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), nullptr, editor, options);
                             if (!r.success)
                                 throw std::runtime_error(r.error);
 
@@ -797,12 +801,14 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                         "Deploy the last build the way the platform's backend defines it: flash a "
                         "device, run the executable, install an app. Refused when the backend has "
                         "no deploy step. Returns once it starts - poll build_status for the result.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "target", { { "type", "string" }, { "description", "What to deploy to, in the backend's own terms (a serial port for a board that is flashed); omit to let the backend choose" } } } } } },
+                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "target", { { "type", "string" }, { "description", "What to deploy to, in the backend's own terms (a serial port for a board that is flashed); omit to let the backend choose" } } }, { "simulate", { { "type", "boolean" }, { "description", "Run the simulated build (build_firmware with simulate) in the backend's simulator" } } } } } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string path = ResolveProjectPath(editor, args);
                             const std::string target = args.value("target", std::string());
-                            FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target, nullptr);
+                            BuildOptions options;
+                            options.simulate = args.value("simulate", false);
+                            FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target, nullptr, options);
                             if (!r.success)
                                 throw std::runtime_error(r.error);
 

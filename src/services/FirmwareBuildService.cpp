@@ -15,6 +15,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -242,7 +243,8 @@ FirmwareOpResult Started(const Ctx& ctx)
 // Shared by Build() and StartBuild(): resolve, validate the toolchain,
 // regenerate build files, and kick the build thread off.
 FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string& platformId,
-                              FirmwareLogCallback onLine, Ctx& ctx, EditorApp* editor)
+                              FirmwareLogCallback onLine, Ctx& ctx, EditorApp* editor,
+                              const BuildOptions& options)
 {
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
@@ -253,7 +255,7 @@ FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string&
 
     // One definition of "prepare a firmware build", shared with the Build panel.
     FirmwareOpResult prepared = FirmwareBuildService::PrepareBuild(
-        projectPath, *ctx.platform, *ctx.builder, editor, BuildOptions{}, onLine);
+        projectPath, *ctx.platform, *ctx.builder, editor, options, onLine);
     if (!prepared.success)
         return prepared;
 
@@ -393,6 +395,20 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // of one framework wrote into the same fallback directory and the last
     // build won. Two boards in one project overwrote each other's assets.
     builder.SetPlatformConfig(platform);
+    // The options too: a simulated build has its own build directory, and the
+    // payload below goes into it.
+    builder.SetBuildOptions(options);
+    if (options.simulate && !builder.SupportsSimulation())
+        return Failure("The '" + std::string(builder.GetName()) + "' backend cannot build '" + platform.id +
+                       "' for a simulator.");
+    if (options.simulate && !editor)
+        return Failure("A simulated build needs the editor, which writes its boot scene.");
+    // Where a simulated build's boot scene goes; its scenes count for the
+    // strip plan like the board's own.
+    std::string simulationSceneDir;
+    if (options.simulate)
+        simulationSceneDir =
+            (std::filesystem::path(builder.GetBuildDirectory(projectPath)) / kSimulationSceneDir).string();
 
     // Boot payload - project_data.bin plus the platform's boot scene - written
     // where the backend asks for it, before it assembles anything. Without it
@@ -414,6 +430,38 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         {
             bootScene = editor->GetProject()->GetStartupScene();
             std::replace(bootScene.begin(), bootScene.end(), '\\', '/');
+        }
+
+        // Simulated: the backend's copy of the board's boot scene, in the
+        // simulated build's own directory. The board's boot scene is only read.
+        if (options.simulate)
+        {
+            std::string scene;  // empty: the platform has no boot scene of its own
+            if (!platform.bootScene.empty())
+            {
+                std::ifstream in(std::filesystem::path(projectPath) / platform.bootScene, std::ios::binary);
+                if (!in)
+                    return Failure("Cannot read the boot scene " + platform.bootScene);
+                scene.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            }
+            std::vector<std::string> notes;
+            std::string why;
+            if (!builder.MakeSimulationBootScene(scene, platform, notes, why))
+                return Failure("Cannot make the simulated boot scene: " + why);
+            std::error_code ec;
+            std::filesystem::create_directories(simulationSceneDir, ec);
+            const std::filesystem::path simulated = std::filesystem::path(simulationSceneDir) / "boot.scene";
+            std::ofstream out(simulated, std::ios::binary | std::ios::trunc);
+            if (!out)
+                return Failure("Cannot write " + simulated.string());
+            out << scene;
+            out.close();
+            bootScene = simulated.generic_string();
+            log(std::string("Simulating in ") + builder.GetSimulatorName() + ", from a copy of the boot scene (" +
+                    simulated.generic_string() + ")",
+                false);
+            for (const std::string& note : notes)
+                log("  " + note, false);
         }
 
         AssetExportTarget target;
@@ -445,6 +493,24 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
                 return Failure("Failed to export the assets into the build");
             log("Exported the assets into the build (internal storage)", false);
         }
+
+        // The simulated board's SD card, made fresh: what the SD Card Deploy
+        // panel would copy to a real one, or nothing.
+        if (options.simulate)
+        {
+            const std::filesystem::path cardDir = std::filesystem::path(simulationSceneDir) / kSimulationCardDir;
+            std::error_code ec;
+            std::filesystem::remove_all(cardDir, ec);
+            std::filesystem::create_directories(cardDir, ec);
+            if (ec)
+                return Failure("Cannot make " + cardDir.string() + ": " + ec.message());
+            if (target.assetStorage == Deki::Storage::External)
+            {
+                if (!exporter.ExportAssets(cardDir.string()))
+                    return Failure("Failed to export the assets onto the simulated SD card");
+                log("Exported the assets onto the simulated SD card (external storage)", false);
+            }
+        }
     }
 
     // Which package features the firmware is compiled with. The panel's scan
@@ -452,7 +518,12 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // CollectPackageDefines is the weaker fallback for a caller with no editor,
     // taking every installed package's declared define.
     std::vector<std::string> defines;
-    if (editor && editor->GetPackageManagerPanel())
+    if (options.simulate)
+    {
+        // The simulated boot scene's steps are used too.
+        defines = ComputeStripPlan(projectPath, platform.id, { simulationSceneDir }).defines;
+    }
+    else if (editor && editor->GetPackageManagerPanel())
     {
         auto* pkgPanel = editor->GetPackageManagerPanel();
         pkgPanel->ScanProjectForPackageUsage();
@@ -483,10 +554,11 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
 FirmwareOpResult FirmwareBuildService::Build(const std::string& projectPath,
                                              const std::string& platformId,
                                              FirmwareLogCallback onLine,
-                                             EditorApp* editor)
+                                             EditorApp* editor,
+                                             const BuildOptions& options)
 {
     Ctx ctx;
-    FirmwareOpResult started = KickOffBuild(projectPath, platformId, onLine, ctx, editor);
+    FirmwareOpResult started = KickOffBuild(projectPath, platformId, onLine, ctx, editor, options);
     if (!started.success)
         return started;
 
@@ -496,10 +568,11 @@ FirmwareOpResult FirmwareBuildService::Build(const std::string& projectPath,
 FirmwareOpResult FirmwareBuildService::StartBuild(const std::string& projectPath,
                                                   const std::string& platformId,
                                                   FirmwareLogCallback onLine,
-                                                  EditorApp* editor)
+                                                  EditorApp* editor,
+                                                  const BuildOptions& options)
 {
     Ctx ctx;
-    return KickOffBuild(projectPath, platformId, onLine, ctx, editor);
+    return KickOffBuild(projectPath, platformId, onLine, ctx, editor, options);
 }
 
 namespace
@@ -516,7 +589,8 @@ std::string NoDeployStep(const ITargetBuilder& builder, const PlatformConfig& pl
 FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPath,
                                                    const std::string& platformId,
                                                    const std::string& deployTargetId,
-                                                   FirmwareLogCallback onLine)
+                                                   FirmwareLogCallback onLine,
+                                                   const BuildOptions& options)
 {
     Ctx ctx;
     std::string err;
@@ -530,6 +604,7 @@ FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPat
     // serves every platform of its framework, and whether there is a deploy
     // step can differ between them (a device app vs. its simulator).
     ctx.builder->SetPlatformConfig(*ctx.platform);
+    ctx.builder->SetBuildOptions(options);  // a simulated build is run, not flashed
     if (!ctx.builder->SupportsDeploy())
         return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
@@ -655,17 +730,19 @@ bool FirmwareBuildService::CancelActive()
 FirmwareOpResult FirmwareBuildService::Deploy(const std::string& projectPath,
                                               const std::string& platformId,
                                               const std::string& deployTargetId,
-                                              FirmwareLogCallback onLine)
+                                              FirmwareLogCallback onLine,
+                                              const BuildOptions& options)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
         return Failure(err);
 
+    ctx.builder->SetPlatformConfig(*ctx.platform);
+    ctx.builder->SetBuildOptions(options);  // a simulated build is run, not flashed
     if (!ctx.builder->SupportsDeploy())
         return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
 
-    ctx.builder->SetPlatformConfig(*ctx.platform);
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
     ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
     return WaitForBuild(ctx.builder, ctx);

@@ -87,7 +87,8 @@ public:
     static FirmwareOpResult Build(const std::string& projectPath,
                                   const std::string& platformId,
                                   FirmwareLogCallback onLine = nullptr,
-                                  EditorApp* editor = nullptr);
+                                  EditorApp* editor = nullptr,
+                                  const BuildOptions& options = {});
 
     /// Same preparation as Build(), but returns as soon as the build thread is
     /// running. success==true means "started", not "finished" - poll QueryStatus().
@@ -96,13 +97,15 @@ public:
     static FirmwareOpResult StartBuild(const std::string& projectPath,
                                        const std::string& platformId,
                                        FirmwareLogCallback onLine = nullptr,
-                                       EditorApp* editor = nullptr);
+                                       EditorApp* editor = nullptr,
+                                       const BuildOptions& options = {});
 
     /// Non-blocking Deploy(). success==true means "started".
     static FirmwareOpResult StartDeploy(const std::string& projectPath,
                                         const std::string& platformId,
                                         const std::string& deployTargetId,
-                                        FirmwareLogCallback onLine = nullptr);
+                                        FirmwareLogCallback onLine = nullptr,
+                                        const BuildOptions& options = {});
 
     /// Non-blocking InstallToolchainComponent(). success==true means "started".
     /// Progress surfaces through QueryStatus() as state "installing".
@@ -132,10 +135,13 @@ public:
     /// flash it, run it, install it. deployTargetId is one of the backend's
     /// ITargetBuilder::EnumerateDeployTargets ids; empty lets it choose.
     /// Refused when the backend has no deploy step.
+    /// options.simulate deploys the simulated build: runs it in the backend's
+    /// simulator.
     static FirmwareOpResult Deploy(const std::string& projectPath,
                                    const std::string& platformId,
                                    const std::string& deployTargetId,
-                                   FirmwareLogCallback onLine = nullptr);
+                                   FirmwareLogCallback onLine = nullptr,
+                                   const BuildOptions& options = {});
 
     /// Clean the builder's build directory. Blocks until complete.
     static FirmwareOpResult Clean(const std::string& projectPath,

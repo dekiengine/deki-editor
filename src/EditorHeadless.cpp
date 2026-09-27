@@ -733,7 +733,7 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
 // Firmware
 // ===========================================================================
 
-int CmdFirmwareBuild(EditorApp& editor, const char* platformId)
+int CmdFirmwareBuild(EditorApp& editor, const char* platformId, bool simulate)
 {
     Project* project = ProjectOf(editor, "--build-firmware");
     if (!project)
@@ -744,18 +744,22 @@ int CmdFirmwareBuild(EditorApp& editor, const char* platformId)
     // Passing the editor is what gives this build the boot payload and the
     // scene-scanned package defines the Build panel produces. Without it the
     // image would flash with no assets - see FirmwareBuildService::PrepareBuild.
-    auto r = FirmwareBuildService::Build(project->GetPath(), Str(platformId), EchoLine, &editor);
-    return Report(r, "Firmware build");
+    BuildOptions options;
+    options.simulate = simulate;
+    auto r = FirmwareBuildService::Build(project->GetPath(), Str(platformId), EchoLine, &editor, options);
+    return Report(r, simulate ? "Simulated firmware build" : "Firmware build");
 }
 
-int CmdDeploy(EditorApp& editor, const char* platformId, const char* deployTarget)
+int CmdDeploy(EditorApp& editor, const char* platformId, const char* deployTarget, bool simulate)
 {
     Project* project = ProjectOf(editor, "--deploy");
     if (!project)
         return 1;
 
     printf("Deploying the build of: %s\n", project->GetPath().c_str());
-    auto r = FirmwareBuildService::Deploy(project->GetPath(), Str(platformId), Str(deployTarget), EchoLine);
+    BuildOptions options;
+    options.simulate = simulate;
+    auto r = FirmwareBuildService::Deploy(project->GetPath(), Str(platformId), Str(deployTarget), EchoLine, options);
     return Report(r, "Deploy");
 }
 

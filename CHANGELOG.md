@@ -7,6 +7,17 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **Simulate a board.** The Build panel's **Simulate in QEMU** (or `--simulate`
+  with `--build-firmware`/`--deploy`, or `simulate` on the MCP `build_firmware`
+  and `deploy_build`) builds a board's firmware for its backend's simulator:
+  the board's boot steps plus the simulator's, in a copy of the boot scene, in
+  its own build directory, with an SD card holding the assets of a target
+  that keeps them on one. The board's `boot.scene` and firmware are not
+  changed. `--build-firmware --deploy` now builds, then deploys. See
+  [docs/platforms.md](docs/platforms.md#simulating-a-board).
+  - Builder ABI 2 gains `BuildOptions::simulate` and
+    `ITargetBuilder::SupportsSimulation`, `GetSimulatorName`,
+    `MakeSimulationBootScene`; the SDK gains `AddSimulationSteps`.
 - **Images are stored for the screen they are shown on.** A texture's Format
   is Automatic by default (RGB565 or RGB565A8 on an RGB565 target, RGB888 or
   RGBA8888 on a full-colour one), can be fixed for every target, and can be
@@ -217,6 +228,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- The MCP `build_firmware` built without the editor, so the firmware had no
+  boot payload and no defines from the project's scenes. It builds as the
+  Build panel and `--build-firmware` do.
 - Changing a texture's settings in the inspector did not rebuild its editor
   cache. The sidecar was reimported while its file was still open, so the
   import read it empty (and made up a GUID for the image), and under its

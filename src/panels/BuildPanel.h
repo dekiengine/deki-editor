@@ -80,6 +80,9 @@ private:
     // Build options
     bool m_EnableLogging = true;
     bool m_EnableInternalLogging = false;
+    // Build the board's firmware for its backend's simulator (QEMU for ESP32),
+    // into its own build directory; deploy then runs it there.
+    bool m_Simulate = false;
     bool m_DeployAfterBuild = false;
     bool m_PendingDeploy = false;
 

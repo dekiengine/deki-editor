@@ -131,6 +131,10 @@ DEKI_EDITOR_API std::vector<TargetContentConflict> FindTargetContentConflicts(co
 // count as evidence, so a package used only by another target's boot scene is
 // not kept alive here. Empty pools every platform, for callers with no target
 // in hand.
-DEKI_EDITOR_API StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId = "");
+//
+// `extraSceneDirs` adds scenes outside the project to the evidence (a
+// simulated build's boot scene; see ScanComponentUsage).
+DEKI_EDITOR_API StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId = "",
+                                           const std::vector<std::string>& extraSceneDirs = {});
 
 }  // namespace DekiEditor

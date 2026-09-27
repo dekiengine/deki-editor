@@ -104,7 +104,8 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
                                   const std::vector<std::string>& knownTypes,
                                   const std::vector<std::string>& scanPackageIds,
                                   const std::string& targetPlatformId,
-                                  const std::set<std::string>& targetCapabilities)
+                                  const std::set<std::string>& targetCapabilities,
+                                  const std::vector<std::string>& extraSceneDirs)
 {
     ComponentUsage usage;
     if (projectPath.empty())
@@ -130,6 +131,8 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
         sceneRoots.push_back(fs::path(GetPlatformsDirectory(projectPath)));
     else
         sceneRoots.push_back(fs::path(GetPlatformsDirectory(projectPath)) / targetPlatformId);
+    for (const std::string& dir : extraSceneDirs)
+        sceneRoots.push_back(fs::path(dir));
 
     for (const fs::path& dir : sceneRoots)
     {

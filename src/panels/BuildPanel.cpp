@@ -140,6 +140,18 @@ void BuildPanel::Draw()
         DekiEditor::Tooltip("Enable verbose engine-internal logs (DEKI_LOG_INTERNAL).\nUseful for debugging engine issues. Off by default.");
     }
 
+    // Only for a backend that has a simulator (QEMU for ESP32).
+    if (ITargetBuilder* simBuilder = GetActiveBuilder(); simBuilder && simBuilder->SupportsSimulation())
+    {
+        const std::string label = std::string("Simulate in ") + simBuilder->GetSimulatorName();
+        DekiEditor::SchematicCheckbox(label.c_str(), &m_Simulate);
+        if (ImGui::IsItemHovered())
+        {
+            DekiEditor::Tooltip("Build this board's firmware to run in the simulator instead of on the board, "
+                                "and run it there. The board's boot scene and its own build are not touched.");
+        }
+    }
+
     // Platform editor dialog
     m_PlatformEditor.Draw();
 
@@ -282,6 +294,20 @@ void BuildPanel::DrawToolbar()
     if (activeBuilder != m_DeployTargetsOwner)
         RefreshDeployTargets();
 
+    // Simulating changes what deploy is (run in the simulator, not flash a
+    // port), so the builder is told before its verb and targets are read.
+    if (activeBuilder != nullptr)
+    {
+        const bool simulate = m_Simulate && activeBuilder->SupportsSimulation();
+        BuildOptions current = activeBuilder->GetBuildOptions();
+        if (current.simulate != simulate && !activeBuilder->IsBuilding())
+        {
+            current.simulate = simulate;
+            activeBuilder->SetBuildOptions(current);
+            RefreshDeployTargets();
+        }
+    }
+
     if (activeBuilder != nullptr && activeBuilder->SupportsDeploy())
     {
         const std::string verb = activeBuilder->GetDeployLabel();
@@ -411,6 +437,7 @@ void BuildPanel::StartBuild()
     BuildOptions options;
     options.enableLogging = m_EnableLogging;
     options.enableInternalLogging = m_EnableInternalLogging;
+    options.simulate = m_Simulate && builder->SupportsSimulation();
 
     // Toolchain check, boot payload, package defines, build files. Shared
     // with the CLI so a firmware image built from a terminal is the image this

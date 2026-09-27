@@ -559,7 +559,8 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
     return conflicts;
 }
 
-StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId)
+StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& targetPlatformId,
+                           const std::vector<std::string>& extraSceneDirs)
 {
     const auto all = CMakeGen::ScanPackageManifests(projectPath);
     std::vector<std::string> knownTypes;
@@ -587,7 +588,7 @@ StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& ta
             eligibleIds.push_back(pkg.id);
 
     const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, eligibleIds,
-                                                    targetPlatformId, targetCapabilities);
+                                                    targetPlatformId, targetCapabilities, extraSceneDirs);
     const BuildStripSettings settings = BuildStripSettings::Load(projectPath);
     return ResolveStripPlan(all, usage, settings, GetPackagesDirectory(projectPath));
 }

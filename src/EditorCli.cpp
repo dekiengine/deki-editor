@@ -79,6 +79,8 @@ void PrintUsage(const char* program)
     printf("  --build-firmware      Build firmware for the active platform\n");
     printf("  --deploy              Deploy the last build as its backend defines: flash, run, install\n");
     printf("                        (--flash is accepted as the same thing)\n");
+    printf("  --simulate            With --build-firmware or --deploy: the board's firmware in its\n");
+    printf("                        simulator (QEMU for ESP32); the board's boot scene is not changed\n");
     printf("  --clean               Clean the firmware build directory\n");
     printf("  --list-platforms      List platforms available to the project (JSON)\n");
     printf("  --toolchain-status    Show toolchain component status (JSON)\n");
@@ -155,6 +157,10 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         else if (strcmp(argv[i], "--deploy") == 0 || strcmp(argv[i], "--flash") == 0)
         {
             o.deploy = true;
+        }
+        else if (strcmp(argv[i], "--simulate") == 0)
+        {
+            o.simulate = true;
         }
         else if (strcmp(argv[i], "--clean") == 0)
         {
@@ -387,9 +393,13 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
     if (o.clean)
         return CmdClean(editor, o.platformId);
     if (o.firmwareBuild)
-        return CmdFirmwareBuild(editor, o.platformId);
+    {
+        const int built = CmdFirmwareBuild(editor, o.platformId, o.simulate);
+        if (built != 0 || !o.deploy)
+            return built;
+    }
     if (o.deploy)
-        return CmdDeploy(editor, o.platformId, o.deployTarget);
+        return CmdDeploy(editor, o.platformId, o.deployTarget, o.simulate);
 
     // Everything requested has already run (e.g. --packages-add on its own,
     // whose install and rebuild happened above).

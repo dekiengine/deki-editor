@@ -56,6 +56,32 @@ LilyGO T-Deck Plus can choose; it keeps its assets in its flash unless told othe
 
 `project_data.bin` records the choice, so the engine knows where to look.
 
+## Simulating a board
+
+A board whose backend has a simulator (QEMU for an ESP32 or ESP32-S3) can be built to run
+there: tick **Simulate in QEMU** in the Build panel, then Build and **Run**. From the command
+line:
+
+```
+DekiEditor --build-firmware --deploy --simulate --platform lilygo_t_deck_plus <project>
+```
+
+The simulated build keeps every step of the board's boot scene and adds the simulator's own
+after them (the QEMU screen), in a copy under its build directory
+(`generated/build/<platform>_qemu/simulation/boot.scene`). Where the simulator has to run a
+step another way, the copy says so: an SD card wired for SPI goes on QEMU's SD host. The build
+log lists each change. The platform's `boot.scene`, its normal build and the firmware flashed
+to the board are not changed, and nothing the simulator needs is compiled into them.
+
+The simulated board has an SD card, made fresh for each build in `simulation/sd_card`: the
+assets, as the SD Card Deploy panel would copy them, for a target that keeps them on the card;
+empty for one that keeps them inside.
+
+A backend offers this with `ITargetBuilder::SupportsSimulation`, `GetSimulatorName` and
+`MakeSimulationBootScene` (with `AddSimulationSteps` from
+`deki-editor/build/SimulationBootScene.h`), and reads `BuildOptions::simulate` for the rest:
+its own build directory, the card, and what deploy does.
+
 ## Where platforms come from
 
 The Build panel's target list is three sources, later ones overriding earlier:

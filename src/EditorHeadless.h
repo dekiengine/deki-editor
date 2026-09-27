@@ -112,8 +112,8 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
 
 // Firmware. platformId may be null/empty to use the project's
 // activePlatformId. All block until the operation completes.
-int CmdFirmwareBuild(EditorApp& editor, const char* platformId);
-int CmdDeploy(EditorApp& editor, const char* platformId, const char* deployTarget);
+int CmdFirmwareBuild(EditorApp& editor, const char* platformId, bool simulate = false);
+int CmdDeploy(EditorApp& editor, const char* platformId, const char* deployTarget, bool simulate = false);
 int CmdClean(EditorApp& editor, const char* platformId);
 
 // ===========================================================================

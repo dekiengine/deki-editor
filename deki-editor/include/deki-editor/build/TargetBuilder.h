@@ -94,10 +94,26 @@ struct BuildProgress
     std::string error;
 };
 
+/// Where a simulated build keeps its boot scene: this directory under the
+/// builder's build directory, as boot.scene. The editor writes it; a backend
+/// that computes its own strip plan counts the scenes in it.
+constexpr const char* kSimulationSceneDir = "simulation";
+
+/// What the simulated board's SD card holds, under kSimulationSceneDir: the
+/// assets, exported as the SD Card Deploy panel exports them, for a target
+/// that keeps them on the card; empty for one that keeps them inside. The
+/// editor fills it on every simulated build; the backend makes the card.
+constexpr const char* kSimulationCardDir = "sd_card";
+
 struct BuildOptions
 {
     bool enableLogging = true;           // Enable DEKI_LOG_* macros in firmware
     bool enableInternalLogging = false;  // Enable verbose engine-internal logs (DEKI_LOG_INTERNAL)
+    // Build the platform's firmware to run in the backend's simulator (QEMU
+    // for ESP32) instead of on the board: its own build directory, the board's
+    // boot scene with the simulator's steps added, and deploy runs it. The
+    // board's boot scene and its real build are not touched.
+    bool simulate = false;
 };
 
 /// One thing a build can be deployed to, as the backend enumerates them.
@@ -319,6 +335,36 @@ public:
 
     /// Get the builder's project directory for a given project path.
     virtual std::string GetBuildDirectory(const std::string& projectPath) const = 0;
+
+    // ========================================================================
+    // Simulation - running a board's firmware without the board
+    // ========================================================================
+
+    /// Whether this backend can build a platform's firmware for a simulator
+    /// (BuildOptions::simulate). False by default.
+    virtual bool SupportsSimulation() const { return false; }
+
+    /// The simulator's name, for the UI and the log: "QEMU".
+    virtual const char* GetSimulatorName() const { return ""; }
+
+    /// The simulated build's boot scene. `scene` comes in as the board's boot
+    /// scene (JSON text; empty when the platform has none) and goes out as
+    /// the simulated build's: every board step kept, the simulator's own added
+    /// (AddSimulationSteps), and a step changed where the simulator has to
+    /// run it another way (a card on a bus the simulator does not have).
+    /// `notes` says what was done, a line each, for the build log. The editor
+    /// writes the result under kSimulationSceneDir and the build compiles it;
+    /// the board's boot scene is never changed, and a real build never sees
+    /// any of it. False, with `error` set, when it cannot be made.
+    virtual bool MakeSimulationBootScene(std::string& scene, const PlatformConfig& config,
+                                         std::vector<std::string>& notes, std::string& error) const
+    {
+        (void)scene;
+        (void)config;
+        (void)notes;
+        error = "this backend has no simulator";
+        return false;
+    }
 
     /// Where the editor writes the boot payload before Build(): the compiled
     /// project settings (dproject.bin) and the platform's boot scene. What

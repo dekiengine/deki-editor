@@ -65,6 +65,7 @@ set(EDITOR_DLL_SOURCES
     src/ComponentUsageScan.cpp
     src/BuildStripSettings.cpp
     src/FeatureResolver.cpp
+    src/SimulationBootScene.cpp
     src/BuilderWidgets.cpp
 )
 

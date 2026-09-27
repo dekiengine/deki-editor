@@ -36,6 +36,7 @@ struct CliOptions
     const char* packageVersion = nullptr;
     bool firmwareBuild = false;
     bool deploy = false;
+    bool simulate = false;  // --simulate: build for / run in the backend's simulator (QEMU for ESP32)
     bool clean = false;
 
     // Verbs that answer from files on disk
