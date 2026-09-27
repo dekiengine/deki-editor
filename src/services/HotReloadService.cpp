@@ -1500,10 +1500,19 @@ void HotReloadService::PumpBuild()
     {
         // Stale CMake cache (project moved, generator switched): wipe the
         // build directory and configure once more.
+        //
+        // Also a cache another editor build left (a different compiler path):
+        // CMake then deletes the cache itself and configures again WITHOUT
+        // the -D values it was given, so the generated CMakeLists stops at
+        // "DEKI_ENGINE_PATH and DEKI_EDITOR_DIR must be supplied" - after
+        // detecting the compilers twice, which took minutes. From an empty
+        // build directory the same command works.
         const bool staleCache =
             (step.output.find("CMakeCache.txt") != std::string::npos &&
              step.output.find("different") != std::string::npos) ||
-            step.output.find("does not match the generator used") != std::string::npos;
+            step.output.find("does not match the generator used") != std::string::npos ||
+            step.output.find("require your cache to be deleted") != std::string::npos ||
+            step.output.find("DEKI_EDITOR_DIR must be supplied") != std::string::npos;
         if (step.isConfigure && staleCache && !b.configureRetried && !b.buildPath.empty())
         {
             DEKI_LOG_WARNING("HotReloadService: Stale CMake cache detected, cleaning build directory...");

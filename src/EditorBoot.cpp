@@ -284,6 +284,34 @@ bool BootDisplay(BootContext& ctx)
         SDL_WINDOW_RESIZABLE |
         SDL_WINDOW_BORDERLESS;
 
+#ifdef _WIN32
+    // Started minimized (`start /min`, a shortcut set to "Run: Minimized",
+    // Start-Process -WindowStyle Minimized): come up minimized and inactive,
+    // restoring to maximized when clicked. Otherwise the maximize below took
+    // the foreground from whatever the user was doing - a game included.
+    bool startInBackground = false;
+    {
+        STARTUPINFOW si{};
+        si.cb = sizeof(si);
+        GetStartupInfoW(&si);
+        if (si.dwFlags & STARTF_USESHOWWINDOW)
+        {
+            const WORD show = si.wShowWindow;
+            startInBackground = show == SW_SHOWMINNOACTIVE || show == SW_MINIMIZE ||
+                                show == SW_SHOWMINIMIZED || show == SW_FORCEMINIMIZE;
+        }
+    }
+    if (startInBackground)
+    {
+        // Hidden until GL and ImGui are set up (below), then shown minimized.
+        // Created minimized, the window had no size when its GL context was
+        // made, ImGui's GL backend failed to load, and the first frame
+        // asserted.
+        SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
+        window_flags |= SDL_WINDOW_HIDDEN;
+    }
+#endif
+
     ctx.window = SDL_CreateWindow(
         "Deki Editor",
         1600, 900,
@@ -317,8 +345,11 @@ bool BootDisplay(BootContext& ctx)
             SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
                          SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
-            // Maximize now that our WndProc handles WM_NCCALCSIZE/WM_GETMINMAXINFO
-            ShowWindow(hwnd, SW_MAXIMIZE);
+            // Maximize now that our WndProc handles WM_NCCALCSIZE/WM_GETMINMAXINFO.
+            // Started in the background, the window is shown later, once GL
+            // is up: SW_MAXIMIZE would activate it.
+            if (!startInBackground)
+                ShowWindow(hwnd, SW_MAXIMIZE);
         }
     }
 #else
@@ -430,6 +461,25 @@ bool BootDisplay(BootContext& ctx)
     // Setup Platform/Renderer backends
     ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
+
+#ifdef _WIN32
+    // Started in the background: show the hidden window now, minimized and
+    // inactive, restoring to maximized when the user clicks it.
+    if (startInBackground)
+    {
+        HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window),
+                                                 SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        if (hwnd)
+        {
+            WINDOWPLACEMENT wp{};
+            wp.length = sizeof(wp);
+            GetWindowPlacement(hwnd, &wp);
+            wp.flags |= WPF_RESTORETOMAXIMIZED;
+            wp.showCmd = SW_SHOWMINNOACTIVE;
+            SetWindowPlacement(hwnd, &wp);
+        }
+    }
+#endif
 
     // We handle DPI manually (fonts at 16*dpiScale, ScaleAllSizes(dpiScale)).
     // Disable ImGui 1.92's per-viewport FramebufferScale font scaling to prevent double DPI.
@@ -629,11 +679,22 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     // editor (SSE on http://localhost:3000/sse; SETUP.md section 8).
     if (opts.startMcp)
     {
-        editor.StartMcpServer(opts.mcpPort);
         // The URL carries a per-session token; the server binds loopback only
         // and rejects requests without it, so this line is what a client needs.
-        printf("MCP server listening on %s\n", editor.GetMcpSseUrl().c_str());
+        if (editor.StartMcpServer(opts.mcpPort))
+            printf("MCP server listening on %s\n", editor.GetMcpSseUrl().c_str());
+        else
+            printf("Error: MCP server could not listen on port %d (in use?)\n", opts.mcpPort);
         fflush(stdout);
+    }
+    else if (!opts.headless)
+    {
+        // Every windowed editor can be driven from the command line: any free
+        // port, published per user for `--tool/--script <project>` to find
+        // (services/LiveSession.h), never printed.
+        if (!editor.StartMcpServer(0))
+            DEKI_LOG_WARNING("[boot] live session server did not start; the command line "
+                             "cannot reach this editor");
     }
 
     // OpenProject defers a package check and a build check to
@@ -653,17 +714,11 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     //
     // Headless this is not cosmetic but required: it is the step that produces
     // and promotes the plugin DLL a CLI verb is about to read.
-    if (auto* hr = editor.GetHotReloadService(); hr && hr->HasPendingBuild())
-    {
-        StartupProgress::Update("Building plugin...");
-        hr->RunPendingBuildNow();
-    }
-
+    //
     // Anything still building (a package rebuild the package check queued)
     // finishes under the startup modal too. Headless there is no frame loop
     // to pump it, and the verbs read the built libraries next.
-    if (auto* hr = editor.GetHotReloadService())
-        hr->WaitForBuild();
+    editor.FinishPendingBuilds();
 
     // Startup complete - stop showing progress screen
     StartupProgress::Complete();

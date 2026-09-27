@@ -16,6 +16,7 @@
 #include "EditorApp.h"
 #include "EditorBoot.h"
 #include "EditorCli.h"
+#include "EditorHeadless.h"
 #include "EditorVersion.h"
 #include "PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>  // DrawDockSeams, DrawAllTabTopAccents
@@ -25,6 +26,9 @@
 #include "services/ProgressModal.h"
 #include "services/EditorCapture.h"
 #include "services/EditorInput.h"
+#include "services/FrameTiming.h"
+#include "services/Prerequisites.h"
+#include <optional>
 #include <deki/profiling/Profiler.h>
 
 #include <stdio.h>
@@ -129,6 +133,19 @@ int main(int argc, char* argv[])
     if (headless && DekiEditor::IsLightCommand(cli))
         return DekiEditor::RunLightCommand(cli);
 
+    // A project a running editor has open: run the tools there, live, rather
+    // than boot a second editor on it.
+    if (headless)
+    {
+        int rc = 0;
+        if (DekiEditor::TryRunInLiveEditor(cli, rc))
+            return rc;
+    }
+
+    // The build-tool check a project open makes, answered while the window
+    // and GL come up rather than in the middle of the open.
+    DekiEditor::WarmPrerequisitesInBackground();
+
     DekiEditor::BootOptions boot;
     boot.headless = headless;
     boot.projectPath = cli.projectPath;
@@ -174,6 +191,11 @@ int main(int argc, char* argv[])
     bool running = true;
     while (running)
     {
+        // The frame's phases, for the MCP tool frame_timing (off until asked).
+        const auto frameStart = DekiEditor::FrameTiming::Clock::now();
+        std::optional<DekiEditor::FrameTiming::Scope> phase;
+        phase.emplace("Frame: events");
+
         // Note: Profiling BeginFrame/EndFrame is in UpdatePlayMode()
         // so profiler frames match game frames (like Unity).
         // Don't profile MainLoop here - it runs faster than game frames.
@@ -214,7 +236,9 @@ int main(int argc, char* argv[])
 
         // Process deferred tasks (like hot reload) BEFORE ImGui frame starts
         // This allows RenderProgressModal to safely run its own ImGui frame
+        phase.emplace("Frame: deferred tasks");
         editor.ProcessDeferredTasks();
+        phase.emplace("Frame: begin ImGui frame");
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -336,7 +360,9 @@ int main(int argc, char* argv[])
 
         // Update editor. In project manager mode this draws that screen (and
         // its title bar) instead of the menu bar and panels.
+        phase.emplace("Frame: editor update (panels)");
         editor.Update();
+        phase.emplace("Frame: status bar, dock chrome");
 
         // Draw status bar at the bottom of the dockspace window
         if (!projectManagerMode)
@@ -353,6 +379,7 @@ int main(int argc, char* argv[])
         DekiEditor::DrawAllTabTopAccents();
 
         // Rendering
+        phase.emplace("Frame: ImGui render + GL draw");
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -364,7 +391,11 @@ int main(int argc, char* argv[])
         DekiEditor::EditorCapture::Get().ProcessEndOfFrame(
             (int)io.DisplaySize.x, (int)io.DisplaySize.y);
 
+        // Blocks until vsync: time here is waiting, not work.
+        phase.emplace("Frame: swap (waits for vsync)");
         SDL_GL_SwapWindow(ctx.window);
+        phase.reset();
+        DekiEditor::FrameTiming::EndFrame(frameStart);
 
         // Tracy frame marker - must be called exactly once per frame
         DEKI_PROFILE_FRAME;
@@ -372,6 +403,9 @@ int main(int argc, char* argv[])
 
     // Save editor layout (panel states + imgui.ini) before ExitProcess skips destructors
     editor.SaveLayout();
+    // Likewise the live session: stops the server and removes this editor's
+    // sessions/<pid>.json, which ~EditorApp would have done.
+    editor.StopMcpServer();
 
     DekiEditor::ShutdownPlatform(ctx);
 

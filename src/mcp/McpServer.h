@@ -76,7 +76,10 @@ public:
     McpServer(EditorApp* editor);
     ~McpServer();
 
-    void Start(int port = 3000);
+    // Binds before returning, so a port already in use is a false here rather
+    // than a server that never answers. Port 0 takes any free one; GetPort()
+    // says which.
+    bool Start(int port = 0);
     void Stop();
     bool IsRunning() const { return m_Running.load(); }
     int GetPort() const { return m_Port; }

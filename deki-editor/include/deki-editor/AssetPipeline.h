@@ -408,6 +408,10 @@ public:
     // relies on is no longer available by the time this fires).
     std::function<void(const std::string& relativePath, const std::string& guid)> OnAssetDeleted;
     std::function<void(const std::string&)> OnAssetCreated;
+    // ImportAllAssets does not fire OnAssetCreated per asset (its listener
+    // refreshes the whole asset browser, so an open of N assets refreshed it
+    // N times); this fires once when the import is done, if any were new.
+    std::function<void()> OnImportAllFinished;
 
     bool CompileSceneFile(const std::string& scenePath, const std::string& binaryPath);
     bool CompileAssetFile(const std::string& assetPath, const std::string& cachePath);
@@ -428,6 +432,7 @@ private:
     // rewrite is deferred and done once at the end.
     bool m_ImportingAll = false;
     bool m_AssetTableDirty = false;
+    bool m_CreatedDuringImport = false;  // OnImportAllFinished is due
     std::unordered_map<std::string, AssetInfo> m_Assets;
 
     // GUID cache - maps paths to GUIDs from .data sidecar files

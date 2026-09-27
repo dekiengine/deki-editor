@@ -481,13 +481,10 @@ uint32_t EditorAssets::LoadFrameTexture(const std::string& frameGuid, uint32_t* 
 
 bool EditorAssets::GetFrameUVs(const std::string& frameGuid, float* outU0, float* outV0, float* outU1, float* outV1)
 {
+    // Called for every sprite on every frame (the scene view sizes each one),
+    // with plain images as well as sheet frames: nothing here may log.
     if (frameGuid.empty())
-    {
-        DEKI_LOG_INFO("[GetFrameUVs] frameGuid is empty");
         return false;
-    }
-
-    DEKI_LOG_INFO("[GetFrameUVs] Looking up frame GUID: %s", frameGuid.c_str());
 
     // Initialize outputs to default (full texture)
     if (outU0) *outU0 = 0.0f;
@@ -498,22 +495,12 @@ bool EditorAssets::GetFrameUVs(const std::string& frameGuid, float* outU0, float
     // Get sub-asset info to find parent GUID
     const SubAssetInfo* subAsset = AssetDatabase::GetSubAsset(frameGuid);
     if (!subAsset)
-    {
-        DEKI_LOG_INFO("[GetFrameUVs] SubAsset not found for GUID: %s", frameGuid.c_str());
-        return false;
-    }
-    DEKI_LOG_INFO("[GetFrameUVs] Found SubAsset: parentGuid=%s, index=%d",
-                  subAsset->parentGuid.c_str(), subAsset->subAssetIndex);
+        return false;  // a plain image, not a frame of a sheet
 
     // Get sprite frame data from TextureImporter
     const SpriteFrameData* frameData = TextureImporter::GetFrameData(frameGuid);
     if (!frameData)
-    {
-        DEKI_LOG_INFO("[GetFrameUVs] FrameData not found for GUID: %s", frameGuid.c_str());
         return false;
-    }
-    DEKI_LOG_INFO("[GetFrameUVs] Found FrameData: x=%d, y=%d, w=%d, h=%d",
-                  frameData->x, frameData->y, frameData->width, frameData->height);
 
     // Load parent texture to get dimensions
     uint32_t parentWidth = 0, parentHeight = 0;

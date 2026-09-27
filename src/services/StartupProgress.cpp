@@ -13,6 +13,12 @@ void StartupProgress::SetWindow(SDL_Window* window)
     s_Complete = false;
 }
 
+void StartupProgress::Begin()
+{
+    ProgressModal::Reset();
+    s_Complete = false;
+}
+
 void StartupProgress::Complete()
 {
     s_Complete = true;

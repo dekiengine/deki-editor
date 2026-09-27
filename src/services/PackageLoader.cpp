@@ -94,24 +94,6 @@ bool PackageLoader::IsPackageDLL(const std::string& filename) const
 namespace
 {
 
-// Is a process with this id still running? Used to decide whether a leftover
-// shadow directory still has an owner.
-bool IsProcessAlive(unsigned long pid)
-{
-#ifdef _WIN32
-    // SYNCHRONIZE is the least privilege that still reports liveness, and it is
-    // granted for processes this user owns.
-    HANDLE h = OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(pid));
-    if (!h)
-        return false;
-    const bool alive = WaitForSingleObject(h, 0) == WAIT_TIMEOUT;
-    CloseHandle(h);
-    return alive;
-#else
-    return ::kill(static_cast<pid_t>(pid), 0) == 0 || errno == EPERM;
-#endif
-}
-
 #ifndef _WIN32
 inline unsigned long GetCurrentProcessId()
 {
@@ -144,34 +126,17 @@ std::string PackageLoader::CreateShadowDirectory()
         return {};
     }
 
-    // Reclaim the directory when its previous owner is gone.
+    // Record the owning process (a diagnostic for who last used these copies).
     //
-    // The shadow dir is only dangerous to reuse while another live editor has
-    // those DLLs mapped. A crashed or killed instance leaves the directory
-    // behind with nothing holding it, and every later launch then inherits its
-    // leftovers - which used to mean hand-deleting the shadow dir
-    // before the editor would load anything again. Record the owning PID and
-    // wipe the directory when that process no longer exists.
+    // A previous owner's copies are kept, even when it crashed: the freshness
+    // test below (size and write time) refreshes any that are stale, a locked
+    // one is shunted aside, and the project lock keeps a second live editor off
+    // this directory. This used to wipe the directory whenever the previous
+    // owner was gone - which after a normal exit it always is - so every launch
+    // copied every package library again: over a second on a small project,
+    // far more with Debug builds.
     {
         const fs::path ownerFile = shadowDir / "owner.pid";
-        bool ownerAlive = false;
-        if (std::ifstream in{ ownerFile })
-        {
-            unsigned long pid = 0;
-            if (in >> pid && pid != 0 && pid != GetCurrentProcessId())
-                ownerAlive = IsProcessAlive(pid);
-        }
-
-        if (!ownerAlive)
-        {
-            std::error_code clearEc;
-            for (const auto& leftover : fs::directory_iterator(shadowDir, clearEc))
-            {
-                std::error_code rmEc;
-                fs::remove_all(leftover.path(), rmEc);
-            }
-        }
-
         if (std::ofstream out{ ownerFile, std::ios::trunc })
             out << GetCurrentProcessId();
     }
@@ -1261,9 +1226,20 @@ bool PackageLoader::HasNewerSources(const std::string& srcDir, std::filesystem::
 
     try
     {
-        for (const auto& entry : fs::recursive_directory_iterator(
-                 srcDir, fs::directory_options::follow_directory_symlink))
+        // Every project open walks packages/ through here, and each package is
+        // a git clone: .git alone is thousands of files, generated/ and build
+        // output more. None of them are sources that make a package stale.
+        fs::recursive_directory_iterator it(srcDir, fs::directory_options::follow_directory_symlink);
+        for (; it != fs::recursive_directory_iterator(); ++it)
         {
+            const fs::directory_entry& entry = *it;
+            if (entry.is_directory())
+            {
+                const std::string name = entry.path().filename().string();
+                if ((!name.empty() && name[0] == '.') || name == "generated" || name == "build")
+                    it.disable_recursion_pending();
+                continue;
+            }
             if (!entry.is_regular_file())
                 continue;
             auto ext = entry.path().extension().string();

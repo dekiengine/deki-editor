@@ -1,4 +1,5 @@
 #include "McpTools.h"
+#include "../services/FrameTiming.h"
 #include "McpToolRegistry.h"
 #include "../EditorApp.h"
 #include <deki-editor/CommandHistory.h>
@@ -771,6 +772,31 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 { "rootObjectCount", scene->GetObjects().size() },
                                 { "dirty", CommandHistory::Instance().IsDirty() }
                             };
+                        } });
+
+    registry.Register({ "frame_timing",
+                        "Where the editor's frame time goes. The first call (or reset: true) starts "
+                        "counting; a later call reports, per frame: the average and longest frame, "
+                        "the main loop's phases, and every panel and custom editor, slowest first. "
+                        "Times nest (a panel includes its custom editors), and the swap phase is "
+                        "time spent waiting for vsync, not work.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "reset", { { "type", "boolean" }, { "description", "Start counting again from now." } } },
+                              { "top", { { "type", "integer" }, { "description", "How many entries to list (default 25)." } } } } } },
+                        [](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            if (!FrameTiming::IsCollecting() || args.value("reset", false))
+                            {
+                                FrameTiming::Restart();
+                                return { { "collecting", true }, { "note", "counting started; call again to read it" } };
+                            }
+                            nlohmann::json report = FrameTiming::Report();
+                            const size_t top = static_cast<size_t>(std::max(1, args.value("top", 25)));
+                            if (report["items"].size() > top)
+                                report["items"].erase(report["items"].begin() + static_cast<std::ptrdiff_t>(top),
+                                                      report["items"].end());
+                            return report;
                         } });
 
     registry.Register({ "get_project_info",

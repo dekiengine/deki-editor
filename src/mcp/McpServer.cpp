@@ -143,14 +143,11 @@ bool McpServer::Authorize(const httplib::Request& req, httplib::Response& res) c
     return true;
 }
 
-void McpServer::Start(int port)
+bool McpServer::Start(int port)
 {
-    if (m_Running.load()) return;
+    if (m_Running.load()) return true;
 
-    m_Port = port;
     m_Token = GenerateSessionToken();
-    m_Running.store(true);
-
     m_HttpServer = std::make_unique<httplib::Server>();
 
     // httplib defaults to a 5s socket timeout, which would drop the connection
@@ -260,8 +257,32 @@ void McpServer::Start(int port)
             [](bool) {}  // Content provider done callback
         ); });
 
-    // Start server thread
+    // Bind here, on the caller's thread: listen() on the server thread used to
+    // fail silently when the port was taken, leaving a server that reported
+    // itself running and never answered. Every windowed editor starts one, so
+    // they take any free port unless one is asked for.
+    if (port == 0)
+    {
+        m_Port = m_HttpServer->bind_to_any_port(kBindAddress);
+    }
+    else
+    {
+        m_Port = port;
+        if (!m_HttpServer->bind_to_port(kBindAddress, port))
+            m_Port = -1;
+    }
+    if (m_Port <= 0)
+    {
+        DEKI_LOG_ERROR("MCP: could not listen on %s:%d (in use?)", kBindAddress, port);
+        m_HttpServer.reset();
+        m_Token.clear();
+        m_Port = 0;
+        return false;
+    }
+
+    m_Running.store(true);
     m_ServerThread = std::thread(&McpServer::ServerThread, this);
+    return true;
 }
 
 void McpServer::Stop()
@@ -283,7 +304,7 @@ void McpServer::Stop()
 
 void McpServer::ServerThread()
 {
-    m_HttpServer->listen(kBindAddress, m_Port);
+    m_HttpServer->listen_after_bind();
 }
 
 void McpServer::ProcessMessages()

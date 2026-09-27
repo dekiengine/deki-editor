@@ -49,6 +49,7 @@
 #include "services/EngineEditorSetup.h"
 // MCP server
 #include "mcp/McpServer.h"
+#include "services/LiveSession.h"
 // Crash recovery
 #include "services/CrashHandler.h"
 // Per-frame exception barrier
@@ -174,7 +175,7 @@ EditorApp::EditorApp()
     m_NewProjectDialog->SetOnProjectCreated([this](const std::string& projectPath)
                                             {
         // Open the newly created project
-        OpenProject(projectPath); });
+        RequestOpenProject(projectPath); });
 
     // Create the project manager screen. It is what the editor shows until a
     // project is open, which on a normal launch is the very first frame.
@@ -364,7 +365,7 @@ void EditorApp::Update()
         // the middle of a widget tree.
         const std::string requested = m_ProjectManagerScreen->ConsumePendingOpen();
         if (!requested.empty())
-            OpenProject(requested);
+            RequestOpenProject(requested);
 
         // A refused open (the project is open in another editor) says so here.
         DekiEditor::Guard("Toast", [] { DekiEditor::Toast::DrawInFrame(); });
@@ -933,6 +934,15 @@ void EditorApp::ProcessDeferredTasks()
     // the handlers open projects and write scenes.
     FileDialogs::PumpResults();
 
+    // A project the project list or a dialog asked for, opened here because
+    // the progress card cannot draw from inside the ImGui frame they run in.
+    if (!m_PendingOpenProject.empty())
+    {
+        const std::string path = std::move(m_PendingOpenProject);
+        m_PendingOpenProject.clear();
+        OpenProjectShowingProgress(path);
+    }
+
     // Advance a running build first: a finished step may need the reload tail,
     // which has to run here, outside the ImGui frame, like the checks below.
     if (m_HotReloadService)
@@ -962,11 +972,17 @@ void EditorApp::ProcessDeferredTasks()
     }
 }
 
-void EditorApp::StartMcpServer(int port)
+bool EditorApp::StartMcpServer(int port)
 {
-    if (m_McpServer) return;
+    if (m_McpServer) return true;
     m_McpServer = std::make_unique<McpServer>(this);
-    m_McpServer->Start(port);
+    if (!m_McpServer->Start(port))
+    {
+        m_McpServer.reset();
+        return false;
+    }
+    PublishLiveSession();
+    return true;
 }
 
 void EditorApp::StopMcpServer()
@@ -975,7 +991,15 @@ void EditorApp::StopMcpServer()
     {
         m_McpServer->Stop();
         m_McpServer.reset();
+        LiveSession::Withdraw();
     }
+}
+
+void EditorApp::PublishLiveSession()
+{
+    if (m_McpServer && m_McpServer->IsRunning())
+        LiveSession::Publish(m_McpServer->GetPort(), m_McpServer->GetToken(),
+                             m_Project ? m_Project->GetPath() : std::string());
 }
 
 bool EditorApp::IsMcpServerRunning() const
@@ -1796,7 +1820,7 @@ void EditorApp::ExecutePendingAction()
             break;
 
         case PendingSceneAction::OpenProject:
-            OpenProject(path);
+            RequestOpenProject(path);
             break;
 
         case PendingSceneAction::Quit:

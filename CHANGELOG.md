@@ -7,6 +7,25 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **Drive a running editor from the command line.** Every windowed editor
+  runs its MCP server on a free loopback port and publishes it per user
+  (`%APPDATA%/DekiEditor/sessions/<pid>.json`). `DekiEditor --tool`, `--script`
+  and `--list-tools` on a project an editor has open run in that editor, so
+  their changes show up live. See [SETUP.md](SETUP.md#8-mcp).
+- **MCP `frame_timing`**: where an editor frame's time goes. The first call
+  starts counting; the next reports the average and longest frame, the main
+  loop's phases, and every panel and custom editor, slowest first.
+- **Started minimized, the editor stays in the background.** Launched with
+  `start /min`, a "Run: Minimized" shortcut or `-WindowStyle Minimized`, it no
+  longer maximizes itself into the foreground; it comes up inactive and
+  restores to maximized when clicked.
+- **Opening a project shows what it is doing, every time.** The progress card
+  (installing packages, building, loading packages, importing assets, with the
+  package or file) used to show only while the editor itself started; opening
+  a project from the project list, a dialog or MCP sat on a window that did
+  not repaint. It now covers every open, including the plugin build after it,
+  and names two steps that were silent ("Checking platforms", "Checking build
+  tools").
 - **Simulate a board.** The Build panel's **Simulate in QEMU** (or `--simulate`
   with `--build-firmware`/`--deploy`, or `simulate` on the MCP `build_firmware`
   and `deploy_build`) builds a board's firmware for its backend's simulator:
@@ -228,6 +247,40 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **The editor crawled on a scene with many sprites.** Sizing a sprite (which
+  the scene view does for every sprite, every frame) logged two lines when the
+  sprite shows a whole image rather than a sheet frame: thousands of
+  "SubAsset not found" lines a minute in Editor.log and the Console.
+- **An open project rebuilt itself every few seconds.** The source watcher
+  took changes inside a package's `.git` for source edits, and the package
+  check it triggers runs git, which changes `.git` again.
+- **Opening a project is several times faster.** A warm open of deki-demo went
+  from 6.7 s to under 1 s (Debug build):
+  - the asset cache threw its format stamp away as an orphan, so every open
+    wiped the cache and recompiled every asset;
+  - every launch copied every package library to its working copy again;
+    copies are now kept and refreshed only when stale;
+  - the package scans walked each package's `.git` (and `generated/`, build
+    output) file by file;
+  - an import refreshed the asset browser once per asset, and wrote
+    `guids.json` once per asset; both now happen once;
+  - the build tool check started a process per probe and asked again on every
+    open; it looks tools up on PATH itself, keeps its answers for the session
+    and runs in the background while the window comes up;
+  - the progress card redraws at most every 50 ms, not once per asset.
+- **No more console windows flashing on project open.** The build tool check
+  used `_popen`, which opens a console per call in a windowed program.
+- **Every editor close crashed during exit** (a crash box after the window
+  closed): the builder registry's static destructor destroyed builders whose
+  package libraries were already gone. The live session file is also removed
+  on exit now.
+- A project configured by another editor build (a different compiler path)
+  failed its first build after minutes, "DEKI_ENGINE_PATH and DEKI_EDITOR_DIR
+  must be supplied": CMake discards such a cache and the values passed with
+  it. The editor now wipes the build directory and configures again.
+- The MCP server bound its port on its own thread and failed silently when it
+  was taken, reporting itself running while nothing answered. It binds before
+  `Start` returns and says so when it cannot.
 - **A project opens in one editor at a time.** Any number of editors can run,
   but opening a project another editor has open is refused with a message
   naming that editor's process (a toast on the project list, an error line on

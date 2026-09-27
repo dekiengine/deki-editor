@@ -31,6 +31,8 @@
 #include "services/FirmwareBuildService.h"
 #include <deki-editor/FeatureResolver.h>
 #include "mcp/McpToolRegistry.h"
+#include "services/LiveSession.h"
+#include "EditorCli.h"
 #include "mcp/McpTools.h"
 #include "services/AssetExporter.h"
 #include "services/ProjectTemplate.h"
@@ -1476,46 +1478,55 @@ McpToolRegistry BuildToolRegistry(EditorApp& editor)
     return registry;
 }
 
-/// Run one tool, printing what it returned. Throws are reported rather than
-/// escaping, because a script step failing is an ordinary outcome.
-bool RunOneTool(const McpToolRegistry& registry, const std::string& name,
-                const nlohmann::json& args, std::string& outError)
-{
-    const std::optional<McpToolDescriptor> tool = registry.FindTool(name);
-    if (!tool)
-    {
-        outError = "no tool named '" + name + "'";
-        return false;
-    }
-    try
-    {
-        const nlohmann::json result = tool->handler(args);
-        printf("%s\n", result.dump(2).c_str());
-        return true;
-    }
-    catch (const std::exception& e)
-    {
-        outError = e.what();
-        return false;
-    }
-}
-}  // namespace
+/// Runs one tool somewhere: in this process, or in the editor that has the
+/// project open (LiveSession.h). Throws are reported rather than escaping,
+/// because a script step failing is an ordinary outcome.
+using ToolCall = std::function<bool(const std::string& name, const nlohmann::json& args,
+                                    nlohmann::json& result, std::string& error)>;
 
-int CmdListTools(EditorApp& editor)
+ToolCall LocalToolCall(const McpToolRegistry& registry)
 {
-    const McpToolRegistry registry = BuildToolRegistry(editor);
-    nlohmann::json out = nlohmann::json::array();
-    for (const McpToolDescriptor& tool : registry.GetTools())
+    return [&registry](const std::string& name, const nlohmann::json& args, nlohmann::json& result,
+                       std::string& error)
     {
-        out.push_back({ { "name", tool.name },
-                        { "description", tool.description },
-                        { "inputSchema", tool.inputSchema } });
-    }
-    printf("%s\n", out.dump(2).c_str());
-    return 0;
+        const std::optional<McpToolDescriptor> tool = registry.FindTool(name);
+        if (!tool)
+        {
+            error = "no tool named '" + name + "'";
+            return false;
+        }
+        try
+        {
+            result = tool->handler(args);
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            error = e.what();
+            return false;
+        }
+    };
 }
 
-int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson)
+ToolCall LiveToolCall(const LiveSession::Info& session)
+{
+    return [session](const std::string& name, const nlohmann::json& args, nlohmann::json& result,
+                      std::string& error)
+    { return LiveSession::CallTool(session, name, args, result, error); };
+}
+
+/// Run one tool, printing what it returned.
+bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::json& args,
+                std::string& outError)
+{
+    nlohmann::json result;
+    if (!call(name, args, result, outError))
+        return false;
+    printf("%s\n", result.dump(2).c_str());
+    return true;
+}
+
+int RunToolWith(const ToolCall& call, const char* toolName, const char* argsJson)
 {
     if (!toolName || !*toolName)
     {
@@ -1537,9 +1548,8 @@ int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson)
         }
     }
 
-    const McpToolRegistry registry = BuildToolRegistry(editor);
     std::string error;
-    if (!RunOneTool(registry, toolName, args, error))
+    if (!RunOneTool(call, toolName, args, error))
     {
         printf("Error: %s\n", error.c_str());
         return 1;
@@ -1547,7 +1557,7 @@ int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson)
     return 0;
 }
 
-int CmdRunScript(EditorApp& editor, const char* scriptPath)
+int RunScriptWith(const ToolCall& call, const char* scriptPath)
 {
     std::ifstream in(Str(scriptPath));
     if (!in)
@@ -1572,7 +1582,6 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
         return 1;
     }
 
-    const McpToolRegistry registry = BuildToolRegistry(editor);
     int stepNumber = 0;
     for (const auto& step : script)
     {
@@ -1588,7 +1597,7 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
 
         printf("[%d/%d] %s\n", stepNumber, static_cast<int>(script.size()), name.c_str());
         std::string error;
-        if (!RunOneTool(registry, name, args, error))
+        if (!RunOneTool(call, name, args, error))
         {
             // Stopping here rather than carrying on: a later step almost
             // always depends on what this one was to produce, and a cascade of
@@ -1599,6 +1608,66 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
     }
     printf("Script finished: %d step(s).\n", stepNumber);
     return 0;
+}
+}  // namespace
+
+int CmdListTools(EditorApp& editor)
+{
+    const McpToolRegistry registry = BuildToolRegistry(editor);
+    nlohmann::json out = nlohmann::json::array();
+    for (const McpToolDescriptor& tool : registry.GetTools())
+    {
+        out.push_back({ { "name", tool.name },
+                        { "description", tool.description },
+                        { "inputSchema", tool.inputSchema } });
+    }
+    printf("%s\n", out.dump(2).c_str());
+    return 0;
+}
+
+int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson)
+{
+    const McpToolRegistry registry = BuildToolRegistry(editor);
+    return RunToolWith(LocalToolCall(registry), toolName, argsJson);
+}
+
+int CmdRunScript(EditorApp& editor, const char* scriptPath)
+{
+    const McpToolRegistry registry = BuildToolRegistry(editor);
+    return RunScriptWith(LocalToolCall(registry), scriptPath);
+}
+
+bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
+{
+    if (!cli.projectPath || !(cli.listTools || cli.toolName || cli.scriptPath))
+        return false;
+    const std::vector<LiveSession::Info> sessions = LiveSession::FindForProject(cli.projectPath);
+    if (sessions.empty())
+        return false;
+    const LiveSession::Info& session = sessions.front();
+
+    // stderr, so stdout stays the tool output a caller parses.
+    fprintf(stderr, "Running in the editor that has this project open (process %lld).\n", session.pid);
+
+    if (cli.listTools)
+    {
+        nlohmann::json tools;
+        std::string error;
+        if (!LiveSession::ListTools(session, tools, error))
+        {
+            printf("Error: %s\n", error.c_str());
+            outRc = 1;
+            return true;
+        }
+        printf("%s\n", tools.dump(2).c_str());
+        outRc = 0;
+        return true;
+    }
+
+    const ToolCall call = LiveToolCall(session);
+    outRc = cli.toolName ? RunToolWith(call, cli.toolName, cli.toolArgs)
+                         : RunScriptWith(call, cli.scriptPath);
+    return true;
 }
 
 // The project's own targets, which is what "every target" means: the registry

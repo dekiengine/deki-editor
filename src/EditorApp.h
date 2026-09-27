@@ -94,6 +94,16 @@ public:
     // after a successful open.
     const std::string& GetOpenProjectError() const { return m_OpenProjectError; }
 
+    // OpenProject with the progress card up for all of it, the plugin build it
+    // queues included. What every windowed open goes through.
+    bool OpenProjectShowingProgress(const std::string& path);
+    // Opens `path` on the next deferred-task pass, outside the ImGui frame:
+    // the progress card cannot draw from inside one. For callers that run in
+    // a frame (the project list, dialogs).
+    void RequestOpenProject(const std::string& path);
+    // Runs the plugin build an open queued, and waits out any other build.
+    void FinishPendingBuilds();
+
     void NewScene();
 
     /// Quit, routed through the unsaved-changes prompt like every other action
@@ -336,6 +346,7 @@ private:
     std::unique_ptr<Project> m_Project;
     ProjectLock m_ProjectLock;  // held while m_Project is open
     std::string m_OpenProjectError;
+    std::string m_PendingOpenProject;  // RequestOpenProject
     int m_ProjectTransformWidth = 2;  // 0, 2 or 3; see GetProjectTransformWidth
     std::unique_ptr<::Deki::Scene> m_CurrentScene;
     std::unique_ptr<AssetPipeline> m_AssetPipeline;
@@ -501,17 +512,20 @@ private:
     const std::vector<std::string>& SceneGuidsIn(const std::string& absPath);
 
 public:
-    // Default 3000. Overridable so a second editor - or one
-    // launched while a dead instance still holds the socket - can still be
-    // driven; the listen socket uses SO_REUSEADDR, so a colliding bind succeeds
-    // and then silently refuses every connection.
-    void StartMcpServer(int port = 3000);
+    // Port 0 (the default) takes any free one, which is what lets every
+    // windowed editor run a server at once; --mcp asks for a fixed port. A
+    // running server is published for the command line (LiveSession.h) and
+    // republished whenever the open project changes.
+    bool StartMcpServer(int port = 0);
     void StopMcpServer();
     bool IsMcpServerRunning() const;
     // Loopback SSE endpoint including the session token, or "" when not running.
     // This is what an MCP client must be pointed at - the token changes on every
     // Start(), so it cannot be baked into a config file.
     std::string GetMcpSseUrl() const;
+
+private:
+    void PublishLiveSession();
 };
 
 }  // namespace DekiEditor

@@ -32,13 +32,13 @@ BuilderRegistry& BuilderRegistry::Instance()
 
 BuilderRegistry::~BuilderRegistry()
 {
-    // Instance() is a function-local static, so this runs after main returns,
-    // when unloading a module would execute its detach against dead editor
-    // statics. Shutdown() is the supported path and sets m_ShutDown; reaching
-    // here without it means someone forgot, and doing nothing is the least
-    // dangerous thing left.
-    if (!m_ShutDown)
-        Shutdown();
+    // Instance() is a function-local static, so this runs while the process
+    // exits: after main returns, or inside ExitProcess, which is how both the
+    // window and the command line leave. By then the package libraries that
+    // made the builders may already be detached, and destroying a builder
+    // calls into them - it crashed every exit that way, a crash box on each
+    // editor close. Shutdown() is the supported path; without it, leave
+    // everything to the process teardown.
 }
 
 void BuilderRegistry::Shutdown()

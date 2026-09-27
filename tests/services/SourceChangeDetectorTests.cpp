@@ -38,6 +38,16 @@ TEST(IsBuildArtifact, IgnoresBuildTrees)
     EXPECT_TRUE(SCD::IsBuildArtifact("build/bin/DekiEditor.exe"));
 }
 
+TEST(IsBuildArtifact, IgnoresGitsOwnFiles)
+{
+    EXPECT_TRUE(SCD::IsBuildArtifact("packages/deki-sdcard/.git"));
+    EXPECT_TRUE(SCD::IsBuildArtifact("packages/deki-sdcard/.git/index"));
+    EXPECT_TRUE(SCD::IsBuildArtifact(".git/index.lock"));
+    EXPECT_TRUE(SCD::IsBuildArtifact(".git"));
+    EXPECT_FALSE(SCD::IsBuildArtifact("src/Digit.cpp"));
+    EXPECT_FALSE(SCD::IsBuildArtifact("packages/deki-2d/.gitignore"));
+}
+
 TEST(IsBuildArtifact, KeepsRealSources)
 {
     EXPECT_FALSE(SCD::IsBuildArtifact("src/Player.cpp"));

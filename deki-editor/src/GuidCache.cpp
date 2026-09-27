@@ -304,6 +304,28 @@ void GuidCache::Sync(const std::string& assetsRoot)
     }
 }
 
+void GuidCache::SaveOrDefer()
+{
+    if (m_CachePath.empty())
+        return;
+    if (m_BatchDepth > 0)
+        m_SaveDue = true;
+    else
+        Save(m_CachePath);
+}
+
+void GuidCache::EndBatch()
+{
+    if (m_BatchDepth > 0)
+        --m_BatchDepth;
+    if (m_BatchDepth == 0 && m_SaveDue)
+    {
+        m_SaveDue = false;
+        if (!m_CachePath.empty())
+            Save(m_CachePath);
+    }
+}
+
 void GuidCache::OnFileCreated(const std::string& path)
 {
     if (m_AssetsRoot.empty())
@@ -336,10 +358,7 @@ void GuidCache::OnFileCreated(const std::string& path)
 
     DEKI_LOG_EDITOR("GuidCache: OnFileCreated: %s -> %s", normalizedPath.c_str(), entry.guid.c_str());
 
-    if (!m_CachePath.empty())
-    {
-        Save(m_CachePath);
-    }
+    SaveOrDefer();
 }
 
 void GuidCache::OnFileModified(const std::string& path)
@@ -372,10 +391,7 @@ void GuidCache::OnFileModified(const std::string& path)
 
     DEKI_LOG_EDITOR("GuidCache: OnFileModified: %s -> %s", normalizedPath.c_str(), entry.guid.c_str());
 
-    if (!m_CachePath.empty())
-    {
-        Save(m_CachePath);
-    }
+    SaveOrDefer();
 }
 
 void GuidCache::OnFileDeleted(const std::string& path)
@@ -391,10 +407,7 @@ void GuidCache::OnFileDeleted(const std::string& path)
     DEKI_LOG_EDITOR("GuidCache: OnFileDeleted: %s", normalizedPath.c_str());
     RemoveEntry(normalizedPath);
 
-    if (!m_CachePath.empty())
-    {
-        Save(m_CachePath);
-    }
+    SaveOrDefer();
 }
 
 void GuidCache::OnFileMoved(const std::string& oldPath, const std::string& newPath)
@@ -429,10 +442,7 @@ void GuidCache::OnFileMoved(const std::string& oldPath, const std::string& newPa
     DEKI_LOG_EDITOR("GuidCache: OnFileMoved: %s -> %s (guid: %s)",
                     normalizedOldPath.c_str(), normalizedNewPath.c_str(), entry.guid.c_str());
 
-    if (!m_CachePath.empty())
-    {
-        Save(m_CachePath);
-    }
+    SaveOrDefer();
 }
 
 std::string GuidCache::GetGuid(const std::string& path) const

@@ -92,7 +92,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
                             const bool open = args.value("open", true);
                             if (open)
-                                editor->OpenProject(projectPath.string());
+                                editor->OpenProjectShowingProgress(projectPath.string());
 
                             return { { "path", projectPath.string() }, { "opened", open } };
                         } });
@@ -107,7 +107,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             if (!fs::exists(fs::path(path) / "deki.json"))
                                 throw std::runtime_error("No deki.json at " + path);
 
-                            if (!editor->OpenProject(path))
+                            if (!editor->OpenProjectShowingProgress(path))
                                 throw std::runtime_error(editor->GetOpenProjectError());
 
                             auto* project = editor->GetProject();

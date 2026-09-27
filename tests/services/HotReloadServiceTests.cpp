@@ -88,6 +88,20 @@ TEST_F(HotReloadUtilityTest, HasNewerSources_IgnoresNonSourceFiles)
     EXPECT_FALSE(PackageLoader::HasNewerSources(m_TempDir.string(), refTime));
 }
 
+TEST_F(HotReloadUtilityTest, HasNewerSources_SkipsGitGeneratedAndBuildFolders)
+{
+    // Not sources, and walking them made every project open slow: a package
+    // clone's .git alone is thousands of files.
+    auto refTime = std::filesystem::file_time_type::clock::now() - std::chrono::seconds(5);
+    CreateSourceFileInSubdir(".git/objects", "a.h");
+    CreateSourceFileInSubdir("pkg/generated", "Reflection.gen.cpp");
+    CreateSourceFileInSubdir("build/CMakeFiles", "probe.cpp");
+    EXPECT_FALSE(PackageLoader::HasNewerSources(m_TempDir.string(), refTime));
+
+    CreateSourceFileInSubdir("pkg/src", "Real.cpp");
+    EXPECT_TRUE(PackageLoader::HasNewerSources(m_TempDir.string(), refTime));
+}
+
 TEST_F(HotReloadUtilityTest, HasNewerSources_DetectsCppHHppFiles)
 {
     auto refTime = std::filesystem::file_time_type::clock::now() - std::chrono::seconds(5);

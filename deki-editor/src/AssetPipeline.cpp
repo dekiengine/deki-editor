@@ -447,12 +447,23 @@ void AssetPipeline::ImportAllAssets()
     struct ImportScope
     {
         AssetPipeline& p;
-        explicit ImportScope(AssetPipeline& pipeline) : p(pipeline) { p.m_ImportingAll = true; }
+        explicit ImportScope(AssetPipeline& pipeline) : p(pipeline)
+        {
+            p.m_ImportingAll = true;
+            p.m_GuidCache.BeginBatch();  // one guids.json write, not one per asset
+        }
         ~ImportScope()
         {
             p.m_ImportingAll = false;
+            p.m_GuidCache.EndBatch();
             if (p.m_AssetTableDirty)
                 p.UpdateAssetTable();
+            if (p.m_CreatedDuringImport)
+            {
+                p.m_CreatedDuringImport = false;
+                if (p.OnImportAllFinished)
+                    p.OnImportAllFinished();
+            }
         }
     } importScope(*this);
 
@@ -911,7 +922,9 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
             UpdateAssetTable();
         if (OnAssetDiscovered)
             OnAssetDiscovered(relativePath);
-        if (OnAssetCreated)
+        if (m_ImportingAll)
+            m_CreatedDuringImport = true;
+        else if (OnAssetCreated)
             OnAssetCreated(relativePath);
     }
 }
@@ -1322,8 +1335,11 @@ int AssetPipeline::CleanCache()
         std::string ext = entry.path().extension().string();
         std::string stem = entry.path().stem().string();
 
-        // Skip non-asset files (metadata, lookup tables)
-        if (ext == ".json" || stem == "asset_table" || stem == "guids" || stem == "play_mode_table")
+        // Skip non-asset files (metadata, lookup tables). "version" is the
+        // cache format stamp Start() checks: deleting it here made every open
+        // find no stamp, wipe the cache and recompile every asset.
+        if (ext == ".json" || stem == "asset_table" || stem == "guids" || stem == "play_mode_table" ||
+            filename == "version")
             continue;
 
         // Handle atlas files: stems ending in "_atlas" map back to the parent
@@ -1574,8 +1590,8 @@ void AssetPipeline::ValidateCache()
         std::string filename = entry.path().filename().string();
         std::string stem = entry.path().stem().string();
 
-        // Skip known non-asset files
-        if (stem == "asset_table" || stem == "guids" || stem == "play_mode_table")
+        // Skip known non-asset files (the "version" stamp: see CleanCache)
+        if (stem == "asset_table" || stem == "guids" || stem == "play_mode_table" || filename == "version")
             continue;
 
         // Skip metadata files

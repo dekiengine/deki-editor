@@ -49,6 +49,15 @@ bool IsBuildArtifact(const std::string& relativePath)
     if (hasSegment("generated") || hasSegment("build"))
         return true;
 
+    // Git's own files. The editor's git queries on a package clone refresh its
+    // index, and each one rebuilt the project. The event can name the .git
+    // directory itself, with nothing after it.
+    if (hasSegment(".git") || relativePath == ".git" ||
+        (relativePath.size() > 5 && relativePath.compare(relativePath.size() - 5, 5, "/.git") == 0))
+    {
+        return true;
+    }
+
     // Written into the package repo through the junction by the build itself.
     {
         static const std::string kPkg = ".deki-package.json";

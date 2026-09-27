@@ -4,6 +4,7 @@ namespace DekiEditor
 {
 
 class EditorApp;
+struct CliOptions;
 
 // ===========================================================================
 // Commands that run against a booted editor
@@ -93,6 +94,13 @@ int CmdRunTool(EditorApp& editor, const char* toolName, const char* argsJson);
 /// the first failure. Each step's result is printed as it runs, so a failure
 /// halfway through says what had already been done.
 int CmdRunScript(EditorApp& editor, const char* scriptPath);
+
+/// --tool, --script and --list-tools on a project that a running editor has
+/// open: run them in that editor (LiveSession.h), before this process boots
+/// a second copy the project lock would refuse. False, with nothing done,
+/// when no running editor has the project; `outRc` is the command's exit code
+/// otherwise.
+bool TryRunInLiveEditor(const CliOptions& cli, int& outRc);
 
 /// Print the stripping plan for the project open: every package feature with
 /// whether a device build keeps it and why, every package likewise, then the

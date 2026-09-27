@@ -33,6 +33,11 @@ struct Prerequisite
 /// project open, not per frame.
 std::vector<Prerequisite> CheckPrerequisites();
 
+/// Runs CheckPrerequisites on a background thread and returns at once. Its
+/// tool probes are kept for the session, so the check a project open makes
+/// later finds them answered instead of starting a process per tool.
+void WarmPrerequisitesInBackground();
+
 /// True if every *required* prerequisite is present.
 bool PrerequisitesSatisfied(const std::vector<Prerequisite>& results);
 

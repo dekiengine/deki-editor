@@ -34,7 +34,13 @@ struct ProgressState
 {
     bool hasStartTime = false;
     uint64_t startMs = 0;
+    // Show() redraws at most every kMinRedrawMs unless the phase changed:
+    // each redraw waits for vsync, and a project open reports every asset.
+    uint64_t lastDrawMs = 0;
+    std::string lastPhase;
 };
+
+constexpr uint64_t kMinRedrawMs = 50;
 
 ProgressState g_State;
 
@@ -217,6 +223,14 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
         g_State.startMs = nowMs;
         g_State.hasStartTime = true;
     }
+
+    // Events were pumped above, so the window stays responsive either way;
+    // what is skipped is only a redraw that would show the same phase.
+    const char* phaseText = phase ? phase : "";
+    if (g_State.lastDrawMs != 0 && nowMs - g_State.lastDrawMs < kMinRedrawMs && g_State.lastPhase == phaseText)
+        return;
+    g_State.lastDrawMs = nowMs;
+    g_State.lastPhase = phaseText;
 
     // Start a new ImGui frame for the progress modal
     ImGui_ImplOpenGL3_NewFrame();

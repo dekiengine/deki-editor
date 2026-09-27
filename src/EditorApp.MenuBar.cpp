@@ -799,7 +799,7 @@ void EditorApp::OpenProjectDialog()
                                 // Ask about the dirty scene BEFORE OpenProject: its internal
                                 // CloseProject runs mid-open and cannot stop to ask.
                                 if (!CheckUnsavedChanges(PendingSceneAction::OpenProject, path))
-                                    OpenProject(path);
+                                    RequestOpenProject(path);
                             });
 }
 

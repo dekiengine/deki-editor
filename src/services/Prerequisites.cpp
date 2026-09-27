@@ -2,7 +2,14 @@
 #include "BundledToolchain.h"
 #include "PluginToolchain.h"
 
+#include <deki-editor/ShellCommand.h>
+
 #include <array>
+#include <filesystem>
+#include <mutex>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -14,46 +21,114 @@ namespace
 {
 
 /// Run a command and return its first line of output, or "" if it could not run.
+///
+/// Through RunShellCommand, which starts the shell without a window. This used
+/// _popen, which in a windowed program opens a console for every call: a
+/// project open flashed one up per tool probed.
+///
+/// An answer is kept for the rest of the session: these are version probes of
+/// installed tools, and every project open asked them again. A failed probe is
+/// not kept, so a tool installed while the editor runs is seen next time.
 std::string RunCapture(const std::string& cmd)
 {
-#ifdef _WIN32
-    FILE* pipe = _popen((cmd + " 2>NUL").c_str(), "r");
-#else
-    FILE* pipe = popen((cmd + " 2>/dev/null").c_str(), "r");
-#endif
-    if (!pipe)
-        return "";
+    static std::mutex s_Mutex;
+    static std::unordered_map<std::string, std::string> s_Answers;
+    {
+        std::lock_guard<std::mutex> lock(s_Mutex);
+        const auto it = s_Answers.find(cmd);
+        if (it != s_Answers.end())
+            return it->second;
+    }
 
+#ifdef _WIN32
+    const std::string line = cmd + " 2>NUL";
+#else
+    const std::string line = cmd + " 2>/dev/null";
+#endif
     std::string out;
-    char buffer[512];
-    while (fgets(buffer, sizeof(buffer), pipe))
-        out += buffer;
-
-#ifdef _WIN32
-    const int rc = _pclose(pipe);
-#else
-    const int rc = pclose(pipe);
-#endif
-
+    bool first = true;
+    const int rc = RunShellCommand(line, "",
+                                   [&](const std::string& l)
+                                   {
+                                       if (first)
+                                           out = l;
+                                       first = false;
+                                   });
     if (rc != 0)
         return "";
 
-    // First line, trimmed.
-    const size_t nl = out.find_first_of("\r\n");
-    if (nl != std::string::npos)
-        out = out.substr(0, nl);
-    while (!out.empty() && (out.back() == ' ' || out.back() == '\t'))
+    while (!out.empty() && (out.back() == ' ' || out.back() == '\t' || out.back() == '\r'))
         out.pop_back();
+    if (!out.empty())
+    {
+        std::lock_guard<std::mutex> lock(s_Mutex);
+        s_Answers[cmd] = out;
+    }
     return out;
 }
 
+/// Whether `tool` can be run: a path that exists, or a name found on PATH.
+/// Looked up here rather than by running `where` / `command -v`, which cost a
+/// process each.
 bool ToolExists(const std::string& tool)
 {
+    namespace fs = std::filesystem;
+    std::error_code ec;
 #ifdef _WIN32
-    return !RunCapture("where " + tool).empty();
+    std::vector<std::string> exts = { "" };
+    {
+        const char* pathext = std::getenv("PATHEXT");
+        std::string list = pathext ? pathext : ".COM;.EXE;.BAT;.CMD";
+        size_t start = 0;
+        while (start <= list.size())
+        {
+            const size_t end = list.find(';', start);
+            const std::string e = list.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            if (!e.empty())
+                exts.push_back(e);
+            if (end == std::string::npos)
+                break;
+            start = end + 1;
+        }
+    }
+    const char sep = ';';
 #else
-    return !RunCapture("command -v " + tool).empty();
+    const std::vector<std::string> exts = { "" };
+    const char sep = ':';
 #endif
+    auto runnable = [&](const fs::path& p)
+    {
+        for (const std::string& e : exts)
+        {
+            fs::path candidate = p;
+            candidate += e;
+            if (fs::is_regular_file(candidate, ec))
+                return true;
+        }
+        return false;
+    };
+
+    if (tool.find('/') != std::string::npos || tool.find('\\') != std::string::npos)
+        return runnable(fs::path(tool));
+
+    const char* path = std::getenv("PATH");
+    if (!path)
+        return false;
+    const std::string dirs = path;
+    size_t start = 0;
+    while (start <= dirs.size())
+    {
+        const size_t end = dirs.find(sep, start);
+        std::string dir = dirs.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        if (dir.size() >= 2 && dir.front() == '"' && dir.back() == '"')
+            dir = dir.substr(1, dir.size() - 2);
+        if (!dir.empty() && runnable(fs::path(dir) / tool))
+            return true;
+        if (end == std::string::npos)
+            break;
+        start = end + 1;
+    }
+    return false;
 }
 
 /// Leading integer of a version string ("16.0.1" -> 16). -1 if unparseable.
@@ -213,6 +288,11 @@ std::vector<std::string> DescribeMissing(const std::vector<Prerequisite>& result
         lines.push_back("    install:    " + p.install);
     }
     return lines;
+}
+
+void WarmPrerequisitesInBackground()
+{
+    std::thread([] { CheckPrerequisites(); }).detach();
 }
 
 }  // namespace DekiEditor

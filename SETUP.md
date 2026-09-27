@@ -399,6 +399,16 @@ characters or more, refused below that) in the environment of both the editor
 and the client, and use `http://127.0.0.1:3000/sse?token=$DEKI_MCP_TOKEN`.
 `--mcp-port` moves the port when 3000 is taken.
 
+**Live sessions.** Every windowed editor runs this server anyway, on a free
+loopback port, and writes where it is to
+`%APPDATA%/DekiEditor/sessions/<pid>.json` (the project it has open, the
+port and the token; per user, never in the project folder). So
+`DekiEditor --tool`, `--script` and `--list-tools` on a project an editor has
+open run in that editor, live, instead of opening a second copy, which the
+project lock refuses. A note on stderr names the editor's process; stdout is
+the tool output as usual. Other verbs on a project open elsewhere are still
+refused.
+
 ---
 
 ## 9. Stripping

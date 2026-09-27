@@ -123,6 +123,16 @@ public:
      */
     size_t GetCollisionsResolved() const { return m_CollisionsResolved; }
 
+    /**
+     * @brief Hold the file-change handlers' saves until EndBatch.
+     *
+     * A bulk import calls OnFileModified for every asset, and each call used
+     * to rewrite the whole cache file. Inside a batch the file is written once,
+     * at EndBatch, if anything changed.
+     */
+    void BeginBatch() { ++m_BatchDepth; }
+    void EndBatch();
+
 private:
     struct Entry
     {
@@ -135,6 +145,11 @@ private:
     std::unordered_map<std::string, Entry> m_Entries;           // path -> entry
     std::unordered_map<std::string, std::string> m_GuidToPath;  // guid -> path
     size_t m_CollisionsResolved = 0;
+    int m_BatchDepth = 0;
+    bool m_SaveDue = false;
+
+    // Save(m_CachePath) now, or at EndBatch inside a batch.
+    void SaveOrDefer();
 
     // Helpers
     Entry ParseSidecar(const std::string& dataPath) const;

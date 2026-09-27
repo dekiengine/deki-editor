@@ -220,15 +220,27 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
 
                 // Auto-discover source stems from *.cpp files in package directory
                 {
-                    for (auto& cppEntry : fs::recursive_directory_iterator(entry.path()))
+                    // Folders are skipped whole rather than file by file: every
+                    // project open scans each package, and a package clone's
+                    // .git alone is thousands of files (each used to get an
+                    // fs::relative, itself several filesystem calls).
+                    fs::recursive_directory_iterator it(entry.path());
+                    for (; it != fs::recursive_directory_iterator(); ++it)
                     {
+                        const fs::directory_entry& cppEntry = *it;
+                        if (cppEntry.is_directory())
+                        {
+                            const std::string name = cppEntry.path().filename().string();
+                            // Top-level editor/, generated/ and tests/ are not
+                            // runtime sources; dot folders (.git) never are.
+                            const bool topLevel = it.depth() == 0;
+                            if ((!name.empty() && name[0] == '.') ||
+                                (topLevel && (name == "editor" || name == "generated" || name == "tests")))
+                                it.disable_recursion_pending();
+                            continue;
+                        }
                         if (!cppEntry.is_regular_file()) continue;
                         if (cppEntry.path().extension() != ".cpp") continue;
-                        // Skip editor/, generated/ subdirectories and entry file
-                        std::string rel = fs::relative(cppEntry.path(), entry.path()).generic_string();
-                        if (rel.rfind("editor/", 0) == 0) continue;
-                        if (rel.rfind("generated/", 0) == 0) continue;
-                        if (rel.rfind("tests/", 0) == 0) continue;
                         if (!entryFile.empty() && cppEntry.path().filename().string() == entryFile) continue;
                         info.sourceStems.push_back(cppEntry.path().stem().string());
                     }

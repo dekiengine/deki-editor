@@ -42,6 +42,7 @@ set(TEST_SOURCES
     services/VersionCompareTests.cpp
     services/EditorLogFileTests.cpp
     services/ProjectLockTests.cpp
+    services/LiveSessionTests.cpp
     services/UpdateCheckTests.cpp
     services/FileDialogFilterTests.cpp
     services/BufferTests.cpp
@@ -147,6 +148,7 @@ target_link_libraries(DekiEditorTests PRIVATE
     GTest::gtest_main
     deki-engine-internal
     deki-editor
+    httplib::httplib  # LiveSession's client
 )
 
 include(GoogleTest)

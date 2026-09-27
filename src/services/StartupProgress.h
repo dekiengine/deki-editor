@@ -22,6 +22,9 @@ public:
     // detail: Optional detail text (e.g., file being loaded)
     static void Update(const char* phase, const char* detail = nullptr);
 
+    // Show progress again for a new long operation (opening another project
+    // from the project list): Update draws until the next Complete().
+    static void Begin();
     // Mark startup as complete (stops showing progress on subsequent Update calls)
     static void Complete();
 

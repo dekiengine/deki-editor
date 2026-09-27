@@ -13,6 +13,8 @@
 // stay on the caller side; the dispatch helper itself never holds C++
 // objects across the SEH boundary.
 
+#include "FrameTiming.h"
+
 #include <type_traits>
 #include <utility>
 
@@ -38,6 +40,9 @@ inline bool Guard(const char* context, F&& fn)
     {
         (*static_cast<Decayed*>(p))();
     };
+    // Every panel and custom editor is drawn through here, which makes it the
+    // one place a frame's time can be split by who spent it (FrameTiming.h).
+    FrameTiming::Scope timing(context);
     return SafeDispatch(context, trampoline, &local);
 }
 

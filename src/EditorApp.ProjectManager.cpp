@@ -208,6 +208,8 @@ bool EditorApp::OpenProject(const std::string& path)
     // nothing more - is adopted from the package offering it, and one that
     // nobody offers is an error said here rather than a quiet substitute.
     {
+        ScopedTimer __t_platforms("OpenProject platforms");
+        StartupProgress::Update("Checking platforms...");
         const std::string activePlatform = m_Project->GetActivePlatformId();
         ReloadProjectPlatforms(path);
 
@@ -234,7 +236,12 @@ bool EditorApp::OpenProject(const std::string& path)
         // about the machine lacking a prerequisite - and the reflection codegen
         // needs GCC 16+, which no current distro ships, so it is the common case
         // on a new machine rather than an exotic one.
-        const auto prereqs = CheckPrerequisites();
+        std::vector<Prerequisite> prereqs;
+        {
+            ScopedTimer __t_prereq("OpenProject CheckPrerequisites");
+            StartupProgress::Update("Checking build tools...");
+            prereqs = CheckPrerequisites();
+        }
         if (!PrerequisitesSatisfied(prereqs))
         {
             DEKI_LOG_ERROR("Cannot build this project - required build tools are missing:");
@@ -253,6 +260,7 @@ bool EditorApp::OpenProject(const std::string& path)
                 DEKI_LOG_WARNING("%s", line.c_str());
 
             StartupProgress::Update("Building project...");
+            ScopedTimer __t_first("OpenProject EnsureFirstBuild");
             m_HotReloadService->EnsureFirstBuild(path);
         }
     }
@@ -262,7 +270,10 @@ bool EditorApp::OpenProject(const std::string& path)
     // must never pick up package binaries built against an older editor; that
     // fails deep in LoadLibrary. This is a no-op when everything is up to date.
     if (m_HotReloadService)
+    {
+        ScopedTimer __t_stale("OpenProject BuildPackagesIfStale");
         m_HotReloadService->BuildPackagesIfStale(path);
+    }
 
     // The filesystem has to exist before the packages do. Loading a package
     // runs its editor-auto SetupComponents (SetupComponent::RunEditorAutoSetups,
@@ -331,6 +342,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // What width the device will compile, from the tags the project's packages
     // and deki.json declare. The editor has every axis regardless.
     {
+        ScopedTimer __t_width("OpenProject transform width");
         const auto declared = CMakeGen::ScanPackageManifests(path);
         std::set<std::string> ids;
         for (const auto& pkg : declared)
@@ -515,6 +527,12 @@ bool EditorApp::OpenProject(const std::string& path)
     // by every "create asset" call site (AssetBrowser thumbnails, picker
     // cache). Runtime registration still happens via OnAssetDiscovered.
     m_AssetPipeline->OnAssetCreated = [this](const std::string& /*relativePath*/)
+    {
+        if (m_AssetBrowserPanel)
+            m_AssetBrowserPanel->RefreshAssets();
+    };
+    // A whole import refreshes the browser once, not once per asset.
+    m_AssetPipeline->OnImportAllFinished = [this]()
     {
         if (m_AssetBrowserPanel)
             m_AssetBrowserPanel->RefreshAssets();
@@ -770,7 +788,42 @@ bool EditorApp::OpenProject(const std::string& path)
         }
     }
 
+    // The command line finds this editor by the project it has open.
+    PublishLiveSession();
     return true;
+}
+
+bool EditorApp::OpenProjectShowingProgress(const std::string& path)
+{
+    // The progress card used to be switched off for good once the editor had
+    // started, so opening a project from the project list sat on a window
+    // that did not repaint for as long as the open took.
+    StartupProgress::Begin();
+    const bool opened = OpenProject(path);
+    if (opened)
+        FinishPendingBuilds();
+    StartupProgress::Complete();
+    return opened;
+}
+
+void EditorApp::FinishPendingBuilds()
+{
+    // The plugin build the open queued runs under the card too. Otherwise the
+    // editor draws a few frames between the import and the build's own card,
+    // which reads as a flash.
+    if (m_HotReloadService && m_HotReloadService->HasPendingBuild())
+    {
+        StartupProgress::Update("Building plugin...");
+        m_HotReloadService->RunPendingBuildNow();
+    }
+    // Anything still building (a package rebuild the package check queued).
+    if (m_HotReloadService)
+        m_HotReloadService->WaitForBuild();
+}
+
+void EditorApp::RequestOpenProject(const std::string& path)
+{
+    m_PendingOpenProject = path;
 }
 
 void EditorApp::CloseProject()
@@ -861,6 +914,7 @@ void EditorApp::CloseProject()
     }
     m_Project.reset();
     m_ProjectLock.Release();
+    PublishLiveSession();
 
     // Clear EditorApplication singleton
     EditorApplication::Get().ClearProjectPaths();
