@@ -62,9 +62,17 @@ public:
     int32_t count = -1;
     std::vector<Deki::Rect> rects;
     int markAllDirtyCalls = 0;
+    int setupCalls = 0;
+    int32_t setupWidth = 0, setupHeight = 0;
     uint8_t buffer[8 * 8 * 2] = {};
 
-    bool Setup(int32_t, int32_t, Deki::ColorFormat) override { return true; }
+    bool Setup(int32_t w, int32_t h, Deki::ColorFormat) override
+    {
+        ++setupCalls;
+        setupWidth = w;
+        setupHeight = h;
+        return true;
+    }
     void Render(Deki::Scene*) override {}
     const uint8_t* GetFrameBuffer() const override { return buffer; }
     int32_t GetScreenWidth() const override { return 8; }
@@ -168,6 +176,19 @@ TEST(PresentFrame, SettingADisplayMarksEverythingDirty)
     FakeDisplay d;
     EngineSwap swap(rs, d);  // SetDisplay inside
     EXPECT_GE(rs.markAllDirtyCalls, 1);
+}
+
+TEST(PresentFrame, SettingADisplaySizesTheFramebufferWithoutInitialize)
+{
+    // The editor hosts the engine without Engine::Initialize, and play mode
+    // sets a display of the Play view's screen. Sizing only after Initialize
+    // left the framebuffer at its old size, so play refused every other screen.
+    FakeRenderSystem rs;
+    FakeDisplay d;
+    EngineSwap swap(rs, d);
+    EXPECT_EQ(rs.setupCalls, 1);
+    EXPECT_EQ(rs.setupWidth, 8);
+    EXPECT_EQ(rs.setupHeight, 8);
 }
 
 TEST(PresentFrame, RequestFullRefreshReachesBothSides)

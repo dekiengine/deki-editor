@@ -254,6 +254,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - **An open project rebuilt itself every few seconds.** The source watcher
   took changes inside a package's `.git` for source edits, and the package
   check it triggers runs git, which changes `.git` again.
+- **Play mode refused any screen but the one it last had** ("Play mode could
+  not get a 320x240 framebuffer" after picking 320x240 in the Play view): the
+  engine resized its framebuffer for a new display only after an
+  `Initialize` the editor never runs. Fixed in the engine.
 - **Opening a project is several times faster.** A warm open of deki-demo went
   from 6.7 s to under 1 s (Debug build):
   - the asset cache threw its format stamp away as an orphan, so every open
