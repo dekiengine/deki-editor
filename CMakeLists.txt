@@ -505,6 +505,8 @@ set(EDITOR_TESTABLE_SOURCES
     # PlatformConfigTests: platform JSON validation.
     # EditorLogFileTests: the Editor.log sink and its rotation.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/EditorLogFile.cpp
+    # ProjectLockTests: one editor per project.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ProjectLock.cpp
     # UpdateCheckTests: what to make of a GitHub release and whether it is newer.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/UpdateCheckParse.cpp
     # PrerequisitesTests: the prerequisite probe and the toolchain it reports.
@@ -623,6 +625,8 @@ set(EDITOR_SOURCES
     src/services/PluginToolchain.h
     src/services/EditorLogFile.cpp
     src/services/EditorLogFile.h
+    src/services/ProjectLock.cpp
+    src/services/ProjectLock.h
     src/services/UpdateCheck.cpp
     src/services/UpdateCheck.h
     src/services/UpdateCheckParse.h

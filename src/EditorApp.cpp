@@ -366,6 +366,9 @@ void EditorApp::Update()
         if (!requested.empty())
             OpenProject(requested);
 
+        // A refused open (the project is open in another editor) says so here.
+        DekiEditor::Guard("Toast", [] { DekiEditor::Toast::DrawInFrame(); });
+
         return;
     }
 

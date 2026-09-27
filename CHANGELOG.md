@@ -228,6 +228,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   the engine.
 
 ### Fixed
+- **A project opens in one editor at a time.** Any number of editors can run,
+  but opening a project another editor has open is refused with a message
+  naming that editor's process (a toast on the project list, an error line on
+  the command line, an error from MCP `open_project`), and the editor keeps
+  the project it had. Two editors on one project rebuilt the same package
+  libraries and wrote the same scenes. The lock is the operating system's, on
+  `generated/editor.lock`, so an editor that exits or crashes releases it.
+- A package with no code, only boards (a `package.json` and `platforms/`,
+  like deki-lilygo-boards), could not be installed: the installer wanted a
+  `package.cmake` and refused it as "Not a valid Deki package".
 - The MCP `build_firmware` built without the editor, so the firmware had no
   boot payload and no defines from the project's scenes. It builds as the
   Build panel and `--build-firmware` do.

@@ -51,6 +51,7 @@ struct SDL_Window;
 #include "core/EditorRecovery.h"
 #include "core/UnsavedChangesPrompt.h"
 #include "services/ProjectMaintenance.h"
+#include "services/ProjectLock.h"
 #include "PlayMode.h"
 #include <optional>
 
@@ -85,9 +86,13 @@ public:
 
     /// Open a project. Returns false (and logs why) if the .dproj could not be
     /// loaded - it used to return void and bail silently, so pointing the editor
-    /// at a corrupt deki.json did visibly nothing at all.
+    /// at a corrupt deki.json did visibly nothing at all - or if another editor
+    /// has it open, in which case the current project stays open.
     bool OpenProject(const std::string& path);
     void CloseProject();
+    // Why the last OpenProject returned false, in words for the user; empty
+    // after a successful open.
+    const std::string& GetOpenProjectError() const { return m_OpenProjectError; }
 
     void NewScene();
 
@@ -329,6 +334,8 @@ private:
     bool m_QuitRequested = false;
     float m_DpiScale = 1.0f;
     std::unique_ptr<Project> m_Project;
+    ProjectLock m_ProjectLock;  // held while m_Project is open
+    std::string m_OpenProjectError;
     int m_ProjectTransformWidth = 2;  // 0, 2 or 3; see GetProjectTransformWidth
     std::unique_ptr<::Deki::Scene> m_CurrentScene;
     std::unique_ptr<AssetPipeline> m_AssetPipeline;

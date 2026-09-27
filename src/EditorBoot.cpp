@@ -618,7 +618,8 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
         if (!opened)
         {
             DEKI_LOG_ERROR("[boot] could not open project '%s'", opts.projectPath);
-            printf("Error: could not open project '%s'\n", opts.projectPath);
+            printf("Error: could not open project '%s'. %s\n", opts.projectPath,
+                   editor.GetOpenProjectError().c_str());
             fflush(stdout);
         }
     }

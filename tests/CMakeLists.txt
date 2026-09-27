@@ -41,6 +41,7 @@ set(TEST_SOURCES
     services/SourceChangeDetectorTests.cpp
     services/VersionCompareTests.cpp
     services/EditorLogFileTests.cpp
+    services/ProjectLockTests.cpp
     services/UpdateCheckTests.cpp
     services/FileDialogFilterTests.cpp
     services/BufferTests.cpp

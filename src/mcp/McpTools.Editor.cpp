@@ -107,7 +107,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             if (!fs::exists(fs::path(path) / "deki.json"))
                                 throw std::runtime_error("No deki.json at " + path);
 
-                            editor->OpenProject(path);
+                            if (!editor->OpenProject(path))
+                                throw std::runtime_error(editor->GetOpenProjectError());
 
                             auto* project = editor->GetProject();
                             return {

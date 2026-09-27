@@ -31,6 +31,7 @@
 #include <deki-editor/build/PlatformTemplates.h>
 #include "services/Prerequisites.h"
 #include "services/FileDialogs.h"
+#include "widgets/Toast.h"
 #include "EditorPlayModeFileSystem.h"
 #include <deki/providers/FileSystem.h>
 #include <deki/providers/Memory.h>
@@ -82,13 +83,37 @@ namespace DekiEditor
 bool EditorApp::OpenProject(const std::string& path)
 {
     ScopedTimer __t_open("EditorApp::OpenProject total");
+    m_OpenProjectError.clear();
+
+    // One editor per project. Taken before the current project closes, so a
+    // refused open leaves this editor as it was. Reopening the project this
+    // editor already has keeps its own lock.
+    ProjectLock lock;
+    if (m_ProjectLock.IsFor(path))
+    {
+        lock = std::move(m_ProjectLock);
+    }
+    else if (std::filesystem::exists(std::filesystem::path(path) / "deki.json") &&
+             !lock.Acquire(path, m_OpenProjectError))
+    {
+        DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': %s", path.c_str(),
+                       m_OpenProjectError.c_str());
+        if (!m_Headless)
+            Toast::Push(Toast::Level::Error, "Could not open project", m_OpenProjectError);
+        return false;
+    }
+
     CloseProject();
+    m_ProjectLock = std::move(lock);
 
     StartupProgress::Update("Loading project...");
     m_Project = std::make_unique<Project>();
     if (!m_Project->Load(path))
     {
         m_Project.reset();
+        m_ProjectLock.Release();
+        m_OpenProjectError = "Could not load its project file. Check that the folder contains "
+                             "a readable deki.json.";
         DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': failed to load its "
                        "project file. Check that the directory contains a readable deki.json.",
                        path.c_str());
@@ -835,6 +860,7 @@ void EditorApp::CloseProject()
         m_AssetPipeline.reset();
     }
     m_Project.reset();
+    m_ProjectLock.Release();
 
     // Clear EditorApplication singleton
     EditorApplication::Get().ClearProjectPaths();
