@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include <deki-editor/EditorExport.h>
-#include <deki/ScreenScale.h>
+#include <deki/Engine.h>  // Deki::ColorFormat
 // Forward declarations
 namespace Deki { class Object; }
 struct ImDrawList;
@@ -108,38 +108,37 @@ public:
     // Preview screen (set by the editor each frame)
     // =========================================================================
 
-    /** @brief Width in pixels of the screen the Play view previews: the target
-     *  picked in its toolbar, or the design size when none is. Play mode runs
-     *  at it, and gizmos use it to show what that screen sees under the
-     *  project's Screen Fit. */
-    int GetPreviewWidth() const
-    {
-        if (m_PreviewWidth > 0) return m_PreviewWidth;
-        int w = 0, h = 0;
-        Deki::DesignSizePixels(w, h);
-        return w;
-    }
+    /** @brief Width in pixels of the screen the Play view previews: the
+     *  resolution or aspect ratio picked in its toolbar, at the panel's size
+     *  for an aspect ratio. Play mode runs at it, and gizmos use it to show
+     *  what that screen sees. 320 until the Play view has set it. */
+    int GetPreviewWidth() const { return m_PreviewWidth > 0 ? m_PreviewWidth : 320; }
 
     /** @brief Height in pixels of the previewed screen (see GetPreviewWidth). */
-    int GetPreviewHeight() const
-    {
-        if (m_PreviewHeight > 0) return m_PreviewHeight;
-        int w = 0, h = 0;
-        Deki::DesignSizePixels(w, h);
-        return h;
-    }
+    int GetPreviewHeight() const { return m_PreviewHeight > 0 ? m_PreviewHeight : 240; }
 
     /** @brief Pixel format of the previewed screen; play mode renders in it. */
     Deki::ColorFormat GetPreviewFormat() const { return m_PreviewFormat; }
     void SetPreviewFormat(Deki::ColorFormat format) { m_PreviewFormat = format; }
 
-    /** @brief Preview a screen of this size; 0 x 0 previews the design size,
-     *  following the project's design area as it changes. */
+    /** @brief Preview a screen of this size (the Play view does, every frame). */
     void SetPreviewSize(int width, int height)
     {
         m_PreviewWidth = width;
         m_PreviewHeight = height;
     }
+
+    /** @brief What a project saved before cameras framed the world had instead
+     *  (settings/framebuffer.json): the design area's height in meters and the
+     *  project's Pixel Perfect. Set when a project opens, for the scene
+     *  migration that turns a camera's zoom into its ortho height. */
+    struct LegacyFraming
+    {
+        float designHeight = 15.0f;
+        bool pixelPerfect = false;
+    };
+    const LegacyFraming& GetLegacyFraming() const { return m_LegacyFraming; }
+    void SetLegacyFraming(const LegacyFraming& framing) { m_LegacyFraming = framing; }
 
     // =========================================================================
     // Drawing Context
@@ -208,6 +207,7 @@ private:
 
     int m_PreviewWidth = 0;
     int m_PreviewHeight = 0;
+    LegacyFraming m_LegacyFraming;
     Deki::ColorFormat m_PreviewFormat = Deki::ColorFormat::ARGB8888;
 };
 

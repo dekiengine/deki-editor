@@ -1,68 +1,76 @@
 # Screens
 
 One project runs on any screen. Every device renders at its own native
-resolution, and three settings decide what the player sees on it.
+resolution, and the camera decides how much world that shows.
 
-## The three settings
+## The camera
 
-| Setting | Where | What it does |
-| --- | --- | --- |
-| **Design area** | Project Settings > Framebuffer | How much world the player sees, in meters. In Pixels mode the inspector shows it at your pixels per meter: 80 x 45 m at 16 px/m reads 1280 x 720 px. |
-| **Screen fit** | Project Settings > Framebuffer | What a screen of another shape does. **Show All** keeps the whole design area visible and shows extra world on the longer side. **Fill** covers the screen and crops the edges. |
-| **Pixel perfect** | Project Settings > Framebuffer | Scales by whole numbers only and snaps everything to the art-pixel grid. For pixel art. |
+| Setting | What it does |
+| --- | --- |
+| **Ortho Height** | How much world the camera shows top to bottom, in meters. The width follows the screen's shape. In Pixels mode the inspector shows it at your pixels per meter: 11.25 m at 16 px/m reads 180 px. |
+| **Pixel Perfect** | Scales by whole numbers only and snaps the camera and everything drawn to the art-pixel grid. For pixel art. |
+| **Projection** | Orthographic (flat, for 2D) or Perspective (a vertical **Field of View**, for 3D meshes). |
 
-The camera adds its position and a **zoom**: 1 shows the design area, 2 is
-twice as close. Its **projection** is Orthographic (flat, for 2D) or
-Perspective (a field of view, for 3D meshes).
+A bigger screen of the same shape shows the same world, drawn bigger. A wider
+screen shows more at the sides; a narrower one shows less. To get closer, make
+the ortho height smaller.
 
 Pixels per meter (Project Settings > Units) is how dense your art is: a 16 px
 sprite at 16 px/m is one meter wide.
 
 ## What each screen sees
 
-A design area of 80 x 45 m (16:9), camera at zoom 1:
+A camera with an ortho height of 11.25 m:
 
-| Screen | Show All | Fill |
-| --- | --- | --- |
-| 1280x720 (16:9) | 80 x 45 m | 80 x 45 m |
-| 1920x1080 (16:9) | 80 x 45 m, drawn 1.5x | 80 x 45 m, drawn 1.5x |
-| 320x240 (4:3) | 80 x 60 m: everything, plus more above and below | 60 x 45 m: the sides cropped |
-| 240x320 (portrait) | 80 x 107 m | 34 x 45 m |
+| Screen | What it shows |
+| --- | --- |
+| 1280x720 (16:9) | 20 x 11.25 m |
+| 1920x1080 (16:9) | 20 x 11.25 m, drawn 1.5x |
+| 320x240 (4:3) | 15 x 11.25 m: the sides of the 16:9 view are cropped |
+| 2560x1080 (21:9) | 26.7 x 11.25 m: more at the sides |
+| 240x320 (portrait) | 8.4 x 11.25 m |
 
-With Show All, build a little world beyond the design area, or the player sees
-the camera's clear color there.
+Keep what matters inside the narrowest screen you target, and build a little
+world beyond it for wider ones, or the player sees the camera's clear color
+there.
 
 ## Recipes
 
-**2D pixel art.** Set the design area to your art's native size: 320 x 240 px
-at 16 px/m, for example. Turn on Pixel Perfect. A 640x480 screen draws every
-art pixel as 2x2, 1280x720 as 3x3 with extra world at the sides, 400x300 at 1x
-with extra world around it. A screen smaller than the design area stays at 1x
-and crops.
+**2D pixel art.** Set the ortho height to your art's native height: 15 m for
+240 px at 16 px/m, for example. Turn on Pixel Perfect. A 640x480 screen draws
+every art pixel as 2x2, 1280x720 as 3x3, 400x300 at 1x with a little more
+world. Pixel Perfect rounds down, so the camera shows a little more than its
+ortho height rather than cutting any of it; a screen too small for 1x crops.
 
-**2D hi-res or vector art.** Set the design area to what your main screen
-should show, and pixels per meter to your art's density. Choose Show All, or
-Fill if the level must never show past its edges. Every screen scales smoothly.
-The renderer samples nearest-neighbour, so art shrunk a long way (1280 to 320)
-shimmers when it moves: author near your smallest screen.
+**2D hi-res or vector art.** Set the ortho height to what your main screen
+should show, and pixels per meter to your art's density. Every screen scales
+smoothly. The renderer samples nearest-neighbour, so art shrunk a long way
+(1280 to 320) shimmers when it moves: author near your smallest screen.
 
 **2D with 3D meshes.** As for 2D, with the camera's projection set to
-Perspective. The field of view applies to the design shape and follows the same
-screen fit, so the meshes and the sprites line up on every screen. Sprites
-still draw flat; placing them in 3D comes next.
+Perspective. The field of view is vertical like the ortho height, so the meshes
+and the sprites line up on every screen. Sprites still draw flat; placing them
+in 3D comes next.
 
-**3D.** Set the design area's shape (16 x 9 m for 16:9), the camera to
-Perspective, and its field of view. Show All widens the view on narrower
-screens so nothing designed is lost; Fill crops.
+**3D.** Set the camera to Perspective and its field of view. Like the ortho
+height it is vertical: a wider screen sees more at the sides.
 
 ## Previewing
 
-The Play view's toolbar picks the screen: the design size, any platform the
-project knows, or a custom size, and next to it the screen's pixel format.
-Play runs at that size and format, and the camera's gizmo in the scene view
-shows what that screen sees as a dashed outline.
+The Play view's toolbar picks the screen to look at, as Unity's Game view
+does:
 
-`DekiEditor --render-scenes` renders at the design size in RGB565;
+- **Free Aspect**: the panel's own size.
+- **An aspect ratio** (16:9, 16:10, 4:3, 3:2, 21:9, 9:16): the largest screen
+  of that shape that fits the panel.
+- **A resolution**: any platform's screen, or a custom width and height.
+
+Next to it is the screen's pixel format. Play runs at that size and format,
+and the camera's gizmo in the scene view outlines what that screen sees; with
+no camera, the scene view draws the screen around the origin. The Play view
+remembers the choice per project.
+
+`DekiEditor --render-scenes` renders at the active platform's screen in RGB565;
 `DEKI_RENDER_SIZE=WxH` renders another size and `DEKI_RENDER_FORMAT` another
 format. `--export --platform <id>` exports for a target other than the active
 one.

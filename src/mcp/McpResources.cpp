@@ -157,14 +157,9 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
         if (!project)
             return { { "error", "No project open" } };
 
-        auto* display = DekiEditor::GetDisplaySettings();
         return {
             { "name", project->GetName() },
             { "path", project->GetPath() },
-            { "designWidth", display ? display->designWidth : 0.0f },
-            { "designHeight", display ? display->designHeight : 0.0f },
-            { "designWidthPx", DesignWidthPx() },
-            { "designHeightPx", DesignHeightPx() },
             { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
             { "startupScene", project->GetStartupScene() }
         };

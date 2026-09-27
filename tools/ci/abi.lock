@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 19
+abi_version: 20
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -132,8 +132,8 @@ class Deki::ICamera (15 virtual)
   void GetClearColor(uint8_t& r, uint8_t& g, uint8_t& b) const
   void SetClearColor(uint8_t r, uint8_t g, uint8_t b)
   float GetPixelsPerMeter(int bufferWidth, int bufferHeight) const
-  float GetZoom() const
-  void SetZoom(float zoom)
+  float GetOrthoHeight() const
+  void SetOrthoHeight(float meters)
   void SetFixedPixelsPerMeter(float pixelsPerMeter)
   ProjectionMode GetProjectionMode() const
   void SetProjectionMode(ProjectionMode mode)

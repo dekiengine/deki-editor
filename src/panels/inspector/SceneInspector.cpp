@@ -1,5 +1,5 @@
 #include "ObjectInternal.h"
-#include <deki/ScreenScale.h>
+#include <deki-editor/SceneView.h>
 #include "SceneInspector.h"
 #include "../../EditorApp.h"
 #include "../../core/Project.h"
@@ -38,9 +38,10 @@ void SceneInspector::Cleanup()
 
 void SceneInspector::DrawPreview(const std::string& assetPath)
 {
-    // Render at the design size: what the player sees through the scene's camera.
+    // Render at the active platform's screen: what the player sees there
+    // through the scene's camera.
     int bufW = 0, bufH = 0;
-    Deki::DesignSizePixels(bufW, bufH);
+    DekiEditor::ActivePlatformScreen(m_App ? m_App->GetProject() : nullptr, bufW, bufH);
 
     // Render preview if asset changed
     if (assetPath != m_PreviewScenePath)
@@ -98,8 +99,11 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
 
             if (!cam)
             {
-                // A camera at the origin showing the design area, as a new scene's would.
+                // A camera at the origin showing the screen 1:1.
                 m_CameraObject->SetWorldPosition(0, 0);
+                const float art = Deki::EngineSettings::Global().pixelsPerMeter;
+                if (art > 0.0f)
+                    m_Camera->SetOrthoHeight(bufH / art);
                 m_Camera->SetClearColor(49, 77, 121);
                 cam = m_Camera;
             }

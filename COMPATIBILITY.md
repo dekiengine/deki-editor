@@ -193,13 +193,15 @@ else alone. Device scenes are compiled from the editor's load, so they follow
 after a rebuild; a save writes the new shape. Keep a migration for at least one
 minor version.
 
-In 0.18: the camera's `pixelsPerMeter` became `zoom` (p divided by the
-project's pixels per meter, 0 becomes 1), its `pixelSnap` became the project's
-Pixel Perfect, deki-3d's `Camera3DComponent` gave its field of view and clip
-planes to the camera and became `Mesh3DSettings`, and the Framebuffer
-section's `targetWidth`/`targetHeight` in pixels became `designWidth`/
-`designHeight` in meters. Every one of them looks the same on the design
-screen. See [docs/screens.md](docs/screens.md).
+In 0.18: the camera frames the world itself. Its `pixelsPerMeter` p became
+an `orthoHeight`: the project's Framebuffer `targetHeight` in meters, divided
+by p over the project's pixels per meter (0 counts as the project's). Its
+`pixelSnap`, or the project's Pixel Perfect, became the camera's
+`pixelPerfect`. deki-3d's `Camera3DComponent` gave its field of view and clip
+planes to the camera and became `Mesh3DSettings`. The Framebuffer section is
+gone, and it is left on disk for scenes that have not loaded since. Every
+one of them looks the same on a screen of the old shape. See
+[docs/screens.md](docs/screens.md).
 
 Also in 0.18: the Framebuffer section's `colorFormat` is gone (the display
 decides), an image's missing Format now means Automatic rather than

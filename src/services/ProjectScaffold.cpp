@@ -235,13 +235,13 @@ std::string InstallStarterFont(const std::string& projectPath, const std::string
 bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid,
                        std::string& err)
 {
-    // The default design area is 20x15 m (320x240 px at 16 px/m), and the
-    // camera at zoom 1 shows exactly that, so the gradient fills it.
+    // The camera shows 15 m top to bottom, so on the default 320x240 design
+    // size it is 20 x 15 m at 16 px/m and the gradient fills it.
     json children = json::array();
 
     children.push_back(Object(2, "Camera",
         json::array({ Component(kCameraType, "CameraComponent",
-            json{ { "zoom", 1.0 }, { "clearColor", 202250495 } }) }),
+            json{ { "orthoHeight", 15.0 }, { "clearColor", 202250495 } }) }),
         json::array()));
 
     children.push_back(Object(3, "Sky",

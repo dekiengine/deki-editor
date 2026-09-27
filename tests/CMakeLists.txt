@@ -75,6 +75,7 @@ set(TEST_SOURCES
     core/TextureFormatResolveTests.cpp
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
+    core/LegacyFramingTests.cpp
     core/RenamedComponentRefTests.cpp
     core/AutoSetupPhaseTests.cpp
     services/PlatformTemplateTests.cpp

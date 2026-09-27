@@ -74,17 +74,19 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   cursor does not move. A screenshot asked for after input waits for it.
 - MCP `select_asset` (`path` or `guid`) selects an asset as clicking it in the
   Asset Browser does, so the inspector shows its settings.
-- **One project, any screen.** The project sets a design area, how much world
-  the player sees in meters, and each target renders at its own resolution.
-  Project Settings > Framebuffer holds it with two more settings: **Screen
-  Fit** (Show All keeps the whole area visible, Fill covers the screen) and
-  **Pixel Perfect** (whole-number scaling and art-grid snapping). See
+- **One project, any screen.** Each target renders at its own resolution and
+  the camera decides how much world that shows: its **Ortho Height** (meters,
+  top to bottom; the width follows the screen) or a vertical field of view,
+  and **Pixel Perfect** for whole-number scaling and art-grid snapping. A
+  bigger screen of the same shape shows the same world, drawn bigger. See
   [docs/screens.md](docs/screens.md).
-  - The Play view's toolbar picks the screen to preview: the design size, any
-    platform, or a custom size. Play runs at it, and the view scales down to
-    fit the panel.
-  - The camera's inspector says what it shows on the design screen and on the
-    previewed one; its gizmo draws the latter dashed.
+  - The Play view's toolbar picks the screen to preview, as Unity's Game view
+    does: Free Aspect (the panel's size), an aspect ratio (16:9, 16:10, 4:3,
+    3:2, 21:9, 9:16), any platform's screen, or a custom resolution. Play runs
+    at it, and the view scales down to fit the panel. The choice is
+    remembered per project.
+  - The camera's inspector says what it shows on the previewed screen, and
+    its gizmo outlines it.
   - `DEKI_RENDER_SIZE=WxH` makes `--render-scenes` render another screen size.
   - Scene migrations: `Deki::RegisterComponentsMigration` lets a package
     rewrite an object's saved components before they load, for changes a
@@ -154,19 +156,23 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Frame capture (F9), `--render-scenes` PPMs and the editor display handle
   every framebuffer format; ARGB8888 frames were shown with red and blue
   swapped.
-- **Project Settings > Framebuffer is the design area.** `targetWidth` and
-  `targetHeight` (pixels) became `designWidth` and `designHeight` (meters). A
-  project converts on open at its pixels per meter, so 1280 x 720 at 16 px/m
-  becomes 80 x 45 m and looks the same; the next save writes the new keys.
+- **Project Settings > Framebuffer is gone.** Its size becomes every camera's
+  framing: a scene's camera converts when the scene loads, to an ortho height
+  of the old `targetHeight` in meters, divided by how close the camera was
+  (its `pixelsPerMeter` over the project's), so it looks the same on a screen
+  of the old shape. `framebuffer.json` stays on disk for scenes that have not
+  loaded yet; nothing reads it otherwise.
 - **The scene view shows the world at the project's pixels per meter**,
-  whatever the scene camera's zoom. The rectangle drawn when a scene has no
-  camera is the design area; it used the hard-coded 320x240 as meters.
+  whatever the scene camera shows. The rectangle drawn when a scene has no
+  camera is the previewed screen; it used the hard-coded 320x240 as meters.
+  `--render-scenes` and a scene's thumbnail render at the active platform's
+  screen.
 - A target's framebuffer is its display's size, so the exporter no longer
   writes the platform's screen size into `dproject.bin`, and ESP-IDF builds no
   longer define `DEKI_SCREEN_WIDTH`/`HEIGHT`. The desktop and Tactility window
   builds still do: they are the size of the screen those windows emulate.
-- MCP `project` info reports `designWidth`/`designHeight` (meters) and
-  `designWidthPx`/`designHeightPx` in place of `displayWidth`/`displayHeight`.
+- MCP `project` info no longer reports `displayWidth`/`displayHeight`: the
+  project has no screen size of its own.
 - **"Strip unused packages" is on by default.** A package none of whose
   components a target uses is left out of that target's build, not only its
   unused features. Packages without components (buses, drivers) are kept
@@ -193,7 +199,7 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   editing its JSON, and `screen_width` with `screen_height` (both or
   neither) for its resolution.
 - MCP `set_project_setting` sets a Project Settings value (e.g. section
-  `Framebuffer`, `targetWidth`) and saves the project.
+  `Core`, `targetFps`) and saves the project.
 - MCP `duplicate_object` also takes `name`, `x`/`y` and `parent_id` for the
   copy. A `--script` cannot hand one call's returned id to the next, so
   laying out copies from the command line was not possible before.

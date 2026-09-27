@@ -45,14 +45,16 @@ private:
     // forward() table in Draw: space/enter/esc/backspace + 4 arrows + A-Z).
     bool m_PlayKeyDown[34] = {};
 
-    // Previewed screen: empty id = the design size, "custom" = m_Custom*, else
-    // a platform id whose screen size is used. Pushed to SceneView every frame.
-    std::string m_PreviewId;
+    // Previewed screen: "free" (Free Aspect, the panel's size), "aspect:16:9"
+    // and the like (the largest screen of that shape in the panel), "custom"
+    // (m_Custom*), or a platform id whose screen is used. Pushed to SceneView
+    // every frame.
+    std::string m_PreviewId = "free";
     int m_CustomWidth = 320;
     int m_CustomHeight = 240;
 
     // Previewed screen format: a platform's own when one is picked, full
-    // colour for the design size or a custom size; the dropdown changes it.
+    // colour otherwise; the dropdown changes it.
     Deki::ColorFormat m_PreviewFormat = Deki::ColorFormat::ARGB8888;
     void DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
     void SelectPreview(const std::string& id);

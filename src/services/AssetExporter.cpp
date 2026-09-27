@@ -801,9 +801,8 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
     }
 
     const auto& startupScene = m_Project->GetStartupScene();
-    // Frame pacing comes from Core. The design area travels in the settings
-    // chunk with every other section; the framebuffer's size and format come
-    // from the device's display.
+    // Frame pacing comes from Core. Cameras carry their own framing, and the
+    // framebuffer's size and format come from the device's display.
     auto* coreSettings = DekiEditor::GetCoreSettings();
     int32_t targetFPS = coreSettings ? coreSettings->targetFps : 60;
 
@@ -868,9 +867,8 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
     }
 
     const auto& startupScene = m_Project->GetStartupScene();
-    // Frame pacing comes from Core. The design area travels in the settings
-    // chunk with every other section; the framebuffer's size and format come
-    // from the device's display.
+    // Frame pacing comes from Core. Cameras carry their own framing, and the
+    // framebuffer's size and format come from the device's display.
     auto* coreSettings = DekiEditor::GetCoreSettings();
     int32_t targetFPS = coreSettings ? coreSettings->targetFps : 60;
 

@@ -14,8 +14,8 @@
 // carried no boot payload at all. None of that bootstrap survives.
 
 #include <deki-editor/TextureFormatResolve.h>
+#include <deki-editor/SceneView.h>
 #include "services/ExportTarget.h"
-#include <deki/ScreenScale.h>
 #include "EditorHeadless.h"
 #include "EditorVersion.h"
 #include <deki-editor/VersionCompare.h>
@@ -1139,16 +1139,10 @@ int CmdRenderScenes(EditorApp& editor)
     }
     float clockMs = 0.0f;
 
-    // The design size, as play mode previews by default. DEKI_RENDER_SIZE=WxH
-    // renders a screen of another size instead, to see what it shows under
-    // the project's Screen Fit.
+    // The active platform's screen. DEKI_RENDER_SIZE=WxH renders a screen of
+    // another size instead, to see what the camera shows there.
     int32_t width = 0, height = 0;
-    {
-        int w = 0, h = 0;
-        Deki::DesignSizePixels(w, h);
-        width = w;
-        height = h;
-    }
+    DekiEditor::ActivePlatformScreen(editor.GetProject(), width, height);
     if (const char* env = std::getenv("DEKI_RENDER_SIZE"))
     {
         int w = 0, h = 0;
@@ -1162,7 +1156,7 @@ int CmdRenderScenes(EditorApp& editor)
     }
     if (width <= 0 || height <= 0)
     {
-        printf("Error: the project's design area is empty (%dx%d px)\n", width, height);
+        printf("Error: the screen size is empty (%dx%d px)\n", width, height);
         return 1;
     }
     // DEKI_RENDER_FORMAT picks the framebuffer format; RGB565 when unset, which

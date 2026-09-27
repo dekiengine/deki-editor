@@ -72,6 +72,13 @@ struct CachedTexture
 // Scene view constants
 namespace SceneViewConstants
 {
+// The scene rectangle: a fixed size whose centre is the world origin, the
+// anchor the pan offset is measured from. Fixed so the scene view does not move
+// when the previewed screen changes; the screen itself is drawn around the
+// origin at its own size.
+constexpr int AnchorWidth = 320;
+constexpr int AnchorHeight = 240;
+
 // Zoom limits
 constexpr float MinZoom = 0.25f;
 constexpr float MaxZoom = 4.0f;

@@ -1,6 +1,5 @@
 #include "ObjectInternal.h"
 #include "SceneViewPanel.h"
-#include <deki/ScreenScale.h>
 #include "../PanelMaximize.h"
 #include "scene_view/SceneTextureCache.h"
 #include "scene_view/SceneCoordinates.h"
@@ -270,8 +269,8 @@ void SceneViewPanel::HandleInput()
         // Recalculate scene center after zoom change. World→screen is
         // editorZoom * dpi * the project's pixels per meter: the scene view
         // shows the world at its art density, whatever the camera does.
-        int vpWidth = 0, vpHeight = 0;
-        Deki::DesignSizePixels(vpWidth, vpHeight);
+        int vpWidth = SceneViewConstants::AnchorWidth;
+        int vpHeight = SceneViewConstants::AnchorHeight;
 
         float dpi = ImGui::GetWindowDpiScale();
         float sceneWidth = vpWidth * m_Zoom * dpi;
@@ -334,9 +333,13 @@ void SceneViewPanel::DrawSceneCanvas()
     m_PannedForCanvasSize = availSize;
 
     // Handle centering BEFORE setting viewport to avoid one-frame glitch
-    // The scene rectangle is the design area at the project's art density.
-    int vpWidth = 0, vpHeight = 0;
-    Deki::DesignSizePixels(vpWidth, vpHeight);
+    // The scene rectangle anchors the world origin (SceneViewConstants). The
+    // previewed screen, drawn around the origin and snapped to, is the Play
+    // view's.
+    int vpWidth = SceneViewConstants::AnchorWidth;
+    int vpHeight = SceneViewConstants::AnchorHeight;
+    const int screenW = DekiEditor::SceneView::Get().GetPreviewWidth();
+    const int screenH = DekiEditor::SceneView::Get().GetPreviewHeight();
 
     float dpi = ImGui::GetWindowDpiScale();
 
@@ -380,8 +383,6 @@ void SceneViewPanel::DrawSceneCanvas()
 
     float sceneLeft = m_CanvasTopLeft.x + m_PanOffsetX;
     float sceneTop = m_CanvasTopLeft.y + m_PanOffsetY;
-    float sceneRight = sceneLeft + sceneWidth;
-    float sceneBottom = sceneTop + sceneHeight;
 
     ImGui::InvisibleButton("SceneCanvas", availSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
     bool isCanvasHovered = ImGui::IsItemHovered();
@@ -397,8 +398,6 @@ void SceneViewPanel::DrawSceneCanvas()
     sceneHeight = vpHeight * effectiveZoom;
     sceneLeft = m_CanvasTopLeft.x + m_PanOffsetX;
     sceneTop = m_CanvasTopLeft.y + m_PanOffsetY;
-    sceneRight = sceneLeft + sceneWidth;
-    sceneBottom = sceneTop + sceneHeight;
 
     // Flatten hierarchy for rendering/selection (cached - rebuilt only when
     // structure changes, not every frame). Drag-active also forces rebuild
@@ -601,8 +600,8 @@ void SceneViewPanel::DrawSceneCanvas()
                 float objW = 0.0f, objH = 0.0f;
                 m_Measurer->GetDisplaySize(selected, objW, objH);
                 m_Snapping->SetDeviceBounds(
-                    static_cast<float>(vpWidth) * invPPM,
-                    static_cast<float>(vpHeight) * invPPM);
+                    static_cast<float>(screenW) * invPPM,
+                    static_cast<float>(screenH) * invPPM);
                 m_Snapping->SetSnapThreshold(4.0f * invPPM);
                 m_Snapping->SetObjectTargets(buildObjectSnapTargets(selected));
                 m_Snapping->CalculateSnap(newWorldX, newWorldY,
@@ -665,9 +664,10 @@ void SceneViewPanel::DrawSceneCanvas()
     // camera - the camera gizmo replaces it (see CameraCustomEditor).
     if (!sceneCam && m_Toolbar->ShowGizmos())
     {
-        // The design area, in meters: what a camera at the origin would show.
-        float halfDevW = Deki::EngineSettings::Global().designWidth * 0.5f;
-        float halfDevH = Deki::EngineSettings::Global().designHeight * 0.5f;
+        // The previewed screen at the art density, drawn 1:1 around the origin.
+        const float art = Deki::EngineSettings::Global().pixelsPerMeter;
+        float halfDevW = art > 0.0f ? screenW * 0.5f / art : 0.0f;
+        float halfDevH = art > 0.0f ? screenH * 0.5f / art : 0.0f;
         ImVec2 devTopLeft = m_Coords->WorldToScreen(-halfDevW, halfDevH);
         ImVec2 devBottomRight = m_Coords->WorldToScreen(halfDevW, -halfDevH);
 
@@ -676,17 +676,20 @@ void SceneViewPanel::DrawSceneCanvas()
 
         ImU32 overlayColor = IM_COL32(0, 0, 0, 150);
 
-        if (devTopLeft.y > sceneTop)
-            drawList->AddRectFilled(ImVec2(sceneLeft, sceneTop), ImVec2(sceneRight, devTopLeft.y), overlayColor);
-        if (devBottomRight.y < sceneBottom)
-            drawList->AddRectFilled(ImVec2(sceneLeft, devBottomRight.y), ImVec2(sceneRight, sceneBottom), overlayColor);
+        // Darken the canvas outside the screen.
+        const float cL = m_CanvasTopLeft.x, cT = m_CanvasTopLeft.y;
+        const float cR = cL + m_CanvasSize.x, cB = cT + m_CanvasSize.y;
+        if (devTopLeft.y > cT)
+            drawList->AddRectFilled(ImVec2(cL, cT), ImVec2(cR, devTopLeft.y), overlayColor);
+        if (devBottomRight.y < cB)
+            drawList->AddRectFilled(ImVec2(cL, devBottomRight.y), ImVec2(cR, cB), overlayColor);
 
-        float overlayTop = (std::max)(sceneTop, devTopLeft.y);
-        float overlayBottom = (std::min)(sceneBottom, devBottomRight.y);
-        if (devTopLeft.x > sceneLeft)
-            drawList->AddRectFilled(ImVec2(sceneLeft, overlayTop), ImVec2(devTopLeft.x, overlayBottom), overlayColor);
-        if (devBottomRight.x < sceneRight)
-            drawList->AddRectFilled(ImVec2(devBottomRight.x, overlayTop), ImVec2(sceneRight, overlayBottom), overlayColor);
+        float overlayTop = (std::max)(cT, devTopLeft.y);
+        float overlayBottom = (std::min)(cB, devBottomRight.y);
+        if (devTopLeft.x > cL)
+            drawList->AddRectFilled(ImVec2(cL, overlayTop), ImVec2(devTopLeft.x, overlayBottom), overlayColor);
+        if (devBottomRight.x < cR)
+            drawList->AddRectFilled(ImVec2(devBottomRight.x, overlayTop), ImVec2(cR, overlayBottom), overlayColor);
 
         // Device bounds in the theme accent rather than a hardcoded orange, so
         // the overlay belongs to the same palette as the rest of the editor.
@@ -697,7 +700,7 @@ void SceneViewPanel::DrawSceneCanvas()
         drawList->AddRect(borderTopLeft, borderBottomRight, deviceColor, 0.0f, 0, 1.0f);
 
         char deviceLabel[64];
-        snprintf(deviceLabel, sizeof(deviceLabel), "%dx%d", vpWidth, vpHeight);
+        snprintf(deviceLabel, sizeof(deviceLabel), "%dx%d", screenW, screenH);
         drawList->AddText(ImVec2(devTopLeft.x + 4, devTopLeft.y + 4), deviceColor, deviceLabel);
     }
 
@@ -972,8 +975,8 @@ void SceneViewPanel::DrawSceneCanvas()
         // Convert pixel viewport size to world meters so snap targets are
         // comparable with world-space edges computed in HandleResizeDrag.
         m_Snapping->SetDeviceBounds(
-            static_cast<float>(vpWidth) * invPPM,
-            static_cast<float>(vpHeight) * invPPM);
+            static_cast<float>(screenW) * invPPM,
+            static_cast<float>(screenH) * invPPM);
         m_Snapping->SetSnapThreshold(4.0f * invPPM);
 
         if (m_Gizmos->IsDraggingResize() && io.KeyCtrl)
@@ -997,12 +1000,6 @@ void SceneViewPanel::DrawSceneCanvas()
 
     // Draw snap guide lines
     m_Snapping->DrawSnapGuides(drawList, m_Coords.get(), m_CanvasTopLeft, m_CanvasSize);
-
-    if (!sceneCam && m_Toolbar->ShowGizmos())
-    {
-        drawList->AddRect(ImVec2(sceneLeft, sceneTop), ImVec2(sceneRight, sceneBottom),
-                          IM_COL32(100, 100, 100, 255), 0.0f, 0, 2.0f);
-    }
 
     // Draw grid
     if (m_Toolbar->ShowGrid() && m_Toolbar->GetGridSize() > 0)

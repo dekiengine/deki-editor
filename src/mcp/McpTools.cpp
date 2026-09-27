@@ -808,15 +808,10 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             if (!project)
                                 return { { "hasProject", false } };
 
-                            auto* display = DekiEditor::GetDisplaySettings();
                             return {
                                 { "hasProject", true },
                                 { "name", project->GetName() },
                                 { "path", project->GetPath() },
-                                { "designWidth", display ? display->designWidth : 0.0f },
-                                { "designHeight", display ? display->designHeight : 0.0f },
-                                { "designWidthPx", DesignWidthPx() },
-                                { "designHeightPx", DesignHeightPx() },
                                 { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
                                 { "startupScene", project->GetStartupScene() }
                             };
@@ -979,14 +974,14 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
     // Project settings are components too (one live instance per section in
     // the SettingsRegistry), written with the same per-type handlers as a
     // scene property; then the project is saved, as the Project Settings
-    // panel does after every edit. The target resolution had no CLI route.
+    // panel does after every edit.
     //
     // Written directly, not through CommandHistory: that history is the open
     // scene's, and an entry there marks the SCENE unsaved, so the next
     // open_scene stopped at a save-changes prompt no command line can answer.
     registry.Register({ "set_project_setting",
                         "Set a project setting: a property of one of the Project Settings sections (e.g. "
-                        "section \"Framebuffer\", property \"designWidth\"), then save the project. Enum values "
+                        "section \"Core\", property \"targetFps\"), then save the project. Enum values "
                         "take their index or name.",
                         { { "type", "object" },
                           { "properties",

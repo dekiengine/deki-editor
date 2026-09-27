@@ -238,7 +238,7 @@ void EditorApp::InitPlayMode()
     ClearSelection();
 
     // Play on the screen the Play view previews: the design size, or the
-    // target picked in its toolbar. The camera fits the design area to it.
+    // target picked in its toolbar. The camera decides what it shows there.
     m_Play.width = DekiEditor::SceneView::Get().GetPreviewWidth();
     m_Play.height = DekiEditor::SceneView::Get().GetPreviewHeight();
 

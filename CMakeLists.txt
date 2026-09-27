@@ -488,6 +488,8 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/PropertyCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/InstanceCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/SettingsOwnership.cpp
+    # LegacyFramingTests: what an older project's cameras migrate from.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/Project.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageLoader.cpp
     # RegistrySourceTests: the registry index / package file parsers.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/sources/DekiRegistrySource.cpp
@@ -607,7 +609,6 @@ set(EDITOR_SOURCES
     src/panels/asset_browser/CreateAssetDialog.cpp
     src/panels/asset_browser/DeleteConfirmDialog.cpp
     src/panels/asset_browser/RenameDialog.cpp
-    src/core/Project.cpp
     src/core/SettingsOwnership.h
     src/core/Project.h
     src/core/Commands.h

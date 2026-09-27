@@ -4,15 +4,15 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_set>
+#include <nlohmann/json_fwd.hpp>
 
 // Settings types live in deki-engine/src/settings/. Including them here
 // means call sites that read settings fields don't have to add the per-file
 // includes - most editor code that touches settings already includes this
 // header.
-#include <deki/settings/DisplayProjectSettings.h>
 #include <deki/settings/UnitProjectSettings.h>
 #include <deki/settings/CoreProjectSettings.h>
-#include <deki/ScreenScale.h>
+#include <deki-editor/SceneView.h>
 
 // CompareVersions, for the ProjectNeedsNewerEditor rule below.
 #include <deki-editor/VersionCompare.h>
@@ -23,28 +23,20 @@ namespace DekiEditor
 // Free-function accessors. Return nullptr if the registry isn't populated yet
 // (engine not initialized, or settings package not yet loaded). Hot paths read
 // the cached copy in Deki::EngineSettings::Global() instead.
-Deki::DisplayProjectSettings* GetDisplaySettings();
 Deki::UnitProjectSettings* GetUnitSettings();
 Deki::CoreProjectSettings* GetCoreSettings();
 
-/// Copy the Units and Framebuffer (design area) settings into
-/// Deki::EngineSettings::Global(). Call after loading settings and after any
-/// edit to them, so cameras and the inspector see the new values.
+/// Copy the Units settings into Deki::EngineSettings::Global(). Call after
+/// loading settings and after any edit to them, so cameras and the inspector
+/// see the new values.
 void ApplySettingsToGlobalCache();
 
-/// The design area in pixels at the project's art density (Deki::DesignSizePixels).
-inline int DesignWidthPx()
-{
-    int w = 0, h = 0;
-    Deki::DesignSizePixels(w, h);
-    return w;
-}
-inline int DesignHeightPx()
-{
-    int w = 0, h = 0;
-    Deki::DesignSizePixels(w, h);
-    return h;
-}
+class Project;
+
+/// The screen of the project's active platform, in pixels: what a render with
+/// no Play view to ask (--render-scenes, a scene's thumbnail) draws at.
+/// 320 x 240 when there is no active platform or it has no screen.
+void ActivePlatformScreen(const Project* project, int& width, int& height);
 
 /// True when a project saved by editor `lastSavedBy` must not be opened by
 /// editor `thisEditor`, because opening it would write its scenes back in the
@@ -156,6 +148,10 @@ public:
     bool IsDirty() const { return m_IsDirty; }
 
 private:
+    // What the old Framebuffer section said, for the camera migration (see
+    // the .cpp). Pushed to SceneView::SetLegacyFraming.
+    void LoadLegacyFraming(const nlohmann::json& legacyFramebuffer);
+
     std::string m_Name;
     std::string m_Path;                                   // Project root directory
     std::string m_LoadError;                              // see GetLoadError()

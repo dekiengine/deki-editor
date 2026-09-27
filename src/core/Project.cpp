@@ -3,13 +3,13 @@
 #include <deki-editor/VersionCompare.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/FileIO.h>
+#include <deki-editor/build/PlatformConfig.h>
 #include "SettingsOwnership.h"
 #include <deki/LogSystem.h>
 #include <deki/Engine.h>
 #include <deki/reflection/SettingsRegistry.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
-#include <deki/settings/DisplayProjectSettings.h>
 #include <deki/settings/UnitProjectSettings.h>
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -20,11 +20,6 @@
 
 namespace DekiEditor
 {
-
-Deki::DisplayProjectSettings* GetDisplaySettings()
-{
-    return Deki::SettingsRegistry::Instance().Get<Deki::DisplayProjectSettings>();
-}
 
 Deki::UnitProjectSettings* GetUnitSettings()
 {
@@ -40,8 +35,6 @@ void ApplySettingsToGlobalCache()
 {
     if (auto* units = GetUnitSettings())
         units->ApplyToGlobalCache();
-    if (auto* display = GetDisplaySettings())
-        display->ApplyToGlobalCache();
 }
 
 namespace
@@ -171,9 +164,6 @@ std::filesystem::path SectionFilePath(const std::string& root, const std::string
     if (!owner.empty())
         return DekiEditor::ProjectPaths::Settings(root) / "packages" / owner / (lower + ".json");
 
-    if (lower == "framebuffer" || lower == "display")
-        return DekiEditor::ProjectPaths::Settings(root) / "framebuffer.json";
-
     return DekiEditor::ProjectPaths::Settings(root) / "core.json";
 }
 
@@ -237,34 +227,30 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
 
 namespace
 {
-// Before 0.18 the Framebuffer section stored the render size in pixels
-// (targetWidth/targetHeight). It is now the design area in meters, so an old
-// section converts at the project's pixels per meter: 1280 x 720 at 16 px/m
-// becomes 80 x 45 m, which is exactly what those projects showed. Runs after
-// every section has loaded, since the conversion needs Units. The next save
-// writes only the new keys.
-void MigrateDesignArea(const nlohmann::json& framebufferJson)
+// The old Framebuffer section, where a project kept how much world it showed
+// before cameras framed it themselves: settings/framebuffer.json, or for a
+// project older than the settings/ folder, deki.json's packageSettings.
+// Nothing writes it any more; it stays on disk because scenes migrate as they
+// load, which can be long after the project was first opened.
+//
+//   0.16  targetWidth/targetHeight: the render size, pixels
+//   0.18  designWidth/designHeight: the design area, meters; pixelPerfect
+nlohmann::json ReadLegacyFramebuffer(const std::string& root)
 {
-    if (!framebufferJson.is_object() || framebufferJson.contains("designWidth") ||
-        !framebufferJson.contains("targetWidth") || !framebufferJson.contains("targetHeight"))
-        return;
-    auto* display = GetDisplaySettings();
-    auto* units = GetUnitSettings();
-    if (display == nullptr || units == nullptr || units->pixelsPerMeter <= 0.0f)
-        return;
-    const float w = framebufferJson["targetWidth"].get<float>();
-    const float h = framebufferJson["targetHeight"].get<float>();
-    display->designWidth = w / units->pixelsPerMeter;
-    display->designHeight = h / units->pixelsPerMeter;
-    DEKI_LOG_INFO("Framebuffer: %gx%g px became a design area of %g x %g m at %g px/m",
-                  (double)w, (double)h, (double)display->designWidth, (double)display->designHeight,
-                  (double)units->pixelsPerMeter);
+    const nlohmann::json file = ReadJsonFile(DekiEditor::ProjectPaths::Settings(root) / "framebuffer.json");
+    if (file.contains("Framebuffer") && file["Framebuffer"].is_object())
+        return file["Framebuffer"];
+    return nlohmann::json();
+}
+
+float LegacyNumber(const nlohmann::json& j, const char* key)
+{
+    return (j.is_object() && j.contains(key) && j[key].is_number()) ? j[key].get<float>() : 0.0f;
 }
 }  // namespace
 
 void Project::LoadSettingsFiles(const std::string& root)
 {
-    nlohmann::json framebufferJson;
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
     {
         if (info.meta == nullptr || info.sectionName == nullptr || info.instance == nullptr)
@@ -280,10 +266,37 @@ void Project::LoadSettingsFiles(const std::string& root)
 
         for (int i = 0; i < info.meta->propertyCount; ++i)
             LoadSettingProperty(info.instance, info.meta->properties[i], sectionJson);
-        if (std::string(info.sectionName) == "Framebuffer")
-            framebufferJson = sectionJson;
     }
-    MigrateDesignArea(framebufferJson);
+}
+
+void ActivePlatformScreen(const Project* project, int& width, int& height)
+{
+    width = 320;
+    height = 240;
+    if (project == nullptr)
+        return;
+    const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId());
+    if (platform != nullptr && platform->screenWidth > 0 && platform->screenHeight > 0)
+    {
+        width = platform->screenWidth;
+        height = platform->screenHeight;
+    }
+}
+
+void Project::LoadLegacyFraming(const nlohmann::json& legacyFramebuffer)
+{
+    // The old Framebuffer section, for scenes whose cameras migrate from it:
+    // its height in meters and its Pixel Perfect.
+    const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
+    SceneView::LegacyFraming legacy;
+    if (const float h = LegacyNumber(legacyFramebuffer, "designHeight"); h > 0.0f)
+        legacy.designHeight = h;
+    else if (const float px = LegacyNumber(legacyFramebuffer, "targetHeight"); px > 0.0f && ppm > 0.0f)
+        legacy.designHeight = px / ppm;
+    if (legacyFramebuffer.is_object() && legacyFramebuffer.contains("pixelPerfect") &&
+        legacyFramebuffer["pixelPerfect"].is_boolean())
+        legacy.pixelPerfect = legacyFramebuffer["pixelPerfect"].get<bool>();
+    SceneView::Get().SetLegacyFraming(legacy);
 }
 
 bool Project::Load(const std::string& path)
@@ -411,9 +424,9 @@ bool Project::Load(const std::string& path)
         // here. Read it first so an unmigrated project still loads, then let the
         // settings/ files overlay it below. The next Save writes the files and drops
         // this block, so the migration completes without a separate pass.
+        nlohmann::json legacyFramebuffer;
         if (json.contains("packageSettings") && json["packageSettings"].is_object())
         {
-            nlohmann::json legacyFramebuffer;
             const auto& packageSettingsJson = json["packageSettings"];
             for (auto it = packageSettingsJson.begin(); it != packageSettingsJson.end(); ++it)
             {
@@ -439,6 +452,9 @@ bool Project::Load(const std::string& path)
                     section = "Framebuffer";
                 }
 
+                if (section == "Framebuffer")
+                    legacyFramebuffer = sectionJson;
+
                 Deki::Component* inst = Deki::SettingsRegistry::Instance().GetByName(section.c_str());
                 if (inst == nullptr) continue;  // unknown package; leave alone
                 const Deki::ComponentMeta* compMeta = Deki::ComponentRegistry::Instance().GetMeta(inst->GetType());
@@ -447,15 +463,16 @@ bool Project::Load(const std::string& path)
                 {
                     LoadSettingProperty(inst, compMeta->properties[i], sectionJson);
                 }
-                if (section == "Framebuffer")
-                    legacyFramebuffer = sectionJson;
             }
-            MigrateDesignArea(legacyFramebuffer);
         }
 
         // Current source of truth. Applied after the legacy block so a project that
         // has both takes the files.
         LoadSettingsFiles(m_Path);
+        ApplySettingsToGlobalCache();  // the old framing converts at the art density
+
+        const nlohmann::json framebufferFile = ReadLegacyFramebuffer(m_Path);
+        LoadLegacyFraming(framebufferFile.is_object() ? framebufferFile : legacyFramebuffer);
 
         // Load startup scene. Older files stored it with backslashes, which the
         // runtime's asset lookup (keyed by the forward-slash asset path) never
@@ -576,12 +593,10 @@ bool Project::Save()
     if (json.contains("packageSettings") && json["packageSettings"].is_object())
     {
         nlohmann::json& legacy = json["packageSettings"];
+        // "Framebuffer" (once "Display") is never written any more and stays:
+        // scenes that have not loaded since still migrate their cameras from it.
         for (const std::string& section : writtenSections)
             legacy.erase(section);
-        // "Display" was split into Framebuffer + Core; both are written, so the
-        // legacy key has no remaining owner once either lands.
-        if (std::find(writtenSections.begin(), writtenSections.end(), "Framebuffer") != writtenSections.end())
-            legacy.erase("Display");
 
         if (legacy.empty())
             json.erase("packageSettings");

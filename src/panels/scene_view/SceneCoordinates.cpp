@@ -1,5 +1,5 @@
 #include "SceneCoordinates.h"
-#include <deki/ScreenScale.h>
+#include "SceneViewTypes.h"
 #include "../../EditorApp.h"
 #include "../../core/Project.h"
 #include "imgui.h"
@@ -32,8 +32,8 @@ ImVec2 SceneCoordinates::WorldToScreen(float worldX, float worldY) const
     float effectiveZoom = m_Zoom * ImGui::GetWindowDpiScale();
     float worldToScreen = effectiveZoom * m_PixelsPerMeter;
 
-    int vpWidth = 0, vpHeight = 0;
-    Deki::DesignSizePixels(vpWidth, vpHeight);
+    int vpWidth = SceneViewConstants::AnchorWidth;
+    int vpHeight = SceneViewConstants::AnchorHeight;
 
     float sceneWidth = vpWidth * effectiveZoom;
     float sceneHeight = vpHeight * effectiveZoom;
@@ -54,8 +54,8 @@ ImVec2 SceneCoordinates::ScreenToWorld(float screenX, float screenY) const
     float worldToScreen = effectiveZoom * m_PixelsPerMeter;
     float screenToWorld = (worldToScreen > 0.0f) ? (1.0f / worldToScreen) : 0.0f;
 
-    int vpWidth = 0, vpHeight = 0;
-    Deki::DesignSizePixels(vpWidth, vpHeight);
+    int vpWidth = SceneViewConstants::AnchorWidth;
+    int vpHeight = SceneViewConstants::AnchorHeight;
 
     float sceneWidth = vpWidth * effectiveZoom;
     float sceneHeight = vpHeight * effectiveZoom;
