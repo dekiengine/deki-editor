@@ -5,6 +5,7 @@
 #include "EditorApp.h"
 #include "core/Project.h"
 #include <deki-editor/SceneView.h>
+#include <deki-editor/EditorSettings.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/TextureFormatResolve.h>
 #include "scene_view/EditModeRenderer.h"
@@ -91,6 +92,8 @@ void PlayViewPanel::Draw()
     if (!m_Open)
         return;
 
+    if (const Project* project = m_App->GetProject(); project && project->GetPath() != m_PreviewProject)
+        LoadPreview(project->GetPath());
     ApplyPreviewSize();
 
     ImGui::Begin("PLAY VIEW###Play View", &m_Open, DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
@@ -435,6 +438,34 @@ void PlayViewPanel::SelectPreview(const std::string& id)
     }
 }
 
+void PlayViewPanel::LoadPreview(const std::string& projectPath)
+{
+    m_PreviewProject = projectPath;
+    SelectPreview(EditorSettings::GetString("playView.screen:" + projectPath));
+
+    int w = 0, h = 0;
+    if (sscanf(EditorSettings::GetString("playView.customSize:" + projectPath).c_str(), "%dx%d", &w, &h) == 2)
+    {
+        m_CustomWidth = std::clamp(w, 1, 8192);
+        m_CustomHeight = std::clamp(h, 1, 8192);
+    }
+
+    // Set after SelectPreview, which picks the screen's own format.
+    Deki::ColorFormat format;
+    if (ParseColorFormat(EditorSettings::GetString("playView.format:" + projectPath), format))
+        m_PreviewFormat = format;
+}
+
+void PlayViewPanel::SavePreview() const
+{
+    if (m_PreviewProject.empty())
+        return;
+    EditorSettings::SetString("playView.screen:" + m_PreviewProject, m_PreviewId);
+    EditorSettings::SetString("playView.customSize:" + m_PreviewProject,
+                              std::to_string(m_CustomWidth) + "x" + std::to_string(m_CustomHeight));
+    EditorSettings::SetString("playView.format:" + m_PreviewProject, ColorFormatName(m_PreviewFormat));
+}
+
 void PlayViewPanel::ApplyPreviewSize()
 {
     SceneView::Get().SetPreviewFormat(m_PreviewFormat);
@@ -509,7 +540,10 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
     char item[192];
     snprintf(item, sizeof(item), "Design size  %dx%d", dw, dh);
     if (ImGui::Selectable(item, m_PreviewId.empty()))
+    {
         SelectPreview(std::string());
+        SavePreview();
+    }
 
     ImGui::Separator();
     for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
@@ -519,21 +553,29 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
             continue;
         snprintf(item, sizeof(item), "%s  %dx%d##%s", name.c_str(), p->screenWidth, p->screenHeight, id.c_str());
         if (ImGui::Selectable(item, m_PreviewId == id))
+        {
             SelectPreview(id);
+            SavePreview();
+        }
     }
 
     ImGui::Separator();
     if (ImGui::Selectable("Custom size", m_PreviewId == "custom", ImGuiSelectableFlags_NoAutoClosePopups) &&
         m_PreviewId != "custom")
+    {
         SelectPreview("custom");
+        SavePreview();
+    }
     if (m_PreviewId == "custom")
     {
         ImGui::SetNextItemWidth(120.0f * dpi);
-        ImGui::InputInt("Width##customw", &m_CustomWidth);
+        bool changed = ImGui::InputInt("Width##customw", &m_CustomWidth);
         ImGui::SetNextItemWidth(120.0f * dpi);
-        ImGui::InputInt("Height##customh", &m_CustomHeight);
+        changed |= ImGui::InputInt("Height##customh", &m_CustomHeight);
         m_CustomWidth = std::clamp(m_CustomWidth, 1, 8192);
         m_CustomHeight = std::clamp(m_CustomHeight, 1, 8192);
+        if (changed)
+            SavePreview();
     }
     ImGui::EndPopup();
 }
@@ -573,7 +615,10 @@ void PlayViewPanel::DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float
                                  Deki::ColorFormat::ARGB8888 })
     {
         if (ImGui::Selectable(ColorFormatName(f), m_PreviewFormat == f))
+        {
             m_PreviewFormat = f;
+            SavePreview();
+        }
     }
     ImGui::EndPopup();
 }

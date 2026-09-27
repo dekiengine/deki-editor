@@ -57,6 +57,12 @@ private:
     void DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
     void SelectPreview(const std::string& id);
 
+    // The picks above are remembered per project in EditorSettings: loaded when
+    // the open project changes, saved when the user changes one.
+    std::string m_PreviewProject;
+    void LoadPreview(const std::string& projectPath);
+    void SavePreview() const;
+
     void DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
     void ApplyPreviewSize();
 };
