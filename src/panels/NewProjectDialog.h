@@ -50,11 +50,6 @@ public:
 
 private:
     /**
-     * @brief Open folder picker dialog
-     */
-    std::string BrowseForFolder();
-
-    /**
      * @brief Validate current inputs
      */
     bool ValidateInputs(std::string& errorMessage);

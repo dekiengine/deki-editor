@@ -1,6 +1,7 @@
 #include "NewProjectDialog.h"
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
+#include "services/FileDialogs.h"
 #include "services/ProjectTemplate.h"
 #include <deki-editor/build/PlatformConfig.h>
 #include "imgui.h"
@@ -84,11 +85,15 @@ void NewProjectDialog::Draw()
         ImGui::SameLine();
         if (ImGui::Button("Browse"))
         {
-            std::string folder = BrowseForFolder();
-            if (!folder.empty())
-            {
-                strncpy(m_Location, folder.c_str(), sizeof(m_Location) - 1);
-            }
+            // The answer arrives on a later frame; the dialog outlives it.
+            FileDialogs::OpenFolder("Select Project Location",
+                                    [this](const std::string& folder)
+                                    {
+                                        if (folder.empty())
+                                            return;
+                                        strncpy(m_Location, folder.c_str(), sizeof(m_Location) - 1);
+                                    },
+                                    m_Location);
         }
 
         ImGui::Spacing();
@@ -162,36 +167,6 @@ void NewProjectDialog::Draw()
         }
     }
     ImGui::End();
-}
-
-std::string NewProjectDialog::BrowseForFolder()
-{
-#ifdef _WIN32
-    char path[MAX_PATH] = { 0 };
-    BROWSEINFOA bi = { 0 };
-    bi.lpszTitle = "Select Project Location";
-    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-
-    // Start in current location
-    bi.lParam = (LPARAM)m_Location;
-    bi.lpfn = [](HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData) -> int
-    {
-        if (uMsg == BFFM_INITIALIZED)
-        {
-            SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
-        }
-        return 0;
-    };
-
-    LPITEMIDLIST pidl = SHBrowseForFolderA(&bi);
-    if (pidl != nullptr)
-    {
-        SHGetPathFromIDListA(pidl, path);
-        CoTaskMemFree(pidl);
-        return std::string(path);
-    }
-#endif
-    return "";
 }
 
 bool NewProjectDialog::ValidateInputs(std::string& errorMessage)

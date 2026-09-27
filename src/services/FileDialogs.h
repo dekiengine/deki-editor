@@ -25,7 +25,8 @@ void SetWindow(SDL_Window* window);
 // filter is the Win32 filter string ("Scene Files (*.scene)\0*.scene\0"),
 // parsed by FileDialogFilter for the platforms that want a different shape.
 
-void OpenFolder(const char* title, ResultCallback onResult);
+// defaultPath, when given, is the folder the picker starts in.
+void OpenFolder(const char* title, ResultCallback onResult, const char* defaultPath = nullptr);
 
 void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResult);
 

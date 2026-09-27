@@ -16,9 +16,10 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <shlobj.h>
-#else
-#include <SDL3/SDL.h>
+#include <shobjidl.h>
 #endif
+
+#include <SDL3/SDL.h>
 
 namespace DekiEditor
 {
@@ -112,6 +113,73 @@ std::string ToUtf8(const wchar_t* wide)
 
 // A filter is a run of NUL-separated strings ended by a double NUL; the whole
 // run, both terminators included, is converted so the embedded NULs survive.
+// The dialog's owner, so it is modal to the editor and opens over it rather
+// than wherever the shell last put one.
+HWND OwnerWindow()
+{
+    if (!g_Window)
+        return nullptr;
+    return static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(g_Window),
+                                                    SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+}
+
+// The Explorer-style folder picker (IFileOpenDialog with FOS_PICKFOLDERS):
+// address bar, search, Quick Access - rather than SHBrowseForFolder's tree.
+// Returns "" on cancel.
+std::string PickFolderWin32(const char* title, const char* defaultPath)
+{
+    // The UI thread may already be in an apartment (SDL, drag and drop);
+    // only undo an initialisation this call made.
+    const HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const bool uninit = SUCCEEDED(coInit);
+
+    std::string chosen;
+    IFileOpenDialog* dialog = nullptr;
+    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                   IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog))))
+    {
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+
+        const std::wstring wtitle = ToWide(title);
+        if (!wtitle.empty())
+            dialog->SetTitle(wtitle.c_str());
+
+        const std::wstring wdefault = ToWide(defaultPath);
+        if (!wdefault.empty())
+        {
+            IShellItem* folder = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(wdefault.c_str(), nullptr, IID_IShellItem,
+                                                      reinterpret_cast<void**>(&folder))))
+            {
+                dialog->SetFolder(folder);
+                folder->Release();
+            }
+        }
+
+        if (SUCCEEDED(dialog->Show(OwnerWindow())))
+        {
+            IShellItem* result = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&result)))
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(result->GetDisplayName(SIGDN_FILESYSPATH, &path)))
+                {
+                    chosen = ToUtf8(path);
+                    CoTaskMemFree(path);
+                }
+                result->Release();
+            }
+        }
+        dialog->Release();
+    }
+
+    if (uninit)
+        CoUninitialize();
+    return chosen;
+}
+
 std::wstring WideFilter(const char* filter)
 {
     if (!filter || filter[0] == '\0')
@@ -196,32 +264,20 @@ void SetWindow(SDL_Window* window)
     g_Window = window;
 }
 
-void OpenFolder(const char* title, ResultCallback onResult)
+void OpenFolder(const char* title, ResultCallback onResult, const char* defaultPath)
 {
     const uint64_t id = BeginRequest(std::move(onResult), nullptr);
     if (id == 0)
         return;
 
 #ifdef _WIN32
-    const std::wstring wtitle = ToWide(title);
-    wchar_t path[MAX_PATH] = { 0 };
-    BROWSEINFOW bi = { 0 };
-    bi.lpszTitle = wtitle.c_str();
-    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-
-    std::string chosen;
-    LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
-    if (pidl != nullptr)
-    {
-        SHGetPathFromIDListW(pidl, path);
-        CoTaskMemFree(pidl);
-        chosen = ToUtf8(path);
-    }
-    PostResult(id, std::move(chosen));
+    PostResult(id, PickFolderWin32(title, defaultPath));
 #else
+    // SDL asks the desktop: the XDG portal or zenity on Linux, NSOpenPanel on
+    // macOS. Neither takes a title here.
     (void)title;
     SDL_ShowOpenFolderDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
-                             g_Window, nullptr, false);
+                             g_Window, (defaultPath && defaultPath[0]) ? defaultPath : nullptr, false);
 #endif
 }
 

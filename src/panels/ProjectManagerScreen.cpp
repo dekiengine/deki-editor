@@ -1,6 +1,7 @@
 #include "ProjectManagerScreen.h"
 
 #include "EditorApp.h"
+#include "EditorVersion.h"
 #include "services/FileDialogs.h"
 #include <deki-editor/ProcessLaunch.h>
 #include "services/ProjectRegistry.h"
@@ -93,18 +94,25 @@ ImVec2 MeasureIn(ImFont* font, float cssPx, const char* text)
     return size;
 }
 
-// A small bordered label - the platform id, or the MISSING marker.
-void DrawChip(ImDrawList* dl, ImVec2 rightEdge, ImU32 fg, ImU32 border, const char* text, float S)
+// Secondary text on this screen: paths, times, labels. Palette::Dim is meant
+// for chrome in dense panels and is too faint for text a person reads here.
+constexpr ImVec4 kSecondary = ImVec4(0.72f, 0.71f, 0.69f, 1.0f);  // #b8b5b0
+
+// A small filled label - the platform id, the engine version, or the
+// MISSING marker. Right-aligned to rightEdge; returns the width it took.
+float DrawChip(ImDrawList* dl, ImVec2 rightEdge, ImU32 fg, ImU32 border, const char* text, float S)
 {
-    const ImVec2 textSize = MeasureIn(g_FontUISmall, 10.5f, text);
-    const float padX = 7.0f * S;
-    const float padY = 3.0f * S;
+    const ImVec2 textSize = MeasureIn(g_FontUISmall, 12.0f, text);
+    const float padX = 8.0f * S;
+    const float padY = 4.0f * S;
 
     const ImVec2 max(rightEdge.x, rightEdge.y + textSize.y + padY * 2.0f);
     const ImVec2 min(max.x - (textSize.x + padX * 2.0f), rightEdge.y);
 
-    dl->AddRect(min, max, border, 3.0f * S);
-    TextAt(dl, g_FontUISmall, 10.5f, ImVec2(min.x + padX, min.y + padY), fg, text);
+    dl->AddRectFilled(min, max, ImGui::GetColorU32(Palette::Line), 4.0f * S);
+    dl->AddRect(min, max, border, 4.0f * S);
+    TextAt(dl, g_FontUISmall, 12.0f, ImVec2(min.x + padX, min.y + padY), fg, text);
+    return max.x - min.x;
 }
 
 }  // namespace
@@ -175,11 +183,32 @@ void ProjectManagerScreen::Draw()
     RebuildFilter();
 
     const float pad = 40.0f * S;
-    ImGui::SetCursorPos(ImVec2(pad, pad * 0.7f));
+    const ImVec2 avail = ImGui::GetContentRegionAvail();
+    const ImVec2 start = ImGui::GetCursorPos();
+
+    // One centred column, capped in width: on a large monitor a full-width list
+    // puts the name and the date a metre apart and leaves the middle empty.
+    const float contentW = std::min(avail.x - pad * 2.0f, 960.0f * S);
+
+    // The body is as tall as the projects need, not the window. Sized from the
+    // whole list rather than the filtered one, so typing in the search box does
+    // not make the column jump.
+    const float headerH = 81.0f * S;
+    const float rowStride = 82.0f * S;  // card height + gap, see DrawProjectList
+    const float railMinH = 290.0f * S;
+    const size_t entryCount = ProjectRegistry::Get().Entries().size();
+    const float availBodyH = avail.y - headerH - pad * 1.4f;
+    float bodyH = entryCount == 0
+        ? 260.0f * S
+        : std::max(railMinH, (float)entryCount * rowStride + 8.0f * S + (m_Error.empty() ? 0.0f : 26.0f * S));
+    bodyH = std::max(std::min(bodyH, availBodyH), 120.0f * S);
+
+    // Sit slightly above the middle, where the eye lands first.
+    const float blockH = headerH + bodyH;
+    const float top = std::max(pad * 0.7f, (avail.y - blockH) * 0.42f);
+    ImGui::SetCursorPos(ImVec2(start.x + std::max(pad, (avail.x - contentW) * 0.5f), start.y + top));
 
     ImGui::BeginGroup();
-
-    const float contentW = ImGui::GetContentRegionAvail().x - pad;
 
     // --- Header: title on the left, search on the right ---
     {
@@ -192,8 +221,8 @@ void ProjectManagerScreen::Draw()
         char subtitle[96];
         std::snprintf(subtitle, sizeof(subtitle), "%zu project%s on this machine",
                       total, total == 1 ? "" : "s");
-        TextAt(dl, g_FontUISmall, 11.5f, ImVec2(origin.x, origin.y + 34.0f * S),
-               ImGui::GetColorU32(Palette::Dim), subtitle);
+        TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x, origin.y + 36.0f * S),
+               ImGui::GetColorU32(kSecondary), subtitle);
 
         // Search field, right-aligned with the list below it.
         const float searchW = 240.0f * S;
@@ -219,12 +248,11 @@ void ProjectManagerScreen::Draw()
     // --- Body: the project list beside the action rail ---
     const float railW = 200.0f * S;
     const float gap = 20.0f * S;
-    const float bodyH = ImGui::GetContentRegionAvail().y - pad * 0.7f;
     const float listW = contentW - railW - gap;
 
-    if (ProjectRegistry::Get().Entries().empty())
+    if (entryCount == 0)
     {
-        DrawEmptyState();
+        DrawEmptyState(contentW, bodyH);
     }
     else
     {
@@ -268,18 +296,22 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
 
     if (m_Filtered.empty())
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        ImGui::PushStyleColor(ImGuiCol_Text, kSecondary);
         ImGui::SetCursorPos(ImVec2(4.0f * S, 12.0f * S));
         ImGui::TextUnformatted("No project matches that search.");
         ImGui::PopStyleColor();
     }
 
-    const float rowH = 62.0f * S;
+    const float rowH = 72.0f * S;
+    const float rounding = 6.0f * S;
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 4.0f * S));
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.14f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Palette::Bg2);
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.20f));
+    // Each project is a card with its own fill and outline, so rows read as
+    // separate items rather than one striped block. The Selectable only
+    // provides the hit box; the card draws every state itself.
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f * S));
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0, 0, 0, 0));
 
     for (int idx : m_Filtered)
     {
@@ -325,62 +357,86 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 rowMax(rowMin.x + rowW, rowMin.y + rowH);
 
-        // Accent bar marking the selected row, the same signal the dock tabs use.
-        if (selected)
-            dl->AddRectFilled(rowMin, ImVec2(rowMin.x + 2.0f * S, rowMax.y),
-                              ImGui::GetColorU32(Palette::Accent));
+        // Card: fill, then an outline that brightens on hover and turns accent
+        // when selected.
+        {
+            const ImVec4 border = selected ? Palette::Accent : (hovered ? Palette::Line3 : Palette::Line2);
+
+            dl->AddRectFilled(rowMin, rowMax, ImGui::GetColorU32(hovered ? Palette::Line : Palette::Bg2), rounding);
+            if (selected)
+                dl->AddRectFilled(rowMin, rowMax,
+                                  ImGui::GetColorU32(ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.08f)),
+                                  rounding);
+            dl->AddRect(ImVec2(rowMin.x + 0.5f, rowMin.y + 0.5f), ImVec2(rowMax.x - 0.5f, rowMax.y - 0.5f),
+                        ImGui::GetColorU32(border), rounding, 0, selected ? 1.5f * S : 1.0f);
+        }
 
         // Icon tile.
         {
-            const float tile = 36.0f * S;
+            const float tile = 40.0f * S;
             const ImVec2 tileMin(rowMin.x + 16.0f * S, rowMin.y + (rowH - tile) * 0.5f);
             const ImVec2 tileMax(tileMin.x + tile, tileMin.y + tile);
-            dl->AddRectFilled(tileMin, tileMax, ImGui::GetColorU32(Palette::Bg3), 6.0f * S);
+            dl->AddRectFilled(tileMin, tileMax, ImGui::GetColorU32(Palette::Bg), 6.0f * S);
             dl->AddRect(tileMin, tileMax, ImGui::GetColorU32(Palette::Line2), 6.0f * S);
 
             const char* icon = entry.missing ? ICON_TI_ALERT_TRIANGLE : ICON_TI_FOLDER;
             const ImVec4 iconCol = entry.missing ? Palette::Red : Palette::FolderIcon;
-            const ImVec2 iconSize = MeasureIn(nullptr, 18.0f, icon);
-            TextAt(dl, nullptr, 18.0f,
+            const ImVec2 iconSize = MeasureIn(nullptr, 20.0f, icon);
+            TextAt(dl, nullptr, 20.0f,
                    ImVec2(tileMin.x + (tile - iconSize.x) * 0.5f,
                           tileMin.y + (tile - iconSize.y) * 0.5f),
                    ImGui::GetColorU32(iconCol), icon);
         }
 
-        const float textX = rowMin.x + 66.0f * S;
+        const float textX = rowMin.x + 72.0f * S;
 
         // Right column first - the name and path clip against what it leaves.
-        float rightEdge = rowMax.x - 16.0f * S;
+        float rightEdge = rowMax.x - 34.0f * S;  // room for the hover chevron
         {
             const std::string when = RelativeTime(entry.lastOpened);
-            const ImVec2 whenSize = MeasureIn(g_FontUISmall, 11.5f, when.c_str());
-            TextAt(dl, g_FontUISmall, 11.5f,
-                   ImVec2(rightEdge - whenSize.x, rowMin.y + 14.0f * S),
-                   ImGui::GetColorU32(Palette::Dim), when.c_str());
+            const ImVec2 whenSize = MeasureIn(g_FontUISmall, 13.0f, when.c_str());
+            TextAt(dl, g_FontUISmall, 13.0f,
+                   ImVec2(rightEdge - whenSize.x, rowMin.y + 13.0f * S),
+                   ImGui::GetColorU32(kSecondary), when.c_str());
 
-            const float chipY = rowMin.y + 34.0f * S;
+            const float chipY = rowMin.y + 37.0f * S;
+            float chipsW = 0.0f;
             if (entry.missing)
             {
-                DrawChip(dl, ImVec2(rightEdge, chipY), ImGui::GetColorU32(Palette::Red),
-                         ImGui::GetColorU32(Palette::Red), "MISSING", S);
+                chipsW = DrawChip(dl, ImVec2(rightEdge, chipY), ImGui::GetColorU32(Palette::Red),
+                                  ImGui::GetColorU32(Palette::Red), "MISSING", S);
             }
-            else if (!entry.platformId.empty())
+            else
             {
-                DrawChip(dl, ImVec2(rightEdge, chipY), ImGui::GetColorU32(Palette::Dim),
-                         ImGui::GetColorU32(Palette::Line2), entry.platformId.c_str(), S);
+                if (!entry.platformId.empty())
+                    chipsW = DrawChip(dl, ImVec2(rightEdge, chipY), ImGui::GetColorU32(kSecondary),
+                                      ImGui::GetColorU32(Palette::Line3), entry.platformId.c_str(), S) +
+                             6.0f * S;
+
+                // The engine the project was last saved with. Amber when it is
+                // not the engine this editor carries.
+                if (!entry.engineVersion.empty())
+                {
+                    const bool matches = entry.engineVersion == EngineVersionString();
+                    const ImVec4 col = matches ? kSecondary : Palette::Amber;
+                    const std::string label = "Deki " + entry.engineVersion;
+                    chipsW += DrawChip(dl, ImVec2(rightEdge - chipsW, chipY), ImGui::GetColorU32(col),
+                                       ImGui::GetColorU32(matches ? Palette::Line3 : Palette::Amber),
+                                       label.c_str(), S);
+                }
             }
 
-            rightEdge -= std::max(whenSize.x, 90.0f * S) + 16.0f * S;
+            rightEdge -= std::max({ whenSize.x, chipsW, 90.0f * S }) + 16.0f * S;
         }
 
         // Name and path, clipped so a deep path can never run into the column
         // on its right.
         dl->PushClipRect(ImVec2(textX, rowMin.y), ImVec2(rightEdge, rowMax.y), true);
         const ImVec4 nameCol = entry.missing ? Palette::Dim : Palette::Fg;
-        TextAt(dl, g_FontUIMed, 14.0f, ImVec2(textX, rowMin.y + 13.0f * S),
+        TextAt(dl, g_FontUIMed, 16.0f, ImVec2(textX, rowMin.y + 14.0f * S),
                ImGui::GetColorU32(nameCol), entry.name.c_str());
-        TextAt(dl, g_FontMonoSmall, 11.0f, ImVec2(textX, rowMin.y + 34.0f * S),
-               ImGui::GetColorU32(Palette::Dim2), entry.path.c_str());
+        TextAt(dl, g_FontMonoSmall, 12.5f, ImVec2(textX, rowMin.y + 41.0f * S),
+               ImGui::GetColorU32(kSecondary), entry.path.c_str());
         dl->PopClipRect();
 
         // Hover affordance: a chevron on the right, so the row reads as
@@ -389,8 +445,8 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         {
             const ImVec2 chevSize = MeasureIn(nullptr, 14.0f, ICON_TI_CHEVRON_RIGHT);
             TextAt(dl, nullptr, 14.0f,
-                   ImVec2(rowMax.x - 4.0f * S - chevSize.x, rowMin.y + (rowH - chevSize.y) * 0.5f),
-                   ImGui::GetColorU32(Palette::Dim2), ICON_TI_CHEVRON_RIGHT);
+                   ImVec2(rowMax.x - 14.0f * S - chevSize.x, rowMin.y + (rowH - chevSize.y) * 0.5f),
+                   ImGui::GetColorU32(Palette::Dim), ICON_TI_CHEVRON_RIGHT);
         }
 
         ImGui::PopID();
@@ -405,7 +461,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
     if (!m_Error.empty())
     {
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Red);
-        ImGui::PushFont(g_FontUISmall, 11.5f);
+        ImGui::PushFont(g_FontUISmall, 13.0f);
         ImGui::TextWrapped("%s", m_Error.c_str());
         ImGui::PopFont();
         ImGui::PopStyleColor();
@@ -467,8 +523,8 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     // Removing only forgets the entry; say so, because the button carries a
     // trash can.
     ImGui::Dummy(ImVec2(0.0f, 8.0f * S));
-    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim2);
-    ImGui::PushFont(g_FontUISmall, 10.5f);
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+    ImGui::PushFont(g_FontUISmall, 12.0f);
     ImGui::TextWrapped("Removing a project only takes it off this list. Nothing is deleted from disk.");
     ImGui::PopFont();
     ImGui::PopStyleColor();
@@ -476,15 +532,15 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::EndChild();
 }
 
-void ProjectManagerScreen::DrawEmptyState()
+void ProjectManagerScreen::DrawEmptyState(float width, float height)
 {
     const float S = ImGui::GetStyle().FontScaleDpi;
 
-    ImGui::BeginChild("##ProjectEmpty", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None);
+    ImGui::BeginChild("##ProjectEmpty", ImVec2(width, height), ImGuiChildFlags_None);
 
     const ImVec2 avail = ImGui::GetContentRegionAvail();
     const float blockW = 340.0f * S;
-    ImGui::SetCursorPos(ImVec2((avail.x - blockW) * 0.5f, avail.y * 0.24f));
+    ImGui::SetCursorPos(ImVec2((avail.x - blockW) * 0.5f, 40.0f * S));
     ImGui::BeginGroup();
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -501,10 +557,10 @@ void ProjectManagerScreen::DrawEmptyState()
            ImGui::GetColorU32(Palette::Fg), title);
 
     const char* hint = "Create one, or import a folder that already has a deki.json.";
-    const ImVec2 hintSize = MeasureIn(g_FontUISmall, 11.5f, hint);
-    TextAt(dl, g_FontUISmall, 11.5f,
+    const ImVec2 hintSize = MeasureIn(g_FontUISmall, 13.0f, hint);
+    TextAt(dl, g_FontUISmall, 13.0f,
            ImVec2(origin.x + (blockW - hintSize.x) * 0.5f, origin.y + 84.0f * S),
-           ImGui::GetColorU32(Palette::Dim), hint);
+           ImGui::GetColorU32(kSecondary), hint);
 
     ImGui::Dummy(ImVec2(blockW, 116.0f * S));
 

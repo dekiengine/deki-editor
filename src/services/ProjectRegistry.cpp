@@ -104,6 +104,7 @@ void ProjectRegistry::ReadMetadata(ProjectEntry& entry)
         json data = json::parse(file);
         entry.name = data.value("name", std::string{});
         entry.platformId = data.value("activePlatformId", std::string{});
+        entry.engineVersion = data.value("engineVersion", std::string{});
     }
     catch (...)
     {
