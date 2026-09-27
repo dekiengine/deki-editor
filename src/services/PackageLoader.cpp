@@ -871,6 +871,23 @@ void PackageLoader::UnloadPackage(const std::string& name)
     m_Packages.erase(it);
 }
 
+void PackageLoader::ReleaseImGuiContext()
+{
+    for (auto& package : m_Packages)
+    {
+        if (!package.handle)
+            continue;
+#ifdef _WIN32
+        auto setImGuiContext =
+            (SetImGuiContextFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_SetImGuiContext");
+#else
+        auto setImGuiContext = (SetImGuiContextFunc)dlsym(package.handle, "DekiPlugin_SetImGuiContext");
+#endif
+        if (setImGuiContext)
+            SafeCallVoidPtr((void (*)(void*))setImGuiContext, nullptr, "PackageLoader::setImGuiContext");
+    }
+}
+
 void PackageLoader::UnloadAllPackages()
 {
     // Clear editor-auto factory pointers - they point into package DLL .text

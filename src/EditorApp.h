@@ -518,6 +518,10 @@ public:
     // republished whenever the open project changes.
     bool StartMcpServer(int port = 0);
     void StopMcpServer();
+    // Clears the ImGui context pointer in deki-editor.dll and every package,
+    // which each hold their own ImGui copy. Call before the context is
+    // destroyed: those DLLs' static destructors free through it at exit.
+    void ReleaseImGuiContext();
     bool IsMcpServerRunning() const;
     // Loopback SSE endpoint including the session token, or "" when not running.
     // This is what an MCP client must be pointed at - the token changes on every

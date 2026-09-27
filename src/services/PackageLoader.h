@@ -91,6 +91,15 @@ public:
     void UnloadAllPackages();
 
     /**
+     * @brief Hand every loaded package a null ImGui context.
+     *
+     * Call before the editor destroys its context. A package's own ImGui copy
+     * keeps the pointer it was given at load, and its static destructors free
+     * through it when the process exits.
+     */
+    void ReleaseImGuiContext();
+
+    /**
      * @brief Get list of loaded packages
      */
     const std::vector<PackageInfo>& GetLoadedPackages() const { return m_Packages; }

@@ -11,6 +11,7 @@
 #include <functional>
 #include <ctime>
 #include <deki-editor/EditorApplication.h>
+#include <deki-editor/EditorDLL.h>  // Deki::SetImGuiContext
 #include <deki-editor/EditorAssets.h>
 #include <deki/assets/AssetManager.h>
 #include <deki-editor/build/PlatformConfig.h>
@@ -993,6 +994,13 @@ void EditorApp::StopMcpServer()
         m_McpServer.reset();
         LiveSession::Withdraw();
     }
+}
+
+void EditorApp::ReleaseImGuiContext()
+{
+    if (m_PackageLoader)
+        m_PackageLoader->ReleaseImGuiContext();
+    Deki::SetImGuiContext(nullptr);
 }
 
 void EditorApp::PublishLiveSession()

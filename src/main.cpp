@@ -406,6 +406,12 @@ int main(int argc, char* argv[])
     // Likewise the live session: stops the server and removes this editor's
     // sessions/<pid>.json, which ~EditorApp would have done.
     editor.StopMcpServer();
+    // ShutdownPlatform destroys the ImGui context, and ExitProcess still runs
+    // every DLL's static destructors. Those in deki-editor.dll free ImGui
+    // containers (EditorTheme's section stack), and ImGui::MemFree reads the
+    // context it was given: a destroyed one crashed every exit after a project
+    // had been open, which a debugger shows as a session that never ends.
+    editor.ReleaseImGuiContext();
 
     DekiEditor::ShutdownPlatform(ctx);
 
