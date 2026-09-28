@@ -324,6 +324,16 @@ DEKI_EDITOR_API void SearchField(const char* id, char* buf, size_t bufSize,
 DEKI_EDITOR_API bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items, float height,
                                           bool leftDivider = false);
 
+// The same toolbar dropdown with rows of your own (sections, separators, items
+// that do more than pick an index): Begin draws the box and returns true while
+// the list is open; draw ImGui::Selectable rows, then call
+// SchematicEndToolbarCombo() - only when Begin returned true. Size the box with
+// SetNextItemWidth; SchematicToolbarComboWidth(preview) fits it to its text.
+DEKI_EDITOR_API bool SchematicBeginToolbarCombo(const char* id, const char* preview, float height,
+                                               bool leftDivider = false);
+DEKI_EDITOR_API void SchematicEndToolbarCombo();
+DEKI_EDITOR_API float SchematicToolbarComboWidth(const char* preview);
+
 // Right-aligned `EDIT ->` style action link. Call after a section header on
 // the same row; renders ALL CAPS mono accent text with 1px underline.
 // Returns true if clicked.

@@ -3,6 +3,8 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
 #include "EditorApp.h"
+#include "inspector/InspectorUtils.h"
+#include <nlohmann/json.hpp>
 #include "core/Project.h"
 #include <deki-editor/SceneView.h>
 #include <deki-editor/EditorSettings.h>
@@ -15,6 +17,7 @@
 #include <deki/ICamera.h>
 #include "InputKeys.h"
 #include "imgui.h"
+#include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth
 #include <SDL3/SDL_opengl.h>
 #include <SDL3/SDL_video.h>
 #include <algorithm>
@@ -25,6 +28,8 @@
 
 namespace DekiEditor
 {
+
+using InspectorUtils::BeginPropertyRow;
 
 // ImGui's GL backend binds a GL_LINEAR sampler object that overrides the texture's
 // own GL_NEAREST params, blurring the play view when the project resolution doesn't
@@ -414,37 +419,103 @@ void PlayViewPanel::Draw()
 
 namespace
 {
-// The aspect ratios the picker offers, as Unity's Game view does. An aspect
-// ratio previews the largest screen of that shape that fits the panel.
-struct AspectChoice
+// Screen sizes the picker offers, as Unity's Game view does. An aspect ratio
+// previews the largest screen of that shape that fits the panel; a resolution
+// is exactly that many pixels.
+//
+// Ids, as remembered per project: "free" (Free Aspect: the panel), "aspect:W:H",
+// "res:WxH", or a platform id (its screen).
+constexpr const char* kFreeAspect = "free";
+
+struct BuiltInAspect
 {
     int w, h;
-    const char* label;
 };
-constexpr AspectChoice kAspects[] = {
-    { 16, 9, "16:9" }, { 16, 10, "16:10" }, { 4, 3, "4:3" }, { 3, 2, "3:2" }, { 21, 9, "21:9" }, { 9, 16, "9:16" },
-};
-constexpr const char* kFreeAspect = "free";
-constexpr const char* kAspectPrefix = "aspect:";
+constexpr BuiltInAspect kAspects[] = { { 16, 9 }, { 16, 10 }, { 4, 3 }, { 3, 2 }, { 21, 9 }, { 9, 16 } };
 
-const AspectChoice* FindAspect(const std::string& id)
+constexpr const char* kUserSizesKey = "playView.userScreens";
+
+std::string AspectId(int w, int h)
 {
-    if (id.rfind(kAspectPrefix, 0) != 0)
-        return nullptr;
-    const std::string ratio = id.substr(std::strlen(kAspectPrefix));
-    for (const AspectChoice& a : kAspects)
-        if (ratio == a.label)
-            return &a;
-    return nullptr;
+    return "aspect:" + std::to_string(w) + ":" + std::to_string(h);
+}
+
+std::string ResolutionId(int w, int h)
+{
+    return "res:" + std::to_string(w) + "x" + std::to_string(h);
+}
+
+bool ParseAspect(const std::string& id, int& w, int& h)
+{
+    return sscanf(id.c_str(), "aspect:%d:%d", &w, &h) == 2 && w > 0 && h > 0;
+}
+
+bool ParseResolution(const std::string& id, int& w, int& h)
+{
+    return sscanf(id.c_str(), "res:%dx%d", &w, &h) == 2 && w > 0 && h > 0 && w <= 8192 && h <= 8192;
 }
 }  // namespace
+
+std::string PlayViewPanel::UserScreen::Id() const
+{
+    return aspect ? AspectId(w, h) : ResolutionId(w, h);
+}
+
+void PlayViewPanel::LoadUserScreens()
+{
+    m_UserScreens.clear();
+    try
+    {
+        const nlohmann::json list = nlohmann::json::parse(EditorSettings::GetString(kUserSizesKey, "[]"));
+        for (const auto& e : list)
+        {
+            UserScreen s;
+            s.name = e.value("name", std::string());
+            s.aspect = e.value("aspect", false);
+            s.w = e.value("w", 0);
+            s.h = e.value("h", 0);
+            if (s.w > 0 && s.h > 0)
+                m_UserScreens.push_back(s);
+        }
+    }
+    catch (...)
+    {
+        // A hand-edited list that does not parse is simply empty.
+    }
+}
+
+void PlayViewPanel::SaveUserScreens() const
+{
+    nlohmann::json list = nlohmann::json::array();
+    for (const UserScreen& s : m_UserScreens)
+        list.push_back({ { "name", s.name }, { "aspect", s.aspect }, { "w", s.w }, { "h", s.h } });
+    EditorSettings::SetString(kUserSizesKey, list.dump());
+}
+
+std::string PlayViewPanel::ScreenLabel(const std::string& id) const
+{
+    for (const UserScreen& s : m_UserScreens)
+        if (!s.name.empty() && s.Id() == id)
+            return s.name;
+    int w = 0, h = 0;
+    if (id == kFreeAspect)
+        return "Free Aspect";
+    if (ParseAspect(id, w, h))
+        return std::to_string(w) + ":" + std::to_string(h);
+    if (ParseResolution(id, w, h))
+        return std::to_string(w) + "x" + std::to_string(h);
+    const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id);
+    return p ? p->displayName : id;
+}
 
 void PlayViewPanel::SelectPreview(const std::string& id)
 {
     // Anything unknown - including "", the design size of earlier builds - is
     // Free Aspect.
+    int w = 0, h = 0;
     m_PreviewId = kFreeAspect;
-    if (id == "custom" || FindAspect(id) || (!id.empty() && PlatformRegistry::Instance().GetPlatform(id)))
+    if (ParseAspect(id, w, h) || ParseResolution(id, w, h) ||
+        (!id.empty() && PlatformRegistry::Instance().GetPlatform(id)))
         m_PreviewId = id;
 
     // A platform's own format; full colour for anything else.
@@ -460,20 +531,26 @@ void PlayViewPanel::SelectPreview(const std::string& id)
 void PlayViewPanel::LoadPreview(const std::string& projectPath)
 {
     m_PreviewProject = projectPath;
-    SelectPreview(EditorSettings::GetString("playView.screen:" + projectPath));
-
-    int w = 0, h = 0;
-    if (sscanf(EditorSettings::GetString("playView.customSize:" + projectPath).c_str(), "%dx%d", &w, &h) == 2)
+    if (!m_UserScreensLoaded)
     {
-        m_CustomWidth = std::clamp(w, 1, 8192);
-        m_CustomHeight = std::clamp(h, 1, 8192);
+        LoadUserScreens();
+        m_UserScreensLoaded = true;
     }
+
+    std::string id = EditorSettings::GetString("playView.screen:" + projectPath);
+    if (id == "custom")
+    {
+        // The custom size of earlier builds is a resolution like any other.
+        int w = 0, h = 0;
+        if (sscanf(EditorSettings::GetString("playView.customSize:" + projectPath).c_str(), "%dx%d", &w, &h) == 2)
+            id = ResolutionId(std::clamp(w, 1, 8192), std::clamp(h, 1, 8192));
+    }
+    SelectPreview(id);
 
     // Set after SelectPreview, which picks the screen's own format.
     Deki::ColorFormat format;
     if (ParseColorFormat(EditorSettings::GetString("playView.format:" + projectPath), format))
         m_PreviewFormat = format;
-
 }
 
 void PlayViewPanel::SavePreview() const
@@ -481,17 +558,16 @@ void PlayViewPanel::SavePreview() const
     if (m_PreviewProject.empty())
         return;
     EditorSettings::SetString("playView.screen:" + m_PreviewProject, m_PreviewId);
-    EditorSettings::SetString("playView.customSize:" + m_PreviewProject,
-                              std::to_string(m_CustomWidth) + "x" + std::to_string(m_CustomHeight));
     EditorSettings::SetString("playView.format:" + m_PreviewProject, ColorFormatName(m_PreviewFormat));
 }
 
 void PlayViewPanel::ApplyPreviewSize()
 {
     SceneView::Get().SetPreviewFormat(m_PreviewFormat);
-    if (m_PreviewId == "custom")
+    int aw = 0, ah = 0;
+    if (ParseResolution(m_PreviewId, aw, ah))
     {
-        SceneView::Get().SetPreviewSize(m_CustomWidth, m_CustomHeight);
+        SceneView::Get().SetPreviewSize(aw, ah);
         return;
     }
     if (const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_PreviewId))
@@ -502,7 +578,7 @@ void PlayViewPanel::ApplyPreviewSize()
             return;
         }
     }
-    else if (m_PreviewId != kFreeAspect && !FindAspect(m_PreviewId))
+    else if (m_PreviewId != kFreeAspect && !ParseAspect(m_PreviewId, aw, ah))
     {
         // The platform went away (another project, a removed package).
         SelectPreview(kFreeAspect);
@@ -519,151 +595,193 @@ void PlayViewPanel::ApplyPreviewSize()
     if (canvasW <= 0 || canvasH <= 0)
         return;  // not laid out yet; SceneView keeps its last size
     int w = canvasW, h = canvasH;
-    if (const AspectChoice* a = FindAspect(m_PreviewId))
+    if (ParseAspect(m_PreviewId, aw, ah))
     {
-        // The largest a:b screen that fits the panel.
-        if (static_cast<int64_t>(canvasW) * a->h > static_cast<int64_t>(canvasH) * a->w)
-            w = canvasH * a->w / a->h;
+        // The largest aw:ah screen that fits the panel.
+        if (static_cast<int64_t>(canvasW) * ah > static_cast<int64_t>(canvasH) * aw)
+            w = static_cast<int>(static_cast<int64_t>(canvasH) * aw / ah);
         else
-            h = canvasW * a->h / a->w;
+            h = static_cast<int>(static_cast<int64_t>(canvasW) * ah / aw);
     }
     SceneView::Get().SetPreviewSize(std::max(w, 1), std::max(h, 1));
 }
 
-// Toolbar cell naming the previewed screen; opens a list like Unity's Game
-// view: Free Aspect, aspect ratios, every known platform's screen, and a custom
-// resolution. Play mode runs at the previewed size, so the choice is locked
-// while it runs.
+// The screen picker: the toolbar dropdown every panel uses, with the list
+// Unity's Game view has - Free Aspect, aspect ratios, every known platform's
+// screen, your own sizes, and Add... for more. Your own sizes are yours across
+// projects; right-click one to remove it. Play mode runs at the previewed size,
+// so the choice is locked while it runs.
 void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
 {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const ImU32 colText = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
-    const ImU32 colHoverBg = IM_COL32(255, 255, 255, 6);
+    (void)dpi;
+    // The entry's name and the size it previews at; once when they are the same.
+    const std::string label = ScreenLabel(m_PreviewId);
+    char size[32];
+    snprintf(size, sizeof(size), "%dx%d", SceneView::Get().GetPreviewWidth(), SceneView::Get().GetPreviewHeight());
+    char preview[160];
+    snprintf(preview, sizeof(preview), "%s", label == size ? size : (label + "  " + size).c_str());
 
-    const int w = SceneView::Get().GetPreviewWidth();
-    const int h = SceneView::Get().GetPreviewHeight();
-    char label[128];
-    if (m_PreviewId == kFreeAspect)
-        snprintf(label, sizeof(label), "Free Aspect  %dx%d", w, h);
-    else if (const AspectChoice* a = FindAspect(m_PreviewId))
-        snprintf(label, sizeof(label), "%s  %dx%d", a->label, w, h);
-    else if (m_PreviewId == "custom")
-        snprintf(label, sizeof(label), "Custom  %dx%d", w, h);
-    else
-    {
-        const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(m_PreviewId);
-        snprintf(label, sizeof(label), "%s  %dx%d", p ? p->displayName.c_str() : m_PreviewId.c_str(), w, h);
-    }
-
-    const ImVec2 textSz = ImGui::CalcTextSize(label);
-    const float cellW = textSz.x + 22.0f * dpi;
-    ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
     const bool locked = !m_App->IsStopped();
+    ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
+    const float width = SchematicToolbarComboWidth(preview);
+    ImGui::SetNextItemWidth(width);
     ImGui::BeginDisabled(locked);
-    const bool clicked = ImGui::InvisibleButton("##previewsize", ImVec2(cellW, rowH));
-    ImGui::EndDisabled();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-    {
+    const bool open = SchematicBeginToolbarCombo("##previewsize", preview, rowH);
+    if (!open && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         DekiEditor::Tooltip(locked ? "The screen size is fixed while playing"
-                                   : "Screen to preview: a resolution, or an aspect ratio at the panel's size. Play "
-                                     "runs at it; the camera decides how much world it shows.");
-        dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + cellW, rowMin.y + rowH), colHoverBg);
-    }
-    dl->AddText(ImVec2(cursorX + 11.0f * dpi, rowMin.y + (rowH - textSz.y) * 0.5f), colText, label);
-    if (clicked)
-        ImGui::OpenPopup("##previewsizes");
-    ImGui::SetNextWindowPos(ImVec2(cursorX, rowMin.y + rowH));
-    cursorX += cellW;
+                                   : "Screen to preview: a resolution, or an aspect ratio at the panel's size. "
+                                     "Play runs at it.");
+    cursorX += width;
 
-    if (!ImGui::BeginPopup("##previewsizes"))
-        return;
-
-    auto pick = [this](const std::string& id)
+    if (open)
     {
-        SelectPreview(id);
-        SavePreview();
-    };
+        auto row = [this](const std::string& id, const std::string& label, int userIndex)
+        {
+            if (ImGui::Selectable((label + "##" + id + std::to_string(userIndex)).c_str(), m_PreviewId == id,
+                                  ImGuiSelectableFlags_SpanAvailWidth))
+            {
+                SelectPreview(id);
+                SavePreview();
+            }
+            if (m_PreviewId == id)
+                ImGui::SetItemDefaultFocus();
+            if (userIndex < 0)
+                return;
+            PushContextMenuPopupStyle();
+            if (ImGui::BeginPopupContextItem())
+            {
+                PushContextMenuItemStyle();
+                if (ImGui::MenuItem("Remove"))
+                    m_RemoveUserScreen = userIndex;
+                ImGui::PopStyleVar();
+                ImGui::EndPopup();
+            }
+            ImGui::PopStyleVar();
+        };
+        auto userLabel = [](const UserScreen& s)
+        {
+            std::string dims = s.aspect ? std::to_string(s.w) + ":" + std::to_string(s.h)
+                                        : std::to_string(s.w) + "x" + std::to_string(s.h);
+            return s.name.empty() ? dims : s.name + "  " + dims;
+        };
 
-    if (ImGui::Selectable("Free Aspect", m_PreviewId == kFreeAspect))
-        pick(kFreeAspect);
-    for (const AspectChoice& a : kAspects)
-    {
-        const std::string id = std::string(kAspectPrefix) + a.label;
-        if (ImGui::Selectable(a.label, m_PreviewId == id))
-            pick(id);
-    }
+        row(kFreeAspect, "Free Aspect", -1);
 
-    char item[192];
-    ImGui::Separator();
-    for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
-    {
-        const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id);
-        if (!p || p->screenWidth <= 0 || p->screenHeight <= 0)
-            continue;
-        snprintf(item, sizeof(item), "%s  %dx%d##%s", name.c_str(), p->screenWidth, p->screenHeight, id.c_str());
-        if (ImGui::Selectable(item, m_PreviewId == id))
-            pick(id);
-    }
+        ImGui::Separator();
+        for (const BuiltInAspect& a : kAspects)
+            row(AspectId(a.w, a.h), std::to_string(a.w) + ":" + std::to_string(a.h), -1);
+        for (size_t i = 0; i < m_UserScreens.size(); ++i)
+            if (m_UserScreens[i].aspect)
+                row(m_UserScreens[i].Id(), userLabel(m_UserScreens[i]), static_cast<int>(i));
 
-    ImGui::Separator();
-    if (ImGui::Selectable("Custom resolution", m_PreviewId == "custom", ImGuiSelectableFlags_NoAutoClosePopups) &&
-        m_PreviewId != "custom")
-        pick("custom");
-    if (m_PreviewId == "custom")
-    {
-        ImGui::SetNextItemWidth(120.0f * dpi);
-        bool changed = ImGui::InputInt("Width##customw", &m_CustomWidth);
-        ImGui::SetNextItemWidth(120.0f * dpi);
-        changed |= ImGui::InputInt("Height##customh", &m_CustomHeight);
-        m_CustomWidth = std::clamp(m_CustomWidth, 1, 8192);
-        m_CustomHeight = std::clamp(m_CustomHeight, 1, 8192);
-        if (changed)
-            SavePreview();
+        ImGui::Separator();
+        for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
+        {
+            const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id);
+            if (!p || p->screenWidth <= 0 || p->screenHeight <= 0)
+                continue;
+            row(id, name + "  " + std::to_string(p->screenWidth) + "x" + std::to_string(p->screenHeight), -1);
+        }
+        for (size_t i = 0; i < m_UserScreens.size(); ++i)
+            if (!m_UserScreens[i].aspect)
+                row(m_UserScreens[i].Id(), userLabel(m_UserScreens[i]), static_cast<int>(i));
+
+        ImGui::Separator();
+        if (ImGui::Selectable("Add...", false, ImGuiSelectableFlags_SpanAvailWidth))
+            m_OpenAddScreen = true;
+
+        SchematicEndToolbarCombo();
     }
-    ImGui::EndPopup();
+    ImGui::EndDisabled();
+
+    if (m_RemoveUserScreen >= 0 && m_RemoveUserScreen < static_cast<int>(m_UserScreens.size()))
+    {
+        m_UserScreens.erase(m_UserScreens.begin() + m_RemoveUserScreen);
+        SaveUserScreens();
+    }
+    m_RemoveUserScreen = -1;
+
+    DrawAddScreenDialog();
 }
 
-// Toolbar cell naming the previewed screen's pixel format, next to its size.
-// Picking a size selects that screen's format; this changes it. Play renders
-// in it, so it is locked while playing.
+// Add a screen size of your own: an aspect ratio or a resolution, with an
+// optional name. Kept for every project, like Unity's custom Game view sizes.
+void PlayViewPanel::DrawAddScreenDialog()
+{
+    if (m_OpenAddScreen)
+    {
+        m_OpenAddScreen = false;
+        m_NewScreen = UserScreen{};
+        m_NewScreen.w = 1920;
+        m_NewScreen.h = 1080;
+        m_NewScreenName[0] = '\0';
+        ImGui::OpenPopup("Add Screen Size");
+    }
+    if (!BeginSchematicModal("Add Screen Size", 360.0f))
+        return;
+
+    BeginPropertyContext();
+    BeginPropertyRow("Name");
+    ImGui::InputTextWithHint("##name", "Optional", m_NewScreenName, sizeof(m_NewScreenName));
+    BeginPropertyRow("Type");
+    int type = m_NewScreen.aspect ? 0 : 1;
+    if (SchematicCombo("##type", &type, "Aspect Ratio\0Resolution\0"))
+        m_NewScreen.aspect = (type == 0);
+    BeginPropertyRow("Width");
+    SchematicDragInt("##w", &m_NewScreen.w, 1.0f, 1, 8192);
+    BeginPropertyRow("Height");
+    SchematicDragInt("##h", &m_NewScreen.h, 1.0f, 1, 8192);
+    EndPropertyContext();
+    m_NewScreen.w = std::clamp(m_NewScreen.w, 1, 8192);
+    m_NewScreen.h = std::clamp(m_NewScreen.h, 1, 8192);
+
+    ImGui::Spacing();
+    if (ImGui::Button("Add"))
+    {
+        m_NewScreen.name = m_NewScreenName;
+        m_UserScreens.push_back(m_NewScreen);
+        SaveUserScreens();
+        SelectPreview(m_NewScreen.Id());
+        SavePreview();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel"))
+        ImGui::CloseCurrentPopup();
+    EndSchematicModal();
+}
+
+// The previewed screen's pixel format, next to its size, in the same toolbar
+// dropdown. Picking a size selects that screen's format; this changes it. Play
+// renders in it, so it is locked while playing.
 void PlayViewPanel::DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
 {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const ImU32 colText = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
-    const ImU32 colHoverBg = IM_COL32(255, 255, 255, 6);
-
-    const char* label = ColorFormatName(m_PreviewFormat);
-    const ImVec2 textSz = ImGui::CalcTextSize(label);
-    const float cellW = textSz.x + 22.0f * dpi;
-    ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
+    (void)dpi;
+    const char* preview = ColorFormatName(m_PreviewFormat);
     const bool locked = !m_App->IsStopped();
+    ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
+    const float width = SchematicToolbarComboWidth(preview);
+    ImGui::SetNextItemWidth(width);
     ImGui::BeginDisabled(locked);
-    const bool clicked = ImGui::InvisibleButton("##previewformat", ImVec2(cellW, rowH));
-    ImGui::EndDisabled();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-    {
+    const bool open = SchematicBeginToolbarCombo("##previewformat", preview, rowH);
+    if (!open && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         DekiEditor::Tooltip(locked ? "The pixel format is fixed while playing"
                                    : "Pixel format of the previewed screen. Play renders in it.");
-        dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + cellW, rowMin.y + rowH), colHoverBg);
-    }
-    dl->AddText(ImVec2(cursorX + 11.0f * dpi, rowMin.y + (rowH - textSz.y) * 0.5f), colText, label);
-    if (clicked)
-        ImGui::OpenPopup("##previewformats");
-    ImGui::SetNextWindowPos(ImVec2(cursorX, rowMin.y + rowH));
-    cursorX += cellW;
-
-    if (!ImGui::BeginPopup("##previewformats"))
-        return;
-    for (Deki::ColorFormat f : { Deki::ColorFormat::RGB565, Deki::ColorFormat::RGB565A8, Deki::ColorFormat::RGB888,
-                                 Deki::ColorFormat::ARGB8888 })
+    cursorX += width;
+    if (open)
     {
-        if (ImGui::Selectable(ColorFormatName(f), m_PreviewFormat == f))
+        for (Deki::ColorFormat f : { Deki::ColorFormat::RGB565, Deki::ColorFormat::RGB565A8, Deki::ColorFormat::RGB888,
+                                     Deki::ColorFormat::ARGB8888 })
         {
-            m_PreviewFormat = f;
-            SavePreview();
+            if (ImGui::Selectable(ColorFormatName(f), m_PreviewFormat == f, ImGuiSelectableFlags_SpanAvailWidth))
+            {
+                m_PreviewFormat = f;
+                SavePreview();
+            }
         }
+        SchematicEndToolbarCombo();
     }
-    ImGui::EndPopup();
+    ImGui::EndDisabled();
 }
 
 }  // namespace DekiEditor

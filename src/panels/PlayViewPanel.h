@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include <memory>
 #include <string>
+#include <vector>
 #include <deki/Engine.h>  // Deki::ColorFormat
 
 class CameraComponent;
@@ -45,13 +46,30 @@ private:
     // forward() table in Draw: space/enter/esc/backspace + 4 arrows + A-Z).
     bool m_PlayKeyDown[34] = {};
 
-    // Previewed screen: "free" (Free Aspect, the panel's size), "aspect:16:9"
-    // and the like (the largest screen of that shape in the panel), "custom"
-    // (m_Custom*), or a platform id whose screen is used. Pushed to SceneView
-    // every frame.
+    // Previewed screen: "free" (Free Aspect, the panel's size), "aspect:W:H"
+    // (the largest screen of that shape in the panel), "res:WxH", or a platform
+    // id whose screen is used. Pushed to SceneView every frame.
     std::string m_PreviewId = "free";
-    int m_CustomWidth = 320;
-    int m_CustomHeight = 240;
+
+    // Screen sizes of your own, added from the picker: kept per user for every
+    // project in EditorSettings, like Unity's custom Game view sizes.
+    struct UserScreen
+    {
+        std::string name;  // optional; the size is shown either way
+        bool aspect = false;
+        int w = 0, h = 0;
+        std::string Id() const;
+    };
+    std::vector<UserScreen> m_UserScreens;
+    bool m_UserScreensLoaded = false;
+    int m_RemoveUserScreen = -1;
+    bool m_OpenAddScreen = false;
+    UserScreen m_NewScreen;
+    char m_NewScreenName[64] = {};
+    void LoadUserScreens();
+    void SaveUserScreens() const;
+    void DrawAddScreenDialog();
+    std::string ScreenLabel(const std::string& id) const;
 
     // Previewed screen format: a platform's own when one is picked, full
     // colour otherwise; the dropdown changes it.

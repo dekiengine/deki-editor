@@ -2130,7 +2130,14 @@ bool SchematicBeginCombo(const char* id, const char* preview)
     // Only when a popup will actually be begun: an unconsumed next-window value
     // would leak onto whatever window or child opens after this one.
     if (popupOpen)
+    {
         ImGui::SetNextWindowBgAlpha(fade);
+        // Every row, up to most of the window, rather than ImGui's eight: a
+        // list that opens scrolled to its selection hides its first entries.
+        // ImGui still widens it to the box.
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f),
+                                            ImVec2(FLT_MAX, ImGui::GetMainViewport()->WorkSize.y * 0.6f));
+    }
 
     // Empty preview + no native arrow: we draw the preview value (left-aligned
     // mono, like the drag fields) and a chevron ourselves so the dropdown reads
@@ -2179,6 +2186,66 @@ void SchematicEndCombo()
     ImGui::EndCombo();
 }
 
+// Flat, toolbar-styled box: a transparent frame with a subtle white hover (the
+// same alphas the toolbar cells use), no border, squared. FramePadding.y is set
+// so the box is exactly `height` tall - matching the toolbar strip - while the
+// schematic preview value + chevron center within it. The styles stay pushed
+// while the list is open and are popped by SchematicEndToolbarCombo.
+static void PushToolbarComboStyle(float height)
+{
+    const float fontH = ImGui::GetFontSize();
+    const float padY = ImMax(0.0f, (height - fontH) * 0.5f);
+    const float padX = ImGui::GetStyle().FramePadding.x;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padX, padY));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(255, 255, 255, 6));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, IM_COL32(255, 255, 255, 10));
+}
+
+static void PopToolbarComboStyle()
+{
+    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar(2);
+}
+
+bool SchematicBeginToolbarCombo(const char* id, const char* preview, float height, bool leftDivider)
+{
+    // Anchor for the optional left-edge divider (the box is drawn at the cursor).
+    ImGuiWindow* w = ImGui::GetCurrentWindow();
+    const ImVec2 boxMin = ImGui::GetCursorScreenPos();
+
+    PushToolbarComboStyle(height);
+    const bool open = SchematicBeginCombo(id, preview);
+
+    // Left-edge divider (matching the toolbar cell separators), drawn on the
+    // parent window's draw list so it shows whether or not the popup is open.
+    if (leftDivider && w)
+        w->DrawList->AddLine(ImVec2(boxMin.x, boxMin.y), ImVec2(boxMin.x, boxMin.y + height),
+                             ImGui::ColorConvertFloat4ToU32(Palette::Line2), 1.0f);
+
+    if (!open)
+        PopToolbarComboStyle();
+    return open;
+}
+
+void SchematicEndToolbarCombo()
+{
+    SchematicEndCombo();
+    PopToolbarComboStyle();
+}
+
+float SchematicToolbarComboWidth(const char* preview)
+{
+    // The preview in the mono value font (as DrawLeftAlignedValue draws it),
+    // the frame padding each side, and the chevron with a gap before it.
+    ImFont* font = g_FontMono ? g_FontMono : ImGui::GetFont();
+    const float fontSize = Fonts::CssPx(font, 12.5f) * ImGui::GetStyle().FontScaleDpi;
+    const float textW = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, preview ? preview : "").x;
+    const float padX = ImGui::GetStyle().FramePadding.x;
+    return std::ceil(textW + padX * 3.0f + ImGui::GetFontSize());
+}
+
 bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items, float height,
                            bool leftDivider)
 {
@@ -2195,26 +2262,8 @@ bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items,
 
     const char* preview = (*currentIndex >= 0 && *currentIndex < count) ? item[*currentIndex] : "";
 
-    // Anchor for the optional left-edge divider (the box is drawn at the cursor).
-    ImGuiWindow* w = ImGui::GetCurrentWindow();
-    const ImVec2 boxMin = ImGui::GetCursorScreenPos();
-
-    // Flat, toolbar-styled box: a transparent frame with a subtle white hover (the
-    // same alphas the toolbar cells use), no border, squared. FramePadding.y is set
-    // so the box is exactly `height` tall - matching the toolbar strip - while the
-    // schematic preview value + chevron center within it.
-    const float fontH = ImGui::GetFontSize();
-    const float padY = ImMax(0.0f, (height - fontH) * 0.5f);
-    const float padX = ImGui::GetStyle().FramePadding.x;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padX, padY));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(255, 255, 255, 6));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, IM_COL32(255, 255, 255, 10));
-
     bool changed = false;
-    if (SchematicBeginCombo(id, preview))
+    if (SchematicBeginToolbarCombo(id, preview, height, leftDivider))
     {
         for (int i = 0; i < count; ++i)
         {
@@ -2228,17 +2277,8 @@ bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items,
             if (selected)
                 ImGui::SetItemDefaultFocus();
         }
-        SchematicEndCombo();
+        SchematicEndToolbarCombo();
     }
-
-    // Left-edge divider (matching the toolbar cell separators), drawn on the
-    // parent window's draw list so it shows whether or not the popup is open.
-    if (leftDivider && w)
-        w->DrawList->AddLine(ImVec2(boxMin.x, boxMin.y), ImVec2(boxMin.x, boxMin.y + height),
-                             ImGui::ColorConvertFloat4ToU32(Palette::Line2), 1.0f);
-
-    ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar(2);
     return changed;
 }
 
