@@ -537,6 +537,55 @@ void EndSchematicModal()
     ImGui::PopStyleVar();  // WindowPadding
 }
 
+int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
+{
+    const int count = static_cast<int>(buttons.size());
+    if (count == 0)
+        return -1;
+
+    // A little air above the row, then the row across the full width.
+    ImGui::Spacing();
+    ImGui::Spacing();
+    const float gap = 8.0f * ImGui::GetStyle().FontScaleDpi;
+    const float width = (ImGui::GetContentRegionAvail().x - gap * static_cast<float>(count - 1)) / count;
+
+    // The theme left-aligns button text for inspector value buttons; dialog
+    // buttons are centred.
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+    int clicked = -1;
+    int i = 0;
+    for (const DialogButtonSpec& b : buttons)
+    {
+        if (i > 0)
+            ImGui::SameLine(0.0f, gap);
+        int colours = 0;
+        if (b.kind == DialogButton::Primary)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
+            colours = 3;
+        }
+        else if (b.kind == DialogButton::Danger)
+        {
+            // Dark theme red at rest, brighter on hover and press.
+            const ImVec4 r = Palette::Red;
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(r.x * 0.55f, r.y * 0.55f, r.z * 0.55f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(r.x * 0.78f, r.y * 0.78f, r.z * 0.78f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, r);
+            colours = 3;
+        }
+        ImGui::BeginDisabled(!b.enabled);
+        if (ImGui::Button(b.label, ImVec2(width, 0.0f)))
+            clicked = i;
+        ImGui::EndDisabled();
+        ImGui::PopStyleColor(colours);
+        ++i;
+    }
+    ImGui::PopStyleVar();
+    return clicked;
+}
+
 // Schematic typography ladder - definitions. Loaded in main.cpp.
 ImFont* g_FontUI = nullptr;
 ImFont* g_FontUISmall = nullptr;

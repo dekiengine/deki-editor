@@ -2,6 +2,7 @@
 #include "../AssetBrowserPanel.h"
 #include <deki-editor/CommandHistory.h>
 #include "../../core/Commands.h"
+#include <deki-editor/EditorTheme.h>
 #include "imgui.h"
 #include <vector>
 
@@ -26,10 +27,7 @@ void DeleteConfirmDialog::Draw()
         m_ShouldOpen = false;
     }
 
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal("Delete Confirmation", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (BeginSchematicModal("Delete Confirmation", 400.0f))
     {
         const auto& selectedIndices = m_Browser->GetSelectedIndices();
         const auto& entries = m_Browser->GetEntries();
@@ -37,18 +35,17 @@ void DeleteConfirmDialog::Draw()
 
         if (selectedIndices.size() > 1)
         {
-            ImGui::Text("Are you sure you want to delete %zu items?", selectedIndices.size());
+            ImGui::TextWrapped("Delete %zu items?", selectedIndices.size());
         }
         else if (selectedIndex >= 0 && selectedIndex < static_cast<int>(entries.size()))
         {
-            ImGui::Text("Are you sure you want to delete '%s'?", entries[selectedIndex].name.c_str());
+            ImGui::TextWrapped("Delete '%s'?", entries[selectedIndex].name.c_str());
         }
 
-        ImGui::TextDisabled("Press Ctrl+Z to undo.");
+        ImGui::TextColored(Palette::Dim, "Ctrl+Z brings it back.");
 
-        ImGui::Separator();
-
-        if (ImGui::Button("Delete", ImVec2(120, 0)))
+        const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
+        if (button == 1)
         {
             // Collect paths to delete
             std::vector<std::string> pathsToDelete;
@@ -82,15 +79,12 @@ void DeleteConfirmDialog::Draw()
 
             ImGui::CloseCurrentPopup();
         }
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        else if (button == 0)
         {
             ImGui::CloseCurrentPopup();
         }
 
-        ImGui::EndPopup();
+        EndSchematicModal();
     }
 }
 

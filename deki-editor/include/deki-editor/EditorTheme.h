@@ -5,6 +5,7 @@
 // implementations live in deki-editor.dll and are imported everywhere else.
 #include <deki-editor/EditorExport.h>
 #include "imgui.h"
+#include <initializer_list>
 
 namespace DekiEditor
 {
@@ -443,5 +444,25 @@ DEKI_EDITOR_API void PushContextMenuItemStyle();
 //   }
 DEKI_EDITOR_API bool BeginSchematicModal(const char* title, float cssWidth);
 DEKI_EDITOR_API void EndSchematicModal();
+
+// The button row at the foot of a dialog: equal-width buttons across the
+// dialog, text centred, the safe choice first and the action last. Primary is
+// the accent button that does what the dialog is for; Danger is theme red,
+// for deleting or discarding. Returns the index clicked, or -1.
+//
+//   switch (SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } }))
+enum class DialogButton
+{
+    Normal,
+    Primary,
+    Danger,
+};
+struct DialogButtonSpec
+{
+    const char* label;
+    DialogButton kind = DialogButton::Normal;
+    bool enabled = true;
+};
+DEKI_EDITOR_API int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons);
 
 }  // namespace DekiEditor

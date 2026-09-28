@@ -273,79 +273,71 @@ void PlatformEditorDialog::Draw()
     if (!m_Open)
         return;
 
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    // Two steps, two dialogs: pick a framework, then edit the platform.
+    // Opening the second at the same level closes the first.
+    const char* title = m_ShowFrameworkPicker ? "New Platform##framework"
+                                              : (m_IsEditing ? "Edit Platform" : "New Platform");
+    if (!ImGui::IsPopupOpen(title))
+        ImGui::OpenPopup(title);
 
     if (m_ShowFrameworkPicker)
     {
-        ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_Appearing);
-
-        if (ImGui::Begin("New Platform - Select Framework", &m_Open,
-                         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking))
+        if (!BeginSchematicModal(title, 440.0f))
+            return;
+        DrawFrameworkPicker();
+        if (SchematicDialogButtons({ { "Cancel" } }) == 0)
         {
-            DrawFrameworkPicker();
+            m_Open = false;
+            ImGui::CloseCurrentPopup();
         }
-        ImGui::End();
+        EndSchematicModal();
+        return;
     }
+
+    if (!BeginSchematicModal(title, 560.0f))
+        return;
+
+    ImGui::BeginChild("PlatformEditorContent", ImVec2(0.0f, 520.0f * ImGui::GetStyle().FontScaleDpi), false);
+    DrawBasicSection();
+    ImGui::Spacing();
+    // Builder-specific UI or native fallback
+    if (m_EditorUI)
+        m_EditorUI->Draw();
     else
+        DrawNativeEditor();
+    DrawStorageSection();
+    ImGui::EndChild();
+
+    if (m_ShowError && !m_ErrorMessage.empty())
     {
-        ImGui::SetNextWindowSize(ImVec2(550, 650), ImGuiCond_Appearing);
-
-        const char* title = m_IsEditing ? "Edit Platform" : "New Platform";
-        if (ImGui::Begin(title, &m_Open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking))
-        {
-            ImGui::BeginChild("PlatformEditorContent", ImVec2(0, -60), false);
-
-            DrawBasicSection();
-            ImGui::Spacing();
-
-            // Builder-specific UI or native fallback
-            if (m_EditorUI)
-                m_EditorUI->Draw();
-            else
-                DrawNativeEditor();
-            DrawStorageSection();
-
-            ImGui::EndChild();
-
-            ImGui::Separator();
-
-            if (m_ShowError && !m_ErrorMessage.empty())
-            {
-                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Red);
-                ImGui::TextWrapped("%s", m_ErrorMessage.c_str());
-                ImGui::PopStyleColor();
-            }
-
-            float buttonWidth = 120;
-            float spacing = 10;
-            float totalWidth = buttonWidth * 2 + spacing;
-            ImGui::SetCursorPosX((ImGui::GetWindowWidth() - totalWidth) * 0.5f);
-
-            if (ImGui::Button("Save", ImVec2(buttonWidth, 0)))
-            {
-                if (Validate(m_ErrorMessage))
-                {
-                    PlatformConfig config = BuildConfig();
-                    if (m_OnPlatformSaved)
-                        m_OnPlatformSaved(config, !m_IsEditing);
-                    m_Open = false;
-                }
-                else
-                {
-                    m_ShowError = true;
-                }
-            }
-
-            ImGui::SameLine(0, spacing);
-
-            if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
-            {
-                m_Open = false;
-            }
-        }
-        ImGui::End();
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Red);
+        ImGui::TextWrapped("%s", m_ErrorMessage.c_str());
+        ImGui::PopStyleColor();
     }
+
+    const int button = SchematicDialogButtons({ { "Cancel" }, { "Save", DialogButton::Primary } });
+    if (button == 1)
+    {
+        if (Validate(m_ErrorMessage))
+        {
+            PlatformConfig config = BuildConfig();
+            if (m_OnPlatformSaved)
+                m_OnPlatformSaved(config, !m_IsEditing);
+            m_Open = false;
+            ImGui::CloseCurrentPopup();
+        }
+        else
+        {
+            m_ShowError = true;
+        }
+    }
+    else if (button == 0)
+    {
+        m_Open = false;
+        ImGui::CloseCurrentPopup();
+    }
+    EndSchematicModal();
 }
 
 // ============================================================================
@@ -361,6 +353,8 @@ bool PlatformEditorDialog::DrawInline()
     if (m_ShowFrameworkPicker)
     {
         DrawFrameworkPicker();
+        if (SchematicDialogButtons({ { "Cancel" } }) == 0)
+            m_Open = false;
         return false;
     }
 
@@ -385,7 +379,8 @@ bool PlatformEditorDialog::DrawInline()
     }
 
     bool saved = false;
-    if (ImGui::Button("Save", ImVec2(120, 0)))
+    const int button = SchematicDialogButtons({ { "Cancel" }, { "Save", DialogButton::Primary } });
+    if (button == 1)
     {
         if (Validate(m_ErrorMessage))
         {
@@ -400,8 +395,7 @@ bool PlatformEditorDialog::DrawInline()
             m_ShowError = true;
         }
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel", ImVec2(120, 0)))
+    else if (button == 0)
     {
         m_Open = false;
     }
@@ -438,10 +432,7 @@ static std::string GetFrameworkDescription(const std::string& builderDesc,
 
 void PlatformEditorDialog::DrawFrameworkPicker()
 {
-    ImGui::Text("New Platform");
-    ImGui::TextDisabled("Select a framework to get started");
-    ImGui::Spacing();
-    ImGui::Separator();
+    ImGui::TextColored(DekiEditor::Palette::Dim, "Pick the framework the platform builds with.");
     ImGui::Spacing();
 
     float cardHeight = 72.0f;
@@ -481,14 +472,6 @@ void PlatformEditorDialog::DrawFrameworkPicker()
         ImGui::PopID();
     }
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (ImGui::Button("Cancel"))
-    {
-        m_Open = false;
-    }
 }
 
 // ============================================================================

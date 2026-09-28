@@ -515,25 +515,33 @@ void EditorApp::Update()
 
 void EditorApp::DrawAboutWindow()
 {
-    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    if (ImGui::Begin("About Deki Editor", &m_ShowAboutWindow,
-                     ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking))
+    if (!ImGui::IsPopupOpen("About Deki Editor"))
+        ImGui::OpenPopup("About Deki Editor");
+    if (BeginSchematicModal("About Deki Editor", 440.0f))
     {
         const std::string line = EditorVersionLine();
-        ImGui::TextUnformatted(line.c_str());
-        ImGui::TextDisabled("Compiler: %s", DEKI_EDITOR_CXX_COMPILER);
+        ImGui::TextWrapped("%s", line.c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        ImGui::TextWrapped("Compiler: %s", DEKI_EDITOR_CXX_COMPILER);
         const std::string logPath = EditorLogFile::GetLogPath();
         if (!logPath.empty())
-            ImGui::TextDisabled("Log: %s", logPath.c_str());
-        ImGui::Spacing();
+            ImGui::TextWrapped("Log: %s", logPath.c_str());
+        ImGui::PopStyleColor();
         // A bug report wants the exact line, not a retyped one.
-        if (ImGui::Button("Copy version"))
+        const int button = SchematicDialogButtons({ { "Copy Version" }, { "Close", DialogButton::Primary } });
+        if (button == 0)
             ImGui::SetClipboardText(line.c_str());
-        ImGui::SameLine();
-        if (ImGui::Button("Close"))
+        if (button == 1)
+        {
             m_ShowAboutWindow = false;
+            ImGui::CloseCurrentPopup();
+        }
+        EndSchematicModal();
     }
-    ImGui::End();
+    else
+    {
+        m_ShowAboutWindow = false;
+    }
 }
 
 void EditorApp::DrawStatusBar()
@@ -1084,13 +1092,7 @@ void EditorApp::DrawRecoveryDialog()
 
     ui.OpenPopup("Recover Scenes");
 
-    // Same shape as the other confirm dialogs (see PlatformManagerPanel): fixed
-    // DPI-scaled width, generous window padding, dim explanatory copy, and a
-    // centered button row with the destructive action in theme red.
-    ui.SetNextWindowSize(Dpi(460.0f), 0.0f, /*firstUseEver*/ false);
-    ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, Dpi(18.0f), Dpi(16.0f));
-
-    if (ui.BeginPopupModal("Recover Scenes", nullptr, EditorUI::WinNoSavedSettings))
+    if (BeginSchematicModal("Recover Scenes", 460.0f))
     {
         ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
         ui.TextWrapped("Saved when the editor crashed. Pick one to restore, "
@@ -1211,64 +1213,37 @@ void EditorApp::DrawRecoveryDialog()
             ui.PopStyleColor();
         }
 
-        ui.Spacing();
-        ui.Spacing();
-
-        float availW = 0.0f;
-        ui.GetContentRegionAvail(&availW, nullptr);
-        const float gap = Dpi(8.0f);
-        const float btnW = (availW - gap * 2.0f) / 3.0f;
-
-        // The theme left-aligns button text for inspector value buttons; dialog
-        // buttons are centered.
-        ui.PushButtonTextAlign(0.5f, 0.5f);
-
-        if (ui.Button("Restore", btnW, 0.0f) && !m_Recovery.Entries().empty())
-            RestoreSelectedRecovery();
-
-        ui.SameLine(0.0f, gap);
-
-        // Closing without deciding must not destroy anything - the files stay
-        // and are offered again next time the project opens.
-        if (ui.Button("Later", btnW, 0.0f))
+        // Later only dismisses: the files stay on disk and are offered again
+        // next time the project opens. Discard All asks first.
+        switch (SchematicDialogButtons({ { "Discard All", DialogButton::Danger },
+                                         { "Later" },
+                                         { "Restore", DialogButton::Primary, !m_Recovery.Entries().empty() } }))
         {
-            // Dismiss only. The files stay on disk and are offered again next
-            // time the project opens.
-            m_Recovery.SetDialogRequested(false);
-            ui.CloseCurrentPopup();
+            case 0:
+                ui.OpenPopup("Discard recovered scenes?");
+                break;
+            case 1:
+                m_Recovery.SetDialogRequested(false);
+                ui.CloseCurrentPopup();
+                break;
+            case 2:
+                RestoreSelectedRecovery();
+                break;
+            default:
+                break;
         }
-
-        ui.SameLine(0.0f, gap);
-
-        // Destructive: dark theme-red at rest, brighter on hover/press.
-        const ImVec4 red = Palette::Red;
-        ui.PushStyleColor(EditorUI::Col::Button, PackColor(ImVec4(red.x * 0.55f, red.y * 0.55f, red.z * 0.55f, 1.0f)));
-        ui.PushStyleColor(EditorUI::Col::ButtonHovered, PackColor(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
-        ui.PushStyleColor(EditorUI::Col::ButtonActive, PackColor(red));
-        const bool discardClicked = ui.Button("Discard All", btnW, 0.0f);
-        ui.PopStyleColor(3);
-
-        ui.PopStyleVar();  // ButtonTextAlign
-
-        if (discardClicked)
-            ui.OpenPopup("Discard recovered scenes?");
 
         DrawRecoveryDiscardConfirm();
 
-        ui.EndPopup();
+        EndSchematicModal();
     }
-
-    ui.PopStyleVar();
 }
 
 void EditorApp::DrawRecoveryPreview()
 {
     auto& ui = EditorUI::Get();
 
-    ui.SetNextWindowSize(Dpi(440.0f), Dpi(360.0f), /*firstUseEver*/ false);
-    ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, Dpi(18.0f), Dpi(16.0f));
-
-    if (ui.BeginPopupModal("Recovered contents", nullptr, EditorUI::WinNoSavedSettings))
+    if (BeginSchematicModal("Recovered contents", 440.0f))
     {
         ui.Text(m_Recovery.PreviewName().c_str());
 
@@ -1317,19 +1292,11 @@ void EditorApp::DrawRecoveryPreview()
         }
         ui.EndChild();
 
-        ui.Spacing();
-
-        float availW = 0.0f;
-        ui.GetContentRegionAvail(&availW, nullptr);
-        ui.PushButtonTextAlign(0.5f, 0.5f);
-        if (ui.Button("Close", availW, 0.0f))
+        if (SchematicDialogButtons({ { "Close" } }) == 0)
             ui.CloseCurrentPopup();
-        ui.PopStyleVar();  // ButtonTextAlign
 
-        ui.EndPopup();
+        EndSchematicModal();
     }
-
-    ui.PopStyleVar();
 }
 
 bool EditorApp::WriteRecoverySnapshot()
@@ -1426,10 +1393,7 @@ void EditorApp::DrawRecoveryDiscardConfirm()
     namespace fs = std::filesystem;
     auto& ui = EditorUI::Get();
 
-    ui.SetNextWindowSize(Dpi(380.0f), 0.0f, /*firstUseEver*/ false);
-    ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, Dpi(18.0f), Dpi(16.0f));
-
-    if (ui.BeginPopupModal("Discard recovered scenes?", nullptr, EditorUI::WinNoSavedSettings))
+    if (BeginSchematicModal("Discard recovered scenes?", 380.0f))
     {
         // Deleting someone's only copy of unsaved work deserves a confirmation,
         // and a count so it is clear how much is going.
@@ -1443,40 +1407,21 @@ void EditorApp::DrawRecoveryDiscardConfirm()
         ui.TextWrapped("This is the only copy of that work, and it cannot be undone.");
         ui.PopStyleColor();
 
-        ui.Spacing();
-        ui.Spacing();
-
-        float availW = 0.0f;
-        ui.GetContentRegionAvail(&availW, nullptr);
-        const float gap = Dpi(8.0f);
-        const float btnW = (availW - gap) * 0.5f;
-
-        ui.PushButtonTextAlign(0.5f, 0.5f);
-
-        if (ui.Button("Cancel", btnW, 0.0f))
-            ui.CloseCurrentPopup();
-
-        ui.SameLine(0.0f, gap);
-
-        const ImVec4 red = Palette::Red;
-        ui.PushStyleColor(EditorUI::Col::Button, PackColor(ImVec4(red.x * 0.55f, red.y * 0.55f, red.z * 0.55f, 1.0f)));
-        ui.PushStyleColor(EditorUI::Col::ButtonHovered, PackColor(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
-        ui.PushStyleColor(EditorUI::Col::ButtonActive, PackColor(red));
-        const bool deleteClicked = ui.Button("Delete", btnW, 0.0f);
-        ui.PopStyleColor(3);
-
-        ui.PopStyleVar();  // ButtonTextAlign
-
-        if (deleteClicked)
+        switch (SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } }))
         {
-            m_Recovery.DiscardAll();
-            ui.CloseCurrentPopup();
+            case 0:
+                ui.CloseCurrentPopup();
+                break;
+            case 1:
+                m_Recovery.DiscardAll();
+                ui.CloseCurrentPopup();
+                break;
+            default:
+                break;
         }
 
-        ui.EndPopup();
+        EndSchematicModal();
     }
-
-    ui.PopStyleVar();
 }
 
 void EditorApp::RegisterAssetTypes()
@@ -1535,22 +1480,11 @@ void EditorApp::DrawMaintenanceConfirm()
         ImGui::TextColored(Palette::Dim, "This deletes:");
         for (const std::string& dir : ProjectMaintenance::Targets(action, projectPath))
             ImGui::BulletText("%s", dir.c_str());
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        const float availW = ImGui::GetContentRegionAvail().x;
-        const float gap = Dpi(8.0f);
-        const float btnW = (availW - gap) * 0.5f;
         bool close = false;
-
-        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-        if (ImGui::Button("Cancel", ImVec2(btnW, 0)))
+        const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
+        if (button == 0)
             close = true;
-        ImGui::SameLine(0.0f, gap);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.45f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Red);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Red);
-        if (ImGui::Button("Delete", ImVec2(btnW, 0)))
+        if (button == 1)
         {
             const MaintenanceResult result = ProjectMaintenance::Run(action, projectPath);
             if (m_ConsolePanel)
@@ -1562,8 +1496,6 @@ void EditorApp::DrawMaintenanceConfirm()
             }
             close = true;
         }
-        ImGui::PopStyleColor(3);
-        ImGui::PopStyleVar();
 
         if (close)
         {
@@ -1589,10 +1521,7 @@ void EditorApp::DrawUnsavedChangesDialog()
         m_UnsavedPrompt.SetDialogVisible(false);
     }
 
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (BeginSchematicModal("Unsaved Changes", 420.0f))
     {
         // A programmatic answer behaves exactly like the matching button. It is
         // consumed here rather than where it was set because CloseCurrentPopup
@@ -1611,7 +1540,7 @@ void EditorApp::DrawUnsavedChangesDialog()
                 m_UnsavedPrompt.Cancel();
                 m_NavigationSourcePath.clear();
                 ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
+                EndSchematicModal();
                 return;
             }
             // Only discard the current scene once the save actually landed.
@@ -1625,19 +1554,19 @@ void EditorApp::DrawUnsavedChangesDialog()
                 m_UnsavedPrompt.Cancel();
                 m_NavigationSourcePath.clear();
                 ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
+                EndSchematicModal();
                 return;
             }
             ImGui::CloseCurrentPopup();
             ExecutePendingAction();
-            ImGui::EndPopup();
+            EndSchematicModal();
             return;
         }
         if (answer == DialogAnswer::Discard)
         {
             ImGui::CloseCurrentPopup();
             ExecutePendingAction();
-            ImGui::EndPopup();
+            EndSchematicModal();
             return;
         }
         if (answer == DialogAnswer::Cancel)
@@ -1645,7 +1574,7 @@ void EditorApp::DrawUnsavedChangesDialog()
             m_UnsavedPrompt.Cancel();
             m_NavigationSourcePath.clear();
             ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
+            EndSchematicModal();
             return;
         }
 
@@ -1656,19 +1585,20 @@ void EditorApp::DrawUnsavedChangesDialog()
             m_UnsavedPromptSaved = false;
             ImGui::CloseCurrentPopup();
             ExecutePendingAction();
-            ImGui::EndPopup();
+            EndSchematicModal();
             return;
         }
 
-        ImGui::Text("Do you want to save changes to the current scene?");
-        ImGui::Separator();
+        ImGui::TextWrapped("Save the changes to the current scene?");
+        ImGui::TextColored(Palette::Dim, "Not saved, they are lost.");
 
         // While the file dialog is up, the prompt stays on screen but inert:
         // a second click would stack another dialog behind the first.
-        const bool waitingOnDialog = FileDialogs::IsPending();
-        ImGui::BeginDisabled(waitingOnDialog);
-
-        if (ImGui::Button("Save", ImVec2(100, 0)))
+        const bool ready = !FileDialogs::IsPending();
+        const int button = SchematicDialogButtons({ { "Cancel", DialogButton::Normal, ready },
+                                                    { "Don't Save", DialogButton::Danger, ready },
+                                                    { "Save", DialogButton::Primary, ready } });
+        if (button == 2)
         {
             // If no path, use Save As dialog
             if (m_CurrentScenePath.empty())
@@ -1686,34 +1616,25 @@ void EditorApp::DrawUnsavedChangesDialog()
                             m_UnsavedPromptSaved = true;
                     });
             }
-            else
+            else if (SaveScene())
             {
-                if (SaveScene())
-                {
-                    ImGui::CloseCurrentPopup();
-                    ExecutePendingAction();
-                }
+                ImGui::CloseCurrentPopup();
+                ExecutePendingAction();
             }
         }
-        ImGui::SameLine();
-
-        if (ImGui::Button("Don't Save", ImVec2(100, 0)))
+        else if (button == 1)
         {
             ImGui::CloseCurrentPopup();
             ExecutePendingAction();
         }
-        ImGui::SameLine();
-
-        if (ImGui::Button("Cancel", ImVec2(100, 0)))
+        else if (button == 0)
         {
             m_UnsavedPrompt.Cancel();
             m_NavigationSourcePath.clear();
             ImGui::CloseCurrentPopup();
         }
 
-        ImGui::EndDisabled();
-
-        ImGui::EndPopup();
+        EndSchematicModal();
     }
 }
 

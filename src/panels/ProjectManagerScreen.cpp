@@ -333,8 +333,12 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
             m_Selected = idx;
 
-        if (ImGui::BeginPopupContextItem("##rowMenu"))
+        PushContextMenuPopupStyle();
+        const bool rowMenu = ImGui::BeginPopupContextItem("##rowMenu");
+        ImGui::PopStyleVar();  // WindowPadding, baked by the Begin
+        if (rowMenu)
         {
+            PushContextMenuItemStyle();
             if (ImGui::MenuItem("Open", nullptr, false, !entry.missing))
                 m_PendingOpen = entry.path;
             if (ImGui::MenuItem("Show in File Explorer", nullptr, false, !entry.missing))
@@ -346,10 +350,12 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
                 // rest of this frame, so the row loop is left immediately.
                 ProjectRegistry::Get().Remove(entry.path);
                 m_Selected = -1;
+                ImGui::PopStyleVar();  // ItemSpacing
                 ImGui::EndPopup();
                 ImGui::PopID();
                 break;
             }
+            ImGui::PopStyleVar();  // ItemSpacing
             ImGui::EndPopup();
         }
 

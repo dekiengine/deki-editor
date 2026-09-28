@@ -17,6 +17,27 @@ struct McpToolDescriptor
     std::function<nlohmann::json(const nlohmann::json& arguments)> handler;
 };
 
+/// The arguments a tool's schema requires that `args` does not have, joined
+/// with ", "; empty when none are missing. Checked before every call: handlers
+/// read their arguments with operator[], which on a missing key asserts in a
+/// debug build - behind a message box that froze the editor's main thread
+/// while its window still answered.
+inline std::string MissingRequiredArguments(const McpToolDescriptor& tool, const nlohmann::json& args)
+{
+    std::string missing;
+    const auto required = tool.inputSchema.find("required");
+    if (required == tool.inputSchema.end() || !required->is_array())
+        return missing;
+    for (const auto& name : *required)
+    {
+        if (!name.is_string())
+            continue;
+        if (!args.is_object() || !args.contains(name.get<std::string>()))
+            missing += (missing.empty() ? "" : ", ") + name.get<std::string>();
+    }
+    return missing;
+}
+
 class McpToolRegistry
 {
 public:

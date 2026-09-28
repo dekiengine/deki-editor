@@ -1,6 +1,7 @@
 #ifdef DEKI_EDITOR
 
 #include <deki-editor/EditorTheme.h>  // DekiEditor::Tooltip (delayed)
+#include <vector>
 #include <deki-editor/EditorUI.h>
 #include "imgui.h"  // generic toolkit methods below call ImGui on the shared context
 
@@ -662,9 +663,29 @@ void EditorUI::OpenPopup(const char* id)
 {
     ImGui::OpenPopup(id);
 }
+// Packages open their menus and dialogs through these, so the editor's style
+// is applied here once rather than left to every caller: menus get the context
+// menu look (PushContextMenuPopupStyle / PushContextMenuItemStyle), dialogs the
+// padding of BeginSchematicModal. Window padding is baked when the popup
+// begins, so it is popped straight after; a menu's row spacing stays pushed
+// until EndPopup, which this stack remembers per open popup.
+static std::vector<bool> s_PopupRowStyle;
+
+static bool BeginStyledMenu(bool open)
+{
+    ImGui::PopStyleVar();  // WindowPadding, baked by the Begin just made
+    if (open)
+    {
+        DekiEditor::PushContextMenuItemStyle();
+        s_PopupRowStyle.push_back(true);
+    }
+    return open;
+}
+
 bool EditorUI::BeginPopup(const char* id)
 {
-    return ImGui::BeginPopup(id);
+    DekiEditor::PushContextMenuPopupStyle();
+    return BeginStyledMenu(ImGui::BeginPopup(id));
 }
 bool EditorUI::BeginPopupModal(const char* name, bool* open, int f)
 {
@@ -673,14 +694,27 @@ bool EditorUI::BeginPopupModal(const char* name, bool* open, int f)
     if (f & WinAlwaysAutoResize) im |= ImGuiWindowFlags_AlwaysAutoResize;
     if (f & WinNoSavedSettings) im |= ImGuiWindowFlags_NoSavedSettings;
     if (f & WinNoCollapse) im |= ImGuiWindowFlags_NoCollapse;
-    return ImGui::BeginPopupModal(name, open, im);
+    const float dpi = ImGui::GetStyle().FontScaleDpi;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f * dpi, 16.0f * dpi));
+    const bool shown = ImGui::BeginPopupModal(name, open, im);
+    ImGui::PopStyleVar();
+    if (shown)
+        s_PopupRowStyle.push_back(false);
+    return shown;
 }
 bool EditorUI::BeginPopupContextItem(const char* id)
 {
-    return ImGui::BeginPopupContextItem(id);
+    DekiEditor::PushContextMenuPopupStyle();
+    return BeginStyledMenu(ImGui::BeginPopupContextItem(id));
 }
 void EditorUI::EndPopup()
 {
+    if (!s_PopupRowStyle.empty())
+    {
+        if (s_PopupRowStyle.back())
+            ImGui::PopStyleVar();  // ItemSpacing from PushContextMenuItemStyle
+        s_PopupRowStyle.pop_back();
+    }
     ImGui::EndPopup();
 }
 void EditorUI::CloseCurrentPopup()

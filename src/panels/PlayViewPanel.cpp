@@ -735,8 +735,8 @@ void PlayViewPanel::DrawAddScreenDialog()
     m_NewScreen.w = std::clamp(m_NewScreen.w, 1, 8192);
     m_NewScreen.h = std::clamp(m_NewScreen.h, 1, 8192);
 
-    ImGui::Spacing();
-    if (ImGui::Button("Add"))
+    const int button = SchematicDialogButtons({ { "Cancel" }, { "Add", DialogButton::Primary } });
+    if (button == 1)
     {
         m_NewScreen.name = m_NewScreenName;
         m_UserScreens.push_back(m_NewScreen);
@@ -745,8 +745,7 @@ void PlayViewPanel::DrawAddScreenDialog()
         SavePreview();
         ImGui::CloseCurrentPopup();
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel"))
+    else if (button == 0)
         ImGui::CloseCurrentPopup();
     EndSchematicModal();
 }

@@ -735,11 +735,7 @@ void InspectorPanel::DrawApplyConfirmPopup()
         m_ApplyPopupOpen = false;
     }
 
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal("Apply to Scene", nullptr,
-                               ImGuiWindowFlags_AlwaysAutoResize))
+    if (DekiEditor::BeginSchematicModal("Apply to Scene", 760.0f))
     {
         const size_t total = m_ApplyPopupEntries.size();
         const size_t chosen = static_cast<size_t>(std::count_if(
@@ -752,7 +748,7 @@ void InspectorPanel::DrawApplyConfirmPopup()
         ImGui::SameLine();
         ImGui::TextColored(DekiEditor::Palette::Accent, "%s",
                            m_ApplyPopupSourceName.c_str());
-        ImGui::TextDisabled("Other scenes referencing this scene will be refreshed too.");
+        ImGui::TextColored(DekiEditor::Palette::Dim, "Other scenes that use this scene are refreshed too.");
 
         // Select all / Deselect all affordances above the list.
         if (ImGui::SmallButton(ICON_TI_LIST_CHECK "  Select all"))
@@ -766,10 +762,9 @@ void InspectorPanel::DrawApplyConfirmPopup()
             for (auto& e : m_ApplyPopupEntries)
                 e.selected = false;
         }
-        ImGui::Separator();
+        ImGui::Spacing();
 
-        ImGui::BeginChild("apply_changes",
-                          ImVec2(720.0f, 460.0f), true);
+        ImGui::BeginChild("apply_changes", ImVec2(0.0f, 420.0f * ImGui::GetStyle().FontScaleDpi), true);
 
         if (m_ApplyPopupEntries.empty())
         {
@@ -777,11 +772,11 @@ void InspectorPanel::DrawApplyConfirmPopup()
         }
         else
         {
-            const ImVec4 pathColor(1.00f, 0.83f, 0.40f, 1.00f);
-            const ImVec4 compColor(0.70f, 0.85f, 1.00f, 1.00f);
-            const ImVec4 oldColor(0.55f, 0.55f, 0.55f, 1.00f);
-            const ImVec4 arrowColor(0.60f, 0.60f, 0.60f, 1.00f);
-            const ImVec4 newColor(0.55f, 0.95f, 0.55f, 1.00f);
+            const ImVec4 pathColor = DekiEditor::Palette::Amber;
+            const ImVec4 compColor = DekiEditor::Palette::Accent;
+            const ImVec4 oldColor = DekiEditor::Palette::Dim;
+            const ImVec4 arrowColor = DekiEditor::Palette::Dim;
+            const ImVec4 newColor = DekiEditor::Palette::Green;
 
             std::string prevPath = "<sentinel>\x01";
             std::string prevComp = "<sentinel>\x01";
@@ -834,9 +829,9 @@ void InspectorPanel::DrawApplyConfirmPopup()
 
         ImGui::EndChild();
 
-        ImGui::Separator();
-        ImGui::BeginDisabled(chosen == 0);
-        if (ImGui::Button("Confirm", ImVec2(120.0f, 0.0f)))
+        const int button = DekiEditor::SchematicDialogButtons(
+            { { "Cancel" }, { "Apply", DekiEditor::DialogButton::Primary, chosen > 0 } });
+        if (button == 1)
         {
             if (m_ApplyPopupScene && m_ApplyPopupInstance &&
                 m_ApplyPopupInstance->IsSceneInstance())
@@ -855,14 +850,12 @@ void InspectorPanel::DrawApplyConfirmPopup()
             ClearApplyPopupState();
             ImGui::CloseCurrentPopup();
         }
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f)))
+        else if (button == 0)
         {
             ClearApplyPopupState();
             ImGui::CloseCurrentPopup();
         }
-        ImGui::EndPopup();
+        DekiEditor::EndSchematicModal();
     }
 }
 

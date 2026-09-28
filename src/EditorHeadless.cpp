@@ -1489,6 +1489,11 @@ ToolCall LocalToolCall(const McpToolRegistry& registry)
             error = "no tool named '" + name + "'";
             return false;
         }
+        if (const std::string missing = MissingRequiredArguments(*tool, args); !missing.empty())
+        {
+            error = name + " needs " + missing;
+            return false;
+        }
         try
         {
             result = tool->handler(args);

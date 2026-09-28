@@ -5,7 +5,9 @@
 #include "services/ProjectTemplate.h"
 #include <deki-editor/build/PlatformConfig.h>
 #include "imgui.h"
+#include <cfloat>
 #include <filesystem>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -59,114 +61,91 @@ void NewProjectDialog::Draw()
     if (!m_Open)
         return;
 
-    // Center the dialog
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_Appearing);
-
-    if (ImGui::Begin("New Project", &m_Open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking))
+    if (!ImGui::IsPopupOpen("New Project"))
+        ImGui::OpenPopup("New Project");
+    if (!BeginSchematicModal("New Project", 480.0f))
     {
-        // Project Name
-        ImGui::Text("Project Name");
-        ImGui::SetNextItemWidth(-1);
-        if (m_JustOpened)
-        {
-            ImGui::SetKeyboardFocusHere();
-            m_JustOpened = false;
-        }
-        ImGui::InputText("##ProjectName", m_ProjectName, sizeof(m_ProjectName));
-
-        ImGui::Spacing();
-
-        // Location
-        ImGui::Text("Location");
-        ImGui::SetNextItemWidth(-60);
-        ImGui::InputText("##Location", m_Location, sizeof(m_Location));
-        ImGui::SameLine();
-        if (ImGui::Button("Browse"))
-        {
-            // The answer arrives on a later frame; the dialog outlives it.
-            FileDialogs::OpenFolder("Select Project Location",
-                                    [this](const std::string& folder)
-                                    {
-                                        if (folder.empty())
-                                            return;
-                                        strncpy(m_Location, folder.c_str(), sizeof(m_Location) - 1);
-                                    },
-                                    m_Location);
-        }
-
-        ImGui::Spacing();
-
-        // Target Platform
-        ImGui::Text("Target Platform");
-        ImGui::SetNextItemWidth(-1);
-        if (m_Platforms.empty())
-        {
-            ImGui::TextDisabled("No platforms available. Install board packs via Boards Manager.");
-        }
-        else if (ImGui::BeginCombo("##TargetPlatform",
-                                   m_SelectedPlatformIndex < (int)m_Platforms.size() ? m_Platforms[m_SelectedPlatformIndex].second.c_str() : "Select Platform"))
-        {
-            for (int i = 0; i < (int)m_Platforms.size(); i++)
-            {
-                bool selected = (i == m_SelectedPlatformIndex);
-                if (ImGui::Selectable(m_Platforms[i].second.c_str(), selected))
-                {
-                    m_SelectedPlatformIndex = i;
-                }
-                if (selected)
-                {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Show full project path preview
-        fs::path fullPath = fs::path(m_Location) / m_ProjectName;
-        ImGui::TextDisabled("Project will be created at:");
-        ImGui::TextWrapped("%s", fullPath.string().c_str());
-
-        // Error message
-        if (m_ShowError && !m_ErrorMessage.empty())
-        {
-            ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Red);
-            ImGui::TextWrapped("%s", m_ErrorMessage.c_str());
-            ImGui::PopStyleColor();
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Buttons
-        float buttonWidth = 120;
-        float spacing = 10;
-        float totalWidth = buttonWidth * 2 + spacing;
-        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - totalWidth) * 0.5f);
-
-        if (ImGui::Button("Create", ImVec2(buttonWidth, 0)))
-        {
-            if (CreateProject())
-            {
-                m_Open = false;
-            }
-        }
-
-        ImGui::SameLine(0, spacing);
-
-        if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
-        {
-            m_Open = false;
-        }
+        m_Open = false;  // closed some other way (Escape)
+        return;
     }
-    ImGui::End();
+
+    const float gap = 8.0f * ImGui::GetStyle().FontScaleDpi;
+
+    ImGui::TextColored(Palette::Dim, "Project name");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    // Focus request must precede the item, and only on the frame it opens.
+    if (m_JustOpened)
+    {
+        ImGui::SetKeyboardFocusHere();
+        m_JustOpened = false;
+    }
+    ImGui::InputText("##ProjectName", m_ProjectName, sizeof(m_ProjectName));
+
+    ImGui::Spacing();
+    ImGui::TextColored(Palette::Dim, "Location");
+    const float browseW = ImGui::CalcTextSize("Browse").x + ImGui::GetStyle().FramePadding.x * 4.0f;
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browseW - gap);
+    ImGui::InputText("##Location", m_Location, sizeof(m_Location));
+    ImGui::SameLine(0.0f, gap);
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+    if (ImGui::Button("Browse", ImVec2(browseW, 0.0f)))
+    {
+        // The answer arrives on a later frame; the dialog outlives it.
+        FileDialogs::OpenFolder("Select Project Location",
+                                [this](const std::string& folder)
+                                {
+                                    if (folder.empty())
+                                        return;
+                                    strncpy(m_Location, folder.c_str(), sizeof(m_Location) - 1);
+                                },
+                                m_Location);
+    }
+    ImGui::PopStyleVar();
+
+    ImGui::Spacing();
+    ImGui::TextColored(Palette::Dim, "Target platform");
+    if (m_Platforms.empty())
+    {
+        ImGui::TextWrapped("No platforms yet. Install a board package from the Package Manager.");
+    }
+    else
+    {
+        std::vector<const char*> names;
+        names.reserve(m_Platforms.size());
+        for (const auto& [id, name] : m_Platforms)
+            names.push_back(name.c_str());
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        SchematicCombo("##TargetPlatform", &m_SelectedPlatformIndex, names.data(), static_cast<int>(names.size()));
+    }
+
+    // Where it lands, so a typo in the location shows before anything is made.
+    ImGui::Spacing();
+    const fs::path fullPath = fs::path(m_Location) / m_ProjectName;
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+    ImGui::TextWrapped("Creates %s", fullPath.string().c_str());
+    ImGui::PopStyleColor();
+
+    if (m_ShowError && !m_ErrorMessage.empty())
+    {
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Red);
+        ImGui::TextWrapped("%s", m_ErrorMessage.c_str());
+        ImGui::PopStyleColor();
+    }
+
+    const int button = SchematicDialogButtons(
+        { { "Cancel" }, { "Create", DialogButton::Primary, m_ProjectName[0] != '\0' } });
+    if (button == 1 && CreateProject())
+    {
+        m_Open = false;
+        ImGui::CloseCurrentPopup();
+    }
+    else if (button == 0)
+    {
+        m_Open = false;
+        ImGui::CloseCurrentPopup();
+    }
+    EndSchematicModal();
 }
 
 bool NewProjectDialog::ValidateInputs(std::string& errorMessage)

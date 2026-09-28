@@ -391,6 +391,15 @@ nlohmann::json McpServer::HandleToolsCall(const nlohmann::json& params)
         };
     }
 
+    if (const std::string missing = MissingRequiredArguments(*tool, arguments); !missing.empty())
+    {
+        return {
+            { "content", nlohmann::json::array({ { { "type", "text" },
+                                                   { "text", "Error: " + toolName + " needs " + missing } } }) },
+            { "isError", true }
+        };
+    }
+
     try
     {
         nlohmann::json result = tool->handler(arguments);

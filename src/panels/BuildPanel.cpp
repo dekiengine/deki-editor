@@ -162,20 +162,20 @@ void BuildPanel::Draw()
         m_ShowDeleteConfirm = false;
     }
 
-    if (ImGui::BeginPopupModal("Delete Platform?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (BeginSchematicModal("Delete Platform?", 420.0f))
     {
-        ImGui::Text("Are you sure you want to delete platform '%s'?", m_PlatformToDelete.c_str());
+        ImGui::TextWrapped("Delete the platform '%s'?", m_PlatformToDelete.c_str());
         if (m_PlatformToDelete == m_OriginFor && m_Origin.packageInstalled)
-            ImGui::TextDisabled("Package '%s' still offers it, so it stays in the list\n"
-                                "and choosing it again copies the package's version in.",
-                                m_Origin.packageId.c_str());
-        ImGui::Spacing();
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+            ImGui::TextWrapped("Package '%s' still offers it, so it stays in the list and choosing it again "
+                               "copies the package's version in.",
+                               m_Origin.packageId.c_str());
+            ImGui::PopStyleColor();
+        }
 
-        float buttonWidth = 100.0f;
-        float totalWidth = buttonWidth * 2 + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - totalWidth) * 0.5f);
-
-        if (ImGui::Button("Delete", ImVec2(buttonWidth, 0)))
+        const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
+        if (button == 1)
         {
             // Delete the platform
             auto* project = m_App->GetProject();
@@ -201,16 +201,13 @@ void BuildPanel::Draw()
             m_PlatformToDelete.clear();
             ImGui::CloseCurrentPopup();
         }
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
+        else if (button == 0)
         {
             m_PlatformToDelete.clear();
             ImGui::CloseCurrentPopup();
         }
 
-        ImGui::EndPopup();
+        EndSchematicModal();
     }
 
     // Restore confirmation popup
@@ -220,19 +217,20 @@ void BuildPanel::Draw()
         m_ShowRestoreConfirm = false;
     }
 
-    if (ImGui::BeginPopupModal("Restore Platform?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (BeginSchematicModal("Restore Platform?", 420.0f))
     {
-        ImGui::Text("Replace platform '%s' with the version from package '%s'?", m_OriginFor.c_str(),
-                    m_Origin.packageId.c_str());
+        ImGui::TextWrapped("Replace the platform '%s' with the version from package '%s'?", m_OriginFor.c_str(),
+                           m_Origin.packageId.c_str());
         if (m_Origin.modified)
-            ImGui::TextDisabled("Your changes will be lost: %s", JoinNames(m_Origin.modifiedItems).c_str());
-        ImGui::Spacing();
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+            ImGui::TextWrapped("Your changes are lost: %s", JoinNames(m_Origin.modifiedItems).c_str());
+            ImGui::PopStyleColor();
+        }
 
-        float buttonWidth = 100.0f;
-        float totalWidth = buttonWidth * 2 + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - totalWidth) * 0.5f);
-
-        if (ImGui::Button("Restore", ImVec2(buttonWidth, 0)))
+        const int button = SchematicDialogButtons(
+            { { "Cancel" }, { "Restore", m_Origin.modified ? DialogButton::Danger : DialogButton::Primary } });
+        if (button == 1)
         {
             if (auto* project = m_App->GetProject())
             {
@@ -251,15 +249,12 @@ void BuildPanel::Draw()
             }
             ImGui::CloseCurrentPopup();
         }
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
+        else if (button == 0)
         {
             ImGui::CloseCurrentPopup();
         }
 
-        ImGui::EndPopup();
+        EndSchematicModal();
     }
 
     ImGui::End();

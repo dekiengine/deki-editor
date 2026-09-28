@@ -236,17 +236,15 @@ void AssetBrowserPanel::Draw()
         ImGui::OpenPopup("Delete Folder?");
     }
     {
-        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-        if (ImGui::BeginPopupModal("Delete Folder?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        if (BeginSchematicModal("Delete Folder?", 400.0f))
         {
             namespace fs = std::filesystem;
             std::string folderName = fs::path(m_PendingDeleteFolderPath).filename().string();
-            ImGui::Text("Are you sure you want to delete folder '%s'?", folderName.c_str());
-            ImGui::TextDisabled("Press Ctrl+Z to undo.");
-            ImGui::Separator();
+            ImGui::TextWrapped("Delete the folder '%s'?", folderName.c_str());
+            ImGui::TextColored(Palette::Dim, "Ctrl+Z brings it back.");
 
-            if (ImGui::Button("Delete", ImVec2(120, 0)))
+            const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
+            if (button == 1)
             {
                 std::string folderPath = m_PendingDeleteFolderPath;
                 m_PendingDeleteFolderPath.clear();
@@ -263,13 +261,12 @@ void AssetBrowserPanel::Draw()
                 m_PendingTreeRebuild = true;
                 ImGui::CloseCurrentPopup();
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0)))
+            else if (button == 0)
             {
                 m_PendingDeleteFolderPath.clear();
                 ImGui::CloseCurrentPopup();
             }
-            ImGui::EndPopup();
+            EndSchematicModal();
         }
     }
 
@@ -343,12 +340,12 @@ void AssetBrowserPanel::Draw()
         m_ShowLinkPrompt = false;
     }
 
-    if (ImGui::BeginPopupModal("Link to Scene?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (BeginSchematicModal("Link to Scene?", 400.0f))
     {
-        ImGui::Text("Link this object to the created scene?");
-        ImGui::Separator();
+        ImGui::TextWrapped("Link this object to the scene just created from it?");
 
-        if (ImGui::Button("Yes", ImVec2(120, 0)))
+        const int button = SchematicDialogButtons({ { "Don't Link" }, { "Link", DialogButton::Primary } });
+        if (button == 1)
         {
             if (m_PendingLinkObject && !m_PendingLinkSceneGuid.empty())
             {
@@ -364,14 +361,13 @@ void AssetBrowserPanel::Draw()
             m_PendingLinkSceneGuid.clear();
             ImGui::CloseCurrentPopup();
         }
-        ImGui::SameLine();
-        if (ImGui::Button("No", ImVec2(120, 0)))
+        else if (button == 0)
         {
             m_PendingLinkObject = nullptr;
             m_PendingLinkSceneGuid.clear();
             ImGui::CloseCurrentPopup();
         }
-        ImGui::EndPopup();
+        EndSchematicModal();
     }
 
     // Script creation popup
