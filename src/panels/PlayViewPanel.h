@@ -66,6 +66,8 @@ private:
     void SavePreview() const;
 
     void DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi);
+
+    float m_CanvasDpi = 1.0f;  // the window's DPI scale when the canvas was measured
     void ApplyPreviewSize();
 };
 

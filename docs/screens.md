@@ -9,6 +9,7 @@ resolution, and the camera decides how much world that shows.
 | --- | --- |
 | **Ortho Height** | How much world the camera shows top to bottom, in meters. The width follows the screen's shape. In Pixels mode the inspector shows it at your pixels per meter: 11.25 m at 16 px/m reads 180 px. |
 | **Pixel Perfect** | Scales by whole numbers only and snaps the camera and everything drawn to the art-pixel grid. For pixel art. |
+| **Scale Up** | On (the default), the ortho height fills every screen. Off, art is never drawn bigger than 1x: a bigger screen shows more of the world. |
 | **Projection** | Orthographic (flat, for 2D) or Perspective (a vertical **Field of View**, for 3D meshes). |
 
 A bigger screen of the same shape shows the same world, drawn bigger. A wider

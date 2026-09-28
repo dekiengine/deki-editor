@@ -47,38 +47,33 @@ static void AddImageNearest(ImDrawList* drawList, ImTextureID texId, const ImVec
 struct FittedRect
 {
     ImVec2 p1, p2;
-    float scale = 1.0f;
+    ImVec2 clipMin, clipMax;  // the canvas: a picture bigger than it is cropped
+    float scale = 1.0f;       // canvas pixels per game pixel
 };
 
-static FittedRect FitToCanvas(int w, int h, const ImVec2& canvasTopLeft, const ImVec2& avail)
+// The picture one game pixel per screen pixel, centred in the canvas. It is
+// never resized to fit: a screen bigger than the panel is cropped.
+static FittedRect PlaceInCanvas(int w, int h, const ImVec2& canvasTopLeft, const ImVec2& avail)
 {
     FittedRect r;
-    const float dpiScale = ImGui::GetWindowDpiScale();
-    r.scale = dpiScale;
-    if (w > 0 && h > 0 && avail.x > 0.0f && avail.y > 0.0f)
-    {
-        const float fit = std::min(avail.x / static_cast<float>(w), avail.y / static_cast<float>(h));
-        if (fit < r.scale)
-            r.scale = fit;
-    }
+    r.scale = ImGui::GetWindowDpiScale();
     const float texW = std::round(w * r.scale);
     const float texH = std::round(h * r.scale);
-    const float offsetX = std::max((avail.x - texW) * 0.5f, 0.0f);
-    const float offsetY = std::max((avail.y - texH) * 0.5f, 0.0f);
-    r.p1 = ImVec2(std::floor(canvasTopLeft.x + offsetX), std::floor(canvasTopLeft.y + offsetY));
+    r.p1 = ImVec2(std::floor(canvasTopLeft.x + (avail.x - texW) * 0.5f),
+                  std::floor(canvasTopLeft.y + (avail.y - texH) * 0.5f));
     r.p2 = ImVec2(r.p1.x + texW, r.p1.y + texH);
+    r.clipMin = canvasTopLeft;
+    r.clipMax = ImVec2(canvasTopLeft.x + avail.x, canvasTopLeft.y + avail.y);
     return r;
 }
 
-// Pixels stay sharp at 1:1 and above. Scaled down to fit the panel, nearest
-// sampling drops whole rows and columns and turns dithering into moire, so the
-// image is filtered instead.
+// Sharp pixels, clipped to the canvas, with its outline.
 static void AddGameImage(ImDrawList* drawList, ImTextureID texId, const FittedRect& fit)
 {
-    if (fit.scale < ImGui::GetWindowDpiScale())
-        drawList->AddImage(texId, fit.p1, fit.p2);
-    else
-        AddImageNearest(drawList, texId, fit.p1, fit.p2);
+    drawList->PushClipRect(fit.clipMin, fit.clipMax, true);
+    AddImageNearest(drawList, texId, fit.p1, fit.p2);
+    drawList->AddRect(fit.p1, fit.p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
+    drawList->PopClipRect();
 }
 
 PlayViewPanel::PlayViewPanel(EditorApp* app)
@@ -207,6 +202,7 @@ void PlayViewPanel::Draw()
     ImVec2 availSize = ImGui::GetContentRegionAvail();
     m_CanvasTopLeft = ImGui::GetCursorScreenPos();
     m_CanvasSize = availSize;
+    m_CanvasDpi = std::max(ImGui::GetWindowDpiScale(), 0.01f);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -219,7 +215,7 @@ void PlayViewPanel::Draw()
 
         if (vpW > 0 && vpH > 0)
         {
-            const FittedRect fit = FitToCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
+            const FittedRect fit = PlaceInCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
             const ImVec2 p1 = fit.p1, p2 = fit.p2;
             const float texScreenW = p2.x - p1.x, texScreenH = p2.y - p1.y;
 
@@ -286,11 +282,8 @@ void PlayViewPanel::Draw()
                 uint32_t texId = m_PreviewRenderer->GetTextureId();
                 if (texId != 0)
                 {
-                    const FittedRect fit = FitToCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
-                    const ImVec2 p1 = fit.p1, p2 = fit.p2;
-
+                    const FittedRect fit = PlaceInCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
                     AddGameImage(drawList, (ImTextureID)(intptr_t)texId, fit);
-                    drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
 
                     // Resolution info
                     char resInfo[64];
@@ -312,10 +305,9 @@ void PlayViewPanel::Draw()
         uint32_t previewTex = m_PreviewRenderer->GetTextureId();
         if (previewTex != 0)
         {
-            const FittedRect fit = FitToCanvas(m_PreviewRenderer->GetWidth(), m_PreviewRenderer->GetHeight(),
-                                               m_CanvasTopLeft, availSize);
+            const FittedRect fit = PlaceInCanvas(m_PreviewRenderer->GetWidth(), m_PreviewRenderer->GetHeight(),
+                                                 m_CanvasTopLeft, availSize);
             AddGameImage(drawList, (ImTextureID)(intptr_t)previewTex, fit);
-            drawList->AddRect(fit.p1, fit.p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
         }
 
         ImGui::InvisibleButton("PlayViewCanvas", availSize);
@@ -330,13 +322,12 @@ void PlayViewPanel::Draw()
 
     if (playTexId != 0 && playW > 0 && playH > 0)
     {
-        const FittedRect fit = FitToCanvas(playW, playH, m_CanvasTopLeft, availSize);
+        const FittedRect fit = PlaceInCanvas(playW, playH, m_CanvasTopLeft, availSize);
         const ImVec2 p1 = fit.p1, p2 = fit.p2;
         const float dpiScale = fit.scale;  // canvas pixels per game pixel
 
         // Draw play mode texture
         AddGameImage(drawList, (ImTextureID)(intptr_t)playTexId, fit);
-        drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
 
         // Status indicator
         const char* status = m_App->IsPlaying() ? "PLAYING" : "PAUSED";
@@ -345,11 +336,7 @@ void PlayViewPanel::Draw()
 
         // Resolution info
         char resInfo[64];
-        if (fit.scale < ImGui::GetWindowDpiScale())
-            snprintf(resInfo, sizeof(resInfo), "%dx%d (%.0f%%)", playW, playH,
-                     100.0f * fit.scale / ImGui::GetWindowDpiScale());
-        else
-            snprintf(resInfo, sizeof(resInfo), "%dx%d (1:1)", playW, playH);
+        snprintf(resInfo, sizeof(resInfo), "%dx%d", playW, playH);
         drawList->AddText(ImVec2(m_CanvasTopLeft.x + 10, m_CanvasTopLeft.y + 25),
                           IM_COL32(200, 200, 200, 200), resInfo);
 
@@ -486,6 +473,7 @@ void PlayViewPanel::LoadPreview(const std::string& projectPath)
     Deki::ColorFormat format;
     if (ParseColorFormat(EditorSettings::GetString("playView.format:" + projectPath), format))
         m_PreviewFormat = format;
+
 }
 
 void PlayViewPanel::SavePreview() const
@@ -525,8 +513,9 @@ void PlayViewPanel::ApplyPreviewSize()
     // started with, so the size holds still while it runs.
     if (!m_App->IsStopped())
         return;
-    const int canvasW = static_cast<int>(m_CanvasSize.x);
-    const int canvasH = static_cast<int>(m_CanvasSize.y);
+    // In screen pixels.
+    const int canvasW = static_cast<int>(m_CanvasSize.x / m_CanvasDpi);
+    const int canvasH = static_cast<int>(m_CanvasSize.y / m_CanvasDpi);
     if (canvasW <= 0 || canvasH <= 0)
         return;  // not laid out yet; SceneView keeps its last size
     int w = canvasW, h = canvasH;

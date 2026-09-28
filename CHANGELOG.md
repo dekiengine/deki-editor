@@ -83,8 +83,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   - The Play view's toolbar picks the screen to preview, as Unity's Game view
     does: Free Aspect (the panel's size), an aspect ratio (16:9, 16:10, 4:3,
     3:2, 21:9, 9:16), any platform's screen, or a custom resolution. Play runs
-    at it, and the view scales down to fit the panel. The choice is
-    remembered per project.
+    at it, and the view shows it pixel for pixel, cropped to the panel, never
+    resized to fit. The choice is remembered per project.
   - The camera's inspector says what it shows on the previewed screen, and
     its gizmo outlines it.
   - `DEKI_RENDER_SIZE=WxH` makes `--render-scenes` render another screen size.
