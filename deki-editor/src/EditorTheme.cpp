@@ -2210,7 +2210,10 @@ bool SchematicBeginCombo(const char* id, const char* preview)
     }
 
     if (preview && preview[0])
-        DrawLeftAlignedValue(w->DrawList, boxMin, boxMax, preview);
+    {
+        const float chevronW = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.x;
+        DrawLeftAlignedValue(w->DrawList, boxMin, ImVec2(ImMax(boxMin.x, boxMax.x - chevronW), boxMax.y), preview);
+    }
 
     // Right-aligned chevron, matching the section-header chevron - and turning
     // like it: down when the list is shut, flipped up while it is open, so the

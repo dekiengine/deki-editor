@@ -1,4 +1,5 @@
 #include "ProfilerPanel.h"
+#include "inspector/InspectorUtils.h"
 #include "../PanelMaximize.h"
 #include "EditorApp.h"
 #include "services/ProfilingService.h"
@@ -285,12 +286,24 @@ void ProfilerPanel::Draw()
             targetFps = core->targetFps;
         float frameBudgetMs = 1000.0f / targetFps;
 
-        // Toolbar
-        ImGui::Text("Status: %s", profiler.IsRecording() ? "Recording" : "Stopped");
+        // Status and budget as property rows, the way every panel lists facts.
+        ImGui::Spacing();
+        DekiEditor::BeginPropertyContext();
+        InspectorUtils::BeginPropertyRow("Status");
+        ImGui::AlignTextToFramePadding();
+        if (profiler.IsRecording())
+            ImGui::TextColored(DekiEditor::Palette::Green, "Recording");
+        else
+            ImGui::TextColored(DekiEditor::Palette::Dim, "Records in Play mode");
+        InspectorUtils::SetNextRowTooltip("One frame at the project's target frame rate (Project Settings > Core).");
+        InspectorUtils::BeginPropertyRow("Frame Budget");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("%.2f ms", frameBudgetMs);
         ImGui::SameLine();
-        ImGui::TextDisabled("| Budget: %.2f ms", frameBudgetMs);
-
-        ImGui::Separator();
+        ImGui::TextColored(DekiEditor::Palette::Dim, "%d fps", targetFps);
+        DekiEditor::EndPropertyContext();
+        ImGui::Spacing();
+        DekiEditor::FullBleedSeparator();
 
         // Frame history display
         const auto& history = profiler.GetFrameHistory();
@@ -306,7 +319,11 @@ void ProfilerPanel::Draw()
 
         if (history.empty())
         {
-            ImGui::TextDisabled("No profiling data. Enter Play Mode to start profiling.");
+            DekiEditor::BeginPropertyContext();
+            InspectorUtils::BeginPropertyRow("");
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(DekiEditor::Palette::Dim, "Nothing recorded yet.");
+            DekiEditor::EndPropertyContext();
         }
         else
         {

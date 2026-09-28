@@ -1,4 +1,8 @@
 #include "FrameCapturePanel.h"
+#include <cfloat>
+#include <deki-editor/IconsTabler.h>
+#include <deki-editor/EditorUI.h>
+#include "inspector/InspectorUtils.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
@@ -29,141 +33,95 @@ void FrameCapturePanel::Draw()
     {
         auto* captureService = m_App->GetFrameCaptureService();
         auto* project = m_App->GetProject();
-        bool isPlaying = m_App->IsPlaying();
-        bool isCapturing = captureService && captureService->IsCapturing();
-
-        // Status bar
-        if (isCapturing)
-        {
-            ImGui::TextColored(DekiEditor::Palette::Red, "RECORDING");
-            ImGui::SameLine();
-            ImGui::Text("| %d frames captured", captureService->GetFrameCount());
-        }
-        else if (isPlaying)
-        {
-            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "READY");
-            ImGui::SameLine();
-            ImGui::TextDisabled("| Press Record to start capturing");
-        }
-        else
-        {
-            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "STOPPED");
-            ImGui::SameLine();
-            ImGui::TextDisabled("| Enter Play Mode to enable recording");
-        }
-
-        ImGui::Separator();
-
-        // Output path configuration
-        ImGui::Text("Output Settings");
+        const bool isPlaying = m_App->IsPlaying();
+        const bool isCapturing = captureService && captureService->IsCapturing();
 
         // Default path is project/captures
-        std::string defaultPath = project ? project->GetPath() + "/captures" : "";
-
-        DekiEditor::SchematicCheckbox("Custom output path", &m_UseCustomPath);
-
-        if (m_UseCustomPath)
-        {
-            char pathBuf[512] = {};
-            strncpy(pathBuf, m_OutputPath.c_str(), sizeof(pathBuf) - 1);
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::InputText("##OutputPath", pathBuf, sizeof(pathBuf)))
-            {
-                m_OutputPath = pathBuf;
-            }
-        }
-        else
-        {
-            ImGui::TextDisabled("Path: %s", defaultPath.empty() ? "(no project)" : defaultPath.c_str());
+        const std::string defaultPath = project ? project->GetPath() + "/captures" : "";
+        if (!m_UseCustomPath)
             m_OutputPath = defaultPath;
-        }
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Control buttons
-        float buttonWidth = 120.0f;
-
+        // Record / stop and the folder, in the panel's toolbar.
+        auto& ui = EditorUI::Get();
+        ui.BeginToolbar();
         if (isCapturing)
         {
-            // Stop button (red)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, DekiEditor::Palette::Red);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
-
-            if (ImGui::Button("Stop Recording", ImVec2(buttonWidth, 30)))
-            {
+            if (ui.ToolbarButton("Stop Recording", true, /*active*/ true))
                 captureService->StopCapture();
-            }
-
-            ImGui::PopStyleColor(3);
         }
-        else
+        else if (ui.ToolbarButton("Record", isPlaying && !m_OutputPath.empty() && captureService))
         {
-            // Record button (only enabled in play mode with valid path)
-            bool canRecord = isPlaying && !m_OutputPath.empty() && captureService;
-
-            if (!canRecord)
-            {
-                ImGui::BeginDisabled();
-            }
-
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, DekiEditor::Palette::Red);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
-
-            if (ImGui::Button("Start Recording", ImVec2(buttonWidth, 30)))
-            {
-                captureService->StartCapture(m_OutputPath);
-            }
-
-            ImGui::PopStyleColor(3);
-
-            if (!canRecord)
-            {
-                ImGui::EndDisabled();
-            }
+            captureService->StartCapture(m_OutputPath);
         }
-
-        ImGui::SameLine();
-
-        // Open folder button
-        if (ImGui::Button("Open Folder", ImVec2(buttonWidth, 30)) && !m_OutputPath.empty())
+        if (ui.ToolbarIconButton("##openfolder", ICON_TI_FOLDER, "Open the captures folder",
+                                 !m_OutputPath.empty()) &&
+            fs::exists(m_OutputPath))
         {
-            if (fs::exists(m_OutputPath))
-            {
-                // Argument vector, not a shell string. The capture directory is
-                // derived from the project path, so a quote in it used to end
-                // the quoting and hand the rest to the shell. Also works off
-                // Windows now, where this button previously did nothing.
-                RevealInFileManager(m_OutputPath);
-            }
+            // Argument vector, not a shell string. The capture directory is
+            // derived from the project path, so a quote in it used to end
+            // the quoting and hand the rest to the shell.
+            RevealInFileManager(m_OutputPath);
         }
+        ui.EndToolbar();
 
-        ImGui::Spacing();
-        ImGui::Separator();
-
-        // Instructions
-        ImGui::TextDisabled("Instructions:");
-        ImGui::BulletText("Enter Play Mode");
-        ImGui::BulletText("Click 'Start Recording' to capture frames");
-        ImGui::BulletText("Click 'Stop Recording' when done");
-        ImGui::BulletText("Use ffmpeg to create video:");
-
-        ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.9f, 0.7f, 1.0f));
-        ImGui::TextWrapped("ffmpeg -framerate 30 -i frame_%%05d.png -c:v libx264 output.mp4");
-        ImGui::PopStyleColor();
-
-        // Copy command button
-        if (ImGui::SmallButton("Copy Command"))
+        if (DekiEditor::SchematicSectionBegin("Capture"))
         {
-            ImGui::SetClipboardText("ffmpeg -framerate 30 -i frame_%05d.png -c:v libx264 output.mp4");
+            DekiEditor::BeginPropertyContext();
+            InspectorUtils::BeginPropertyRow("Status");
+            ImGui::AlignTextToFramePadding();
+            if (isCapturing)
+            {
+                ImGui::TextColored(DekiEditor::Palette::Red, "Recording");
+                ImGui::SameLine();
+                ImGui::TextColored(DekiEditor::Palette::Dim, "%d frames", captureService->GetFrameCount());
+            }
+            else if (isPlaying)
+                ImGui::TextColored(DekiEditor::Palette::Green, "Ready");
+            else
+                ImGui::TextColored(DekiEditor::Palette::Dim, "Records in Play mode");
+
+            InspectorUtils::BeginPropertyRow("Custom Folder");
+            DekiEditor::SchematicCheckbox("##customfolder", &m_UseCustomPath);
+
+            InspectorUtils::BeginPropertyRow("Folder");
+            if (m_UseCustomPath)
+            {
+                char pathBuf[512] = {};
+                strncpy(pathBuf, m_OutputPath.c_str(), sizeof(pathBuf) - 1);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##OutputPath", pathBuf, sizeof(pathBuf)))
+                    m_OutputPath = pathBuf;
+            }
+            else
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+                ImGui::TextWrapped("%s", defaultPath.empty() ? "No project open" : defaultPath.c_str());
+                ImGui::PopStyleColor();
+            }
+            DekiEditor::EndPropertyContext();
+            DekiEditor::SchematicSectionEnd();
         }
 
-        ImGui::Spacing();
-        ImGui::TextDisabled("If video plays at correct speed, rendering is truly 30 FPS.");
+        if (DekiEditor::SchematicSectionBegin("Make a Video"))
+        {
+            // One PNG per frame; ffmpeg turns them into a video. At the right
+            // speed means rendering really kept up with 30 FPS.
+            static constexpr const char* kCommand = "ffmpeg -framerate 30 -i frame_%05d.png -c:v libx264 output.mp4";
+            DekiEditor::BeginPropertyContext();
+            InspectorUtils::BeginPropertyRow("ffmpeg");
+            if (g_FontMonoSmall)
+                ImGui::PushFont(g_FontMonoSmall);
+            ImGui::TextWrapped("%s", kCommand);
+            if (g_FontMonoSmall)
+                ImGui::PopFont();
+            InspectorUtils::BeginPropertyRow("");
+            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+            if (ImGui::Button("Copy Command"))
+                ImGui::SetClipboardText(kCommand);
+            ImGui::PopStyleVar();
+            DekiEditor::EndPropertyContext();
+            DekiEditor::SchematicSectionEnd();
+        }
     }
 
     ImGui::End();

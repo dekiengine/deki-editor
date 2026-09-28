@@ -44,6 +44,8 @@ private:
     void DrawPlatformSelector();
     void DrawToolchainStatusSummary();
     void DrawPlatformDetails();
+    void DrawDeployTarget();
+    void DrawStripping();
 
     void StartBuild();
     void StartDeploy();

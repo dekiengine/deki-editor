@@ -1,4 +1,9 @@
 #include "SerialMonitorPanel.h"
+#include <vector>
+#include <cfloat>
+#include <deki-editor/IconsTabler.h>
+#include <deki-editor/EditorUI.h>
+#include "inspector/InspectorUtils.h"
 #include <deki-editor/SerialPorts.h>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
@@ -57,9 +62,8 @@ void SerialMonitorPanel::Draw()
     }
 
     DrawToolbar();
-    ImGui::Separator();
     DrawOutput();
-    ImGui::Separator();
+    FullBleedSeparator();
     DrawInputArea();
 
     ImGui::End();
@@ -67,118 +71,84 @@ void SerialMonitorPanel::Draw()
 
 void SerialMonitorPanel::DrawToolbar()
 {
-    // Port selection
-    ImGui::Text("Port:");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(m_App->Dpi(100));
-
-    // Combo for available ports
-    if (ImGui::BeginCombo("##port", m_SelectedPort.c_str()))
-    {
-        for (size_t i = 0; i < m_AvailablePorts.size(); ++i)
-        {
-            bool selected = (m_AvailablePorts[i] == m_SelectedPort);
-            if (ImGui::Selectable(m_AvailablePorts[i].c_str(), selected))
-            {
-                m_SelectedPort = m_AvailablePorts[i];
-                strncpy(m_PortBuffer, m_SelectedPort.c_str(), sizeof(m_PortBuffer) - 1);
-            }
-            if (selected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-
-    ImGui::SameLine();
-
-    // Refresh ports button
-    if (ImGui::Button("Refresh"))
-    {
-        m_AvailablePorts = EnumeratePorts();
-    }
-
-    ImGui::SameLine();
-    ImGui::Text("Baud:");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(m_App->Dpi(80));
-
-    // Baud rate dropdown
-    if (ImGui::BeginCombo("##baud", s_BaudRateNames[m_BaudRateIndex]))
-    {
-        for (int i = 0; i < s_BaudRateCount; ++i)
-        {
-            bool selected = (i == m_BaudRateIndex);
-            if (ImGui::Selectable(s_BaudRateNames[i], selected))
-            {
-                m_BaudRateIndex = i;
-            }
-            if (selected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-
-    ImGui::SameLine();
-
-    // Connect/Disconnect button
+    // Connect and the switches in the panel's toolbar; where to connect below.
+    auto& ui = EditorUI::Get();
+    ui.BeginToolbar();
     if (m_IsConnected)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, DekiEditor::Palette::Red);
-        if (ImGui::Button("Disconnect"))
-        {
+        if (ui.ToolbarButton("Disconnect", true, /*active*/ true))
             Disconnect();
-        }
-        ImGui::PopStyleColor(2);
     }
-    else
+    else if (ui.ToolbarButton("Connect", !m_SelectedPort.empty()))
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 0.2f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.7f, 0.3f, 1.0f));
-        if (ImGui::Button("Connect"))
-        {
-            Connect();
-        }
-        ImGui::PopStyleColor(2);
+        Connect();
     }
-
-    ImGui::SameLine();
-    DekiEditor::SchematicCheckbox("DTR", &m_DtrEnabled);
-    ImGui::SameLine();
-    DekiEditor::SchematicCheckbox("RTS", &m_RtsEnabled);
-
-    // Second row: Clear, auto-scroll, timestamps, filter
-    if (ImGui::Button("Clear"))
+    if (ui.ToolbarIconButton("##refreshports", ICON_TI_REFRESH, "Look for serial ports again"))
+        m_AvailablePorts = EnumeratePorts();
+    if (ui.ToolbarIconButton("##clear", ICON_TI_ERASER, "Clear the output"))
     {
         std::lock_guard<std::mutex> lock(m_OutputMutex);
         m_OutputLines.clear();
         m_PartialLine.clear();
     }
+    if (ui.ToolbarButton("DTR", true, m_DtrEnabled))
+        m_DtrEnabled = !m_DtrEnabled;
+    if (ui.ToolbarButton("RTS", true, m_RtsEnabled))
+        m_RtsEnabled = !m_RtsEnabled;
+    if (ui.ToolbarButton("Auto-scroll", true, m_AutoScroll))
+        m_AutoScroll = !m_AutoScroll;
+    if (ui.ToolbarButton("Timestamps", true, m_ShowTimestamps))
+        m_ShowTimestamps = !m_ShowTimestamps;
+    ui.EndToolbar();
 
-    ImGui::SameLine();
-    DekiEditor::SchematicCheckbox("Auto-scroll", &m_AutoScroll);
-    ImGui::SameLine();
-    DekiEditor::SchematicCheckbox("Timestamps", &m_ShowTimestamps);
-
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(m_App->Dpi(150));
-    ImGui::InputTextWithHint("##filter", "Filter...", m_FilterText, sizeof(m_FilterText));
-
-    // Connection status indicator
-    ImGui::SameLine();
-    float availWidth = ImGui::GetContentRegionAvail().x;
-    if (availWidth > 80)
+    if (SchematicSectionBegin("Connection"))
     {
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availWidth - 80);
-        if (m_IsConnected)
+        BeginPropertyContext();
+        InspectorUtils::BeginPropertyRow("Port");
+        if (m_AvailablePorts.empty())
         {
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "Connected");
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(Palette::Dim, "No serial ports found");
         }
         else
         {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Disconnected");
+            std::vector<const char*> ports;
+            int current = -1;
+            for (size_t i = 0; i < m_AvailablePorts.size(); ++i)
+            {
+                ports.push_back(m_AvailablePorts[i].c_str());
+                if (m_AvailablePorts[i] == m_SelectedPort)
+                    current = static_cast<int>(i);
+            }
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::BeginDisabled(m_IsConnected);
+            if (SchematicCombo("##port", &current, ports.data(), static_cast<int>(ports.size())) && current >= 0)
+            {
+                m_SelectedPort = m_AvailablePorts[current];
+                strncpy(m_PortBuffer, m_SelectedPort.c_str(), sizeof(m_PortBuffer) - 1);
+            }
+            ImGui::EndDisabled();
         }
+
+        InspectorUtils::BeginPropertyRow("Baud Rate");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::BeginDisabled(m_IsConnected);
+        SchematicCombo("##baud", &m_BaudRateIndex, s_BaudRateNames, s_BaudRateCount);
+        ImGui::EndDisabled();
+
+        InspectorUtils::BeginPropertyRow("Status");
+        ImGui::AlignTextToFramePadding();
+        if (m_IsConnected)
+            ImGui::TextColored(Palette::Green, "Connected");
+        else
+            ImGui::TextColored(Palette::Dim, "Not connected");
+        EndPropertyContext();
+        SchematicSectionEnd();
     }
+
+    // Filter the lines shown, as the Console's search does.
+    SearchField("##filter", m_FilterText, sizeof(m_FilterText), 0.0f, /*bottomBorder*/ true, nullptr, nullptr,
+                nullptr, nullptr, "Filter");
 }
 
 void SerialMonitorPanel::DrawOutput()
@@ -187,7 +157,7 @@ void SerialMonitorPanel::DrawOutput()
     float inputHeight = ImGui::GetFrameHeightWithSpacing() * 2;
     float availHeight = ImGui::GetContentRegionAvail().y - inputHeight;
 
-    ImGui::BeginChild("SerialOutput", ImVec2(0, availHeight), true,
+    ImGui::BeginChild("SerialOutput", ImVec2(0, availHeight), ImGuiChildFlags_None,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
     std::lock_guard<std::mutex> lock(m_OutputMutex);
@@ -320,31 +290,31 @@ void SerialMonitorPanel::DrawOutput()
 
 void SerialMonitorPanel::DrawInputArea()
 {
-    ImGui::Text("Send:");
-    ImGui::SameLine();
+    // A line to send, the Send button, and whether a newline goes with it.
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float sendW = ImGui::CalcTextSize("Send").x + ImGui::GetStyle().FramePadding.x * 4.0f;
+    const float newlineW = ImGui::GetFrameHeight() + gap + ImGui::CalcTextSize("Newline").x;
+    ImGui::Spacing();
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - sendW - newlineW - gap * 2.0f);
+    const bool enterPressed = ImGui::InputTextWithHint("##input", "Send to the device", m_InputBuffer,
+                                                       sizeof(m_InputBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
 
-    // Input field
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - m_App->Dpi(150));
-
-    bool enterPressed = ImGui::InputText("##input", m_InputBuffer, sizeof(m_InputBuffer),
-                                         ImGuiInputTextFlags_EnterReturnsTrue);
-
-    ImGui::SameLine();
-    if (ImGui::Button("Send") || enterPressed)
+    ImGui::SameLine(0.0f, gap);
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+    ImGui::BeginDisabled(!m_IsConnected);
+    const bool sendClicked = ImGui::Button("Send", ImVec2(sendW, 0.0f));
+    ImGui::EndDisabled();
+    ImGui::PopStyleVar();
+    if ((sendClicked || enterPressed) && m_IsConnected && strlen(m_InputBuffer) > 0)
     {
-        if (m_IsConnected && strlen(m_InputBuffer) > 0)
-        {
-            SendCommand(m_InputBuffer);
-            m_InputBuffer[0] = '\0';
-        }
+        SendCommand(m_InputBuffer);
+        m_InputBuffer[0] = '\0';
     }
 
-    ImGui::SameLine();
-    DekiEditor::SchematicCheckbox("\\n", &m_SendNewline);
+    ImGui::SameLine(0.0f, gap);
+    SchematicCheckbox("Newline", &m_SendNewline);
     if (ImGui::IsItemHovered())
-    {
-        DekiEditor::Tooltip("Append newline to sent commands");
-    }
+        DekiEditor::Tooltip("End each line sent with a newline");
 }
 
 std::vector<std::string> SerialMonitorPanel::EnumeratePorts()

@@ -1,4 +1,8 @@
 #include "SDCardDeployPanel.h"
+#include <cfloat>
+#include <deki-editor/IconsTabler.h>
+#include <deki-editor/EditorUI.h>
+#include "inspector/InspectorUtils.h"
 #include "../services/ExportTarget.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
@@ -56,54 +60,60 @@ void SDCardDeployPanel::Draw()
         }
     }
 
-    // Drive selector
-    ImGui::Text("Drive");
-    ImGui::Spacing();
+    // Deploy and look-again in the panel's toolbar; the drive as a row below.
+    const bool hasProject = m_App->GetProject() != nullptr;
+    const bool canDeploy = !m_SelectedDrivePath.empty() && hasProject;
+    const bool isDeploying = m_Deployer && m_Deployer->IsDeploying();
 
+    auto& ui = EditorUI::Get();
+    ui.BeginToolbar();
+    const bool deployClicked = ui.ToolbarButton("Deploy to SD Card", canDeploy && !isDeploying);
+    if (ui.ToolbarIconButton("##refreshdrives", ICON_TI_REFRESH, "Look for removable drives again", !isDeploying))
+        m_NeedsDriveRefresh = true;
+    if (ui.ToolbarIconButton("##clearoutput", ICON_TI_ERASER, "Clear the output"))
+        ClearOutput();
+    ui.EndToolbar();
+
+    if (m_IsDeploying)
+    {
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, Palette::Accent);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, Palette::Line);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+        ImGui::ProgressBar(m_DeployProgress, ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(2);
+    }
+
+    ImGui::Spacing();
+    BeginPropertyContext();
+    InspectorUtils::SetNextRowTooltip("The card, in a USB card reader. Deploy copies the project's assets to it.");
+    InspectorUtils::BeginPropertyRow("Drive");
     if (m_RemovableDrives.empty())
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "No removable drives found");
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(Palette::Amber, "No removable drives found");
     }
     else
     {
         std::vector<const char*> driveItems;
         for (const auto& drive : m_RemovableDrives)
-        {
             driveItems.push_back(drive.second.c_str());
-        }
-
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 70);
-        if (ImGui::Combo("##SDCard", &m_SelectedDriveIndex, driveItems.data(), (int)driveItems.size()))
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (SchematicCombo("##SDCard", &m_SelectedDriveIndex, driveItems.data(), (int)driveItems.size()))
         {
             if (m_SelectedDriveIndex >= 0 && m_SelectedDriveIndex < (int)m_RemovableDrives.size())
-            {
                 m_SelectedDrivePath = m_RemovableDrives[m_SelectedDriveIndex].first;
-            }
         }
-        ImGui::SameLine();
     }
-
-    if (ImGui::Button("Refresh"))
+    if (m_IsDeploying && !m_DeployStatus.empty())
     {
-        m_NeedsDriveRefresh = true;
+        InspectorUtils::BeginPropertyRow("Status");
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(m_DeployStatus.c_str());
     }
-    if (ImGui::IsItemHovered())
-    {
-        DekiEditor::Tooltip("Refresh list of removable drives");
-    }
+    EndPropertyContext();
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // Deploy button
-    bool hasProject = m_App->GetProject() != nullptr;
-    bool canDeploy = !m_SelectedDrivePath.empty() && hasProject;
-    bool isDeploying = m_Deployer && m_Deployer->IsDeploying();
-
-    if (!canDeploy || isDeploying) ImGui::BeginDisabled();
-
-    if (ImGui::Button("Deploy to SD Card", ImVec2(-1, 0)))
+    if (deployClicked)
     {
         if (m_Deployer && m_App->GetProject())
         {
@@ -145,25 +155,13 @@ void SDCardDeployPanel::Draw()
             }
         }
     }
-    if (ImGui::IsItemHovered() && !isDeploying)
-    {
-        DekiEditor::Tooltip("Copy assets to SD card inserted in USB card reader");
-    }
 
-    if (!canDeploy || isDeploying) ImGui::EndDisabled();
-
-    // Progress bar
-    if (m_IsDeploying)
-    {
-        ImGui::Spacing();
-        ImGui::ProgressBar(m_DeployProgress, ImVec2(-1, 0), m_DeployStatus.c_str());
-    }
-
-    // Output log
+    // Output log, full width under a hairline, in the log font.
     ImGui::Spacing();
-    ImGui::Separator();
-
-    ImGui::BeginChild("DeployOutput", ImVec2(0, 0), true);
+    FullBleedSeparator();
+    ImGui::BeginChild("DeployOutput", ImVec2(0, 0), ImGuiChildFlags_None);
+    if (g_FontMonoSmall)
+        ImGui::PushFont(g_FontMonoSmall);
 
     std::vector<OutputLine> outputLines;
     {
@@ -190,6 +188,8 @@ void SDCardDeployPanel::Draw()
         ImGui::SetScrollHereY(1.0f);
     }
 
+    if (g_FontMonoSmall)
+        ImGui::PopFont();
     ImGui::EndChild();
 
     ImGui::End();

@@ -3,6 +3,10 @@
 #include <deki-editor/Paths.h>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <cfloat>
+#include <deki-editor/IconsTabler.h>
+#include <deki-editor/EditorUI.h>
+#include "inspector/InspectorUtils.h"
 #include "ActivityPanel.h"
 #include "EditorApp.h"
 #include <deki-editor/build/PlatformConfig.h>
@@ -25,6 +29,36 @@
 
 namespace DekiEditor
 {
+
+namespace
+{
+using InspectorUtils::BeginPropertyRow;
+
+// A square icon button for a property row (add / edit / delete beside a
+// dropdown): no frame at rest, the toolbar cells' faint fill on hover, dim
+// icon brightening on hover, the palette's red when it removes something.
+bool RowIconButton(const char* id, const char* icon, const char* tooltip, bool enabled = true,
+                   bool destructive = false)
+{
+    const float size = ImGui::GetFrameHeight();
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImGui::BeginDisabled(!enabled);
+    const bool clicked = ImGui::InvisibleButton(id, ImVec2(size, size));
+    const bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+    ImGui::EndDisabled();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    if (hovered && enabled)
+        dl->AddRectFilled(pos, ImVec2(pos.x + size, pos.y + size), IM_COL32(255, 255, 255, 10));
+    ImVec4 col = destructive ? Palette::Red : (hovered ? Palette::Fg : Palette::Dim);
+    if (!enabled)
+        col = Palette::Dim2;
+    const ImVec2 ts = ImGui::CalcTextSize(icon);
+    dl->AddText(ImVec2(pos.x + (size - ts.x) * 0.5f, pos.y + (size - ts.y) * 0.5f), ImGui::GetColorU32(col), icon);
+    if (hovered && tooltip)
+        DekiEditor::Tooltip("%s", tooltip);
+    return clicked && enabled;
+}
+}  // namespace
 
 namespace
 {
@@ -114,43 +148,84 @@ void BuildPanel::Draw()
     }
 
     DrawToolbar();
-    ImGui::Separator();
 
-    DrawPlatformSelector();
-    ImGui::Spacing();
-    DrawToolchainStatusSummary();
-    ImGui::Spacing();
-    DrawPlatformDetails();
-    ImGui::Spacing();
-
-    // Build Options section
-    ImGui::Separator();
-    ImGui::Text("Build Options");
-    ImGui::Spacing();
-
-    DekiEditor::SchematicCheckbox("Enable Logging", &m_EnableLogging);
-    if (ImGui::IsItemHovered())
+    // A thin accent bar under the toolbar while a build or deploy runs; the
+    // Activity panel has the log.
+    if (m_IsBuilding || m_IsUploading)
     {
-        DekiEditor::Tooltip("Enable DEKI_LOG_* macros in firmware.\nDisable for release builds to reduce binary size.");
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, Palette::Accent);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, Palette::Line);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+        ImGui::ProgressBar(m_BuildProgress, ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(2);
     }
 
-    DekiEditor::SchematicCheckbox("Enable Internal Logging", &m_EnableInternalLogging);
-    if (ImGui::IsItemHovered())
+    // The sections scroll under the toolbar, which stays put.
+    ImGui::BeginChild("##buildsections", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None);
+
+    if (SchematicSectionBegin("Target"))
     {
-        DekiEditor::Tooltip("Enable verbose engine-internal logs (DEKI_LOG_INTERNAL).\nUseful for debugging engine issues. Off by default.");
+        BeginPropertyContext();
+        DrawPlatformSelector();
+        DrawDeployTarget();
+        DrawPlatformOrigin();
+        EndPropertyContext();
+        SchematicSectionEnd();
     }
 
-    // Only for a backend that has a simulator (QEMU for ESP32).
-    if (ITargetBuilder* simBuilder = GetActiveBuilder(); simBuilder && simBuilder->SupportsSimulation())
+    if (SchematicSectionBegin("Toolchain"))
     {
-        const std::string label = std::string("Simulate in ") + simBuilder->GetSimulatorName();
-        DekiEditor::SchematicCheckbox(label.c_str(), &m_Simulate);
-        if (ImGui::IsItemHovered())
+        BeginPropertyContext();
+        DrawToolchainStatusSummary();
+        EndPropertyContext();
+        SchematicSectionEnd();
+    }
+
+    if (SchematicSectionBegin("Platform"))
+    {
+        BeginPropertyContext();
+        DrawPlatformDetails();
+        EndPropertyContext();
+        SchematicSectionEnd();
+    }
+
+    if (m_App->GetProject() && SchematicSectionBegin("Stripping"))
+    {
+        BeginPropertyContext();
+        DrawStripping();
+        EndPropertyContext();
+        SchematicSectionEnd();
+    }
+
+    if (SchematicSectionBegin("Options"))
+    {
+        BeginPropertyContext();
+        InspectorUtils::SetNextRowTooltip("Keep the DEKI_LOG_* macros in the firmware. Off for release builds, "
+                                          "which are smaller without them.");
+        BeginPropertyRow("Logging");
+        SchematicCheckbox("##logging", &m_EnableLogging);
+
+        InspectorUtils::SetNextRowTooltip("Verbose engine-internal logs (DEKI_LOG_INTERNAL), for debugging the "
+                                          "engine itself.");
+        BeginPropertyRow("Internal Logging");
+        SchematicCheckbox("##internallogging", &m_EnableInternalLogging);
+
+        // Only for a backend that has a simulator (QEMU for ESP32).
+        if (ITargetBuilder* simBuilder = GetActiveBuilder(); simBuilder && simBuilder->SupportsSimulation())
         {
-            DekiEditor::Tooltip("Build this board's firmware to run in the simulator instead of on the board, "
-                                "and run it there. The board's boot scene and its own build are not touched.");
+            InspectorUtils::SetNextRowTooltip("Build this board's firmware for the simulator instead of the board, "
+                                              "and run it there. The board's boot scene and its own build are "
+                                              "not touched.");
+            const std::string label = std::string("Simulate in ") + simBuilder->GetSimulatorName();
+            BeginPropertyRow(label.c_str());
+            SchematicCheckbox("##simulate", &m_Simulate);
         }
+        EndPropertyContext();
+        SchematicSectionEnd();
     }
+
+    ImGui::EndChild();
 
     // Platform editor dialog
     m_PlatformEditor.Draw();
@@ -264,27 +339,11 @@ void BuildPanel::DrawToolbar()
 {
     // Get builder for the active platform
     ITargetBuilder* builder = GetActiveBuilder();
-    bool isBusy = (builder && builder->IsBuilding());
-
-    // Build button
-    if (isBusy) ImGui::BeginDisabled();
-
-    if (ImGui::Button("Build"))
-    {
-        m_DeployAfterBuild = false;
-        StartBuild();
-    }
-
-    if (isBusy) ImGui::EndDisabled();
-
-    ImGui::SameLine();
+    const bool isBusy = (builder && builder->IsBuilding());
 
     // Deploy, in the active backend's own words: its verb on the button, its
-    // targets in the selector. This was a "Flash" button and a serial-port
-    // list for every target, which is one kind of target's idea of deploying
-    // - the desktop backend took the port and ignored it. A backend with no
-    // deploy step gets no button, and one with nothing to choose between gets
-    // no selector.
+    // targets in the selector (DrawDeployTarget). A backend with no deploy
+    // step gets no button.
     ITargetBuilder* const activeBuilder = GetActiveBuilder();
     if (activeBuilder != m_DeployTargetsOwner)
         RefreshDeployTargets();
@@ -303,74 +362,32 @@ void BuildPanel::DrawToolbar()
         }
     }
 
+    auto& ui = EditorUI::Get();
+    ui.BeginToolbar();
+
+    if (ui.ToolbarButton("Build", !isBusy))
+    {
+        m_DeployAfterBuild = false;
+        StartBuild();
+    }
+
     if (activeBuilder != nullptr && activeBuilder->SupportsDeploy())
     {
         const std::string verb = activeBuilder->GetDeployLabel();
-
-        if (isBusy) ImGui::BeginDisabled();
-
-        if (ImGui::Button(verb.c_str()))
-        {
+        if (ui.ToolbarButton(verb.c_str(), !isBusy))
             StartDeploy();
-        }
-
-        if (isBusy) ImGui::EndDisabled();
-
-        ImGui::SameLine();
-
-        if (isBusy) ImGui::BeginDisabled();
-
-        if (ImGui::Button(("Build & " + verb).c_str()))
+        if (ui.ToolbarButton(("Build & " + verb).c_str(), !isBusy))
         {
             m_DeployAfterBuild = true;
             StartBuild();
         }
-
-        if (isBusy) ImGui::EndDisabled();
-
-        ImGui::SameLine();
-
-        if (!m_DeployTargets.empty())
-        {
-            auto labelOf = [](const DeployTarget& t) -> const std::string&
-            { return t.label.empty() ? t.id : t.label; };
-
-            std::string current = m_SelectedDeployTarget;
-            for (const DeployTarget& t : m_DeployTargets)
-                if (t.id == m_SelectedDeployTarget)
-                    current = labelOf(t);
-
-            ImGui::SetNextItemWidth(m_App->Dpi(100));
-            if (ImGui::BeginCombo("##DeployTarget", current.c_str()))
-            {
-                for (const DeployTarget& t : m_DeployTargets)
-                {
-                    const bool selected = (t.id == m_SelectedDeployTarget);
-                    if (ImGui::Selectable(labelOf(t).c_str(), selected))
-                        m_SelectedDeployTarget = t.id;
-                    if (selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-
-            ImGui::SameLine();
-        }
-
-        // Offered even with an empty list: plugging a device in is how the
-        // list stops being empty.
-        if (ImGui::Button("Refresh"))
-        {
+        // Offered even when nothing is listed: plugging a device in is how
+        // the list stops being empty.
+        if (ui.ToolbarIconButton("##refreshtargets", ICON_TI_REFRESH, "Look for devices again", !isBusy))
             RefreshDeployTargets();
-        }
-
-        ImGui::SameLine();
     }
 
-    // Clean button
-    if (isBusy) ImGui::BeginDisabled();
-
-    if (ImGui::Button("Clean"))
+    if (ui.ToolbarIconButton("##clean", ICON_TI_ERASER, "Clean: delete this platform's build output", !isBusy))
     {
         if (builder && m_App->GetProject())
         {
@@ -391,15 +408,31 @@ void BuildPanel::DrawToolbar()
         }
     }
 
-    if (isBusy) ImGui::EndDisabled();
+    ui.EndToolbar();
+}
 
-    // Progress bar during build/upload
-    if (m_IsBuilding || m_IsUploading)
+// Where a deploy goes, when the backend has places to choose between: a port,
+// a device. A backend with none (the desktop) shows no row; the toolbar's
+// refresh looks again.
+void BuildPanel::DrawDeployTarget()
+{
+    ITargetBuilder* const builder = GetActiveBuilder();
+    if (builder == nullptr || !builder->SupportsDeploy() || m_DeployTargets.empty())
+        return;
+
+    std::vector<const char*> labels;
+    int current = 0;
+    for (size_t i = 0; i < m_DeployTargets.size(); ++i)
     {
-        ImGui::SameLine();
-        const char* progressLabel = m_IsBuilding ? "Building..." : "Uploading...";
-        ImGui::ProgressBar(m_BuildProgress, ImVec2(100, 0), progressLabel);
+        const DeployTarget& t = m_DeployTargets[i];
+        labels.push_back(t.label.empty() ? t.id.c_str() : t.label.c_str());
+        if (t.id == m_SelectedDeployTarget)
+            current = static_cast<int>(i);
     }
+    BeginPropertyRow("Deploy To");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (SchematicCombo("##deploytarget", &current, labels.data(), static_cast<int>(labels.size())))
+        m_SelectedDeployTarget = m_DeployTargets[current].id;
 }
 
 void BuildPanel::StartBuild()
@@ -538,9 +571,6 @@ void BuildPanel::StartDeploy()
 
 void BuildPanel::DrawPlatformSelector()
 {
-    ImGui::Text("Target Platform");
-    ImGui::Spacing();
-
     auto& registry = PlatformRegistry::Instance();
     auto platforms = registry.GetPlatformDisplayList();
 
@@ -568,15 +598,16 @@ void BuildPanel::DrawPlatformSelector()
         currentIndex = 0;  // Fallback for empty list
     }
 
-    // Platform dropdown with management buttons
-    float buttonWidth = 25.0f;
-    float spacing = ImGui::GetStyle().ItemSpacing.x;
-    float totalButtonsWidth = buttonWidth * 3 + spacing * 3;
+    // The platform, then its add / edit / delete icons on the same row.
+    BeginPropertyRow("Platform");
+    const float icon = ImGui::GetFrameHeight();
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float iconsWidth = icon * 3.0f + gap * 3.0f;
 
     if (!items.empty())
     {
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - totalButtonsWidth);
-        if (ImGui::Combo("##Platform", &currentIndex, items.data(), static_cast<int>(items.size())))
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - iconsWidth);
+        if (SchematicCombo("##Platform", &currentIndex, items.data(), static_cast<int>(items.size())))
         {
             m_SelectedPlatform = platforms[currentIndex].first;
             m_SelectedPlatformIndex = currentIndex;
@@ -623,24 +654,19 @@ void BuildPanel::DrawPlatformSelector()
     }
     else
     {
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - totalButtonsWidth);
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "No platforms");
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(Palette::Dim, "No platforms");
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - iconsWidth));
     }
 
-    // Add new platform button
-    ImGui::SameLine();
-    if (ImGui::Button("+", ImVec2(buttonWidth, 0)))
-    {
+    ImGui::SameLine(0.0f, gap);
+    if (RowIconButton("##addplatform", ICON_TI_PLUS, "Add a platform"))
         m_PlatformEditor.ShowNew();
-    }
-    if (ImGui::IsItemHovered())
-        DekiEditor::Tooltip("Add new platform");
 
-    // Edit platform button
-    ImGui::SameLine();
-    bool canEdit = !m_SelectedPlatform.empty() && registry.GetPlatform(m_SelectedPlatform) != nullptr;
-    if (!canEdit) ImGui::BeginDisabled();
-    if (ImGui::Button("E", ImVec2(buttonWidth, 0)))
+    const bool canEdit = !m_SelectedPlatform.empty() && registry.GetPlatform(m_SelectedPlatform) != nullptr;
+    ImGui::SameLine(0.0f, gap);
+    if (RowIconButton("##editplatform", ICON_TI_PENCIL, "Edit this platform", canEdit))
     {
         // One a package only offers becomes the project's own first, boot
         // scene included: saving the dialog alone would write just the JSON.
@@ -650,30 +676,16 @@ void BuildPanel::DrawPlatformSelector()
             if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
                 ActivityPanel::LogError("Build", adoptErr);
         }
-
-        const PlatformConfig* platform = registry.GetPlatform(m_SelectedPlatform);
-        if (platform)
-        {
+        if (const PlatformConfig* platform = registry.GetPlatform(m_SelectedPlatform))
             m_PlatformEditor.ShowEdit(platform);
-        }
     }
-    if (!canEdit) ImGui::EndDisabled();
-    if (ImGui::IsItemHovered())
-        DekiEditor::Tooltip("Edit selected platform");
 
-    // Delete platform button
-    ImGui::SameLine();
-    if (!canEdit) ImGui::BeginDisabled();
-    if (ImGui::Button("X", ImVec2(buttonWidth, 0)))
+    ImGui::SameLine(0.0f, gap);
+    if (RowIconButton("##deleteplatform", ICON_TI_TRASH, "Delete this platform", canEdit, /*destructive*/ true))
     {
         m_PlatformToDelete = m_SelectedPlatform;
         m_ShowDeleteConfirm = true;
     }
-    if (!canEdit) ImGui::EndDisabled();
-    if (ImGui::IsItemHovered())
-        DekiEditor::Tooltip("Delete selected platform");
-
-    DrawPlatformOrigin();
 }
 
 void BuildPanel::DrawPlatformOrigin()
@@ -694,32 +706,33 @@ void BuildPanel::DrawPlatformOrigin()
     if (!m_Origin.fromPackage)
         return;
 
-    std::string source = "From package " + m_Origin.packageId;
+    // Where it came from, and how it stands against that package now.
+    std::string source = m_Origin.packageId;
     if (!m_Origin.adoptedVersion.empty())
         source += " " + m_Origin.adoptedVersion;
-    ImGui::TextDisabled("%s", source.c_str());
+    BeginPropertyRow("From Package");
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(source.c_str());
 
     if (!m_Origin.packageInstalled)
     {
         ImGui::SameLine();
-        ImGui::TextDisabled("(not installed)");
+        ImGui::TextColored(Palette::Dim, "not installed");
         if (ImGui::IsItemHovered())
             DekiEditor::Tooltip("The platform is the project's own copy and still builds.\n"
                                 "Install the package to update or restore it.");
     }
-
     if (m_Origin.modified)
     {
         ImGui::SameLine();
-        ImGui::Text("%s", m_Origin.recorded ? "- modified" : "- differs from the package");
+        ImGui::TextColored(Palette::Dim, "%s", m_Origin.recorded ? "modified" : "differs from the package");
         if (ImGui::IsItemHovered())
             DekiEditor::Tooltip("Changed in this project: %s", JoinNames(m_Origin.modifiedItems).c_str());
     }
-
     if (m_Origin.updateAvailable)
     {
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "- update available");
+        ImGui::TextColored(Palette::Amber, "update available");
         if (ImGui::IsItemHovered())
         {
             std::string tip = "Changed in the package";
@@ -729,158 +742,169 @@ void BuildPanel::DrawPlatformOrigin()
         }
     }
 
-    if (m_Origin.CanUpdate())
+    if (m_Origin.CanUpdate() || m_Origin.CanRestore())
     {
-        if (ImGui::SmallButton("Update"))
-        {
-            const std::string package = m_Origin.packageId;
-            const PlatformSyncResult result = UpdatePlatformFromPackage(project->GetPath(), m_SelectedPlatform);
-            if (!result.ok)
-            {
-                ActivityPanel::LogError("Build", result.error);
-                m_OriginNotice = result.error;
-            }
-            else
-            {
-                m_OriginNotice = "Updated from " + package + ".";
-                if (!result.taken.empty())
-                    m_OriginNotice += " Took: " + JoinNames(result.taken) + ".";
-                if (!result.kept.empty())
-                    m_OriginNotice += " Kept yours, which the package also changed: " + JoinNames(result.kept) + ".";
-                if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform))
-                    RegenerateBuildFiles(*config);
-            }
-        }
-        if (ImGui::IsItemHovered())
-            DekiEditor::Tooltip("Take the package's changes and keep this project's own.");
-    }
-
-    if (m_Origin.CanRestore())
-    {
+        BeginPropertyRow("");
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
         if (m_Origin.CanUpdate())
-            ImGui::SameLine();
-        if (ImGui::SmallButton("Restore defaults"))
-            m_ShowRestoreConfirm = true;
-        if (ImGui::IsItemHovered())
-            DekiEditor::Tooltip("Replace this platform with the package's version.");
+        {
+            if (ImGui::Button("Update"))
+            {
+                const std::string package = m_Origin.packageId;
+                const PlatformSyncResult result = UpdatePlatformFromPackage(project->GetPath(), m_SelectedPlatform);
+                if (!result.ok)
+                {
+                    ActivityPanel::LogError("Build", result.error);
+                    m_OriginNotice = result.error;
+                }
+                else
+                {
+                    m_OriginNotice = "Updated from " + package + ".";
+                    if (!result.taken.empty())
+                        m_OriginNotice += " Took: " + JoinNames(result.taken) + ".";
+                    if (!result.kept.empty())
+                        m_OriginNotice += " Kept yours, which the package also changed: " + JoinNames(result.kept) + ".";
+                    if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform))
+                        RegenerateBuildFiles(*config);
+                }
+            }
+            if (ImGui::IsItemHovered())
+                DekiEditor::Tooltip("Take the package's changes and keep this project's own.");
+            if (m_Origin.CanRestore())
+                ImGui::SameLine();
+        }
+        if (m_Origin.CanRestore())
+        {
+            if (ImGui::Button("Restore Defaults"))
+                m_ShowRestoreConfirm = true;
+            if (ImGui::IsItemHovered())
+                DekiEditor::Tooltip("Replace this platform with the package's version.");
+        }
+        ImGui::PopStyleVar();
     }
 
     if (!m_OriginNotice.empty())
+    {
+        BeginPropertyRow("");
         ImGui::TextWrapped("%s", m_OriginNotice.c_str());
+    }
 }
 
 void BuildPanel::DrawToolchainStatusSummary()
 {
-    ImGui::Text("Toolchain");
-    ImGui::Spacing();
+    BeginPropertyRow("Status");
+    ImGui::AlignTextToFramePadding();
 
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)
     {
-        ImGui::TextDisabled("Select a platform");
+        ImGui::TextColored(Palette::Dim, "Select a platform");
         return;
     }
 
     ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
     if (!builder)
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "No builder for this platform family");
+        ImGui::TextColored(Palette::Red, "No builder for this platform family");
         return;
     }
 
     if (builder->IsToolchainInstalled())
     {
-        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Ready");
+        ImGui::TextColored(Palette::Green, "Ready");
         ImGui::SameLine();
-        ImGui::TextDisabled("(%s)", builder->GetName());
+        ImGui::TextColored(Palette::Dim, "%s", builder->GetName());
     }
     else
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Not installed");
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Open Platform Manager"))
+        ImGui::TextColored(Palette::Red, "Not installed");
+        BeginPropertyRow("");
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+        if (ImGui::Button("Open Platform Manager"))
         {
-            auto* platformMgr = m_App->GetPlatformManagerPanel();
-            if (platformMgr)
-            {
+            if (auto* platformMgr = m_App->GetPlatformManagerPanel())
                 platformMgr->SetOpen(true);
-            }
         }
+        ImGui::PopStyleVar();
     }
 }
 
 void BuildPanel::DrawPlatformDetails()
 {
-    ImGui::Text("Platform Info");
-    ImGui::Spacing();
-
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)
     {
-        ImGui::TextDisabled("No platform selected");
+        BeginPropertyRow("");
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(Palette::Dim, "No platform selected");
         return;
     }
 
-    // Display key info in a compact format
-    ImGui::TextDisabled("Family:");
-    ImGui::SameLine();
+    auto row = [](const char* label, const std::string& value)
+    {
+        BeginPropertyRow(label);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(value.c_str());
+    };
+
     // The platform's own spelling: the editor has no list of families.
-    ImGui::Text("%s", platform->family.empty() ? "custom" : platform->family.c_str());
+    row("Family", platform->family.empty() ? "custom" : platform->family);
 
     // Whatever the backend thinks is worth saying about its own kind of
     // target. The editor printed "Chip", "Flash" and "PSRAM" here itself.
     if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
     {
         for (const auto& [label, value] : describer->DescribePlatform(*platform))
-        {
-            ImGui::TextDisabled("%s:", label.c_str());
-            ImGui::SameLine();
-            ImGui::Text("%s", value.c_str());
-        }
+            row(label.c_str(), value);
     }
 
     if (platform->screenWidth > 0 && platform->screenHeight > 0)
+        row("Display", std::to_string(platform->screenWidth) + "x" + std::to_string(platform->screenHeight));
+}
+
+// Stripping: what a device build leaves out (services/FeatureResolver). The
+// editor's own builds never strip; it has to open every scene.
+void BuildPanel::DrawStripping()
+{
+    auto* project = m_App->GetProject();
+    if (!project)
+        return;
+    if (m_StripProject != project->GetPath())
     {
-        ImGui::TextDisabled("Display:");
-        ImGui::SameLine();
-        ImGui::Text("%dx%d", platform->screenWidth, platform->screenHeight);
+        m_Strip = BuildStripSettings::Load(project->GetPath());
+        m_StripProject = project->GetPath();
+        m_StripSummary.clear();
     }
 
-    // Stripping: what a device build leaves out (services/FeatureResolver).
-    // The editor's own builds never strip; it has to open every scene.
-    if (auto* project = m_App->GetProject())
+    bool changed = false;
+    InspectorUtils::SetNextRowTooltip("Leave out a feature none of whose components any scene or source names. "
+                                      "Pin a feature in the Package Manager if a script creates it in a way the "
+                                      "scan cannot see.");
+    BeginPropertyRow("Unused Components");
+    changed |= SchematicCheckbox("##stripcomponents", &m_Strip.stripUnusedComponents);
+    InspectorUtils::SetNextRowTooltip("Leave out a package none of whose components any scene or source names, and "
+                                      "that nothing kept requires. Packages without components (drivers, "
+                                      "protocols) are never touched.");
+    BeginPropertyRow("Unused Packages");
+    changed |= SchematicCheckbox("##strippackages", &m_Strip.stripUnusedPackages);
+    if (changed)
     {
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Text("Stripping");
-        if (m_StripProject != project->GetPath())
-        {
-            m_Strip = BuildStripSettings::Load(project->GetPath());
-            m_StripProject = project->GetPath();
-            m_StripSummary.clear();
-        }
-        bool changed = false;
-        changed |= ImGui::Checkbox("Strip unused components", &m_Strip.stripUnusedComponents);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Leave out a feature none of whose components any scene or source names.\n"
-                              "Pin a feature in the Package Manager if a script creates it in a way the scan cannot see.");
-        changed |= ImGui::Checkbox("Strip unused packages", &m_Strip.stripUnusedPackages);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Leave out a package none of whose components any scene or source names, and that nothing kept requires.\n"
-                              "Packages without components (drivers, protocols) are never touched.");
-        if (changed)
-        {
-            m_Strip.Save(project->GetPath());
-            m_StripSummary.clear();
-        }
-        if (m_StripSummary.empty())
-            m_StripSummary = ComputeStripPlan(project->GetPath(), project->GetActivePlatformId()).summary;
-        ImGui::TextWrapped("%s", m_StripSummary.c_str());
-        if (ImGui::SmallButton("Recompute"))
-            m_StripSummary.clear();
-        ImGui::SameLine();
-        ImGui::TextDisabled("simulator and firmware builds only");
+        m_Strip.Save(project->GetPath());
+        m_StripSummary.clear();
     }
+
+    if (m_StripSummary.empty())
+        m_StripSummary = ComputeStripPlan(project->GetPath(), project->GetActivePlatformId()).summary;
+    InspectorUtils::SetNextRowTooltip("Simulator and firmware builds only.");
+    BeginPropertyRow("Leaves Out");
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+    ImGui::TextWrapped("%s", m_StripSummary.c_str());
+    ImGui::PopStyleColor();
+    BeginPropertyRow("");
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+    if (ImGui::Button("Recompute"))
+        m_StripSummary.clear();
+    ImGui::PopStyleVar();
 }
 
 void BuildPanel::SetSelectedPlatform(const std::string& platformId)
