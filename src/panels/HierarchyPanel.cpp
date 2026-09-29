@@ -3,6 +3,7 @@
 #include "../PanelMaximize.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include <deki/Object.h>
 #include <deki/Engine.h>
@@ -50,6 +51,10 @@ void HierarchyPanel::Draw()
 
     ImGui::Begin("HIERARCHY###Hierarchy", &m_Open, DekiEditor::MaximizedWindowFlags("HIERARCHY###Hierarchy"));
     auto* scene = m_App->GetCurrentScene();
+
+    // Rows read last frame's hover (see DrawObjectNode).
+    m_HoveredRow = m_HoveredRowNext;
+    m_HoveredRowNext = 0;
 
     // Breadcrumb navigation header
     const auto& navStack = m_App->GetSceneNavigationStack();
@@ -659,8 +664,9 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     if (obj->GetChildren().empty())
         flags |= ImGuiTreeNodeFlags_Leaf;
 
-    if (m_App->IsSelected(obj))
-        flags |= ImGuiTreeNodeFlags_Selected;
+    // The row's highlight is set where the node is drawn: it fades in and out
+    // with selection and hover, so "selected" there means "highlight showing".
+    const bool isSelected = m_App->IsSelected(obj);
 
     // Auto-expand if any selected object is a descendant of this node
     // Skip if this node was just collapsed via Left arrow key
@@ -749,16 +755,29 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         lblCol = ImGui::ColorConvertFloat4ToU32(faded);
     }
     // Cyan selection/hover background (the global Header is transparent, so a
-    // selected row would otherwise show only the accent left border).
+    // selected row would otherwise show only the accent left border). It
+    // fades: selection and hover each ease in and out per row, and the row is
+    // drawn with the blend of the two. Hover is last frame's, since this
+    // frame's is only known once the row is submitted - so a row entered by
+    // the mouse starts from nothing and fades up instead of flashing on.
     const ImVec4 acc = DekiEditor::Palette::Accent;
+    const ImGuiID rowId = ImGui::GetID((void*)obj);
+    const float selT = Motion::EaseOut(Motion::To(rowId ^ 0x5E1EC7u, isSelected ? 1.0f : 0.0f, Motion::Fast));
+    const float hovT = Motion::EaseOut(Motion::To(rowId ^ 0x40E7EDu, m_HoveredRow == rowId ? 1.0f : 0.0f, Motion::Fast));
+    const float rowAlpha = ImMax(0.22f * selT, 0.12f * hovT);
+    if (rowAlpha > 0.0f)
+        flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
+    const ImVec4 rowBg(acc.x, acc.y, acc.z, rowAlpha);
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(acc.x, acc.y, acc.z, 0.22f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(acc.x, acc.y, acc.z, 0.12f));
+    ImGui::PushStyleColor(ImGuiCol_Header, rowBg);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, rowBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(acc.x, acc.y, acc.z, 0.18f));
     bool open = ImGui::TreeNodeEx((void*)obj, flags, "%s", "");
     // The node's id, captured before anything else is submitted: the children
     // slide open and shut against it (see SchematicTreeBodyBegin).
     const ImGuiID nodeId = ImGui::GetItemID();
+    if (ImGui::IsItemHovered())
+        m_HoveredRowNext = rowId;
     ImGui::PopStyleColor(4);
     DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf),
                              obj->GetName().c_str(), lblCol);
@@ -767,13 +786,15 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // Mockup-style 2px accent left border on the selected row (line 98 of
     // the React mockup). Overlay on the window draw list so it sits on top of
     // the row's bg highlight.
-    if (m_App->IsSelected(obj))
+    if (selT > 0.0f)
     {
         const ImVec2 rmin = ImGui::GetItemRectMin();
         const ImVec2 rmax = ImGui::GetItemRectMax();
+        ImVec4 bar = Palette::Accent;
+        bar.w *= selT;
         ImGui::GetWindowDrawList()->AddRectFilled(
             ImVec2(rmin.x, rmin.y), ImVec2(rmin.x + 2.0f, rmax.y),
-            ImGui::ColorConvertFloat4ToU32(Palette::Accent));
+            ImGui::ColorConvertFloat4ToU32(bar));
     }
 
     // Sync ImGui nav focus to match our selection after arrow key navigation

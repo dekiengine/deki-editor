@@ -64,6 +64,11 @@ private:
     // Flattened object list for arrow key navigation and Shift+click range selection
     std::vector<Deki::Object*> m_FlattenedObjects;
 
+    // The row under the mouse last frame, and the one found this frame. Rows
+    // fade their hover highlight from it (DrawObjectNode).
+    ImGuiID m_HoveredRow = 0;
+    ImGuiID m_HoveredRowNext = 0;
+
     // Arrow key navigation state
     Deki::Object* m_CollapsedByArrow = nullptr;  // Suppress auto-expand for node collapsed via Left arrow
     bool m_ArrowKeyHandled = false;            // Prevent multiple nodes handling same key press
