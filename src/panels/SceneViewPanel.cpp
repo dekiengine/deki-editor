@@ -55,6 +55,89 @@ namespace
 {
 // Frame of the last Scene view object drag/resize; -2 so frame 0 is not "editing".
 int s_EditingObjectsFrame = -2;
+
+float Saturate(double v)
+{
+    return static_cast<float>(v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v));
+}
+
+// How strongly to draw a grid line whose neighbours on its own level are
+// `spacing` screen pixels away. Minor lines fade in over [min, 2*min], major
+// lines strengthen over [4*min, 8*min]. Driven by the line's own spacing, so
+// zooming changes every line continuously - nothing pops between levels -
+// and at 1:1 it is the old look (16 px cells at 40, every 4th line at 80).
+float GridLineAlpha(double spacing, float minSpacing)
+{
+    constexpr float kMinorAlpha = 40.0f, kMajorAlpha = 80.0f;
+    return kMinorAlpha * Saturate((spacing - minSpacing) / minSpacing) +
+           (kMajorAlpha - kMinorAlpha) * Saturate((spacing - 4.0 * minSpacing) / (4.0 * minSpacing));
+}
+
+// One axis of the grid. `origin` is the screen position of line 0, `cell` the
+// finest spacing, [lo, hi] the visible range along the axis and [spanLo,
+// spanHi] across it. Lines are placed by index - never accumulated - and
+// coarsened by 4 until they are at least `minSpacing` apart, so there are a
+// few hundred at most at any zoom. Each is snapped to a pixel centre so it
+// stays a crisp single pixel instead of smearing over two faint ones.
+void DrawGridAxis(ImDrawList* dl, bool vertical, double origin, double cell,
+                  float lo, float hi, float spanLo, float spanHi, float minSpacing)
+{
+    if (cell <= 0.0)
+        return;
+    double base = cell;
+    int guard = 0;
+    while (base < minSpacing && guard++ < 32)
+        base *= 4.0;
+
+    const long long first = static_cast<long long>(std::ceil((lo - origin) / base));
+    const long long last = static_cast<long long>(std::floor((hi - origin) / base));
+    for (long long i = first; i <= last; ++i)
+    {
+        // The line's own level: the most times 4 divides its index. Line 0 is
+        // on every level.
+        double spacing = base;
+        long long j = i;
+        for (int k = 0; k < 16 && j != 0 && j % 4 == 0; ++k)
+        {
+            j /= 4;
+            spacing *= 4.0;
+        }
+        if (j == 0)
+            spacing = 1e9;
+
+        const float alpha = GridLineAlpha(spacing, minSpacing);
+        if (alpha < 1.0f)
+            continue;
+        const ImU32 col = IM_COL32(255, 255, 255, static_cast<int>(alpha + 0.5f));
+        const float p = std::floor(static_cast<float>(origin + static_cast<double>(i) * base)) + 0.5f;
+        if (vertical)
+            dl->AddLine(ImVec2(p, spanLo), ImVec2(p, spanHi), col);
+        else
+            dl->AddLine(ImVec2(spanLo, p), ImVec2(spanHi, p), col);
+    }
+}
+
+// Pixel grid: one line per world pixel, fading in between 2.5x and 4x (the
+// maximum zoom, where it used to switch on at full strength) instead of
+// appearing all at once.
+void DrawPixelGridAxis(ImDrawList* dl, bool vertical, double origin, float pixelSize,
+                       float lo, float hi, float spanLo, float spanHi)
+{
+    const float alpha = 20.0f * Saturate((pixelSize - 2.5f) / 1.5f);
+    if (alpha < 1.0f)
+        return;
+    const ImU32 col = IM_COL32(255, 255, 255, static_cast<int>(alpha + 0.5f));
+    const long long first = static_cast<long long>(std::ceil((lo - origin) / pixelSize));
+    const long long last = static_cast<long long>(std::floor((hi - origin) / pixelSize));
+    for (long long i = first; i <= last; ++i)
+    {
+        const float p = std::floor(static_cast<float>(origin + static_cast<double>(i) * pixelSize)) + 0.5f;
+        if (vertical)
+            dl->AddLine(ImVec2(p, spanLo), ImVec2(p, spanHi), col);
+        else
+            dl->AddLine(ImVec2(spanLo, p), ImVec2(spanHi, p), col);
+    }
+}
 }  // namespace
 
 bool SceneViewPanel::IsEditingObjects()
@@ -992,55 +1075,20 @@ void SceneViewPanel::DrawSceneCanvas()
     // Draw grid
     if (m_Toolbar->ShowGrid() && m_Toolbar->GetGridSize() > 0)
     {
-        float gridStep = m_Toolbar->GetGridSize() * effectiveZoom;
-        ImU32 gridColor = IM_COL32(255, 255, 255, 40);
-        ImU32 gridColorMajor = IM_COL32(255, 255, 255, 80);
+        const float canvasLeft = m_CanvasTopLeft.x;
+        const float canvasTop = m_CanvasTopLeft.y;
+        const float canvasRight = m_CanvasTopLeft.x + m_CanvasSize.x;
+        const float canvasBottom = m_CanvasTopLeft.y + m_CanvasSize.y;
 
-        float canvasLeft = m_CanvasTopLeft.x;
-        float canvasTop = m_CanvasTopLeft.y;
-        float canvasRight = m_CanvasTopLeft.x + m_CanvasSize.x;
-        float canvasBottom = m_CanvasTopLeft.y + m_CanvasSize.y;
+        // Cells are GetGridSize() anchor pixels; lines stay at least 8 px
+        // apart on screen however far out the view is zoomed.
+        const double cell = static_cast<double>(m_Toolbar->GetGridSize()) * effectiveZoom;
+        const float minSpacing = 8.0f * dpi;
 
-        float offsetX = fmod(sceneLeft - canvasLeft, gridStep);
-        float offsetY = fmod(sceneTop - canvasTop, gridStep);
-
-        for (float x = canvasLeft + offsetX; x <= canvasRight; x += gridStep)
-        {
-            float worldX = (x - sceneLeft) / effectiveZoom;
-            bool isMajor = (std::abs(fmod(worldX, m_Toolbar->GetGridSize() * 4)) < 0.5f);
-            drawList->AddLine(ImVec2(x, canvasTop), ImVec2(x, canvasBottom),
-                              isMajor ? gridColorMajor : gridColor);
-        }
-
-        for (float y = canvasTop + offsetY; y <= canvasBottom; y += gridStep)
-        {
-            float worldY = (y - sceneTop) / effectiveZoom;
-            bool isMajor = (std::abs(fmod(worldY, m_Toolbar->GetGridSize() * 4)) < 0.5f);
-            drawList->AddLine(ImVec2(canvasLeft, y), ImVec2(canvasRight, y),
-                              isMajor ? gridColorMajor : gridColor);
-        }
-
-        // Draw pixel grid when zoomed in enough (1 world pixel = 1 cell)
-        if (effectiveZoom >= 4.0f)
-        {
-            ImU32 pixelGridColor = IM_COL32(255, 255, 255, 20);
-            float pixelStep = effectiveZoom;  // 1 world pixel in physical pixels
-
-            float pixelOffsetX = fmod(sceneLeft - canvasLeft, pixelStep);
-            float pixelOffsetY = fmod(sceneTop - canvasTop, pixelStep);
-
-            for (float x = canvasLeft + pixelOffsetX; x <= canvasRight; x += pixelStep)
-            {
-                drawList->AddLine(ImVec2(std::floor(x), canvasTop), ImVec2(std::floor(x), canvasBottom),
-                                  pixelGridColor);
-            }
-
-            for (float y = canvasTop + pixelOffsetY; y <= canvasBottom; y += pixelStep)
-            {
-                drawList->AddLine(ImVec2(canvasLeft, std::floor(y)), ImVec2(canvasRight, std::floor(y)),
-                                  pixelGridColor);
-            }
-        }
+        DrawPixelGridAxis(drawList, true, sceneLeft, effectiveZoom, canvasLeft, canvasRight, canvasTop, canvasBottom);
+        DrawPixelGridAxis(drawList, false, sceneTop, effectiveZoom, canvasTop, canvasBottom, canvasLeft, canvasRight);
+        DrawGridAxis(drawList, true, sceneLeft, cell, canvasLeft, canvasRight, canvasTop, canvasBottom, minSpacing);
+        DrawGridAxis(drawList, false, sceneTop, cell, canvasTop, canvasBottom, canvasLeft, canvasRight, minSpacing);
     }
 
     drawList->PopClipRect();
