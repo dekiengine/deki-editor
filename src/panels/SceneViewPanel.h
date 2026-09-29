@@ -74,6 +74,9 @@ public:
 private:
     void DrawSceneCanvas();
     void HandleInput();
+    // Adjust the pan so the world point `world` sits at screen point `screen`
+    // at the current zoom (zoom-to-cursor).
+    void KeepWorldPointAt(const ImVec2& world, const ImVec2& screen);
 
     // Get camera from scene (creates default if none exists)
     Deki::ICamera* GetSceneCamera();
@@ -100,6 +103,11 @@ private:
 
     // View state
     float m_Zoom = 1.0f;
+    // Wheel zoom eases: m_Zoom follows this target each frame (Motion), and the
+    // pan keeps the world point that was under the cursor at the cursor.
+    float m_ZoomTarget = 1.0f;
+    ImVec2 m_ZoomAnchorScreen;
+    ImVec2 m_ZoomAnchorWorld;
     float m_PanOffsetX = 0.0f;
     float m_PanOffsetY = 0.0f;
     bool m_IsPanning = false;

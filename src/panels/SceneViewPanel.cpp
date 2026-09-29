@@ -14,6 +14,7 @@
 #include "scene_view/SceneSnapping.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include "../core/Units.h"
 #include "InspectorPanel.h"
 #include <deki-editor/CommandHistory.h>
@@ -30,6 +31,7 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
 #include "imgui.h"
+#include "imgui_internal.h"  // ImHashStr
 #include <SDL3/SDL_opengl.h>
 #include <SDL3/SDL_video.h>
 #include <algorithm>
@@ -264,46 +266,57 @@ void SceneViewPanel::HandleInput()
         }
     }
 
-    // Zooming with Mouse Wheel
+    // Zooming with Mouse Wheel: each notch moves the target, and the zoom eases
+    // there below, around the world point that was under the cursor.
+    const ImGuiID zoomKey = ImHashStr("SceneViewZoom");
     if (isCanvasHovered && io.MouseWheel != 0)
     {
-        ImVec2 mousePos = io.MousePos;
-        ImVec2 worldBeforeZoom = m_Coords->ScreenToWorld(mousePos.x, mousePos.y);
+        m_ZoomAnchorScreen = io.MousePos;
+        m_ZoomAnchorWorld = m_Coords->ScreenToWorld(io.MousePos.x, io.MousePos.y);
 
         // Scale by wheel delta so high-precision wheels/trackpads don't rocket
         // through the zoom range. Ctrl is the precision modifier (smaller step).
         float zoomBase = io.KeyCtrl ? 1.03f : 1.10f;
-        m_Zoom = std::clamp(m_Zoom * std::pow(zoomBase, io.MouseWheel),
-                            SceneViewConstants::MinZoom,
-                            SceneViewConstants::MaxZoom);
-
-        // Recalculate scene center after zoom change. World→screen is
-        // editorZoom * dpi * the project's pixels per meter: the scene view
-        // shows the world at its art density, whatever the camera does.
-        int vpWidth = SceneViewConstants::AnchorWidth;
-        int vpHeight = SceneViewConstants::AnchorHeight;
-
-        float dpi = ImGui::GetWindowDpiScale();
-        float sceneWidth = vpWidth * m_Zoom * dpi;
-        float sceneHeight = vpHeight * m_Zoom * dpi;
-
-        const float worldToScreen = m_Zoom * dpi * Deki::EngineSettings::Global().pixelsPerMeter;
-
-        float sceneCenterX = m_CanvasTopLeft.x + m_PanOffsetX + sceneWidth * 0.5f;
-        float sceneCenterY = m_CanvasTopLeft.y + m_PanOffsetY + sceneHeight * 0.5f;
-
-        float newScreenX = sceneCenterX + worldBeforeZoom.x * worldToScreen;
-        float newScreenY = sceneCenterY - worldBeforeZoom.y * worldToScreen;  // Minus: world Y+ is up, screen Y+ is down
-
-        float deltaX = mousePos.x - newScreenX;
-        float deltaY = mousePos.y - newScreenY;
-        m_PanOffsetX += deltaX;
-        m_PanOffsetY += deltaY;
-
-        // NOTE: Don't apply pixel-perfect snapping here - it causes cumulative drift
-        // when zooming in/out repeatedly. The rendering already handles pixel-perfect
-        // positioning via flooring in WorldToScreen and GetBufferScreenBounds.
+        m_ZoomTarget = std::clamp(m_ZoomTarget * std::pow(zoomBase, io.MouseWheel),
+                                  SceneViewConstants::MinZoom,
+                                  SceneViewConstants::MaxZoom);
+        DekiEditor::Motion::Set(zoomKey, m_Zoom);  // continue from where it is
     }
+
+    if (m_Zoom != m_ZoomTarget)
+    {
+        m_Zoom = DekiEditor::Motion::Follow(zoomKey, m_ZoomTarget, DekiEditor::Motion::Normal,
+                                            m_ZoomTarget * 0.001f);
+        KeepWorldPointAt(m_ZoomAnchorWorld, m_ZoomAnchorScreen);
+    }
+}
+
+void SceneViewPanel::KeepWorldPointAt(const ImVec2& world, const ImVec2& screen)
+{
+    // World→screen is editorZoom * dpi * the project's pixels per meter: the
+    // scene view shows the world at its art density, whatever the camera does.
+    // Must match SceneCoordinates::ScreenToWorld, or each zoom step drives the
+    // pan offset toward inf/NaN.
+    const int vpWidth = SceneViewConstants::AnchorWidth;
+    const int vpHeight = SceneViewConstants::AnchorHeight;
+
+    const float dpi = ImGui::GetWindowDpiScale();
+    const float sceneWidth = vpWidth * m_Zoom * dpi;
+    const float sceneHeight = vpHeight * m_Zoom * dpi;
+    const float worldToScreen = m_Zoom * dpi * Deki::EngineSettings::Global().pixelsPerMeter;
+
+    const float sceneCenterX = m_CanvasTopLeft.x + m_PanOffsetX + sceneWidth * 0.5f;
+    const float sceneCenterY = m_CanvasTopLeft.y + m_PanOffsetY + sceneHeight * 0.5f;
+
+    const float nowScreenX = sceneCenterX + world.x * worldToScreen;
+    const float nowScreenY = sceneCenterY - world.y * worldToScreen;  // world Y+ is up, screen Y+ is down
+
+    m_PanOffsetX += screen.x - nowScreenX;
+    m_PanOffsetY += screen.y - nowScreenY;
+
+    // NOTE: Don't apply pixel-perfect snapping here - it causes cumulative drift
+    // when zooming in/out repeatedly. The rendering already handles pixel-perfect
+    // positioning via flooring in WorldToScreen and GetBufferScreenBounds.
 }
 
 void SceneViewPanel::DrawSceneCanvas()
@@ -364,6 +377,7 @@ void SceneViewPanel::DrawSceneCanvas()
         {
             // Reset zoom to 1:1 and center the scene in the canvas
             m_Zoom = 1.0f;
+            m_ZoomTarget = 1.0f;
             float sceneWidth = vpWidth * m_Zoom * dpi;
             float sceneHeight = vpHeight * m_Zoom * dpi;
 
