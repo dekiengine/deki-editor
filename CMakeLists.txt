@@ -680,6 +680,8 @@ set(EDITOR_SOURCES
     src/widgets/Toast.h
     src/widgets/PopupMotion.cpp
     src/widgets/PopupMotion.h
+    src/widgets/ScrollMotion.cpp
+    src/widgets/ScrollMotion.h
     src/services/ToolHost.cpp
     src/services/ToolHost.h
     src/services/AssetDeployer.cpp
