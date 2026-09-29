@@ -591,7 +591,7 @@ void InspectorPanel::Draw()
         while (instanceRoot && !instanceRoot->IsSceneInstance())
             instanceRoot = instanceRoot->GetParent();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
         ImGui::Text("Part of Scene Instance%s",
                     instanceRoot ? (": " + instanceRoot->GetName()).c_str() : "");
         ImGui::PopStyleColor();
@@ -1252,7 +1252,7 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
 void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& objects)
 {
     // Header showing selection count
-    ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f),
+    ImGui::TextColored(DekiEditor::Palette::Accent,
                        "%zu Objects Selected", objects.size());
     ImGui::Separator();
 

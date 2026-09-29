@@ -291,7 +291,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
 
             if (open)
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Component type not found");
+                ImGui::TextColored(DekiEditor::Palette::Red, "Component type not found");
                 if (!missing->m_JsonProperties.empty())
                 {
                     ImGui::TextDisabled("Data preserved (%u properties)",

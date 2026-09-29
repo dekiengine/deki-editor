@@ -110,7 +110,7 @@ void ActivityPanel::Draw()
         if (proc.status == ProcessStatus::Completed)
         {
             icon = ICON_TI_CHECK;
-            iconColor = ImVec4(0.3f, 0.9f, 0.3f, 1.0f);  // green
+            iconColor = DekiEditor::Palette::Green;  // green
         }
         else if (proc.status == ProcessStatus::Failed)
         {
@@ -120,7 +120,7 @@ void ActivityPanel::Draw()
         else if (proc.status == ProcessStatus::Cancelled)
         {
             icon = ICON_TI_BAN;
-            iconColor = ImVec4(0.7f, 0.7f, 0.3f, 1.0f);  // yellow
+            iconColor = DekiEditor::Palette::Amber;  // yellow
         }
 
         // Card background
@@ -179,7 +179,7 @@ void ActivityPanel::Draw()
             // Draw the X icon centered on the button
             drawList->AddText(ImVec2(cancelX + (cancelBtnSize - cancelSize.x) * 0.5f,
                                      cancelY + (cancelBtnSize - cancelSize.y) * 0.5f),
-                              ImGui::GetColorU32(ImVec4(0.8f, 0.3f, 0.3f, 1.0f)), cancelIcon);
+                              ImGui::GetColorU32(DekiEditor::Palette::Red), cancelIcon);
 
             rightEdge = cancelX - 8.0f;
         }
@@ -223,7 +223,7 @@ void ActivityPanel::Draw()
 
                 ImVec4 color = entry.isError
                                    ? DekiEditor::Palette::Red
-                                   : ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+                                   : DekiEditor::Palette::Dim;
 
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 ImGui::PushID(e);
@@ -522,7 +522,7 @@ void ActivityPanel::DrawStatusBar()
                                                     latestRunning->lastMessage.c_str(), nullptr, &msgEnd);
                     drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
                                       ImVec2(cursorX, textY),
-                                      ImGui::GetColorU32(ImVec4(0.5f, 0.5f, 0.5f, 1.0f)),
+                                      ImGui::GetColorU32(DekiEditor::Palette::Dim),
                                       latestRunning->lastMessage.c_str(), msgEnd);
                 }
             }
@@ -537,12 +537,12 @@ void ActivityPanel::DrawStatusBar()
         if (proc.status == ProcessStatus::Completed)
         {
             statusIcon = ICON_TI_CHECK;
-            statusColor = ImVec4(0.3f, 0.9f, 0.3f, 1.0f);
+            statusColor = DekiEditor::Palette::Green;
         }
         else if (proc.status == ProcessStatus::Cancelled)
         {
             statusIcon = ICON_TI_BAN;
-            statusColor = ImVec4(0.7f, 0.7f, 0.3f, 1.0f);
+            statusColor = DekiEditor::Palette::Amber;
         }
 
         drawList->AddText(ImVec2(cursorX, textY),

@@ -406,41 +406,29 @@ void PlatformManagerPanel::DrawPlatformDetails()
     ui.Separator();
     ui.Spacing();
 
-    // Family and framework, then whatever the backend that builds for it
-    // thinks is worth saying (a chip, a devkit model, nothing).
-    ui.Text(("Family: " + FamilyName(platform->family)).c_str());
-
+    // Label / value rows: the label in a dim column, the value beside it,
+    // one per line - family and framework, then whatever the backend that
+    // builds for it thinks is worth saying (a chip, a devkit model, nothing).
+    const float valueX = m_App->Dpi(110.0f);
+    auto row = [&](const char* label, const std::string& value)
+    {
+        TextCol(ui, Palette::Dim, label);
+        ImGui::SameLine(pad + valueX);
+        ui.Text(value.c_str());
+    };
+    row("Family", FamilyName(platform->family));
     if (!platform->framework.empty())
-        ui.Text(("Framework: " + platform->framework).c_str());
-
+        row("Framework", platform->framework);
     if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
         for (const auto& [label, value] : describer->DescribePlatform(*platform))
-            ui.Text((label + ": " + value).c_str());
+            row(label.c_str(), value);
+    for (size_t i = 0; i < platform->defines.size(); ++i)
+        row(i == 0 ? "Defines" : "", platform->defines[i]);
+    row("Boot Scene", platform->bootScene);
 
-    // Compiler defines
-    if (!platform->defines.empty())
-    {
-        ui.Spacing();
-        ui.Separator();
-        ui.Spacing();
-
-        if (ui.TreeNodeEx("Preprocessor Defines", 0))
-        {
-            for (const auto& define : platform->defines)
-                ui.BulletText(define.c_str());
-            ui.TreePop();
-        }
-    }
-
-    // Boot Scene
     ui.Spacing();
-    ui.Separator();
-    ui.Spacing();
-
-    ui.Text("Boot Scene");
-    ui.Indent();
-    TextCol(ui, Palette::Dim, platform->bootScene.c_str());
-
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + valueX);
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
     if (ui.Button("Open Boot Scene"))
     {
         auto* project = m_App->GetProject();
@@ -450,7 +438,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
             m_App->OpenScene(fullPath);
         }
     }
-    ui.Unindent();
+    ImGui::PopStyleVar();
 
     ui.Unindent(pad);
 }

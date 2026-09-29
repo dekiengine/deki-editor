@@ -290,7 +290,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         if (!s_RecoveryMessage.empty())
         {
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), " - %s", s_RecoveryMessage.c_str());
+            ImGui::TextColored(DekiEditor::Palette::Green, " - %s", s_RecoveryMessage.c_str());
         }
         ImGui::Separator();
         ImGui::Spacing();
@@ -299,7 +299,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         if (!s_LastDumpPath.empty())
         {
             ImGui::Spacing();
-            ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Dump saved: %s", s_LastDumpPath.c_str());
+            ImGui::TextColored(DekiEditor::Palette::Accent, "Dump saved: %s", s_LastDumpPath.c_str());
         }
         ImGui::Spacing();
 
@@ -318,7 +318,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         ImGui::SameLine();
         if (copied)
         {
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Copied!");
+            ImGui::TextColored(DekiEditor::Palette::Green, "Copied!");
             ImGui::SameLine();
         }
         float closeButtonWidth = 80.0f;

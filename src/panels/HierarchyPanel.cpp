@@ -99,7 +99,7 @@ void HierarchyPanel::Draw()
             }
             ImGui::PopID();
             ImGui::SameLine(0, 2);
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
             ImGui::TextUnformatted(">");
             ImGui::PopStyleColor();
             ImGui::SameLine(0, 2);
@@ -258,7 +258,7 @@ void HierarchyPanel::Draw()
         ImGui::Separator();
 
         // Draw header with a distinct style
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.3f, 1.0f));  // Yellow-ish
+        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Amber);  // Yellow-ish
         bool persistentOpen = ImGui::TreeNodeEx("Persistent",
                                                 ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
         ImGui::PopStyleColor();
@@ -722,7 +722,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     if (isInstance)
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Accent);  // Blue for instance roots
     else if (isPartOfInstance)
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));  // Dimmed for instance children
+        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);  // Dimmed for instance children
 
     bool wasOpen = ImGui::GetStateStorage()->GetInt(ImGui::GetCurrentWindow()->GetID((void*)obj), 0) != 0;
     // Push extra vertical FramePadding so tree-node rows are taller. Total row

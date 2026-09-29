@@ -1,6 +1,7 @@
 #ifdef DEKI_EDITOR
 
 #include <deki-editor/EditorExtension.h>
+#include <deki-editor/EditorTheme.h>
 #include <deki-editor/EditorRegistry.h>
 #include <deki-editor/AssetDatabase.h>
 #include <deki-editor/AssetPipeline.h>
@@ -55,7 +56,7 @@ public:
         }
         catch (...)
         {
-            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Invalid JSON");
+            ImGui::TextColored(DekiEditor::Palette::Red, "Invalid JSON");
             return false;
         }
 

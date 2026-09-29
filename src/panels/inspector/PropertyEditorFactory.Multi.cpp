@@ -72,7 +72,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             {
                 // Mixed values - show grey "-" that can be edited
                 char buf[32] = "-";
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
                 if (ImGui::InputText("##value", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
                 {
                     // Parse the new value
@@ -135,7 +135,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             {
                 // Mixed values
                 char buf[32] = "-";
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
                 if (ImGui::InputText("##value", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
                 {
                     float newValue = 0.0f;
@@ -198,7 +198,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 const ImVec2 fp = ImGui::GetStyle().FramePadding;
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(fp.x, ImGui::GetFontSize() * 0.1f));
                 BeginPropertyRow(displayName.c_str());
-                ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_CheckMark, DekiEditor::Palette::Dim);
                 bool dummy = false;
                 if (DekiEditor::SchematicCheckbox("##value", &dummy))
                 {
@@ -239,7 +239,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             if (!same)
             {
                 strcpy(buf, "-");
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
             }
             else
             {
@@ -294,7 +294,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 color[0] = color[1] = color[2] = 0.5f, color[3] = 1.0f;
 
             BeginPropertyRow(displayName.c_str());
-            if (!same) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+            if (!same) ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
             const bool edited = EditorUI::Get().ColorEdit4("##value", color);
             if (!same) ImGui::PopStyleColor();
             if (edited)
@@ -362,7 +362,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             if (index < 0) index = 0;  // a value the enum no longer declares
 
             BeginPropertyRow(displayName.c_str());
-            if (!same) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+            if (!same) ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
             const bool changed = EditorUI::Get().Combo("##value", &index, prop.enumValues, prop.enumCount);
             if (!same) ImGui::PopStyleColor();
             if (changed)

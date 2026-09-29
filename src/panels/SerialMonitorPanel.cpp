@@ -229,7 +229,7 @@ void SerialMonitorPanel::DrawOutput()
             // Render timestamp prefix in default color if present
             if (m_ShowTimestamps)
             {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
                 auto bracketEnd = displayText.find("] ");
                 if (bracketEnd != std::string::npos)
                 {

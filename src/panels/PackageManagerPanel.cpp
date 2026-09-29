@@ -455,9 +455,8 @@ void PackageManagerPanel::DrawPackageDetails()
     // Required packages.
     if (!pkg.requiredPackages.empty())
     {
-        ui.Spacing();
-        TextCol(ui, Palette::Dim, "Requires:");
-        ui.Indent();
+        // One line: what it needs, by the names the list shows.
+        std::string needs;
         for (const auto& dep : pkg.requiredPackages)
         {
             std::string depName = dep;
@@ -467,9 +466,12 @@ void PackageManagerPanel::DrawPackageDetails()
                     depName = p.displayName;
                     break;
                 }
-            ui.BulletText(depName.c_str());
+            needs += (needs.empty() ? "" : ", ") + depName;
         }
-        ui.Unindent();
+        ui.Spacing();
+        TextCol(ui, Palette::Dim, "Requires");
+        ImGui::SameLine();
+        ui.Text(needs.c_str());
     }
 
     DrawFeatures(pkg);
@@ -1559,30 +1561,29 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
         ImGui::PushID(d->featureId.c_str());
         if (!d->offered)
         {
+            ImGui::AlignTextToFramePadding();
             ui.Text(d->displayName.c_str());
             ImGui::SameLine();
-            ImGui::TextDisabled("required");
+            ImGui::TextColored(Palette::Dim, "required");
         }
         else
         {
             const std::string ov = m_StripSettings.Override(d->packageId, d->featureId);
             int index = ov == "on" ? 1 : (ov == "off" ? 2 : 0);
-            ImGui::SetNextItemWidth(m_App->Dpi(72.0f));
-            if (ImGui::Combo("##mode", &index, "Auto\0On\0Off\0"))
+            ImGui::SetNextItemWidth(SchematicToolbarComboWidth("Auto"));
+            if (SchematicCombo("##mode", &index, "Auto\0On\0Off\0"))
             {
                 m_StripSettings.SetOverride(d->packageId, d->featureId, index == 1 ? "on" : (index == 2 ? "off" : ""));
                 changed = true;
             }
             ImGui::SameLine();
+            ImGui::AlignTextToFramePadding();
             ui.Text(d->displayName.c_str());
             ImGui::SameLine();
-            if (d->on)
-                ImGui::TextDisabled("%s", FeatureStateName(d->state));
-            else
-                ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.35f, 1.0f), "%s", FeatureStateName(d->state));
+            ImGui::TextColored(d->on ? Palette::Dim : Palette::Amber, "%s", FeatureStateName(d->state));
         }
         if (ImGui::IsItemHovered() && !d->reason.empty())
-            ImGui::SetTooltip("%s", d->reason.c_str());
+            DekiEditor::Tooltip("%s", d->reason.c_str());
 
         // Packages this feature needs that installing its package does not
         // bring (the board or project that uses the feature does).
@@ -1594,14 +1595,14 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
                     installed = true;
             ImGui::SameLine();
             if (installed)
-                ImGui::TextDisabled("needs %s", dep.c_str());
+                ImGui::TextColored(Palette::Dim, "needs %s", dep.c_str());
             else
-                ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.35f, 1.0f), "needs %s (not installed)", dep.c_str());
+                ImGui::TextColored(Palette::Amber, "needs %s (not installed)", dep.c_str());
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip(installed ? "%s is installed, so this feature builds."
-                                            : "Install %s to use this feature. Until then it builds as a step that "
-                                              "logs what is missing.",
-                                  dep.c_str());
+                DekiEditor::Tooltip(installed ? "%s is installed, so this feature builds."
+                                              : "Install %s to use this feature. Until then it builds as a step that "
+                                                "logs what is missing.",
+                                    dep.c_str());
         }
         ImGui::PopID();
     }

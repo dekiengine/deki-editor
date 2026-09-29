@@ -130,9 +130,9 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             if (prop.useSlider && prop.hasRange)
                 ImGui::SliderInt("##value", &v, (int)prop.minValue, (int)prop.maxValue);
             else if (prop.hasRange)
-                ImGui::DragInt("##value", &v, 1.0f, (int)prop.minValue, (int)prop.maxValue);
+                DekiEditor::SchematicDragInt("##value", &v, 1.0f, (int)prop.minValue, (int)prop.maxValue);
             else
-                ImGui::DragInt("##value", &v);
+                DekiEditor::SchematicDragInt("##value", &v);
             if (prop.hasRange)
                 v = std::clamp(v, (int)prop.minValue, (int)prop.maxValue);
             if (ImGui::IsItemActivated())
@@ -151,9 +151,9 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             if (prop.useSlider && prop.hasRange)
                 ImGui::SliderFloat("##value", &v, prop.minValue, prop.maxValue);
             else if (prop.hasRange)
-                ImGui::DragFloat("##value", &v, 0.1f, prop.minValue, prop.maxValue);
+                DekiEditor::SchematicDragFloat("##value", &v, 0.1f, prop.minValue, prop.maxValue);
             else
-                ImGui::DragFloat("##value", &v, 0.1f);
+                DekiEditor::SchematicDragFloat("##value", &v, 0.1f);
             if (prop.hasRange)
                 v = std::clamp(v, prop.minValue, prop.maxValue);
             if (ImGui::IsItemActivated())
@@ -214,7 +214,7 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                 int idx = currentValue;
                 if (idx < 0 || idx >= prop.enumCount) idx = 0;
                 BeginPropertyRow(label);
-                if (ImGui::Combo("##value", &idx, prop.enumValues, prop.enumCount))
+                if (DekiEditor::SchematicCombo("##value", &idx, prop.enumValues, prop.enumCount))
                 {
                     write(idx);
                     commitBytes(target, size, old);
@@ -224,7 +224,7 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             {
                 int v = currentValue;
                 BeginPropertyRow(label);
-                ImGui::DragInt("##value", &v);
+                DekiEditor::SchematicDragInt("##value", &v);
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
                     write(v);
@@ -236,7 +236,8 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
         }
         default:
             BeginPropertyRow(label);
-            ImGui::TextDisabled("<unsupported type>");
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(DekiEditor::Palette::Dim, "Not editable here");
             break;
     }
     return committed;
@@ -278,7 +279,7 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
         const fs::path ext = entry.path().extension();
         if (ext == ".scene")
         {
-            m_SceneFiles.push_back(fs::relative(entry.path(), assetsPath).string());
+            m_SceneFiles.push_back(fs::relative(entry.path(), assetsPath).generic_string());
         }
         else if (ext == ".asset" && pipeline)
         {
@@ -293,7 +294,7 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
             {
                 continue;
             }
-            m_PipelineFiles.push_back(fs::relative(entry.path(), assetsPath).string());
+            m_PipelineFiles.push_back(fs::relative(entry.path(), assetsPath).generic_string());
             std::string lookupPath = fs::relative(entry.path(), projectPath).string();
             for (char& c : lookupPath)
                 if (c == '\\') c = '/';
@@ -327,15 +328,13 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
         }
     }
 
-    auto getter = [](void* data, int idx) -> const char*
-    {
-        auto* files = static_cast<std::vector<std::string>*>(data);
-        if (idx < 0 || idx >= (int)files->size()) return nullptr;
-        return (*files)[idx].c_str();
-    };
+    std::vector<const char*> names;
+    for (const std::string& f : sceneFiles)
+        names.push_back(f.c_str());
 
+    InspectorUtils::SetNextRowTooltip("The scene the game opens with.");
     BeginPropertyRow("Startup Scene");
-    if (ImGui::Combo("##startup_scene", &currentIndex, getter, &sceneFiles, (int)sceneFiles.size()))
+    if (DekiEditor::SchematicCombo("##startup_scene", &currentIndex, names.data(), (int)names.size()))
     {
         if (currentIndex == 0)
             project->SetStartupScene("");
@@ -344,9 +343,10 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
         project->Save();
     }
     if (currentIndex == 0)
-        ImGui::TextDisabled("No startup scene selected");
-    else
-        ImGui::TextDisabled("Loaded when game starts");
+    {
+        BeginPropertyRow("");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "The game has no scene to open.");
+    }
 
     DekiEditor::EndPropertyContext();
     DekiEditor::SchematicSectionEnd();
@@ -363,49 +363,41 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
     std::vector<std::string>& pipelineFiles = m_PipelineFiles;
     std::vector<std::string>& pipelineGuids = m_PipelineGuids;
 
+    // A pipeline the scan does not know (moved, or not imported yet) is still
+    // the project's choice, so it is listed rather than shown as none.
+    std::vector<std::string> files = pipelineFiles;
+    std::vector<std::string> guids = pipelineGuids;
     int currentPipelineIndex = 0;
-    std::string currentGuid = project->GetRenderPipelineGuid();
+    const std::string currentGuid = project->GetRenderPipelineGuid();
     if (!currentGuid.empty())
     {
-        bool found = false;
-        for (size_t i = 1; i < pipelineGuids.size(); i++)
+        const auto it = std::find(guids.begin() + 1, guids.end(), currentGuid);
+        if (it != guids.end())
+            currentPipelineIndex = static_cast<int>(it - guids.begin());
+        else
         {
-            if (pipelineGuids[i] == currentGuid)
-            {
-                currentPipelineIndex = (int)i;
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-            pipelineFiles.push_back("(Unknown pipeline)");
-            pipelineGuids.push_back(currentGuid);
-            currentPipelineIndex = (int)pipelineFiles.size() - 1;
+            files.push_back("(Unknown pipeline)");
+            guids.push_back(currentGuid);
+            currentPipelineIndex = static_cast<int>(files.size()) - 1;
         }
     }
 
-    const char* previewLabel = pipelineFiles[currentPipelineIndex].c_str();
+    std::vector<const char*> names;
+    for (const std::string& f : files)
+        names.push_back(f.c_str());
+
+    InspectorUtils::SetNextRowTooltip("The renderer and passes device builds draw with.");
     BeginPropertyRow("Pipeline");
-    if (ImGui::BeginCombo("##pipeline", previewLabel))
+    if (DekiEditor::SchematicCombo("##pipeline", &currentPipelineIndex, names.data(), (int)names.size()))
     {
-        for (int i = 0; i < (int)pipelineFiles.size(); i++)
-        {
-            bool isSelected = (currentPipelineIndex == i);
-            if (ImGui::Selectable(pipelineFiles[i].c_str(), isSelected))
-            {
-                project->SetRenderPipelineGuid(pipelineGuids[i]);
-                project->Save();
-            }
-            if (isSelected) ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
+        project->SetRenderPipelineGuid(guids[currentPipelineIndex]);
+        project->Save();
     }
-
     if (currentPipelineIndex == 0)
-        ImGui::TextDisabled("No render pipeline selected - rendering disabled on device");
-    else
-        ImGui::TextDisabled("Defines renderer and passes for device builds");
+    {
+        BeginPropertyRow("");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "Nothing is drawn on the device without one.");
+    }
 
     DekiEditor::EndPropertyContext();
     DekiEditor::SchematicSectionEnd();

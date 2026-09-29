@@ -1,4 +1,7 @@
 #include "PlatformEditorDialog.h"
+#include <vector>
+#include <cfloat>
+#include "inspector/InspectorUtils.h"
 #include <deki-editor/EditorTheme.h>
 #include "EditorApp.h"
 #include <deki-editor/build/BuilderRegistry.h>
@@ -480,67 +483,50 @@ void PlatformEditorDialog::DrawFrameworkPicker()
 
 void PlatformEditorDialog::DrawBasicSection()
 {
-    if (ImGui::CollapsingHeader("Basic Info", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!DekiEditor::SchematicSectionBegin("Basic Info"))
+        return;
+    DekiEditor::BeginPropertyContext();
+
+    InspectorUtils::SetNextRowTooltip("Unique identifier: lowercase letters, digits and '_' (e.g. my_board).");
+    InspectorUtils::BeginPropertyRow("Platform ID");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (m_JustOpened)
     {
-        ImGui::Indent();
-
-        // ID
-        ImGui::Text("Platform ID");
-        ImGui::SetNextItemWidth(-1);
-        if (m_JustOpened)
-        {
-            ImGui::SetKeyboardFocusHere();
-            m_JustOpened = false;
-        }
-        ImGui::InputText("##PlatformId", m_Id, sizeof(m_Id));
-        if (ImGui::IsItemHovered())
-            DekiEditor::Tooltip("Unique identifier: lowercase letters, digits and '_' (e.g., my_board)");
-
-        ImGui::Spacing();
-
-        // Display Name
-        ImGui::Text("Display Name");
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##DisplayName", m_DisplayName, sizeof(m_DisplayName));
-        if (ImGui::IsItemHovered())
-            DekiEditor::Tooltip("Human-readable name shown in UI");
-
-        ImGui::Spacing();
-
-        // Framework dropdown
-        ImGui::Text("Framework");
-        ImGui::SetNextItemWidth(-1);
-
-        std::string currentFamily;
-        if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size())
-            currentFamily = m_AvailableBuilders[m_FamilyIndex].name;
-
-        if (ImGui::BeginCombo("##Framework", currentFamily.c_str()))
-        {
-            for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
-            {
-                bool selected = (i == m_FamilyIndex);
-                if (ImGui::Selectable(m_AvailableBuilders[i].name.c_str(), selected))
-                {
-                    ApplyBuilderDefaults(i);
-                }
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-
-        // Custom family hint
-        if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size() &&
-            m_AvailableBuilders[m_FamilyIndex].frameworkId.empty())
-        {
-            ImGui::Spacing();
-            ImGui::TextDisabled("Custom platforms use user-defined toolchains.");
-            ImGui::TextDisabled("Configure build settings in your project's CMakeLists.txt.");
-        }
-
-        ImGui::Unindent();
+        ImGui::SetKeyboardFocusHere();
+        m_JustOpened = false;
     }
+    ImGui::InputText("##PlatformId", m_Id, sizeof(m_Id));
+
+    InspectorUtils::SetNextRowTooltip("The name the editor shows for it.");
+    InspectorUtils::BeginPropertyRow("Display Name");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##DisplayName", m_DisplayName, sizeof(m_DisplayName));
+
+    InspectorUtils::BeginPropertyRow("Framework");
+    std::vector<const char*> frameworks;
+    for (const auto& b : m_AvailableBuilders)
+        frameworks.push_back(b.name.c_str());
+    int framework = m_FamilyIndex;
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (!frameworks.empty() &&
+        DekiEditor::SchematicCombo("##Framework", &framework, frameworks.data(), static_cast<int>(frameworks.size())) &&
+        framework != m_FamilyIndex)
+    {
+        ApplyBuilderDefaults(framework);
+    }
+
+    // Custom family hint
+    if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size() &&
+        m_AvailableBuilders[m_FamilyIndex].frameworkId.empty())
+    {
+        InspectorUtils::BeginPropertyRow("");
+        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+        ImGui::TextWrapped("A custom platform builds with your own toolchain, set up in the project's CMakeLists.txt.");
+        ImGui::PopStyleColor();
+    }
+
+    DekiEditor::EndPropertyContext();
+    DekiEditor::SchematicSectionEnd();
 }
 
 // ============================================================================
@@ -552,18 +538,18 @@ void PlatformEditorDialog::DrawStorageSection()
 {
     if (!m_IsEditing || m_Loaded.Capabilities().count("external-storage") == 0)
         return;
-
-    if (ImGui::CollapsingHeader("Storage", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Indent();
-        ImGui::Text("Assets on");
-        ImGui::SetNextItemWidth(-1);
-        ImGui::Combo("##AssetStorage", &m_AssetStorageIndex, "Internal storage\0External storage\0");
-        ImGui::TextDisabled(m_AssetStorageIndex == 1
-                                ? "Copy the assets to the card with SD Card Deploy."
-                                : "The assets are flashed with the game.");
-        ImGui::Unindent();
-    }
+    if (!DekiEditor::SchematicSectionBegin("Storage"))
+        return;
+    DekiEditor::BeginPropertyContext();
+    InspectorUtils::BeginPropertyRow("Assets On");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    DekiEditor::SchematicCombo("##AssetStorage", &m_AssetStorageIndex, "Internal storage\0External storage\0");
+    InspectorUtils::BeginPropertyRow("");
+    ImGui::TextColored(DekiEditor::Palette::Dim, "%s",
+                       m_AssetStorageIndex == 1 ? "Copy the assets to the card with SD Card Deploy."
+                                                : "The assets are flashed with the game.");
+    DekiEditor::EndPropertyContext();
+    DekiEditor::SchematicSectionEnd();
 }
 
 // ============================================================================
@@ -572,23 +558,26 @@ void PlatformEditorDialog::DrawStorageSection()
 
 void PlatformEditorDialog::DrawNativeEditor()
 {
-    if (ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Indent();
-
-        ImGui::Text("Screen Resolution");
-        ImGui::SetNextItemWidth(m_App->Dpi(100));
-        ImGui::InputInt("##ScreenWidth", &m_ScreenWidth);
-        if (m_ScreenWidth < 1) m_ScreenWidth = 1;
-        ImGui::SameLine();
-        ImGui::Text("x");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(m_App->Dpi(100));
-        ImGui::InputInt("##ScreenHeight", &m_ScreenHeight);
-        if (m_ScreenHeight < 1) m_ScreenHeight = 1;
-
-        ImGui::Unindent();
-    }
+    if (!DekiEditor::SchematicSectionBegin("Display"))
+        return;
+    DekiEditor::BeginPropertyContext();
+    InspectorUtils::SetNextRowTooltip("The screen the editor previews for this platform, in pixels.");
+    InspectorUtils::BeginPropertyRow("Resolution");
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float xW = ImGui::CalcTextSize("x").x;
+    const float fieldW = (ImGui::GetContentRegionAvail().x - xW - gap * 2.0f) * 0.5f;
+    ImGui::SetNextItemWidth(fieldW);
+    DekiEditor::SchematicDragInt("##ScreenWidth", &m_ScreenWidth, 1.0f, 1, 16384);
+    ImGui::SameLine(0.0f, gap);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextColored(DekiEditor::Palette::Dim, "x");
+    ImGui::SameLine(0.0f, gap);
+    ImGui::SetNextItemWidth(fieldW);
+    DekiEditor::SchematicDragInt("##ScreenHeight", &m_ScreenHeight, 1.0f, 1, 16384);
+    m_ScreenWidth = std::max(m_ScreenWidth, 1);
+    m_ScreenHeight = std::max(m_ScreenHeight, 1);
+    DekiEditor::EndPropertyContext();
+    DekiEditor::SchematicSectionEnd();
 }
 
 }  // namespace DekiEditor

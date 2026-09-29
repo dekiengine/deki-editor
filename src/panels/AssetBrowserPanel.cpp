@@ -508,7 +508,10 @@ void AssetBrowserPanel::DrawModeTabs()
         BuildScriptFlatList();
     }
 
-    // Right-aligned item count in mono dim2.
+    // Right-aligned item count in mono dim2: the files in the current folder.
+    // None at all is left unsaid - beside a tree of folders, "0 items" read as
+    // an empty project.
+    if (!m_Entries.empty())
     {
         char buf[32];
         snprintf(buf, sizeof(buf), "%zu items", m_Entries.size());
@@ -2142,7 +2145,7 @@ void AssetBrowserPanel::DrawAssetDetails()
 
         if (asset.hasCachedVersion)
         {
-            ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "TEX cached");
+            ImGui::TextColored(DekiEditor::Palette::Green, "TEX cached");
 
             // Read and display TEX info
             TexData texData;
@@ -2166,7 +2169,7 @@ void AssetBrowserPanel::DrawAssetDetails()
         }
         else if (!asset.guid.empty())
         {
-            ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "Not cached");
+            ImGui::TextColored(DekiEditor::Palette::Amber, "Not cached");
             ImGui::TextDisabled("Run asset build to generate");
         }
         else
@@ -2182,7 +2185,7 @@ void AssetBrowserPanel::DrawAssetDetails()
 
         if (asset.hasCachedVersion)
         {
-            ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Font cached");
+            ImGui::TextColored(DekiEditor::Palette::Green, "Font cached");
 
             auto* pipeline = m_App ? m_App->GetAssetPipeline() : nullptr;
             if (pipeline && !asset.guid.empty())
@@ -2194,7 +2197,7 @@ void AssetBrowserPanel::DrawAssetDetails()
         }
         else if (!asset.guid.empty())
         {
-            ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "Not cached");
+            ImGui::TextColored(DekiEditor::Palette::Amber, "Not cached");
         }
     }
 }
