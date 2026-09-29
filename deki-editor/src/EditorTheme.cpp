@@ -2146,24 +2146,19 @@ bool SchematicBeginCombo(const char* id, const char* preview)
     // popup's Begin() inside BeginCombo, so we pop immediately after.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f * dpi, 6.0f * dpi));
 
-    // The list fades up instead of appearing all at once. The id is taken here
-    // because it is the one BeginCombo derives from the same string, and once
-    // the popup is up the "last item" is no longer this box. The window's
-    // background alpha has to be set before the Begin() inside BeginCombo runs,
-    // so it rides on whether the popup was open as of this moment: on the frame
-    // it opens that is 0, which is exactly frame 0 of the fade.
+    // The list's own fade in and out is the editor-wide popup motion (the main
+    // loop's PopupMotion); here only the chevron turns with it. The id is taken
+    // here because it is the one BeginCombo derives from the same string, and
+    // once the popup is up the "last item" is no longer this box.
     const ImGuiID comboId = ImGui::GetID(id);
     // The popup's own id, derived the way BeginCombo derives it. Asking about
-    // comboId instead always answered "shut", which held the fade at 0 and
-    // opened every dropdown with its options drawn fully transparent.
+    // comboId instead always answers "shut".
     const bool popupOpen = ImGui::IsPopupOpen(ImHashStr("##ComboPopup", 0, comboId), 0);
     const float openT = AnimateTo(comboId, popupOpen ? 1.0f : 0.0f, 0.10f);
-    const float fade = Smooth(openT);
     // Only when a popup will actually be begun: an unconsumed next-window value
     // would leak onto whatever window or child opens after this one.
     if (popupOpen)
     {
-        ImGui::SetNextWindowBgAlpha(fade);
         // Every row, up to most of the window, rather than ImGui's eight: a
         // list that opens scrolled to its selection hides its first entries.
         // ImGui still widens it to the box.
@@ -2187,9 +2182,6 @@ bool SchematicBeginCombo(const char* id, const char* preview)
         // SchematicEndCombo.
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                             ImVec2(2.0f * ImGui::GetStyle().FramePadding.x, 8.0f * dpi));
-        // Contents ride the same curve as the background, so the options do not
-        // read at full strength over a panel that is still fading in.
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * fade);
     }
 
     if (preview && preview[0])
@@ -2217,7 +2209,7 @@ bool SchematicBeginCombo(const char* id, const char* preview)
 
 void SchematicEndCombo()
 {
-    ImGui::PopStyleVar(2);  // Alpha + ItemSpacing pushed in SchematicBeginCombo
+    ImGui::PopStyleVar();  // ItemSpacing pushed in SchematicBeginCombo
     ImGui::EndCombo();
 }
 

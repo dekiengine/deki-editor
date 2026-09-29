@@ -678,6 +678,8 @@ set(EDITOR_SOURCES
     src/services/ProgressModal.h
     src/widgets/Toast.cpp
     src/widgets/Toast.h
+    src/widgets/PopupMotion.cpp
+    src/widgets/PopupMotion.h
     src/services/ToolHost.cpp
     src/services/ToolHost.h
     src/services/AssetDeployer.cpp

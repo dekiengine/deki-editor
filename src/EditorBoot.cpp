@@ -30,6 +30,7 @@
 #include "services/ProfilingService.h"
 #include <deki-editor/EditorSettings.h>
 #include "services/FileDialogs.h"
+#include "widgets/PopupMotion.h"
 #include "services/StartupProgress.h"
 #include "services/HotReloadService.h"
 #include <deki/LogSystem.h>
@@ -407,6 +408,9 @@ bool BootDisplay(BootContext& ctx)
         Deki::SetImGuiAllocators(allocFn, freeFn, allocUserData);
     }
     Deki::SetImGuiContext(ImGui::GetCurrentContext());
+
+    // Popups, menus and dialogs animate in and out (widgets/PopupMotion.h).
+    DekiEditor::PopupMotion::Install(ImGui::GetCurrentContext());
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
