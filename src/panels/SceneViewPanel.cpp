@@ -49,6 +49,17 @@ static int GetSortingOrder(Deki::Object* obj)
     return 0;
 }
 
+namespace
+{
+// Frame of the last Scene view object drag/resize; -2 so frame 0 is not "editing".
+int s_EditingObjectsFrame = -2;
+}  // namespace
+
+bool SceneViewPanel::IsEditingObjects()
+{
+    return s_EditingObjectsFrame >= ImGui::GetFrameCount() - 1;
+}
+
 // Helper to find float width/height properties via reflection for resize drag
 // starting. Sizeable components store size as world meters in float fields.
 SceneViewPanel::SceneViewPanel(EditorApp* app)
@@ -780,6 +791,9 @@ void SceneViewPanel::DrawSceneCanvas()
         m_EditModeRenderer->Initialize(renderWidth, renderHeight);
         sizeChanged = true;
     }
+
+    if (m_IsDragging || m_Gizmos->IsDraggingResize())
+        s_EditingObjectsFrame = ImGui::GetFrameCount();
 
     // Edit-mode render dirty flag: only call RenderScene when something
     // visible to the buffer actually changed since last render. Drag-active

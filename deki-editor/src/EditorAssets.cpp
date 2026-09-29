@@ -146,8 +146,29 @@ uint32_t EditorAssets::LoadTexture(const std::string& guid, uint32_t* outWidth, 
     return texId;
 }
 
+namespace
+{
+// Parsed sprite settings by .data path. The Scene view asks for these for
+// every sprite on every frame (selection bounds, gizmos), and reading the file
+// each time put a file open and a JSON parse per sprite in the draw loop.
+// Dropped with the textures: InvalidateTexture (reimport, delete, settings
+// saved from the Inspector or the Spritesheet editor) and ClearTextureCache.
+struct SpriteSettingsEntry
+{
+    bool found = false;
+    int frameWidth = 0;
+    int frameHeight = 0;
+};
+std::unordered_map<std::string, SpriteSettingsEntry> s_SpriteSettingsCache;
+}  // namespace
+
 void EditorAssets::InvalidateTexture(const std::string& guid)
 {
+    // Its sprite settings too: this is also the call made after the .data
+    // sidecar is rewritten.
+    if (const std::string assetPath = AssetDatabase::GUIDToAbsolutePath(guid); !assetPath.empty())
+        s_SpriteSettingsCache.erase(assetPath + ".data");
+
     auto it = m_TextureCache.find(guid);
     if (it != m_TextureCache.end())
     {
@@ -162,6 +183,8 @@ void EditorAssets::InvalidateTexture(const std::string& guid)
 
 void EditorAssets::ClearTextureCache()
 {
+    s_SpriteSettingsCache.clear();
+
     // Delete GUID-cached textures
     for (auto& [guid, cached] : m_TextureCache)
     {
@@ -397,10 +420,43 @@ uint32_t EditorAssets::UploadTextureToGPU(const uint8_t* rgba, int width, int he
 
 // ===== Sprite Settings =====
 
+namespace
+{
+SpriteSettingsEntry ReadSpriteSettings(const std::string& dataPath)
+{
+    SpriteSettingsEntry entry;
+    std::error_code ec;
+    if (!std::filesystem::exists(dataPath, ec))
+        return entry;
+
+    std::ifstream dataFile(dataPath);
+    if (!dataFile)
+        return entry;
+
+    try
+    {
+        nlohmann::json data;
+        dataFile >> data;
+        if (!data.contains("settings") || !data["settings"].contains("sprite"))
+            return entry;
+
+        const auto& sprite = data["settings"]["sprite"];
+        entry.found = true;
+        if (sprite.contains("frameWidth"))
+            entry.frameWidth = sprite["frameWidth"].get<int>();
+        if (sprite.contains("frameHeight"))
+            entry.frameHeight = sprite["frameHeight"].get<int>();
+    }
+    catch (...)
+    {
+        entry = {};
+    }
+    return entry;
+}
+}  // namespace
+
 bool EditorAssets::LoadSpriteSettings(const std::string& guid, int* outFrameWidth, int* outFrameHeight)
 {
-    namespace fs = std::filesystem;
-
     if (outFrameWidth) *outFrameWidth = 0;
     if (outFrameHeight) *outFrameHeight = 0;
 
@@ -417,47 +473,17 @@ bool EditorAssets::LoadSpriteSettings(const std::string& guid, int* outFrameWidt
         return false;
     }
 
-    // Construct .data file path
-    std::string dataPath = assetPath + ".data";
+    const std::string dataPath = assetPath + ".data";
+    auto it = s_SpriteSettingsCache.find(dataPath);
+    if (it == s_SpriteSettingsCache.end())
+        it = s_SpriteSettingsCache.emplace(dataPath, ReadSpriteSettings(dataPath)).first;
 
-    if (!fs::exists(dataPath))
-    {
+    const SpriteSettingsEntry& entry = it->second;
+    if (!entry.found)
         return false;
-    }
-
-    // Read .data file (JSON format)
-    std::ifstream dataFile(dataPath);
-    if (!dataFile)
-    {
-        return false;
-    }
-
-    try
-    {
-        nlohmann::json data;
-        dataFile >> data;
-
-        if (!data.contains("settings") || !data["settings"].contains("sprite"))
-        {
-            return false;
-        }
-
-        auto& sprite = data["settings"]["sprite"];
-        if (outFrameWidth && sprite.contains("frameWidth"))
-            *outFrameWidth = sprite["frameWidth"].get<int>();
-        if (outFrameHeight && sprite.contains("frameHeight"))
-            *outFrameHeight = sprite["frameHeight"].get<int>();
-
-        return true;
-    }
-    catch (const std::exception& e)
-    {
-        return false;
-    }
-    catch (...)
-    {
-        return false;
-    }
+    if (outFrameWidth) *outFrameWidth = entry.frameWidth;
+    if (outFrameHeight) *outFrameHeight = entry.frameHeight;
+    return true;
 }
 
 // ===== Frame Sprite Support =====

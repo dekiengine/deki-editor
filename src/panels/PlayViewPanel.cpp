@@ -12,6 +12,10 @@
 #include <deki-editor/TextureFormatResolve.h>
 #include "scene_view/EditModeRenderer.h"
 #include "services/FrameCaptureService.h"
+#include "InspectorPanel.h"
+#include "SceneViewPanel.h"
+#include <deki-editor/CommandHistory.h>
+#include <deki/assets/AssetManager.h>
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/ICamera.h>
@@ -97,7 +101,7 @@ void PlayViewPanel::Draw()
         LoadPreview(project->GetPath());
     ApplyPreviewSize();
 
-    ImGui::Begin("PLAY VIEW###Play View", &m_Open, DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    const bool visible = ImGui::Begin("PLAY VIEW###Play View", &m_Open, DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     // Forward keyboard state to the game while playing and the play view is
     // focused (InputKeys.h codes, same as the desktop simulator's keyboard).
@@ -127,6 +131,17 @@ void PlayViewPanel::Draw()
         forward(ImGuiKey_RightArrow, Deki::InputKeys::RIGHT);
         for (int i = 0; i < 26; ++i)  // ImGuiKey_A..Z and Deki::InputKeys::A..Z are both contiguous
             forward(static_cast<ImGuiKey>(ImGuiKey_A + i), Deki::InputKeys::A + static_cast<uint32_t>(i));
+    }
+
+    // A hidden tab (another tab selected in its dock) or a collapsed window
+    // draws nothing. Drawing anyway rendered the whole scene every frame behind
+    // the Scene view and held the editor near 40 fps. The key releases above
+    // still go through, so no game key sticks down.
+    if (!visible)
+    {
+        m_PreviewStale = true;  // the scene may change while hidden
+        ImGui::End();
+        return;
     }
 
     // Console-style toolbar strip: a flat simulate-touch cell (hand-finger,
@@ -277,12 +292,32 @@ void PlayViewPanel::Draw()
                     m_PreviewRenderer->GetHeight() != vpH)
                 {
                     m_PreviewRenderer->Initialize(vpW, vpH);
+                    m_PreviewStale = true;
                 }
 
-                // Render using scene camera
+                // Render using scene camera, only when what it shows moved.
                 uint8_t clearR, clearG, clearB;
                 cam->GetClearColor(clearR, clearG, clearB);
-                m_PreviewRenderer->RenderScene(scene, cam, clearR, clearG, clearB);
+                const uint64_t generation = CommandHistory::Instance().GetGeneration();
+                const uint64_t assetEpoch = Deki::AssetManager::Get()->GetEpoch();
+                const bool renderNeeded =
+                    m_PreviewStale || m_PreviewScene != scene || m_PreviewCamera != cam ||
+                    m_PreviewGeneration != generation || m_PreviewAssetEpoch != assetEpoch ||
+                    m_PreviewClear[0] != clearR || m_PreviewClear[1] != clearG || m_PreviewClear[2] != clearB ||
+                    // Live edits change objects without a command (see SceneViewPanel).
+                    InspectorPanel::IsAnyLiveEditing() || SceneViewPanel::IsEditingObjects();
+                if (renderNeeded)
+                {
+                    m_PreviewRenderer->RenderScene(scene, cam, clearR, clearG, clearB);
+                    m_PreviewStale = false;
+                    m_PreviewScene = scene;
+                    m_PreviewCamera = cam;
+                    m_PreviewGeneration = generation;
+                    m_PreviewAssetEpoch = assetEpoch;
+                    m_PreviewClear[0] = clearR;
+                    m_PreviewClear[1] = clearG;
+                    m_PreviewClear[2] = clearB;
+                }
 
                 uint32_t texId = m_PreviewRenderer->GetTextureId();
                 if (texId != 0)
@@ -303,6 +338,9 @@ void PlayViewPanel::Draw()
         ImGui::End();
         return;
     }
+
+    // Play and pause edit a copy of the scene; render fresh after Stop.
+    m_PreviewStale = true;
 
     // Loading state - show edit-mode preview until first play frame is ready
     if (!m_App->IsPlayModeReady())

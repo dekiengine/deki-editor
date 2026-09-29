@@ -31,6 +31,17 @@ private:
     // Camera-viewport renderer for stopped-state preview
     std::unique_ptr<EditModeRenderer> m_PreviewRenderer;
 
+    // What the preview was last rendered from. It is a full software render of
+    // the scene (tens of ms), so it runs only when one of these moves or an
+    // edit is in progress, as the Scene view does - never just because a frame
+    // went by.
+    bool m_PreviewStale = true;
+    const void* m_PreviewScene = nullptr;
+    const void* m_PreviewCamera = nullptr;
+    uint64_t m_PreviewGeneration = 0;
+    uint64_t m_PreviewAssetEpoch = 0;
+    uint8_t m_PreviewClear[3] = {};
+
     // Canvas position (set during draw)
     ImVec2 m_CanvasTopLeft;
     ImVec2 m_CanvasSize;

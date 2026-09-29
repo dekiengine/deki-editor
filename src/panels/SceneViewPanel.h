@@ -56,6 +56,12 @@ public:
     // Update all CustomEditors for the active scene (layout sync, etc.)
     void UpdateCustomEditors();
 
+    // True while an object is being dragged or resized in the Scene view (this
+    // frame or the last). Drags move objects every frame outside the command
+    // history, so views that redraw only on change (the Play view preview)
+    // check this alongside the generation, like InspectorPanel::IsAnyLiveEditing.
+    static bool IsEditingObjects();
+
     // Switch the active scene-view tool (Select/Move/Rect). Used to honor
     // package-DLL tool requests, e.g. ClipComponent's "Edit Rect" button.
     void SetCurrentTool(SceneTool tool);
