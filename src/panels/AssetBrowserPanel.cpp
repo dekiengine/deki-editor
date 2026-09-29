@@ -97,6 +97,7 @@ void AssetBrowserPanel::Draw()
 
     ImGui::Begin("ASSET BROWSER###Asset Browser", &m_Open, DekiEditor::MaximizedWindowFlags("ASSET BROWSER###Asset Browser"));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+    m_RowHover.BeginFrame();  // rows fade their hover from last frame's
 
     auto* project = m_App->GetProject();
     if (!project)
@@ -947,14 +948,20 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     ImGui::PushID(node.path.c_str());
 
     const ImU32 folderLblCol = ImGui::GetColorU32(ImGuiCol_Text);
-    // Cyan selection/hover background (global Header is transparent).
+    // Cyan hover background (global Header is transparent), fading in and out.
     const ImVec4 acc = DekiEditor::Palette::Accent;
+    const ImGuiID folderRowId = ImGui::GetID("##folder");
+    const float folderAlpha = DekiEditor::Motion::RowHighlight(folderRowId, false, m_RowHover.WasHovered(folderRowId), 0.22f, 0.12f);
+    if (folderAlpha > 0.0f)
+        flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
+    const ImVec4 folderBg(acc.x, acc.y, acc.z, folderAlpha);
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));  // hide ImGui triangle
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(acc.x, acc.y, acc.z, 0.22f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(acc.x, acc.y, acc.z, 0.12f));
+    ImGui::PushStyleColor(ImGuiCol_Header, folderBg);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, folderBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(acc.x, acc.y, acc.z, 0.18f));
     bool open = ImGui::TreeNodeEx("##folder", flags, "%s", "");
     const ImGuiID nodeId = ImGui::GetItemID();  // for the animated subtree below
+    m_RowHover.Track(folderRowId);
     ImGui::PopStyleColor(4);
     std::string folderLabel = std::string(ICON_TI_FOLDER " ") + node.name;
     DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf), folderLabel.c_str(), folderLblCol);
@@ -1294,12 +1301,17 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
     float rowHeight = ImGui::GetFrameHeight();
     ImVec2 selectablePos = ImGui::GetCursorScreenPos();
-    // Cyan selection/hover background (global Header is transparent).
+    // Cyan selection/hover background (global Header is transparent), fading
+    // in and out with selection and hover.
     const ImVec4 acc = DekiEditor::Palette::Accent;
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(acc.x, acc.y, acc.z, 0.22f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(acc.x, acc.y, acc.z, 0.12f));
+    const ImGuiID fileRowId = ImGui::GetID("##file");
+    const float fileAlpha = DekiEditor::Motion::RowHighlight(fileRowId, isSelected, m_RowHover.WasHovered(fileRowId), 0.22f, 0.12f);
+    const ImVec4 fileBg(acc.x, acc.y, acc.z, fileAlpha);
+    ImGui::PushStyleColor(ImGuiCol_Header, fileBg);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, fileBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(acc.x, acc.y, acc.z, 0.18f));
-    const bool fileClicked = ImGui::Selectable("##file", isSelected, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, rowHeight));
+    const bool fileClicked = ImGui::Selectable("##file", fileAlpha > 0.0f, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, rowHeight));
+    m_RowHover.Track(fileRowId);
     ImGui::PopStyleColor(3);
     if (fileClicked)
     {
@@ -1954,10 +1966,19 @@ void AssetBrowserPanel::DrawScriptsList()
 
             ImGui::PushID(folderName.c_str());
             const ImU32 vfLblCol = ImGui::GetColorU32(ImGuiCol_Text);
+            // The theme's hover colour, fading in and out (see the file rows).
+            ImVec4 vfBg = ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered);
+            const ImGuiID vfRowId = ImGui::GetID("##vfolder");
+            vfBg.w = DekiEditor::Motion::RowHighlight(vfRowId, false, m_RowHover.WasHovered(vfRowId), 0.0f, vfBg.w);
+            if (vfBg.w > 0.0f)
+                flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));  // hide ImGui triangle
+            ImGui::PushStyleColor(ImGuiCol_Header, vfBg);
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, vfBg);
             bool open = ImGui::TreeNodeEx("##vfolder", flags, "%s", "");
             const ImGuiID nodeId = ImGui::GetItemID();
-            ImGui::PopStyleColor();
+            m_RowHover.Track(vfRowId);
+            ImGui::PopStyleColor(3);
             std::string vfolderLabel = std::string(ICON_TI_FOLDER " ") + node.displayName;
             DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf), vfolderLabel.c_str(), vfLblCol);
             TintTreeNodeFolderIcon();

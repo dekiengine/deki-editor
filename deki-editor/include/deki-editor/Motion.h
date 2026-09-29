@@ -75,5 +75,44 @@ inline float Hover(ImGuiID id, bool hovered)
 {
     return EaseOut(To(id, hovered ? 1.0f : 0.0f, Fast));
 }
+
+// List rows that ImGui draws (tree nodes, selectables) with a fading
+// highlight. ImGui only says a row is hovered after it is submitted, but its
+// colours must be pushed before, so a panel keeps one RowHover: BeginFrame()
+// once per frame, WasHovered(id) before each row, Track(id) right after it.
+// A row the mouse enters therefore starts from nothing and fades up.
+struct RowHover
+{
+    ImGuiID last = 0;  // the row hovered last frame
+    ImGuiID next = 0;  // the row hovered this frame, once found
+
+    void BeginFrame()
+    {
+        last = next;
+        next = 0;
+    }
+    bool WasHovered(ImGuiID id) const { return last == id; }
+    void Track(ImGuiID id)
+    {
+        if (ImGui::IsItemHovered())
+            next = id;
+    }
+};
+
+// A row's highlight strength: the stronger of its selection fade (scaled by
+// `selectedAlpha`) and its hover fade (by `hoveredAlpha`). Draw the row as
+// selected while this is above 0, with the highlight colour at this alpha as
+// both its normal and hovered background. `outSelected` receives the eased
+// selection fade alone, for anything else that marks selection.
+inline float RowHighlight(ImGuiID id, bool selected, bool hovered, float selectedAlpha, float hoveredAlpha,
+                          float* outSelected = nullptr)
+{
+    const float s = EaseOut(To(id ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Fast));
+    const float h = EaseOut(To(id ^ 0x40E7EDu, hovered ? 1.0f : 0.0f, Fast));
+    if (outSelected)
+        *outSelected = s;
+    const float a = selectedAlpha * s, b = hoveredAlpha * h;
+    return a > b ? a : b;
+}
 }  // namespace Motion
 }  // namespace DekiEditor

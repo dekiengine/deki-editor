@@ -53,8 +53,7 @@ void HierarchyPanel::Draw()
     auto* scene = m_App->GetCurrentScene();
 
     // Rows read last frame's hover (see DrawObjectNode).
-    m_HoveredRow = m_HoveredRowNext;
-    m_HoveredRowNext = 0;
+    m_RowHover.BeginFrame();
 
     // Breadcrumb navigation header
     const auto& navStack = m_App->GetSceneNavigationStack();
@@ -762,9 +761,8 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // the mouse starts from nothing and fades up instead of flashing on.
     const ImVec4 acc = DekiEditor::Palette::Accent;
     const ImGuiID rowId = ImGui::GetID((void*)obj);
-    const float selT = Motion::EaseOut(Motion::To(rowId ^ 0x5E1EC7u, isSelected ? 1.0f : 0.0f, Motion::Fast));
-    const float hovT = Motion::EaseOut(Motion::To(rowId ^ 0x40E7EDu, m_HoveredRow == rowId ? 1.0f : 0.0f, Motion::Fast));
-    const float rowAlpha = ImMax(0.22f * selT, 0.12f * hovT);
+    float selT = 0.0f;
+    const float rowAlpha = Motion::RowHighlight(rowId, isSelected, m_RowHover.WasHovered(rowId), 0.22f, 0.12f, &selT);
     if (rowAlpha > 0.0f)
         flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
     const ImVec4 rowBg(acc.x, acc.y, acc.z, rowAlpha);
@@ -776,8 +774,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // The node's id, captured before anything else is submitted: the children
     // slide open and shut against it (see SchematicTreeBodyBegin).
     const ImGuiID nodeId = ImGui::GetItemID();
-    if (ImGui::IsItemHovered())
-        m_HoveredRowNext = rowId;
+    m_RowHover.Track(rowId);
     ImGui::PopStyleColor(4);
     DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf),
                              obj->GetName().c_str(), lblCol);

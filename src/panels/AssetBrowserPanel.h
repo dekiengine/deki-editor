@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IPanel.h"
+#include <deki-editor/Motion.h>
 
 #include <string>
 #include <vector>
@@ -183,6 +184,9 @@ private:
 
     // Track hovered folder for external drops
     std::string m_HoveredFolderPath;
+
+    // Which row the mouse is over, for the rows' hover fade.
+    DekiEditor::Motion::RowHover m_RowHover;
 
     // Track expanded spritesheets (by GUID)
     std::set<std::string> m_ExpandedAssets;
