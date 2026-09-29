@@ -704,58 +704,15 @@ void SceneViewPanel::DrawSceneCanvas()
         drawList->AddText(ImVec2(devTopLeft.x + 4, devTopLeft.y + 4), deviceColor, deviceLabel);
     }
 
-    // Play mode short-circuit: SceneView mirrors PlayView's texture rather
-    // than running its own scene render. Overlays (gizmos, outlines, grid)
-    // are suppressed because they reference the editor camera's view of the
-    // world, while the play texture comes from the scene camera. The user
-    // can still pan/zoom this image (it scales like a captured frame); world
-    // editing is meaningless during play, so input still drives the camera
-    // but selection/drag has no visible effect until Stop.
-    if (m_App->IsPlaying())
-    {
-        uint32_t playTexId = m_App->GetPlayModeTextureId();
-        int playW = m_App->GetPlayModeWidth();
-        int playH = m_App->GetPlayModeHeight();
-        if (playTexId != 0 && playW > 0 && playH > 0)
-        {
-            float texScreenW = playW * effectiveZoom;
-            float texScreenH = playH * effectiveZoom;
-            float devCenterX = m_PanOffsetX + sceneWidth * 0.5f;
-            float devCenterY = m_PanOffsetY + sceneHeight * 0.5f;
-            ImVec2 p1(std::floor(m_CanvasTopLeft.x + devCenterX - texScreenW * 0.5f),
-                      std::floor(m_CanvasTopLeft.y + devCenterY - texScreenH * 0.5f));
-            ImVec2 p2(p1.x + texScreenW, p1.y + texScreenH);
-
-            drawList->AddCallback([](const ImDrawList*, const ImDrawCmd*)
-                                  {
-                typedef void (APIENTRY *PFN_glBindSampler)(GLuint unit, GLuint sampler);
-                static auto fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
-                if (fn) fn(0, 0); }, nullptr);
-            drawList->AddImage((ImTextureID)(intptr_t)playTexId, p1, p2);
-            drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
-            drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
-        }
-
-        drawList->PopClipRect();
-
-        if (isCanvasHovered)
-        {
-            ImVec2 mousePos = ImGui::GetMousePos();
-            ImVec2 worldPos = m_Coords->ScreenToWorld(mousePos.x, mousePos.y);
-            ImGui::SetCursorScreenPos(ImVec2(m_CanvasTopLeft.x + 5, m_CanvasTopLeft.y + m_CanvasSize.y - 20));
-            ImGui::Text("World: (%.1f, %.1f)", worldPos.x, worldPos.y);
-        }
-
-        // Edit-mode buffer is stale once we re-enter edit mode - force a
-        // fresh render on the first Stop frame.
-        m_EditRenderHasRendered = false;
-        return;
-    }
-
-    // Edit mode: ensure assets are loaded via reflection-based asset
-    // resolution. ProcessInternalAwake is idempotent - only loads unloaded
-    // assets.
-    m_EditModeLifecycle->ProcessInternalAwake(scene);
+    // Play mode draws the live play scene through the editor camera, exactly
+    // like edit mode, so the grid, gizmos and selection stay (Unity's Scene
+    // view). The game's own lifecycle resolves the play scene's refs, so the
+    // edit lifecycle stays out of it; when stopped or paused, ensure assets
+    // are loaded via reflection-based asset resolution. ProcessInternalAwake
+    // is idempotent - only loads unloaded assets.
+    const bool playing = m_App->IsPlaying();
+    if (!playing)
+        m_EditModeLifecycle->ProcessInternalAwake(scene);
 
     // Calculate render buffer size to cover the full canvas area (not just
     // device bounds). Forced even so the camera's center (bufferWidth * 0.5)
@@ -833,7 +790,10 @@ void SceneViewPanel::DrawSceneCanvas()
                               // widgets) mutate object state every frame without pushing a command,
                               // so the generation counter stays put. Forcing a re-render while any
                               // Inspector widget is active keeps the buffer in sync with the gizmos.
-                              || InspectorPanel::IsAnyLiveEditing();
+                              || InspectorPanel::IsAnyLiveEditing()
+                              // The running game moves objects every tick without touching the
+                              // generation counter.
+                              || playing;
 
     if (renderNeeded)
     {
