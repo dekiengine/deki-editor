@@ -32,6 +32,7 @@ set(EDITOR_DLL_SOURCES
     # Shared editor services promoted out of the app so package DLLs (tool
     # windows, node-graph editors) can use the one theme / undo stack / nicifier.
     src/EditorTheme.cpp
+    src/Motion.cpp
     src/SchematicPicker.cpp
     src/AssetPicker.cpp
     src/CommandHistory.cpp

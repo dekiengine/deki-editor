@@ -1,6 +1,7 @@
 #include "Toast.h"
 
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 
 #include "imgui.h"
 #include "imgui_internal.h"  // FindWindowByName - see BuildProgressBottom()
@@ -23,27 +24,37 @@ constexpr float kMarginRight = 16.0f;
 constexpr float kMarginBottom = 40.0f;  // clears the status bar, as ProgressModal does
 constexpr float kGap = 8.0f;            // between stacked cards
 constexpr float kAccentBarWidth = 3.0f;
+constexpr float kSlideIn = 24.0f;  // how far a card travels in from the right
 
-// Fade-out window. Short enough not to linger, long enough to read as a fade
-// rather than a pop.
-constexpr float kFadeSeconds = 0.4f;
-
-// A burst of toasts must not paper over the viewport. Oldest are evicted
-// first: the newest message is the one the user is most likely acting on.
+// A burst of toasts must not paper over the viewport. Oldest leave first: the
+// newest message is the one the user is most likely acting on. Past the hard
+// cap they go at once, so a flood cannot pile up cards that are still leaving.
 constexpr std::size_t kMaxVisible = 5;
+constexpr std::size_t kHardCap = 12;
 
 struct Entry
 {
     Toast::Level level = Toast::Level::Info;
     std::string title;
     std::string message;
-    float remaining = 0.0f;
+    float remaining = 0.0f;  // at or below 0 the card is leaving
     // Measured after the first Begin/End. Positions are chosen BEFORE Begin, so
     // the first frame of a new toast uses the estimate and corrects on the next.
     float height = 64.0f;
     bool measured = false;
     unsigned id = 0;
+    float shown = 0.0f;  // 0..1 arrival/departure progress, from Motion
 };
+
+// Motion keys for one card: its arrival/departure and its place in the stack.
+ImGuiID ShowKey(unsigned id)
+{
+    return ImHashData(&id, sizeof(id), 0x7057A1u);
+}
+ImGuiID SlotKey(unsigned id)
+{
+    return ImHashData(&id, sizeof(id), 0x7057A2u);
+}
 
 std::mutex g_Mutex;
 std::vector<Entry> g_Entries;
@@ -83,12 +94,17 @@ void Toast::Push(Level level, const char* title, const std::string& message, flo
     e.level = level;
     e.title = title ? title : "";
     e.message = message;
-    e.remaining = (std::max)(seconds, kFadeSeconds);
+    e.remaining = (std::max)(seconds, 0.5f);
     e.id = g_NextId++;
     g_Entries.push_back(std::move(e));
 
-    if (g_Entries.size() > kMaxVisible)
-        g_Entries.erase(g_Entries.begin(), g_Entries.begin() + (g_Entries.size() - kMaxVisible));
+    // Over the limit: the oldest cards still showing start leaving.
+    std::size_t staying = 0;
+    for (auto it = g_Entries.rbegin(); it != g_Entries.rend(); ++it)
+        if (it->remaining > 0.0f && ++staying > kMaxVisible)
+            it->remaining = 0.0f;
+    if (g_Entries.size() > kHardCap)
+        g_Entries.erase(g_Entries.begin(), g_Entries.begin() + (g_Entries.size() - kHardCap));
 }
 
 void Toast::DismissAll()
@@ -127,14 +143,21 @@ void Toast::DrawInFrame()
     {
         Entry& e = *it;
 
-        const float alpha = (e.remaining < kFadeSeconds)
-                                ? (std::max)(0.0f, e.remaining / kFadeSeconds)
-                                : 1.0f;
+        // Arrives by fading in and sliding from the right; leaves the same way
+        // once its time is up or it is clicked.
+        e.shown = Motion::ToFrom(ShowKey(e.id), 0.0f, e.remaining > 0.0f ? 1.0f : 0.0f, Motion::Slow);
+        const float eased = Motion::EaseOut(e.shown);
+        const float alpha = eased;
+        const float slideX = (1.0f - eased) * kSlideIn * dpi;
+
+        // The card glides to its slot when the stack changes under it, instead
+        // of jumping when a neighbour arrives or leaves.
+        const float y = Motion::Follow(SlotKey(e.id), cursorY, Motion::Normal, 0.5f);
 
         char windowName[32];
         std::snprintf(windowName, sizeof(windowName), "##Toast_%u", e.id);
 
-        ImGui::SetNextWindowPos(ImVec2(rightX, cursorY), ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowPos(ImVec2(rightX + slideX, y), ImGuiCond_Always, ImVec2(1.0f, 1.0f));
         ImGui::SetNextWindowSize(ImVec2(cardW, 0.0f), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.97f * alpha);
 
@@ -209,14 +232,16 @@ void Toast::DrawInFrame()
         // while it is being read. Click anywhere to dismiss immediately.
         if (clicked)
             e.remaining = 0.0f;
-        else if (!hovered)
+        else if (!hovered && e.remaining > 0.0f)
             e.remaining -= dt;
 
-        cursorY -= e.height + kGap * dpi;
+        // A leaving card gives up its space as it fades, so the ones above
+        // settle down smoothly rather than all at once.
+        cursorY -= (e.height + kGap * dpi) * (e.remaining > 0.0f ? 1.0f : eased);
     }
 
     g_Entries.erase(std::remove_if(g_Entries.begin(), g_Entries.end(),
-                                   [](const Entry& e) { return e.remaining <= 0.0f; }),
+                                   [](const Entry& e) { return e.remaining <= 0.0f && e.shown <= 0.0f; }),
                     g_Entries.end());
 }
 

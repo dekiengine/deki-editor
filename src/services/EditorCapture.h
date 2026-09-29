@@ -74,6 +74,17 @@ public:
 
     bool HasPendingWork() const { return !m_Requests.empty(); }
 
+    // A frame sequence is being recorded. The main loop then steps the UI at
+    // a fixed 1/60 s per frame, so each captured frame is one sixtieth of a
+    // second of animation however long writing it takes.
+    bool IsRecordingSequence() const
+    {
+        for (const Request& r : m_Requests)
+            if (r.sequence)
+                return true;
+        return false;
+    }
+
 private:
     EditorCapture() = default;
 

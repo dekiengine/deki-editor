@@ -4,6 +4,7 @@
 #include "EditorApp.h"
 #include "services/UpdateCheck.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "core/Commands.h"
@@ -476,6 +477,10 @@ void EditorApp::DrawMenuBar()
                     // here in the middle of a menu.
                     RequestRestoreLayout();
                 }
+                // Every animation lands at once: the same state, no motion.
+                bool reduceMotion = Motion::ReduceMotion();
+                if (ImGui::MenuItem("Reduce Motion", nullptr, &reduceMotion))
+                    Motion::SetReduceMotion(reduceMotion);
 #ifndef NDEBUG
                 // ImGui's own debug windows. Debug builds only - these are
                 // developer tools for working on the editor, not features of it.

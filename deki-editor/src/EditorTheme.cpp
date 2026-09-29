@@ -2,6 +2,7 @@
 // Near-black backgrounds, square 1px hairline borders, steel-blue accent.
 
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <deki-editor/IconsTabler.h>
@@ -19,66 +20,29 @@ namespace DekiEditor
 static std::unordered_map<ImFont*, float> s_FontCssRatios;
 
 // ---------------------------------------------------------------------------
-// Widget animation
-//
-// ImGui rebuilds every widget from scratch each frame, so an animation needs a
-// value that outlives the frame. This is one float per animated widget, keyed
-// by the widget's own ImGui id (stable across frames, and across windows if the
-// widget moves) and stepped in real time, not in frames, so the motion is the
-// same length at 60 and 144 Hz.
-//
-// A widget seen for the first time SNAPS to its target: a panel that has just
-// been opened should show its state, not animate every foldout in it from shut.
+// Widget animation: the shared Motion helpers (deki-editor/Motion.h) hold the
+// per-widget values and honour Reduce motion. A widget seen for the first time
+// SNAPS to its target: a panel that has just been opened should show its
+// state, not animate every foldout in it from shut.
 // ---------------------------------------------------------------------------
 namespace
 {
-struct AnimEntry
-{
-    float value = 0.0f;
-    int frame = 0;  // last frame this id was seen, for pruning
-};
-std::unordered_map<ImGuiID, AnimEntry> s_Anim;
-
-// Defined below, next to the table it prunes; called from the sweep here so
-// both of the maps that outlive a frame are dropped together.
+// Defined below, next to the table it prunes.
 void PruneSectionHeights();
 
-// Advance `id`'s value toward target and return it. `seconds` is the time a
-// full 0→1 sweep takes.
 float AnimateTo(ImGuiID id, float target, float seconds)
 {
-    ImGuiContext& g = *GImGui;
-
-    // Ids are cheap but not free: drop anything not drawn for a few seconds
-    // (a closed panel, a destroyed window) whenever the table grows large.
-    // Done BEFORE the lookup, because erasing would invalidate a reference
-    // taken into the table first.
-    if (s_Anim.size() > 512 && (g.FrameCount & 255) == 0)
-    {
-        for (auto i = s_Anim.begin(); i != s_Anim.end();)
-            i = (g.FrameCount - i->second.frame > 600) ? s_Anim.erase(i) : ++i;
+    // The section-height table outlives frames too; sweep it on the same
+    // rhythm Motion sweeps its own.
+    if ((ImGui::GetFrameCount() & 255) == 0)
         PruneSectionHeights();
-    }
-
-    // A value inserted AT its target is what makes a first sighting snap.
-    AnimEntry& e = s_Anim.try_emplace(id, AnimEntry{ target, g.FrameCount }).first->second;
-    e.frame = g.FrameCount;
-
-    if (seconds <= 0.0f)
-    {
-        e.value = target;
-        return e.value;
-    }
-    const float step = g.IO.DeltaTime / seconds;
-    e.value = (e.value < target) ? ImMin(target, e.value + step)
-                                 : ImMax(target, e.value - step);
-    return e.value;
+    return Motion::To(id, target, seconds);
 }
 
 // Ease in-out, so the motion starts and lands softly instead of stopping dead.
 float Smooth(float t)
 {
-    return t * t * (3.0f - 2.0f * t);
+    return Motion::Smooth(t);
 }
 
 // Rotate everything a draw call appended since `vtxStart` around its own
@@ -189,8 +153,23 @@ struct SectionScope
 };
 ImVector<SectionScope> s_SectionStack;
 
-// Full body height per section, measured every frame the body is at rest.
-std::unordered_map<ImGuiID, float> s_SectionHeights;
+// Full body height per section, measured every frame the body is drawn, with
+// the frame it was last measured so stale entries can be dropped.
+struct SectionHeight
+{
+    float height = 0.0f;
+    int frame = 0;
+};
+std::unordered_map<ImGuiID, SectionHeight> s_SectionHeights;
+
+// A shut section is not re-measured, but its header is still on screen, so
+// its height stays wanted: the next open animates from it.
+void KeepSectionHeight(ImGuiID id)
+{
+    auto it = s_SectionHeights.find(id);
+    if (it != s_SectionHeights.end())
+        it->second.frame = ImGui::GetFrameCount();
+}
 
 // The body's animation is keyed apart from the chevron's: same widget, two
 // motions, and they do not share a duration.
@@ -255,14 +234,16 @@ void SectionBodyGap()
 }
 
 // Measured heights outlive the frame like the animations do, and a big
-// project's asset tree has plenty of nodes, so they are dropped whenever
-// their animation entry is (see the prune in AnimateTo). Called from there.
+// project's asset tree has plenty of nodes, so any not measured for a few
+// seconds (a closed panel, a node scrolled away) are dropped. Called from
+// AnimateTo.
 void PruneSectionHeights()
 {
+    if (s_SectionHeights.size() <= 512)
+        return;
+    const int frame = ImGui::GetFrameCount();
     for (auto i = s_SectionHeights.begin(); i != s_SectionHeights.end();)
-        i = (s_Anim.find(SectionBodyKey(i->first)) == s_Anim.end())
-                ? s_SectionHeights.erase(i)
-                : ++i;
+        i = (frame - i->second.frame > 600) ? s_SectionHeights.erase(i) : ++i;
 }
 }  // namespace
 
@@ -302,6 +283,7 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
         *outHeaderId = id;  // set even when the section is shut
 
     const float t = AnimateTo(key, open ? 1.0f : 0.0f, 0.16f);
+    KeepSectionHeight(id);
     if (t <= 0.0f)
         return false;  // fully shut: nothing to submit, nothing to end
 
@@ -334,7 +316,7 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
     sc.clipped = true;
     sc.visibleH = (measured == s_SectionHeights.end())
                       ? 0.0f
-                      : ImMax(0.0f, measured->second * Smooth(t));
+                      : ImMax(0.0f, measured->second.height * Smooth(t));
     sc.savedMaxY = w->DC.CursorMaxPos.y;
     // Clip from the top of the BAND, not the top of the body: whatever a caller
     // draws on the band right after the header (the `EDIT ->` link) is drawn
@@ -360,6 +342,7 @@ bool SchematicTreeBodyBegin(bool open, ImGuiID nodeId)
 
     const ImGuiID key = SectionBodyKey(nodeId);
     const float t = AnimateTo(key, open ? 1.0f : 0.0f, 0.14f);
+    KeepSectionHeight(nodeId);
 
     SectionScope sc;
     sc.id = nodeId;
@@ -395,7 +378,7 @@ bool SchematicTreeBodyBegin(bool open, ImGuiID nodeId)
     sc.clipped = true;
     sc.visibleH = (measured == s_SectionHeights.end())
                       ? 0.0f
-                      : ImMax(0.0f, measured->second * Smooth(t));
+                      : ImMax(0.0f, measured->second.height * Smooth(t));
     sc.savedMaxY = w->DC.CursorMaxPos.y;
     ImGui::PushClipRect(ImVec2(w->ClipRect.Min.x, sc.startY),
                         ImVec2(w->ClipRect.Max.x, sc.startY + sc.visibleH), true);
@@ -441,7 +424,7 @@ void SchematicSectionEnd()
     // itself changes size.
     const float h = ImGui::GetCursorScreenPos().y - sc.startY;
     if (h > 0.0f)
-        s_SectionHeights[sc.id] = h;
+        s_SectionHeights[sc.id] = SectionHeight{ h, ImGui::GetFrameCount() };
 
     if (!sc.clipped)
     {

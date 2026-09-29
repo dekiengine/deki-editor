@@ -247,6 +247,11 @@ int main(int argc, char* argv[])
         // the real cursor so an injected position wins, before NewFrame so
         // ImGui sees it this frame.
         DekiEditor::EditorInput::Get().InjectPending();
+        // While capture_sequence records, animations advance exactly one 60 fps
+        // frame per captured frame, so a recording shows motion as it looks
+        // live even though each capture is slow to write.
+        if (DekiEditor::EditorCapture::Get().IsRecordingSequence())
+            ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
         ImGui::NewFrame();
 
         // Focus requests queued by MCP tools between frames. Applied here, with
