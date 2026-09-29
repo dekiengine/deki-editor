@@ -411,9 +411,19 @@ int main(int argc, char* argv[])
     // containers (EditorTheme's section stack), and ImGui::MemFree reads the
     // context it was given: a destroyed one crashed every exit after a project
     // had been open, which a debugger shows as a session that never ends.
+    // Not before the shutdown on Linux: there the exe and libdeki-editor.so
+    // share ImGui's symbols, the backend shutdown's ImGui calls land in the
+    // .so's copy, and a released context made every quit a null-pointer crash.
+    // _exit below runs no static destructors, so there is nothing to protect.
+#ifdef _WIN32
     editor.ReleaseImGuiContext();
+#endif
 
     DekiEditor::ShutdownPlatform(ctx);
+
+#ifndef _WIN32
+    editor.ReleaseImGuiContext();
+#endif
 
     // Force-exit to avoid Tracy profiler's static destructor hanging.
     // All meaningful cleanup (editor, ImGui, SDL) is already done above.
