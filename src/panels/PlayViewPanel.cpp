@@ -1,6 +1,7 @@
 #include "PlayViewPanel.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include "EditorApp.h"
 #include "inspector/InspectorUtils.h"
@@ -180,8 +181,9 @@ void PlayViewPanel::Draw()
             bool clicked = ImGui::InvisibleButton("##simtouch", ImVec2(w, rowH));
             bool hovered = ImGui::IsItemHovered();
             if (hovered) DekiEditor::Tooltip(on ? "Simulate touch: on" : "Simulate touch: off");
-            if (hovered)
-                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colHoverBg);
+            if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::WithAlpha(colHoverBg, hoverT));
             dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f),
                         on ? colAccent : colDim, icon);
             cursorX += w;

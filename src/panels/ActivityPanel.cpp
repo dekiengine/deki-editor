@@ -4,6 +4,7 @@
 #include "EditorApp.h"
 #include "ConsolePanel.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include "imgui.h"
 #include <algorithm>
@@ -80,8 +81,9 @@ void ActivityPanel::Draw()
             bool clicked = ImGui::InvisibleButton("##clear", ImVec2(w, rowH));
             bool hovered = ImGui::IsItemHovered();
             if (hovered) DekiEditor::Tooltip("Clear");
-            if (hovered)
-                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colHoverBg);
+            if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::WithAlpha(colHoverBg, hoverT));
             dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f),
                         colDim, icon);
             cursorX += w;

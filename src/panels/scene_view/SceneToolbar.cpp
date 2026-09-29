@@ -2,6 +2,7 @@
 #include "../../EditorApp.h"
 #include "../../core/Project.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include "imgui.h"
 #include <algorithm>
@@ -63,11 +64,18 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         bool clicked = ImGui::InvisibleButton(id, ImVec2(w, rowH));
         bool hovered = ImGui::IsItemHovered();
         if (hovered && tooltip) DekiEditor::Tooltip("%s", tooltip);
+        // Active and hover backgrounds fade in and out; hover shows only
+        // while the cell is not active.
+        const float hoverT = DekiEditor::Motion::ItemHover(hovered);
+        const float activeT = DekiEditor::Motion::EaseOut(
+            DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
         ImGui::PopID();
-        if (active)
-            dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colActiveBg);
-        else if (hovered)
-            dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colHoverBg);
+        if (activeT > 0.0f)
+            dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                              DekiEditor::Motion::WithAlpha(colActiveBg, activeT));
+        if (hoverT * (1.0f - activeT) > 0.0f)
+            dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                              DekiEditor::Motion::WithAlpha(colHoverBg, hoverT * (1.0f - activeT)));
         const ImU32 fg = active ? colAccent : colDim;
         dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f),
                     fg, icon);

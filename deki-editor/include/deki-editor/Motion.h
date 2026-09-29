@@ -76,6 +76,22 @@ inline float Hover(ImGuiID id, bool hovered)
     return EaseOut(To(id, hovered ? 1.0f : 0.0f, Fast));
 }
 
+// `col` with its alpha scaled by t in [0, 1].
+inline ImU32 WithAlpha(ImU32 col, float t)
+{
+    const ImU32 a = static_cast<ImU32>(((col >> IM_COL32_A_SHIFT) & 0xFF) * t + 0.5f);
+    return (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+}
+
+// For a hand-drawn hover background, right after its item (usually an
+// InvisibleButton): the fade for the item just submitted. Draw the background
+// while this is above 0, with its colour through WithAlpha, and it fades in
+// and out instead of switching.
+inline float ItemHover(bool hovered)
+{
+    return Hover(ImGui::GetItemID(), hovered);
+}
+
 // List rows that ImGui draws (tree nodes, selectables) with a fading
 // highlight. ImGui only says a row is hovered after it is submitted, but its
 // colours must be pushed before, so a panel keeps one RowHover: BeginFrame()

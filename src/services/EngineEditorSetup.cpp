@@ -10,6 +10,7 @@
 #include <deki/LogSystem.h>
 #include "imgui.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include "../panels/inspector/InspectorUtils.h"
 #include <deki-editor/CommandHistory.h>
 #include "../core/Commands.h"
@@ -201,10 +202,13 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
     const ImU32 selBg = ImGui::ColorConvertFloat4ToU32(
         ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.12f));
     const ImU32 hovBg = IM_COL32(255, 255, 255, 8);
-    if (selected)
-        dl->AddRectFilled(pmin, pmax, selBg, rounding);
-    else if (hovered)
-        dl->AddRectFilled(pmin, pmax, hovBg, rounding);
+    // Selected and hover backgrounds fade; hover only while not selected.
+    const float hoverT = Motion::ItemHover(hovered);
+    const float selT = Motion::EaseOut(Motion::To(ImGui::GetItemID() ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Motion::Fast));
+    if (selT > 0.0f)
+        dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(selBg, selT), rounding);
+    if (hoverT * (1.0f - selT) > 0.0f)
+        dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(hovBg, hoverT * (1.0f - selT)), rounding);
 
     if (selected)
     {

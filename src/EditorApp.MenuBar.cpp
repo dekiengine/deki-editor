@@ -718,22 +718,24 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
             }
         }
 
-        // Draw hover background
-        if (hovered)
+        // Draw hover background, fading in and out. These are not ImGui items,
+        // so each button keys its own fade.
+        const float hoverT = Motion::Hover(ImHashStr("##WindowControl") + static_cast<ImGuiID>(buttons[i].btnId), hovered);
+        if (hoverT > 0.0f)
         {
             ImU32 hoverColor = (buttons[i].btnId == 3)
                                    ? IM_COL32(232, 17, 35, 230)    // Close: red
                                    : IM_COL32(255, 255, 255, 25);  // Min/Max: subtle
-            dl->AddRectFilled(btnMin, btnMax, hoverColor);
+            dl->AddRectFilled(btnMin, btnMax, Motion::WithAlpha(hoverColor, hoverT));
         }
 
         // Draw icon centered
         ImVec2 iconSize = ImGui::CalcTextSize(buttons[i].icon);
         float iconX = btnMin.x + (buttonW - iconSize.x) * 0.5f;
         float iconY = btnMin.y + (barHeight - iconSize.y) * 0.5f;
-        ImU32 iconColor = (hovered && buttons[i].btnId == 3)
-                              ? IM_COL32(255, 255, 255, 255)
-                              : IM_COL32(200, 200, 200, 255);
+        const float closeT = (buttons[i].btnId == 3) ? hoverT : 0.0f;  // the X brightens on red
+        ImU32 iconColor = ImGui::ColorConvertFloat4ToU32(
+            Motion::Mix(ImVec4(200 / 255.0f, 200 / 255.0f, 200 / 255.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), closeT));
         dl->AddText(scaledFont, scaledFontSize, ImVec2(iconX, iconY), iconColor, buttons[i].icon);
     }
 

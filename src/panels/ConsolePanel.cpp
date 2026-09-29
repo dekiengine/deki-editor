@@ -3,6 +3,7 @@
 #include "../PanelMaximize.h"
 #include "../EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include <functional>
 #include "../core/Project.h"
@@ -158,11 +159,17 @@ void ConsolePanel::Draw()
             bool clicked = ImGui::InvisibleButton(id, ImVec2(w, rowH));
             bool hovered = ImGui::IsItemHovered();
             if (hovered && tooltip) DekiEditor::Tooltip("%s", tooltip);
+            // Active and hover backgrounds fade; hover only while not active.
+            const float hoverT = DekiEditor::Motion::ItemHover(hovered);
+            const float activeT = DekiEditor::Motion::EaseOut(
+                DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
             ImGui::PopID();
-            if (active)
-                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colActiveBg);
-            else if (hovered)
-                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colHoverBg);
+            if (activeT > 0.0f)
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::WithAlpha(colActiveBg, activeT));
+            if (hoverT * (1.0f - activeT) > 0.0f)
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::WithAlpha(colHoverBg, hoverT * (1.0f - activeT)));
             const ImU32 fg = active ? colFg : colDim;
             const float iconX = cursorX + (w - iconSz.x) * 0.5f;
             const float iconY = rowMin.y + (rowH - iconSz.y) * 0.5f;
@@ -184,12 +191,17 @@ void ConsolePanel::Draw()
             ImGui::PushID(id);
             bool clicked = ImGui::InvisibleButton(id, ImVec2(w, rowH));
             bool hovered = ImGui::IsItemHovered();
+            // On and hover backgrounds fade; hover only while off.
+            const float hoverT = DekiEditor::Motion::ItemHover(hovered);
+            const float onT = DekiEditor::Motion::EaseOut(
+                DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, *onPtr ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
             ImGui::PopID();
-            if (*onPtr)
+            if (onT > 0.0f)
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
-                                  useRedBg ? colRedBg : colActiveBg);
-            else if (hovered)
-                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y), colHoverBg);
+                                  DekiEditor::Motion::WithAlpha(useRedBg ? colRedBg : colActiveBg, onT));
+            if (hoverT * (1.0f - onT) > 0.0f)
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::WithAlpha(colHoverBg, hoverT * (1.0f - onT)));
 
             const ImU32 textCol = *onPtr ? colFg : colDim;
             const float dotX = cursorX + 11.0f * dpi;

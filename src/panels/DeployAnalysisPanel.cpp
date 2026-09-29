@@ -5,6 +5,7 @@
 #include "AssetBrowserPanel.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include "core/Project.h"
 #include "services/AssetExporter.h"
@@ -106,8 +107,9 @@ void DeployAnalysisPanel::Draw()
                 clicked = ui.InvisibleButton("##rescan", w, rowH);
                 bool hovered = ui.IsItemHovered();
                 if (hovered) ui.SetTooltip("Rescan scenes to determine which assets are used");
-                if (hovered)
-                    ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY, colHoverBg, 0.0f);
+                if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
+                    ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY,
+                                      DekiEditor::Motion::WithAlpha(colHoverBg, hoverT), 0.0f);
             }
             ui.DrawTextAt(0.0f, cursorX + (w - iconW) * 0.5f, rowMinY + (rowH - iconH) * 0.5f,
                           hasProject ? colDim : colDim2, icon);

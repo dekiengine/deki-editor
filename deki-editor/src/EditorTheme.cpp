@@ -1380,9 +1380,9 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
                         ImVec2(bandRight, w->ClipRect.Max.y), false);
     dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH),
                       ImGui::ColorConvertFloat4ToU32(Palette::Bg));
-    if (hovered)
+    if (const float hoverT = Motion::ItemHover(hovered); hoverT > 0.0f)
         dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH),
-                          IM_COL32(255, 255, 255, 10));
+                          Motion::WithAlpha(IM_COL32(255, 255, 255, 10), hoverT));
     ImGui::PopClipRect();
 
     // No chevron is drawn, but the label still starts on the shared column:
