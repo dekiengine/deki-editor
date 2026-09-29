@@ -191,7 +191,18 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
             dst->CmdBuffer = src->CmdBuffer;
             FadeAndShift(dst, a, 0.0f);
             if (dst->CmdBuffer.Size > 0 && dst->IdxBuffer.Size > 0)
+            {
+                // CloneOutput copies the buffers but not the write cursors, and
+                // AddDrawList asserts that they sit at the end of the buffers
+                // (its PrimReserve sanity check). A copy is finished drawing,
+                // so that is where they belong.
+                // The vertex cursor counts from the last command's vertex offset,
+                // as ImGui keeps it (it must stay under 64K with 16-bit indices).
+                dst->_VtxWritePtr = dst->VtxBuffer.Data + dst->VtxBuffer.Size;
+                dst->_IdxWritePtr = dst->IdxBuffer.Data + dst->IdxBuffer.Size;
+                dst->_VtxCurrentIdx = static_cast<unsigned int>(dst->VtxBuffer.Size) - dst->CmdBuffer.back().VtxOffset;
                 dd->AddDrawList(dst);
+            }
         }
         ++it;
     }
