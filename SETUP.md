@@ -38,6 +38,23 @@ If you cloned without `--recurse-submodules`:
 git submodule update --init --recursive
 ```
 
+### The whole workspace in one step
+
+`tools/setup-workspace.sh` builds that layout around the editor checkout - the
+engine, every `dekiengine` package in the registry, `deki-demo` and
+`deki-registry` - and writes `<root>/.vscode/settings.json` so VS Code's Source
+Control lists every repo when you open `<root>`:
+
+```bash
+git clone https://github.com/dekiengine/deki-editor.git ~/deki/deki-editor
+~/deki/deki-editor/tools/setup-workspace.sh      # --ssh to clone over SSH
+code ~/deki
+```
+
+Run it again whenever you switch machines. It fast-forwards every repo without
+local work, leaves the others alone, and lists what was not pushed or not
+committed. On Windows, run it from Git Bash.
+
 ---
 
 ## 2. Prerequisites

@@ -1,0 +1,2 @@
+# Shell scripts run on Linux and in Git Bash, which both need LF.
+*.sh text eol=lf
