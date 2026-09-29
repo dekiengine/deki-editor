@@ -66,11 +66,6 @@ public:
     // package-DLL tool requests, e.g. ClipComponent's "Edit Rect" button.
     void SetCurrentTool(SceneTool tool);
 
-    // Edit mode texture access (for PlayViewPanel preview)
-    uint32_t GetEditTextureId() const;
-    int GetEditTextureWidth() const;
-    int GetEditTextureHeight() const;
-
 private:
     void DrawSceneCanvas();
     void HandleInput();
@@ -165,6 +160,11 @@ private:
     float m_LastEditRenderCamY = 0.0f;
     int m_LastEditRenderWidth = 0;
     int m_LastEditRenderHeight = 0;
+    // When the last render ran (ImGui time) and what it cost (seconds): while
+    // the view moves, renders are spaced by their own cost.
+    double m_LastEditRenderTime = 0.0;
+    double m_LastEditRenderCost = 0.0;
+    float m_LastEditRenderZoom = 1.0f;  // effective zoom that render was made for
     uint8_t m_LastEditRenderClearR = 0;
     uint8_t m_LastEditRenderClearG = 0;
     uint8_t m_LastEditRenderClearB = 0;

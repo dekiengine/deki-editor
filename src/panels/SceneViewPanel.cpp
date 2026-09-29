@@ -15,6 +15,7 @@
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/Motion.h>
+#include <chrono>
 #include "../core/Units.h"
 #include "InspectorPanel.h"
 #include <deki-editor/CommandHistory.h>
@@ -159,6 +160,7 @@ SceneViewPanel::SceneViewPanel(EditorApp* app)
     m_Gizmos = std::make_unique<SceneGizmos>(m_Coords.get(), m_Measurer.get(), m_Snapping.get());
     m_Toolbar = std::make_unique<SceneToolbar>(app);
     m_EditModeRenderer = std::make_unique<EditModeRenderer>();
+    m_EditModeRenderer->SetStreaming(true);  // the buffer resizes with every zoom step
     m_EditModeLifecycle = std::make_unique<Deki::LifecycleManager>();
 
     // Create invisible editor camera (never serialized)
@@ -879,36 +881,60 @@ void SceneViewPanel::DrawSceneCanvas()
     m_EditorCamera->SetFixedPixelsPerMeter(Deki::EngineSettings::Global().pixelsPerMeter);
     m_EditorCamera->SetClearColor(clearR, clearG, clearB);
 
-    // Initialize/resize renderer if needed. A buffer resize forces a re-render.
-    bool sizeChanged = false;
-    if (!m_EditModeRenderer->IsInitialized() ||
-        m_EditModeRenderer->GetWidth() != renderWidth ||
-        m_EditModeRenderer->GetHeight() != renderHeight)
-    {
-        m_EditModeRenderer->Initialize(renderWidth, renderHeight);
-        sizeChanged = true;
-    }
-
     if (m_IsDragging || m_Gizmos->IsDraggingResize())
         s_EditingObjectsFrame = ImGui::GetFrameCount();
 
-    // Edit-mode render dirty flag: only call RenderScene when something
-    // visible to the buffer actually changed since last render. Drag-active
-    // is included because drags mutate selected object's world position
-    // every frame outside the command system.
-    const bool renderNeeded = !m_EditRenderHasRendered || sizeChanged || m_LastEditRenderedScene != scene || m_LastEditRenderCamX != camRenderX || m_LastEditRenderCamY != camRenderY || m_LastEditRenderClearR != clearR || m_LastEditRenderClearG != clearG || m_LastEditRenderClearB != clearB || m_LastEditRenderGeneration != curGen || m_IsDragging || m_Gizmos->IsDraggingResize()
-                              // Inspector live-edits (transform fields + reflection-based property
-                              // widgets) mutate object state every frame without pushing a command,
-                              // so the generation counter stays put. Forcing a re-render while any
-                              // Inspector widget is active keeps the buffer in sync with the gizmos.
-                              || InspectorPanel::IsAnyLiveEditing()
-                              // The running game moves objects every tick without touching the
-                              // generation counter.
-                              || playing;
+    // Where this frame's buffer sits on the canvas. Gizmos always use it, so
+    // they follow the view exactly even while the picture is not re-rendered.
+    ImVec2 bufferCanvasTopLeft, bufferCanvasBottomRight;
+    m_Coords->GetBufferScreenBounds(renderWidth, renderHeight, camRenderX, camRenderY,
+                                    bufferCanvasTopLeft, bufferCanvasBottomRight);
 
-    if (renderNeeded)
+    // Edit-mode render dirty flags: only call RenderScene when something
+    // visible to the buffer actually changed since last render. What the scene
+    // shows changing always renders. Drag-active is included because drags
+    // mutate the selected object's world position every frame outside the
+    // command system.
+    const bool contentChanged = !m_EditRenderHasRendered || m_LastEditRenderedScene != scene || m_LastEditRenderClearR != clearR || m_LastEditRenderClearG != clearG || m_LastEditRenderClearB != clearB || m_LastEditRenderGeneration != curGen || m_IsDragging || m_Gizmos->IsDraggingResize()
+                                // Inspector live-edits (transform fields + reflection-based property
+                                // widgets) mutate object state every frame without pushing a command,
+                                // so the generation counter stays put. Forcing a re-render while any
+                                // Inspector widget is active keeps the buffer in sync with the gizmos.
+                                || InspectorPanel::IsAnyLiveEditing()
+                                // The running game moves objects every tick without touching the
+                                // generation counter.
+                                || playing;
+    const bool bufferResized = !m_EditModeRenderer->IsInitialized() || m_EditModeRenderer->GetWidth() != renderWidth ||
+                               m_EditModeRenderer->GetHeight() != renderHeight;
+    const bool viewChanged = bufferResized || m_LastEditRenderCamX != camRenderX || m_LastEditRenderCamY != camRenderY;
+
+    // While the view moves (the wheel zoom gliding, or a pan in progress) the
+    // last render - moved and scaled by the GPU - stands in for the new view,
+    // and the exact software render refreshes only as often as it can afford:
+    // once four times its own cost has passed. At 1:1 a render is a couple of
+    // milliseconds, so that is still every frame; zoomed far out, where one
+    // render covers many times the pixels, the view keeps moving at full frame
+    // rate and the picture catches up a few times a second. Edges that come
+    // into view in between show the scene's background until then. The exact render
+    // runs as soon as the view stops. Only a view change waits: what the scene
+    // shows changing always renders.
+    const bool viewMoving = m_Zoom != m_ZoomTarget || m_IsPanning;
+    const double now = ImGui::GetTime();
+    const bool refreshDue = (now - m_LastEditRenderTime) >= 4.0 * m_LastEditRenderCost;
+    const bool viewWaits = viewChanged && !contentChanged && viewMoving && !refreshDue &&
+                           m_EditModeRenderer->IsInitialized();
+
+    if ((contentChanged || viewChanged) && !viewWaits)
     {
-        m_EditModeRenderer->RenderScene(scene, m_EditorCamera, clearR, clearG, clearB);
+        if (bufferResized)
+            m_EditModeRenderer->Initialize(renderWidth, renderHeight);
+        const auto renderStart = std::chrono::steady_clock::now();
+        // Zoomed out, the renderer uploads a screen-size copy (same pixels);
+        // see EditModeRenderer::RenderScene.
+        m_EditModeRenderer->RenderScene(scene, m_EditorCamera, clearR, clearG, clearB, effectiveZoom);
+        m_LastEditRenderCost = std::chrono::duration<double>(std::chrono::steady_clock::now() - renderStart).count();
+        m_LastEditRenderTime = now;
+        m_LastEditRenderZoom = effectiveZoom;
         m_EditRenderHasRendered = true;
         m_LastEditRenderedScene = scene;
         m_LastEditRenderCamX = camRenderX;
@@ -921,12 +947,26 @@ void SceneViewPanel::DrawSceneCanvas()
         m_LastEditRenderGeneration = curGen;
     }
 
-    // Display the rendered texture using WorldToScreen with the same snapped
-    // camera position used for rendering - keeps the off-screen render and
-    // on-screen ImGui display pixel-aligned even as the camera drifts.
-    ImVec2 bufferCanvasTopLeft, bufferCanvasBottomRight;
-    m_Coords->GetBufferScreenBounds(renderWidth, renderHeight, camRenderX, camRenderY,
-                                    bufferCanvasTopLeft, bufferCanvasBottomRight);
+    // Display the last render where its own snapped camera places it - the
+    // same as this frame's buffer unless the view is still moving.
+    ImVec2 lastTopLeft, lastBottomRight;
+    m_Coords->GetBufferScreenBounds(m_LastEditRenderWidth, m_LastEditRenderHeight, m_LastEditRenderCamX,
+                                    m_LastEditRenderCamY, lastTopLeft, lastBottomRight);
+    // A shrunk (zoomed-out) texture holds exactly the screen pixels it was
+    // made for: shown 1:1 at rest, scaled only while the zoom still moves.
+    if (m_EditModeRenderer->IsTextureShrunk() && m_LastEditRenderZoom > 0.0f)
+    {
+        const float grow = effectiveZoom / m_LastEditRenderZoom;
+        lastBottomRight = ImVec2(lastTopLeft.x + m_EditModeRenderer->GetTextureWidth() * grow,
+                                 lastTopLeft.y + m_EditModeRenderer->GetTextureHeight() * grow);
+    }
+
+    // The scene's background everywhere on the canvas, drawn by the GPU under
+    // the picture: while the view moves ahead of the next render, the edges
+    // that come into view show the background, not a blank canvas.
+    drawList->AddRectFilled(m_CanvasTopLeft,
+                            ImVec2(m_CanvasTopLeft.x + m_CanvasSize.x, m_CanvasTopLeft.y + m_CanvasSize.y),
+                            IM_COL32(clearR, clearG, clearB, 255));
 
     uint32_t texId = m_EditModeRenderer->GetTextureId();
     if (texId != 0)
@@ -939,8 +979,8 @@ void SceneViewPanel::DrawSceneCanvas()
             typedef void (APIENTRY *PFN_glBindSampler)(GLuint unit, GLuint sampler);
             static auto fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
             if (fn) fn(0, 0); }, nullptr);
-        drawList->AddImage((ImTextureID)(intptr_t)texId, bufferCanvasTopLeft, bufferCanvasBottomRight,
-                           ImVec2(0, 0), ImVec2(1, 1));
+        drawList->AddImage((ImTextureID)(intptr_t)texId, lastTopLeft, lastBottomRight, ImVec2(0, 0),
+                           ImVec2(m_EditModeRenderer->GetTextureU(), m_EditModeRenderer->GetTextureV()));
         drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
     }
 
@@ -1101,21 +1141,6 @@ void SceneViewPanel::DrawSceneCanvas()
         ImGui::SetCursorScreenPos(ImVec2(m_CanvasTopLeft.x + 5, m_CanvasTopLeft.y + m_CanvasSize.y - 20));
         ImGui::Text("World: (%.1f, %.1f)", worldPos.x, worldPos.y);
     }
-}
-
-uint32_t SceneViewPanel::GetEditTextureId() const
-{
-    return m_EditModeRenderer ? m_EditModeRenderer->GetTextureId() : 0;
-}
-
-int SceneViewPanel::GetEditTextureWidth() const
-{
-    return m_EditModeRenderer ? m_EditModeRenderer->GetWidth() : 0;
-}
-
-int SceneViewPanel::GetEditTextureHeight() const
-{
-    return m_EditModeRenderer ? m_EditModeRenderer->GetHeight() : 0;
 }
 
 }  // namespace DekiEditor
