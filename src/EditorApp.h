@@ -116,6 +116,11 @@ public:
     {
         const bool q = m_QuitRequested;
         m_QuitRequested = false;
+        // A granted quit is a normal exit: the scene was saved, discarded at
+        // the prompt, or never changed, so this session's autosave snapshots
+        // would only come back as a false "recovery" on the next open.
+        if (q)
+            m_Recovery.DiscardSessionSnapshots();
         return q;
     }
 

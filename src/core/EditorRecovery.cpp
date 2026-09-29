@@ -225,6 +225,10 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
         if (metaFile.is_open())
             metaFile << meta.dump(2);
 
+        if (std::find(m_SessionSnapshots.begin(), m_SessionSnapshots.end(), recoveryPath.string()) ==
+            m_SessionSnapshots.end())
+            m_SessionSnapshots.push_back(recoveryPath.string());
+
         if (outWrittenPath)
             *outWrittenPath = recoveryPath.string();
         return true;
@@ -317,6 +321,28 @@ void EditorRecovery::DiscardAll()
     m_Selected = 0;
     RemoveRecoveryDir(m_ProjectPath);
     m_DialogRequested = false;
+}
+
+void EditorRecovery::DiscardSessionSnapshots()
+{
+    std::error_code ec;
+    for (const std::string& path : m_SessionSnapshots)
+    {
+        const fs::path written = fs::path(path).lexically_normal();
+        const bool pending = std::any_of(m_Files.begin(), m_Files.end(), [&](const RecoveryEntry& e)
+                                         { return fs::path(e.recoveryPath).lexically_normal() == written; });
+        if (pending)
+            continue;
+
+        fs::remove(written, ec);
+        fs::remove(fs::path(path + ".meta.json"), ec);
+
+        // The directory goes with its last file, as it does after DiscardAll.
+        const fs::path dir = written.parent_path();
+        if (fs::is_empty(dir, ec) && !ec)
+            fs::remove(dir, ec);
+    }
+    m_SessionSnapshots.clear();
 }
 
 }  // namespace DekiEditor

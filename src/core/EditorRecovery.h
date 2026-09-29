@@ -119,8 +119,22 @@ public:
     /// Delete every remaining recovery and the directory itself.
     void DiscardAll();
 
+    /// Delete the snapshots this session wrote, once they are obsolete: the
+    /// scene was saved, replaced, or the editor is quitting normally. A crash
+    /// never reaches this, so its snapshot survives for the next open.
+    ///
+    /// Without it, a scene left unsaved past one autosave interval kept its
+    /// snapshot forever, and every later open offered a "recovery" of work that
+    /// had been saved or discarded on purpose.
+    ///
+    /// Recoveries that were pending when the project opened (a crash postponed
+    /// with Later) are never touched, even when an autosave has since written
+    /// to the same file.
+    void DiscardSessionSnapshots();
+
 private:
     std::vector<RecoveryEntry> m_Files;
+    std::vector<std::string> m_SessionSnapshots;  // written by this process
     std::string m_ProjectPath;
     int m_Selected = 0;
     bool m_DialogRequested = false;

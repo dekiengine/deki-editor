@@ -9,6 +9,8 @@
 
 #include "core/EditorRecovery.h"
 
+#include <deki/Scene.h>
+
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -243,6 +245,80 @@ TEST_F(EditorRecoveryTest, DiscardAllRemovesEverything)
     EXPECT_FALSE(rec.HasPending());
     EXPECT_FALSE(rec.DialogRequested());
     EXPECT_FALSE(fs::exists(m_Dir));
+}
+
+// --- session snapshots -----------------------------------------------------
+
+// The regression this pins: an autosave snapshot outlived the session that
+// wrote it - through a save, a Don't Save, a clean quit - so every later open
+// offered a "recovery" of work that had been saved or discarded on purpose.
+TEST_F(EditorRecoveryTest, SnapshotsThisSessionWroteAreDiscardedWhenObsolete)
+{
+    Deki::Scene scene;
+    scene.CreateDekiObject("Root");
+
+    EditorRecovery rec;
+    std::string written;
+    ASSERT_TRUE(rec.WriteSnapshot(&scene, "C:/proj/assets/alpha.scene", m_ProjectPath, &written));
+    ASSERT_TRUE(fs::exists(written));
+
+    rec.DiscardSessionSnapshots();
+
+    EXPECT_FALSE(fs::exists(written));
+    EXPECT_FALSE(fs::exists(written + ".meta.json")) << "the sidecar must go with its scene";
+    EXPECT_FALSE(fs::exists(m_Dir)) << "nothing left to keep the directory for";
+}
+
+TEST_F(EditorRecoveryTest, DiscardingSessionSnapshotsKeepsARecoveryPendingFromBefore)
+{
+    // A crash from an earlier session, postponed with Later.
+    WriteScene("crashed.scene", 4);
+    WriteSidecar("crashed.scene", "C:/proj/assets/crashed.scene", 1LL);
+
+    EditorRecovery rec;
+    rec.ScanProject(m_ProjectPath);
+    ASSERT_EQ(rec.Entries().size(), 1u);
+
+    Deki::Scene scene;
+    scene.CreateDekiObject("Root");
+    std::string written;
+    ASSERT_TRUE(rec.WriteSnapshot(&scene, "C:/proj/assets/other.scene", m_ProjectPath, &written));
+
+    rec.DiscardSessionSnapshots();
+
+    EXPECT_FALSE(fs::exists(written)) << "this session's snapshot is obsolete";
+    EXPECT_TRUE(fs::exists(fs::path(m_Dir) / "crashed.scene")) << "an unresolved crash recovery must survive";
+    EXPECT_TRUE(fs::exists(fs::path(m_Dir) / "crashed.scene.meta.json"));
+}
+
+TEST_F(EditorRecoveryTest, DiscardingSessionSnapshotsKeepsAPendingFileAnAutosaveWroteOver)
+{
+    WriteScene("alpha.scene", 4);
+    WriteSidecar("alpha.scene", "C:/proj/assets/alpha.scene", 1LL);
+
+    EditorRecovery rec;
+    rec.ScanProject(m_ProjectPath);
+    ASSERT_EQ(rec.Entries().size(), 1u);
+
+    // Same scene name, so the autosave lands on the pending entry's file.
+    Deki::Scene scene;
+    scene.CreateDekiObject("Root");
+    ASSERT_TRUE(rec.WriteSnapshot(&scene, "C:/proj/assets/alpha.scene", m_ProjectPath));
+
+    rec.DiscardSessionSnapshots();
+
+    EXPECT_TRUE(fs::exists(fs::path(m_Dir) / "alpha.scene"))
+        << "the file still answers a recovery the user has not resolved";
+}
+
+TEST_F(EditorRecoveryTest, DiscardingWithNothingWrittenTouchesNothing)
+{
+    WriteScene("crashed.scene", 1);
+
+    EditorRecovery rec;
+    rec.DiscardSessionSnapshots();
+
+    EXPECT_TRUE(fs::exists(fs::path(m_Dir) / "crashed.scene"));
 }
 
 // --- autosave timer --------------------------------------------------------

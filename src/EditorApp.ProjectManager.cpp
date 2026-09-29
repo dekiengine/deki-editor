@@ -851,6 +851,8 @@ void EditorApp::CloseProject()
         m_InspectorPanel->ClearSceneReferences();
     CustomEditorRegistry::Instance().ClearCache();
     CommandHistory::Instance().Clear();
+    // The scene was saved or discarded at the unsaved-changes prompt.
+    m_Recovery.DiscardSessionSnapshots();
 
     SetCurrentScene(nullptr);
     m_CurrentScenePath.clear();
@@ -946,6 +948,8 @@ void EditorApp::NewScene()
     m_CurrentScenePath.clear();
     ClearSelection();
     CommandHistory::Instance().Clear();
+    // The previous scene was saved or discarded at the unsaved-changes prompt.
+    m_Recovery.DiscardSessionSnapshots();
 }
 
 bool EditorApp::OpenScene(const std::string& rawPath)
@@ -977,6 +981,8 @@ bool EditorApp::OpenScene(const std::string& rawPath)
         EnsurePlatformSetup();
 
         CommandHistory::Instance().Clear();
+        // The previous scene was saved or discarded at the unsaved-changes prompt.
+        m_Recovery.DiscardSessionSnapshots();
 
         // Baseline for the inspector's unsaved markers: what is on disk right
         // now is, by definition, saved.
@@ -1165,6 +1171,7 @@ bool EditorApp::SaveScene()
             PreserveTargetRequirements(m_CurrentScenePath, before);
         CommandHistory::Instance().MarkSavePoint();
         InspectorUtils::CaptureSavedState(m_CurrentScene.get());
+        m_Recovery.DiscardSessionSnapshots();  // the saved file supersedes them
 
         // Refresh asset cache so changes are reflected in builds
         if (m_AssetPipeline && m_Project)
@@ -1230,6 +1237,7 @@ bool EditorApp::SaveSceneAs(const std::string& path)
     m_CurrentScenePath = resolved;
     CommandHistory::Instance().MarkSavePoint();
     InspectorUtils::CaptureSavedState(m_CurrentScene.get());
+    m_Recovery.DiscardSessionSnapshots();  // the saved file supersedes them
 
     // Refresh asset cache so changes are reflected in builds
     if (m_AssetPipeline && m_Project)
