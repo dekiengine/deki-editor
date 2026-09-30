@@ -13,6 +13,7 @@
 #include <deki-editor/TextureFormatResolve.h>
 #include "scene_view/EditModeRenderer.h"
 #include "services/FrameCaptureService.h"
+#include "services/TouchInput.h"
 #include "InspectorPanel.h"
 #include "SceneViewPanel.h"
 #include <deki-editor/CommandHistory.h>
@@ -400,6 +401,10 @@ void PlayViewPanel::Draw()
         }
 
         ImGui::InvisibleButton("PlayViewCanvas", availSize);
+
+        // A finger on the running game is the game's touch, pressed the moment
+        // it lands, not the editor's tap-or-hold-or-scroll.
+        DekiEditor::TouchInput::Get().AddDirectRegion(p1, p2);
 
         // Handle play mode input (mouse/touch forwarded to game)
         {

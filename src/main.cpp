@@ -26,6 +26,7 @@
 #include "services/ProgressModal.h"
 #include "services/EditorCapture.h"
 #include "services/EditorInput.h"
+#include "services/TouchInput.h"
 #include "services/FrameTiming.h"
 #include "services/Prerequisites.h"
 #include <optional>
@@ -205,6 +206,7 @@ int main(int argc, char* argv[])
         while (SDL_PollEvent(&event))
         {
             ImGui_ImplSDL3_ProcessEvent(&event);
+            DekiEditor::TouchInput::Get().ProcessEvent(event);
 
             // Quit is a request, not a fact: the editor asks about unsaved
             // changes first and grants it via ConsumeQuitRequest() below.
@@ -247,6 +249,8 @@ int main(int argc, char* argv[])
         // the real cursor so an injected position wins, before NewFrame so
         // ImGui sees it this frame.
         DekiEditor::EditorInput::Get().InjectPending();
+        // Touchscreen: same slot and reason as EditorInput's (see TouchInput.h).
+        DekiEditor::TouchInput::Get().InjectPending();
         // While capture_sequence records, animations advance exactly one 60 fps
         // frame per captured frame, so a recording shows motion as it looks
         // live even though each capture is slow to write.

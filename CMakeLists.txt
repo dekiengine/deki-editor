@@ -532,6 +532,8 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FaultGuard.cpp
     # PlayModeGuardTests: a fault in play-mode game code is reported, not fatal.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PlayModeGuard.cpp
+    # TouchGesturesTests: what a tap, a drag, a hold and two fingers mean.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/TouchGestures.cpp
     # FileDialogFilterTests: the Win32 filter string the call sites are
     # written in, as the portable dialogs need it.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FileDialogFilter.cpp
@@ -735,6 +737,9 @@ set(EDITOR_SOURCES
     src/services/EditorCapture.h
     src/services/EditorInput.cpp
     src/services/EditorInput.h
+    src/services/TouchInput.cpp
+    src/services/TouchInput.h
+    src/services/TouchGestures.h
     src/panels/ProfilerPanel.cpp
     src/panels/ProfilerPanel.h
     src/panels/ProfilerPanel.FlameGraph.cpp

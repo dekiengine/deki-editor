@@ -1,6 +1,7 @@
 #include "CrashHandler.h"
 #ifndef _MSC_VER
 #include "FaultGuard.h"
+#include "TouchInput.h"
 #endif
 #include <deki-editor/EditorTheme.h>
 #include <SDL3/SDL.h>
@@ -190,6 +191,9 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     // Try to create a custom ImGui crash dialog window
     // This is independent from the editor's SDL/ImGui state
     bool sdlWasInit = SDL_WasInit(SDL_INIT_VIDEO) != 0;
+    // The editor turned SDL's touch-to-mouse emulation off to read touches
+    // itself; this dialog has none of that, so a tap has to click again.
+    DekiEditor::TouchInput::RestoreSdlTouchMouse();
     if (!sdlWasInit)
     {
         if (!SDL_Init(SDL_INIT_VIDEO))

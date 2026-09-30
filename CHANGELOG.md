@@ -4,6 +4,18 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- **Touchscreen controls.** A tap clicks, a drag drags, holding a finger still
+  for half a second right-clicks (context menus), and two fingers scroll the
+  panel under them. In the Scene view two fingers pan and pinch to zoom, and a
+  one-finger drag in the Select tool pans instead of moving the selected
+  object (a tap still selects; move by touch with the Move tool's gizmo). A
+  finger on a running game in the Play view is the game's touch, pressed at
+  once. SDL's own touch-to-mouse emulation is off in the editor window, since
+  it pressed the button the moment a finger landed.
+
 ## 0.17.0 - 2026-09-30
 
 ### Added

@@ -134,6 +134,11 @@ private:
     bool m_PendingDrag = false;
     ImVec2 m_PendingDragStartScreen;
 
+    // A finger pressed in the Select tool, undecided: dragging pans the view,
+    // lifting in place selects. See the touch branch of the click handling.
+    bool m_TouchPendingPan = false;
+    ImVec2 m_TouchPressScreen;
+
     // Track scene to detect changes
     void* m_LastScene = nullptr;
 

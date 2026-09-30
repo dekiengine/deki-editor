@@ -1,4 +1,5 @@
 #include "ProgressModal.h"
+#include "TouchInput.h"
 #include <deki-editor/EditorTheme.h>
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -207,6 +208,7 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
             continue;
         }
         ImGui_ImplSDL3_ProcessEvent(&event);
+        DekiEditor::TouchInput::Get().ProcessEvent(event);
     }
 
     // Check if we're inside an active ImGui frame (e.g. called from DrawMenuBar)
@@ -235,6 +237,7 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     // Start a new ImGui frame for the progress modal
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
+    DekiEditor::TouchInput::Get().InjectPending();
     ImGui::NewFrame();
 
     // DPI scale: ImGui units are physical pixels here (EditorApp::Dpi multiplies

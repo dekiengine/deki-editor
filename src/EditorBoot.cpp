@@ -33,6 +33,7 @@
 #include "widgets/PopupMotion.h"
 #include "widgets/ScrollMotion.h"
 #include "services/StartupProgress.h"
+#include "services/TouchInput.h"
 #include "services/HotReloadService.h"
 #include <deki/LogSystem.h>
 
@@ -262,6 +263,10 @@ namespace
 /// boot never calls this, which is the whole point: no display is required.
 bool BootDisplay(BootContext& ctx)
 {
+    // The editor reads touches itself (TouchInput); SDL's emulation would
+    // press the left button the instant a finger lands.
+    DekiEditor::TouchInput::DisableSdlTouchMouse();
+
     // Initialize SDL (SDL3 is always DPI-aware)
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
@@ -324,6 +329,7 @@ bool BootDisplay(BootContext& ctx)
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
         return false;
     }
+    DekiEditor::TouchInput::Get().SetWindow(ctx.window);
 
 #ifdef _WIN32
     // Custom title bar: subclass WndProc for native window controls (snap layouts, etc.)

@@ -21,6 +21,7 @@
 #include <deki-editor/CommandHistory.h>
 #include "core/Commands.h"
 #include "core/Project.h"
+#include "services/TouchInput.h"
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/ICamera.h>
@@ -368,6 +369,25 @@ void SceneViewPanel::HandleInput()
         DekiEditor::Motion::Set(zoomKey, m_Zoom);  // continue from where it is
     }
 
+    // Two fingers on a touchscreen: the midpoint drags the view, the pinch
+    // zooms about it. Applied directly, not eased: the scene has to stay under
+    // the fingers, the way a map does.
+    DekiEditor::TouchInput::Gesture touch;
+    if (DekiEditor::TouchInput::Get().ClaimGesture(
+            m_CanvasTopLeft, ImVec2(m_CanvasTopLeft.x + m_CanvasSize.x, m_CanvasTopLeft.y + m_CanvasSize.y), touch))
+    {
+        // The world point that was under the midpoint goes to where the
+        // midpoint is now, at the new zoom: that one move is both the pan and
+        // the zoom-about-the-fingers. m_Coords still holds this frame's view
+        // from before the gesture, which is the view the old midpoint was in.
+        const ImVec2 before(touch.center.x - touch.pan.x, touch.center.y - touch.pan.y);
+        const ImVec2 world = m_Coords->ScreenToWorld(before.x, before.y);
+        m_Zoom = m_ZoomTarget = std::clamp(m_Zoom * touch.scale, SceneViewConstants::MinZoom,
+                                           SceneViewConstants::MaxZoom);
+        DekiEditor::Motion::Set(zoomKey, m_Zoom);
+        KeepWorldPointAt(world, touch.center);
+    }
+
     if (m_Zoom != m_ZoomTarget)
     {
         m_Zoom = DekiEditor::Motion::Follow(zoomKey, m_ZoomTarget, DekiEditor::Motion::Normal,
@@ -604,8 +624,17 @@ void SceneViewPanel::DrawSceneCanvas()
         ImVec2 mousePos = ImGui::GetMousePos();
         ImVec2 worldPos = m_Coords->ScreenToWorld(mousePos.x, mousePos.y);
 
+        // A finger in the Select tool: a drag pans rather than moving the
+        // selected object, which a finger does far too easily by accident, and
+        // selection waits for the lift so a pan leaves it alone. The mouse
+        // keeps select-and-drag; moving by touch is the Move tool's gizmo.
+        if (io.MouseSource == ImGuiMouseSource_TouchScreen && m_Toolbar->GetCurrentTool() == SceneTool::Select)
+        {
+            m_TouchPendingPan = true;
+            m_TouchPressScreen = mousePos;
+        }
         // Check resize handle first
-        if (selected && m_Gizmos->GetHoveredEdge() != ResizeEdge::None)
+        else if (selected && m_Gizmos->GetHoveredEdge() != ResizeEdge::None)
         {
             auto& registry = Deki::ComponentRegistry::Instance();
             for (Deki::Component* comp : selected->GetComponents())
@@ -677,6 +706,29 @@ void SceneViewPanel::DrawSceneCanvas()
         else if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
             m_PendingDrag = false;
+        }
+    }
+
+    // Resolve a finger press in the Select tool: a drag becomes a pan (from the
+    // press point, so the movement so far counts), a lift is a click there.
+    if (m_TouchPendingPan)
+    {
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, -1.0f))
+        {
+            m_IsPanning = true;
+            m_LastPanPos = m_TouchPressScreen;
+            m_TouchPendingPan = false;
+        }
+        else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+        {
+            ImVec2 worldPos = m_Coords->ScreenToWorld(m_TouchPressScreen.x, m_TouchPressScreen.y);
+            Deki::Object* clicked = m_Selection->HandleClick(allObjects, selected, worldPos.x, worldPos.y, projectPPM);
+            m_App->SetSelectedObject(clicked);
+            m_TouchPendingPan = false;
+        }
+        else if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            m_TouchPendingPan = false;
         }
     }
 
