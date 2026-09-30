@@ -323,6 +323,29 @@ if(EXISTS "${_imgui_gl3_cpp}")
     endif()
 endif()
 
+# Patch G (imgui_freetype + imgui_impl_opengl3): subpixel (ClearType-style)
+# text. FreeType renders glyphs in LCD mode into the RGBA atlas, and the
+# OpenGL backend blends text from the atlas per colour channel with
+# dual-source blending, the way Chromium draws text on Windows. Too large for
+# string substitutions, so it is a real patch applied with git: already
+# applied when it reverses cleanly, otherwise it must apply or the build stops.
+set(_deki_imgui_text_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/imgui-subpixel-text.patch")
+find_package(Git REQUIRED)
+execute_process(
+    COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace --reverse --check "${_deki_imgui_text_patch}"
+    WORKING_DIRECTORY "${imgui_SOURCE_DIR}" RESULT_VARIABLE _deki_text_patch_applied OUTPUT_QUIET ERROR_QUIET)
+if(NOT _deki_text_patch_applied EQUAL 0)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace "${_deki_imgui_text_patch}"
+        WORKING_DIRECTORY "${imgui_SOURCE_DIR}" RESULT_VARIABLE _deki_text_patch_result ERROR_VARIABLE _deki_text_patch_err)
+    if(NOT _deki_text_patch_result EQUAL 0)
+        message(FATAL_ERROR "Deki patch G (subpixel text) does not apply to ${imgui_SOURCE_DIR}:\n${_deki_text_patch_err}\n"
+                            "Either an older version of the patch is applied (run `git checkout -- .` in that directory and configure again),\n"
+                            "or upstream ImGui changed the patched files and cmake/patches/imgui-subpixel-text.patch needs regenerating.")
+    endif()
+    message(STATUS "Patched imgui_freetype + imgui_impl_opengl3: subpixel text")
+endif()
+
 # FreeType for font rasterization
 FetchContent_Declare(
     freetype
@@ -336,6 +359,9 @@ set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(freetype)
+# The FIR filter for subpixel glyphs (patch G). Without it FreeType renders LCD
+# glyphs with its unfiltered "Harmony" method, which fringes more.
+target_compile_definitions(freetype PRIVATE FT_CONFIG_OPTION_SUBPIXEL_RENDERING)
 
 # stb for image writing (PNG output)
 FetchContent_Declare(

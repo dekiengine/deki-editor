@@ -1,0 +1,292 @@
+diff --git a/imgui_draw.cpp b/imgui_draw.cpp
+--- a/imgui_draw.cpp
++++ b/imgui_draw.cpp
+@@ -5560,6 +5560,7 @@ const char* ImFontCalcWordWrapPositionEx(ImFont* font, float size, const char* t
+     // Cut words that cannot possibly fit within one line.
+     // e.g.: "The tropical fish" with ~5 characters worth of width --> "The tr" "opical" "fish"
+ 
++    size = ImGui::GetRoundedFontSize(size); // Deki patch: draw at the size glyphs were rasterized at, never resampled
+     ImFontBaked* baked = font->GetFontBaked(size);
+     const float scale = size / baked->Size;
+ 
+@@ -5675,6 +5676,7 @@ ImVec2 ImFontCalcTextSizeEx(ImFont* font, float size, float max_width, float wra
+     if (!text_end_display)
+         text_end_display = text_end;
+ 
++    size = ImGui::GetRoundedFontSize(size); // Deki patch: draw at the size glyphs were rasterized at, never resampled
+     ImFontBaked* baked = font->GetFontBaked(size);
+     const float line_height = size;
+     const float scale = line_height / baked->Size;
+@@ -5767,6 +5769,8 @@ ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, cons
+ // Note: as with every ImDrawList drawing function, this expects that the font atlas texture is bound.
+ void ImFont::RenderChar(ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, ImWchar c, const ImVec4* cpu_fine_clip)
+ {
++    if (size >= 0.0f)
++        size = ImGui::GetRoundedFontSize(size); // Deki patch: draw at the size glyphs were rasterized at, never resampled
+     ImFontBaked* baked = GetFontBaked(size);
+     const ImFontGlyph* glyph = baked->FindGlyph(c);
+     if (!glyph || !glyph->Visible)
+@@ -5812,6 +5816,7 @@ void ImFont::RenderChar(ImDrawList* draw_list, float size, const ImVec2& pos, Im
+ // DO NOT CALL DIRECTLY THIS WILL CHANGE WILDLY IN 2026. Use ImDrawList::AddText().
+ void ImFont::RenderText(ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, ImDrawTextFlags flags)
+ {
++    size = ImGui::GetRoundedFontSize(size); // Deki patch: draw at the size glyphs were rasterized at, never resampled
+ begin:
+     // Align to be pixel perfect
+     float x = pos.x;
+diff --git a/misc/freetype/imgui_freetype.h b/misc/freetype/imgui_freetype.h
+--- a/misc/freetype/imgui_freetype.h
++++ b/misc/freetype/imgui_freetype.h
+@@ -70,6 +70,14 @@ namespace ImGuiFreeType
+     // However, as FreeType does lots of allocations we provide a way for the user to redirect it to a separate memory heap if desired.
+     IMGUI_API void                      SetAllocatorFunctions(void* (*alloc_func)(size_t sz, void* user_data), void (*free_func)(void* ptr, void* user_data), void* user_data = nullptr);
+ 
++    // Deki patch: subpixel (ClearType-style) glyphs. 0 = greyscale, 1 = RGB
++    // stripes, 2 = BGR stripes. Set before fonts are added. LCD glyphs store
++    // per-channel coverage (straight colour, alpha = max channel), which a
++    // renderer must blend per channel to show; drawn as a plain texture they
++    // fall back to greyscale.
++    IMGUI_API void                      DekiSetLcdMode(int mode);
++    IMGUI_API int                       DekiGetLcdMode();
++
+     // Display UI to edit ImFontAtlas::FontLoaderFlags (shared) or ImFontConfig::FontLoaderFlags (single source)
+     IMGUI_API bool                      DebugEditFontLoaderFlags(ImGuiFreeTypeLoaderFlags* p_font_loader_flags);
+ 
+diff --git a/misc/freetype/imgui_freetype.cpp b/misc/freetype/imgui_freetype.cpp
+--- a/misc/freetype/imgui_freetype.cpp
++++ b/misc/freetype/imgui_freetype.cpp
+@@ -48,6 +48,7 @@
+ #include FT_GLYPH_H             // <freetype/ftglyph.h>
+ #include FT_SIZES_H             // <freetype/ftsizes.h>
+ #include FT_SYNTHESIS_H         // <freetype/ftsynth.h>
++#include FT_LCD_FILTER_H        // <freetype/ftlcdfil.h> (Deki patch: subpixel glyphs)
+ 
+ // Handle LunaSVG and PlutoSVG
+ #if defined(IMGUI_ENABLE_FREETYPE_LUNASVG) && defined(IMGUI_ENABLE_FREETYPE_PLUTOSVG)
+@@ -261,10 +262,15 @@ static const FT_Glyph_Metrics* ImGui_ImplFreeType_LoadGlyph(ImGui_ImplFreeType_F
+     return &slot->metrics;
+ }
+ 
++// Deki patch: subpixel glyph mode (see DekiSetLcdMode in imgui_freetype.h).
++static int GDekiLcdMode = 0;
++void ImGuiFreeType::DekiSetLcdMode(int mode) { GDekiLcdMode = mode; }
++int ImGuiFreeType::DekiGetLcdMode() { return GDekiLcdMode; }
++
+ static void ImGui_ImplFreeType_BlitGlyph(const FT_Bitmap* ft_bitmap, uint32_t* dst, uint32_t dst_pitch)
+ {
+     IM_ASSERT(ft_bitmap != nullptr);
+-    const uint32_t w = ft_bitmap->width;
++    const uint32_t w = (ft_bitmap->pixel_mode == FT_PIXEL_MODE_LCD) ? ft_bitmap->width / 3 : ft_bitmap->width;
+     const uint32_t h = ft_bitmap->rows;
+     const uint8_t* src = ft_bitmap->buffer;
+     const uint32_t src_pitch = ft_bitmap->pitch;
+@@ -278,6 +284,21 @@ static void ImGui_ImplFreeType_BlitGlyph(const FT_Bitmap* ft_bitmap, uint32_t* d
+                     dst[x] = IM_COL32(255, 255, 255, src[x]);
+             break;
+         }
++    case FT_PIXEL_MODE_LCD: // Deki patch: three subpixel coverages per pixel, stored straight with alpha = the largest.
++        {
++            const bool bgr = (GDekiLcdMode == 2);
++            for (uint32_t y = 0; y < h; y++, src += src_pitch, dst += dst_pitch)
++                for (uint32_t x = 0; x < w; x++)
++                {
++                    uint32_t r = src[x * 3 + (bgr ? 2 : 0)], g = src[x * 3 + 1], b = src[x * 3 + (bgr ? 0 : 2)];
++                    uint32_t a = ImMax(r, ImMax(g, b));
++                    if (a == 0)
++                        dst[x] = IM_COL32(255, 255, 255, 0);
++                    else
++                        dst[x] = IM_COL32((r * 255 + a / 2) / a, (g * 255 + a / 2) / a, (b * 255 + a / 2) / a, a);
++                }
++            break;
++        }
+     case FT_PIXEL_MODE_MONO: // Monochrome image, 1 bit per pixel. The bits in each byte are ordered from MSB to LSB.
+         {
+             for (uint32_t y = 0; y < h; y++, src += src_pitch, dst += dst_pitch)
+@@ -372,6 +393,11 @@ static bool ImGui_ImplFreeType_LoaderInit(ImFontAtlas* atlas)
+     // If you don't call FT_Add_Default_Modules() the rest of code may work, but FreeType won't use our custom allocator.
+     FT_Add_Default_Modules(bd->Library);
+ 
++    // Deki patch: FreeType's default FIR filter for subpixel glyphs (the one
++    // desktop Linux uses). Needs FT_CONFIG_OPTION_SUBPIXEL_RENDERING; without
++    // it this is unimplemented and FreeType falls back to Harmony rendering.
++    FT_Library_SetLcdFilter(bd->Library, FT_LCD_FILTER_DEFAULT);
++
+ #ifdef IMGUI_ENABLE_FREETYPE_LUNASVG
+     // Install svg hooks for FreeType
+     // https://freetype.org/freetype2/docs/reference/ft2-properties.html#svg-hooks
+@@ -516,13 +542,15 @@ static bool ImGui_ImplFreeType_FontBakedLoadGlyph(ImFontAtlas* atlas, ImFontConf
+     }
+ 
+     // Render glyph into a bitmap (currently held by FreeType)
+-    FT_Render_Mode render_mode = (bd_font_data->UserFlags & ImGuiFreeTypeLoaderFlags_Monochrome) ? FT_RENDER_MODE_MONO : FT_RENDER_MODE_NORMAL;
++    FT_Render_Mode render_mode = (bd_font_data->UserFlags & ImGuiFreeTypeLoaderFlags_Monochrome) ? FT_RENDER_MODE_MONO
++                               : (GDekiLcdMode != 0) ? FT_RENDER_MODE_LCD // Deki patch: subpixel glyphs
++                               : FT_RENDER_MODE_NORMAL;
+     FT_Error error = FT_Render_Glyph(slot, render_mode);
+     const FT_Bitmap* ft_bitmap = &slot->bitmap;
+     if (error != 0 || ft_bitmap == nullptr)
+         return false;
+ 
+-    const int w = (int)ft_bitmap->width;
++    const int w = (int)(ft_bitmap->pixel_mode == FT_PIXEL_MODE_LCD ? ft_bitmap->width / 3 : ft_bitmap->width); // Deki patch: LCD rows hold 3 bytes per pixel
+     const int h = (int)ft_bitmap->rows;
+     const bool is_visible = (w != 0 && h != 0);
+ 
+diff --git a/backends/imgui_impl_opengl3.h b/backends/imgui_impl_opengl3.h
+--- a/backends/imgui_impl_opengl3.h
++++ b/backends/imgui_impl_opengl3.h
+@@ -44,6 +44,11 @@ IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyDeviceObjects();
+ // (Advanced) Use e.g. if you need to precisely control the timing of texture updates (e.g. for staged rendering), by setting ImDrawData::Textures = nullptr to handle this manually.
+ IMGUI_IMPL_API void     ImGui_ImplOpenGL3_UpdateTexture(ImTextureData* tex);
+ 
++// Deki patch: coverage exponents for text drawn from the font atlas, for black
++// and for white text (in between by luminance). Below 1 thickens. Takes effect
++// when the device objects are next created.
++IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DekiSetTextGamma(float dark, float light);
++
+ // Configuration flags to add in your imconfig file:
+ //#define IMGUI_IMPL_OPENGL_ES2     // Enable ES 2 (Auto-detected on Emscripten)
+ //#define IMGUI_IMPL_OPENGL_ES3     // Enable ES 3 (Auto-detected on iOS/Android)
+@@ -75,6 +80,7 @@ struct ImGui_ImplOpenGL3_RenderState
+     bool            UseTexParameterFilter;
+     unsigned int    CurrentSampler;                 // (GLuint) Used if UseBindSampler == true, otherwise always 0
+     unsigned int    CurrentTexParameterFilter;      // (GLuint) Used if UseTexParameterToSetSampler == true
++    int             DekiTextMode;                   // Deki patch: last TextMode uniform value
+ };
+ 
+ static inline ImGui_ImplOpenGL3_RenderState* ImGui_ImplOpenGL3_GetRenderState() { return (ImGui_ImplOpenGL3_RenderState*)ImGui::GetPlatformIO().Renderer_RenderState; }
+diff --git a/backends/imgui_impl_opengl3.cpp b/backends/imgui_impl_opengl3.cpp
+--- a/backends/imgui_impl_opengl3.cpp
++++ b/backends/imgui_impl_opengl3.cpp
+@@ -236,6 +236,22 @@
+ #define GL_CALL(_CALL)      _CALL   // Call without error check
+ #endif
+ 
++// Deki patch: subpixel text. Text from the font atlas is blended per colour
++// channel (dual-source blending, core since GL 3.3), so glyphs rendered with
++// per-channel coverage (ImGuiFreeType::DekiSetLcdMode) keep their subpixel
++// detail. Coverage is also shaped by the text's luminance, the way Chromium
++// and DirectWrite do: light text on a dark background is thickened.
++#ifndef GL_ONE_MINUS_SRC1_COLOR
++#define GL_ONE_MINUS_SRC1_COLOR 0x88FA
++#endif
++static float GDekiTextGammaDark = 1.0f;   // coverage exponent for black text
++static float GDekiTextGammaLight = 1.0f;  // coverage exponent for white text
++void ImGui_ImplOpenGL3_DekiSetTextGamma(float dark, float light)
++{
++    GDekiTextGammaDark = dark;
++    GDekiTextGammaLight = light;
++}
++
+ // OpenGL Data
+ struct ImGui_ImplOpenGL3_Data
+ {
+@@ -249,6 +265,7 @@ struct ImGui_ImplOpenGL3_Data
+     GLuint          ShaderHandle;
+     GLint           AttribLocationTex;       // Uniforms location
+     GLint           AttribLocationProjMtx;
++    GLint           AttribLocationTextMode = -1; // Deki patch: 1 while drawing from the font atlas; -1 when the shader has no text path
+     GLuint          AttribLocationVtxPos;    // Vertex attributes location
+     GLuint          AttribLocationVtxUV;
+     GLuint          AttribLocationVtxColor;
+@@ -345,7 +362,10 @@ static void ImGui_ImplOpenGL3_SetupRenderState(ImDrawData* draw_data, ImGui_Impl
+     // Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled, polygon fill
+     glEnable(GL_BLEND);
+     glBlendEquation(GL_FUNC_ADD);
+-    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
++    if (bd->AttribLocationTextMode >= 0)
++        glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC1_COLOR, GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // Deki patch: shader writes premultiplied colour + per-channel coverage
++    else
++        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+     glDisable(GL_CULL_FACE);
+     glDisable(GL_DEPTH_TEST);
+     glDisable(GL_STENCIL_TEST);
+@@ -390,6 +410,9 @@ static void ImGui_ImplOpenGL3_SetupRenderState(ImDrawData* draw_data, ImGui_Impl
+     glUseProgram(bd->ShaderHandle);
+     glUniform1i(bd->AttribLocationTex, 0);
+     glUniformMatrix4fv(bd->AttribLocationProjMtx, 1, GL_FALSE, &ortho_projection[0][0]);
++    if (bd->AttribLocationTextMode >= 0)
++        glUniform1i(bd->AttribLocationTextMode, 0);
++    render_state->DekiTextMode = 0;
+ 
+ #ifdef IMGUI_IMPL_OPENGL_MAY_HAVE_BIND_SAMPLER
+     if (render_state->UseBindSampler)
+@@ -538,6 +561,10 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
+     ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
+     ImVec2 clip_scale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
+ 
++    // Deki patch: which texture is the font atlas (see the text path below).
++    ImFontAtlas* deki_atlas = ImGui::GetIO().Fonts;
++    const ImTextureID deki_atlas_tex = (deki_atlas && deki_atlas->TexData) ? deki_atlas->TexData->GetTexID() : ImTextureID_Invalid;
++
+     // Render command lists
+     for (const ImDrawList* draw_list : draw_data->CmdLists)
+     {
+@@ -597,6 +624,17 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
+                 // Bind texture, Draw
+                 GL_CALL(glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->GetTexID()));
+ 
++                // Deki patch: the font atlas takes the per-channel text path.
++                if (bd->AttribLocationTextMode >= 0)
++                {
++                    const int text_mode = (pcmd->GetTexID() == deki_atlas_tex) ? 1 : 0;
++                    if (text_mode != render_state.DekiTextMode)
++                    {
++                        glUniform1i(bd->AttribLocationTextMode, text_mode);
++                        render_state.DekiTextMode = text_mode;
++                    }
++                }
++
+                 // Emulate sampler change (even though it is technically part of texture data)
+                 // As a sort of hack/workaround, we only start writing using glTexParameter() if sampler is ever changed explicitly.
+                 if (render_state.UseTexParameterFilter)
+@@ -944,6 +982,41 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
+         fragment_shader = fragment_shader_glsl_130;
+     }
+ 
++    // Deki patch: desktop GLSL 3.30+ gets the dual-source text shader.
++    char deki_text_fragment_shader[1600];
++    bool deki_text_shader = false;
++    if (glsl_version >= 330 && !bd->GlProfileIsES2 && !bd->GlProfileIsES3)
++    {
++        snprintf(deki_text_fragment_shader, sizeof(deki_text_fragment_shader),
++            "uniform sampler2D Texture;\n"
++            "uniform int TextMode;\n"
++            "in vec2 Frag_UV;\n"
++            "in vec4 Frag_Color;\n"
++            "layout (location = 0, index = 0) out vec4 Out_Color;\n"
++            "layout (location = 0, index = 1) out vec4 Out_Blend;\n"
++            "void main()\n"
++            "{\n"
++            "    vec4 t = texture(Texture, Frag_UV.st);\n"
++            "    if (TextMode == 1)\n"
++            "    {\n"
++            "        vec3 cov = t.rgb * t.a;\n"
++            "        float lum = dot(Frag_Color.rgb, vec3(0.2126, 0.7152, 0.0722));\n"
++            "        cov = pow(cov, vec3(mix(%.4f, %.4f, lum))) * Frag_Color.a;\n"
++            "        float a = max(cov.r, max(cov.g, cov.b));\n"
++            "        Out_Color = vec4(Frag_Color.rgb * cov, a);\n"
++            "        Out_Blend = vec4(cov, a);\n"
++            "    }\n"
++            "    else\n"
++            "    {\n"
++            "        vec4 c = Frag_Color * t;\n"
++            "        Out_Color = vec4(c.rgb * c.a, c.a);\n"
++            "        Out_Blend = vec4(c.a);\n"
++            "    }\n"
++            "}\n", GDekiTextGammaDark, GDekiTextGammaLight);
++        fragment_shader = deki_text_fragment_shader;
++        deki_text_shader = true;
++    }
++
+     // Create shaders
+     const GLchar* vertex_shader_with_version[2] = { bd->GlslVersionString, vertex_shader };
+     GLuint vert_handle;
+@@ -976,6 +1049,7 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
+ 
+     bd->AttribLocationTex = glGetUniformLocation(bd->ShaderHandle, "Texture");
+     bd->AttribLocationProjMtx = glGetUniformLocation(bd->ShaderHandle, "ProjMtx");
++    bd->AttribLocationTextMode = deki_text_shader ? glGetUniformLocation(bd->ShaderHandle, "TextMode") : -1;
+     bd->AttribLocationVtxPos = (GLuint)glGetAttribLocation(bd->ShaderHandle, "Position");
+     bd->AttribLocationVtxUV = (GLuint)glGetAttribLocation(bd->ShaderHandle, "UV");
+     bd->AttribLocationVtxColor = (GLuint)glGetAttribLocation(bd->ShaderHandle, "Color");

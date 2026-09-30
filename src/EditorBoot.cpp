@@ -466,6 +466,34 @@ bool BootDisplay(BootContext& ctx)
     // Setup Dear ImGui style - Godot 4.6 Modern theme
     DekiEditor::SetupEditorTheme(ctx.dpiScale);
 
+    // Text antialiasing follows the system, like every other Windows app:
+    // subpixel (ClearType) when the desktop uses it, in the panel's stripe
+    // order, greyscale otherwise. DEKI_TEXT_AA=gray|rgb|bgr overrides it
+    // (Linux has no system setting to read, so it defaults to greyscale).
+    int lcdMode = 0;
+#ifdef _WIN32
+    {
+        BOOL smoothing = FALSE;
+        UINT type = 0, orientation = FE_FONTSMOOTHINGORIENTATIONRGB;
+        if (SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &smoothing, 0) && smoothing &&
+            SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &type, 0) && type == FE_FONTSMOOTHINGCLEARTYPE)
+        {
+            SystemParametersInfoW(SPI_GETFONTSMOOTHINGORIENTATION, 0, &orientation, 0);
+            lcdMode = (orientation == FE_FONTSMOOTHINGORIENTATIONBGR) ? 2 : 1;
+        }
+    }
+#endif
+    if (const char* aa = getenv("DEKI_TEXT_AA"))
+    {
+        const std::string v = aa;
+        lcdMode = (v == "rgb") ? 1 : (v == "bgr") ? 2 : 0;
+    }
+    ImGuiFreeType::DekiSetLcdMode(lcdMode);
+    // Coverage exponents for black and for white text: light text on the dark
+    // theme is thickened a little, as DirectWrite and Chromium do.
+    ImGui_ImplOpenGL3_DekiSetTextGamma(1.0f, 0.8f);
+    DEKI_LOG_EDITOR("Text antialiasing: %s", lcdMode == 1 ? "subpixel RGB" : lcdMode == 2 ? "subpixel BGR" : "greyscale");
+
     // Setup Platform/Renderer backends
     ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -532,13 +560,6 @@ bool BootDisplay(BootContext& ctx)
         // the browser without changing the logical font size.
         baseCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
 
-        // JetBrains Mono gets the autohinter in normal mode, which snaps stems
-        // on X as well. Under LightHinting its fractional CSS sizes left every
-        // vertical stroke straddling two pixels, so console lines, value cells
-        // and code all rendered soft and grey.
-        ImFontConfig monoCfg = baseCfg;
-        monoCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_ForceAutoHint;
-
         // Tabler codepoint range capped at 0xFFFF so we stay within ImWchar (uint16).
         // Icons in our target mockup (player-play, folder, search, etc.) are all
         // in the 0xEA02 - 0xF34F range.
@@ -551,6 +572,14 @@ bool BootDisplay(BootContext& ctx)
         // rendered blank while hand-finger-off was fine). Exclude the icon range
         // from every text font so the merged Tabler font owns it.
         baseCfg.GlyphExcludeRanges = iconRanges;
+
+        // With greyscale text, JetBrains Mono gets the autohinter in normal
+        // mode, which snaps stems on X as well: under LightHinting its stems
+        // straddled two pixels and read soft. Subpixel text has three times
+        // the horizontal resolution, so it keeps LightHinting like DirectWrite.
+        ImFontConfig monoCfg = baseCfg;
+        if (ImGuiFreeType::DekiGetLcdMode() == 0)
+            monoCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_ForceAutoHint;
 
         auto mergeIcons = [&](float size)
         {

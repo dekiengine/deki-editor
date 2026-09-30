@@ -24,6 +24,15 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   whole number of pixels wide (a fractional width was rounded up, spreading
   the letters apart) and hinted on both axes. Four panels that drew it
   about a quarter too small now use the intended size.
+- **Sharp text everywhere.** Text drawn at a size that was not a whole pixel
+  (the console, inspector values, every hand-drawn label) was rasterized at
+  the rounded size and then resampled to fit, which blurred it. ImGui now
+  draws text at the size its glyphs were rasterized at.
+- **ClearType-style text on Windows.** When Windows uses ClearType the editor
+  renders subpixel text in the panel's stripe order, and thickens light text
+  on the dark theme slightly, as Chromium and DirectWrite do. Greyscale
+  otherwise. `DEKI_TEXT_AA=gray|rgb|bgr` overrides it. This is ImGui patch G
+  (`cmake/patches/imgui-subpixel-text.patch`), applied at configure time.
 - No false "checked out at 0.16.0 but the lock pins 0.17.0" warnings after
   a `git pull` in a package checkout: the editor asks git which release the
   checkout is on and fixes its install record. A real mismatch is reported
