@@ -19,6 +19,15 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Fixed
 - Console rows line up: the time and message start at the same place on
   every row, whatever the severity label (WARN, INFO, ERROR...).
+- Monospace text (console, inspector values, Play view, build output) is
+  crisp and evenly spaced. JetBrains Mono is sized so each character is a
+  whole number of pixels wide (a fractional width was rounded up, spreading
+  the letters apart) and hinted on both axes. Four panels that drew it
+  about a quarter too small now use the intended size.
+- No false "checked out at 0.16.0 but the lock pins 0.17.0" warnings after
+  a `git pull` in a package checkout: the editor asks git which release the
+  checkout is on and fixes its install record. A real mismatch is reported
+  once, not on every refresh.
 
 ## 0.17.0 - 2026-09-30
 

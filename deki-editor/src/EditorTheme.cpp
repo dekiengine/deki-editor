@@ -9,6 +9,8 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_ADVANCES_H
+#include <cmath>
 #include <unordered_map>
 #include <cstdarg>
 
@@ -18,6 +20,9 @@ namespace DekiEditor
 // Per-font CSS-px → FreeType-REAL_DIM-px ratio, computed from each font's
 // own TTF metrics at RegisterTtf() time.
 static std::unordered_map<ImFont*, float> s_FontCssRatios;
+// Fixed-width fonts only: character advance / unitsPerEm (0.6 for JetBrains
+// Mono), so CssPx can pick a size whose advance is a whole pixel.
+static std::unordered_map<ImFont*, float> s_FontMonoAdvance;
 
 // ---------------------------------------------------------------------------
 // Widget animation: the shared Motion helpers (deki-editor/Motion.h) hold the
@@ -475,6 +480,12 @@ void RegisterTtf(ImFont* font, const char* ttfPath)
         const float ascDesc = (float)(face->ascender - face->descender);
         if (upm > 0.0f)
             s_FontCssRatios[font] = ascDesc / upm;
+
+        FT_Fixed advance = 0;
+        const FT_UInt zero = FT_Get_Char_Index(face, '0');
+        if (upm > 0.0f && FT_IS_FIXED_WIDTH(face) && zero != 0 &&
+            FT_Get_Advance(face, zero, FT_LOAD_NO_SCALE, &advance) == 0 && advance > 0)
+            s_FontMonoAdvance[font] = (float)advance / upm;
         FT_Done_Face(face);
     }
     FT_Done_FreeType(lib);
@@ -482,6 +493,17 @@ void RegisterTtf(ImFont* font, const char* ttfPath)
 
 float CssPx(ImFont* font, float cssPx)
 {
+    // A fixed-width font at a size whose advance is not a whole pixel (12.5px
+    // JetBrains Mono is 7.5px per character) has that advance rounded by
+    // FreeType, which spreads the letters apart. Move to the nearest size
+    // with a whole-pixel advance so the glyphs fill their cells.
+    auto adv = s_FontMonoAdvance.find(font);
+    if (adv != s_FontMonoAdvance.end())
+    {
+        const float cell = std::round(cssPx * adv->second);
+        if (cell >= 1.0f)
+            cssPx = cell / adv->second;
+    }
     auto it = s_FontCssRatios.find(font);
     return cssPx * (it != s_FontCssRatios.end() ? it->second : 1.0f);
 }

@@ -69,6 +69,12 @@ public:
     // check does not carry a second copy of the rule.
     static std::string GetRepoName(const PackageEntry& pkg);
 
+    // The release the git checkout of package `id` is on: the nearest tag
+    // behind HEAD. Rewrites the version in its .deki-package.json when that
+    // differs, since the stamp is written at install and a `git pull` in the
+    // checkout leaves it behind. Empty when there is no checkout or no tag.
+    std::string RefreshCheckedOutVersion(const std::string& projectPath, const std::string& id);
+
 private:
     // Get the packages directory for a project
     fs::path GetPackagesDir(const std::string& projectPath) const;

@@ -605,21 +605,39 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
                     // automatically, because the checkout may be one the
                     // developer is editing on purpose and clobbering it would be
                     // worse than the mismatch.
+                    //
+                    // The installed version comes from the stamp the installer
+                    // wrote at install time, which a `git pull` in the checkout
+                    // leaves behind. Before calling it a mismatch, ask git what
+                    // the checkout is on (and fix the stamp).
+                    std::string installedVersion = installed.installedVersion;
+                    if (!pkg.lockedVersion.empty() && !installedVersion.empty() &&
+                        pkg.lockedVersion != installedVersion && pkgType == PackageType::DekiPackage)
+                    {
+                        const std::string onDisk = static_cast<DekiPackageInstaller*>(installer)
+                                                       ->RefreshCheckedOutVersion(projectPath, pkg.id);
+                        if (!onDisk.empty())
+                            installedVersion = onDisk;
+                    }
+
+                    // Once per package and pair of versions: this runs on every
+                    // refresh, and a project open refreshes several times.
                     if (!pkg.lockedVersion.empty() &&
-                        !installed.installedVersion.empty() &&
-                        pkg.lockedVersion != installed.installedVersion)
+                        !installedVersion.empty() &&
+                        pkg.lockedVersion != installedVersion &&
+                        m_WarnedVersionMismatch.insert(pkg.id + "|" + installedVersion + "|" + pkg.lockedVersion).second)
                     {
                         DEKI_LOG_WARNING(
                             "PackageManager: '%s' is checked out at %s but the lock pins %s. "
                             "The lock will record %s. Run --packages-add %s --version %s to put "
                             "it back, or commit the change deliberately.",
-                            pkg.id.c_str(), installed.installedVersion.c_str(),
-                            pkg.lockedVersion.c_str(), installed.installedVersion.c_str(),
+                            pkg.id.c_str(), installedVersion.c_str(),
+                            pkg.lockedVersion.c_str(), installedVersion.c_str(),
                             pkg.id.c_str(), pkg.lockedVersion.c_str());
                     }
 
                     pkg.isInstalled = true;
-                    pkg.installedVersion = installed.installedVersion;
+                    pkg.installedVersion = installedVersion;
                     pkg.packageType = pkgType;
                     pkg.installer = installerId;
                     found = true;

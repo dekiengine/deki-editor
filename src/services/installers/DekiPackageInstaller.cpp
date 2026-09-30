@@ -390,6 +390,38 @@ int DekiPackageInstaller::RunGit(const std::vector<std::string>& args, std::stri
     return DekiEditor::RunGit(args, output);
 }
 
+std::string DekiPackageInstaller::RefreshCheckedOutVersion(const std::string& projectPath, const std::string& id)
+{
+    std::string reason;
+    if (!SafeNames::IsSafeName(id, reason))
+        return "";
+    const fs::path packageDir = GetPackagesDir(projectPath) / id;
+    std::error_code ec;
+    if (!fs::exists(packageDir / ".git", ec))
+        return "";
+
+    std::string out;
+    if (RunGit({ "-C", packageDir.string(), "describe", "--tags", "--abbrev=0", "HEAD" }, out) != 0)
+        return "";
+    while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' '))
+        out.pop_back();
+    if (out.empty() || out.find_first_of(" \n") != std::string::npos)
+        return "";
+
+    const fs::path metaPath = packageDir / ".deki-package.json";
+    std::ifstream in(metaPath);
+    if (!in.is_open())
+        return out;
+    nlohmann::json meta = nlohmann::json::parse(in, nullptr, false);
+    in.close();
+    if (meta.is_object() && meta.value("version", "") != out)
+    {
+        meta["version"] = out;
+        std::ofstream(metaPath) << meta.dump(2) << "\n";
+    }
+    return out;
+}
+
 bool DekiPackageInstaller::HasUnpushedCommits(const std::string& dirArg) const
 {
     // Commits on any local ref that no remote ref contains.

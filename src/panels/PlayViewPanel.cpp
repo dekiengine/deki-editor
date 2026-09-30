@@ -208,7 +208,7 @@ void PlayViewPanel::Draw()
             else
                 snprintf(fpsBuf, sizeof(fpsBuf), "Editor %.0f fps", editorFps);
 
-            if (DekiEditor::g_FontMonoSmall) ImGui::PushFont(DekiEditor::g_FontMonoSmall);
+            if (DekiEditor::g_FontMonoSmall) ImGui::PushFont(DekiEditor::g_FontMonoSmall, DekiEditor::Fonts::CssPx(DekiEditor::g_FontMonoSmall, 11.5f));
             const ImVec2 fpsSz = ImGui::CalcTextSize(fpsBuf);
             const float padR = 12.0f * dpi;
             const float fpsX = rowMax.x - fpsSz.x - padR;

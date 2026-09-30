@@ -161,7 +161,7 @@ void SDCardDeployPanel::Draw()
     FullBleedSeparator();
     ImGui::BeginChild("DeployOutput", ImVec2(0, 0), ImGuiChildFlags_None);
     if (g_FontMonoSmall)
-        ImGui::PushFont(g_FontMonoSmall);
+        ImGui::PushFont(g_FontMonoSmall, DekiEditor::Fonts::CssPx(g_FontMonoSmall, 11.5f));
 
     std::vector<OutputLine> outputLines;
     {

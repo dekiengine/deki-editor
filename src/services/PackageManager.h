@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_set>
+#include <set>
 #include <vector>
 
 namespace DekiEditor
@@ -153,6 +154,8 @@ private:
     // deleter. Every iteration site stays as it was.
     std::vector<std::shared_ptr<IPackageInstaller>> m_Installers;
     std::vector<PackageEntry> m_Packages;
+    // "id|installed|locked" for every version mismatch already reported.
+    std::set<std::string> m_WarnedVersionMismatch;
     std::map<std::string, std::string> m_VersionOverrides;
 
     std::mutex m_MainQueueMutex;

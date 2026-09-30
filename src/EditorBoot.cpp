@@ -434,13 +434,8 @@ bool BootDisplay(BootContext& ctx)
     io.ConfigDpiScaleFonts = true;
 
     // FreeType font loader is enabled at build time (IMGUI_ENABLE_FREETYPE in
-    // CMakeLists.txt). Switch the hinting strategy to LightHinting - FreeType
-    // snaps glyphs only on Y, leaving horizontal spacing unsnapped. This is
-    // the same algorithm Microsoft's ClearType uses, which is why Inter looks
-    // fuller in Chrome than under FreeType's default native hinter. Closes
-    // most of the perceived "size" gap with the browser without changing the
-    // logical font size.
-    io.Fonts->FontLoaderFlags |= ImGuiFreeTypeLoaderFlags_LightHinting;
+    // CMakeLists.txt). Hinting is chosen per font where the fonts are loaded:
+    // LightHinting for the proportional fonts, full autohinting for the mono.
 
     // Without this, ImGui's ErrorRecoveryTryToRecoverState fires IM_ASSERT
     // when SafeDispatch unwinds a panel that faulted mid-BeginChild. With a
@@ -530,6 +525,19 @@ bool BootDisplay(BootContext& ctx)
 
         ImFontConfig baseCfg;
         baseCfg.PixelSnapH = true;
+        // LightHinting: FreeType snaps glyphs only on Y, leaving horizontal
+        // spacing unsnapped. This is the same algorithm Microsoft's ClearType
+        // uses, which is why Inter looks fuller in Chrome than under FreeType's
+        // default native hinter. Closes most of the perceived "size" gap with
+        // the browser without changing the logical font size.
+        baseCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
+
+        // JetBrains Mono gets the autohinter in normal mode, which snaps stems
+        // on X as well. Under LightHinting its fractional CSS sizes left every
+        // vertical stroke straddling two pixels, so console lines, value cells
+        // and code all rendered soft and grey.
+        ImFontConfig monoCfg = baseCfg;
+        monoCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_ForceAutoHint;
 
         // Tabler codepoint range capped at 0xFFFF so we stay within ImWchar (uint16).
         // Icons in our target mockup (player-play, folder, search, etc.) are all
@@ -547,6 +555,7 @@ bool BootDisplay(BootContext& ctx)
         auto mergeIcons = [&](float size)
         {
             ImFontConfig iconCfg;
+            iconCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
             iconCfg.MergeMode = true;
             iconCfg.PixelSnapH = true;
             iconCfg.GlyphMinAdvanceX = size;
@@ -561,7 +570,8 @@ bool BootDisplay(BootContext& ctx)
         // it. Use this instead of the raw AddFontFromFileTTF path.
         auto loadAndRegister = [&](const std::string& path, float px) -> ImFont*
         {
-            ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), px, &baseCfg);
+            const bool mono = (path == monoReg || path == monoMed);
+            ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), px, mono ? &monoCfg : &baseCfg);
             DekiEditor::Fonts::RegisterTtf(f, path.c_str());
             return f;
         };

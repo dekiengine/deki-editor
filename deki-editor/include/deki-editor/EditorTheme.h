@@ -120,6 +120,11 @@ DEKI_EDITOR_API void RegisterTtf(ImFont* font, const char* ttfPath);
 // ≈ 1.32, Space Grotesk ≈ 1.26). For example to ask for "13px CSS" of
 // Inter, call CssPx(g_FontUI, 13.0f).
 //
+// A fixed-width font is moved to the nearest size whose character advance
+// is a whole pixel (12.5 CSS px JetBrains Mono becomes 13.33, 8px per
+// character), since FreeType rounds the advance and a fractional one spreads
+// the letters apart.
+//
 // Returns cssPx unchanged if the font wasn't registered.
 DEKI_EDITOR_API float CssPx(ImFont* font, float cssPx);
 }  // namespace Fonts

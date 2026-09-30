@@ -110,7 +110,7 @@ void FrameCapturePanel::Draw()
             DekiEditor::BeginPropertyContext();
             InspectorUtils::BeginPropertyRow("ffmpeg");
             if (g_FontMonoSmall)
-                ImGui::PushFont(g_FontMonoSmall);
+                ImGui::PushFont(g_FontMonoSmall, DekiEditor::Fonts::CssPx(g_FontMonoSmall, 11.5f));
             ImGui::TextWrapped("%s", kCommand);
             if (g_FontMonoSmall)
                 ImGui::PopFont();

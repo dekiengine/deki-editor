@@ -516,7 +516,7 @@ void AssetBrowserPanel::DrawModeTabs()
     {
         char buf[32];
         snprintf(buf, sizeof(buf), "%zu items", m_Entries.size());
-        if (DekiEditor::g_FontMonoSmall) ImGui::PushFont(DekiEditor::g_FontMonoSmall);
+        if (DekiEditor::g_FontMonoSmall) ImGui::PushFont(DekiEditor::g_FontMonoSmall, DekiEditor::Fonts::CssPx(DekiEditor::g_FontMonoSmall, 11.5f));
         ImVec2 sz = ImGui::CalcTextSize(buf);
         const float countX = rowMax.x - sz.x - padX;
         const float countY = rowMin.y + (rowH - sz.y) * 0.5f;
