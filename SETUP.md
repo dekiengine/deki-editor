@@ -155,7 +155,7 @@ ninja.exe, sccache.exe       bundled tools used for project builds
 
 ```
 DekiEditor -V
-Deki Editor 0.16.0 (engine 0.16.0, reflection ABI 17)
+Deki Editor 0.17.0 (engine 0.17.0, reflection ABI 20)
 ```
 
 The same line is under **Help → About Deki Editor** (with a copy button) and
