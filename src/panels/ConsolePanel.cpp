@@ -376,6 +376,10 @@ void ConsolePanel::Draw()
     const Severity sevError = makeSeverity(Palette::Red, "ERROR");
     const Severity sevInfo = makeSeverity(Palette::Fg, "INFO");
     const float timeW = monoFont->CalcTextSizeA(monoSize, FLT_MAX, 0.0f, "00:00:00").x;
+    // One badge column for every row, as wide as the widest label, so the
+    // time and message line up down the list whatever the severity.
+    const float badgeW = std::max({ sevEditor.width, sevDebug.width, sevWarn.width,
+                                    sevError.width, sevInfo.width });
 
     // Rows outside this band are advanced past with their cached height and
     // never formatted, measured or drawn. The console used to do all of that
@@ -402,7 +406,6 @@ void ConsolePanel::Draw()
         }
         const ImVec4 sevColor = sev->color;
         const char* badge = sev->badge;
-        const float badgeW = sev->width;
 
         ImGui::PushID(vecIndex);
 

@@ -16,6 +16,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   once. SDL's own touch-to-mouse emulation is off in the editor window, since
   it pressed the button the moment a finger landed.
 
+### Fixed
+- Console rows line up: the time and message start at the same place on
+  every row, whatever the severity label (WARN, INFO, ERROR...).
+
 ## 0.17.0 - 2026-09-30
 
 ### Added
