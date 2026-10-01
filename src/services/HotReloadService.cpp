@@ -483,13 +483,8 @@ void HotReloadService::CheckAndReload(const std::string& projectPath)
     // files were deleted and timestamps went backwards.
     bool forceRebuild = m_ForceBuild;
     m_ForceBuild = false;
-    DEKI_LOG_EDITOR("CheckAndReload: m_SourcesDirty=%d, forceRebuild=%d",
-                    m_SourcesDirty ? 1 : 0, forceRebuild ? 1 : 0);
     if (!forceRebuild && !DetectSourceChanges(projectPath))
-    {
-        DEKI_LOG_EDITOR("CheckAndReload: no source changes, skipping plugin build");
         return;
-    }
 
     // Log and start the build. The configure/compile processes run on the
     // runner's thread; PumpBuild() advances the steps from the main loop and
@@ -520,7 +515,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
     {
         auto now = ReloadClock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - reloadPhaseStart).count();
-        if (m_Console)
+        if (m_Console && ms >= 10)
         {
             char buf[256];
             snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms", label, (long long)ms);
@@ -980,7 +975,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     {
         auto now = Clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - phaseStart).count();
-        if (m_Console)
+        if (m_Console && ms >= 10)
         {
             char buf[256];
             snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms", label, (long long)ms);
@@ -1982,7 +1977,6 @@ void HotReloadService::PrepareForPackageReload()
 
 bool HotReloadService::ReloadPackagesAndPlugins()
 {
-    DEKI_LOG_EDITOR("ReloadPackagesAndPlugins: starting");
     void* imguiCtx = ImGui::GetCurrentContext();
     std::string packageDir = m_PackageLoader->GetPackageDirectory();
     int loadedCount = m_PackageLoader->LoadPackagesFromDirectory(packageDir, imguiCtx);
@@ -2114,9 +2108,6 @@ void HotReloadService::CheckAndReloadPackages()
     if (!m_PackageLoader || m_Active)
         return;
 
-    DEKI_LOG_EDITOR("CheckAndReloadPackages: entry, m_SourcesDirty=%d",
-                    m_SourcesDirty ? 1 : 0);
-
     // Phase 1: Detect which packages have source changes and need rebuilding.
     // Skipped entirely when the watcher hasn't seen any source activity since
     // the last attempt - Phase 2 (external DLL replacement) still runs below.
@@ -2231,10 +2222,7 @@ void HotReloadService::CheckAndReloadPackages()
         // Phase 2: Check for DLL-only changes (e.g., external build)
         auto changedPackages = m_PackageLoader->CheckForUpdates();
         if (changedPackages.empty())
-        {
-            DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 - no DLL mtime changes, nothing to do");
             return;
-        }
 
         DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 - %zu package DLL(s) changed externally, reloading",
                         changedPackages.size());

@@ -21,7 +21,6 @@ void CommandHistory::Execute(std::unique_ptr<Command> command)
         if (elapsed < m_MergeWindow && m_UndoStack.back()->CanMerge(command.get()))
         {
             // Merge with previous command
-            DEKI_LOG_DEBUG("[Undo] Merging: %s", command->GetDescription().c_str());
             m_UndoStack.back()->Merge(command.get());
             command->Execute();
             m_LastCommandTime = now;
@@ -63,7 +62,6 @@ void CommandHistory::Undo()
 {
     if (m_UndoStack.empty())
     {
-        DEKI_LOG_DEBUG("[Undo] Nothing to undo");
         return;
     }
 
@@ -81,7 +79,6 @@ void CommandHistory::Redo()
 {
     if (m_RedoStack.empty())
     {
-        DEKI_LOG_DEBUG("[Undo] Nothing to redo");
         return;
     }
 

@@ -112,27 +112,17 @@ void CreateAssetDialog::Draw()
             else
             {
                 // Create the asset using the registry
-                DEKI_LOG_EDITOR("CreateAssetDialog: Creating asset type='%s' at path='%s'",
-                                m_CreateAssetType.c_str(), newAssetPath.string().c_str());
-
                 if (AssetTypeRegistry::Instance().CreateAsset(m_CreateAssetType, newAssetPath.string()))
                 {
-                    DEKI_LOG_EDITOR("CreateAssetDialog: CreateAsset succeeded");
+                    DEKI_LOG_EDITOR("Created %s asset %s", m_CreateAssetType.c_str(),
+                                    newAssetPath.string().c_str());
 
                     // Refresh the asset in the pipeline to generate GUID and cache
-                    DEKI_LOG_EDITOR("CreateAssetDialog: m_App=%p, GetAssetPipeline=%p, GetProject=%p",
-                                    (void*)m_App,
-                                    (void*)(m_App ? m_App->GetAssetPipeline() : nullptr),
-                                    (void*)(m_App ? m_App->GetProject() : nullptr));
-
                     if (m_App && m_App->GetAssetPipeline() && m_App->GetProject())
                     {
                         // Convert absolute path to project-relative path
                         fs::path projectPath = m_App->GetProject()->GetPath();
                         std::string relativePath = fs::relative(newAssetPath, projectPath).string();
-
-                        DEKI_LOG_EDITOR("CreateAssetDialog: projectPath='%s', relativePath='%s'",
-                                        projectPath.string().c_str(), relativePath.c_str());
 
                         // Normalize path separators
                         for (char& c : relativePath)
@@ -140,7 +130,6 @@ void CreateAssetDialog::Draw()
                             if (c == '\\') c = '/';
                         }
 
-                        DEKI_LOG_EDITOR("CreateAssetDialog: Calling RefreshAsset with '%s'", relativePath.c_str());
                         m_App->GetAssetPipeline()->RefreshAsset(relativePath);
                         // RefreshAsset -> ProcessAsset fires OnAssetCreated, which
                         // refreshes the browser asset list. No manual NavigateTo needed.

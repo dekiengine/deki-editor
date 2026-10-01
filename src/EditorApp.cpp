@@ -766,10 +766,6 @@ void EditorApp::HandleFileDrop(const std::string& path)
 
 void EditorApp::OnWindowFocusGained()
 {
-    DEKI_LOG_EDITOR("Window focus gained%s",
-                    m_Project ? " (requesting package + build check)"
-                              : " (no project; requesting package check only)");
-
     // Always check for package DLL changes (even without a project open)
     if (m_HotReloadService)
     {

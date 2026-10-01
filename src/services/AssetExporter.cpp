@@ -196,7 +196,7 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     }
     fs::create_directories(storagePath);
 
-    DEKI_LOG_INFO("Exporting assets to storage (from cache)...");
+    DEKI_LOG_EDITOR("Exporting assets to storage (from cache)...");
 
     // Ensure cache is up-to-date before export
     m_Pipeline->UpdateAssetTable();
@@ -205,7 +205,7 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     // This is a safety net: cached scenes may have been compiled before the
     // GUID resolver was set (e.g., from a previous session), leaving instances
     // unexpanded with missing components.
-    DEKI_LOG_INFO("Recompiling scene cache files for export...");
+    DEKI_LOG_EDITOR("Recompiling scene cache files for export...");
     {
         const auto& allAssets = m_Pipeline->GetAllAssets();
         int recompiledCount = 0;
@@ -228,11 +228,10 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
                 DEKI_LOG_WARNING("Failed to recompile scene: %s", info.path.c_str());
             }
         }
-        DEKI_LOG_INFO("Recompiled %d scene cache files", recompiledCount);
+        DEKI_LOG_EDITOR("Recompiled %d scene cache files", recompiledCount);
     }
 
     // Step 1: Collect used assets from all scenes
-    DEKI_LOG_INFO("Scanning scenes for used assets...");
     AssetUsageCollection usedAssets = CollectUsedAssets();
 
     // Step 1.5: Merge in the force-included assets. Every build ships them,
@@ -246,14 +245,13 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     // Step 1.6: What those cannot load without (a frame's sheet, ...)
     AddAssetDependencies(usedAssets);
 
-    DEKI_LOG_INFO("Found %zu used assets (%zu force-included), %zu font usages",
-                  usedAssets.usedGuids.size(), forceIncluded.size(), usedAssets.fontUsages.size());
+    DEKI_LOG_EDITOR("Found %zu used assets (%zu force-included), %zu font usages",
+                    usedAssets.usedGuids.size(), forceIncluded.size(), usedAssets.fontUsages.size());
 
     // Step 2: Ensure fonts are baked in cache
     // (Fonts should already be cached via FontSyncHandler, but verify)
     if (!usedAssets.fontUsages.empty())
     {
-        DEKI_LOG_INFO("Verifying %zu fonts are baked...", usedAssets.fontUsages.size());
         auto bakedFonts = BakeFontsForExport(usedAssets.fontUsages);
 
         // Add baked font GUIDs to used set
@@ -697,8 +695,8 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
     std::string projectPath = m_Project->GetPath();
     std::string cacheDir = GetCacheDirectory(projectPath);
 
-    DEKI_LOG_INFO("Exporting used assets as GUID-named files (%zu used, %zu in packs)...",
-                  usedGuids.size(), skipGuids.size());
+    DEKI_LOG_EDITOR("Exporting used assets as GUID-named files (%zu used, %zu in packs)...",
+                    usedGuids.size(), skipGuids.size());
 
     // First, export assets from the pipeline (textures, animations, scenes, etc.)
     // Files are named by GUID (no path structure, no extension)
@@ -823,10 +821,10 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
         static_cast<int>(passNamePtrs.size()));
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
 
-    DEKI_LOG_INFO("Wrote %s (%zu bytes, pipeline=%s, %d passes)",
-                  Deki::ProjectSettings::EXPORT_FILENAME, settingsBuffer.size(),
-                  rendererName.empty() ? "(none)" : rendererName.c_str(),
-                  (int)passNames.size());
+    DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)",
+                    Deki::ProjectSettings::EXPORT_FILENAME, settingsBuffer.size(),
+                    rendererName.empty() ? "(none)" : rendererName.c_str(),
+                    (int)passNames.size());
 }
 
 bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::string& bootSceneAssetPath)
@@ -839,7 +837,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
         return false;
     }
 
-    DEKI_LOG_INFO("Exporting the boot payload to %s", payloadDir.c_str());
+    DEKI_LOG_EDITOR("Exporting the boot payload to %s", payloadDir.c_str());
 
     // Create/clear the payload directory
     try
@@ -890,12 +888,12 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
     settingsFile.close();
 
-    DEKI_LOG_INFO("Wrote project_data.bin to the boot payload (%zu bytes)", settingsBuffer.size());
+    DEKI_LOG_EDITOR("Wrote project_data.bin to the boot payload (%zu bytes)", settingsBuffer.size());
 
     // Compile and export boot scene if specified
     if (!bootSceneAssetPath.empty() && m_Pipeline)
     {
-        DEKI_LOG_INFO("Boot scene path: '%s'", bootSceneAssetPath.c_str());
+        DEKI_LOG_EDITOR("Boot scene path: '%s'", bootSceneAssetPath.c_str());
 
         fs::path destPath = fs::path(payloadDir) / "boot.scene";
         bool exported = false;
@@ -931,7 +929,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
                         out << FilterSceneForTarget(scene, m_TargetCapabilities).dump(2);
                         out.close();
                         compileFrom = filtered;
-                        DEKI_LOG_INFO("Boot scene filtered for this target");
+                        DEKI_LOG_EDITOR("Boot scene filtered for this target");
                     }
                 }
                 catch (const std::exception& e)
@@ -945,8 +943,8 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
             // Compile JSON scene to MessagePack binary
             if (m_Pipeline->CompileSceneFile(compileFrom.string(), destPath.string()))
             {
-                DEKI_LOG_INFO("Compiled boot scene into the boot payload: %s (%zu bytes)",
-                              destPath.string().c_str(), fs::file_size(destPath));
+                DEKI_LOG_EDITOR("Compiled boot scene into the boot payload: %s (%zu bytes)",
+                                destPath.string().c_str(), fs::file_size(destPath));
                 exported = true;
                 if (!filtered.empty())
                 {
@@ -973,7 +971,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
             DEKI_LOG_WARNING("No asset pipeline available for boot scene export");
     }
 
-    DEKI_LOG_INFO("Boot payload export complete");
+    DEKI_LOG_EDITOR("Boot payload export complete");
     return true;
 }
 
@@ -1046,7 +1044,7 @@ bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const 
         entry.hash = FNV1aHash(key.c_str());
         strncpy(entry.guid, info.guid.c_str(), sizeof(entry.guid) - 1);
 
-        DEKI_LOG_INFO("ExportAssetLookupTable: key='%s' hash=0x%08X guid=%s", key.c_str(), entry.hash, info.guid.c_str());
+        DEKI_LOG_DEBUG("ExportAssetLookupTable: key='%s' hash=0x%08X guid=%s", key.c_str(), entry.hash, info.guid.c_str());
         entries.push_back(entry);
         addedGuids.insert(info.guid);
     }
@@ -1070,7 +1068,7 @@ bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const 
         entry.hash = FNV1aHash(guid.c_str());
         strncpy(entry.guid, guid.c_str(), sizeof(entry.guid) - 1);
 
-        DEKI_LOG_INFO("ExportAssetLookupTable: cache-only key='%s' hash=0x%08X", guid.c_str(), entry.hash);
+        DEKI_LOG_DEBUG("ExportAssetLookupTable: cache-only key='%s' hash=0x%08X", guid.c_str(), entry.hash);
         entries.push_back(entry);
         addedGuids.insert(guid);
     }
@@ -1096,7 +1094,7 @@ bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const 
         file.write(reinterpret_cast<const char*>(&entry), sizeof(entry));
     }
 
-    DEKI_LOG_INFO("ExportAssetLookupTable: Wrote %u entries to %s", count, outputPath.c_str());
+    DEKI_LOG_EDITOR("ExportAssetLookupTable: Wrote %u entries to %s", count, outputPath.c_str());
     return true;
 }
 

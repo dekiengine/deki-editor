@@ -72,7 +72,8 @@ struct ScopedTimer
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::steady_clock::now() - start)
                       .count();
-        DEKI_LOG_EDITOR("[timing] %s: %lld ms", tag, static_cast<long long>(ms));
+        if (ms >= 10)
+            DEKI_LOG_EDITOR("[timing] %s: %lld ms", tag, static_cast<long long>(ms));
     }
 };
 }  // namespace
@@ -350,7 +351,7 @@ bool EditorApp::OpenProject(const std::string& path)
         std::string why;
         m_ProjectTransformWidth = static_cast<int>(
             CMakeGen::ResolveTransformWidth(declared, ids, CMakeGen::ReadProjectTags(path), &why));
-        DEKI_LOG_INFO("Project transform: %s", why.c_str());
+        DEKI_LOG_EDITOR("Project transform: %s", why.c_str());
     }
 
     // A project is open, so runtime/ is authoritative about what a package is -
@@ -1338,7 +1339,7 @@ void EditorApp::OnBeforePluginReload()
     SetCurrentScene(nullptr);
     ClearSelection();
 
-    DEKI_LOG_EDITOR("EditorApp: Saved scene to memory for hot reload");
+    DEKI_LOG_DEBUG("EditorApp: Saved scene to memory for hot reload");
 }
 
 void EditorApp::OnAfterPluginReload()
@@ -1372,7 +1373,7 @@ void EditorApp::OnAfterPluginReload()
     // Re-discover tool windows (packages may have added/changed EditorWindows)
     m_ToolHost->DiscoverTools();
 
-    DEKI_LOG_EDITOR("EditorApp: Restored scene from memory after hot reload");
+    DEKI_LOG_DEBUG("EditorApp: Restored scene from memory after hot reload");
 }
 
 const std::vector<std::string>& EditorApp::SceneGuidsIn(const std::string& absPath)
@@ -1506,10 +1507,6 @@ bool EditorApp::CheckAssetCacheEpochChanged(const std::string& projectPath)
             file << ASSET_CACHE_EPOCH;
             file.close();
         }
-    }
-    else
-    {
-        DEKI_LOG_EDITOR("[EditorApp] Asset cache epoch unchanged: %s", ASSET_CACHE_EPOCH);
     }
 
     return versionChanged;

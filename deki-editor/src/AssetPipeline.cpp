@@ -62,7 +62,8 @@ struct ScopedTimer
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::steady_clock::now() - start)
                       .count();
-        DEKI_LOG_EDITOR("[timing] %s: %lld ms", tag, static_cast<long long>(ms));
+        if (ms >= 10)
+            DEKI_LOG_EDITOR("[timing] %s: %lld ms", tag, static_cast<long long>(ms));
     }
 };
 
@@ -221,9 +222,7 @@ void AssetPipeline::RegisterCacheHandler(const std::string& extension, AssetCach
     std::string extLower = extension;
     for (char& c : extLower)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    bool isOverride = m_CacheHandlers.find(extLower) != m_CacheHandlers.end();
     m_CacheHandlers[extLower] = std::move(handler);
-    DEKI_LOG_EDITOR("RegisterCacheHandler: Registered handler for '%s' (override=%d)", extLower.c_str(), isOverride ? 1 : 0);
 }
 
 void AssetPipeline::SetDefaultCacheHandler(AssetCacheHandler handler)
@@ -281,10 +280,9 @@ static AssetCacheResult HandleAssetFileCache(const AssetCacheContext& ctx)
     if (ctx.hasCachedVersion && ctx.cacheIsFresh)
         return AssetCacheResult::Cached;
 
-    DEKI_LOG_EDITOR("AssetCache: Compiling .asset file: %s -> %s", ctx.absolutePath.c_str(), ctx.cachePath.c_str());
+    DEKI_LOG_DEBUG("AssetCache: Compiling .asset file: %s -> %s", ctx.absolutePath.c_str(), ctx.cachePath.c_str());
     if (ctx.pipeline->CompileAssetFile(ctx.absolutePath, ctx.cachePath))
     {
-        DEKI_LOG_EDITOR("AssetCache: Compile succeeded!");
         return AssetCacheResult::Cached;
     }
     return AssetCacheResult::NotCached;
@@ -366,35 +364,30 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     RegisterCacheHandler(".scene", HandleSceneCache);
     RegisterCacheHandler(".asset", HandleAssetFileCache);
     SetDefaultCacheHandler(DefaultAssetCacheHandler);
-    DEKI_LOG_EDITOR("AssetPipeline: Registered %zu built-in cache handlers", m_CacheHandlers.size());
 
     // Invoke OnStarted callbacks BEFORE syncing so handlers are ready
     // when assets are processed (e.g., font sync handlers for auto-baking)
-    DEKI_LOG_EDITOR("AssetPipeline: Invoking %zu OnStarted callbacks", s_OnStartedCallbacks.size());
     for (auto& callback : s_OnStartedCallbacks)
     {
         callback(this);
     }
-    DEKI_LOG_EDITOR("AssetPipeline: OnStarted callbacks complete, sync handlers count=%zu, cache handlers count=%zu", m_SyncHandlers.size(), m_CacheHandlers.size());
+    DEKI_LOG_EDITOR("AssetPipeline: %zu cache handlers, %zu sync handlers", m_CacheHandlers.size(), m_SyncHandlers.size());
 
     // Initialize and sync GUID cache (handlers now ready to process assets)
     {
         ScopedTimer __t_guid("AssetPipeline::Start GuidCache");
         std::string guidCachePath = (fs::path(GetCacheDirectory(projectPath)) / "guids.json").string();
-        DEKI_LOG_EDITOR("GuidCache: Loading from %s, assets at %s", guidCachePath.c_str(), assetsPath.c_str());
 
         if (!m_GuidCache.Load(guidCachePath))
         {
-            DEKI_LOG_EDITOR("GuidCache: Load failed, rebuilding...");
+            DEKI_LOG_EDITOR("GuidCache: no usable cache, rebuilding from .data files");
             // Cache missing or corrupt - rebuild from .data files
             ScopedTimer __t_rebuild("GuidCache::Rebuild");
             m_GuidCache.Rebuild(assetsPath);
-            DEKI_LOG_EDITOR("GuidCache: Rebuild complete, saving to %s", guidCachePath.c_str());
             m_GuidCache.Save(guidCachePath);
         }
         else
         {
-            DEKI_LOG_EDITOR("GuidCache: Loaded, syncing...");
             // Sync with filesystem to catch any changes
             ScopedTimer __t_sync("GuidCache::Sync");
             m_GuidCache.Sync(assetsPath);
@@ -520,12 +513,9 @@ void AssetPipeline::ImportAllAssets()
         auto __t_pass1_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                 std::chrono::steady_clock::now() - __t_pass1_start)
                                 .count();
-        DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1 (non-scene): %lld ms",
-                        static_cast<long long>(__t_pass1_ms));
+        DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1 (non-scene): %lld ms, %zu subassets",
+                        static_cast<long long>(__t_pass1_ms), m_SubAssetLookup.size());
     }
-
-    DEKI_LOG_EDITOR("ImportAllAssets: Pass 1 complete, %zu subassets registered, processing %zu scenes",
-                    m_SubAssetLookup.size(), scenePaths.size());
 
     auto __t_pass15_start = std::chrono::steady_clock::now();
     // Pass 1.5: Pre-register all scene GUIDs in m_Assets so cross-scene
@@ -561,12 +551,10 @@ void AssetPipeline::ImportAllAssets()
         auto __t_pass15_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                  std::chrono::steady_clock::now() - __t_pass15_start)
                                  .count();
-        DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1.5 (scene GUID pre-register): %lld ms",
-                        static_cast<long long>(__t_pass15_ms));
+        if (__t_pass15_ms >= 10)
+            DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1.5 (scene GUID pre-register): %lld ms",
+                            static_cast<long long>(__t_pass15_ms));
     }
-
-    DEKI_LOG_EDITOR("ImportAllAssets: Pass 1.5 complete, pre-registered %zu scene GUIDs",
-                    scenePaths.size());
 
     // Pass 2: Process scenes (now all subassets and scene GUIDs are registered)
     {
@@ -593,8 +581,7 @@ void AssetPipeline::ImportAllAssets()
 
     if (assetSetUnchanged)
     {
-        DEKI_LOG_EDITOR("[timing] ImportAllAssets ValidateCache: skipped (asset set unchanged)");
-        DEKI_LOG_EDITOR("[timing] ImportAllAssets UpdateAssetTable: skipped (asset set unchanged)");
+        DEKI_LOG_EDITOR("ImportAllAssets: asset set unchanged, cache check and asset table skipped");
     }
     else
     {
@@ -707,7 +694,7 @@ void AssetPipeline::Tick()
                         fs::remove(absoluteCachePath, ec);
                         if (!ec)
                         {
-                            DEKI_LOG_EDITOR("Removed stale cache: %s", absoluteCachePath.c_str());
+                            DEKI_LOG_DEBUG("Removed stale cache: %s", absoluteCachePath.c_str());
                         }
                     }
                 }
@@ -741,7 +728,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         }
     } __agg{ __t_pa_start };
 
-    DEKI_LOG_EDITOR("ProcessAsset: Processing '%s'", relativePath.c_str());
+    DEKI_LOG_DEBUG("ProcessAsset: %s", relativePath.c_str());
 
     // Compute absolute path for filesystem operations
     std::string absolutePath = GetAbsolutePath(relativePath);
@@ -751,7 +738,6 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
 
     // Get or create GUID (uses absolute path for filesystem access)
     info.guid = GetOrCreateAssetGuid(relativePath);
-    DEKI_LOG_EDITOR("ProcessAsset: GUID='%s'", info.guid.c_str());
 
     // Determine asset type and get appropriate cache path
     std::string ext = fs::path(relativePath).extension().string();
@@ -774,7 +760,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     bool cacheIsFresh = false;
     if (forceRebuild && cacheExists)
     {
-        DEKI_LOG_EDITOR("ProcessAsset: forceRebuild=true, deleting cache for %s", relativePath.c_str());
+        DEKI_LOG_DEBUG("ProcessAsset: forceRebuild=true, deleting cache for %s", relativePath.c_str());
         std::error_code ec;
         fs::remove(absoluteCachePath, ec);
         if (!ec)
@@ -791,7 +777,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
 
             if (sourceTime > cacheTime)
             {
-                DEKI_LOG_EDITOR("Cache stale for %s, regenerating", relativePath.c_str());
+                DEKI_LOG_DEBUG("Cache stale for %s, regenerating", relativePath.c_str());
                 std::error_code ec;
                 fs::remove(absoluteCachePath, ec);
                 if (!ec)
@@ -845,12 +831,10 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         auto handlerIt = m_CacheHandlers.find(ext);
         if (handlerIt != m_CacheHandlers.end())
         {
-            DEKI_LOG_EDITOR("ProcessAsset: Using registered cache handler for '%s' (ext=%s)", relativePath.c_str(), ext.c_str());
             applyResult(handlerIt->second(ctx));
         }
         else if (m_DefaultCacheHandler)
         {
-            DEKI_LOG_EDITOR("ProcessAsset: Using default cache handler for '%s' (ext=%s)", relativePath.c_str(), ext.c_str());
             applyResult(m_DefaultCacheHandler(ctx));
         }
     }
@@ -902,7 +886,6 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
             !info.hasCachedVersion;
         if (shouldFire)
         {
-            DEKI_LOG_EDITOR("ProcessAsset: Calling sync handler for %s (ext=%s)", relativePath.c_str(), ext.c_str());
             handlerIt->second.handler(absolutePath, info.guid, m_ProjectPath);
         }
     }
@@ -1011,8 +994,8 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
                 {
                     std::string seed = fontRef.source + ":" + std::to_string(fontSize);
                     fontRef.guid = GenerateDeterministicGuid(seed);
-                    DEKI_LOG_EDITOR("CompileScene: Set font.guid for '%s' fontSize=%d -> guid=%s",
-                                    fontRef.source.c_str(), fontSize, fontRef.guid.c_str());
+                    DEKI_LOG_DEBUG("CompileScene: Set font.guid for '%s' fontSize=%d -> guid=%s",
+                                   fontRef.source.c_str(), fontSize, fontRef.guid.c_str());
                 }
             }
         }
@@ -1047,17 +1030,14 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     // When an AssetRef has a frame GUID in the guid field and empty source, swap them
     writer.SetSubAssetResolver([this](const std::string& guid, std::string& outParentGuid) -> bool
                                {
-        DEKI_LOG_EDITOR("CompileScene: Checking if '%s' is a subasset (total subassets: %zu)",
-                      guid.c_str(), m_SubAssetLookup.size());
         const SubAssetInfo* subAsset = GetSubAsset(guid);
         if (subAsset)
         {
             outParentGuid = subAsset->parentGuid;
-            DEKI_LOG_EDITOR("CompileScene: Migrated subasset guid='%s' -> parent='%s'",
-                          guid.c_str(), outParentGuid.c_str());
+            DEKI_LOG_DEBUG("CompileScene: Migrated subasset guid='%s' -> parent='%s'",
+                           guid.c_str(), outParentGuid.c_str());
             return true;
         }
-        DEKI_LOG_EDITOR("CompileScene: '%s' is NOT a subasset", guid.c_str());
         return false; });
 
     // Don't set asset resolver - store GUIDs directly in binary scene
@@ -1141,8 +1121,8 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
             return false;
         }
         out.write(reinterpret_cast<const char*>(mp.data()), mp.size());
-        DEKI_LOG_EDITOR("CompileAssetFile: data asset %s (type=%s) -> %zu B msgpack",
-                        assetPath.c_str(), assetType.c_str(), mp.size());
+        DEKI_LOG_DEBUG("CompileAssetFile: data asset %s (type=%s) -> %zu B msgpack",
+                       assetPath.c_str(), assetType.c_str(), mp.size());
         return out.good();
     }
 
@@ -1153,7 +1133,7 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
         return false;
     }
 
-    DEKI_LOG_EDITOR("CompileAssetFile: Compiling %s (type=%s) -> %s", assetPath.c_str(), assetType.c_str(), cachePath.c_str());
+    DEKI_LOG_DEBUG("CompileAssetFile: Compiling %s (type=%s) -> %s", assetPath.c_str(), assetType.c_str(), cachePath.c_str());
 
     // Delegate to AssetTypeRegistry for compilation
     std::vector<uint8_t> rgba;
@@ -1202,24 +1182,19 @@ const AssetInfo* AssetPipeline::GetAssetInfo(const std::string& path) const
 
 void AssetPipeline::RefreshAsset(const std::string& relativePath)
 {
-    DEKI_LOG_EDITOR("RefreshAsset: Called with path='%s', m_Running=%d", relativePath.c_str(), m_Running ? 1 : 0);
-
-    if (!m_Running || relativePath.empty())
+        if (!m_Running || relativePath.empty())
     {
-        DEKI_LOG_EDITOR("RefreshAsset: Early return (m_Running=%d, empty=%d)", m_Running ? 1 : 0, relativePath.empty() ? 1 : 0);
         return;
     }
 
     // Check if file exists using absolute path
     std::string absolutePath = GetAbsolutePath(relativePath);
-    DEKI_LOG_EDITOR("RefreshAsset: absolutePath='%s', exists=%d", absolutePath.c_str(), fs::exists(absolutePath) ? 1 : 0);
     if (!fs::exists(absolutePath))
         return;
 
     std::string ext = fs::path(relativePath).extension().string();
     for (char& c : ext)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    DEKI_LOG_EDITOR("RefreshAsset: ext='%s', isAssetFile=%d", ext.c_str(), IsAssetFile(ext) ? 1 : 0);
     if (!IsAssetFile(ext))
         return;
 
@@ -1233,14 +1208,13 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
         std::string cachePath = GetAbsolutePath(it->second.cachePath);
         if (fs::exists(cachePath))
         {
-            DEKI_LOG_EDITOR("RefreshAsset: Deleting stale cache '%s'", cachePath.c_str());
             std::error_code ec;
             fs::remove(cachePath, ec);
         }
         it->second.hasCachedVersion = false;
     }
 
-    DEKI_LOG_EDITOR("RefreshAsset: Calling ProcessAsset (forceRebuild=true)");
+    DEKI_LOG_DEBUG("RefreshAsset: %s", relativePath.c_str());
     ProcessAsset(relativePath, /*forceRebuild=*/true);
 
     // Trigger changed callback so UI can update
@@ -1364,7 +1338,7 @@ int AssetPipeline::CleanCache()
         if (fs::remove(path, ec))
         {
             removedCount++;
-            DEKI_LOG_EDITOR("Removed orphaned cache file: %s", path.filename().string().c_str());
+            DEKI_LOG_DEBUG("Removed orphaned cache file: %s", path.filename().string().c_str());
         }
     }
 
@@ -1616,7 +1590,7 @@ void AssetPipeline::ValidateCache()
         if (fs::remove(orphan, ec))
         {
             removedCount++;
-            DEKI_LOG_EDITOR("ValidateCache: Removed orphan cache file: %s", orphan.filename().string().c_str());
+            DEKI_LOG_DEBUG("ValidateCache: Removed orphan cache file: %s", orphan.filename().string().c_str());
         }
     }
 

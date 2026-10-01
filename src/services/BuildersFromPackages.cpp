@@ -75,9 +75,9 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
                 continue;
             }
 
-            DEKI_LOG_INFO("Package '%s' provides build backend '%s' (framework '%s')",
-                          pkg.name.c_str(), builder->GetName(),
-                          builder->GetFrameworkId().c_str());
+            DEKI_LOG_EDITOR("Package '%s' provides build backend '%s' (framework '%s')",
+                            pkg.name.c_str(), builder->GetName(),
+                            builder->GetFrameworkId().c_str());
             registry.RegisterPluginBuilder(builder, destroy);
         }
     }
@@ -117,8 +117,8 @@ void RegisterInstallersFromPackages(PackageLoader& loader, ::PackageManager& man
                 continue;
             }
 
-            DEKI_LOG_INFO("Package '%s' provides package installer '%s' (id '%s')", pkg.name.c_str(),
-                          installer->GetPlatformName().c_str(), installer->GetId().c_str());
+            DEKI_LOG_EDITOR("Package '%s' provides package installer '%s' (id '%s')", pkg.name.c_str(),
+                            installer->GetPlatformName().c_str(), installer->GetId().c_str());
             manager.RegisterPluginInstaller(installer, destroy);
         }
     }

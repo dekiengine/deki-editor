@@ -212,14 +212,10 @@ std::string PackageLoader::CreateShadowDirectory()
             const auto srcSize = fs::file_size(src, srcSizeEc);
             const auto dstSize = fs::file_size(dst, dstSizeEc);
             if (!srcSizeEc && !dstSizeEc && dstTime == srcTime && dstSize == srcSize)
-            {
-                DEKI_LOG_EDITOR("PackageLoader: shadow '%s' up-to-date (skipping copy)",
-                                dst.filename().string().c_str());
                 return;  // up-to-date
-            }
         }
-        DEKI_LOG_EDITOR("PackageLoader: refreshing shadow copy '%s'",
-                        dst.filename().string().c_str());
+        DEKI_LOG_DEBUG("PackageLoader: refreshing shadow copy '%s'",
+                       dst.filename().string().c_str());
         copyPreservingTime(src, dst, ec);
 
         if (ec && fs::exists(dst, statEc))
@@ -378,9 +374,9 @@ std::string PackageLoader::CreateShadowDirectory()
             std::error_code rmEc;
             if (fs::remove(leftover.path(), rmEc))
             {
-                DEKI_LOG_INFO("PackageLoader: pruned orphaned shadow copy '%s' "
-                              "(no source directory provides it any more)",
-                              name.c_str());
+                DEKI_LOG_EDITOR("PackageLoader: pruned orphaned shadow copy '%s' "
+                                "(no source directory provides it any more)",
+                                name.c_str());
             }
             else
             {

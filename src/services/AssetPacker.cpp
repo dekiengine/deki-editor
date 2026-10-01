@@ -109,7 +109,7 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
                         atlasEntry.size = static_cast<uint32_t>(fs::file_size(atlasCachePath));
                         autoEntries.push_back(atlasEntry);
                         existingGuids.insert(atlasGuid);
-                        DEKI_LOG_INFO("AssetPacker: Auto-included font atlas %s", atlasGuid.c_str());
+                        DEKI_LOG_DEBUG("AssetPacker: Auto-included font atlas %s", atlasGuid.c_str());
                     }
                 }
             }
@@ -188,11 +188,11 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
     out.close();
 
     uint32_t totalSize = currentOffset;
-    DEKI_LOG_INFO("AssetPacker: Built pack (%u assets, %.1f KB):",
-                  (uint32_t)entries.size(), totalSize / 1024.0f);
+    DEKI_LOG_EDITOR("AssetPacker: Built pack (%u assets, %.1f KB):",
+                    (uint32_t)entries.size(), totalSize / 1024.0f);
     for (const auto& entry : entries)
     {
-        DEKI_LOG_INFO("  [%s] %s (%.1f KB)", entry.typeName.c_str(), entry.guid.c_str(), entry.size / 1024.0f);
+        DEKI_LOG_DEBUG("  [%s] %s (%.1f KB)", entry.typeName.c_str(), entry.guid.c_str(), entry.size / 1024.0f);
     }
     return true;
 }
@@ -267,7 +267,7 @@ void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid,
             ve.cachePath = variantPath;
             ve.size = static_cast<uint32_t>(fs::file_size(variantPath));
             outEntries.push_back(ve);
-            DEKI_LOG_INFO("AssetPacker: Auto-included font variant %s @ %dpx", sourceGuid.c_str(), usage.fontSize);
+            DEKI_LOG_DEBUG("AssetPacker: Auto-included font variant %s @ %dpx", sourceGuid.c_str(), usage.fontSize);
         }
 
         // Add atlas .dtex
@@ -280,7 +280,7 @@ void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid,
             ae.cachePath = atlasPath;
             ae.size = static_cast<uint32_t>(fs::file_size(atlasPath));
             outEntries.push_back(ae);
-            DEKI_LOG_INFO("AssetPacker: Auto-included font atlas %s @ %dpx", sourceGuid.c_str(), usage.fontSize);
+            DEKI_LOG_DEBUG("AssetPacker: Auto-included font atlas %s @ %dpx", sourceGuid.c_str(), usage.fontSize);
         }
     }
 }
@@ -405,7 +405,7 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
     }
 
     out.close();
-    DEKI_LOG_INFO("AssetPacker: Built pack index (%u entries)", count);
+    DEKI_LOG_EDITOR("AssetPacker: Built pack index (%u entries)", count);
     return true;
 }
 

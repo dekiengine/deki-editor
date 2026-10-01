@@ -314,8 +314,8 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
         entry.moduleIndex = moduleIndex;
         m_Builders.push_back(entry);
         ++taken;
-        DEKI_LOG_INFO("Builder plugin '%s' provides '%s' (framework '%s')", getName(),
-                      builder->GetName(), builder->GetFrameworkId().c_str());
+        DEKI_LOG_EDITOR("Builder plugin '%s' provides '%s' (framework '%s')", getName(),
+                        builder->GetName(), builder->GetFrameworkId().c_str());
     }
 
     if (taken == 0)

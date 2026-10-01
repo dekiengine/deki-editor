@@ -168,8 +168,8 @@ void AssetFileWatcher::Start(const std::string& watchPath, const std::string& pr
 
     impl.watcher->watch();
     impl.watching = true;
-    DEKI_LOG_EDITOR("AssetFileWatcher: watching %s (id=%d)",
-                    watchPath.c_str(), (int)impl.watchId);
+    DEKI_LOG_DEBUG("AssetFileWatcher: watching %s (id=%d)",
+                   watchPath.c_str(), (int)impl.watchId);
 }
 
 void AssetFileWatcher::Stop()

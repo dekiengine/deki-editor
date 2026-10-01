@@ -46,15 +46,14 @@ static void PrintRegisteredComponents()
 {
     auto& registry = Deki::ComponentRegistry::Instance();
 
-    // Debug: Print what was registered
     DEKI_LOG_EDITOR("ComponentRegistry: %zu components registered",
                     registry.GetAllComponents().size());
     for (const auto* meta : registry.GetAllComponents())
     {
-        DEKI_LOG_EDITOR("  - %s (category: %s, abstract: %d)",
-                        meta->name ? meta->name : "null",
-                        meta->category ? meta->category : "none",
-                        meta->isAbstract ? 1 : 0);
+        DEKI_LOG_DEBUG("  - %s (category: %s, abstract: %d)",
+                       meta->name ? meta->name : "null",
+                       meta->category ? meta->category : "none",
+                       meta->isAbstract ? 1 : 0);
     }
 }
 
@@ -627,7 +626,7 @@ void RegisterEngineEditors()
                             delete rawPtr;
                             return nullptr;
                         });
-                    DEKI_LOG_EDITOR("Registered custom editor factory: %s", prototype->GetName());
+                    DEKI_LOG_DEBUG("Registered custom editor factory: %s", prototype->GetName());
                     break;
                 }
 
@@ -636,7 +635,7 @@ void RegisterEngineEditors()
                     // AssetTypeEditors remain singletons (they don't have per-component state)
                     auto* assetEditor = static_cast<DekiEditor::AssetTypeEditor*>(prototype);
                     assetTypeEditorRegistry.Register(assetEditor);
-                    DEKI_LOG_EDITOR("Registered asset type editor: %s", prototype->GetName());
+                    DEKI_LOG_DEBUG("Registered asset type editor: %s", prototype->GetName());
 
                     // Auto-create AssetTypeHandler for creation menu
                     DekiEditor::AssetTypeHandler handler;
@@ -699,14 +698,14 @@ void RegisterEngineEditors()
             {
                 case DekiEditor::EditorType::CustomEditor:
                     customEditorRegistry.Register(static_cast<DekiEditor::CustomEditor*>(editor));
-                    DEKI_LOG_EDITOR("Registered custom editor (legacy): %s", editor->GetName());
+                    DEKI_LOG_DEBUG("Registered custom editor (legacy): %s", editor->GetName());
                     break;
 
                 case DekiEditor::EditorType::AssetTypeEditor:
                 {
                     auto* assetEditor = static_cast<DekiEditor::AssetTypeEditor*>(editor);
                     assetTypeEditorRegistry.Register(assetEditor);
-                    DEKI_LOG_EDITOR("Registered asset type editor: %s", editor->GetName());
+                    DEKI_LOG_DEBUG("Registered asset type editor: %s", editor->GetName());
 
                     // Auto-create AssetTypeHandler for creation menu
                     DekiEditor::AssetTypeHandler handler;

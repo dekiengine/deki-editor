@@ -94,8 +94,8 @@ void GuidCache::Save(const std::string& cachePath) const
         fs::create_directories(parentDir, ec);
         if (ec)
         {
-            DEKI_LOG_EDITOR("GuidCache: Failed to create directory %s: %s",
-                            parentDir.string().c_str(), ec.message().c_str());
+            DEKI_LOG_WARNING("GuidCache: Failed to create directory %s: %s",
+                             parentDir.string().c_str(), ec.message().c_str());
             return;
         }
     }
@@ -119,18 +119,15 @@ void GuidCache::Save(const std::string& cachePath) const
     // in the project. AtomicWriteFile uses write-temp-then-rename so a
     // crash mid-write leaves the previous good cache untouched.
     std::string jsonStr = j.dump(2);
-    DEKI_LOG_EDITOR("GuidCache: Writing %zu bytes to %s", jsonStr.size(), cachePath.c_str());
 
     std::string err;
     if (!AtomicWriteFile(cachePath, jsonStr, err))
     {
-        DEKI_LOG_EDITOR("GuidCache: AtomicWriteFile failed: %s", err.c_str());
+        DEKI_LOG_WARNING("GuidCache: AtomicWriteFile failed: %s", err.c_str());
         return;
     }
 
-    DEKI_LOG_EDITOR("GuidCache: Saved %zu entries to %s (file size: %lld)",
-                    m_Entries.size(), cachePath.c_str(),
-                    static_cast<long long>(fs::file_size(cachePath)));
+    DEKI_LOG_DEBUG("GuidCache: Saved %zu entries to %s", m_Entries.size(), cachePath.c_str());
 }
 
 void GuidCache::Rebuild(const std::string& assetsRoot)
@@ -217,6 +214,7 @@ void GuidCache::Sync(const std::string& assetsRoot)
 
     // Track which paths we've seen on disk
     std::unordered_map<std::string, bool> seenPaths;
+    int added = 0, updated = 0;
 
     // Scan for .data files
     for (const auto& dirEntry : fs::recursive_directory_iterator(assetsRoot))
@@ -253,7 +251,8 @@ void GuidCache::Sync(const std::string& assetsRoot)
 
                 entry.sidecarMtime = GetFileMtime(dataPath);  // may have been rewritten
                 AddEntry(relativePath, entry);
-                DEKI_LOG_EDITOR("GuidCache: Added new entry: %s -> %s", relativePath.c_str(), entry.guid.c_str());
+                ++added;
+                DEKI_LOG_DEBUG("GuidCache: Added new entry: %s -> %s", relativePath.c_str(), entry.guid.c_str());
             }
         }
         else
@@ -275,7 +274,8 @@ void GuidCache::Sync(const std::string& assetsRoot)
                     // Add new entry
                     newEntry.sidecarMtime = GetFileMtime(dataPath);
                     AddEntry(relativePath, newEntry);
-                    DEKI_LOG_EDITOR("GuidCache: Updated entry: %s -> %s", relativePath.c_str(), newEntry.guid.c_str());
+                    ++updated;
+                    DEKI_LOG_DEBUG("GuidCache: Updated entry: %s -> %s", relativePath.c_str(), newEntry.guid.c_str());
                 }
             }
         }
@@ -293,9 +293,12 @@ void GuidCache::Sync(const std::string& assetsRoot)
 
     for (const auto& path : toRemove)
     {
-        DEKI_LOG_EDITOR("GuidCache: Removing deleted entry: %s", path.c_str());
+        DEKI_LOG_DEBUG("GuidCache: Removing deleted entry: %s", path.c_str());
         RemoveEntry(path);
     }
+
+    if (added || updated || !toRemove.empty())
+        DEKI_LOG_EDITOR("GuidCache: synced, %d added, %d updated, %zu removed", added, updated, toRemove.size());
 
     // Save updated cache
     if (!m_CachePath.empty())
@@ -356,7 +359,7 @@ void GuidCache::OnFileCreated(const std::string& path)
     entry.sidecarMtime = GetFileMtime(sidecarPath);
     AddEntry(normalizedPath, entry);
 
-    DEKI_LOG_EDITOR("GuidCache: OnFileCreated: %s -> %s", normalizedPath.c_str(), entry.guid.c_str());
+    DEKI_LOG_DEBUG("GuidCache: OnFileCreated: %s -> %s", normalizedPath.c_str(), entry.guid.c_str());
 
     SaveOrDefer();
 }
@@ -389,7 +392,7 @@ void GuidCache::OnFileModified(const std::string& path)
     entry.sidecarMtime = GetFileMtime(sidecarPath);
     AddEntry(normalizedPath, entry);
 
-    DEKI_LOG_EDITOR("GuidCache: OnFileModified: %s -> %s", normalizedPath.c_str(), entry.guid.c_str());
+    DEKI_LOG_DEBUG("GuidCache: OnFileModified: %s -> %s", normalizedPath.c_str(), entry.guid.c_str());
 
     SaveOrDefer();
 }
@@ -404,7 +407,7 @@ void GuidCache::OnFileDeleted(const std::string& path)
         return;  // Not tracked
     }
 
-    DEKI_LOG_EDITOR("GuidCache: OnFileDeleted: %s", normalizedPath.c_str());
+    DEKI_LOG_DEBUG("GuidCache: OnFileDeleted: %s", normalizedPath.c_str());
     RemoveEntry(normalizedPath);
 
     SaveOrDefer();
@@ -439,8 +442,8 @@ void GuidCache::OnFileMoved(const std::string& oldPath, const std::string& newPa
     RemoveEntry(normalizedOldPath);
     AddEntry(normalizedNewPath, entry);
 
-    DEKI_LOG_EDITOR("GuidCache: OnFileMoved: %s -> %s (guid: %s)",
-                    normalizedOldPath.c_str(), normalizedNewPath.c_str(), entry.guid.c_str());
+    DEKI_LOG_DEBUG("GuidCache: OnFileMoved: %s -> %s (guid: %s)",
+                   normalizedOldPath.c_str(), normalizedNewPath.c_str(), entry.guid.c_str());
 
     SaveOrDefer();
 }

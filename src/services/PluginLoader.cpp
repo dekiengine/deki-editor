@@ -43,7 +43,6 @@ int PluginLoader::LoadPluginsFromDirectory(const std::string& directory)
         return 0;
     }
 
-    DEKI_LOG_EDITOR("PluginLoader: Searching for plugins in: %s", directory.c_str());
 
     // Pre-pass: drop any stale duplicate plugin DLLs (e.g. left over from a
     // project rename) before any of them registers components.
@@ -229,7 +228,6 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
 
 bool PluginLoader::LoadPlugin(const std::string& path)
 {
-    DEKI_LOG_EDITOR("PluginLoader: Loading plugin: %s", path.c_str());
 
     // Mark where plugin-owned editor factories begin. Only on the first plugin
     // of a load cycle: everything already in the registry belongs to packages
@@ -412,7 +410,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
                 }
                 if (meta->settingsSection)
                     Deki::SettingsRegistry::Instance().RegisterPlugin(meta->settingsSection, meta);
-                DEKI_LOG_EDITOR("PluginLoader: Registered component '%s'", meta->name);
+                DEKI_LOG_DEBUG("PluginLoader: Registered component '%s'", meta->name);
             }
         }
     }
@@ -424,9 +422,6 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     info.loaded = true;
     info.lastModified = std::filesystem::last_write_time(path);
     m_Plugins.push_back(info);
-
-    DEKI_LOG_EDITOR("PluginLoader: ComponentRegistry now has %zu components",
-                    registry.GetAllComponents().size());
 
     // Fire any newly-registered editor-auto SetupComponents from this plugin DLL
     // (idempotent - already-fired entries are skipped).
@@ -508,7 +503,7 @@ void PluginLoader::UnloadAllPlugins()
     }
 
     m_Plugins.clear();
-    DEKI_LOG_EDITOR("PluginLoader: All plugins unloaded");
+    DEKI_LOG_DEBUG("PluginLoader: All plugins unloaded");
 }
 
 bool PluginLoader::CheckForUpdates()
