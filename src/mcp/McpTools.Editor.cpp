@@ -434,7 +434,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         "dragging assets between panels and docking tabs. Each end may be relative "
                         "to its own panel (panel / to_panel); both are fixed when the drag starts.",
                         pointSchema("to_x",
-                                    { { "to_panel", { { "type", "string" }, { "description", "Panel the end point is relative to (default: the window)" } } },
+                                    { { "to_panel", { { "type", "string" }, { "description", "Panel the end point is relative to (default: the start's panel; \"\" for the window)" } } },
                                       { "to_x", { { "type", "number" }, { "description", "End point, pixels from the left" } } },
                                       { "to_y", { { "type", "number" }, { "description", "End point, pixels from the top" } } },
                                       { "frames", { { "type", "integer" }, { "description", "Frames to move over (default 12)" } } },
@@ -446,7 +446,9 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         [checkPanel](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string panel = checkPanel(args);
-                            const nlohmann::json toArgs = { { "panel", args.value("to_panel", "") } };
+                            // The end is in the start's panel unless told otherwise: a drag
+                            // within one panel is the common case.
+                            const nlohmann::json toArgs = { { "panel", args.contains("to_panel") ? args["to_panel"].get<std::string>() : panel } };
                             const std::string toPanel = checkPanel(toArgs);
                             const std::string b = args.value("button", "left");
                             EditorInput::Button button = EditorInput::Button::Left;
