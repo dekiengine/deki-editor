@@ -403,7 +403,10 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         pointSchema("button",
                                     { { "button", { { "type", "string" }, { "enum", nlohmann::json::array({ "left", "right", "middle" }) }, { "description", "Default left" } } },
                                       { "double", { { "type", "boolean" }, { "description", "Double click (default false)" } } },
-                                      { "hold_seconds", { { "type", "number" }, { "description", "Keep the button down this long before releasing (default 0), for press states and long presses" } } } }),
+                                      { "hold_seconds", { { "type", "number" }, { "description", "Keep the button down this long before releasing (default 0), for press states and long presses" } } },
+                                      { "ctrl", { { "type", "boolean" }, { "description", "Hold Ctrl during the click (multi-select)" } } },
+                                      { "shift", { { "type", "boolean" }, { "description", "Hold Shift during the click (range select)" } } },
+                                      { "alt", { { "type", "boolean" }, { "description", "Hold Alt during the click" } } } }),
                         [checkPanel](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string panel = checkPanel(args);
@@ -416,9 +419,51 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             else if (b != "left")
                                 throw std::runtime_error("button is left, right or middle");
                             const float x = args.at("x").get<float>(), y = args.at("y").get<float>();
+                            EditorInput::Modifiers mods;
+                            mods.ctrl = args.value("ctrl", false);
+                            mods.shift = args.value("shift", false);
+                            mods.alt = args.value("alt", false);
                             EditorInput::Get().RequestClick(panel, x, y, button, args.value("double", false) ? 2 : 1,
-                                                            args.value("hold_seconds", 0.0f));
+                                                            args.value("hold_seconds", 0.0f), mods);
                             return { { "status", "queued" }, { "x", x }, { "y", y } };
+                        } });
+
+    registry.Register({ "drag",
+                        "Drag with a mouse button held: press at (x, y), move to (to_x, to_y) over a "
+                        "number of frames, rest there, release. For moving gizmos, reparenting, "
+                        "dragging assets between panels and docking tabs. Each end may be relative "
+                        "to its own panel (panel / to_panel); both are fixed when the drag starts.",
+                        pointSchema("to_x",
+                                    { { "to_panel", { { "type", "string" }, { "description", "Panel the end point is relative to (default: the window)" } } },
+                                      { "to_x", { { "type", "number" }, { "description", "End point, pixels from the left" } } },
+                                      { "to_y", { { "type", "number" }, { "description", "End point, pixels from the top" } } },
+                                      { "frames", { { "type", "integer" }, { "description", "Frames to move over (default 12)" } } },
+                                      { "hold_seconds", { { "type", "number" }, { "description", "Rest at the end point before releasing (default 0.2): drop targets and dock overlays need the pointer to settle" } } },
+                                      { "button", { { "type", "string" }, { "enum", nlohmann::json::array({ "left", "right", "middle" }) }, { "description", "Default left" } } },
+                                      { "ctrl", { { "type", "boolean" }, { "description", "Hold Ctrl for the whole drag" } } },
+                                      { "shift", { { "type", "boolean" }, { "description", "Hold Shift for the whole drag" } } },
+                                      { "alt", { { "type", "boolean" }, { "description", "Hold Alt for the whole drag" } } } }),
+                        [checkPanel](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            const std::string panel = checkPanel(args);
+                            const nlohmann::json toArgs = { { "panel", args.value("to_panel", "") } };
+                            const std::string toPanel = checkPanel(toArgs);
+                            const std::string b = args.value("button", "left");
+                            EditorInput::Button button = EditorInput::Button::Left;
+                            if (b == "right")
+                                button = EditorInput::Button::Right;
+                            else if (b == "middle")
+                                button = EditorInput::Button::Middle;
+                            else if (b != "left")
+                                throw std::runtime_error("button is left, right or middle");
+                            EditorInput::Modifiers mods;
+                            mods.ctrl = args.value("ctrl", false);
+                            mods.shift = args.value("shift", false);
+                            mods.alt = args.value("alt", false);
+                            EditorInput::Get().RequestDrag(panel, args.at("x").get<float>(), args.at("y").get<float>(), toPanel,
+                                                           args.at("to_x").get<float>(), args.at("to_y").get<float>(), button,
+                                                           args.value("frames", 12), args.value("hold_seconds", 0.2f), mods);
+                            return { { "status", "queued" } };
                         } });
 
     registry.Register({ "hover",

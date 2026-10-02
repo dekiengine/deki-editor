@@ -21,6 +21,14 @@ namespace DekiEditor
 // Positions are in ImGui pixels, the same pixels as an EditorCapture
 // screenshot: relative to a panel's top-left corner when a panel is named,
 // else to the window's.
+// Modifier keys held down for the whole of a click or drag. Outside the
+// class so it can be a default argument of its members.
+struct InputModifiers
+{
+    bool ctrl = false, shift = false, alt = false;
+    bool Any() const { return ctrl || shift || alt; }
+};
+
 class EditorInput
 {
 public:
@@ -33,11 +41,20 @@ public:
         Middle
     };
 
+    using Modifiers = InputModifiers;
+
     // Move the mouse to (x, y) and click there. `count` 2 is a double click.
     // `holdSeconds` keeps the button down that long before releasing, for
     // press states and long presses.
     void RequestClick(const std::string& panel, float x, float y, Button button, int count,
-                      float holdSeconds = 0.0f);
+                      float holdSeconds = 0.0f, Modifiers mods = {});
+    // Press at (x, y) in `panel`, move to (toX, toY) in `toPanel` over
+    // `frames` frames with the button held, wait `holdSeconds` there (a drop
+    // target or a dock overlay reacts after the pointer has rested on it),
+    // then release. Both points are resolved when the drag starts: dragging a
+    // tab moves the panel it was grabbed from.
+    void RequestDrag(const std::string& panel, float x, float y, const std::string& toPanel, float toX, float toY,
+                     Button button, int frames, float holdSeconds, Modifiers mods = {});
     // Move the mouse to (x, y) and hold it there for `holdSeconds` (for
     // tooltips and hover states). Held, not just moved: with the window focused
     // the backend reports the real cursor every frame and would move it away.
@@ -79,7 +96,9 @@ private:
             KeyUp,
             Text,
             Hold,
-            Wait  // keep the mouse where it is and play nothing else for `seconds`
+            Wait,       // keep the mouse where it is and play nothing else for `seconds`
+            Mods,       // modifier keys `ctrl`/`shift`/`alt` go down (`down`) or up
+            DragBegin   // expands into the steps of a drag once both points are known
         } kind = Kind::Move;
         std::string panel;
         float x = 0.0f, y = 0.0f;  // Move: position; Wheel: dx, dy
@@ -87,8 +106,14 @@ private:
         int key = 0;               // ImGuiKey
         float seconds = 0.0f;      // Hold, Wait
         bool ctrl = false, shift = false, alt = false;
+        bool down = false;           // Mods
+        std::string panel2;          // DragBegin: the end point's panel
+        float x2 = 0.0f, y2 = 0.0f;  // DragBegin: the end point
+        int frames = 0;              // DragBegin: frames to move over
         std::string text;
     };
+
+    static Step ModsStep(const Modifiers& mods, bool down);
 
     void Move(const std::string& panel, float x, float y);
 
