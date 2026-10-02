@@ -15,6 +15,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   finger on a running game in the Play view is the game's touch, pressed at
   once. SDL's own touch-to-mouse emulation is off in the editor window, since
   it pressed the button the moment a finger landed.
+- **Panels and buttons move.** A panel fades in when it opens or its tab is
+  picked; a floating window also grows into place and fades away when it
+  closes. Buttons, menu items and toolbar cells ease into their pressed look
+  and back out. Quick (about a tenth of a second) and off with View > Reduce
+  Motion, like the rest of the editor's motion.
+- The MCP `click` tool takes `hold_seconds` to keep the button down, and
+  `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
 - Console rows line up: the time and message start at the same place on

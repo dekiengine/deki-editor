@@ -564,20 +564,35 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
         if (i > 0)
             ImGui::SameLine(0.0f, gap);
         int colours = 0;
-        if (b.kind == DialogButton::Primary)
+        if (b.kind != DialogButton::Normal)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
-            colours = 3;
-        }
-        else if (b.kind == DialogButton::Danger)
-        {
-            // Dark theme red at rest, brighter on hover and press.
-            const ImVec4 r = Palette::Red;
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(r.x * 0.55f, r.y * 0.55f, r.z * 0.55f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(r.x * 0.78f, r.y * 0.78f, r.z * 0.78f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, r);
+            // Pushed colours skip PressMotion's easing, so these buttons ease
+            // their own press: held since last frame -> toward the pressed colour.
+            const ImGuiID id = ImGui::GetID(b.label);
+            const bool held = ImGui::GetActiveID() == id;
+            const float t = Motion::EaseOut(
+                Motion::To(id ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Motion::Fast : Motion::Normal));
+            ImVec4 rest, hovered, pressed;
+            if (b.kind == DialogButton::Primary)
+            {
+                // Accent at rest, brighter on hover, dipping a little when pressed.
+                const ImVec4 a = Palette::Accent;
+                rest = Palette::AccentDim;
+                hovered = a;
+                pressed = ImVec4(a.x * 0.82f, a.y * 0.82f, a.z * 0.82f, a.w);
+            }
+            else
+            {
+                // Dark theme red at rest, brighter on hover and press.
+                const ImVec4 r = Palette::Red;
+                rest = ImVec4(r.x * 0.55f, r.y * 0.55f, r.z * 0.55f, 1.0f);
+                hovered = ImVec4(r.x * 0.78f, r.y * 0.78f, r.z * 0.78f, 1.0f);
+                pressed = r;
+            }
+            const ImVec4 now = Motion::Mix(hovered, pressed, t);
+            ImGui::PushStyleColor(ImGuiCol_Button, rest);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, t > 0.0f ? now : hovered);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, now);
             colours = 3;
         }
         ImGui::BeginDisabled(!b.enabled);
@@ -1405,6 +1420,8 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     if (const float hoverT = Motion::ItemHover(hovered); hoverT > 0.0f)
         dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH),
                           Motion::WithAlpha(IM_COL32(255, 255, 255, 10), hoverT));
+    if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+        dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH), Motion::PressShade(pressT));
     ImGui::PopClipRect();
 
     // No chevron is drawn, but the label still starts on the shared column:
@@ -1531,12 +1548,13 @@ bool SchematicAddButton(const char* label, float width)
     ImGui::SetCursorScreenPos(boxMin);
     const bool clicked = ImGui::InvisibleButton(label, ImVec2(boxW, boxH));
     const bool hovered = ImGui::IsItemHovered();
-    const bool held = ImGui::IsItemActive();
+    const float pressT = Motion::ItemPress();
 
     ImDrawList* dl = w->DrawList;
-    const ImU32 fill = held      ? IM_COL32(255, 255, 255, 14)
-                       : hovered ? IM_COL32(255, 255, 255, 8)
-                                 : IM_COL32(0, 0, 0, 0);
+    // Brightens a little further while pressed, easing in and back.
+    const ImU32 fill = (hovered || pressT > 0.0f)
+                           ? IM_COL32(255, 255, 255, static_cast<int>(8.0f + 6.0f * pressT + 0.5f))
+                           : IM_COL32(0, 0, 0, 0);
     const ImU32 border = ImGui::ColorConvertFloat4ToU32(hovered ? Palette::AccentDim : Palette::Line2);
     const ImU32 text = ImGui::ColorConvertFloat4ToU32(hovered ? Palette::Fg : Palette::Dim);
     const float rounding = 2.0f * dpi;
@@ -1682,8 +1700,10 @@ bool PanelToolbar(bool* pinnedExt)
         ImGui::SetCursorScreenPos(ImVec2(left, top));
         if (ImGui::InvisibleButton("##deki_pin_btn", ImVec2(btnW, barH)))
             *pinned = !*pinned;
-        if (ImGui::IsItemHovered())
-            dl->AddRectFilled(ImVec2(left, top), ImVec2(left + btnW, top + barH), colHover);
+        if (const float hoverT = Motion::ItemHover(ImGui::IsItemHovered()); hoverT > 0.0f)
+            dl->AddRectFilled(ImVec2(left, top), ImVec2(left + btnW, top + barH), Motion::WithAlpha(colHover, hoverT));
+        if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+            dl->AddRectFilled(ImVec2(left, top), ImVec2(left + btnW, top + barH), Motion::PressShade(pressT));
 
         const ImU32 col = *pinned ? colAccent : colDim;
         const float ix = left + padX;
@@ -1703,8 +1723,10 @@ bool PanelToolbar(bool* pinnedExt)
         ImGui::SetCursorScreenPos(ImVec2(bx, top));
         if (ImGui::InvisibleButton("##deki_panel_menu_btn", ImVec2(btnW, barH)))
             ImGui::OpenPopup("##deki_panel_menu");
-        if (ImGui::IsItemHovered())
-            dl->AddRectFilled(ImVec2(bx, top), ImVec2(bx + btnW, top + barH), colHover);
+        if (const float hoverT = Motion::ItemHover(ImGui::IsItemHovered()); hoverT > 0.0f)
+            dl->AddRectFilled(ImVec2(bx, top), ImVec2(bx + btnW, top + barH), Motion::WithAlpha(colHover, hoverT));
+        if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+            dl->AddRectFilled(ImVec2(bx, top), ImVec2(bx + btnW, top + barH), Motion::PressShade(pressT));
         dl->AddText(iconFont, iconSize, ImVec2(bx + padX, ImFloor(cy - icoSz.y * 0.5f)), colDim, ico);
     }
 

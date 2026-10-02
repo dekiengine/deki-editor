@@ -245,17 +245,19 @@ int main(int argc, char* argv[])
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
+        // While capture_sequence records, animations advance exactly one 60 fps
+        // frame per captured frame, so a recording shows motion as it looks
+        // live even though each capture is slow to write. Set before the
+        // automation input below, whose timed steps (a held click, a hover)
+        // count the same clock.
+        if (DekiEditor::EditorCapture::Get().IsRecordingSequence())
+            ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
         // Automation input (MCP click, key, ...): after the backend's report of
         // the real cursor so an injected position wins, before NewFrame so
         // ImGui sees it this frame.
         DekiEditor::EditorInput::Get().InjectPending();
         // Touchscreen: same slot and reason as EditorInput's (see TouchInput.h).
         DekiEditor::TouchInput::Get().InjectPending();
-        // While capture_sequence records, animations advance exactly one 60 fps
-        // frame per captured frame, so a recording shows motion as it looks
-        // live even though each capture is slow to write.
-        if (DekiEditor::EditorCapture::Get().IsRecordingSequence())
-            ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
         ImGui::NewFrame();
 
         // Focus requests queued by MCP tools between frames. Applied here, with

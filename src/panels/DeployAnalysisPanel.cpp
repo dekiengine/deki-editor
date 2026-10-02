@@ -110,6 +110,9 @@ void DeployAnalysisPanel::Draw()
                 if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
                     ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY,
                                       DekiEditor::Motion::WithAlpha(colHoverBg, hoverT), 0.0f);
+                if (const float pressT = DekiEditor::Motion::ItemPress(); pressT > 0.0f)
+                    ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY,
+                                      DekiEditor::Motion::PressShade(pressT), 0.0f);
             }
             ui.DrawTextAt(0.0f, cursorX + (w - iconW) * 0.5f, rowMinY + (rowH - iconH) * 0.5f,
                           hasProject ? colDim : colDim2, icon);

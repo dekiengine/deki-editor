@@ -402,7 +402,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         "releases. Takes a few frames; a screenshot asked for after it shows the result.",
                         pointSchema("button",
                                     { { "button", { { "type", "string" }, { "enum", nlohmann::json::array({ "left", "right", "middle" }) }, { "description", "Default left" } } },
-                                      { "double", { { "type", "boolean" }, { "description", "Double click (default false)" } } } }),
+                                      { "double", { { "type", "boolean" }, { "description", "Double click (default false)" } } },
+                                      { "hold_seconds", { { "type", "number" }, { "description", "Keep the button down this long before releasing (default 0), for press states and long presses" } } } }),
                         [checkPanel](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string panel = checkPanel(args);
@@ -415,7 +416,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             else if (b != "left")
                                 throw std::runtime_error("button is left, right or middle");
                             const float x = args.at("x").get<float>(), y = args.at("y").get<float>();
-                            EditorInput::Get().RequestClick(panel, x, y, button, args.value("double", false) ? 2 : 1);
+                            EditorInput::Get().RequestClick(panel, x, y, button, args.value("double", false) ? 2 : 1,
+                                                            args.value("hold_seconds", 0.0f));
                             return { { "status", "queued" }, { "x", x }, { "y", y } };
                         } });
 
@@ -481,7 +483,9 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register({ "capture_sequence",
                         "Capture a PNG sequence (frame_0000.png …) into a directory, for assembling "
                         "into a GIF or video outside the editor. Writes done.txt with the frame "
-                        "count when finished; poll for that file.",
+                        "count when finished; poll for that file. Unlike screenshot it does not "
+                        "wait for queued input: start it, then click (hold_seconds for a press), "
+                        "and the recording shows the input as it plays out.",
                         { { "type", "object" }, { "properties", { { "dir", { { "type", "string" }, { "description", "Absolute output directory" } } }, { "frames", { { "type", "integer" }, { "description", "Number of PNGs to write" } } }, { "stride", { { "type", "integer" }, { "description", "Capture every Nth frame (default 1)" } } }, { "panel", { { "type", "string" }, { "description", "Panel name to crop to. Omit for the whole window." } } }, { "x", { { "type", "number" } } }, { "y", { { "type", "number" } } }, { "width", { { "type", "number" } } }, { "height", { { "type", "number" } } }, { "padding", { { "type", "number" } } }, { "wait_frames", { { "type", "integer" }, { "description", "Frames to let pass before starting (default 2)" } } } } }, { "required", nlohmann::json::array({ "dir", "frames" }) } },
                         [](const nlohmann::json& args) -> nlohmann::json
                         {

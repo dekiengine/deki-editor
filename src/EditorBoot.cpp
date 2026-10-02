@@ -31,7 +31,9 @@
 #include <deki-editor/EditorSettings.h>
 #include "services/FileDialogs.h"
 #include "widgets/PopupMotion.h"
+#include "widgets/PressMotion.h"
 #include "widgets/ScrollMotion.h"
+#include "widgets/WindowMotion.h"
 #include "services/StartupProgress.h"
 #include "services/TouchInput.h"
 #include "services/HotReloadService.h"
@@ -420,6 +422,8 @@ bool BootDisplay(BootContext& ctx)
     // and wheel scrolling glides (widgets/ScrollMotion.h).
     DekiEditor::PopupMotion::Install(ImGui::GetCurrentContext());
     DekiEditor::ScrollMotion::Install(ImGui::GetCurrentContext());
+    DekiEditor::WindowMotion::Install(ImGui::GetCurrentContext());
+    DekiEditor::PressMotion::Install(ImGui::GetCurrentContext());
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;

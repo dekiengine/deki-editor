@@ -208,6 +208,8 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
         dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(selBg, selT), rounding);
     if (hoverT * (1.0f - selT) > 0.0f)
         dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(hovBg, hoverT * (1.0f - selT)), rounding);
+    if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+        dl->AddRectFilled(pmin, pmax, Motion::PressShade(pressT), rounding);
 
     if (selected)
     {

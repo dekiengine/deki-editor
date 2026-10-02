@@ -1,5 +1,7 @@
 #include "PopupMotion.h"
 
+#include "DrawListFx.h"
+
 #include <deki-editor/Motion.h>
 
 #include "imgui.h"
@@ -61,32 +63,13 @@ std::vector<Open> s_Open;
 std::vector<Ghost> s_Ghosts;
 ImGuiID s_NextGhostKey = 1;
 
-void Free(ImVector<ImDrawList*>& lists)
-{
-    for (ImDrawList* l : lists)
-        IM_DELETE(l);
-    lists.clear();
-}
+using DrawListFx::Free;
 
 // Fade (alpha multiplied by `alpha`) and shift (by `dy`) everything already
-// recorded in `dl`, clip rectangles included so nothing is cut at the edge.
+// recorded in `dl`.
 void FadeAndShift(ImDrawList* dl, float alpha, float dy)
 {
-    if (alpha >= 1.0f && dy == 0.0f)
-        return;
-    const ImU32 a = static_cast<ImU32>(ImClamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
-    for (ImDrawVert& v : dl->VtxBuffer)
-    {
-        v.pos.y += dy;
-        const ImU32 va = (v.col >> IM_COL32_A_SHIFT) & 0xFF;
-        v.col = (v.col & ~IM_COL32_A_MASK) | (((va * a) / 255) << IM_COL32_A_SHIFT);
-    }
-    if (dy != 0.0f)
-        for (ImDrawCmd& cmd : dl->CmdBuffer)
-        {
-            cmd.ClipRect.y += dy;
-            cmd.ClipRect.w += dy;
-        }
+    DrawListFx::Transform(dl, alpha, ImVec2(0.0f, 0.0f), 1.0f, dy);
 }
 
 Open* FindOpen(std::vector<Open>& list, ImGuiID rootId)
@@ -182,7 +165,9 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
             it = s_Ghosts.erase(it);
             continue;
         }
-        const float a = Motion::EaseOut(t);
+        // t falls 1 -> 0; ease the progress (1 - t) out so the picture drops
+        // away at once and settles, rather than lingering and then vanishing.
+        const float a = 1.0f - Motion::EaseOut(1.0f - t);
         for (int i = 0; i < it->frozen.Size; ++i)
         {
             ImDrawList* src = it->frozen[i];
@@ -190,19 +175,7 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
             dst->VtxBuffer = src->VtxBuffer;
             dst->CmdBuffer = src->CmdBuffer;
             FadeAndShift(dst, a, 0.0f);
-            if (dst->CmdBuffer.Size > 0 && dst->IdxBuffer.Size > 0)
-            {
-                // CloneOutput copies the buffers but not the write cursors, and
-                // AddDrawList asserts that they sit at the end of the buffers
-                // (its PrimReserve sanity check). A copy is finished drawing,
-                // so that is where they belong.
-                // The vertex cursor counts from the last command's vertex offset,
-                // as ImGui keeps it (it must stay under 64K with 16-bit indices).
-                dst->_VtxWritePtr = dst->VtxBuffer.Data + dst->VtxBuffer.Size;
-                dst->_IdxWritePtr = dst->IdxBuffer.Data + dst->IdxBuffer.Size;
-                dst->_VtxCurrentIdx = static_cast<unsigned int>(dst->VtxBuffer.Size) - dst->CmdBuffer.back().VtxOffset;
-                dd->AddDrawList(dst);
-            }
+            DrawListFx::Append(dd, dst);
         }
         ++it;
     }

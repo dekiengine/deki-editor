@@ -32,7 +32,8 @@ void EditorInput::Move(const std::string& panel, float x, float y)
     m_Steps.push_back(s);
 }
 
-void EditorInput::RequestClick(const std::string& panel, float x, float y, Button button, int count)
+void EditorInput::RequestClick(const std::string& panel, float x, float y, Button button, int count,
+                               float holdSeconds)
 {
     Move(panel, x, y);
     for (int i = 0; i < count; ++i)
@@ -41,6 +42,13 @@ void EditorInput::RequestClick(const std::string& panel, float x, float y, Butto
         down.kind = Step::Kind::ButtonDown;
         down.button = static_cast<int>(button);
         m_Steps.push_back(down);
+        if (holdSeconds > 0.0f)
+        {
+            Step wait;
+            wait.kind = Step::Kind::Wait;
+            wait.seconds = holdSeconds;
+            m_Steps.push_back(wait);
+        }
         Step up = down;
         up.kind = Step::Kind::ButtonUp;
         m_Steps.push_back(up);
@@ -119,6 +127,16 @@ void EditorInput::InjectPending()
     }
     m_HoldSeconds = 0.0f;  // new input ends a hover
 
+    // A wait blocks the queue until its time has passed, keeping the mouse put.
+    if (m_Steps.front().kind == Step::Kind::Wait)
+    {
+        io.AddMousePosEvent(m_MouseX, m_MouseY);
+        m_Steps.front().seconds -= io.DeltaTime;
+        if (m_Steps.front().seconds <= 0.0f)
+            m_Steps.pop_front();
+        return;
+    }
+
     const Step step = m_Steps.front();
     m_Steps.pop_front();
 
@@ -173,6 +191,8 @@ void EditorInput::InjectPending()
             io.AddMousePosEvent(m_MouseX, m_MouseY);
             m_HoldSeconds = step.seconds;
             break;
+        case Step::Kind::Wait:
+            break;  // handled above, before the step is taken off the queue
     }
 }
 

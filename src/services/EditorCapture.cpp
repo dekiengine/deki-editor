@@ -222,13 +222,19 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
         return;
 
     // A screenshot asked for after a click shows what the click did: the
-    // frames to wait start counting once the queued input has played out.
-    if (EditorInput::Get().HasPendingWork())
-        return;
+    // frames to wait start counting once the queued input has played out. A
+    // sequence does not wait: it records whatever happens, the input included
+    // (a press as it is held, a menu as it opens).
+    const bool inputPending = EditorInput::Get().HasPendingWork();
 
     for (size_t i = 0; i < m_Requests.size();)
     {
         Request& req = m_Requests[i];
+        if (inputPending && !req.sequence)
+        {
+            ++i;
+            continue;
+        }
 
         if (req.framesToWait > 0)
         {

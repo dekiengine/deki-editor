@@ -92,6 +92,20 @@ inline float ItemHover(bool hovered)
     return Hover(ImGui::GetItemID(), hovered);
 }
 
+// Press feedback for the same kind of item, also right after it: eased 0 -> 1
+// while it is held under the pointer, back to 0 after release. Draw PressShade
+// over the item's background at this value and it dips while pressed.
+// (Native ImGui buttons get the same through PressMotion, with no call.)
+inline float ItemPress()
+{
+    const bool held = ImGui::IsItemActive() && ImGui::IsItemHovered();
+    return EaseOut(To(ImGui::GetItemID() ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Fast : Normal));
+}
+inline ImU32 PressShade(float t)
+{
+    return IM_COL32(0, 0, 0, static_cast<int>(56.0f * t + 0.5f));
+}
+
 // List rows that ImGui draws (tree nodes, selectables) with a fading
 // highlight. ImGui only says a row is hovered after it is submitted, but its
 // colours must be pushed before, so a panel keeps one RowHover: BeginFrame()

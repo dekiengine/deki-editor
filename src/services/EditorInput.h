@@ -34,7 +34,10 @@ public:
     };
 
     // Move the mouse to (x, y) and click there. `count` 2 is a double click.
-    void RequestClick(const std::string& panel, float x, float y, Button button, int count);
+    // `holdSeconds` keeps the button down that long before releasing, for
+    // press states and long presses.
+    void RequestClick(const std::string& panel, float x, float y, Button button, int count,
+                      float holdSeconds = 0.0f);
     // Move the mouse to (x, y) and hold it there for `holdSeconds` (for
     // tooltips and hover states). Held, not just moved: with the window focused
     // the backend reports the real cursor every frame and would move it away.
@@ -75,13 +78,14 @@ private:
             KeyDown,
             KeyUp,
             Text,
-            Hold
+            Hold,
+            Wait  // keep the mouse where it is and play nothing else for `seconds`
         } kind = Kind::Move;
         std::string panel;
         float x = 0.0f, y = 0.0f;  // Move: position; Wheel: dx, dy
         int button = 0;
         int key = 0;               // ImGuiKey
-        float seconds = 0.0f;      // Hold
+        float seconds = 0.0f;      // Hold, Wait
         bool ctrl = false, shift = false, alt = false;
         std::string text;
     };

@@ -706,10 +706,15 @@ set(EDITOR_SOURCES
     src/services/ProgressModal.h
     src/widgets/Toast.cpp
     src/widgets/Toast.h
+    src/widgets/DrawListFx.h
     src/widgets/PopupMotion.cpp
     src/widgets/PopupMotion.h
+    src/widgets/PressMotion.cpp
+    src/widgets/PressMotion.h
     src/widgets/ScrollMotion.cpp
     src/widgets/ScrollMotion.h
+    src/widgets/WindowMotion.cpp
+    src/widgets/WindowMotion.h
     src/services/ToolHost.cpp
     src/services/ToolHost.h
     src/services/AssetDeployer.cpp
