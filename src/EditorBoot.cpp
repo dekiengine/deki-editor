@@ -487,11 +487,12 @@ bool BootDisplay(BootContext& ctx)
         }
     }
 #endif
+    // Edit > Editor Settings > Text can pin it; the variable still wins.
+    auto modeFor = [](const std::string& v) { return (v == "rgb") ? 1 : (v == "bgr") ? 2 : 0; };
+    if (const std::string pinned = EditorSettings::GetString("editor.textSmoothing", "auto"); pinned != "auto")
+        lcdMode = modeFor(pinned);
     if (const char* aa = getenv("DEKI_TEXT_AA"))
-    {
-        const std::string v = aa;
-        lcdMode = (v == "rgb") ? 1 : (v == "bgr") ? 2 : 0;
-    }
+        lcdMode = modeFor(aa);
     ImGuiFreeType::DekiSetLcdMode(lcdMode);
     // Coverage exponents for black and for white text: light text on the dark
     // theme is thickened a little, as DirectWrite and Chromium do.

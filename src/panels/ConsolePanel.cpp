@@ -270,8 +270,10 @@ void ConsolePanel::Draw()
         const ImU32 dotFg = colFg;
         const ImU32 dotAmber = ImGui::ColorConvertFloat4ToU32(Palette::Amber);
         const ImU32 dotRed = ImGui::ColorConvertFloat4ToU32(Palette::Red);
-        chip("##editor", "Editor", dotAccent, &m_ShowEditor, "console.showEditor", false);
-        chip("##debug", "Debug", dotDim, &m_ShowDebug, "console.showDebug", false);
+        // Editor and Debug are for working on the editor itself, so they sit
+        // in the menu at the right end rather than in the row.
+        (void)dotAccent;
+        (void)dotDim;
         chip("##info", "Info", dotFg, &m_ShowInfo, "console.showInfo", false);
         chip("##warnings", "Warnings", dotAmber, &m_ShowWarnings, "console.showWarnings", false);
         chip("##errors", "Errors", dotRed, &m_ShowErrors, "console.showErrors", true);
@@ -281,11 +283,15 @@ void ConsolePanel::Draw()
         // (>= 150px of room) the strip exactly fills the row, so nothing scrolls;
         // when the window is too narrow for 150px it's clamped to 150px and the
         // strip overflows, enabling horizontal scroll.
-        const float chipsW = cursorX - stripStartX;                    // unscrolled
-        const float availFilter = trackW - chipsW - gapFilter - padR;  // room to stretch
+        const float chipsW = cursorX - stripStartX;  // unscrolled
+        // The menu cell at the right end, as wide as the other icon cells.
+        const float moreW = ImGui::CalcTextSize(ICON_TI_DOTS_VERTICAL).x + 22.0f * dpi;
+        const float availFilter = trackW - chipsW - gapFilter - padR - moreW;  // room to stretch
         const float filterW = std::max(minFilterW, availFilter);
         const float filterX = cursorX + gapFilter;  // right after chips
         cursorX = filterX + filterW + padR;         // trailing pad
+        const float moreX = cursorX;
+        cursorX += moreW;
         const float contentW = cursorX - stripStartX;
 
         // Search bar - borderless and full toolbar height, like the hierarchy
@@ -313,7 +319,24 @@ void ConsolePanel::Draw()
         ImGui::PopStyleColor(4);
         ImGui::PopStyleVar(2);
 
+        // More: the levels for working on the editor itself.
+        cursorX = moreX;
+        drawDivider(cursorX);
+        iconBtn("##more", ICON_TI_DOTS_VERTICAL, "More filters", false, [&]
+                { ImGui::OpenPopup("##consolemore"); });
+
         ImGui::PopClipRect();
+
+        // Under the button, right edges aligned, so it opens toward the panel.
+        ImGui::SetNextWindowPos(ImVec2(moreX + moreW, rowMax.y), ImGuiCond_Appearing, ImVec2(1.0f, 0.0f));
+        if (ImGui::BeginPopup("##consolemore"))
+        {
+            if (ImGui::MenuItem("Editor messages", nullptr, &m_ShowEditor))
+                EditorSettings::SetBool("console.showEditor", m_ShowEditor);
+            if (ImGui::MenuItem("Debug messages", nullptr, &m_ShowDebug))
+                EditorSettings::SetBool("console.showDebug", m_ShowDebug);
+            ImGui::EndPopup();
+        }
 
         // Wheel over the toolbar scrolls the strip horizontally (vertical or
         // horizontal wheel), clamped to the overflow - like dock-tab scrolling.

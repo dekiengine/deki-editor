@@ -76,6 +76,19 @@ inline float Hover(ImGuiID id, bool hovered)
     return EaseOut(To(id, hovered ? 1.0f : 0.0f, Fast));
 }
 
+// A progress bar's fill: glides toward `fraction` as work reports it in steps,
+// and drops back at once when it goes down (a new run starting at 0).
+inline float Progress(ImGuiID id, float fraction)
+{
+    const float shown = Follow(id, fraction, Slow, 0.001f);
+    if (fraction < shown)
+    {
+        Set(id, fraction);
+        return fraction;
+    }
+    return shown;
+}
+
 // `col` with its alpha scaled by t in [0, 1].
 inline ImU32 WithAlpha(ImU32 col, float t)
 {

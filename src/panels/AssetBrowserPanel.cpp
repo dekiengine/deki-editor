@@ -10,6 +10,7 @@
 #include "asset_browser/AssetBrowserDialogs.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include "core/Project.h"
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/AssetData.h>
@@ -39,6 +40,11 @@ namespace DekiEditor
 
 namespace
 {
+// Progress of the Assets <-> Scripts switch: set to 0 by the tab, eased to 1
+// by the content it slides in. One fixed key, as the two live in different
+// ID scopes (the panel and its content child).
+const ImGuiID kModeSlideKey = ImHashStr("AssetBrowser.ModeSlide");
+
 // RAII: hold a bool at true for the scope, restore its prior value on exit
 // (including exceptions). Used to mark "asset view is mid-iteration" so a draw
 // path that throws - caught upstream by SafeDispatch - can't leave the flag
@@ -160,10 +166,32 @@ void AssetBrowserPanel::Draw()
     // can't leave it stuck true.
     {
         ScopedTrue drawing(m_DrawingAssetView);
-        if (m_BrowserMode == BrowserMode::Scripts)
+        // Switching between Assets and Scripts slides the new list in from the
+        // side of its tab (Scripts from the right, Assets from the left) while
+        // it fades in, clipped by this child. Only the picture moves; the
+        // rows are where they belong the whole time.
+        ImDrawList* contentDl = ImGui::GetWindowDrawList();
+        const int contentStart = contentDl->VtxBuffer.Size;
+        const bool scripts = m_BrowserMode == BrowserMode::Scripts;
+        if (scripts)
             DrawScriptsList();
         else
             DrawAssetTree();
+        const float t = DekiEditor::Motion::EaseOut(
+            DekiEditor::Motion::To(kModeSlideKey, 1.0f, DekiEditor::Motion::Slow));
+        if (t < 1.0f)
+        {
+            const float slide = std::min(ImGui::GetWindowWidth() * 0.3f, 120.0f * m_App->Dpi(1.0f));
+            const float dx = (scripts ? 1.0f : -1.0f) * (1.0f - t) * slide;
+            const ImU32 a = static_cast<ImU32>(t * 255.0f + 0.5f);
+            for (int i = contentStart; i < contentDl->VtxBuffer.Size; ++i)
+            {
+                ImDrawVert& v = contentDl->VtxBuffer[i];
+                v.pos.x += dx;
+                const ImU32 va = (v.col >> IM_COL32_A_SHIFT) & 0xFF;
+                v.col = (v.col & ~IM_COL32_A_MASK) | (((va * a) / 255) << IM_COL32_A_SHIFT);
+            }
+        }
     }
     ImGui::PopStyleVar(2);
 
@@ -465,6 +493,7 @@ void AssetBrowserPanel::DrawModeTabs()
     const ImU32 colFg = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Fg);
     const ImU32 colDim = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
 
+    float activeX0 = 0.0f, activeX1 = 0.0f;  // the active tab's span, for its underline
     auto drawLink = [&](const char* label, bool active, float& cursorX) -> bool
     {
         ImVec2 textSize = ImGui::CalcTextSize(label);
@@ -480,9 +509,8 @@ void AssetBrowserPanel::DrawModeTabs()
         dl->AddText(ImVec2(linkX0, textY), col, label);
         if (active)
         {
-            dl->AddRectFilled(ImVec2(linkX0, rowMax.y - 2.0f),
-                              ImVec2(linkX1, rowMax.y),
-                              colAccent);
+            activeX0 = linkX0;
+            activeX1 = linkX1;
         }
         cursorX = linkX1;
         return clicked;
@@ -492,6 +520,7 @@ void AssetBrowserPanel::DrawModeTabs()
     if (drawLink("Assets", m_BrowserMode == BrowserMode::Assets, cx) &&
         m_BrowserMode != BrowserMode::Assets)
     {
+        DekiEditor::Motion::Set(kModeSlideKey, 0.0f);
         m_BrowserMode = BrowserMode::Assets;
         m_RootPath = m_AssetsRoot;
         m_CurrentPath = m_RootPath;
@@ -501,12 +530,24 @@ void AssetBrowserPanel::DrawModeTabs()
     if (drawLink("Scripts", m_BrowserMode == BrowserMode::Scripts, cx) &&
         m_BrowserMode != BrowserMode::Scripts)
     {
+        DekiEditor::Motion::Set(kModeSlideKey, 0.0f);
         m_BrowserMode = BrowserMode::Scripts;
         m_RootPath = m_SrcRoot;
         if (!m_RootPath.empty() && !fs::exists(m_RootPath))
             fs::create_directories(m_RootPath);
         m_CurrentPath = m_RootPath;
         BuildScriptFlatList();
+    }
+
+    // The active tab's underline glides to whichever tab is picked. Positions
+    // are kept relative to the row, so moving the panel does not animate it.
+    if (activeX1 > activeX0)
+    {
+        const float x0 = DekiEditor::Motion::Follow(ImHashStr("AssetBrowser.TabLine0"), activeX0 - rowMin.x,
+                                                    DekiEditor::Motion::Normal, 0.5f);
+        const float x1 = DekiEditor::Motion::Follow(ImHashStr("AssetBrowser.TabLine1"), activeX1 - rowMin.x,
+                                                    DekiEditor::Motion::Normal, 0.5f);
+        dl->AddRectFilled(ImVec2(rowMin.x + x0, rowMax.y - 2.0f), ImVec2(rowMin.x + x1, rowMax.y), colAccent);
     }
 
     // Right-aligned item count in mono dim2: the files in the current folder.

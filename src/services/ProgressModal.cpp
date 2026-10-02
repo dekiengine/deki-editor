@@ -35,13 +35,13 @@ struct ProgressState
 {
     bool hasStartTime = false;
     uint64_t startMs = 0;
-    // Show() redraws at most every kMinRedrawMs unless the phase changed:
-    // each redraw waits for vsync, and a project open reports every asset.
+    // Show() redraws at most every kMinRedrawMs unless the phase changed: a
+    // project open reports every asset, and drawing each would slow it down.
     uint64_t lastDrawMs = 0;
     std::string lastPhase;
 };
 
-constexpr uint64_t kMinRedrawMs = 50;
+constexpr uint64_t kMinRedrawMs = 15;  // about 60 fps for the bar
 
 ProgressState g_State;
 
@@ -90,7 +90,10 @@ void DrawCardBody(const char* title, const char* phase, const char* detail,
 
     // -------- Animated indeterminate bar (pill, themed) --------
     {
-        float progress = static_cast<float>(SDL_GetTicks() % 2000) / 2000.0f;
+        // Smoothstep: the segment speeds up as it enters and slows as it
+        // leaves, instead of sliding at one speed and vanishing at the edge.
+        float progress = static_cast<float>(SDL_GetTicks() % 1600) / 1600.0f;
+        progress = progress * progress * (3.0f - 2.0f * progress);
         ImVec2 barPos = ImGui::GetCursorScreenPos();
         ImVec2 barSize(ImGui::GetContentRegionAvail().x, kBarHeight * dpi);
         const ImVec2 barMax(barPos.x + barSize.x, barPos.y + barSize.y);
@@ -291,7 +294,12 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     // Swap buffers to show the progress
+    // Without waiting for vsync: Show runs inside work that is blocking the
+    // main thread, and a redraw that waits up to a whole refresh would cost
+    // that work a frame each time. The editor's own frames keep vsync.
+    SDL_GL_SetSwapInterval(0);
     SDL_GL_SwapWindow(s_Window);
+    SDL_GL_SetSwapInterval(1);
 }
 
 void ProgressModal::DrawInFrame(const char* title, const char* phase, const char* detail, bool* cancelRequested)

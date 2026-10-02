@@ -24,6 +24,7 @@ struct SDL_Window;
 #include "panels/SceneViewPanel.h"
 #include "panels/AssetBrowserPanel.h"
 #include "panels/ProjectSettingsPanel.h"
+#include "panels/EditorSettingsPanel.h"
 #include "panels/ConsolePanel.h"
 #include "panels/BuildPanel.h"
 #include "panels/NewProjectDialog.h"
@@ -366,6 +367,7 @@ private:
     std::unique_ptr<SceneViewPanel> m_SceneViewPanel;
     std::unique_ptr<AssetBrowserPanel> m_AssetBrowserPanel;
     std::unique_ptr<ProjectSettingsPanel> m_ProjectSettingsPanel;
+    std::unique_ptr<EditorSettingsPanel> m_EditorSettingsPanel;
     std::unique_ptr<ConsolePanel> m_ConsolePanel;
     std::unique_ptr<BuildPanel> m_BuildPanel;
     std::unique_ptr<NewProjectDialog> m_NewProjectDialog;

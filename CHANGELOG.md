@@ -20,10 +20,25 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   closes. Buttons, menu items and toolbar cells ease into their pressed look
   and back out. Quick (about a tenth of a second) and off with View > Reduce
   Motion, like the rest of the editor's motion.
+- **Editor Settings** (Edit > Editor Settings...): Reduce Motion, text
+  smoothing, the daily update check and a detailed editor log, in one window.
+  Reduce Motion moved there from the View menu.
+- The View menu groups its panels: Scene, Project, Build & Deploy and
+  Performance.
+- The Console's Editor and Debug filters moved into a menu at the right end
+  of its toolbar.
+- Switching between Assets and Scripts slides the list in from that side,
+  and the tab underline glides across.
+- The loading screen's bar moves at about 60 fps instead of 20, and the
+  Build and SD Card progress bars glide between steps.
 - The MCP `click` tool takes `hold_seconds` to keep the button down, and
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- The Build panel no longer slows the editor down while it is open: it
+  asked the disk whether the toolchain was installed on every frame.
+- Clicking the title of an open menu (File, Edit, ...) closes it. It used
+  to close and reopen in the same click.
 - Console rows line up: the time and message start at the same place on
   every row, whatever the severity label (WARN, INFO, ERROR...).
 - Monospace text (console, inspector values, Play view, build output) is

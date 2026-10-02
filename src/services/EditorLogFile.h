@@ -37,6 +37,9 @@ public:
 
     static void Flush();
 
+    // Keep Debug lines too (the "editorLog.verbose" preference), from now on.
+    static void SetVerbose(bool verbose);
+
     static std::string GetLogPath();
 
     /// The path the current log rotates to when it fills (or at the next

@@ -6,6 +6,7 @@
 #include "../services/ExportTarget.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include "EditorApp.h"
 #include "core/Project.h"
 #include "services/AssetDeployer.h"
@@ -79,7 +80,8 @@ void SDCardDeployPanel::Draw()
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, Palette::Line);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-        ImGui::ProgressBar(m_DeployProgress, ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
+        ImGui::ProgressBar(Motion::Progress(ImGui::GetID("##deployprogress"), m_DeployProgress),
+                           ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(2);
     }

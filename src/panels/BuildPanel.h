@@ -100,6 +100,14 @@ private:
     PlatformOriginStatus m_Origin;
     std::string m_OriginFor;
     unsigned m_OriginRevision = 0;
+
+    // Whether the active builder's toolchain is installed. Asking reads the
+    // disk (ESP-IDF: its export script and version file), which done every
+    // frame made the panel crawl on Windows, so the answer is kept and asked
+    // again when the panel appears, the builder changes, or a few seconds pass.
+    const void* m_ToolchainFor = nullptr;
+    bool m_ToolchainReady = false;
+    double m_ToolchainCheckedAt = -1.0;
     std::string m_OriginNotice;  // what the last update or restore did
     bool m_ShowRestoreConfirm = false;
 };

@@ -192,6 +192,11 @@ void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message,
     }
 }
 
+void EditorLogFile::SetVerbose(bool verbose)
+{
+    g_Verbose = verbose;
+}
+
 void EditorLogFile::Flush()
 {
     std::lock_guard<std::mutex> lock(g_Mutex);

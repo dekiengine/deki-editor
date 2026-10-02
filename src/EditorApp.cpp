@@ -136,6 +136,7 @@ EditorApp::EditorApp()
     m_SceneViewPanel = std::make_unique<SceneViewPanel>(this);
     m_AssetBrowserPanel = std::make_unique<AssetBrowserPanel>(this);
     m_ProjectSettingsPanel = std::make_unique<ProjectSettingsPanel>(this);
+    m_EditorSettingsPanel = std::make_unique<EditorSettingsPanel>(this);
 
     // Register asset types for right-click creation
     RegisterAssetTypes();
@@ -237,7 +238,7 @@ EditorApp::EditorApp()
         m_BuildPanel.get(), m_PackageManagerPanel.get(), m_PlatformManagerPanel.get(),
         m_ProfilerPanel.get(), m_FrameCapturePanel.get(), m_SerialMonitorPanel.get(),
         m_SDCardDeployPanel.get(), m_DeployAnalysisPanel.get(), m_ActivityPanel.get(),
-        m_PlayViewPanel.get()
+        m_PlayViewPanel.get(), m_EditorSettingsPanel.get()
     };
 
     // Restore panel open states from settings

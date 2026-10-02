@@ -3,6 +3,7 @@
 #include <deki-editor/Paths.h>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Motion.h>
 #include <cfloat>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/EditorUI.h>
@@ -156,7 +157,8 @@ void BuildPanel::Draw()
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, Palette::Line);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-        ImGui::ProgressBar(m_BuildProgress, ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
+        ImGui::ProgressBar(Motion::Progress(ImGui::GetID("##buildprogress"), m_BuildProgress),
+                           ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(2);
     }
@@ -809,7 +811,15 @@ void BuildPanel::DrawToolchainStatusSummary()
         return;
     }
 
-    if (builder->IsToolchainInstalled())
+    const double now = ImGui::GetTime();
+    if (builder != m_ToolchainFor || ImGui::IsWindowAppearing() || now - m_ToolchainCheckedAt > 5.0)
+    {
+        m_ToolchainReady = builder->IsToolchainInstalled();
+        m_ToolchainFor = builder;
+        m_ToolchainCheckedAt = now;
+    }
+
+    if (m_ToolchainReady)
     {
         ImGui::TextColored(Palette::Green, "Ready");
         ImGui::SameLine();

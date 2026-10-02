@@ -52,10 +52,18 @@ void FocusPanelTab(const char* idName)
             tabBar->SelectedTabId = tabBar->NextSelectedTabId = window->TabId;
         }
 }
+
+// The bar menu that was open last frame and this frame's, for telling a click
+// on an open menu's header (close it) from a click on a closed one (open it).
+ImGuiID s_BarMenuOpenLastFrame = 0;
+ImGuiID s_BarMenuOpenThisFrame = 0;
 }  // namespace
 
 void EditorApp::DrawMenuBar()
 {
+    s_BarMenuOpenLastFrame = s_BarMenuOpenThisFrame;
+    s_BarMenuOpenThisFrame = 0;
+
     // Re-push the same FramePadding used at the parent window's Begin() time
     // so BeginMenuBar's internal AlignTextToFramePadding offsets text by
     // (barH - fontH)/2 - i.e. vertically centered. main.cpp's push has been
@@ -195,9 +203,26 @@ void EditorApp::DrawMenuBar()
                     ImGui::OpenPopup(id);
             }
             // Click anywhere in the column opens the menu (covers dead area
-            // above/below the text rect when no menu is currently open).
-            if (inColumn && !isOpen && ImGui::IsMouseClicked(0))
-                ImGui::OpenPopup(id);
+            // above/below the text rect when no menu is currently open), and
+            // a click on the menu that was already open closes it. By now
+            // ImGui has usually closed it itself (a click outside a popup, or
+            // on its own header), and opening it here again was what kept the
+            // menu from ever closing that way.
+            const bool wasOpen = s_BarMenuOpenLastFrame == id;
+            if (inColumn && ImGui::IsMouseClicked(0))
+            {
+                if (!wasOpen && !isOpen)
+                    ImGui::OpenPopup(id);
+                else if (wasOpen && isOpen)
+                    for (int i = 0; i < g.OpenPopupStack.Size; ++i)
+                        if (g.OpenPopupStack[i].PopupId == id)
+                        {
+                            ImGui::ClosePopupToLevel(i, true);
+                            break;
+                        }
+            }
+            if (isOpen)
+                s_BarMenuOpenThisFrame = id;
             if (inColumn || isOpen)
             {
                 rMin.y = barTopY;
@@ -310,6 +335,11 @@ void EditorApp::DrawMenuBar()
                     m_ProjectSettingsPanel->m_Open = true;
                     FocusPanelTab("Project Settings");
                 }
+                if (ImGui::MenuItem("Editor Settings..."))
+                {
+                    m_EditorSettingsPanel->m_Open = true;
+                    FocusPanelTab("Editor Settings");
+                }
 
                 // Maintenance: delete generated state to recover from a bad build or
                 // stale assets. Disabled while play mode or a build holds those files -
@@ -418,15 +448,44 @@ void EditorApp::DrawMenuBar()
                     }
                 };
 
+                // A small dim heading over each group, with a rule above all
+                // but the first. Headings rather than submenus: every panel
+                // stays one click away.
+                bool firstGroup = true;
+                auto Group = [&firstGroup](const char* title)
+                {
+                    if (!firstGroup)
+                        ImGui::Separator();
+                    firstGroup = false;
+                    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+                    if (g_FontUISmall)
+                        ImGui::PushFont(g_FontUISmall, 11.0f);
+                    ImGui::TextUnformatted(title);
+                    if (g_FontUISmall)
+                        ImGui::PopFont();
+                    ImGui::PopStyleColor();
+                };
+
+                Group("SCENE");
                 PanelMenuItem("Hierarchy", m_HierarchyPanel->m_Open, "Hierarchy");
                 PanelMenuItem("Inspector", m_InspectorPanel->m_Open, "Inspector");
                 PanelMenuItem("Scene View", m_SceneViewPanel->m_Open, "Scene View");
                 PanelMenuItem("Play View", m_PlayViewPanel->m_Open, "Play View");
+
+                Group("PROJECT");
                 PanelMenuItem("Asset Browser", m_AssetBrowserPanel->m_Open, "Asset Browser");
+                PanelMenuItem("Package Manager", m_PackageManagerPanel->m_Open, "Package Manager");
                 PanelMenuItem("Console", m_ConsolePanel->m_Open, "Console");
+                PanelMenuItem("Activity", m_ActivityPanel->m_Open, "Activity");
+
+                Group("BUILD & DEPLOY");
                 PanelMenuItem("Build", m_BuildPanel->m_Open, "Build");
                 PanelMenuItem("Platform Manager", m_PlatformManagerPanel->m_Open, "Platform Manager");
-                PanelMenuItem("Package Manager", m_PackageManagerPanel->m_Open, "Package Manager");
+                PanelMenuItem("SD Card Deploy", m_SDCardDeployPanel->m_Open, "SD Card Deploy");
+                PanelMenuItem("Deploy Analysis", m_DeployAnalysisPanel->m_Open, "Deploy Analysis");
+                PanelMenuItem("Serial Monitor", m_SerialMonitorPanel->m_Open, "Serial Monitor");
+
+                Group("PERFORMANCE");
                 if (ImGui::MenuItem("Profiler"))
                 {
                     m_ProfilerPanel->SetOpen(true);
@@ -437,10 +496,6 @@ void EditorApp::DrawMenuBar()
                     m_FrameCapturePanel->SetOpen(true);
                     FocusPanelTab("Frame Capture");
                 }
-                PanelMenuItem("Serial Monitor", m_SerialMonitorPanel->m_Open, "Serial Monitor");
-                PanelMenuItem("SD Card Deploy", m_SDCardDeployPanel->m_Open, "SD Card Deploy");
-                PanelMenuItem("Deploy Analysis", m_DeployAnalysisPanel->m_Open, "Deploy Analysis");
-                PanelMenuItem("Activity", m_ActivityPanel->m_Open, "Activity");
                 ImGui::Separator();
                 if (ImGui::MenuItem("Restore Layout"))
                 {
@@ -457,6 +512,7 @@ void EditorApp::DrawMenuBar()
 
                     m_BuildPanel->m_Open = false;
                     m_ProjectSettingsPanel->m_Open = false;
+                    m_EditorSettingsPanel->m_Open = false;
                     m_PackageManagerPanel->m_Open = false;
                     m_PlatformManagerPanel->m_Open = false;
                     m_SerialMonitorPanel->m_Open = false;
@@ -477,10 +533,6 @@ void EditorApp::DrawMenuBar()
                     // here in the middle of a menu.
                     RequestRestoreLayout();
                 }
-                // Every animation lands at once: the same state, no motion.
-                bool reduceMotion = Motion::ReduceMotion();
-                if (ImGui::MenuItem("Reduce Motion", nullptr, &reduceMotion))
-                    Motion::SetReduceMotion(reduceMotion);
 #ifndef NDEBUG
                 // ImGui's own debug windows. Debug builds only - these are
                 // developer tools for working on the editor, not features of it.

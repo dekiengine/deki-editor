@@ -721,6 +721,8 @@ set(EDITOR_SOURCES
     src/services/AssetDeployer.h
     src/panels/ProjectSettingsPanel.cpp
     src/panels/ProjectSettingsPanel.h
+    src/panels/EditorSettingsPanel.cpp
+    src/panels/EditorSettingsPanel.h
     src/panels/ConsolePanel.cpp
     src/panels/ConsolePanel.h
     src/panels/SerialMonitorPanel.cpp
