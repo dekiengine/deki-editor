@@ -64,13 +64,16 @@ public:
     /// surface this instead of reporting a delete that partly did not happen.
     bool HadFailures() const { return m_HadFailures; }
 
-    /// Remove trash directories left behind by a previous session.
-    ///
-    /// The destructor clears a command's own directory, but a crash skips that.
-    /// The trash now lives in the project rather than the OS temp directory, so
-    /// nothing else will ever clean it up. Call this on project open: by then
-    /// any undo that could have restored those files is long gone.
+    /// Remove deletes older than kTrashDays from the trash (and from the
+    /// <project>/.trash older editors used). Called on project open. Until
+    /// then a deleted file can be taken back from generated/trash/ by hand,
+    /// after undo no longer can.
     static void SweepStaleTrash(const std::string& projectRoot);
+
+    /// Where deleted assets wait: <project>/generated/trash/delete_<ms>/.
+    static std::filesystem::path TrashRoot(const std::string& projectRoot);
+    /// How long they wait there before SweepStaleTrash removes them.
+    static constexpr int kTrashDays = 7;
 
     void Execute() override;
     void Undo() override;

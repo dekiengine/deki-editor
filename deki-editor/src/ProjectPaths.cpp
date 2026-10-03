@@ -1,6 +1,7 @@
 #include <deki-editor/build/ProjectPaths.h>
 
 #include <deki-editor/Paths.h>
+#include <deki-editor/FileIO.h>
 
 #include <fstream>
 #include <vector>
@@ -175,11 +176,9 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
         for (size_t at = text.find(needle); at != std::string::npos; at = text.find(needle, at))
             text.erase(at, std::char_traits<char>::length("project/"));
 
-        if (std::ofstream out{ entry.path(), std::ios::trunc })
-        {
-            out << text;
+        std::string err;
+        if (AtomicWriteFile(entry.path().string(), text, err))
             ++rewritten;
-        }
     }
 
     // The folder only ever held those four; anything else is the user's and stays,

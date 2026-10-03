@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deki-editor/Command.h>
+#include <deki-editor/FileIO.h>
 #include "CommandRefCheck.h"
 #include "HistoryGuards.h"
 #include "ObjectSerializationHelper.h"
@@ -220,12 +221,13 @@ inline std::string ReadFileToString(const std::string& path)
     return ss.str();
 }
 
+// In one step (temp file + rename): applying to a prefab rewrites another
+// scene, and a crash halfway left it cut off. The stream was also checked
+// before it was flushed, so a full disk still reported success.
 inline bool WriteStringToFile(const std::string& path, const std::string& content)
 {
-    std::ofstream f(path, std::ios::binary | std::ios::trunc);
-    if (!f) return false;
-    f.write(content.data(), static_cast<std::streamsize>(content.size()));
-    return f.good();
+    std::string err;
+    return DekiEditor::AtomicWriteFile(path, content, err);
 }
 
 // Collect all DekiObjects in the scene (roots + descendants) whose

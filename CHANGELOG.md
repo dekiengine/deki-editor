@@ -143,6 +143,27 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   (hooks, fsmonitor) never run when the editor uses git in its packages, and
   git is not run at all in a package whose `.git/config` has filters or
   other commands.
+- Board pack downloads work on Windows: every download stopped at the first
+  zero byte, so their zips arrived cut off. Downloads also give up after 5 s
+  without a connection or 30 s without data, as on Linux.
+- Project settings, platform files, prefab apply and crash-recovery notes are
+  written in one step. A settings file that does not parse (a merge
+  conflict) is reported and left alone; it used to be reset to defaults on
+  the next save.
+- **Deleted assets can be recovered for 7 days**, from
+  `generated/trash/` (it was `.trash/`, which could end up in git). They
+  were removed for good when the undo history let go of the delete, or on
+  the next open.
+- Crash recovery keeps scenes with the same file name apart (two
+  `main.scene` files overwrote each other's snapshot), and the list shows
+  each scene's path in the project. The recovery folder's name no longer
+  depends on the compiler, so a recovery survives an editor update.
+- When packages cannot be rebuilt after an editor or engine update, the
+  libraries built for the old version are not loaded (they crashed the
+  editor); the error says to fix the build. A package that fails to load no
+  longer takes every other package's components with it.
+- On Linux, the file that lets other programs drive the editor (its MCP
+  token) is readable only by you.
 - ESP32 boards: PSRAM works on the classic ESP32 (every PSRAM allocation
   failed there), WiFi initialises the flash storage it needs, and Bluetooth
   starts on first use instead of before FreeRTOS was running.

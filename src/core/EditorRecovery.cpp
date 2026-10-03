@@ -1,6 +1,7 @@
 #include "EditorRecovery.h"
 
 #include <deki-editor/EditorPaths.h>
+#include <deki-editor/FileIO.h>
 #include <deki/LogSystem.h>
 #include <deki/Scene.h>
 
@@ -12,7 +13,9 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <cstdint>
 #include <functional>
+#include <vector>
 #include <system_error>
 
 namespace DekiEditor
@@ -47,11 +50,39 @@ std::string EditorRecovery::RecoveryDirFor(const std::string& projectPath)
     if (name.empty())
         name = "project";
 
+    // FNV-1a, not std::hash: std::hash may change with the compiler or its
+    // library, and then an updated editor could not find the recovery a
+    // crash of the old one left (LegacyRecoveryDirFor still looks there).
+    uint64_t h = 1469598103934665603ull;
+    for (unsigned char c : norm)
+    {
+        h ^= c;
+        h *= 1099511628211ull;
+    }
+    char hash[17];
+    std::snprintf(hash, sizeof(hash), "%016llx", static_cast<unsigned long long>(h));
+
+    return dataDir + "/Recovery/" + name + "-" + hash;
+}
+
+std::string EditorRecovery::LegacyRecoveryDirFor(const std::string& projectPath)
+{
+    const std::string current = RecoveryDirFor(projectPath);
+    if (current.empty())
+        return "";
+    std::string norm = projectPath;
+    for (char& c : norm)
+    {
+        if (c == '\\') c = '/';
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    while (!norm.empty() && norm.back() == '/')
+        norm.pop_back();
     char hash[17];
     std::snprintf(hash, sizeof(hash), "%016llx",
                   static_cast<unsigned long long>(std::hash<std::string>{}(norm)));
-
-    return dataDir + "/Recovery/" + name + "-" + hash;
+    // Same folder name, the old hash.
+    return current.substr(0, current.size() - 16) + hash;
 }
 
 void EditorRecovery::RemoveRecoveryDir(const std::string& projectPath)
@@ -60,6 +91,9 @@ void EditorRecovery::RemoveRecoveryDir(const std::string& projectPath)
     const std::string dir = RecoveryDirFor(projectPath);
     if (!dir.empty())
         fs::remove_all(fs::path(dir), ec);
+    const std::string legacy = LegacyRecoveryDirFor(projectPath);
+    if (!legacy.empty() && legacy != dir)
+        fs::remove_all(fs::path(legacy), ec);
 }
 
 void EditorRecovery::ScanProject(const std::string& projectPath)
@@ -67,13 +101,19 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
     m_Files.clear();
     m_Selected = 0;
 
-    const std::string recoveryDir = RecoveryDirFor(projectPath);
+    std::vector<std::string> dirs = { RecoveryDirFor(projectPath) };
+    const std::string legacy = LegacyRecoveryDirFor(projectPath);
+    if (!legacy.empty() && legacy != dirs[0])
+        dirs.push_back(legacy);  // left by an editor from before the stable hash
+
+    for (const std::string& recoveryDir : dirs)
+    {
     if (recoveryDir.empty())
-        return;
+        continue;
 
     std::error_code dirEc;
     if (!fs::exists(recoveryDir, dirEc) || !fs::is_directory(recoveryDir, dirEc))
-        return;
+        continue;
 
     for (const auto& entry : fs::directory_iterator(recoveryDir, dirEc))
     {
@@ -148,7 +188,17 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
             rec.objectCount = -1;  // shown as "unreadable" - still offered, the loader may cope
         }
 
+        // Shown as its place in the project ("assets/level1/main.scene"): the
+        // snapshot's own file name is that path flattened.
+        if (!rec.originalPath.empty())
+        {
+            const fs::path rel = fs::path(rec.originalPath).lexically_normal().lexically_relative(
+                fs::path(projectPath).lexically_normal());
+            if (!rel.empty() && *rel.begin() != "..")
+                rec.displayName = rel.generic_string();
+        }
         m_Files.push_back(std::move(rec));
+    }
     }
 
     // Newest first: after several crashes the most recent is almost always the
@@ -164,7 +214,7 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
         // Worth a line in the log: the files no longer live in the project, so
         // "where did my recovery go" is now a fair question to have to answer.
         DEKI_LOG_EDITOR("Recovery: %zu scene(s) pending in %s",
-                        m_Files.size(), recoveryDir.c_str());
+                        m_Files.size(), dirs[0].c_str());
     }
 }
 
@@ -200,10 +250,21 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
         fs::path recoveryDir = fs::path(dir);
         fs::create_directories(recoveryDir);
 
-        // Use the original scene filename, or a default.
+        // Named by the scene's path inside the project ("scenes~main.scene"),
+        // not its file name alone: two scenes called main.scene overwrote each
+        // other's snapshot, and the dialog offered the wrong one back.
         std::string filename = "recovered.scene";
         if (!scenePath.empty())
-            filename = fs::path(scenePath).filename().string();
+        {
+            fs::path rel = fs::path(scenePath).lexically_normal().lexically_relative(
+                fs::path(projectPath).lexically_normal());
+            std::string flat = (rel.empty() || *rel.begin() == "..") ? fs::path(scenePath).filename().generic_string()
+                                                                      : rel.generic_string();
+            for (char& c : flat)
+                if (c == '/' || c == ':')
+                    c = '~';
+            filename = flat;
+        }
 
         fs::path recoveryPath = recoveryDir / filename;
         if (!scene->SaveToFile(recoveryPath.string()))
@@ -221,9 +282,8 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
         // trying to describe. Size and object count are derived at read time.
         meta["savedAt"] = static_cast<long long>(std::time(nullptr));
         fs::path metaPath = recoveryDir / (filename + ".meta.json");
-        std::ofstream metaFile(metaPath);
-        if (metaFile.is_open())
-            metaFile << meta.dump(2);
+        std::string err;
+        AtomicWriteFile(metaPath.string(), meta.dump(2), err);
 
         if (std::find(m_SessionSnapshots.begin(), m_SessionSnapshots.end(), recoveryPath.string()) ==
             m_SessionSnapshots.end())

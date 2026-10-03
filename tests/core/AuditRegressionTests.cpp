@@ -840,3 +840,38 @@ TEST(AuditReadTexFile, StillAcceptsAWellFormedFile)
     EXPECT_EQ(data.header.height, 2u);
     EXPECT_EQ(data.pixelData.size(), 16u);
 }
+
+// A delete that leaves the undo history (another scene opened, the editor
+// closed) is not final: the files stay in generated/trash/ until they are
+// kTrashDays old. Both used to remove them at once.
+TEST(AuditDeleteAssetsCommand, DeletedFilesOutliveTheUndoHistoryAndTheNextOpen)
+{
+    TempDir dir("deki_audit_delete_outlives");
+    const fs::path asset = dir.Path() / "assets" / "keep.png";
+    fs::create_directories(asset.parent_path());
+    std::ofstream(asset) << "pixels";
+    {
+        DeleteAssetsCommand cmd({ asset.string() }, nullptr, dir.Path().string());
+        cmd.Execute();
+        ASSERT_FALSE(fs::exists(asset));
+    }  // the command is gone, as when undo history is cleared
+    DeleteAssetsCommand::SweepStaleTrash(dir.Path().string());  // the next open
+
+    const fs::path trash = DeleteAssetsCommand::TrashRoot(dir.Path().string());
+    bool found = false;
+    for (const auto& e : fs::recursive_directory_iterator(trash))
+        found |= e.path().filename().string().find("keep.png") != std::string::npos;
+    EXPECT_TRUE(found) << "the deleted file is gone for good";
+
+    // Old enough (its name says it was deleted 8 days ago): swept.
+    std::vector<fs::path> deletes;
+    for (const auto& e : fs::directory_iterator(trash))
+        deletes.push_back(e.path());
+    const auto eightDaysAgo = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  (std::chrono::system_clock::now() - std::chrono::hours(24 * 8)).time_since_epoch())
+                                  .count();
+    for (const fs::path& d : deletes)
+        fs::rename(d, trash / ("delete_" + std::to_string(eightDaysAgo)));
+    DeleteAssetsCommand::SweepStaleTrash(dir.Path().string());
+    EXPECT_FALSE(fs::exists(trash));
+}

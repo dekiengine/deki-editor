@@ -152,6 +152,14 @@ void Publish(int port, const std::string& token, const std::string& projectPath)
     std::error_code ec;
     const fs::path dir = Directory();
     fs::create_directories(dir, ec);
+#ifndef _WIN32
+    // The file holds the MCP server's token, which is what lets anything drive
+    // this editor. Written with the default umask it was readable by every
+    // user on the machine. The folder is owner-only, so nothing in it can be
+    // reached by others, whatever mode a file gets. (On Windows the per-user
+    // profile's ACL already does this.)
+    fs::permissions(dir, fs::perms::owner_all, fs::perm_options::replace, ec);
+#endif
 
     Info info;
     info.pid = CurrentPid();
@@ -160,7 +168,11 @@ void Publish(int port, const std::string& token, const std::string& projectPath)
     info.project = projectPath.empty() ? std::string() : Normalized(projectPath);
 
     std::string err;
-    AtomicWriteFile((dir / (std::to_string(info.pid) + ".json")).string(), ToJson(info), err);
+    const fs::path file = dir / (std::to_string(info.pid) + ".json");
+    AtomicWriteFile(file.string(), ToJson(info), err);
+#ifndef _WIN32
+    fs::permissions(file, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
+#endif
 }
 
 void Withdraw()

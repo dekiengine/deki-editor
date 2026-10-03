@@ -49,6 +49,8 @@ public:
     /// directory, plus a hash of the normalised full path so two projects of
     /// the same name in different places stay separate.
     static std::string RecoveryDirFor(const std::string& projectPath);
+    /// Where an editor from before the stable folder hash kept it.
+    static std::string LegacyRecoveryDirFor(const std::string& projectPath);
 
     /// Delete the whole recovery directory. Only once every entry is resolved.
     static void RemoveRecoveryDir(const std::string& projectPath);

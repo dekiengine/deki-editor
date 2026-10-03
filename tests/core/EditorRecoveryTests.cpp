@@ -12,7 +12,9 @@
 #include <deki/Scene.h>
 
 #include <chrono>
+#include <algorithm>
 #include <filesystem>
+#include <vector>
 #include <fstream>
 #include <string>
 #include <thread>
@@ -409,3 +411,48 @@ TEST(EditorRecoveryDir, EmptyProjectPathHasNoRecoveryDirectory)
 }
 
 } // namespace
+
+// Two scenes with one file name in different folders each keep their own
+// snapshot; they used to overwrite each other's.
+TEST_F(EditorRecoveryTest, ScenesWithTheSameNameKeepSeparateSnapshots)
+{
+    Deki::Scene a;
+    a.CreateDekiObject("A");
+    Deki::Scene b;
+    b.CreateDekiObject("B");
+    b.CreateDekiObject("B2");
+
+    EditorRecovery rec;
+    const std::string pathA = (fs::path(m_ProjectPath) / "assets" / "level1" / "main.scene").generic_string();
+    const std::string pathB = (fs::path(m_ProjectPath) / "assets" / "level2" / "main.scene").generic_string();
+    std::string writtenA, writtenB;
+    ASSERT_TRUE(rec.WriteSnapshot(&a, pathA, m_ProjectPath, &writtenA));
+    ASSERT_TRUE(rec.WriteSnapshot(&b, pathB, m_ProjectPath, &writtenB));
+    EXPECT_NE(writtenA, writtenB);
+
+    EditorRecovery scan;
+    scan.ScanProject(m_ProjectPath);
+    ASSERT_EQ(scan.Entries().size(), 2u);
+    std::vector<std::string> originals = { scan.Entries()[0].originalPath, scan.Entries()[1].originalPath };
+    std::sort(originals.begin(), originals.end());
+    EXPECT_EQ(originals[0], pathA);
+    EXPECT_EQ(originals[1], pathB);
+}
+
+// A recovery left by an editor from before the stable folder hash is still
+// found (std::hash could change with the compiler).
+TEST_F(EditorRecoveryTest, FindsARecoveryInTheOldFolder)
+{
+    const std::string legacy = EditorRecovery::LegacyRecoveryDirFor(m_ProjectPath);
+    if (legacy == m_Dir)
+        GTEST_SKIP() << "the old and new hashes agree here";
+    std::error_code ec;
+    fs::create_directories(legacy, ec);
+    std::ofstream(fs::path(legacy) / "old.scene") << R"({"objects":[]})";
+
+    EditorRecovery scan;
+    scan.ScanProject(m_ProjectPath);
+    EXPECT_EQ(scan.Entries().size(), 1u);
+    EditorRecovery::RemoveRecoveryDir(m_ProjectPath);
+    EXPECT_FALSE(fs::exists(legacy));
+}

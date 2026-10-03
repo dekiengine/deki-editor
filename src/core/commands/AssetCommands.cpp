@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <system_error>
+#include <vector>
 
 namespace DekiEditor
 {
@@ -59,9 +60,8 @@ DeleteAssetsCommand::DeleteAssetsCommand(const std::vector<std::string>& paths,
     : m_OriginalPaths(paths), m_OnComplete(std::move(onComplete)), m_Executed(false)
 {
     std::error_code ec;
-    fs::path trashRoot = projectRoot.empty()
-                             ? fs::temp_directory_path(ec) / "deki_editor_backup"
-                             : fs::path(projectRoot) / ".trash";
+    fs::path trashRoot = projectRoot.empty() ? fs::temp_directory_path(ec) / "deki_editor_backup"
+                                             : TrashRoot(projectRoot);
 
     // Timestamp keeps concurrent delete commands from sharing a directory. The
     // directory itself is created by Execute: constructing the command (which
@@ -74,14 +74,20 @@ DeleteAssetsCommand::DeleteAssetsCommand(const std::vector<std::string>& paths,
 
 DeleteAssetsCommand::~DeleteAssetsCommand()
 {
-    // Executed and never undone means the delete is final, so the trash can
-    // go. Undone means the files are back where they belong and the trash is
-    // already empty.
-    if (m_Executed && fs::exists(m_BackupDir))
-    {
-        std::error_code ec;
-        fs::remove_all(m_BackupDir, ec);
-    }
+    // The deleted files stay in the trash when the command leaves the undo
+    // history (opening another scene clears it): deleting them here made a
+    // mistaken delete permanent a few clicks later. SweepStaleTrash removes
+    // them after kTrashDays. An undone delete leaves the folder empty.
+    std::error_code ec;
+    if (fs::is_directory(m_BackupDir, ec) && fs::is_empty(m_BackupDir, ec))
+        fs::remove(m_BackupDir, ec);
+}
+
+fs::path DeleteAssetsCommand::TrashRoot(const std::string& projectRoot)
+{
+    // Under generated/, which projects keep out of version control: the old
+    // <project>/.trash was not in the scaffold's .gitignore and got committed.
+    return fs::path(projectRoot) / "generated" / "trash";
 }
 
 std::string DeleteAssetsCommand::GetDescription() const
@@ -96,12 +102,38 @@ void DeleteAssetsCommand::SweepStaleTrash(const std::string& projectRoot)
     if (projectRoot.empty())
         return;
 
-    std::error_code ec;
-    const fs::path trashRoot = fs::path(projectRoot) / ".trash";
-    if (!fs::exists(trashRoot, ec))
-        return;
-
-    fs::remove_all(trashRoot, ec);
+    // Only deletes older than kTrashDays go. The whole trash used to be
+    // emptied on every open, so a delete followed by a crash (or just closing
+    // the editor) could not be taken back by any means.
+    // Aged by the time in the folder's name (delete_<ms since epoch>): a
+    // folder's own modification time moves when an undo takes files back out.
+    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
+    const long long maxAgeMs = 1000LL * 60 * 60 * 24 * kTrashDays;
+    for (const fs::path& root : { TrashRoot(projectRoot), fs::path(projectRoot) / ".trash" })
+    {
+        std::error_code ec;
+        if (!fs::is_directory(root, ec))
+            continue;
+        std::vector<fs::path> old;
+        for (const auto& entry : fs::directory_iterator(root, ec))
+        {
+            const std::string name = entry.path().filename().string();
+            long long ms = 0;
+            if (name.rfind("delete_", 0) == 0)
+            {
+                try { ms = std::stoll(name.substr(7)); }
+                catch (...) { ms = 0; }
+            }
+            if (ms == 0 || nowMs - ms > maxAgeMs)  // unreadable names are not kept forever
+                old.push_back(entry.path());
+        }
+        for (const fs::path& p : old)
+            fs::remove_all(p, ec);
+        if (fs::is_empty(root, ec))
+            fs::remove(root, ec);
+    }
 }
 
 void DeleteAssetsCommand::Execute()

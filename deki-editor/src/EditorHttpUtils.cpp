@@ -540,6 +540,10 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
                                      WINHTTP_NO_PROXY_BYPASS, 0);
 
     if (!hSession) return "";
+    // The same bounds curl gets below: 5 s to connect, 30 s per send and
+    // receive. WinHttp's defaults let a null-routed host hang a fetch thread
+    // well past the 30 s every caller waits.
+    WinHttpSetTimeouts(hSession, 5000, 5000, 30000, 30000);
 
     HINTERNET hConnect = WinHttpConnect(hSession, hostName, urlComp.nPort, 0);
     if (!hConnect)
@@ -599,14 +603,13 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
         }
     }
 
-    // Read response
+    // Read response. Appended by length: `result += buffer` stopped at the
+    // first zero byte, so every binary download (a board pack's zip) arrived
+    // cut off on Windows.
     char buffer[4096];
     DWORD bytesRead = 0;
-    while (WinHttpReadData(hRequest, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0)
-    {
-        buffer[bytesRead] = '\0';
-        result += buffer;
-    }
+    while (WinHttpReadData(hRequest, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0)
+        result.append(buffer, bytesRead);
 
     WinHttpCloseHandle(hRequest);
     WinHttpCloseHandle(hConnect);

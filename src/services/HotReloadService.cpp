@@ -843,6 +843,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     }
 
     bool stale = false;
+    bool abiChanged = false;  // the old binaries were built against another editor or engine
     const char* reason = "";
     if (fs::exists(srcPath) && PackageLoader::HasNewerSources(srcPath.string(), oldestOutput))
     {
@@ -855,7 +856,9 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         stale = true;
         reason = "package sources changed";
     }
-    if (!stale)
+    // Checked even when sources already made it stale: whether the old binaries
+    // were built for another editor or engine decides what a failed rebuild
+    // may still load (below).
     {
         // Packages compile against the engine's headers, so an engine source
         // tree newer than the outputs is a stale build even when the editor
@@ -864,11 +867,12 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         if (fs::exists(engineSrc, ec) && !ec && PackageLoader::HasNewerSources(engineSrc.string(), oldestOutput))
         {
             stale = true;
+            abiChanged = true;
             reason = "engine headers changed";
         }
         ec.clear();
     }
-    if (!stale)
+    if (!abiChanged)
     {
         // A rebuilt editor changes the package ABI (packages link its import libs and
         // share its ImGui), so newer editor binaries make the packages stale too.
@@ -888,6 +892,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
             if (t > oldestOutput)
             {
                 stale = true;
+                abiChanged = true;
                 reason = "editor rebuilt";
                 break;
             }
@@ -905,6 +910,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
 
     // m_PluginDirectory was set above; RunBuild reads it for the reload step.
     std::string buildOutput;
+    const auto buildStart = fs::file_time_type::clock::now();
     const bool ok = RunBuild(projectPath, buildOutput);
 
     // This build's plugin DLL landed in bin/.build_temp/ - move it into bin/
@@ -921,7 +927,44 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         reportOptions.rawWhenNoErrors = !ok;
         ReportBuildOutput(*m_Console, buildOutput, "__startup__", reportOptions);
     }
-    if (!ok && (m_Headless || !m_Console))
+    if (!ok && abiChanged)
+    {
+        // The previous binaries were built against another editor or engine.
+        // Loading them is what crashed deep inside LoadLibrary or, worse, ran
+        // with structs of the wrong size. Those this build did not rewrite go;
+        // the project opens without them (their components show as missing,
+        // their data kept) until the build succeeds.
+        std::vector<std::string> removed;
+        for (const auto& entry : fs::directory_iterator(bin, ec))
+        {
+            const std::string fn = entry.path().filename().string();
+            const std::string stem = SharedLibStem(fn);
+            const bool ours = IsSharedLibFile(fn) && (stem.rfind("deki-", 0) == 0 ||
+                                                      (stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0));
+            std::error_code tEc;
+            if (!ours || fs::last_write_time(entry.path(), tEc) >= buildStart || tEc)
+                continue;
+            removed.push_back(entry.path().string());
+        }
+        for (const std::string& p : removed)
+        {
+            std::error_code rmEc;
+            fs::remove(p, rmEc);
+        }
+        const std::string what = std::to_string(removed.size()) + " package librar" +
+                                 (removed.size() == 1 ? "y" : "ies") + " built for the previous " +
+                                 (std::string(reason) == "editor rebuilt" ? "editor" : "engine");
+        DEKI_LOG_ERROR("Rebuilding the project's packages failed (%s). %s were not loaded: they would crash "
+                       "this one. Fix the build errors below and build again.",
+                       reason, what.c_str());
+        if (m_Console)
+            m_Console->LogError(("The packages could not be rebuilt for this editor, so " + what +
+                                 " were not loaded. Fix the build errors and build again.")
+                                    .c_str());
+        if (m_Headless || !m_Console)
+            LogBuildErrorsWithoutConsole(buildOutput);
+    }
+    else if (!ok && (m_Headless || !m_Console))
     {
         DEKI_LOG_ERROR("Rebuilding the project's packages failed (%s); it opens with the previous "
                        "binaries, which do not have those changes:", reason);

@@ -3,6 +3,7 @@
 #include <deki/LogSystem.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/SafeNames.h>
+#include <deki-editor/FileIO.h>
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
@@ -493,11 +494,16 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
         fs::path platformDir = fs::path(directory) / config.id;
         fs::create_directories(platformDir);
 
-        // Write to file: <dir>/<id>/<id>.json
+        // Write to file: <dir>/<id>/<id>.json, in one step. A plain stream
+        // left a cut-off platform file on a crash, and a failed write still
+        // reported success.
         fs::path filePath = platformDir / (config.id + ".json");
-        std::ofstream file(filePath);
-        file << PlatformToJson(config);
-        file.close();
+        std::string err;
+        if (!AtomicWriteFile(filePath.string(), PlatformToJson(config), err))
+        {
+            DEKI_LOG_ERROR("Could not save platform '%s': %s", config.id.c_str(), err.c_str());
+            return false;
+        }
 
         // Also register in memory
         RegisterPlatform(config);

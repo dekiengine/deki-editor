@@ -8,6 +8,7 @@
 #include <deki/LogSystem.h>
 #include <deki/Engine.h>
 #include <deki/reflection/SettingsRegistry.h>
+#include <set>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
 #include <deki/settings/UnitProjectSettings.h>
@@ -167,20 +168,24 @@ std::filesystem::path SectionFilePath(const std::string& root, const std::string
     return DekiEditor::ProjectPaths::Settings(root) / "core.json";
 }
 
-nlohmann::json ReadJsonFile(const std::filesystem::path& p)
+// A settings file, or an empty object when there is none. `unreadable` is set
+// when the file is there but is not a JSON object (a merge conflict): its
+// sections then load as defaults, and saving must not write over it.
+nlohmann::json ReadJsonFile(const std::filesystem::path& p, bool* unreadable = nullptr)
 {
+    if (unreadable)
+        *unreadable = false;
     std::ifstream in(p);
     if (!in.is_open()) return nlohmann::json::object();
-    try
-    {
-        nlohmann::json j;
-        in >> j;
-        return j.is_object() ? j : nlohmann::json::object();
-    }
-    catch (...)
-    {
-        return nlohmann::json::object();
-    }
+    nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+    if (j.is_object())
+        return j;
+    if (unreadable)
+        *unreadable = true;
+    DEKI_LOG_ERROR("Project settings: %s could not be read (a merge conflict?). Its settings are at their "
+                   "defaults until it is fixed, and saving leaves it as it is.",
+                   p.string().c_str());
+    return nlohmann::json::object();
 }
 }  // namespace
 
@@ -194,6 +199,7 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
     // loaded - the same guarantee the single packageSettings block used to give,
     // and stronger here, since an absent package's file is never even opened.
     std::map<fs::path, nlohmann::json> byFile;
+    std::set<fs::path> unreadable;  // there but not JSON: never written over
 
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
     {
@@ -203,7 +209,14 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
         const fs::path dest = SectionFilePath(root, info.sectionName);
         auto it = byFile.find(dest);
         if (it == byFile.end())
-            it = byFile.emplace(dest, ReadJsonFile(dest)).first;
+        {
+            bool bad = false;
+            it = byFile.emplace(dest, ReadJsonFile(dest, &bad)).first;
+            if (bad)
+                unreadable.insert(dest);
+        }
+        if (unreadable.count(dest))
+            continue;
 
         nlohmann::json sectionJson = nlohmann::json::object();
         for (int i = 0; i < info.meta->propertyCount; ++i)
@@ -215,11 +228,13 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
 
     for (const auto& [dest, contents] : byFile)
     {
+        if (unreadable.count(dest))
+            continue;  // rewriting it from defaults would erase what the conflict holds
         std::error_code ec;
         fs::create_directories(dest.parent_path(), ec);
-        std::ofstream out(dest);
-        if (out.is_open())
-            out << contents.dump(2) << "\n";
+        std::string err;
+        if (!DekiEditor::AtomicWriteFile(dest.string(), contents.dump(2) + "\n", err))
+            DEKI_LOG_ERROR("Project settings: could not save %s: %s", dest.string().c_str(), err.c_str());
     }
 
     return written;

@@ -544,6 +544,30 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // (REGISTER_EDITOR_WINDOW) run during LoadLibrary, so we need the count from
     // before loading to properly trim entries if we end up freeing this DLL.
     int windowCountBeforePackage = DekiEditor::GetRegisteredWindowCount();
+    // And the component types registered before it, so a failure removes only
+    // the ones this package's static initialisers added.
+    std::set<uint32_t> typesBeforePackage;
+    for (const Deki::ComponentMeta* meta : Deki::ComponentRegistry::Instance().GetAllComponents())
+        if (meta)
+            typesBeforePackage.insert(meta->typeId);
+
+    // A package that fails after LoadLibrary is skipped but stays mapped, as
+    // the layout-mismatch paths below do: its static initialisers have already
+    // handed engine and editor registries pointers into its code (auto-setups,
+    // asset loaders, asset types, editor extensions), and unloading it left all
+    // of them dangling. Only its component types are taken back out. This used
+    // to clear EVERY package's components and editor registrations, then unload.
+    auto AbandonPackage = [&]()
+    {
+        auto& registry = Deki::ComponentRegistry::Instance();
+        std::vector<uint32_t> added;
+        for (const Deki::ComponentMeta* meta : registry.GetAllComponents())
+            if (meta && !typesBeforePackage.count(meta->typeId))
+                added.push_back(meta->typeId);
+        for (uint32_t typeId : added)
+            registry.Unregister(typeId);
+        DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
+    };
 
 #ifdef _WIN32
     // Suppress Windows error dialogs (e.g., "DLL not found") that would freeze the UI.
@@ -602,18 +626,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     {
         DEKI_LOG_ERROR("PackageLoader: Package missing DekiPlugin_GetName: %s", path.c_str());
 
-        // Safety: DLL static initializers (e.g., REGISTER_COMPONENT/REGISTER_EDITOR macros) may have
-        // registered entries with ComponentRegistry and EditorRegistry during LoadLibrary. Roll back
-        // to the pre-load state before FreeLibrary makes those pointers stale.
-        Deki::ComponentRegistry::Instance().ClearNonEngineComponents();
-        DekiEditorInternal::EditorRegistry::Instance().Clear();
-        DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
-
-#ifdef _WIN32
-        FreeLibrary(handle);
-#else
-        dlclose(handle);
-#endif
+        AbandonPackage();
         return false;
     }
 
@@ -621,14 +634,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     if (!nameStr)
     {
         DEKI_LOG_ERROR("PackageLoader: getName crashed or returned null: %s", path.c_str());
-        Deki::ComponentRegistry::Instance().ClearNonEngineComponents();
-        DekiEditorInternal::EditorRegistry::Instance().Clear();
-        DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
-#ifdef _WIN32
-        FreeLibrary(handle);
-#else
-        dlclose(handle);
-#endif
+        AbandonPackage();
         return false;
     }
     info.name = nameStr;
@@ -742,14 +748,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         if (result != 0)
         {
             DEKI_LOG_ERROR("PackageLoader: Package init failed with code %d for '%s'", result, info.name.c_str());
-            Deki::ComponentRegistry::Instance().ClearNonEngineComponents();
-            DekiEditorInternal::EditorRegistry::Instance().Clear();
-            DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
-#ifdef _WIN32
-            FreeLibrary(handle);
-#else
-            dlclose(handle);
-#endif
+            AbandonPackage();
             return false;
         }
     }
@@ -760,14 +759,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         if (!SafeCallVoid(registerComponents, "PackageLoader::registerComponents"))
         {
             DEKI_LOG_ERROR("PackageLoader: registerComponents crashed for '%s'", info.name.c_str());
-            Deki::ComponentRegistry::Instance().ClearNonEngineComponents();
-            DekiEditorInternal::EditorRegistry::Instance().Clear();
-            DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
-#ifdef _WIN32
-            FreeLibrary(handle);
-#else
-            dlclose(handle);
-#endif
+            AbandonPackage();
             return false;
         }
     }
