@@ -59,6 +59,39 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   a `git pull` in a package checkout: the editor asks git which release the
   checkout is on and fixes its install record. A real mismatch is reported
   once, not on every refresh.
+- **Undo after removing a component no longer crashes.** Remove Component,
+  undo it, then undo an earlier change to that component: the editor wrote
+  into a deleted component. Undo now restores the same component, in its old
+  place. Steps that refer to something deleted are dropped from the history,
+  and the history is cleared when packages hot reload.
+- A crash saves the recovery copy of your scene first, before it writes the
+  crash report. A second fault while reporting used to lose it.
+- New Project asks about unsaved changes before opening the new project. The
+  MCP `open_project` and `create_project` tools refuse while the scene has
+  unsaved changes, unless given `discard_changes: true`.
+- A `.data` file that does not parse (a git merge conflict) is never written
+  over. The asset keeps the GUID still written in it, and the error says
+  which file to fix. The Sprite Slicer and 9-slice editor refuse to save over
+  one too.
+- A lost `.data` file is recreated with the GUID the asset had, so scenes
+  that use the asset keep working.
+- Copying an asset together with its `.data` file no longer overwrites the
+  original's cache: the copy gets its own GUID first.
+- Renaming or moving an asset outside the editor while it is open keeps its
+  GUID and cache. Scenes that used it showed nothing until a restart.
+- **Export and firmware builds fail when something is wrong**, and say what:
+  a scene that does not load, an asset a scene uses that is not in the
+  project, a boot scene that does not compile, or project code that did not
+  build. They used to report success and ship without it.
+- An unknown command-line option is an error. It used to be ignored, and the
+  editor opened its window instead of running the command.
+- A project whose `packages/` or `generated/` folders are links to another
+  folder is not opened: the editor deletes files in them, and those deletes
+  would land in the linked folder.
+- Quitting with MCP requests still queued no longer hangs for up to 15
+  minutes.
+- The package lock lists the project's packages only, not every package in
+  the registry.
 
 ## 0.17.0 - 2026-09-30
 

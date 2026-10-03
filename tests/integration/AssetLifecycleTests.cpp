@@ -10,7 +10,9 @@
 #include <filesystem>
 #include <fstream>
 #include <thread>
+#include <sstream>
 #include <unordered_set>
+#include <vector>
 
 namespace fs = std::filesystem;
 using namespace DekiEditor;
@@ -301,11 +303,11 @@ TEST_F(AssetLifecycleTest, BulkCreate_NoGuidCollisions_AllResolvable)
 }
 
 // -----------------------------------------------------------------------------
-// Missing sidecar: deleting the .data file forces a fresh GUID on the next
-// ProcessAsset pass. The asset remains discoverable.
+// Missing sidecar: the .data file is written back with the GUID the asset had,
+// so references to it keep resolving. A fresh GUID broke every one of them.
 // -----------------------------------------------------------------------------
 
-TEST_F(AssetLifecycleTest, MissingSidecar_AssetExists_GuidRegenerated)
+TEST_F(AssetLifecycleTest, MissingSidecar_AssetExists_GuidRestored)
 {
     std::string rel = CreateAssetFile("orphan.lifecycle", 3);
     m_Pipeline->RefreshAsset(rel);
@@ -322,7 +324,138 @@ TEST_F(AssetLifecycleTest, MissingSidecar_AssetExists_GuidRegenerated)
 
     const AssetInfo* after = m_Pipeline->GetAssetInfo(rel);
     ASSERT_NE(after, nullptr);
-    EXPECT_FALSE(after->guid.empty());
-    EXPECT_NE(after->guid, originalGuid)
-        << "When the sidecar is wiped, a fresh GUID must be minted instead of falling back to a cached value";
+    EXPECT_EQ(after->guid, originalGuid);
+    EXPECT_TRUE(fs::exists(sidecarAbs));
+    EXPECT_EQ(ReadAssetGuid((m_TempDir / "assets" / "orphan.lifecycle").string()), originalGuid);
+}
+
+// -----------------------------------------------------------------------------
+// A sidecar that does not parse (a git merge conflict) is never written over:
+// the GUID still in it is used, and the file is left for the user to fix.
+// -----------------------------------------------------------------------------
+
+namespace
+{
+std::string ReadText(const fs::path& path)
+{
+    std::ifstream f(path, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+}  // namespace
+
+TEST_F(AssetLifecycleTest, ConflictedSidecar_KeepsGuidAndIsNotRewritten)
+{
+    std::string rel = CreateAssetFile("merge.lifecycle", 5);
+    m_Pipeline->RefreshAsset(rel);
+    const std::string guid = m_Pipeline->GetAssetInfo(rel)->guid;
+
+    const fs::path sidecar = m_TempDir / "assets" / "merge.lifecycle.data";
+    const std::string conflicted = "{\n  \"guid\": \"" + guid +
+                                   "\",\n<<<<<<< HEAD\n  \"sprite\": {\"frameWidth\": 16}\n=======\n"
+                                   "  \"sprite\": {\"frameWidth\": 32}\n>>>>>>> theirs\n}\n";
+    { std::ofstream f(sidecar, std::ios::binary | std::ios::trunc); f << conflicted; }
+
+    m_Pipeline->RefreshAsset(rel);
+    const AssetInfo* after = m_Pipeline->GetAssetInfo(rel);
+    ASSERT_NE(after, nullptr);
+    EXPECT_EQ(after->guid, guid);
+    EXPECT_EQ(ReadText(sidecar), conflicted) << "the conflicted sidecar was rewritten";
+}
+
+TEST_F(AssetLifecycleTest, ConflictOnTheGuidItself_LeavesFileAlone)
+{
+    const fs::path asset = m_TempDir / "assets" / "two.lifecycle";
+    CreateAssetFile("two.lifecycle", 1);
+    const fs::path sidecar = m_TempDir / "assets" / "two.lifecycle.data";
+    const std::string conflicted = "{\n<<<<<<< HEAD\n  \"guid\": \"aaaaaaaa-0000-0000-0000-000000000001\"\n=======\n"
+                                   "  \"guid\": \"bbbbbbbb-0000-0000-0000-000000000002\"\n>>>>>>> theirs\n}\n";
+    { std::ofstream f(sidecar, std::ios::binary | std::ios::trunc); f << conflicted; }
+
+    EXPECT_EQ(GetOrCreateAssetGuid(asset.string()), "");
+    EXPECT_EQ(ReadText(sidecar), conflicted);
+}
+
+TEST_F(AssetLifecycleTest, SidecarWithoutGuid_GetsOneAndKeepsItsSettings)
+{
+    const fs::path asset = m_TempDir / "assets" / "hand.lifecycle";
+    CreateAssetFile("hand.lifecycle", 1);
+    { std::ofstream f(m_TempDir / "assets" / "hand.lifecycle.data", std::ios::trunc); f << R"({"sprite":{"frameWidth":8}})"; }
+
+    const std::string guid = GetOrCreateAssetGuid(asset.string());
+    ASSERT_FALSE(guid.empty());
+    AssetData data;
+    ASSERT_TRUE(LoadAssetData(asset.string() + ".data", data));
+    EXPECT_EQ(data.guid, guid);
+    EXPECT_EQ(data.settings["sprite"]["frameWidth"], 8);
+}
+
+// -----------------------------------------------------------------------------
+// Copying an asset together with its .data: the copy gets its own GUID before
+// its cache is built. It used to compile into the ORIGINAL's cache file, and
+// the original showed the copy's content, even after a restart.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, CopyWithSidecar_DoesNotOverwriteOriginalCache)
+{
+    std::string original = CreateAssetFile("hero.lifecycle", 10);
+    m_Pipeline->RefreshAsset(original);
+    const AssetInfo* info = m_Pipeline->GetAssetInfo(original);
+    ASSERT_NE(info, nullptr);
+    const std::string originalGuid = info->guid;
+    const std::string originalCache = m_Pipeline->GetAbsolutePath(info->cachePath);
+    ASSERT_EQ(ReadCachedValue(originalCache), 10);
+
+    // A copy with different content, carrying the original's sidecar.
+    std::string copy = CreateAssetFile("hero copy.lifecycle", 99);
+    fs::copy_file(m_TempDir / "assets" / "hero.lifecycle.data", m_TempDir / "assets" / "hero copy.lifecycle.data",
+                  fs::copy_options::overwrite_existing);
+    m_Pipeline->RefreshAsset(copy);
+
+    const AssetInfo* copyInfo = m_Pipeline->GetAssetInfo(copy);
+    ASSERT_NE(copyInfo, nullptr);
+    EXPECT_NE(copyInfo->guid, originalGuid);
+    EXPECT_EQ(ReadCachedValue(m_Pipeline->GetAbsolutePath(copyInfo->cachePath)), 99);
+    EXPECT_EQ(ReadCachedValue(originalCache), 10) << "the copy was compiled into the original's cache";
+    EXPECT_EQ(m_Pipeline->GetAssetInfo(original)->guid, originalGuid);
+    const AssetInfo* byGuid = m_Pipeline->GetAssetInfoByGuid(originalGuid);
+    ASSERT_NE(byGuid, nullptr);
+    EXPECT_EQ(byGuid->path, original);
+}
+
+// -----------------------------------------------------------------------------
+// Renaming an asset outside the editor while it runs: the watcher reports an
+// add and a delete. The GUID follows the file and the cache stays; the delete
+// used to remove both, and references broke until a restart.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, RenameOnDisk_KeepsGuidAndCache)
+{
+    std::string before = CreateAssetFile("old name.lifecycle", 4);
+    m_Pipeline->ImportAllAssets();  // starts the file watcher
+    ASSERT_NE(m_Pipeline->GetAssetInfo(before), nullptr);
+    const std::string guid = m_Pipeline->GetAssetInfo(before)->guid;
+    std::vector<std::string> deleted;
+    m_Pipeline->OnAssetDeleted = [&](const std::string& path, const std::string&) { deleted.push_back(path); };
+
+    fs::rename(m_TempDir / "assets" / "old name.lifecycle", m_TempDir / "assets" / "new name.lifecycle");
+    fs::rename(m_TempDir / "assets" / "old name.lifecycle.data", m_TempDir / "assets" / "new name.lifecycle.data");
+
+    const std::string after = AssetRelPath("new name.lifecycle");
+    for (int i = 0; i < 100 && (m_Pipeline->GetAssetInfo(before) || !m_Pipeline->GetAssetInfo(after)); ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        m_Pipeline->Tick();
+    }
+    const AssetInfo* moved = m_Pipeline->GetAssetInfo(after);
+    ASSERT_NE(moved, nullptr) << "the watcher never reported the rename";
+    EXPECT_EQ(m_Pipeline->GetAssetInfo(before), nullptr);
+    EXPECT_EQ(moved->guid, guid);
+    EXPECT_TRUE(fs::exists(m_Pipeline->GetAbsolutePath(moved->cachePath)));
+    EXPECT_EQ(ReadCachedValue(m_Pipeline->GetAbsolutePath(moved->cachePath)), 4);
+    const AssetInfo* byGuid = m_Pipeline->GetAssetInfoByGuid(guid);
+    ASSERT_NE(byGuid, nullptr);
+    EXPECT_EQ(byGuid->path, after);
+    EXPECT_TRUE(deleted.empty()) << "a rename was announced as a deletion";
 }

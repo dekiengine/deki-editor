@@ -28,6 +28,7 @@
 #include "services/StartupProgress.h"
 #include "services/PackageManager.h"
 #include "services/PackageRestore.h"
+#include "services/PackageIntegrity.h"
 #include <deki-editor/build/PlatformTemplates.h>
 #include "services/Prerequisites.h"
 #include "services/FileDialogs.h"
@@ -126,6 +127,26 @@ bool EditorApp::OpenProject(const std::string& path)
         DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': failed to load its "
                        "project file. Check that the directory contains a readable deki.json.",
                        path.c_str());
+        return false;
+    }
+
+    // The editor empties these folders (a cache wipe, a package reinstall, an
+    // orphan sweep). A link there points them at a folder outside the project,
+    // and those deletes would land in it. Links to single packages inside
+    // packages/ are fine: the installer never writes through them.
+    for (const std::filesystem::path& dir :
+         { ProjectPaths::Generated(path), ProjectPaths::Cache(path), ProjectPaths::Runtime(path),
+           ProjectPaths::Shadow(path), ProjectPaths::Build(path), std::filesystem::path(GetPackagesDirectory(path)) })
+    {
+        if (!DekiEditor::IsReparsePoint(dir))
+            continue;
+        m_Project.reset();
+        m_ProjectLock.Release();
+        m_OpenProjectError = dir.filename().string() + " is a link to another folder. The editor deletes files "
+                             "in it, so it has to be a plain folder inside the project.";
+        DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': %s is a symlink or junction. The editor "
+                       "deletes files there, which would reach the folder it points to. Make it a plain folder.",
+                       path.c_str(), dir.string().c_str());
         return false;
     }
 
@@ -1307,6 +1328,18 @@ void EditorApp::OnBeforePluginReload()
     // Force-stop play mode before hot reload to avoid dangling references
     if (m_PlayModeState != PlayModeState::Stopped)
         Stop();
+
+    // The undo history cannot outlive a reload: its steps point at the scene's
+    // objects and components, which are rebuilt from JSON below, and some are
+    // classes from the packages being unloaded (node graph edits). Undo after a
+    // script save wrote into freed memory. Unsaved changes stay unsaved.
+    {
+        CommandHistory& history = CommandHistory::Instance();
+        const bool dirty = history.IsDirty();
+        history.Clear();
+        if (dirty)
+            history.MarkDirty();
+    }
 
     // Clear any leftover persistent objects (defensive)
     Deki::Engine::GetInstance().GetSceneSystem().ClearPersistentObjects();

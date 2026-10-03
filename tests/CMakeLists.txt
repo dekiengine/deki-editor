@@ -91,6 +91,7 @@ set(TEST_SOURCES
     core/ModifyFieldCommandTests.cpp
     core/SceneInstanceTests.cpp
     core/TransformCommandsTests.cpp
+    core/ComponentUndoTests.cpp
 
     # New GUID and architecture tests
     core/GuidTests.cpp

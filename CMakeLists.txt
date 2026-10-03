@@ -513,6 +513,7 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/ObjectCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/PropertyCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/InstanceCommands.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/HistoryGuards.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/SettingsOwnership.cpp
     # LegacyFramingTests: what an older project's cameras migrate from.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/Project.cpp

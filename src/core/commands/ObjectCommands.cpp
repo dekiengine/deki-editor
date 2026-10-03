@@ -87,35 +87,47 @@ std::string AddComponentCommand::GetDescription() const
     return "Add " + m_TypeName;
 }
 
+AddComponentCommand::~AddComponentCommand()
+{
+    // Undone and never redone: the command still owns the instance.
+    if (m_Detached)
+        delete m_Component;
+}
+
 void AddComponentCommand::Execute()
 {
-    Deki::Component* comp = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
+    // Redo puts back the SAME instance the undo took off: edits recorded on it
+    // after it was added still point at it.
+    if (m_Component && m_Detached)
+    {
+        Deki::Internal::ReattachComponent(*m_Object, m_Component, static_cast<size_t>(m_Index));
+        m_Detached = false;
+    }
+    else
+    {
+        m_Component = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
+    }
     if (auto* scene = m_Object->GetOwnerScene())
         scene->InvalidateComponentsCache();
-    if (comp && m_OnAdded) m_OnAdded(comp);
+    if (m_Component && m_OnAdded) m_OnAdded(m_Component);
 }
 
 void AddComponentCommand::Undo()
 {
-    // Remove the last component of this type
-    auto& comps = m_Object->GetComponents();
-    for (auto it = comps.rbegin(); it != comps.rend(); ++it)
-    {
-        auto& registry = Deki::ComponentRegistry::Instance();
-        const Deki::ComponentMeta* meta = registry.GetMeta((*it)->GetType());
-        if (meta && meta->serializedName == m_TypeName)
-        {
-            m_Object->RemoveComponent(*it);
-            if (auto* scene = m_Object->GetOwnerScene())
-                scene->InvalidateComponentsCache();
-            break;
-        }
-    }
+    // Take it off, keep it: deleting it here and creating a new one on redo
+    // left every later edit of it writing into freed memory.
+    if (!m_Component || m_Detached)
+        return;
+    CustomEditorRegistry::Instance().ClearCacheForComponent(m_Component);
+    m_Index = Deki::Internal::DetachComponent(*m_Object, m_Component);
+    m_Detached = m_Index >= 0;
+    if (auto* scene = m_Object->GetOwnerScene())
+        scene->InvalidateComponentsCache();
 }
 
 bool AddComponentCommand::ReferencesAny(const DeadMemory& dead) const
 {
-    return CommandRefs::Has(dead, m_Object);
+    return CommandRefs::HasAny(dead, m_Object, m_Component);
 }
 
 std::string RemoveComponentCommand::GetDescription() const
@@ -123,35 +135,41 @@ std::string RemoveComponentCommand::GetDescription() const
     return "Remove " + m_TypeName;
 }
 
+RemoveComponentCommand::~RemoveComponentCommand()
+{
+    // Removed and never undone: the command owns the instance.
+    if (m_Detached)
+        delete m_Component;
+}
+
 void RemoveComponentCommand::Execute()
 {
-    if (m_ComponentToRemove)
-    {
-        CustomEditorRegistry::Instance().ClearCacheForComponent(m_ComponentToRemove);
-        m_Object->RemoveComponent(m_ComponentToRemove);
-        if (auto* scene = m_Object->GetOwnerScene())
-            scene->InvalidateComponentsCache();
-        m_ComponentToRemove = nullptr;
-        if (m_OnRemoved) m_OnRemoved();
-    }
+    // Take it off and keep it, so undo puts back the SAME instance: edits made
+    // to it before it was removed point at it. (Undo used to create a new
+    // component, and undoing one of those edits then wrote into freed memory.)
+    if (!m_Component || m_Detached)
+        return;
+    CustomEditorRegistry::Instance().ClearCacheForComponent(m_Component);
+    m_Index = Deki::Internal::DetachComponent(*m_Object, m_Component);
+    m_Detached = m_Index >= 0;
+    if (auto* scene = m_Object->GetOwnerScene())
+        scene->InvalidateComponentsCache();
+    if (m_OnRemoved) m_OnRemoved();
 }
 
 void RemoveComponentCommand::Undo()
 {
-    // Recreate the component using AddComponent
-    Deki::Component* comp = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
-    if (comp)
-    {
-        RestoreComponentProperties(comp, m_StoredData);
-        if (auto* scene = m_Object->GetOwnerScene())
-            scene->InvalidateComponentsCache();
-        m_ComponentToRemove = comp;
-    }
+    if (!m_Component || !m_Detached)
+        return;
+    Deki::Internal::ReattachComponent(*m_Object, m_Component, static_cast<size_t>(m_Index));
+    m_Detached = false;
+    if (auto* scene = m_Object->GetOwnerScene())
+        scene->InvalidateComponentsCache();
 }
 
 bool RemoveComponentCommand::ReferencesAny(const DeadMemory& dead) const
 {
-    return CommandRefs::HasAny(dead, m_Object, m_ComponentToRemove);
+    return CommandRefs::HasAny(dead, m_Object, m_Component);
 }
 
 std::string DuplicateObjectCommand::GetDescription() const

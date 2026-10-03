@@ -49,6 +49,7 @@
 // Extracted services
 #include "services/FileDialogs.h"
 #include "core/Commands.h"
+#include "core/commands/HistoryGuards.h"
 #include <filesystem>
 #include "services/EngineEditorSetup.h"
 // MCP server
@@ -182,8 +183,11 @@ EditorApp::EditorApp()
     m_NewProjectDialog = std::make_unique<NewProjectDialog>(this);
     m_NewProjectDialog->SetOnProjectCreated([this](const std::string& projectPath)
                                             {
-        // Open the newly created project
-        RequestOpenProject(projectPath); });
+        // Open the newly created project - after asking about a dirty scene,
+        // as Open Project does: this opened straight away and the open scene's
+        // edits were lost. (Cancel leaves the new project on disk, unopened.)
+        if (!CheckUnsavedChanges(PendingSceneAction::OpenProject, projectPath))
+            RequestOpenProject(projectPath); });
 
     // Create the project manager screen. It is what the editor shows until a
     // project is open, which on a normal launch is the very first frame.
@@ -685,7 +689,16 @@ void EditorApp::SetCurrentScene(std::unique_ptr<::Deki::Scene> scene)
     // scene can be allocated where the old one was (a project switch did this):
     // the cache then served the old scene's freed camera.
     if (m_SceneViewPanel)
+    {
         m_SceneViewPanel->InvalidateSceneCamera();
+        m_SceneViewPanel->InvalidateFlatObjects();
+    }
+    // Panels holding objects of the old scene (the Inspector's pin, the
+    // Hierarchy's rename/drag state) let go of them.
+    if (m_InspectorPanel)
+        m_InspectorPanel->ClearSceneReferences();
+    if (m_HierarchyPanel)
+        m_HierarchyPanel->ClearSceneReferences();
     // Publish before registering callbacks: both read m_CurrentScene, and the
     // facade must never name a scene that has been freed.
     EditorApplication::Get().SetActiveScene(m_CurrentScene.get());
@@ -705,9 +718,15 @@ void EditorApp::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
 {
     if (dying.empty()) return;
 
-    // The scene view's cached camera may be among the dying objects.
+    // The scene view's cached camera and its flattened object list may hold
+    // dying objects; the Inspector's pin may too.
     if (m_SceneViewPanel)
+    {
         m_SceneViewPanel->InvalidateSceneCamera();
+        m_SceneViewPanel->InvalidateFlatObjects();
+    }
+    if (m_InspectorPanel)
+        m_InspectorPanel->OnObjectsDestroyed(dying);
 
     // Drop undo/redo entries that point into the memory about to be freed.
     //
@@ -716,27 +735,11 @@ void EditorApp::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
     // this, a command left on either stack after its target dies writes through
     // a dangling pointer the next time it is undone or redone.
     {
+        // `dying` already lists the whole subtree; components die with their
+        // object.
         DeadMemory dead;
         for (Deki::Object* obj : dying)
-        {
-            if (!obj) continue;
-            dead.Add(obj, sizeof(Deki::Object));
-
-            // Components die with their object. instanceSize comes from the
-            // reflection metadata; when a component's type isn't registered we
-            // can only cover the base subobject, which still catches a command
-            // holding the component pointer itself.
-            auto& registry = Deki::ComponentRegistry::Instance();
-            for (Deki::Component* comp : obj->GetComponents())
-            {
-                if (!comp) continue;
-                const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
-                const size_t size = (meta && meta->instanceSize > 0)
-                                        ? meta->instanceSize
-                                        : sizeof(Deki::Component);
-                dead.Add(comp, size);
-            }
-        }
+            HistoryGuards::AddObject(dead, obj, /*recursive*/ false);
         CommandHistory::Instance().DiscardCommandsReferencing(dead);
     }
 

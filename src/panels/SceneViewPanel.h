@@ -52,6 +52,8 @@ public:
     // the command generation moves or objects are destroyed (EditorApp calls
     // this from OnObjectsDestroyed).
     void InvalidateSceneCamera() { m_SceneCamScene = nullptr; }
+    // Rebuild the flattened object list next frame (objects died, scene changed).
+    void InvalidateFlatObjects() { m_CachedFlatScene = nullptr; }
 
     // Update all CustomEditors for the active scene (layout sync, etc.)
     void UpdateCustomEditors();

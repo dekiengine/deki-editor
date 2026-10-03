@@ -274,6 +274,13 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.projectPath = argv[i];
         }
+        else
+        {
+            // A mistyped verb used to be ignored, and the editor opened its
+            // window instead of running the command: a script waited forever.
+            printf("Error: unknown option %s\n", argv[i]);
+            o.badArgs = true;
+        }
     }
 
     return !o.badArgs;

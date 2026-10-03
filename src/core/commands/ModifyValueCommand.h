@@ -2,6 +2,7 @@
 
 #include <deki-editor/Command.h>
 #include "CommandRefCheck.h"
+#include "HistoryGuards.h"
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -39,7 +40,8 @@ public:
                                   static_cast<const uint8_t*>(oldBytes) + size),
           m_New(static_cast<const uint8_t*>(newBytes),
                 static_cast<const uint8_t*>(newBytes) + size),
-          m_Description(std::move(description)), m_OnUndo(std::move(onUndo)), m_OnRedo(std::move(onRedo))
+          m_Description(std::move(description)), m_OnUndo(std::move(onUndo)), m_OnRedo(std::move(onRedo)),
+          m_Owners(HistoryGuards::CurrentEditOwners())
     {
     }
 
@@ -78,9 +80,15 @@ public:
     bool ReferencesAny(const DeadMemory& dead) const override
     {
         // Pointer mode aims into component/object storage. Value mode has a null
-        // target and applies through callbacks, which may still capture a dead
-        // object - those call sites must not outlive their target, same as before.
-        return CommandRefs::Has(dead, m_Target);
+        // target and applies through callbacks that capture the object or
+        // component; the owners recorded when the edit was made stand in for
+        // those (HistoryGuards::EditOwnerScope).
+        if (CommandRefs::Has(dead, m_Target))
+            return true;
+        for (const void* owner : m_Owners)
+            if (CommandRefs::Has(dead, owner))
+                return true;
+        return false;
     }
 
 private:
@@ -90,6 +98,8 @@ private:
     std::string m_Description;
     ValueCallback m_OnUndo;
     ValueCallback m_OnRedo;
+    // The objects/components open in an EditOwnerScope when the edit was made.
+    std::vector<const void*> m_Owners;
 };
 
 }  // namespace DekiEditor

@@ -291,14 +291,37 @@ void GuidCache::Sync(const std::string& assetsRoot)
         }
     }
 
+    size_t removed = 0;
     for (const auto& path : toRemove)
     {
+        // The sidecar is gone but the asset is still here (deleted by hand, or
+        // the asset copied in without it): write it back with the GUID it had,
+        // so references keep resolving. Minting a new one broke them all.
+        std::error_code ec;
+        const std::string assetAbs = ResolveAssetPath(path);
+        auto entryIt = m_Entries.find(path);
+        if (entryIt != m_Entries.end() && path.find(':') == std::string::npos &&
+            fs::is_regular_file(assetAbs, ec))
+        {
+            AssetData data;
+            data.guid = entryIt->second.guid;
+            const std::string sidecar = GetSidecarPath(assetAbs);
+            if (SaveAssetData(sidecar, data))
+            {
+                entryIt->second.sidecarMtime = GetFileMtime(sidecar);
+                DEKI_LOG_WARNING("GuidCache: '%s' had no .data file; recreated it with the GUID it had (%s). "
+                                 "Its import settings are back to defaults.",
+                                 path.c_str(), data.guid.c_str());
+                continue;
+            }
+        }
         DEKI_LOG_DEBUG("GuidCache: Removing deleted entry: %s", path.c_str());
         RemoveEntry(path);
+        ++removed;
     }
 
-    if (added || updated || !toRemove.empty())
-        DEKI_LOG_EDITOR("GuidCache: synced, %d added, %d updated, %zu removed", added, updated, toRemove.size());
+    if (added || updated || removed)
+        DEKI_LOG_EDITOR("GuidCache: synced, %d added, %d updated, %zu removed", added, updated, removed);
 
     // Save updated cache
     if (!m_CachePath.empty())
@@ -388,6 +411,11 @@ void GuidCache::OnFileModified(const std::string& path)
         DEKI_LOG_EDITOR("GuidCache: Failed to parse GUID for modified file: %s", path.c_str());
         return;
     }
+
+    // A sidecar replaced by a copy of another asset's claims that asset's GUID.
+    entry.guid = ResolveGuidConflict(normalizedPath, entry.guid);
+    if (entry.guid.empty())
+        return;
 
     entry.sidecarMtime = GetFileMtime(sidecarPath);
     AddEntry(normalizedPath, entry);
@@ -494,7 +522,10 @@ GuidCache::Entry GuidCache::ParseSidecar(const std::string& dataPath) const
     }
     catch (const json::exception&)
     {
-        // Return empty entry on parse error
+        // Not JSON (a merge conflict, a torn write): keep tracking the asset by
+        // the GUID still written in it, when there is exactly one.
+        file.close();
+        entry.guid = SalvageAssetGuid(dataPath);
     }
 
     return entry;
@@ -635,7 +666,15 @@ std::string GuidCache::ResolveGuidConflict(const std::string& relativePath,
     // identity and existing scenes keep resolving to it.
     AssetData data;
     const std::string sidecarPath = GetSidecarPath(ResolveAssetPath(normalized));
-    LoadAssetData(sidecarPath, data);  // keep import settings if the file parses
+    if (!LoadAssetData(sidecarPath, data))
+    {
+        // Rewriting a sidecar that does not parse would throw away whatever
+        // the user is in the middle of fixing (a merge conflict).
+        DEKI_LOG_ERROR("GuidCache: '%s' duplicates the GUID of '%s' and its .data file could not be read; "
+                       "leaving it untracked and the file as it is",
+                       normalized.c_str(), otherPath.c_str());
+        return "";
+    }
 
     const std::string freshGuid = GenerateGuid();
     data.guid = freshGuid;

@@ -95,6 +95,20 @@ Project* ProjectOf(EditorApp& editor, const char* verb)
     return project;
 }
 
+// True when the project's packages and plugin built. When they did not, a
+// scene's components from them are unknown: exporting went on regardless and
+// shipped scenes with those components missing, reporting success.
+bool CodeBuilt(EditorApp& editor, const char* verb)
+{
+    HotReloadService* hr = editor.GetHotReloadService();
+    if (hr && hr->HasBuildErrors())
+    {
+        printf("%s failed: the project's code did not build (see the errors above). Fix it first.\n", verb);
+        return false;
+    }
+    return true;
+}
+
 // Everything package-restore related lives in PackageRestore.{h,cpp} so the
 // editor's project-open path and this CLI share one implementation. Only the
 // helpers still used by the add/remove verbs live here.
@@ -329,7 +343,7 @@ int CmdBuildAssets(EditorApp& editor)
 int CmdExportAssets(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--export");
-    if (!project)
+    if (!project || !CodeBuilt(editor, "Export"))
         return 1;
 
     AssetPipeline* pipeline = editor.GetAssetPipeline();

@@ -1,4 +1,5 @@
 #include "ComponentManager.h"
+#include "../../core/commands/HistoryGuards.h"
 #include <unordered_map>
 #include <deki-editor/Paths.h>
 #include <deki-editor/ProcessLaunch.h>
@@ -485,7 +486,13 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                 // judged on its own properties again.
                 InspectorUtils::SetComponentNameMatched(
                     InspectorUtils::ComponentNameMatchesFilter(meta));
-                drawComponent(comp, meta);
+                {
+                    // Edits made in these rows record whose they are, so the
+                    // undo history can drop them when it is freed.
+                    HistoryGuards::EditOwnerScope objectOwner(obj);
+                    HistoryGuards::EditOwnerScope componentOwner(comp);
+                    drawComponent(comp, meta);
+                }
                 InspectorUtils::SetComponentNameMatched(false);
             }
             else

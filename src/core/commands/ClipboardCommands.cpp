@@ -77,10 +77,26 @@ std::string PasteComponentAsNewCommand::GetDescription() const
            std::to_string(m_Entries.size()) + " objects)";
 }
 
+PasteComponentAsNewCommand::~PasteComponentAsNewCommand()
+{
+    for (auto& entry : m_Entries)
+        if (entry.detached)
+            delete entry.addedComponent;
+}
+
 void PasteComponentAsNewCommand::Execute()
 {
     for (auto& entry : m_Entries)
     {
+        // Redo: the same instance the undo took off (later edits point at it).
+        if (entry.addedComponent && entry.detached)
+        {
+            Deki::Internal::ReattachComponent(*entry.object, entry.addedComponent, static_cast<size_t>(entry.index));
+            entry.detached = false;
+            if (auto* scene = entry.object->GetOwnerScene())
+                scene->InvalidateComponentsCache();
+            continue;
+        }
         Deki::Component* comp = Deki::Internal::AddComponentByName(*entry.object, m_SourceData.typeName);
         if (comp)
         {
@@ -96,14 +112,15 @@ void PasteComponentAsNewCommand::Execute()
 
 void PasteComponentAsNewCommand::Undo()
 {
+    // Off the object but kept, so redo restores the same instance.
     for (auto& entry : m_Entries)
     {
-        if (entry.addedComponent)
+        if (entry.addedComponent && !entry.detached)
         {
-            entry.object->RemoveComponent(entry.addedComponent);
+            entry.index = Deki::Internal::DetachComponent(*entry.object, entry.addedComponent);
+            entry.detached = entry.index >= 0;
             if (auto* scene = entry.object->GetOwnerScene())
                 scene->InvalidateComponentsCache();
-            entry.addedComponent = nullptr;
         }
     }
 }

@@ -186,3 +186,25 @@ TEST(InstallerRouting, AnOlderLockStillSaysWhichInstaller)
     EXPECT_EQ(entry.value("installer", ""), "alpha");
     EXPECT_EQ(entry.value("source", ""), "github");
 }
+
+// The registry catalogue a refresh merges in is offered, not used: the lock
+// records the project's packages only. It used to write every one of them.
+TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)
+{
+    TempProject project;
+    project.Write("deki-packages.json",
+                  json{ { "schemaVersion", 1 }, { "packages", { { "deki-used", { { "version", "1.0.0" } } } } } });
+
+    PackageManager mgr(nullptr);
+    mgr.LoadPackages(project.dir.string());
+    PackageEntry offer;
+    offer.id = "deki-offer";
+    offer.name = "deki-offer";
+    offer.packageType = PackageType::DekiPackage;
+    mgr.GetPackages().push_back(offer);
+
+    mgr.SavePackages(project.dir.string());
+    const json lock = project.Read("deki-packages-lock.json");
+    EXPECT_TRUE(lock["packages"].contains("deki-used"));
+    EXPECT_FALSE(lock["packages"].contains("deki-offer"));
+}

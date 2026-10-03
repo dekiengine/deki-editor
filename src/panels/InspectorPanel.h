@@ -39,6 +39,8 @@ public:
 
     // Clear any cached references to scene objects (call before scene reload)
     void ClearSceneReferences();
+    // Scene objects about to be freed: let go of any the pin holds.
+    void OnObjectsDestroyed(const std::vector<Deki::Object*>& dying);
 
     // Drop transient UI state that holds raw pointers into plugin-DLL data
     // (Deki::PropertyInfo*, Deki::Component*). Must be called BEFORE the plugin

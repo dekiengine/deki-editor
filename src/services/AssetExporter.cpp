@@ -183,6 +183,7 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
 
     // Clear previous export state
     m_ExportedCount = 0;
+    m_Problems.clear();
 
     std::string projectPath = m_Project->GetPath();
     std::string cachePath = ProjectPaths::Cache(projectPath).string();
@@ -225,7 +226,7 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
             }
             else
             {
-                DEKI_LOG_WARNING("Failed to recompile scene: %s", info.path.c_str());
+                AddProblem("The scene " + info.path + " does not compile");
             }
         }
         DEKI_LOG_EDITOR("Recompiled %d scene cache files", recompiledCount);
@@ -233,6 +234,8 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
 
     // Step 1: Collect used assets from all scenes
     AssetUsageCollection usedAssets = CollectUsedAssets();
+    for (const std::string& problem : usedAssets.problems)
+        AddProblem(problem);
 
     // Step 1.5: Merge in the force-included assets. Every build ships them,
     // not only an SD card copy.
@@ -273,12 +276,13 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     }
 
     // Step 4: Copy only used assets that aren't already in packs
-    CopyUsedAssetsToOutput(storagePath.string(), usedAssets.usedGuids, packedGuids);
+    CopyUsedAssetsToOutput(storagePath.string(), usedAssets.usedGuids, packedGuids, &usedAssets.referencedFrom);
 
     // Step 5: Export filtered asset lookup table for embedded runtime
     // (Contains ALL used assets including packed ones - runtime needs LookupPath() to work)
     std::string lookupTablePath = (storagePath / "asset_table.bin").string();
-    ExportAssetLookupTable(lookupTablePath, usedAssets.usedGuids);
+    if (!ExportAssetLookupTable(lookupTablePath, usedAssets.usedGuids))
+        AddProblem("Could not write " + lookupTablePath);
 
     // Step 6: Write project settings (project_data.bin)
     WriteProjectSettings(storagePath.string());
@@ -304,7 +308,22 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     {
         DEKI_LOG_INFO("Export complete: %d assets in %s", m_ExportedCount, storagePath.string().c_str());
     }
+
+    // A build that boots but is missing what its scenes use used to report
+    // success; the device then showed nothing where the asset should be.
+    if (!m_Problems.empty())
+    {
+        DEKI_LOG_ERROR("Export failed: %zu problem%s (listed above). Fix them and export again.",
+                       m_Problems.size(), m_Problems.size() == 1 ? "" : "s");
+        return false;
+    }
     return true;
+}
+
+void AssetExporter::AddProblem(const std::string& problem)
+{
+    DEKI_LOG_ERROR("Export: %s", problem.c_str());
+    m_Problems.push_back(problem);
 }
 
 ExportAssetType AssetExporter::DetermineAssetType(const std::string& extension, std::string& outDestExtension)
@@ -376,7 +395,7 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
         Deki::Scene scene;
         if (!scene.LoadFromFile(absolutePath))
         {
-            DEKI_LOG_WARNING("  Failed to load scene: %s", absolutePath.c_str());
+            collection.problems.push_back("The scene " + info.path + " could not be read, so the assets it uses are unknown");
             continue;
         }
 
@@ -388,11 +407,15 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
 
         DEKI_LOG_DEBUG("Scanning scene: %s", info.path.c_str());
 
-        // Scan all objects in the scene
+        // Scan all objects in the scene, noting where each new GUID came from
+        const std::unordered_set<std::string> before = collection.usedGuids;
         for (Deki::Object* obj : scene.GetObjects())
         {
             CollectAssetsFromObject(obj, collection);
         }
+        for (const std::string& guid : collection.usedGuids)
+            if (!before.count(guid))
+                collection.referencedFrom.emplace(guid, info.path);
     }
 
     return collection;
@@ -687,7 +710,8 @@ std::unordered_map<std::string, std::string> AssetExporter::BakeFontsForExport(c
 
 void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
                                            const std::unordered_set<std::string>& usedGuids,
-                                           const std::unordered_set<std::string>& skipGuids)
+                                           const std::unordered_set<std::string>& skipGuids,
+                                           const std::unordered_map<std::string, std::string>* referencedFrom)
 {
     namespace fs = std::filesystem;
 
@@ -730,7 +754,7 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         std::string absoluteCachePath = ExportSourceFor(info.guid);
         if (absoluteCachePath.empty())
         {
-            DEKI_LOG_WARNING("  Skipping %s - nothing to export: %s", info.path.c_str(), info.cachePath.c_str());
+            AddProblem(info.path + " could not be exported for this target (" + info.cachePath + ")");
             continue;
         }
 
@@ -746,7 +770,7 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         }
         catch (const std::exception& e)
         {
-            DEKI_LOG_ERROR("  Error copying %s: %s", info.path.c_str(), e.what());
+            AddProblem("Could not copy " + info.path + ": " + e.what());
         }
     }
 
@@ -766,7 +790,26 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         // This target's version of it, or what the cache directory holds
         std::string cachePath = ExportSourceFor(guid);
         if (cachePath.empty())
+        {
+            // Not an asset of this project and nothing baked under that GUID:
+            // the reference points at something deleted or never imported.
+            // (An asset the project has but nothing compiles, like a font's
+            // source file, is fine: what it bakes into is exported instead.
+            // So is a sheet's frame: it ships inside its sheet.)
+            if (!assetInfo && !m_Pipeline->GetSubAsset(guid))
+            {
+                std::string where;
+                if (referencedFrom)
+                {
+                    auto it = referencedFrom->find(guid);
+                    if (it != referencedFrom->end())
+                        where = ", used by " + it->second;
+                }
+                AddProblem("Missing asset " + guid + where + ". It was deleted or never imported; pick it again "
+                           "or clear the reference.");
+            }
             continue;
+        }
 
         // Export as GUID-named file (no subdirectory)
         fs::path destPath = fs::path(storagePath) / guid;
@@ -780,7 +823,7 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         }
         catch (const std::exception& e)
         {
-            DEKI_LOG_ERROR("  Error copying baked font %s: %s", guid.c_str(), e.what());
+            AddProblem("Could not copy baked font " + guid + ": " + e.what());
         }
     }
 }
@@ -838,6 +881,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
     }
 
     DEKI_LOG_EDITOR("Exporting the boot payload to %s", payloadDir.c_str());
+    m_Problems.clear();
 
     // Create/clear the payload directory
     try
@@ -954,13 +998,17 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
             }
             else
             {
-                DEKI_LOG_WARNING("Failed to compile boot scene: %s", sourcePath.string().c_str());
+                DEKI_LOG_ERROR("Failed to compile boot scene: %s", sourcePath.string().c_str());
             }
         }
 
+        // Without its boot scene a device starts to a blank screen; this used to
+        // be a warning and the build went on to report success.
         if (!exported)
         {
-            DEKI_LOG_WARNING("Boot scene not found: '%s'", bootSceneAssetPath.c_str());
+            AddProblem(fs::exists(sourcePath) ? "The boot scene " + bootSceneAssetPath + " does not compile"
+                                              : "The boot scene " + bootSceneAssetPath + " was not found");
+            return false;
         }
     }
     else

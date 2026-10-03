@@ -538,6 +538,14 @@ void PackageManager::SavePackages(const std::string& projectPath)
         {
             if (pkg.id.empty()) continue;  // same reason as the manifest above
 
+            // The resolved tree only: what is declared, on disk, editable, or
+            // pulled in by another package. A registry refresh merges every
+            // available package into m_Packages for the panel to offer, and
+            // the lock used to record all of them (28 entries for a project
+            // using 9), as if they were part of the project.
+            if (!pkg.declaredInManifest && !pkg.isInstalled && !pkg.editable && pkg.resolvedBy.empty())
+                continue;
+
             json entry;
             entry["name"] = pkg.name;
             entry["displayName"] = pkg.displayName;

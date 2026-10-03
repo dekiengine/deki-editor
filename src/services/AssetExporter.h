@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <unordered_set>
 #include <unordered_map>
+#include <vector>
 #include <set>
 #include <deki-editor/AssetPipeline.h>  // AssetExportTarget
 
@@ -65,6 +66,11 @@ struct AssetUsageCollection
 {
     std::unordered_set<std::string> usedGuids;  // All used asset GUIDs (textures, fonts, animations, etc.)
     std::set<FontUsageInfo> fontUsages;         // Fonts with specific sizes for baking
+    // The scene that first referenced each GUID, to say where a missing one is used.
+    std::unordered_map<std::string, std::string> referencedFrom;
+    // Scenes that could not be read. Their assets are unknown, so an export
+    // that went on would ship a build missing them.
+    std::vector<std::string> problems;
 };
 
 /**
@@ -114,6 +120,11 @@ public:
 
     // Get the last export statistics
     int GetExportedAssetCount() const { return m_ExportedCount; }
+
+    // Why the last ExportAssets / ExportBootPayload returned false: one line
+    // per problem (a scene that does not load, a referenced asset that is not
+    // in the project, ...). Each was logged as an error too.
+    const std::vector<std::string>& GetProblems() const { return m_Problems; }
 
     /**
      * @brief Export binary asset lookup table for embedded runtime
@@ -196,7 +207,11 @@ private:
      */
     void CopyUsedAssetsToOutput(const std::string& storagePath,
                                 const std::unordered_set<std::string>& usedGuids,
-                                const std::unordered_set<std::string>& skipGuids = {});
+                                const std::unordered_set<std::string>& skipGuids = {},
+                                const std::unordered_map<std::string, std::string>* referencedFrom = nullptr);
+
+    // Log a reason the export failed and remember it (GetProblems).
+    void AddProblem(const std::string& problem);
 
     void WriteProjectSettings(const std::string& storagePath);
 
@@ -209,6 +224,7 @@ private:
     AssetPipeline* m_Pipeline;
     PackageLoader* m_PackageLoader = nullptr;
     int m_ExportedCount = 0;
+    std::vector<std::string> m_Problems;
     std::set<std::string> m_TargetCapabilities;
     AssetExportTarget m_Target;
     bool m_HasTarget = false;

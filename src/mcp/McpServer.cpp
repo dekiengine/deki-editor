@@ -192,7 +192,22 @@ bool McpServer::Start(int port)
             // a short timeout even though the work completes fine, so the cap
             // here is a liveness backstop, not a latency budget. Clients that
             // want to bail sooner should use their own request timeout.
-            if (future.wait_for(std::chrono::seconds(kRequestTimeoutSeconds)) == std::future_status::ready)
+            //
+            // Waited in short steps so a server that is stopping lets go at
+            // once: Stop() joins this thread, and a request that arrived as the
+            // editor was closing used to hold the quit for the full 15 minutes.
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(kRequestTimeoutSeconds);
+            std::future_status status = std::future_status::timeout;
+            while (m_Running.load() && std::chrono::steady_clock::now() < deadline)
+            {
+                status = future.wait_for(std::chrono::milliseconds(250));
+                if (status == std::future_status::ready)
+                    break;
+            }
+            if (status != std::future_status::ready && !m_Running.load() &&
+                future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+                status = std::future_status::ready;  // answered by Stop()
+            if (status == std::future_status::ready)
             {
                 std::string responseStr = future.get();
                 res.set_content(responseStr, "application/json");
@@ -204,7 +219,7 @@ bool McpServer::Start(int port)
             }
             else
             {
-                auto errJson = MakeError(nullptr, -32603, "Request timed out");
+                auto errJson = MakeError(nullptr, -32603, m_Running.load() ? "Request timed out" : "The editor is closing");
                 res.set_content(errJson.dump(), "application/json");
             }
         }
@@ -290,6 +305,16 @@ void McpServer::Stop()
     if (!m_Running.load()) return;
 
     m_Running.store(false);
+
+    // Answer what is still queued: the main thread will not get to it now, and
+    // each one has a server thread waiting on it (see the /message handler).
+    PendingRequest req;
+    while (m_IncomingRequests.TryPop(req))
+    {
+        if (req.responsePromise)
+            req.responsePromise->set_value(
+                MakeError(req.message.value("id", nlohmann::json()), -32603, "The editor is closing").dump());
+    }
 
     if (m_HttpServer)
         m_HttpServer->stop();

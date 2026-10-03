@@ -102,6 +102,7 @@ public:
         : m_Object(obj), m_TypeName(typeName), m_OnAdded(onAdded)
     {
     }
+    ~AddComponentCommand() override;
 
     std::string GetDescription() const override;
 
@@ -111,10 +112,17 @@ public:
 
     bool ReferencesAny(const DeadMemory& dead) const override;
 
+    Deki::Component* GetComponent() const { return m_Component; }
+
 private:
     Deki::Object* m_Object;
     std::string m_TypeName;
     std::function<void(Deki::Component*)> m_OnAdded;
+    // The instance this command added; while undone it is off the object and
+    // owned here (m_Detached), and redo puts the same one back at m_Index.
+    Deki::Component* m_Component = nullptr;
+    bool m_Detached = false;
+    int m_Index = -1;
 };
 
 /**
@@ -126,12 +134,11 @@ class RemoveComponentCommand : public Command
 public:
     RemoveComponentCommand(Deki::Object* obj, Deki::Component* comp,
                            std::function<void()> onRemoved = nullptr)
-        : m_Object(obj), m_OnRemoved(onRemoved), m_ComponentToRemove(comp)
+        : m_Object(obj), m_Component(comp), m_OnRemoved(onRemoved)
     {
-        // Store component data using helper
-        m_StoredData = SerializeComponent(comp);
-        m_TypeName = m_StoredData.typeName;
+        m_TypeName = SerializeComponent(comp).typeName;
     }
+    ~RemoveComponentCommand() override;
 
     std::string GetDescription() const override;
 
@@ -144,8 +151,11 @@ public:
 private:
     Deki::Object* m_Object;
     std::string m_TypeName;
-    ComponentData m_StoredData;
-    Deki::Component* m_ComponentToRemove;
+    // The removed instance, kept while removed (m_Detached) so undo puts the
+    // same one back at m_Index.
+    Deki::Component* m_Component;
+    bool m_Detached = false;
+    int m_Index = -1;
     std::function<void()> m_OnRemoved;
 };
 

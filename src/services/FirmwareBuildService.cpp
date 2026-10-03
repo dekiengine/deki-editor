@@ -418,6 +418,10 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // It needs an imported asset pipeline, which is why the CLI now boots the
     // editor rather than reaching for the builder directly.
     const std::string bootPayloadDir = builder.GetBootPayloadDirectory(projectPath);
+    // Packages that did not build leave their components out of every scene
+    // the export reads, and the firmware is compiled from the same sources.
+    if (editor && editor->GetHotReloadService() && editor->GetHotReloadService()->HasBuildErrors())
+        return Failure("The project's code did not build; fix the errors in the Console first.");
     if (editor && editor->GetProject() && editor->GetAssetPipeline() && !bootPayloadDir.empty())
     {
         // A platform may name its own boot scene (a splash that then loads
@@ -481,7 +485,12 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         }
         else
         {
-            log("Failed to export the boot payload", true);
+            // Flashing a board that cannot load its first scene gave a device
+            // with a blank screen and a build that said it succeeded.
+            std::string why;
+            for (const std::string& problem : exporter.GetProblems())
+                why += (why.empty() ? "" : "; ") + problem;
+            return Failure("Failed to export the boot payload" + (why.empty() ? std::string(".") : ": " + why));
         }
 
         // Internal storage: the assets ship in the build, in the payload's
@@ -490,7 +499,7 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         if (target.assetStorage == Deki::Storage::Internal)
         {
             if (!exporter.ExportAssets((std::filesystem::path(bootPayloadDir) / "assets").string()))
-                return Failure("Failed to export the assets into the build");
+                return Failure("Failed to export the assets into the build; the log lists what is wrong.");
             log("Exported the assets into the build (internal storage)", false);
         }
 

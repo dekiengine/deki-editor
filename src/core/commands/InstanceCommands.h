@@ -2,6 +2,7 @@
 
 #include <deki-editor/Command.h>
 #include "CommandRefCheck.h"
+#include "HistoryGuards.h"
 #include "ObjectSerializationHelper.h"
 #include <deki/Scene.h>
 #include <deki/Object.h>
@@ -276,7 +277,10 @@ inline void ReexpandInstance(Deki::Scene* scene, Deki::Object* inst)
     scene->CollapseInstance(inst);
     auto comps = inst->GetComponents();  // copy; RemoveComponent mutates
     for (auto* c : comps)
+    {
+        HistoryGuards::ForgetComponent(c);
         inst->RemoveComponent(c);
+    }
     scene->ExpandInstance(inst);
 }
 

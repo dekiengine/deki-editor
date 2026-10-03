@@ -129,19 +129,21 @@ void LinkInstanceCommand::Execute()
     else
         m_Object->SetInstanceOverridesJson("");
 
-    // Delete existing children (will be replaced by expanded source)
+    // Delete existing children (will be replaced by expanded source). Through
+    // the scene, which tells the editor first: selection and undo history held
+    // pointers into them.
     auto children = m_Object->GetChildren();  // copy
     for (auto* child : children)
-    {
-        m_Object->RemoveChild(child);
-        delete child;
-    }
+        m_Scene->DestroyDekiObject(child);
 
     // Clear existing components (ExpandInstance will re-add from source;
     // without this, Redo would duplicate them)
     auto comps = m_Object->GetComponents();  // copy
     for (auto* comp : comps)
+    {
+        HistoryGuards::ForgetComponent(comp);
         m_Object->RemoveComponent(comp);
+    }
 
     // Expand from source scene with overrides applied
     std::string savedName = m_Object->GetName();
@@ -159,7 +161,10 @@ void LinkInstanceCommand::Undo()
     // Remove components added by ExpandInstance, restore originals
     auto comps = m_Object->GetComponents();  // copy
     for (auto* comp : comps)
+    {
+        HistoryGuards::ForgetComponent(comp);
         m_Object->RemoveComponent(comp);
+    }
     RestoreComponents(m_Object, m_SavedComponents);
 
     // Restore previous instance state (or clear if wasn't linked before)

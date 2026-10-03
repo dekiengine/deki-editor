@@ -770,6 +770,11 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     // Write minidump first - this is the most valuable artifact
     std::string dumpPath = WriteMiniDump(exceptionInfo);
 
+    // Then the user's unsaved work, before anything slow or risky (symbol
+    // loading, stack walks): a second fault in those used to end the process
+    // with the recovery snapshot never written.
+    InvokePreCrashCallback();
+
     // Refresh symbols in case new packages were loaded since startup
     if (!s_SymbolsInitialized)
         InitializeSymbols();
@@ -820,7 +825,6 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     // Loaded packages
     message += FormatLoadedModules();
 
-    InvokePreCrashCallback();
     ShowCrashDialog(title, message);
 
     return EXCEPTION_EXECUTE_HANDLER;
@@ -1166,6 +1170,11 @@ static void CrashSignalHandlerUnix(int sig, siginfo_t* info, void* ucontext)
     // Reset the signal handler to default to avoid infinite recursion
     signal(sig, SIG_DFL);
 
+    // The user's unsaved work first. Everything below can fault again (the
+    // unwinder in backtrace() did, inside libgcc_s), and a fault in a handler
+    // ends the process on the spot: 2 of 3 crashes in QA wrote no snapshot.
+    InvokePreCrashCallback();
+
     std::string title = std::string("Deki Editor Crash: ") + GetSignalString(sig);
 
     // Build detailed message
@@ -1216,7 +1225,6 @@ static void CrashSignalHandlerUnix(int sig, siginfo_t* info, void* ucontext)
         message += otherThreads;
     }
 
-    InvokePreCrashCallback();
     ShowCrashDialog(title, message);
 
     _exit(1);
@@ -1255,6 +1263,10 @@ static void CrashTerminateHandler()
     {
         message = "An unhandled C++ exception occurred.\n\n";
     }
+
+    // The user's unsaved work before the dump and the stack walks, which can
+    // fault and end the process (see CrashSignalHandlerUnix).
+    InvokePreCrashCallback();
 
 #ifdef _WIN32
     // Write minidump (no exception info, but still captures threads + memory)
@@ -1300,7 +1312,6 @@ static void CrashTerminateHandler()
     message += CaptureStackTraceUnix();
 #endif
 
-    InvokePreCrashCallback();
     ShowCrashDialog(title, message);
 
 #ifdef _WIN32

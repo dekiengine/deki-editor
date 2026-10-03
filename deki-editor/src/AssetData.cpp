@@ -6,6 +6,7 @@
 #include <fstream>
 #include <filesystem>
 #include <random>
+#include <regex>
 #include <sstream>
 #include <iomanip>
 
@@ -130,18 +131,74 @@ std::string GenerateDeterministicGuid(const std::string& seed)
     return Deki::GenerateDeterministicGuid(seed);
 }
 
+std::string SalvageAssetGuid(const std::string& dataPath)
+{
+    std::ifstream file(dataPath, std::ios::binary);
+    if (!file.is_open())
+        return "";
+    std::stringstream ss;
+    ss << file.rdbuf();
+    const std::string text = ss.str();
+
+    // Every "guid": "<value>" in the text; a merge conflict on other keys
+    // carries the one GUID through untouched.
+    static const std::regex kGuid("\"guid\"\\s*:\\s*\"([0-9A-Fa-f-]{8,64})\"");
+    std::string found;
+    for (std::sregex_iterator it(text.begin(), text.end(), kGuid), end; it != end; ++it)
+    {
+        const std::string guid = (*it)[1].str();
+        if (found.empty())
+            found = guid;
+        else if (guid != found)
+            return "";  // two different GUIDs: not ours to choose
+    }
+    return found;
+}
+
 std::string GetOrCreateAssetGuid(const std::string& assetPath)
 {
     std::string existingGuid = ReadAssetGuid(assetPath);
     if (!existingGuid.empty())
         return existingGuid;
 
+    // A sidecar that is there but does not parse is NEVER replaced: it holds
+    // the asset's identity and import settings (a git merge conflict is the
+    // usual cause, and the user resolves it). Writing a fresh one here used to
+    // give the asset a new GUID and break every reference to it.
+    const std::string dataPath = GetAssetDataPath(assetPath);
+    AssetData data;
+    std::error_code ec;
+    if (fs::exists(dataPath, ec))
+    {
+        // Valid JSON with no GUID (settings written by hand): add one, keep the rest.
+        std::ifstream in(dataPath, std::ios::binary);
+        const nlohmann::json parsed = nlohmann::json::parse(in, nullptr, false);
+        in.close();
+        if (!parsed.is_discarded() && parsed.is_object())
+        {
+            data.settings = parsed;
+            data.settings.erase("guid");
+            data.settings.erase(Deki::AuthoredFormat::VersionKey);
+            data.guid = GenerateGuid();
+            return SaveAssetData(dataPath, data) ? data.guid : "";
+        }
+
+        const std::string salvaged = SalvageAssetGuid(dataPath);
+        if (!salvaged.empty())
+            DEKI_LOG_ERROR("AssetData: '%s' could not be read (a merge conflict?). Kept its GUID %s; its "
+                           "import settings are ignored until the file is fixed. The file was left as it is.",
+                           dataPath.c_str(), salvaged.c_str());
+        else
+            DEKI_LOG_ERROR("AssetData: '%s' could not be read and no single GUID could be recovered from it. "
+                           "The asset is skipped until the file is fixed. The file was left as it is.",
+                           dataPath.c_str());
+        return salvaged;
+    }
+
     // Generate new GUID
     std::string newGuid = GenerateGuid();
 
     // Write to .data file
-    std::string dataPath = GetAssetDataPath(assetPath);
-    AssetData data;
     data.guid = newGuid;
     SaveAssetData(dataPath, data);
 

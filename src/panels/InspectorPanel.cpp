@@ -1,4 +1,5 @@
 #include "InspectorPanel.h"
+#include "core/commands/HistoryGuards.h"
 #include "../PanelMaximize.h"
 #include "inspector/InspectorUtils.h"
 #include "inspector/PropertyEditorFactory.h"
@@ -25,6 +26,8 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
+#include <functional>
+#include <unordered_set>
 #include <cstring>
 #include <filesystem>
 #include <set>
@@ -153,6 +156,39 @@ void InspectorPanel::ClearSceneReferences()
     m_DraggedTransformObject = nullptr;
     m_RenamingObject = nullptr;
     m_PropertyEditState = PropertyEditState{};
+
+    // A pin on objects keeps only those the current scene still has: the scene
+    // changed (open, new, reload, Stop), and a pinned object of the old one
+    // would be drawn from freed memory on the next frame. Matched by address
+    // only; nothing stale is dereferenced.
+    if (!m_LockedObjects.empty())
+    {
+        std::unordered_set<const Deki::Object*> live;
+        if (Deki::Scene* scene = m_App->GetCurrentScene())
+        {
+            std::function<void(const Deki::Object*)> collect = [&](const Deki::Object* o)
+            {
+                live.insert(o);
+                for (const Deki::Object* c : o->GetChildren())
+                    collect(c);
+            };
+            for (const Deki::Object* root : scene->GetObjects())
+                collect(root);
+        }
+        std::erase_if(m_LockedObjects, [&](Deki::Object* o) { return !live.contains(o); });
+        if (m_LockedObjects.empty())
+            m_Locked = false;
+    }
+}
+
+void InspectorPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
+{
+    if (m_LockedObjects.empty())
+        return;
+    std::erase_if(m_LockedObjects, [&](Deki::Object* o)
+                  { return std::find(dying.begin(), dying.end(), o) != dying.end(); });
+    if (m_LockedObjects.empty())
+        m_Locked = false;
 }
 
 void InspectorPanel::ResetTransientUiState()
@@ -943,6 +979,10 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             ImGui::EndPopup();
         }
         ImGui::PopStyleVar();  // context menu WindowPadding
+
+        // The Transform rows' edits record the object, so the undo history can
+        // drop them when it is freed (they apply through callbacks holding it).
+        HistoryGuards::EditOwnerScope transformOwner(obj);
 
         // Transform through the shared EditorUI fields in VALUE mode: pass the
         // current value (no pointer to obj's x/y), apply via callbacks. The field

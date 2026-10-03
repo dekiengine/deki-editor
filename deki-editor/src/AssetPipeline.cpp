@@ -627,6 +627,56 @@ void AssetPipeline::Tick()
 
     bool assetsChanged = false;
 
+    // A file moved or renamed outside the editor arrives as Added(new) +
+    // Deleted(old), in no fixed order. Additions go first, so the new path holds
+    // the GUID by the time the old one is retired.
+    std::stable_partition(events.begin(), events.end(), [](const AssetFileWatcher::Event& e)
+                          { return e.kind != AssetFileWatcher::EventKind::Deleted; });
+
+    // Forget `path`. When another registered path whose file exists holds the
+    // same GUID, the asset moved there: its cache file and its GUID are the
+    // moved asset's now, so neither is deleted nor announced as gone. (Both
+    // were, and the moved object vanished from the Play view until a restart.)
+    auto forget = [this](std::unordered_map<std::string, AssetInfo>::iterator it)
+    {
+        const std::string relativePath = it->first;
+        const AssetInfo removed = it->second;
+        m_Assets.erase(it);
+        bool guidLivesOn = false;
+        for (const auto& [otherPath, other] : m_Assets)
+        {
+            std::error_code ec;
+            if (other.guid == removed.guid && fs::exists(GetAbsolutePath(otherPath), ec))
+            {
+                guidLivesOn = true;
+                break;
+            }
+        }
+        std::string assetsRelative = fs::relative(GetAbsolutePath(relativePath), m_AssetsPath).string();
+        for (char& c : assetsRelative)
+            if (c == '\\') c = '/';
+        m_GuidCache.OnFileDeleted(assetsRelative);
+        if (guidLivesOn)
+        {
+            DEKI_LOG_DEBUG("AssetPipeline: %s moved; its GUID %s stays with the new path", relativePath.c_str(),
+                           removed.guid.c_str());
+            return;
+        }
+        if (!removed.cachePath.empty())
+        {
+            std::string absoluteCachePath = GetAbsolutePath(removed.cachePath);
+            std::error_code ec;
+            if (fs::exists(absoluteCachePath, ec))
+            {
+                fs::remove(absoluteCachePath, ec);
+                if (!ec)
+                    DEKI_LOG_DEBUG("Removed stale cache: %s", absoluteCachePath.c_str());
+            }
+        }
+        if (OnAssetDeleted)
+            OnAssetDeleted(relativePath, removed.guid);
+    };
+
     for (const auto& evt : events)
     {
         const std::string& relativePath = evt.relativePath;
@@ -651,22 +701,8 @@ void AssetPipeline::Tick()
                     auto it = m_Assets.find(relativePath);
                     if (it == m_Assets.end())
                         break;
-
-                    std::string deletedGuid = it->second.guid;
-
-                    if (!it->second.cachePath.empty())
-                    {
-                        std::string absoluteCachePath = GetAbsolutePath(it->second.cachePath);
-                        if (fs::exists(absoluteCachePath))
-                        {
-                            std::error_code ec;
-                            fs::remove(absoluteCachePath, ec);
-                        }
-                    }
-                    m_Assets.erase(it);
+                    forget(it);
                     assetsChanged = true;
-                    if (OnAssetDeleted)
-                        OnAssetDeleted(relativePath, deletedGuid);
                     break;
                 }
 
@@ -682,27 +718,8 @@ void AssetPipeline::Tick()
                 auto it = m_Assets.find(relativePath);
                 if (it == m_Assets.end())
                     break;
-
-                std::string deletedGuid = it->second.guid;
-
-                if (!it->second.cachePath.empty())
-                {
-                    std::string absoluteCachePath = GetAbsolutePath(it->second.cachePath);
-                    if (fs::exists(absoluteCachePath))
-                    {
-                        std::error_code ec;
-                        fs::remove(absoluteCachePath, ec);
-                        if (!ec)
-                        {
-                            DEKI_LOG_DEBUG("Removed stale cache: %s", absoluteCachePath.c_str());
-                        }
-                    }
-                }
-
-                m_Assets.erase(it);
+                forget(it);
                 assetsChanged = true;
-                if (OnAssetDeleted)
-                    OnAssetDeleted(relativePath, deletedGuid);
                 break;
             }
         }
@@ -738,6 +755,26 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
 
     // Get or create GUID (uses absolute path for filesystem access)
     info.guid = GetOrCreateAssetGuid(relativePath);
+    if (info.guid.empty())
+        return;  // an unreadable sidecar with no GUID to recover; logged, the file left as is
+
+    // Register with the GUID cache BEFORE the GUID picks the cache file. A file
+    // copied together with its .data claims the original's GUID; the cache
+    // gives the copy its own one here. This used to run after the cache was
+    // compiled, so the copy's pixels went into the ORIGINAL's cache file and
+    // the original showed the copy's image, even after a restart.
+    {
+        std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
+        for (char& c : assetsRelativePath)
+            if (c == '\\') c = '/';
+        if (m_GuidCache.Contains(assetsRelativePath))
+            m_GuidCache.OnFileModified(assetsRelativePath);
+        else
+            m_GuidCache.OnFileCreated(assetsRelativePath);
+        const std::string resolved = m_GuidCache.GetGuid(assetsRelativePath);
+        if (!resolved.empty())
+            info.guid = resolved;
+    }
 
     // Determine asset type and get appropriate cache path
     std::string ext = fs::path(relativePath).extension().string();
@@ -849,29 +886,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     bool isNew = (m_Assets.find(relativePath) == m_Assets.end());
     m_Assets[relativePath] = info;
 
-    // Update GuidCache if this is a new asset (GetOrCreateAssetGuid may have created a .data file)
-    // Convert project-relative path to assets-relative path for GuidCache
-    if (!info.guid.empty())
-    {
-        // Compute assets-relative path by getting the path relative to assets folder
-        std::string absolutePath = GetAbsolutePath(relativePath);
-        std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
-        // Normalize path separators
-        for (char& c : assetsRelativePath)
-        {
-            if (c == '\\') c = '/';
-        }
-
-        DEKI_HEAP_CHECK("ProcessAsset: before GuidCache update");
-        if (m_GuidCache.Contains(assetsRelativePath))
-        {
-            m_GuidCache.OnFileModified(assetsRelativePath);
-        }
-        else
-        {
-            m_GuidCache.OnFileCreated(assetsRelativePath);
-        }
-    }
+    // (The GUID cache was updated above, before the cache path was chosen.)
 
     // Call registered sync handlers for this extension, subject to the handler's
     // declared policy. OnSourceChange handlers skip on warm-cache reopens; Always
@@ -923,6 +938,44 @@ std::string AssetPipeline::GetOrCreateAssetGuid(const std::string& relativePath)
 {
     // Convert to absolute path for filesystem access
     std::string absolutePath = GetAbsolutePath(relativePath);
+    const std::string dataPath = absolutePath + ".data";
+
+    // The GUID cache remembers what this path was called. Use it when the
+    // sidecar cannot say: it is missing (deleted, or not copied along with the
+    // asset) or unreadable with no recoverable GUID. A new GUID there broke
+    // every reference to the asset.
+    std::string assetsRelative = fs::relative(absolutePath, m_AssetsPath).string();
+    for (char& c : assetsRelative)
+        if (c == '\\') c = '/';
+    const std::string remembered = m_GuidCache.GetGuid(assetsRelative);
+    std::error_code ec;
+    const bool sidecarExists = fs::exists(dataPath, ec);
+    if (!remembered.empty())
+    {
+        if (!sidecarExists)
+        {
+            AssetData data;
+            data.guid = remembered;
+            if (SaveAssetData(dataPath, data))
+            {
+                DEKI_LOG_WARNING("AssetPipeline: '%s' had no .data file; recreated it with the GUID it had (%s), "
+                                 "so references to it still resolve. Its import settings are back to defaults.",
+                                 relativePath.c_str(), remembered.c_str());
+                return remembered;
+            }
+        }
+        else
+        {
+            AssetData data;
+            if (!LoadAssetData(dataPath, data) && SalvageAssetGuid(dataPath).empty())
+            {
+                DEKI_LOG_ERROR("AssetPipeline: '%s.data' could not be read; using the GUID it had (%s). The "
+                               "file was left as it is; fix it to get its import settings back.",
+                               relativePath.c_str(), remembered.c_str());
+                return remembered;
+            }
+        }
+    }
     // Delegate to the global function in AssetData.cpp that uses .data files
     return ::DekiEditor::GetOrCreateAssetGuid(absolutePath);
 }

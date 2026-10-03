@@ -62,6 +62,7 @@ public:
     PasteComponentAsNewCommand(const std::vector<Deki::Object*>& objects,
                                const ComponentData& sourceData,
                                std::function<void(Deki::Component*)> onAdded = nullptr);
+    ~PasteComponentAsNewCommand() override;
 
     std::string GetDescription() const override;
     void Execute() override;
@@ -79,6 +80,8 @@ private:
     {
         Deki::Object* object;
         Deki::Component* addedComponent = nullptr;
+        bool detached = false;  // undone: off the object, owned here
+        int index = -1;
     };
     std::vector<Entry> m_Entries;
     ComponentData m_SourceData;

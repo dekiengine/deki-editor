@@ -18,6 +18,7 @@
 #include "../services/HotReloadService.h"
 #include "../services/EditorCapture.h"
 #include <deki-editor/AssetPipeline.h>
+#include <deki-editor/CommandHistory.h>
 
 #include <filesystem>
 #include <stdexcept>
@@ -60,6 +61,20 @@ EditorCapture::Region ReadRegion(const nlohmann::json& args)
 
 }  // namespace
 
+// An MCP call cannot answer the unsaved-changes prompt, so one that would
+// replace the open scene refuses while it has unsaved changes, unless told to
+// discard them. (open_project used to drop them silently.)
+static void RequireSceneSavedOrDiscarded(EditorApp* editor, const nlohmann::json& args)
+{
+    if (!editor || !editor->GetCurrentScene() || args.value("discard_changes", false))
+        return;
+    auto& history = CommandHistory::Instance();
+    const bool dirty = editor->IsStopped() ? history.IsDirty() : history.IsSavedAsideDirty();
+    if (dirty)
+        throw std::runtime_error("The open scene has unsaved changes. Save it first (save_scene), "
+                                 "or pass discard_changes: true to drop them.");
+}
+
 void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 {
     // ── Project ──────────────────────────────────────────────────────────────
@@ -68,7 +83,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         "Create a new Deki project on disk and optionally open it. Mirrors the "
                         "New Project dialog: scaffolds project/{src,assets,platforms}, a default "
                         "Simulator platform, deki.json, .gitignore, and the default render pipeline.",
-                        { { "type", "object" }, { "properties", { { "parent_path", { { "type", "string" }, { "description", "Directory the project folder is created in" } } }, { "name", { { "type", "string" }, { "description", "Project name (also the folder name)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform to generate build files for (see list_platforms). Omit for none." } } }, { "open", { { "type", "boolean" }, { "description", "Open the project after creating it (default true)" } } } } }, { "required", nlohmann::json::array({ "parent_path", "name" }) } },
+                        { { "type", "object" }, { "properties", { { "parent_path", { { "type", "string" }, { "description", "Directory the project folder is created in" } } }, { "name", { { "type", "string" }, { "description", "Project name (also the folder name)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform to generate build files for (see list_platforms). Omit for none." } } }, { "open", { { "type", "boolean" }, { "description", "Open the project after creating it (default true)" } } }, { "discard_changes", { { "type", "boolean" }, { "description", "When opening it: drop the open scene's unsaved changes instead of refusing (default false)" } } } } }, { "required", nlohmann::json::array({ "parent_path", "name" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string parent = args.at("parent_path").get<std::string>();
@@ -86,6 +101,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             const fs::path projectPath = fs::path(parent) / name;
                             if (fs::exists(projectPath))
                                 throw std::runtime_error("Path already exists: " + projectPath.string());
+                            if (args.value("open", true))
+                                RequireSceneSavedOrDiscarded(editor, args);
 
                             if (!ProjectTemplate::CreateProject(parent, name, platform))
                                 throw std::runtime_error("Project creation failed (check permissions)");
@@ -100,12 +117,13 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register({ "open_project",
                         "Open an existing Deki project (the folder containing deki.json). Restores "
                         "missing packages, imports assets, and queues a plugin build.",
-                        { { "type", "object" }, { "properties", { { "path", { { "type", "string" }, { "description", "Project root path" } } } } }, { "required", nlohmann::json::array({ "path" }) } },
+                        { { "type", "object" }, { "properties", { { "path", { { "type", "string" }, { "description", "Project root path" } } }, { "discard_changes", { { "type", "boolean" }, { "description", "Drop the open scene's unsaved changes instead of refusing (default false)" } } } } }, { "required", nlohmann::json::array({ "path" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string path = args.at("path").get<std::string>();
                             if (!fs::exists(fs::path(path) / "deki.json"))
                                 throw std::runtime_error("No deki.json at " + path);
+                            RequireSceneSavedOrDiscarded(editor, args);
 
                             if (!editor->OpenProjectShowingProgress(path))
                                 throw std::runtime_error(editor->GetOpenProjectError());

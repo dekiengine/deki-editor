@@ -65,6 +65,16 @@ DEKI_EDITOR_API std::string ReadAssetGuid(const std::string& assetPath);
 DEKI_EDITOR_API std::string GetOrCreateAssetGuid(const std::string& assetPath);
 
 /**
+ * The GUID written in a sidecar that does not parse as JSON (a git merge
+ * conflict, a torn write), read from its raw text. Returns "" when the text
+ * holds no GUID or more than one distinct GUID (a conflict on the GUID itself
+ * cannot be settled here).
+ */
+DEKI_EDITOR_API std::string SalvageAssetGuid(const std::string& dataPath);
+
+
+
+/**
  * @brief Generate a deterministic GUID from a seed string (for derived assets like font sizes)
  * @param seed Seed string for GUID generation
  * @return Deterministic GUID string
