@@ -27,7 +27,7 @@ void FrameCapturePanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(450, 300), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(450, 300);
 
     if (ImGui::Begin("FRAME CAPTURE###Frame Capture", &m_Open, DekiEditor::MaximizedWindowFlags("FRAME CAPTURE###Frame Capture")))
     {

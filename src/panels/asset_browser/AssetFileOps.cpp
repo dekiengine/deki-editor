@@ -58,10 +58,30 @@ bool MoveWithData(const std::string& srcPath, const std::string& destPath,
 
     if (pipeline && !projectRoot.empty())
     {
-        const std::string oldRel = ToPipelinePath(srcPath, projectRoot);
-        const std::string newRel = ToPipelinePath(destPath, projectRoot);
-        if (!oldRel.empty()) pipeline->RemoveAsset(oldRel);
-        if (!newRel.empty()) pipeline->RefreshAsset(newRel);
+        std::error_code dirEc;
+        if (fs::is_directory(destPath, dirEc))
+        {
+            // A folder: every asset inside moved with it. Updating only the
+            // folder's own path left them listed at their old paths, and
+            // anything showing them (the asset picker) could not find them.
+            for (const auto& item : fs::recursive_directory_iterator(destPath, dirEc))
+            {
+                if (!item.is_regular_file() || item.path().extension() == ".data")
+                    continue;
+                const fs::path inside = fs::relative(item.path(), destPath, dirEc);
+                const std::string oldRel = ToPipelinePath((fs::path(srcPath) / inside).string(), projectRoot);
+                const std::string newRel = ToPipelinePath(item.path().string(), projectRoot);
+                if (!oldRel.empty()) pipeline->RemoveAsset(oldRel);
+                if (!newRel.empty()) pipeline->RefreshAsset(newRel);
+            }
+        }
+        else
+        {
+            const std::string oldRel = ToPipelinePath(srcPath, projectRoot);
+            const std::string newRel = ToPipelinePath(destPath, projectRoot);
+            if (!oldRel.empty()) pipeline->RemoveAsset(oldRel);
+            if (!newRel.empty()) pipeline->RefreshAsset(newRel);
+        }
     }
     return true;
 }

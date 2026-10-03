@@ -133,7 +133,7 @@ void BuildPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(500, 400);
 
     if (!ImGui::Begin("BUILD###Build", &m_Open, DekiEditor::MaximizedWindowFlags("BUILD###Build")))
     {

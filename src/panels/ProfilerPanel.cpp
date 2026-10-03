@@ -274,7 +274,7 @@ void ProfilerPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(900, 650), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(900, 650);
 
     if (ImGui::Begin("PROFILER###Profiler", &m_Open, DekiEditor::MaximizedWindowFlags("PROFILER###Profiler")))
     {

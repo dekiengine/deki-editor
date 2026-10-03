@@ -872,9 +872,50 @@ void AssetBrowserPanel::DrawAssetTree()
     }
 
     m_HoveredFolderPath.clear();
+
+    // Selection is kept as row numbers into m_Entries, and the rows are rebuilt
+    // every frame: a search or an opened folder shifts them, and the highlight
+    // used to land on whatever asset now sat in the selected row. Note what was
+    // selected, and carry it over once the new rows exist.
+    auto keyOf = [](const AssetEntry& e)
+    { return e.guid + "|" + e.path; };
+    std::vector<std::string> selectedKeys;
+    std::string primaryKey, anchorKey;
+    for (int idx : m_SelectedIndices)
+        if (idx >= 0 && idx < (int)m_Entries.size())
+            selectedKeys.push_back(keyOf(m_Entries[idx]));
+    if (m_SelectedIndex >= 0 && m_SelectedIndex < (int)m_Entries.size())
+        primaryKey = keyOf(m_Entries[m_SelectedIndex]);
+    if (m_LastClickedIndex >= 0 && m_LastClickedIndex < (int)m_Entries.size())
+        anchorKey = keyOf(m_Entries[m_LastClickedIndex]);
+    const std::set<int> indicesBefore = m_SelectedIndices;
+    const int primaryBefore = m_SelectedIndex;
+
     m_Entries.clear();  // Rebuild flat entries for selection tracking
     int flatIndex = 0;
     DrawFolderNode(m_RootNode, flatIndex);
+
+    // Nothing was clicked this frame: put the selection back on its assets.
+    if (!selectedKeys.empty() && m_SelectedIndices == indicesBefore && m_SelectedIndex == primaryBefore)
+    {
+        m_SelectedIndices.clear();
+        m_SelectedIndex = -1;
+        m_LastClickedIndex = -1;
+        m_SelectedAsset = nullptr;
+        for (size_t i = 0; i < m_Entries.size(); ++i)
+        {
+            const std::string key = keyOf(m_Entries[i]);
+            if (std::find(selectedKeys.begin(), selectedKeys.end(), key) != selectedKeys.end())
+                m_SelectedIndices.insert(static_cast<int>(i));
+            if (key == primaryKey)
+            {
+                m_SelectedIndex = static_cast<int>(i);
+                m_SelectedAsset = &m_Entries[i];
+            }
+            if (key == anchorKey)
+                m_LastClickedIndex = static_cast<int>(i);
+        }
+    }
 
     // A tree rebuild cleared the selection; put it back on the same asset.
     if (!m_ReselectPath.empty())
@@ -914,8 +955,19 @@ void AssetBrowserPanel::DrawAssetTree()
     {
         namespace fs = std::filesystem;
 
-        // Enter to rename selected asset
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && m_SelectedIndices.size() == 1)
+        // Delete and Ctrl+D, as the context menu lists them.
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !m_SelectedIndices.empty())
+            m_DeleteConfirmDialog->Open();
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D) && m_SelectedIndices.size() == 1)
+        {
+            const int idx = *m_SelectedIndices.begin();
+            if (idx >= 0 && idx < (int)m_Entries.size())
+                m_DeferredActions.push_back([this, p = m_Entries[idx].path]()
+                                            { DuplicateAsset(p); });
+        }
+
+        // Enter (or F2, as elsewhere) to rename selected asset
+        if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_F2)) && m_SelectedIndices.size() == 1)
         {
             int idx = *m_SelectedIndices.begin();
             if (idx >= 0 && idx < (int)m_Entries.size())
@@ -1137,6 +1189,10 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             {
                 for (const auto& type : creatableTypes)
                 {
+                    // Images, fonts and the like are imported, not created: a
+                    // type with no starting content made an empty, broken file.
+                    if (type.defaultContent.empty())
+                        continue;
                     if (ImGui::MenuItem(type.displayName.c_str()))
                     {
                         m_CurrentPath = node.path;
@@ -2302,6 +2358,8 @@ void AssetBrowserPanel::DrawContextMenu()
             {
                 for (const auto& type : creatableTypes)
                 {
+                    if (type.defaultContent.empty())
+                        continue;  // imported, not created (see above)
                     if (ImGui::MenuItem(type.displayName.c_str()))
                     {
                         m_CreateAssetDialog->Open(type.typeName);

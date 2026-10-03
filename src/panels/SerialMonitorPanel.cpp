@@ -53,7 +53,7 @@ void SerialMonitorPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(700, 400), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(700, 400);
 
     if (!ImGui::Begin("SERIAL MONITOR###Serial Monitor", &m_Open, DekiEditor::MaximizedWindowFlags("SERIAL MONITOR###Serial Monitor")))
     {

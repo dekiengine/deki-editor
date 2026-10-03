@@ -101,7 +101,7 @@ void ConsolePanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(600, 300), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(600, 300);
 
     if (m_FocusFrames > 0)
     {
@@ -329,14 +329,18 @@ void ConsolePanel::Draw()
 
         // Under the button, right edges aligned, so it opens toward the panel.
         ImGui::SetNextWindowPos(ImVec2(moreX + moreW, rowMax.y), ImGuiCond_Appearing, ImVec2(1.0f, 0.0f));
+        PushContextMenuPopupStyle();
         if (ImGui::BeginPopup("##consolemore"))
         {
+            PushContextMenuItemStyle();
             if (ImGui::MenuItem("Editor messages", nullptr, &m_ShowEditor))
                 EditorSettings::SetBool("console.showEditor", m_ShowEditor);
             if (ImGui::MenuItem("Debug messages", nullptr, &m_ShowDebug))
                 EditorSettings::SetBool("console.showDebug", m_ShowDebug);
+            ImGui::PopStyleVar();  // ItemSpacing
             ImGui::EndPopup();
         }
+        ImGui::PopStyleVar();  // WindowPadding
 
         // Wheel over the toolbar scrolls the strip horizontally (vertical or
         // horizontal wheel), clamped to the overflow - like dock-tab scrolling.
@@ -744,6 +748,15 @@ int ConsolePanel::GetErrorCount()
     int n = 0;
     for (const auto& e : m_Entries)
         if (e.level == ::Deki::LogLevel::Error) ++n;
+    return n;
+}
+
+int ConsolePanel::GetBuildErrorCount()
+{
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    int n = 0;
+    for (const auto& e : m_Entries)
+        if (e.level == ::Deki::LogLevel::Error && e.pinned) ++n;
     return n;
 }
 

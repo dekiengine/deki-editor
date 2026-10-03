@@ -41,7 +41,7 @@ void ActivityPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(450, 350), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(450, 350);
 
     if (!ImGui::Begin("ACTIVITY###Activity", &m_Open, DekiEditor::MaximizedWindowFlags("ACTIVITY###Activity")))
     {
@@ -576,14 +576,17 @@ void ActivityPanel::DrawStatusBar()
         drawList->AddText(ImVec2(cursorX, textY), accentCol, "Ready");
         cursorX += ImGui::CalcTextSize("Ready").x;
 
-        // "Build failed · N error(s)" in red when Console reports errors.
+        // "Build failed · N error(s)" in red when a build left errors in the
+        // Console; any other errors are just counted. A scene that failed to
+        // load used to read as a failed build.
         if (auto* console = ConsolePanel::GetInstance())
         {
-            int errs = console->GetErrorCount();
+            const int buildErrs = console->GetBuildErrorCount();
+            const int errs = buildErrs > 0 ? buildErrs : console->GetErrorCount();
             if (errs > 0)
             {
                 char buildBuf[48];
-                snprintf(buildBuf, sizeof(buildBuf), "Build failed \xc2\xb7 %d error%s",
+                snprintf(buildBuf, sizeof(buildBuf), buildErrs > 0 ? "Build failed \xc2\xb7 %d error%s" : "%d error%s",
                          errs, errs == 1 ? "" : "s");
                 cursorX += 20.0f;
                 const ImU32 redCol = ImGui::ColorConvertFloat4ToU32(Palette::Red);

@@ -28,6 +28,12 @@ float Dpi(float v)
 {
     return v * ImGui::GetStyle().FontScaleDpi;
 }
+
+// The modal's title is what users read; the caller's popup id stays its identity.
+std::string ModalName(const std::string& popupId)
+{
+    return "Choose Asset###" + popupId;
+}
 }  // namespace
 
 namespace
@@ -201,7 +207,7 @@ bool AssetPicker::Open(const std::string& popupId, const std::string& currentVal
         }
     }
 
-    ImGui::OpenPopup(popupId.c_str());
+    ImGui::OpenPopup(ModalName(popupId).c_str());
     return Draw(popupId, outSelectedPath);
 }
 
@@ -217,11 +223,19 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
     // give the dialog a real one. It's baked at Begin, so pop right after.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
                         ImVec2(Dpi(12.0f), Dpi(10.0f)));
-    const bool open = ImGui::BeginPopupModal(popupId.c_str(), nullptr, ImGuiWindowFlags_NoScrollbar);
+    const bool open = ImGui::BeginPopupModal(ModalName(popupId).c_str(), nullptr, ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar();  // WindowPadding
 
     if (open)
     {
+        // Escape closes it, as it does every other dialog. (IsKeyPressed
+        // accepts a key owned by the focused search field by default.)
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return false;
+        }
         // Schematic search band (dim magnifier + borderless input) with a
         // full-width hairline beneath it, fresh + focused each time it opens.
         if (ImGui::IsWindowAppearing())

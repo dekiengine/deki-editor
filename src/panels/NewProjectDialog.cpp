@@ -106,7 +106,11 @@ void NewProjectDialog::Draw()
     ImGui::TextColored(Palette::Dim, "Target platform");
     if (m_Platforms.empty())
     {
-        ImGui::TextWrapped("No platforms yet. Install a board package from the Package Manager.");
+        // The project still gets the desktop target from the starter; boards
+        // arrive with packages, which are added once the project is open.
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        ImGui::TextWrapped("Desktop. Add a board later from the project's Package Manager.");
+        ImGui::PopStyleColor();
     }
     else
     {
@@ -178,8 +182,15 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
 
     if (!fs::exists(m_Location))
     {
-        errorMessage = "Location folder does not exist.";
-        return false;
+        // Make it, as a file manager's "new folder here" would; only a
+        // location that cannot be made is an error.
+        std::error_code ec;
+        fs::create_directories(m_Location, ec);
+        if (ec)
+        {
+            errorMessage = "Could not create the location folder: " + ec.message();
+            return false;
+        }
     }
 
     // Check if project folder already exists

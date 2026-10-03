@@ -548,6 +548,10 @@ void EditorApp::UpdatePlayMode()
     const uint64_t uncapStartNs = SDL_GetTicksNS();
     uint64_t uncapLastTickNs = uncapStartNs;
     int subStepsThisFrame = 0;
+    // A tick's profiler frame stays open until the next tick starts, so the
+    // last tick's frame also holds the render after the loop. Rendering used
+    // to land outside every frame: frames read "0.04 ms" beside a 6 ms render.
+    bool profilerFrameOpen = false;
 
     // Self-passing lambda: recursive without a std::function (which was
     // rebuilt on the heap every game tick and dispatched indirectly per object).
@@ -612,7 +616,10 @@ void EditorApp::UpdatePlayMode()
         ++subStepsThisFrame;
 
         // Begin profiler frame (one per game tick, like Unity)
+        if (profilerFrameOpen)
+            ProfilingService::Get().EndFrame();
         ProfilingService::Get().BeginFrame();
+        profilerFrameOpen = true;
 
         // Fixed timestep when capped (dt = targetFrameTimeMs); real elapsed
         // wall-clock when uncapped (sum across ticks ≈ real time, so animations
@@ -767,9 +774,7 @@ void EditorApp::UpdatePlayMode()
         }
 
         CrashHandler::ClearPlayModeContext();
-
-        // End profiler frame for this sub-step
-        ProfilingService::Get().EndFrame();
+        // The frame ends when the next tick begins, or after the render below.
     }
 
     // Sample game FPS over a rolling 500 ms window: count sub-steps and
@@ -800,9 +805,15 @@ void EditorApp::UpdatePlayMode()
         if (!GuardedInvoke("Render", renderSceneName, m_Play.crashedThisFrame,
                            [&]
                            { RenderPlayMode(); }))
+        {
+            if (profilerFrameOpen)
+                ProfilingService::Get().EndFrame();
             return;
+        }
         CrashHandler::ClearPlayModeContext();
     }
+    if (profilerFrameOpen)
+        ProfilingService::Get().EndFrame();
 }
 
 void EditorApp::RenderPlayMode()

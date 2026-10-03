@@ -61,6 +61,8 @@ public:
     // Count of LogLevel::Error entries currently in the buffer. Used by the
     // status bar to render a "Build failed · N error(s)" pill.
     int GetErrorCount();
+    // The errors a build pinned (LogBuildError), a subset of GetErrorCount.
+    int GetBuildErrorCount();
 
     // Static access for global logging
     static ConsolePanel* GetInstance() { return s_Instance; }

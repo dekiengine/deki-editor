@@ -769,7 +769,10 @@ void EditorUI::End()
 }
 void EditorUI::SetNextWindowSize(float w, float h, bool firstUseEver)
 {
-    ImGui::SetNextWindowSize(ImVec2(w, h), firstUseEver ? ImGuiCond_FirstUseEver : 0);
+    if (firstUseEver)
+        DekiEditor::FirstUseWindowPlacement(w, h);  // centred too, not at (60, 60)
+    else
+        ImGui::SetNextWindowSize(ImVec2(w, h), 0);
 }
 void EditorUI::SetNextWindowSizeConstraints(float a, float b, float c, float d)
 {

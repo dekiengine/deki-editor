@@ -49,7 +49,7 @@ void EditorSettingsPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(440, 470), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(440, 470);
     if (!ImGui::Begin("EDITOR SETTINGS###Editor Settings", &m_Open,
                       DekiEditor::MaximizedWindowFlags("EDITOR SETTINGS###Editor Settings")))
     {

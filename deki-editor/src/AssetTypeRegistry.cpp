@@ -94,7 +94,9 @@ bool AssetTypeRegistry::HasHandlerForExtension(const std::string& extension) con
 bool AssetTypeRegistry::CreateAsset(const std::string& typeName, const std::string& filePath)
 {
     const AssetTypeHandler* handler = GetHandler(typeName);
-    if (!handler)
+    // No starting content means the type is imported (an image, a font), not
+    // created: writing nothing would leave an empty file that fails to load.
+    if (!handler || handler->defaultContent.empty())
     {
         return false;
     }

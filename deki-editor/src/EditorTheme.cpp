@@ -252,6 +252,13 @@ void PruneSectionHeights()
 }
 }  // namespace
 
+void FirstUseWindowPlacement(float width, float height)
+{
+    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(vp->GetWorkCenter(), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+}
+
 void Tooltip(const char* fmt, ...)
 {
     ImGuiContext& g = *GImGui;
@@ -262,10 +269,15 @@ void Tooltip(const char* fmt, ...)
         g.MouseStationaryTimer < TooltipDelaySeconds)
         return;
 
+    // The theme zeroes WindowPadding for panels, and a tooltip window bakes the
+    // current padding when it begins: without this its text touched the edge.
+    const float pad = ImGui::GetFontSize();
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(pad * 0.6f, pad * 0.4f));
     va_list args;
     va_start(args, fmt);
     ImGui::SetTooltipV(fmt, args);
     va_end(args);
+    ImGui::PopStyleVar();
 }
 
 bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID* outHeaderId)
@@ -1735,12 +1747,17 @@ bool PanelToolbar(bool* pinnedExt)
         dl->AddText(iconFont, iconSize, ImVec2(bx + padX, ImFloor(cy - icoSz.y * 0.5f)), colDim, ico);
     }
 
+    // Styled like every other context menu (padding, row height).
+    PushContextMenuPopupStyle();
     if (ImGui::BeginPopup("##deki_panel_menu"))
     {
+        PushContextMenuItemStyle();
         if (ImGui::MenuItem("Pin", nullptr, *pinned))
             *pinned = !*pinned;
+        ImGui::PopStyleVar();  // ItemSpacing
         ImGui::EndPopup();
     }
+    ImGui::PopStyleVar();  // WindowPadding
 
     // Bottom hairline, seam to seam.
     dl->AddLine(ImVec2(left, top + barH), ImVec2(right, top + barH), colLine, 1.0f);

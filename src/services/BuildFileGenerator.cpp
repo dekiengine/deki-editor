@@ -579,6 +579,16 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // The plugin DLL still uses PCH since it doesn't set WINDOWS_EXPORT_ALL_SYMBOLS.
     file << "    # Create package DLL\n";
     file << "    add_library(${PACKAGE_TARGET} SHARED ${PACKAGE_ALL_SOURCES})\n";
+    // GCC marks inline statics and template statics STB_GNU_UNIQUE, and a
+    // library holding one can never be unloaded: dlclose leaves it mapped, the
+    // next load hands back the old copy, its static initializers never run
+    // again, and everything they register (asset types, editors, cache
+    // handlers) is gone after the editor cleared it - a project switch or
+    // package reload lost the project's images, fonts and components. Without
+    // unique symbols each library keeps its own copy, as DLLs do on Windows.
+    file << "    if(CMAKE_CXX_COMPILER_ID STREQUAL \"GNU\" AND NOT WIN32)\n";
+    file << "        target_compile_options(${PACKAGE_TARGET} PRIVATE -fno-gnu-unique)\n";
+    file << "    endif()\n";
     // Order the build-time reflection codegen BEFORE this package's compilation.
     // Without this edge, `cmake --build` (hot reload) can compile a stale
     // .gen.cpp and fail before the regen custom target ever runs. A package can be
@@ -749,6 +759,10 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // Create plugin DLL (game code only)
     file << "# Create plugin DLL (game code only)\n";
     file << "add_library(${PROJECT_NAME} SHARED ${GAME_SOURCES})\n";
+    // Unloadable on Linux too (see the package targets above).
+    file << "if(CMAKE_CXX_COMPILER_ID STREQUAL \"GNU\" AND NOT WIN32)\n";
+    file << "    target_compile_options(${PROJECT_NAME} PRIVATE -fno-gnu-unique)\n";
+    file << "endif()\n";
     // Same regen-before-compile edge as the package targets (tag "src" above), which
     // is more than one target when the game's component set is big enough to shard.
     // It named the tag's pre-flatten spelling, "project/src", whose variable is

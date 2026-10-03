@@ -362,12 +362,13 @@ void DeployAnalysisPanel::ScanAssets()
         entry.cachePath = info.cachePath;
         entry.hasCached = info.hasCachedVersion;
 
-        // Strip "assets/" prefix for display
+        // Strip the assets folder prefix for display. Its length, not a fixed
+        // count: the prefix was "project/assets/" (15) once, and cutting 15 off
+        // "assets/..." ate the first letters of every name.
         entry.displayPath = info.path;
-        if (entry.displayPath.rfind(GetAssetsDirectoryRelative() + "/", 0) == 0)
-            entry.displayPath = entry.displayPath.substr(15);
-        else if (entry.displayPath.rfind("assets/", 0) == 0)
-            entry.displayPath = entry.displayPath.substr(7);
+        const std::string assetsPrefix = GetAssetsDirectoryRelative() + "/";
+        if (entry.displayPath.rfind(assetsPrefix, 0) == 0)
+            entry.displayPath = entry.displayPath.substr(assetsPrefix.size());
 
         // Get cache file size
         std::string absoluteCachePath = pipeline->GetAbsolutePath(info.cachePath);

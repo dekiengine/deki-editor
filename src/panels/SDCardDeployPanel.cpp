@@ -31,7 +31,7 @@ void SDCardDeployPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(400, 300);
 
     if (!ImGui::Begin("SD CARD DEPLOY###SD Card Deploy", &m_Open, DekiEditor::MaximizedWindowFlags("SD CARD DEPLOY###SD Card Deploy")))
     {

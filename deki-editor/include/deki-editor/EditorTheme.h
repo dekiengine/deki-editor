@@ -142,6 +142,12 @@ DEKI_EDITOR_API float CssPx(ImFont* font, float cssPx);
 constexpr float TooltipDelaySeconds = 1.0f;
 DEKI_EDITOR_API void Tooltip(const char* fmt, ...) IM_FMTARGS(1);
 
+// Where a window first appears, called just before its Begin: `width` x
+// `height`, centred over the editor. Only the first time (FirstUseEver), so a
+// window the user moved, resized or docked keeps that. Without it a floating
+// window opened at ImGui's fixed (60, 60), over the toolbar.
+DEKI_EDITOR_API void FirstUseWindowPlacement(float width, float height);
+
 // One entry in a SchematicPicker list.
 struct PickerItem
 {

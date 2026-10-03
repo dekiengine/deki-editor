@@ -407,7 +407,7 @@ void ProjectSettingsPanel::Draw()
 {
     if (!m_Open) return;
 
-    ImGui::SetNextWindowSize(ImVec2(420, 400), ImGuiCond_FirstUseEver);
+    DekiEditor::FirstUseWindowPlacement(420, 400);
 
     if (ImGui::Begin("PROJECT SETTINGS###Project Settings", &m_Open, DekiEditor::MaximizedWindowFlags("PROJECT SETTINGS###Project Settings")))
     {
