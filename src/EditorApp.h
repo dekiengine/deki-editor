@@ -137,6 +137,16 @@ public:
     /// View's copy applied no protection at all.
     bool DeleteObject(Deki::Object* obj);
     bool IsProtectedObject(Deki::Object* obj);
+    /// Every object in `objects` the rules allow, as one undo step. An object
+    /// whose ancestor is also listed goes with that ancestor. Restores the
+    /// whole selection on undo. False when nothing could be deleted.
+    bool DeleteObjects(const std::vector<Deki::Object*>& objects);
+    /// Duplicate each of `objects` beside itself (a linked instance stays
+    /// linked), as one undo step, and select the copies.
+    void DuplicateObjects(const std::vector<Deki::Object*>& objects);
+    /// What a context-menu action on `clicked` applies to: the whole selection
+    /// when `clicked` is part of a multi-selection, otherwise just `clicked`.
+    std::vector<Deki::Object*> ActionTargets(Deki::Object* clicked) const;
 
     void NavigateIntoScene(const std::string& path);
     void NavigateBack();

@@ -1700,6 +1700,96 @@ bool EditorApp::DeleteObject(Deki::Object* obj)
     return true;
 }
 
+namespace
+{
+// `objects` without any whose ancestor is also in it: acting on a parent
+// already covers its children, and acting on both would free a child twice.
+std::vector<Deki::Object*> TopLevelOnly(const std::vector<Deki::Object*>& objects)
+{
+    std::vector<Deki::Object*> out;
+    for (Deki::Object* obj : objects)
+    {
+        if (!obj)
+            continue;
+        bool coveredByAncestor = false;
+        for (Deki::Object* p = obj->GetParent(); p && !coveredByAncestor; p = p->GetParent())
+            coveredByAncestor = std::find(objects.begin(), objects.end(), p) != objects.end();
+        if (!coveredByAncestor && std::find(out.begin(), out.end(), obj) == out.end())
+            out.push_back(obj);
+    }
+    return out;
+}
+}  // namespace
+
+std::vector<Deki::Object*> EditorApp::ActionTargets(Deki::Object* clicked) const
+{
+    const auto& selection = GetSelectedObjects();
+    if (clicked && selection.size() > 1 && std::find(selection.begin(), selection.end(), clicked) != selection.end())
+        return selection;
+    return clicked ? std::vector<Deki::Object*>{ clicked } : std::vector<Deki::Object*>{};
+}
+
+bool EditorApp::DeleteObjects(const std::vector<Deki::Object*>& objects)
+{
+    ::Deki::Scene* scene = GetCurrentScene();
+    if (!scene)
+        return false;
+    std::vector<Deki::Object*> targets;
+    for (Deki::Object* obj : TopLevelOnly(objects))
+        if (!IsProtectedObject(obj) && !obj->IsPartOfInstance())
+            targets.push_back(obj);
+    if (targets.empty())
+        return false;
+    if (targets.size() == 1)
+        return DeleteObject(targets[0]);
+
+    std::vector<std::unique_ptr<Command>> commands;
+    for (Deki::Object* obj : targets)
+        commands.push_back(std::make_unique<DeleteObjectCommand>(
+            scene, obj,
+            [this]()
+            { ClearSelection(); },
+            [this](Deki::Object* restored)
+            { AddToSelection(restored); }));
+    ClearSelection();
+    CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
+        "Delete " + std::to_string(targets.size()) + " objects", std::move(commands)));
+    return true;
+}
+
+void EditorApp::DuplicateObjects(const std::vector<Deki::Object*>& objects)
+{
+    ::Deki::Scene* scene = GetCurrentScene();
+    if (!scene)
+        return;
+    const std::vector<Deki::Object*> sources = TopLevelOnly(objects);
+    if (sources.empty())
+        return;
+
+    std::vector<std::unique_ptr<Command>> commands;
+    for (Deki::Object* obj : sources)
+    {
+        Deki::Object* parent = obj->GetParent();
+        auto onCreated = [this](Deki::Object* created)
+        { AddToSelection(created); };
+        auto onUndo = [this]()
+        { ClearSelection(); };
+        if (obj->IsSceneInstance() && IsStopped())
+            // Edit mode: a linked instance duplicates into another linked instance.
+            commands.push_back(std::make_unique<CreateInstanceCommand>(
+                scene, obj->GetSourceSceneGuid(), obj->GetName(), parent, onCreated, onUndo));
+        else
+            // A plain copy (in play mode, with its runtime state).
+            commands.push_back(std::make_unique<DuplicateObjectCommand>(scene, obj, parent, onCreated, onUndo));
+    }
+    ClearSelection();
+    if (commands.size() == 1)
+        CommandHistory::Instance().Execute(std::move(commands[0]));
+    else
+        CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
+            "Duplicate " + std::to_string(sources.size()) + " objects", std::move(commands)));
+}
+
 bool EditorApp::CheckUnsavedChanges(PendingSceneAction action, const std::string& path)
 {
     // The prompt owns the suppression flag and the pending slot; EditorApp owns

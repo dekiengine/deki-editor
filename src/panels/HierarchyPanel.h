@@ -43,6 +43,11 @@ private:
     // Returns true if an object was deleted (signals caller to break iteration)
     // readOnly=true disables editing (for Persistent objects)
     bool DrawObjectNode(Deki::Object* obj, bool readOnly = false);
+    // Inside a drag-drop target: .scene assets dragged from the Asset Browser
+    // become instances under `parent` (nullptr: the scene root) at `index`
+    // (SIZE_MAX: the end). The scene being edited is refused - it cannot
+    // contain itself.
+    void AcceptSceneAssetDrop(Deki::Object* parent, size_t index);
     void DrawContextMenu();
     void StartRenaming(Deki::Object* obj);
     void StopRenaming();
@@ -64,6 +69,10 @@ private:
 
     // Flattened object list for arrow key navigation and Shift+click range selection
     std::vector<Deki::Object*> m_FlattenedObjects;
+    // The rows drawn last frame, in order: the visible ones only (collapsed
+    // children and search misses are not rows). A Shift+click range is taken
+    // from these; this frame's list is still being built when the click lands.
+    std::vector<Deki::Object*> m_VisibleLastFrame;
 
     // Which row the mouse is over, for the rows' hover fade (DrawObjectNode).
     DekiEditor::Motion::RowHover m_RowHover;

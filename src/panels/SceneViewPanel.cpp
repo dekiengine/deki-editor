@@ -330,7 +330,7 @@ void SceneViewPanel::HandleInput()
     // the Hierarchy - this path used to have none.
     Deki::Object* selected = m_App->GetSelectedObject();
     if (selected && isCanvasHovered && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Delete))
-        m_App->DeleteObject(selected);
+        m_App->DeleteObjects(m_App->GetSelectedObjects());
 
     // Panning with Alt+Left Mouse or Middle Mouse
     bool startPan = isCanvasHovered &&

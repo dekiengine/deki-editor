@@ -230,6 +230,7 @@ void HierarchyPanel::Draw()
     AutoScrollOnDrag();
 
     // Build visible flattened list during draw (for arrow key navigation)
+    m_VisibleLastFrame.swap(m_FlattenedObjects);
     m_FlattenedObjects.clear();
     m_CollapsedByArrow = nullptr;
     m_ArrowKeyHandled = false;
@@ -289,39 +290,10 @@ void HierarchyPanel::Draw()
     const bool keysActive = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
                             !ImGui::GetIO().WantTextInput && !m_RenamingObject;
 
-    // Ctrl+D to duplicate selected object
+    // Ctrl+D duplicates everything selected.
     Deki::Object* selected = m_App->GetSelectedObject();
     if (keysActive && selected && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D))
-    {
-        Deki::Object* parent = selected->GetParent();
-        if (selected->IsSceneInstance() && m_App->IsStopped())
-        {
-            // Edit mode: duplicate linked instance → create another linked instance
-            CommandHistory::Instance().Execute(
-                std::make_unique<CreateInstanceCommand>(
-                    scene, selected->GetSourceSceneGuid(),
-                    selected->GetName(), parent,
-                    [this](Deki::Object* created)
-                    { m_App->SetSelectedObject(created); },
-                    [this]()
-                    { m_App->ClearSelection(); }));
-        }
-        else
-        {
-            // Normal duplicate (or play mode: clone with runtime state)
-            CommandHistory::Instance().Execute(
-                std::make_unique<DuplicateObjectCommand>(
-                    scene, selected, parent,
-                    [this](Deki::Object* duplicated)
-                    {
-                        m_App->SetSelectedObject(duplicated);
-                    },
-                    [this]()
-                    {
-                        m_App->ClearSelection();
-                    }));
-        }
-    }
+        m_App->DuplicateObjects(m_App->GetSelectedObjects());
 
     // Ctrl+C to copy selected objects
     if (keysActive && selected && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
@@ -375,7 +347,7 @@ void HierarchyPanel::Draw()
     // Delete key. EditorApp::DeleteObject applies the protection rules
     // (root, boot Setup, instance children) - the same ones the Scene View uses.
     if (keysActive && selected && ImGui::IsKeyPressed(ImGuiKey_Delete))
-        m_App->DeleteObject(selected);
+        m_App->DeleteObjects(m_App->GetSelectedObjects());
 
     // Fill remaining space so the window is fully interactive
     ImVec2 availSpace = ImGui::GetContentRegionAvail();
@@ -386,7 +358,9 @@ void HierarchyPanel::Draw()
 
     // Drop target for empty space - use custom rect so Dummy doesn't eat clicks
     {
-        ImRect windowRect = ImGui::GetCurrentWindow()->ContentRegionRect;
+        // InnerRect is what is on screen. ContentRegionRect moves with the
+        // scroll, so once the list was scrolled, drops on it were ignored.
+        ImRect windowRect = ImGui::GetCurrentWindow()->InnerRect;
         if (ImGui::BeginDragDropTargetCustom(windowRect, ImGui::GetCurrentWindow()->ID))
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_OBJECT"))
@@ -399,68 +373,8 @@ void HierarchyPanel::Draw()
                         std::make_unique<MoveObjectsCommand>(scene, m_DraggedObjects, nullptr, endIndex));
                 }
             }
-            // Accept multi-asset drag from asset browser
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MULTI"))
-            {
-                std::string multiData(static_cast<const char*>(payload->Data));
-                auto* pipeline = m_App->GetAssetPipeline();
-                if (pipeline)
-                {
-                    std::vector<std::unique_ptr<Command>> cmds;
-                    std::istringstream stream(multiData);
-                    std::string line;
-                    while (std::getline(stream, line))
-                    {
-                        if (line.empty()) continue;
-                        size_t tabPos = line.find('\t');
-                        if (tabPos == std::string::npos) continue;
-                        std::string relPath = line.substr(tabPos + 1);
-                        if (std::filesystem::path(relPath).extension() != ".scene") continue;
-                        const AssetInfo* assetInfo = pipeline->GetAssetInfo(relPath);
-                        if (!assetInfo || assetInfo->guid.empty()) continue;
-                        std::string instanceName = std::filesystem::path(relPath).stem().string();
-                        cmds.push_back(std::make_unique<CreateInstanceCommand>(
-                            scene, assetInfo->guid, instanceName, nullptr, nullptr, nullptr));
-                    }
-                    if (cmds.size() == 1)
-                    {
-                        CommandHistory::Instance().Execute(std::move(cmds[0]));
-                    }
-                    else if (cmds.size() > 1)
-                    {
-                        CommandHistory::Instance().Execute(
-                            std::make_unique<CompoundCommand>("Create " + std::to_string(cmds.size()) + " Instances", std::move(cmds)));
-                    }
-                }
-            }
-            // Accept .scene drag from asset browser to create instance
-            else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH"))
-            {
-                std::string assetPath(static_cast<const char*>(payload->Data));
-                if (std::filesystem::path(assetPath).extension() == ".scene")
-                {
-                    auto* pipeline = m_App->GetAssetPipeline();
-                    if (pipeline)
-                    {
-                        const AssetInfo* assetInfo = pipeline->GetAssetInfo(assetPath);
-                        if (assetInfo && !assetInfo->guid.empty())
-                        {
-                            std::string instanceName = std::filesystem::path(assetPath).stem().string();
-                            CommandHistory::Instance().Execute(
-                                std::make_unique<CreateInstanceCommand>(
-                                    scene, assetInfo->guid, instanceName, nullptr,
-                                    [this](Deki::Object* created)
-                                    {
-                                        m_App->SetSelectedObject(created);
-                                    },
-                                    [this]()
-                                    {
-                                        m_App->ClearSelection();
-                                    }));
-                        }
-                    }
-                }
-            }
+            // .scene assets from the Asset Browser: instances at the end of the root.
+            AcceptSceneAssetDrop(nullptr, SIZE_MAX);
             ImGui::EndDragDropTarget();
         }
     }
@@ -970,38 +884,9 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                         [this]()
                         { m_App->ClearSelection(); }));
             }
+            // On a multi-selection these act on all of it, as the keys do.
             if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
-            {
-                auto* scene = m_App->GetCurrentScene();
-                Deki::Object* parent = obj->GetParent();
-                if (obj->IsSceneInstance() && m_App->IsStopped())
-                {
-                    // Edit mode: duplicate linked instance → create another linked instance
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<CreateInstanceCommand>(
-                            scene, obj->GetSourceSceneGuid(),
-                            obj->GetName(), parent,
-                            [this](Deki::Object* created)
-                            { m_App->SetSelectedObject(created); },
-                            [this]()
-                            { m_App->ClearSelection(); }));
-                }
-                else
-                {
-                    // Normal duplicate (or play mode: clone with runtime state)
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<DuplicateObjectCommand>(
-                            scene, obj, parent,
-                            [this](Deki::Object* duplicated)
-                            {
-                                m_App->SetSelectedObject(duplicated);
-                            },
-                            [this]()
-                            {
-                                m_App->ClearSelection();
-                            }));
-                }
-            }
+                m_App->DuplicateObjects(m_App->ActionTargets(obj));
             if (ImGui::MenuItem("Copy", "Ctrl+C"))
             {
                 ClipboardService::Instance().CopyObjects(m_App->GetSelectedObjects());
@@ -1036,19 +921,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             ImGui::Separator();
             if (ImGui::MenuItem("Delete", "Del", false, !isProtected))
             {
-                auto* scene = m_App->GetCurrentScene();
-                Deki::Object* objToDelete = obj;
-                CommandHistory::Instance().Execute(
-                    std::make_unique<DeleteObjectCommand>(
-                        scene, objToDelete,
-                        [this]()
-                        {
-                            m_App->SetSelectedObject(nullptr);
-                        },
-                        [this](Deki::Object* restored)
-                        {
-                            m_App->SetSelectedObject(restored);
-                        }));
+                m_App->DeleteObjects(m_App->ActionTargets(obj));
                 // IMPORTANT: EndPopup first to exit popup window context,
                 // then TreePop to close tree node in main hierarchy window
                 ImGui::PopStyleVar();  // context menu ItemSpacing
@@ -1196,6 +1069,17 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                 }
             }
         }
+        // A scene from the Asset Browser goes where the indicator shows.
+        {
+            Deki::Object* parent = obj;
+            size_t index = SIZE_MAX;
+            if (dropPos != DropPos::AsChild && obj->GetParent())
+            {
+                parent = obj->GetParent();
+                index = static_cast<size_t>(parent->GetChildIndex(obj)) + (dropPos == DropPos::Below ? 1 : 0);
+            }
+            AcceptSceneAssetDrop(parent, index);
+        }
         ImGui::EndDragDropTarget();
     }
 
@@ -1224,6 +1108,73 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     if (open) ImGui::TreePop();
 
     return false;
+}
+
+void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
+{
+    std::vector<std::string> paths;
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MULTI"))
+    {
+        std::istringstream stream(std::string(static_cast<const char*>(payload->Data)));
+        std::string line;
+        while (std::getline(stream, line))
+        {
+            const size_t tab = line.find('\t');
+            if (tab != std::string::npos)
+                paths.push_back(line.substr(tab + 1));
+        }
+    }
+    else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH"))
+    {
+        paths.emplace_back(static_cast<const char*>(payload->Data));
+    }
+    auto* pipeline = m_App->GetAssetPipeline();
+    auto* scene = m_App->GetCurrentScene();
+    if (paths.empty() || !pipeline || !scene)
+        return;
+
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path editing = m_App->GetCurrentScenePath().empty()
+                                 ? fs::path()
+                                 : fs::weakly_canonical(fs::path(m_App->GetCurrentScenePath()), ec);
+    std::vector<std::unique_ptr<Command>> cmds;
+    for (const std::string& relPath : paths)
+    {
+        if (fs::path(relPath).extension() != ".scene")
+            continue;
+        const AssetInfo* info = pipeline->GetAssetInfo(relPath);
+        if (!info || info->guid.empty())
+            continue;
+        if (!editing.empty() && fs::weakly_canonical(fs::path(pipeline->GetAbsolutePath(relPath)), ec) == editing)
+        {
+            DEKI_LOG_WARNING("A scene cannot contain itself: '%s' is the scene being edited", relPath.c_str());
+            continue;
+        }
+        const size_t slot = (index == SIZE_MAX) ? SIZE_MAX : index + cmds.size();
+        cmds.push_back(std::make_unique<CreateInstanceCommand>(
+            scene, info->guid, fs::path(relPath).stem().string(), parent,
+            [this, slot](Deki::Object* created)
+            {
+                // Created at the end of its parent; move it to the drop slot.
+                if (Deki::Object* p = created->GetParent(); p && slot != SIZE_MAX)
+                {
+                    p->RemoveChild(created);
+                    p->InsertChildAt(created, std::min(slot, p->GetChildren().size()));
+                }
+                m_App->AddToSelection(created);
+            },
+            [this]()
+            { m_App->ClearSelection(); }));
+    }
+    if (cmds.empty())
+        return;
+    m_App->ClearSelection();
+    if (cmds.size() == 1)
+        CommandHistory::Instance().Execute(std::move(cmds[0]));
+    else
+        CommandHistory::Instance().Execute(
+            std::make_unique<CompoundCommand>("Create " + std::to_string(cmds.size()) + " Instances", std::move(cmds)));
 }
 
 void HierarchyPanel::StartRenaming(Deki::Object* obj)
@@ -1267,7 +1218,11 @@ void HierarchyPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
             m_DraggedObjects.end());
     }
 
-    // m_FlattenedObjects is rebuilt every Draw - no action needed here.
+    // m_FlattenedObjects is rebuilt every Draw; last frame's copy is kept.
+    m_VisibleLastFrame.erase(std::remove_if(m_VisibleLastFrame.begin(), m_VisibleLastFrame.end(),
+                                            [&set](Deki::Object* o)
+                                            { return set.count(o) > 0; }),
+                             m_VisibleLastFrame.end());
 }
 
 void HierarchyPanel::RebuildFlattenedList()
@@ -1306,11 +1261,15 @@ int HierarchyPanel::FindObjectIndex(Deki::Object* obj) const
 
 void HierarchyPanel::SelectRange(Deki::Object* from, Deki::Object* to)
 {
-    // Rebuild flattened list to get current hierarchy order
-    RebuildFlattenedList();
-
-    int fromIdx = FindObjectIndex(from);
-    int toIdx = FindObjectIndex(to);
+    // The rows the user can see, not the whole tree: rebuilding the full list
+    // here selected every child of a collapsed object between the two rows.
+    auto indexOf = [this](Deki::Object* o) -> int
+    {
+        const auto it = std::find(m_VisibleLastFrame.begin(), m_VisibleLastFrame.end(), o);
+        return it == m_VisibleLastFrame.end() ? -1 : static_cast<int>(it - m_VisibleLastFrame.begin());
+    };
+    int fromIdx = indexOf(from);
+    int toIdx = indexOf(to);
 
     if (fromIdx < 0 || toIdx < 0)
     {
@@ -1325,7 +1284,7 @@ void HierarchyPanel::SelectRange(Deki::Object* from, Deki::Object* to)
     std::vector<Deki::Object*> rangeSelection;
     for (int i = minIdx; i <= maxIdx; ++i)
     {
-        rangeSelection.push_back(m_FlattenedObjects[i]);
+        rangeSelection.push_back(m_VisibleLastFrame[i]);
     }
 
     m_App->SetSelectedObjects(rangeSelection);

@@ -218,6 +218,16 @@ void MoveObjectsCommand::Execute()
             resolvedParent = roots[0];
     }
 
+    // The target index was taken with the moved objects still in the list. Each
+    // one that sat before it under the same parent leaves a gap once removed,
+    // so a move DOWN within one parent used to land one place too far per
+    // object (and dropping an object just below itself moved it).
+    size_t removedBefore = 0;
+    for (size_t i = 0; i < m_Objects.size(); i++)
+        if (m_OldStates[i].parent == resolvedParent && m_OldStates[i].index < m_TargetIndex)
+            ++removedBefore;
+    const size_t targetIndex = m_TargetIndex - removedBefore;
+
     // Remove all objects from their current positions (reverse index order per parent to avoid shifting)
     // Sort by parent then descending index so removals don't affect each other
     std::vector<size_t> removalOrder(m_Objects.size());
@@ -249,7 +259,7 @@ void MoveObjectsCommand::Execute()
     {
         // Clamp target index to valid range after removals
         size_t maxIdx = resolvedParent->GetChildren().size();
-        size_t insertIdx = std::min(m_TargetIndex, maxIdx);
+        size_t insertIdx = std::min(targetIndex, maxIdx);
         for (size_t i = 0; i < m_Objects.size(); i++)
         {
             resolvedParent->InsertChildAt(m_Objects[i], insertIdx + i);
