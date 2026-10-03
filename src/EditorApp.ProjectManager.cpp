@@ -107,6 +107,14 @@ bool EditorApp::OpenProject(const std::string& path)
     CloseProject();
     m_ProjectLock = std::move(lock);
 
+    // The Console's messages and build errors were about the project just
+    // closed; the status bar went on counting them in the next one.
+    if (m_ConsolePanel)
+    {
+        m_ConsolePanel->Clear();
+        m_ConsolePanel->ClearBuildErrors();
+    }
+
     StartupProgress::Update("Loading project...");
     m_Project = std::make_unique<Project>();
     if (!m_Project->Load(path))

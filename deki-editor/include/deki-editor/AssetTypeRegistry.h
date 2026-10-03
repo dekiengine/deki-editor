@@ -83,7 +83,8 @@ public:
     AssetCategory GetCategoryForExtension(const std::string& extension) const;
     std::vector<std::string> GetExtensionsForCategory(AssetCategory category) const;
 
-    /// Drop every registered handler.
+    /// Drop every handler a package registered, keeping the editor's own
+    /// (Scene, Asset).
     ///
     /// Required before FreeLibrary on any package DLL: AssetTypeHandler holds
     /// std::functions built by package code, and a std::function carries a
@@ -93,7 +94,11 @@ public:
     void Clear();
 
 private:
-    AssetTypeRegistry() = default;
+    AssetTypeRegistry();
+    // The editor's own types. Registered here rather than by the editor at
+    // startup, so a Clear (every project switch and package reload) cannot
+    // lose them: it once did, and .scene files dropped out of the pipeline.
+    void RegisterBuiltInTypes();
     std::vector<AssetTypeHandler> m_Types;
     std::unordered_map<std::string, AssetCategory> m_ExtensionCategory;  // ext (lowercase) -> category
 };

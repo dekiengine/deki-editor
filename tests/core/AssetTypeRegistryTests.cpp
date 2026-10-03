@@ -441,3 +441,20 @@ TEST_F(AssetTypeRegistryTest, DefaultContent_IsValidJson_ForAllRegisteredTypes)
         }
     }
 }
+
+// Clear runs on every project switch and package reload. It once dropped the
+// editor's own Scene type with the packages' ones, and .scene files fell out of
+// the asset pipeline until a restart.
+TEST_F(AssetTypeRegistryTest, Clear_KeepsBuiltInTypes)
+{
+    auto& registry = AssetTypeRegistry::Instance();
+    registry.Register(CreateTestHandler("TestTypeCleared", ".testcleared"));
+    registry.Clear();
+
+    EXPECT_EQ(registry.GetHandlerForExtension(".testcleared"), nullptr);
+    const AssetTypeHandler* scene = registry.GetHandlerForExtension(".scene");
+    ASSERT_NE(scene, nullptr);
+    EXPECT_EQ(scene->typeName, "Scene");
+    EXPECT_EQ(registry.GetCategoryForExtension(".scene"), AssetCategory::Scene);
+    EXPECT_NE(registry.GetHandlerForExtension(".asset"), nullptr);
+}

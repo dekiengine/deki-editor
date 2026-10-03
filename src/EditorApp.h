@@ -336,7 +336,6 @@ private:
     void DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax);
 
     void HandleKeyboardShortcuts();
-    void RegisterAssetTypes();
 
     // Wire Scene notifications (object destruction) to editor-side cache cleanup.
     // Call after every assignment to m_CurrentScene.

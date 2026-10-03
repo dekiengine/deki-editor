@@ -147,9 +147,6 @@ EditorApp::EditorApp()
     m_ProjectSettingsPanel = std::make_unique<ProjectSettingsPanel>(this);
     m_EditorSettingsPanel = std::make_unique<EditorSettingsPanel>(this);
 
-    // Register asset types for right-click creation
-    RegisterAssetTypes();
-
     // Construct ToolHost and wire the per-tool progress callback. The actual
     // DiscoverTools() walk is deferred to OpenProject - bin/ packages may
     // register additional windows and that path always rebuilds the list
@@ -1436,38 +1433,6 @@ void EditorApp::DrawRecoveryDiscardConfirm()
     }
 }
 
-void EditorApp::RegisterAssetTypes()
-{
-    // Register Scene as a creatable asset type
-    AssetTypeHandler sceneHandler;
-    sceneHandler.typeName = "Scene";
-    sceneHandler.displayName = "Scene";
-    sceneHandler.extensions = { ".scene" };
-    // formatVersion: Deki::AuthoredFormat::SceneVersion (AuthoredFormat.h).
-    sceneHandler.defaultContent = R"({
-  "formatVersion": 1,
-  "objects": [{"name": "Root", "children": []}]
-})";
-    sceneHandler.compilesTo = AssetCompileTarget::Data;
-    sceneHandler.category = AssetCategory::Scene;
-    AssetTypeRegistry::Instance().Register(sceneHandler);
-
-    // Register .asset - the generic JSON envelope for procedural / custom asset types.
-    // Packages that own a specific asset shape (e.g. ProceduralSprite) layer their own
-    // AssetTypeEditor on top via REGISTER_EDITOR; this registration makes the bare
-    // ".asset" extension resolve to the "Asset" type for AssetPipeline lookups.
-    AssetTypeHandler assetHandler;
-    assetHandler.typeName = "Asset";
-    assetHandler.displayName = "Asset";
-    assetHandler.extensions = { ".asset" };
-    assetHandler.compilesTo = AssetCompileTarget::None;
-    assetHandler.category = AssetCategory::Procedural;
-    AssetTypeRegistry::Instance().Register(assetHandler);
-
-    // Note: RenderPipeline is registered by deki-rendering package via RenderPipelineEditor
-    // Note: FrameAnimation, Sprite, BitmapFont are registered by deki-2d package
-}
-
 void EditorApp::DrawMaintenanceConfirm()
 {
     static bool s_Open = false;
@@ -1743,6 +1708,18 @@ bool EditorApp::DeleteObjects(const std::vector<Deki::Object*>& objects)
         return false;
     if (targets.size() == 1)
         return DeleteObject(targets[0]);
+
+    // Each delete records its index before any of them runs, and undo puts
+    // them back in reverse order. Deleting from the last sibling up makes that
+    // reverse order first-to-last, so every index is right again when its
+    // object returns; in selection order, undo could reorder the siblings.
+    auto indexOf = [scene](Deki::Object* obj)
+    {
+        Deki::Object* parent = obj->GetParent();
+        return parent ? parent->GetChildIndex(obj) : scene->GetObjectIndex(obj);
+    };
+    std::stable_sort(targets.begin(), targets.end(),
+                     [&](Deki::Object* a, Deki::Object* b) { return indexOf(a) > indexOf(b); });
 
     std::vector<std::unique_ptr<Command>> commands;
     for (Deki::Object* obj : targets)

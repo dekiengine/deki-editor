@@ -12,6 +12,44 @@ AssetTypeRegistry& AssetTypeRegistry::Instance()
     return instance;
 }
 
+AssetTypeRegistry::AssetTypeRegistry()
+{
+    RegisterBuiltInTypes();
+}
+
+void AssetTypeRegistry::RegisterBuiltInTypes()
+{
+    // Scene: a creatable asset type.
+    AssetTypeHandler sceneHandler;
+    sceneHandler.typeName = "Scene";
+    sceneHandler.displayName = "Scene";
+    sceneHandler.extensions = { ".scene" };
+    // formatVersion: Deki::AuthoredFormat::SceneVersion (AuthoredFormat.h).
+    sceneHandler.defaultContent = R"({
+  "formatVersion": 1,
+  "objects": [{"name": "Root", "children": []}]
+})";
+    sceneHandler.compilesTo = AssetCompileTarget::Data;
+    sceneHandler.category = AssetCategory::Scene;
+    Register(sceneHandler);
+
+    // .asset: the generic JSON envelope for procedural / custom asset types.
+    // Packages that own a specific asset shape (e.g. ProceduralSprite) layer
+    // their own AssetTypeEditor on top via REGISTER_EDITOR; this makes the
+    // bare ".asset" extension resolve to the "Asset" type for AssetPipeline
+    // lookups.
+    AssetTypeHandler assetHandler;
+    assetHandler.typeName = "Asset";
+    assetHandler.displayName = "Asset";
+    assetHandler.extensions = { ".asset" };
+    assetHandler.compilesTo = AssetCompileTarget::None;
+    assetHandler.category = AssetCategory::Procedural;
+    Register(assetHandler);
+
+    // RenderPipeline is registered by deki-rendering; FrameAnimation, Sprite
+    // and BitmapFont by deki-2d.
+}
+
 void AssetTypeRegistry::Register(const AssetTypeHandler& handler)
 {
     // Replace an existing entry with the same type name (last registration
@@ -149,6 +187,7 @@ void AssetTypeRegistry::Clear()
 {
     m_Types.clear();
     m_ExtensionCategory.clear();
+    RegisterBuiltInTypes();
 }
 
 void AssetTypeRegistry::RegisterCategory(const std::string& extension, AssetCategory category)
