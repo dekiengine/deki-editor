@@ -171,10 +171,24 @@ void ToolHost::OpenTool(const char* name)
     }
 }
 
-bool ToolHost::OpenToolForFile(const char* filePath, const char* cachePath)
+bool ToolHost::OpenToolForFile(const char* filePath, const char* cachePath, const char* toolTitle)
 {
     if (!filePath)
         return false;
+
+    if (toolTitle && toolTitle[0])
+    {
+        for (auto& instance : m_Windows)
+        {
+            if (instance.window && std::strcmp(instance.window->GetTitle(), toolTitle) == 0)
+            {
+                instance.window->SetOpen(true);
+                instance.window->OnOpen();
+                instance.window->OpenFile(filePath, cachePath ? cachePath : "");
+                return true;
+            }
+        }
+    }
 
     // Get file extension
     std::filesystem::path path(filePath);

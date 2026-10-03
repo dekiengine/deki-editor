@@ -240,7 +240,17 @@ void NodeCanvas::Draw(const char* id, float width, float height,
                 maxX = std::fmax(maxX, nodes[i].x + NodeWidth(nodes[i]));
                 maxY = std::fmax(maxY, nodes[i].y + NodeHeight(nodes[i]));
             }
-            m_Zoom = 1.0f;
+            // Fit it all, with a margin: zoom out as far as the content needs
+            // (down to the wheel's 25 %), never in past 100 %. Always 100 %
+            // centred the content and left a wide graph spilling off both
+            // sides, which also made "Frame all" look like it did nothing.
+            const float margin = 40.0f * dpi;
+            const float contentW = (maxX - minX) * dpi;
+            const float contentH = (maxY - minY) * dpi;
+            float fit = 1.0f;
+            if (contentW > 0.0f && contentH > 0.0f)
+                fit = std::fmin((width - margin * 2.0f) / contentW, (height - margin * 2.0f) / contentH);
+            m_Zoom = Clampf(fit, 0.25f, 1.0f);
             s = m_Zoom * dpi;
             m_PanX = width * 0.5f - (minX + maxX) * 0.5f * s;
             m_PanY = height * 0.5f - (minY + maxY) * 0.5f * s;

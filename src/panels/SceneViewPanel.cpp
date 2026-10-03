@@ -653,10 +653,22 @@ void SceneViewPanel::DrawSceneCanvas()
                 float* heightPtr = nullptr;
                 if (FindResizeProperties(comp, meta, &widthPtr, &heightPtr))
                 {
+                    // 0 means "size from the content" (a sprite's own pixels):
+                    // start the drag from the size drawn, or the first frame
+                    // collapses the object to the cursor's offset from nothing.
+                    float startW = *widthPtr, startH = *heightPtr;
+                    float drawnW = 0.0f, drawnH = 0.0f;
+                    if ((startW <= 0.0f || startH <= 0.0f) && m_Measurer->GetDisplaySize(selected, drawnW, drawnH))
+                    {
+                        const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
+                        if (startW <= 0.0f && ppm > 0.0f) startW = drawnW / ppm;
+                        if (startH <= 0.0f && ppm > 0.0f) startH = drawnH / ppm;
+                    }
                     m_Gizmos->StartResizeDrag(m_Gizmos->GetHoveredEdge(),
-                                              *widthPtr, *heightPtr,
+                                              startW, startH,
                                               mousePos.x, mousePos.y,
-                                              selected->GetWorldX(), selected->GetWorldY());
+                                              selected->GetWorldX(), selected->GetWorldY(),
+                                              *widthPtr, *heightPtr);
                     break;
                 }
             }

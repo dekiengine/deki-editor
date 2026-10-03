@@ -61,7 +61,9 @@ public:
      * @brief Open a tool/window for a specific file
      * @return true if a tool was found that can handle the file
      */
-    bool OpenToolForFile(const char* filePath, const char* cachePath = nullptr);
+    // `toolTitle` opens that window (by GetTitle()) for the file; null or
+    // empty lets the file's type choose.
+    bool OpenToolForFile(const char* filePath, const char* cachePath = nullptr, const char* toolTitle = nullptr);
 
     int GetWindowCount() const { return static_cast<int>(m_Windows.size()); }
     EditorWindow* GetWindow(int index) const;

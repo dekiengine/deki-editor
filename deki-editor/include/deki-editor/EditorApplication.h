@@ -156,20 +156,28 @@ public:
     // to dispatch an EditorWindow for a given file)
     // =========================================================================
 
-    void RequestOpenTool(const std::string& filePath, const std::string& cachePath)
+    // `toolTitle` names the window to open (its GetTitle()); empty lets the
+    // file's type pick, which for a .png is whichever tool claims it first.
+    void RequestOpenTool(const std::string& filePath, const std::string& cachePath,
+                         const std::string& toolTitle = {})
     {
         m_OpenToolFilePath = filePath;
         m_OpenToolCachePath = cachePath;
+        m_OpenToolTitle = toolTitle;
         m_OpenToolRequested = true;
     }
 
-    bool PopOpenToolRequest(std::string& outFilePath, std::string& outCachePath)
+    bool PopOpenToolRequest(std::string& outFilePath, std::string& outCachePath,
+                            std::string* outToolTitle = nullptr)
     {
         if (!m_OpenToolRequested) return false;
         outFilePath = std::move(m_OpenToolFilePath);
         outCachePath = std::move(m_OpenToolCachePath);
+        if (outToolTitle)
+            *outToolTitle = std::move(m_OpenToolTitle);
         m_OpenToolFilePath.clear();
         m_OpenToolCachePath.clear();
+        m_OpenToolTitle.clear();
         m_OpenToolRequested = false;
         return true;
     }
@@ -227,6 +235,19 @@ private:
     // Scene-tool request (set by package-DLL editors, drained by EditorApp)
     bool m_SceneToolRequested = false;
     SceneEditTool m_RequestedSceneTool = SceneEditTool::Select;
+
+    // Open-tool request: the window asked for by title, if any (see RequestOpenTool).
+    std::string m_OpenToolTitle;
+
+    // The asset selected in the Asset Browser, project-relative (see
+    // GetSelectedAssetPath).
+    std::string m_SelectedAssetPath;
+
+public:
+    // The asset selected in the Asset Browser, as a project-relative path; ""
+    // when none. For tool windows that work on "the selected asset".
+    const std::string& GetSelectedAssetPath() const { return m_SelectedAssetPath; }
+    void SetSelectedAssetPath(const std::string& path) { m_SelectedAssetPath = path; }
 };
 
 }  // namespace DekiEditor

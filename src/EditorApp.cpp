@@ -458,10 +458,10 @@ void EditorApp::Update()
 
     // Check if a package-DLL editor asked us to dispatch a tool window
     {
-        std::string toolFile, toolCache;
-        if (EditorApplication::Get().PopOpenToolRequest(toolFile, toolCache))
+        std::string toolFile, toolCache, toolTitle;
+        if (EditorApplication::Get().PopOpenToolRequest(toolFile, toolCache, &toolTitle))
         {
-            m_ToolHost->OpenToolForFile(toolFile.c_str(), toolCache.c_str());
+            m_ToolHost->OpenToolForFile(toolFile.c_str(), toolCache.c_str(), toolTitle.c_str());
         }
     }
 
@@ -755,6 +755,7 @@ void EditorApp::SetSelectedAsset(const std::string& path, const std::string& cac
                                  const std::string& guid)
 {
     m_Selection.SetSelectedAsset(path, cachePath, hasCached, guid);
+    EditorApplication::Get().SetSelectedAssetPath(path);
 
     // Auto-compile asset if not cached
     if (!hasCached && m_AssetPipeline && !path.empty())

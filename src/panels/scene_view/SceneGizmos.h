@@ -53,9 +53,12 @@ public:
     // Start resize drag. startWidth/startHeight are the component's size in
     // world meters (all sizeable components store meters since the
     // meters-internal migration).
+    // `storedWidth`/`storedHeight`: the component's own values when they
+    // differ from the start size (0 = sizes itself); -1 = same as the start.
     void StartResizeDrag(ResizeEdge edge, float startWidth, float startHeight,
                          float startMouseX, float startMouseY,
-                         float startObjX, float startObjY);
+                         float startObjX, float startObjY,
+                         float storedWidth = -1.0f, float storedHeight = -1.0f);
 
     // Handle resize drag (call each frame while dragging)
     // When anchorEdge is true, the opposite edge stays fixed (object moves).
@@ -79,6 +82,11 @@ private:
     ResizeEdge m_HoveredEdge = ResizeEdge::None;
     ResizeEdge m_DraggingEdge = ResizeEdge::None;
     float m_ResizeStartWidth = 0.0f;
+    // The stored width/height before the drag. Differs from the start size
+    // when the component sizes itself (0 = auto): the drag measures from what
+    // is drawn, but undo must put the 0 back.
+    float m_ResizeRestoreWidth = 0.0f;
+    float m_ResizeRestoreHeight = 0.0f;
     float m_ResizeStartHeight = 0.0f;
     float m_ResizeStartX = 0.0f;  // Mouse position when drag started
     float m_ResizeStartY = 0.0f;

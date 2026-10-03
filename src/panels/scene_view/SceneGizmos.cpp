@@ -353,11 +353,14 @@ void SceneGizmos::UpdateResizeHover(Deki::Object* obj)
 
 void SceneGizmos::StartResizeDrag(ResizeEdge edge, float startWidth, float startHeight,
                                   float startMouseX, float startMouseY,
-                                  float startObjX, float startObjY)
+                                  float startObjX, float startObjY,
+                                  float storedWidth, float storedHeight)
 {
     m_DraggingEdge = edge;
     m_ResizeStartWidth = startWidth;
     m_ResizeStartHeight = startHeight;
+    m_ResizeRestoreWidth = storedWidth < 0.0f ? startWidth : storedWidth;
+    m_ResizeRestoreHeight = storedHeight < 0.0f ? startHeight : storedHeight;
     m_ResizeStartX = startMouseX;
     m_ResizeStartY = startMouseY;
     m_ResizeStartObjX = startObjX;
@@ -569,26 +572,25 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             float finalObjX = obj->GetWorldX();
             float finalObjY = obj->GetWorldY();
 
-            // Restore original values before executing command
-            *resizableWidthPtr = m_ResizeStartWidth;
-            *resizableHeightPtr = m_ResizeStartHeight;
+            // Restore the stored values before executing the command, so its
+            // undo returns to them (0 for a self-sizing component, not the
+            // measured size the drag started from).
+            *resizableWidthPtr = m_ResizeRestoreWidth;
+            *resizableHeightPtr = m_ResizeRestoreHeight;
             obj->SetWorldPosition(m_ResizeStartObjX, m_ResizeStartObjY);
 
-            // Execute compound command for size + position change
+            // One undo step for the whole drag: size and the position that
+            // keeps the opposite edge put used to be two.
+            std::vector<std::unique_ptr<Command>> steps;
             if (sizeChanged)
-            {
-                CommandHistory::Instance().Execute(
-                    std::make_unique<ModifyFieldPairCommand<float>>(
-                        resizableWidthPtr, resizableHeightPtr,
-                        finalWidth, finalHeight,
-                        "Resize"));
-            }
+                steps.push_back(std::make_unique<ModifyFieldPairCommand<float>>(
+                    resizableWidthPtr, resizableHeightPtr, finalWidth, finalHeight, "Resize"));
             if (posChanged)
-            {
-                CommandHistory::Instance().Execute(
-                    std::make_unique<SetWorldPositionCommand>(
-                        obj, finalObjX, finalObjY, "Move (Resize)"));
-            }
+                steps.push_back(std::make_unique<SetWorldPositionCommand>(obj, finalObjX, finalObjY, "Move (Resize)"));
+            if (steps.size() == 1)
+                CommandHistory::Instance().Execute(std::move(steps[0]));
+            else
+                CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>("Resize", std::move(steps)));
         }
         if (m_Snapping)
             m_Snapping->ClearSnapLines();
