@@ -12,6 +12,8 @@
 #include <deki/assets/AssetLookupTable.h>
 #include <deki/Object.h>
 #include <deki/Engine.h>
+#include <deki/assets/Texture2D.h>
+#include <deki/providers/Memory.h>
 #include "LifecycleManager.h"
 #include <deki-editor/FileIO.h>
 
@@ -275,4 +277,27 @@ TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
     const size_t capBefore = scene.GetActiveComponents().capacity();
     lm->ProcessUpdate(&scene);
     EXPECT_EQ(scene.GetActiveComponents().capacity(), capBefore);
+}
+
+// A texture header from a corrupt file: 65536 x 65536 one-byte pixels is
+// 2^32 bytes, which wrapped to 0 in 32-bit arithmetic and so "matched" a
+// dataSize of 0. The check is done in 64 bits now.
+TEST(EngineHardening, TextureSizeThatWrapsIn32BitsIsRejected)
+{
+    Deki::Texture2D::Header h{};
+    std::memcpy(h.magic, "2DTX", 4);
+    h.version = 1;
+    h.width = 65536;
+    h.height = 65536;
+    h.format = Deki::Texture2D::TextureFormat::ALPHA8;
+    h.dataSize = 0;
+    EXPECT_FALSE(Deki::Texture2D::ValidateHeader(h));
+}
+
+// A size no allocation can have (read from a corrupt file) is refused rather
+// than wrapped into a small allocation by the header and rounding.
+TEST(EngineHardening, AnImpossibleAllocationSizeIsRefused)
+{
+    EXPECT_EQ(Deki::Memory::Allocate(SIZE_MAX - 8, Deki::Memory::Internal), nullptr);
+    EXPECT_EQ(Deki::Memory::Allocate(SIZE_MAX - 8, Deki::Memory::External), nullptr);
 }

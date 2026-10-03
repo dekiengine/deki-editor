@@ -129,6 +129,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   package restores on a slow network, and symbol lookup during a crash
   report. The MCP server no longer keeps every reply for an event stream
   nobody opened.
+- **Devices refuse damaged files instead of crashing.** Sizes read from a
+  texture, sprite, Tiled map or mesh file are checked in 64 bits, so a
+  corrupt one can no longer wrap to a small buffer on a 32-bit board and be
+  written past; the allocator refuses impossible sizes. Maps need chunk
+  sides of 1 to 1024 tiles (the baker says so when a map has more). A scene
+  or a pinned asset too big for the free RAM fails to load instead of
+  resetting the board.
+- ESP32 boards: PSRAM works on the classic ESP32 (every PSRAM allocation
+  failed there), WiFi initialises the flash storage it needs, and Bluetooth
+  starts on first use instead of before FreeRTOS was running.
 
 ## 0.17.0 - 2026-09-30
 
