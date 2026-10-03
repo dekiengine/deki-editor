@@ -232,6 +232,11 @@ public:
     // which package is currently being processed.
     std::function<void(const std::string& packageName)> OnPackageLoading;
 
+    // Fired before a package's library is shut down and freed, for whatever
+    // the editor holds that the package created (build backends, installers):
+    // its code and vtables go with the library.
+    std::function<void(const std::string& packageName)> OnPackageUnloading;
+
     // Shared utilities (also used by HotReloadService)
     static std::string ResolveBuildDir(const std::string& packageDirectory);
     static std::string ResolveEnginePath(const std::string& buildDir);

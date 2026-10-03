@@ -1,6 +1,9 @@
 #include "EditorApp.h"
 #include "EditorVersion.h"
 #include "core/SceneStats.h"
+#include "services/PackageManager.h"
+#include "services/PackageLifetime.h"
+#include <deki-editor/build/BuilderRegistry.h>
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/EditorUI.h>
 #include <deki-editor/EditorPaths.h>
@@ -110,6 +113,12 @@ EditorApp::EditorApp()
     // Actual loading is deferred to OpenProject for per-project isolation.
     StartupProgress::Update("Building packages...");
     m_PackageLoader = std::make_unique<PackageLoader>();
+    m_PackageLoader->OnPackageUnloading = [](const std::string& package)
+    {
+        PackageLifetime::ReleaseAll();
+        BuilderRegistry::Instance().RemovePackageBuilders(package);
+        ::PackageManager::ForgetPackageInstallers(package);
+    };
     {
         namespace fs = std::filesystem;
         std::string exeDir;
@@ -675,6 +684,11 @@ void EditorApp::ClearSelection()
 void EditorApp::SetCurrentScene(std::unique_ptr<::Deki::Scene> scene)
 {
     m_CurrentScene = std::move(scene);
+    // The scene view keys its cached camera on the scene's address, and a new
+    // scene can be allocated where the old one was (a project switch did this):
+    // the cache then served the old scene's freed camera.
+    if (m_SceneViewPanel)
+        m_SceneViewPanel->InvalidateSceneCamera();
     // Publish before registering callbacks: both read m_CurrentScene, and the
     // facade must never name a scene that has been freed.
     EditorApplication::Get().SetActiveScene(m_CurrentScene.get());

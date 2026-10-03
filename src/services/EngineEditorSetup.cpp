@@ -384,23 +384,37 @@ static void InstallEditorUIBackend()
                       const char* label, const ECB& cb)
     {
         static std::vector<uint8_t> s_old;
+        static bool s_started = false;
         if (ImGui::IsItemActivated())
         {
             s_old.assign(static_cast<const uint8_t*>(before),
                          static_cast<const uint8_t*>(before) + size);
             if (cb.onStartChange) cb.onStartChange(before);
+            s_started = true;
         }
         if (ImGui::IsItemEdited() && cb.onChange)
             cb.onChange(value);
-        if (ImGui::IsItemDeactivatedAfterEdit() && s_old.size() == size &&
-            std::memcmp(s_old.data(), value, size) != 0)
+        if (ImGui::IsItemDeactivated() && s_started)
         {
-            std::vector<uint8_t> newBytes(static_cast<const uint8_t*>(value),
-                                          static_cast<const uint8_t*>(value) + size);
-            if (cb.onEndChange) cb.onEndChange(s_old.data(), newBytes.data());
-            CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-                ownsStorage ? value : nullptr, size, s_old.data(), newBytes.data(),
-                label ? label : "", cb.onUndo, cb.onRedo));
+            // Every start gets its end, changed or not: a click that leaves
+            // the value alone, or the first click of a double-click into text
+            // entry, used to leave the live edit open for good, and the Play
+            // View re-rendered every frame from then on.
+            s_started = false;
+            if (ImGui::IsItemDeactivatedAfterEdit() && s_old.size() == size &&
+                std::memcmp(s_old.data(), value, size) != 0)
+            {
+                std::vector<uint8_t> newBytes(static_cast<const uint8_t*>(value),
+                                              static_cast<const uint8_t*>(value) + size);
+                if (cb.onEndChange) cb.onEndChange(s_old.data(), newBytes.data());
+                CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
+                    ownsStorage ? value : nullptr, size, s_old.data(), newBytes.data(),
+                    label ? label : "", cb.onUndo, cb.onRedo));
+            }
+            else if (cb.onEndChange && s_old.size() == size)
+            {
+                cb.onEndChange(s_old.data(), s_old.data());
+            }
         }
     };
     // Atomic-widget lifecycle (combo): the DLL calls this only when changed.
@@ -453,24 +467,35 @@ static void InstallEditorUIBackend()
         const size_t size = sizeof(float) * static_cast<size_t>(count);
         static std::vector<uint8_t> s_old;
         static int s_count = 0;
+        static bool s_started = false;
         if (ImGui::IsItemActivated())
         {
             s_old.assign(reinterpret_cast<const uint8_t*>(before),
                          reinterpret_cast<const uint8_t*>(before) + size);
             s_count = count;
             if (cb.onStartChange) cb.onStartChange(before);
+            s_started = true;
         }
         if (ImGui::IsItemEdited() && cb.onChange)
             cb.onChange(value);
-        if (ImGui::IsItemDeactivatedAfterEdit() && s_count == count && s_old.size() == size &&
-            std::memcmp(s_old.data(), value, size) != 0)
+        if (ImGui::IsItemDeactivated() && s_started)
         {
-            std::vector<uint8_t> newBytes(reinterpret_cast<const uint8_t*>(value),
-                                          reinterpret_cast<const uint8_t*>(value) + size);
-            if (cb.onEndChange) cb.onEndChange(s_old.data(), newBytes.data());
-            CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-                ownsStorage ? static_cast<void*>(value) : nullptr, size, s_old.data(), newBytes.data(),
-                label ? label : "", cb.onUndo, cb.onRedo));
+            // Every start gets its end, changed or not (see recordEdit).
+            s_started = false;
+            if (ImGui::IsItemDeactivatedAfterEdit() && s_count == count && s_old.size() == size &&
+                std::memcmp(s_old.data(), value, size) != 0)
+            {
+                std::vector<uint8_t> newBytes(reinterpret_cast<const uint8_t*>(value),
+                                              reinterpret_cast<const uint8_t*>(value) + size);
+                if (cb.onEndChange) cb.onEndChange(s_old.data(), newBytes.data());
+                CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
+                    ownsStorage ? static_cast<void*>(value) : nullptr, size, s_old.data(), newBytes.data(),
+                    label ? label : "", cb.onUndo, cb.onRedo));
+            }
+            else if (cb.onEndChange && s_old.size() == size)
+            {
+                cb.onEndChange(s_old.data(), s_old.data());
+            }
         }
         return changed;
     };

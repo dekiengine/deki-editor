@@ -26,14 +26,51 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
+namespace
+{
+// Every PackageManager alive, so an unloading package can take its installers
+// back from all of them: one is built wherever it is needed, and some live as
+// long as a panel.
+std::set<PackageManager*>& LiveManagers()
+{
+    static std::set<PackageManager*> s_Live;
+    return s_Live;
+}
+}  // namespace
+
 PackageManager::PackageManager(DekiEditor::EditorApp* app)
     : m_App(app)
 {
+    LiveManagers().insert(this);
     InitDefaultSources();
     InitDefaultInstallers();
 }
 
-PackageManager::~PackageManager() = default;
+PackageManager::~PackageManager()
+{
+    LiveManagers().erase(this);
+}
+
+void PackageManager::ForgetPackageInstallers(const std::string& package)
+{
+    if (package.empty())
+        return;
+    for (PackageManager* pm : LiveManagers())
+        for (size_t i = pm->m_Installers.size(); i-- > 0;)
+            if (i < pm->m_InstallerPackages.size() && pm->m_InstallerPackages[i] == package)
+            {
+                pm->m_Installers.erase(pm->m_Installers.begin() + static_cast<std::ptrdiff_t>(i));
+                pm->m_InstallerPackages.erase(pm->m_InstallerPackages.begin() + static_cast<std::ptrdiff_t>(i));
+            }
+}
+
+void PackageManager::RefreshPluginInstallers()
+{
+    for (PackageManager* pm : LiveManagers())
+        if (pm->m_App != nullptr)
+            if (DekiEditor::PackageLoader* loader = pm->m_App->GetPackageLoader())
+                DekiEditor::RegisterInstallersFromPackages(*loader, *pm);
+}
 
 void PackageManager::InitDefaultSources()
 {
@@ -56,6 +93,7 @@ DekiRegistrySource* PackageManager::GetRegistrySource()
 void PackageManager::InitDefaultInstallers()
 {
     m_Installers.push_back(std::make_unique<DekiPackageInstaller>());
+    m_InstallerPackages.emplace_back();
     // No ESP-IDF installer here any more: it arrives from
     // deki-esp32-integration, the same way a build backend does.
     // DekiPackageInstaller stays because a Deki package is what this editor
@@ -91,14 +129,17 @@ IPackageSource* PackageManager::GetSourceForUrl(const std::string& url)
 void PackageManager::RegisterInstaller(std::unique_ptr<IPackageInstaller> installer)
 {
     m_Installers.push_back(std::shared_ptr<IPackageInstaller>(std::move(installer)));
+    m_InstallerPackages.emplace_back();
 }
 
 void PackageManager::RegisterPluginInstaller(IPackageInstaller* installer,
-                                             void (*destroy)(IPackageInstaller*))
+                                             void (*destroy)(IPackageInstaller*),
+                                             const std::string& package)
 {
     if (installer == nullptr || destroy == nullptr)
         return;
     m_Installers.push_back(std::shared_ptr<IPackageInstaller>(installer, destroy));
+    m_InstallerPackages.push_back(package);
 }
 
 bool PackageManager::HasInstaller(const std::string& installerId) const

@@ -379,6 +379,7 @@ bool EditorApp::OpenProject(const std::string& path)
         // (Installers are picked up by PackageManager's own constructor, which
         // runs per instance rather than once per open.)
         RegisterBuildersFromPackages(*m_PackageLoader);
+        ::PackageManager::RefreshPluginInstallers();
     }
 
     // Re-apply settings now that package-owned sections exist.
@@ -1372,6 +1373,11 @@ void EditorApp::OnAfterPluginReload()
 
     // Re-discover tool windows (packages may have added/changed EditorWindows)
     m_ToolHost->DiscoverTools();
+
+    // The scene was rebuilt in place: the same Scene object, new components.
+    // A camera the Scene View cached from before points at a freed one.
+    if (m_SceneViewPanel)
+        m_SceneViewPanel->InvalidateSceneCamera();
 
     DEKI_LOG_DEBUG("EditorApp: Restored scene from memory after hot reload");
 }

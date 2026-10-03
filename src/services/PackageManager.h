@@ -66,7 +66,14 @@ public:
     /// module's destroy function. Its vtable and operator delete live over
     /// there, so this must never `delete` it.
     void RegisterPluginInstaller(IPackageInstaller* installer,
-                                 void (*destroy)(IPackageInstaller*));
+                                 void (*destroy)(IPackageInstaller*),
+                                 const std::string& package = {});
+
+    /// Every live PackageManager drops the installers `package` created.
+    /// Called before that package's library is unloaded (their code lives
+    /// there); RefreshPluginInstallers picks them up again after a reload.
+    static void ForgetPackageInstallers(const std::string& package);
+    static void RefreshPluginInstallers();
 
     /// The id of the editor's own installer, the one that clones Deki
     /// packages into <project>/packages. The only installer the editor knows.
@@ -153,6 +160,8 @@ private:
     // package module carries that module's own destroy function as its
     // deleter. Every iteration site stays as it was.
     std::vector<std::shared_ptr<IPackageInstaller>> m_Installers;
+    // The package each entry of m_Installers came from ("" for the editor's own).
+    std::vector<std::string> m_InstallerPackages;
     std::vector<PackageEntry> m_Packages;
     // "id|installed|locked" for every version mismatch already reported.
     std::set<std::string> m_WarnedVersionMismatch;

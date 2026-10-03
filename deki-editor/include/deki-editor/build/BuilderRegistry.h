@@ -31,7 +31,13 @@ public:
     /// Register a builder created by a loaded package module, with that
     /// module's destroy function. Its vtable and operator delete live over
     /// there, so the registry must never `delete` it.
-    void RegisterPluginBuilder(ITargetBuilder* builder, void (*destroy)(ITargetBuilder*));
+    void RegisterPluginBuilder(ITargetBuilder* builder, void (*destroy)(ITargetBuilder*),
+                               const std::string& package = {});
+
+    /// Destroy and forget every builder `package` registered. Called before
+    /// that package's library is unloaded: the builder's code and vtable live
+    /// there, and a builder left behind is called into after it is gone.
+    void RemovePackageBuilders(const std::string& package);
 
     /// The builder claiming a framework id.
     /// nullptr when nobody does; see BuilderDispatch.h for why there is no
@@ -94,6 +100,7 @@ private:
         ITargetBuilder* builder = nullptr;
         void (*destroy)(ITargetBuilder*) = nullptr;
         size_t moduleIndex = SIZE_MAX;  // index into m_PluginHandles
+        std::string package;            // the package that registered it, if any
     };
 
     std::vector<LoadedBuilder> m_Builders;

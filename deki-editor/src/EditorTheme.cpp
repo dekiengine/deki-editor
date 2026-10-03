@@ -1057,7 +1057,12 @@ void DrawAllTabTopAccents()
         if (!w || !w->DockNode || w->DockNode == lastNode)
             continue;
         lastNode = w->DockNode;
-        if (w->DockNode->HostWindow && w->DockNode->TabBar)
+        // Only a host drawn this frame. A dock node outlives its windows: on
+        // the project manager screen no panel is drawn, and after a minute
+        // ImGui frees the idle host's draw list buffers, so stamping onto it
+        // wrote through a freed pointer (crash after ~60 s on that screen).
+        ImGuiWindow* host = w->DockNode->HostWindow;
+        if (host && w->DockNode->TabBar && host->Active && !host->Hidden && host->LastFrameActive == g.FrameCount)
         {
             // Column edges = the dock node's true bounds (Pos.x..Pos.x+Size.x).
             // The bar's own BarRect is inset on both sides by border +

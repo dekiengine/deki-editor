@@ -1,4 +1,5 @@
 #include "ObjectInternal.h"
+#include "../services/PackageLifetime.h"
 #include "SceneViewPanel.h"
 #include "../PanelMaximize.h"
 #include "scene_view/SceneTextureCache.h"
@@ -170,9 +171,14 @@ SceneViewPanel::SceneViewPanel(EditorApp* app)
     m_EditorCameraObject->SetEditorOnly(true);  // Never saved to scene
 
     // Camera component created lazily in DrawSceneCanvas() - packages may not be loaded yet
+    // and is dropped before any package unloads (its code lives in deki-rendering).
+    PackageLifetime::OnBeforeUnload(this, [this]() { InvalidateEditorCamera(); });
 }
 
-SceneViewPanel::~SceneViewPanel() = default;
+SceneViewPanel::~SceneViewPanel()
+{
+    PackageLifetime::Forget(this);
+}
 
 void SceneViewPanel::InvalidateEditorCamera()
 {

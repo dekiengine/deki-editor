@@ -1,4 +1,5 @@
 #include "ObjectInternal.h"
+#include "../../services/PackageLifetime.h"
 #include <deki-editor/SceneView.h>
 #include "SceneInspector.h"
 #include "../../EditorApp.h"
@@ -19,10 +20,13 @@ namespace DekiEditor
 SceneInspector::SceneInspector(EditorApp* app)
     : m_App(app)
 {
+    // The preview camera is a package component: drop it before packages unload.
+    PackageLifetime::OnBeforeUnload(this, [this]() { Cleanup(); });
 }
 
 SceneInspector::~SceneInspector()
 {
+    PackageLifetime::Forget(this);
     Cleanup();
 }
 

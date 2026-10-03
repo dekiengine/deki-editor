@@ -23,6 +23,7 @@
 #include <deki-editor/CommandHistory.h>
 #include "../core/Commands.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
@@ -168,6 +169,13 @@ void InspectorPanel::InvalidatePreview()
 
 void InspectorPanel::Draw()
 {
+    // A live edit only lasts while a field is held. One left open with nothing
+    // held (its field vanished mid-edit: object deleted, panel closed) is
+    // closed here, or the Play View would re-render every frame for good.
+    if (m_LiveEditCount > 0 && ImGui::GetActiveID() == 0)
+        while (m_LiveEditCount > 0)
+            EndLiveEdit();
+
     if (!m_Open)
         return;
 

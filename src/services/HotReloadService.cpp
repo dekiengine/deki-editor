@@ -1,4 +1,6 @@
 #include "HotReloadService.h"
+#include "BuildersFromPackages.h"
+#include "PackageManager.h"
 #include <deki-editor/EditorNaming.h>
 #include "EngineEditorSetup.h"
 #include "hot_reload/SourceChangeDetector.h"
@@ -1981,6 +1983,9 @@ bool HotReloadService::ReloadPackagesAndPlugins()
     std::string packageDir = m_PackageLoader->GetPackageDirectory();
     int loadedCount = m_PackageLoader->LoadPackagesFromDirectory(packageDir, imguiCtx);
     DEKI_LOG_EDITOR("ReloadPackagesAndPlugins: loaded %d package DLL(s)", loadedCount);
+    // The unload took the packages' build backends and installers with it.
+    RegisterBuildersFromPackages(*m_PackageLoader);
+    ::PackageManager::RefreshPluginInstallers();
     CrashHandler::RefreshSymbols();
 
     if (loadedCount == 0)

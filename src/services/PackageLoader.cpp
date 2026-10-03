@@ -837,6 +837,8 @@ void PackageLoader::UnloadPackage(const std::string& name)
 
     if (it->handle)
     {
+        if (OnPackageUnloading)
+            OnPackageUnloading(it->name);
 #ifdef _WIN32
         auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)it->handle, "DekiPlugin_Shutdown");
         if (shutdown)
@@ -890,6 +892,12 @@ void PackageLoader::UnloadAllPackages()
     // and would dangle after FreeLibrary. Static initializers re-register them
     // when packages reload.
     Deki::SetupComponent::ClearEditorAutoFactories();
+
+    // Phase 0: whatever the editor holds that packages created goes first.
+    if (OnPackageUnloading)
+        for (auto& package : m_Packages)
+            if (package.handle)
+                OnPackageUnloading(package.name);
 
     // Phase 1: Call all shutdown functions first (while all packages are still loaded).
     // This is critical because shutdown code may reference types in other packages

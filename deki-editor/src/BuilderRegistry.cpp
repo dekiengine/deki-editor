@@ -105,16 +105,40 @@ void BuilderRegistry::RegisterBuilder(std::unique_ptr<ITargetBuilder> builder)
 }
 
 void BuilderRegistry::RegisterPluginBuilder(ITargetBuilder* builder,
-                                            void (*destroy)(ITargetBuilder*))
+                                            void (*destroy)(ITargetBuilder*),
+                                            const std::string& package)
 {
     if (builder == nullptr)
         return;
     LoadedBuilder entry;
     entry.builder = builder;
     entry.destroy = destroy;
+    entry.package = package;
     // No module index: a package DLL is unloaded by PackageLoader, not by this
     // registry. Shutdown() destroys the builder but frees no module.
     m_Builders.push_back(entry);
+}
+
+void BuilderRegistry::RemovePackageBuilders(const std::string& package)
+{
+    if (package.empty())
+        return;
+    for (auto it = m_Builders.begin(); it != m_Builders.end();)
+    {
+        if (it->package != package || it->builder == nullptr)
+        {
+            ++it;
+            continue;
+        }
+        // A build still running on the builder's thread would outlive it.
+        for (int i = 0; i < 200 && it->builder->IsBuilding(); ++i)
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (it->destroy != nullptr)
+            it->destroy(it->builder);
+        else
+            delete it->builder;
+        it = m_Builders.erase(it);
+    }
 }
 
 ITargetBuilder* BuilderRegistry::GetBuilder(const std::string& frameworkId)

@@ -707,6 +707,8 @@ set(EDITOR_SOURCES
     src/widgets/Toast.cpp
     src/widgets/Toast.h
     src/widgets/DrawListFx.h
+    src/services/PackageLifetime.cpp
+    src/services/PackageLifetime.h
     src/widgets/PopupMotion.cpp
     src/widgets/PopupMotion.h
     src/widgets/PressMotion.cpp
