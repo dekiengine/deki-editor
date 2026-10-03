@@ -95,7 +95,10 @@ private:
     int m_SelectedPortIndex = 0;
 
     // Partial line buffer (for lines that don't end in newline)
-    std::string m_PartialLine;
+    std::string m_PartialLine;  // the reader thread's alone
+    // Clear asks the reader to drop its partial line; clearing it from the UI
+    // thread raced the reader appending to it.
+    std::atomic<bool> m_DropPartialLine{ false };
 
     // Platform-specific handle
 #ifdef _WIN32

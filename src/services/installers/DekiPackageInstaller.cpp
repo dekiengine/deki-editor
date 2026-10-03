@@ -579,6 +579,38 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         }
     }
 
+    // The commit this version is. The lock records it, and restoring the same
+    // version must land on the same commit: a tag can be moved (a re-cut
+    // release, or a compromised upstream), and the code here is compiled and
+    // loaded without anyone reading it. Only the version the lock pins is
+    // checked, so choosing another version still works.
+    std::string headCommit;
+    if (RunGit({ "-C", dirArg, "rev-parse", "HEAD" }, headCommit) == 0)
+        while (!headCommit.empty() && (headCommit.back() == '\n' || headCommit.back() == '\r'))
+            headCommit.pop_back();
+    {
+        std::ifstream lockIn(fs::path(projectPath) / DekiEditor::GetPackageLockFileName());
+        const nlohmann::json lock = lockIn ? nlohmann::json::parse(lockIn, nullptr, false) : nlohmann::json();
+        const nlohmann::json* pinned = nullptr;
+        if (lock.is_object() && lock.contains("packages") && lock["packages"].is_object() &&
+            lock["packages"].contains(pkg.id))
+            pinned = &lock["packages"][pkg.id];
+        if (pinned && pinned->is_object() && pinned->value("installedVersion", "") == version)
+        {
+            const std::string want = pinned->value("commit", "");
+            if (!want.empty() && !headCommit.empty() && want != headCommit)
+            {
+                if (!isExistingClone)
+                    fs::remove_all(packageDir, ec);
+                callback(false, "'" + repoName + "' " + version + " is now commit " + headCommit.substr(0, 12) +
+                                    ", but the project's lock recorded " + want.substr(0, 12) +
+                                    ". The release was changed after the project pinned it. If that is expected, "
+                                    "remove the package and add it again to accept the new one.");
+                return;
+            }
+        }
+    }
+
     // Validate it is a package at all
     fs::path packageCmake = packageDir / "package.cmake";
     if (!IsPackageDirectory(packageDir))
@@ -627,6 +659,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         metaFile << "  \"id\": \"" << pkg.id << "\",\n";
         metaFile << "  \"url\": \"" << pkg.url << "\",\n";
         metaFile << "  \"version\": \"" << version << "\",\n";
+        if (!headCommit.empty())
+            metaFile << "  \"commit\": \"" << headCommit << "\",\n";
         metaFile << "  \"name\": \"" << pkg.name << "\"";
 
         if (!platformDeps.empty())

@@ -104,6 +104,8 @@ void PlatformManagerPanel::RefreshPlatformList()
 
 void PlatformManagerPanel::Draw()
 {
+    if (m_RefreshToolchainsPending.exchange(false))
+        RefreshToolchains();
     if (!m_Open)
         return;
 
@@ -846,7 +848,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
                 if (p.state == BuildState::Completed)
                 {
                     ActivityPanel::CompleteProcess(name + " Install");
-                    RefreshToolchains();
+                    m_RefreshToolchainsPending = true;  // on the main thread, in Draw
                 }
                 else if (p.state == BuildState::Failed)
                 {

@@ -34,9 +34,12 @@ private:
     bool m_NeedsDriveRefresh = true;
 
     // Deploy state
+    // Written by the deploy thread's progress callback, read while drawing:
+    // both under m_DeployMutex (the status string was read mid-assignment).
     bool m_IsDeploying = false;
     float m_DeployProgress = 0.0f;
     std::string m_DeployStatus;
+    mutable std::mutex m_DeployMutex;
 
     // Output log
     struct OutputLine

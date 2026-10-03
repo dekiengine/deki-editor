@@ -208,3 +208,38 @@ TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)
     EXPECT_TRUE(lock["packages"].contains("deki-used"));
     EXPECT_FALSE(lock["packages"].contains("deki-offer"));
 }
+
+// The lock records the commit each package's version is (from the installer's
+// .deki-package.json), so a restore can tell when a tag was moved. A package
+// not on disk yet keeps the commit the lock already had.
+TEST(PackageLock, RecordsTheCommitOfEachInstalledVersion)
+{
+    TempProject project;
+    project.Write("deki-packages.json",
+                  json{ { "schemaVersion", 1 },
+                        { "packages", { { "deki-here", { { "version", "1.0.0" } } },
+                                        { "deki-away", { { "version", "2.0.0" } } } } } });
+    project.Write("deki-packages-lock.json",
+                  json{ { "lockVersion", 1 },
+                        { "packages", { { "deki-away", { { "name", "deki-away" }, { "installedVersion", "2.0.0" },
+                                                         { "commit", "feedfacefeedfacefeedfacefeedfacefeedface" } } } } } });
+    const fs::path pkg = project.dir / "packages" / "deki-here";
+    fs::create_directories(pkg);
+    std::ofstream(pkg / "package.json") << R"({"name":"deki-here"})";
+    std::ofstream(pkg / ".deki-package.json")
+        << R"({"id":"deki-here","version":"1.0.0","commit":"0123456789abcdef0123456789abcdef01234567","name":"deki-here"})";
+
+    PackageManager mgr(nullptr);
+    mgr.LoadPackages(project.dir.string());
+    // As RefreshInstalledStatus finds it (no installer is registered here).
+    for (PackageEntry& p : mgr.GetPackages())
+        if (p.id == "deki-here")
+        {
+            p.isInstalled = true;
+            p.installedVersion = "1.0.0";
+        }
+    mgr.SavePackages(project.dir.string());
+    const json lock = project.Read("deki-packages-lock.json");
+    EXPECT_EQ(lock["packages"]["deki-here"].value("commit", ""), "0123456789abcdef0123456789abcdef01234567");
+    EXPECT_EQ(lock["packages"]["deki-away"].value("commit", ""), "feedfacefeedfacefeedfacefeedfacefeedface");
+}

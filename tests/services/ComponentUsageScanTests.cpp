@@ -136,3 +136,30 @@ TEST(ComponentUsageScan, AnUnreadableSceneCountsForNothing)
     const ComponentUsage u = ScanComponentUsage(p.root.string(), {}, {});
     EXPECT_TRUE(u.byType.empty());
 }
+
+// A package that is a link to a checkout elsewhere (how a package is
+// developed) is still reported under packages/<id>/: its own sources are not
+// evidence that a game uses it. Through the link they came out as
+// "../elsewhere/...", so every feature looked used and nothing was stripped.
+TEST(ComponentUsageScan, LinkedPackageSourcesKeepTheirPackagesPath)
+{
+    TempProject p;
+    const fs::path checkout = fs::temp_directory_path() / "deki-usage-scan-checkout";
+    fs::remove_all(checkout);
+    fs::create_directories(checkout);
+    std::ofstream(checkout / "Foo.cpp") << "struct FooComponent {};";
+    fs::create_directories(p.root / "packages");
+    std::error_code ec;
+    fs::create_directory_symlink(checkout, p.root / "packages" / "deki-foo", ec);
+    if (ec)
+    {
+        fs::remove_all(checkout);
+        GTEST_SKIP() << "cannot create a directory link here: " << ec.message();
+    }
+
+    const ComponentUsage u = ScanComponentUsage(p.root.string(), { "FooComponent" }, { "deki-foo" });
+    ASSERT_TRUE(u.Uses("FooComponent"));
+    EXPECT_EQ(u.byType.at("FooComponent")[0], "packages/deki-foo/Foo.cpp");
+    fs::remove(p.root / "packages" / "deki-foo", ec);
+    fs::remove_all(checkout);
+}

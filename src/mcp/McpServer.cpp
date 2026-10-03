@@ -212,10 +212,13 @@ bool McpServer::Start(int port)
                 std::string responseStr = future.get();
                 res.set_content(responseStr, "application/json");
 
-                // Also push to SSE stream
-                SseResponse sseResp;
-                sseResp.jsonStr = responseStr;
-                m_SseResponses.Push(std::move(sseResp));
+                // Also push to SSE stream, if one is listening
+                if (m_SseClients.load() > 0)
+                {
+                    SseResponse sseResp;
+                    sseResp.jsonStr = responseStr;
+                    m_SseResponses.Push(std::move(sseResp));
+                }
             }
             else
             {
@@ -245,6 +248,12 @@ bool McpServer::Start(int port)
         res.set_content_provider(
             "text/event-stream",
             [this](size_t /*offset*/, httplib::DataSink& sink) -> bool {
+                struct Listening
+                {
+                    std::atomic<int>& n;
+                    explicit Listening(std::atomic<int>& c) : n(c) { ++n; }
+                    ~Listening() { --n; }
+                } listening(m_SseClients);
                 // Send endpoint event first
                 std::string endpointEvent = "event: endpoint\ndata: /message\n\n";
                 sink.write(endpointEvent.c_str(), endpointEvent.size());

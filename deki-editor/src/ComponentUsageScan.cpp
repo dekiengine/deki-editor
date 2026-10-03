@@ -30,10 +30,12 @@ namespace
 
 std::string Relative(const fs::path& p, const fs::path& root)
 {
-    std::error_code ec;
-    fs::path rel = fs::relative(p, root, ec);
-    std::string s = (ec ? p : rel).generic_string();
-    return s;
+    // Lexical, never through links: fs::relative resolves them, so a package
+    // that is a symlink or junction (a developer's checkout) came out as
+    // "../packages/<id>/...", its own sources stopped matching "packages/<id>/",
+    // and every feature looked used: nothing was ever stripped.
+    fs::path rel = p.lexically_normal().lexically_relative(root.lexically_normal());
+    return (rel.empty() ? p : rel).generic_string();
 }
 
 // The name a component answers to now. A scene saved before a rename (or a

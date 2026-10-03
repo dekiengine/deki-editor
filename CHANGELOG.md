@@ -92,6 +92,43 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   minutes.
 - The package lock lists the project's packages only, not every package in
   the registry.
+- **Sprite frames keep their identity.** A frame's GUID comes from an id kept
+  in the image's `.data` file, not from its position, so a new grid size or a
+  fresh auto-detect no longer points scenes and animations at a different
+  frame. Frames that keep their rectangle (or mostly overlap) keep their id;
+  per-frame 9-slice borders follow it. Sheets that were never re-sliced keep
+  the file and the GUIDs they had.
+- Saving a scene keeps a prefab instance's overrides when the prefab cannot
+  be loaded at that moment (a merge conflict, a newer editor). They were
+  dropped.
+- A component no longer picks up property values of a deleted component that
+  happened to sit at the same memory address. They were written into the
+  scene on every save.
+- **Projects under folders with non-ASCII letters work on Windows**
+  (`C:\Users\José\...`): the editor runs with UTF-8 as its code page, so
+  scenes and `.data` files there load. Folder names with spaces or such
+  letters also build: the code's build target replaces what CMake does not
+  allow.
+- New GUIDs use 122 random bits; they had 32, so two assets could collide in
+  a big project. When two `.data` files carry one GUID, the same file keeps it
+  on every machine (the first by path), not whichever the folder listing
+  showed first.
+- A compiled cache is rebuilt whenever its source or `.data` file is not the
+  one it was built from, also when a backup restored an older file. Caches
+  are written in one step, so a crash cannot leave a cut-off one that looks
+  current. Exports also rebuild a target's copy when the screen's colour
+  format changes.
+- The strip plan works with packages that are links to a checkout (it
+  stripped nothing), and an unknown `--platform` is an error.
+- Platform files with an unsafe id (`../`) are not loaded; line breaks are
+  removed from display names, which are written into build files.
+- The package lock records the commit of each package's version, and a
+  restore refuses when that version now points at a different commit.
+- Fixed races: SD card deploy progress, Serial Monitor Clear, a toolchain
+  install finishing, a firmware build's status after a package reload,
+  package restores on a slow network, and symbol lookup during a crash
+  report. The MCP server no longer keeps every reply for an event stream
+  nobody opened.
 
 ## 0.17.0 - 2026-09-30
 

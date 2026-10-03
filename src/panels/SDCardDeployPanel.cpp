@@ -75,12 +75,23 @@ void SDCardDeployPanel::Draw()
         ClearOutput();
     ui.EndToolbar();
 
-    if (m_IsDeploying)
+    // The deploy thread's progress, copied once under its lock.
+    bool deploying = false;
+    float deployProgress = 0.0f;
+    std::string deployStatus;
+    {
+        std::lock_guard<std::mutex> lock(m_DeployMutex);
+        deploying = m_IsDeploying;
+        deployProgress = m_DeployProgress;
+        deployStatus = m_DeployStatus;
+    }
+
+    if (deploying)
     {
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, Palette::Line);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-        ImGui::ProgressBar(Motion::Progress(ImGui::GetID("##deployprogress"), m_DeployProgress),
+        ImGui::ProgressBar(Motion::Progress(ImGui::GetID("##deployprogress"), deployProgress),
                            ImVec2(-FLT_MIN, 3.0f * ImGui::GetStyle().FontScaleDpi), "");
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(2);
@@ -107,11 +118,11 @@ void SDCardDeployPanel::Draw()
                 m_SelectedDrivePath = m_RemovableDrives[m_SelectedDriveIndex].first;
         }
     }
-    if (m_IsDeploying && !m_DeployStatus.empty())
+    if (deploying && !deployStatus.empty())
     {
         InspectorUtils::BeginPropertyRow("Status");
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(m_DeployStatus.c_str());
+        ImGui::TextUnformatted(deployStatus.c_str());
     }
     EndPropertyContext();
 
@@ -139,11 +150,14 @@ void SDCardDeployPanel::Draw()
                 m_Deployer->DeployToDrive(projectPath, m_SelectedDrivePath,
                                           [this](const DeployProgress& progress)
                                           {
-                                              m_IsDeploying = (progress.state != DeployState::Idle &&
-                                                               progress.state != DeployState::Completed &&
-                                                               progress.state != DeployState::Failed);
-                                              m_DeployProgress = progress.progress;
-                                              m_DeployStatus = progress.statusText;
+                                              {
+                                                  std::lock_guard<std::mutex> lock(m_DeployMutex);
+                                                  m_IsDeploying = (progress.state != DeployState::Idle &&
+                                                                   progress.state != DeployState::Completed &&
+                                                                   progress.state != DeployState::Failed);
+                                                  m_DeployProgress = progress.progress;
+                                                  m_DeployStatus = progress.statusText;
+                                              }
 
                                               if (!progress.statusText.empty())
                                               {

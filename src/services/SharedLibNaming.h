@@ -47,6 +47,27 @@ inline constexpr const char* kSharedLibPrefix = "";
 inline constexpr const char* kSharedLibPrefix = "lib";
 #endif
 
+/// The CMake target of a project's own code, which is also its library's
+/// name: "<folder>-components". CMake allows only letters, digits and _.+- in
+/// a target name, so anything else in the folder name (a space, a non-ASCII
+/// letter) becomes '_'. "My Game ü" used to stop every build with "target
+/// name is reserved or not valid".
+inline std::string ProjectPluginTarget(const std::string& projectFolderName)
+{
+    std::string name;
+    name.reserve(projectFolderName.size() + 11);
+    for (unsigned char c : projectFolderName)
+    {
+        const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
+                        c == '.' || c == '+' || c == '-';
+        if (ok)
+            name += static_cast<char>(c);
+        else if ((c & 0xC0) != 0x80)  // one '_' per character, not per UTF-8 byte
+            name += '_';
+    }
+    return name + "-components";
+}
+
 /// CMake target name -> the filename CMake produces for it.
 /// "deki-demo-components" -> "libdeki-demo-components.so" (Linux) / "...dll" (Windows)
 inline std::string SharedLibFileName(const std::string& targetName)

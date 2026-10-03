@@ -1,6 +1,8 @@
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/SubAsset.h>
 #include <deki-editor/AssetData.h>
+#include <deki-editor/FileIO.h>
+#include <algorithm>
 #include <array>
 #include <fstream>
 #include <filesystem>
@@ -181,7 +183,11 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         fs::create_directories(parentDir);
     }
 
-    std::ofstream file(path, std::ios::binary);
+    // Written beside the cache and renamed into place when complete: a crash
+    // mid-write used to leave a cut-off .dtex newer than its source, which
+    // then counted as up to date for good and was exported to devices.
+    const std::string tmpPath = path + ".tmp";
+    std::ofstream file(tmpPath, std::ios::binary | std::ios::trunc);
     if (!file.is_open())
         return false;
 
@@ -275,6 +281,8 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         }
 
         default:
+            file.close();
+            fs::remove(tmpPath);
             return false;
     }
 
@@ -565,7 +573,17 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         }
     }
 
-    return file.good();
+    file.flush();
+    const bool written = file.good();
+    file.close();
+    std::string err;
+    if (!written || !ReplaceFileWith(tmpPath, path, err, /*durable=*/false))
+    {
+        std::error_code ec;
+        fs::remove(tmpPath, ec);
+        return false;
+    }
+    return true;
 }
 
 bool TextureImporter::ReadSourceSize(const std::string& texPath, int& outWidth, int& outHeight)
@@ -888,6 +906,70 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
     return false;
 }
 
+void TextureImporter::CarryFrameIds(const std::vector<AtlasFrame>& previous, std::vector<AtlasFrame>& frames,
+                                    int32_t& nextId)
+{
+    auto idOf = [&](size_t i) { return previous[i].id >= 0 ? previous[i].id : static_cast<int32_t>(i); };
+    for (size_t i = 0; i < previous.size(); ++i)
+        nextId = std::max(nextId, idOf(i) + 1);
+
+    std::vector<bool> taken(previous.size(), false);
+    for (AtlasFrame& f : frames)
+        f.id = -1;
+
+    // Same rect: the same frame.
+    for (AtlasFrame& f : frames)
+        for (size_t i = 0; i < previous.size(); ++i)
+        {
+            const AtlasFrame& p = previous[i];
+            if (!taken[i] && p.x == f.x && p.y == f.y && p.width == f.width && p.height == f.height)
+            {
+                f.id = idOf(i);
+                taken[i] = true;
+                break;
+            }
+        }
+
+    // Mostly the same pixels: the same frame, cut a little differently.
+    auto overlap = [](const AtlasFrame& a, const AtlasFrame& b)
+    {
+        const int64_t w = std::min(a.x + a.width, b.x + b.width) - std::max(a.x, b.x);
+        const int64_t h = std::min(a.y + a.height, b.y + b.height) - std::max(a.y, b.y);
+        if (w <= 0 || h <= 0)
+            return 0.0;
+        const double inter = static_cast<double>(w) * static_cast<double>(h);
+        const double uni = static_cast<double>(a.width) * a.height + static_cast<double>(b.width) * b.height - inter;
+        return uni > 0.0 ? inter / uni : 0.0;
+    };
+    for (AtlasFrame& f : frames)
+    {
+        if (f.id >= 0)
+            continue;
+        double best = 0.0;
+        int bestIndex = -1;
+        for (size_t i = 0; i < previous.size(); ++i)
+        {
+            if (taken[i])
+                continue;
+            const double o = overlap(previous[i], f);
+            if (o >= 0.5 && o > best)  // a tie keeps the earlier frame
+            {
+                best = o;
+                bestIndex = static_cast<int>(i);
+            }
+        }
+        if (bestIndex >= 0)
+        {
+            f.id = idOf(static_cast<size_t>(bestIndex));
+            taken[static_cast<size_t>(bestIndex)] = true;
+        }
+    }
+
+    for (AtlasFrame& f : frames)
+        if (f.id < 0)
+            f.id = nextId++;
+}
+
 std::vector<SubAssetInfo> TextureImporter::GenerateFrameSubAssets(
     const std::string& parentGuid,
     int texWidth,
@@ -917,7 +999,8 @@ std::vector<SubAssetInfo> TextureImporter::GenerateFrameSubAssets(
                 int index = row * cols + col;
 
                 SubAssetInfo subAsset;
-                subAsset.guid = GenerateDeterministicGuid(parentGuid + ":" + std::to_string(index));
+                subAsset.frameId = settings.FrameId(static_cast<size_t>(index));
+                subAsset.guid = GenerateDeterministicGuid(parentGuid + ":" + std::to_string(subAsset.frameId));
                 subAsset.parentGuid = parentGuid;
                 subAsset.subAssetIndex = index;
 
@@ -942,7 +1025,8 @@ std::vector<SubAssetInfo> TextureImporter::GenerateFrameSubAssets(
             const auto& atlasFrame = settings.frames[i];
 
             SubAssetInfo subAsset;
-            subAsset.guid = GenerateDeterministicGuid(parentGuid + ":" + std::to_string(i));
+            subAsset.frameId = settings.FrameId(i);
+            subAsset.guid = GenerateDeterministicGuid(parentGuid + ":" + std::to_string(subAsset.frameId));
             subAsset.parentGuid = parentGuid;
             subAsset.subAssetIndex = static_cast<int>(i);
             subAsset.name = atlasFrame.name;

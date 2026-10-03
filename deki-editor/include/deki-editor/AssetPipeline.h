@@ -471,6 +471,23 @@ private:
     // OS-level file watcher (efsw, started after ImportAllAssets, drained by Tick).
     std::unique_ptr<AssetFileWatcher> m_FileWatcher;
 
+    // What each cache was compiled from (MakeCacheStamp), by GUID, kept in
+    // cache/cache_stamps.json. A cache is current only when this matches.
+    std::unordered_map<std::string, std::string> m_CacheStamps;
+    bool m_HaveStampFile = false;  // false: a project from before stamps; the old time rule decides once
+    bool m_StampsDirty = false;
+    void SaveCacheStamps();
+
+public:
+    /**
+     * What a cache built from this source now would be built from: the source's
+     * and its .data file's size and modification time, and the cache format
+     * version. Comparing for equality (not "is the source newer") catches a
+     * file restored from a backup or an unzip with an older time, and a cache
+     * format change. Also used for the per-target export cache.
+     */
+    std::string MakeCacheStamp(const std::string& absolutePath) const;
+
     // Singleton instance and startup callbacks
     static AssetPipeline* s_Instance;
     static std::vector<std::function<void(AssetPipeline*)>> s_OnStartedCallbacks;

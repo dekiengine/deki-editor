@@ -35,7 +35,8 @@ void AddObject(DeadMemory& dead, const Deki::Object* obj, bool recursive);
 void AddComponent(DeadMemory& dead, const Deki::Component* comp);
 
 /// Drop the undo steps that point into `obj`'s subtree / `comp`, which the
-/// caller is about to free outside Scene::DestroyDekiObject.
+/// caller is about to free outside Scene::DestroyDekiObject. ForgetComponent
+/// also drops the scene loader's record of it (Internal::ForgetComponentData).
 void ForgetObjectTree(const Deki::Object* obj);
 void ForgetComponent(const Deki::Component* comp);
 

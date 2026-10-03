@@ -63,6 +63,11 @@ struct DEKI_EDITOR_API AtlasFrame
     int32_t width = 0;
     int32_t height = 0;
     std::string name;  // Optional frame name
+    // The frame's identity, kept in the .data file. Its GUID is made from it,
+    // so a scene keeps pointing at the same frame when others are added or
+    // removed. -1: none stored, the frame's position is its id (every file
+    // from before ids existed, whose GUIDs therefore do not change).
+    int32_t id = -1;
 };
 
 // Optional sprite metadata to bake into texture file
@@ -77,12 +82,24 @@ struct DEKI_EDITOR_API SpriteSettings
     // Atlas mode settings
     std::vector<AtlasFrame> frames;
 
+    // Grid mode: each frame's id, row by row (see AtlasFrame::id). Empty or
+    // short: a frame's position is its id.
+    std::vector<int32_t> frameIds;
+
     // 9-slice borders (in pixels). hasNineSlice gates whether they're written.
     bool hasNineSlice = false;
     uint16_t nineSliceLeft = 0;
     uint16_t nineSliceRight = 0;
     uint16_t nineSliceTop = 0;
     uint16_t nineSliceBottom = 0;
+
+    /// The id of the frame at `index`, in frame order (atlas frames, or the grid row by row).
+    int32_t FrameId(size_t index) const
+    {
+        if (mode == SpriteSlicingMode::Atlas)
+            return index < frames.size() && frames[index].id >= 0 ? frames[index].id : static_cast<int32_t>(index);
+        return index < frameIds.size() && frameIds[index] >= 0 ? frameIds[index] : static_cast<int32_t>(index);
+    }
 
     bool HasData() const
     {
@@ -170,6 +187,18 @@ public:
                                                     uint8_t alphaThreshold = 10,
                                                     int minWidth = 1,
                                                     int minHeight = 1);
+
+    /**
+     * Give re-sliced frames the ids of the frames they replace, so references
+     * to a frame survive a new grid size or a fresh auto-detect. A frame
+     * with exactly the rect of an earlier one takes its id; then one that
+     * overlaps an earlier one by at least half (of their union) does; the
+     * rest get new ids from `nextId`, which never hands out an id twice
+     * (a reference to a deleted frame must not land on a new one).
+     * `previous` ids of -1 mean their position.
+     */
+    static void CarryFrameIds(const std::vector<AtlasFrame>& previous, std::vector<AtlasFrame>& frames,
+                              int32_t& nextId);
 
     /**
      * @brief Generate sprite frame sub-assets from sprite settings

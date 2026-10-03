@@ -98,31 +98,33 @@ std::string ReadAssetGuid(const std::string& assetPath)
 
 std::string GenerateGuid()
 {
+    // 122 random bits straight from the OS source. A mt19937 seeded with one
+    // random_device value per call could only ever produce 2^32 different
+    // GUIDs: about a 1% chance of two assets colliding at 10,000 assets.
     std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 15);
-    std::uniform_int_distribution<> dis2(8, 11);
+    uint8_t bytes[16];
+    for (int i = 0; i < 16; i += 4)
+    {
+        const uint32_t r = rd();
+        bytes[i] = static_cast<uint8_t>(r);
+        bytes[i + 1] = static_cast<uint8_t>(r >> 8);
+        bytes[i + 2] = static_cast<uint8_t>(r >> 16);
+        bytes[i + 3] = static_cast<uint8_t>(r >> 24);
+    }
+    bytes[6] = static_cast<uint8_t>((bytes[6] & 0x0F) | 0x40);  // version 4
+    bytes[8] = static_cast<uint8_t>((bytes[8] & 0x3F) | 0x80);  // RFC 4122 variant
 
-    std::stringstream ss;
-    ss << std::hex;
-
-    for (int i = 0; i < 8; i++)
-        ss << dis(gen);
-    ss << "-";
-    for (int i = 0; i < 4; i++)
-        ss << dis(gen);
-    ss << "-4";  // Version 4
-    for (int i = 0; i < 3; i++)
-        ss << dis(gen);
-    ss << "-";
-    ss << dis2(gen);  // Variant
-    for (int i = 0; i < 3; i++)
-        ss << dis(gen);
-    ss << "-";
-    for (int i = 0; i < 12; i++)
-        ss << dis(gen);
-
-    return ss.str();
+    static const char* hex = "0123456789abcdef";
+    std::string out;
+    out.reserve(36);
+    for (int i = 0; i < 16; ++i)
+    {
+        if (i == 4 || i == 6 || i == 8 || i == 10)
+            out += '-';
+        out += hex[bytes[i] >> 4];
+        out += hex[bytes[i] & 0x0F];
+    }
+    return out;
 }
 
 std::string GenerateDeterministicGuid(const std::string& seed)

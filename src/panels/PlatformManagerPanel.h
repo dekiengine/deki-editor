@@ -2,6 +2,7 @@
 
 #include "IPanel.h"
 
+#include <atomic>
 #include <string>
 #include <vector>
 #include <memory>
@@ -77,6 +78,11 @@ private:
 
     // Toolchains tab state
     bool m_HasCheckedVersions = false;
+    // Set by an install's completion callback, which runs on the installer's
+    // worker thread; the refresh itself runs on the main thread in Draw.
+    // Refreshing from the worker joined and reassigned other builders'
+    // worker threads while the main thread could do the same: std::terminate.
+    std::atomic<bool> m_RefreshToolchainsPending{ false };
     int m_SelectedBuilder = 0;            // selected toolchain in the left list
     float m_ToolchainLeftWidth = 220.0f;  // splitter width for the toolchains split
 };

@@ -2,6 +2,7 @@
 // Extracted from HotReloadService.cpp
 
 #include "BuildFileGenerator.h"
+#include "SharedLibNaming.h"
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/EditorPaths.h>
@@ -140,10 +141,10 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // it once instead of depending on where this file happens to sit.
     file << "get_filename_component(DEKI_PROJECT_ROOT \"${CMAKE_SOURCE_DIR}/..\" ABSOLUTE)\n";
     file << "cmake_policy(SET CMP0141 NEW)\n";
-    // Quoted, so a space or a parenthesis in the folder name is not CMake
-    // syntax; the name itself is kept as is, because "<folder>-components" is
-    // also the target HotReloadService builds and the plugin file it loads.
-    file << "project(\"" << CMakeGen::EscapeCMakeString(projectName) << "-components\")\n\n";
+    // The project (and so the plugin target, ${PROJECT_NAME}) is named by
+    // ProjectPluginTarget: the folder name with what CMake does not allow in a
+    // target name replaced. HotReloadService builds and loads the same name.
+    file << "project(\"" << CMakeGen::EscapeCMakeString(ProjectPluginTarget(projectName)) << "\")\n\n";
 
     // C++23, to match what the same package sources get when they are built
     // for a device: ESP-IDF forces -std=gnu++2b for chip targets (see

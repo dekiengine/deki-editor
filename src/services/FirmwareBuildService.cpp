@@ -128,10 +128,11 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     return true;
 }
 
-// The builder that owns the operation started most recently. Builders are owned
-// by BuilderRegistry (a singleton), so the pointer stays valid for the process
-// lifetime; this lets QueryStatus() report progress without re-running Prepare(),
-// which would call PlatformRegistry::Clear() underneath a running build.
+// The builder that owns the operation started most recently. This lets
+// QueryStatus() report progress without re-running Prepare(), which would call
+// PlatformRegistry::Clear() underneath a running build. Builders come from
+// packages now and are destroyed when those unload, so the pointer is checked
+// against the registry (ActiveBuilder) before every use.
 struct ActiveOp
 {
     ITargetBuilder* builder = nullptr;
@@ -140,6 +141,20 @@ struct ActiveOp
 };
 
 ActiveOp g_Active;
+
+// g_Active's builder, if it still exists. A package reload destroys the
+// builders it brought; status and cancel then called into freed memory.
+// Compared by address only, never dereferenced until found.
+ITargetBuilder* ActiveBuilder()
+{
+    if (!g_Active.builder)
+        return nullptr;
+    for (ITargetBuilder* b : BuilderRegistry::Instance().GetAllBuilders())
+        if (b == g_Active.builder)
+            return b;
+    g_Active = ActiveOp{};
+    return nullptr;
+}
 
 // Toolchain installs report through BuildProgressCallback rather than the
 // builder's BuildState, so their latest status is mirrored here for QueryStatus().
@@ -663,7 +678,7 @@ nlohmann::json FirmwareBuildService::QueryStatus()
 {
     nlohmann::json out;
 
-    if (!g_Active.builder)
+    if (!ActiveBuilder())
     {
         out["active"] = false;
         out["state"] = "idle";
@@ -729,7 +744,7 @@ nlohmann::json FirmwareBuildService::QueryStatus()
 
 bool FirmwareBuildService::CancelActive()
 {
-    if (!g_Active.builder || !g_Active.builder->IsBuilding())
+    if (!ActiveBuilder() || !g_Active.builder->IsBuilding())
         return false;
 
     g_Active.builder->Cancel();

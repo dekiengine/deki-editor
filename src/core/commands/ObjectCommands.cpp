@@ -91,7 +91,10 @@ AddComponentCommand::~AddComponentCommand()
 {
     // Undone and never redone: the command still owns the instance.
     if (m_Detached)
+    {
+        Deki::Internal::ForgetComponentData(m_Component);
         delete m_Component;
+    }
 }
 
 void AddComponentCommand::Execute()
@@ -139,7 +142,10 @@ RemoveComponentCommand::~RemoveComponentCommand()
 {
     // Removed and never undone: the command owns the instance.
     if (m_Detached)
+    {
+        Deki::Internal::ForgetComponentData(m_Component);
         delete m_Component;
+    }
 }
 
 void RemoveComponentCommand::Execute()

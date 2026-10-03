@@ -55,6 +55,8 @@ void ForgetComponent(const Deki::Component* comp)
     DeadMemory dead;
     AddComponent(dead, comp);
     CommandHistory::Instance().DiscardCommandsReferencing(dead);
+    // And what the scene loader recorded for it, keyed by its address.
+    Deki::Internal::ForgetComponentData(comp);
 }
 
 EditOwnerScope::EditOwnerScope(const void* owner)

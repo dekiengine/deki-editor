@@ -308,7 +308,7 @@ void HotReloadService::StartWatching(const std::string& projectPath)
     namespace fsx = std::filesystem;
     bool needsBuild = true;
     fsx::path projName = fsx::path(projectPath).filename();
-    fsx::path pluginDll = fsx::path(ProjectPaths::Runtime(projectPath)) / SharedLibFileName(projName.string() + "-components");
+    fsx::path pluginDll = fsx::path(ProjectPaths::Runtime(projectPath)) / SharedLibFileName(ProjectPluginTarget(projName.string()));
     std::error_code dllEc;
     if (fsx::exists(pluginDll, dllEc) && !dllEc)
     {
@@ -554,7 +554,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         // AssetManager-epoch bump (and the few hundred ms of unload/reload
         // work) on those reloads.
         {
-            fs::path tempDll = ProjectPaths::RuntimeBuildTemp(b.projectPath) / SharedLibFileName(fs::path(b.projectPath).filename().string() + "-components");
+            fs::path tempDll = ProjectPaths::RuntimeBuildTemp(b.projectPath) / SharedLibFileName(ProjectPluginTarget(fs::path(b.projectPath).filename().string()));
             std::error_code ec;
             if (!fs::exists(tempDll, ec))
             {
@@ -1255,7 +1255,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     // deferring the first build to here. So here has to do it: build everything
     // once, then let the incremental logic above apply from the next cycle on.
     std::string projectName = fs::path(projectPath).filename().string();
-    std::string pluginTarget = projectName + "-components";
+    std::string pluginTarget = ProjectPluginTarget(projectName);
 
     bool coldBuild = true;
     {

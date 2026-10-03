@@ -41,8 +41,8 @@ public:
     void FetchIndex(IndexCallback callback, bool forceRefresh = false);
 
     // Get cached index entries (from last FetchIndex call)
-    const std::vector<RegistryPackageEntry>& GetCachedIndex() const { return m_CachedIndex; }
-    bool HasCachedIndex() const { return !m_CachedIndex.empty(); }
+    const std::vector<RegistryPackageEntry>& GetCachedIndex() const { return m_Cache->index; }
+    bool HasCachedIndex() const { return !m_Cache->index.empty(); }
 
     // Parse registry index JSON into package entries (public for custom registry fetching)
     /// The registry index schema this editor understands. Newer indexes are
@@ -93,7 +93,14 @@ private:
     std::string RepoNameForPackage(const std::string& id) const;
 
     // Index cache
-    std::vector<RegistryPackageEntry> m_CachedIndex;
-    std::chrono::steady_clock::time_point m_IndexFetchTime;
-    mutable std::mutex m_CacheMutex;
+    // Shared with the fetch thread, which can finish after this source (and
+    // the PackageManager owning it) is destroyed: it captured `this` and wrote
+    // into freed memory when a fetch outlived a restore's temporary manager.
+    struct Cache
+    {
+        std::vector<RegistryPackageEntry> index;
+        std::chrono::steady_clock::time_point fetchTime;
+        std::mutex mutex;
+    };
+    std::shared_ptr<Cache> m_Cache = std::make_shared<Cache>();
 };

@@ -89,7 +89,7 @@ void SerialMonitorPanel::DrawToolbar()
     {
         std::lock_guard<std::mutex> lock(m_OutputMutex);
         m_OutputLines.clear();
-        m_PartialLine.clear();
+        m_DropPartialLine = true;
     }
     if (ui.ToolbarButton("DTR", true, m_DtrEnabled))
         m_DtrEnabled = !m_DtrEnabled;
@@ -520,6 +520,8 @@ void SerialMonitorPanel::ReadThreadFunc()
 
     while (m_Running)
     {
+        if (m_DropPartialLine.exchange(false))
+            m_PartialLine.clear();
 #ifdef _WIN32
         DWORD bytesRead = 0;
         if (ReadFile(m_SerialHandle, buffer, sizeof(buffer) - 1, &bytesRead, nullptr) && bytesRead > 0)

@@ -68,9 +68,42 @@ inline bool ReadFileToString(const std::string& path, std::string& out, std::str
 // fell back to remove-then-rename when the first rename failed, which deleted
 // the target *before* knowing the retry would succeed - so a lock or a full
 // disk at that moment destroyed the old file and never wrote the new one.
+// Rename a finished temp file over `target` in one step. On failure the
+// target is untouched and the temp file is kept. `durable` also waits for the
+// rename to reach the disk (Windows): what the user wrote; a cache, which can
+// be rebuilt, skips that wait.
+inline bool ReplaceFileWith(const std::filesystem::path& tmp, const std::filesystem::path& target, std::string& err,
+                            bool durable = true)
+{
+    namespace fs = std::filesystem;
+#ifdef _WIN32
+    // MoveFileExW replaces an existing destination in one step, so there is no
+    // window where the target is gone. MOVEFILE_WRITE_THROUGH additionally waits
+    // for the change to reach disk before returning.
+    const std::wstring wTmp = tmp.wstring();
+    const std::wstring wTarget = target.wstring();
+    if (::MoveFileExW(wTmp.c_str(), wTarget.c_str(),
+                      MOVEFILE_REPLACE_EXISTING | (durable ? MOVEFILE_WRITE_THROUGH : 0)))
+        return true;
+    err = "rename failed (win32 error " + std::to_string(::GetLastError()) + ")";
+    return false;
+#else
+    (void)durable;
+    std::error_code ec;
+    fs::rename(tmp, target, ec);
+    if (ec)
+    {
+        err = "rename failed: " + ec.message();
+        return false;
+    }
+    return true;
+#endif
+}
+
 inline bool AtomicWriteFile(const std::string& path,
                             std::string_view content,
-                            std::string& err)
+                            std::string& err,
+                            bool durable = true)
 {
     namespace fs = std::filesystem;
     fs::path target(path);
@@ -102,36 +135,9 @@ inline bool AtomicWriteFile(const std::string& path,
         // open handle, even on the same process.
     }
 
-#ifdef _WIN32
-    // MoveFileExW replaces an existing destination in one step, so there is no
-    // window where the target is gone. MOVEFILE_WRITE_THROUGH additionally waits
-    // for the change to reach disk before returning.
-    {
-        const std::wstring wTmp = tmp.wstring();
-        const std::wstring wTarget = target.wstring();
-        if (::MoveFileExW(wTmp.c_str(), wTarget.c_str(),
-                          MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-        {
-            return true;
-        }
-
-        err = "rename failed (win32 error " + std::to_string(::GetLastError()) + ")";
-        // Keep the .tmp: it holds the good content, and the destination still
-        // holds the previous version. Losing neither is the point.
-        return false;
-    }
-#else
-    {
-        std::error_code ec;
-        fs::rename(tmp, target, ec);
-        if (ec)
-        {
-            err = "rename failed: " + ec.message();
-            return false;
-        }
-        return true;
-    }
-#endif
+    // On failure the .tmp is kept: it holds the good content, and the
+    // destination still holds the previous version. Losing neither is the point.
+    return ReplaceFileWith(tmp, target, err, durable);
 }
 
 }  // namespace DekiEditor

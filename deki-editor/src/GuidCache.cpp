@@ -1,7 +1,9 @@
 #include <deki-editor/GuidCache.h>
 #include <deki-editor/AssetData.h>
 #include <deki-editor/FileIO.h>
+#include <algorithm>
 #include <filesystem>
+#include <vector>
 #include <fstream>
 #include <system_error>
 #include <nlohmann/json.hpp>
@@ -130,6 +132,30 @@ void GuidCache::Save(const std::string& cachePath) const
     DEKI_LOG_DEBUG("GuidCache: Saved %zu entries to %s", m_Entries.size(), cachePath.c_str());
 }
 
+namespace
+{
+// Every .data file under `root`, sorted by path. When two sidecars carry one
+// GUID (a folder copied with them), the first one seen keeps it and the other
+// gets a new one. Directory order differs between machines (NTFS vs ext4), so
+// a fresh clone on Windows and on Linux used to re-GUID DIFFERENT files, and
+// the same scene resolved to different assets. Sorted, the alphabetically
+// first path keeps the GUID everywhere.
+std::vector<fs::path> SortedSidecars(const std::string& root)
+{
+    std::vector<fs::path> out;
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(root, ec); !ec && it != fs::recursive_directory_iterator();
+         it.increment(ec))
+    {
+        if (it->is_regular_file(ec) && it->path().extension() == ".data")
+            out.push_back(it->path());
+    }
+    std::sort(out.begin(), out.end(),
+              [](const fs::path& a, const fs::path& b) { return a.generic_u8string() < b.generic_u8string(); });
+    return out;
+}
+}  // namespace
+
 void GuidCache::Rebuild(const std::string& assetsRoot)
 {
     m_AssetsRoot = assetsRoot;
@@ -144,17 +170,10 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
 
     // Recursively scan for .data files
     int count = 0;
-    for (const auto& dirEntry : fs::recursive_directory_iterator(assetsRoot))
+    for (const fs::path& sidecar : SortedSidecars(assetsRoot))
     {
-        if (!dirEntry.is_regular_file())
-            continue;
-
-        std::string ext = dirEntry.path().extension().string();
-        if (ext != ".data")
-            continue;
-
         // Get asset path (remove .data extension)
-        std::string dataPath = dirEntry.path().string();
+        std::string dataPath = sidecar.string();
         std::string assetAbsPath = dataPath.substr(0, dataPath.length() - 5);  // Remove ".data"
 
         // Convert to relative path
@@ -217,16 +236,9 @@ void GuidCache::Sync(const std::string& assetsRoot)
     int added = 0, updated = 0;
 
     // Scan for .data files
-    for (const auto& dirEntry : fs::recursive_directory_iterator(assetsRoot))
+    for (const fs::path& sidecar : SortedSidecars(assetsRoot))
     {
-        if (!dirEntry.is_regular_file())
-            continue;
-
-        std::string ext = dirEntry.path().extension().string();
-        if (ext != ".data")
-            continue;
-
-        std::string dataPath = dirEntry.path().string();
+        std::string dataPath = sidecar.string();
         std::string assetAbsPath = dataPath.substr(0, dataPath.length() - 5);
         std::string relativePath = fs::relative(assetAbsPath, assetsRoot).string();
         relativePath = NormalizePath(relativePath);

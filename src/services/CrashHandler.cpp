@@ -17,6 +17,8 @@
 #include <functional>
 #include <filesystem>
 #include <exception>
+#include <chrono>
+#include <mutex>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -59,6 +61,12 @@ static const char* s_PlayModePhase = nullptr;
 static const char* s_PlayModeSceneName = nullptr;
 static bool s_SymbolsInitialized = false;
 
+// DbgHelp is not thread-safe, and it is used from more than one thread: the
+// symbol refresh started on a worker when a project opens, a fault guard's
+// stack capture, a reload's refresh. One lock for every Sym* call. The crash
+// paths only wait a little for it, then go ahead: a report beats a deadlock.
+static std::recursive_timed_mutex s_SymLock;
+
 void CrashHandler::SetPreCrashCallback(std::function<void()> callback)
 {
     s_PreCrashCallback = std::move(callback);
@@ -77,6 +85,7 @@ std::string CrashHandler::GetLastDumpPath()
 void CrashHandler::RefreshSymbols()
 {
 #ifdef _WIN32
+    std::lock_guard<std::recursive_timed_mutex> lock(s_SymLock);
     if (s_SymbolsInitialized)
         SymRefreshModuleList(GetCurrentProcess());
 #endif
@@ -776,6 +785,7 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     InvokePreCrashCallback();
 
     // Refresh symbols in case new packages were loaded since startup
+    std::unique_lock<std::recursive_timed_mutex> symLock(s_SymLock, std::chrono::seconds(2));
     if (!s_SymbolsInitialized)
         InitializeSymbols();
     else
@@ -1282,6 +1292,7 @@ static void CrashTerminateHandler()
     RtlCaptureContext(&ctx);
 
     // Refresh symbols in case new packages were loaded since startup
+    std::unique_lock<std::recursive_timed_mutex> symLock(s_SymLock, std::chrono::seconds(2));
     if (!s_SymbolsInitialized)
         InitializeSymbols();
     else
@@ -1419,6 +1430,7 @@ std::string CrashHandler::CaptureStackTrace(void* contextPtr)
 {
 #ifdef _WIN32
     if (!contextPtr) return {};
+    std::lock_guard<std::recursive_timed_mutex> lock(s_SymLock);
     if (!s_SymbolsInitialized)
         InitializeSymbols();
     // Cover plugin/project DLLs that live outside the editor's bin/.

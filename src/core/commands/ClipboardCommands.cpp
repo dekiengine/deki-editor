@@ -81,7 +81,10 @@ PasteComponentAsNewCommand::~PasteComponentAsNewCommand()
 {
     for (auto& entry : m_Entries)
         if (entry.detached)
+        {
+            Deki::Internal::ForgetComponentData(entry.addedComponent);
             delete entry.addedComponent;
+        }
 }
 
 void PasteComponentAsNewCommand::Execute()

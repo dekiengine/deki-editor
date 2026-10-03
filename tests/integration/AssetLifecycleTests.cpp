@@ -459,3 +459,31 @@ TEST_F(AssetLifecycleTest, RenameOnDisk_KeepsGuidAndCache)
     EXPECT_EQ(byGuid->path, after);
     EXPECT_TRUE(deleted.empty()) << "a rename was announced as a deletion";
 }
+
+// -----------------------------------------------------------------------------
+// A source restored from a backup (or unzipped) with an OLDER time than its
+// cache is still a change: the cache is rebuilt. "Is the source newer?" kept
+// the old cache, and it shipped.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, SourceRestoredWithAnOlderTime_CacheRebuilt)
+{
+    std::string rel = CreateAssetFile("restored.lifecycle", 1);
+    m_Pipeline->ImportAllAssets();
+    const AssetInfo* info = m_Pipeline->GetAssetInfo(rel);
+    ASSERT_NE(info, nullptr);
+    const std::string cache = m_Pipeline->GetAbsolutePath(info->cachePath);
+    ASSERT_EQ(ReadCachedValue(cache), 1);
+
+    const fs::path source = m_TempDir / "assets" / "restored.lifecycle";
+    CreateAssetFile("restored.lifecycle", 2);
+    fs::last_write_time(source, fs::last_write_time(cache) - std::chrono::hours(24));
+
+    m_Pipeline->Stop();
+    m_Pipeline = std::make_unique<AssetPipeline>();
+    m_Pipeline->RegisterCacheHandler(".lifecycle", LifecycleCacheHandler);
+    m_Pipeline->Start((m_TempDir / "assets").string(), m_TempDir.string());
+    m_Pipeline->ImportAllAssets();
+
+    EXPECT_EQ(ReadCachedValue(cache), 2) << "the cache from before the restore was kept";
+}

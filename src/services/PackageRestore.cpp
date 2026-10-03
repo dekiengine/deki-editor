@@ -29,22 +29,40 @@ namespace
 // Wait up to 30 s for `done`, in 50 ms slices, repainting the startup modal
 // between them so the window keeps pumping events. A single wait_for used to
 // freeze the editor for the whole wait.
-bool WaitBounded(std::mutex& m, std::condition_variable& cv, bool& done, const char* detail)
+// What a background fetch reports into. Shared with the fetch thread, so a
+// reply that arrives after the wait gave up writes into this rather than into
+// the stack frame of a function that has returned.
+struct FetchWait
 {
-    std::unique_lock<std::mutex> lock(m);
+    std::mutex m;
+    std::condition_variable cv;
+    bool done = false;
+    bool ok = false;
+    std::vector<std::string> versions;
+};
+
+// `drain` runs between slices: a result that comes back through the package
+// manager's main-thread queue only arrives when that queue is drained, and
+// nothing else drains it on this path (the version lookup always waited the
+// full 30 s and found nothing).
+bool WaitBounded(FetchWait& w, const char* detail, const std::function<void()>& drain = {})
+{
+    std::unique_lock<std::mutex> lock(w.m);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-    while (!done && std::chrono::steady_clock::now() < deadline)
+    while (!w.done && std::chrono::steady_clock::now() < deadline)
     {
-        cv.wait_for(lock, std::chrono::milliseconds(50), [&]
-                    { return done; });
-        if (!done)
+        w.cv.wait_for(lock, std::chrono::milliseconds(50), [&]
+                      { return w.done; });
+        if (!w.done)
         {
             lock.unlock();
+            if (drain)
+                drain();
             StartupProgress::Update("Installing packages...", detail);
             lock.lock();
         }
     }
-    return done;
+    return w.done;
 }
 
 // Pick the version to install for a package.
@@ -60,22 +78,23 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
         return HighestVersion(pkg.availableVersions);
 
     // FetchVersions answers on a detached thread; block until it reports.
-    std::mutex m;
-    std::condition_variable cv;
-    bool done = false;
-    std::vector<std::string> versions;
-
-    mgr.FetchVersionsForPackage(pkg, [&](bool ok, const std::vector<std::string>& v)
+    auto wait = std::make_shared<FetchWait>();
+    mgr.FetchVersionsForPackage(pkg, [wait](bool ok, const std::vector<std::string>& v)
                                 {
         {
-            std::lock_guard<std::mutex> lock(m);
-            if (ok) versions = v;
-            done = true;
+            std::lock_guard<std::mutex> lock(wait->m);
+            if (ok) wait->versions = v;
+            wait->done = true;
         }
-        cv.notify_one(); });
+        wait->cv.notify_one(); });
 
     // Bounded: a hung network call must not wedge the CLI forever.
-    WaitBounded(m, cv, done, "Fetching package versions...");
+    WaitBounded(*wait, "Fetching package versions...", [&mgr] { mgr.DrainMainThread(); });
+    std::vector<std::string> versions;
+    {
+        std::lock_guard<std::mutex> lock(wait->m);
+        versions = wait->versions;
+    }
 
     if (!versions.empty())
     {
@@ -134,21 +153,19 @@ bool WarmRegistryIndex(PackageManager& mgr)
     if (registry->HasCachedIndex())
         return true;
 
-    std::mutex m;
-    std::condition_variable cv;
-    bool done = false, ok = false;
-
-    registry->FetchIndex([&](bool success, const std::vector<RegistryPackageEntry>&)
+    auto wait = std::make_shared<FetchWait>();
+    registry->FetchIndex([wait](bool success, const std::vector<RegistryPackageEntry>&)
                          {
         {
-            std::lock_guard<std::mutex> lock(m);
-            ok = success;
-            done = true;
+            std::lock_guard<std::mutex> lock(wait->m);
+            wait->ok = success;
+            wait->done = true;
         }
-        cv.notify_one(); });
+        wait->cv.notify_one(); });
 
-    WaitBounded(m, cv, done, "Fetching registry index...");
-    return ok;
+    WaitBounded(*wait, "Fetching registry index...");
+    std::lock_guard<std::mutex> lock(wait->m);
+    return wait->ok;
 }
 
 // Fill in a package's source URL from the registry index when the project

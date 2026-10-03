@@ -2,6 +2,7 @@
 #include <deki-editor/build/PlatformTemplates.h>
 #include <deki/LogSystem.h>
 #include <deki-editor/EditorPaths.h>
+#include <deki-editor/SafeNames.h>
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
@@ -202,8 +203,20 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.id = j.value("id", "");
     if (config.id.empty())
         return false;
+    // The id names the platform's folder (deleted when the platform is
+    // restored) and its build directory: a project someone sent you must not
+    // be able to point those anywhere with "../" or a drive letter.
+    std::string why;
+    if (!SafeNames::IsSafeName(config.id, why))
+    {
+        DEKI_LOG_ERROR("Platform '%s' is not loaded: its id %s", config.id.c_str(), why.c_str());
+        return false;
+    }
 
+    // Shown in the UI and written into generated build files as a comment, so
+    // a line break in it could add build commands: control characters go.
     config.displayName = j.value("displayName", config.id);
+    std::erase_if(config.displayName, [](unsigned char c) { return c < 0x20 || c == 0x7F; });
 
     // Any spelling is accepted: the editor does not have a list of the world's
     // targets. (A pre-0.10 "type" key used to be translated here through a

@@ -92,6 +92,9 @@ set(TEST_SOURCES
     core/SceneInstanceTests.cpp
     core/TransformCommandsTests.cpp
     core/ComponentUndoTests.cpp
+    core/SceneDataLossTests.cpp
+    core/FrameIdTests.cpp
+    core/NonAsciiPathTests.cpp
 
     # New GUID and architecture tests
     core/GuidTests.cpp
@@ -130,6 +133,12 @@ set(TEST_SOURCES
 # EXCLUDE_FROM_ALL: the default build no longer compiles ~18 editor TUs twice
 # and runs the suite; build the target explicitly to test.
 add_executable(DekiEditorTests EXCLUDE_FROM_ALL ${TEST_SOURCES} ${EDITOR_SOURCES_FOR_TESTS})
+
+# The editor's manifest too: the tests open files the way the editor does,
+# and the non-ASCII path tests need the same UTF-8 code page.
+if(WIN32 AND NOT MSVC)
+    target_sources(DekiEditorTests PRIVATE ${CMAKE_SOURCE_DIR}/resources/windows/deki-editor.rc)
+endif()
 
 target_include_directories(DekiEditorTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src

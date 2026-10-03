@@ -1845,6 +1845,13 @@ int CmdStripPlan(EditorApp& editor, const char* platformId)
     std::string target = platformId ? platformId : project->GetActivePlatformId();
     if (target == "all")
         target.clear();
+    // A mistyped platform used to print a plan for a platform with no boot
+    // scene and no capabilities, and exit 0; export and build refuse it.
+    if (!target.empty() && !PlatformRegistry::Instance().GetPlatform(target))
+    {
+        printf("Error: no platform '%s' in this project (--list-platforms shows them)\n", target.c_str());
+        return 1;
+    }
     printf("target: %s\n", target.empty() ? "all platforms (pooled)" : target.c_str());
 
     const StripPlan plan = ComputeStripPlan(project->GetPath(), target);

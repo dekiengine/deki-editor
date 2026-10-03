@@ -6,6 +6,7 @@
 #include "PackageManifest.h"
 #include <deki-editor/VersionCompare.h>
 #include <deki-editor/Paths.h>
+#include "PackageIntegrity.h"
 #include <deki-editor/FileIO.h>
 #include <deki/LogSystem.h>
 #include "sources/GitHubPackageSource.h"
@@ -263,10 +264,13 @@ void PackageManager::FetchVersionsForPackage(PackageEntry& pkg, VersionsCallback
     // Capture package ID by value since the callback runs asynchronously
     std::string pkgId = pkg.id;
 
-    source->FetchVersions(pkg, [this, pkgId, callback](bool success, const std::vector<std::string>& versions)
+    std::shared_ptr<MainQueue> queue = m_MainQueue;
+    source->FetchVersions(pkg, [this, queue, pkgId, callback](bool success, const std::vector<std::string>& versions)
                           {
         // Runs on the source's fetch thread: hand the update to the main thread.
-        PostToMainThread([this, pkgId, callback, success, versions]()
+        // Through the queue itself, not `this`, which may be gone by now.
+        std::lock_guard<std::mutex> lock(queue->mutex);
+        queue->items.push_back([this, pkgId, callback, success, versions]()
         {
             if (success) {
                 // Find and update the package in our list
@@ -305,16 +309,16 @@ bool PackageManager::AddPackageIfNew(const PackageEntry& pkg)
 
 void PackageManager::PostToMainThread(std::function<void()> fn)
 {
-    std::lock_guard<std::mutex> lock(m_MainQueueMutex);
-    m_MainQueue.push_back(std::move(fn));
+    std::lock_guard<std::mutex> lock(m_MainQueue->mutex);
+    m_MainQueue->items.push_back(std::move(fn));
 }
 
 void PackageManager::DrainMainThread()
 {
     std::vector<std::function<void()>> pending;
     {
-        std::lock_guard<std::mutex> lock(m_MainQueueMutex);
-        pending.swap(m_MainQueue);
+        std::lock_guard<std::mutex> lock(m_MainQueue->mutex);
+        pending.swap(m_MainQueue->items);
     }
     for (auto& fn : pending)
         fn();
@@ -329,6 +333,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
 {
     m_Packages.clear();
     m_VersionOverrides.clear();
+    m_LockedCommits.clear();
 
     fs::path packagesPath = fs::path(projectPath) / DekiEditor::GetPackageManifestFileName();
     fs::path lockPath = fs::path(projectPath) / DekiEditor::GetPackageLockFileName();
@@ -346,6 +351,8 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                 for (auto& [id, entry] : lockJson["packages"].items())
                 {
                     lockEntries[id] = entry;
+                    if (entry.is_object() && entry.contains("commit") && entry["commit"].is_string())
+                        m_LockedCommits[id] = entry["commit"].get<std::string>();
                 }
             }
         }
@@ -574,6 +581,32 @@ void PackageManager::SavePackages(const std::string& projectPath)
 
             if (!pkg.resolvedBy.empty())
                 entry["resolvedBy"] = pkg.resolvedBy;
+
+            // The commit its version is (written by the installer), so a
+            // restore can tell when a tag was moved. Not for a package being
+            // developed (editable, or a link to a checkout): its commit is
+            // whatever the developer is on.
+            {
+                std::string commit;
+                const fs::path dir = fs::path(projectPath) / DekiEditor::GetPackagesDirectoryRelative() / pkg.id;
+                std::error_code ec;
+                const bool developing = pkg.editable || DekiEditor::IsReparsePoint(dir);
+                if (!developing && pkg.isInstalled && fs::exists(dir / ".deki-package.json", ec))
+                {
+                    std::ifstream metaIn(dir / ".deki-package.json");
+                    const json meta = json::parse(metaIn, nullptr, false);
+                    if (meta.is_object() && meta.value("version", "") == pkg.installedVersion)
+                        commit = meta.value("commit", "");
+                }
+                if (commit.empty() && !developing)
+                {
+                    auto pinned = m_LockedCommits.find(pkg.id);
+                    if (pinned != m_LockedCommits.end() && pkg.installedVersion == pkg.lockedVersion)
+                        commit = pinned->second;
+                }
+                if (!commit.empty())
+                    entry["commit"] = commit;
+            }
 
             lockJson["packages"][pkg.id] = entry;
         }

@@ -132,6 +132,10 @@ private:
 
     // SSE response queue: main thread pushes, SSE stream sends
     ThreadSafeQueue<SseResponse> m_SseResponses;
+    // Open /sse streams. Responses are queued for them only while one is
+    // open: the CLI talks to a live editor with plain POSTs, and every reply
+    // used to be kept for a stream that never connected, for the whole session.
+    std::atomic<int> m_SseClients{ 0 };
 
     std::unique_ptr<McpToolRegistry> m_ToolRegistry;
 };

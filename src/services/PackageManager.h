@@ -166,9 +166,20 @@ private:
     // "id|installed|locked" for every version mismatch already reported.
     std::set<std::string> m_WarnedVersionMismatch;
     std::map<std::string, std::string> m_VersionOverrides;
+    // The commit each package's locked version is (lock "commit"), kept for
+    // packages not on disk yet so a save does not drop the pin.
+    std::map<std::string, std::string> m_LockedCommits;
 
-    std::mutex m_MainQueueMutex;
-    std::vector<std::function<void()>> m_MainQueue;
+    // Shared with the fetch threads, which post into it after the manager may
+    // be gone (a restore's temporary manager): the queue lives as long as the
+    // last thread holding it. Posted work only runs from this manager's own
+    // DrainMainThread, so it never runs on a dead manager.
+    struct MainQueue
+    {
+        std::mutex mutex;
+        std::vector<std::function<void()>> items;
+    };
+    std::shared_ptr<MainQueue> m_MainQueue = std::make_shared<MainQueue>();
 
     void InitDefaultSources();
     void InitDefaultInstallers();

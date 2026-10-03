@@ -24,6 +24,11 @@ struct DEKI_EDITOR_API SubAssetInfo
     int depth = 0;            // Nesting depth for indentation (0=child, 1=grandchild, etc.)
     std::string cachePath;    // If non-empty, this sub-asset has its own cache file
     bool hasPreview = false;  // If true, inspector shows texture preview when selected
+
+    // A sprite frame's persistent id (AtlasFrame::id): what its GUID and its
+    // per-frame settings (9-slice) are keyed by. subAssetIndex is only its
+    // position, which changes when frames are added or removed.
+    int frameId = -1;
 };
 
 }  // namespace DekiEditor

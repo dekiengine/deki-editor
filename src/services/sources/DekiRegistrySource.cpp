@@ -76,7 +76,7 @@ void DekiRegistrySource::FetchVersions(const PackageEntry& pkg, VersionsCallback
     std::string packageId = pkg.id;
     std::string repoName = RepoNameForPackage(packageId);
 
-    std::thread([this, repoName, callback]()
+    std::thread([repoName, callback]()
                 {
         std::string json = FetchFromAnyBase("/packages/" + repoName + ".json");
 
@@ -96,17 +96,22 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
     // Check cache TTL (skip if force refresh)
     if (!forceRefresh)
     {
-        std::lock_guard<std::mutex> lock(m_CacheMutex);
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_IndexFetchTime).count();
-        if (!m_CachedIndex.empty() && elapsed < CACHE_TTL_SECONDS)
+        std::vector<RegistryPackageEntry> cached;
         {
-            callback(true, m_CachedIndex);
+            std::lock_guard<std::mutex> lock(m_Cache->mutex);
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_Cache->fetchTime).count();
+            if (!m_Cache->index.empty() && elapsed < CACHE_TTL_SECONDS)
+                cached = m_Cache->index;
+        }
+        if (!cached.empty())
+        {
+            callback(true, cached);
             return;
         }
     }
 
-    std::thread([this, callback]()
+    std::thread([cache = m_Cache, callback]()
                 {
         std::string json = FetchFromAnyBase("/index.json");
 
@@ -121,9 +126,9 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
         auto packages = ParseIndexJson(json);
 
         {
-            std::lock_guard<std::mutex> lock(m_CacheMutex);
-            m_CachedIndex = packages;
-            m_IndexFetchTime = std::chrono::steady_clock::now();
+            std::lock_guard<std::mutex> lock(cache->mutex);
+            cache->index = packages;
+            cache->fetchTime = std::chrono::steady_clock::now();
         }
 
         callback(!packages.empty(), packages); })
@@ -228,8 +233,8 @@ std::vector<std::string> DekiRegistrySource::ParsePackageVersionsJson(const std:
 std::string DekiRegistrySource::RepoNameForPackage(const std::string& id) const
 {
     // Look up repo name from cached index (e.g., "deki-2d" -> "deki-2d" from "dekiengine/deki-2d")
-    std::lock_guard<std::mutex> lock(m_CacheMutex);
-    for (const auto& entry : m_CachedIndex)
+    std::lock_guard<std::mutex> lock(m_Cache->mutex);
+    for (const auto& entry : m_Cache->index)
     {
         if (entry.id == id && !entry.repo.empty())
         {

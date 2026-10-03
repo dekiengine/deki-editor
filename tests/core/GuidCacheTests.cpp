@@ -418,3 +418,20 @@ TEST_F(GuidCacheTest, Sync_DetectsRemovedSidecar)
     EXPECT_FALSE(cache.Contains("gone.png"));
     EXPECT_EQ(cache.GetPath("gone-guid"), "");
 }
+
+// Two sidecars with one GUID (a folder copied with its .data files): which
+// keeps it must not depend on the order the OS lists files in, or a fresh
+// clone on Windows and on Linux re-GUIDs different files. Byte order of the
+// path decides: "B.png" sorts before "a.png", though NTFS lists "a.png" first.
+TEST_F(GuidCacheTest, Rebuild_DuplicateGuid_SamePathKeepsItOnEveryMachine)
+{
+    CreateSidecar("a.png", "dup-guid");
+    CreateSidecar("B.png", "dup-guid");
+
+    GuidCache cache;
+    cache.Rebuild((m_TempDir / "assets").string());
+
+    EXPECT_EQ(cache.GetGuid("B.png"), "dup-guid");
+    EXPECT_NE(cache.GetGuid("a.png"), "dup-guid");
+    EXPECT_FALSE(cache.GetGuid("a.png").empty());
+}

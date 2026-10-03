@@ -1,5 +1,6 @@
 #include "AssetExporter.h"
 #include <deki-editor/build/ProjectPaths.h>
+#include <deki-editor/FileIO.h>
 #include "AssetPacker.h"
 #include "PackageLoader.h"
 #include <deki-editor/SceneTargetFilter.h>
@@ -18,6 +19,7 @@
 #include <deki/Component.h>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <cctype>
 #include <cstring>
 #include <algorithm>
@@ -122,19 +124,25 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
     const fs::path outDir = ProjectPaths::Generated(m_Project->GetPath()) / "export-cache" /
                             (m_Target.platformId.empty() ? std::string("editor") : m_Target.platformId);
     const fs::path out = outDir / guid;
+    // Kept beside it: what it was built from and for. Comparing times only
+    // missed a source restored with an older time, a new screen colour format
+    // for the same platform, and a cache format change.
+    fs::path stampPath = out;
+    stampPath += ".stamp";
+    const std::string stamp = m_Pipeline->MakeCacheStamp(source) + "|" + m_Target.platformId + "|" +
+                              std::to_string(static_cast<int>(m_Target.colorFormat)) + "|" +
+                              std::to_string(static_cast<int>(m_Target.assetStorage));
     std::error_code ec;
     bool fresh = fs::exists(out, ec);
     if (fresh)
     {
-        const auto outTime = fs::last_write_time(out, ec);
-        if (fs::last_write_time(source, ec) > outTime)
-            fresh = false;
-        const std::string sidecar = source + ".data";
-        if (fs::exists(sidecar, ec) && fs::last_write_time(sidecar, ec) > outTime)
-            fresh = false;
+        std::ifstream in(stampPath, std::ios::binary);
+        std::string recorded((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        fresh = recorded == stamp;
     }
     if (!fresh)
     {
+        fs::remove(stampPath, ec);
         fs::create_directories(outDir, ec);
         AssetExportContext ctx;
         ctx.relativePath = info->path;
@@ -151,6 +159,8 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
                            info->path.c_str(), m_Target.platformId.c_str());
             return std::string();
         }
+        std::string err;
+        AtomicWriteFile(stampPath.string(), stamp, err, /*durable=*/false);
     }
     return out.string();
 }

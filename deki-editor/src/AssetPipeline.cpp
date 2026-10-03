@@ -6,6 +6,7 @@
 #include <deki-editor/Paths.h>
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/TextureData.h>
+#include <deki-editor/FileIO.h>
 #include <filesystem>
 #include <fstream>
 #include <random>
@@ -357,6 +358,19 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
         f << currentVersion;
     }
 
+    // What each cache was compiled from (see MakeCacheStamp).
+    {
+        m_CacheStamps.clear();
+        m_StampsDirty = false;
+        std::ifstream in(fs::path(GetCacheDirectory(projectPath)) / "cache_stamps.json");
+        const json stamps = in ? json::parse(in, nullptr, false) : json();
+        m_HaveStampFile = stamps.is_object();
+        if (m_HaveStampFile)
+            for (const auto& [guid, stamp] : stamps.items())
+                if (stamp.is_string())
+                    m_CacheStamps[guid] = stamp.get<std::string>();
+    }
+
     // Register built-in cache handlers for editor-core types only.
     // Package-owned types (images, frame animations, fonts, tilemaps, etc.) register
     // their own handlers via AssetPipeline::OnStarted. OnStarted callbacks fire
@@ -400,6 +414,10 @@ void AssetPipeline::Stop()
     // Clear singleton instance
     if (s_Instance == this)
         s_Instance = nullptr;
+
+    if (m_Running)
+        SaveCacheStamps();
+    m_CacheStamps.clear();
 
     // Stop the file watcher BEFORE clearing state so any in-flight events
     // (which would dispatch into now-empty maps) are dropped cleanly.
@@ -609,6 +627,8 @@ void AssetPipeline::ImportAllAssets()
         }
     }
 
+    SaveCacheStamps();
+
     // Start the OS file watcher now that m_Assets reflects the on-disk state.
     // Anything that changes from this point on will arrive via Tick().
     if (!m_FileWatcher)
@@ -616,9 +636,47 @@ void AssetPipeline::ImportAllAssets()
     m_FileWatcher->Start(m_AssetsPath, m_ProjectPath);
 }
 
+std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
+{
+    auto part = [](const fs::path& p) -> std::string
+    {
+        std::error_code ec;
+        const auto size = fs::file_size(p, ec);
+        if (ec)
+            return "-";
+        const auto time = fs::last_write_time(p, ec);
+        if (ec)
+            return "-";
+        return std::to_string(size) + "@" + std::to_string(time.time_since_epoch().count());
+    };
+    return part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(DEKI_CACHE_VERSION);
+}
+
+void AssetPipeline::SaveCacheStamps()
+{
+    if (m_ProjectPath.empty() || !m_StampsDirty)
+        return;
+    json out = json::object();
+    for (const auto& [guid, stamp] : m_CacheStamps)
+        out[guid] = stamp;
+    std::string err;
+    const std::string path = (fs::path(GetCacheDirectory(m_ProjectPath)) / "cache_stamps.json").string();
+    if (AtomicWriteFile(path, out.dump(), err, /*durable=*/false))
+    {
+        m_StampsDirty = false;
+        m_HaveStampFile = true;
+    }
+    else
+        DEKI_LOG_WARNING("AssetPipeline: could not write %s: %s", path.c_str(), err.c_str());
+}
+
 void AssetPipeline::Tick()
 {
-    if (!m_Running || !m_FileWatcher)
+    if (!m_Running)
+        return;
+    if (m_StampsDirty && !m_ImportingAll)
+        SaveCacheStamps();
+    if (!m_FileWatcher)
         return;
 
     auto events = m_FileWatcher->DrainReadyEvents();
@@ -794,6 +852,10 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     // forceRebuild bypasses the mtime check entirely: same-second writes on NTFS
     // can leave sourceTime == cacheTime, which would let a stale cache survive
     // a user-initiated edit. Explicit RefreshAsset paths set forceRebuild=true.
+    //
+    // Current means: built from exactly this source and .data file (the
+    // stamp). "The source is not newer than the cache" kept a stale cache
+    // when a file came back from a backup with an older time.
     bool cacheIsFresh = false;
     if (forceRebuild && cacheExists)
     {
@@ -804,32 +866,46 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         {
             cacheExists = false;
         }
+        // Forgotten on disk too before the rebuild: a crash during it must
+        // not leave a record saying the old cache is current.
+        if (m_CacheStamps.erase(info.guid))
+        {
+            m_StampsDirty = true;
+            SaveCacheStamps();
+        }
     }
     else if (cacheExists && fs::exists(absolutePath))
     {
-        try
+        bool current = false;
+        auto stampIt = m_CacheStamps.find(info.guid);
+        if (stampIt != m_CacheStamps.end())
         {
-            auto sourceTime = fs::last_write_time(absolutePath);
-            auto cacheTime = fs::last_write_time(absoluteCachePath);
-
-            if (sourceTime > cacheTime)
-            {
-                DEKI_LOG_DEBUG("Cache stale for %s, regenerating", relativePath.c_str());
-                std::error_code ec;
-                fs::remove(absoluteCachePath, ec);
-                if (!ec)
-                {
-                    cacheExists = false;
-                }
-            }
-            else
-            {
-                cacheIsFresh = true;
-            }
+            current = stampIt->second == MakeCacheStamp(absolutePath);
         }
-        catch (...)
+        else if (!m_HaveStampFile)
         {
-            // On error, keep existing cache
+            // A project from before stamps: the time rule, once.
+            std::error_code ec;
+            const auto sourceTime = fs::last_write_time(absolutePath, ec);
+            const auto cacheTime = fs::last_write_time(absoluteCachePath, ec);
+            current = !ec && sourceTime <= cacheTime;
+        }
+
+        if (!current)
+        {
+            DEKI_LOG_DEBUG("Cache stale for %s, regenerating", relativePath.c_str());
+            std::error_code ec;
+            fs::remove(absoluteCachePath, ec);
+            if (!ec)
+            {
+                cacheExists = false;
+            }
+            if (m_CacheStamps.erase(info.guid))
+                m_StampsDirty = true;
+        }
+        else
+        {
+            cacheIsFresh = true;
         }
     }
 
@@ -854,8 +930,18 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
             switch (result)
             {
                 case AssetCacheResult::Cached:
+                {
                     info.hasCachedVersion = true;
+                    // Taken after the handler, which may have rewritten the .data file.
+                    std::string stamp = MakeCacheStamp(absolutePath);
+                    std::string& recorded = m_CacheStamps[info.guid];
+                    if (recorded != stamp)
+                    {
+                        recorded = std::move(stamp);
+                        m_StampsDirty = true;
+                    }
                     break;
+                }
                 case AssetCacheResult::PreCached:
                     info.cachePath = relativePath;
                     info.hasCachedVersion = true;
@@ -1102,16 +1188,13 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     }
     DEKI_HEAP_CHECK("CompileScene: after WriteScene");
 
-    // Write to file
-    std::ofstream file(binaryPath, std::ios::binary);
-    if (!file.is_open())
-    {
-        return false;
-    }
-
-    file.write(reinterpret_cast<const char*>(writer.GetData()), writer.GetSize());
-    bool ok = file.good();
-    file.close();
+    // Write to file, in one step (a cut-off cache counted as up to date)
+    std::string err;
+    bool ok = AtomicWriteFile(binaryPath,
+                              std::string_view(reinterpret_cast<const char*>(writer.GetData()), writer.GetSize()),
+                              err, /*durable=*/false);
+    if (!ok)
+        DEKI_LOG_ERROR("CompileScene: could not write %s: %s", binaryPath.c_str(), err.c_str());
     DEKI_HEAP_CHECK("CompileScene: after file write, before Scene destructor");
     return ok;
 }
@@ -1167,16 +1250,16 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
         body.erase(Deki::AuthoredFormat::VersionKey);
         std::vector<uint8_t> mp = json::to_msgpack(body);
 
-        std::ofstream out(cachePath, std::ios::binary);
-        if (!out.is_open())
+        std::string err;
+        if (!AtomicWriteFile(cachePath, std::string_view(reinterpret_cast<const char*>(mp.data()), mp.size()), err,
+                             /*durable=*/false))
         {
-            DEKI_LOG_WARNING("CompileAssetFile: cannot write data cache %s", cachePath.c_str());
+            DEKI_LOG_WARNING("CompileAssetFile: cannot write data cache %s: %s", cachePath.c_str(), err.c_str());
             return false;
         }
-        out.write(reinterpret_cast<const char*>(mp.data()), mp.size());
         DEKI_LOG_DEBUG("CompileAssetFile: data asset %s (type=%s) -> %zu B msgpack",
                        assetPath.c_str(), assetType.c_str(), mp.size());
-        return out.good();
+        return true;
     }
 
     // Skip .asset files whose type has no registered compile handler (e.g. iconexport manifests)
@@ -1555,21 +1638,17 @@ void AssetPipeline::UpdateAssetTable()
     // Ensure cache directory exists
     fs::create_directories(fs::path(tablePath).parent_path());
 
-    std::ofstream file(tablePath, std::ios::binary);
-    if (!file.is_open())
-    {
-        DEKI_LOG_ERROR("UpdateAssetTable: Failed to create %s", tablePath.c_str());
-        return;
-    }
-
-    // Write entry count
+    // Entry count, then the entries; written in one step, since Play mode and
+    // exports read this file.
     uint32_t count = static_cast<uint32_t>(entries.size());
-    file.write(reinterpret_cast<const char*>(&count), sizeof(count));
-
-    // Write entries
+    std::string bytes(reinterpret_cast<const char*>(&count), sizeof(count));
     for (const auto& entry : entries)
+        bytes.append(reinterpret_cast<const char*>(&entry), sizeof(entry));
+    std::string err;
+    if (!AtomicWriteFile(tablePath, bytes, err, /*durable=*/false))
     {
-        file.write(reinterpret_cast<const char*>(&entry), sizeof(entry));
+        DEKI_LOG_ERROR("UpdateAssetTable: Failed to write %s: %s", tablePath.c_str(), err.c_str());
+        return;
     }
 
     DEKI_LOG_EDITOR("UpdateAssetTable: Wrote %u entries to cache/asset_table.bin", count);

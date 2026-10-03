@@ -387,3 +387,13 @@ TEST(EditorRegistrySharedSingletonTest, SingletonIsSharedAcrossCallSites)
 
     EXPECT_EQ(inst2.GetTotalCount(), countBefore + 1);
 }
+
+// A project folder name with characters CMake does not allow in a target name
+// still builds: they become '_' (one per character, UTF-8 or not).
+TEST(ProjectPluginTarget, FolderNamesCMakeRejectsAreMadeValid)
+{
+    EXPECT_EQ(DekiEditor::ProjectPluginTarget("deki-demo"), "deki-demo-components");
+    EXPECT_EQ(DekiEditor::ProjectPluginTarget("My Game"), "My_Game-components");
+    EXPECT_EQ(DekiEditor::ProjectPluginTarget("spiel_\xc3\xbc"), "spiel__-components");
+    EXPECT_EQ(DekiEditor::ProjectPluginTarget("a(b)"), "a_b_-components");
+}
