@@ -108,7 +108,7 @@ void PlatformManagerPanel::Draw()
         return;
 
     auto& ui = EditorUI::Get();
-    ui.SetNextWindowSize(700.0f, 450.0f, /*firstUseEver*/ true);
+    ui.SetNextWindowSize(m_App->Dpi(860.0f), m_App->Dpi(560.0f), /*firstUseEver*/ true);
 
     if (ui.Begin("PLATFORM MANAGER###Platform Manager", &m_Open))
     {

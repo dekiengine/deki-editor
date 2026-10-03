@@ -199,6 +199,8 @@ DEKI_EDITOR_API void EndPropertyContext();
 // Space Grotesk (Title Case as-typed). Returns true if expanded.
 // Preserves ImGui's CollapsingHeader behavior so BeginPopupContextItem
 // / OpenPopupOnItemClick still attach correctly.
+// With ImGuiTreeNodeFlags_Leaf (and DefaultOpen) it is the same band without
+// the chevron and without folding: a column title in a tool window.
 DEKI_EDITOR_API bool SchematicCollapsingHeader(const char* label,
                                               ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen);
 
@@ -381,6 +383,13 @@ DEKI_EDITOR_API bool SchematicDragFloat3(const char* id, float v[3],
                                         float v_speed = 1.0f,
                                         float v_min = 0.0f, float v_max = 0.0f,
                                         const char* format = "%.3f");
+// One box of those, with its axis stamp (0 = X, 1 = Y, 2 = Z), as an item of
+// its own: for a caller that needs each box's activation, or a different
+// format per box (a dash for values that differ across a selection).
+DEKI_EDITOR_API bool SchematicDragFloatAxis(const char* id, float* v, int axis,
+                                           float v_speed = 1.0f,
+                                           float v_min = 0.0f, float v_max = 0.0f,
+                                           const char* format = "%.3f");
 
 // Schematic color editors. Same semantics as ImGui::ColorEdit4 / ColorEdit3
 // (rgba / rgb in 0-1 floats). Render one cell per channel (each a vertical

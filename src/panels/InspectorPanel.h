@@ -168,6 +168,7 @@ private:
 
     // Multi-object inspector
     void DrawMultiObjectInspector(const std::vector<Deki::Object*>& objects);
+    void DrawMultiTransform(const std::vector<Deki::Object*>& objects);
 
     // Multi-edit helpers
     struct ComponentGroup

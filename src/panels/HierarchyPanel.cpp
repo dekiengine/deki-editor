@@ -49,7 +49,12 @@ void HierarchyPanel::Draw()
     if (!m_Open)
         return;
 
-    ImGui::Begin("HIERARCHY###Hierarchy", &m_Open, DekiEditor::MaximizedWindowFlags("HIERARCHY###Hierarchy"));
+    // The panel itself never scrolls: the breadcrumb and search stay put and
+    // the tree below scrolls in its own region (it used to take the search
+    // field away with it).
+    ImGui::Begin("HIERARCHY###Hierarchy", &m_Open,
+                 DekiEditor::MaximizedWindowFlags("HIERARCHY###Hierarchy") | ImGuiWindowFlags_NoScrollbar |
+                     ImGuiWindowFlags_NoScrollWithMouse);
     auto* scene = m_App->GetCurrentScene();
 
     // Rows read last frame's hover (see DrawObjectNode).
@@ -227,6 +232,11 @@ void HierarchyPanel::Draw()
 
         ImGui::PopStyleVar();  // FramePadding
     }
+
+    // Everything below the search band lives in the scrolling region, to the
+    // end of Draw: keys, drops, context menus and dialogs included, so they
+    // keep working on the same window as the rows.
+    ImGui::BeginChild("##hierarchy_tree", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None);
 
     // Auto-scroll while dragging items near the top/bottom edge of the panel.
     AutoScrollOnDrag();
@@ -513,6 +523,7 @@ void HierarchyPanel::Draw()
         }
     }
 
+    ImGui::EndChild();  // ##hierarchy_tree
     ImGui::End();
 
     // Process deferred navigation (after draw loop to avoid destroying scene mid-iteration)

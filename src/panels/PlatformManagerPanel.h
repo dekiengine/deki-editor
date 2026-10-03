@@ -68,7 +68,7 @@ private:
     std::string m_PlatformToDelete;
 
     // Resizable splitter
-    float m_LeftPanelWidth = 350.0f;
+    float m_LeftPanelWidth = 240.0f;  // the list; the form beside it needs the room
 
     // Platform Packs tab state
     int m_SelectedPackIndex = -1;

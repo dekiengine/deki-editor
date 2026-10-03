@@ -5,6 +5,7 @@
 #include "services/ProfilingService.h"
 #include "core/Project.h"
 #include "imgui.h"
+#include <deki-editor/EditorUI.h>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -327,33 +328,30 @@ void ProfilerPanel::Draw()
         }
         else
         {
-            // Show current frame number (selection controlled by clicking timeline)
             int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < (int)m_DisplayBuffer.size()
                                ? m_SelectedFrame
                                : (int)m_DisplayBuffer.size() - 1;
 
-            // Use cached frame number when no selection (only updates with batch refresh)
-            if (m_SelectedFrame < 0)
-            {
-                ImGui::Text("Frame %llu", m_CurrentFrameNumber);
-            }
-            else if (frameIdx >= 0 && frameIdx < (int)m_DisplayBuffer.size())
-            {
-                ImGui::Text("Frame %llu", m_DisplayBuffer[frameIdx].frameNumber);
-            }
+            // Timeline, padded like a section body; the views below run edge
+            // to edge.
+            const float pad = m_App->Dpi(12.0f);
+            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+            ImGui::Indent(pad);
+            DekiEditor::SchematicSubHeader("Timeline");
+            ImGui::TextColored(DekiEditor::Palette::Dim, "Click a bar to inspect that frame.");
+            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
 
-            // Frame timeline bar
-            ImGui::Text("Frame Timeline (click to select):");
-            float fullWidth = ImGui::GetContentRegionAvail().x;
-            float labelWidth = 45.0f;  // Space for FPS labels on Y-axis
+            float fullWidth = ImGui::GetContentRegionAvail().x - pad;
+            float labelWidth = m_App->Dpi(45.0f);  // Space for FPS labels on Y-axis
             float availWidth = fullWidth - labelWidth;
-            float barHeight = 120.0f;
+            float barHeight = m_App->Dpi(120.0f);
             ImVec2 barPos = ImGui::GetCursorScreenPos();
             barPos.x += labelWidth;  // Offset bars to make room for labels
 
             ImDrawList* drawList = ImGui::GetWindowDrawList();
             float barWidth = m_DisplayBuffer.empty() ? availWidth : availWidth / m_DisplayBuffer.size();
             float maxMs = 33.33f;
+            const ImU32 accent = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Accent);
 
             // Draw stacked bars from display buffer
             for (size_t i = 0; i < m_DisplayBuffer.size(); i++)
@@ -365,32 +363,25 @@ void ProfilerPanel::Draw()
 
                 if (frame.categoryTimeMs.empty() || isSelected)
                 {
-                    // Fallback to solid color or selection highlight
-                    ImU32 color = isSelected ? IM_COL32(100, 150, 255, 255) : IM_COL32(120, 120, 120, 255);
-
+                    // Solid bar, or the selection in the accent
+                    ImU32 color = isSelected ? accent : IM_COL32(120, 120, 120, 255);
                     float y = barPos.y + barHeight - totalHeight;
                     drawList->AddRectFilled(ImVec2(x, y), ImVec2(x + barWidth - 1, barPos.y + barHeight), color);
                 }
                 else
                 {
-                    // Draw stacked segments by category
+                    // Stacked segments by category
                     float yOffset = barPos.y + barHeight;
-
                     for (const auto& [category, timeMs] : frame.categoryTimeMs)
                     {
                         if (timeMs <= 0)
                             continue;
-
                         float segmentHeight = (float)(timeMs / maxMs) * barHeight;
                         segmentHeight = std::min(segmentHeight, yOffset - barPos.y);  // Clamp to available space
-
-                        if (segmentHeight > 0.5f)  // Only draw if visible
+                        if (segmentHeight > 0.5f)
                         {
-                            ImU32 color = GetCategoryColor(category);
-                            drawList->AddRectFilled(
-                                ImVec2(x, yOffset - segmentHeight),
-                                ImVec2(x + barWidth - 1, yOffset),
-                                color);
+                            drawList->AddRectFilled(ImVec2(x, yOffset - segmentHeight),
+                                                    ImVec2(x + barWidth - 1, yOffset), GetCategoryColor(category));
                             yOffset -= segmentHeight;
                         }
                     }
@@ -398,6 +389,7 @@ void ProfilerPanel::Draw()
             }
 
             // Reference lines with FPS labels on Y-axis
+            const ImU32 dim = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
             float labelX = barPos.x - labelWidth;
             float line60fps = barPos.y + barHeight - (16.67f / maxMs) * barHeight;
             float line30fps = barPos.y + barHeight - (33.33f / maxMs) * barHeight;
@@ -405,8 +397,9 @@ void ProfilerPanel::Draw()
                               IM_COL32(100, 100, 100, 150), 1.0f);
             drawList->AddLine(ImVec2(barPos.x, line30fps), ImVec2(barPos.x + availWidth, line30fps),
                               IM_COL32(100, 100, 100, 150), 1.0f);
-            drawList->AddText(ImVec2(labelX, line60fps - 7), IM_COL32(180, 180, 180, 255), "60 fps");
-            drawList->AddText(ImVec2(labelX, line30fps - 7), IM_COL32(180, 180, 180, 255), "30 fps");
+            const float halfLine = ImGui::GetTextLineHeight() * 0.5f;
+            drawList->AddText(ImVec2(labelX, line60fps - halfLine), dim, "60 fps");
+            drawList->AddText(ImVec2(labelX, line30fps - halfLine), dim, "30 fps");
 
             // Click detection - click to select and pause recording
             ImGui::InvisibleButton("FrameTimeline", ImVec2(fullWidth, barHeight));
@@ -421,23 +414,23 @@ void ProfilerPanel::Draw()
                 }
             }
 
-            // Category legend
-            ImGui::Spacing();
-            ImGui::Text("Categories:");
-            ImGui::SameLine();
+            // Category legend: a swatch and a dim name each, on one line
+            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+            const float swatch = m_App->Dpi(10.0f);
             const char* categories[] = { "rendering", "lifecycle", "components", "playmode", "editor", "deep" };
-            for (const char* category : categories)
+            for (size_t c = 0; c < IM_ARRAYSIZE(categories); ++c)
             {
+                if (c > 0)
+                    ImGui::SameLine(0.0f, m_App->Dpi(14.0f));
                 ImVec2 p = ImGui::GetCursorScreenPos();
-                drawList->AddRectFilled(p, ImVec2(p.x + 12, p.y + 12), GetCategoryColor(category));
-                ImGui::Dummy(ImVec2(14, 12));
-                ImGui::SameLine();
-                ImGui::Text("%s", category);
-                ImGui::SameLine();
-                ImGui::Spacing();
-                ImGui::SameLine();
+                const float y = p.y + (ImGui::GetTextLineHeight() - swatch) * 0.5f;
+                drawList->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + swatch, y + swatch), GetCategoryColor(categories[c]), 2.0f);
+                ImGui::Dummy(ImVec2(swatch, ImGui::GetTextLineHeight()));
+                ImGui::SameLine(0.0f, m_App->Dpi(6.0f));
+                ImGui::TextColored(DekiEditor::Palette::Dim, "%s", categories[c]);
             }
-            ImGui::NewLine();
+            ImGui::Unindent(pad);
+            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
 
             // Selected frame info
             // Find frame in history by frame number (not by index, which shifts as history grows)
@@ -460,46 +453,56 @@ void ProfilerPanel::Draw()
             {
                 const auto& frame = *displayFrame;
                 double activeTimeMs = frame.totalTimeMs - frame.idleTimeMs;
-                ImGui::Separator();
-
                 float fps = activeTimeMs > 0 ? (float)(1000.0 / activeTimeMs) : 0.0f;
-                ImGui::Text("Frame #%llu: %.2f ms (%.1f FPS)",
-                            frame.frameNumber, activeTimeMs, fps);
 
+                DekiEditor::FullBleedSeparator();
+                ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+                DekiEditor::BeginPropertyContext();
+                InspectorUtils::BeginPropertyRow(m_SelectedFrame < 0 ? "Latest Frame" : "Frame");
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("#%llu", (unsigned long long)frame.frameNumber);
+                InspectorUtils::BeginPropertyRow("Time");
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%.2f ms", activeTimeMs);
+                ImGui::SameLine();
+                ImGui::TextColored(DekiEditor::Palette::Dim, "%.1f fps", fps);
                 if (frame.idleTimeMs > 0.1)
                 {
                     ImGui::SameLine();
-                    ImGui::TextDisabled("(+%.2f ms idle = %.2f ms total)",
-                                        frame.idleTimeMs, frame.totalTimeMs);
+                    ImGui::TextColored(DekiEditor::Palette::Dim, "+%.2f ms idle", frame.idleTimeMs);
                 }
+                DekiEditor::EndPropertyContext();
+                ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
 
-                // View mode buttons
-                ImGui::Spacing();
-                if (ImGui::RadioButton("Hierarchy", m_ViewMode == ProfilerViewMode::Hierarchy))
+                // View switch: the Asset Browser's tab links
+                auto& ui = EditorUI::Get();
+                ui.BeginTabLinks();
+                if (ui.TabLink("Hierarchy", m_ViewMode == ProfilerViewMode::Hierarchy))
                     m_ViewMode = ProfilerViewMode::Hierarchy;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Flat", m_ViewMode == ProfilerViewMode::Flat))
+                if (ui.TabLink("Flat", m_ViewMode == ProfilerViewMode::Flat))
                     m_ViewMode = ProfilerViewMode::Flat;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Flame Graph", m_ViewMode == ProfilerViewMode::FlameGraph))
+                if (ui.TabLink("Flame Graph", m_ViewMode == ProfilerViewMode::FlameGraph))
                     m_ViewMode = ProfilerViewMode::FlameGraph;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Memory", m_ViewMode == ProfilerViewMode::Memory))
+                if (ui.TabLink("Memory", m_ViewMode == ProfilerViewMode::Memory))
                     m_ViewMode = ProfilerViewMode::Memory;
+                ui.EndTabLinks();
 
-                // Only show search for non-Memory views
+                // Search, for the views that list events
                 if (m_ViewMode != ProfilerViewMode::Memory)
                 {
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(m_App->Dpi(200));
+                    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+                    ImGui::Indent(pad);
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - pad);
                     char searchBuf[256] = {};
                     strncpy(searchBuf, m_SearchFilter.c_str(), sizeof(searchBuf) - 1);
-                    if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
+                    if (ImGui::InputTextWithHint("##search", "Search events", searchBuf, sizeof(searchBuf)))
                         m_SearchFilter = searchBuf;
+                    ImGui::Unindent(pad);
+                    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
                 }
 
                 // Content area
-                if (ImGui::BeginChild("ProfilerContent", ImVec2(-1, -1), ImGuiChildFlags_Borders))
+                if (ImGui::BeginChild("ProfilerContent", ImVec2(-1, -1), ImGuiChildFlags_None))
                 {
                     if (m_ViewMode == ProfilerViewMode::Memory)
                     {
@@ -542,9 +545,9 @@ void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTim
     if (ImGui::BeginTable("HierarchyView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, 80);
-        ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("%", ImGuiTableColumnFlags_WidthFixed, 50);
+        ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, m_App->Dpi(90.0f));
+        ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(90.0f));
+        ImGui::TableSetupColumn("%", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(60.0f));
         ImGui::TableHeadersRow();
 
         // Read sort specs
@@ -611,9 +614,9 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
     if (ImGui::BeginTable("FlatView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, 80);
-        ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("Calls", ImGuiTableColumnFlags_WidthFixed, 50);
+        ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, m_App->Dpi(90.0f));
+        ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(90.0f));
+        ImGui::TableSetupColumn("Calls", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(60.0f));
         ImGui::TableHeadersRow();
 
         // Sort when the data was rebuilt or the sort spec changed.

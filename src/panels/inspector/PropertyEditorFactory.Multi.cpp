@@ -41,7 +41,10 @@ static bool AreValuesSame(const std::vector<Deki::Component*>& components, const
 void PropertyEditorFactory::DrawReadOnlyMulti(const std::vector<Deki::Component*>& components,
                                               const Deki::PropertyInfo& prop)
 {
-    ImGui::TextDisabled("(%zu objects: value from the first, edit one at a time)", components.size());
+    // Wrapped: on one line it ran past the Inspector's edge.
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("Shows the first of %zu objects. Select one object to edit this.", components.size());
+    ImGui::PopTextWrapPos();
     ImGui::BeginDisabled();
     DrawProperty(components[0], prop);
     ImGui::EndDisabled();

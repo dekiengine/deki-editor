@@ -1356,10 +1356,13 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         // which matters most when several are open at once.
         ImFont* ico = g_FontUI ? g_FontUI : ImGui::GetFont();
         const float icoSize = ImGui::GetFontSize();
-        const float openT = AnimateTo(ImGui::GetItemID(), open ? 1.0f : 0.0f, 0.13f);
-        DrawTurningChevron(dl, ico, icoSize,
-                           ImVec2(labelBaseX + labelSpacing * 0.5f, centerY),
-                           gray, ICON_TI_CHEVRON_RIGHT, openT, IM_PI * 0.5f);
+        if (!(flags & ImGuiTreeNodeFlags_Leaf))  // a leaf band does not fold
+        {
+            const float openT = AnimateTo(ImGui::GetItemID(), open ? 1.0f : 0.0f, 0.13f);
+            DrawTurningChevron(dl, ico, icoSize,
+                               ImVec2(labelBaseX + labelSpacing * 0.5f, centerY),
+                               gray, ICON_TI_CHEVRON_RIGHT, openT, IM_PI * 0.5f);
+        }
 
         // Tab label: uppercase, letter-spaced, Inter SemiBold, after the arrow.
         const float bodyFont = ImGui::GetFontSize();
@@ -2099,6 +2102,21 @@ bool SchematicDragFloat3(const char* id, float v[3], float v_speed,
                          float v_min, float v_max, const char* format)
 {
     return SchematicDragFloatN<3>(id, v, v_speed, v_min, v_max, format);
+}
+
+bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed,
+                            float v_min, float v_max, const char* format)
+{
+    axis = ImClamp(axis, 0, 2);
+    const bool changed = ImGui::DragFloat(id, v, v_speed, v_min, v_max, "");
+    const float stampW = OverlayAxisStamp(kAxisLabels[axis], kAxisColors[axis]);
+    if (format && format[0])
+    {
+        char buf[64];
+        ImFormatString(buf, IM_ARRAYSIZE(buf), format, *v);
+        OverlayLeftAlignedValue(buf, stampW);
+    }
+    return changed;
 }
 
 // Shared implementation for the 3- and 4-channel color editors. `N` is 3 or 4.

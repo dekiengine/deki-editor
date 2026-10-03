@@ -1259,10 +1259,39 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
 
 void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& objects)
 {
-    // Header showing selection count
-    ImGui::TextColored(DekiEditor::Palette::Accent,
-                       "%zu Objects Selected", objects.size());
-    ImGui::Separator();
+    // Header in the same band as a single object's: a display-font heading and
+    // the names below it, instead of a line crammed under the PIN bar.
+    {
+        const float bodyIndent = m_App->Dpi(Metrics::InspectorIndent);
+        const float pathLeftPad = m_App->Dpi(16.0f);
+        ImGui::Unindent(bodyIndent - pathLeftPad);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));
+        ImFont* display = g_DisplayFont;
+        if (display) ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
+        ImGui::Text("%zu objects", objects.size());
+        ImGui::PopStyleColor();
+        if (display) ImGui::PopFont();
+
+        std::string names;
+        const size_t shown = std::min<size_t>(objects.size(), 3);
+        for (size_t i = 0; i < shown; ++i)
+            names += (i ? ", " : "") + objects[i]->GetName();
+        if (objects.size() > shown)
+            names += " and " + std::to_string(objects.size() - shown) + " more";
+        ImGui::Dummy(ImVec2(0, m_App->Dpi(4.0f)));
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextUnformatted(names.c_str());
+        ImGui::PopTextWrapPos();
+        ImGui::PopStyleColor();
+
+        ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));
+        ImGui::PopStyleVar();
+        DekiEditor::FullBleedSeparator();
+        ImGui::Indent(bodyIndent - pathLeftPad);
+    }
 
     // Play mode indicator
     if (m_App->IsPlaying() || m_App->IsPaused())
@@ -1304,11 +1333,9 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
         }
         ImGui::PopStyleVar();  // context menu WindowPadding
 
-        ImGui::TextDisabled("(Multiple objects - individual editing not shown)");
+        DrawMultiTransform(objects);
         SchematicSectionEnd();
     }
-
-    ImGui::Separator();
 
     // Find common components across all selected objects
     auto commonComponents = GetCommonComponents(objects);
@@ -1323,6 +1350,117 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
     for (const auto& group : commonComponents)
     {
         DrawMultiComponentSection(group);
+    }
+}
+
+// Transform rows for several objects: each box shows the value they share, or
+// "-" when they differ; changing it sets that value on all of them. The whole
+// drag or typed edit is one undo step that puts each object's own old value
+// back (a single shared "before" would not).
+void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& objects)
+{
+    struct Before
+    {
+        Deki::Object* obj;
+        float x, y, rot, sx, sy;
+    };
+    static std::vector<Before> s_Before;  // snapshot taken when a box is grabbed
+
+    const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
+    constexpr float kRadToDeg = 57.29578f;
+
+    // Component `i` of row `row` of an object, in canonical units.
+    auto get = [](Deki::Object* o, int row, int i) -> float
+    {
+        switch (row)
+        {
+            case 0: return i == 0 ? o->GetX() : o->GetY();
+            case 1: return o->GetLocalRotation();
+            default: return i == 0 ? o->GetScaleX() : o->GetScaleY();
+        }
+    };
+    auto set = [](Deki::Object* o, int row, int i, float v)
+    {
+        switch (row)
+        {
+            case 0: o->SetLocalPosition(i == 0 ? v : o->GetX(), i == 0 ? o->GetY() : v); break;
+            case 1: o->SetRotation(v); break;
+            default: o->SetScale(i == 0 ? v : o->GetScaleX(), i == 0 ? o->GetScaleY() : v); break;
+        }
+    };
+
+    struct Row
+    {
+        const char* label;
+        int count;
+        float toDisplay;
+        const char* format;
+        float speed;
+    };
+    const Row rows[3] = {
+        { objects[0]->GetParent() ? "Local Position" : "Position", 2, ppm, "%.0f px", 1.0f },
+        { "Rotation", 1, kRadToDeg, "%.2f\xc2\xb0", 0.5f },
+        { "Scale", 2, 1.0f, "%.3f", 0.01f },
+    };
+
+    for (int row = 0; row < 3; ++row)
+    {
+        const Row& r = rows[row];
+        InspectorUtils::BeginPropertyRow(r.label);
+        ImGui::PushID(row);
+        // The single-object rows' widths and gap (SchematicDragFloat2's).
+        const float gap = ImGui::GetStyle().ItemInnerSpacing.x;
+        const float boxW = (ImGui::CalcItemWidth() - gap * (float)(r.count - 1)) / (float)r.count;
+        for (int i = 0; i < r.count; ++i)
+        {
+            if (i > 0)
+                ImGui::SameLine(0.0f, gap);
+            const float first = get(objects[0], row, i);
+            bool mixed = false;
+            for (Deki::Object* o : objects)
+                mixed |= get(o, row, i) != first;
+
+            float disp = first * r.toDisplay;
+            ImGui::PushID(i);
+            ImGui::SetNextItemWidth(boxW);
+            const char* format = mixed ? "\xe2\x80\x94" : r.format;
+            const bool edited = r.count > 1 ? SchematicDragFloatAxis("##v", &disp, i, r.speed, 0.0f, 0.0f, format)
+                                            : SchematicDragFloat("##v", &disp, r.speed, 0.0f, 0.0f, format);
+            if (ImGui::IsItemActivated())
+            {
+                s_Before.clear();
+                for (Deki::Object* o : objects)
+                    s_Before.push_back({ o, o->GetX(), o->GetY(), o->GetLocalRotation(), o->GetScaleX(), o->GetScaleY() });
+                BeginLiveEdit();
+            }
+            if (edited && r.toDisplay != 0.0f)
+                for (Deki::Object* o : objects)
+                    set(o, row, i, disp / r.toDisplay);
+            if (ImGui::IsItemDeactivated())
+            {
+                EndLiveEdit();
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    std::vector<std::unique_ptr<Command>> steps;
+                    for (const Before& b : s_Before)
+                    {
+                        Deki::Object* o = b.obj;
+                        if (row == 0 && (o->GetX() != b.x || o->GetY() != b.y))
+                            steps.push_back(std::make_unique<SetPositionCommand>(o, b.x, b.y, o->GetX(), o->GetY()));
+                        else if (row == 1 && o->GetLocalRotation() != b.rot)
+                            steps.push_back(std::make_unique<SetRotationCommand>(o, b.rot, o->GetLocalRotation()));
+                        else if (row == 2 && (o->GetScaleX() != b.sx || o->GetScaleY() != b.sy))
+                            steps.push_back(std::make_unique<SetScaleCommand>(o, b.sx, b.sy, o->GetScaleX(), o->GetScaleY()));
+                    }
+                    if (!steps.empty())
+                        CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
+                            std::string(r.label) + " (" + std::to_string(objects.size()) + " objects)", std::move(steps)));
+                }
+                s_Before.clear();
+            }
+            ImGui::PopID();
+        }
+        ImGui::PopID();
     }
 }
 
@@ -1400,7 +1538,7 @@ void InspectorPanel::DrawMultiComponentSection(const ComponentGroup& group)
     if (!group.meta)
         return;
 
-    const bool open = SchematicSectionBegin(group.typeName.c_str(),
+    const bool open = SchematicSectionBegin(group.meta->GetDisplayName(),
                                             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
 
     // Right-aligned `EDIT ->` action link for package/project components.

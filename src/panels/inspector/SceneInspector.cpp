@@ -122,7 +122,11 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
     // Display preview
     if (m_Renderer && m_Renderer->GetTextureId() != 0)
     {
-        float availWidth = ImGui::GetContentRegionAvail().x;
+        // The panel has no window padding, so the region runs to its right
+        // edge: keep the same inset on the right as the indent on the left,
+        // or the preview touched (and with a scrollbar, ran under) the edge.
+        const float inset = ImGui::GetCursorScreenPos().x - ImGui::GetWindowPos().x;
+        float availWidth = std::max(1.0f, ImGui::GetContentRegionAvail().x - inset);
         float fullAspect = static_cast<float>(bufH) / static_cast<float>(bufW);
         float displayWidth = availWidth;
         float displayHeight = displayWidth * fullAspect * 0.7f;
