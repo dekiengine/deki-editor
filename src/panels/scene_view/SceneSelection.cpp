@@ -125,6 +125,36 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
     return true;
 }
 
+std::vector<Deki::Object*> SceneSelection::ObjectsInRect(const std::vector<Deki::Object*>& objects,
+                                                         float x0, float y0, float x1, float y1,
+                                                         float pixelsPerMeter)
+{
+    const float minX = std::min(x0, x1), maxX = std::max(x0, x1);
+    const float minY = std::min(y0, y1), maxY = std::max(y0, y1);
+    const float invPPM = 1.0f / (pixelsPerMeter > 0.0f ? pixelsPerMeter : 1.0f);
+    std::vector<Deki::Object*> out;
+    for (Deki::Object* obj : objects)
+    {
+        if (!obj->IsActive())
+            continue;
+        float w = 0.0f, h = 0.0f;
+        if (!m_Measurer->GetDisplaySize(obj, w, h) || w <= 0.0f || h <= 0.0f)
+            continue;
+        // The drawn box as HitTestObject sees it (centered, scaled, rotated),
+        // reduced to its world-aligned bounds.
+        const float halfW = std::fabs(w * obj->GetWorldScaleX()) * 0.5f * invPPM;
+        const float halfH = std::fabs(h * obj->GetWorldScaleY()) * 0.5f * invPPM;
+        const float c = std::fabs(std::cos(obj->GetWorldRotation()));
+        const float s = std::fabs(std::sin(obj->GetWorldRotation()));
+        const float extX = halfW * c + halfH * s;
+        const float extY = halfW * s + halfH * c;
+        const float x = obj->GetWorldX(), y = obj->GetWorldY();
+        if (x - extX >= minX && x + extX <= maxX && y - extY >= minY && y + extY <= maxY)
+            out.push_back(obj);
+    }
+    return out;
+}
+
 Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& objects,
                                         Deki::Object* currentSelection,
                                         float worldX, float worldY, float pixelsPerMeter)

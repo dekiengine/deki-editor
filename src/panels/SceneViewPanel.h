@@ -139,6 +139,18 @@ private:
     bool m_TouchPendingPan = false;
     ImVec2 m_TouchPressScreen;
 
+    // Box select: a press anywhere but on the selected object or a handle.
+    // Dragging draws the box and selects what it holds, on top of the
+    // selection kept from the press when Shift or Ctrl was down; released in
+    // place, it is a click and picks what is under it. The pick waits for the
+    // release because a background covers most of a scene: picking on press
+    // would leave no empty canvas to start a box from.
+    bool m_MarqueePending = false;
+    bool m_MarqueeActive = false;
+    bool m_MarqueeAdditive = false;
+    ImVec2 m_MarqueeStart;
+    std::vector<Deki::Object*> m_MarqueeBase;
+
     // Track scene to detect changes
     void* m_LastScene = nullptr;
 

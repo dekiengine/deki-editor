@@ -332,10 +332,11 @@ void SceneViewPanel::HandleInput()
     if (selected && isCanvasHovered && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Delete))
         m_App->DeleteObjects(m_App->GetSelectedObjects());
 
-    // Panning with Alt+Left Mouse or Middle Mouse
+    // Panning with Alt+Left, Middle or Right mouse
     bool startPan = isCanvasHovered &&
                     ((ImGui::IsMouseClicked(ImGuiMouseButton_Left) && io.KeyAlt) ||
-                     ImGui::IsMouseClicked(ImGuiMouseButton_Middle));
+                     ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
+                     ImGui::IsMouseClicked(ImGuiMouseButton_Right));
 
     if (startPan)
     {
@@ -345,7 +346,8 @@ void SceneViewPanel::HandleInput()
 
     if (m_IsPanning)
     {
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDown(ImGuiMouseButton_Middle))
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
+            ImGui::IsMouseDown(ImGuiMouseButton_Right))
         {
             ImVec2 delta = ImVec2(io.MousePos.x - m_LastPanPos.x, io.MousePos.y - m_LastPanPos.y);
             m_PanOffsetX += delta.x;
@@ -520,7 +522,9 @@ void SceneViewPanel::DrawSceneCanvas()
     float sceneLeft = m_CanvasTopLeft.x + m_PanOffsetX;
     float sceneTop = m_CanvasTopLeft.y + m_PanOffsetY;
 
-    ImGui::InvisibleButton("SceneCanvas", availSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
+    ImGui::InvisibleButton("SceneCanvas", availSize,
+                           ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle |
+                               ImGuiButtonFlags_MouseButtonRight);
     bool isCanvasHovered = ImGui::IsItemHovered();
 
     HandleInput();
@@ -699,8 +703,49 @@ void SceneViewPanel::DrawSceneCanvas()
             }
             else
             {
-                Deki::Object* clicked = m_Selection->HandleClick(allObjects, selected, worldPos.x, worldPos.y, projectPPM);
-                m_App->SetSelectedObject(clicked);
+                // A click, or the start of a box: the release decides.
+                m_MarqueeAdditive = io.KeyShift || io.KeyCtrl;
+                m_MarqueeBase = m_MarqueeAdditive ? m_App->GetSelectedObjects() : std::vector<Deki::Object*>{};
+                m_MarqueePending = true;
+                m_MarqueeActive = false;
+                m_MarqueeStart = mousePos;
+            }
+        }
+    }
+
+    // Box select: live while the button is held; a release without a drag is
+    // a click on what is under the press.
+    if (m_MarqueePending)
+    {
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            if (!m_MarqueeActive)
+            {
+                const ImVec2 at = m_Coords->ScreenToWorld(m_MarqueeStart.x, m_MarqueeStart.y);
+                Deki::Object* clicked = m_Selection->HandleClick(allObjects, m_MarqueeAdditive ? nullptr : selected,
+                                                                 at.x, at.y, projectPPM);
+                if (clicked && m_MarqueeAdditive)
+                    m_App->ToggleSelection(clicked);
+                else if (!m_MarqueeAdditive)
+                    m_App->SetSelectedObject(clicked);
+            }
+            m_MarqueePending = m_MarqueeActive = false;
+            m_MarqueeBase.clear();
+        }
+        else
+        {
+            if (!m_MarqueeActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, -1.0f))
+                m_MarqueeActive = true;
+            if (m_MarqueeActive && (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f || flatStale))
+            {
+                const ImVec2 a = m_Coords->ScreenToWorld(m_MarqueeStart.x, m_MarqueeStart.y);
+                const ImVec2 b = m_Coords->ScreenToWorld(io.MousePos.x, io.MousePos.y);
+                std::vector<Deki::Object*> next = m_MarqueeBase;
+                for (Deki::Object* obj : m_Selection->ObjectsInRect(allObjects, a.x, a.y, b.x, b.y, projectPPM))
+                    if (std::find(next.begin(), next.end(), obj) == next.end())
+                        next.push_back(obj);
+                if (next != m_App->GetSelectedObjects())
+                    m_App->SetSelectedObjects(next);
             }
         }
     }
@@ -1142,6 +1187,14 @@ void SceneViewPanel::DrawSceneCanvas()
             visit(visit, root);
     }
 
+    // Bounds around the rest of a multiple selection; the first one gets
+    // them, and its tool gizmo, below.
+    if (m_Toolbar->ShowGizmos() && m_App->HasMultipleSelected())
+        for (Deki::Object* obj : m_App->GetSelectedObjects())
+            if (obj && obj != selected && obj->IsActive())
+                m_Gizmos->DrawSelectionBounds(drawList, obj, m_EditorCamera, renderWidth, renderHeight,
+                                              bufferCanvasTopLeft);
+
     // Draw gizmos
     if (selected && selected->IsActive())
     {
@@ -1199,6 +1252,18 @@ void SceneViewPanel::DrawSceneCanvas()
         DrawPixelGridAxis(drawList, false, sceneTop, effectiveZoom, canvasTop, canvasBottom, canvasLeft, canvasRight);
         DrawGridAxis(drawList, true, sceneLeft, cell, canvasLeft, canvasRight, canvasTop, canvasBottom, minSpacing);
         DrawGridAxis(drawList, false, sceneTop, cell, canvasTop, canvasBottom, canvasLeft, canvasRight, minSpacing);
+    }
+
+    if (m_MarqueeActive)
+    {
+        const ImVec2 a(std::min(m_MarqueeStart.x, io.MousePos.x), std::min(m_MarqueeStart.y, io.MousePos.y));
+        const ImVec2 b(std::max(m_MarqueeStart.x, io.MousePos.x), std::max(m_MarqueeStart.y, io.MousePos.y));
+        ImVec4 fill = DekiEditor::Palette::Accent;
+        fill.w = 0.10f;
+        ImVec4 edge = DekiEditor::Palette::Accent;
+        edge.w = 0.85f;
+        drawList->AddRectFilled(a, b, ImGui::ColorConvertFloat4ToU32(fill));
+        drawList->AddRect(a, b, ImGui::ColorConvertFloat4ToU32(edge), 0.0f, 0, 1.0f);
     }
 
     drawList->PopClipRect();

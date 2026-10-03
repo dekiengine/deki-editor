@@ -27,6 +27,12 @@ public:
                             Deki::Object* currentSelection,
                             float worldX, float worldY, float pixelsPerMeter);
 
+    // The visible objects drawn wholly inside the world rectangle (meters, any
+    // corner order). Wholly, not touching: a box around some sprites would
+    // otherwise also pick the background they sit on, and the camera.
+    std::vector<Deki::Object*> ObjectsInRect(const std::vector<Deki::Object*>& objects,
+                                             float x0, float y0, float x1, float y1, float pixelsPerMeter);
+
 private:
     SceneObjectMeasurer* m_Measurer;
     SceneTextureCache* m_TextureCache;
