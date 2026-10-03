@@ -48,8 +48,8 @@ public:
     void OnPlayModeResumed();
 
 private:
-    void DrawToolbar();
-    void DrawFrameTimeline();
+    void DrawToolbar(float frameBudgetMs, int targetFps);
+    void DrawFrameTimeline(float frameBudgetMs);
     void DrawHierarchyView(const ProfileEvent* root, double activeTimeMs);
     void DrawFlatView(const ProfileEvent* root, double activeTimeMs);
     void DrawFlameGraph(const ProfileEvent* root, double activeTimeMs);

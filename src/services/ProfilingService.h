@@ -94,6 +94,7 @@ public:
 
     // Frame data access
     const std::deque<FrameData>& GetFrameHistory() const { return m_FrameHistory; }
+    void ClearHistory() { m_FrameHistory.clear(); }
     const FrameData* GetFrame(size_t index) const;
 
     // Symbol resolution for deep profiling (/Gh /GH hooks)

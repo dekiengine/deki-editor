@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -157,6 +159,31 @@ static bool CompareEvents(const ProfileEvent* a, const ProfileEvent* b, double f
     }
 }
 
+// A table cell's number, right-aligned like a spreadsheet's.
+static void RightAlignedCell(const char* text)
+{
+    const float w = ImGui::CalcTextSize(text).x;
+    const float avail = ImGui::GetContentRegionAvail().x;
+    if (avail > w)
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - w);
+    ImGui::TextUnformatted(text);
+}
+
+// The share of the frame: a faint accent bar across the cell, the value on it.
+static void PercentCell(float percent)
+{
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const float w = ImGui::GetContentRegionAvail().x;
+    const float h = ImGui::GetTextLineHeight();
+    ImVec4 c = DekiEditor::Palette::Accent;
+    c.w = 0.22f;
+    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + w * std::clamp(percent / 100.0f, 0.0f, 1.0f), p.y + h),
+                                              ImGui::ColorConvertFloat4ToU32(c), 2.0f);
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%.1f%%", percent);
+    RightAlignedCell(buf);
+}
+
 // Recursive helper to draw profile event tree (table row per event)
 static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
                           const std::string& searchFilter)
@@ -192,20 +219,25 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
     ImGui::PushID(event);
     bool open = ImGui::TreeNodeEx("##event", flags, "%s", event->name.c_str());
 
+    char num[32];
     // Total ms column
     ImGui::TableNextColumn();
-    ImGui::Text("%.3f", eventMs);
+    std::snprintf(num, sizeof(num), "%.3f", eventMs);
+    RightAlignedCell(num);
 
     // Self ms column
     ImGui::TableNextColumn();
     if (hasChildren && selfMs > 0.001)
-        ImGui::Text("%.3f", selfMs);
+        std::snprintf(num, sizeof(num), "%.3f", selfMs);
     else
-        ImGui::TextUnformatted("-");
+        std::snprintf(num, sizeof(num), "-");
+    ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+    RightAlignedCell(num);
+    ImGui::PopStyleColor();
 
     // Percent column
     ImGui::TableNextColumn();
-    ImGui::Text("%.1f%%", percent);
+    PercentCell(percent);
 
     ImGui::PopID();
 
@@ -275,39 +307,17 @@ void ProfilerPanel::Draw()
     if (!m_Open)
         return;
 
-    DekiEditor::FirstUseWindowPlacement(900, 650);
+    DekiEditor::FirstUseWindowPlacement(m_App->Dpi(900.0f), m_App->Dpi(650.0f));
 
     if (ImGui::Begin("PROFILER###Profiler", &m_Open, DekiEditor::MaximizedWindowFlags("PROFILER###Profiler")))
     {
         auto& profiler = ProfilingService::Get();
 
-        // Get frame budget from project's Core.targetFps
+        // Frame budget from the project's Core.targetFps
         int targetFps = 60;
         if (auto* core = DekiEditor::GetCoreSettings(); core && core->targetFps > 0)
             targetFps = core->targetFps;
-        float frameBudgetMs = 1000.0f / targetFps;
-
-        // Status and budget as property rows, the way every panel lists facts.
-        ImGui::Spacing();
-        DekiEditor::BeginPropertyContext();
-        InspectorUtils::BeginPropertyRow("Status");
-        ImGui::AlignTextToFramePadding();
-        if (profiler.IsRecording())
-            ImGui::TextColored(DekiEditor::Palette::Green, "Recording");
-        else
-            ImGui::TextColored(DekiEditor::Palette::Dim, "Records in Play mode");
-        InspectorUtils::SetNextRowTooltip("One frame at the project's target frame rate (Project Settings > Core).");
-        InspectorUtils::BeginPropertyRow("Frame Budget");
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("%.2f ms", frameBudgetMs);
-        ImGui::SameLine();
-        ImGui::TextColored(DekiEditor::Palette::Dim, "%d fps", targetFps);
-        DekiEditor::EndPropertyContext();
-        ImGui::Spacing();
-        DekiEditor::FullBleedSeparator();
-
-        // Frame history display
-        const auto& history = profiler.GetFrameHistory();
+        const float frameBudgetMs = 1000.0f / targetFps;
 
         // 1 Hz refresh batching - refresh display buffer once per second
         auto now = std::chrono::steady_clock::now();
@@ -318,129 +328,28 @@ void ProfilerPanel::Draw()
             m_LastRefreshTime = now;
         }
 
-        if (history.empty())
+        DrawToolbar(frameBudgetMs, targetFps);
+
+        const auto& history = profiler.GetFrameHistory();
+        if (history.empty() || m_DisplayBuffer.empty())
         {
-            DekiEditor::BeginPropertyContext();
-            InspectorUtils::BeginPropertyRow("");
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(DekiEditor::Palette::Dim, "Nothing recorded yet.");
-            DekiEditor::EndPropertyContext();
+            DekiEditor::EmptyStateText(profiler.IsRecording()
+                                           ? "Waiting for the first frame..."
+                                           : "Nothing recorded yet. Press Play: the profiler records every frame of "
+                                             "the game while it runs.");
         }
         else
         {
-            int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < (int)m_DisplayBuffer.size()
-                               ? m_SelectedFrame
-                               : (int)m_DisplayBuffer.size() - 1;
+            DrawFrameTimeline(frameBudgetMs);
 
-            // Timeline, padded like a section body; the views below run edge
-            // to edge.
-            const float pad = m_App->Dpi(12.0f);
-            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
-            ImGui::Indent(pad);
-            DekiEditor::SchematicSubHeader("Timeline");
-            ImGui::TextColored(DekiEditor::Palette::Dim, "Click a bar to inspect that frame.");
-            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
-
-            float fullWidth = ImGui::GetContentRegionAvail().x - pad;
-            float labelWidth = m_App->Dpi(45.0f);  // Space for FPS labels on Y-axis
-            float availWidth = fullWidth - labelWidth;
-            float barHeight = m_App->Dpi(120.0f);
-            ImVec2 barPos = ImGui::GetCursorScreenPos();
-            barPos.x += labelWidth;  // Offset bars to make room for labels
-
-            ImDrawList* drawList = ImGui::GetWindowDrawList();
-            float barWidth = m_DisplayBuffer.empty() ? availWidth : availWidth / m_DisplayBuffer.size();
-            float maxMs = 33.33f;
-            const ImU32 accent = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Accent);
-
-            // Draw stacked bars from display buffer
-            for (size_t i = 0; i < m_DisplayBuffer.size(); i++)
-            {
-                const auto& frame = m_DisplayBuffer[i];
-                float totalHeight = std::min((float)(frame.activeTimeMs / maxMs), 1.0f) * barHeight;
-                float x = barPos.x + i * barWidth;
-                bool isSelected = (int)i == m_SelectedFrame;
-
-                if (frame.categoryTimeMs.empty() || isSelected)
-                {
-                    // Solid bar, or the selection in the accent
-                    ImU32 color = isSelected ? accent : IM_COL32(120, 120, 120, 255);
-                    float y = barPos.y + barHeight - totalHeight;
-                    drawList->AddRectFilled(ImVec2(x, y), ImVec2(x + barWidth - 1, barPos.y + barHeight), color);
-                }
-                else
-                {
-                    // Stacked segments by category
-                    float yOffset = barPos.y + barHeight;
-                    for (const auto& [category, timeMs] : frame.categoryTimeMs)
-                    {
-                        if (timeMs <= 0)
-                            continue;
-                        float segmentHeight = (float)(timeMs / maxMs) * barHeight;
-                        segmentHeight = std::min(segmentHeight, yOffset - barPos.y);  // Clamp to available space
-                        if (segmentHeight > 0.5f)
-                        {
-                            drawList->AddRectFilled(ImVec2(x, yOffset - segmentHeight),
-                                                    ImVec2(x + barWidth - 1, yOffset), GetCategoryColor(category));
-                            yOffset -= segmentHeight;
-                        }
-                    }
-                }
-            }
-
-            // Reference lines with FPS labels on Y-axis
-            const ImU32 dim = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
-            float labelX = barPos.x - labelWidth;
-            float line60fps = barPos.y + barHeight - (16.67f / maxMs) * barHeight;
-            float line30fps = barPos.y + barHeight - (33.33f / maxMs) * barHeight;
-            drawList->AddLine(ImVec2(barPos.x, line60fps), ImVec2(barPos.x + availWidth, line60fps),
-                              IM_COL32(100, 100, 100, 150), 1.0f);
-            drawList->AddLine(ImVec2(barPos.x, line30fps), ImVec2(barPos.x + availWidth, line30fps),
-                              IM_COL32(100, 100, 100, 150), 1.0f);
-            const float halfLine = ImGui::GetTextLineHeight() * 0.5f;
-            drawList->AddText(ImVec2(labelX, line60fps - halfLine), dim, "60 fps");
-            drawList->AddText(ImVec2(labelX, line30fps - halfLine), dim, "30 fps");
-
-            // Click detection - click to select and pause recording
-            ImGui::InvisibleButton("FrameTimeline", ImVec2(fullWidth, barHeight));
-            if (ImGui::IsItemClicked())
-            {
-                float mouseX = ImGui::GetMousePos().x - barPos.x;  // barPos already offset by labelWidth
-                int clickedFrame = (int)(mouseX / barWidth);
-                if (clickedFrame >= 0 && clickedFrame < (int)m_DisplayBuffer.size() && m_SelectedFrame != clickedFrame)
-                {
-                    m_SelectedFrame = clickedFrame;
-                    profiler.StopRecording();  // Pause recording when inspecting
-                }
-            }
-
-            // Category legend: a swatch and a dim name each, on one line
-            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
-            const float swatch = m_App->Dpi(10.0f);
-            const char* categories[] = { "rendering", "lifecycle", "components", "playmode", "editor", "deep" };
-            for (size_t c = 0; c < IM_ARRAYSIZE(categories); ++c)
-            {
-                if (c > 0)
-                    ImGui::SameLine(0.0f, m_App->Dpi(14.0f));
-                ImVec2 p = ImGui::GetCursorScreenPos();
-                const float y = p.y + (ImGui::GetTextLineHeight() - swatch) * 0.5f;
-                drawList->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + swatch, y + swatch), GetCategoryColor(categories[c]), 2.0f);
-                ImGui::Dummy(ImVec2(swatch, ImGui::GetTextLineHeight()));
-                ImGui::SameLine(0.0f, m_App->Dpi(6.0f));
-                ImGui::TextColored(DekiEditor::Palette::Dim, "%s", categories[c]);
-            }
-            ImGui::Unindent(pad);
-            ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
-
-            // Selected frame info
-            // Find frame in history by frame number (not by index, which shifts as history grows)
+            // The frame shown below: the selected one, or the newest.
+            const int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < (int)m_DisplayBuffer.size()
+                                     ? m_SelectedFrame
+                                     : (int)m_DisplayBuffer.size() - 1;
+            const uint64_t targetFrameNumber = (m_SelectedFrame < 0) ? m_CurrentFrameNumber
+                                                                     : m_DisplayBuffer[frameIdx].frameNumber;
             const FrameData* displayFrame = nullptr;
-            uint64_t targetFrameNumber = (m_SelectedFrame < 0)
-                                             ? m_CurrentFrameNumber
-                                             : (frameIdx >= 0 && frameIdx < (int)m_DisplayBuffer.size() ? m_DisplayBuffer[frameIdx].frameNumber : 0);
-
-            // Search from end (most recent) for efficiency
-            for (auto it = history.rbegin(); it != history.rend(); ++it)
+            for (auto it = history.rbegin(); it != history.rend(); ++it)  // newest first
             {
                 if (it->frameNumber == targetFrameNumber)
                 {
@@ -452,27 +361,32 @@ void ProfilerPanel::Draw()
             if (displayFrame)
             {
                 const auto& frame = *displayFrame;
-                double activeTimeMs = frame.totalTimeMs - frame.idleTimeMs;
-                float fps = activeTimeMs > 0 ? (float)(1000.0 / activeTimeMs) : 0.0f;
+                const double activeTimeMs = frame.totalTimeMs - frame.idleTimeMs;
+                const float fps = activeTimeMs > 0 ? (float)(1000.0 / activeTimeMs) : 0.0f;
 
+                // One summary line: which frame, and its time against the budget.
+                const float pad = m_App->Dpi(12.0f);
                 DekiEditor::FullBleedSeparator();
-                ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
-                DekiEditor::BeginPropertyContext();
-                InspectorUtils::BeginPropertyRow(m_SelectedFrame < 0 ? "Latest Frame" : "Frame");
+                ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
+                ImGui::Indent(pad);
                 ImGui::AlignTextToFramePadding();
+                ImGui::TextColored(DekiEditor::Palette::Dim, m_SelectedFrame < 0 ? "Latest frame" : "Frame");
+                ImGui::SameLine(0.0f, m_App->Dpi(8.0f));
                 ImGui::Text("#%llu", (unsigned long long)frame.frameNumber);
-                InspectorUtils::BeginPropertyRow("Time");
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text("%.2f ms", activeTimeMs);
-                ImGui::SameLine();
-                ImGui::TextColored(DekiEditor::Palette::Dim, "%.1f fps", fps);
+                ImGui::SameLine(0.0f, m_App->Dpi(20.0f));
+                const ImVec4 timeCol = activeTimeMs <= frameBudgetMs           ? DekiEditor::Palette::Green
+                                       : activeTimeMs <= frameBudgetMs * 2.0f  ? DekiEditor::Palette::Amber
+                                                                               : DekiEditor::Palette::Red;
+                ImGui::TextColored(timeCol, "%.2f ms", activeTimeMs);
+                ImGui::SameLine(0.0f, m_App->Dpi(10.0f));
+                ImGui::TextColored(DekiEditor::Palette::Dim, "%.0f fps", fps);
                 if (frame.idleTimeMs > 0.1)
                 {
-                    ImGui::SameLine();
+                    ImGui::SameLine(0.0f, m_App->Dpi(10.0f));
                     ImGui::TextColored(DekiEditor::Palette::Dim, "+%.2f ms idle", frame.idleTimeMs);
                 }
-                DekiEditor::EndPropertyContext();
-                ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+                ImGui::Unindent(pad);
+                ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
 
                 // View switch: the Asset Browser's tab links
                 auto& ui = EditorUI::Get();
@@ -488,9 +402,9 @@ void ProfilerPanel::Draw()
                 ui.EndTabLinks();
 
                 // Search, for the views that list events
-                if (m_ViewMode != ProfilerViewMode::Memory)
+                if (m_ViewMode == ProfilerViewMode::Hierarchy || m_ViewMode == ProfilerViewMode::Flat)
                 {
-                    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+                    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
                     ImGui::Indent(pad);
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - pad);
                     char searchBuf[256] = {};
@@ -498,7 +412,7 @@ void ProfilerPanel::Draw()
                     if (ImGui::InputTextWithHint("##search", "Search events", searchBuf, sizeof(searchBuf)))
                         m_SearchFilter = searchBuf;
                     ImGui::Unindent(pad);
-                    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(4.0f)));
+                    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
                 }
 
                 // Content area
@@ -506,8 +420,7 @@ void ProfilerPanel::Draw()
                 {
                     if (m_ViewMode == ProfilerViewMode::Memory)
                     {
-                        // Memory view doesn't need root event
-                        DrawMemoryView();
+                        DrawMemoryView();  // needs no event tree
                     }
                     else if (frame.rootEvent)
                     {
@@ -523,13 +436,12 @@ void ProfilerPanel::Draw()
                                 DrawFlameGraph(frame.rootEvent.get(), activeTimeMs);
                                 break;
                             case ProfilerViewMode::Memory:
-                                // Already handled above
                                 break;
                         }
                     }
                     else
                     {
-                        ImGui::TextDisabled("No hierarchy data for this frame.");
+                        DekiEditor::EmptyStateText("No breakdown was recorded for this frame.");
                     }
                 }
                 ImGui::EndChild();
@@ -540,9 +452,184 @@ void ProfilerPanel::Draw()
     ImGui::End();
 }
 
+void ProfilerPanel::DrawToolbar(float frameBudgetMs, int targetFps)
+{
+    auto& ui = EditorUI::Get();
+    auto& profiler = ProfilingService::Get();
+    const ImVec2 rowMin = ImGui::GetCursorScreenPos();
+    const float rowW = ImGui::GetContentRegionAvail().x;
+    const float rowH = m_App->Dpi(34.0f);  // the toolbar strip's height
+
+    ui.BeginToolbar();
+    // Back to the newest frame, recording again if the game is running.
+    if (ui.ToolbarButton("Latest", m_SelectedFrame >= 0))
+    {
+        m_SelectedFrame = -1;
+        if (m_App->IsPlaying() && !m_IsPaused)
+            profiler.StartRecording();
+    }
+    if (ui.ToolbarButton("Clear", !profiler.GetFrameHistory().empty()))
+    {
+        profiler.ClearHistory();
+        m_DisplayBuffer.clear();
+        m_SelectedFrame = -1;
+        m_CurrentFrameNumber = 0;
+    }
+    ui.EndToolbar();
+
+    // State and budget, right-aligned on the strip.
+    char budget[64];
+    std::snprintf(budget, sizeof(budget), "Budget %.2f ms  %d fps", frameBudgetMs, targetFps);
+    const char* state = profiler.IsRecording() ? "Recording"
+                        : m_SelectedFrame >= 0 ? "Inspecting a frame"
+                                               : "Records in Play mode";
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const float pad = m_App->Dpi(12.0f);
+    const float lineH = ImGui::GetTextLineHeight();
+    const float y = rowMin.y + (rowH - lineH) * 0.5f;
+    const float budgetW = ImGui::CalcTextSize(budget).x;
+    const float stateW = ImGui::CalcTextSize(state).x;
+    float x = rowMin.x + rowW - pad - budgetW;
+    dl->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim), budget);
+    x -= m_App->Dpi(24.0f) + stateW;
+    const bool recording = profiler.IsRecording();
+    dl->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(recording ? DekiEditor::Palette::Green : DekiEditor::Palette::Dim),
+                state);
+    if (recording)
+        dl->AddCircleFilled(ImVec2(x - m_App->Dpi(9.0f), y + lineH * 0.5f), m_App->Dpi(3.5f),
+                            ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Green));
+}
+
+void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
+{
+    auto& profiler = ProfilingService::Get();
+    const float pad = m_App->Dpi(12.0f);
+    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(8.0f)));
+    ImGui::Indent(pad);
+
+    // Chart: a fixed 100 slots, newest at the right, so bars do not change
+    // width as the history fills. The scale is two budgets tall.
+    const int kSlots = 100;
+    const float fullWidth = ImGui::GetContentRegionAvail().x - pad;
+    const float labelW = m_App->Dpi(56.0f);
+    const float chartH = m_App->Dpi(110.0f);
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    const ImVec2 chartMin(origin.x + labelW, origin.y);
+    const ImVec2 chartMax(origin.x + fullWidth, origin.y + chartH);
+    const float chartW = chartMax.x - chartMin.x;
+    const float slotW = chartW / kSlots;
+    const float maxMs = frameBudgetMs * 2.0f;
+    const int count = (int)m_DisplayBuffer.size();
+    const int firstSlot = kSlots - std::min(count, kSlots);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImU32 dim = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim);
+    const ImU32 line = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Line2);
+    dl->AddRectFilled(chartMin, chartMax, IM_COL32(255, 255, 255, 6), m_App->Dpi(3.0f));
+
+    // Gridlines at the budget and at twice it, labelled in ms.
+    auto yFor = [&](double ms) { return chartMax.y - (float)std::min(ms / maxMs, 1.0) * chartH; };
+    const float halfLine = ImGui::GetTextLineHeight() * 0.5f;
+    for (float ms : { frameBudgetMs, maxMs })
+    {
+        const float y = yFor(ms);
+        dl->AddLine(ImVec2(chartMin.x, y), ImVec2(chartMax.x, y), line, 1.0f);
+        char label[24];
+        std::snprintf(label, sizeof(label), "%.1f ms", ms);
+        const float w = ImGui::CalcTextSize(label).x;
+        dl->AddText(ImVec2(chartMin.x - w - m_App->Dpi(8.0f), std::max(origin.y, y - halfLine)), dim, label);
+    }
+
+    // Which bar the mouse is over
+    const ImVec2 mouse = ImGui::GetMousePos();
+    int hovered = -1;
+    if (ImGui::IsWindowHovered() && mouse.x >= chartMin.x && mouse.x < chartMax.x && mouse.y >= chartMin.y &&
+        mouse.y < chartMax.y)
+    {
+        const int slot = (int)((mouse.x - chartMin.x) / slotW);
+        if (slot >= firstSlot)
+            hovered = slot - firstSlot;
+    }
+
+    const ImU32 accent = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Accent);
+    const ImU32 over = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Red);
+    for (int i = 0; i < count; ++i)
+    {
+        const auto& frame = m_DisplayBuffer[i];
+        const float x0 = chartMin.x + (firstSlot + i) * slotW;
+        const float x1 = x0 + std::max(1.0f, slotW - 1.0f);
+        const bool selected = i == m_SelectedFrame;
+        if (selected || i == hovered)
+            dl->AddRectFilled(ImVec2(x0, chartMin.y), ImVec2(x1, chartMax.y),
+                              selected ? IM_COL32(255, 255, 255, 18) : IM_COL32(255, 255, 255, 10));
+
+        if (frame.categoryTimeMs.empty() || selected)
+        {
+            dl->AddRectFilled(ImVec2(x0, yFor(frame.activeTimeMs)), ImVec2(x1, chartMax.y),
+                              selected ? accent : IM_COL32(120, 120, 120, 255));
+        }
+        else
+        {
+            // Stacked by category
+            float yOffset = chartMax.y;
+            for (const auto& [category, timeMs] : frame.categoryTimeMs)
+            {
+                if (timeMs <= 0)
+                    continue;
+                const float h = std::min((float)(timeMs / maxMs) * chartH, yOffset - chartMin.y);
+                if (h > 0.5f)
+                {
+                    dl->AddRectFilled(ImVec2(x0, yOffset - h), ImVec2(x1, yOffset), GetCategoryColor(category));
+                    yOffset -= h;
+                }
+            }
+        }
+        // Over budget: a red cap on the bar
+        if (frame.activeTimeMs > frameBudgetMs)
+        {
+            const float top = yFor(frame.activeTimeMs);
+            dl->AddRectFilled(ImVec2(x0, top), ImVec2(x1, top + m_App->Dpi(2.0f)), over);
+        }
+    }
+
+    // Click selects (and pauses recording, so the frame stays put)
+    ImGui::InvisibleButton("FrameTimeline", ImVec2(fullWidth, chartH));
+    if (ImGui::IsItemClicked() && hovered >= 0 && hovered != m_SelectedFrame)
+    {
+        m_SelectedFrame = hovered;
+        profiler.StopRecording();
+    }
+    if (hovered >= 0 && hovered < count)
+    {
+        const auto& f = m_DisplayBuffer[hovered];
+        char tip[96];
+        std::snprintf(tip, sizeof(tip), "Frame #%llu\n%.2f ms  (%.0f fps)", (unsigned long long)f.frameNumber,
+                      f.activeTimeMs, f.activeTimeMs > 0 ? 1000.0 / f.activeTimeMs : 0.0);
+        DekiEditor::Tooltip("%s", tip);
+    }
+
+    // Legend, under the bars
+    ImGui::SetCursorScreenPos(ImVec2(chartMin.x, ImGui::GetCursorScreenPos().y + m_App->Dpi(6.0f)));
+    const float swatch = m_App->Dpi(9.0f);
+    const char* categories[] = { "rendering", "lifecycle", "components", "playmode", "editor", "deep" };
+    for (size_t c = 0; c < IM_ARRAYSIZE(categories); ++c)
+    {
+        if (c > 0)
+            ImGui::SameLine(0.0f, m_App->Dpi(14.0f));
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const float y = p.y + (ImGui::GetTextLineHeight() - swatch) * 0.5f;
+        dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + swatch, y + swatch), GetCategoryColor(categories[c]), 2.0f);
+        ImGui::Dummy(ImVec2(swatch, ImGui::GetTextLineHeight()));
+        ImGui::SameLine(0.0f, m_App->Dpi(6.0f));
+        ImGui::TextColored(DekiEditor::Palette::Dim, "%s", categories[c]);
+    }
+    ImGui::Unindent(pad);
+    ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(8.0f)));
+}
+
 void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTimeMs)
 {
-    if (ImGui::BeginTable("HierarchyView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable))
+    if (ImGui::BeginTable("HierarchyView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable | ImGuiTableFlags_PadOuterX))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, m_App->Dpi(90.0f));
@@ -611,7 +698,7 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
     }
 
     // Draw table
-    if (ImGui::BeginTable("FlatView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
+    if (ImGui::BeginTable("FlatView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, m_App->Dpi(90.0f));
@@ -650,12 +737,18 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::Text("%s", evt.name.c_str());
+            char num[32];
             ImGui::TableNextColumn();
-            ImGui::Text("%.3f", evt.selfMs);
+            std::snprintf(num, sizeof(num), "%.3f", evt.selfMs);
+            RightAlignedCell(num);
             ImGui::TableNextColumn();
-            ImGui::Text("%.3f", evt.totalMs);
+            std::snprintf(num, sizeof(num), "%.3f", evt.totalMs);
+            ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+            RightAlignedCell(num);
+            ImGui::PopStyleColor();
             ImGui::TableNextColumn();
-            ImGui::Text("%d", evt.calls);
+            std::snprintf(num, sizeof(num), "%d", evt.calls);
+            RightAlignedCell(num);
         }
 
         ImGui::EndTable();
