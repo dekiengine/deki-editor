@@ -159,6 +159,42 @@ std::string DuplicateObjectCommand::GetDescription() const
     return "Duplicate " + m_SourceName;
 }
 
+namespace
+{
+// "Name (1)", "Name (2)", ...: the first one no child of `parent` uses. A name
+// that already ends in " (n)" counts on from there, so duplicating "Coin (1)"
+// gives "Coin (2)", not "Coin (1) (1)".
+std::string NextDuplicateName(const Deki::Object* parent, const std::string& name)
+{
+    std::string base = name;
+    int n = 1;
+    const size_t open = name.rfind(" (");
+    if (open != std::string::npos && name.size() > open + 3 && name.back() == ')')
+    {
+        const std::string digits = name.substr(open + 2, name.size() - open - 3);
+        if (!digits.empty() && digits.find_first_not_of("0123456789") == std::string::npos && digits.size() < 6)
+        {
+            base = name.substr(0, open);
+            n = std::stoi(digits) + 1;
+        }
+    }
+    auto taken = [parent](const std::string& candidate)
+    {
+        if (!parent)
+            return false;
+        for (const Deki::Object* child : parent->GetChildren())
+            if (child->GetName() == candidate)
+                return true;
+        return false;
+    };
+    std::string candidate;
+    do
+        candidate = base + " (" + std::to_string(n++) + ")";
+    while (taken(candidate));
+    return candidate;
+}
+}  // namespace
+
 void DuplicateObjectCommand::Execute()
 {
     if (!m_DuplicatedObject)
@@ -166,6 +202,9 @@ void DuplicateObjectCommand::Execute()
         // First time: clone via engine's JSON round-trip
         m_DuplicatedObject = m_Scene->DuplicateObject(m_Source);
         if (!m_DuplicatedObject) return;
+        // A copy named like its original was indistinguishable in the
+        // Hierarchy; number it the way other editors do.
+        m_DuplicatedObject->SetName(NextDuplicateName(m_Source ? m_Source->GetParent() : nullptr, m_Source ? m_Source->GetName() : m_DuplicatedObject->GetName()));
     }
 
     // Single-root invariant: a null parent means "inside the scene root", not "as a sibling of root".
@@ -186,7 +225,13 @@ void DuplicateObjectCommand::Execute()
 
     if (resolvedParent)
     {
-        resolvedParent->AddChild(m_DuplicatedObject);
+        // Right after the original when they share a parent, as a copy is
+        // expected to appear; otherwise at the end.
+        int sourceIndex = (m_Source && m_Source->GetParent() == resolvedParent) ? resolvedParent->GetChildIndex(m_Source) : -1;
+        if (sourceIndex >= 0)
+            resolvedParent->InsertChildAt(m_DuplicatedObject, static_cast<size_t>(sourceIndex) + 1);
+        else
+            resolvedParent->AddChild(m_DuplicatedObject);
         m_DuplicatedObject->SetOwnerScene(m_Scene);
     }
     else

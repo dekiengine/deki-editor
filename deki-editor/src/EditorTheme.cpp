@@ -259,6 +259,20 @@ void FirstUseWindowPlacement(float width, float height)
     ImGui::SetNextWindowPos(vp->GetWorkCenter(), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
 }
 
+void EmptyStateText(const char* text)
+{
+    const float dpi = ImGui::GetStyle().FontScaleDpi;
+    const float inset = 12.0f * dpi;
+    ImGui::Dummy(ImVec2(0.0f, 6.0f * dpi));
+    ImGui::Indent(inset);
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - inset);
+    ImGui::TextUnformatted(text);
+    ImGui::PopTextWrapPos();
+    ImGui::PopStyleColor();
+    ImGui::Unindent(inset);
+}
+
 void Tooltip(const char* fmt, ...)
 {
     ImGuiContext& g = *GImGui;
@@ -2097,10 +2111,13 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
     const float totalW = ImGui::CalcItemWidth();
     const float frameH = ImGui::GetFrameHeight();
     const float swatchW = frameH;  // square swatch matches row height
-    const float gap = 6.0f;
+    const float dpi = ImGui::GetStyle().FontScaleDpi;
+    // Tight gaps and cell padding: at the Inspector's default width four
+    // cells with the theme's full padding showed "25" for 255.
+    const float gap = 3.0f * dpi;
     const float channelsW = totalW - swatchW - gap;
-    const float channelW = ImMax(20.0f, (channelsW - gap * (float)(N - 1)) / (float)N);
-    const float stripeW = 3.0f;
+    const float channelW = ImMax(20.0f * dpi, (channelsW - gap * (float)(N - 1)) / (float)N);
+    const float stripeW = 3.0f * dpi;
 
     bool changed = false;
 
@@ -2132,11 +2149,13 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
         ImGui::SetCursorScreenPos(ImVec2(cellPos.x + stripeW, cellPos.y));
         ImGui::SetNextItemWidth(channelW - stripeW);
         int v = (int)ImClamp(col[ch] * 255.0f + 0.5f, 0.0f, 255.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f * dpi, ImGui::GetStyle().FramePadding.y));
         if (SchematicDragInt("##v", &v, 1.0f, 0, 255, "%d"))
         {
             col[ch] = (float)v / 255.0f;
             changed = true;
         }
+        ImGui::PopStyleVar();
         ImGui::PopID();
     }
 
@@ -2159,8 +2178,21 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
     dl->AddRect(swatchPos, swatchMax,
                 ImGui::ColorConvertFloat4ToU32(swatchHovered ? Palette::Line3 : Palette::Line2), swatchRounding);
 
+    // A fixed picker width, and the popup placed under the swatch but pulled
+    // left so it ends inside the editor window: the Inspector sits at the
+    // right edge, and the picker (sized from the popup's own first frame) ran
+    // off it with its alpha bar cut.
+    const float pickerDpi = ImGui::GetStyle().FontScaleDpi;
+    const float pickerW = 240.0f * pickerDpi;
+    {
+        const ImGuiViewport* vp = ImGui::GetMainViewport();
+        const float popupW = pickerW + ImGui::GetStyle().WindowPadding.x * 2.0f + 24.0f * pickerDpi;
+        const float maxX = vp->WorkPos.x + vp->WorkSize.x - popupW - 8.0f * pickerDpi;
+        ImGui::SetNextWindowPos(ImVec2(ImMin(swatchPos.x, maxX), swatchMax.y + 4.0f * pickerDpi), ImGuiCond_Appearing);
+    }
     if (ImGui::BeginPopup("##colorpicker"))
     {
+        ImGui::SetNextItemWidth(pickerW);
         if (N >= 4)
         {
             if (ImGui::ColorPicker4("##pick", col,

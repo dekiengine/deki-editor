@@ -182,6 +182,11 @@ bool CommandHistory::IsDirty() const
     return m_UndoStack.size() != m_SavePointIndex;
 }
 
+bool CommandHistory::IsSavedAsideDirty() const
+{
+    return m_SavedUndoStack.size() != m_SavedSavePointIndex;
+}
+
 namespace
 {
 // Drop everything up to and including the newest command that references a

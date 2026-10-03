@@ -59,7 +59,9 @@ void HierarchyPanel::Draw()
     const auto& navStack = m_App->GetSceneNavigationStack();
     const std::string& scenePath = m_App->GetCurrentScenePath();
     std::string sceneName = scenePath.empty() ? "Untitled Scene" : std::filesystem::path(scenePath).stem().string();
-    bool isDirty = CommandHistory::Instance().IsDirty();
+    // During Play, the edit scene's state: Play's own changes are discarded on Stop.
+    bool isDirty = m_App->IsStopped() ? CommandHistory::Instance().IsDirty()
+                                      : CommandHistory::Instance().IsSavedAsideDirty();
 
     const float breadcrumbIndent = m_App->Dpi(16.0f);
 
@@ -348,6 +350,10 @@ void HierarchyPanel::Draw()
     // (root, boot Setup, instance children) - the same ones the Scene View uses.
     if (keysActive && selected && ImGui::IsKeyPressed(ImGuiKey_Delete))
         m_App->DeleteObjects(m_App->GetSelectedObjects());
+
+    // A search that matched nothing said nothing; say so.
+    if (m_SearchBuf[0] != '\0' && m_FlattenedObjects.empty())
+        DekiEditor::EmptyStateText("No objects match the search.");
 
     // Fill remaining space so the window is fully interactive
     ImVec2 availSpace = ImGui::GetContentRegionAvail();
@@ -643,7 +649,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     else if (isPartOfInstance)
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);  // Dimmed for instance children
 
-    bool wasOpen = ImGui::GetStateStorage()->GetInt(ImGui::GetCurrentWindow()->GetID((void*)obj), 0) != 0;
+    bool wasOpen = ImGui::GetStateStorage()->GetInt(ImGui::GetCurrentWindow()->GetID(NodeKey(obj)), 0) != 0;
     // Push extra vertical FramePadding so tree-node rows are taller. Total row
     // height = font line height + 2 * FramePadding.y. The Inter 13px default
     // font has a ~15.7 logical-px line height (REAL_DIM), so padding.y ~= 6
@@ -674,7 +680,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // frame's is only known once the row is submitted - so a row entered by
     // the mouse starts from nothing and fades up instead of flashing on.
     const ImVec4 acc = DekiEditor::Palette::Accent;
-    const ImGuiID rowId = ImGui::GetID((void*)obj);
+    const ImGuiID rowId = ImGui::GetID(NodeKey(obj));
     float selT = 0.0f;
     const float rowAlpha = Motion::RowHighlight(rowId, isSelected, m_RowHover.WasHovered(rowId), 0.22f, 0.12f, &selT);
     if (rowAlpha > 0.0f)
@@ -684,7 +690,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     ImGui::PushStyleColor(ImGuiCol_Header, rowBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, rowBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(acc.x, acc.y, acc.z, 0.18f));
-    bool open = ImGui::TreeNodeEx((void*)obj, flags, "%s", "");
+    bool open = ImGui::TreeNodeEx(NodeKey(obj), flags, "%s", "");
     // The node's id, captured before anything else is submitted: the children
     // slide open and shut against it (see SchematicTreeBodyBegin).
     const ImGuiID nodeId = ImGui::GetItemID();
@@ -756,7 +762,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         {
             if (hasChildren && !open)
             {
-                ImGuiID nodeId = ImGui::GetCurrentWindow()->GetID((void*)obj);
+                ImGuiID nodeId = ImGui::GetCurrentWindow()->GetID(NodeKey(obj));
                 ImGui::GetStateStorage()->SetInt(nodeId, 1);
             }
             // Selection stays on current node - use Down arrow to enter children
@@ -768,7 +774,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         {
             if (wasOpen && hasChildren)
             {
-                ImGuiID nodeId = ImGui::GetCurrentWindow()->GetID((void*)obj);
+                ImGuiID nodeId = ImGui::GetCurrentWindow()->GetID(NodeKey(obj));
                 ImGui::GetStateStorage()->SetInt(nodeId, 0);
                 m_CollapsedByArrow = obj;
                 ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
@@ -1108,6 +1114,14 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     if (open) ImGui::TreePop();
 
     return false;
+}
+
+// A tree row's identity: the object's id, not its address. Play runs on a copy
+// of the scene and Stop switches back, so addresses change while ids do not;
+// keyed by address, every expanded object collapsed on Play and on Stop.
+const void* HierarchyPanel::NodeKey(const Deki::Object* obj)
+{
+    return reinterpret_cast<const void*>(static_cast<uintptr_t>(obj->GetId()) + 1u);
 }
 
 void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)

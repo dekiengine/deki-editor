@@ -131,6 +131,8 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
         ImGui::SetNextItemWidth(cellW);
         ImGui::DragInt("##GridSize", &m_GridSize, 1, 8, 64, "%d px");
+        if (ImGui::IsItemHovered())
+            DekiEditor::Tooltip("Grid size. Drag to change, or double-click to type.");
         ImGui::PopStyleColor(4);
         ImGui::PopStyleVar(2);
         cursorX += cellW;
@@ -143,7 +145,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
             { m_ShowOutlines = !m_ShowOutlines; });
 
     // Gizmos toggle (device frame, camera rect, selection bounds).
-    iconBtn("gizmos", ICON_TI_FRAME, "Toggle Gizmos", m_ShowGizmos,
+    iconBtn("gizmos", ICON_TI_VECTOR, "Toggle Gizmos", m_ShowGizmos,
             [&]
             { m_ShowGizmos = !m_ShowGizmos; });
 

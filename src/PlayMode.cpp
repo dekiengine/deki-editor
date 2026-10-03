@@ -180,6 +180,14 @@ void EditorApp::Stop()
     m_PlayModeState = PlayModeState::Stopped;
     m_Play.camera = nullptr;
 
+    // Back on the edit scene: select what was selected before Play.
+    ClearSelection();
+    if (m_CurrentScene)
+        for (uint32_t id : m_Play.prePlaySelectedIds)
+            if (Deki::Object* obj = m_CurrentScene->FindDekiObject(id))
+                AddToSelection(obj);
+    m_Play.prePlaySelectedIds.clear();
+
     // Restore the previously active tab (same approach as Play uses for "Play View")
     if (m_Play.prePlaySelectedTabId != 0)
     {
@@ -234,8 +242,15 @@ void EditorApp::InitPlayMode()
     // Save edit command history aside and start fresh for play mode
     CommandHistory::Instance().SaveAndClear();
 
-    // Clear selection - we're switching to the play scene copy
+    // The selection moves to the play copy's same objects (same ids).
+    m_Play.prePlaySelectedIds.clear();
+    for (Deki::Object* obj : GetSelectedObjects())
+        if (obj)
+            m_Play.prePlaySelectedIds.push_back(obj->GetId());
     ClearSelection();
+    for (uint32_t id : m_Play.prePlaySelectedIds)
+        if (Deki::Object* copy = m_Play.scene->FindDekiObject(id))
+            AddToSelection(copy);
 
     // Play on the screen the Play view previews: the design size, or the
     // target picked in its toolbar. The camera decides what it shows there.

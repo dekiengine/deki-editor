@@ -48,6 +48,7 @@ private:
     // (SIZE_MAX: the end). The scene being edited is refused - it cannot
     // contain itself.
     void AcceptSceneAssetDrop(Deki::Object* parent, size_t index);
+    static const void* NodeKey(const Deki::Object* obj);
     void DrawContextMenu();
     void StartRenaming(Deki::Object* obj);
     void StopRenaming();

@@ -83,6 +83,11 @@ public:
     /// Check if there are unsaved changes since last save point
     bool IsDirty() const;
 
+    /// While Play has the edit history set aside (SaveAndClear), whether THAT
+    /// history has unsaved changes: the edit scene's state. Play's own edits
+    /// are thrown away on Stop and say nothing about the file.
+    bool IsSavedAsideDirty() const;
+
     /// Discard history that can no longer be safely replayed because the
     /// objects it points at are being freed.
     ///

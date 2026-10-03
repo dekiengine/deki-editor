@@ -556,7 +556,7 @@ void AssetBrowserPanel::DrawModeTabs()
     if (!m_Entries.empty())
     {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%zu items", m_Entries.size());
+        snprintf(buf, sizeof(buf), m_Entries.size() == 1 ? "%zu item" : "%zu items", m_Entries.size());
         if (DekiEditor::g_FontMonoSmall) ImGui::PushFont(DekiEditor::g_FontMonoSmall, DekiEditor::Fonts::CssPx(DekiEditor::g_FontMonoSmall, 11.5f));
         ImVec2 sz = ImGui::CalcTextSize(buf);
         const float countX = rowMax.x - sz.x - padX;
@@ -894,6 +894,8 @@ void AssetBrowserPanel::DrawAssetTree()
     m_Entries.clear();  // Rebuild flat entries for selection tracking
     int flatIndex = 0;
     DrawFolderNode(m_RootNode, flatIndex);
+    if (!m_AssetFilterLower.empty() && m_Entries.empty())
+        DekiEditor::EmptyStateText("No assets match the search.");
 
     // Nothing was clicked this frame: put the selection back on its assets.
     if (!selectedKeys.empty() && m_SelectedIndices == indicesBefore && m_SelectedIndex == primaryBefore)
@@ -2209,11 +2211,11 @@ void AssetBrowserPanel::DrawScriptsList()
 
     if (flatIndex == 0 && m_ScriptFlatList.empty())
     {
-        ImGui::TextDisabled("No scripts found");
+        DekiEditor::EmptyStateText("No scripts yet. Right-click to create one.");
     }
     else if (flatIndex == 0 && !filterLower.empty())
     {
-        ImGui::TextDisabled("No scripts match filter");
+        DekiEditor::EmptyStateText("No scripts match the search.");
     }
 }
 

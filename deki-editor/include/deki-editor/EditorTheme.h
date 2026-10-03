@@ -148,6 +148,10 @@ DEKI_EDITOR_API void Tooltip(const char* fmt, ...) IM_FMTARGS(1);
 // window opened at ImGui's fixed (60, 60), over the toolbar.
 DEKI_EDITOR_API void FirstUseWindowPlacement(float width, float height);
 
+// A panel's "nothing here" line (empty list, search with no result): dim,
+// wrapped, inset like the rows above it rather than against the panel edge.
+DEKI_EDITOR_API void EmptyStateText(const char* text);
+
 // One entry in a SchematicPicker list.
 struct PickerItem
 {

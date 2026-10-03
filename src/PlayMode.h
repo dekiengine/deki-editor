@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <imgui.h>  // ImGuiID
 
@@ -69,6 +70,9 @@ struct PlayModeRuntime
     bool ready = false;                // True after the first frame is rendered
     bool crashedThisFrame = false;     // A guarded play-mode call faulted; Stop() next frame
     ImGuiID prePlaySelectedTabId = 0;  // Tab to restore in Play View's dock node on Stop
+    // Object ids selected when Play started: the play copy keeps the ids, so
+    // the same objects are selected in it, and again in the scene on Stop.
+    std::vector<uint32_t> prePlaySelectedIds;
 };
 
 }  // namespace DekiEditor
