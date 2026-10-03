@@ -136,6 +136,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   sides of 1 to 1024 tiles (the baker says so when a map has more). A scene
   or a pinned asset too big for the free RAM fails to load instead of
   resetting the board.
+- **Opening a project from someone else cannot run code it carries.**
+  Libraries in `generated/runtime/` that this editor did not build on this
+  machine are removed before anything loads; the build makes them again
+  (usually a relink, a few seconds once). A project's own git settings
+  (hooks, fsmonitor) never run when the editor uses git in its packages, and
+  git is not run at all in a package whose `.git/config` has filters or
+  other commands.
 - ESP32 boards: PSRAM works on the classic ESP32 (every PSRAM allocation
   failed there), WiFi initialises the flash storage it needs, and Bluetooth
   starts on first use instead of before FreeRTOS was running.

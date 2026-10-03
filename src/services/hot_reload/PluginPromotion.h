@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,7 @@ namespace PluginPromotion
 struct Result
 {
     int promoted = 0;                    ///< files moved into place
+    std::vector<std::filesystem::path> promotedFiles;  ///< where they are now
     std::vector<std::string> failures;   ///< "<file>: <reason>", one per file that could not be moved
 };
 

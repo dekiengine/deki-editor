@@ -52,6 +52,8 @@ set(TEST_SOURCES
     services/TransformWidthTests.cpp
     services/FeatureResolverTests.cpp
     services/ComponentUsageScanTests.cpp
+    services/GitSafetyTests.cpp
+    services/BuiltLibrariesTests.cpp
     services/BuilderDispatchTests.cpp
     services/InstallerRoutingTests.cpp
     services/BuildStripSettingsTests.cpp

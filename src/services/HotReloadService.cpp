@@ -11,6 +11,7 @@
 #include <deki-editor/Paths.h>
 #include <deki-editor/build/ProjectPaths.h>
 #include "SharedLibNaming.h"
+#include "BuiltLibraries.h"
 #include "BundledToolchain.h"
 #include "BuildFileGenerator.h"
 #include "CrashHandler.h"
@@ -197,6 +198,9 @@ struct HotReloadService::ActiveBuild
     std::vector<PackageRebuildInfo> packages;
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point stepStart = start;
+    // The same moment on the clock file times use: libraries written after it
+    // were written by this build (BuiltLibraries).
+    std::filesystem::file_time_type fileStart = std::filesystem::file_time_type::clock::now();
 };
 
 HotReloadService::HotReloadService(PluginLoader* loader, PackageLoader* packageLoader, ConsolePanel* console)
@@ -1573,6 +1577,10 @@ void HotReloadService::FinishBuild()
         m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
     }
 
+    // Whatever this build wrote into runtime/ was built here, also when a later
+    // step failed: those libraries load on the next open without a rebuild.
+    BuiltLibraries::RecordBuiltSince(ProjectPaths::Runtime(b.projectPath).string(), b.fileStart);
+
     if (ok && b.kind != ActiveBuild::Kind::Packages)
         ArchivePackagePdbs(b.projectPath);
     if (ok)
@@ -1814,6 +1822,7 @@ void HotReloadService::PromoteBuiltDlls()
     // The mechanism lives in PluginPromotion so the headless build path uses the
     // same one; what stays here is reporting, which needs the console.
     const auto result = PluginPromotion::PromoteStaged(m_PluginDirectory);
+    BuiltLibraries::Record(result.promotedFiles);
 
     for (const std::string& failure : result.failures)
     {

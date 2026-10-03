@@ -29,6 +29,7 @@
 #include "services/PackageManager.h"
 #include "services/PackageRestore.h"
 #include "services/PackageIntegrity.h"
+#include "services/BuiltLibraries.h"
 #include <deki-editor/build/PlatformTemplates.h>
 #include "services/Prerequisites.h"
 #include "services/FileDialogs.h"
@@ -254,6 +255,11 @@ bool EditorApp::OpenProject(const std::string& path)
         if (m_BuildPanel && !activePlatform.empty())
             m_BuildPanel->SetSelectedPlatform(activePlatform);
     }
+
+    // Libraries this editor did not build here go before anything can load
+    // them (a project zipped or copied with its generated/ folder): the build
+    // below makes them again. See services/BuiltLibraries.h.
+    BuiltLibraries::RemoveUnknown(ProjectPaths::Runtime(path).string());
 
     // A project that has never been built has no package binaries at all, and the
     // stale-check below deliberately skips that case. Build it here, before the

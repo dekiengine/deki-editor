@@ -46,6 +46,7 @@ Result PromoteStaged(const std::string& runtimeDir)
         if (!moveEc)
         {
             ++result.promoted;
+            result.promotedFiles.push_back(dest);
             continue;
         }
         result.failures.push_back(src.filename().string() + ": " + moveEc.message());
