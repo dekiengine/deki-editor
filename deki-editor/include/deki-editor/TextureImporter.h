@@ -206,6 +206,14 @@ public:
     static void ClearFrameData();
 
     /**
+     * @brief A frame's own 9-slice borders, measured inside the frame, in the
+     * image's pixels. WriteTexFile stores them after the frame list. `has`
+     * false forgets them. Cleared with ClearFrameData.
+     */
+    static void SetFrameNineSlice(const std::string& frameGuid, bool has, uint16_t left, uint16_t right,
+                                  uint16_t top, uint16_t bottom);
+
+    /**
      * @brief Check if a .tex file contains a FrameList metadata chunk
      * @param texPath Path to the .tex file
      * @return true if FrameList chunk exists, false otherwise

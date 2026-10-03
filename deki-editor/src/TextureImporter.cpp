@@ -1,8 +1,10 @@
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/SubAsset.h>
 #include <deki-editor/AssetData.h>
+#include <array>
 #include <fstream>
 #include <filesystem>
+#include <unordered_map>
 
 // stb_image for loading source images
 #define STB_IMAGE_IMPLEMENTATION
@@ -15,6 +17,20 @@ namespace fs = std::filesystem;
 
 namespace DekiEditor
 {
+
+namespace
+{
+// Frames' own 9-slice borders by frame GUID (TextureImporter::SetFrameNineSlice).
+struct FrameBorders
+{
+    uint16_t left, right, top, bottom;
+};
+std::unordered_map<std::string, FrameBorders>& FrameNineSlices()
+{
+    static std::unordered_map<std::string, FrameBorders> s_Borders;
+    return s_Borders;
+}
+}  // namespace
 
 // =========================================================================
 // Public image decode helpers (used by deki-2d's image cache handler and any
@@ -376,11 +392,28 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         numChunks++;
     }
 
+    // Frames with their own 9-slice borders, by index in the frame list.
+    // Written after the entries as a u16 count, then u16 index, left, right,
+    // top, bottom each; a loader that predates them stops at the entries.
+    std::vector<std::array<uint16_t, 5>> frameBorders;
+    if (hasFrameList)
+    {
+        for (size_t i = 0; i < frameSubAssets->size(); ++i)
+        {
+            auto it = FrameNineSlices().find((*frameSubAssets)[i].guid);
+            if (it != FrameNineSlices().end())
+                frameBorders.push_back({ static_cast<uint16_t>(i), it->second.left, it->second.right,
+                                         it->second.top, it->second.bottom });
+        }
+    }
+    const uint32_t frameBordersSize =
+        frameBorders.empty() ? 0u : static_cast<uint32_t>(2 + frameBorders.size() * 5 * sizeof(uint16_t));
+
     if (hasFrameList)
     {
         // 4 (chunk_type) + 4 (chunk_size) + 2 (frameCount) + N * (36 guid + 4*4 coords) = 10 + N*52
         uint32_t frameCount = static_cast<uint32_t>(frameSubAssets->size());
-        metadataSize += 4 + 4 + 2 + frameCount * 52;
+        metadataSize += 4 + 4 + 2 + frameCount * 52 + frameBordersSize;
         numChunks++;
     }
 
@@ -454,7 +487,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         {
             uint32_t chunkType = static_cast<uint32_t>(MetadataChunkType::FrameList);
             uint16_t frameCount = static_cast<uint16_t>(frameSubAssets->size());
-            uint32_t chunkSize = 2 + frameCount * 52;  // frameCount + N * (36 guid + 4*4 coords)
+            uint32_t chunkSize = 2 + frameCount * 52 + frameBordersSize;  // frameCount + N * (36 guid + 4*4 coords) + borders
             file.write(reinterpret_cast<const char*>(&chunkType), sizeof(uint32_t));
             file.write(reinterpret_cast<const char*>(&chunkSize), sizeof(uint32_t));
             file.write(reinterpret_cast<const char*>(&frameCount), sizeof(uint16_t));
@@ -488,6 +521,13 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                     char zeros[52] = { 0 };
                     file.write(zeros, 52);
                 }
+            }
+            if (!frameBorders.empty())
+            {
+                const uint16_t count = static_cast<uint16_t>(frameBorders.size());
+                file.write(reinterpret_cast<const char*>(&count), sizeof(uint16_t));
+                for (const auto& b : frameBorders)
+                    file.write(reinterpret_cast<const char*>(b.data()), 5 * sizeof(uint16_t));
             }
         }
 
@@ -782,6 +822,16 @@ void TextureImporter::RegisterFrameData(const std::string& frameGuid, const Spri
 void TextureImporter::ClearFrameData()
 {
     s_FrameDataRegistry.clear();
+    FrameNineSlices().clear();
+}
+
+void TextureImporter::SetFrameNineSlice(const std::string& frameGuid, bool has, uint16_t left, uint16_t right,
+                                        uint16_t top, uint16_t bottom)
+{
+    if (has)
+        FrameNineSlices()[frameGuid] = { left, right, top, bottom };
+    else
+        FrameNineSlices().erase(frameGuid);
 }
 
 bool TextureImporter::HasFrameListChunk(const std::string& texPath)
