@@ -836,6 +836,12 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                            {
                                if (installed.id != pkgId) continue;
 
+                               // Installing it is asking for it: it belongs in
+                               // deki-packages.json. Without this the save that
+                               // follows an install left it out (it was not yet
+                               // declared, and not yet known to be on disk).
+                               installed.declaredInManifest = true;
+
                                if (installed.requiredPackages.empty())
                                {
                                    namespace fs = std::filesystem;
@@ -928,6 +934,12 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                                }
                            }
                        });
+
+    // What is on disk now, with versions, before the caller saves the
+    // manifest and lock: the lock used to be written without the new
+    // package's installedVersion.
+    if (primary->first)
+        RefreshInstalledStatus(projectPath);
 
     // Report what actually happened. This used to be an unconditional
     // callback(true, ""), which made a failed clone (bad URL, no network, a ref

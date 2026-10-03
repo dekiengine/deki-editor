@@ -120,6 +120,14 @@ void NewProjectDialog::Draw()
             names.push_back(name.c_str());
         ImGui::SetNextItemWidth(-FLT_MIN);
         SchematicCombo("##TargetPlatform", &m_SelectedPlatformIndex, names.data(), static_cast<int>(names.size()));
+        // Only the desktop on offer (no board package anywhere yet): say where
+        // boards come from, or the choice looks like all there is.
+        if (m_Platforms.size() == 1)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+            ImGui::TextWrapped("Boards come with packages. Add one later from the project's Package Manager.");
+            ImGui::PopStyleColor();
+        }
     }
 
     // Where it lands, so a typo in the location shows before anything is made.

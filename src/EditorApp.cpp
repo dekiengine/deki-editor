@@ -1498,7 +1498,16 @@ void EditorApp::DrawUnsavedChangesDialog()
         m_UnsavedPrompt.SetDialogVisible(false);
     }
 
-    if (BeginSchematicModal("Unsaved Changes", 420.0f))
+    // Open going in and closed coming out: Escape dismissed it, which is a
+    // Cancel - the pending action (a quit, a scene switch) must not hang on.
+    const bool wasOpen = ImGui::IsPopupOpen("Unsaved Changes");
+    const bool open = BeginSchematicModal("Unsaved Changes", 420.0f);
+    if (!open && wasOpen)
+    {
+        m_UnsavedPrompt.Cancel();
+        m_NavigationSourcePath.clear();
+    }
+    if (open)
     {
         // A programmatic answer behaves exactly like the matching button. It is
         // consumed here rather than where it was set because CloseCurrentPopup

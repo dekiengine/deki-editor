@@ -558,8 +558,24 @@ bool BeginSchematicModal(const char* title, float cssWidth)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f * dpi, 16.0f * dpi));
     bool open = ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_NoSavedSettings);
     if (!open)
+    {
         ImGui::PopStyleVar();
-    return open;
+        return false;
+    }
+    // Escape closes it, like every other dialog: a modal with no close flag
+    // ignored the key. Reported as closed (false) right away, which is where
+    // the dialogs clear their own open flag; a dialog that reopens itself
+    // while that flag is set would otherwise come straight back. A text field
+    // that has the focus when it opens (New Project's name) does not hold it
+    // open.
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    {
+        ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+        ImGui::PopStyleVar();
+        return false;
+    }
+    return true;
 }
 
 void EndSchematicModal()

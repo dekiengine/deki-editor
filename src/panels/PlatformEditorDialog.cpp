@@ -286,7 +286,10 @@ void PlatformEditorDialog::Draw()
     if (m_ShowFrameworkPicker)
     {
         if (!BeginSchematicModal(title, 440.0f))
+        {
+            m_Open = false;  // closed (Escape): it reopens itself while m_Open
             return;
+        }
         DrawFrameworkPicker();
         if (SchematicDialogButtons({ { "Cancel" } }) == 0)
         {
@@ -298,7 +301,10 @@ void PlatformEditorDialog::Draw()
     }
 
     if (!BeginSchematicModal(title, 560.0f))
+    {
+        m_Open = false;  // closed (Escape): it reopens itself while m_Open
         return;
+    }
 
     ImGui::BeginChild("PlatformEditorContent", ImVec2(0.0f, 520.0f * ImGui::GetStyle().FontScaleDpi), false);
     DrawBasicSection();
