@@ -42,7 +42,7 @@ protected:
         const Deki::Object* obj = root->GetChildren()[0];
         for (const Deki::Component* c : obj->GetComponents())
         {
-            if (c->GetType() == MockComponent::StaticType)
+            if (c->GetType() == MockComponent::kStaticType)
             {
                 return static_cast<const MockComponent*>(c);
             }

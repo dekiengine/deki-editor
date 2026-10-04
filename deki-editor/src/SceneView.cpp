@@ -12,8 +12,8 @@ namespace DekiEditor
 
 SceneView& SceneView::Get()
 {
-    static SceneView instance;
-    return instance;
+    static SceneView s_Instance;
+    return s_Instance;
 }
 
 // ============================================================================

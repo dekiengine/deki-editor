@@ -24,12 +24,12 @@ extern "C"
 
     // Called by main editor to set up profiling callbacks
     // This must be called at startup before any profiled code runs
-    DEKI_PROFILING_HOOKS_API void Profiling_SetCallbacks(ProfileEnterCallback enter, ProfileExitCallback exit);
+    DEKI_PROFILING_HOOKS_API void ProfilingSetCallbacks(ProfileEnterCallback enter, ProfileExitCallback exit);
 
     // Called by compiler-injected hooks (_penter/_pexit)
-    // These forward to the callbacks set by Profiling_SetCallbacks
-    DEKI_PROFILING_HOOKS_API void DekiEditor_ProfileEnter(void* returnAddress);
-    DEKI_PROFILING_HOOKS_API void DekiEditor_ProfileExit();
+    // These forward to the callbacks set by ProfilingSetCallbacks
+    DEKI_PROFILING_HOOKS_API void DekiEditorProfileEnter(void* returnAddress);
+    DEKI_PROFILING_HOOKS_API void DekiEditorProfileExit();
 
 // MSVC /Gh /GH hook stubs - these are automatically called by instrumented code
 // Any DLL/EXE with /Gh /GH flags will link to these symbols.
@@ -39,7 +39,7 @@ extern "C"
 // __cyg_profile_func_enter/exit with a different signature (it passes both the
 // callee and the call site, where _penter passes neither and the callee is
 // recovered from the return address). Deep profiling is therefore not wired up
-// on non-MSVC builds; DekiEditor_ProfileEnter/Exit above still work, so anything
+// on non-MSVC builds; DekiEditorProfileEnter/Exit above still work, so anything
 // that calls them explicitly is unaffected.
 #ifdef _MSC_VER
     DEKI_PROFILING_HOOKS_API void __cdecl _penter();

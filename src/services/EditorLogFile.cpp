@@ -55,10 +55,10 @@ bool ShouldWrite(Deki::LogLevel level)
 
 void FormatTimestamp(char* out, size_t outSize)
 {
-    using clock = std::chrono::system_clock;
-    auto now = clock::now();
+    using Clock = std::chrono::system_clock;
+    auto now = Clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-    std::time_t t = clock::to_time_t(now);
+    std::time_t t = Clock::to_time_t(now);
     std::tm tm{};
 #ifdef _WIN32
     localtime_s(&tm, &t);

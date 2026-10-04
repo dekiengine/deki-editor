@@ -250,16 +250,16 @@ void SceneGizmos::UpdateTranslateHover(Deki::Object* obj, ImVec2 mousePos)
         m_HoveredAxis = GizmoAxis::XY;
     }
     // Check X axis (right)
-    else if (mousePos.x >= center.x && mousePos.x <= center.x + SceneViewConstants::GizmoLength + 13 &&
-             mousePos.y >= center.y - SceneViewConstants::GizmoHitThickness &&
-             mousePos.y <= center.y + SceneViewConstants::GizmoHitThickness)
+    else if (mousePos.x >= center.x && mousePos.x <= center.x + SceneViewConstants::kGizmoLength + 13 &&
+             mousePos.y >= center.y - SceneViewConstants::kGizmoHitThickness &&
+             mousePos.y <= center.y + SceneViewConstants::kGizmoHitThickness)
     {
         m_HoveredAxis = GizmoAxis::X;
     }
     // Check Y axis (up in screen coordinates = negative Y)
-    else if (mousePos.x >= center.x - SceneViewConstants::GizmoHitThickness &&
-             mousePos.x <= center.x + SceneViewConstants::GizmoHitThickness && mousePos.y <= center.y &&
-             mousePos.y >= center.y - SceneViewConstants::GizmoLength - 13)
+    else if (mousePos.x >= center.x - SceneViewConstants::kGizmoHitThickness &&
+             mousePos.x <= center.x + SceneViewConstants::kGizmoHitThickness && mousePos.y <= center.y &&
+             mousePos.y >= center.y - SceneViewConstants::kGizmoLength - 13)
     {
         m_HoveredAxis = GizmoAxis::Y;
     }
@@ -281,16 +281,16 @@ void SceneGizmos::DrawTranslateGizmo(ImDrawList* drawList, Deki::Object* obj)
     float squareSize = 24.0f;
 
     // X axis (right, red)
-    ImVec2 xEnd(center.x + SceneViewConstants::GizmoLength, center.y);
-    drawList->AddLine(center, xEnd, xColor, SceneViewConstants::GizmoThickness);
+    ImVec2 xEnd(center.x + SceneViewConstants::kGizmoLength, center.y);
+    drawList->AddLine(center, xEnd, xColor, SceneViewConstants::kGizmoThickness);
     // X arrow head
     drawList->AddTriangleFilled(ImVec2(xEnd.x + arrowSize, xEnd.y),
                                 ImVec2(xEnd.x - arrowSize * 0.5f, xEnd.y - arrowSize * 0.5f),
                                 ImVec2(xEnd.x - arrowSize * 0.5f, xEnd.y + arrowSize * 0.5f), xColor);
 
     // Y axis (up, green) - green arrow points up in screen space
-    ImVec2 yEnd(center.x, center.y - SceneViewConstants::GizmoLength);
-    drawList->AddLine(center, yEnd, yColor, SceneViewConstants::GizmoThickness);
+    ImVec2 yEnd(center.x, center.y - SceneViewConstants::kGizmoLength);
+    drawList->AddLine(center, yEnd, yColor, SceneViewConstants::kGizmoThickness);
     // Y arrow head (pointing up)
     drawList->AddTriangleFilled(ImVec2(yEnd.x, yEnd.y - arrowSize),
                                 ImVec2(yEnd.x - arrowSize * 0.5f, yEnd.y + arrowSize * 0.5f),
@@ -345,7 +345,7 @@ void SceneGizmos::UpdateResizeHover(Deki::Object* obj)
     ImVec2 rightMid(center.x + halfW, center.y);
 
     ImVec2 mousePos = ImGui::GetMousePos();
-    float hitSize = SceneViewConstants::ResizeHandleHitSize * 0.5f;
+    float hitSize = SceneViewConstants::kResizeHandleHitSize * 0.5f;
 
     auto hitTest = [&](ImVec2 handlePos) -> bool
     {
@@ -696,7 +696,7 @@ void SceneGizmos::DrawResizeGizmo(ImDrawList* drawList, Deki::Object* obj, bool 
         return defaultColor;
     };
 
-    float hs = SceneViewConstants::ResizeHandleSize * 0.5f;
+    float hs = SceneViewConstants::kResizeHandleSize * 0.5f;
 
     // Draw bounding rect connecting the edges
     ImU32 lineColor = ImGui::ColorConvertFloat4ToU32(ImVec4(

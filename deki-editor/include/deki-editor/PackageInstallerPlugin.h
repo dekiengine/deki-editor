@@ -10,9 +10,9 @@
 // defines none is simply not an installer provider, which is almost all of
 // them.
 //
-//   int                DekiInstaller_GetCount();
-//   IPackageInstaller* DekiInstaller_Create(int index);
-//   void               DekiInstaller_Destroy(IPackageInstaller*);
+//   int                DekiInstallerGetCount();
+//   IPackageInstaller* DekiInstallerCreate(int index);
+//   void               DekiInstallerDestroy(IPackageInstaller*);
 //
 // Destroy is required alongside Create: the installer's vtable and its
 // operator delete live in the package's module, so the editor must never

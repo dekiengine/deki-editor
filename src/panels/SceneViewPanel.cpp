@@ -316,12 +316,12 @@ Deki::Object* SceneViewPanel::GetSceneCameraObject()
 
 void SceneViewPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
-    bool visible = ImGui::Begin("SCENE VIEW###Scene View", &m_Open,
+    bool visible = ImGui::Begin("SCENE VIEW###Scene View", &isOpen,
                                 DekiEditor::MaximizedWindowFlags("SCENE VIEW###Scene View") |
                                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -415,8 +415,8 @@ void SceneViewPanel::HandleInput()
         // Scale by wheel delta so high-precision wheels/trackpads don't rocket
         // through the zoom range. Ctrl is the precision modifier (smaller step).
         float zoomBase = io.KeyCtrl ? 1.03f : 1.10f;
-        m_ZoomTarget = std::clamp(m_ZoomTarget * std::pow(zoomBase, io.MouseWheel), SceneViewConstants::MinZoom,
-                                  SceneViewConstants::MaxZoom);
+        m_ZoomTarget = std::clamp(m_ZoomTarget * std::pow(zoomBase, io.MouseWheel), SceneViewConstants::kMinZoom,
+                                  SceneViewConstants::kMaxZoom);
         DekiEditor::Motion::Set(zoomKey, m_Zoom);  // continue from where it is
     }
 
@@ -434,14 +434,14 @@ void SceneViewPanel::HandleInput()
         const ImVec2 before(touch.center.x - touch.pan.x, touch.center.y - touch.pan.y);
         const ImVec2 world = m_Coords->ScreenToWorld(before.x, before.y);
         m_Zoom = m_ZoomTarget =
-            std::clamp(m_Zoom * touch.scale, SceneViewConstants::MinZoom, SceneViewConstants::MaxZoom);
+            std::clamp(m_Zoom * touch.scale, SceneViewConstants::kMinZoom, SceneViewConstants::kMaxZoom);
         DekiEditor::Motion::Set(zoomKey, m_Zoom);
         KeepWorldPointAt(world, touch.center);
     }
 
     if (m_Zoom != m_ZoomTarget)
     {
-        m_Zoom = DekiEditor::Motion::Follow(zoomKey, m_ZoomTarget, DekiEditor::Motion::Normal, m_ZoomTarget * 0.001f);
+        m_Zoom = DekiEditor::Motion::Follow(zoomKey, m_ZoomTarget, DekiEditor::Motion::kNormal, m_ZoomTarget * 0.001f);
         KeepWorldPointAt(m_ZoomAnchorWorld, m_ZoomAnchorScreen);
     }
 }
@@ -452,8 +452,8 @@ void SceneViewPanel::KeepWorldPointAt(const ImVec2& world, const ImVec2& screen)
     // scene view shows the world at its art density, whatever the camera does.
     // Must match SceneCoordinates::ScreenToWorld, or each zoom step drives the
     // pan offset toward inf/NaN.
-    const int vpWidth = SceneViewConstants::AnchorWidth;
-    const int vpHeight = SceneViewConstants::AnchorHeight;
+    const int vpWidth = SceneViewConstants::kAnchorWidth;
+    const int vpHeight = SceneViewConstants::kAnchorHeight;
 
     const float dpi = ImGui::GetWindowDpiScale();
     const float sceneWidth = vpWidth * m_Zoom * dpi;
@@ -519,8 +519,8 @@ void SceneViewPanel::DrawSceneCanvas()
     // The scene rectangle anchors the world origin (SceneViewConstants). The
     // previewed screen, drawn around the origin and snapped to, is the Play
     // view's.
-    int vpWidth = SceneViewConstants::AnchorWidth;
-    int vpHeight = SceneViewConstants::AnchorHeight;
+    int vpWidth = SceneViewConstants::kAnchorWidth;
+    int vpHeight = SceneViewConstants::kAnchorHeight;
     const int screenW = DekiEditor::SceneView::Get().GetPreviewWidth();
     const int screenH = DekiEditor::SceneView::Get().GetPreviewHeight();
 
@@ -1198,11 +1198,12 @@ void SceneViewPanel::DrawSceneCanvas()
         drawList->AddCallback(
             [](const ImDrawList*, const ImDrawCmd*)
             {
+                // NOLINTNEXTLINE(readability-identifier-naming): OpenGL's name
                 typedef void(APIENTRY * PFN_glBindSampler)(GLuint unit, GLuint sampler);
-                static auto fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
-                if (fn)
+                static auto s_Fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
+                if (s_Fn)
                 {
-                    fn(0, 0);
+                    s_Fn(0, 0);
                 }
             },
             nullptr);

@@ -27,13 +27,13 @@
 extern "C"
 {
     // Factory-based API (new)
-    int DekiEngine_GetEditorFactoryCount();
-    DekiEditor::EditorExtension* DekiEngine_GetEditorPrototype(int index);
-    DekiEditor::EditorExtension* DekiEngine_CreateEditor(int index);
+    int DekiEngineGetEditorFactoryCount();
+    DekiEditor::EditorExtension* DekiEngineGetEditorPrototype(int index);
+    DekiEditor::EditorExtension* DekiEngineCreateEditor(int index);
 
     // Legacy API (backward compat)
-    int DekiEngine_GetEditorCount();
-    DekiEditor::EditorExtension* DekiEngine_GetEditor(int index);
+    int DekiEngineGetEditorCount();
+    DekiEditor::EditorExtension* DekiEngineGetEditor(int index);
 }
 
 // All package DLLs (including deki-2d) are loaded dynamically by PackageLoader.
@@ -69,7 +69,7 @@ struct ToolbarStrip
     float cursorX = 0.0f;
     float dpi = 1.0f;
 };
-ToolbarStrip g_toolbar;
+ToolbarStrip s_Toolbar;
 
 // Draw one toolbar cell (icon glyph or text label). Returns true when clicked.
 // `tooltip` may be null. Advances the strip cursor and draws the trailing divider.
@@ -77,13 +77,13 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool
                      bool destructive = false)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    const float dpi = g_toolbar.dpi;
-    const float rowH = g_toolbar.rowMax.y - g_toolbar.rowMin.y;
+    const float dpi = s_Toolbar.dpi;
+    const float rowH = s_Toolbar.rowMax.y - s_Toolbar.rowMin.y;
     const ImVec2 textSz = ImGui::CalcTextSize(text);
     const float w = textSz.x + 22.0f * dpi;
-    const float cx = g_toolbar.cursorX;
+    const float cx = s_Toolbar.cursorX;
 
-    ImGui::SetCursorScreenPos(ImVec2(cx, g_toolbar.rowMin.y));
+    ImGui::SetCursorScreenPos(ImVec2(cx, s_Toolbar.rowMin.y));
     ImGui::PushID(id);
     bool clicked = false, hovered = false;
     if (enabled)
@@ -119,12 +119,12 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool
 
     if (active)
     {
-        dl->AddRectFilled(ImVec2(cx, g_toolbar.rowMin.y), ImVec2(cx + w, g_toolbar.rowMax.y),
+        dl->AddRectFilled(ImVec2(cx, s_Toolbar.rowMin.y), ImVec2(cx + w, s_Toolbar.rowMax.y),
                           destructive ? colRedFill : colActive);
     }
     else if (enabled && hovered)
     {
-        dl->AddRectFilled(ImVec2(cx, g_toolbar.rowMin.y), ImVec2(cx + w, g_toolbar.rowMax.y),
+        dl->AddRectFilled(ImVec2(cx, s_Toolbar.rowMin.y), ImVec2(cx + w, s_Toolbar.rowMax.y),
                           destructive ? colRedFill : colHover);
     }
 
@@ -132,11 +132,11 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool
                      : destructive ? ((active || hovered) ? colRed : colRedDim)
                                    : ((active || hovered) ? colFg : colDim);
     const float tx = cx + (w - textSz.x) * 0.5f;
-    const float ty = g_toolbar.rowMin.y + (rowH - textSz.y) * 0.5f;
+    const float ty = s_Toolbar.rowMin.y + (rowH - textSz.y) * 0.5f;
     dl->AddText(ImVec2(tx, ty), fg, text);
 
-    g_toolbar.cursorX += w;
-    dl->AddLine(ImVec2(g_toolbar.cursorX, g_toolbar.rowMin.y), ImVec2(g_toolbar.cursorX, g_toolbar.rowMax.y), colLine,
+    s_Toolbar.cursorX += w;
+    dl->AddLine(ImVec2(s_Toolbar.cursorX, s_Toolbar.rowMin.y), ImVec2(s_Toolbar.cursorX, s_Toolbar.rowMax.y), colLine,
                 1.0f);
     return clicked;
 }
@@ -144,19 +144,19 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool
 // Sub-nav "tab links" row (matches the Asset Browser's Assets/Scripts tabs):
 // text labels with a 2px accent underline on the active one. Shares the strip
 // state shape with the toolbar; only one row is built at a time.
-ToolbarStrip g_tabLinks;
+ToolbarStrip s_TabLinks;
 
 bool DrawTabLink(const char* label, bool active)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    const float dpi = g_tabLinks.dpi;
-    const float rowH = g_tabLinks.rowMax.y - g_tabLinks.rowMin.y;
+    const float dpi = s_TabLinks.dpi;
+    const float rowH = s_TabLinks.rowMax.y - s_TabLinks.rowMin.y;
     const float gapX = 18.0f * dpi;
     const ImVec2 textSize = ImGui::CalcTextSize(label);
-    const float x0 = g_tabLinks.cursorX;
+    const float x0 = s_TabLinks.cursorX;
     const float x1 = x0 + textSize.x;
 
-    ImGui::SetCursorScreenPos(ImVec2(x0, g_tabLinks.rowMin.y));
+    ImGui::SetCursorScreenPos(ImVec2(x0, s_TabLinks.rowMin.y));
     ImGui::PushID(label);
     bool clicked = ImGui::InvisibleButton(label, ImVec2(textSize.x, rowH));
     bool hovered = ImGui::IsItemHovered();
@@ -167,14 +167,14 @@ bool DrawTabLink(const char* label, bool active)
     const ImU32 colAccent = ImGui::ColorConvertFloat4ToU32(Palette::Accent);
 
     const ImU32 col = (active || hovered) ? colFg : colDim;
-    const float textY = g_tabLinks.rowMin.y + (rowH - textSize.y) * 0.5f;
+    const float textY = s_TabLinks.rowMin.y + (rowH - textSize.y) * 0.5f;
     dl->AddText(ImVec2(x0, textY), col, label);
     if (active)
     {
-        dl->AddRectFilled(ImVec2(x0, g_tabLinks.rowMax.y - 2.0f * dpi), ImVec2(x1, g_tabLinks.rowMax.y), colAccent);
+        dl->AddRectFilled(ImVec2(x0, s_TabLinks.rowMax.y - 2.0f * dpi), ImVec2(x1, s_TabLinks.rowMax.y), colAccent);
     }
 
-    g_tabLinks.cursorX = x1 + gapX;
+    s_TabLinks.cursorX = x1 + gapX;
     return clicked;
 }
 
@@ -208,7 +208,7 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
     // Selected and hover backgrounds fade; hover only while not selected.
     const float hoverT = Motion::ItemHover(hovered);
     const float selT =
-        Motion::EaseOut(Motion::To(ImGui::GetItemID() ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Motion::Fast));
+        Motion::EaseOut(Motion::To(ImGui::GetItemID() ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Motion::kFast));
     if (selT > 0.0f)
     {
         dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(selBg, selT), rounding);
@@ -301,14 +301,14 @@ static void InstallEditorUIBackend()
         const float rowH = 34.0f * dpi;
         const ImVec2 rowMin = ImGui::GetCursorScreenPos();
         const float avail = ImGui::GetContentRegionAvail().x;
-        g_toolbar.rowMin = rowMin;
-        g_toolbar.rowMax = ImVec2(rowMin.x + avail, rowMin.y + rowH);
-        g_toolbar.cursorX = rowMin.x;
-        g_toolbar.dpi = dpi;
+        s_Toolbar.rowMin = rowMin;
+        s_Toolbar.rowMax = ImVec2(rowMin.x + avail, rowMin.y + rowH);
+        s_Toolbar.cursorX = rowMin.x;
+        s_Toolbar.dpi = dpi;
         // Leading divider at the strip start.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
-        dl->AddLine(ImVec2(rowMin.x, rowMin.y), ImVec2(rowMin.x, g_toolbar.rowMax.y), colLine, 1.0f);
+        dl->AddLine(ImVec2(rowMin.x, rowMin.y), ImVec2(rowMin.x, s_Toolbar.rowMax.y), colLine, 1.0f);
     };
     b.toolbarButton = [](const char* label, bool enabled, bool active)
     { return DrawToolbarCell(label, label, nullptr, enabled, active); };
@@ -327,13 +327,13 @@ static void InstallEditorUIBackend()
         // keeps the strip bounded whatever follows it.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
-        dl->AddLine(ImVec2(g_toolbar.rowMin.x, g_toolbar.rowMax.y), ImVec2(g_toolbar.rowMax.x, g_toolbar.rowMax.y),
+        dl->AddLine(ImVec2(s_Toolbar.rowMin.x, s_Toolbar.rowMax.y), ImVec2(s_Toolbar.rowMax.x, s_Toolbar.rowMax.y),
                     colLine, 1.0f);
         // Reserved as an ITEM, not a bare cursor move: ImGui reports a window
         // whose last act was moving the cursor ("submit an item e.g. Dummy()"),
         // and a panel whose toolbar is the last thing it draws would trip that
         // every frame. Zero item spacing around it so the pixel is all it costs.
-        ImGui::SetCursorScreenPos(ImVec2(g_toolbar.rowMin.x, g_toolbar.rowMax.y));
+        ImGui::SetCursorScreenPos(ImVec2(s_Toolbar.rowMin.x, s_Toolbar.rowMax.y));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 1.0f));
         ImGui::PopStyleVar();
@@ -348,10 +348,10 @@ static void InstallEditorUIBackend()
         const float rowH = 34.0f * dpi;
         const ImVec2 rowMin = ImGui::GetCursorScreenPos();
         const float avail = ImGui::GetContentRegionAvail().x;
-        g_tabLinks.rowMin = rowMin;
-        g_tabLinks.rowMax = ImVec2(rowMin.x + avail, rowMin.y + rowH);
-        g_tabLinks.cursorX = rowMin.x + 14.0f * dpi;  // left padding
-        g_tabLinks.dpi = dpi;
+        s_TabLinks.rowMin = rowMin;
+        s_TabLinks.rowMax = ImVec2(rowMin.x + avail, rowMin.y + rowH);
+        s_TabLinks.cursorX = rowMin.x + 14.0f * dpi;  // left padding
+        s_TabLinks.dpi = dpi;
     };
     b.tabLink = [](const char* label, bool active) { return DrawTabLink(label, active); };
     b.endTabLinks = []()
@@ -360,9 +360,9 @@ static void InstallEditorUIBackend()
         // must survive whatever the panel draws under it.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
-        dl->AddLine(ImVec2(g_tabLinks.rowMin.x, g_tabLinks.rowMax.y), ImVec2(g_tabLinks.rowMax.x, g_tabLinks.rowMax.y),
+        dl->AddLine(ImVec2(s_TabLinks.rowMin.x, s_TabLinks.rowMax.y), ImVec2(s_TabLinks.rowMax.x, s_TabLinks.rowMax.y),
                     colLine, 1.0f);
-        ImGui::SetCursorScreenPos(ImVec2(g_tabLinks.rowMin.x, g_tabLinks.rowMax.y));
+        ImGui::SetCursorScreenPos(ImVec2(s_TabLinks.rowMin.x, s_TabLinks.rowMax.y));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 1.0f));
         ImGui::PopStyleVar();
@@ -374,44 +374,44 @@ static void InstallEditorUIBackend()
     // and only replays via onUndo/onRedo; true (pointer mode) => it also memcpy's.
     b.recordEdit = [](void* value, size_t size, bool ownsStorage, const void* before, const char* label, const ECB& cb)
     {
-        static std::vector<uint8_t> s_old;
-        static bool s_started = false;
+        static std::vector<uint8_t> s_Old;
+        static bool s_Started = false;
         if (ImGui::IsItemActivated())
         {
-            s_old.assign(static_cast<const uint8_t*>(before), static_cast<const uint8_t*>(before) + size);
+            s_Old.assign(static_cast<const uint8_t*>(before), static_cast<const uint8_t*>(before) + size);
             if (cb.onStartChange)
             {
                 cb.onStartChange(before);
             }
-            s_started = true;
+            s_Started = true;
         }
         if (ImGui::IsItemEdited() && cb.onChange)
         {
             cb.onChange(value);
         }
-        if (ImGui::IsItemDeactivated() && s_started)
+        if (ImGui::IsItemDeactivated() && s_Started)
         {
             // Every start gets its end, changed or not: a click that leaves
             // the value alone, or the first click of a double-click into text
             // entry, used to leave the live edit open for good, and the Play
             // View re-rendered every frame from then on.
-            s_started = false;
-            if (ImGui::IsItemDeactivatedAfterEdit() && s_old.size() == size &&
-                std::memcmp(s_old.data(), value, size) != 0)
+            s_Started = false;
+            if (ImGui::IsItemDeactivatedAfterEdit() && s_Old.size() == size &&
+                std::memcmp(s_Old.data(), value, size) != 0)
             {
                 std::vector<uint8_t> newBytes(static_cast<const uint8_t*>(value),
                                               static_cast<const uint8_t*>(value) + size);
                 if (cb.onEndChange)
                 {
-                    cb.onEndChange(s_old.data(), newBytes.data());
+                    cb.onEndChange(s_Old.data(), newBytes.data());
                 }
                 CommandHistory::Instance().ExecuteNoMerge(
-                    std::make_unique<ModifyValueCommand>(ownsStorage ? value : nullptr, size, s_old.data(),
+                    std::make_unique<ModifyValueCommand>(ownsStorage ? value : nullptr, size, s_Old.data(),
                                                          newBytes.data(), label ? label : "", cb.onUndo, cb.onRedo));
             }
-            else if (cb.onEndChange && s_old.size() == size)
+            else if (cb.onEndChange && s_Old.size() == size)
             {
-                cb.onEndChange(s_old.data(), s_old.data());
+                cb.onEndChange(s_Old.data(), s_Old.data());
             }
         }
     };
@@ -477,43 +477,43 @@ static void InstallEditorUIBackend()
         }
 
         const size_t size = sizeof(float) * static_cast<size_t>(count);
-        static std::vector<uint8_t> s_old;
-        static int s_count = 0;
-        static bool s_started = false;
+        static std::vector<uint8_t> s_Old;
+        static int s_Count = 0;
+        static bool s_Started = false;
         if (ImGui::IsItemActivated())
         {
-            s_old.assign(reinterpret_cast<const uint8_t*>(before), reinterpret_cast<const uint8_t*>(before) + size);
-            s_count = count;
+            s_Old.assign(reinterpret_cast<const uint8_t*>(before), reinterpret_cast<const uint8_t*>(before) + size);
+            s_Count = count;
             if (cb.onStartChange)
             {
                 cb.onStartChange(before);
             }
-            s_started = true;
+            s_Started = true;
         }
         if (ImGui::IsItemEdited() && cb.onChange)
         {
             cb.onChange(value);
         }
-        if (ImGui::IsItemDeactivated() && s_started)
+        if (ImGui::IsItemDeactivated() && s_Started)
         {
             // Every start gets its end, changed or not (see recordEdit).
-            s_started = false;
-            if (ImGui::IsItemDeactivatedAfterEdit() && s_count == count && s_old.size() == size &&
-                std::memcmp(s_old.data(), value, size) != 0)
+            s_Started = false;
+            if (ImGui::IsItemDeactivatedAfterEdit() && s_Count == count && s_Old.size() == size &&
+                std::memcmp(s_Old.data(), value, size) != 0)
             {
                 std::vector<uint8_t> newBytes(reinterpret_cast<const uint8_t*>(value),
                                               reinterpret_cast<const uint8_t*>(value) + size);
                 if (cb.onEndChange)
                 {
-                    cb.onEndChange(s_old.data(), newBytes.data());
+                    cb.onEndChange(s_Old.data(), newBytes.data());
                 }
                 CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-                    ownsStorage ? static_cast<void*>(value) : nullptr, size, s_old.data(), newBytes.data(),
+                    ownsStorage ? static_cast<void*>(value) : nullptr, size, s_Old.data(), newBytes.data(),
                     label ? label : "", cb.onUndo, cb.onRedo));
             }
-            else if (cb.onEndChange && s_old.size() == size)
+            else if (cb.onEndChange && s_Old.size() == size)
             {
-                cb.onEndChange(s_old.data(), s_old.data());
+                cb.onEndChange(s_Old.data(), s_Old.data());
             }
         }
         return changed;
@@ -609,11 +609,11 @@ void RegisterEngineEditors()
 {
     // Install EditorUI's widget backend once so package custom-editors render
     // their fields with the editor's styled controls.
-    static bool s_uiBackendInstalled = false;
-    if (!s_uiBackendInstalled)
+    static bool s_UiBackendInstalled = false;
+    if (!s_UiBackendInstalled)
     {
         InstallEditorUIBackend();
-        s_uiBackendInstalled = true;
+        s_UiBackendInstalled = true;
     }
 
     // Register engine editor extensions by iterating through exported functions
@@ -622,13 +622,13 @@ void RegisterEngineEditors()
     auto& assetTypeEditorRegistry = DekiEditor::AssetTypeEditorRegistry::Instance();
 
     // Try factory-based API first (new system)
-    int factoryCount = DekiEngine_GetEditorFactoryCount();
+    int factoryCount = DekiEngineGetEditorFactoryCount();
     if (factoryCount > 0)
     {
         for (int i = 0; i < factoryCount; ++i)
         {
             // Get prototype for metadata queries
-            DekiEditor::EditorExtension* prototype = DekiEngine_GetEditorPrototype(i);
+            DekiEditor::EditorExtension* prototype = DekiEngineGetEditorPrototype(i);
             if (!prototype)
             {
                 continue;
@@ -643,7 +643,7 @@ void RegisterEngineEditors()
                     customEditorRegistry.RegisterFactory(prototype->GetName(),
                                                          [factoryIndex]() -> std::unique_ptr<DekiEditor::CustomEditor>
                                                          {
-                                                             auto* rawPtr = DekiEngine_CreateEditor(factoryIndex);
+                                                             auto* rawPtr = DekiEngineCreateEditor(factoryIndex);
                                                              if (rawPtr && rawPtr->GetEditorType() ==
                                                                                DekiEditor::EditorType::CustomEditor)
                                                              {
@@ -710,10 +710,10 @@ void RegisterEngineEditors()
     else
     {
         // Fall back to legacy singleton API
-        int editorCount = DekiEngine_GetEditorCount();
+        int editorCount = DekiEngineGetEditorCount();
         for (int i = 0; i < editorCount; ++i)
         {
-            DekiEditor::EditorExtension* editor = DekiEngine_GetEditor(i);
+            DekiEditor::EditorExtension* editor = DekiEngineGetEditor(i);
             if (!editor)
             {
                 continue;

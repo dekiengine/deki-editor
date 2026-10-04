@@ -33,33 +33,33 @@ namespace DekiEditor
 {
 
 // Package-injected callbacks (registered by 2d package at load time)
-static EditorAssets::ImageLoaderFn s_imageLoader = nullptr;
-static EditorAssets::FontFromDfontFn s_fontFactory = nullptr;
-static EditorAssets::FontDestroyFn s_fontDestroyer = nullptr;
+static EditorAssets::ImageLoaderFn s_ImageLoader = nullptr;
+static EditorAssets::FontFromDfontFn s_FontFactory = nullptr;
+static EditorAssets::FontDestroyFn s_FontDestroyer = nullptr;
 
 EditorAssets* EditorAssets::s_Instance = nullptr;
 
 void EditorAssets::RegisterImageLoader(ImageLoaderFn fn)
 {
-    s_imageLoader = fn;
+    s_ImageLoader = fn;
 }
 
 void EditorAssets::RegisterFontFactory(FontFromDfontFn factory, FontDestroyFn destroyer)
 {
-    s_fontFactory = factory;
-    s_fontDestroyer = destroyer;
+    s_FontFactory = factory;
+    s_FontDestroyer = destroyer;
 }
 
 void EditorAssets::ClearPackageInjectedCallbacks()
 {
-    s_imageLoader = nullptr;
-    s_fontFactory = nullptr;
-    s_fontDestroyer = nullptr;
+    s_ImageLoader = nullptr;
+    s_FontFactory = nullptr;
+    s_FontDestroyer = nullptr;
 }
 
 EditorAssets::ImageLoaderFn EditorAssets::GetImageLoader()
 {
-    return s_imageLoader;
+    return s_ImageLoader;
 }
 
 EditorAssets* EditorAssets::Get()
@@ -110,7 +110,7 @@ uint32_t EditorAssets::LoadTexture(const std::string& guid, uint32_t* outWidth, 
         return it->second.textureId;
     }
 
-    if (!s_imageLoader)
+    if (!s_ImageLoader)
     {
         return 0;
     }
@@ -131,7 +131,7 @@ uint32_t EditorAssets::LoadTexture(const std::string& guid, uint32_t* outWidth, 
     // Load via injected image loader
     int32_t w = 0, h = 0;
     bool hasAlpha = false;
-    uint8_t* rgba = s_imageLoader(path.c_str(), w, h, hasAlpha);
+    uint8_t* rgba = s_ImageLoader(path.c_str(), w, h, hasAlpha);
     if (!rgba)
     {
         return 0;
@@ -356,9 +356,9 @@ void EditorAssets::InvalidateFontAtlas(const std::string& bakedGuid)
                 GLuint texId = static_cast<GLuint>(it->second->textureId);
                 glDeleteTextures(1, &texId);
             }
-            if (it->second->font && s_fontDestroyer)
+            if (it->second->font && s_FontDestroyer)
             {
-                s_fontDestroyer(it->second->font);
+                s_FontDestroyer(it->second->font);
             }
         }
         m_FontAtlasCache.erase(it);
@@ -376,9 +376,9 @@ void EditorAssets::ClearFontCache()
                 GLuint texId = static_cast<GLuint>(cached->textureId);
                 glDeleteTextures(1, &texId);
             }
-            if (cached->font && s_fontDestroyer)
+            if (cached->font && s_FontDestroyer)
             {
-                s_fontDestroyer(cached->font);
+                s_FontDestroyer(cached->font);
             }
         }
     }
@@ -419,7 +419,7 @@ uint32_t EditorAssets::LoadFontAtlasWithBaking(const std::string& sourceGuid, in
 EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::string& dfontPath,
                                                                    const std::string& cacheKey)
 {
-    if (!s_fontFactory)
+    if (!s_FontFactory)
     {
         return nullptr;
     }
@@ -434,7 +434,7 @@ EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::st
     // Delegate dfont parsing + Deki2D::BitmapFont creation to the 2d package
     uint8_t* atlasRGBA = nullptr;
     int32_t atlasW = 0, atlasH = 0;
-    void* font = s_fontFactory(dfontPath.c_str(), &atlasRGBA, atlasW, atlasH);
+    void* font = s_FontFactory(dfontPath.c_str(), &atlasRGBA, atlasW, atlasH);
 
     if (!font)
     {
@@ -451,9 +451,9 @@ EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::st
 
     if (texId == 0)
     {
-        if (s_fontDestroyer)
+        if (s_FontDestroyer)
         {
-            s_fontDestroyer(font);
+            s_FontDestroyer(font);
         }
         return nullptr;
     }

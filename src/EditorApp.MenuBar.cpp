@@ -72,9 +72,9 @@ void EditorApp::DrawMenuBar()
     // so BeginMenuBar's internal AlignTextToFramePadding offsets text by
     // (barH - fontH)/2 - i.e. vertically centered. main.cpp's push has been
     // popped by now, leaving FramePadding at the theme default.
-    const float menuBarHeight_baked = ImGui::GetCurrentWindow()->MenuBarHeight;
-    const float fontH_baked = ImGui::GetFontSize();
-    const float menuPadY = (menuBarHeight_baked - fontH_baked) * 0.5f;
+    const float menuBarHeightBaked = ImGui::GetCurrentWindow()->MenuBarHeight;
+    const float fontHBaked = ImGui::GetFontSize();
+    const float menuPadY = (menuBarHeightBaked - fontHBaked) * 0.5f;
     const float menuPadX = ImGui::GetStyle().FramePadding.x;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(menuPadX, menuPadY));
 
@@ -151,7 +151,7 @@ void EditorApp::DrawMenuBar()
         // BeginMenu call (the bar button). Doing it globally would also zero the
         // dropdown's hover highlight, because the popup's MenuItem/Selectable
         // entries draw their hover with the same ImGuiCol_HeaderHovered.
-        auto BeginBarMenu = [menuFont](const char* label)
+        auto beginBarMenu = [menuFont](const char* label)
         {
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
             ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0, 0, 0, 0));
@@ -175,7 +175,7 @@ void EditorApp::DrawMenuBar()
         };
         // Closes a BeginBarMenu()'d dropdown: pops the popup ItemSpacing pushed
         // above, then ends the menu. Call only when BeginBarMenu returned true.
-        auto EndBarMenu = []()
+        auto endBarMenu = []()
         {
             ImGui::PopStyleVar();  // popup ItemSpacing from BeginBarMenu
             ImGui::EndMenu();
@@ -184,7 +184,7 @@ void EditorApp::DrawMenuBar()
         // After each BeginMenu, draw a full-height background covering the
         // entry's full column. Also hijacks hover-state and clicks so the
         // entire vertical strip is interactive - not just the text rect.
-        auto DrawMenuItemBg = [&](bool isOpen, const char* popupId)
+        auto drawMenuItemBg = [&](bool isOpen, const char* popupId)
         {
             ImVec2 rMin = ImGui::GetItemRectMin();
             ImVec2 rMax = ImGui::GetItemRectMax();
@@ -244,8 +244,8 @@ void EditorApp::DrawMenuBar()
             }
         };
 
-        bool fileOpen = BeginBarMenu("File###File");
-        DrawMenuItemBg(fileOpen, "File###File");
+        bool fileOpen = beginBarMenu("File###File");
+        drawMenuItemBg(fileOpen, "File###File");
         if (fileOpen)
         {
             if (ImGui::MenuItem("New Project...", "Ctrl+Shift+N"))
@@ -295,12 +295,12 @@ void EditorApp::DrawMenuBar()
                 quit.type = SDL_EVENT_QUIT;
                 SDL_PushEvent(&quit);
             }
-            EndBarMenu();
+            endBarMenu();
         }
 
         {
-            bool editOpen = BeginBarMenu("Edit###Edit");
-            DrawMenuItemBg(editOpen, "Edit###Edit");
+            bool editOpen = beginBarMenu("Edit###Edit");
+            drawMenuItemBg(editOpen, "Edit###Edit");
             if (editOpen)
             {
                 auto& history = CommandHistory::Instance();
@@ -349,12 +349,12 @@ void EditorApp::DrawMenuBar()
                 ImGui::Separator();
                 if (ImGui::MenuItem("Project Settings...", nullptr, false, m_Project != nullptr))
                 {
-                    m_ProjectSettingsPanel->m_Open = true;
+                    m_ProjectSettingsPanel->isOpen = true;
                     FocusPanelTab("Project Settings");
                 }
                 if (ImGui::MenuItem("Editor Settings..."))
                 {
-                    m_EditorSettingsPanel->m_Open = true;
+                    m_EditorSettingsPanel->isOpen = true;
                     FocusPanelTab("Editor Settings");
                 }
 
@@ -389,13 +389,13 @@ void EditorApp::DrawMenuBar()
                         ImGui::EndMenu();
                     }
                 }
-                EndBarMenu();
+                endBarMenu();
             }
         }
 
         {
-            bool toolsOpen = BeginBarMenu("Tools###Tools");
-            DrawMenuItemBg(toolsOpen, "Tools###Tools");
+            bool toolsOpen = beginBarMenu("Tools###Tools");
+            drawMenuItemBg(toolsOpen, "Tools###Tools");
             if (toolsOpen)
             {
                 // Draw menu items for all discovered tools
@@ -407,13 +407,13 @@ void EditorApp::DrawMenuBar()
                 {
                     ImGui::TextDisabled("Open a project to access tools");
                 }
-                EndBarMenu();
+                endBarMenu();
             }
         }
 
         {
-            bool buildOpen = BeginBarMenu("Build###Build");
-            DrawMenuItemBg(buildOpen, "Build###Build");
+            bool buildOpen = beginBarMenu("Build###Build");
+            drawMenuItemBg(buildOpen, "Build###Build");
             if (buildOpen)
             {
                 // No "Build"/"Upload" entries here. They existed as permanently
@@ -448,19 +448,19 @@ void EditorApp::DrawMenuBar()
                     }
                     ImGui::EndMenu();
                 }
-                EndBarMenu();
+                endBarMenu();
             }
         }
 
         {
-            bool viewOpen = BeginBarMenu("View###View");
-            DrawMenuItemBg(viewOpen, "View###View");
+            bool viewOpen = beginBarMenu("View###View");
+            drawMenuItemBg(viewOpen, "View###View");
             if (viewOpen)
             {
                 // Helper: open the panel and focus its (possibly docked) tab. Plain
                 // press-to-open - no checkmark, no toggle-off. Clicking always brings
                 // the window up, even if it was already open (just re-focuses it).
-                auto PanelMenuItem = [](const char* label, bool& openFlag, const char* windowName)
+                auto panelMenuItem = [](const char* label, bool& openFlag, const char* windowName)
                 {
                     if (ImGui::MenuItem(label))
                     {
@@ -473,7 +473,7 @@ void EditorApp::DrawMenuBar()
                 // but the first. Headings rather than submenus: every panel
                 // stays one click away.
                 bool firstGroup = true;
-                auto Group = [&firstGroup](const char* title)
+                auto group = [&firstGroup](const char* title)
                 {
                     if (!firstGroup)
                     {
@@ -493,26 +493,26 @@ void EditorApp::DrawMenuBar()
                     ImGui::PopStyleColor();
                 };
 
-                Group("SCENE");
-                PanelMenuItem("Hierarchy", m_HierarchyPanel->m_Open, "Hierarchy");
-                PanelMenuItem("Inspector", m_InspectorPanel->m_Open, "Inspector");
-                PanelMenuItem("Scene View", m_SceneViewPanel->m_Open, "Scene View");
-                PanelMenuItem("Play View", m_PlayViewPanel->m_Open, "Play View");
+                group("SCENE");
+                panelMenuItem("Hierarchy", m_HierarchyPanel->isOpen, "Hierarchy");
+                panelMenuItem("Inspector", m_InspectorPanel->isOpen, "Inspector");
+                panelMenuItem("Scene View", m_SceneViewPanel->isOpen, "Scene View");
+                panelMenuItem("Play View", m_PlayViewPanel->isOpen, "Play View");
 
-                Group("PROJECT");
-                PanelMenuItem("Asset Browser", m_AssetBrowserPanel->m_Open, "Asset Browser");
-                PanelMenuItem("Package Manager", m_PackageManagerPanel->m_Open, "Package Manager");
-                PanelMenuItem("Console", m_ConsolePanel->m_Open, "Console");
-                PanelMenuItem("Activity", m_ActivityPanel->m_Open, "Activity");
+                group("PROJECT");
+                panelMenuItem("Asset Browser", m_AssetBrowserPanel->isOpen, "Asset Browser");
+                panelMenuItem("Package Manager", m_PackageManagerPanel->isOpen, "Package Manager");
+                panelMenuItem("Console", m_ConsolePanel->isOpen, "Console");
+                panelMenuItem("Activity", m_ActivityPanel->isOpen, "Activity");
 
-                Group("BUILD & DEPLOY");
-                PanelMenuItem("Build", m_BuildPanel->m_Open, "Build");
-                PanelMenuItem("Platform Manager", m_PlatformManagerPanel->m_Open, "Platform Manager");
-                PanelMenuItem("SD Card Deploy", m_SDCardDeployPanel->m_Open, "SD Card Deploy");
-                PanelMenuItem("Deploy Analysis", m_DeployAnalysisPanel->m_Open, "Deploy Analysis");
-                PanelMenuItem("Serial Monitor", m_SerialMonitorPanel->m_Open, "Serial Monitor");
+                group("BUILD & DEPLOY");
+                panelMenuItem("Build", m_BuildPanel->isOpen, "Build");
+                panelMenuItem("Platform Manager", m_PlatformManagerPanel->isOpen, "Platform Manager");
+                panelMenuItem("SD Card Deploy", m_SDCardDeployPanel->isOpen, "SD Card Deploy");
+                panelMenuItem("Deploy Analysis", m_DeployAnalysisPanel->isOpen, "Deploy Analysis");
+                panelMenuItem("Serial Monitor", m_SerialMonitorPanel->isOpen, "Serial Monitor");
 
-                Group("PERFORMANCE");
+                group("PERFORMANCE");
                 if (ImGui::MenuItem("Profiler"))
                 {
                     m_ProfilerPanel->SetOpen(true);
@@ -530,22 +530,22 @@ void EditorApp::DrawMenuBar()
                     // else: anything left open would come back as a stray tab in
                     // whichever node it last sat in, which is the opposite of
                     // restoring a known arrangement.
-                    m_HierarchyPanel->m_Open = true;
-                    m_AssetBrowserPanel->m_Open = true;
-                    m_SceneViewPanel->m_Open = true;
-                    m_PlayViewPanel->m_Open = true;
-                    m_ConsolePanel->m_Open = true;
-                    m_InspectorPanel->m_Open = true;
+                    m_HierarchyPanel->isOpen = true;
+                    m_AssetBrowserPanel->isOpen = true;
+                    m_SceneViewPanel->isOpen = true;
+                    m_PlayViewPanel->isOpen = true;
+                    m_ConsolePanel->isOpen = true;
+                    m_InspectorPanel->isOpen = true;
 
-                    m_BuildPanel->m_Open = false;
-                    m_ProjectSettingsPanel->m_Open = false;
-                    m_EditorSettingsPanel->m_Open = false;
-                    m_PackageManagerPanel->m_Open = false;
-                    m_PlatformManagerPanel->m_Open = false;
-                    m_SerialMonitorPanel->m_Open = false;
-                    m_SDCardDeployPanel->m_Open = false;
-                    m_DeployAnalysisPanel->m_Open = false;
-                    m_ActivityPanel->m_Open = false;
+                    m_BuildPanel->isOpen = false;
+                    m_ProjectSettingsPanel->isOpen = false;
+                    m_EditorSettingsPanel->isOpen = false;
+                    m_PackageManagerPanel->isOpen = false;
+                    m_PlatformManagerPanel->isOpen = false;
+                    m_SerialMonitorPanel->isOpen = false;
+                    m_SDCardDeployPanel->isOpen = false;
+                    m_DeployAnalysisPanel->isOpen = false;
+                    m_ActivityPanel->isOpen = false;
                     m_ProfilerPanel->SetOpen(false);
                     m_FrameCapturePanel->SetOpen(false);
 
@@ -583,13 +583,13 @@ void EditorApp::DrawMenuBar()
                     ImGui::DebugStartItemPicker();
                 }
 #endif
-                EndBarMenu();
+                endBarMenu();
             }
         }
 
         {
-            bool helpOpen = BeginBarMenu("Help###Help");
-            DrawMenuItemBg(helpOpen, "Help###Help");
+            bool helpOpen = beginBarMenu("Help###Help");
+            drawMenuItemBg(helpOpen, "Help###Help");
             if (helpOpen)
             {
                 // The version line a bug report should quote (EditorApp::DrawAboutWindow).
@@ -617,7 +617,7 @@ void EditorApp::DrawMenuBar()
                 {
                     UpdateCheck::SetEnabled(checkOnStartup);
                 }
-                EndBarMenu();
+                endBarMenu();
             }
         }
 
@@ -881,9 +881,9 @@ void EditorApp::DrawProjectManagerMenuBar()
     // and the platform layer's drag and button hit-testing are driven off the
     // globals DrawWindowControls publishes, so the project manager needs a bar
     // even though it has no menu to put in one.
-    const float menuBarHeight_baked = ImGui::GetCurrentWindow()->MenuBarHeight;
-    const float fontH_baked = ImGui::GetFontSize();
-    const float menuPadY = (menuBarHeight_baked - fontH_baked) * 0.5f;
+    const float menuBarHeightBaked = ImGui::GetCurrentWindow()->MenuBarHeight;
+    const float fontHBaked = ImGui::GetFontSize();
+    const float menuPadY = (menuBarHeightBaked - fontHBaked) * 0.5f;
     const float menuPadX = ImGui::GetStyle().FramePadding.x;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(menuPadX, menuPadY));
 

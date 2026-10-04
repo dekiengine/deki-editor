@@ -88,7 +88,7 @@ struct DEKI_EDITOR_API PlatformConfig
     // Display
     int screenWidth = 0;
     int screenHeight = 0;
-    std::string colorFormat;    // "RGB565", "RGB888", "RGBA8888" - maps to Deki::ColorFormat
+    std::string colorFormat;  // "RGB565", "RGB888", "RGBA8888" - maps to Deki::ColorFormat
 
     // Compiler flags
     std::vector<std::string> defines;    // Preprocessor defines

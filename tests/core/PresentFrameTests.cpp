@@ -229,7 +229,7 @@ void Put(std::vector<uint8_t>& out, const void* p, size_t n)
 std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
 {
     std::vector<uint8_t> img;
-    Deki::ProjectSettings::FileHeader hdr{ Deki::ProjectSettings::MAGIC, 5, 0 };
+    Deki::ProjectSettings::FileHeader hdr{ Deki::ProjectSettings::kMagic, 5, 0 };
     Put(img, &hdr, sizeof(hdr));
     Deki::ProjectSettings::DisplaySettings ds{ 320, 240, 0, 0, 0, 0, 0.0f };
     Put(img, &ds, sizeof(ds));

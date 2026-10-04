@@ -25,10 +25,10 @@ extern DekiDockSnapFn GDekiDockSnapFn;
 namespace
 {
 
-void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode* child_1, ImGuiAxis axis,
-                      float* size_0, float* size_1, float min_size_0, float min_size_1)
+void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child0, ImGuiDockNode* child1, ImGuiAxis axis, float* size0,
+                      float* size1, float minSize0, float minSize1)
 {
-    if (!node || !child_0 || !child_1 || !size_0 || !size_1)
+    if (!node || !child0 || !child1 || !size0 || !size1)
     {
         return;
     }
@@ -36,20 +36,20 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
     ImGuiContext& g = *GImGui;
 
     // Snap zone scales with the (DPI-scaled) font size: ~8px at 1x, ~16px at 2x.
-    const float snap_dist = g.FontSize * 0.6f;
-    const float total = *size_0 + *size_1;  // span shared by both children
+    const float snapDist = g.FontSize * 0.6f;
+    const float total = *size0 + *size1;  // span shared by both children
     const float spacing = g.Style.DockingSeparatorSize;
 
     // The panel BELOW the separator (child_1) is the one whose tab top moves with
     // the drag. It sits one separator-thickness below the separator line, so we
     // align THAT tab top - not the separator - with other panels' tab tops.
     // Aligning the separator instead would leave the tabs offset by the gap.
-    const float moving_tab_top = child_0->Pos[axis] + *size_0 + spacing;
+    const float movingTabTop = child0->Pos[axis] + *size0 + spacing;
 
     // Snap only to the NEAR edge of other dock nodes - the top of a node, where
     // its tab bar sits. The far/bottom edge is intentionally not a target.
-    float best = moving_tab_top;
-    float best_dist = snap_dist;
+    float best = movingTabTop;
+    float bestDist = snapDist;
     ImVector<ImGuiDockNode*> stack;
     stack.push_back(ImGui::DockNodeGetRootNode(node));
     while (stack.Size > 0)
@@ -73,16 +73,16 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
         // all their descendants move WITH the separator, so their edges (e.g. a
         // nested panel's tab sitting just under the separator) are not stable
         // alignment targets. Only panels OUTSIDE this split count.
-        bool inside_resized_region = false;
+        bool insideResizedRegion = false;
         for (ImGuiDockNode* p = n; p != NULL; p = p->ParentNode)
         {
             if (p == node)
             {
-                inside_resized_region = true;
+                insideResizedRegion = true;
                 break;
             }
         }
-        if (inside_resized_region)
+        if (insideResizedRegion)
         {
             continue;
         }
@@ -94,16 +94,16 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
             continue;
         }
 
-        const float top_edge = n->Pos[axis];
-        const float d_top = ImFabs(top_edge - moving_tab_top);
-        if (d_top < best_dist)
+        const float topEdge = n->Pos[axis];
+        const float dTop = ImFabs(topEdge - movingTabTop);
+        if (dTop < bestDist)
         {
-            best_dist = d_top;
-            best = top_edge;
+            bestDist = dTop;
+            best = topEdge;
         }
     }
 
-    if (best == moving_tab_top)
+    if (best == movingTabTop)
     {
         return;  // nothing within the snap zone
     }
@@ -111,15 +111,15 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
     // Solve for child_0's size so child_1's tab top lands on the target:
     //   child_0->Pos + size_0 + spacing == best  ->  size_0 == best - spacing - Pos.
     // Clamp to the same min sizes ImGui already enforces so we never collapse a node.
-    const float snapped_0 = ImClamp(best - spacing - child_0->Pos[axis], min_size_0, total - min_size_1);
-    *size_0 = snapped_0;
-    *size_1 = total - snapped_0;
+    const float snapped0 = ImClamp(best - spacing - child0->Pos[axis], minSize0, total - minSize1);
+    *size0 = snapped0;
+    *size1 = total - snapped0;
 }
 
 // Install the hook at static-init time. DockSnap.cpp is a direct source of
 // DekiEditor.exe (not a static-lib member), so this object is always linked and
 // this initializer always runs - before the first frame draws the DockSpace.
-const bool s_dock_snap_installed = []
+const bool kDockSnapInstalled = []
 {
     GDekiDockSnapFn = &SnapDockSplitter;
     return true;

@@ -50,8 +50,7 @@ enum class AdoptPlatformResult
 /// Make `platformId` the project's own, from a template if it has to be.
 /// `detail` names the package adopted from, the packages in conflict, or the
 /// error. Never overwrites a platform the project already defines.
-DEKI_EDITOR_API AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath,
-                                                          const std::string& platformId,
+DEKI_EDITOR_API AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const std::string& platformId,
                                                           std::string& detail);
 
 /// What every user of a platform calls first - opening a project on it,
@@ -100,8 +99,8 @@ DEKI_EDITOR_API void RegisterPlatformTemplates(const std::string& projectPath);
 
 struct DEKI_EDITOR_API PlatformOriginStatus
 {
-    bool fromPackage = false;       // adopted from a package, or an installed package offers this id
-    bool recorded = false;          // origin.json exists, so what was adopted is known
+    bool fromPackage = false;  // adopted from a package, or an installed package offers this id
+    bool recorded = false;     // origin.json exists, so what was adopted is known
     std::string packageId;
     std::string adoptedVersion;     // the package's version when adopted; "" when not known
     bool packageInstalled = false;  // the package is installed and still offers this platform
@@ -120,8 +119,7 @@ struct DEKI_EDITOR_API PlatformOriginStatus
 };
 
 /// Reads files only; nothing is written and the registry is not touched.
-DEKI_EDITOR_API PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath,
-                                                       const std::string& platformId);
+DEKI_EDITOR_API PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath, const std::string& platformId);
 
 struct DEKI_EDITOR_API PlatformSyncResult
 {

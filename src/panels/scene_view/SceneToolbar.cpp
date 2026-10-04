@@ -69,7 +69,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         const float hoverT = DekiEditor::Motion::ItemHover(hovered);
         const float pressT = DekiEditor::Motion::ItemPress();
         const float activeT = DekiEditor::Motion::EaseOut(
-            DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
+            DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::kFast));
         ImGui::PopID();
         if (activeT > 0.0f)
         {

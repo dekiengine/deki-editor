@@ -192,8 +192,8 @@ int RunGit(const std::vector<std::string>& args, std::string& output)
 
     // Settings a repository could use to run something the moment git looks at
     // it, switched off from the command line, which outranks the repo's config.
-    static const std::string noHooks = (std::filesystem::temp_directory_path() / "deki-git-no-hooks").generic_string();
-    std::vector<std::string> full = { "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + noHooks };
+    static const std::string kNoHooks = (std::filesystem::temp_directory_path() / "deki-git-no-hooks").generic_string();
+    std::vector<std::string> full = { "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + kNoHooks };
     full.insert(full.end(), args.begin(), args.end());
     return RunGitUnchecked(full, output);
 }

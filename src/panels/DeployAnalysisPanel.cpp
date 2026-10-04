@@ -32,7 +32,7 @@ DeployAnalysisPanel::~DeployAnalysisPanel() = default;
 
 void DeployAnalysisPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
@@ -40,7 +40,7 @@ void DeployAnalysisPanel::Draw()
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(550.0f, 400.0f, /*firstUseEver*/ true);
 
-    if (!ui.Begin("DEPLOY ANALYSIS###Deploy Analysis", &m_Open))
+    if (!ui.Begin("DEPLOY ANALYSIS###Deploy Analysis", &isOpen))
     {
         ui.End();
         return;

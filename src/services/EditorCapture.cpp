@@ -24,8 +24,8 @@ namespace DekiEditor
 
 EditorCapture& EditorCapture::Get()
 {
-    static EditorCapture instance;
-    return instance;
+    static EditorCapture s_Instance;
+    return s_Instance;
 }
 
 void EditorCapture::RequestScreenshot(const std::string& path, const std::string& panel, const Region& region,

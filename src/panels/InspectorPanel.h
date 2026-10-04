@@ -62,7 +62,7 @@ public:
     // Invalidate preview texture (call when asset is recompiled)
     void InvalidatePreview();
 
-    bool m_Locked = false;  // When true, inspector stays on current selection
+    bool locked = false;  // When true, inspector stays on current selection
 
     // Live-edit tracking. Set true between IsItemActivated and
     // IsItemDeactivatedAfterEdit while the user is dragging or typing into

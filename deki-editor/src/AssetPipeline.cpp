@@ -332,7 +332,7 @@ AssetPipeline::~AssetPipeline()
 
 void AssetPipeline::Start(const std::string& assetsPath, const std::string& projectPath)
 {
-    ScopedTimer __t_start("AssetPipeline::Start");
+    ScopedTimer tStart("AssetPipeline::Start");
     m_AssetsPath = assetsPath;
     m_ProjectPath = projectPath;
     // Fixed for the session: the assets directory relative to the project,
@@ -354,7 +354,7 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     {
         fs::path cacheDir = fs::path(GetCacheDirectory(projectPath));
         fs::path versionFile = cacheDir / "version";
-        std::string currentVersion = std::to_string(DEKI_CACHE_VERSION);
+        std::string currentVersion = std::to_string(kDekiCacheVersion);
         bool versionMatch = false;
 
         if (fs::exists(versionFile))
@@ -426,21 +426,21 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
 
     // Initialize and sync GUID cache (handlers now ready to process assets)
     {
-        ScopedTimer __t_guid("AssetPipeline::Start GuidCache");
+        ScopedTimer tGuid("AssetPipeline::Start GuidCache");
         std::string guidCachePath = (fs::path(GetCacheDirectory(projectPath)) / "guids.json").string();
 
         if (!m_GuidCache.Load(guidCachePath))
         {
             DEKI_LOG_EDITOR("GuidCache: no usable cache, rebuilding from .data files");
             // Cache missing or corrupt - rebuild from .data files
-            ScopedTimer __t_rebuild("GuidCache::Rebuild");
+            ScopedTimer tRebuild("GuidCache::Rebuild");
             m_GuidCache.Rebuild(assetsPath);
             m_GuidCache.Save(guidCachePath);
         }
         else
         {
             // Sync with filesystem to catch any changes
-            ScopedTimer __t_sync("GuidCache::Sync");
+            ScopedTimer tSync("GuidCache::Sync");
             m_GuidCache.Sync(assetsPath);
         }
     }
@@ -497,7 +497,7 @@ void AssetPipeline::ImportAllAssets()
         return;
     }
 
-    ScopedTimer __t_total("ImportAllAssets total");
+    ScopedTimer tTotal("ImportAllAssets total");
 
     // Defer per-asset table rewrites to one at the end (see m_ImportingAll).
     struct ImportScope
@@ -520,9 +520,9 @@ void AssetPipeline::ImportAllAssets()
             if (p.m_CreatedDuringImport)
             {
                 p.m_CreatedDuringImport = false;
-                if (p.OnImportAllFinished)
+                if (p.onImportAllFinished)
                 {
-                    p.OnImportAllFinished();
+                    p.onImportAllFinished();
                 }
             }
         }
@@ -538,7 +538,7 @@ void AssetPipeline::ImportAllAssets()
     std::vector<std::string> scenePaths;
 
     // Pass 1: Process non-scene assets first
-    auto __t_pass1_start = std::chrono::steady_clock::now();
+    auto tPass1Start = std::chrono::steady_clock::now();
     for (const auto& entry : fs::recursive_directory_iterator(m_AssetsPath))
     {
         if (!entry.is_regular_file())
@@ -589,14 +589,14 @@ void AssetPipeline::ImportAllAssets()
     }
 
     {
-        auto __t_pass1_ms =
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - __t_pass1_start)
+        auto tPass1Ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tPass1Start)
                 .count();
         DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1 (non-scene): %lld ms, %zu subassets",
-                        static_cast<long long>(__t_pass1_ms), m_SubAssetLookup.size());
+                        static_cast<long long>(tPass1Ms), m_SubAssetLookup.size());
     }
 
-    auto __t_pass15_start = std::chrono::steady_clock::now();
+    auto tPass15Start = std::chrono::steady_clock::now();
     // Pass 1.5: Pre-register all scene GUIDs in m_Assets so cross-scene
     // instance resolution works during compilation (ExpandInstance needs to
     // resolve source scene GUIDs via s_GuidToPathResolver -> GetAssetInfoByGuid).
@@ -630,19 +630,19 @@ void AssetPipeline::ImportAllAssets()
     }
 
     {
-        auto __t_pass15_ms =
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - __t_pass15_start)
+        auto tPass15Ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tPass15Start)
                 .count();
-        if (__t_pass15_ms >= 10)
+        if (tPass15Ms >= 10)
         {
             DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1.5 (scene GUID pre-register): %lld ms",
-                            static_cast<long long>(__t_pass15_ms));
+                            static_cast<long long>(tPass15Ms));
         }
     }
 
     // Pass 2: Process scenes (now all subassets and scene GUIDs are registered)
     {
-        ScopedTimer __t_pass2("ImportAllAssets Pass2 (scenes)");
+        ScopedTimer tPass2("ImportAllAssets Pass2 (scenes)");
         for (const auto& scenePath : scenePaths)
         {
             ProcessAsset(scenePath);
@@ -670,13 +670,13 @@ void AssetPipeline::ImportAllAssets()
     {
         // Validate cache integrity (remove orphan files)
         {
-            ScopedTimer __t_validate("ImportAllAssets ValidateCache");
+            ScopedTimer tValidate("ImportAllAssets ValidateCache");
             ValidateCache();
         }
 
         // Update the persistent asset lookup table
         {
-            ScopedTimer __t_table("ImportAllAssets UpdateAssetTable");
+            ScopedTimer tTable("ImportAllAssets UpdateAssetTable");
             UpdateAssetTable();
         }
 
@@ -685,7 +685,7 @@ void AssetPipeline::ImportAllAssets()
 
     // Notify packages that all assets have been imported
     {
-        ScopedTimer __t_oic("ImportAllAssets OnImportComplete callbacks");
+        ScopedTimer tOic("ImportAllAssets OnImportComplete callbacks");
         for (auto& cb : s_OnImportCompleteCallbacks)
         {
             if (cb)
@@ -723,7 +723,7 @@ std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
         }
         return std::to_string(size) + "@" + std::to_string(time.time_since_epoch().count());
     };
-    return part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(DEKI_CACHE_VERSION);
+    return part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(kDekiCacheVersion);
 }
 
 void AssetPipeline::SaveCacheStamps()
@@ -826,9 +826,9 @@ void AssetPipeline::Tick()
                 }
             }
         }
-        if (OnAssetDeleted)
+        if (onAssetDeleted)
         {
-            OnAssetDeleted(relativePath, removed.guid);
+            onAssetDeleted(relativePath, removed.guid);
         }
     };
 
@@ -866,11 +866,11 @@ void AssetPipeline::Tick()
                 }
 
                 const bool wasKnown = (m_Assets.find(relativePath) != m_Assets.end());
-                ProcessAsset(relativePath);  // fires OnAssetDiscovered if !wasKnown
+                ProcessAsset(relativePath);  // fires onAssetDiscovered if !wasKnown
                 assetsChanged = true;
-                if (wasKnown && OnAssetChanged)
+                if (wasKnown && onAssetChanged)
                 {
-                    OnAssetChanged(relativePath);
+                    onAssetChanged(relativePath);
                 }
                 break;
             }
@@ -896,7 +896,7 @@ void AssetPipeline::Tick()
 
 void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebuild)
 {
-    auto __t_pa_start = std::chrono::steady_clock::now();
+    auto tPaStart = std::chrono::steady_clock::now();
     struct AggregateUpdater
     {
         std::chrono::steady_clock::time_point start;
@@ -907,7 +907,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
             g_ProcessAssetCounters.count++;
             g_ProcessAssetCounters.totalMs += static_cast<long long>(ms);
         }
-    } __agg{ __t_pa_start };
+    } agg{ tPaStart };
 
     DEKI_LOG_DEBUG("ProcessAsset: %s", relativePath.c_str());
 
@@ -1116,7 +1116,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
 
     // Notify with relative path. For new assets we additionally refresh the
     // persistent asset table (used by the runtime for GUID resolution) and
-    // fire OnAssetCreated so subscribers (asset browser, picker, thumbnails)
+    // fire onAssetCreated so subscribers (asset browser, picker, thumbnails)
     // can refresh in one place rather than each call site doing it manually.
     if (isNew)
     {
@@ -1128,17 +1128,17 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         {
             UpdateAssetTable();
         }
-        if (OnAssetDiscovered)
+        if (onAssetDiscovered)
         {
-            OnAssetDiscovered(relativePath);
+            onAssetDiscovered(relativePath);
         }
         if (m_ImportingAll)
         {
             m_CreatedDuringImport = true;
         }
-        else if (OnAssetCreated)
+        else if (onAssetCreated)
         {
-            OnAssetCreated(relativePath);
+            onAssetCreated(relativePath);
         }
     }
 }
@@ -1231,8 +1231,8 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
     // Set baked font GUIDs on TextComponents for embedded runtime
     // Uses reflection to avoid compile-time dependency on the 2D package
-    constexpr Deki::ComponentType textComponentType = Deki::HashString("5447ea24-d11f-4161-ae10-2f11e0a18d09");
-    const Deki::ComponentMeta* textMeta = Deki::ComponentRegistry::Instance().GetMeta(textComponentType);
+    constexpr Deki::ComponentType kTextComponentType = Deki::HashString("5447ea24-d11f-4161-ae10-2f11e0a18d09");
+    const Deki::ComponentMeta* textMeta = Deki::ComponentRegistry::Instance().GetMeta(kTextComponentType);
 
     std::function<void(Deki::Object*)> setFontGuidsRecursive = [&](Deki::Object* obj)
     {
@@ -1241,7 +1241,7 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
             return;
         }
 
-        Deki::Component* comp = obj->GetComponentByTypeId(textComponentType);
+        Deki::Component* comp = obj->GetComponentByTypeId(kTextComponentType);
         if (comp)
         {
             // Find font (AssetRef) and fontSize (Int32) properties via reflection
@@ -1376,11 +1376,11 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
     std::string assetType = data.value("type", "");
 
     {
-        const int32_t fileVersion = data.value(Deki::AuthoredFormat::VersionKey, 1);
-        if (fileVersion > Deki::AuthoredFormat::AssetVersion)
+        const int32_t fileVersion = data.value(Deki::AuthoredFormat::kVersionKey, 1);
+        if (fileVersion > Deki::AuthoredFormat::kAssetVersion)
         {
             DEKI_LOG_ERROR("CompileAssetFile: %s is formatVersion %d but this editor reads up to %d; update the editor",
-                           assetPath.c_str(), fileVersion, Deki::AuthoredFormat::AssetVersion);
+                           assetPath.c_str(), fileVersion, Deki::AuthoredFormat::kAssetVersion);
             return false;
         }
     }
@@ -1402,7 +1402,7 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
 
         json body = data;
         body.erase("type");
-        body.erase(Deki::AuthoredFormat::VersionKey);
+        body.erase(Deki::AuthoredFormat::kVersionKey);
         std::vector<uint8_t> mp = json::to_msgpack(body);
 
         std::string err;
@@ -1517,9 +1517,9 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
     ProcessAsset(relativePath, /*forceRebuild=*/true);
 
     // Trigger changed callback so UI can update
-    if (OnAssetChanged)
+    if (onAssetChanged)
     {
-        OnAssetChanged(relativePath);
+        onAssetChanged(relativePath);
     }
 }
 
@@ -1564,7 +1564,7 @@ const AssetInfo* AssetPipeline::GetAssetInfoByGuid(const std::string& guid) cons
 
 int AssetPipeline::CleanCache()
 {
-    ScopedTimer __t_clean("AssetPipeline::CleanCache");
+    ScopedTimer tClean("AssetPipeline::CleanCache");
     if (m_ProjectPath.empty())
     {
         return 0;

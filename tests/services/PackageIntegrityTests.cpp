@@ -103,8 +103,8 @@ private:
     // makes these tests pass or fail depending on what ran before them.
     static std::string UniqueDirName(const char* name)
     {
-        static std::atomic<unsigned> counter{ 0 };
-        return "deki_integrity_" + std::string(name) + "_" + std::to_string(counter.fetch_add(1)) + "_" +
+        static std::atomic<unsigned> s_Counter{ 0 };
+        return "deki_integrity_" + std::string(name) + "_" + std::to_string(s_Counter.fetch_add(1)) + "_" +
                std::to_string(
                    static_cast<unsigned long long>(std::chrono::steady_clock::now().time_since_epoch().count()));
     }

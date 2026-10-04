@@ -6,6 +6,20 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Changed
+- **Code style.** The editor's code is formatted with clang-format 22 and
+  named to the style in deki-engine/docs/codestyle; `.clang-format` and
+  `.clang-tidy` at the root are copies of the engine's.
+- Public names follow it. Breaking for packages' editor code:
+  - `AssetPipeline` callbacks are `onAssetChanged`, `onAssetCreated`,
+    `onAssetDeleted`, `onAssetDiscovered`, `onImportAllFinished`.
+  - `EditorTheme::Metrics` and `Motion` constants take `k`
+    (`Metrics::kInspectorIndent`, `Motion::kFast`).
+  - A builder plugin exports `DekiBuilderGetAbi`, `DekiBuilderCreateBuilder`,
+    ... and an installer `DekiInstallerCreate`, ...
+    `PostInstallDef::unix` is `unixLike` (`unix` is a macro under GCC).
+- **Builder ABI 3.** Builders built before this are rebuilt.
+
 ### Added
 - **Touchscreen controls.** A tap clicks, a drag drags, holding a finger still
   for half a second right-clicks (context menus), and two fingers scroll the

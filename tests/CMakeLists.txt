@@ -130,6 +130,7 @@ set(TEST_SOURCES
 
     # The code style example (deki-engine/docs/codestyle), so it always builds
     core/CodeStyleExampleTests.cpp
+    core/EnumNameTests.cpp
     ${DEKI_ENGINE_PATH}/docs/codestyle/CodeStyle.cpp
 
     # Mocks

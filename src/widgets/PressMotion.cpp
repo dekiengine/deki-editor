@@ -57,7 +57,7 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
         held = 0;
     }
     const float t =
-        Motion::EaseOut(Motion::To(kKey, held != 0 ? 1.0f : 0.0f, held != 0 ? Motion::Fast : Motion::Normal));
+        Motion::EaseOut(Motion::To(kKey, held != 0 ? 1.0f : 0.0f, held != 0 ? Motion::kFast : Motion::kNormal));
 
     // The pressed colour always follows the eased value: on the frame a press
     // starts it equals the hovered colour, so the item darkens from there

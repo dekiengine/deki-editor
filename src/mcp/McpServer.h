@@ -10,7 +10,7 @@
 #include <future>
 #include <nlohmann/json.hpp>
 
-namespace httplib
+namespace httplib  // NOLINT(readability-identifier-naming): cpp-httplib's name
 {
 class Server;
 struct Request;

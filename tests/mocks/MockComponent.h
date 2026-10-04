@@ -20,9 +20,9 @@ class MockComponent : public Deki::Component
 public:
     // Hand-written (not reflected), but identified like every component: by
     // its qualified class name. The instance carries its entry.
-    static constexpr Deki::ComponentType StaticType = Deki::TypeId<MockComponent>();
-    static const Deki::ComponentTypeInfo TypeInfo;
-    MockComponent() { SetTypeInfo(&TypeInfo); }
+    static constexpr Deki::ComponentType kStaticType = Deki::TypeId<MockComponent>();
+    static const Deki::ComponentTypeInfo kTypeInfo;
+    MockComponent() { SetTypeInfo(&kTypeInfo); }
 
     // Test properties covering all serialization types
     int32_t intValue = 0;
@@ -46,9 +46,9 @@ public:
     GappedEnum gappedEnum = GappedEnum::Off;
 
     // Static metadata for reflection
-    static const Deki::PropertyInfo Properties[];
-    static const int PropertyCount;
-    static const Deki::ComponentMeta ComponentMeta;
+    static const Deki::PropertyInfo kProperties[];
+    static const int kPropertyCount;
+    static const Deki::ComponentMeta kComponentMeta;
 
     // Register with ComponentRegistry for tests
     static void Register();
@@ -65,9 +65,9 @@ class MockSmallEnumComponent : public Deki::Component
 public:
     // Hand-written (not reflected), but identified like every component: by
     // its qualified class name. The instance carries its entry.
-    static constexpr Deki::ComponentType StaticType = Deki::TypeId<MockSmallEnumComponent>();
-    static const Deki::ComponentTypeInfo TypeInfo;
-    MockSmallEnumComponent() { SetTypeInfo(&TypeInfo); }
+    static constexpr Deki::ComponentType kStaticType = Deki::TypeId<MockSmallEnumComponent>();
+    static const Deki::ComponentTypeInfo kTypeInfo;
+    MockSmallEnumComponent() { SetTypeInfo(&kTypeInfo); }
 
     enum class SmallEnum : uint8_t
     {
@@ -90,9 +90,9 @@ public:
 
     static bool DeserializeImpl(Deki::Component* self, Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
 
-    static const Deki::PropertyInfo Properties[];
-    static const int PropertyCount;
-    static const Deki::ComponentMeta ComponentMeta;
+    static const Deki::PropertyInfo kProperties[];
+    static const int kPropertyCount;
+    static const Deki::ComponentMeta kComponentMeta;
 
     static void Register();
 };
@@ -106,16 +106,16 @@ class MockRefComponent : public Deki::Component
 public:
     // Hand-written (not reflected), but identified like every component: by
     // its qualified class name. The instance carries its entry.
-    static constexpr Deki::ComponentType StaticType = Deki::TypeId<MockRefComponent>();
-    static const Deki::ComponentTypeInfo TypeInfo;
-    MockRefComponent() { SetTypeInfo(&TypeInfo); }
+    static constexpr Deki::ComponentType kStaticType = Deki::TypeId<MockRefComponent>();
+    static const Deki::ComponentTypeInfo kTypeInfo;
+    MockRefComponent() { SetTypeInfo(&kTypeInfo); }
 
     Deki::ObjectRefBase targetRef;
     int32_t someValue = 0;
 
-    static const Deki::PropertyInfo Properties[];
-    static const int PropertyCount;
-    static const Deki::ComponentMeta ComponentMeta;
+    static const Deki::PropertyInfo kProperties[];
+    static const int kPropertyCount;
+    static const Deki::ComponentMeta kComponentMeta;
 
     static void Register();
 };

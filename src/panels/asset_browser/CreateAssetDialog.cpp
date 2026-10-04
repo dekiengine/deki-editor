@@ -142,7 +142,7 @@ void CreateAssetDialog::Draw()
                         }
 
                         m_App->GetAssetPipeline()->RefreshAsset(relativePath);
-                        // RefreshAsset -> ProcessAsset fires OnAssetCreated, which
+                        // RefreshAsset -> ProcessAsset fires onAssetCreated, which
                         // refreshes the browser asset list. No manual NavigateTo needed.
                     }
                     else

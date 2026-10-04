@@ -683,16 +683,16 @@ AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
         using FreeResultFunc = void (*)(void*);
 
         auto compileFont = m_PackageLoader ? reinterpret_cast<CompileFontFunc>(m_PackageLoader->GetFunction(
-                                                 "Deki 2D Package", "DekiPlugin_CompileFont"))
+                                                 "Deki 2D Package", "DekiPluginCompileFont"))
                                            : nullptr;
         auto getAtlas = m_PackageLoader ? reinterpret_cast<GetAtlasFunc>(m_PackageLoader->GetFunction(
-                                              "Deki 2D Package", "DekiPlugin_GetCompiledFontAtlas"))
+                                              "Deki 2D Package", "DekiPluginGetCompiledFontAtlas"))
                                         : nullptr;
-        auto writeDfont = m_PackageLoader ? reinterpret_cast<WriteDfontFunc>(m_PackageLoader->GetFunction(
-                                                "Deki 2D Package", "DekiPlugin_WriteDfont"))
+        auto writeDfont = m_PackageLoader ? reinterpret_cast<WriteDfontFunc>(
+                                                m_PackageLoader->GetFunction("Deki 2D Package", "DekiPluginWriteDfont"))
                                           : nullptr;
         auto freeResult = m_PackageLoader ? reinterpret_cast<FreeResultFunc>(m_PackageLoader->GetFunction(
-                                                "Deki 2D Package", "DekiPlugin_FreeCompileResult"))
+                                                "Deki 2D Package", "DekiPluginFreeCompileResult"))
                                           : nullptr;
 
         if (!compileFont || !getAtlas || !writeDfont || !freeResult)
@@ -888,12 +888,12 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
 {
     namespace fs = std::filesystem;
 
-    fs::path projectSettingsPath = fs::path(storagePath) / Deki::ProjectSettings::EXPORT_FILENAME;
+    fs::path projectSettingsPath = fs::path(storagePath) / Deki::ProjectSettings::kExportFilename;
     std::ofstream settingsFile(projectSettingsPath, std::ios::binary);
 
     if (!settingsFile.is_open())
     {
-        DEKI_LOG_WARNING("Failed to create %s", Deki::ProjectSettings::EXPORT_FILENAME);
+        DEKI_LOG_WARNING("Failed to create %s", Deki::ProjectSettings::kExportFilename);
         return;
     }
 
@@ -920,7 +920,7 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
         static_cast<int>(passNamePtrs.size()));
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
 
-    DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)", Deki::ProjectSettings::EXPORT_FILENAME,
+    DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)", Deki::ProjectSettings::kExportFilename,
                     settingsBuffer.size(), rendererName.empty() ? "(none)" : rendererName.c_str(),
                     (int)passNames.size());
 }

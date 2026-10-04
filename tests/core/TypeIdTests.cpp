@@ -76,14 +76,14 @@ TEST(TypeId, AddComponentAttachesAnEntryEvenWithoutCodegen)
 
 TEST(TypeId, ARegisteredEntryWinsOverTheFallback)
 {
-    static const Deki::ComponentTypeInfo info = Deki::MakeHandWrittenTypeInfo<GlobalWidget>(/*declaresUpdate=*/false);
+    static const Deki::ComponentTypeInfo kInfo = Deki::MakeHandWrittenTypeInfo<GlobalWidget>(/*declaresUpdate=*/false);
     auto& factory = Deki::ComponentFactory::Instance();
-    factory.Register(&info);
+    factory.Register(&kInfo);
 
     Deki::Object obj("o");
     auto* w = obj.AddComponent<GlobalWidget>();
-    EXPECT_EQ(w->GetTypeInfo(), &info);
-    EXPECT_EQ(factory.Find(Deki::TypeId<GlobalWidget>()), &info);
+    EXPECT_EQ(w->GetTypeInfo(), &kInfo);
+    EXPECT_EQ(factory.Find(Deki::TypeId<GlobalWidget>()), &kInfo);
     EXPECT_EQ(factory.Create(Deki::TypeId<GlobalWidget>()), nullptr);  // no create() on a hand-written entry
 
     factory.Unregister(Deki::TypeId<GlobalWidget>());

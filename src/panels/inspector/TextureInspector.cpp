@@ -28,11 +28,11 @@ namespace DekiEditor
 
 // Index 0 is Automatic: follow the target's screen. The rest are stored as named.
 static const char* s_FormatNames[] = { "Automatic", "RGB888", "RGBA8888", "RGB565", "RGB565A8", "ALPHA8" };
-static const int s_FormatCount = 6;
+static const int kFormatCount = 6;
 
 static int FormatNameToIndex(const std::string& name)
 {
-    for (int i = 1; i < s_FormatCount; i++)
+    for (int i = 1; i < kFormatCount; i++)
     {
         if (name == s_FormatNames[i])
         {
@@ -65,9 +65,9 @@ static int MaxSizeToIndex(int maxSize)
 
 static const char* MaxSizeLabel(int index)
 {
-    static const char* labels[] = { "None", "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
-    static_assert(sizeof(labels) / sizeof(labels[0]) == kTextureMaxSizeCount, "one label per Max Size");
-    return labels[index];
+    static const char* s_Labels[] = { "None", "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
+    static_assert(sizeof(s_Labels) / sizeof(s_Labels[0]) == kTextureMaxSizeCount, "one label per Max Size");
+    return s_Labels[index];
 }
 
 static int BytesPerTexel(TextureFormat f)
@@ -162,7 +162,7 @@ void TextureInspector::DrawPreview()
         // Bound the preview by the available width AND a maximum height, so
         // small sources (e.g. a 64x64 procedural sprite) don't integer-upscale
         // to fill the whole panel
-        float maxHeight = m_App->Dpi(Metrics::PreviewMaxHeight);
+        float maxHeight = m_App->Dpi(Metrics::kPreviewMaxHeight);
         int maxHeightInt = static_cast<int>(maxHeight);
 
         // Scale up using integer multiples within both bounds (pixel-perfect)
@@ -232,12 +232,12 @@ void TextureInspector::BeginScrollRegion()
     // windows; the indent is re-applied inside for the content.
     ImGui::SetCursorPosX(0.0f);
     ImGui::BeginChild("TextureInspectorScroll", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
-    ImGui::Indent(m_App->Dpi(Metrics::InspectorIndent));
+    ImGui::Indent(m_App->Dpi(Metrics::kInspectorIndent));
 }
 
 void TextureInspector::EndScrollRegion()
 {
-    ImGui::Unindent(m_App->Dpi(Metrics::InspectorIndent));
+    ImGui::Unindent(m_App->Dpi(Metrics::kInspectorIndent));
     ImGui::EndChild();
 }
 
@@ -314,7 +314,7 @@ void TextureInspector::DrawSettings()
             TexData texData;
             if (TextureImporter::ReadTexFile(cachePath, texData))
             {
-                m_SourceHasAlpha = texData.hasAlpha();
+                m_SourceHasAlpha = texData.HasAlpha();
             }
         }
     }
@@ -496,8 +496,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         }
         return changed;
     };
-    static const char* (*formatLabel)(int) = [](int i) { return s_FormatNames[i]; };
-    static const char* (*maxLabel)(int) = [](int i) { return MaxSizeLabel(i); };
+    static const char* (*s_FormatLabel)(int) = [](int i) { return s_FormatNames[i]; };
+    static const char* (*s_MaxLabel)(int) = [](int i) { return MaxSizeLabel(i); };
     char buf[96];
 
     DekiEditor::FullBleedSeparator();
@@ -520,7 +520,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     {
         ImGui::PushID(id);
         const float left = ImGui::GetCursorScreenPos().x;
-        const float right = left + ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::InspectorRightPad);
+        const float right = left + ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::kInspectorRightPad);
         const float innerL = left + pad, innerR = right - pad;
         const ImVec2 top = ImGui::GetCursorScreenPos();
 
@@ -630,7 +630,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
              {
                  cardRow("Format", labelX, valueX);
                  ImGui::SetNextItemWidth(valueW);
-                 if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
+                 if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, kFormatCount))
                  {
                      write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
                  }
@@ -723,7 +723,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                  cardRow("Format", labelX, valueX);
                  snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
                  if (overrideCombo("##TargetFormat", valueW, TextureFormatName(stored), !formatOverridden, buf,
-                                   formatLabel, s_FormatCount, 1, formatIndex))
+                                   s_FormatLabel, kFormatCount, 1, formatIndex))
                  {
                      m_TargetFormatIndex[platform->id] = formatIndex;
                      writeTarget(platform->id);
@@ -732,7 +732,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                  snprintf(buf, sizeof(buf), "Default (%s)", MaxSizeLabel(m_MaxSizeIndex));
                  const std::string maxDefaultLabel = buf;
                  if (overrideCombo("##TargetMax", valueW, MaxSizeLabel(shownMax), !maxOverridden, maxDefaultLabel,
-                                   maxLabel, kTextureMaxSizeCount, 0, maxIndex))
+                                   s_MaxLabel, kTextureMaxSizeCount, 0, maxIndex))
                  {
                      if (maxIndex < 0)
                      {

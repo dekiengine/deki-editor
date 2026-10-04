@@ -60,7 +60,7 @@ void PackageManagerPanel::Draw()
     // fetch started from an open panel still completes.
     m_PackageManager->DrainMainThread();
 
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
@@ -71,7 +71,7 @@ void PackageManagerPanel::Draw()
     // No main-window scrollbar: the split's child panes fill the window, so a
     // phantom main scrollbar would otherwise inset the right pane (its child
     // scrollbar then sat a scrollbar-width in from the real window edge).
-    if (ui.Begin("PACKAGE MANAGER###Package Manager", &m_Open, EditorUI::WinNoScrollbar))
+    if (ui.Begin("PACKAGE MANAGER###Package Manager", &isOpen, EditorUI::WinNoScrollbar))
     {
         // Refresh on first open or when requested.
         if (m_NeedsRefresh)

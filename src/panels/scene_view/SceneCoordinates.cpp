@@ -31,8 +31,8 @@ ImVec2 SceneCoordinates::WorldToScreen(float worldX, float worldY) const
     float effectiveZoom = m_Zoom * ImGui::GetWindowDpiScale();
     float worldToScreen = effectiveZoom * m_PixelsPerMeter;
 
-    int vpWidth = SceneViewConstants::AnchorWidth;
-    int vpHeight = SceneViewConstants::AnchorHeight;
+    int vpWidth = SceneViewConstants::kAnchorWidth;
+    int vpHeight = SceneViewConstants::kAnchorHeight;
 
     float sceneWidth = vpWidth * effectiveZoom;
     float sceneHeight = vpHeight * effectiveZoom;
@@ -53,8 +53,8 @@ ImVec2 SceneCoordinates::ScreenToWorld(float screenX, float screenY) const
     float worldToScreen = effectiveZoom * m_PixelsPerMeter;
     float screenToWorld = (worldToScreen > 0.0f) ? (1.0f / worldToScreen) : 0.0f;
 
-    int vpWidth = SceneViewConstants::AnchorWidth;
-    int vpHeight = SceneViewConstants::AnchorHeight;
+    int vpWidth = SceneViewConstants::kAnchorWidth;
+    int vpHeight = SceneViewConstants::kAnchorHeight;
 
     float sceneWidth = vpWidth * effectiveZoom;
     float sceneHeight = vpHeight * effectiveZoom;

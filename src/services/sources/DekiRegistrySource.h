@@ -83,10 +83,10 @@ public:
     static std::vector<std::string> BaseUrls();
 
 private:
-    static constexpr const char* REGISTRY_BASE_URL = "https://dekiengine.github.io/registry";
+    static constexpr const char* kRegistryBaseURL = "https://dekiengine.github.io/registry";
     // Same content, served straight from the repo the registry is published from.
-    static constexpr const char* REGISTRY_FALLBACK_URL = "https://raw.githubusercontent.com/dekiengine/registry/master";
-    static constexpr int CACHE_TTL_SECONDS = 86400;  // 24 hours
+    static constexpr const char* kRegistryFallbackURL = "https://raw.githubusercontent.com/dekiengine/registry/master";
+    static constexpr int kCacheTtlSeconds = 86400;  // 24 hours
 
     // Get repo name for a package ID by looking up the cached index
     std::string RepoNameForPackage(const std::string& id) const;

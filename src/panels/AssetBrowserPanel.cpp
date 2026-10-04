@@ -105,12 +105,12 @@ AssetBrowserPanel::~AssetBrowserPanel() = default;
 
 void AssetBrowserPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
-    ImGui::Begin("ASSET BROWSER###Asset Browser", &m_Open,
+    ImGui::Begin("ASSET BROWSER###Asset Browser", &isOpen,
                  DekiEditor::MaximizedWindowFlags("ASSET BROWSER###Asset Browser"));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
     m_RowHover.BeginFrame();  // rows fade their hover from last frame's
@@ -196,7 +196,7 @@ void AssetBrowserPanel::Draw()
             DrawAssetTree();
         }
         const float t =
-            DekiEditor::Motion::EaseOut(DekiEditor::Motion::To(kModeSlideKey, 1.0f, DekiEditor::Motion::Slow));
+            DekiEditor::Motion::EaseOut(DekiEditor::Motion::To(kModeSlideKey, 1.0f, DekiEditor::Motion::kSlow));
         if (t < 1.0f)
         {
             const float slide = std::min(ImGui::GetWindowWidth() * 0.3f, 120.0f * m_App->Dpi(1.0f));
@@ -573,9 +573,9 @@ void AssetBrowserPanel::DrawModeTabs()
     if (activeX1 > activeX0)
     {
         const float x0 = DekiEditor::Motion::Follow(ImHashStr("AssetBrowser.TabLine0"), activeX0 - rowMin.x,
-                                                    DekiEditor::Motion::Normal, 0.5f);
+                                                    DekiEditor::Motion::kNormal, 0.5f);
         const float x1 = DekiEditor::Motion::Follow(ImHashStr("AssetBrowser.TabLine1"), activeX1 - rowMin.x,
-                                                    DekiEditor::Motion::Normal, 0.5f);
+                                                    DekiEditor::Motion::kNormal, 0.5f);
         dl->AddRectFilled(ImVec2(rowMin.x + x0, rowMax.y - 2.0f), ImVec2(rowMin.x + x1, rowMax.y), colAccent);
     }
 
@@ -686,7 +686,7 @@ void AssetBrowserPanel::BuildFolderTree()
 
     // Reentrancy guard: this frees m_RootNode's vectors. If called while
     // DrawAssetTree is iterating them (an in-tree action's pipeline side effect
-    // fired OnAssetCreated -> RefreshAssets -> here), defer to the post-draw
+    // fired onAssetCreated -> RefreshAssets -> here), defer to the post-draw
     // rebuild in Draw() instead of reallocating under the live iterator.
     if (m_DrawingAssetView)
     {
@@ -2475,14 +2475,14 @@ void AssetBrowserPanel::DrawAssetDetails()
                 {
                     ImGui::Text("  Stored: %u x %u (Max Size)", texData.header.width, texData.header.height);
                 }
-                ImGui::Text("  Format: %s", texData.getFormatName().c_str());
+                ImGui::Text("  Format: %s", texData.GetFormatName().c_str());
                 ImGui::Text("  Data: %.2f KB", texData.header.dataSize / 1024.0f);
 
-                if (texData.hasAlpha())
+                if (texData.HasAlpha())
                 {
                     ImGui::Text("  Alpha: Yes");
                 }
-                if (texData.hasTransparency())
+                if (texData.HasTransparency())
                 {
                     ImGui::Text("  Transparency: Yes");
                 }

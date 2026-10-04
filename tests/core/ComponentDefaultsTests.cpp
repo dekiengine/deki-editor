@@ -19,7 +19,7 @@ protected:
 
 TEST_F(ComponentDefaults, DefaultsAreTheFreshInstanceValues)
 {
-    const nlohmann::json defaults = Deki::Scene::ComponentDefaultsToJson(MockComponent::ComponentMeta);
+    const nlohmann::json defaults = Deki::Scene::ComponentDefaultsToJson(MockComponent::kComponentMeta);
     ASSERT_TRUE(defaults.is_object());
     EXPECT_EQ(defaults.at("intValue"), 0);
     EXPECT_EQ(defaults.at("floatValue"), 0.0f);
@@ -35,7 +35,7 @@ TEST_F(ComponentDefaults, InstanceValuesSerialiseByReflectedName)
     comp.boolValue = true;
     comp.stringValue = "hello";
 
-    const nlohmann::json props = Deki::Scene::ComponentPropertiesToJson(&comp, MockComponent::ComponentMeta);
+    const nlohmann::json props = Deki::Scene::ComponentPropertiesToJson(&comp, MockComponent::kComponentMeta);
     EXPECT_EQ(props.at("intValue"), 42);
     EXPECT_FLOAT_EQ(props.at("floatValue").get<float>(), 1.5f);
     EXPECT_EQ(props.at("boolValue"), true);
@@ -44,11 +44,11 @@ TEST_F(ComponentDefaults, InstanceValuesSerialiseByReflectedName)
 
 TEST_F(ComponentDefaults, AbstractOrFactorylessTypesGiveNull)
 {
-    Deki::ComponentMeta meta = MockComponent::ComponentMeta;
+    Deki::ComponentMeta meta = MockComponent::kComponentMeta;
     meta.isAbstract = true;
     EXPECT_TRUE(Deki::Scene::ComponentDefaultsToJson(meta).is_null());
 
-    meta = MockComponent::ComponentMeta;
+    meta = MockComponent::kComponentMeta;
     meta.createFunc = nullptr;
     EXPECT_TRUE(Deki::Scene::ComponentDefaultsToJson(meta).is_null());
 }

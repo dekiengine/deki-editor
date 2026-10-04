@@ -29,14 +29,14 @@ SDCardDeployPanel::~SDCardDeployPanel()
 
 void SDCardDeployPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(400, 300);
 
-    if (!ImGui::Begin("SD CARD DEPLOY###SD Card Deploy", &m_Open,
+    if (!ImGui::Begin("SD CARD DEPLOY###SD Card Deploy", &isOpen,
                       DekiEditor::MaximizedWindowFlags("SD CARD DEPLOY###SD Card Deploy")))
     {
         ImGui::End();

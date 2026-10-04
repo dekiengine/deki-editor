@@ -81,9 +81,9 @@ struct DEKI_EDITOR_API PackageEntry
     // successfully and linked without them. A build that quietly does the
     // wrong thing is worse than one that refuses.
     std::map<std::string, std::vector<FrameworkDependency>> frameworkDeps;
-    bool hasSystemInit = false;            // Package has {Prefix}_InitSystem / ShutdownSystem
-    std::vector<std::string> tags;         // package.json "tags": transform_2d, transform_3d, ...
-    std::vector<FeatureEntry> features;    // package.json "features"
+    bool hasSystemInit = false;          // Package has {Prefix}_InitSystem / ShutdownSystem
+    std::vector<std::string> tags;       // package.json "tags": transform_2d, transform_3d, ...
+    std::vector<FeatureEntry> features;  // package.json "features"
 
     // package.json "platformRequires": what this package needs FROM a platform,
     // as capability names the platform answers with its "provides"
@@ -109,11 +109,11 @@ struct DEKI_EDITOR_API PackageEntry
 // can build there. A package that requires nothing can build anywhere, and so
 // can any package when the capability set is empty (no target in hand).
 DEKI_EDITOR_API std::vector<std::string> MissingCapabilities(const PackageEntry& pkg,
-                                             const std::set<std::string>& platformCapabilities);
+                                                             const std::set<std::string>& platformCapabilities);
 
 // True when nothing is missing.
 DEKI_EDITOR_API bool PackageSupportsPlatform(const PackageEntry& pkg,
-                             const std::set<std::string>& platformCapabilities);
+                                             const std::set<std::string>& platformCapabilities);
 
 // Scan all package manifests in project/packages/
 DEKI_EDITOR_API std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath);
@@ -131,8 +131,8 @@ DEKI_EDITOR_API std::vector<std::string> RequiredPackagesInBuild(const PackageEn
 // `platformCapabilities` drops packages the target cannot satisfy, dependency edges
 // included; empty means no platform filtering (every package is eligible).
 DEKI_EDITOR_API std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& allPackages,
-                                            const std::vector<std::string>& packageDefines,
-                                            const std::set<std::string>& platformCapabilities = {});
+                                                            const std::vector<std::string>& packageDefines,
+                                                            const std::set<std::string>& platformCapabilities = {});
 
 // The transform width a build compiles into Deki::Object (see
 // deki-engine/include/deki/Object.h and COMPATIBILITY.md). A package that
@@ -155,9 +155,9 @@ DEKI_EDITOR_API std::vector<std::string> ReadProjectTags(const std::string& proj
 // The widest transform anything active declares. `why` receives one line for
 // the build log saying who declared what, or that nothing did.
 DEKI_EDITOR_API TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackages,
-                                     const std::set<std::string>& activeIds,
-                                     const std::vector<std::string>& projectTags,
-                                     std::string* why = nullptr);
+                                                     const std::set<std::string>& activeIds,
+                                                     const std::vector<std::string>& projectTags,
+                                                     std::string* why = nullptr);
 
 // The width for a PROJECT, which is what a build must compile.
 //
@@ -169,15 +169,15 @@ DEKI_EDITOR_API TransformWidth ResolveTransformWidth(const std::vector<PackageEn
 // project, so every target compiles the same one, at the cost of a board
 // carrying a wider object than it strictly needs.
 DEKI_EDITOR_API TransformWidth ResolveProjectTransformWidth(const std::vector<PackageEntry>& allPackages,
-                                            const std::vector<std::string>& projectTags,
-                                            std::string* why = nullptr);
+                                                            const std::vector<std::string>& projectTags,
+                                                            std::string* why = nullptr);
 
 // The compile definitions for a width: none, DEKI_TRANSFORM_2D, or both.
 DEKI_EDITOR_API std::vector<std::string> TransformDefines(TransformWidth width);
 
 // Emit engine core source collection (GLOB_RECURSE + standard exclusions)
 DEKI_EDITOR_API void EmitEngineCoreSourceCollection(std::ostream& out,
-                                    const std::vector<std::string>& extraExclusions = {});
+                                                    const std::vector<std::string>& extraExclusions = {});
 
 // Emit GLOB_RECURSE per active package with editor/ exclusion
 // A name as CMake would spell it after string(MAKE_C_IDENTIFIER): every
@@ -196,36 +196,30 @@ DEKI_EDITOR_API std::string EscapeCMakeString(const std::string& s);
 // `sourceExcludeRegexes` leave stripped components out (FeatureResolver);
 // `excludeGenerated` leaves out the package's checked-in generated/ when the
 // build regenerates reflection itself.
-DEKI_EDITOR_API void EmitActivePackageSources(std::ostream& out,
-                              const std::vector<PackageEntry>& allPackages,
-                              const std::set<std::string>& activePackageIds,
-                              const std::vector<std::string>& sourceExcludeRegexes = {},
-                              bool excludeGenerated = false);
+DEKI_EDITOR_API void EmitActivePackageSources(std::ostream& out, const std::vector<PackageEntry>& allPackages,
+                                              const std::set<std::string>& activePackageIds,
+                                              const std::vector<std::string>& sourceExcludeRegexes = {},
+                                              bool excludeGenerated = false);
 
 // Emit selective .gen.cpp inclusion based on active packages
-DEKI_EDITOR_API void EmitGeneratedFileSources(std::ostream& out,
-                              const std::string& enginePath,
-                              const std::vector<PackageEntry>& allPackages,
-                              const std::set<std::string>& activePackageIds);
-
+DEKI_EDITOR_API void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
+                                              const std::vector<PackageEntry>& allPackages,
+                                              const std::set<std::string>& activePackageIds);
 
 // Emit project source collection from project/src/
 DEKI_EDITOR_API void EmitProjectSourceCollection(std::ostream& out,
-                                 const std::string& relPath = "${DEKI_PROJECT_PATH}/src",
-                                 bool excludePluginExports = false);
+                                                 const std::string& relPath = "${DEKI_PROJECT_PATH}/src",
+                                                 bool excludePluginExports = false);
 
 // Emit target_compile_definitions block
-DEKI_EDITOR_API void EmitPlatformDefines(std::ostream& out,
-                         const std::string& targetName,
-                         const PlatformConfig& config,
-                         const std::vector<std::string>& packageDefines,
-                         const std::vector<std::string>& skipDefines = {});
+DEKI_EDITOR_API void EmitPlatformDefines(std::ostream& out, const std::string& targetName, const PlatformConfig& config,
+                                         const std::vector<std::string>& packageDefines,
+                                         const std::vector<std::string>& skipDefines = {});
 
 // Emit target_include_directories block
-DEKI_EDITOR_API void EmitIncludePaths(std::ostream& out,
-                      const std::string& targetName,
-                      const std::string& projectSrcRelPath = "${DEKI_PROJECT_PATH}/src",
-                      const std::vector<std::string>& extraPaths = {});
+DEKI_EDITOR_API void EmitIncludePaths(std::ostream& out, const std::string& targetName,
+                                      const std::string& projectSrcRelPath = "${DEKI_PROJECT_PATH}/src",
+                                      const std::vector<std::string>& extraPaths = {});
 
 // Generate a package_init.cpp that calls each package's RegisterComponents() function
 // and registers project components with ComponentFactory for embedded builds.
@@ -236,13 +230,13 @@ DEKI_EDITOR_API void EmitIncludePaths(std::ostream& out,
 // simulator links the committed empty AllPackageInit.gen.cpp stub). In that case this
 // file must NOT redefine those symbols (it would collide at link time); instead the
 // package *_InitSystem() calls are emitted inline at the end of
-// deki_register_project_packages(). When false (default, firmware), the engine excludes
+// DekiRegisterProjectPackages(). When false (default, firmware), the engine excludes
 // the stub and this file defines deki_init_package_systems()/deki_shutdown_package_systems().
 DEKI_EDITOR_API std::string GeneratePackageInitFile(const std::filesystem::path& outputDir,
-                                    const std::vector<PackageEntry>& allPackages,
-                                    const std::set<std::string>& activePackageIds,
-                                    const std::filesystem::path& projectSrcPath = "",
-                                    bool engineDefinesSystemInit = false);
+                                                    const std::vector<PackageEntry>& allPackages,
+                                                    const std::set<std::string>& activePackageIds,
+                                                    const std::filesystem::path& projectSrcPath = "",
+                                                    bool engineDefinesSystemInit = false);
 
 // Write content to file only if it differs (avoids unnecessary rebuilds)
 DEKI_EDITOR_API bool WriteIfChanged(const std::filesystem::path& filePath, const std::string& content);

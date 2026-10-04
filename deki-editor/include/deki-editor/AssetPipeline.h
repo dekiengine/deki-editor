@@ -21,7 +21,7 @@ namespace DekiEditor
 // The asset pipeline will wipe and regenerate the cache on version mismatch.
 // v3: frame animation cache moved to reflection-generated MessagePack (full
 //     field-name keys) instead of the hand-written compact-key format.
-constexpr int DEKI_CACHE_VERSION = 4;  // 4: chroma spans mark rows with interior key pixels
+constexpr int kDekiCacheVersion = 4;  // 4: chroma spans mark rows with interior key pixels
 
 // Forward declaration
 class AssetPipeline;
@@ -167,7 +167,7 @@ public:
      * @brief Clear all OnStarted callbacks and sync handlers
      *
      * Must be called BEFORE unloading package DLLs that registered callbacks.
-     * After reload, packages will re-register via DekiPlugin_RegisterComponents.
+     * After reload, packages will re-register via DekiPluginRegisterComponents.
      */
     static void ClearOnStartedCallbacks();
 
@@ -293,7 +293,7 @@ public:
      *
      * Call once per frame from the editor main loop. Coalesced events delivered
      * by AssetFileWatcher (Added / Modified / Deleted) drive ProcessAsset and
-     * fire OnAssetDiscovered / OnAssetChanged / OnAssetDeleted on the main
+     * fire onAssetDiscovered / onAssetChanged / onAssetDeleted on the main
      * thread (downstream subscribers touch GPU resources, so this must not run
      * on the watcher's worker thread).
      */
@@ -397,17 +397,17 @@ public:
     void RegisterSubAssets(const std::string& parentGuid, const std::vector<SubAssetInfo>& subAssets);
 
     // Callbacks - all receive project-relative paths
-    std::function<void(const std::string&)> OnAssetDiscovered;
-    std::function<void(const std::string&)> OnAssetChanged;
-    // OnAssetDeleted also receives the deleted asset's GUID, captured before
-    // the asset is erased from the table (so the path lookup OnAssetChanged
+    std::function<void(const std::string&)> onAssetDiscovered;
+    std::function<void(const std::string&)> onAssetChanged;
+    // onAssetDeleted also receives the deleted asset's GUID, captured before
+    // the asset is erased from the table (so the path lookup onAssetChanged
     // relies on is no longer available by the time this fires).
-    std::function<void(const std::string& relativePath, const std::string& guid)> OnAssetDeleted;
-    std::function<void(const std::string&)> OnAssetCreated;
-    // ImportAllAssets does not fire OnAssetCreated per asset (its listener
+    std::function<void(const std::string& relativePath, const std::string& guid)> onAssetDeleted;
+    std::function<void(const std::string&)> onAssetCreated;
+    // ImportAllAssets does not fire onAssetCreated per asset (its listener
     // refreshes the whole asset browser, so an open of N assets refreshed it
     // N times); this fires once when the import is done, if any were new.
-    std::function<void()> OnImportAllFinished;
+    std::function<void()> onImportAllFinished;
 
     bool CompileSceneFile(const std::string& scenePath, const std::string& binaryPath);
     bool CompileAssetFile(const std::string& assetPath, const std::string& cachePath);
@@ -428,7 +428,7 @@ private:
     // rewrite is deferred and done once at the end.
     bool m_ImportingAll = false;
     bool m_AssetTableDirty = false;
-    bool m_CreatedDuringImport = false;  // OnImportAllFinished is due
+    bool m_CreatedDuringImport = false;  // onImportAllFinished is due
     std::unordered_map<std::string, AssetInfo> m_Assets;
 
     // GUID cache - maps paths to GUIDs from .data sidecar files

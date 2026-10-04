@@ -12,14 +12,14 @@ static volatile ProfileExitCallback s_ExitCallback = nullptr;
 extern "C"
 {
     // Called by main editor to set up profiling callbacks
-    void Profiling_SetCallbacks(ProfileEnterCallback enter, ProfileExitCallback exit)
+    void ProfilingSetCallbacks(ProfileEnterCallback enter, ProfileExitCallback exit)
     {
         s_EnterCallback = enter;
         s_ExitCallback = exit;
     }
 
     // Called by compiler-injected _penter hook
-    void DekiEditor_ProfileEnter(void* returnAddress)
+    void DekiEditorProfileEnter(void* returnAddress)
     {
         // Check if callback is set (safe during early DLL initialization)
         if (!s_EnterCallback)
@@ -43,7 +43,7 @@ extern "C"
     }
 
     // Called by compiler-injected _pexit hook
-    void DekiEditor_ProfileExit()
+    void DekiEditorProfileExit()
     {
         // Check if callback is set (safe during early DLL initialization)
         if (!s_ExitCallback)

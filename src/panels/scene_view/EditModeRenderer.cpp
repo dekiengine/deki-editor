@@ -83,7 +83,7 @@ struct BufferGL
 // opaque alpha.
 const uint32_t* Rgb565ToRgba()
 {
-    static const std::vector<uint32_t> table = []
+    static const std::vector<uint32_t> kTable = []
     {
         std::vector<uint32_t> t(65536);
         for (uint32_t v = 0; v < 65536; ++v)
@@ -96,7 +96,7 @@ const uint32_t* Rgb565ToRgba()
         }
         return t;
     }();
-    return table.data();
+    return kTable.data();
 }
 }  // namespace
 

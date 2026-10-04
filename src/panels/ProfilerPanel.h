@@ -74,7 +74,7 @@ private:
 
     // 1 Hz UI refresh batching
     std::chrono::steady_clock::time_point m_LastRefreshTime;
-    static constexpr float REFRESH_INTERVAL_SECONDS = 1.0f;
+    static constexpr float kRefreshIntervalSeconds = 1.0f;
     std::vector<DisplayFrameData> m_DisplayBuffer;
     uint64_t m_CurrentFrameNumber = 0;  // Cached frame number, only updates with batch
 };

@@ -46,11 +46,12 @@ static void AddImageNearest(ImDrawList* drawList, ImTextureID texId, const ImVec
     drawList->AddCallback(
         [](const ImDrawList*, const ImDrawCmd*)
         {
+            // NOLINTNEXTLINE(readability-identifier-naming): OpenGL's name
             typedef void(APIENTRY * PFN_glBindSampler)(GLuint unit, GLuint sampler);
-            static auto fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
-            if (fn)
+            static auto s_Fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
+            if (s_Fn)
             {
-                fn(0, 0);
+                s_Fn(0, 0);
             }
         },
         nullptr);
@@ -103,7 +104,7 @@ PlayViewPanel::~PlayViewPanel() = default;
 
 void PlayViewPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
@@ -114,7 +115,7 @@ void PlayViewPanel::Draw()
     }
     ApplyPreviewSize();
 
-    const bool visible = ImGui::Begin("PLAY VIEW###Play View", &m_Open,
+    const bool visible = ImGui::Begin("PLAY VIEW###Play View", &isOpen,
                                       DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") |
                                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -136,14 +137,14 @@ void PlayViewPanel::Draw()
             ++slot;
         };
 
-        forward(ImGuiKey_Space, Deki::InputKeys::SPACE);
-        forward(ImGuiKey_Enter, Deki::InputKeys::ENTER);
-        forward(ImGuiKey_Escape, Deki::InputKeys::ESC);
-        forward(ImGuiKey_Backspace, Deki::InputKeys::BACKSPACE);
-        forward(ImGuiKey_UpArrow, Deki::InputKeys::UP);
-        forward(ImGuiKey_DownArrow, Deki::InputKeys::DOWN);
-        forward(ImGuiKey_LeftArrow, Deki::InputKeys::LEFT);
-        forward(ImGuiKey_RightArrow, Deki::InputKeys::RIGHT);
+        forward(ImGuiKey_Space, Deki::InputKeys::Space);
+        forward(ImGuiKey_Enter, Deki::InputKeys::Enter);
+        forward(ImGuiKey_Escape, Deki::InputKeys::Esc);
+        forward(ImGuiKey_Backspace, Deki::InputKeys::Backspace);
+        forward(ImGuiKey_UpArrow, Deki::InputKeys::Up);
+        forward(ImGuiKey_DownArrow, Deki::InputKeys::Down);
+        forward(ImGuiKey_LeftArrow, Deki::InputKeys::Left);
+        forward(ImGuiKey_RightArrow, Deki::InputKeys::Right);
         for (int i = 0; i < 26; ++i)  // ImGuiKey_A..Z and Deki::InputKeys::A..Z are both contiguous
         {
             forward(static_cast<ImGuiKey>(ImGuiKey_A + i), Deki::InputKeys::A + static_cast<uint32_t>(i));

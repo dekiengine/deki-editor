@@ -157,14 +157,14 @@ void Toast::DrawInFrame()
 
         // Arrives by fading in and sliding from the right; leaves the same way
         // once its time is up or it is clicked.
-        e.shown = Motion::ToFrom(ShowKey(e.id), 0.0f, e.remaining > 0.0f ? 1.0f : 0.0f, Motion::Slow);
+        e.shown = Motion::ToFrom(ShowKey(e.id), 0.0f, e.remaining > 0.0f ? 1.0f : 0.0f, Motion::kSlow);
         const float eased = Motion::EaseOut(e.shown);
         const float alpha = eased;
         const float slideX = (1.0f - eased) * kSlideIn * dpi;
 
         // The card glides to its slot when the stack changes under it, instead
         // of jumping when a neighbour arrives or leaves.
-        const float y = Motion::Follow(SlotKey(e.id), cursorY, Motion::Normal, 0.5f);
+        const float y = Motion::Follow(SlotKey(e.id), cursorY, Motion::kNormal, 0.5f);
 
         char windowName[32];
         std::snprintf(windowName, sizeof(windowName), "##Toast_%u", e.id);

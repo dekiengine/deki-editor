@@ -483,14 +483,14 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
 
 void ProjectSettingsPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(420, 400);
 
-    if (ImGui::Begin("PROJECT SETTINGS###Project Settings", &m_Open,
+    if (ImGui::Begin("PROJECT SETTINGS###Project Settings", &isOpen,
                      DekiEditor::MaximizedWindowFlags("PROJECT SETTINGS###Project Settings")))
     {
         Project* project = m_App->GetProject();

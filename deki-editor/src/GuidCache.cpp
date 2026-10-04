@@ -17,7 +17,7 @@ using json = nlohmann::json;
 namespace DekiEditor
 {
 
-static constexpr int CACHE_VERSION = 3;
+static constexpr int kCacheVersion = 3;
 
 GuidCache::GuidCache()
 {
@@ -50,9 +50,9 @@ bool GuidCache::Load(const std::string& cachePath)
 
         // Check version
         int version = j.value("version", 0);
-        if (version != CACHE_VERSION)
+        if (version != kCacheVersion)
         {
-            DEKI_LOG_EDITOR("GuidCache: Cache version mismatch (found %d, expected %d)", version, CACHE_VERSION);
+            DEKI_LOG_EDITOR("GuidCache: Cache version mismatch (found %d, expected %d)", version, kCacheVersion);
             return false;
         }
 
@@ -104,7 +104,7 @@ void GuidCache::Save(const std::string& cachePath) const
 
     // Build JSON
     json j;
-    j["version"] = CACHE_VERSION;
+    j["version"] = kCacheVersion;
 
     json entries = json::object();
     for (const auto& [path, entry] : m_Entries)

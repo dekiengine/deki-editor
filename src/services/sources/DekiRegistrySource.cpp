@@ -13,9 +13,9 @@ std::vector<std::string> DekiRegistrySource::BaseUrls()
 {
     std::vector<std::string> urls;
 
-    if (const char* override_ = std::getenv("DEKI_REGISTRY_URL"))
+    if (const char* override = std::getenv("DEKI_REGISTRY_URL"))
     {
-        std::string u = override_;
+        std::string u = override;
         while (!u.empty() && u.back() == '/')
         {
             u.pop_back();
@@ -29,8 +29,8 @@ std::vector<std::string> DekiRegistrySource::BaseUrls()
         }
     }
 
-    urls.push_back(REGISTRY_BASE_URL);
-    urls.push_back(REGISTRY_FALLBACK_URL);
+    urls.push_back(kRegistryBaseURL);
+    urls.push_back(kRegistryFallbackURL);
     return urls;
 }
 
@@ -106,7 +106,7 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
             std::lock_guard<std::mutex> lock(m_Cache->mutex);
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_Cache->fetchTime).count();
-            if (!m_Cache->index.empty() && elapsed < CACHE_TTL_SECONDS)
+            if (!m_Cache->index.empty() && elapsed < kCacheTtlSeconds)
             {
                 cached = m_Cache->index;
             }
@@ -123,7 +123,7 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
         {
             std::string json = FetchFromAnyBase("/index.json");
 
-            // No fallback: REGISTRY_BASE_URL now points at the registry repo itself,
+            // No fallback: kRegistryBaseURL now points at the registry repo itself,
             // so the old "fall back to raw GitHub" branch would just refetch the same
             // URL. Failure here means the repo or the network is unreachable.
             if (json.empty())

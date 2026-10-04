@@ -23,20 +23,20 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
     for (const PackageInfo& pkg : loader.GetLoadedPackages())
     {
         // Most packages export nothing of the sort: the normal case, not worth a word.
-        auto getAbi = (const DekiBuilderAbi* (*)())loader.GetFunction(pkg.name, "DekiBuilder_GetAbi");
+        auto getAbi = (const DekiBuilderAbi* (*)())loader.GetFunction(pkg.name, "DekiBuilderGetAbi");
         if (getAbi == nullptr)
         {
             continue;
         }
 
-        auto getName = (const char* (*)())loader.GetFunction(pkg.name, "DekiBuilder_GetName");
-        auto getCount = (int (*)())loader.GetFunction(pkg.name, "DekiBuilder_GetBuilderCount");
-        auto create = (ITargetBuilder * (*)(int)) loader.GetFunction(pkg.name, "DekiBuilder_CreateBuilder");
-        auto destroy = (void (*)(ITargetBuilder*))loader.GetFunction(pkg.name, "DekiBuilder_DestroyBuilder");
+        auto getName = (const char* (*)())loader.GetFunction(pkg.name, "DekiBuilderGetName");
+        auto getCount = (int (*)())loader.GetFunction(pkg.name, "DekiBuilderGetBuilderCount");
+        auto create = (ITargetBuilder * (*)(int)) loader.GetFunction(pkg.name, "DekiBuilderCreateBuilder");
+        auto destroy = (void (*)(ITargetBuilder*))loader.GetFunction(pkg.name, "DekiBuilderDestroyBuilder");
 
         if (getName == nullptr || getCount == nullptr || create == nullptr || destroy == nullptr)
         {
-            DEKI_LOG_ERROR("Package '%s' exports DekiBuilder_GetAbi but not the rest of the "
+            DEKI_LOG_ERROR("Package '%s' exports DekiBuilderGetAbi but not the rest of the "
                            "builder ABI; ignoring its backend",
                            pkg.name.c_str());
             continue;
@@ -49,7 +49,7 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
         if (abi == nullptr || abi->version != kDekiBuilderAbiVersion || abi->structSize != sizeof(DekiBuilderAbi) ||
             abi->platformConfigSize != sizeof(PlatformConfig) ||
             abi->packageEntrySize != sizeof(CMakeGen::PackageEntry) || abi->stdStringSize != sizeof(std::string) ||
-            abi->compilerTag != DekiBuilder_CompilerTag())
+            abi->compilerTag != DekiBuilderCompilerTag())
         {
             DEKI_LOG_ERROR("Package '%s' provides a build backend built against a different ABI; "
                            "refusing it. Rebuild the package with this editor.",
@@ -85,17 +85,17 @@ void RegisterInstallersFromPackages(PackageLoader& loader, ::PackageManager& man
 {
     for (const PackageInfo& pkg : loader.GetLoadedPackages())
     {
-        auto getCount = (int (*)())loader.GetFunction(pkg.name, "DekiInstaller_GetCount");
+        auto getCount = (int (*)())loader.GetFunction(pkg.name, "DekiInstallerGetCount");
         if (getCount == nullptr)
         {
             continue;
         }
 
-        auto create = (IPackageInstaller * (*)(int)) loader.GetFunction(pkg.name, "DekiInstaller_Create");
-        auto destroy = (void (*)(IPackageInstaller*))loader.GetFunction(pkg.name, "DekiInstaller_Destroy");
+        auto create = (IPackageInstaller * (*)(int)) loader.GetFunction(pkg.name, "DekiInstallerCreate");
+        auto destroy = (void (*)(IPackageInstaller*))loader.GetFunction(pkg.name, "DekiInstallerDestroy");
         if (create == nullptr || destroy == nullptr)
         {
-            DEKI_LOG_ERROR("Package '%s' exports DekiInstaller_GetCount but not Create/Destroy; "
+            DEKI_LOG_ERROR("Package '%s' exports DekiInstallerGetCount but not Create/Destroy; "
                            "ignoring its installer",
                            pkg.name.c_str());
             continue;

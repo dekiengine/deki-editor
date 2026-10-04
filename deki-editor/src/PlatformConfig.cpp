@@ -29,8 +29,8 @@ namespace DekiEditor
 
 PlatformRegistry& PlatformRegistry::Instance()
 {
-    static PlatformRegistry instance;
-    return instance;
+    static PlatformRegistry s_Instance;
+    return s_Instance;
 }
 
 void PlatformRegistry::RegisterPlatform(const PlatformConfig& config)
@@ -73,7 +73,7 @@ std::vector<std::pair<std::string, std::string>> PlatformRegistry::GetPlatformDi
 // The family when a platform did not name one. Only reached by JSON with no
 // "family" and no legacy "type"; a capability of "family:custom" then says
 // plainly that the platform declined to categorise itself.
-static const char* kDefaultFamily = "custom";
+static const char* const kDefaultFamily = "custom";
 
 // ---- frameworkOptions accessors -------------------------------------------
 // The editor never interprets these; it only carries them. Every lookup is

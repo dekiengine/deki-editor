@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 20
+abi_version: 21
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -33,7 +33,7 @@ class Deki::IDisplay (19 virtual)
   bool ProcessEvents()
   void* CreateUIOverlay(int32_t width, int32_t height)
   bool UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint32_t* pixels)
-  bool UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint8_t* rgb565a8_pixels)
+  bool UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint8_t* rgb565a8Pixels)
   void DestroyUIOverlay(void* overlay)
   void SetActiveUIOverlay(void* overlay)
   void ClearActiveUIOverlay()
@@ -55,7 +55,7 @@ class Deki::IPackage (10 virtual)
 class Deki::IRenderSystem (12 virtual)
   ~IRenderSystem()
   bool Setup(int32_t width, int32_t height, ColorFormat format)
-  void Render(Scene* current_scene)
+  void Render(Scene* currentScene)
   const uint8_t* GetFrameBuffer() const
   int32_t GetScreenWidth() const
   int32_t GetScreenHeight() const
@@ -104,7 +104,7 @@ class Deki::IPower (14 virtual)
   void SetIdleTimeoutSec(int32_t seconds)
   void SetIdleSleepMode(SleepMode mode)
   void RequestSleep(SleepMode mode)
-  void SetWakeGpio(int gpio_num, int level)
+  void SetWakeGpio(int gpioNum, int level)
   void RegisterOnScreenOn(SleepCallback cb)
   void RegisterOnBeforeSleep(SleepCallback cb)
   void Tick()

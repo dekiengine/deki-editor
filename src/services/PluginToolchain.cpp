@@ -111,8 +111,8 @@ PluginToolchainInfo ResolveMsvc()
     // clang-cl first: MSVC-compatible driver, same ABI, typically 2-3x faster
     // than cl.exe. CMake keeps the MSVC variable TRUE for it, so every existing
     // if(MSVC) block in the generated CMakeLists still applies.
-    static const char* kClangClStems[] = { "clang-cl" };
-    static const char* kClangClDirs[] = {
+    static const char* const kClangClStems[] = { "clang-cl" };
+    static const char* const kClangClDirs[] = {
         "C:/Program Files/LLVM/bin",
         "C:/Program Files (x86)/LLVM/bin",
     };
@@ -152,25 +152,25 @@ PluginToolchainInfo ResolveGnu()
     // Prefer the same family the editor was compiled with, so the plugin links
     // against the identical libstdc++/libc++ the editor already loaded.
 #if defined(__clang__)
-    static const char* kCcStems[] = { "clang" };
-    static const char* kCxxStems[] = { "clang++" };
+    static const char* const kCcStems[] = { "clang" };
+    static const char* const kCxxStems[] = { "clang++" };
     const char* kName = "clang++";
 #else
-    static const char* kCcStems[] = { "gcc" };
-    static const char* kCxxStems[] = { "g++" };
+    static const char* const kCcStems[] = { "gcc" };
+    static const char* const kCxxStems[] = { "g++" };
     const char* kName = "g++";
 #endif
 
 #ifdef _WIN32
     // MinGW is rarely on PATH for a GUI app launched from Explorer.
-    static const char* kDirs[] = {
+    static const char* const kDirs[] = {
         "C:/msys64/mingw64/bin",
         "C:/msys64/ucrt64/bin",
         "C:/mingw64/bin",
     };
     const size_t kDirCount = 3;
 #else
-    static const char* kDirs[] = { "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin" };
+    static const char* const kDirs[] = { "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin" };
     const size_t kDirCount = 3;
 #endif
 
@@ -198,7 +198,7 @@ PluginToolchainInfo ResolveGnu()
 
 const PluginToolchainInfo& PluginToolchain::Get()
 {
-    static const PluginToolchainInfo cached = []()
+    static const PluginToolchainInfo kCached = []()
     {
         // An explicit override still has to satisfy the host ABI - it selects
         // *which* matching compiler to use, not whether to match.
@@ -227,7 +227,7 @@ const PluginToolchainInfo& PluginToolchain::Get()
         return info;
     }();
 
-    return cached;
+    return kCached;
 }
 
 std::string PluginToolchain::FindOnPath(const std::string& stem)

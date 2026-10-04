@@ -70,7 +70,7 @@ public:
 
     // Fired during DiscoverTools for each registered window. Used by the
     // startup progress modal to surface which tool is currently being created.
-    std::function<void(const std::string& toolTitle)> OnToolDiscovered;
+    std::function<void(const std::string& toolTitle)> onToolDiscovered;
 
 private:
     struct WindowInstance

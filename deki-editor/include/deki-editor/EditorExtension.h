@@ -274,12 +274,12 @@ private:
  * @param CompName   Component class name string to add
  */
 #define REGISTER_CREATE_MENU_ITEM(Id, Category, Display, ObjName, CompName)                                            \
-    static struct CreateMenu_##Id##_Registrar                                                                          \
+    static struct CreateMenu##Id##Registrar                                                                            \
     {                                                                                                                  \
-        CreateMenu_##Id##_Registrar()                                                                                  \
+        CreateMenu##Id##Registrar()                                                                                    \
         {                                                                                                              \
             DekiEditor::CreateMenuRegistry::Instance().Register(Category, Display, ObjName, CompName);                 \
         }                                                                                                              \
-    } s_CreateMenu_##Id##_Registrar;
+    } s_CreateMenu##Id##Registrar;
 
 }  // namespace DekiEditor

@@ -18,6 +18,8 @@ DEKI_EDITOR_API void SetupEditorTheme(float dpiScale);
 // (banners, breadcrumbs, level chips) so accent colors stay consistent.
 namespace Palette
 {
+// Named values, used like enum values: PascalCase, as the code style allows.
+// NOLINTBEGIN(readability-identifier-naming)
 // Backgrounds (near black with subtle stops)
 constexpr ImVec4 Bg = ImVec4(0.039f, 0.043f, 0.051f, 1.0f);     // #0a0b0d main panel bg
 constexpr ImVec4 Bg2 = ImVec4(0.063f, 0.067f, 0.075f, 1.0f);    // #101113 hover/alt row
@@ -47,6 +49,7 @@ constexpr ImVec4 FolderIcon = ImVec4(0.141f, 0.561f, 0.800f, 1.0f);
 constexpr ImVec4 Red = ImVec4(0.910f, 0.420f, 0.310f, 1.0f);    // errors / destructive
 constexpr ImVec4 Amber = ImVec4(0.870f, 0.690f, 0.310f, 1.0f);  // warnings
 constexpr ImVec4 Green = ImVec4(0.451f, 0.831f, 0.451f, 1.0f);  // success / in-use
+// NOLINTEND(readability-identifier-naming)
 }  // namespace Palette
 
 // Inspector layout tokens (the sibling of Palette for spacing). Values are in
@@ -56,12 +59,12 @@ constexpr ImVec4 Green = ImVec4(0.451f, 0.831f, 0.451f, 1.0f);  // success / in-
 // of literals scattered across InspectorPanel / InspectorUtils / TextureInspector.
 namespace Metrics
 {
-constexpr float InspectorIndent = 18.0f;  // left body indent (and texture scroll-region indent)
+constexpr float kInspectorIndent = 18.0f;  // left body indent (and texture scroll-region indent)
 // A section band's label and the property rows under it share one left
 // edge: both sit this far OUTSIDE the content-left, floored at a margin
 // from the panel edge (so a band drawn at no indent still has air).
-constexpr float SectionHeaderOutdent = 10.0f;
-constexpr float SectionHeaderMargin = 8.0f;
+constexpr float kSectionHeaderOutdent = 10.0f;
+constexpr float kSectionHeaderMargin = 8.0f;
 // The step from a band's left edge (its chevron column) to the column its
 // TITLE TEXT and its CONTENT share. One fixed number on purpose: this used
 // to be ImGui::GetTreeNodeToLabelSpacing(), which is fontSize +
@@ -71,11 +74,11 @@ constexpr float SectionHeaderMargin = 8.0f;
 // the Inspector did not line up even though both claimed to be aligned.
 // Wide enough to clear the chevron glyph (one font size) with air on both
 // sides.
-constexpr float SectionLabelIndent = 22.0f;
-constexpr float InspectorRightPad = 14.0f;  // right gutter so value controls don't touch the edge
-constexpr float RowSpacing = 12.0f;         // vertical gap between property rows
-constexpr float FieldPadding = 8.0f;        // FramePadding.y inside value frames (top+bottom) -> taller fields
-constexpr float PreviewMaxHeight = 200.0f;  // cap for the anchored texture preview (bounds both up- and downscale)
+constexpr float kSectionLabelIndent = 22.0f;
+constexpr float kInspectorRightPad = 14.0f;  // right gutter so value controls don't touch the edge
+constexpr float kRowSpacing = 12.0f;         // vertical gap between property rows
+constexpr float kFieldPadding = 8.0f;        // FramePadding.y inside value frames (top+bottom) -> taller fields
+constexpr float kPreviewMaxHeight = 200.0f;  // cap for the anchored texture preview (bounds both up- and downscale)
 }  // namespace Metrics
 
 // Schematic typography ladder, loaded in main.cpp. Three families across the
@@ -96,11 +99,6 @@ extern DEKI_EDITOR_API ImFont* g_FontMonoBold;   // Medium 12px, menubar DEKI/ED
 extern DEKI_EDITOR_API ImFont* g_FontDisplay;       // 20px, inspector selection banner ("Hero / Sprite")
 extern DEKI_EDITOR_API ImFont* g_FontDisplaySmall;  // 12px, section-header alt usage
 extern DEKI_EDITOR_API ImFont* g_FontLogo;          // 13px, the "D" letter in the menubar logo box
-
-// Backwards-compatible aliases for existing callsites in InspectorPanel /
-// ComponentManager that referenced the older display-font handles.
-#define g_DisplayFont g_FontDisplay
-#define g_DisplaySmallFont g_FontDisplaySmall
 
 namespace Fonts
 {
@@ -130,7 +128,7 @@ DEKI_EDITOR_API float CssPx(ImFont* font, float cssPx);
 }  // namespace Fonts
 
 // Every tooltip in the editor goes through here, and none of them appear until
-// the pointer has rested on the thing for TooltipDelaySeconds. A tooltip that
+// the pointer has rested on the thing for kTooltipDelaySeconds. A tooltip that
 // pops the instant the cursor crosses a control turns any sweep across a
 // toolbar into a flicker of boxes; a delay makes it an answer to a question the
 // user actually asked by stopping.
@@ -139,7 +137,7 @@ DEKI_EDITOR_API float CssPx(ImFont* font, float cssPx);
 // wait is measured on the hovered item, and - for tooltips drawn over
 // hand-drawn regions that are not ImGui items - on the pointer standing still,
 // so no call site has to prove which kind it is.
-constexpr float TooltipDelaySeconds = 1.0f;
+constexpr float kTooltipDelaySeconds = 1.0f;
 DEKI_EDITOR_API void Tooltip(const char* fmt, ...) IM_FMTARGS(1);
 
 // Where a window first appears, called just before its Begin: `width` x
@@ -355,24 +353,24 @@ DEKI_EDITOR_API bool SchematicActionLink(const char* label);
 // widget with an empty format so it draws no value text, then overlays the
 // formatted value left-aligned via the window draw list. Edit mode (Ctrl+
 // click to type) falls through to ImGui's normal text input.
-DEKI_EDITOR_API bool SchematicDragFloat(const char* id, float* v, float v_speed = 1.0f, float v_min = 0.0f,
-                                        float v_max = 0.0f, const char* format = "%.3f");
-DEKI_EDITOR_API bool SchematicDragInt(const char* id, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0,
+DEKI_EDITOR_API bool SchematicDragFloat(const char* id, float* v, float vSpeed = 1.0f, float vMin = 0.0f,
+                                        float vMax = 0.0f, const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragInt(const char* id, int* v, float vSpeed = 1.0f, int vMin = 0, int vMax = 0,
                                       const char* format = "%d");
 
 // Multi-component drag widgets. Components share the remaining row width and
 // are wrapped in a BeginGroup/EndGroup so callers can still use
 // ImGui::IsItemActivated / IsItemDeactivatedAfterEdit on the group as a whole
 // (for command-history capture). Returns true if any component changed.
-DEKI_EDITOR_API bool SchematicDragFloat2(const char* id, float v[2], float v_speed = 1.0f, float v_min = 0.0f,
-                                         float v_max = 0.0f, const char* format = "%.3f");
-DEKI_EDITOR_API bool SchematicDragFloat3(const char* id, float v[3], float v_speed = 1.0f, float v_min = 0.0f,
-                                         float v_max = 0.0f, const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragFloat2(const char* id, float v[2], float vSpeed = 1.0f, float vMin = 0.0f,
+                                         float vMax = 0.0f, const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragFloat3(const char* id, float v[3], float vSpeed = 1.0f, float vMin = 0.0f,
+                                         float vMax = 0.0f, const char* format = "%.3f");
 // One box of those, with its axis stamp (0 = X, 1 = Y, 2 = Z), as an item of
 // its own: for a caller that needs each box's activation, or a different
 // format per box (a dash for values that differ across a selection).
-DEKI_EDITOR_API bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed = 1.0f,
-                                            float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragFloatAxis(const char* id, float* v, int axis, float vSpeed = 1.0f, float vMin = 0.0f,
+                                            float vMax = 0.0f, const char* format = "%.3f");
 
 // Schematic color editors. Same semantics as ImGui::ColorEdit4 / ColorEdit3
 // (rgba / rgb in 0-1 floats). Render one cell per channel (each a vertical

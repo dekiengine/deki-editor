@@ -7,13 +7,13 @@
  * individual editor files (using REGISTER_EDITOR macro).
  *
  * Factory-based API (preferred):
- *   - DekiEngine_GetEditorFactoryCount() - number of factory-registered editors
- *   - DekiEngine_GetEditorPrototype(index) - get prototype for metadata
- *   - DekiEngine_CreateEditor(index) - create new instance from factory
+ *   - DekiEngineGetEditorFactoryCount() - number of factory-registered editors
+ *   - DekiEngineGetEditorPrototype(index) - get prototype for metadata
+ *   - DekiEngineCreateEditor(index) - create new instance from factory
  *
  * Legacy API (for backward compatibility):
- *   - DekiEngine_GetEditorCount() - returns factory count
- *   - DekiEngine_GetEditor(index) - returns prototype (not a fresh instance)
+ *   - DekiEngineGetEditorCount() - returns factory count
+ *   - DekiEngineGetEditor(index) - returns prototype (not a fresh instance)
  */
 
 #ifdef DEKI_EDITOR
@@ -45,7 +45,7 @@ extern "C"
     /**
      * @brief Get the number of editor factories registered by the engine
      */
-    DEKI_ENGINE_EDITOR_EXPORT int DekiEngine_GetEditorFactoryCount()
+    DEKI_ENGINE_EDITOR_EXPORT int DekiEngineGetEditorFactoryCount()
     {
         return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
     }
@@ -54,7 +54,7 @@ extern "C"
      * @brief Get a prototype editor by index (for metadata queries)
      * @note This returns a shared prototype, not a fresh instance
      */
-    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngine_GetEditorPrototype(int index)
+    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineGetEditorPrototype(int index)
     {
         const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();
         if (index < 0 || index >= static_cast<int>(factories.size()))
@@ -69,7 +69,7 @@ extern "C"
      * @param index Factory index
      * @return Raw pointer to new instance (caller takes ownership)
      */
-    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngine_CreateEditor(int index)
+    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineCreateEditor(int index)
     {
         const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();
         if (index < 0 || index >= static_cast<int>(factories.size()))
@@ -88,7 +88,7 @@ extern "C"
      * @brief Get the number of editor extensions registered by the engine
      * @note Now returns factory count (new editors use factories)
      */
-    DEKI_ENGINE_EDITOR_EXPORT int DekiEngine_GetEditorCount()
+    DEKI_ENGINE_EDITOR_EXPORT int DekiEngineGetEditorCount()
     {
         return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
     }
@@ -96,9 +96,9 @@ extern "C"
     /**
      * @brief Get an editor extension by index
      * @note Returns prototype (not a fresh instance)
-     * @deprecated Use DekiEngine_CreateEditor for fresh instances
+     * @deprecated Use DekiEngineCreateEditor for fresh instances
      */
-    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngine_GetEditor(int index)
+    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineGetEditor(int index)
     {
         const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();
         if (index < 0 || index >= static_cast<int>(factories.size()))

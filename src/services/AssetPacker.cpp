@@ -145,8 +145,8 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath, const std::string&
 
     // Write header
     Deki::DPackHeader header;
-    memcpy(header.magic, Deki::DPACK_MAGIC, 4);
-    header.version = Deki::DPACK_VERSION;
+    memcpy(header.magic, Deki::kDpackMagic, 4);
+    header.version = Deki::kDpackVersion;
     header.entryCount = static_cast<uint32_t>(entries.size());
     header.reserved = 0;
     out.write(reinterpret_cast<const char*>(&header), sizeof(header));
@@ -208,12 +208,12 @@ struct DFontHeader
 {
     char magic[4];
     uint32_t version;
-    uint8_t first_char;
-    uint8_t last_char;
-    uint8_t line_height;
+    uint8_t firstChar;
+    uint8_t lastChar;
+    uint8_t lineHeight;
     uint8_t baseline;
-    uint16_t glyph_count;
-    uint16_t atlas_path_len;
+    uint16_t glyphCount;
+    uint16_t atlasPathLen;
 };
 #pragma pack(pop)
 
@@ -221,7 +221,7 @@ struct GlyphInfoPacked
 {
     uint16_t x, y;
     uint8_t width, height;
-    int8_t offset_x, offset_y;
+    int8_t offsetX, offsetY;
     uint8_t advance;
 };
 
@@ -241,16 +241,16 @@ std::string AssetPacker::ResolveFontAtlasGuid(const std::string& dfontCachePath)
     }
 
     // Skip glyph data
-    size_t glyphsSize = header.glyph_count * sizeof(GlyphInfoPacked);
+    size_t glyphsSize = header.glyphCount * sizeof(GlyphInfoPacked);
     file.seekg(glyphsSize, std::ios::cur);
 
     // Read atlas path (stored as null-terminated string = atlas GUID)
-    if (header.atlas_path_len == 0)
+    if (header.atlasPathLen == 0)
     {
         return "";
     }
-    std::string atlasPath(header.atlas_path_len - 1, '\0');
-    file.read(atlasPath.data(), header.atlas_path_len - 1);
+    std::string atlasPath(header.atlasPathLen - 1, '\0');
+    file.read(atlasPath.data(), header.atlasPathLen - 1);
 
     return atlasPath;
 }
@@ -388,7 +388,7 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir, const std::string
 
         Deki::DPackHeader packHeader;
         packFile.read(reinterpret_cast<char*>(&packHeader), sizeof(packHeader));
-        if (!packFile || memcmp(packHeader.magic, Deki::DPACK_MAGIC, 4) != 0 || packHeader.entryCount == 0)
+        if (!packFile || memcmp(packHeader.magic, Deki::kDpackMagic, 4) != 0 || packHeader.entryCount == 0)
         {
             continue;
         }

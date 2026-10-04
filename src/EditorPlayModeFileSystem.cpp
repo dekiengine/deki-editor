@@ -80,10 +80,10 @@ Deki::IFileSystem::FileHandle EditorPlayModeFileSystem::OpenFile(const char* pat
 
     switch (mode)
     {
-        case OpenMode::READ_BINARY: modeStr = "rb"; break;
-        case OpenMode::WRITE_BINARY: modeStr = "wb"; break;
-        case OpenMode::READ_TEXT: modeStr = "r"; break;
-        case OpenMode::WRITE_TEXT: modeStr = "w"; break;
+        case OpenMode::ReadBinary: modeStr = "rb"; break;
+        case OpenMode::WriteBinary: modeStr = "wb"; break;
+        case OpenMode::ReadText: modeStr = "r"; break;
+        case OpenMode::WriteText: modeStr = "w"; break;
     }
 
     FILE* file = fopen(realPath.c_str(), modeStr);
@@ -126,9 +126,9 @@ long EditorPlayModeFileSystem::SeekFile(FileHandle handle, long offset, SeekOrig
     int whence = SEEK_SET;
     switch (origin)
     {
-        case SeekOrigin::BEGIN: whence = SEEK_SET; break;
-        case SeekOrigin::CURRENT: whence = SEEK_CUR; break;
-        case SeekOrigin::END: whence = SEEK_END; break;
+        case SeekOrigin::Begin: whence = SEEK_SET; break;
+        case SeekOrigin::Current: whence = SEEK_CUR; break;
+        case SeekOrigin::End: whence = SEEK_END; break;
     }
 
     if (fseek(static_cast<FILE*>(handle), offset, whence) == 0)

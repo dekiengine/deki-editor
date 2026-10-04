@@ -8,8 +8,8 @@
 #include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
-using Deki::AuthoredFormat::SceneVersion;
-using Deki::AuthoredFormat::VersionKey;
+using Deki::AuthoredFormat::kSceneVersion;
+using Deki::AuthoredFormat::kVersionKey;
 
 // Scene files carry formatVersion so a future incompatible change has a lever;
 // files from before the key are version 1 and keep loading unchanged.
@@ -17,8 +17,8 @@ TEST(SceneFormatVersion, SaveWritesTheCurrentVersion)
 {
     Deki::Scene scene;
     const nlohmann::json j = nlohmann::json::parse(scene.SaveToJsonString());
-    ASSERT_TRUE(j.contains(VersionKey));
-    EXPECT_EQ(j.at(VersionKey).get<int>(), SceneVersion);
+    ASSERT_TRUE(j.contains(kVersionKey));
+    EXPECT_EQ(j.at(kVersionKey).get<int>(), kSceneVersion);
     EXPECT_TRUE(j.contains("objects"));
 }
 
@@ -33,7 +33,7 @@ TEST(SceneFormatVersion, MissingKeyIsVersionOneAndLoads)
 TEST(SceneFormatVersion, CurrentVersionLoads)
 {
     Deki::Scene scene;
-    const std::string text = std::string("{\"") + VersionKey + "\":" + std::to_string(SceneVersion) +
+    const std::string text = std::string("{\"") + kVersionKey + "\":" + std::to_string(kSceneVersion) +
                              ",\"objects\":[{\"name\":\"Root\",\"children\":[]}]}";
     EXPECT_TRUE(scene.LoadFromJsonString(text));
     EXPECT_EQ(scene.GetObjects().size(), 1u);
@@ -42,7 +42,7 @@ TEST(SceneFormatVersion, CurrentVersionLoads)
 TEST(SceneFormatVersion, NewerVersionIsRefusedWhole)
 {
     Deki::Scene scene;
-    const std::string text = std::string("{\"") + VersionKey + "\":" + std::to_string(SceneVersion + 1) +
+    const std::string text = std::string("{\"") + kVersionKey + "\":" + std::to_string(kSceneVersion + 1) +
                              ",\"objects\":[{\"name\":\"Root\",\"children\":[]}]}";
     EXPECT_FALSE(scene.LoadFromJsonString(text));
     EXPECT_TRUE(scene.GetObjects().empty()) << "a refused file must not leave a partial scene behind";
@@ -58,7 +58,7 @@ TEST(SceneFormatVersion, FileRoundTripKeepsTheKey)
     }
     std::ifstream f(path);
     const nlohmann::json j = nlohmann::json::parse(f);
-    EXPECT_EQ(j.at(VersionKey).get<int>(), SceneVersion);
+    EXPECT_EQ(j.at(kVersionKey).get<int>(), kSceneVersion);
 
     Deki::Scene again;
     EXPECT_TRUE(again.LoadFromFile(path.string()));

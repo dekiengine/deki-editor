@@ -17,9 +17,9 @@ namespace DekiEditor
 namespace Motion
 {
 // Durations, in seconds, for a full 0 -> 1 change.
-constexpr float Fast = 0.10f;    // hover, press, highlight colour
-constexpr float Normal = 0.14f;  // popups, menus, expand and collapse
-constexpr float Slow = 0.20f;    // toasts, larger moves
+constexpr float kFast = 0.10f;    // hover, press, highlight colour
+constexpr float kNormal = 0.14f;  // popups, menus, expand and collapse
+constexpr float kSlow = 0.20f;    // toasts, larger moves
 
 // Reduce motion: every animation lands on its target the frame it is asked
 // for. Stored in the editor settings ("editor.reduceMotion"), read once and
@@ -73,14 +73,14 @@ inline ImVec4 Mix(const ImVec4& a, const ImVec4& b, float t)
 // Hover highlight in one call: eased 0 -> 1 while `hovered`, back to 0 after.
 inline float Hover(ImGuiID id, bool hovered)
 {
-    return EaseOut(To(id, hovered ? 1.0f : 0.0f, Fast));
+    return EaseOut(To(id, hovered ? 1.0f : 0.0f, kFast));
 }
 
 // A progress bar's fill: glides toward `fraction` as work reports it in steps,
 // and drops back at once when it goes down (a new run starting at 0).
 inline float Progress(ImGuiID id, float fraction)
 {
-    const float shown = Follow(id, fraction, Slow, 0.001f);
+    const float shown = Follow(id, fraction, kSlow, 0.001f);
     if (fraction < shown)
     {
         Set(id, fraction);
@@ -112,7 +112,7 @@ inline float ItemHover(bool hovered)
 inline float ItemPress()
 {
     const bool held = ImGui::IsItemActive() && ImGui::IsItemHovered();
-    return EaseOut(To(ImGui::GetItemID() ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Fast : Normal));
+    return EaseOut(To(ImGui::GetItemID() ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? kFast : kNormal));
 }
 inline ImU32 PressShade(float t)
 {
@@ -152,8 +152,8 @@ struct RowHover
 inline float RowHighlight(ImGuiID id, bool selected, bool hovered, float selectedAlpha, float hoveredAlpha,
                           float* outSelected = nullptr)
 {
-    const float s = EaseOut(To(id ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Fast));
-    const float h = EaseOut(To(id ^ 0x40E7EDu, hovered ? 1.0f : 0.0f, Fast));
+    const float s = EaseOut(To(id ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, kFast));
+    const float h = EaseOut(To(id ^ 0x40E7EDu, hovered ? 1.0f : 0.0f, kFast));
     if (outSelected)
     {
         *outSelected = s;

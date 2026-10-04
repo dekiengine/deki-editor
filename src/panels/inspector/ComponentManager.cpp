@@ -291,13 +291,13 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         // its background over the very hairline it was supposed to sit under.
 
         // Missing component - special red header, no property editing
-        if (comp->GetType() == Deki::MissingComponent::StaticType)
+        if (comp->GetType() == Deki::MissingComponent::kStaticType)
         {
             auto* missing = static_cast<Deki::MissingComponent*>(comp);
 
             // Missing component header: schematic font but red emphasis to
             // signal the error state.
-            ImFont* f = g_DisplaySmallFont;
+            ImFont* f = g_FontDisplaySmall;
             if (f)
             {
                 ImGui::PushFont(f);
@@ -308,7 +308,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Red);
 
-            std::string label = "Missing: " + missing->m_TypeName;
+            std::string label = "Missing: " + missing->typeName;
             bool open = ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 
             ImGui::PopStyleColor(4);
@@ -341,14 +341,14 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             if (open)
             {
                 ImGui::TextColored(DekiEditor::Palette::Red, "Component type not found");
-                if (!missing->m_JsonProperties.empty())
+                if (!missing->jsonProperties.empty())
                 {
-                    ImGui::TextDisabled("Data preserved (%u properties)", (unsigned)missing->m_JsonProperties.size());
+                    ImGui::TextDisabled("Data preserved (%u properties)", (unsigned)missing->jsonProperties.size());
                 }
-                else if (!missing->m_RawData.empty())
+                else if (!missing->rawData.empty())
                 {
-                    ImGui::TextDisabled("Data preserved (%u bytes, %u fields)", (unsigned)missing->m_RawData.size(),
-                                        missing->m_DataMapSize);
+                    ImGui::TextDisabled("Data preserved (%u bytes, %u fields)", (unsigned)missing->rawData.size(),
+                                        missing->dataMapSize);
                 }
                 else
                 {

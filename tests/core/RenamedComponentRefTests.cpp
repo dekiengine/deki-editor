@@ -37,7 +37,7 @@ protected:
     // ("AncientMockComponent"); this is the id a scene saved under the first.
     static uint32_t OldId() { return Deki::HashString("OldMockComponent"); }
     static uint32_t AncientId() { return Deki::HashString("AncientMockComponent"); }
-    static uint32_t CurrentId() { return MockComponent::StaticType; }
+    static uint32_t CurrentId() { return MockComponent::kStaticType; }
 };
 
 TEST_F(RenamedComponentRef, AnIdSavedUnderAFormerNameResolvesToTheClassThatHasItNow)

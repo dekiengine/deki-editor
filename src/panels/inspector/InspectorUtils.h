@@ -236,7 +236,7 @@ bool ComponentHasFilterMatch(const Deki::ComponentMeta* meta);
 // zone is added even for a band that has no chevron, so both kinds of band
 // and their content sit on one column.
 //
-// The zone is Metrics::SectionLabelIndent, the same token the theme's bands
+// The zone is Metrics::kSectionLabelIndent, the same token the theme's bands
 // use, and deliberately NOT GetTreeNodeToLabelSpacing(): that one carries
 // the caller's FramePadding, so the column moved between panels that push
 // different padding (the Inspector's and the node graph's disagreed by 12px)
@@ -248,10 +248,10 @@ inline float SectionAlignedCursorX()
 {
     const float dpi = ImGui::GetStyle().FontScaleDpi;
     const float x = ImGui::GetCursorPosX();
-    const float floorX = ::DekiEditor::Metrics::SectionHeaderMargin * dpi;
-    const float want = x - ::DekiEditor::Metrics::SectionHeaderOutdent * dpi;
+    const float floorX = ::DekiEditor::Metrics::kSectionHeaderMargin * dpi;
+    const float want = x - ::DekiEditor::Metrics::kSectionHeaderOutdent * dpi;
     const float bandLeft = want < floorX ? floorX : want;
-    return bandLeft + ::DekiEditor::Metrics::SectionLabelIndent * dpi;
+    return bandLeft + ::DekiEditor::Metrics::kSectionLabelIndent * dpi;
 }
 
 // Width of a row's label column. Proportional rather than fixed, so a wide
@@ -262,7 +262,7 @@ inline float SectionAlignedCursorX()
 inline float PropertyLabelWidth(float labelStartX)
 {
     const float font = ImGui::GetFontSize();
-    const float rightPad = ::DekiEditor::Metrics::InspectorRightPad * ImGui::GetStyle().FontScaleDpi;
+    const float rightPad = ::DekiEditor::Metrics::kInspectorRightPad * ImGui::GetStyle().FontScaleDpi;
     const float rowWidth = ImGui::GetContentRegionMax().x - labelStartX - rightPad;
     float w = rowWidth * 0.42f;
     const float minW = font * 5.5f;
@@ -313,7 +313,7 @@ inline void BeginPropertyRow(const char* displayName)
     {
         const float dpi = ImGui::GetStyle().FontScaleDpi;
         const float barW = 2.0f * dpi;
-        const float barX = rowPos.x - ::DekiEditor::Metrics::SectionLabelIndent * dpi * 0.5f;
+        const float barX = rowPos.x - ::DekiEditor::Metrics::kSectionLabelIndent * dpi * 0.5f;
         const float inset = rowH * 0.22f;
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(barX, rowPos.y + inset),
                                                   ImVec2(barX + barW, rowPos.y + rowH - inset),
@@ -430,7 +430,7 @@ inline void BeginPropertyRow(const char* displayName)
     // and the few controls that size themselves explicitly (asset/object ref
     // buttons) read this same width back via ImGui::CalcItemWidth(). Full-bleed
     // section headers draw from the window bounds, so they are unaffected.
-    ImGui::SetNextItemWidth(-(::DekiEditor::Metrics::InspectorRightPad * ImGui::GetStyle().FontScaleDpi));
+    ImGui::SetNextItemWidth(-(::DekiEditor::Metrics::kInspectorRightPad * ImGui::GetStyle().FontScaleDpi));
 }
 
 }  // namespace InspectorUtils

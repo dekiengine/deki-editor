@@ -460,15 +460,15 @@ namespace TestBoard
 // constant, no engine change and no registration call. Two board packages both
 // wanting an "Rtc" cannot collide, because each is in its own namespace - which
 // a class being closed is what guarantees.
-inline constexpr Deki::Memory::Region Rtc{ "rtc" };
+inline constexpr Deki::Memory::Region kRtc{ "rtc" };
 }  // namespace TestBoard
 
 TEST(DekiMemoryRegion, APackageCanDefineItsOwnRegion)
 {
     // Usable in a constant expression, so it costs nothing at runtime and can
     // sit in a switch label inside a provider.
-    static_assert(TestBoard::Rtc.id == Deki::HashName("rtc"));
-    EXPECT_STREQ(TestBoard::Rtc.name, "rtc");
+    static_assert(TestBoard::kRtc.id == Deki::HashName("rtc"));
+    EXPECT_STREQ(TestBoard::kRtc.name, "rtc");
 }
 
 TEST(DekiMemoryRegion, RegionsAreDistinctAndCompareByName)
@@ -487,7 +487,7 @@ TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
     // Region names must hash the way every other name in this engine does, or
     // a region name and a platform capability name could not be the same token
     // without a table mapping between them.
-    auto runtime_fnv1a = [](const char* str)
+    auto runtimeFnv1a = [](const char* str)
     {
         uint32_t h = 2166136261u;
         while (*str)
@@ -498,9 +498,9 @@ TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
         return h;
     };
 
-    EXPECT_EQ(Deki::HashName("internal"), runtime_fnv1a("internal"));
-    EXPECT_EQ(Deki::HashName("external"), runtime_fnv1a("external"));
-    EXPECT_EQ(Deki::HashName("rtc"), runtime_fnv1a("rtc"));
+    EXPECT_EQ(Deki::HashName("internal"), runtimeFnv1a("internal"));
+    EXPECT_EQ(Deki::HashName("external"), runtimeFnv1a("external"));
+    EXPECT_EQ(Deki::HashName("rtc"), runtimeFnv1a("rtc"));
     EXPECT_NE(Deki::HashName("internal"), Deki::HashName("external"));
 }
 
@@ -514,7 +514,7 @@ TEST(DekiMemoryRegion, ARegionTheBoardDoesNotServeFailsAndIsNamed)
     ScopedSpy s;
     CapturedLog log;
 
-    void* p = Deki::Memory::Allocate(64, TestBoard::Rtc);
+    void* p = Deki::Memory::Allocate(64, TestBoard::kRtc);
 
     EXPECT_EQ(p, nullptr);
     EXPECT_EQ(s.spy->refusedCalls, 1);
@@ -548,14 +548,14 @@ TEST(DekiMemoryRegion, TwoPackagesNamingTheSameRegionMeanTheSameRegion)
     // Not a conflict - the point. Two board packages that both support a part
     // with RTC memory write Region("rtc") independently and interoperate,
     // the same way two packages both requiring the "spi" capability do.
-    constexpr Deki::Memory::Region from_package_a = Deki::Memory::Region("rtc");
-    constexpr Deki::Memory::Region from_package_b = Deki::Memory::Region("rtc");
+    constexpr Deki::Memory::Region kFromPackageA = Deki::Memory::Region("rtc");
+    constexpr Deki::Memory::Region kFromPackageB = Deki::Memory::Region("rtc");
 
-    static_assert(from_package_a == from_package_b);
-    EXPECT_EQ(from_package_a.id, from_package_b.id);
+    static_assert(kFromPackageA == kFromPackageB);
+    EXPECT_EQ(kFromPackageA.id, kFromPackageB.id);
 
     // Distinct objects with distinct name pointers; identity is the hash.
-    EXPECT_STREQ(from_package_a.name, from_package_b.name);
+    EXPECT_STREQ(kFromPackageA.name, kFromPackageB.name);
 }
 
 TEST(DekiMemoryRegion, PrefixedNamesKeepPackagesOutOfEachOthersWay)

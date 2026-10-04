@@ -126,10 +126,10 @@ void CountComponents(const Deki::Scene& scene, int& total, std::set<std::string>
         for (const Deki::Component* c : obj->GetComponents())
         {
             ++total;
-            if (c && c->GetType() == Deki::MissingComponent::StaticType)
+            if (c && c->GetType() == Deki::MissingComponent::kStaticType)
             {
                 ++missing;
-                missingTypes.insert(static_cast<const Deki::MissingComponent*>(c)->m_TypeName);
+                missingTypes.insert(static_cast<const Deki::MissingComponent*>(c)->typeName);
             }
         }
         for (const Deki::Object* child : obj->GetChildren())

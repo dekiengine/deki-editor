@@ -107,13 +107,13 @@ TEST(ComponentInterfaceAdaptersTests, VersionIncrementsOnRegister)
 
 TEST(ComponentInterfaceAdaptersTests, FindReturnsTheAdapterQueryWouldUse)
 {
-    static auto adapter = [](Deki::Component* c) -> void* { return c; };
+    static auto s_Adapter = [](Deki::Component* c) -> void* { return c; };
     const uint32_t iface = 0x46494e44u;  // "FIND"
     const Deki::ComponentType baseType = 0x0000aa01u, derivedType = 0x0000aa02u, otherType = 0x0000aa03u;
-    Deki::ComponentInterfaceAdapters::Register(iface, baseType, adapter);
+    Deki::ComponentInterfaceAdapters::Register(iface, baseType, s_Adapter);
 
-    EXPECT_EQ(Deki::ComponentInterfaceAdapters::Find(iface, baseType, 0), adapter);
-    EXPECT_EQ(Deki::ComponentInterfaceAdapters::Find(iface, derivedType, baseType), adapter);  // via the base
+    EXPECT_EQ(Deki::ComponentInterfaceAdapters::Find(iface, baseType, 0), s_Adapter);
+    EXPECT_EQ(Deki::ComponentInterfaceAdapters::Find(iface, derivedType, baseType), s_Adapter);  // via the base
     EXPECT_EQ(Deki::ComponentInterfaceAdapters::Find(iface, otherType, 0), nullptr);
     EXPECT_EQ(Deki::ComponentInterfaceAdapters::Find(iface + 1, baseType, 0), nullptr);
 }

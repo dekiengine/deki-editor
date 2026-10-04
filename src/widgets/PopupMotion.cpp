@@ -124,7 +124,7 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
             continue;
         }
 
-        const float duration = (kind == Kind::Tooltip) ? Motion::Fast : Motion::Normal;
+        const float duration = (kind == Kind::Tooltip) ? Motion::kFast : Motion::kNormal;
         const float eased = Motion::EaseOut(Motion::To(OpenKey(w->ID), 1.0f, duration));
         Open open;
         open.rootId = w->ID;
@@ -187,7 +187,7 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
     ImDrawData* dd = ImGui::GetDrawData();
     for (auto it = s_Ghosts.begin(); it != s_Ghosts.end();)
     {
-        const float t = Motion::To(it->key, 0.0f, Motion::Fast);
+        const float t = Motion::To(it->key, 0.0f, Motion::kFast);
         if (t <= 0.0f || !dd)
         {
             Free(it->frozen);

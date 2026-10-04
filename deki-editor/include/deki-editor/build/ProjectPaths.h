@@ -34,15 +34,17 @@ DEKI_EDITOR_API std::filesystem::path Generated(const std::string& projectRoot);
 DEKI_EDITOR_API std::filesystem::path Runtime(const std::string& projectRoot);    // generated/runtime/ - loadable DLLs
 DEKI_EDITOR_API std::filesystem::path Build(const std::string& projectRoot);      // generated/build/   - CMake tree
 DEKI_EDITOR_API std::filesystem::path Cache(const std::string& projectRoot);      // generated/cache/   - asset cache
-DEKI_EDITOR_API std::filesystem::path Shadow(const std::string& projectRoot);     // generated/shadow/  - hot-reload copies
+DEKI_EDITOR_API std::filesystem::path Shadow(const std::string& projectRoot);  // generated/shadow/  - hot-reload copies
 DEKI_EDITOR_API std::filesystem::path CMakeListsFile(const std::string& projectRoot);
 
 // Authored - tracked, the user's.
 DEKI_EDITOR_API std::filesystem::path Settings(const std::string& projectRoot);  // settings/
 
 /** Directories a project must have; created on new projects and repaired on open. */
-DEKI_EDITOR_API std::filesystem::path RuntimeBuildTemp(const std::string& projectRoot);   // generated/runtime/.build_temp/
-DEKI_EDITOR_API std::filesystem::path RuntimePdbArchive(const std::string& projectRoot);  // generated/runtime/.pdb_archive/
+DEKI_EDITOR_API std::filesystem::path
+RuntimeBuildTemp(const std::string& projectRoot);  // generated/runtime/.build_temp/
+DEKI_EDITOR_API std::filesystem::path
+RuntimePdbArchive(const std::string& projectRoot);  // generated/runtime/.pdb_archive/
 
 /** Structure version written to deki.json once a project uses this layout. */
 inline constexpr const char* kStructureVersion = "v5";

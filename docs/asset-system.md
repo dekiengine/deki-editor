@@ -20,7 +20,7 @@ Every component that references an asset uses `AssetRef<T>`. It has four fields:
 ```
 if (!ptr && !guid.empty() && !loadAttempted) {
     loadAttempted = true;
-    ptr = static_cast<T*>(AssetManager::Get()->LoadByGuidAndType(guid, T::AssetTypeName));
+    ptr = static_cast<T*>(AssetManager::Get()->LoadByGuidAndType(guid, T::kAssetTypeName));
 }
 return ptr;
 ```
@@ -132,7 +132,7 @@ the target keeps them in internal storage, or to `<project>/storage/` for an SD 
 
 ```
 AssetRef::Get()
-  -> AssetManager::LoadByGuidAndType(guid, T::AssetTypeName)
+  -> AssetManager::LoadByGuidAndType(guid, T::kAssetTypeName)
     -> LookupPath(guid)
       -> Check binary asset_table.bin (binary search by FNV-1a hash)
       -> Check guidToPath_ map (runtime registrations)

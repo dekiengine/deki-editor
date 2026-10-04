@@ -29,8 +29,8 @@ bool ProfilingService::s_DeepProfileEnabled = false;
 // Singleton implementation
 ProfilingService& ProfilingService::Get()
 {
-    static ProfilingService instance;
-    return instance;
+    static ProfilingService s_Instance;
+    return s_Instance;
 }
 
 ProfilingService::ProfilingService()
@@ -162,7 +162,7 @@ void ProfilingService::EndFrame()
         m_FrameHistory.push_back(std::move(frameData));
 
         // Maintain max size
-        if (m_FrameHistory.size() > MAX_FRAME_HISTORY)
+        if (m_FrameHistory.size() > kMaxFrameHistory)
         {
             m_FrameHistory.pop_front();
         }

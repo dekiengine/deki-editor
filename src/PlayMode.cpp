@@ -117,8 +117,8 @@ void EditorApp::Play()
         DEKI_LOG_ERROR("Cannot enter play mode - fix compilation errors first");
         if (m_ConsolePanel)
         {
-            m_ConsolePanel->m_Open = true;
-            m_ConsolePanel->m_FocusFrames = 10;
+            m_ConsolePanel->isOpen = true;
+            m_ConsolePanel->focusFrames = 10;
         }
         return;
     }
@@ -132,8 +132,8 @@ void EditorApp::Play()
         ShutdownPlayMode();
         if (m_ConsolePanel)
         {
-            m_ConsolePanel->m_Open = true;
-            m_ConsolePanel->m_FocusFrames = 10;
+            m_ConsolePanel->isOpen = true;
+            m_ConsolePanel->focusFrames = 10;
         }
         return;
     }
@@ -144,7 +144,7 @@ void EditorApp::Play()
     // Auto-open and focus Play View panel
     if (m_PlayViewPanel)
     {
-        m_PlayViewPanel->m_Open = true;
+        m_PlayViewPanel->isOpen = true;
 
         // Save the currently selected tab in Play View's dock node so we can restore on Stop
         ImGuiWindow* playWin = ImGui::FindWindowByName("Play View");

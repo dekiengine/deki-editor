@@ -75,7 +75,7 @@ public:
     // Engine log callback handler
     static void EngineLogCallback(::Deki::LogLevel level, const std::string& message, const char* file, int line);
 
-    int m_FocusFrames = 0;  // Number of frames to keep requesting focus (handles layout init)
+    int focusFrames = 0;  // Number of frames to keep requesting focus (handles layout init)
 
 private:
     void AddEntry(const std::string& message, ::Deki::LogLevel level, uint32_t objectId = 0,

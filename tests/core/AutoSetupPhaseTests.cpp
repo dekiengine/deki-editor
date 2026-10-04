@@ -29,8 +29,8 @@ namespace
 // what ran and how often.
 std::vector<std::string>& Ran()
 {
-    static std::vector<std::string> v;
-    return v;
+    static std::vector<std::string> s_V;
+    return s_V;
 }
 
 template <const char* Name>

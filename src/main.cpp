@@ -51,16 +51,16 @@
 // layout the menu restores is by definition the one the editor ships with.
 // Rebuilding replaces whatever is there: windows not named here keep their own
 // dock ids and simply stay wherever they were.
-static void BuildDefaultDockLayout(ImGuiID dockspace_id, ImVec2 size)
+static void BuildDefaultDockLayout(ImGuiID dockspaceId, ImVec2 size)
 {
-    ImGui::DockBuilderRemoveNode(dockspace_id);
-    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-    ImGui::DockBuilderSetNodeSize(dockspace_id, size);
+    ImGui::DockBuilderRemoveNode(dockspaceId);
+    ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspaceId, size);
 
     // Columns: left strip, right strip, and whatever is left in the middle.
-    ImGuiID dock_left, dock_center, dock_right;
-    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.20f, &dock_left, &dock_center);
-    ImGui::DockBuilderSplitNode(dock_center, ImGuiDir_Right, 0.25f, &dock_right, &dock_center);
+    ImGuiID dockLeft, dockCenter, dockRight;
+    ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, &dockLeft, &dockCenter);
+    ImGui::DockBuilderSplitNode(dockCenter, ImGuiDir_Right, 0.25f, &dockRight, &dockCenter);
 
     // Height of the bottom row, as a fraction of the dockspace. Both columns
     // are split by this same value so Asset Browser and Console line up: the
@@ -69,22 +69,22 @@ static void BuildDefaultDockLayout(ImGuiID dockspace_id, ImVec2 size)
     constexpr float kBottomRowRatio = 0.30f;
 
     // Left column: Hierarchy over Asset Browser.
-    ImGuiID dock_left_top, dock_left_bottom;
-    ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Down, kBottomRowRatio, &dock_left_bottom, &dock_left_top);
+    ImGuiID dockLeftTop, dockLeftBottom;
+    ImGui::DockBuilderSplitNode(dockLeft, ImGuiDir_Down, kBottomRowRatio, &dockLeftBottom, &dockLeftTop);
 
     // Middle column: the views over the Console.
-    ImGuiID dock_center_top, dock_center_bottom;
-    ImGui::DockBuilderSplitNode(dock_center, ImGuiDir_Down, kBottomRowRatio, &dock_center_bottom, &dock_center_top);
+    ImGuiID dockCenterTop, dockCenterBottom;
+    ImGui::DockBuilderSplitNode(dockCenter, ImGuiDir_Down, kBottomRowRatio, &dockCenterBottom, &dockCenterTop);
 
-    ImGui::DockBuilderDockWindow("HIERARCHY###Hierarchy", dock_left_top);
-    ImGui::DockBuilderDockWindow("ASSET BROWSER###Asset Browser", dock_left_bottom);
+    ImGui::DockBuilderDockWindow("HIERARCHY###Hierarchy", dockLeftTop);
+    ImGui::DockBuilderDockWindow("ASSET BROWSER###Asset Browser", dockLeftBottom);
     // Both views share the middle node, so they come back as tabs of each other.
-    ImGui::DockBuilderDockWindow("SCENE VIEW###Scene View", dock_center_top);
-    ImGui::DockBuilderDockWindow("PLAY VIEW###Play View", dock_center_top);
-    ImGui::DockBuilderDockWindow("CONSOLE###Console", dock_center_bottom);
-    ImGui::DockBuilderDockWindow("INSPECTOR###Inspector", dock_right);
+    ImGui::DockBuilderDockWindow("SCENE VIEW###Scene View", dockCenterTop);
+    ImGui::DockBuilderDockWindow("PLAY VIEW###Play View", dockCenterTop);
+    ImGui::DockBuilderDockWindow("CONSOLE###Console", dockCenterBottom);
+    ImGui::DockBuilderDockWindow("INSPECTOR###Inspector", dockRight);
 
-    ImGui::DockBuilderFinish(dockspace_id);
+    ImGui::DockBuilderFinish(dockspaceId);
 }
 
 int main(int argc, char* argv[])
@@ -289,10 +289,10 @@ int main(int argc, char* argv[])
         ImGui::SetNextWindowSize(viewport->WorkSize);
         ImGui::SetNextWindowViewport(viewport->ID);
 
-        ImGuiWindowFlags window_flags_dock = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
-                                             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                                             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
-                                             ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
+        ImGuiWindowFlags windowFlagsDock = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+                                           ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                           ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                           ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -314,7 +314,7 @@ int main(int argc, char* argv[])
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f * scale, padY));
         }
 
-        ImGui::Begin("DockSpace", nullptr, window_flags_dock);
+        ImGui::Begin("DockSpace", nullptr, windowFlagsDock);
         ImGui::PopStyleVar(5);
 
         // No project open: the project manager screen owns the window. It
@@ -336,7 +336,7 @@ int main(int argc, char* argv[])
         if (!projectManagerMode)
         {
             float statusBarHeight = DekiEditor::ActivityPanel::GetStatusBarHeight();
-            ImGuiID dockspace_id = ImGui::GetID("EditorDockSpace");
+            ImGuiID dockspaceId = ImGui::GetID("EditorDockSpace");
             // NoWindowMenuButton hides the small dropdown arrow on every dock
             // node. That arrow opens the dock context menu whose "Hide tab bar"
             // entry is a one-way trap (no UI to undo). With it gone, the menu is
@@ -352,7 +352,7 @@ int main(int argc, char* argv[])
             // in the right order on its very first frame instead of snapping.
             DekiEditor::BeginPanelMaximizeFrame();
 
-            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, -statusBarHeight),
+            ImGui::DockSpace(dockspaceId, ImVec2(0.0f, -statusBarHeight),
                              ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
 
             // Set up initial dock layout only if no saved layout exists
@@ -361,10 +361,10 @@ int main(int argc, char* argv[])
                 firstFrame = false;
 
                 // Only build default layout if imgui.ini doesn't exist (first run)
-                ImGuiDockNode* node = ImGui::DockBuilderGetNode(dockspace_id);
+                ImGuiDockNode* node = ImGui::DockBuilderGetNode(dockspaceId);
                 if (!node || node->IsEmpty())
                 {
-                    BuildDefaultDockLayout(dockspace_id, viewport->WorkSize);
+                    BuildDefaultDockLayout(dockspaceId, viewport->WorkSize);
                 }
             }
 
@@ -372,14 +372,14 @@ int main(int argc, char* argv[])
             // menu restores is by definition the one the editor ships with.
             if (editor.ConsumeRestoreLayoutRequest())
             {
-                BuildDefaultDockLayout(dockspace_id, viewport->WorkSize);
+                BuildDefaultDockLayout(dockspaceId, viewport->WorkSize);
             }
 
             // Double-click a tab to blow that panel up over the dockspace, and its
             // title bar to put it back. Must run after DockSpace() (the node rect
             // it fills is known only then) and before the panels are submitted, so
             // the geometry it forces lands on their own Begin() this frame.
-            DekiEditor::UpdatePanelMaximize(dockspace_id);
+            DekiEditor::UpdatePanelMaximize(dockspaceId);
         }
 
         // Update editor. In project manager mode this draws that screen (and

@@ -26,8 +26,8 @@ namespace DekiEditor
 
 BuilderRegistry& BuilderRegistry::Instance()
 {
-    static BuilderRegistry instance;
-    return instance;
+    static BuilderRegistry s_Instance;
+    return s_Instance;
 }
 
 BuilderRegistry::~BuilderRegistry()
@@ -330,11 +330,11 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
 #else
 #define DEKI_BUILDER_SYM(t, n) (t) dlsym(module, n)
 #endif
-    auto getAbi = DEKI_BUILDER_SYM(const DekiBuilderAbi* (*)(), "DekiBuilder_GetAbi");
-    auto getName = DEKI_BUILDER_SYM(const char* (*)(), "DekiBuilder_GetName");
-    auto getCount = DEKI_BUILDER_SYM(int (*)(), "DekiBuilder_GetBuilderCount");
-    auto create = DEKI_BUILDER_SYM(ITargetBuilder * (*)(int), "DekiBuilder_CreateBuilder");
-    auto destroy = DEKI_BUILDER_SYM(void (*)(ITargetBuilder*), "DekiBuilder_DestroyBuilder");
+    auto getAbi = DEKI_BUILDER_SYM(const DekiBuilderAbi* (*)(), "DekiBuilderGetAbi");
+    auto getName = DEKI_BUILDER_SYM(const char* (*)(), "DekiBuilderGetName");
+    auto getCount = DEKI_BUILDER_SYM(int (*)(), "DekiBuilderGetBuilderCount");
+    auto create = DEKI_BUILDER_SYM(ITargetBuilder * (*)(int), "DekiBuilderCreateBuilder");
+    auto destroy = DEKI_BUILDER_SYM(void (*)(ITargetBuilder*), "DekiBuilderDestroyBuilder");
 #undef DEKI_BUILDER_SYM
 
     auto refuse = [&](const std::string& why)
@@ -350,7 +350,7 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
 
     if (getAbi == nullptr || getName == nullptr || getCount == nullptr || create == nullptr || destroy == nullptr)
     {
-        return refuse("missing one of DekiBuilder_GetAbi/GetName/GetBuilderCount/"
+        return refuse("missing one of DekiBuilderGetAbi/GetName/GetBuilderCount/"
                       "CreateBuilder/DestroyBuilder");
     }
 
@@ -360,7 +360,7 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
     const DekiBuilderAbi* abi = getAbi();
     if (abi == nullptr)
     {
-        return refuse("DekiBuilder_GetAbi returned null");
+        return refuse("DekiBuilderGetAbi returned null");
     }
     if (abi->version != kDekiBuilderAbiVersion)
     {
@@ -385,7 +385,7 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
     {
         return refuse("standard library layout disagrees");
     }
-    if (abi->compilerTag != DekiBuilder_CompilerTag())
+    if (abi->compilerTag != DekiBuilderCompilerTag())
     {
         return refuse("built with a different compiler or standard library");
     }

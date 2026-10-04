@@ -8,8 +8,8 @@ namespace DekiEditor
 
 AssetTypeRegistry& AssetTypeRegistry::Instance()
 {
-    static AssetTypeRegistry instance;
-    return instance;
+    static AssetTypeRegistry s_Instance;
+    return s_Instance;
 }
 
 AssetTypeRegistry::AssetTypeRegistry()
@@ -24,7 +24,7 @@ void AssetTypeRegistry::RegisterBuiltInTypes()
     sceneHandler.typeName = "Scene";
     sceneHandler.displayName = "Scene";
     sceneHandler.extensions = { ".scene" };
-    // formatVersion: Deki::AuthoredFormat::SceneVersion (AuthoredFormat.h).
+    // formatVersion: Deki::AuthoredFormat::kSceneVersion (AuthoredFormat.h).
     sceneHandler.defaultContent = R"({
   "formatVersion": 1,
   "objects": [{"name": "Root", "children": []}]

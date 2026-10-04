@@ -13,14 +13,14 @@ namespace
 // it before; a mutex here is cheap next to a LoadLibrary.
 std::mutex& Lock()
 {
-    static std::mutex m;
-    return m;
+    static std::mutex s_M;
+    return s_M;
 }
 
 std::map<std::string, std::string>& Map()
 {
-    static std::map<std::string, std::string> sectionToPackage;
-    return sectionToPackage;
+    static std::map<std::string, std::string> s_SectionToPackage;
+    return s_SectionToPackage;
 }
 }  // namespace
 

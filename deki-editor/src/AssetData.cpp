@@ -44,18 +44,18 @@ bool LoadAssetData(const std::string& path, AssetData& out)
         // A newer sidecar is read anyway: refusing it would mint a fresh GUID
         // for the asset and orphan every reference to it, which is worse than
         // ignoring settings this editor does not know.
-        const int32_t fileVersion = j.value(Deki::AuthoredFormat::VersionKey, 1);
-        if (fileVersion > Deki::AuthoredFormat::AssetDataVersion)
+        const int32_t fileVersion = j.value(Deki::AuthoredFormat::kVersionKey, 1);
+        if (fileVersion > Deki::AuthoredFormat::kAssetDataVersion)
         {
             DEKI_LOG_WARNING(
                 "AssetData: %s is formatVersion %d, this editor writes %d; settings it does not know are kept as-is",
-                path.c_str(), fileVersion, Deki::AuthoredFormat::AssetDataVersion);
+                path.c_str(), fileVersion, Deki::AuthoredFormat::kAssetDataVersion);
         }
 
         // Copy all other fields to settings
         out.settings = j;
         out.settings.erase("guid");  // Don't duplicate guid in settings
-        out.settings.erase(Deki::AuthoredFormat::VersionKey);
+        out.settings.erase(Deki::AuthoredFormat::kVersionKey);
 
         return true;
     }
@@ -72,7 +72,7 @@ bool SaveAssetData(const std::string& path, const AssetData& data)
         // Start with settings, then add guid at top level
         nlohmann::json j = data.settings;
         j["guid"] = data.guid;
-        j[Deki::AuthoredFormat::VersionKey] = Deki::AuthoredFormat::AssetDataVersion;
+        j[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kAssetDataVersion;
 
         // .data sidecars carry the asset's GUID. A half-written sidecar
         // would orphan the asset on the next pipeline restart, so write
@@ -125,7 +125,7 @@ std::string GenerateGuid()
     bytes[6] = static_cast<uint8_t>((bytes[6] & 0x0F) | 0x40);  // version 4
     bytes[8] = static_cast<uint8_t>((bytes[8] & 0x3F) | 0x80);  // RFC 4122 variant
 
-    static const char* hex = "0123456789abcdef";
+    static const char* s_Hex = "0123456789abcdef";
     std::string out;
     out.reserve(36);
     for (int i = 0; i < 16; ++i)
@@ -134,8 +134,8 @@ std::string GenerateGuid()
         {
             out += '-';
         }
-        out += hex[bytes[i] >> 4];
-        out += hex[bytes[i] & 0x0F];
+        out += s_Hex[bytes[i] >> 4];
+        out += s_Hex[bytes[i] & 0x0F];
     }
     return out;
 }
@@ -201,7 +201,7 @@ std::string GetOrCreateAssetGuid(const std::string& assetPath)
         {
             data.settings = parsed;
             data.settings.erase("guid");
-            data.settings.erase(Deki::AuthoredFormat::VersionKey);
+            data.settings.erase(Deki::AuthoredFormat::kVersionKey);
             data.guid = GenerateGuid();
             return SaveAssetData(dataPath, data) ? data.guid : "";
         }

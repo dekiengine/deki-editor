@@ -103,7 +103,7 @@ private:
 
     void Transform(const uint8_t block[64])
     {
-        static const uint32_t k[64] = {
+        static const uint32_t kRoundConstants[64] = {
             0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
             0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
             0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -134,7 +134,7 @@ private:
         {
             const uint32_t s1 = Rotr(e, 6) ^ Rotr(e, 11) ^ Rotr(e, 25);
             const uint32_t ch = (e & f) ^ (~e & g);
-            const uint32_t t1 = h + s1 + ch + k[i] + w[i];
+            const uint32_t t1 = h + s1 + ch + kRoundConstants[i] + w[i];
             const uint32_t s0 = Rotr(a, 2) ^ Rotr(a, 13) ^ Rotr(a, 22);
             const uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
             const uint32_t t2 = s0 + maj;

@@ -114,7 +114,7 @@ EditorApp::EditorApp()
     // Actual loading is deferred to OpenProject for per-project isolation.
     StartupProgress::Update("Building packages...");
     m_PackageLoader = std::make_unique<PackageLoader>();
-    m_PackageLoader->OnPackageUnloading = [](const std::string& package)
+    m_PackageLoader->onPackageUnloading = [](const std::string& package)
     {
         PackageLifetime::ReleaseAll();
         BuilderRegistry::Instance().RemovePackageBuilders(package);
@@ -153,7 +153,7 @@ EditorApp::EditorApp()
     // register additional windows and that path always rebuilds the list
     // anyway, so doing it here just duplicates work.
     m_ToolHost = std::make_unique<ToolHost>(this);
-    m_ToolHost->OnToolDiscovered = [](const std::string& name)
+    m_ToolHost->onToolDiscovered = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
         {
@@ -253,7 +253,7 @@ EditorApp::EditorApp()
     StartupProgress::Update("Restoring layout...");
     for (IPanel* panel : m_Panels)
     {
-        panel->m_Open = panel->PersistOpenState() ? EditorSettings::GetPanelOpen(panel->Id(), panel->OpenByDefault())
+        panel->isOpen = panel->PersistOpenState() ? EditorSettings::GetPanelOpen(panel->Id(), panel->OpenByDefault())
                                                   : panel->OpenByDefault();
     }
 
@@ -309,7 +309,7 @@ void EditorApp::SaveLayout()
     {
         if (panel->PersistOpenState())
         {
-            EditorSettings::SetPanelOpen(panel->Id(), panel->m_Open);
+            EditorSettings::SetPanelOpen(panel->Id(), panel->isOpen);
         }
     }
 

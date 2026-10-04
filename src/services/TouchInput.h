@@ -5,7 +5,7 @@
 #include "TouchGestures.h"
 #include "imgui.h"
 
-union SDL_Event;
+union SDL_Event;  // NOLINT(readability-identifier-naming): SDL's name
 struct SDL_Window;
 
 namespace DekiEditor

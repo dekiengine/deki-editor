@@ -94,7 +94,7 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
         }
 
         it->destination = ImClamp(it->destination, 0.0f, w->ScrollMax[axis]);
-        const float next = Motion::Follow(it->key, it->destination, Motion::Normal, 0.5f);
+        const float next = Motion::Follow(it->key, it->destination, Motion::kNormal, 0.5f);
         w->ScrollTarget[axis] = next;
         w->ScrollTargetCenterRatio[axis] = 0.0f;
         w->ScrollTargetEdgeSnapDist[axis] = 0.0f;

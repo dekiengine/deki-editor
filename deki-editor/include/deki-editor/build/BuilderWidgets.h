@@ -17,7 +17,7 @@ namespace DekiEditor
 
 /// An editable list of strings: one row per entry with a remove button, and a
 /// field that appends. `newItemBuffer` is the caller's scratch for the field.
-DEKI_EDITOR_API void DrawStringListEditor(const char* label, std::vector<std::string>& list,
-                                          char* newItemBuffer, size_t bufSize);
+DEKI_EDITOR_API void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer,
+                                          size_t bufSize);
 
 }  // namespace DekiEditor

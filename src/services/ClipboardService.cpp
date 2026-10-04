@@ -8,8 +8,8 @@ namespace DekiEditor
 
 ClipboardService& ClipboardService::Instance()
 {
-    static ClipboardService instance;
-    return instance;
+    static ClipboardService s_Instance;
+    return s_Instance;
 }
 
 void ClipboardService::WriteToClipboard(const nlohmann::json& data)
@@ -51,7 +51,7 @@ std::optional<ClipboardService::ParsedClipboard> ClipboardService::ParseClipboar
         return std::nullopt;
     }
 
-    if (json["version"].get<int>() != CLIPBOARD_VERSION)
+    if (json["version"].get<int>() != kClipboardVersion)
     {
         return std::nullopt;
     }
@@ -59,13 +59,13 @@ std::optional<ClipboardService::ParsedClipboard> ClipboardService::ParseClipboar
     ParsedClipboard data;
     std::string typeStr = json["deki_clipboard_type"].get<std::string>();
 
-    if (typeStr == TYPE_COMPONENT)
+    if (typeStr == kTypeComponent)
     {
         data.type = ClipboardContentType::Component;
         data.componentType = json.value("component_type", "");
         data.properties = json.value("properties", nlohmann::json::object());
     }
-    else if (typeStr == TYPE_TRANSFORM)
+    else if (typeStr == kTypeTransform)
     {
         data.type = ClipboardContentType::Transform;
         if (json.contains("transform"))
@@ -80,7 +80,7 @@ std::optional<ClipboardService::ParsedClipboard> ClipboardService::ParseClipboar
             data.transformData.active = t.value("active", true);
         }
     }
-    else if (typeStr == TYPE_OBJECTS)
+    else if (typeStr == kTypeObjects)
     {
         data.type = ClipboardContentType::Objects;
         if (json.contains("objects") && json["objects"].is_array())
@@ -166,8 +166,8 @@ ChildData ClipboardService::JsonToChildData(const nlohmann::json& json)
 void ClipboardService::CopyObjects(const std::vector<Deki::Object*>& objects)
 {
     nlohmann::json json;
-    json["deki_clipboard_type"] = TYPE_OBJECTS;
-    json["version"] = CLIPBOARD_VERSION;
+    json["deki_clipboard_type"] = kTypeObjects;
+    json["version"] = kClipboardVersion;
 
     nlohmann::json objectsArray = nlohmann::json::array();
     for (const auto* obj : objects)
@@ -185,8 +185,8 @@ void ClipboardService::CopyComponent(const Deki::Component* comp)
     ComponentData cd = ObjectSerializationHelper::SerializeComponent(comp);
 
     nlohmann::json json;
-    json["deki_clipboard_type"] = TYPE_COMPONENT;
-    json["version"] = CLIPBOARD_VERSION;
+    json["deki_clipboard_type"] = kTypeComponent;
+    json["version"] = kClipboardVersion;
     json["component_type"] = cd.typeName;
     json["properties"] = cd.properties;
 
@@ -198,8 +198,8 @@ void ClipboardService::CopyTransform(const Deki::Object* obj)
     ObjectData od = ObjectSerializationHelper::SerializeObjectData(obj);
 
     nlohmann::json json;
-    json["deki_clipboard_type"] = TYPE_TRANSFORM;
-    json["version"] = CLIPBOARD_VERSION;
+    json["deki_clipboard_type"] = kTypeTransform;
+    json["version"] = kClipboardVersion;
     json["transform"]["x"] = od.x;
     json["transform"]["y"] = od.y;
     json["transform"]["rotation"] = od.rotation;

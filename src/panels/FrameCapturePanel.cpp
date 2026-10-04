@@ -24,14 +24,14 @@ FrameCapturePanel::FrameCapturePanel(EditorApp* app)
 
 void FrameCapturePanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(450, 300);
 
-    if (ImGui::Begin("FRAME CAPTURE###Frame Capture", &m_Open,
+    if (ImGui::Begin("FRAME CAPTURE###Frame Capture", &isOpen,
                      DekiEditor::MaximizedWindowFlags("FRAME CAPTURE###Frame Capture")))
     {
         auto* captureService = m_App->GetFrameCaptureService();

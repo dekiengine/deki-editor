@@ -30,7 +30,7 @@ struct DEKI_EDITOR_API FallbackDef
 struct DEKI_EDITOR_API PostInstallDef
 {
     std::string windows;
-    std::string unix_;  // "unix" is not a keyword but avoid confusion
+    std::string unixLike;  // Linux and macOS
 };
 
 struct DEKI_EDITOR_API SubComponentDef

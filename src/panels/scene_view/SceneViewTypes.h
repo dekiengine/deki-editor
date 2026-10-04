@@ -78,21 +78,21 @@ namespace SceneViewConstants
 // anchor the pan offset is measured from. Fixed so the scene view does not move
 // when the previewed screen changes; the screen itself is drawn around the
 // origin at its own size.
-constexpr int AnchorWidth = 320;
-constexpr int AnchorHeight = 240;
+constexpr int kAnchorWidth = 320;
+constexpr int kAnchorHeight = 240;
 
 // Zoom limits
-constexpr float MinZoom = 0.25f;
-constexpr float MaxZoom = 4.0f;
+constexpr float kMinZoom = 0.25f;
+constexpr float kMaxZoom = 4.0f;
 
 // Gizmo dimensions
-constexpr float GizmoLength = 100.0f;
-constexpr float GizmoThickness = 5.0f;
-constexpr float GizmoHitThickness = 16.0f;
+constexpr float kGizmoLength = 100.0f;
+constexpr float kGizmoThickness = 5.0f;
+constexpr float kGizmoHitThickness = 16.0f;
 
 // Resize handle dimensions
-constexpr float ResizeHandleSize = 20.0f;
-constexpr float ResizeHandleHitSize = 28.0f;
+constexpr float kResizeHandleSize = 20.0f;
+constexpr float kResizeHandleHitSize = 28.0f;
 }  // namespace SceneViewConstants
 
 }  // namespace DekiEditor

@@ -14,8 +14,8 @@ namespace DekiEditor
 
 EditorUI& EditorUI::Get()
 {
-    static EditorUI instance;
-    return instance;
+    static EditorUI s_Instance;
+    return s_Instance;
 }
 
 // ============================================================================
@@ -113,163 +113,163 @@ void EditorUI::EndComponent()
 // Styled UI controls - forward to the editor-installed backend
 // ============================================================================
 
-static EditorUI::WidgetBackend s_widgetBackend;
+static EditorUI::WidgetBackend s_WidgetBackend;
 
 void EditorUI::SetWidgetBackend(const WidgetBackend& backend)
 {
-    s_widgetBackend = backend;
+    s_WidgetBackend = backend;
 }
 
 bool EditorUI::SectionHeader(const char* label)
 {
-    return s_widgetBackend.sectionHeader ? s_widgetBackend.sectionHeader(label) : false;
+    return s_WidgetBackend.sectionHeader ? s_WidgetBackend.sectionHeader(label) : false;
 }
 
 void EditorUI::PropertyRow(const char* label)
 {
-    if (s_widgetBackend.propertyRow)
+    if (s_WidgetBackend.propertyRow)
     {
-        s_widgetBackend.propertyRow(label);
+        s_WidgetBackend.propertyRow(label);
     }
 }
 
 bool EditorUI::DragInt(const char* id, int* v, float speed, int vmin, int vmax)
 {
-    return s_widgetBackend.dragInt ? s_widgetBackend.dragInt(id, v, speed, vmin, vmax) : false;
+    return s_WidgetBackend.dragInt ? s_WidgetBackend.dragInt(id, v, speed, vmin, vmax) : false;
 }
 
 bool EditorUI::DragFloat(const char* id, float* v, float speed, float vmin, float vmax, const char* format)
 {
-    return s_widgetBackend.dragFloat ? s_widgetBackend.dragFloat(id, v, speed, vmin, vmax, format) : false;
+    return s_WidgetBackend.dragFloat ? s_WidgetBackend.dragFloat(id, v, speed, vmin, vmax, format) : false;
 }
 
 bool EditorUI::Checkbox(const char* id, bool* v)
 {
-    return s_widgetBackend.checkbox ? s_widgetBackend.checkbox(id, v) : false;
+    return s_WidgetBackend.checkbox ? s_WidgetBackend.checkbox(id, v) : false;
 }
 
 bool EditorUI::ColorEdit4(const char* id, float col[4])
 {
-    return s_widgetBackend.colorEdit4 ? s_widgetBackend.colorEdit4(id, col) : false;
+    return s_WidgetBackend.colorEdit4 ? s_WidgetBackend.colorEdit4(id, col) : false;
 }
 
 bool EditorUI::ColorEdit3(const char* id, float col[3])
 {
-    return s_widgetBackend.colorEdit3 ? s_widgetBackend.colorEdit3(id, col) : false;
+    return s_WidgetBackend.colorEdit3 ? s_WidgetBackend.colorEdit3(id, col) : false;
 }
 
 bool EditorUI::Combo(const char* id, int* currentIndex, const char* const items[], int count)
 {
-    return s_widgetBackend.combo ? s_widgetBackend.combo(id, currentIndex, items, count) : false;
+    return s_WidgetBackend.combo ? s_WidgetBackend.combo(id, currentIndex, items, count) : false;
 }
 
 bool EditorUI::Combo(const char* id, int* currentIndex, const char* itemsSeparatedByZeros)
 {
-    return s_widgetBackend.comboStr ? s_widgetBackend.comboStr(id, currentIndex, itemsSeparatedByZeros) : false;
+    return s_WidgetBackend.comboStr ? s_WidgetBackend.comboStr(id, currentIndex, itemsSeparatedByZeros) : false;
 }
 
 bool EditorUI::SliderFloat(const char* id, float* v, float vmin, float vmax, const char* format)
 {
-    return s_widgetBackend.sliderFloat ? s_widgetBackend.sliderFloat(id, v, vmin, vmax, format) : false;
+    return s_WidgetBackend.sliderFloat ? s_WidgetBackend.sliderFloat(id, v, vmin, vmax, format) : false;
 }
 
 bool EditorUI::InputInt(const char* id, int* v, int step, int stepFast)
 {
-    return s_widgetBackend.inputInt ? s_widgetBackend.inputInt(id, v, step, stepFast) : false;
+    return s_WidgetBackend.inputInt ? s_WidgetBackend.inputInt(id, v, step, stepFast) : false;
 }
 
 bool EditorUI::InputText(const char* id, char* buf, size_t bufSize)
 {
-    return s_widgetBackend.inputText ? s_widgetBackend.inputText(id, buf, bufSize) : false;
+    return s_WidgetBackend.inputText ? s_WidgetBackend.inputText(id, buf, bufSize) : false;
 }
 
 bool EditorUI::Button(const char* label, float width, float height)
 {
-    return s_widgetBackend.button ? s_widgetBackend.button(label, width, height) : false;
+    return s_WidgetBackend.button ? s_WidgetBackend.button(label, width, height) : false;
 }
 
 bool EditorUI::SmallButton(const char* label)
 {
-    return s_widgetBackend.smallButton ? s_widgetBackend.smallButton(label) : false;
+    return s_WidgetBackend.smallButton ? s_WidgetBackend.smallButton(label) : false;
 }
 
 void EditorUI::Text(const char* text)
 {
-    if (s_widgetBackend.text)
+    if (s_WidgetBackend.text)
     {
-        s_widgetBackend.text(text);
+        s_WidgetBackend.text(text);
     }
 }
 
 void EditorUI::TextColored(float r, float g, float b, float a, const char* text)
 {
-    if (s_widgetBackend.textColored)
+    if (s_WidgetBackend.textColored)
     {
-        s_widgetBackend.textColored(r, g, b, a, text);
+        s_WidgetBackend.textColored(r, g, b, a, text);
     }
 }
 
 void EditorUI::TextDisabled(const char* text)
 {
-    if (s_widgetBackend.textDisabled)
+    if (s_WidgetBackend.textDisabled)
     {
-        s_widgetBackend.textDisabled(text);
+        s_WidgetBackend.textDisabled(text);
     }
 }
 
 void EditorUI::SameLine(float offsetFromStartX, float spacing)
 {
-    if (s_widgetBackend.sameLine)
+    if (s_WidgetBackend.sameLine)
     {
-        s_widgetBackend.sameLine(offsetFromStartX, spacing);
+        s_WidgetBackend.sameLine(offsetFromStartX, spacing);
     }
 }
 
 void EditorUI::Spacing()
 {
-    if (s_widgetBackend.spacing)
+    if (s_WidgetBackend.spacing)
     {
-        s_widgetBackend.spacing();
+        s_WidgetBackend.spacing();
     }
 }
 
 void EditorUI::Separator()
 {
-    if (s_widgetBackend.separator)
+    if (s_WidgetBackend.separator)
     {
-        s_widgetBackend.separator();
+        s_WidgetBackend.separator();
     }
 }
 
 void EditorUI::PushID(int id)
 {
-    if (s_widgetBackend.pushIdInt)
+    if (s_WidgetBackend.pushIdInt)
     {
-        s_widgetBackend.pushIdInt(id);
+        s_WidgetBackend.pushIdInt(id);
     }
 }
 
 void EditorUI::PopID()
 {
-    if (s_widgetBackend.popId)
+    if (s_WidgetBackend.popId)
     {
-        s_widgetBackend.popId();
+        s_WidgetBackend.popId();
     }
 }
 
 void EditorUI::Indent()
 {
-    if (s_widgetBackend.indent)
+    if (s_WidgetBackend.indent)
     {
-        s_widgetBackend.indent();
+        s_WidgetBackend.indent();
     }
 }
 
 void EditorUI::Unindent()
 {
-    if (s_widgetBackend.unindent)
+    if (s_WidgetBackend.unindent)
     {
-        s_widgetBackend.unindent();
+        s_WidgetBackend.unindent();
     }
 }
 
@@ -284,22 +284,22 @@ void EditorUI::Unindent(float amount)
 
 void EditorUI::BulletText(const char* text)
 {
-    if (s_widgetBackend.bulletText)
+    if (s_WidgetBackend.bulletText)
     {
-        s_widgetBackend.bulletText(text);
+        s_WidgetBackend.bulletText(text);
     }
 }
 
 bool EditorUI::CollapsingHeader(const char* label, bool* pVisible, bool defaultOpen)
 {
-    return s_widgetBackend.collapsingHeader ? s_widgetBackend.collapsingHeader(label, pVisible, defaultOpen) : false;
+    return s_WidgetBackend.collapsingHeader ? s_WidgetBackend.collapsingHeader(label, pVisible, defaultOpen) : false;
 }
 
 void EditorUI::GetCursorScreenPos(float* outX, float* outY)
 {
-    if (s_widgetBackend.cursorScreenPos)
+    if (s_WidgetBackend.cursorScreenPos)
     {
-        s_widgetBackend.cursorScreenPos(outX, outY);
+        s_WidgetBackend.cursorScreenPos(outX, outY);
     }
     else
     {
@@ -316,82 +316,82 @@ void EditorUI::GetCursorScreenPos(float* outX, float* outY)
 
 void EditorUI::SetCursorScreenPos(float x, float y)
 {
-    if (s_widgetBackend.setCursorScreenPos)
+    if (s_WidgetBackend.setCursorScreenPos)
     {
-        s_widgetBackend.setCursorScreenPos(x, y);
+        s_WidgetBackend.setCursorScreenPos(x, y);
     }
 }
 
 void EditorUI::Dummy(float width, float height)
 {
-    if (s_widgetBackend.dummy)
+    if (s_WidgetBackend.dummy)
     {
-        s_widgetBackend.dummy(width, height);
+        s_WidgetBackend.dummy(width, height);
     }
 }
 
 void EditorUI::DrawLine(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness)
 {
-    if (s_widgetBackend.drawLine)
+    if (s_WidgetBackend.drawLine)
     {
-        s_widgetBackend.drawLine(x0, y0, x1, y1, rgba, thickness);
+        s_WidgetBackend.drawLine(x0, y0, x1, y1, rgba, thickness);
     }
 }
 
 void EditorUI::DrawRect(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness, float rounding)
 {
-    if (s_widgetBackend.drawRect)
+    if (s_WidgetBackend.drawRect)
     {
-        s_widgetBackend.drawRect(x0, y0, x1, y1, rgba, thickness, rounding);
+        s_WidgetBackend.drawRect(x0, y0, x1, y1, rgba, thickness, rounding);
     }
 }
 
 void EditorUI::DrawRectFilled(float x0, float y0, float x1, float y1, uint32_t rgba, float rounding)
 {
-    if (s_widgetBackend.drawRectFilled)
+    if (s_WidgetBackend.drawRectFilled)
     {
-        s_widgetBackend.drawRectFilled(x0, y0, x1, y1, rgba, rounding);
+        s_WidgetBackend.drawRectFilled(x0, y0, x1, y1, rgba, rounding);
     }
 }
 
 void EditorUI::DrawCircle(float cx, float cy, float radius, uint32_t rgba, float thickness)
 {
-    if (s_widgetBackend.drawCircle)
+    if (s_WidgetBackend.drawCircle)
     {
-        s_widgetBackend.drawCircle(cx, cy, radius, rgba, thickness);
+        s_WidgetBackend.drawCircle(cx, cy, radius, rgba, thickness);
     }
 }
 
 void EditorUI::DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba)
 {
-    if (s_widgetBackend.drawCircleFilled)
+    if (s_WidgetBackend.drawCircleFilled)
     {
-        s_widgetBackend.drawCircleFilled(cx, cy, radius, rgba);
+        s_WidgetBackend.drawCircleFilled(cx, cy, radius, rgba);
     }
 }
 
 void EditorUI::DrawImage(uint32_t texture, float x0, float y0, float x1, float y1, float u0, float v0, float u1,
                          float v1, uint32_t tint)
 {
-    if (s_widgetBackend.drawImage)
+    if (s_WidgetBackend.drawImage)
     {
-        s_widgetBackend.drawImage(texture, x0, y0, x1, y1, u0, v0, u1, v1, tint);
+        s_WidgetBackend.drawImage(texture, x0, y0, x1, y1, u0, v0, u1, v1, tint);
     }
 }
 
 void EditorUI::DrawTextAt(float pixelSize, float x, float y, uint32_t rgba, const char* text)
 {
-    if (s_widgetBackend.drawText)
+    if (s_WidgetBackend.drawText)
     {
-        s_widgetBackend.drawText(pixelSize, x, y, rgba, text);
+        s_WidgetBackend.drawText(pixelSize, x, y, rgba, text);
     }
 }
 
 void EditorUI::DrawTextCss(float cssPx, float x, float y, uint32_t rgba, const char* text)
 {
-    if (s_widgetBackend.drawTextCss)
+    if (s_WidgetBackend.drawTextCss)
     {
-        s_widgetBackend.drawTextCss(cssPx, x, y, rgba, text);
+        s_WidgetBackend.drawTextCss(cssPx, x, y, rgba, text);
     }
 }
 
@@ -405,25 +405,25 @@ void EditorUI::MeasureTextCss(float cssPx, const char* text, float* outW, float*
     {
         *outH = 0.0f;
     }
-    if (s_widgetBackend.measureTextCss)
+    if (s_WidgetBackend.measureTextCss)
     {
-        s_widgetBackend.measureTextCss(cssPx, text, outW, outH);
+        s_WidgetBackend.measureTextCss(cssPx, text, outW, outH);
     }
 }
 
 void EditorUI::PushClipRect(float x0, float y0, float x1, float y1, bool intersectWithCurrent)
 {
-    if (s_widgetBackend.pushClipRect)
+    if (s_WidgetBackend.pushClipRect)
     {
-        s_widgetBackend.pushClipRect(x0, y0, x1, y1, intersectWithCurrent);
+        s_WidgetBackend.pushClipRect(x0, y0, x1, y1, intersectWithCurrent);
     }
 }
 
 void EditorUI::PopClipRect()
 {
-    if (s_widgetBackend.popClipRect)
+    if (s_WidgetBackend.popClipRect)
     {
-        s_widgetBackend.popClipRect();
+        s_WidgetBackend.popClipRect();
     }
 }
 
@@ -645,27 +645,27 @@ void EditorUI::SetNextItemWidth(float w)
 {
     ImGui::SetNextItemWidth(w);
 }
-static ImGuiListClipper s_listClipper;
+static ImGuiListClipper s_ListClipper;
 void EditorUI::BeginListClipper(int itemCount, float itemHeight)
 {
-    s_listClipper.Begin(itemCount, itemHeight);
+    s_ListClipper.Begin(itemCount, itemHeight);
 }
 bool EditorUI::ListClipperStep(int* s, int* e)
 {
-    bool r = s_listClipper.Step();
+    bool r = s_ListClipper.Step();
     if (s)
     {
-        *s = s_listClipper.DisplayStart;
+        *s = s_ListClipper.DisplayStart;
     }
     if (e)
     {
-        *e = s_listClipper.DisplayEnd;
+        *e = s_ListClipper.DisplayEnd;
     }
     return r;
 }
 void EditorUI::EndListClipper()
 {
-    s_listClipper.End();
+    s_ListClipper.End();
 }
 bool EditorUI::InputTextWithHint(const char* id, const char* hint, char* buf, int bufSize)
 {
@@ -673,13 +673,13 @@ bool EditorUI::InputTextWithHint(const char* id, const char* hint, char* buf, in
 }
 bool EditorUI::BeginCombo(const char* label, const char* preview)
 {
-    return s_widgetBackend.beginCombo ? s_widgetBackend.beginCombo(label, preview) : ImGui::BeginCombo(label, preview);
+    return s_WidgetBackend.beginCombo ? s_WidgetBackend.beginCombo(label, preview) : ImGui::BeginCombo(label, preview);
 }
 void EditorUI::EndCombo()
 {
-    if (s_widgetBackend.endCombo)
+    if (s_WidgetBackend.endCombo)
     {
-        s_widgetBackend.endCombo();
+        s_WidgetBackend.endCombo();
     }
     else
     {
@@ -811,51 +811,51 @@ void EditorUI::EndTable()
 // --- Toolbar (backend-drawn: the strip chrome lives in the editor exe) ---
 void EditorUI::BeginToolbar()
 {
-    if (s_widgetBackend.beginToolbar)
+    if (s_WidgetBackend.beginToolbar)
     {
-        s_widgetBackend.beginToolbar();
+        s_WidgetBackend.beginToolbar();
     }
 }
 bool EditorUI::ToolbarButton(const char* label, bool enabled, bool active)
 {
-    return s_widgetBackend.toolbarButton ? s_widgetBackend.toolbarButton(label, enabled, active) : false;
+    return s_WidgetBackend.toolbarButton ? s_WidgetBackend.toolbarButton(label, enabled, active) : false;
 }
 bool EditorUI::ToolbarIconButton(const char* id, const char* icon, const char* tooltip, bool enabled, bool active,
                                  bool destructive)
 {
-    return s_widgetBackend.toolbarIconButton
-               ? s_widgetBackend.toolbarIconButton(id, icon, tooltip, enabled, active, destructive)
+    return s_WidgetBackend.toolbarIconButton
+               ? s_WidgetBackend.toolbarIconButton(id, icon, tooltip, enabled, active, destructive)
                : false;
 }
 void EditorUI::EndToolbar()
 {
-    if (s_widgetBackend.endToolbar)
+    if (s_WidgetBackend.endToolbar)
     {
-        s_widgetBackend.endToolbar();
+        s_WidgetBackend.endToolbar();
     }
 }
 void EditorUI::BeginTabLinks()
 {
-    if (s_widgetBackend.beginTabLinks)
+    if (s_WidgetBackend.beginTabLinks)
     {
-        s_widgetBackend.beginTabLinks();
+        s_WidgetBackend.beginTabLinks();
     }
 }
 bool EditorUI::TabLink(const char* label, bool active)
 {
-    return s_widgetBackend.tabLink ? s_widgetBackend.tabLink(label, active) : false;
+    return s_WidgetBackend.tabLink ? s_WidgetBackend.tabLink(label, active) : false;
 }
 void EditorUI::EndTabLinks()
 {
-    if (s_widgetBackend.endTabLinks)
+    if (s_WidgetBackend.endTabLinks)
     {
-        s_widgetBackend.endTabLinks();
+        s_WidgetBackend.endTabLinks();
     }
 }
 bool EditorUI::SelectableCard(const char* id, const char* title, const char* subtitle, bool selected,
                               uint32_t subtitleColor)
 {
-    return s_widgetBackend.selectableCard ? s_widgetBackend.selectableCard(id, title, subtitle, selected, subtitleColor)
+    return s_WidgetBackend.selectableCard ? s_WidgetBackend.selectableCard(id, title, subtitle, selected, subtitleColor)
                                           : false;
 }
 
@@ -965,10 +965,10 @@ void EditorUI::OpenPopupOnItemClick(const char* id, int mouseButton)
 }
 
 // --- Windows ---
-static std::function<int(const char*)> s_extraWindowFlags;
+static std::function<int(const char*)> s_ExtraWindowFlags;
 void EditorUI::SetExtraWindowFlagsProvider(std::function<int(const char*)> fn)
 {
-    s_extraWindowFlags = std::move(fn);
+    s_ExtraWindowFlags = std::move(fn);
 }
 
 bool EditorUI::Begin(const char* name, bool* open, int f)
@@ -993,9 +993,9 @@ bool EditorUI::Begin(const char* name, bool* open, int f)
     // Whatever the editor wants to add for this window by name - NoResize while
     // it is the maximized panel. Every EditorUI window passes here, the panels
     // that use it and the package tool windows alike.
-    if (s_extraWindowFlags)
+    if (s_ExtraWindowFlags)
     {
-        im |= s_extraWindowFlags(name);
+        im |= s_ExtraWindowFlags(name);
     }
     return ImGui::Begin(name, open, im);
 }
@@ -1216,35 +1216,35 @@ void EditorUI::SetNextItemAllowOverlap()
 
 bool EditorUI::DragFloat2(const char* id, float v[2], float speed, float vmin, float vmax, const char* format)
 {
-    return s_widgetBackend.dragFloat2 ? s_widgetBackend.dragFloat2(id, v, speed, vmin, vmax, format) : false;
+    return s_WidgetBackend.dragFloat2 ? s_WidgetBackend.dragFloat2(id, v, speed, vmin, vmax, format) : false;
 }
 
 bool EditorUI::DragFloat3(const char* id, float v[3], float speed, float vmin, float vmax, const char* format)
 {
-    return s_widgetBackend.dragFloat3 ? s_widgetBackend.dragFloat3(id, v, speed, vmin, vmax, format) : false;
+    return s_WidgetBackend.dragFloat3 ? s_WidgetBackend.dragFloat3(id, v, speed, vmin, vmax, format) : false;
 }
 
 void EditorUI::FullBleedSeparator()
 {
-    if (s_widgetBackend.fullBleedSeparator)
+    if (s_WidgetBackend.fullBleedSeparator)
     {
-        s_widgetBackend.fullBleedSeparator();
+        s_WidgetBackend.fullBleedSeparator();
     }
 }
 
 void EditorUI::BeginDisabled(bool disabled)
 {
-    if (s_widgetBackend.beginDisabled)
+    if (s_WidgetBackend.beginDisabled)
     {
-        s_widgetBackend.beginDisabled(disabled);
+        s_WidgetBackend.beginDisabled(disabled);
     }
 }
 
 void EditorUI::EndDisabled()
 {
-    if (s_widgetBackend.endDisabled)
+    if (s_WidgetBackend.endDisabled)
     {
-        s_widgetBackend.endDisabled();
+        s_WidgetBackend.endDisabled();
     }
 }
 
@@ -1423,9 +1423,9 @@ bool IntFieldImpl(const char* label, T* v, float speed, int64_t vmin, int64_t vm
         }
         *v = static_cast<T>(tmp);
     }
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(T), /*ownsStorage*/ true, &before, label, AdaptInt<T>(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(T), /*ownsStorage*/ true, &before, label, AdaptInt<T>(cb));
     }
     return changed;
 }
@@ -1462,9 +1462,9 @@ bool EditorUI::FloatField(const char* label, float* v, float speed, float vmin, 
     const float before = *v;
     PropertyRow(label);
     const bool changed = DragFloat(FieldId(label).c_str(), v, speed, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(float), true, &before, label, AdaptFloat(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(float), true, &before, label, AdaptFloat(cb));
     }
     return changed;
 }
@@ -1475,9 +1475,9 @@ bool EditorUI::Vector2Field(const char* label, float v[2], float speed, float vm
     const float before[2] = { v[0], v[1] };
     PropertyRow(label);
     const bool changed = DragFloat2(FieldId(label).c_str(), v, speed, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(float) * 2, true, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(float) * 2, true, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1488,9 +1488,9 @@ bool EditorUI::Vector3Field(const char* label, float v[3], float speed, float vm
     const float before[3] = { v[0], v[1], v[2] };
     PropertyRow(label);
     const bool changed = DragFloat3(FieldId(label).c_str(), v, speed, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(float) * 3, true, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(float) * 3, true, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1502,8 +1502,8 @@ bool EditorUI::FloatField(const char* label, float* v, Unit unit, const FloatCal
     {
         return FloatField(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
     }
-    return s_widgetBackend.unitField
-               ? s_widgetBackend.unitField(label, v, 1, static_cast<int>(unit), /*ownsStorage*/ true, AdaptFloat(cb))
+    return s_WidgetBackend.unitField
+               ? s_WidgetBackend.unitField(label, v, 1, static_cast<int>(unit), /*ownsStorage*/ true, AdaptFloat(cb))
                : false;
 }
 bool EditorUI::Vector2Field(const char* label, float v[2], Unit unit, const VecCallbacks& cb)
@@ -1512,8 +1512,8 @@ bool EditorUI::Vector2Field(const char* label, float v[2], Unit unit, const VecC
     {
         return Vector2Field(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
     }
-    return s_widgetBackend.unitField
-               ? s_widgetBackend.unitField(label, v, 2, static_cast<int>(unit), true, AdaptVec(cb))
+    return s_WidgetBackend.unitField
+               ? s_WidgetBackend.unitField(label, v, 2, static_cast<int>(unit), true, AdaptVec(cb))
                : false;
 }
 bool EditorUI::Vector3Field(const char* label, float v[3], Unit unit, const VecCallbacks& cb)
@@ -1522,8 +1522,8 @@ bool EditorUI::Vector3Field(const char* label, float v[3], Unit unit, const VecC
     {
         return Vector3Field(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
     }
-    return s_widgetBackend.unitField
-               ? s_widgetBackend.unitField(label, v, 3, static_cast<int>(unit), true, AdaptVec(cb))
+    return s_WidgetBackend.unitField
+               ? s_WidgetBackend.unitField(label, v, 3, static_cast<int>(unit), true, AdaptVec(cb))
                : false;
 }
 
@@ -1532,9 +1532,9 @@ bool EditorUI::ColorField(const char* label, float v[4], const VecCallbacks& cb)
     const float before[4] = { v[0], v[1], v[2], v[3] };
     PropertyRow(label);
     const bool changed = ColorEdit4(FieldId(label).c_str(), v);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(float) * 4, true, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(float) * 4, true, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1544,9 +1544,9 @@ bool EditorUI::ColorRGBField(const char* label, float v[3], const VecCallbacks& 
     const float before[3] = { v[0], v[1], v[2] };
     PropertyRow(label);
     const bool changed = ColorEdit3(FieldId(label).c_str(), v);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(float) * 3, true, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(float) * 3, true, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1556,9 +1556,9 @@ bool EditorUI::EnumField(const char* label, int* index, const char* const items[
     const int before = *index;
     PropertyRow(label);
     const bool changed = Combo(FieldId(label).c_str(), index, items, count);
-    if (changed && s_widgetBackend.commitEdit)
+    if (changed && s_WidgetBackend.commitEdit)
     {
-        s_widgetBackend.commitEdit(index, sizeof(int), true, &before, label, AdaptEnum(cb));
+        s_WidgetBackend.commitEdit(index, sizeof(int), true, &before, label, AdaptEnum(cb));
     }
     return changed;
 }
@@ -1568,9 +1568,9 @@ bool EditorUI::EnumField(const char* label, int* index, const char* itemsZeroSep
     const int before = *index;
     PropertyRow(label);
     const bool changed = Combo(FieldId(label).c_str(), index, itemsZeroSep);
-    if (changed && s_widgetBackend.commitEdit)
+    if (changed && s_WidgetBackend.commitEdit)
     {
-        s_widgetBackend.commitEdit(index, sizeof(int), true, &before, label, AdaptEnum(cb));
+        s_WidgetBackend.commitEdit(index, sizeof(int), true, &before, label, AdaptEnum(cb));
     }
     return changed;
 }
@@ -1581,9 +1581,9 @@ bool EditorUI::InputField(const char* label, char* buf, size_t bufSize, const Te
     before.resize(bufSize, '\0');  // snapshot the whole fixed buffer
     PropertyRow(label);
     const bool changed = InputText(FieldId(label).c_str(), buf, bufSize);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(buf, bufSize, true, before.data(), label, AdaptText(cb));
+        s_WidgetBackend.recordEdit(buf, bufSize, true, before.data(), label, AdaptText(cb));
     }
     return changed;
 }
@@ -1594,9 +1594,9 @@ bool EditorUI::SliderField(const char* label, float* v, float vmin, float vmax, 
     const float before = *v;
     PropertyRow(label);
     const bool changed = SliderFloat(FieldId(label).c_str(), v, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(float), true, &before, label, AdaptFloat(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(float), true, &before, label, AdaptFloat(cb));
     }
     return changed;
 }
@@ -1606,10 +1606,10 @@ bool EditorUI::SliderField(const char* label, int* v, int vmin, int vmax, const 
     const int before = *v;
     PropertyRow(label);
     const bool changed =
-        s_widgetBackend.sliderInt ? s_widgetBackend.sliderInt(FieldId(label).c_str(), v, vmin, vmax) : false;
-    if (s_widgetBackend.recordEdit)
+        s_WidgetBackend.sliderInt ? s_WidgetBackend.sliderInt(FieldId(label).c_str(), v, vmin, vmax) : false;
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(v, sizeof(int), true, &before, label, AdaptEnum(cb));
+        s_WidgetBackend.recordEdit(v, sizeof(int), true, &before, label, AdaptEnum(cb));
     }
     return changed;
 }
@@ -1621,15 +1621,15 @@ bool EditorUI::FloatField(const char* label, float value, Unit unit, const Float
     const float before = value;
     if (unit != Unit::None)
     {
-        return s_widgetBackend.unitField ? s_widgetBackend.unitField(label, &temp, 1, static_cast<int>(unit),
+        return s_WidgetBackend.unitField ? s_WidgetBackend.unitField(label, &temp, 1, static_cast<int>(unit),
                                                                      /*ownsStorage*/ false, AdaptFloat(cb))
                                          : false;
     }
     PropertyRow(label);
     const bool changed = DragFloat(FieldId(label).c_str(), &temp, 1.0f, 0.0f, 0.0f, "%.3f");
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(&temp, sizeof(float), false, &before, label, AdaptFloat(cb));
+        s_WidgetBackend.recordEdit(&temp, sizeof(float), false, &before, label, AdaptFloat(cb));
     }
     return changed;
 }
@@ -1640,15 +1640,15 @@ bool EditorUI::Vector2Field(const char* label, float x, float y, Unit unit, cons
     const float before[2] = { x, y };
     if (unit != Unit::None)
     {
-        return s_widgetBackend.unitField
-                   ? s_widgetBackend.unitField(label, temp, 2, static_cast<int>(unit), false, AdaptVec(cb))
+        return s_WidgetBackend.unitField
+                   ? s_WidgetBackend.unitField(label, temp, 2, static_cast<int>(unit), false, AdaptVec(cb))
                    : false;
     }
     PropertyRow(label);
     const bool changed = DragFloat2(FieldId(label).c_str(), temp, 1.0f, 0.0f, 0.0f, "%.3f");
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(temp, sizeof(float) * 2, false, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(temp, sizeof(float) * 2, false, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1659,15 +1659,15 @@ bool EditorUI::Vector3Field(const char* label, float x, float y, float z, Unit u
     const float before[3] = { x, y, z };
     if (unit != Unit::None)
     {
-        return s_widgetBackend.unitField
-                   ? s_widgetBackend.unitField(label, temp, 3, static_cast<int>(unit), false, AdaptVec(cb))
+        return s_WidgetBackend.unitField
+                   ? s_WidgetBackend.unitField(label, temp, 3, static_cast<int>(unit), false, AdaptVec(cb))
                    : false;
     }
     PropertyRow(label);
     const bool changed = DragFloat3(FieldId(label).c_str(), temp, 1.0f, 0.0f, 0.0f, "%.3f");
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(temp, sizeof(float) * 3, false, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(temp, sizeof(float) * 3, false, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1679,9 +1679,9 @@ bool EditorUI::FloatField(const char* label, float value, float speed, float vmi
     const float before = value;
     PropertyRow(label);
     const bool changed = DragFloat(FieldId(label).c_str(), &temp, speed, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(&temp, sizeof(float), false, &before, label, AdaptFloat(cb));
+        s_WidgetBackend.recordEdit(&temp, sizeof(float), false, &before, label, AdaptFloat(cb));
     }
     return changed;
 }
@@ -1693,9 +1693,9 @@ bool EditorUI::Vector2Field(const char* label, float x, float y, float speed, fl
     const float before[2] = { x, y };
     PropertyRow(label);
     const bool changed = DragFloat2(FieldId(label).c_str(), temp, speed, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(temp, sizeof(float) * 2, false, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(temp, sizeof(float) * 2, false, before, label, AdaptVec(cb));
     }
     return changed;
 }
@@ -1707,9 +1707,9 @@ bool EditorUI::Vector3Field(const char* label, float x, float y, float z, float 
     const float before[3] = { x, y, z };
     PropertyRow(label);
     const bool changed = DragFloat3(FieldId(label).c_str(), temp, speed, vmin, vmax, format);
-    if (s_widgetBackend.recordEdit)
+    if (s_WidgetBackend.recordEdit)
     {
-        s_widgetBackend.recordEdit(temp, sizeof(float) * 3, false, before, label, AdaptVec(cb));
+        s_WidgetBackend.recordEdit(temp, sizeof(float) * 3, false, before, label, AdaptVec(cb));
     }
     return changed;
 }

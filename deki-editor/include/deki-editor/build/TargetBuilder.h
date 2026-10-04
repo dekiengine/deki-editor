@@ -45,8 +45,7 @@ public:
 };
 
 /// Shared utility: draw an editable string list (defines, flags, etc.)
-void DrawStringListEditor(const char* label, std::vector<std::string>& list,
-                          char* newItemBuffer, size_t bufSize);
+void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
 
 // ============================================================================
 // Toolchain component types (used by BuildPanel for generic toolchain UI)
@@ -62,7 +61,7 @@ enum class ToolchainComponentStatus
 
 struct ToolchainComponent
 {
-    std::string id;           // the backend's own id for it: an SDK, an interpreter, a flash tool
+    std::string id;  // the backend's own id for it: an SDK, an interpreter, a flash tool
     std::string displayName;
     ToolchainComponentStatus status = ToolchainComponentStatus::NotInstalled;
     std::string installedVersion;
@@ -157,13 +156,11 @@ public:
     // ========================================================================
 
     /// Build firmware for the given project
-    virtual void Build(const std::string& projectPath,
-                       BuildOutputCallback outputCallback = nullptr,
+    virtual void Build(const std::string& projectPath, BuildOutputCallback outputCallback = nullptr,
                        BuildProgressCallback progressCallback = nullptr) = 0;
 
     /// Clean build directory
-    virtual void Clean(const std::string& projectPath,
-                       BuildOutputCallback outputCallback = nullptr,
+    virtual void Clean(const std::string& projectPath, BuildOutputCallback outputCallback = nullptr,
                        BuildProgressCallback progressCallback = nullptr) = 0;
 
     // ========================================================================
@@ -191,8 +188,7 @@ public:
     /// Deploy the last build. deployTargetId is a DeployTarget::id from
     /// EnumerateDeployTargets, or empty to let the backend pick.
     virtual void Deploy(const std::string& projectPath, const std::string& deployTargetId,
-                        BuildOutputCallback outputCallback = nullptr,
-                        BuildProgressCallback progressCallback = nullptr)
+                        BuildOutputCallback outputCallback = nullptr, BuildProgressCallback progressCallback = nullptr)
     {
         (void)projectPath;
         (void)deployTargetId;
@@ -243,16 +239,14 @@ public:
     virtual std::vector<ToolchainComponent> GetToolchainComponents() const { return {}; }
 
     /// Install or reinstall a specific toolchain component by id
-    virtual void InstallToolchainComponent(const std::string& componentId,
-                                           BuildProgressCallback cb = nullptr)
+    virtual void InstallToolchainComponent(const std::string& componentId, BuildProgressCallback cb = nullptr)
     {
         (void)componentId;
         (void)cb;
     }
 
     /// Run the postInstall setup script for an already-installed component
-    virtual void SetupToolchainComponent(const std::string& componentId,
-                                         BuildProgressCallback cb = nullptr)
+    virtual void SetupToolchainComponent(const std::string& componentId, BuildProgressCallback cb = nullptr)
     {
         (void)componentId;
         (void)cb;
@@ -261,7 +255,10 @@ public:
     /// Check for toolchain updates (async). Calls onComplete when done.
     virtual void CheckForToolchainUpdates(std::function<void()> onComplete = nullptr)
     {
-        if (onComplete) onComplete();
+        if (onComplete)
+        {
+            onComplete();
+        }
     }
 
     /// Whether any toolchain operation (install/update check) is in progress
@@ -277,8 +274,7 @@ public:
     /// Generate/regenerate build files for the given platform configuration.
     /// Called on platform switch and during new project creation.
     /// Each builder generates its own project structure (CMakeLists.txt, etc.)
-    virtual bool GenerateBuildFiles(const std::string& projectPath,
-                                    const PlatformConfig& config,
+    virtual bool GenerateBuildFiles(const std::string& projectPath, const PlatformConfig& config,
                                     const std::vector<std::string>& packageDefines) = 0;
 
     // ========================================================================

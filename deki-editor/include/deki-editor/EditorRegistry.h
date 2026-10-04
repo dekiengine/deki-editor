@@ -106,8 +106,8 @@ struct EditorRegistrar
 {
     EditorRegistrar()
     {
-        static T prototype;
-        EditorRegistry::Instance().AddFactory(&prototype, []() -> std::unique_ptr<DekiEditor::EditorExtension>
+        static T s_Prototype;
+        EditorRegistry::Instance().AddFactory(&s_Prototype, []() -> std::unique_ptr<DekiEditor::EditorExtension>
                                               { return std::make_unique<T>(); });
     }
 };
@@ -122,7 +122,6 @@ struct EditorRegistrar
  * Works for both CustomEditor and AssetTypeEditor subclasses.
  * Now uses factory pattern to create fresh instances per-component.
  */
-#define REGISTER_EDITOR(EditorClass)                                                                                   \
-    static DekiEditorInternal::EditorRegistrar<EditorClass> g_##EditorClass##_Registrar;
+#define REGISTER_EDITOR(EditorClass) static DekiEditorInternal::EditorRegistrar<EditorClass> s_##EditorClass##Registrar;
 
 }  // namespace DekiEditorInternal

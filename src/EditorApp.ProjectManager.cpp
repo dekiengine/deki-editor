@@ -89,7 +89,7 @@ namespace DekiEditor
 
 bool EditorApp::OpenProject(const std::string& path)
 {
-    ScopedTimer __t_open("EditorApp::OpenProject total");
+    ScopedTimer tOpen("EditorApp::OpenProject total");
     m_OpenProjectError.clear();
 
     // One editor per project. Taken before the current project closes, so a
@@ -165,7 +165,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // is a runtime-frequent cache that hot paths read on every frame.
     DekiEditor::ApplySettingsToGlobalCache();
 
-    // Asset cache epoch: a bumped ASSET_CACHE_EPOCH means the compiled asset
+    // Asset cache epoch: a bumped kAssetCacheEpoch means the compiled asset
     // format changed, so the cache is wiped here and ImportAllAssets below
     // rebuilds it. The result used to be ignored - the bump only logged.
     if (CheckAssetCacheEpochChanged(path))
@@ -196,7 +196,7 @@ bool EditorApp::OpenProject(const std::string& path)
     //
     // Same code path as `--packages-restore`; see services/PackageRestore.h.
     {
-        ScopedTimer __t_restore("OpenProject RestoreMissingPackages");
+        ScopedTimer tRestore("OpenProject RestoreMissingPackages");
         PackageManager packageMgr(this);
         packageMgr.LoadPackages(path);
 
@@ -260,7 +260,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // nothing more - is adopted from the package offering it, and one that
     // nobody offers is an error said here rather than a quiet substitute.
     {
-        ScopedTimer __t_platforms("OpenProject platforms");
+        ScopedTimer tPlatforms("OpenProject platforms");
         StartupProgress::Update("Checking platforms...");
         const std::string activePlatform = m_Project->GetActivePlatformId();
         ReloadProjectPlatforms(path);
@@ -301,7 +301,7 @@ bool EditorApp::OpenProject(const std::string& path)
         // on a new machine rather than an exotic one.
         std::vector<Prerequisite> prereqs;
         {
-            ScopedTimer __t_prereq("OpenProject CheckPrerequisites");
+            ScopedTimer tPrereq("OpenProject CheckPrerequisites");
             StartupProgress::Update("Checking build tools...");
             prereqs = CheckPrerequisites();
         }
@@ -329,7 +329,7 @@ bool EditorApp::OpenProject(const std::string& path)
             }
 
             StartupProgress::Update("Building project...");
-            ScopedTimer __t_first("OpenProject EnsureFirstBuild");
+            ScopedTimer tFirst("OpenProject EnsureFirstBuild");
             m_HotReloadService->EnsureFirstBuild(path);
         }
     }
@@ -340,7 +340,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // fails deep in LoadLibrary. This is a no-op when everything is up to date.
     if (m_HotReloadService)
     {
-        ScopedTimer __t_stale("OpenProject BuildPackagesIfStale");
+        ScopedTimer tStale("OpenProject BuildPackagesIfStale");
         m_HotReloadService->BuildPackagesIfStale(path);
     }
 
@@ -359,8 +359,8 @@ bool EditorApp::OpenProject(const std::string& path)
     {
         std::filesystem::path projectDataDir =
             std::filesystem::path(EditorSettings::GetSettingsDir()) / m_Project->GetName();
-        std::error_code mkdir_ec;
-        std::filesystem::create_directories(projectDataDir, mkdir_ec);
+        std::error_code mkdirEc;
+        std::filesystem::create_directories(projectDataDir, mkdirEc);
         editorFs->SetStorageBasePath(projectDataDir.string() + "/");
         Deki::FileSystem::SetFileSystem(editorFs);
         Deki::FileSystem::SetDefaultFileSystem(editorFs);
@@ -369,7 +369,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // Load engine packages with per-project shadow copies
     // Must happen before plugin loading - plugins link against package import libs
     StartupProgress::Update("Loading packages...");
-    m_PackageLoader->OnPackageLoading = [](const std::string& name)
+    m_PackageLoader->onPackageLoading = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
         {
@@ -377,7 +377,7 @@ bool EditorApp::OpenProject(const std::string& path)
         }
     };
     {
-        ScopedTimer __t_mod_exe("OpenProject LoadPackagesFromDirectory(exeDir)");
+        ScopedTimer tModExe("OpenProject LoadPackagesFromDirectory(exeDir)");
         namespace fs = std::filesystem;
         std::string exeDir;
 #ifdef _WIN32
@@ -411,7 +411,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // What width the device will compile, from the tags the project's packages
     // and deki.json declare. The editor has every axis regardless.
     {
-        ScopedTimer __t_width("OpenProject transform width");
+        ScopedTimer tWidth("OpenProject transform width");
         const auto declared = CMakeGen::ScanPackageManifests(path);
         std::set<std::string> ids;
         for (const auto& pkg : declared)
@@ -436,7 +436,7 @@ bool EditorApp::OpenProject(const std::string& path)
         // both would register every component twice.
         PackageLoader::RemoveOrphanedPackageLibraries(binPath.string(), path);
 
-        ScopedTimer __t_mod_bin("OpenProject LoadPackagesFromDirectory(bin) + Register");
+        ScopedTimer tModBin("OpenProject LoadPackagesFromDirectory(bin) + Register");
         m_PackageLoader->LoadPackagesFromDirectory(binPath.string(), ImGui::GetCurrentContext());
         // Re-register editors: package DLLs (deki-2d etc.) populate EditorRegistry
         // via REGISTER_EDITOR static initializers at load time, but those entries
@@ -488,14 +488,14 @@ bool EditorApp::OpenProject(const std::string& path)
     if (!m_Headless)
     {
         StartupProgress::Update("Discovering tools...");
-        ScopedTimer __t_tools("OpenProject ToolHost::DiscoverTools");
+        ScopedTimer tTools("OpenProject ToolHost::DiscoverTools");
         m_ToolHost->DiscoverTools();
     }
 
     // Load existing plugins from bin/ before asset import
     // This ensures plugin components are registered before CompileSceneFile() deserializes scenes
     StartupProgress::Update("Loading plugins...");
-    m_PluginLoader->OnPluginLoading = [](const std::string& name)
+    m_PluginLoader->onPluginLoading = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
         {
@@ -504,7 +504,7 @@ bool EditorApp::OpenProject(const std::string& path)
     };
     if (std::filesystem::exists(binPath))
     {
-        ScopedTimer __t_plug("OpenProject LoadPluginsFromDirectory");
+        ScopedTimer tPlug("OpenProject LoadPluginsFromDirectory");
         m_PluginLoader->LoadPluginsFromDirectory(binPath.string());
     }
 
@@ -534,7 +534,7 @@ bool EditorApp::OpenProject(const std::string& path)
 
     // Single source of truth for "make this asset's GUIDs resolvable through
     // AssetManager". Used by both the post-import bulk loop and the file-watcher
-    // OnAssetDiscovered callback so newly added assets become resolvable
+    // onAssetDiscovered callback so newly added assets become resolvable
     // immediately, without an editor restart or manual reimport.
     auto registerAssetWithManager = [this](const AssetInfo& info)
     {
@@ -586,7 +586,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // ProcessAsset for live additions and ProcessAsset fires this callback,
     // so a freshly authored .asset file becomes runtime-resolvable on the
     // next editor frame without a project reopen or import button.
-    m_AssetPipeline->OnAssetDiscovered = [this, registerAssetWithManager](const std::string& assetPath)
+    m_AssetPipeline->onAssetDiscovered = [this, registerAssetWithManager](const std::string& assetPath)
     {
         if (!StartupProgress::IsComplete())
         {
@@ -613,8 +613,8 @@ bool EditorApp::OpenProject(const std::string& path)
     // Fired when ProcessAsset sees a path for the first time. Drives the
     // editor-side UI refresh that previously had to be triggered manually
     // by every "create asset" call site (AssetBrowser thumbnails, picker
-    // cache). Runtime registration still happens via OnAssetDiscovered.
-    m_AssetPipeline->OnAssetCreated = [this](const std::string& /*relativePath*/)
+    // cache). Runtime registration still happens via onAssetDiscovered.
+    m_AssetPipeline->onAssetCreated = [this](const std::string& /*relativePath*/)
     {
         if (m_AssetBrowserPanel)
         {
@@ -622,7 +622,7 @@ bool EditorApp::OpenProject(const std::string& path)
         }
     };
     // A whole import refreshes the browser once, not once per asset.
-    m_AssetPipeline->OnImportAllFinished = [this]()
+    m_AssetPipeline->onImportAllFinished = [this]()
     {
         if (m_AssetBrowserPanel)
         {
@@ -630,7 +630,7 @@ bool EditorApp::OpenProject(const std::string& path)
         }
     };
 
-    m_AssetPipeline->OnAssetChanged = [this, registerAssetWithManager](const std::string& relativePath)
+    m_AssetPipeline->onAssetChanged = [this, registerAssetWithManager](const std::string& relativePath)
     {
         // Invalidate all caches so re-exported/re-baked assets update immediately.
         // Order matters: clear AssetRef pointers before freeing the runtime asset
@@ -674,12 +674,12 @@ bool EditorApp::OpenProject(const std::string& path)
         }
     };
 
-    m_AssetPipeline->OnAssetDeleted = [this](const std::string& relativePath, const std::string& guid)
+    m_AssetPipeline->onAssetDeleted = [this](const std::string& relativePath, const std::string& guid)
     {
         // A deleted asset must drop out of every cache so anything that
         // references it (e.g. a SpriteComponent in the open scene) renders
         // nothing instead of a stale texture. Same invalidation order as
-        // OnAssetChanged, but the asset never comes back: with the cache file
+        // onAssetChanged, but the asset never comes back: with the cache file
         // gone, the next AssetRef::Get() re-resolve loads null.
         if (guid.empty())
         {
@@ -737,17 +737,17 @@ bool EditorApp::OpenProject(const std::string& path)
     ApplyEditorTarget(/*reimport=*/false);
 
     {
-        ScopedTimer __t_import("OpenProject AssetPipeline::ImportAllAssets");
+        ScopedTimer tImport("OpenProject AssetPipeline::ImportAllAssets");
         m_AssetPipeline->ImportAllAssets();
     }
 
-    // Bulk re-register all asset GUIDs with AssetManager. OnAssetDiscovered
+    // Bulk re-register all asset GUIDs with AssetManager. onAssetDiscovered
     // already registered each asset live during ImportAllAssets, but we
     // re-run here to (a) catch any sub-assets a sync handler registered after
     // its parent was first discovered, and (b) keep this loop authoritative
     // if anyone disables the watcher path in the future.
     {
-        ScopedTimer __t_register("OpenProject AssetManager GUID registration");
+        ScopedTimer tRegister("OpenProject AssetManager GUID registration");
         for (const auto& [assetPath, info] : m_AssetPipeline->GetAllAssets())
         {
             registerAssetWithManager(info);
@@ -881,7 +881,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // Restore last opened scene for this project, or create a new one
     if (!m_CurrentScene)
     {
-        ScopedTimer __t_scene("OpenProject restore last scene");
+        ScopedTimer tScene("OpenProject restore last scene");
         std::string lastScene = EditorSettings::GetString("lastScene:" + path);
         if (!lastScene.empty() && std::filesystem::exists(lastScene))
         {
@@ -1139,7 +1139,7 @@ bool EditorApp::OpenScene(const std::string& rawPath)
 
         // Open and focus the Scene View panel. The focus call goes through
         // ImGui, so it is GUI-only - headless there is no context to focus in.
-        m_SceneViewPanel->m_Open = true;
+        m_SceneViewPanel->isOpen = true;
         if (!m_Headless)
         {
             ImGui::SetWindowFocus("SCENE VIEW###Scene View");
@@ -1736,18 +1736,18 @@ bool EditorApp::CheckAssetCacheEpochChanged(const std::string& projectPath)
     }
 
     // Compare versions
-    bool versionChanged = (storedVersion != ASSET_CACHE_EPOCH);
+    bool versionChanged = (storedVersion != kAssetCacheEpoch);
 
     if (versionChanged)
     {
         DEKI_LOG_EDITOR("[EditorApp] Asset cache epoch changed from '%s' to '%s' - triggering asset reimport",
-                        storedVersion.empty() ? "(none)" : storedVersion.c_str(), ASSET_CACHE_EPOCH);
+                        storedVersion.empty() ? "(none)" : storedVersion.c_str(), kAssetCacheEpoch);
 
         // Update version file
         std::ofstream file(versionFilePath);
         if (file.is_open())
         {
-            file << ASSET_CACHE_EPOCH;
+            file << kAssetCacheEpoch;
             file.close();
         }
     }

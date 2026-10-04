@@ -297,7 +297,7 @@ void Tooltip(const char* fmt, ...)
     // Either measure says "resting": the item timer for anything ImGui knows as
     // an item, the stationary timer for tooltips hung off hand-drawn regions
     // (canvas pins, toolbar cells) where there is no hovered id to time.
-    if (g.HoveredIdTimer < TooltipDelaySeconds && g.MouseStationaryTimer < TooltipDelaySeconds)
+    if (g.HoveredIdTimer < kTooltipDelaySeconds && g.MouseStationaryTimer < kTooltipDelaySeconds)
     {
         return;
     }
@@ -658,7 +658,7 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
             const ImGuiID id = ImGui::GetID(b.label);
             const bool held = ImGui::GetActiveID() == id;
             const float t =
-                Motion::EaseOut(Motion::To(id ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Motion::Fast : Motion::Normal));
+                Motion::EaseOut(Motion::To(id ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Motion::kFast : Motion::kNormal));
             ImVec4 rest, hovered, pressed;
             if (b.kind == DialogButton::Primary)
             {
@@ -799,77 +799,77 @@ void SetupEditorTheme(float dpiScale)
 
     ImVec4* colors = style.Colors;
 
-    const ImVec4& Bg = Palette::Bg;
-    const ImVec4& Bg2 = Palette::Bg2;
-    const ImVec4& Bg3 = Palette::Bg3;
-    const ImVec4& Panel = Palette::Panel;
-    const ImVec4& Line = Palette::Line;
-    const ImVec4& Line2 = Palette::Line2;
-    const ImVec4& Fg = Palette::Fg;
-    const ImVec4& Dim = Palette::Dim;
-    const ImVec4& Accent = Palette::Accent;
+    const ImVec4& bg = Palette::Bg;
+    const ImVec4& bg2 = Palette::Bg2;
+    const ImVec4& bg3 = Palette::Bg3;
+    const ImVec4& panel = Palette::Panel;
+    const ImVec4& line = Palette::Line;
+    const ImVec4& line2 = Palette::Line2;
+    const ImVec4& fg = Palette::Fg;
+    const ImVec4& dim = Palette::Dim;
+    const ImVec4& accent = Palette::Accent;
 
-    const ImVec4 AccentSubtle = ImVec4(Accent.x, Accent.y, Accent.z, 0.12f);
-    const ImVec4 AccentFaint = ImVec4(Accent.x, Accent.y, Accent.z, 0.08f);
+    const ImVec4 accentSubtle = ImVec4(accent.x, accent.y, accent.z, 0.12f);
+    const ImVec4 accentFaint = ImVec4(accent.x, accent.y, accent.z, 0.08f);
 
     // Text
-    colors[ImGuiCol_Text] = Fg;
-    colors[ImGuiCol_TextDisabled] = Dim;
+    colors[ImGuiCol_Text] = fg;
+    colors[ImGuiCol_TextDisabled] = dim;
 
     // Surfaces
-    colors[ImGuiCol_WindowBg] = Bg;
+    colors[ImGuiCol_WindowBg] = bg;
     colors[ImGuiCol_ChildBg] = ImVec4(0, 0, 0, 0);
-    colors[ImGuiCol_PopupBg] = Panel;
-    colors[ImGuiCol_Border] = Line2;
+    colors[ImGuiCol_PopupBg] = panel;
+    colors[ImGuiCol_Border] = line2;
     colors[ImGuiCol_BorderShadow] = ImVec4(0, 0, 0, 0);
 
     // Input fields
-    colors[ImGuiCol_FrameBg] = Bg3;
-    colors[ImGuiCol_FrameBgHovered] = Bg2;
-    colors[ImGuiCol_FrameBgActive] = Bg2;
+    colors[ImGuiCol_FrameBg] = bg3;
+    colors[ImGuiCol_FrameBgHovered] = bg2;
+    colors[ImGuiCol_FrameBgActive] = bg2;
 
     // Title bars / menus
-    colors[ImGuiCol_TitleBg] = Panel;
-    colors[ImGuiCol_TitleBgActive] = Panel;
-    colors[ImGuiCol_TitleBgCollapsed] = Panel;
-    colors[ImGuiCol_MenuBarBg] = Panel;
+    colors[ImGuiCol_TitleBg] = panel;
+    colors[ImGuiCol_TitleBgActive] = panel;
+    colors[ImGuiCol_TitleBgCollapsed] = panel;
+    colors[ImGuiCol_MenuBarBg] = panel;
 
     // Scrollbars
     colors[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
-    colors[ImGuiCol_ScrollbarGrab] = Line2;
+    colors[ImGuiCol_ScrollbarGrab] = line2;
     colors[ImGuiCol_ScrollbarGrabHovered] = Palette::Line3;
-    colors[ImGuiCol_ScrollbarGrabActive] = Dim;
+    colors[ImGuiCol_ScrollbarGrabActive] = dim;
 
     // Controls
-    colors[ImGuiCol_CheckMark] = Accent;
+    colors[ImGuiCol_CheckMark] = accent;
     colors[ImGuiCol_SliderGrab] = Palette::AccentDim;
-    colors[ImGuiCol_SliderGrabActive] = Accent;
+    colors[ImGuiCol_SliderGrabActive] = accent;
     colors[ImGuiCol_Button] = ImVec4(0, 0, 0, 0);
-    colors[ImGuiCol_ButtonHovered] = Bg2;
-    colors[ImGuiCol_ButtonActive] = Bg;
+    colors[ImGuiCol_ButtonHovered] = bg2;
+    colors[ImGuiCol_ButtonActive] = bg;
 
     // Headers (selectable rows, tree nodes, collapsing headers)
     colors[ImGuiCol_Header] = ImVec4(0, 0, 0, 0);
-    colors[ImGuiCol_HeaderHovered] = AccentFaint;
-    colors[ImGuiCol_HeaderActive] = AccentSubtle;
+    colors[ImGuiCol_HeaderHovered] = accentFaint;
+    colors[ImGuiCol_HeaderActive] = accentSubtle;
 
     // Separators
-    colors[ImGuiCol_Separator] = Line;
-    colors[ImGuiCol_SeparatorHovered] = Accent;
-    colors[ImGuiCol_SeparatorActive] = Accent;
+    colors[ImGuiCol_Separator] = line;
+    colors[ImGuiCol_SeparatorHovered] = accent;
+    colors[ImGuiCol_SeparatorActive] = accent;
 
     // Resize grips
     colors[ImGuiCol_ResizeGrip] = ImVec4(0, 0, 0, 0);
     colors[ImGuiCol_ResizeGripHovered] = Palette::AccentDim;
-    colors[ImGuiCol_ResizeGripActive] = Accent;
+    colors[ImGuiCol_ResizeGripActive] = accent;
 
     // Tabs (panel headers) - active draws with Bg, inactive with Panel.
     // Active tab gets a visual underline drawn per-panel.
-    colors[ImGuiCol_Tab] = Panel;
-    colors[ImGuiCol_TabHovered] = Bg;
-    colors[ImGuiCol_TabActive] = Bg;
-    colors[ImGuiCol_TabUnfocused] = Panel;
-    colors[ImGuiCol_TabUnfocusedActive] = Bg;
+    colors[ImGuiCol_Tab] = panel;
+    colors[ImGuiCol_TabHovered] = bg;
+    colors[ImGuiCol_TabActive] = bg;
+    colors[ImGuiCol_TabUnfocused] = panel;
+    colors[ImGuiCol_TabUnfocusedActive] = bg;
     // ImGui draws a 2px "overline" along the TOP of the selected dock tab
     // (ImGuiTabBarFlags_DrawSelectedOverline, hardcoded on for dock nodes).
     // We already paint our own accent underline at the bottom in RestyleTabRow,
@@ -880,19 +880,19 @@ void SetupEditorTheme(float dpiScale)
 
     // Docking
     colors[ImGuiCol_DockingPreview] = Palette::AccentDim;
-    colors[ImGuiCol_DockingEmptyBg] = Bg;
+    colors[ImGuiCol_DockingEmptyBg] = bg;
 
     // Tables
-    colors[ImGuiCol_TableHeaderBg] = Panel;
-    colors[ImGuiCol_TableBorderStrong] = Line2;
-    colors[ImGuiCol_TableBorderLight] = Line;
+    colors[ImGuiCol_TableHeaderBg] = panel;
+    colors[ImGuiCol_TableBorderStrong] = line2;
+    colors[ImGuiCol_TableBorderLight] = line;
     colors[ImGuiCol_TableRowBg] = ImVec4(0, 0, 0, 0);
     colors[ImGuiCol_TableRowBgAlt] = ImVec4(1, 1, 1, 0.018f);
 
     // Selection / drag / nav
-    colors[ImGuiCol_TextSelectedBg] = AccentSubtle;
-    colors[ImGuiCol_DragDropTarget] = Accent;
-    colors[ImGuiCol_NavHighlight] = Accent;
+    colors[ImGuiCol_TextSelectedBg] = accentSubtle;
+    colors[ImGuiCol_DragDropTarget] = accent;
+    colors[ImGuiCol_NavHighlight] = accent;
     colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1, 1, 1, 0.7f);
     colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0, 0, 0, 0.5f);
     colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0, 0, 0, 0.6f);
@@ -1000,16 +1000,16 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
     for (int t = 0; t < bar->Tabs.Size; ++t)
     {
         ImGuiTabItem* tab = &bar->Tabs[t];
-        const bool is_central = (tab->Flags & ImGuiTabItemFlags_SectionMask_) == 0;
-        const float tab_x_offset = is_central ? (tab->Offset - scroll) : tab->Offset;
-        const float x0 = bar->BarRect.Min.x + tab_x_offset;
+        const bool isCentral = (tab->Flags & ImGuiTabItemFlags_SectionMask_) == 0;
+        const float tabXOffset = isCentral ? (tab->Offset - scroll) : tab->Offset;
+        const float x0 = bar->BarRect.Min.x + tabXOffset;
         const float x1 = x0 + tab->Width;
         const bool active = (tab->ID == bar->VisibleTabId);
 
         // Push central-section clip rect so scrolled-out tabs don't bleed
         // into the leading/trailing buttons or beyond the bar.
-        const bool want_clip = is_central && (x0 < bar->ScrollingRectMinX || x1 > bar->ScrollingRectMaxX);
-        if (want_clip)
+        const bool wantClip = isCentral && (x0 < bar->ScrollingRectMinX || x1 > bar->ScrollingRectMaxX);
+        if (wantClip)
         {
             dl->PushClipRect(ImVec2(bar->ScrollingRectMinX, barY0), ImVec2(bar->ScrollingRectMaxX, barY1), true);
         }
@@ -1095,7 +1095,7 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
             dl->AddRectFilled(ImVec2(x0, barY1 - 2.0f), ImVec2(x1, barY1), colAccent);
         }
 
-        if (want_clip)
+        if (wantClip)
         {
             dl->PopClipRect();
         }
@@ -1314,19 +1314,19 @@ bool SchematicCheckbox(const char* label, bool* v)
 void BeginPropertyContext()
 {
     const float dpi = ImGui::GetStyle().FontScaleDpi;
-    ImGui::Indent(Metrics::InspectorIndent * dpi);
+    ImGui::Indent(Metrics::kInspectorIndent * dpi);
     // Row gap and field padding together: separation comes from the height of
     // the fields, not from air between them, which is what keeps a long list
     // reading as a table instead of a stack of loose controls.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, Metrics::RowSpacing * dpi));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Metrics::FieldPadding * dpi, Metrics::FieldPadding * dpi));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, Metrics::kRowSpacing * dpi));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Metrics::kFieldPadding * dpi, Metrics::kFieldPadding * dpi));
 }
 
 void EndPropertyContext()
 {
     const float dpi = ImGui::GetStyle().FontScaleDpi;
     ImGui::PopStyleVar(2);
-    ImGui::Unindent(Metrics::InspectorIndent * dpi);
+    ImGui::Unindent(Metrics::kInspectorIndent * dpi);
 }
 
 bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
@@ -1386,8 +1386,8 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         const float bandLeft = w->Pos.x;
         const float bandRight = w->Pos.x + w->Size.x - w->ScrollbarSizes.x;  // stop at the scrollbar
         const float dpiScale = ImGui::GetStyle().FontScaleDpi;
-        labelBaseX = ImMax(bandLeft + Metrics::SectionHeaderMargin * dpiScale,
-                           textBaseX - Metrics::SectionHeaderOutdent * dpiScale);
+        labelBaseX = ImMax(bandLeft + Metrics::kSectionHeaderMargin * dpiScale,
+                           textBaseX - Metrics::kSectionHeaderOutdent * dpiScale);
         w->DC.CursorPos.x = bandLeft;
         w->WorkRect.Min.x = bandLeft;
         w->WorkRect.Max.x = bandRight;
@@ -1424,8 +1424,8 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     // Chevron zone from the theme token, NOT from GetTreeNodeToLabelSpacing():
     // ImGui's own arrow and label are hidden here (transparent text), so nothing
     // depends on its geometry, and the token is the one column every band and
-    // every row in every panel aligns to. See Metrics::SectionLabelIndent.
-    const float labelSpacing = Metrics::SectionLabelIndent * dpi;
+    // every row in every panel aligns to. See Metrics::kSectionLabelIndent.
+    const float labelSpacing = Metrics::kSectionLabelIndent * dpi;
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(4);
@@ -1527,7 +1527,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // panel edge - the same offset the collapsing header uses, so the two kinds
     // of band line up with each other and the rows nest under both.
     const float labelBaseX =
-        ImMax(bandLeft + Metrics::SectionHeaderMargin * dpi, pos.x - Metrics::SectionHeaderOutdent * dpi);
+        ImMax(bandLeft + Metrics::kSectionHeaderMargin * dpi, pos.x - Metrics::kSectionHeaderOutdent * dpi);
 
     // The row is a button, not a Dummy: a band that titles something renameable
     // is clicked, and this way the caller gets the click without reaching for
@@ -1574,7 +1574,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // line above them rather than as their heading. The token is the same one
     // the collapsing header and every property row use, so a chevron-less band,
     // a foldout and their content all line up.
-    const float labelTextX = labelBaseX + Metrics::SectionLabelIndent * dpi;
+    const float labelTextX = labelBaseX + Metrics::kSectionLabelIndent * dpi;
 
     const float fontSize = BandTitleFontSize();
     ImFont* f = BandTitleFont();
@@ -2166,12 +2166,12 @@ static float OverlayAxisStamp(const char* axisLabel, const ImVec4& axisColor)
     return stampW;
 }
 
-bool SchematicDragFloat(const char* id, float* v, float v_speed, float v_min, float v_max, const char* format)
+bool SchematicDragFloat(const char* id, float* v, float vSpeed, float vMin, float vMax, const char* format)
 {
     // Empty format suppresses ImGui's centered value text without disabling
     // the widget; edit mode (TempInput) still uses the real format via
     // ImGui's internal fallback.
-    bool changed = ImGui::DragFloat(id, v, v_speed, v_min, v_max, "");
+    bool changed = ImGui::DragFloat(id, v, vSpeed, vMin, vMax, "");
     if (format && format[0])
     {
         char buf[64];
@@ -2181,9 +2181,9 @@ bool SchematicDragFloat(const char* id, float* v, float v_speed, float v_min, fl
     return changed;
 }
 
-bool SchematicDragInt(const char* id, int* v, float v_speed, int v_min, int v_max, const char* format)
+bool SchematicDragInt(const char* id, int* v, float vSpeed, int vMin, int vMax, const char* format)
 {
-    bool changed = ImGui::DragInt(id, v, v_speed, v_min, v_max, "");
+    bool changed = ImGui::DragInt(id, v, vSpeed, vMin, vMax, "");
     if (format && format[0])
     {
         char buf[64];
@@ -2203,7 +2203,7 @@ static const ImVec4 kAxisColors[3] = {
 };
 
 template <int N>
-static bool SchematicDragFloatN(const char* id, float v[N], float v_speed, float v_min, float v_max, const char* format)
+static bool SchematicDragFloatN(const char* id, float v[N], float vSpeed, float vMin, float vMax, const char* format)
 {
     // Split available row width across N components with inner spacing.
     const float total = ImGui::CalcItemWidth();
@@ -2224,7 +2224,7 @@ static bool SchematicDragFloatN(const char* id, float v[N], float v_speed, float
         ImFormatString(compId, IM_ARRAYSIZE(compId), "##c%d", i);
 
         // Draw the drag with no value text (empty format).
-        if (ImGui::DragFloat(compId, &v[i], v_speed, v_min, v_max, ""))
+        if (ImGui::DragFloat(compId, &v[i], vSpeed, vMin, vMax, ""))
         {
             changed = true;
         }
@@ -2243,21 +2243,21 @@ static bool SchematicDragFloatN(const char* id, float v[N], float v_speed, float
     return changed;
 }
 
-bool SchematicDragFloat2(const char* id, float v[2], float v_speed, float v_min, float v_max, const char* format)
+bool SchematicDragFloat2(const char* id, float v[2], float vSpeed, float vMin, float vMax, const char* format)
 {
-    return SchematicDragFloatN<2>(id, v, v_speed, v_min, v_max, format);
+    return SchematicDragFloatN<2>(id, v, vSpeed, vMin, vMax, format);
 }
 
-bool SchematicDragFloat3(const char* id, float v[3], float v_speed, float v_min, float v_max, const char* format)
+bool SchematicDragFloat3(const char* id, float v[3], float vSpeed, float vMin, float vMax, const char* format)
 {
-    return SchematicDragFloatN<3>(id, v, v_speed, v_min, v_max, format);
+    return SchematicDragFloatN<3>(id, v, vSpeed, vMin, vMax, format);
 }
 
-bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed, float v_min, float v_max,
+bool SchematicDragFloatAxis(const char* id, float* v, int axis, float vSpeed, float vMin, float vMax,
                             const char* format)
 {
     axis = ImClamp(axis, 0, 2);
-    const bool changed = ImGui::DragFloat(id, v, v_speed, v_min, v_max, "");
+    const bool changed = ImGui::DragFloat(id, v, vSpeed, vMin, vMax, "");
     const float stampW = OverlayAxisStamp(kAxisLabels[axis], kAxisColors[axis]);
     if (format && format[0])
     {
@@ -2269,7 +2269,7 @@ bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed, f
 }
 
 // Shared implementation for the 3- and 4-channel color editors. `N` is 3 or 4.
-static bool SchematicColorEditN(const char* id, float* col, int N)
+static bool SchematicColorEditN(const char* id, float* col, int n)
 {
     // Layout: N channel cells + a swatch on the right (square = frame
     // height). Each channel is a 1px bordered cell with a 3px vertical
@@ -2283,7 +2283,7 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
     // cells with the theme's full padding showed "25" for 255.
     const float gap = 3.0f * dpi;
     const float channelsW = totalW - swatchW - gap;
-    const float channelW = ImMax(20.0f * dpi, (channelsW - gap * (float)(N - 1)) / (float)N);
+    const float channelW = ImMax(20.0f * dpi, (channelsW - gap * (float)(n - 1)) / (float)n);
     const float stripeW = 3.0f * dpi;
 
     bool changed = false;
@@ -2298,7 +2298,7 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
         IM_COL32(140, 140, 140, 255),  // A
     };
 
-    for (int ch = 0; ch < N; ++ch)
+    for (int ch = 0; ch < n; ++ch)
     {
         if (ch > 0)
         {
@@ -2364,7 +2364,7 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
     if (ImGui::BeginPopup("##colorpicker"))
     {
         ImGui::SetNextItemWidth(pickerW);
-        if (N >= 4)
+        if (n >= 4)
         {
             if (ImGui::ColorPicker4("##pick", col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoSidePreview))
             {

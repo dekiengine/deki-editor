@@ -26,26 +26,26 @@ ActivityPanel::ActivityPanel(EditorApp* app)
 
 static void FormatTime(char* buf, size_t bufSize, std::chrono::system_clock::time_point tp)
 {
-    auto time_t_val = std::chrono::system_clock::to_time_t(tp);
-    std::tm tm_val;
+    auto timeTVal = std::chrono::system_clock::to_time_t(tp);
+    std::tm tmVal;
 #ifdef _WIN32
-    localtime_s(&tm_val, &time_t_val);
+    localtime_s(&tmVal, &timeTVal);
 #else
-    localtime_r(&time_t_val, &tm_val);
+    localtime_r(&timeTVal, &tmVal);
 #endif
-    snprintf(buf, bufSize, "%02d:%02d:%02d", tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec);
+    snprintf(buf, bufSize, "%02d:%02d:%02d", tmVal.tm_hour, tmVal.tm_min, tmVal.tm_sec);
 }
 
 void ActivityPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(450, 350);
 
-    if (!ImGui::Begin("ACTIVITY###Activity", &m_Open, DekiEditor::MaximizedWindowFlags("ACTIVITY###Activity")))
+    if (!ImGui::Begin("ACTIVITY###Activity", &isOpen, DekiEditor::MaximizedWindowFlags("ACTIVITY###Activity")))
     {
         ImGui::End();
         return;
@@ -491,7 +491,7 @@ void ActivityPanel::DrawStatusBar()
     ImGui::SetCursorScreenPos(barMin);
     if (ImGui::InvisibleButton("##StatusBarClick", ImVec2(barMax.x - barMin.x - mcpBtnWidth, barHeight)))
     {
-        m_Open = true;
+        isOpen = true;
     }
 
     // Bar background (schematic Panel) + hairline top border

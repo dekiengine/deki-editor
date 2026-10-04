@@ -16,8 +16,8 @@ namespace DekiEditor
 
 MsvcEnvironment& MsvcEnvironment::Get()
 {
-    static MsvcEnvironment instance;
-    return instance;
+    static MsvcEnvironment s_Instance;
+    return s_Instance;
 }
 
 #ifndef _WIN32

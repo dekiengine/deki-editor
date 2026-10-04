@@ -99,7 +99,7 @@ struct FaultGuard
     std::string* accessDetails;
 };
 
-extern thread_local FaultGuard* t_faultGuard;
+extern thread_local FaultGuard* g_FaultGuard;
 
 /// Installs the fault handler once, on first use. Cheap to call repeatedly.
 void FaultGuardInstallHandler();
@@ -120,7 +120,7 @@ void FaultGuardSetTraceHook(FaultTraceHook hook);
 
 #define DEKI_FAULT_GUARD_BEGIN(g)                                                                                      \
     ::DekiEditor::FaultGuardInstallHandler();                                                                          \
-    (g).prev = ::DekiEditor::t_faultGuard;                                                                             \
+    (g).prev = ::DekiEditor::g_FaultGuard;                                                                             \
     (g).code = 0;                                                                                                      \
     (g).faulted = 0;                                                                                                   \
     (g).faultIp = 0;                                                                                                   \
@@ -128,14 +128,14 @@ void FaultGuardSetTraceHook(FaultTraceHook hook);
     (g).accessAddr = 0;                                                                                                \
     (g).trace = nullptr;                                                                                               \
     (g).accessDetails = nullptr;                                                                                       \
-    ::DekiEditor::t_faultGuard = &(g);                                                                                 \
+    ::DekiEditor::g_FaultGuard = &(g);                                                                                 \
     RtlCaptureContext(&(g).ctx)
 
 #else
 
 #define DEKI_FAULT_GUARD_BEGIN(g)                                                                                      \
     ::DekiEditor::FaultGuardInstallHandler();                                                                          \
-    (g).prev = ::DekiEditor::t_faultGuard;                                                                             \
+    (g).prev = ::DekiEditor::g_FaultGuard;                                                                             \
     (g).code = 0;                                                                                                      \
     (g).faulted = 0;                                                                                                   \
     (g).faultIp = 0;                                                                                                   \
@@ -143,13 +143,13 @@ void FaultGuardSetTraceHook(FaultTraceHook hook);
     (g).accessAddr = 0;                                                                                                \
     (g).trace = nullptr;                                                                                               \
     (g).accessDetails = nullptr;                                                                                       \
-    ::DekiEditor::t_faultGuard = &(g);                                                                                 \
+    ::DekiEditor::g_FaultGuard = &(g);                                                                                 \
     if (sigsetjmp((g).jb, 1) != 0)                                                                                     \
     (g).faulted = 1
 
 #endif
 
 // Pop a guard. Not RAII on purpose: recovery bypasses destructors by design.
-#define DEKI_FAULT_GUARD_END(g) (::DekiEditor::t_faultGuard = (g).prev)
+#define DEKI_FAULT_GUARD_END(g) (::DekiEditor::g_FaultGuard = (g).prev)
 
 #endif  // !_MSC_VER

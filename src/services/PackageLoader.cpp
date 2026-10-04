@@ -514,9 +514,9 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
 
     for (const auto& path : packagePaths)
     {
-        if (OnPackageLoading)
+        if (onPackageLoading)
         {
-            OnPackageLoading(path.stem().string());
+            onPackageLoading(path.stem().string());
         }
 
         if (LoadPackage(path.string(), imguiContext))
@@ -610,7 +610,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // asset loaders, asset types, editor extensions), and unloading it left all
     // of them dangling. Only its component types are taken back out. This used
     // to clear EVERY package's components and editor registrations, then unload.
-    auto AbandonPackage = [&]()
+    auto abandonPackage = [&]()
     {
         auto& registry = Deki::ComponentRegistry::Instance();
         std::vector<uint32_t> added;
@@ -653,14 +653,14 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     info.handle = handle;
 
     // Get function pointers
-    auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPlugin_GetName");
-    auto init = (InitFunc)GetProcAddress(handle, "DekiPlugin_Init");
-    auto registerComponents = (RegisterComponentsFunc)GetProcAddress(handle, "DekiPlugin_RegisterComponents");
-    auto setImGuiContext = (SetImGuiContextFunc)GetProcAddress(handle, "DekiPlugin_SetImGuiContext");
-    auto getImGuiContextSize = (GetImGuiContextSizeFunc)GetProcAddress(handle, "DekiPlugin_GetImGuiContextSize");
+    auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPluginGetName");
+    auto init = (InitFunc)GetProcAddress(handle, "DekiPluginInit");
+    auto registerComponents = (RegisterComponentsFunc)GetProcAddress(handle, "DekiPluginRegisterComponents");
+    auto setImGuiContext = (SetImGuiContextFunc)GetProcAddress(handle, "DekiPluginSetImGuiContext");
+    auto getImGuiContextSize = (GetImGuiContextSizeFunc)GetProcAddress(handle, "DekiPluginGetImGuiContextSize");
     auto getReflectionAbi = (DekiGetReflectionAbiFunc)GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
-    auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPlugin_GetComponentCount");
-    auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPlugin_GetComponentMeta");
+    auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
+    auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPluginGetComponentMeta");
 #else
     void* handle = dlopen(path.c_str(), RTLD_NOW);
     if (!handle)
@@ -670,22 +670,22 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     }
     info.handle = handle;
 
-    auto getName = (GetNameFunc)dlsym(handle, "DekiPlugin_GetName");
-    auto init = (InitFunc)dlsym(handle, "DekiPlugin_Init");
-    auto registerComponents = (RegisterComponentsFunc)dlsym(handle, "DekiPlugin_RegisterComponents");
-    auto setImGuiContext = (SetImGuiContextFunc)dlsym(handle, "DekiPlugin_SetImGuiContext");
-    auto getImGuiContextSize = (GetImGuiContextSizeFunc)dlsym(handle, "DekiPlugin_GetImGuiContextSize");
+    auto getName = (GetNameFunc)dlsym(handle, "DekiPluginGetName");
+    auto init = (InitFunc)dlsym(handle, "DekiPluginInit");
+    auto registerComponents = (RegisterComponentsFunc)dlsym(handle, "DekiPluginRegisterComponents");
+    auto setImGuiContext = (SetImGuiContextFunc)dlsym(handle, "DekiPluginSetImGuiContext");
+    auto getImGuiContextSize = (GetImGuiContextSizeFunc)dlsym(handle, "DekiPluginGetImGuiContextSize");
     auto getReflectionAbi = (DekiGetReflectionAbiFunc)dlsym(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
-    auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPlugin_GetComponentCount");
-    auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPlugin_GetComponentMeta");
+    auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPluginGetComponentCount");
+    auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPluginGetComponentMeta");
 #endif
 
     // Validate required exports
     if (!getName)
     {
-        DEKI_LOG_ERROR("PackageLoader: Package missing DekiPlugin_GetName: %s", path.c_str());
+        DEKI_LOG_ERROR("PackageLoader: Package missing DekiPluginGetName: %s", path.c_str());
 
-        AbandonPackage();
+        abandonPackage();
         return false;
     }
 
@@ -693,7 +693,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     if (!nameStr)
     {
         DEKI_LOG_ERROR("PackageLoader: getName crashed or returned null: %s", path.c_str());
-        AbandonPackage();
+        abandonPackage();
         return false;
     }
     info.name = nameStr;
@@ -807,7 +807,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         if (result != 0)
         {
             DEKI_LOG_ERROR("PackageLoader: Package init failed with code %d for '%s'", result, info.name.c_str());
-            AbandonPackage();
+            abandonPackage();
             return false;
         }
     }
@@ -818,7 +818,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         if (!SafeCallVoid(registerComponents, "PackageLoader::registerComponents"))
         {
             DEKI_LOG_ERROR("PackageLoader: registerComponents crashed for '%s'", info.name.c_str());
-            AbandonPackage();
+            abandonPackage();
             return false;
         }
     }
@@ -844,7 +844,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // A settings section is a Deki::Component, so it is already in the metadata
     // collected above - intersecting against the registry avoids asking packages
     // for a new export or widening the registry's cross-DLL struct.
-    // Keyed by the library stem ("deki-rendering"), not DekiPlugin_GetName()
+    // Keyed by the library stem ("deki-rendering"), not DekiPluginGetName()
     // ("Deki Rendering Package"). The stem is the package's id - it matches
     // deki-packages.json and the folder under project/packages - so uninstall can
     // find the settings folder and remove it. The display name is prose: it has
@@ -892,18 +892,18 @@ void PackageLoader::UnloadPackage(const std::string& name)
 
     if (it->handle)
     {
-        if (OnPackageUnloading)
+        if (onPackageUnloading)
         {
-            OnPackageUnloading(it->name);
+            onPackageUnloading(it->name);
         }
 #ifdef _WIN32
-        auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)it->handle, "DekiPlugin_Shutdown");
+        auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)it->handle, "DekiPluginShutdown");
         if (shutdown)
         {
             SafeCallVoid(shutdown, it->name.c_str());
         }
 #else
-        auto shutdown = (ShutdownFunc)dlsym(it->handle, "DekiPlugin_Shutdown");
+        auto shutdown = (ShutdownFunc)dlsym(it->handle, "DekiPluginShutdown");
         if (shutdown)
         {
             SafeCallVoid(shutdown, it->name.c_str());
@@ -940,9 +940,9 @@ void PackageLoader::ReleaseImGuiContext()
         }
 #ifdef _WIN32
         auto setImGuiContext =
-            (SetImGuiContextFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_SetImGuiContext");
+            (SetImGuiContextFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginSetImGuiContext");
 #else
-        auto setImGuiContext = (SetImGuiContextFunc)dlsym(package.handle, "DekiPlugin_SetImGuiContext");
+        auto setImGuiContext = (SetImGuiContextFunc)dlsym(package.handle, "DekiPluginSetImGuiContext");
 #endif
         if (setImGuiContext)
         {
@@ -959,13 +959,13 @@ void PackageLoader::UnloadAllPackages()
     Deki::SetupComponent::ClearEditorAutoFactories();
 
     // Phase 0: whatever the editor holds that packages created goes first.
-    if (OnPackageUnloading)
+    if (onPackageUnloading)
     {
         for (auto& package : m_Packages)
         {
             if (package.handle)
             {
-                OnPackageUnloading(package.name);
+                onPackageUnloading(package.name);
             }
         }
     }
@@ -978,13 +978,13 @@ void PackageLoader::UnloadAllPackages()
         if (package.handle)
         {
 #ifdef _WIN32
-            auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_Shutdown");
+            auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginShutdown");
             if (shutdown)
             {
                 SafeCallVoid(shutdown, package.name.c_str());
             }
 #else
-            auto shutdown = (ShutdownFunc)dlsym(package.handle, "DekiPlugin_Shutdown");
+            auto shutdown = (ShutdownFunc)dlsym(package.handle, "DekiPluginShutdown");
             if (shutdown)
             {
                 SafeCallVoid(shutdown, package.name.c_str());
@@ -1005,7 +1005,7 @@ void PackageLoader::UnloadAllPackages()
     Deki::SettingsRegistry::Instance().ClearPluginSettings();
 
     // Same for multi-provider registries (deki-location, deki-weather, ...).
-    // Belt-and-braces: each plugin's DekiPlugin_Shutdown should have cleared
+    // Belt-and-braces: each plugin's DekiPluginShutdown should have cleared
     // its own providers, but this sweeps anything left over before FreeLibrary
     // invalidates the vtables.
     Deki::ProviderRegistryBase::ClearAllPluginProviders();
@@ -1158,9 +1158,9 @@ void PackageLoader::NotifyPlayModeStart(void* scene)
         }
 
 #ifdef _WIN32
-        auto func = (OnPlayModeStartFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_OnPlayModeStart");
+        auto func = (OnPlayModeStartFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginOnPlayModeStart");
 #else
-        auto func = (OnPlayModeStartFunc)dlsym(package.handle, "DekiPlugin_OnPlayModeStart");
+        auto func = (OnPlayModeStartFunc)dlsym(package.handle, "DekiPluginOnPlayModeStart");
 #endif
         if (func)
         {
@@ -1179,9 +1179,9 @@ void PackageLoader::NotifyPlayModeStop()
         }
 
 #ifdef _WIN32
-        auto func = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_OnPlayModeStop");
+        auto func = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginOnPlayModeStop");
 #else
-        auto func = (ShutdownFunc)dlsym(package.handle, "DekiPlugin_OnPlayModeStop");
+        auto func = (ShutdownFunc)dlsym(package.handle, "DekiPluginOnPlayModeStop");
 #endif
         if (func)
         {
@@ -1200,9 +1200,9 @@ void PackageLoader::ClearPackageRegistries()
         }
 
 #ifdef _WIN32
-        auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_ClearRegistries");
+        auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginClearRegistries");
 #else
-        auto func = (RegisterComponentsFunc)dlsym(package.handle, "DekiPlugin_ClearRegistries");
+        auto func = (RegisterComponentsFunc)dlsym(package.handle, "DekiPluginClearRegistries");
 #endif
         if (func)
         {
@@ -1221,9 +1221,9 @@ void PackageLoader::ReRegisterAllPackages()
         }
 
 #ifdef _WIN32
-        auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_RegisterComponents");
+        auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginRegisterComponents");
 #else
-        auto func = (RegisterComponentsFunc)dlsym(package.handle, "DekiPlugin_RegisterComponents");
+        auto func = (RegisterComponentsFunc)dlsym(package.handle, "DekiPluginRegisterComponents");
 #endif
         if (func)
         {

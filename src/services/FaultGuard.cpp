@@ -18,22 +18,22 @@
 namespace DekiEditor
 {
 
-thread_local FaultGuard* t_faultGuard = nullptr;
+thread_local FaultGuard* g_FaultGuard = nullptr;
 
 namespace
 {
-FaultTraceHook g_traceHook = nullptr;
+FaultTraceHook s_TraceHook = nullptr;
 
 // Runs the trace hook for a guard that asked for one. Inside the handler, so
 // nothing here may throw or fault; the hook promises the same.
 void RunTraceHook(FaultGuard* g, void* platformInfo)
 {
-    if (!g_traceHook || !(g->trace || g->accessDetails))
+    if (!s_TraceHook || !(g->trace || g->accessDetails))
     {
         return;
     }
     std::string trace, access;
-    g_traceHook(platformInfo, trace, access);
+    s_TraceHook(platformInfo, trace, access);
     if (g->trace)
     {
         g->trace->swap(trace);
@@ -47,7 +47,7 @@ void RunTraceHook(FaultGuard* g, void* platformInfo)
 
 void FaultGuardSetTraceHook(FaultTraceHook hook)
 {
-    g_traceHook = hook;
+    s_TraceHook = hook;
 }
 
 // ============================================================================
@@ -82,7 +82,7 @@ bool IsRecoverableFault(DWORD code)
 
 LONG CALLBACK FaultHandler(EXCEPTION_POINTERS* info)
 {
-    FaultGuard* g = t_faultGuard;
+    FaultGuard* g = g_FaultGuard;
     if (!g)
     {
         return EXCEPTION_CONTINUE_SEARCH;  // nothing guarded on this thread
@@ -124,13 +124,13 @@ void FaultGuardInstallHandler()
     // Function-local static: initialised once, thread-safely. If registration
     // fails there is nothing useful to do but run unprotected, which is the
     // behaviour this replaced.
-    static const bool installed = (AddVectoredExceptionHandler(1 /* call first */, &FaultHandler) != nullptr);
-    (void)installed;
+    static const bool kInstalled = (AddVectoredExceptionHandler(1 /* call first */, &FaultHandler) != nullptr);
+    (void)kInstalled;
 }
 
 const char* FaultGuardDescribe(const FaultGuard& g)
 {
-    static thread_local char buf[96];
+    static thread_local char s_Buf[96];
     const char* access = "n/a";
     if (g.code == EXCEPTION_ACCESS_VIOLATION)
     {
@@ -142,8 +142,8 @@ const char* FaultGuardDescribe(const FaultGuard& g)
             default: access = "?"; break;
         }
     }
-    std::snprintf(buf, sizeof(buf), "0x%08lX %s", g.code, access);
-    return buf;
+    std::snprintf(s_Buf, sizeof(s_Buf), "0x%08lX %s", g.code, access);
+    return s_Buf;
 }
 
 // ============================================================================
@@ -174,7 +174,7 @@ int SignalSlot(int sig)
 
 void FaultHandler(int sig, siginfo_t* info, void* /*ucontext*/)
 {
-    FaultGuard* g = t_faultGuard;
+    FaultGuard* g = g_FaultGuard;
     if (!g)
     {
         // Nothing guarded on this thread, so this is a real crash and must stay

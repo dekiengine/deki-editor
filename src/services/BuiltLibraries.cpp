@@ -17,8 +17,8 @@ namespace
 {
 std::string& StoreOverride()
 {
-    static std::string path;
-    return path;
+    static std::string s_Path;
+    return s_Path;
 }
 
 fs::path StorePath()

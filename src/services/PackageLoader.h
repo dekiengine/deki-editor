@@ -49,13 +49,13 @@ struct PackageInfo
  * enabling hot-reload of individual packages without restarting the editor.
  *
  * Standard package exports:
- *   DekiPlugin_GetName()
- *   DekiPlugin_Init()                      [optional, for one-time package setup]
- *   DekiPlugin_RegisterComponents()
- *   DekiPlugin_Shutdown()
- *   DekiPlugin_SetImGuiContext(void* ctx)  [optional, for packages using ImGui]
- *   DekiPlugin_GetComponentCount()
- *   DekiPlugin_GetComponentMeta(int index)
+ *   DekiPluginGetName()
+ *   DekiPluginInit()                      [optional, for one-time package setup]
+ *   DekiPluginRegisterComponents()
+ *   DekiPluginShutdown()
+ *   DekiPluginSetImGuiContext(void* ctx)  [optional, for packages using ImGui]
+ *   DekiPluginGetComponentCount()
+ *   DekiPluginGetComponentMeta(int index)
  */
 class PackageLoader
 {
@@ -84,7 +84,7 @@ public:
 
     /**
      * @brief Unload a single package by name
-     * @param name Package name (as returned by DekiPlugin_GetName)
+     * @param name Package name (as returned by DekiPluginGetName)
      */
     void UnloadPackage(const std::string& name);
 
@@ -108,7 +108,7 @@ public:
     const std::vector<PackageInfo>& GetLoadedPackages() const { return m_Packages; }
 
     /**
-     * @brief Re-invoke DekiPlugin_RegisterComponents on every loaded package.
+     * @brief Re-invoke DekiPluginRegisterComponents on every loaded package.
      *
      * For plugin-only hot reload: shared registries the packages populated at
      * load (node types/domains) are wiped while the package DLLs stay loaded,
@@ -123,7 +123,7 @@ public:
      *
      * The mirror of ReRegisterAllPackages. A package that owns a shared registry
      * (deki-nodegraph owns the node factory, node-type and graph-domain
-     * registries) exports the optional `DekiPlugin_ClearRegistries` and wipes
+     * registries) exports the optional `DekiPluginClearRegistries` and wipes
      * it here - the entries are meta and thunk pointers into the DLLs about to
      * be freed, and reading one after FreeLibrary is a crash.
      *
@@ -202,7 +202,7 @@ public:
 
     /**
      * @brief Get a function pointer from a loaded package by name
-     * @param packageName Package name (as returned by DekiPlugin_GetName)
+     * @param packageName Package name (as returned by DekiPluginGetName)
      * @param funcName Exported function name
      * @return Function pointer, or nullptr if not found
      */
@@ -210,13 +210,13 @@ public:
 
     /**
      * @brief Notify all loaded packages that play mode is starting
-     * Calls DekiPlugin_OnPlayModeStart(scene) on packages that export it
+     * Calls DekiPluginOnPlayModeStart(scene) on packages that export it
      */
     void NotifyPlayModeStart(void* scene);
 
     /**
      * @brief Notify all loaded packages that play mode is stopping
-     * Calls DekiPlugin_OnPlayModeStop() on packages that export it
+     * Calls DekiPluginOnPlayModeStop() on packages that export it
      */
     void NotifyPlayModeStop();
 
@@ -233,12 +233,12 @@ public:
     // Fired immediately before each package DLL is loaded inside
     // LoadPackagesFromDirectory. Used by the startup progress modal to surface
     // which package is currently being processed.
-    std::function<void(const std::string& packageName)> OnPackageLoading;
+    std::function<void(const std::string& packageName)> onPackageLoading;
 
     // Fired before a package's library is shut down and freed, for whatever
     // the editor holds that the package created (build backends, installers):
     // its code and vtables go with the library.
-    std::function<void(const std::string& packageName)> OnPackageUnloading;
+    std::function<void(const std::string& packageName)> onPackageUnloading;
 
     // Shared utilities (also used by HotReloadService)
     static std::string ResolveBuildDir(const std::string& packageDirectory);

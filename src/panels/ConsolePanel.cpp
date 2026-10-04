@@ -115,17 +115,17 @@ std::string ConsolePanel::FormatLogLine(const LogEntry& e)
 
 void ConsolePanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(600, 300);
 
-    if (m_FocusFrames > 0)
+    if (focusFrames > 0)
     {
         ImGui::SetNextWindowFocus();
-        m_FocusFrames--;
+        focusFrames--;
     }
 
     // NoScrollWithMouse/NoScrollbar: the window itself never scrolls - the log
@@ -133,7 +133,7 @@ void ConsolePanel::Draw()
     // wheel for the toolbar's horizontal scroll when the cursor is over the
     // toolbar, instead of ImGui scrolling the whole window (which dragged the
     // log along with it).
-    if (!ImGui::Begin("CONSOLE###Console", &m_Open,
+    if (!ImGui::Begin("CONSOLE###Console", &isOpen,
                       DekiEditor::MaximizedWindowFlags("CONSOLE###Console") | ImGuiWindowFlags_NoScrollbar |
                           ImGuiWindowFlags_NoScrollWithMouse))
     {
@@ -183,7 +183,7 @@ void ConsolePanel::Draw()
             const float hoverT = DekiEditor::Motion::ItemHover(hovered);
             const float pressT = DekiEditor::Motion::ItemPress();
             const float activeT = DekiEditor::Motion::EaseOut(
-                DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
+                DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::kFast));
             ImGui::PopID();
             if (activeT > 0.0f)
             {
@@ -228,7 +228,7 @@ void ConsolePanel::Draw()
             const float hoverT = DekiEditor::Motion::ItemHover(hovered);
             const float pressT = DekiEditor::Motion::ItemPress();
             const float onT = DekiEditor::Motion::EaseOut(
-                DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, *onPtr ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
+                DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, *onPtr ? 1.0f : 0.0f, DekiEditor::Motion::kFast));
             ImGui::PopID();
             if (onT > 0.0f)
             {
@@ -547,15 +547,15 @@ void ConsolePanel::Draw()
         }
 
         // Format timestamp HH:MM:SS - mono dim.
-        auto time_t_val = std::chrono::system_clock::to_time_t(entry.timestamp);
-        std::tm tm_val;
+        auto timeTVal = std::chrono::system_clock::to_time_t(entry.timestamp);
+        std::tm tmVal;
 #ifdef _WIN32
-        localtime_s(&tm_val, &time_t_val);
+        localtime_s(&tmVal, &timeTVal);
 #else
-        localtime_r(&time_t_val, &tm_val);
+        localtime_r(&timeTVal, &tmVal);
 #endif
         char timeBuf[16];
-        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec);
+        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", tmVal.tm_hour, tmVal.tm_min, tmVal.tm_sec);
 
         // Zebra striping: every other visible row gets the slightly-lighter
         // alt-row background (Palette::Bg2). entryIndex counts only displayed

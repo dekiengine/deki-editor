@@ -221,14 +221,14 @@ TEST_F(AssetLifecycleTest, Create_AssetTableContainsGuidImmediately)
 }
 
 // -----------------------------------------------------------------------------
-// OnAssetCreated callback fires exactly once when ProcessAsset sees a new path.
+// onAssetCreated callback fires exactly once when ProcessAsset sees a new path.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, Create_FiresOnAssetCreatedCallback)
 {
     std::atomic<int> fires{ 0 };
     std::string capturedPath;
-    m_Pipeline->OnAssetCreated = [&](const std::string& path)
+    m_Pipeline->onAssetCreated = [&](const std::string& path)
     {
         fires.fetch_add(1);
         capturedPath = path;
@@ -449,7 +449,7 @@ TEST_F(AssetLifecycleTest, RenameOnDisk_KeepsGuidAndCache)
     ASSERT_NE(m_Pipeline->GetAssetInfo(before), nullptr);
     const std::string guid = m_Pipeline->GetAssetInfo(before)->guid;
     std::vector<std::string> deleted;
-    m_Pipeline->OnAssetDeleted = [&](const std::string& path, const std::string&) { deleted.push_back(path); };
+    m_Pipeline->onAssetDeleted = [&](const std::string& path, const std::string&) { deleted.push_back(path); };
 
     fs::rename(m_TempDir / "assets" / "old name.lifecycle", m_TempDir / "assets" / "new name.lifecycle");
     fs::rename(m_TempDir / "assets" / "old name.lifecycle.data", m_TempDir / "assets" / "new name.lifecycle.data");

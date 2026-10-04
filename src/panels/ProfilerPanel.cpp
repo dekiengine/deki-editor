@@ -57,7 +57,7 @@ static bool EventMatchesFilter(const ProfileEvent* event, const std::string& fil
 // Category colors for stacked bar chart - consistent across frames
 static ImU32 GetCategoryColor(const std::string& category)
 {
-    static const std::map<std::string, ImU32> s_CategoryColors = {
+    static const std::map<std::string, ImU32> kCategoryColors = {
         { "rendering", IM_COL32(65, 150, 220, 255) },   // Blue
         { "lifecycle", IM_COL32(100, 200, 100, 255) },  // Green
         { "components", IM_COL32(220, 160, 50, 255) },  // Orange
@@ -66,8 +66,8 @@ static ImU32 GetCategoryColor(const std::string& category)
         { "deep", IM_COL32(200, 200, 100, 255) },       // Yellow
     };
 
-    auto it = s_CategoryColors.find(category);
-    if (it != s_CategoryColors.end())
+    auto it = kCategoryColors.find(category);
+    if (it != kCategoryColors.end())
     {
         return it->second;
     }
@@ -353,14 +353,14 @@ void ProfilerPanel::RefreshDisplayBuffer()
 
 void ProfilerPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(m_App->Dpi(900.0f), m_App->Dpi(650.0f));
 
-    if (ImGui::Begin("PROFILER###Profiler", &m_Open, DekiEditor::MaximizedWindowFlags("PROFILER###Profiler")))
+    if (ImGui::Begin("PROFILER###Profiler", &isOpen, DekiEditor::MaximizedWindowFlags("PROFILER###Profiler")))
     {
         auto& profiler = ProfilingService::Get();
 
@@ -375,7 +375,7 @@ void ProfilerPanel::Draw()
         // 1 Hz refresh batching - refresh display buffer once per second
         auto now = std::chrono::steady_clock::now();
         float elapsed = std::chrono::duration<float>(now - m_LastRefreshTime).count();
-        if (elapsed >= REFRESH_INTERVAL_SECONDS || m_DisplayBuffer.empty())
+        if (elapsed >= kRefreshIntervalSeconds || m_DisplayBuffer.empty())
         {
             RefreshDisplayBuffer();
             m_LastRefreshTime = now;
@@ -755,7 +755,7 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
     // (root), the filter or the sort order changed.
     static const ProfileEvent* s_FlatRoot = nullptr;
     static std::string s_FlatFilter;
-    static std::vector<AggregatedEvent> sorted;
+    static std::vector<AggregatedEvent> s_Sorted;
     static int s_SortColumn = -1;
     static bool s_SortAscending = false;
     bool rebuilt = false;
@@ -766,12 +766,12 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
         {
             CollectAllEvents(child.get(), aggregated);
         }
-        sorted.clear();
+        s_Sorted.clear();
         for (auto& pair : aggregated)
         {
             if (m_SearchFilter.empty() || ContainsIgnoreCase(pair.second.name, m_SearchFilter))
             {
-                sorted.push_back(pair.second);
+                s_Sorted.push_back(pair.second);
             }
         }
         s_FlatRoot = root;
@@ -804,7 +804,7 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
                 bool ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
                 s_SortColumn = spec.ColumnIndex;
                 s_SortAscending = ascending;
-                std::sort(sorted.begin(), sorted.end(),
+                std::sort(s_Sorted.begin(), s_Sorted.end(),
                           [&](const AggregatedEvent& a, const AggregatedEvent& b)
                           {
                               switch (spec.ColumnIndex)
@@ -820,7 +820,7 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
             sortSpecs->SpecsDirty = false;
         }
 
-        for (const auto& evt : sorted)
+        for (const auto& evt : s_Sorted)
         {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();

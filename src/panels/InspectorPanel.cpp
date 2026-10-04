@@ -208,7 +208,7 @@ void InspectorPanel::ClearSceneReferences()
         std::erase_if(m_LockedObjects, [&](Deki::Object* o) { return !live.contains(o); });
         if (m_LockedObjects.empty())
         {
-            m_Locked = false;
+            locked = false;
         }
     }
 }
@@ -223,7 +223,7 @@ void InspectorPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
                   [&](Deki::Object* o) { return std::find(dying.begin(), dying.end(), o) != dying.end(); });
     if (m_LockedObjects.empty())
     {
-        m_Locked = false;
+        locked = false;
     }
 }
 
@@ -254,7 +254,7 @@ void InspectorPanel::Draw()
         }
     }
 
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
@@ -264,14 +264,14 @@ void InspectorPanel::Draw()
     // multi-select) are never quietly filtered by a box they do not show.
     InspectorUtils::SetPropertyFilter("");
 
-    ImGui::Begin("INSPECTOR###Inspector", &m_Open, DekiEditor::MaximizedWindowFlags("INSPECTOR###Inspector"));
+    ImGui::Begin("INSPECTOR###Inspector", &isOpen, DekiEditor::MaximizedWindowFlags("INSPECTOR###Inspector"));
 
     // Under-tab toolbar. PIN freezes the inspector on its current target by
     // driving the lock-to-selection state used throughout this function.
     {
-        const bool wasPinned = m_Locked;
-        DekiEditor::PanelToolbar(&m_Locked);
-        if (m_Locked && !wasPinned)
+        const bool wasPinned = locked;
+        DekiEditor::PanelToolbar(&locked);
+        if (locked && !wasPinned)
         {
             m_LockedAssetPath = m_App->GetSelectedAssetPath();
             m_LockedAssetGuid = m_App->GetSelectedAssetGuid();
@@ -286,13 +286,13 @@ void InspectorPanel::Draw()
     // laid out identically. Closed with EndPropertyContext before each End
     // below. bodyIndent is kept for the few places that step outside the indent
     // and back (the asset path strip).
-    const float bodyIndent = m_App->Dpi(Metrics::InspectorIndent);
+    const float bodyIndent = m_App->Dpi(Metrics::kInspectorIndent);
     DekiEditor::BeginPropertyContext();
 
     // When locked, temporarily override the app selection so subsystems read the locked state
     std::string savedAssetPath, savedCachePath, savedGuid;
     bool savedHasCached = false;
-    if (m_Locked && !m_LockedAssetPath.empty())
+    if (locked && !m_LockedAssetPath.empty())
     {
         savedAssetPath = m_App->GetSelectedAssetPath();
         savedCachePath = m_App->GetSelectedAssetCachePath();
@@ -319,7 +319,7 @@ void InspectorPanel::Draw()
         ImGui::Unindent(bodyIndent - pathLeftPad);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // top padding
-        ImFont* display = g_DisplayFont;
+        ImFont* display = g_FontDisplay;
         if (display)
         {
             ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
@@ -342,7 +342,7 @@ void InspectorPanel::Draw()
         m_AssetTypeInspector->Draw();
 
         // Restore original selection if locked
-        if (m_Locked && !m_LockedAssetPath.empty())
+        if (locked && !m_LockedAssetPath.empty())
         {
             m_App->SetSelectedAsset(savedAssetPath, savedCachePath, savedHasCached, savedGuid);
         }
@@ -353,13 +353,13 @@ void InspectorPanel::Draw()
     }
 
     // Restore if locked but no asset was showing
-    if (m_Locked && !m_LockedAssetPath.empty())
+    if (locked && !m_LockedAssetPath.empty())
     {
         m_App->SetSelectedAsset(savedAssetPath, savedCachePath, savedHasCached, savedGuid);
     }
 
     // Check if scene objects are selected
-    const auto& selectedObjects = m_Locked && !m_LockedObjects.empty() ? m_LockedObjects : m_App->GetSelectedObjects();
+    const auto& selectedObjects = locked && !m_LockedObjects.empty() ? m_LockedObjects : m_App->GetSelectedObjects();
     if (selectedObjects.empty())
     {
         // A scene is always loaded (see EditorApp::GetCurrentScene); nothing to
@@ -412,7 +412,7 @@ void InspectorPanel::Draw()
         }
 
         Deki::Object* parent = obj->GetParent();
-        ImFont* display = g_DisplayFont;  // SpaceGrotesk-Medium (weight 500)
+        ImFont* display = g_FontDisplay;  // SpaceGrotesk-Medium (weight 500)
         // Render at an explicit size: the one-arg PushFont keeps the inherited
         // ~13px base instead of the display size, so the heading looked small.
         if (display)
@@ -481,7 +481,7 @@ void InspectorPanel::Draw()
         }
         else
         {
-            const float avail = ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::InspectorRightPad);
+            const float avail = ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::kInspectorRightPad);
             ImGui::SetNextItemWidth(std::max(avail, m_App->Dpi(80.0f)));
             // No frame padding: the field is exactly as tall as the text it
             // replaces and starts on the same pixel, so opening a rename does
@@ -739,12 +739,12 @@ void InspectorPanel::Draw()
     //
     // It gets its own band between the header hairline and the filter strip, and
     // that band has to pad itself: FullBleedSeparator charges no spacing above a
-    // row (a boundary owns no air) while the row charges RowSpacing below, so
+    // row (a boundary owns no air) while the row charges kRowSpacing below, so
     // left to the default flow the row hugs the hairline and the whole band
     // reads top-heavy. Pad it explicitly on both sides with half the row gap
     // each - the band keeps exactly the height it has today, but the air is
     // split evenly, which puts the checkbox on the band's center line.
-    const float activeBandPad = m_App->Dpi(Metrics::RowSpacing * 0.5f);
+    const float activeBandPad = m_App->Dpi(Metrics::kRowSpacing * 0.5f);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0, activeBandPad));
 
@@ -774,7 +774,7 @@ void InspectorPanel::Draw()
     DekiEditor::FullBleedSeparator();
     ImGui::SetCursorPosX(InspectorUtils::SectionAlignedCursorX());
     DekiEditor::SearchField("##inspector_filter", m_PropertyFilter, sizeof(m_PropertyFilter),
-                            m_App->Dpi(Metrics::InspectorRightPad), /*bottomBorder*/ true, nullptr, nullptr, nullptr,
+                            m_App->Dpi(Metrics::kInspectorRightPad), /*bottomBorder*/ true, nullptr, nullptr, nullptr,
                             nullptr, "Filter properties and components");
     InspectorUtils::SetPropertyFilter(m_PropertyFilter);
     ImGui::PopStyleVar();
@@ -1370,12 +1370,12 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
     // Header in the same band as a single object's: a display-font heading and
     // the names below it, instead of a line crammed under the PIN bar.
     {
-        const float bodyIndent = m_App->Dpi(Metrics::InspectorIndent);
+        const float bodyIndent = m_App->Dpi(Metrics::kInspectorIndent);
         const float pathLeftPad = m_App->Dpi(16.0f);
         ImGui::Unindent(bodyIndent - pathLeftPad);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));
-        ImFont* display = g_DisplayFont;
+        ImFont* display = g_FontDisplay;
         if (display)
         {
             ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));

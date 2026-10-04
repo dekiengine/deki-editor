@@ -29,27 +29,27 @@ std::string ReadAll(const fs::path& p)
 class ScriptTemplateTest : public ::testing::Test
 {
 protected:
-    fs::path dir;
+    fs::path m_Dir;
     void SetUp() override
     {
-        dir = fs::temp_directory_path() / "deki_script_template_test";
+        m_Dir = fs::temp_directory_path() / "deki_script_template_test";
         std::error_code ec;
-        fs::remove_all(dir, ec);
-        fs::create_directories(dir);
+        fs::remove_all(m_Dir, ec);
+        fs::create_directories(m_Dir);
     }
     void TearDown() override
     {
         std::error_code ec;
-        fs::remove_all(dir, ec);
+        fs::remove_all(m_Dir, ec);
     }
 };
 
 TEST_F(ScriptTemplateTest, WritesAMacroFreeBehaviour)
 {
     std::string error;
-    ASSERT_TRUE(CreateBehaviourScript(dir.string(), "Mover", error)) << error;
+    ASSERT_TRUE(CreateBehaviourScript(m_Dir.string(), "Mover", error)) << error;
 
-    const std::string header = ReadAll(dir / "Mover.h");
+    const std::string header = ReadAll(m_Dir / "Mover.h");
     EXPECT_NE(header.find("class Mover : public Deki::Component"), std::string::npos);
     EXPECT_NE(header.find("DEKI_CATEGORY("), std::string::npos);
     EXPECT_NE(header.find("DEKI_DESCRIPTION("), std::string::npos);
@@ -60,7 +60,7 @@ TEST_F(ScriptTemplateTest, WritesAMacroFreeBehaviour)
     EXPECT_LT(header.find("DEKI_CATEGORY("), header.find("class Mover"));
     EXPECT_LT(header.find("DEKI_DESCRIPTION("), header.find("class Mover"));
 
-    const std::string source = ReadAll(dir / "Mover.cpp");
+    const std::string source = ReadAll(m_Dir / "Mover.cpp");
     EXPECT_NE(source.find("#include \"Mover.h\""), std::string::npos);
     EXPECT_NE(source.find("void Mover::Update()"), std::string::npos);
 }
@@ -68,7 +68,7 @@ TEST_F(ScriptTemplateTest, WritesAMacroFreeBehaviour)
 TEST_F(ScriptTemplateTest, RefusesToOverwrite)
 {
     std::string error;
-    ASSERT_TRUE(CreateBehaviourScript(dir.string(), "Mover", error)) << error;
-    EXPECT_FALSE(CreateBehaviourScript(dir.string(), "Mover", error));
+    ASSERT_TRUE(CreateBehaviourScript(m_Dir.string(), "Mover", error)) << error;
+    EXPECT_FALSE(CreateBehaviourScript(m_Dir.string(), "Mover", error));
     EXPECT_NE(error.find("already exists"), std::string::npos);
 }

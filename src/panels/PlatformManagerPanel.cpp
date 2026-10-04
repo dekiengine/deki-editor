@@ -114,7 +114,7 @@ void PlatformManagerPanel::Draw()
     {
         RefreshToolchains();
     }
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
@@ -122,7 +122,7 @@ void PlatformManagerPanel::Draw()
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(m_App->Dpi(860.0f), m_App->Dpi(560.0f), /*firstUseEver*/ true);
 
-    if (ui.Begin("PLATFORM MANAGER###Platform Manager", &m_Open))
+    if (ui.Begin("PLATFORM MANAGER###Platform Manager", &isOpen))
     {
         const float pad = m_App->Dpi(12.0f);
         auto* project = m_App->GetProject();

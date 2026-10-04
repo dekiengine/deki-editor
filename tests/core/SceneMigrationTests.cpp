@@ -41,7 +41,7 @@ const MockComponent* FirstMock(const Deki::Scene& scene)
     const Deki::Object* obj = scene.GetObjects()[0]->GetChildren()[0];
     for (const Deki::Component* c : obj->GetComponents())
     {
-        if (c->GetType() == MockComponent::StaticType)
+        if (c->GetType() == MockComponent::kStaticType)
         {
             return static_cast<const MockComponent*>(c);
         }

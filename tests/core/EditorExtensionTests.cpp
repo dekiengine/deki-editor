@@ -27,7 +27,7 @@ public:
 
     bool Compile(const std::string& jsonData, std::vector<uint8_t>& rgba, int& width, int& height) override
     {
-        m_CompileCalled = true;
+        compileCalled = true;
         width = 32;
         height = 32;
         rgba.resize(32 * 32 * 4, 128);
@@ -36,22 +36,22 @@ public:
 
     bool CompileToFile(const std::string& jsonData, const std::string& cachePath) override
     {
-        m_CompileToFileCalled = true;
-        m_LastCachePath = cachePath;
+        compileToFileCalled = true;
+        lastCachePath = cachePath;
         return true;
     }
 
     bool OnInspectorGUI(std::string& jsonData, const std::string& assetPath, const std::string& assetGuid) override
     {
-        m_InspectorCalled = true;
+        inspectorCalled = true;
         return false;
     }
 
     // Test state
-    bool m_CompileCalled = false;
-    bool m_CompileToFileCalled = false;
-    bool m_InspectorCalled = false;
-    std::string m_LastCachePath;
+    bool compileCalled = false;
+    bool compileToFileCalled = false;
+    bool inspectorCalled = false;
+    std::string lastCachePath;
 
 private:
     std::string m_TypeName;
@@ -74,7 +74,7 @@ public:
 
     bool CompileToFile(const std::string& jsonData, const std::string& cachePath) override
     {
-        m_CompileToFileCalled = true;
+        compileToFileCalled = true;
         return true;
     }
 
@@ -83,7 +83,7 @@ public:
         return false;
     }
 
-    bool m_CompileToFileCalled = false;
+    bool compileToFileCalled = false;
 };
 
 // ============================================================================
@@ -118,7 +118,7 @@ TEST_F(AssetTypeEditorTest, Compile_TextureTarget_ReturnsRGBA)
     bool success = editor.Compile("{}", rgba, width, height);
 
     EXPECT_TRUE(success);
-    EXPECT_TRUE(editor.m_CompileCalled);
+    EXPECT_TRUE(editor.compileCalled);
     EXPECT_EQ(width, 32);
     EXPECT_EQ(height, 32);
     EXPECT_EQ(rgba.size(), 32u * 32u * 4u);
@@ -154,8 +154,8 @@ TEST_F(AssetTypeEditorTest, CompileToFile_Overridden_Works)
     bool success = editor.CompileToFile("{}", "/path/to/cache");
 
     EXPECT_TRUE(success);
-    EXPECT_TRUE(editor.m_CompileToFileCalled);
-    EXPECT_EQ(editor.m_LastCachePath, "/path/to/cache");
+    EXPECT_TRUE(editor.compileToFileCalled);
+    EXPECT_EQ(editor.lastCachePath, "/path/to/cache");
 }
 
 TEST_F(AssetTypeEditorTest, GetCompileTarget_Texture_ReturnsZero)
@@ -251,8 +251,8 @@ TEST_F(EditorRegistryTest, AddFactory_CreatesFactoryInfo)
     auto& registry = EditorRegistry::Instance();
     size_t initialCount = registry.GetAllFactories().size();
 
-    static MockAssetTypeEditor prototype;
-    registry.AddFactory(&prototype,
+    static MockAssetTypeEditor s_Prototype;
+    registry.AddFactory(&s_Prototype,
                         []() -> std::unique_ptr<EditorExtension> { return std::make_unique<MockAssetTypeEditor>(); });
 
     EXPECT_EQ(registry.GetAllFactories().size(), initialCount + 1);
@@ -262,8 +262,8 @@ TEST_F(EditorRegistryTest, Factory_CreatesFreshInstances)
 {
     auto& registry = EditorRegistry::Instance();
 
-    static MockAssetTypeEditor prototype("FactoryTestEditor");
-    registry.AddFactory(&prototype, []() -> std::unique_ptr<EditorExtension>
+    static MockAssetTypeEditor s_Prototype("FactoryTestEditor");
+    registry.AddFactory(&s_Prototype, []() -> std::unique_ptr<EditorExtension>
                         { return std::make_unique<MockAssetTypeEditor>("FactoryTestEditor"); });
 
     // Find the factory
@@ -301,8 +301,8 @@ TEST_F(EditorRegistryTest, GetTotalCount_IncludesFactories)
     size_t initialCount = registry.GetTotalCount();
 
     // Add factory
-    static MockAssetTypeEditor factoryProto("CountTestFactory");
-    registry.AddFactory(&factoryProto, []() -> std::unique_ptr<EditorExtension>
+    static MockAssetTypeEditor s_FactoryProto("CountTestFactory");
+    registry.AddFactory(&s_FactoryProto, []() -> std::unique_ptr<EditorExtension>
                         { return std::make_unique<MockAssetTypeEditor>("CountTestFactory"); });
 
     EXPECT_EQ(registry.GetTotalCount(), initialCount + 1);

@@ -11,8 +11,8 @@ namespace DekiEditor
 
 EditorApplication& EditorApplication::Get()
 {
-    static EditorApplication instance;
-    return instance;
+    static EditorApplication s_Instance;
+    return s_Instance;
 }
 
 // ============================================================================

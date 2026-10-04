@@ -142,14 +142,14 @@ BuildPanel::~BuildPanel()
 
 void BuildPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(500, 400);
 
-    if (!ImGui::Begin("BUILD###Build", &m_Open, DekiEditor::MaximizedWindowFlags("BUILD###Build")))
+    if (!ImGui::Begin("BUILD###Build", &isOpen, DekiEditor::MaximizedWindowFlags("BUILD###Build")))
     {
         ImGui::End();
         return;

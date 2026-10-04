@@ -155,7 +155,7 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     }
 
     const uint64_t pixels = static_cast<uint64_t>(outData.header.width) * static_cast<uint64_t>(outData.header.height);
-    const uint64_t bpp = static_cast<uint64_t>(outData.getBytesPerPixel());
+    const uint64_t bpp = static_cast<uint64_t>(outData.GetBytesPerPixel());
     if (bpp == 0)
     {
         DEKI_LOG_WARNING("ReadTexFile: '%s' has unknown pixel format %u", path.c_str(), outData.header.format);

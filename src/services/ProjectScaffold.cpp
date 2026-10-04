@@ -185,7 +185,7 @@ bool WriteRenderPipeline(const std::string& projectPath, std::string& err)
     // most attach themselves. deki-rendering still recognises a clip2d entry
     // from an older project without complaining; see IsBuiltinPassName there.
     json j;
-    j[Deki::AuthoredFormat::VersionKey] = Deki::AuthoredFormat::AssetVersion;
+    j[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kAssetVersion;
     j["type"] = "RenderPipeline";
     j["renderer"] = "standard2d";
     j["passes"] = json::array();

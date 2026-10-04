@@ -22,12 +22,12 @@ public:
     // Whether the open state is saved with the layout.
     virtual bool PersistOpenState() const { return true; }
 
-    bool IsOpen() const { return m_Open; }
-    void SetOpen(bool open) { m_Open = open; }
+    bool IsOpen() const { return isOpen; }
+    void SetOpen(bool open) { isOpen = open; }
 
     // Public, as it always was on the panels: the Window menu and the layout
     // reset write it directly.
-    bool m_Open = false;
+    bool isOpen = false;
 };
 
 }  // namespace DekiEditor

@@ -89,7 +89,7 @@ TEST(SceneCorpus, EveryPropertyKeyIsRecognised)
             for (const Deki::Component* c : obj->GetComponents())
             {
                 ++totalComponents;
-                if (c && c->GetType() == Deki::MissingComponent::StaticType)
+                if (c && c->GetType() == Deki::MissingComponent::kStaticType)
                 {
                     ++missingComponents;
                 }

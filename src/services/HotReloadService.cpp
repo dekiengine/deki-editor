@@ -326,20 +326,20 @@ void HotReloadService::StartWatching(const std::string& projectPath)
     // a build. If everything is older than the DLL there is nothing to do -
     // avoids a wasted plugin unload+reload (and the asset-epoch bump that
     // comes with it) on every project open.
-    namespace fsx = std::filesystem;
+    namespace fs = std::filesystem;
     bool needsBuild = true;
-    fsx::path projName = fsx::path(projectPath).filename();
-    fsx::path pluginDll =
-        fsx::path(ProjectPaths::Runtime(projectPath)) / SharedLibFileName(ProjectPluginTarget(projName.string()));
+    fs::path projName = fs::path(projectPath).filename();
+    fs::path pluginDll =
+        fs::path(ProjectPaths::Runtime(projectPath)) / SharedLibFileName(ProjectPluginTarget(projName.string()));
     std::error_code dllEc;
-    if (fsx::exists(pluginDll, dllEc) && !dllEc)
+    if (fs::exists(pluginDll, dllEc) && !dllEc)
     {
-        auto dllTime = fsx::last_write_time(pluginDll, dllEc);
+        auto dllTime = fs::last_write_time(pluginDll, dllEc);
         if (!dllEc)
         {
-            const bool srcNewer = fsx::exists(srcPath) && PackageLoader::HasNewerSources(srcPath.string(), dllTime);
+            const bool srcNewer = fs::exists(srcPath) && PackageLoader::HasNewerSources(srcPath.string(), dllTime);
             const bool packagesNewer =
-                fsx::exists(packagesPath) && PackageLoader::HasNewerSources(packagesPath.string(), dllTime);
+                fs::exists(packagesPath) && PackageLoader::HasNewerSources(packagesPath.string(), dllTime);
 
             // Editor-side ImGui ABI guard. Package DLLs embed their own ImGui and
             // operate on the editor's ImGuiContext via a shared pointer; that only
@@ -351,13 +351,13 @@ void HotReloadService::StartWatching(const std::string& projectPath)
             // rebuild the packages - detect it by comparing the editor's
             // imgui_internal.h mtime against the DLL and force a rebuild.
             bool imguiNewer = false;
-            const fsx::path imguiHeader = EditorImGuiInternalHeader();
+            const fs::path imguiHeader = EditorImGuiInternalHeader();
             if (!imguiHeader.empty())
             {
                 std::error_code hEc;
-                if (fsx::exists(imguiHeader, hEc) && !hEc)
+                if (fs::exists(imguiHeader, hEc) && !hEc)
                 {
-                    auto hTime = fsx::last_write_time(imguiHeader, hEc);
+                    auto hTime = fs::last_write_time(imguiHeader, hEc);
                     if (!hEc && hTime > dllTime)
                     {
                         imguiNewer = true;
@@ -757,8 +757,8 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
             m_Console->LogBuildError(msg, "__plugin__");
 
             // Automatically open and focus the console panel so errors are visible
-            m_Console->m_Open = true;
-            m_Console->m_FocusFrames = 10;  // Keep requesting focus for several frames to survive layout init
+            m_Console->isOpen = true;
+            m_Console->focusFrames = 10;  // Keep requesting focus for several frames to survive layout init
         }
     }
 
@@ -1982,7 +1982,7 @@ void HotReloadService::FinishPackageBuild(ActiveBuild& b)
     {
         m_Console->LogBuildError("Package build failed. Previous version reloaded. Fix errors and save to retry.",
                                  "__package_summary");
-        m_Console->m_Open = true;
+        m_Console->isOpen = true;
     }
 
     // The packages stayed loaded during the build (they run from the shadow
@@ -2194,7 +2194,7 @@ void HotReloadService::ClearPackageReferencingState()
     DekiEditor::FileInspectorRegistry::Instance().Clear();
 
     // Drop the font atlas cache (entries hold BitmapFont* allocated by the package's
-    // heap) while s_fontDestroyer is still pointing at valid code, then null the
+    // heap) while s_FontDestroyer is still pointing at valid code, then null the
     // package-injected image/font function pointers. If we left these set, anything
     // touching LoadTexture/LoadFontAtlas between here and the new package's
     // re-registration would jump into freed code.

@@ -194,7 +194,7 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
         }
         // Docked content only fades, quickly: the dock around it does not move.
         const bool docked = w->DockIsActive;
-        const float t = Motion::To(OpenKey(w->ID), 1.0f, docked ? Motion::Fast : Motion::Normal);
+        const float t = Motion::To(OpenKey(w->ID), 1.0f, docked ? Motion::kFast : Motion::kNormal);
         if (t >= 1.0f)
         {
             continue;
@@ -236,7 +236,7 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
     ImDrawData* dd = ImGui::GetDrawData();
     for (auto it = s_Ghosts.begin(); it != s_Ghosts.end();)
     {
-        const float t = Motion::To(it->key, 0.0f, Motion::Fast);
+        const float t = Motion::To(it->key, 0.0f, Motion::kFast);
         if (t <= 0.0f || !dd)
         {
             DrawListFx::Free(it->frozen);

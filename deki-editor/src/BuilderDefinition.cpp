@@ -61,7 +61,7 @@ static void ParseComponent(const json& j, ComponentDef& comp)
     {
         const auto& pi = j["postInstall"];
         comp.postInstall.windows = pi.value("windows", "");
-        comp.postInstall.unix_ = pi.value("unix", "");
+        comp.postInstall.unixLike = pi.value("unix", "");
     }
 
     // Sub-components

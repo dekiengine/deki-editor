@@ -46,13 +46,13 @@ void Note(const char* text)
 
 void EditorSettingsPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(440, 470);
-    if (!ImGui::Begin("EDITOR SETTINGS###Editor Settings", &m_Open,
+    if (!ImGui::Begin("EDITOR SETTINGS###Editor Settings", &isOpen,
                       DekiEditor::MaximizedWindowFlags("EDITOR SETTINGS###Editor Settings")))
     {
         ImGui::End();

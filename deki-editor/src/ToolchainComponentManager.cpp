@@ -335,7 +335,7 @@ void ToolchainComponentManager::InstallComponent(const std::string& componentId,
 #ifdef _WIN32
                 bool hasPostInstall = !def.postInstall.windows.empty();
 #else
-                bool hasPostInstall = !def.postInstall.unix_.empty();
+                bool hasPostInstall = !def.postInstall.unixLike.empty();
 #endif
                 if (hasPostInstall)
                     DoSetupComponent(def, nullptr);
@@ -777,7 +777,7 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
 #ifdef _WIN32
     std::string postInstallTemplate = comp.postInstall.windows;
 #else
-    std::string postInstallTemplate = comp.postInstall.unix_;
+    std::string postInstallTemplate = comp.postInstall.unixLike;
 #endif
 
     if (postInstallTemplate.empty())

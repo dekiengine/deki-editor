@@ -106,7 +106,7 @@ public:
     // Fired immediately before each plugin DLL is loaded inside
     // LoadPluginsFromDirectory. Used by the startup progress modal to surface
     // which plugin is currently being processed.
-    std::function<void(const std::string& pluginName)> OnPluginLoading;
+    std::function<void(const std::string& pluginName)> onPluginLoading;
 
     /**
      * @brief How many EditorRegistry factories existed before the first plugin

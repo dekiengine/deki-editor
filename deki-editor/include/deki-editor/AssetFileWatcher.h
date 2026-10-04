@@ -18,7 +18,7 @@ namespace DekiEditor
  * on its own worker thread. The listener pushes raw events into a thread-safe
  * map keyed by project-relative path. AssetPipeline::Tick() calls
  * DrainReadyEvents() once per frame to receive coalesced, debounced events on
- * the main thread - required because downstream OnAssetChanged subscribers
+ * the main thread - required because downstream onAssetChanged subscribers
  * touch GPU resources.
  *
  * Coalescing rules per path (when a new event arrives for a path already pending):

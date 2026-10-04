@@ -21,7 +21,7 @@ namespace DekiEditor
 
 class DEKI_EDITOR_API IBuildActivitySink
 {
-   public:
+public:
     virtual ~IBuildActivitySink() = default;
 
     /// Progress on a named long-running process (a toolchain install, say).

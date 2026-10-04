@@ -27,10 +27,10 @@ namespace DekiEditor
 {
 
 // Baud rate options
-const int SerialMonitorPanel::s_BaudRates[] = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
+const int SerialMonitorPanel::kBaudRates[] = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
 const char* SerialMonitorPanel::s_BaudRateNames[] = { "9600",   "19200",  "38400",  "57600",
                                                       "115200", "230400", "460800", "921600" };
-const int SerialMonitorPanel::s_BaudRateCount = 8;
+const int SerialMonitorPanel::kBaudRateCount = 8;
 
 SerialMonitorPanel::SerialMonitorPanel(EditorApp* app)
     : m_App(app)
@@ -51,14 +51,14 @@ SerialMonitorPanel::~SerialMonitorPanel()
 
 void SerialMonitorPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
 
     DekiEditor::FirstUseWindowPlacement(700, 400);
 
-    if (!ImGui::Begin("SERIAL MONITOR###Serial Monitor", &m_Open,
+    if (!ImGui::Begin("SERIAL MONITOR###Serial Monitor", &isOpen,
                       DekiEditor::MaximizedWindowFlags("SERIAL MONITOR###Serial Monitor")))
     {
         ImGui::End();
@@ -151,7 +151,7 @@ void SerialMonitorPanel::DrawToolbar()
         InspectorUtils::BeginPropertyRow("Baud Rate");
         ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::BeginDisabled(m_IsConnected);
-        SchematicCombo("##baud", &m_BaudRateIndex, s_BaudRateNames, s_BaudRateCount);
+        SchematicCombo("##baud", &m_BaudRateIndex, s_BaudRateNames, kBaudRateCount);
         ImGui::EndDisabled();
 
         InspectorUtils::BeginPropertyRow("Status");
@@ -207,17 +207,17 @@ void SerialMonitorPanel::DrawOutput()
         std::string displayText;
         if (m_ShowTimestamps)
         {
-            auto time_t_val = std::chrono::system_clock::to_time_t(line.timestamp);
+            auto timeTVal = std::chrono::system_clock::to_time_t(line.timestamp);
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(line.timestamp.time_since_epoch()) % 1000;
 
-            std::tm tm_val;
+            std::tm tmVal;
 #ifdef _WIN32
-            localtime_s(&tm_val, &time_t_val);
+            localtime_s(&tmVal, &timeTVal);
 #else
-            localtime_r(&time_t_val, &tm_val);
+            localtime_r(&timeTVal, &tmVal);
 #endif
             char timeBuf[24];
-            snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d.%03d] ", tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec,
+            snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d.%03d] ", tmVal.tm_hour, tmVal.tm_min, tmVal.tm_sec,
                      (int)ms.count());
             displayText = timeBuf;
         }
@@ -378,7 +378,7 @@ bool SerialMonitorPanel::Connect()
         return false;
     }
 
-    dcb.BaudRate = s_BaudRates[m_BaudRateIndex];
+    dcb.BaudRate = kBaudRates[m_BaudRateIndex];
     dcb.ByteSize = 8;
     dcb.StopBits = ONESTOPBIT;
     dcb.Parity = NOPARITY;
@@ -425,7 +425,7 @@ bool SerialMonitorPanel::Connect()
 
     // Set baud rate
     speed_t baudRate;
-    switch (s_BaudRates[m_BaudRateIndex])
+    switch (kBaudRates[m_BaudRateIndex])
     {
         case 9600: baudRate = B9600; break;
         case 19200: baudRate = B19200; break;
@@ -467,7 +467,7 @@ bool SerialMonitorPanel::Connect()
     // Start read thread
     m_ReadThread = std::thread(&SerialMonitorPanel::ReadThreadFunc, this);
 
-    AddOutputLine("Connected to " + m_SelectedPort + " at " + std::to_string(s_BaudRates[m_BaudRateIndex]) + " baud");
+    AddOutputLine("Connected to " + m_SelectedPort + " at " + std::to_string(kBaudRates[m_BaudRateIndex]) + " baud");
 
     return true;
 }

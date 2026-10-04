@@ -141,7 +141,7 @@ private:
     std::mutex m_EventMutex;
 
     // Circular frame buffer (300 frames = 5 seconds at 60fps)
-    static constexpr size_t MAX_FRAME_HISTORY = 300;
+    static constexpr size_t kMaxFrameHistory = 300;
     std::deque<FrameData> m_FrameHistory;
     mutable std::mutex m_FrameHistoryMutex;
 

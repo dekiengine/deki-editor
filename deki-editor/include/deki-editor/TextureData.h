@@ -47,9 +47,9 @@ struct DEKI_EDITOR_API TexData
     TexHeader header;
     std::vector<uint8_t> pixelData;
 
-    bool isValid() const { return header.width > 0 && header.height > 0; }
+    bool IsValid() const { return header.width > 0 && header.height > 0; }
 
-    std::string getFormatName() const
+    std::string GetFormatName() const
     {
         switch (header.format)
         {
@@ -62,7 +62,7 @@ struct DEKI_EDITOR_API TexData
         }
     }
 
-    int getBytesPerPixel() const
+    int GetBytesPerPixel() const
     {
         switch (header.format)
         {
@@ -75,8 +75,8 @@ struct DEKI_EDITOR_API TexData
         }
     }
 
-    bool hasAlpha() const { return (header.flags & static_cast<uint32_t>(TexFlags::HasAlpha)) != 0; }
-    bool hasTransparency() const { return (header.flags & static_cast<uint32_t>(TexFlags::HasTransparency)) != 0; }
+    bool HasAlpha() const { return (header.flags & static_cast<uint32_t>(TexFlags::HasAlpha)) != 0; }
+    bool HasTransparency() const { return (header.flags & static_cast<uint32_t>(TexFlags::HasTransparency)) != 0; }
 };
 
 }  // namespace DekiEditor

@@ -252,7 +252,7 @@ private:
         uint32_t textureId = 0;
         uint32_t width = 0;
         uint32_t height = 0;
-        void* font = nullptr;  // Opaque Deki2D::BitmapFont*, destroyed via s_fontDestroyer
+        void* font = nullptr;  // Opaque Deki2D::BitmapFont*, destroyed via s_FontDestroyer
     };
 
     // Internal font loading

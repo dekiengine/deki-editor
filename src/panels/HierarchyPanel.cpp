@@ -47,7 +47,7 @@ bool HierarchyPanel::IsProtectedObject(Deki::Object* obj) const
 
 void HierarchyPanel::Draw()
 {
-    if (!m_Open)
+    if (!isOpen)
     {
         return;
     }
@@ -55,7 +55,7 @@ void HierarchyPanel::Draw()
     // The panel itself never scrolls: the breadcrumb and search stay put and
     // the tree below scrolls in its own region (it used to take the search
     // field away with it).
-    ImGui::Begin("HIERARCHY###Hierarchy", &m_Open,
+    ImGui::Begin("HIERARCHY###Hierarchy", &isOpen,
                  DekiEditor::MaximizedWindowFlags("HIERARCHY###Hierarchy") | ImGuiWindowFlags_NoScrollbar |
                      ImGuiWindowFlags_NoScrollWithMouse);
     auto* scene = m_App->GetCurrentScene();
@@ -654,11 +654,11 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         ImGui::SameLine();
 
         // Set focus on first frame
-        static bool focusSet = false;
-        if (!focusSet)
+        static bool s_FocusSet = false;
+        if (!s_FocusSet)
         {
             ImGui::SetKeyboardFocusHere();
-            focusSet = true;
+            s_FocusSet = true;
         }
 
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -671,14 +671,14 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                 CommandHistory::Instance().Execute(std::make_unique<RenameObjectCommand>(obj, m_RenameBuffer));
             }
             StopRenaming();
-            focusSet = false;
+            s_FocusSet = false;
         }
 
         // Cancel on Escape or click outside
         if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (!ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)))
         {
             StopRenaming();
-            focusSet = false;
+            s_FocusSet = false;
         }
 
         ImGui::PopID();

@@ -370,8 +370,8 @@ TEST(EditorRegistrySharedSingletonTest, SingletonIsSharedAcrossCallSites)
     // Adding a factory from one call site should be visible from another
     size_t countBefore = inst1.GetTotalCount();
 
-    static MockAssetTypeEditorForLoader sharedProto("SharedSingletonTest");
-    inst1.AddFactory(&sharedProto, []() -> std::unique_ptr<EditorExtension>
+    static MockAssetTypeEditorForLoader s_SharedProto("SharedSingletonTest");
+    inst1.AddFactory(&s_SharedProto, []() -> std::unique_ptr<EditorExtension>
                      { return std::make_unique<MockAssetTypeEditorForLoader>("SharedSingletonTest"); });
 
     EXPECT_EQ(inst2.GetTotalCount(), countBefore + 1);

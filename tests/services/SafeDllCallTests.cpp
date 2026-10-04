@@ -33,8 +33,8 @@ static int ValidGetIntFunc()
 
 static void* ValidGetPtrFunc(int index)
 {
-    static int values[] = { 10, 20, 30 };
-    return &values[index];
+    static int s_Values[] = { 10, 20, 30 };
+    return &s_Values[index];
 }
 
 static int ValidInitFunc()

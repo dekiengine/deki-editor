@@ -49,9 +49,9 @@ int PluginLoader::LoadPluginsFromDirectory(const std::string& directory)
 
     for (const auto& path : candidates)
     {
-        if (OnPluginLoading)
+        if (onPluginLoading)
         {
-            OnPluginLoading(std::filesystem::path(path).stem().string());
+            onPluginLoading(std::filesystem::path(path).stem().string());
         }
 
         if (LoadPlugin(path))
@@ -137,8 +137,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
             continue;
         }
 
-        auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPlugin_GetComponentCount");
-        auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPlugin_GetComponentMeta");
+        auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
+        auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPluginGetComponentMeta");
 #else
         void* handle = dlopen(c.path.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (!handle)
@@ -146,8 +146,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
             continue;
         }
 
-        auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPlugin_GetComponentCount");
-        auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPlugin_GetComponentMeta");
+        auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPluginGetComponentCount");
+        auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPluginGetComponentMeta");
 #endif
 
         if (getComponentCount && getComponentMeta)
@@ -310,11 +310,11 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     info.handle = handle;
 
     // Get function pointers
-    auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPlugin_GetName");
-    auto getVersion = (GetVersionFunc)GetProcAddress(handle, "DekiPlugin_GetVersion");
-    auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPlugin_GetComponentCount");
-    auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPlugin_GetComponentMeta");
-    auto init = (InitFunc)GetProcAddress(handle, "DekiPlugin_Init");
+    auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPluginGetName");
+    auto getVersion = (GetVersionFunc)GetProcAddress(handle, "DekiPluginGetVersion");
+    auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
+    auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPluginGetComponentMeta");
+    auto init = (InitFunc)GetProcAddress(handle, "DekiPluginInit");
     auto getReflectionAbi = (DekiGetReflectionAbiFunc)GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
 #else
     // Load shared library
@@ -327,11 +327,11 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     info.handle = handle;
 
     // Get function pointers
-    auto getName = (GetNameFunc)dlsym(handle, "DekiPlugin_GetName");
-    auto getVersion = (GetVersionFunc)dlsym(handle, "DekiPlugin_GetVersion");
-    auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPlugin_GetComponentCount");
-    auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPlugin_GetComponentMeta");
-    auto init = (InitFunc)dlsym(handle, "DekiPlugin_Init");
+    auto getName = (GetNameFunc)dlsym(handle, "DekiPluginGetName");
+    auto getVersion = (GetVersionFunc)dlsym(handle, "DekiPluginGetVersion");
+    auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPluginGetComponentCount");
+    auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPluginGetComponentMeta");
+    auto init = (InitFunc)dlsym(handle, "DekiPluginInit");
     auto getReflectionAbi = (DekiGetReflectionAbiFunc)dlsym(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
 #endif
 
@@ -506,9 +506,9 @@ void PluginLoader::UnloadAllPlugins()
 #ifdef _WIN32
             // Unregister plugin components from ComponentFactory before unloading
             auto getComponentCount =
-                (GetComponentCountFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_GetComponentCount");
+                (GetComponentCountFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginGetComponentCount");
             auto getComponentMeta =
-                (GetComponentMetaFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_GetComponentMeta");
+                (GetComponentMetaFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginGetComponentMeta");
             if (getComponentCount && getComponentMeta)
             {
                 int count = SafeCallGetInt(getComponentCount, 0, "PluginLoader::unload::getComponentCount");
@@ -524,15 +524,15 @@ void PluginLoader::UnloadAllPlugins()
             }
 
             // Try to call shutdown (SEH-protected - skip on crash)
-            auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_Shutdown");
+            auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginShutdown");
             if (shutdown)
             {
                 SafeCallVoid(shutdown, "PluginLoader::shutdown");
             }
             FreeLibrary((HMODULE)plugin.handle);
 #else
-            auto getComponentCount = (GetComponentCountFunc)dlsym(plugin.handle, "DekiPlugin_GetComponentCount");
-            auto getComponentMeta = (GetComponentMetaFunc)dlsym(plugin.handle, "DekiPlugin_GetComponentMeta");
+            auto getComponentCount = (GetComponentCountFunc)dlsym(plugin.handle, "DekiPluginGetComponentCount");
+            auto getComponentMeta = (GetComponentMetaFunc)dlsym(plugin.handle, "DekiPluginGetComponentMeta");
             if (getComponentCount && getComponentMeta)
             {
                 int count = SafeCallGetInt(getComponentCount, 0, "PluginLoader::unload::getComponentCount");
@@ -547,7 +547,7 @@ void PluginLoader::UnloadAllPlugins()
                 }
             }
 
-            auto shutdown = (ShutdownFunc)dlsym(plugin.handle, "DekiPlugin_Shutdown");
+            auto shutdown = (ShutdownFunc)dlsym(plugin.handle, "DekiPluginShutdown");
             if (shutdown)
             {
                 SafeCallVoid(shutdown, "PluginLoader::shutdown");

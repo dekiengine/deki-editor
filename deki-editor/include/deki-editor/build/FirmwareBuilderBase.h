@@ -44,10 +44,8 @@ public:
 
     // Toolchain component API (delegates to m_ToolchainMgr)
     std::vector<ToolchainComponent> GetToolchainComponents() const override;
-    void InstallToolchainComponent(const std::string& componentId,
-                                   BuildProgressCallback cb = nullptr) override;
-    void SetupToolchainComponent(const std::string& componentId,
-                                 BuildProgressCallback cb = nullptr) override;
+    void InstallToolchainComponent(const std::string& componentId, BuildProgressCallback cb = nullptr) override;
+    void SetupToolchainComponent(const std::string& componentId, BuildProgressCallback cb = nullptr) override;
     void CheckForToolchainUpdates(std::function<void()> onComplete = nullptr) override;
     bool IsToolchainBusy() const override;
 
@@ -59,8 +57,7 @@ protected:
     void SetError(const std::string& error);
 
     // Package dep resolution
-    std::vector<DependencyInfo> ReadEnginePackageDeps(const std::string& enginePath,
-                                                      const std::string& projectPath,
+    std::vector<DependencyInfo> ReadEnginePackageDeps(const std::string& enginePath, const std::string& projectPath,
                                                       const std::string& platformKey) const;
 
     // Shared state

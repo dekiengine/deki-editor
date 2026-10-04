@@ -610,10 +610,10 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
             }
             // CoreRegistration.gen.cpp was skipped here as "redundant with
             // AllComponentRegistration". It is the opposite: AllComponentRegistration
-            // only forward-declares DekiCore_RegisterComponents() and calls it from
-            // deki_register_all_components, while the definition - and the core
+            // only forward-declares DekiCoreRegisterComponents() and calls it from
+            // DekiRegisterAllComponents, while the definition - and the core
             // components' factory entries - live here. Leaving it out cost an
-            // "undefined reference to DekiCore_RegisterComponents()" at link.
+            // "undefined reference to DekiCoreRegisterComponents()" at link.
             //
             // It went unnoticed because a firmware build had never reached the
             // link step before. Its static registrar is idempotent (a `done`
@@ -624,7 +624,7 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
                 continue;
             }
 
-            // Always include AllComponentRegistration (provides deki_register_all_components)
+            // Always include AllComponentRegistration (provides DekiRegisterAllComponents)
             if (filename == "AllComponentRegistration.gen.cpp")
             {
                 out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/" << filename
@@ -764,7 +764,7 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
     const bool hasProjectSources = !projectSrcPath.empty() && fs::exists(projectSrcPath);
     if (hasProjectSources)
     {
-        cpp << "extern void Plugin_RegisterComponents();\n";
+        cpp << "extern void PluginRegisterComponents();\n";
     }
     cpp << "\n";
 
@@ -779,11 +779,11 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         {
             continue;
         }
-        cpp << "extern void " << pkg.packagePrefix << "_RegisterComponents();\n";
+        cpp << "extern void " << pkg.packagePrefix << "RegisterComponents();\n";
     }
 
-    // Collect packages with system init. Declared up front so deki_register_project_packages()
-    // can call them inline when the engine core already provides deki_init_package_systems().
+    // Collect packages with system init. Declared up front so DekiRegisterProjectPackages()
+    // can call them inline when the engine core already provides DekiInitPackageSystems().
     std::vector<const PackageEntry*> initPackages;
     for (const auto& pkg : allPackages)
     {
@@ -801,11 +801,11 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
     // Declare init/shutdown externs
     for (const auto* pkg : initPackages)
     {
-        cpp << "extern void " << pkg->packagePrefix << "_InitSystem();\n";
-        cpp << "extern void " << pkg->packagePrefix << "_ShutdownSystem();\n";
+        cpp << "extern void " << pkg->packagePrefix << "InitSystem();\n";
+        cpp << "extern void " << pkg->packagePrefix << "ShutdownSystem();\n";
     }
 
-    cpp << "\nextern \"C\" void deki_register_project_packages(void)\n";
+    cpp << "\nextern \"C\" void DekiRegisterProjectPackages(void)\n";
     cpp << "{\n";
     for (const auto& pkg : allPackages)
     {
@@ -817,25 +817,25 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         {
             continue;
         }
-        cpp << "    " << pkg.packagePrefix << "_RegisterComponents();\n";
+        cpp << "    " << pkg.packagePrefix << "RegisterComponents();\n";
     }
 
-    // Static desktop simulator: the engine core defines (an empty) deki_init_package_systems(),
+    // Static desktop simulator: the engine core defines (an empty) DekiInitPackageSystems(),
     // so this file must not redefine it (link collision). Bootstrap package systems here
-    // instead, after component registration. Same order as deki_init_package_systems() below.
+    // instead, after component registration. Same order as DekiInitPackageSystems() below.
     if (engineDefinesSystemInit && !initPackages.empty())
     {
-        cpp << "\n    // Package systems (engine core owns the deki_init_package_systems() symbol)\n";
+        cpp << "\n    // Package systems (engine core owns the DekiInitPackageSystems() symbol)\n";
         for (const auto* pkg : initPackages)
         {
-            cpp << "    " << pkg->packagePrefix << "_InitSystem();\n";
+            cpp << "    " << pkg->packagePrefix << "InitSystem();\n";
         }
     }
 
     // Project components (generated PluginRegistration.gen.cpp)
     if (hasProjectSources)
     {
-        cpp << "\n    Plugin_RegisterComponents();\n";
+        cpp << "\n    PluginRegisterComponents();\n";
     }
 
     cpp << "}\n";
@@ -844,21 +844,21 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
     // init/shutdown entry points here (called by Deki::Engine::Initialize/Shutdown).
     if (!engineDefinesSystemInit)
     {
-        // deki_init_package_systems
-        cpp << "\nextern \"C\" void deki_init_package_systems(void)\n";
+        // DekiInitPackageSystems
+        cpp << "\nextern \"C\" void DekiInitPackageSystems(void)\n";
         cpp << "{\n";
         for (const auto* pkg : initPackages)
         {
-            cpp << "    " << pkg->packagePrefix << "_InitSystem();\n";
+            cpp << "    " << pkg->packagePrefix << "InitSystem();\n";
         }
         cpp << "}\n";
 
-        // deki_shutdown_package_systems (reverse order)
-        cpp << "\nextern \"C\" void deki_shutdown_package_systems(void)\n";
+        // DekiShutdownPackageSystems (reverse order)
+        cpp << "\nextern \"C\" void DekiShutdownPackageSystems(void)\n";
         cpp << "{\n";
         for (auto it = initPackages.rbegin(); it != initPackages.rend(); ++it)
         {
-            cpp << "    " << (*it)->packagePrefix << "_ShutdownSystem();\n";
+            cpp << "    " << (*it)->packagePrefix << "ShutdownSystem();\n";
         }
         cpp << "}\n";
     }

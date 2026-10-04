@@ -64,9 +64,9 @@ void ToolHost::DiscoverTools()
         const EditorWindowMeta* meta = GetRegisteredWindowMeta(i);
         if (meta && meta->createFunc)
         {
-            if (OnToolDiscovered)
+            if (onToolDiscovered)
             {
-                OnToolDiscovered(meta->title ? meta->title : "");
+                onToolDiscovered(meta->title ? meta->title : "");
             }
 
             WindowInstance instance;

@@ -22,9 +22,9 @@ namespace
 
 uint32_t Crc32(const std::string& data)
 {
-    static uint32_t table[256];
-    static bool init = false;
-    if (!init)
+    static uint32_t s_Table[256];
+    static bool s_Init = false;
+    if (!s_Init)
     {
         for (uint32_t i = 0; i < 256; ++i)
         {
@@ -33,14 +33,14 @@ uint32_t Crc32(const std::string& data)
             {
                 c = (c & 1) ? (0xEDB88320u ^ (c >> 1)) : (c >> 1);
             }
-            table[i] = c;
+            s_Table[i] = c;
         }
-        init = true;
+        s_Init = true;
     }
     uint32_t crc = 0xFFFFFFFFu;
     for (unsigned char b : data)
     {
-        crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        crc = s_Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
     }
     return crc ^ 0xFFFFFFFFu;
 }

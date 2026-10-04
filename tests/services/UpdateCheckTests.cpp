@@ -9,7 +9,7 @@ using namespace DekiEditor;
 
 namespace
 {
-const char* kRelease = R"({
+const char* const kRelease = R"({
   "url": "https://api.github.com/repos/dekiengine/deki-editor/releases/1",
   "html_url": "https://github.com/dekiengine/deki-editor/releases/tag/0.11.0",
   "tag_name": "0.11.0",

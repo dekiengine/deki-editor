@@ -107,9 +107,9 @@ private:
 #endif
 
     // Baud rate options
-    static const int s_BaudRates[];
+    static const int kBaudRates[];
     static const char* s_BaudRateNames[];
-    static const int s_BaudRateCount;
+    static const int kBaudRateCount;
 };
 
 }  // namespace DekiEditor

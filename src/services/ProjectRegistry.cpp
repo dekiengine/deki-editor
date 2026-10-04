@@ -74,8 +74,8 @@ int64_t NowSeconds()
 
 ProjectRegistry& ProjectRegistry::Get()
 {
-    static ProjectRegistry instance;
-    return instance;
+    static ProjectRegistry s_Instance;
+    return s_Instance;
 }
 
 bool ProjectRegistry::IsProjectDir(const std::string& path)

@@ -6,8 +6,8 @@ namespace DekiEditor
 
 CommandHistory& CommandHistory::Instance()
 {
-    static CommandHistory instance;
-    return instance;
+    static CommandHistory s_Instance;
+    return s_Instance;
 }
 
 void CommandHistory::Execute(std::unique_ptr<Command> command)

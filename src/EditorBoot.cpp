@@ -333,7 +333,7 @@ bool BootDisplay(BootContext& ctx)
     }
 
     // GL 3.3 + GLSL 330
-    const char* glsl_version = "#version 330";
+    const char* glslVersion = "#version 330";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -344,7 +344,7 @@ bool BootDisplay(BootContext& ctx)
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    SDL_WindowFlags window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
+    SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
 
 #ifdef _WIN32
     // Started minimized (`start /min`, a shortcut set to "Run: Minimized",
@@ -370,11 +370,11 @@ bool BootDisplay(BootContext& ctx)
         // made, ImGui's GL backend failed to load, and the first frame
         // asserted.
         SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
-        window_flags |= SDL_WINDOW_HIDDEN;
+        windowFlags |= SDL_WINDOW_HIDDEN;
     }
 #endif
 
-    ctx.window = SDL_CreateWindow("Deki Editor", 1600, 900, window_flags);
+    ctx.window = SDL_CreateWindow("Deki Editor", 1600, 900, windowFlags);
 
     if (ctx.window == nullptr)
     {
@@ -588,7 +588,7 @@ bool BootDisplay(BootContext& ctx)
 
     // Setup Platform/Renderer backends
     ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplOpenGL3_Init(glslVersion);
 
 #ifdef _WIN32
     // Started in the background: show the hidden window now, minimized and
@@ -656,7 +656,7 @@ bool BootDisplay(BootContext& ctx)
         // Tabler codepoint range capped at 0xFFFF so we stay within ImWchar (uint16).
         // Icons in our target mockup (player-play, folder, search, etc.) are all
         // in the 0xEA02 - 0xF34F range.
-        static const ImWchar iconRanges[] = { ICON_MIN_TI, 0xFFFF, 0 };
+        static const ImWchar kIconRanges[] = { ICON_MIN_TI, 0xFFFF, 0 };
 
         // The text fonts (Inter, JetBrains Mono, …) carry a handful of stray
         // Private-Use-Area glyph mappings that overlap the Tabler icon range -
@@ -664,7 +664,7 @@ bool BootDisplay(BootContext& ctx)
         // font wins, which silently shadows those icons (this is why hand-finger
         // rendered blank while hand-finger-off was fine). Exclude the icon range
         // from every text font so the merged Tabler font owns it.
-        baseCfg.GlyphExcludeRanges = iconRanges;
+        baseCfg.GlyphExcludeRanges = kIconRanges;
 
         // With greyscale text, JetBrains Mono gets the autohinter in normal
         // mode, which snaps stems on X as well: under LightHinting its stems
@@ -684,7 +684,7 @@ bool BootDisplay(BootContext& ctx)
             iconCfg.PixelSnapH = true;
             iconCfg.GlyphMinAdvanceX = size;
             iconCfg.GlyphOffset.y = 1.0f;
-            io.Fonts->AddFontFromFileTTF(iconsPath.c_str(), size, &iconCfg, iconRanges);
+            io.Fonts->AddFontFromFileTTF(iconsPath.c_str(), size, &iconCfg, kIconRanges);
         };
 
         // Load fonts at BASE sizes (logical pixels). ImGui 1.92's
@@ -793,7 +793,7 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     ProfilingService::Get().Initialize();
 
     // Deep profiling callbacks (for plugin /Gh /GH instrumentation)
-    Profiling_SetCallbacks(&ProfilingService::OnProfileEnter, &ProfilingService::OnProfileExit);
+    ProfilingSetCallbacks(&ProfilingService::OnProfileEnter, &ProfilingService::OnProfileExit);
 
     return true;
 }

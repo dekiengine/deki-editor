@@ -41,7 +41,7 @@ protected:
         const Deki::Object* obj = root->GetChildren()[0];
         for (const Deki::Component* c : obj->GetComponents())
         {
-            if (c->GetType() == MockComponent::StaticType)
+            if (c->GetType() == MockComponent::kStaticType)
             {
                 return static_cast<const MockComponent*>(c);
             }
@@ -101,5 +101,5 @@ TEST_F(RenamedComponent, CurrentNamesAreLookedUpBeforeFormerOnes)
     auto& registry = Deki::ComponentRegistry::Instance();
     const Deki::ComponentMeta* byCurrent = registry.GetMeta(std::string(Deki::TypeName<MockComponent>()));
     ASSERT_NE(byCurrent, nullptr);
-    EXPECT_EQ(byCurrent->typeId, MockComponent::StaticType);
+    EXPECT_EQ(byCurrent->typeId, MockComponent::kStaticType);
 }

@@ -74,10 +74,10 @@ private:
 
     std::optional<ParsedClipboard> ParseClipboard() const;
 
-    static constexpr int CLIPBOARD_VERSION = 1;
-    static constexpr const char* TYPE_COMPONENT = "component";
-    static constexpr const char* TYPE_TRANSFORM = "transform";
-    static constexpr const char* TYPE_OBJECTS = "objects";
+    static constexpr int kClipboardVersion = 1;
+    static constexpr const char* kTypeComponent = "component";
+    static constexpr const char* kTypeTransform = "transform";
+    static constexpr const char* kTypeObjects = "objects";
 };
 
 }  // namespace DekiEditor

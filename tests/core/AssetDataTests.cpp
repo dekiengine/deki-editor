@@ -29,13 +29,13 @@ TEST(AssetData, SaveWritesGuidSettingsAndFormatVersion)
     std::ifstream f(path);
     const nlohmann::json j = nlohmann::json::parse(f);
     EXPECT_EQ(j.at("guid"), data.guid);
-    EXPECT_EQ(j.at(Deki::AuthoredFormat::VersionKey).get<int>(), Deki::AuthoredFormat::AssetDataVersion);
+    EXPECT_EQ(j.at(Deki::AuthoredFormat::kVersionKey).get<int>(), Deki::AuthoredFormat::kAssetDataVersion);
     EXPECT_EQ(j.at("sprite").at("frameWidth"), 16);
 
     AssetData back;
     ASSERT_TRUE(LoadAssetData(path.string(), back));
     EXPECT_EQ(back.guid, data.guid);
-    EXPECT_FALSE(back.settings.contains(Deki::AuthoredFormat::VersionKey)) << "the version is not a setting";
+    EXPECT_FALSE(back.settings.contains(Deki::AuthoredFormat::kVersionKey)) << "the version is not a setting";
     EXPECT_FALSE(back.settings.contains("guid"));
     EXPECT_EQ(back.settings.at("sprite").at("frameWidth"), 16);
     std::error_code ec;
@@ -49,8 +49,8 @@ TEST(AssetData, NewerSidecarStillYieldsTheGuid)
     const fs::path path = TempSidecar("newer");
     {
         std::ofstream f(path);
-        f << "{\"guid\":\"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\",\"" << Deki::AuthoredFormat::VersionKey
-          << "\":" << (Deki::AuthoredFormat::AssetDataVersion + 1) << ",\"future\":{\"x\":1}}";
+        f << "{\"guid\":\"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\",\"" << Deki::AuthoredFormat::kVersionKey
+          << "\":" << (Deki::AuthoredFormat::kAssetDataVersion + 1) << ",\"future\":{\"x\":1}}";
     }
     AssetData data;
     ASSERT_TRUE(LoadAssetData(path.string(), data));

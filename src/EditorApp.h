@@ -85,7 +85,7 @@ public:
     /// free to differ. It was named EDITOR_VERSION and stored in
     /// settings/editor_version.txt, which made it look like the release
     /// version and made the disagreement with CMake look like a bug.
-    static constexpr const char* ASSET_CACHE_EPOCH = "1.1.0";
+    static constexpr const char* kAssetCacheEpoch = "1.1.0";
 
     EditorApp();
     ~EditorApp();
