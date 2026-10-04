@@ -66,20 +66,6 @@
 namespace DekiEditor
 {
 
-namespace
-{
-
-/// Where crash recovery for a project is kept: ~/.deki-editor/Recovery/<key>.
-///
-/// Not inside the project: it is editor state, and there it would show up in
-/// git status, one `git add .` away from being committed.
-///
-/// Not the OS temp folder either: Linux clears /tmp on boot and Windows
-/// cleanup tools empty %TEMP%, and a crash is often followed by a reboot.
-/// ~/.deki-editor already holds the editor's per-user state and survives both.
-///
-}  // namespace
-
 EditorApp::EditorApp()
 {
     // EditorSelection owns the selection; EditorApplication is what package

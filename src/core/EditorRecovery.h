@@ -47,6 +47,10 @@ public:
     /// Each project gets its own folder: the readable project name plus a hash
     /// of the normalised full path, so two projects with the same name in
     /// different places stay separate.
+    ///
+    /// The folder is under ~/.deki-editor/Recovery, not in the project (it would
+    /// show in git status, one `git add .` from being committed) and not in the
+    /// OS temp folder (cleared on reboot, which often follows a crash).
     static std::string RecoveryDirFor(const std::string& projectPath);
     /// The recovery directory under the older, std::hash-based folder name.
     /// Still scanned so recoveries left by older editors are found.
