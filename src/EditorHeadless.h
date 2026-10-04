@@ -60,7 +60,8 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll);
 /// unrecognised key, so a scan without them would pass having examined
 /// nothing. It still refuses to report success in that case.
 ///
-/// Returns 0 when every key is recognised, 1 otherwise.
+/// Returns 0 when the project's code built, every scene loaded, every component
+/// resolved to a type and every key is recognised; 1 otherwise.
 int CmdVerifyScenes(EditorApp& editor);
 
 /// Render every scene under the project's assets/ headless - through the same
@@ -73,14 +74,16 @@ int CmdVerifyScenes(EditorApp& editor);
 ///
 /// This is the pixel gate for renderer work on real project content: run it
 /// before and after a change and diff the hashes. Scenes with no camera are
-/// reported and skipped. Returns 0 when at least one scene rendered.
+/// reported and skipped. Returns 0 when at least one scene rendered and every
+/// scene loaded with all its components known; the hashes print either way.
+/// The screen is --platform's when given, else the active platform's.
 ///
 /// DEKI_RENDER_MODE selects the path: "buffer" (default) is RenderToBuffer
 /// with an explicit clear, the scene view's path; "system" drives the engine's
 /// render system as a device does; "tracked" is "system" with the Rendering
 /// setting dirtyTileTracking forced on, so partial clears and present
 /// rectangles run on real scenes. The three must hash identically.
-int CmdRenderScenes(EditorApp& editor);
+int CmdRenderScenes(EditorApp& editor, const char* platformId);
 
 /// List every scriptable tool with its JSON schema. Same registry the MCP
 /// server serves, so the two can never drift apart.

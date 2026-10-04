@@ -62,4 +62,22 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
                                             PackageManager& mgr,
                                             const PackageRestoreProgress& onProgress = {});
 
+/// A package deki-packages.json pins to one version while another is installed.
+struct PinMismatch
+{
+    std::string id;
+    std::string pinned;     // what the manifest says
+    std::string installed;  // what is on disk
+};
+
+/// Installed packages whose version differs from the manifest's pin. A pin is
+/// applied only when a package is installed, so changing it afterwards did
+/// nothing, and nothing said so. Unpinned ("*"), branch pins and packages
+/// whose installed version is unknown are not compared.
+/// `mgr` must already have had LoadPackages() called for this project.
+std::vector<PinMismatch> FindPinMismatches(const std::string& projectPath, PackageManager& mgr);
+
+/// One line per mismatch: what differs, and the command that installs the pin.
+std::string DescribePinMismatch(const PinMismatch& m);
+
 }  // namespace DekiEditor

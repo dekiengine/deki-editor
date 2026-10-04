@@ -35,6 +35,28 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- **Every command on a command line runs.** Only the first verb the
+  editor recognised ran and the rest were dropped without a word:
+  `--export --verify-scenes` verified and exported nothing, and
+  `--clean --build-firmware` only cleaned. They now run in a fixed order
+  (package changes, the code build, checks, export, firmware, deploy) and
+  stop at the first failure. `--packages-list`, `--list-platforms` and
+  `--new-project` cannot be combined with other commands, and say so.
+- **`--verify-scenes` and `--render-scenes` fail when something is wrong.**
+  Both exited 0 when the project's code did not build (they read the
+  previous binaries), when a scene did not load, and when a component's
+  type was provided by no package; verify printed "OK" before exiting 1 in
+  one of those cases. Each now exits 1 and says which, naming the unknown
+  component types. Render still prints a hash for every scene it drew.
+- `--render-scenes` honours `--platform`: it rendered the active
+  platform's screen (or the 320x240 fallback) whatever target was named.
+- **A package pinned in `deki-packages.json` to another version than the one
+  installed is reported.** A pin is applied when a package is installed, so
+  changing it later did nothing and nothing said so. Opening the project
+  warns, `--packages-list` shows the pin next to the installed version, and
+  `--packages-restore` exits 1, each with the command that installs the pin.
+- `--packages-list` on a folder that is not a project exits 1 instead of
+  listing "No packages declared".
 - The Build panel no longer slows the editor down while it is open: it
   asked the disk whether the toolchain was installed on every frame.
 - Clicking the title of an open menu (File, Edit, ...) closes it. It used

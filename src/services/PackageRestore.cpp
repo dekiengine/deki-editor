@@ -250,6 +250,37 @@ bool HasMissingPackages(const std::string& projectPath, PackageManager& mgr)
     return false;
 }
 
+std::vector<PinMismatch> FindPinMismatches(const std::string& projectPath, PackageManager& mgr)
+{
+    // "v0.17.0" and "0.17.0" name one tag.
+    auto bare = [](const std::string& v) { return (!v.empty() && (v[0] == 'v' || v[0] == 'V')) ? v.substr(1) : v; };
+    auto numeric = [](const std::string& v)
+    { return !v.empty() && v.find_first_not_of("0123456789.") == std::string::npos; };
+
+    std::vector<PinMismatch> out;
+    const std::map<std::string, std::string> pinned = ReadManifestVersions(projectPath);
+    for (const PackageEntry& pkg : mgr.GetPackages())
+    {
+        auto it = pinned.find(pkg.id);
+        if (it == pinned.end() || !pkg.isInstalled || pkg.installedVersion.empty())
+            continue;
+        const std::string pin = bare(it->second);
+        const std::string have = bare(pkg.installedVersion);
+        if (!numeric(pin) || !numeric(have))
+            continue;  // "*", a branch, or a version this cannot read
+        if (CompareVersions(pin, have) != 0)
+            out.push_back({ pkg.id, it->second, pkg.installedVersion });
+    }
+    return out;
+}
+
+std::string DescribePinMismatch(const PinMismatch& m)
+{
+    return "'" + m.id + "' is pinned to " + m.pinned + " in deki-packages.json, but " + m.installed +
+           " is installed. Run --packages-add " + m.id + " --version " + m.pinned +
+           " to install the pinned version, or change the pin.";
+}
+
 PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
                                             PackageManager& mgr,
                                             const PackageRestoreProgress& onProgress)

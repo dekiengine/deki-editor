@@ -64,7 +64,9 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <map>
 #include <memory>
+#include <set>
 #include <unordered_map>
 #include <mutex>
 #include <thread>
@@ -107,6 +109,35 @@ bool CodeBuilt(EditorApp& editor, const char* verb)
         return false;
     }
     return true;
+}
+
+// Counts a scene's components, and collects the type names of those no
+// registered component claims (a scene keeps them as MissingComponent).
+void CountComponents(const Deki::Scene& scene, int& total, std::set<std::string>& missingTypes, int& missing)
+{
+    std::function<void(const Deki::Object*)> visit = [&](const Deki::Object* obj)
+    {
+        if (!obj) return;
+        for (const Deki::Component* c : obj->GetComponents())
+        {
+            ++total;
+            if (c && c->GetType() == Deki::MissingComponent::StaticType)
+            {
+                ++missing;
+                missingTypes.insert(static_cast<const Deki::MissingComponent*>(c)->m_TypeName);
+            }
+        }
+        for (const Deki::Object* child : obj->GetChildren())
+            visit(child);
+    };
+    for (const Deki::Object* root : scene.GetObjects())
+        visit(root);
+}
+
+void PrintMissingTypes(const std::set<std::string>& types)
+{
+    for (const std::string& t : types)
+        printf("  %s\n", t.empty() ? "(no type name)" : t.c_str());
 }
 
 // Everything package-restore related lives in PackageRestore.{h,cpp} so the
@@ -253,6 +284,9 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
 
     int missing = 0;
     bool anyFrameworkComponent = false;
+    std::map<std::string, std::string> pinnedOther;  // id -> the pin, where it is not what is installed
+    for (const PinMismatch& m : FindPinMismatches(projectPath, mgr))
+        pinnedOther[m.id] = m.pinned;
     printf("%-40s %-12s %s\n", "PACKAGE", "STATE", "VERSION");
     for (const auto& p : pkgs)
     {
@@ -265,13 +299,19 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
         if (frameworkComponent) anyFrameworkComponent = true;
         if (!p.isInstalled && !frameworkComponent) ++missing;
 
-        printf("%-40s %-12s %s%s\n",
+        const auto pin = pinnedOther.find(p.id);
+        printf("%-40s %-12s %s%s%s\n",
                p.id.c_str(),
                frameworkComponent ? "declared" : (p.isInstalled ? "installed" : "missing"),
                p.installedVersion.empty() ? "-" : p.installedVersion.c_str(),
+               pin == pinnedOther.end() ? "" : (" (deki-packages.json pins " + pin->second + ")").c_str(),
                p.resolvedBy.empty() ? "" : (" (required by " + p.resolvedBy + ")").c_str());
     }
     printf("\n%zu package(s), %d missing\n", pkgs.size(), missing);
+    if (!pinnedOther.empty())
+        printf("%zu package(s) are not at the version deki-packages.json pins; --packages-restore "
+               "does not change an installed version. Run --packages-add <id> --version <pin>.\n",
+               pinnedOther.size());
     if (anyFrameworkComponent)
         printf("declared = a build framework's own component, fetched by that framework when it builds\n");
     return missing;
@@ -441,6 +481,21 @@ int CmdNewProject(const char* parentDir, const char* name)
 
 int CmdPackagesList(const char* projectPath)
 {
+    // A path that is not a project listed "No packages declared" and exited 0.
+    std::error_code ec;
+    if (!fs::is_directory(Str(projectPath), ec))
+    {
+        printf("Error: %s is not a directory\n", Str(projectPath).c_str());
+        return 1;
+    }
+    if (!fs::exists(fs::path(Str(projectPath)) / GetPackageManifestFileName(), ec) &&
+        !fs::exists(fs::path(Str(projectPath)) / "deki.json", ec))
+    {
+        printf("Error: %s is not a Deki project (no deki.json or %s)\n", Str(projectPath).c_str(),
+               GetPackageManifestFileName().c_str());
+        return 1;
+    }
+
     PackageManager mgr(nullptr);
     mgr.LoadPackages(projectPath);  // also refreshes installed status
     PrintPackageTable(mgr, Str(projectPath));
@@ -470,6 +525,18 @@ int CmdPackagesRestore(EditorApp& editor)
                "that is not in the Deki registry has to be installed by hand from the\n"
                "Package Manager.\n",
                missing);
+        return 1;
+    }
+
+    // Restoring installs what is missing; it does not switch an installed
+    // package to another version. That is a version the manifest did not ask
+    // for, so the restore has not produced what it declares.
+    const std::vector<PinMismatch> mismatches = FindPinMismatches(path, mgr);
+    if (!mismatches.empty())
+    {
+        printf("\n");
+        for (const PinMismatch& m : mismatches)
+            printf("Error: %s\n", DescribePinMismatch(m).c_str());
         return 1;
     }
 
@@ -841,7 +908,10 @@ int CmdInstallToolchain(const char* projectPath, const char* platformId,
 int CmdVerifyScenes(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--verify-scenes");
-    if (!project)
+    // Against the previous binaries a check says nothing about the code as it
+    // is now; it reported OK, and a CI gate passed a project that no longer
+    // compiled.
+    if (!project || !CodeBuilt(editor, "Verify"))
         return 1;
 
     // No loader bootstrap here any more. The packages and the project's own
@@ -863,6 +933,7 @@ int CmdVerifyScenes(EditorApp& editor)
     Deki::Scene::ClearUnknownProperties();
 
     int scenes = 0, totalComponents = 0, missingComponents = 0, unreadable = 0;
+    std::set<std::string> missingTypes;
     for (const auto& entry : fs::recursive_directory_iterator(assetsDir, ec))
     {
         if (ec) break;
@@ -877,21 +948,7 @@ int CmdVerifyScenes(EditorApp& editor)
             continue;
         }
         ++scenes;
-
-        std::function<void(const Deki::Object*)> visit = [&](const Deki::Object* obj)
-        {
-            if (!obj) return;
-            for (const Deki::Component* c : obj->GetComponents())
-            {
-                ++totalComponents;
-                if (c && c->GetType() == Deki::MissingComponent::StaticType)
-                    ++missingComponents;
-            }
-            for (const Deki::Object* child : obj->GetChildren())
-                visit(child);
-        };
-        for (const Deki::Object* root : scene.GetObjects())
-            visit(root);
+        CountComponents(scene, totalComponents, missingTypes, missingComponents);
     }
 
     printf("Scanned %d scene(s), %d component(s)\n", scenes, totalComponents);
@@ -912,11 +969,16 @@ int CmdVerifyScenes(EditorApp& editor)
                totalComponents);
         return 1;
     }
+    // A component no package provides is left out of the game. It was a
+    // warning, and the verb exited 0.
+    bool failed = unreadable > 0;
     if (missingComponents > 0)
     {
-        printf("Warning: %d of %d components did not resolve; this check can only "
-               "vouch for the ones that did.\n",
+        printf("Error: %d of %d components are of a type no package or project code provides; "
+               "the game leaves them out:\n",
                missingComponents, totalComponents);
+        PrintMissingTypes(missingTypes);
+        failed = true;
     }
 
     const auto unknown = Deki::Scene::CollectUnknownProperties();
@@ -944,8 +1006,12 @@ int CmdVerifyScenes(EditorApp& editor)
         printf("\n");
     }
 
+    if (unreadable > 0)
+        printf("Error: %d scene(s) could not be loaded (listed above).\n", unreadable);
+    if (failed)
+        return 1;
     printf("OK: every property key in %d scene(s) is recognised.\n", scenes);
-    return unreadable == 0 ? 0 : 1;
+    return 0;
 }
 
 // ===========================================================================
@@ -1065,10 +1131,11 @@ void FillClear(std::vector<uint8_t>& buffer, Deki::ColorFormat format, uint8_t r
 
 }  // namespace
 
-int CmdRenderScenes(EditorApp& editor)
+int CmdRenderScenes(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--render-scenes");
-    if (!project)
+    // A hash from the previous binaries is not a hash of the project as it is.
+    if (!project || !CodeBuilt(editor, "Render"))
         return 1;
 
     Deki::IRenderSystem* rs = Deki::Engine::GetInstance().GetRenderSystem();
@@ -1153,10 +1220,28 @@ int CmdRenderScenes(EditorApp& editor)
     }
     float clockMs = 0.0f;
 
-    // The active platform's screen. DEKI_RENDER_SIZE=WxH renders a screen of
-    // another size instead, to see what the camera shows there.
+    // The screen of --platform, else of the active platform. --platform was
+    // ignored here, so a render for a 1280x720 target came out at the
+    // 320x240 fallback. DEKI_RENDER_SIZE=WxH renders a screen of another size
+    // instead, to see what the camera shows there.
     int32_t width = 0, height = 0;
     DekiEditor::ActivePlatformScreen(editor.GetProject(), width, height);
+    if (platformId && *platformId)
+    {
+        const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(platformId);
+        if (!platform)
+        {
+            printf("Error: unknown platform '%s' (--list-platforms shows the ids)\n", platformId);
+            return 1;
+        }
+        if (platform->screenWidth <= 0 || platform->screenHeight <= 0)
+        {
+            printf("Error: platform '%s' does not say its screen size\n", platformId);
+            return 1;
+        }
+        width = platform->screenWidth;
+        height = platform->screenHeight;
+    }
     if (const char* env = std::getenv("DEKI_RENDER_SIZE"))
     {
         int w = 0, h = 0;
@@ -1222,7 +1307,8 @@ int CmdRenderScenes(EditorApp& editor)
         return 1;
     }
 
-    int rendered = 0;
+    int rendered = 0, unreadable = 0, totalComponents = 0, missingComponents = 0;
+    std::set<std::string> missingTypes;
     for (const fs::path& path : scenePaths)
     {
         const std::string rel = fs::relative(path, assetsDir, ec).generic_string();
@@ -1230,8 +1316,10 @@ int CmdRenderScenes(EditorApp& editor)
         if (!scene.LoadFromFile(path.string()))
         {
             printf("  ! could not load %s\n", rel.c_str());
+            ++unreadable;
             continue;
         }
+        CountComponents(scene, totalComponents, missingTypes, missingComponents);
         Deki::ICamera* camera = nullptr;
         for (Deki::Object* root : scene.GetObjects())
             if ((camera = FindCameraInSubtree(root)) != nullptr) break;
@@ -1311,7 +1399,19 @@ int CmdRenderScenes(EditorApp& editor)
         printf("Error: no scene rendered\n");
         return 1;
     }
-    return 0;
+    // The other scenes' hashes are printed above either way. These used to
+    // pass with exit 0: a scene that did not load, and components drawn as
+    // nothing because no package provides them.
+    if (unreadable > 0)
+        printf("Error: %d scene(s) could not be loaded (listed above).\n", unreadable);
+    if (missingComponents > 0)
+    {
+        printf("Error: %d of %d components are of a type no package or project code provides, so they "
+               "were not drawn:\n",
+               missingComponents, totalComponents);
+        PrintMissingTypes(missingTypes);
+    }
+    return (unreadable > 0 || missingComponents > 0) ? 1 : 0;
 }
 
 
@@ -1653,6 +1753,15 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
 bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
 {
     if (!cli.projectPath || !(cli.listTools || cli.toolName || cli.scriptPath))
+        return false;
+    // Only a line of tool verbs runs in the live editor; anything else on it
+    // (an export, a build) would be dropped there. Such a line boots, and the
+    // project lock says the editor has it open.
+    CliOptions rest = cli;
+    rest.listTools = false;
+    rest.toolName = nullptr;
+    rest.scriptPath = nullptr;
+    if (HasCommand(rest))
         return false;
     const std::vector<LiveSession::Info> sessions = LiveSession::FindForProject(cli.projectPath);
     if (sessions.empty())

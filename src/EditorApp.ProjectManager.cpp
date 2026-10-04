@@ -226,6 +226,9 @@ bool EditorApp::OpenProject(const std::string& path)
                     m_HotReloadService->ForceNextBuild();
             }
         }
+
+        for (const auto& mismatch : DekiEditor::FindPinMismatches(path, packageMgr))
+            DEKI_LOG_WARNING("EditorApp: %s", DekiEditor::DescribePinMismatch(mismatch).c_str());
     }
 
     // Platforms, now that the packages are on disk: board packs as the baseline,

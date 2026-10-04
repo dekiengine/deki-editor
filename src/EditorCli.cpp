@@ -283,6 +283,27 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         }
     }
 
+    // The verbs that read the project directory and nothing else run without
+    // booting, so they cannot share a line with one that boots: the other
+    // verbs used to be dropped without a word. --new-project's path is the
+    // parent directory, not a project, so it stands alone too.
+    CliOptions booting = o;
+    booting.newProjectName = nullptr;
+    booting.packagesList = false;
+    booting.listPlatforms = false;
+    const int light = (o.newProjectName ? 1 : 0) + (o.packagesList ? 1 : 0) + (o.listPlatforms ? 1 : 0);
+    if (light > 0 && HasCommand(booting))
+    {
+        printf("Error: %s cannot be combined with other commands; run it on its own\n",
+               o.newProjectName ? "--new-project" : (o.packagesList ? "--packages-list" : "--list-platforms"));
+        o.badArgs = true;
+    }
+    else if (o.newProjectName && light > 1)
+    {
+        printf("Error: --new-project cannot be combined with other commands; run it on its own\n");
+        o.badArgs = true;
+    }
+
     return !o.badArgs;
 }
 
@@ -325,92 +346,58 @@ int RunLightCommand(const CliOptions& o)
 {
     if (o.newProjectName)
         return CmdNewProject(o.projectPath, o.newProjectName);
-    if (o.packagesList)
-        return CmdPackagesList(o.projectPath);
-    if (o.listPlatforms)
-        return CmdListPlatforms(o.projectPath);
 
-    printf("Error: no light command to run (this is a bug)\n");
-    return 1;
+    // ParseArgs allows these two together and nothing else with them.
+    int rc = 0;
+    if (o.packagesList)
+        rc = CmdPackagesList(o.projectPath);
+    if (rc == 0 && o.listPlatforms)
+        rc = CmdListPlatforms(o.projectPath);
+    return rc;
 }
 
 int RunCommand(const CliOptions& o, EditorApp& editor)
 {
-    // Package mutations come first: they change what the project declares, and
-    // the rebuild they trigger has to happen before anything reads the result.
-    if (o.packagesAddUrl)
+    // Every verb on the line runs, in this order, stopping at the first one
+    // that fails. This was an if-chain that returned from the first verb it
+    // matched: `--export --verify-scenes` verified, exported nothing and
+    // exited 0, and `--clean --build-firmware` only cleaned.
+    //
+    // The order is the one the work depends on: package changes, then the
+    // code build, then checks that read the built project, then what ships.
+    int rc = 0;
+    auto run = [&rc](bool wanted, const auto& verb)
     {
-        int rc = CmdPackagesAdd(editor, o.packagesAddUrl, o.packageVersion);
-        if (rc != 0)
-            return rc;
-    }
-    else if (o.packagesRemoveId)
-    {
-        int rc = CmdPackagesRemove(editor, o.packagesRemoveId);
-        if (rc != 0)
-            return rc;
-    }
-    else if (o.packagesUpdateId)
-    {
-        int rc = CmdPackagesUpdate(editor, o.packagesUpdateId);
-        if (rc != 0)
-            return rc;
-    }
+        if (rc == 0 && wanted)
+            rc = verb();
+    };
 
-    if (o.packagesRestore)
-    {
-        int rc = CmdPackagesRestore(editor);
-        if (rc != 0)
-            return rc;
-    }
+    run(o.packagesAddUrl != nullptr, [&] { return CmdPackagesAdd(editor, o.packagesAddUrl, o.packageVersion); });
+    run(o.packagesRemoveId != nullptr, [&] { return CmdPackagesRemove(editor, o.packagesRemoveId); });
+    run(o.packagesUpdateId != nullptr, [&] { return CmdPackagesUpdate(editor, o.packagesUpdateId); });
+    run(o.packagesRestore, [&] { return CmdPackagesRestore(editor); });
+    run(o.buildCode, [&] { return CmdBuildCode(editor); });
+    run(o.build, [&] { return CmdBuildAssets(editor); });
 
-    if (o.buildCode)
-    {
-        int rc = CmdBuildCode(editor);
-        if (rc != 0)
-            return rc;
-    }
+    run(o.dumpMetadataOut != nullptr, [&] { return CmdDumpMetadata(editor, o.dumpMetadataOut, o.includeProject); });
+    run(o.verifyScenes, [&] { return CmdVerifyScenes(editor); });
+    run(o.renderScenes, [&] { return CmdRenderScenes(editor, o.platformId); });
+    run(o.platformCompat, [&] { return CmdPlatformCompat(editor); });
+    run(o.stripPlan, [&] { return CmdStripPlan(editor, o.platformId); });
+    run(o.listTools, [&] { return CmdListTools(editor); });
+    run(o.toolchainStatus, [&] { return CmdToolchainStatus(o.projectPath, o.platformId); });
+    run(o.installToolchainId != nullptr,
+        [&] { return CmdInstallToolchain(o.projectPath, o.platformId, o.installToolchainId); });
+    run(o.toolName != nullptr, [&] { return CmdRunTool(editor, o.toolName, o.toolArgs); });
+    run(o.scriptPath != nullptr, [&] { return CmdRunScript(editor, o.scriptPath); });
 
-    if (o.dumpMetadataOut)
-        return CmdDumpMetadata(editor, o.dumpMetadataOut, o.includeProject);
-    if (o.verifyScenes)
-        return CmdVerifyScenes(editor);
-    if (o.renderScenes)
-        return CmdRenderScenes(editor);
-    if (o.platformCompat)
-        return CmdPlatformCompat(editor);
-    if (o.buildAllTargets)
-        return CmdBuildAllTargets(editor);
-    if (o.stripPlan)
-        return CmdStripPlan(editor, o.platformId);
-    if (o.listTools)
-        return CmdListTools(editor);
-    if (o.toolName)
-        return CmdRunTool(editor, o.toolName, o.toolArgs);
-    if (o.scriptPath)
-        return CmdRunScript(editor, o.scriptPath);
-    if (o.exportAssets)
-        return CmdExportAssets(editor, o.platformId);
-    if (o.build)
-        return CmdBuildAssets(editor);
-    if (o.toolchainStatus)
-        return CmdToolchainStatus(o.projectPath, o.platformId);
-    if (o.installToolchainId)
-        return CmdInstallToolchain(o.projectPath, o.platformId, o.installToolchainId);
-    if (o.clean)
-        return CmdClean(editor, o.platformId);
-    if (o.firmwareBuild)
-    {
-        const int built = CmdFirmwareBuild(editor, o.platformId, o.simulate);
-        if (built != 0 || !o.deploy)
-            return built;
-    }
-    if (o.deploy)
-        return CmdDeploy(editor, o.platformId, o.deployTarget, o.simulate);
+    run(o.exportAssets, [&] { return CmdExportAssets(editor, o.platformId); });
+    run(o.clean, [&] { return CmdClean(editor, o.platformId); });
+    run(o.firmwareBuild, [&] { return CmdFirmwareBuild(editor, o.platformId, o.simulate); });
+    run(o.buildAllTargets, [&] { return CmdBuildAllTargets(editor); });
+    run(o.deploy, [&] { return CmdDeploy(editor, o.platformId, o.deployTarget, o.simulate); });
 
-    // Everything requested has already run (e.g. --packages-add on its own,
-    // whose install and rebuild happened above).
-    return 0;
+    return rc;
 }
 
 void AttachParentConsole()
