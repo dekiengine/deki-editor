@@ -409,9 +409,10 @@ deki_add_package_tests(deki-imu TARGET DekiImuTests)
 
 # The tilemap and tileset loaders read the asset file. They must go through
 # IFileSystem, because the path carries the "S:/" mount on a device and in
-# the simulator; as std::fopen they only worked in the editor.
+# the simulator; as std::fopen they only worked in the editor. The baker is
+# here so the object tests can write a map the way the editor does.
 deki_add_package_tests(deki-tiledmapeditor-integration TARGET DekiTiledMapTests
-                       SOURCES Tilemap.cpp Tileset.cpp TilemapStreamer.cpp)
+                       SOURCES Tilemap.cpp Tileset.cpp TilemapStreamer.cpp editor/TilemapBaker.cpp)
 
 # The easing curves are free functions in one .cpp. Compiling just that file
 # keeps the tween components and their codegen out of this target.
