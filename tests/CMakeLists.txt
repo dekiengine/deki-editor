@@ -128,6 +128,10 @@ set(TEST_SOURCES
     # Integration tests (full pipeline against a temp project)
     integration/AssetLifecycleTests.cpp
 
+    # The code style example (deki-engine/docs/codestyle), so it always builds
+    core/CodeStyleExampleTests.cpp
+    ${DEKI_ENGINE_PATH}/docs/codestyle/CodeStyle.cpp
+
     # Mocks
     mocks/MockComponent.cpp
 )
@@ -144,6 +148,7 @@ endif()
 
 target_include_directories(DekiEditorTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
+    ${DEKI_ENGINE_PATH}/docs/codestyle
     ${DEKI_ENGINE_PATH}/third_party
     ${CMAKE_SOURCE_DIR}/deki-editor/include
 )
