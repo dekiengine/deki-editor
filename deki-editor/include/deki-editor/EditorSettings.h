@@ -82,9 +82,8 @@ public:
     // Collect all external dependencies from engine package.json files for the given
     // platform key (a framework id, or "default"). Skips deki:* inter-package deps.
     // Optional overrides map replaces version for named deps (e.g. from deki.json).
-    static std::vector<PackageDepInfo> GetPlatformDependencies(
-        const std::string& platformKey,
-        const std::map<std::string, std::string>& overrides = {});
+    static std::vector<PackageDepInfo>
+    GetPlatformDependencies(const std::string& platformKey, const std::map<std::string, std::string>& overrides = {});
 
 private:
     static std::string GetSettingsFilePath();

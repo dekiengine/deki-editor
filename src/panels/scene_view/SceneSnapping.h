@@ -45,8 +45,7 @@ public:
     float CalculateEdgeSnap(float edgeWorldCoord, SnapAxis axis);
 
     // Draw guide lines for active snaps
-    void DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coords,
-                        ImVec2 canvasTopLeft, ImVec2 canvasSize);
+    void DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coords, ImVec2 canvasTopLeft, ImVec2 canvasSize);
 
     void ClearSnapLines();
 

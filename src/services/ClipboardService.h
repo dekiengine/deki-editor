@@ -5,8 +5,14 @@
 #include <nlohmann/json.hpp>
 #include "../core/commands/ObjectSerializationHelper.h"
 
-namespace Deki { class Component; }
-namespace Deki { class Object; }
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {

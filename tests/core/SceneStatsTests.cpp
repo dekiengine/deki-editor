@@ -108,9 +108,9 @@ TEST(SceneOutline, SurvivesMalformedInput)
     EXPECT_TRUE(BuildSceneOutline(json::parse(R"({"objects":"nope"})")).empty());
     EXPECT_TRUE(BuildSceneOutline(json::parse(R"({})")).empty());
 
-    const auto odd = BuildSceneOutline(json::parse(
-        R"({"objects":[{"name":"A","components":"nope","children":"nope"},"loose-string"]})"));
-    ASSERT_EQ(odd.size(), 1u);           // the bare string is not an object
+    const auto odd = BuildSceneOutline(
+        json::parse(R"({"objects":[{"name":"A","components":"nope","children":"nope"},"loose-string"]})"));
+    ASSERT_EQ(odd.size(), 1u);  // the bare string is not an object
     EXPECT_EQ(odd[0].name, "A");
     EXPECT_TRUE(odd[0].components.empty());
     EXPECT_TRUE(odd[0].children.empty());
@@ -128,11 +128,15 @@ TEST(SceneOutline, AgreesWithTheObjectCount)
     ]})");
 
     std::function<int(const std::vector<SceneOutlineNode>&)> countOutline =
-        [&](const std::vector<SceneOutlineNode>& nodes) {
-            int n = 0;
-            for (const auto& node : nodes) n += 1 + countOutline(node.children);
-            return n;
-        };
+        [&](const std::vector<SceneOutlineNode>& nodes)
+    {
+        int n = 0;
+        for (const auto& node : nodes)
+        {
+            n += 1 + countOutline(node.children);
+        }
+        return n;
+    };
 
     EXPECT_EQ(countOutline(BuildSceneOutline(doc)), CountSceneObjects(doc));
 }

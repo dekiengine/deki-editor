@@ -5,8 +5,14 @@
 
 #include <deki-editor/EditorExport.h>
 // Forward declarations - engine types
-namespace Deki { class Object; }
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Scene;
+}
 
 namespace DekiEditor
 {
@@ -103,9 +109,7 @@ public:
     /**
      * @brief Set project paths (called when project is opened)
      */
-    void SetProjectPaths(const std::string& projectPath,
-                         const std::string& assetsPath,
-                         const std::string& cachePath);
+    void SetProjectPaths(const std::string& projectPath, const std::string& assetsPath, const std::string& cachePath);
 
     /**
      * @brief Clear project paths (called when project is closed)
@@ -158,8 +162,7 @@ public:
 
     // `toolTitle` names the window to open (its GetTitle()); empty lets the
     // file's type pick, which for a .png is whichever tool claims it first.
-    void RequestOpenTool(const std::string& filePath, const std::string& cachePath,
-                         const std::string& toolTitle = {})
+    void RequestOpenTool(const std::string& filePath, const std::string& cachePath, const std::string& toolTitle = {})
     {
         m_OpenToolFilePath = filePath;
         m_OpenToolCachePath = cachePath;
@@ -167,14 +170,18 @@ public:
         m_OpenToolRequested = true;
     }
 
-    bool PopOpenToolRequest(std::string& outFilePath, std::string& outCachePath,
-                            std::string* outToolTitle = nullptr)
+    bool PopOpenToolRequest(std::string& outFilePath, std::string& outCachePath, std::string* outToolTitle = nullptr)
     {
-        if (!m_OpenToolRequested) return false;
+        if (!m_OpenToolRequested)
+        {
+            return false;
+        }
         outFilePath = std::move(m_OpenToolFilePath);
         outCachePath = std::move(m_OpenToolCachePath);
         if (outToolTitle)
+        {
             *outToolTitle = std::move(m_OpenToolTitle);
+        }
         m_OpenToolFilePath.clear();
         m_OpenToolCachePath.clear();
         m_OpenToolTitle.clear();
@@ -195,7 +202,10 @@ public:
 
     bool PopSceneToolRequest(SceneEditTool& outTool)
     {
-        if (!m_SceneToolRequested) return false;
+        if (!m_SceneToolRequested)
+        {
+            return false;
+        }
         outTool = m_RequestedSceneTool;
         m_SceneToolRequested = false;
         return true;

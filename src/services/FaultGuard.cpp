@@ -29,11 +29,19 @@ FaultTraceHook g_traceHook = nullptr;
 void RunTraceHook(FaultGuard* g, void* platformInfo)
 {
     if (!g_traceHook || !(g->trace || g->accessDetails))
+    {
         return;
+    }
     std::string trace, access;
     g_traceHook(platformInfo, trace, access);
-    if (g->trace) g->trace->swap(trace);
-    if (g->accessDetails) g->accessDetails->swap(access);
+    if (g->trace)
+    {
+        g->trace->swap(trace);
+    }
+    if (g->accessDetails)
+    {
+        g->accessDetails->swap(access);
+    }
 }
 }  // namespace
 
@@ -56,14 +64,18 @@ bool IsRecoverableFault(DWORD code)
     // grow a thread stack (0x8xxxxxxx) - swallowing any of those would break
     // normal execution rather than contain a crash.
     if ((code & 0xF0000000u) != 0xC0000000u)
+    {
         return false;
+    }
 
     // Stack overflow consumes the thread's guard page. Resuming without
     // resetting it leaves the thread unable to fault again, so this one is left
     // to the normal (fatal) path rather than pretended away. MSVC's
     // EXCEPTION_EXECUTE_HANDLER would catch it; the difference is intentional.
     if (code == EXCEPTION_STACK_OVERFLOW)
+    {
         return false;
+    }
 
     return true;
 }
@@ -72,12 +84,16 @@ LONG CALLBACK FaultHandler(EXCEPTION_POINTERS* info)
 {
     FaultGuard* g = t_faultGuard;
     if (!g)
+    {
         return EXCEPTION_CONTINUE_SEARCH;  // nothing guarded on this thread
+    }
 
     const EXCEPTION_RECORD* rec = info->ExceptionRecord;
     const DWORD code = rec->ExceptionCode;
     if (!IsRecoverableFault(code))
+    {
         return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     g->code = code;
     g->faultIp = reinterpret_cast<std::uintptr_t>(rec->ExceptionAddress);
@@ -108,8 +124,7 @@ void FaultGuardInstallHandler()
     // Function-local static: initialised once, thread-safely. If registration
     // fails there is nothing useful to do but run unprotected, which is the
     // behaviour this replaced.
-    static const bool installed =
-        (AddVectoredExceptionHandler(1 /* call first */, &FaultHandler) != nullptr);
+    static const bool installed = (AddVectoredExceptionHandler(1 /* call first */, &FaultHandler) != nullptr);
     (void)installed;
 }
 
@@ -148,7 +163,12 @@ struct sigaction g_previous[kFaultSignalCount];
 int SignalSlot(int sig)
 {
     for (int i = 0; i < kFaultSignalCount; ++i)
-        if (kFaultSignals[i] == sig) return i;
+    {
+        if (kFaultSignals[i] == sig)
+        {
+            return i;
+        }
+    }
     return -1;
 }
 
@@ -163,7 +183,9 @@ void FaultHandler(int sig, siginfo_t* info, void* /*ucontext*/)
         // core dumps and debuggers behaving as they would without us.
         const int slot = SignalSlot(sig);
         if (slot >= 0)
+        {
             sigaction(sig, &g_previous[slot], nullptr);
+        }
         return;
     }
 
@@ -197,8 +219,12 @@ void FaultGuardInstallHandler()
 
         bool ok = true;
         for (int i = 0; i < kFaultSignalCount; ++i)
+        {
             if (sigaction(kFaultSignals[i], &sa, &g_previous[i]) != 0)
+            {
                 ok = false;
+            }
+        }
         return ok;
     }();
     (void)installed;

@@ -34,8 +34,8 @@ inline void TextCol(EditorUI& ui, const ImVec4& c, const char* s)
 // Pack a theme color into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
-    return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f),
-                          (uint8_t)(c.z * 255.0f), (uint8_t)(c.w * 255.0f));
+    return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
+                          (uint8_t)(c.w * 255.0f));
 }
 // The platform's own spelling. There was a table of five families here with
 // prettier labels; the editor has no list of the world's targets, and a family
@@ -47,36 +47,42 @@ std::string FamilyName(const std::string& family)
 }  // namespace
 
 PlatformManagerPanel::PlatformManagerPanel(EditorApp* app)
-    : m_App(app), m_PlatformEditor(app), m_PackManager(std::make_unique<BoardPackManager>())
+    : m_App(app),
+      m_PlatformEditor(app),
+      m_PackManager(std::make_unique<BoardPackManager>())
 {
     // Set up callback for when platform is saved
-    m_PlatformEditor.SetOnPlatformSaved([this](const PlatformConfig& config, bool isNew)
-                                        {
-        auto* project = m_App->GetProject();
-        if (project)
+    m_PlatformEditor.SetOnPlatformSaved(
+        [this](const PlatformConfig& config, bool isNew)
         {
-            std::string platformsDir = GetPlatformsDirectory(project->GetPath());
-
-            // Always force boot scene to standard path
-            PlatformConfig updatedConfig = config;
-            updatedConfig.bootScene = GetPlatformsDirectoryRelative() + "/" + config.id + "/boot.scene";
-
-            PlatformRegistry::Instance().SavePlatformToFile(updatedConfig, platformsDir);
-
-            // Create boot.scene if it doesn't exist (same folder as JSON)
-            std::string bootPath = platformsDir + "/" + config.id + "/boot.scene";
-            if (!fs::exists(bootPath))
+            auto* project = m_App->GetProject();
+            if (project)
             {
-                Deki::Scene bootScene;
-                Deki::Object* setup = bootScene.CreateDekiObject("Setup");
-                if (setup)
-                    Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
-                bootScene.SaveToFile(bootPath);
-            }
+                std::string platformsDir = GetPlatformsDirectory(project->GetPath());
 
-            RefreshPlatformList();
-            m_SelectedPlatformId = updatedConfig.id;
-        } });
+                // Always force boot scene to standard path
+                PlatformConfig updatedConfig = config;
+                updatedConfig.bootScene = GetPlatformsDirectoryRelative() + "/" + config.id + "/boot.scene";
+
+                PlatformRegistry::Instance().SavePlatformToFile(updatedConfig, platformsDir);
+
+                // Create boot.scene if it doesn't exist (same folder as JSON)
+                std::string bootPath = platformsDir + "/" + config.id + "/boot.scene";
+                if (!fs::exists(bootPath))
+                {
+                    Deki::Scene bootScene;
+                    Deki::Object* setup = bootScene.CreateDekiObject("Setup");
+                    if (setup)
+                    {
+                        Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
+                    }
+                    bootScene.SaveToFile(bootPath);
+                }
+
+                RefreshPlatformList();
+                m_SelectedPlatformId = updatedConfig.id;
+            }
+        });
 
     m_PackManager->LoadRegistry();
 }
@@ -105,9 +111,13 @@ void PlatformManagerPanel::RefreshPlatformList()
 void PlatformManagerPanel::Draw()
 {
     if (m_RefreshToolchainsPending.exchange(false))
+    {
         RefreshToolchains();
+    }
     if (!m_Open)
+    {
         return;
+    }
 
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(m_App->Dpi(860.0f), m_App->Dpi(560.0f), /*firstUseEver*/ true);
@@ -128,14 +138,24 @@ void PlatformManagerPanel::Draw()
         {
             // Asset-browser-style sub-nav links (accent underline on the active one).
             ui.BeginTabLinks();
-            if (ui.TabLink("Project Platforms", m_ActiveTab == 0)) m_ActiveTab = 0;
-            if (ui.TabLink("Toolchains", m_ActiveTab == 1)) m_ActiveTab = 1;
+            if (ui.TabLink("Project Platforms", m_ActiveTab == 0))
+            {
+                m_ActiveTab = 0;
+            }
+            if (ui.TabLink("Toolchains", m_ActiveTab == 1))
+            {
+                m_ActiveTab = 1;
+            }
             ui.EndTabLinks();
 
             if (m_ActiveTab == 0)
+            {
                 DrawProjectPlatformsTab();
+            }
             else
+            {
                 DrawToolchainsTab();
+            }
         }
     }
     ui.End();
@@ -180,7 +200,9 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     {
         auto* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatformId);
         if (platform)
+        {
             m_PlatformEditor.ShowEdit(platform);
+        }
     }
     if (ui.ToolbarIconButton("##deletePlatform", ICON_TI_TRASH, "Delete Platform", hasSelection && !editorActive))
     {
@@ -224,18 +246,22 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
             {
                 subtitle = FamilyName(p->family);
                 if (!p->framework.empty())
+                {
                     subtitle += "  \xc2\xb7  " + p->framework;
+                }
             }
 
-            if (ui.SelectableCard(id.c_str(), displayName.c_str(),
-                                  subtitle.empty() ? nullptr : subtitle.c_str(), selected))
+            if (ui.SelectableCard(id.c_str(), displayName.c_str(), subtitle.empty() ? nullptr : subtitle.c_str(),
+                                  selected))
             {
                 m_SelectedIndex = i;
                 m_SelectedPlatformId = id;
 
                 // If editor is open for a different platform, cancel it
                 if (editorActive)
+                {
                     m_PlatformEditor.Cancel();
+                }
             }
 
             // Double-click to edit
@@ -243,7 +269,9 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
             {
                 auto* platform = PlatformRegistry::Instance().GetPlatform(id);
                 if (platform)
+                {
                     m_PlatformEditor.ShowEdit(platform);
+                }
             }
         }
     }
@@ -260,7 +288,9 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     ui.GetContentRegionAvail(nullptr, &splitterHeight);
     ui.Button("##PlatformSplitter", splitterWidth, splitterHeight);
     if (ui.IsItemHovered())
+    {
         ui.SetMouseCursor(EditorUI::MouseCursor::ResizeEW);
+    }
     if (ui.IsItemActive())
     {
         float dx = 0.0f;
@@ -280,9 +310,13 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     ui.BeginChild("PlatformRight", -pad, 0.0f, false);
     {
         if (editorActive)
+        {
             m_PlatformEditor.DrawInline();
+        }
         else
+        {
             DrawPlatformDetails();
+        }
     }
     ui.EndChild();
 
@@ -292,7 +326,9 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     // and a destructive (red) Delete next to a neutral Cancel.
     auto* project = m_App->GetProject();
     if (m_ShowDeleteConfirm)
+    {
         ui.OpenPopup("Delete Platform?");
+    }
 
     ui.SetNextWindowSize(m_App->Dpi(380.0f), 0.0f, /*firstUseEver*/ false);
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(18.0f), m_App->Dpi(16.0f));
@@ -330,7 +366,8 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
         // Destructive button: dark theme-red at rest, brighter on hover/press.
         const ImVec4 red = Palette::Red;
         ui.PushStyleColor(EditorUI::Col::Button, Pack(ImVec4(red.x * 0.55f, red.y * 0.55f, red.z * 0.55f, 1.0f)));
-        ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
+        ui.PushStyleColor(EditorUI::Col::ButtonHovered,
+                          Pack(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
         ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(red));
         if (ui.Button("Delete", btnW, 0.0f))
         {
@@ -390,7 +427,9 @@ void PlatformManagerPanel::DrawPlatformDetails()
                 Deki::Scene bp;
                 Deki::Object* setup = bp.CreateDekiObject("Setup");
                 if (setup)
+                {
                     Deki::Internal::AddComponentByName(*setup, "PlatformSetupComponent");
+                }
                 bp.SaveToFile(bootPath);
             }
         }
@@ -420,12 +459,20 @@ void PlatformManagerPanel::DrawPlatformDetails()
     };
     row("Family", FamilyName(platform->family));
     if (!platform->framework.empty())
+    {
         row("Framework", platform->framework);
+    }
     if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
+    {
         for (const auto& [label, value] : describer->DescribePlatform(*platform))
+        {
             row(label.c_str(), value);
+        }
+    }
     for (size_t i = 0; i < platform->defines.size(); ++i)
+    {
         row(i == 0 ? "Defines" : "", platform->defines[i]);
+    }
     row("Boot Scene", platform->bootScene);
 
     ui.Spacing();
@@ -467,7 +514,9 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
     else
     {
         if (ui.Button("Refresh Packs"))
+        {
             m_PackManager->FetchAvailablePacks();
+        }
     }
 
     // Auto-scan installed on first visit
@@ -511,7 +560,9 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
 
             std::string label = pack.name;
             if (pack.isInstalled)
+            {
                 label += "  [installed]";
+            }
 
             if (ui.Selectable(label.c_str(), selected))
             {
@@ -556,9 +607,13 @@ void PlatformManagerPanel::DrawPackDetails()
     // Header
     ui.Text(pack.name.c_str());
     if (!pack.version.empty())
+    {
         TextCol(ui, Palette::Dim, ("Version: " + pack.version).c_str());
+    }
     if (!pack.author.empty())
+    {
         TextCol(ui, Palette::Dim, ("Author: " + pack.author).c_str());
+    }
     if (!pack.description.empty())
     {
         ui.Spacing();
@@ -589,23 +644,35 @@ void PlatformManagerPanel::DrawPackDetails()
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
                 if (m_PackManager->ImportAllPlatformsToProject(pack.id, platformsDir))
+                {
                     RefreshPlatformList();
+                }
             }
             ui.SameLine();
         }
 
         if (ui.Button("Uninstall"))
+        {
             m_PackManager->UninstallPack(pack.id);
+        }
     }
     else
     {
         bool installing = m_PackManager->IsInstalling();
-        if (installing) ui.BeginDisabled();
+        if (installing)
+        {
+            ui.BeginDisabled();
+        }
 
         if (ui.Button("Install"))
+        {
             m_PackManager->InstallPack(pack.id);
+        }
 
-        if (installing) ui.EndDisabled();
+        if (installing)
+        {
+            ui.EndDisabled();
+        }
     }
 
     ui.Spacing();
@@ -637,7 +704,9 @@ void PlatformManagerPanel::DrawPackDetails()
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
                 if (m_PackManager->ImportPlatformToProject(pack.id, plat.id, platformsDir))
+                {
                     RefreshPlatformList();
+                }
             }
         }
     }
@@ -657,20 +726,29 @@ void PlatformManagerPanel::DrawToolchainsTab()
     // Collect the available toolchains (builders).
     std::vector<ITargetBuilder*> builders;
     for (auto* b : BuilderRegistry::Instance().GetAllBuilders())
-        if (b) builders.push_back(b);
+    {
+        if (b)
+        {
+            builders.push_back(b);
+        }
+    }
 
     // Lazy version check (once): ask every builder to check for updates.
     if (!m_HasCheckedVersions)
     {
         m_HasCheckedVersions = true;
         for (auto* b : builders)
+        {
             b->CheckForToolchainUpdates();
+        }
     }
 
     // Console-style toolbar (full-bleed): rescan all toolchains.
     ui.BeginToolbar();
     if (ui.ToolbarIconButton("##rescanToolchains", ICON_TI_REFRESH, "Rescan toolchains", true))
+    {
         RefreshToolchains();
+    }
     ui.EndToolbar();
 
     ui.Spacing();
@@ -686,7 +764,9 @@ void PlatformManagerPanel::DrawToolchainsTab()
     }
 
     if (m_SelectedBuilder < 0 || m_SelectedBuilder >= (int)builders.size())
+    {
         m_SelectedBuilder = 0;
+    }
 
     // Resizable split view: toolchain list | splitter | components (mirrors the
     // Project Platforms tab).
@@ -707,9 +787,13 @@ void PlatformManagerPanel::DrawToolchainsTab()
             const int total = (int)comps.size();
             int installed = 0;
             for (const auto& c : comps)
+            {
                 if (c.status == ToolchainComponentStatus::Installed ||
                     c.status == ToolchainComponentStatus::UpdateAvailable)
+                {
                     installed++;
+                }
+            }
 
             std::string subtitle = std::to_string(installed) + " / " + std::to_string(total) + " installed";
             ImVec4 sc = (total > 0 && installed == total) ? Palette::Green
@@ -717,9 +801,11 @@ void PlatformManagerPanel::DrawToolchainsTab()
                                                           : Palette::Dim;
 
             std::string id = std::string("##tc_") + builders[i]->GetName();
-            if (ui.SelectableCard(id.c_str(), builders[i]->GetName(), subtitle.c_str(),
-                                  m_SelectedBuilder == i, Pack(sc)))
+            if (ui.SelectableCard(id.c_str(), builders[i]->GetName(), subtitle.c_str(), m_SelectedBuilder == i,
+                                  Pack(sc)))
+            {
                 m_SelectedBuilder = i;
+            }
         }
     }
     ui.EndChild();
@@ -735,7 +821,9 @@ void PlatformManagerPanel::DrawToolchainsTab()
     ui.GetContentRegionAvail(nullptr, &splitterHeight);
     ui.Button("##ToolchainSplitter", splitterWidth, splitterHeight);
     if (ui.IsItemHovered())
+    {
         ui.SetMouseCursor(EditorUI::MouseCursor::ResizeEW);
+    }
     if (ui.IsItemActive())
     {
         float dx = 0.0f;
@@ -785,7 +873,10 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         return;
     }
 
-    if (busy) ui.BeginDisabled();
+    if (busy)
+    {
+        ui.BeginDisabled();
+    }
 
     // Scope ids per builder so component ids (e.g. "python") don't collide
     // between builders.
@@ -804,15 +895,25 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
                 // Prefer the latest known version; fall back to the detected installed
                 // version (system toolchains like MSVC/CMake report only the latter).
                 if (!comp.latestVersion.empty())
+                {
                     subtitle += "  \xc2\xb7  v" + comp.latestVersion;
+                }
                 else if (!comp.installedVersion.empty())
+                {
                     subtitle += "  \xc2\xb7  " + comp.installedVersion;
+                }
                 subCol = Palette::Green;
                 break;
             case ToolchainComponentStatus::UpdateAvailable:
                 subtitle = "Update available";
-                if (!comp.latestVersion.empty()) subtitle += "  \xc2\xb7  v" + comp.latestVersion;
-                if (comp.canInstall) subtitle += "  \xc2\xb7  click to update";
+                if (!comp.latestVersion.empty())
+                {
+                    subtitle += "  \xc2\xb7  v" + comp.latestVersion;
+                }
+                if (comp.canInstall)
+                {
+                    subtitle += "  \xc2\xb7  click to update";
+                }
                 subCol = Palette::Amber;
                 break;
             case ToolchainComponentStatus::Installing:
@@ -824,40 +925,47 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
                 subtitle = "Not installed";
                 if (comp.canInstall)
                 {
-                    if (!comp.latestVersion.empty()) subtitle += " (v" + comp.latestVersion + ")";
+                    if (!comp.latestVersion.empty())
+                    {
+                        subtitle += " (v" + comp.latestVersion + ")";
+                    }
                     subtitle += "  \xc2\xb7  click to install";
                 }
                 break;
         }
 
-        bool clicked = ui.SelectableCard(comp.id.c_str(), comp.displayName.c_str(),
-                                         subtitle.c_str(), false, Pack(subCol));
+        bool clicked =
+            ui.SelectableCard(comp.id.c_str(), comp.displayName.c_str(), subtitle.c_str(), false, Pack(subCol));
         if (!comp.tooltip.empty() && ui.IsItemHovered())
+        {
             ui.SetTooltip(comp.tooltip.c_str());
+        }
 
         // Clicking installs a not-installed component, or updates an outdated one
         // (install now fetches the latest release and records its version).
-        const bool clickInstalls = comp.canInstall &&
-                                   (comp.status == ToolchainComponentStatus::NotInstalled ||
-                                    comp.status == ToolchainComponentStatus::UpdateAvailable);
+        const bool clickInstalls = comp.canInstall && (comp.status == ToolchainComponentStatus::NotInstalled ||
+                                                       comp.status == ToolchainComponentStatus::UpdateAvailable);
         if (clicked && clickInstalls)
         {
             ActivityPanel::Log(comp.displayName + " Install", "Installing...");
-            builder->InstallToolchainComponent(comp.id, [this, name = comp.displayName](const BuildProgress& p)
+            builder->InstallToolchainComponent(comp.id,
+                                               [this, name = comp.displayName](const BuildProgress& p)
                                                {
-                if (p.state == BuildState::Completed)
-                {
-                    ActivityPanel::CompleteProcess(name + " Install");
-                    m_RefreshToolchainsPending = true;  // on the main thread, in Draw
-                }
-                else if (p.state == BuildState::Failed)
-                {
-                    ActivityPanel::FailProcess(name + " Install", p.error);
-                }
-                else if (p.state == BuildState::Building && !p.statusText.empty())
-                {
-                    ActivityPanel::Log(name + " Install", p.statusText);
-                } });
+                                                   if (p.state == BuildState::Completed)
+                                                   {
+                                                       ActivityPanel::CompleteProcess(name + " Install");
+                                                       m_RefreshToolchainsPending =
+                                                           true;  // on the main thread, in Draw
+                                                   }
+                                                   else if (p.state == BuildState::Failed)
+                                                   {
+                                                       ActivityPanel::FailProcess(name + " Install", p.error);
+                                                   }
+                                                   else if (p.state == BuildState::Building && !p.statusText.empty())
+                                                   {
+                                                       ActivityPanel::Log(name + " Install", p.statusText);
+                                                   }
+                                               });
         }
     }
 
@@ -866,55 +974,73 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
     for (const auto& comp : components)
     {
         if (!comp.canSetup)
+        {
             continue;
+        }
 
         bool isInstalled = (comp.status == ToolchainComponentStatus::Installed ||
                             comp.status == ToolchainComponentStatus::UpdateAvailable);
         if (!isInstalled)
+        {
             continue;
+        }
 
         // Check that Python is also installed
         bool pythonInstalled = false;
         for (const auto& other : components)
         {
-            if (other.id == "python" &&
-                (other.status == ToolchainComponentStatus::Installed ||
-                 other.status == ToolchainComponentStatus::UpdateAvailable))
+            if (other.id == "python" && (other.status == ToolchainComponentStatus::Installed ||
+                                         other.status == ToolchainComponentStatus::UpdateAvailable))
             {
                 pythonInstalled = true;
                 break;
             }
         }
         if (!pythonInstalled)
+        {
             continue;
+        }
 
-        const std::string subtitle = comp.setupDone ? "Setup complete  \xc2\xb7  click to re-run"
-                                                    : "Click to run setup";
+        const std::string subtitle =
+            comp.setupDone ? "Setup complete  \xc2\xb7  click to re-run" : "Click to run setup";
         const ImVec4 subCol = comp.setupDone ? Palette::Green : Palette::Amber;
         const std::string setupId = "##setup_" + comp.id;
         if (ui.SelectableCard(setupId.c_str(), "Setup", subtitle.c_str(), false, Pack(subCol)))
         {
             ActivityPanel::Log(comp.displayName + " Setup", "Running setup...");
-            builder->SetupToolchainComponent(comp.id, [name = comp.displayName](const BuildProgress& p)
+            builder->SetupToolchainComponent(comp.id,
+                                             [name = comp.displayName](const BuildProgress& p)
                                              {
-                if (p.state == BuildState::Completed)
-                    ActivityPanel::CompleteProcess(name + " Setup");
-                else if (p.state == BuildState::Failed)
-                    ActivityPanel::FailProcess(name + " Setup", p.error);
-                else if (p.state == BuildState::Building && !p.statusText.empty())
-                    ActivityPanel::Log(name + " Setup", p.statusText); });
+                                                 if (p.state == BuildState::Completed)
+                                                 {
+                                                     ActivityPanel::CompleteProcess(name + " Setup");
+                                                 }
+                                                 else if (p.state == BuildState::Failed)
+                                                 {
+                                                     ActivityPanel::FailProcess(name + " Setup", p.error);
+                                                 }
+                                                 else if (p.state == BuildState::Building && !p.statusText.empty())
+                                                 {
+                                                     ActivityPanel::Log(name + " Setup", p.statusText);
+                                                 }
+                                             });
         }
     }
 
     ui.PopID();
 
-    if (busy) ui.EndDisabled();
+    if (busy)
+    {
+        ui.EndDisabled();
+    }
 
     ui.Spacing();
 
     // Check for updates button
     if (ui.Button(("Check for Updates##" + std::string(builder->GetName())).c_str()))
+    {
         builder->CheckForToolchainUpdates();
+    }
 
     ui.Unindent(pad);
 }
@@ -927,7 +1053,9 @@ void PlatformManagerPanel::RefreshToolchains()
     for (auto* b : allBuilders)
     {
         if (b)
+        {
             b->CheckForToolchainUpdates();
+        }
     }
 }
 

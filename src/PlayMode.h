@@ -7,10 +7,22 @@
 
 #include <imgui.h>  // ImGuiID
 
-namespace Deki { class Scene; }
-namespace Deki { class ICamera; }
-namespace Deki { class LifecycleManager; }
-namespace Deki { class IRenderSystem; }
+namespace Deki
+{
+class Scene;
+}
+namespace Deki
+{
+class ICamera;
+}
+namespace Deki
+{
+class LifecycleManager;
+}
+namespace Deki
+{
+class IRenderSystem;
+}
 
 namespace DekiEditor
 {
@@ -65,7 +77,7 @@ struct PlayModeRuntime
     Deki::IRenderSystem* renderSystem = nullptr;
 
     std::unique_ptr<::Deki::Scene> scene;  // Isolated deep copy for play mode
-    std::string sceneBackup;         // JSON backup of the scene before play
+    std::string sceneBackup;               // JSON backup of the scene before play
 
     bool ready = false;                // True after the first frame is rendered
     bool crashedThisFrame = false;     // A guarded play-mode call faulted; Stop() next frame

@@ -190,23 +190,23 @@ DEKI_EDITOR_API void TrimRegisteredWindows(int keepCount);
  * Usage:
  *   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
  */
-#define REGISTER_EDITOR_WINDOW(WindowClass, WindowTitle, MenuPath) \
-    namespace                                                      \
-    {                                                              \
-    static DekiEditor::EditorWindow* Create##WindowClass()         \
-    {                                                              \
-        return new WindowClass();                                  \
-    }                                                              \
-    struct WindowClass##Registrar                                  \
-    {                                                              \
-        WindowClass##Registrar()                                   \
-        {                                                          \
-            DekiEditor::EditorWindowMeta meta;                     \
-            meta.title = WindowTitle;                              \
-            meta.menuPath = MenuPath;                              \
-            meta.createFunc = &Create##WindowClass;                \
-            DekiEditor::RegisterEditorWindow(meta);                \
-        }                                                          \
-    };                                                             \
-    static WindowClass##Registrar g_##WindowClass##Registrar;      \
+#define REGISTER_EDITOR_WINDOW(WindowClass, WindowTitle, MenuPath)                                                     \
+    namespace                                                                                                          \
+    {                                                                                                                  \
+    static DekiEditor::EditorWindow* Create##WindowClass()                                                             \
+    {                                                                                                                  \
+        return new WindowClass();                                                                                      \
+    }                                                                                                                  \
+    struct WindowClass##Registrar                                                                                      \
+    {                                                                                                                  \
+        WindowClass##Registrar()                                                                                       \
+        {                                                                                                              \
+            DekiEditor::EditorWindowMeta meta;                                                                         \
+            meta.title = WindowTitle;                                                                                  \
+            meta.menuPath = MenuPath;                                                                                  \
+            meta.createFunc = &Create##WindowClass;                                                                    \
+            DekiEditor::RegisterEditorWindow(meta);                                                                    \
+        }                                                                                                              \
+    };                                                                                                                 \
+    static WindowClass##Registrar g_##WindowClass##Registrar;                                                          \
     }

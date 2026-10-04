@@ -5,7 +5,10 @@
 #include <deki-editor/EditorExport.h>
 #include <deki/Engine.h>  // Deki::ColorFormat
 // Forward declarations
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 struct ImDrawList;
 
 namespace DekiEditor
@@ -155,8 +158,8 @@ public:
     /** @brief Pack an RGBA color (components 0-255) for the Draw* methods. */
     static uint32_t Rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
-        return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) |
-               (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(r);
+        return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(g) << 8) |
+               static_cast<uint32_t>(r);
     }
 
     void DrawLine(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness = 1.0f);

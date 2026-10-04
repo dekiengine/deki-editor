@@ -22,8 +22,8 @@ public:
 
     // Open the picker popup for a specific property
     // Returns true if an asset was selected
-    bool Open(const std::string& popupId, const std::string& currentValue,
-              AssetFilterType filter, std::string& outSelectedPath);
+    bool Open(const std::string& popupId, const std::string& currentValue, AssetFilterType filter,
+              std::string& outSelectedPath);
 
     // Call this every frame when the popup might be open
     // Returns true if selection changed
@@ -32,8 +32,7 @@ public:
 private:
     void RefreshAssets(AssetFilterType filter);
     std::vector<std::string> GetExtensionsForFilter(AssetFilterType filter);
-    void ScanDirectory(const std::string& dir, const std::string& baseDir,
-                       const std::vector<std::string>& extensions,
+    void ScanDirectory(const std::string& dir, const std::string& baseDir, const std::vector<std::string>& extensions,
                        AssetPipeline* pipeline);
 
     std::vector<AssetPickerEntry> m_Assets;

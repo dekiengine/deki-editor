@@ -178,10 +178,8 @@ public:
      * @param guid Asset's GUID
      * @param projectPath Absolute path to the project root
      */
-    using AssetSyncHandler = std::function<void(
-        const std::string& absolutePath,
-        const std::string& guid,
-        const std::string& projectPath)>;
+    using AssetSyncHandler =
+        std::function<void(const std::string& absolutePath, const std::string& guid, const std::string& projectPath)>;
 
     /**
      * @brief When should a registered sync handler fire on ProcessAsset?
@@ -254,9 +252,8 @@ public:
      * source asset's own GUID is already kept by the pipeline - providers only
      * need to enumerate variants.
      */
-    using CacheVariantProvider = std::function<void(
-        const AssetInfo& info,
-        std::unordered_set<std::string>& outValidGuids)>;
+    using CacheVariantProvider =
+        std::function<void(const AssetInfo& info, std::unordered_set<std::string>& outValidGuids)>;
 
     /**
      * @brief Register a cache-variant provider for a file extension
@@ -397,8 +394,7 @@ public:
      * @param parentGuid Parent asset's GUID
      * @param subAssets Vector of sub-asset information
      */
-    void RegisterSubAssets(const std::string& parentGuid,
-                           const std::vector<SubAssetInfo>& subAssets);
+    void RegisterSubAssets(const std::string& parentGuid, const std::vector<SubAssetInfo>& subAssets);
 
     // Callbacks - all receive project-relative paths
     std::function<void(const std::string&)> OnAssetDiscovered;

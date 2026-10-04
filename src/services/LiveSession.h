@@ -50,8 +50,8 @@ std::vector<Info> FindForProject(const std::filesystem::path& dir, const std::st
 
 // Talk to one. Both fail with `error` when the editor does not answer.
 bool ListTools(const Info& session, nlohmann::json& tools, std::string& error);
-bool CallTool(const Info& session, const std::string& name, const nlohmann::json& args,
-              nlohmann::json& result, std::string& error);
+bool CallTool(const Info& session, const std::string& name, const nlohmann::json& args, nlohmann::json& result,
+              std::string& error);
 }  // namespace LiveSession
 
 }  // namespace DekiEditor

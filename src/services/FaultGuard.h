@@ -118,38 +118,38 @@ void FaultGuardSetTraceHook(FaultTraceHook hook);
 
 #if defined(_WIN32)
 
-#define DEKI_FAULT_GUARD_BEGIN(g)             \
-    ::DekiEditor::FaultGuardInstallHandler(); \
-    (g).prev = ::DekiEditor::t_faultGuard;    \
-    (g).code = 0;                             \
-    (g).faulted = 0;                          \
-    (g).faultIp = 0;                          \
-    (g).accessType = 0;                       \
-    (g).accessAddr = 0;                       \
-    (g).trace = nullptr;                      \
-    (g).accessDetails = nullptr;              \
-    ::DekiEditor::t_faultGuard = &(g);        \
+#define DEKI_FAULT_GUARD_BEGIN(g)                                                                                      \
+    ::DekiEditor::FaultGuardInstallHandler();                                                                          \
+    (g).prev = ::DekiEditor::t_faultGuard;                                                                             \
+    (g).code = 0;                                                                                                      \
+    (g).faulted = 0;                                                                                                   \
+    (g).faultIp = 0;                                                                                                   \
+    (g).accessType = 0;                                                                                                \
+    (g).accessAddr = 0;                                                                                                \
+    (g).trace = nullptr;                                                                                               \
+    (g).accessDetails = nullptr;                                                                                       \
+    ::DekiEditor::t_faultGuard = &(g);                                                                                 \
     RtlCaptureContext(&(g).ctx)
 
 #else
 
-#define DEKI_FAULT_GUARD_BEGIN(g)             \
-    ::DekiEditor::FaultGuardInstallHandler(); \
-    (g).prev = ::DekiEditor::t_faultGuard;    \
-    (g).code = 0;                             \
-    (g).faulted = 0;                          \
-    (g).faultIp = 0;                          \
-    (g).accessType = 0;                       \
-    (g).accessAddr = 0;                       \
-    (g).trace = nullptr;                      \
-    (g).accessDetails = nullptr;              \
-    ::DekiEditor::t_faultGuard = &(g);        \
-    if (sigsetjmp((g).jb, 1) != 0) (g).faulted = 1
+#define DEKI_FAULT_GUARD_BEGIN(g)                                                                                      \
+    ::DekiEditor::FaultGuardInstallHandler();                                                                          \
+    (g).prev = ::DekiEditor::t_faultGuard;                                                                             \
+    (g).code = 0;                                                                                                      \
+    (g).faulted = 0;                                                                                                   \
+    (g).faultIp = 0;                                                                                                   \
+    (g).accessType = 0;                                                                                                \
+    (g).accessAddr = 0;                                                                                                \
+    (g).trace = nullptr;                                                                                               \
+    (g).accessDetails = nullptr;                                                                                       \
+    ::DekiEditor::t_faultGuard = &(g);                                                                                 \
+    if (sigsetjmp((g).jb, 1) != 0)                                                                                     \
+    (g).faulted = 1
 
 #endif
 
 // Pop a guard. Not RAII on purpose: recovery bypasses destructors by design.
-#define DEKI_FAULT_GUARD_END(g) \
-    (::DekiEditor::t_faultGuard = (g).prev)
+#define DEKI_FAULT_GUARD_END(g) (::DekiEditor::t_faultGuard = (g).prev)
 
 #endif  // !_MSC_VER

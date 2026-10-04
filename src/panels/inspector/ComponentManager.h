@@ -9,9 +9,18 @@
 #include <deki-editor/EditorTheme.h>
 
 // Forward declarations
-namespace Deki { class Object; }
-namespace Deki { class Component; }
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+struct ComponentMeta;
+}
 
 namespace DekiEditor
 {

@@ -17,7 +17,7 @@ void FrameCaptureService::StartCapture(const std::string& outputDir)
     if (m_IsCapturing)
     {
         Deki::LogSystem::LogWithLevel(Deki::LogLevel::Warning, __FILE__, __LINE__,
-                                    "FrameCaptureService: Already capturing");
+                                      "FrameCaptureService: Already capturing");
         return;
     }
 
@@ -29,7 +29,7 @@ void FrameCaptureService::StartCapture(const std::string& outputDir)
     m_IsCapturing = true;
 
     Deki::LogSystem::LogWithLevel(Deki::LogLevel::Info, __FILE__, __LINE__,
-                                "FrameCaptureService: Started capturing to %s", outputDir.c_str());
+                                  "FrameCaptureService: Started capturing to %s", outputDir.c_str());
 }
 
 void FrameCaptureService::StopCapture()
@@ -41,8 +41,8 @@ void FrameCaptureService::StopCapture()
 
     m_IsCapturing = false;
     Deki::LogSystem::LogWithLevel(Deki::LogLevel::Info, __FILE__, __LINE__,
-                                "FrameCaptureService: Stopped capturing. %d frames saved to %s",
-                                m_FrameNumber, m_OutputDir.c_str());
+                                  "FrameCaptureService: Stopped capturing. %d frames saved to %s", m_FrameNumber,
+                                  m_OutputDir.c_str());
 }
 
 void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, int height, Deki::ColorFormat format)
@@ -70,11 +70,15 @@ void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, in
         uint8_t r, g, b;
         if (format == Deki::ColorFormat::RGB888)
         {
-            r = p[0]; g = p[1]; b = p[2];
+            r = p[0];
+            g = p[1];
+            b = p[2];
         }
         else if (format == Deki::ColorFormat::ARGB8888)
         {
-            r = p[2]; g = p[1]; b = p[0];
+            r = p[2];
+            g = p[1];
+            b = p[0];
         }
         else  // RGB565, RGB565A8
         {
@@ -91,8 +95,7 @@ void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, in
 
     // Generate filename: frame_00000.png
     char filename[256];
-    snprintf(filename, sizeof(filename), "%s/frame_%05d.png",
-             m_OutputDir.c_str(), m_FrameNumber);
+    snprintf(filename, sizeof(filename), "%s/frame_%05d.png", m_OutputDir.c_str(), m_FrameNumber);
 
     // Write PNG
     int stride = width * 4;
@@ -103,7 +106,7 @@ void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, in
     else
     {
         Deki::LogSystem::LogWithLevel(Deki::LogLevel::Error, __FILE__, __LINE__,
-                                    "FrameCaptureService: Failed to write %s", filename);
+                                      "FrameCaptureService: Failed to write %s", filename);
     }
 }
 

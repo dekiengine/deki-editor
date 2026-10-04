@@ -38,7 +38,10 @@ public:
     bool TryPop(T& item)
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        if (m_Queue.empty()) return false;
+        if (m_Queue.empty())
+        {
+            return false;
+        }
         item = std::move(m_Queue.front());
         m_Queue.pop();
         return true;
@@ -48,10 +51,10 @@ public:
     bool WaitPop(T& item, int timeoutMs)
     {
         std::unique_lock<std::mutex> lock(m_Mutex);
-        if (!m_Condition.wait_for(lock, std::chrono::milliseconds(timeoutMs),
-                                  [this]
-                                  { return !m_Queue.empty(); }))
+        if (!m_Condition.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] { return !m_Queue.empty(); }))
+        {
             return false;
+        }
         item = std::move(m_Queue.front());
         m_Queue.pop();
         return true;

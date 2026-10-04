@@ -43,7 +43,6 @@ int PluginLoader::LoadPluginsFromDirectory(const std::string& directory)
         return 0;
     }
 
-
     // Pre-pass: drop any stale duplicate plugin DLLs (e.g. left over from a
     // project rename) before any of them registers components.
     auto candidates = ResolveDuplicateComponentDlls(directory);
@@ -51,10 +50,14 @@ int PluginLoader::LoadPluginsFromDirectory(const std::string& directory)
     for (const auto& path : candidates)
     {
         if (OnPluginLoading)
+        {
             OnPluginLoading(std::filesystem::path(path).stem().string());
+        }
 
         if (LoadPlugin(path))
+        {
             loadedCount++;
+        }
     }
 
     DEKI_LOG_EDITOR("PluginLoader: Loaded %d plugin(s)", loadedCount);
@@ -77,18 +80,30 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
     // main load path).
     for (const auto& entry : fs::directory_iterator(directory))
     {
-        if (!entry.is_regular_file()) continue;
+        if (!entry.is_regular_file())
+        {
+            continue;
+        }
         const auto& path = entry.path();
         std::string filename = path.filename().string();
 
 #ifdef _WIN32
-        if (path.extension() != ".dll") continue;
+        if (path.extension() != ".dll")
+        {
+            continue;
+        }
 #else
-        if (path.extension() != ".so" && path.extension() != ".dylib") continue;
+        if (path.extension() != ".so" && path.extension() != ".dylib")
+        {
+            continue;
+        }
 #endif
-        bool isComponentPlugin = filename.find("-components") != std::string::npos ||
-                                 filename.find("Components") != std::string::npos;
-        if (!isComponentPlugin) continue;
+        bool isComponentPlugin =
+            filename.find("-components") != std::string::npos || filename.find("Components") != std::string::npos;
+        if (!isComponentPlugin)
+        {
+            continue;
+        }
 
         Candidate c;
         c.path = path.string();
@@ -103,7 +118,9 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         std::vector<std::string> out;
         out.reserve(candidates.size());
         for (auto& c : candidates)
+        {
             out.push_back(std::move(c.path));
+        }
         return out;
     }
 
@@ -115,13 +132,19 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         UINT oldErrorMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
         HMODULE handle = LoadLibraryA(c.path.c_str());
         SetErrorMode(oldErrorMode);
-        if (!handle) continue;
+        if (!handle)
+        {
+            continue;
+        }
 
         auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPlugin_GetComponentCount");
         auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPlugin_GetComponentMeta");
 #else
         void* handle = dlopen(c.path.c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (!handle) continue;
+        if (!handle)
+        {
+            continue;
+        }
 
         auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPlugin_GetComponentCount");
         auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPlugin_GetComponentMeta");
@@ -135,7 +158,9 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
                 const Deki::ComponentMeta* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
                     (void* (*)(int))getComponentMeta, i, "PluginLoader::peek::getComponentMeta");
                 if (meta)
+                {
                     c.typeIds.push_back(meta->typeId);
+                }
             }
         }
 
@@ -149,27 +174,46 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
     // Step 3 - find candidates that share at least one typeId.
     std::unordered_map<uint32_t, std::vector<size_t>> byTypeId;
     for (size_t i = 0; i < candidates.size(); ++i)
+    {
         for (uint32_t tid : candidates[i].typeIds)
+        {
             byTypeId[tid].push_back(i);
+        }
+    }
 
     // Step 4 - for every conflict, mark the older candidates for removal.
     // The newest mtime wins; ties broken lexicographically for determinism.
     auto isNewer = [&candidates](size_t a, size_t b)
     {
         if (candidates[a].mtime != candidates[b].mtime)
+        {
             return candidates[a].mtime > candidates[b].mtime;
+        }
         return candidates[a].path < candidates[b].path;
     };
 
     std::unordered_set<size_t> toDelete;
     for (auto& [tid, idxs] : byTypeId)
     {
-        if (idxs.size() < 2) continue;
+        if (idxs.size() < 2)
+        {
+            continue;
+        }
         size_t winner = idxs[0];
         for (size_t i = 1; i < idxs.size(); ++i)
-            if (isNewer(idxs[i], winner)) winner = idxs[i];
+        {
+            if (isNewer(idxs[i], winner))
+            {
+                winner = idxs[i];
+            }
+        }
         for (size_t idx : idxs)
-            if (idx != winner) toDelete.insert(idx);
+        {
+            if (idx != winner)
+            {
+                toDelete.insert(idx);
+            }
+        }
     }
 
     // Step 5 - actually delete the stale files (DLL + sibling .pdb on Windows).
@@ -205,8 +249,7 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
             fs::remove(pdbPath, pdbEc);
 
             DEKI_LOG_EDITOR("PluginLoader: Removed stale plugin '%s' (superseded by '%s')",
-                            dllPath.filename().string().c_str(),
-                            survivorName.c_str());
+                            dllPath.filename().string().c_str(), survivorName.c_str());
         }
     }
 
@@ -217,25 +260,32 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
     std::vector<size_t> order;
     order.reserve(candidates.size());
     for (size_t i = 0; i < candidates.size(); ++i)
-        if (!toDelete.count(i)) order.push_back(i);
+    {
+        if (!toDelete.count(i))
+        {
+            order.push_back(i);
+        }
+    }
     std::sort(order.begin(), order.end(),
-              [&candidates](size_t a, size_t b)
-              { return candidates[a].path < candidates[b].path; });
+              [&candidates](size_t a, size_t b) { return candidates[a].path < candidates[b].path; });
     for (size_t i : order)
+    {
         out.push_back(std::move(candidates[i].path));
+    }
     return out;
 }
 
 bool PluginLoader::LoadPlugin(const std::string& path)
 {
-
     // Mark where plugin-owned editor factories begin. Only on the first plugin
     // of a load cycle: everything already in the registry belongs to packages
     // (or the engine), and a retry that loads a second plugin without an
     // intervening unload must not move the boundary past the first one's
     // entries. See EditorFactoryWatermark().
     if (m_Plugins.empty())
+    {
         m_EditorFactoryWatermark = DekiEditorInternal::EditorRegistry::Instance().GetTotalCount();
+    }
 
     PluginInfo info;
     info.path = path;
@@ -252,8 +302,8 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     {
         DWORD error = GetLastError();
         char errMsg[256] = {};
-        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                       NULL, error, 0, errMsg, sizeof(errMsg), NULL);
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0, errMsg,
+                       sizeof(errMsg), NULL);
         DEKI_LOG_ERROR("PluginLoader: Failed to load DLL (error %lu: %s): %s", error, errMsg, path.c_str());
         return false;
     }
@@ -360,12 +410,11 @@ bool PluginLoader::LoadPlugin(const std::string& path)
         }
     }
 
-    info.componentCount = getComponentCount
-                              ? SafeCallGetInt(getComponentCount, 0, "PluginLoader::getComponentCount")
-                              : 0;
+    info.componentCount =
+        getComponentCount ? SafeCallGetInt(getComponentCount, 0, "PluginLoader::getComponentCount") : 0;
 
-    DEKI_LOG_EDITOR("PluginLoader: Plugin '%s' v%s (%d components)",
-                    info.name.c_str(), info.version.c_str(), info.componentCount);
+    DEKI_LOG_EDITOR("PluginLoader: Plugin '%s' v%s (%d components)", info.name.c_str(), info.version.c_str(),
+                    info.componentCount);
 
     // Initialize plugin (SEH-protected)
     if (init)
@@ -409,7 +458,9 @@ bool PluginLoader::LoadPlugin(const std::string& path)
                     registry.RegisterFields(meta->typeInfo->typeId, meta->typeInfo->fields, meta->typeInfo->fieldCount);
                 }
                 if (meta->settingsSection)
+                {
                     Deki::SettingsRegistry::Instance().RegisterPlugin(meta->settingsSection, meta);
+                }
                 DEKI_LOG_DEBUG("PluginLoader: Registered component '%s'", meta->name);
             }
         }
@@ -425,8 +476,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
 
     // Fire any newly-registered editor-auto SetupComponents from this plugin DLL
     // (idempotent - already-fired entries are skipped).
-    Deki::SetupComponent::RunEditorAutoSetups(
-        Deki::SetupComponent::SetupPhase::EditorLoad);
+    Deki::SetupComponent::RunEditorAutoSetups(Deki::SetupComponent::SetupPhase::EditorLoad);
 
     return true;
 }
@@ -455,8 +505,10 @@ void PluginLoader::UnloadAllPlugins()
         {
 #ifdef _WIN32
             // Unregister plugin components from ComponentFactory before unloading
-            auto getComponentCount = (GetComponentCountFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_GetComponentCount");
-            auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_GetComponentMeta");
+            auto getComponentCount =
+                (GetComponentCountFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_GetComponentCount");
+            auto getComponentMeta =
+                (GetComponentMetaFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPlugin_GetComponentMeta");
             if (getComponentCount && getComponentMeta)
             {
                 int count = SafeCallGetInt(getComponentCount, 0, "PluginLoader::unload::getComponentCount");
@@ -465,7 +517,9 @@ void PluginLoader::UnloadAllPlugins()
                     const Deki::ComponentMeta* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
                         (void* (*)(int))getComponentMeta, i, "PluginLoader::unload::getComponentMeta");
                     if (meta)
+                    {
                         Deki::ComponentFactory::Instance().Unregister(meta->typeId);
+                    }
                 }
             }
 
@@ -487,7 +541,9 @@ void PluginLoader::UnloadAllPlugins()
                     const Deki::ComponentMeta* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
                         (void* (*)(int))getComponentMeta, i, "PluginLoader::unload::getComponentMeta");
                     if (meta)
+                    {
                         Deki::ComponentFactory::Instance().Unregister(meta->typeId);
+                    }
                 }
             }
 
@@ -511,7 +567,9 @@ bool PluginLoader::CheckForUpdates()
     for (const auto& plugin : m_Plugins)
     {
         if (!std::filesystem::exists(plugin.path))
+        {
             continue;
+        }
 
         try
         {
@@ -534,7 +592,9 @@ bool PluginLoader::CheckForUpdates()
 void PluginLoader::ReloadAllPlugins()
 {
     if (m_Plugins.empty())
+    {
         return;
+    }
 
     DEKI_LOG_EDITOR("PluginLoader: Reloading all plugins...");
 
@@ -566,7 +626,9 @@ void PluginLoader::ReloadAllPlugins()
         for (int attempt = 0; attempt < 3; ++attempt)
         {
             if (LoadPlugin(path))
+            {
                 break;
+            }
 
             DEKI_LOG_WARNING("PluginLoader: Retry loading '%s' (attempt %d)", path.c_str(), attempt + 1);
 #ifdef _WIN32

@@ -60,11 +60,11 @@ struct DEKI_EDITOR_API ComponentUsage
 // the board's boot scene with the simulator's steps added, kept in its own
 // build directory.
 DEKI_EDITOR_API ComponentUsage ScanComponentUsage(const std::string& projectPath,
-                                  const std::vector<std::string>& knownTypes,
-                                  const std::vector<std::string>& scanPackageIds,
-                                  const std::string& targetPlatformId = "",
-                                  const std::set<std::string>& targetCapabilities = {},
-                                  const std::vector<std::string>& extraSceneDirs = {});
+                                                  const std::vector<std::string>& knownTypes,
+                                                  const std::vector<std::string>& scanPackageIds,
+                                                  const std::string& targetPlatformId = "",
+                                                  const std::set<std::string>& targetCapabilities = {},
+                                                  const std::vector<std::string>& extraSceneDirs = {});
 
 // The name a scene or a descriptor uses for a type: the identifier after the
 // last `::`, so "Deki2D::SpriteComponent" and "SpriteComponent" agree.

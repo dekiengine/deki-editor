@@ -31,14 +31,14 @@
 // Debug heap validation to isolate heap corruption
 #ifdef _DEBUG
 #include <crtdbg.h>
-#define DEKI_HEAP_CHECK(tag)                                        \
-    do                                                              \
-    {                                                               \
-        if (!_CrtCheckMemory())                                     \
-        {                                                           \
-            DEKI_LOG_ERROR("HEAP CORRUPTION detected at: %s", tag); \
-            _ASSERTE(_CrtCheckMemory());                            \
-        }                                                           \
+#define DEKI_HEAP_CHECK(tag)                                                                                           \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (!_CrtCheckMemory())                                                                                        \
+        {                                                                                                              \
+            DEKI_LOG_ERROR("HEAP CORRUPTION detected at: %s", tag);                                                    \
+            _ASSERTE(_CrtCheckMemory());                                                                               \
+        }                                                                                                              \
     } while (0)
 #else
 #define DEKI_HEAP_CHECK(tag)
@@ -57,14 +57,18 @@ struct ScopedTimer
     const char* tag;
     std::chrono::steady_clock::time_point start;
     explicit ScopedTimer(const char* t)
-        : tag(t), start(std::chrono::steady_clock::now()) {}
+        : tag(t),
+          start(std::chrono::steady_clock::now())
+    {
+    }
     ~ScopedTimer()
     {
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::steady_clock::now() - start)
-                      .count();
+        auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
         if (ms >= 10)
+        {
             DEKI_LOG_EDITOR("[timing] %s: %lld ms", tag, static_cast<long long>(ms));
+        }
     }
 };
 
@@ -92,9 +96,8 @@ uint64_t Fnv1a64(const std::string& s)
 // (parentGuid, subGuid) pairs in m_SubAssets. Sub-assets are folded in so a
 // package that newly emits variant GUIDs (without changing source assets)
 // invalidates the warm-cache short-circuit.
-uint64_t ComputeAssetSetHash(
-    const std::unordered_map<std::string, AssetInfo>& assets,
-    const std::unordered_map<std::string, std::vector<SubAssetInfo>>& subAssets)
+uint64_t ComputeAssetSetHash(const std::unordered_map<std::string, AssetInfo>& assets,
+                             const std::unordered_map<std::string, std::vector<SubAssetInfo>>& subAssets)
 {
     std::vector<std::string> keys;
     keys.reserve(assets.size());
@@ -128,7 +131,10 @@ bool ReadAssetSetHash(const std::string& projectPath, uint64_t& outHash)
 {
     fs::path p = fs::path(GetCacheDirectory(projectPath)) / "asset_table.hash";
     std::ifstream f(p, std::ios::binary);
-    if (!f.is_open()) return false;
+    if (!f.is_open())
+    {
+        return false;
+    }
     f.read(reinterpret_cast<char*>(&outHash), sizeof(outHash));
     return f.good() || f.eof();
 }
@@ -196,7 +202,9 @@ void AssetPipeline::RegisterSyncHandler(const std::string& extension, AssetSyncH
 {
     std::string extLower = extension;
     for (char& c : extLower)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
     SyncHandlerEntry entry;
     entry.handler = std::move(handler);
     entry.policy = policy;
@@ -222,7 +230,9 @@ void AssetPipeline::RegisterCacheHandler(const std::string& extension, AssetCach
 {
     std::string extLower = extension;
     for (char& c : extLower)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
     m_CacheHandlers[extLower] = std::move(handler);
 }
 
@@ -235,18 +245,25 @@ void AssetPipeline::RegisterCacheVariantProvider(const std::string& extension, C
 {
     std::string extLower = extension;
     for (char& c : extLower)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
     m_CacheVariantProviders[extLower] = std::move(provider);
 }
 
 std::string AssetPipeline::MakeProjectRelative(const std::string& absolutePath) const
 {
     if (m_ProjectPath.empty())
+    {
         return absolutePath;
+    }
     std::string rel = fs::relative(absolutePath, m_ProjectPath).string();
     for (char& c : rel)
     {
-        if (c == '\\') c = '/';
+        if (c == '\\')
+        {
+            c = '/';
+        }
     }
     return rel;
 }
@@ -265,7 +282,9 @@ static AssetCacheResult HandleSceneCache(const AssetCacheContext& ctx)
     // the file outside the editor and alt-tabs back) bump the source mtime,
     // so this branch falls through and we recompile on the next ProcessAsset.
     if (ctx.hasCachedVersion && ctx.cacheIsFresh)
+    {
         return AssetCacheResult::Cached;
+    }
 
     DEKI_HEAP_CHECK("HandleSceneCache: before CompileSceneFile");
     bool success = ctx.pipeline->CompileSceneFile(ctx.absolutePath, ctx.cachePath);
@@ -279,7 +298,9 @@ static AssetCacheResult HandleAssetFileCache(const AssetCacheContext& ctx)
     // the previous compile is still valid. Live edits update source mtime, so
     // they'll naturally fall through and recompile on next ProcessAsset.
     if (ctx.hasCachedVersion && ctx.cacheIsFresh)
+    {
         return AssetCacheResult::Cached;
+    }
 
     DEKI_LOG_DEBUG("AssetCache: Compiling .asset file: %s -> %s", ctx.absolutePath.c_str(), ctx.cachePath.c_str());
     if (ctx.pipeline->CompileAssetFile(ctx.absolutePath, ctx.cachePath))
@@ -318,7 +339,12 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     // which GetAssetInfoByGuid used to recompute with a filesystem call per lookup.
     m_AssetsPrefix = fs::relative(m_AssetsPath, m_ProjectPath).string();
     for (char& c : m_AssetsPrefix)
-        if (c == '\\') c = '/';
+    {
+        if (c == '\\')
+        {
+            c = '/';
+        }
+    }
     m_Running = true;
 
     // Set singleton instance
@@ -336,7 +362,9 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
             std::ifstream f(versionFile);
             std::string stored;
             if (std::getline(f, stored))
+            {
                 versionMatch = (stored == currentVersion);
+            }
         }
 
         if (!versionMatch && fs::exists(cacheDir))
@@ -346,7 +374,9 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
             for (auto& entry : fs::directory_iterator(cacheDir))
             {
                 if (entry.path().filename() == "guids.json")
+                {
                     continue;
+                }
                 std::error_code ec;
                 fs::remove_all(entry.path(), ec);
             }
@@ -366,9 +396,15 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
         const json stamps = in ? json::parse(in, nullptr, false) : json();
         m_HaveStampFile = stamps.is_object();
         if (m_HaveStampFile)
+        {
             for (const auto& [guid, stamp] : stamps.items())
+            {
                 if (stamp.is_string())
+                {
                     m_CacheStamps[guid] = stamp.get<std::string>();
+                }
+            }
+        }
     }
 
     // Register built-in cache handlers for editor-core types only.
@@ -385,7 +421,8 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     {
         callback(this);
     }
-    DEKI_LOG_EDITOR("AssetPipeline: %zu cache handlers, %zu sync handlers", m_CacheHandlers.size(), m_SyncHandlers.size());
+    DEKI_LOG_EDITOR("AssetPipeline: %zu cache handlers, %zu sync handlers", m_CacheHandlers.size(),
+                    m_SyncHandlers.size());
 
     // Initialize and sync GUID cache (handlers now ready to process assets)
     {
@@ -413,10 +450,14 @@ void AssetPipeline::Stop()
 {
     // Clear singleton instance
     if (s_Instance == this)
+    {
         s_Instance = nullptr;
+    }
 
     if (m_Running)
+    {
         SaveCacheStamps();
+    }
     m_CacheStamps.clear();
 
     // Stop the file watcher BEFORE clearing state so any in-flight events
@@ -447,10 +488,14 @@ std::string AssetPipeline::GetAssetTypeFromExtension(const std::string& ext)
 void AssetPipeline::ImportAllAssets()
 {
     if (!m_Running || m_AssetsPath.empty() || m_ProjectPath.empty())
+    {
         return;
+    }
 
     if (!fs::exists(m_AssetsPath) || !fs::is_directory(m_AssetsPath))
+    {
         return;
+    }
 
     ScopedTimer __t_total("ImportAllAssets total");
 
@@ -458,7 +503,8 @@ void AssetPipeline::ImportAllAssets()
     struct ImportScope
     {
         AssetPipeline& p;
-        explicit ImportScope(AssetPipeline& pipeline) : p(pipeline)
+        explicit ImportScope(AssetPipeline& pipeline)
+            : p(pipeline)
         {
             p.m_ImportingAll = true;
             p.m_GuidCache.BeginBatch();  // one guids.json write, not one per asset
@@ -468,12 +514,16 @@ void AssetPipeline::ImportAllAssets()
             p.m_ImportingAll = false;
             p.m_GuidCache.EndBatch();
             if (p.m_AssetTableDirty)
+            {
                 p.UpdateAssetTable();
+            }
             if (p.m_CreatedDuringImport)
             {
                 p.m_CreatedDuringImport = false;
                 if (p.OnImportAllFinished)
+                {
                     p.OnImportAllFinished();
+                }
             }
         }
     } importScope(*this);
@@ -492,30 +542,41 @@ void AssetPipeline::ImportAllAssets()
     for (const auto& entry : fs::recursive_directory_iterator(m_AssetsPath))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string ext = entry.path().extension().string();
 
         // Skip .dekiguid and .data sidecar files
         if (ext == ".dekiguid" || ext == ".data")
+        {
             continue;
+        }
 
         // Only process supported asset types
         if (!IsAssetFile(ext))
+        {
             continue;
+        }
 
         // Convert absolute path to project-relative path
         std::string relativePath = fs::relative(entry.path(), m_ProjectPath).string();
         // Normalize path separators to forward slashes
         for (char& c : relativePath)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
 
         // Defer scenes to pass 2
         std::string extLower = ext;
         for (char& c : extLower)
+        {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
 
         if (extLower == ".scene")
         {
@@ -528,9 +589,9 @@ void AssetPipeline::ImportAllAssets()
     }
 
     {
-        auto __t_pass1_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                std::chrono::steady_clock::now() - __t_pass1_start)
-                                .count();
+        auto __t_pass1_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - __t_pass1_start)
+                .count();
         DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1 (non-scene): %lld ms, %zu subassets",
                         static_cast<long long>(__t_pass1_ms), m_SubAssetLookup.size());
     }
@@ -556,7 +617,10 @@ void AssetPipeline::ImportAllAssets()
             std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
             for (char& c : assetsRelativePath)
             {
-                if (c == '\\') c = '/';
+                if (c == '\\')
+                {
+                    c = '/';
+                }
             }
             if (!m_GuidCache.Contains(assetsRelativePath))
             {
@@ -566,12 +630,14 @@ void AssetPipeline::ImportAllAssets()
     }
 
     {
-        auto __t_pass15_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                 std::chrono::steady_clock::now() - __t_pass15_start)
-                                 .count();
+        auto __t_pass15_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - __t_pass15_start)
+                .count();
         if (__t_pass15_ms >= 10)
+        {
             DEKI_LOG_EDITOR("[timing] ImportAllAssets Pass1.5 (scene GUID pre-register): %lld ms",
                             static_cast<long long>(__t_pass15_ms));
+        }
     }
 
     // Pass 2: Process scenes (now all subassets and scene GUIDs are registered)
@@ -584,8 +650,7 @@ void AssetPipeline::ImportAllAssets()
     }
 
     // Aggregate per-asset processing cost
-    DEKI_LOG_EDITOR("[timing] ProcessAsset total: %d calls, %lld ms",
-                    g_ProcessAssetCounters.count,
+    DEKI_LOG_EDITOR("[timing] ProcessAsset total: %d calls, %lld ms", g_ProcessAssetCounters.count,
                     g_ProcessAssetCounters.totalMs);
 
     // Hash-gate: if the (path, guid) set is identical to last run, skip the
@@ -623,7 +688,10 @@ void AssetPipeline::ImportAllAssets()
         ScopedTimer __t_oic("ImportAllAssets OnImportComplete callbacks");
         for (auto& cb : s_OnImportCompleteCallbacks)
         {
-            if (cb) cb(this);
+            if (cb)
+            {
+                cb(this);
+            }
         }
     }
 
@@ -632,7 +700,9 @@ void AssetPipeline::ImportAllAssets()
     // Start the OS file watcher now that m_Assets reflects the on-disk state.
     // Anything that changes from this point on will arrive via Tick().
     if (!m_FileWatcher)
+    {
         m_FileWatcher = std::make_unique<AssetFileWatcher>();
+    }
     m_FileWatcher->Start(m_AssetsPath, m_ProjectPath);
 }
 
@@ -643,10 +713,14 @@ std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
         std::error_code ec;
         const auto size = fs::file_size(p, ec);
         if (ec)
+        {
             return "-";
+        }
         const auto time = fs::last_write_time(p, ec);
         if (ec)
+        {
             return "-";
+        }
         return std::to_string(size) + "@" + std::to_string(time.time_since_epoch().count());
     };
     return part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(DEKI_CACHE_VERSION);
@@ -655,10 +729,14 @@ std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
 void AssetPipeline::SaveCacheStamps()
 {
     if (m_ProjectPath.empty() || !m_StampsDirty)
+    {
         return;
+    }
     json out = json::object();
     for (const auto& [guid, stamp] : m_CacheStamps)
+    {
         out[guid] = stamp;
+    }
     std::string err;
     const std::string path = (fs::path(GetCacheDirectory(m_ProjectPath)) / "cache_stamps.json").string();
     if (AtomicWriteFile(path, out.dump(), err, /*durable=*/false))
@@ -667,21 +745,31 @@ void AssetPipeline::SaveCacheStamps()
         m_HaveStampFile = true;
     }
     else
+    {
         DEKI_LOG_WARNING("AssetPipeline: could not write %s: %s", path.c_str(), err.c_str());
+    }
 }
 
 void AssetPipeline::Tick()
 {
     if (!m_Running)
+    {
         return;
+    }
     if (m_StampsDirty && !m_ImportingAll)
+    {
         SaveCacheStamps();
+    }
     if (!m_FileWatcher)
+    {
         return;
+    }
 
     auto events = m_FileWatcher->DrainReadyEvents();
     if (events.empty())
+    {
         return;
+    }
 
     bool assetsChanged = false;
 
@@ -712,7 +800,12 @@ void AssetPipeline::Tick()
         }
         std::string assetsRelative = fs::relative(GetAbsolutePath(relativePath), m_AssetsPath).string();
         for (char& c : assetsRelative)
-            if (c == '\\') c = '/';
+        {
+            if (c == '\\')
+            {
+                c = '/';
+            }
+        }
         m_GuidCache.OnFileDeleted(assetsRelative);
         if (guidLivesOn)
         {
@@ -728,11 +821,15 @@ void AssetPipeline::Tick()
             {
                 fs::remove(absoluteCachePath, ec);
                 if (!ec)
+                {
                     DEKI_LOG_DEBUG("Removed stale cache: %s", absoluteCachePath.c_str());
+                }
             }
         }
         if (OnAssetDeleted)
+        {
             OnAssetDeleted(relativePath, removed.guid);
+        }
     };
 
     for (const auto& evt : events)
@@ -743,7 +840,9 @@ void AssetPipeline::Tick()
         // out paths whose extension no package has claimed (folders, .tmp, etc.).
         std::string ext = fs::path(relativePath).extension().string();
         if (ext == ".dekiguid" || ext == ".data" || !IsAssetFile(ext))
+        {
             continue;
+        }
 
         switch (evt.kind)
         {
@@ -758,7 +857,9 @@ void AssetPipeline::Tick()
                 {
                     auto it = m_Assets.find(relativePath);
                     if (it == m_Assets.end())
+                    {
                         break;
+                    }
                     forget(it);
                     assetsChanged = true;
                     break;
@@ -768,14 +869,18 @@ void AssetPipeline::Tick()
                 ProcessAsset(relativePath);  // fires OnAssetDiscovered if !wasKnown
                 assetsChanged = true;
                 if (wasKnown && OnAssetChanged)
+                {
                     OnAssetChanged(relativePath);
+                }
                 break;
             }
             case AssetFileWatcher::EventKind::Deleted:
             {
                 auto it = m_Assets.find(relativePath);
                 if (it == m_Assets.end())
+                {
                     break;
+                }
                 forget(it);
                 assetsChanged = true;
                 break;
@@ -784,7 +889,9 @@ void AssetPipeline::Tick()
     }
 
     if (assetsChanged)
+    {
         UpdateAssetTable();
+    }
 }
 
 void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebuild)
@@ -795,9 +902,8 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         std::chrono::steady_clock::time_point start;
         ~AggregateUpdater()
         {
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          std::chrono::steady_clock::now() - start)
-                          .count();
+            auto ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
             g_ProcessAssetCounters.count++;
             g_ProcessAssetCounters.totalMs += static_cast<long long>(ms);
         }
@@ -814,7 +920,9 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     // Get or create GUID (uses absolute path for filesystem access)
     info.guid = GetOrCreateAssetGuid(relativePath);
     if (info.guid.empty())
+    {
         return;  // an unreadable sidecar with no GUID to recover; logged, the file left as is
+    }
 
     // Register with the GUID cache BEFORE the GUID picks the cache file. A file
     // copied together with its .data claims the original's GUID; the cache
@@ -824,20 +932,33 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     {
         std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
         for (char& c : assetsRelativePath)
-            if (c == '\\') c = '/';
+        {
+            if (c == '\\')
+            {
+                c = '/';
+            }
+        }
         if (m_GuidCache.Contains(assetsRelativePath))
+        {
             m_GuidCache.OnFileModified(assetsRelativePath);
+        }
         else
+        {
             m_GuidCache.OnFileCreated(assetsRelativePath);
+        }
         const std::string resolved = m_GuidCache.GetGuid(assetsRelativePath);
         if (!resolved.empty())
+        {
             info.guid = resolved;
+        }
     }
 
     // Determine asset type and get appropriate cache path
     std::string ext = fs::path(relativePath).extension().string();
     for (char& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
     // Tentative cache path. The handler may override this via AssetCacheResult::PreCached
     // (where the source file IS the cache and the relative path is reused verbatim).
@@ -901,7 +1022,9 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
                 cacheExists = false;
             }
             if (m_CacheStamps.erase(info.guid))
+            {
                 m_StampsDirty = true;
+            }
         }
         else
         {
@@ -946,8 +1069,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
                     info.cachePath = relativePath;
                     info.hasCachedVersion = true;
                     break;
-                case AssetCacheResult::NotCached:
-                    break;
+                case AssetCacheResult::NotCached: break;
             }
         };
 
@@ -982,9 +1104,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     if (handlerIt != m_SyncHandlers.end() && handlerIt->second.handler)
     {
         const bool shouldFire =
-            handlerIt->second.policy == SyncHandlerPolicy::Always ||
-            !cacheIsFresh ||
-            !info.hasCachedVersion;
+            handlerIt->second.policy == SyncHandlerPolicy::Always || !cacheIsFresh || !info.hasCachedVersion;
         if (shouldFire)
         {
             handlerIt->second.handler(absolutePath, info.guid, m_ProjectPath);
@@ -1001,22 +1121,34 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     if (isNew)
     {
         if (m_ImportingAll)
+        {
             m_AssetTableDirty = true;
+        }
         else
+        {
             UpdateAssetTable();
+        }
         if (OnAssetDiscovered)
+        {
             OnAssetDiscovered(relativePath);
+        }
         if (m_ImportingAll)
+        {
             m_CreatedDuringImport = true;
+        }
         else if (OnAssetCreated)
+        {
             OnAssetCreated(relativePath);
+        }
     }
 }
 
 std::string AssetPipeline::GetAbsolutePath(const std::string& relativePath) const
 {
     if (m_ProjectPath.empty())
+    {
         return relativePath;
+    }
     return (fs::path(m_ProjectPath) / relativePath).string();
 }
 
@@ -1032,7 +1164,12 @@ std::string AssetPipeline::GetOrCreateAssetGuid(const std::string& relativePath)
     // every reference to the asset.
     std::string assetsRelative = fs::relative(absolutePath, m_AssetsPath).string();
     for (char& c : assetsRelative)
-        if (c == '\\') c = '/';
+    {
+        if (c == '\\')
+        {
+            c = '/';
+        }
+    }
     const std::string remembered = m_GuidCache.GetGuid(assetsRelative);
     std::error_code ec;
     const bool sidecarExists = fs::exists(dataPath, ec);
@@ -1099,7 +1236,10 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
     std::function<void(Deki::Object*)> setFontGuidsRecursive = [&](Deki::Object* obj)
     {
-        if (!obj || !textMeta) return;
+        if (!obj || !textMeta)
+        {
+            return;
+        }
 
         Deki::Component* comp = obj->GetComponentByTypeId(textComponentType);
         if (comp)
@@ -1116,11 +1256,18 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
                 for (int i = 0; i < textMeta->propertyCount; ++i)
                 {
                     const char* propName = textMeta->properties[i].name;
-                    if (!propName) continue;
+                    if (!propName)
+                    {
+                        continue;
+                    }
                     if (strcmp(propName, "font") == 0)
+                    {
                         fontProp = &textMeta->properties[i];
+                    }
                     else if (strcmp(propName, "fontSize") == 0)
+                    {
                         fontSizeProp = &textMeta->properties[i];
+                    }
                 }
             }
 
@@ -1140,7 +1287,9 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
         }
 
         for (Deki::Object* child : obj->GetChildren())
+        {
             setFontGuidsRecursive(child);
+        }
     };
 
     // Process all root objects and their hierarchies
@@ -1167,17 +1316,19 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
     // Set subasset resolver for migration (fixes old scenes with frame GUIDs in guid field)
     // When an AssetRef has a frame GUID in the guid field and empty source, swap them
-    writer.SetSubAssetResolver([this](const std::string& guid, std::string& outParentGuid) -> bool
-                               {
-        const SubAssetInfo* subAsset = GetSubAsset(guid);
-        if (subAsset)
+    writer.SetSubAssetResolver(
+        [this](const std::string& guid, std::string& outParentGuid) -> bool
         {
-            outParentGuid = subAsset->parentGuid;
-            DEKI_LOG_DEBUG("CompileScene: Migrated subasset guid='%s' -> parent='%s'",
-                           guid.c_str(), outParentGuid.c_str());
-            return true;
-        }
-        return false; });
+            const SubAssetInfo* subAsset = GetSubAsset(guid);
+            if (subAsset)
+            {
+                outParentGuid = subAsset->parentGuid;
+                DEKI_LOG_DEBUG("CompileScene: Migrated subasset guid='%s' -> parent='%s'", guid.c_str(),
+                               outParentGuid.c_str());
+                return true;
+            }
+            return false;
+        });
 
     // Don't set asset resolver - store GUIDs directly in binary scene
     // Runtime resolves GUIDs to paths via AssetLookupTable
@@ -1190,11 +1341,13 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
     // Write to file, in one step (a cut-off cache counted as up to date)
     std::string err;
-    bool ok = AtomicWriteFile(binaryPath,
-                              std::string_view(reinterpret_cast<const char*>(writer.GetData()), writer.GetSize()),
-                              err, /*durable=*/false);
+    bool ok =
+        AtomicWriteFile(binaryPath, std::string_view(reinterpret_cast<const char*>(writer.GetData()), writer.GetSize()),
+                        err, /*durable=*/false);
     if (!ok)
+    {
         DEKI_LOG_ERROR("CompileScene: could not write %s: %s", binaryPath.c_str(), err.c_str());
+    }
     DEKI_HEAP_CHECK("CompileScene: after file write, before Scene destructor");
     return ok;
 }
@@ -1243,7 +1396,9 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
     {
         fs::path outDir = fs::path(cachePath).parent_path();
         if (!outDir.empty() && !fs::exists(outDir))
+        {
             fs::create_directories(outDir);
+        }
 
         json body = data;
         body.erase("type");
@@ -1257,8 +1412,8 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
             DEKI_LOG_WARNING("CompileAssetFile: cannot write data cache %s: %s", cachePath.c_str(), err.c_str());
             return false;
         }
-        DEKI_LOG_DEBUG("CompileAssetFile: data asset %s (type=%s) -> %zu B msgpack",
-                       assetPath.c_str(), assetType.c_str(), mp.size());
+        DEKI_LOG_DEBUG("CompileAssetFile: data asset %s (type=%s) -> %zu B msgpack", assetPath.c_str(),
+                       assetType.c_str(), mp.size());
         return true;
     }
 
@@ -1269,7 +1424,8 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
         return false;
     }
 
-    DEKI_LOG_DEBUG("CompileAssetFile: Compiling %s (type=%s) -> %s", assetPath.c_str(), assetType.c_str(), cachePath.c_str());
+    DEKI_LOG_DEBUG("CompileAssetFile: Compiling %s (type=%s) -> %s", assetPath.c_str(), assetType.c_str(),
+                   cachePath.c_str());
 
     // Delegate to AssetTypeRegistry for compilation
     std::vector<uint8_t> rgba;
@@ -1303,22 +1459,23 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
     const SpriteSettings* settingsPtr = spriteSettings.HasData() ? &spriteSettings : nullptr;
 
     // Write as DTEX texture
-    return TextureImporter::WriteTexFile(cachePath, rgba.data(),
-                                         static_cast<uint32_t>(width), static_cast<uint32_t>(height),
-                                         TextureFormat::RGB565A8, settingsPtr);
+    return TextureImporter::WriteTexFile(cachePath, rgba.data(), static_cast<uint32_t>(width),
+                                         static_cast<uint32_t>(height), TextureFormat::RGB565A8, settingsPtr);
 }
 
 const AssetInfo* AssetPipeline::GetAssetInfo(const std::string& path) const
 {
     auto it = m_Assets.find(path);
     if (it != m_Assets.end())
+    {
         return &it->second;
+    }
     return nullptr;
 }
 
 void AssetPipeline::RefreshAsset(const std::string& relativePath)
 {
-        if (!m_Running || relativePath.empty())
+    if (!m_Running || relativePath.empty())
     {
         return;
     }
@@ -1326,13 +1483,19 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
     // Check if file exists using absolute path
     std::string absolutePath = GetAbsolutePath(relativePath);
     if (!fs::exists(absolutePath))
+    {
         return;
+    }
 
     std::string ext = fs::path(relativePath).extension().string();
     for (char& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
     if (!IsAssetFile(ext))
+    {
         return;
+    }
 
     // RefreshAsset is an explicit user-initiated request (modify, reimport,
     // dialog-driven recompile), so any cached output for this asset is
@@ -1355,7 +1518,9 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
 
     // Trigger changed callback so UI can update
     if (OnAssetChanged)
+    {
         OnAssetChanged(relativePath);
+    }
 }
 
 void AssetPipeline::RemoveAsset(const std::string& relativePath)
@@ -1367,7 +1532,10 @@ void AssetPipeline::RemoveAsset(const std::string& relativePath)
     std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
     for (char& c : assetsRelativePath)
     {
-        if (c == '\\') c = '/';
+        if (c == '\\')
+        {
+            c = '/';
+        }
     }
     m_GuidCache.OnFileDeleted(assetsRelativePath);
 }
@@ -1398,12 +1566,16 @@ int AssetPipeline::CleanCache()
 {
     ScopedTimer __t_clean("AssetPipeline::CleanCache");
     if (m_ProjectPath.empty())
+    {
         return 0;
+    }
 
     // Cache directory
     fs::path cachePath = GetCacheDirectory(m_ProjectPath);
     if (!fs::exists(cachePath) || !fs::is_directory(cachePath))
+    {
         return 0;
+    }
 
     // Build set of valid GUIDs from current assets
     std::unordered_set<std::string> validGuids;
@@ -1425,11 +1597,15 @@ int AssetPipeline::CleanCache()
     {
         std::string ext = fs::path(path).extension().string();
         for (char& c : ext)
+        {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
 
         auto providerIt = m_CacheVariantProviders.find(ext);
         if (providerIt != m_CacheVariantProviders.end())
+        {
             providerIt->second(info, validGuids);
+        }
     }
 
     int removedCount = 0;
@@ -1439,7 +1615,9 @@ int AssetPipeline::CleanCache()
     for (const auto& entry : fs::directory_iterator(cachePath))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string filename = entry.path().filename().string();
         std::string ext = entry.path().extension().string();
@@ -1450,7 +1628,9 @@ int AssetPipeline::CleanCache()
         // find no stamp, wipe the cache and recompile every asset.
         if (ext == ".json" || stem == "asset_table" || stem == "guids" || stem == "play_mode_table" ||
             filename == "version")
+        {
             continue;
+        }
 
         // Handle atlas files: stems ending in "_atlas" map back to the parent
         // GUID so they survive cleanup alongside the parent.
@@ -1490,7 +1670,9 @@ const std::vector<SubAssetInfo>* AssetPipeline::GetSubAssets(const std::string& 
 {
     auto it = m_SubAssets.find(parentGuid);
     if (it != m_SubAssets.end())
+    {
         return &it->second;
+    }
     return nullptr;
 }
 
@@ -1500,11 +1682,12 @@ const SubAssetInfo* AssetPipeline::GetSubAsset(const std::string& guid) const
     return (it != m_SubAssetLookup.end()) ? &it->second : nullptr;
 }
 
-void AssetPipeline::RegisterSubAssets(const std::string& parentGuid,
-                                      const std::vector<SubAssetInfo>& subAssets)
+void AssetPipeline::RegisterSubAssets(const std::string& parentGuid, const std::vector<SubAssetInfo>& subAssets)
 {
     if (subAssets.empty())
+    {
         return;
+    }
 
     // Store in both registries
     m_SubAssets[parentGuid] = subAssets;
@@ -1530,7 +1713,9 @@ void AssetPipeline::UpdateAssetTable()
 {
     m_AssetTableDirty = false;
     if (m_ProjectPath.empty())
+    {
         return;
+    }
 
     // Entry format must match AssetExporter and AssetLookupTable
     struct LookupEntry
@@ -1550,23 +1735,33 @@ void AssetPipeline::UpdateAssetTable()
     for (const auto& [path, info] : m_Assets)
     {
         if (info.guid.empty() || !info.hasCachedVersion)
+        {
             continue;
+        }
 
         // Determine asset type from extension
         std::string ext = fs::path(info.path).extension().string();
         std::string assetType = GetAssetTypeFromExtension(ext);
         if (assetType.empty())
+        {
             continue;
+        }
 
         // Build export path (remove "project/assets/" or "assets/" prefix and extension)
         std::string exportPath = info.path;
         if (exportPath.rfind("project/assets/", 0) == 0)
+        {
             exportPath = exportPath.substr(15);
+        }
         else if (exportPath.rfind("assets/", 0) == 0)
+        {
             exportPath = exportPath.substr(7);
+        }
         size_t dotPos = exportPath.rfind('.');
         if (dotPos != std::string::npos)
+        {
             exportPath = exportPath.substr(0, dotPos);
+        }
 
         // Build key: "path:type"
         std::string key = exportPath + ":" + assetType;
@@ -1587,18 +1782,24 @@ void AssetPipeline::UpdateAssetTable()
         for (const auto& entry : fs::directory_iterator(cachePath))
         {
             if (!entry.is_regular_file())
+            {
                 continue;
+            }
 
             std::string filename = entry.path().stem().string();
 
             // Skip metadata files
             std::string ext = entry.path().extension().string();
             if (ext == ".json" || filename == "guids" || filename == "asset_table")
+            {
                 continue;
+            }
 
             // Skip if already added from pipeline
             if (addedGuids.find(filename) != addedGuids.end())
+            {
                 continue;
+            }
 
             // This is likely a baked font or other derived asset - add with GUID as key
             LookupEntry lookupEntry;
@@ -1617,7 +1818,9 @@ void AssetPipeline::UpdateAssetTable()
         for (const auto& sub : subAssets)
         {
             if (sub.guid.empty() || addedGuids.count(sub.guid))
+            {
                 continue;
+            }
 
             LookupEntry lookupEntry;
             memset(&lookupEntry, 0, sizeof(lookupEntry));
@@ -1643,7 +1846,9 @@ void AssetPipeline::UpdateAssetTable()
     uint32_t count = static_cast<uint32_t>(entries.size());
     std::string bytes(reinterpret_cast<const char*>(&count), sizeof(count));
     for (const auto& entry : entries)
+    {
         bytes.append(reinterpret_cast<const char*>(&entry), sizeof(entry));
+    }
     std::string err;
     if (!AtomicWriteFile(tablePath, bytes, err, /*durable=*/false))
     {
@@ -1657,18 +1862,24 @@ void AssetPipeline::UpdateAssetTable()
 void AssetPipeline::ValidateCache()
 {
     if (m_ProjectPath.empty())
+    {
         return;
+    }
 
     fs::path cachePath = GetCacheDirectory(m_ProjectPath);
     if (!fs::exists(cachePath))
+    {
         return;
+    }
 
     // Build set of valid GUIDs from current assets
     std::unordered_set<std::string> validGuids;
     for (const auto& [path, info] : m_Assets)
     {
         if (!info.guid.empty())
+        {
             validGuids.insert(info.guid);
+        }
     }
 
     // Generate deterministic font cache GUIDs for all fonts at common sizes
@@ -1678,11 +1889,15 @@ void AssetPipeline::ValidateCache()
     {
         std::string ext = fs::path(path).extension().string();
         for (char& c : ext)
+        {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
 
         auto providerIt = m_CacheVariantProviders.find(ext);
         if (providerIt != m_CacheVariantProviders.end())
+        {
             providerIt->second(info, validGuids);
+        }
     }
 
     std::vector<fs::path> orphans;
@@ -1691,27 +1906,37 @@ void AssetPipeline::ValidateCache()
     for (const auto& entry : fs::directory_iterator(cachePath))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string filename = entry.path().filename().string();
         std::string stem = entry.path().stem().string();
 
         // Skip known non-asset files (the "version" stamp: see CleanCache)
         if (stem == "asset_table" || stem == "guids" || stem == "play_mode_table" || filename == "version")
+        {
             continue;
+        }
 
         // Skip metadata files
         std::string ext = entry.path().extension().string();
         if (ext == ".json")
+        {
             continue;
+        }
 
         // Handle atlas files: stems ending in "_atlas" map back to the parent GUID.
         if (stem.size() > 6 && stem.substr(stem.size() - 6) == "_atlas")
+        {
             stem = stem.substr(0, stem.size() - 6);
+        }
 
         // Check if this cache file's GUID exists in our valid set
         if (validGuids.find(stem) == validGuids.end())
+        {
             orphans.push_back(entry.path());
+        }
     }
 
     // Remove orphans

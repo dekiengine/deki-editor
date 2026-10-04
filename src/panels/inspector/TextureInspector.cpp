@@ -35,7 +35,9 @@ static int FormatNameToIndex(const std::string& name)
     for (int i = 1; i < s_FormatCount; i++)
     {
         if (name == s_FormatNames[i])
+        {
             return i;
+        }
     }
     return 0;  // absent, "Automatic" or unknown: Automatic
 }
@@ -43,13 +45,21 @@ static int FormatNameToIndex(const std::string& name)
 static int MaxSizeToIndex(int maxSize)
 {
     for (int i = 0; i < kTextureMaxSizeCount; ++i)
+    {
         if (kTextureMaxSizes[i] == maxSize)
+        {
             return i;
+        }
+    }
     // Not one of the choices (written by hand): the largest one within it.
     int best = 0;
     for (int i = 1; i < kTextureMaxSizeCount; ++i)
+    {
         if (kTextureMaxSizes[i] <= maxSize)
+        {
             best = i;
+        }
+    }
     return best;
 }
 
@@ -84,9 +94,13 @@ static std::vector<const PlatformConfig*> ProjectPlatforms(const std::string& pr
     {
         std::error_code ec;
         if (!fs::is_directory(fs::path(dir) / id, ec))
+        {
             continue;
+        }
         if (const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id))
+        {
             out.push_back(p);
+        }
     }
     return out;
 }
@@ -110,7 +124,9 @@ void TextureInspector::DrawPreview()
     if (!hasCached || cachePath.empty())
     {
         if (m_PreviewTextureId != 0)
+        {
             CleanupPreviewTexture();
+        }
         return;
     }
 
@@ -155,9 +171,10 @@ void TextureInspector::DrawPreview()
         if (srcWidth <= availWidthInt && srcHeight <= maxHeightInt)
         {
             int scale = 1;
-            while ((srcWidth * (scale + 1)) <= availWidthInt &&
-                   (srcHeight * (scale + 1)) <= maxHeightInt)
+            while ((srcWidth * (scale + 1)) <= availWidthInt && (srcHeight * (scale + 1)) <= maxHeightInt)
+            {
                 scale++;
+            }
             displayWidth = srcWidth * scale;
             displayHeight = srcHeight * scale;
         }
@@ -165,32 +182,46 @@ void TextureInspector::DrawPreview()
         {
             float scale = availWidth / fWidth;
             float scaleH = maxHeight / fHeight;
-            if (scaleH < scale) scale = scaleH;
+            if (scaleH < scale)
+            {
+                scale = scaleH;
+            }
             displayWidth = static_cast<int>(fWidth * scale);
             displayHeight = static_cast<int>(fHeight * scale);
         }
-        if (displayWidth < 1) displayWidth = 1;
-        if (displayHeight < 1) displayHeight = 1;
+        if (displayWidth < 1)
+        {
+            displayWidth = 1;
+        }
+        if (displayHeight < 1)
+        {
+            displayHeight = 1;
+        }
 
         int cursorX = (availWidthInt - displayWidth) / 2;
         if (cursorX > 0)
+        {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + static_cast<float>(cursorX));
+        }
 
         ImVec2 imagePos = ImGui::GetCursorScreenPos();
         ImGui::Image((ImTextureID)(intptr_t)m_PreviewTextureId,
-                     ImVec2(static_cast<float>(displayWidth), static_cast<float>(displayHeight)),
-                     ImVec2(u0, v0), ImVec2(u1, v1));
+                     ImVec2(static_cast<float>(displayWidth), static_cast<float>(displayHeight)), ImVec2(u0, v0),
+                     ImVec2(u1, v1));
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        drawList->AddRect(imagePos,
-                          ImVec2(imagePos.x + displayWidth, imagePos.y + displayHeight),
+        drawList->AddRect(imagePos, ImVec2(imagePos.x + displayWidth, imagePos.y + displayHeight),
                           IM_COL32(128, 128, 128, 255), 0.0f, 0, 1.0f);
 
         if (!frameData && (m_StoredWidth != m_PreviewWidth || m_StoredHeight != m_PreviewHeight))
+        {
             ImGui::TextDisabled("%d x %d, shown at %u x %u (Max Size)", srcWidth, srcHeight, m_StoredWidth,
                                 m_StoredHeight);
+        }
         else
+        {
             ImGui::TextDisabled("%d x %d", srcWidth, srcHeight);
+        }
     }
 }
 
@@ -244,8 +275,7 @@ void TextureInspector::DrawSettings()
                 try
                 {
                     nlohmann::json dataJson = nlohmann::json::parse(dataFile);
-                    if (dataJson.contains("settings") &&
-                        dataJson["settings"].contains("texture"))
+                    if (dataJson.contains("settings") && dataJson["settings"].contains("texture"))
                     {
                         auto& tex = dataJson["settings"]["texture"];
                         const TextureSettings settings = ReadTextureSettings(tex);
@@ -254,9 +284,13 @@ void TextureInspector::DrawSettings()
                         for (const auto& [id, t] : settings.targets)
                         {
                             if (!t.format.empty())
+                            {
                                 m_TargetFormatIndex[id] = FormatNameToIndex(t.format);
+                            }
                             if (t.maxSize >= 0)
+                            {
                                 m_TargetMaxIndex[id] = MaxSizeToIndex(t.maxSize);
+                            }
                         }
                         if (tex.contains("chroma_key"))
                         {
@@ -279,7 +313,9 @@ void TextureInspector::DrawSettings()
         {
             TexData texData;
             if (TextureImporter::ReadTexFile(cachePath, texData))
+            {
                 m_SourceHasAlpha = texData.hasAlpha();
+            }
         }
     }
 
@@ -308,7 +344,9 @@ void TextureInspector::DrawSettings()
             // not written anything yet, so the import saw an empty sidecar.
             std::ofstream outFile(dataPath);
             if (outFile.is_open())
+            {
                 outFile << dataJson.dump(2);
+            }
         }
         // The pipeline keys assets by their project-relative path; the
         // selection holds the absolute one.
@@ -328,12 +366,14 @@ void TextureInspector::DrawSettings()
             InspectorUtils::BeginPropertyRow("Chroma Key");
             if (DekiEditor::SchematicCheckbox("##ChromaKeyEnabled", &m_ChromaKeyEnabled))
             {
-                writeTextureSettings([&](nlohmann::json& tex)
-                                     {
-                    tex["chroma_key"]["enabled"] = m_ChromaKeyEnabled;
-                    tex["chroma_key"]["r"] = static_cast<int>(m_ChromaKeyColor[0] * 255.0f + 0.5f);
-                    tex["chroma_key"]["g"] = static_cast<int>(m_ChromaKeyColor[1] * 255.0f + 0.5f);
-                    tex["chroma_key"]["b"] = static_cast<int>(m_ChromaKeyColor[2] * 255.0f + 0.5f); });
+                writeTextureSettings(
+                    [&](nlohmann::json& tex)
+                    {
+                        tex["chroma_key"]["enabled"] = m_ChromaKeyEnabled;
+                        tex["chroma_key"]["r"] = static_cast<int>(m_ChromaKeyColor[0] * 255.0f + 0.5f);
+                        tex["chroma_key"]["g"] = static_cast<int>(m_ChromaKeyColor[1] * 255.0f + 0.5f);
+                        tex["chroma_key"]["b"] = static_cast<int>(m_ChromaKeyColor[2] * 255.0f + 0.5f);
+                    });
             }
 
             if (m_ChromaKeyEnabled)
@@ -342,12 +382,14 @@ void TextureInspector::DrawSettings()
                 DekiEditor::SchematicColorEdit3("##ChromaKeyColor", m_ChromaKeyColor);
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
-                    writeTextureSettings([&](nlohmann::json& tex)
-                                         {
-                        tex["chroma_key"]["enabled"] = m_ChromaKeyEnabled;
-                        tex["chroma_key"]["r"] = static_cast<int>(m_ChromaKeyColor[0] * 255.0f + 0.5f);
-                        tex["chroma_key"]["g"] = static_cast<int>(m_ChromaKeyColor[1] * 255.0f + 0.5f);
-                        tex["chroma_key"]["b"] = static_cast<int>(m_ChromaKeyColor[2] * 255.0f + 0.5f); });
+                    writeTextureSettings(
+                        [&](nlohmann::json& tex)
+                        {
+                            tex["chroma_key"]["enabled"] = m_ChromaKeyEnabled;
+                            tex["chroma_key"]["r"] = static_cast<int>(m_ChromaKeyColor[0] * 255.0f + 0.5f);
+                            tex["chroma_key"]["g"] = static_cast<int>(m_ChromaKeyColor[1] * 255.0f + 0.5f);
+                            tex["chroma_key"]["b"] = static_cast<int>(m_ChromaKeyColor[2] * 255.0f + 0.5f);
+                        });
                 }
             }
         }
@@ -358,7 +400,9 @@ void TextureInspector::DrawSettings()
             if (DekiEditor::SchematicAddButton(ICON_TI_LAYOUT_GRID "  Open in Spritesheet Editor"))
             {
                 if (auto* toolHost = m_App->GetToolHost())
+                {
                     toolHost->OpenToolForFile(assetPath.c_str(), cachePath.c_str());
+                }
             }
         }
 
@@ -366,7 +410,9 @@ void TextureInspector::DrawSettings()
     }
 
     if (hasCached && m_App->GetProject())
+    {
         DrawTargets(writeTextureSettings);
+    }
 }
 
 // One Targets section, a stack of cards: Default first, holding what every
@@ -381,23 +427,30 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
     const std::string assetFormat = m_SelectedFormatIndex > 0 ? s_FormatNames[m_SelectedFormatIndex] : "";
 
-    auto targetFormatIndex = [&](const std::string& id) {
+    auto targetFormatIndex = [&](const std::string& id)
+    {
         auto it = m_TargetFormatIndex.find(id);
         return it == m_TargetFormatIndex.end() ? 0 : it->second;
     };
-    auto targetMaxIndex = [&](const std::string& id) {
+    auto targetMaxIndex = [&](const std::string& id)
+    {
         auto it = m_TargetMaxIndex.find(id);
         return it == m_TargetMaxIndex.end() ? -1 : it->second;
     };
     // A target's values, written together as its entry.
-    auto writeTarget = [&](const std::string& id) {
+    auto writeTarget = [&](const std::string& id)
+    {
         TextureTargetSettings t;
         const int fi = targetFormatIndex(id);
         if (fi > 0)
+        {
             t.format = s_FormatNames[fi];
+        }
         const int mi = targetMaxIndex(id);
         if (mi >= 0)
+        {
             t.maxSize = kTextureMaxSizes[mi];
+        }
         write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, t); });
     };
     // A dropdown whose closed box shows `preview` (dimmed when it comes from
@@ -405,17 +458,23 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     // firstIndex - 1). Returns true when `index` changed.
     auto overrideCombo = [&](const char* id, float width, const char* preview, bool fromDefault,
                              const std::string& defaultLabel, const char* (*label)(int), int count, int firstIndex,
-                             int& index) {
+                             int& index)
+    {
         ImGui::SetNextItemWidth(width);
         if (fromDefault)
+        {
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        }
         const bool open = DekiEditor::SchematicBeginCombo(id, preview);
         if (fromDefault)
+        {
             ImGui::PopStyleColor();
+        }
         bool changed = false;
         if (open)
         {
-            if (ImGui::Selectable(defaultLabel.c_str(), fromDefault, ImGuiSelectableFlags_SpanAvailWidth) && !fromDefault)
+            if (ImGui::Selectable(defaultLabel.c_str(), fromDefault, ImGuiSelectableFlags_SpanAvailWidth) &&
+                !fromDefault)
             {
                 index = firstIndex - 1;
                 changed = true;
@@ -429,7 +488,9 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                     changed = true;
                 }
                 if (selected)
+                {
                     ImGui::SetItemDefaultFocus();
+                }
             }
             DekiEditor::SchematicEndCombo();
         }
@@ -441,7 +502,9 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
 
     DekiEditor::FullBleedSeparator();
     if (!DekiEditor::SchematicSectionBegin("Targets"))
+    {
         return;
+    }
 
     const float dpi = m_App->Dpi(1.0f);
     const float cardGap = 8.0f * dpi;
@@ -453,7 +516,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     // header was clicked.
     auto card = [&](const char* id, bool dot, const std::string& name, bool dimName, const char* note,
                     const char* noteTip, const char* nameTip, const std::string& summary, bool& open,
-                    const std::function<void(float labelX, float valueX, float valueW)>& body) {
+                    const std::function<void(float labelX, float valueX, float valueW)>& body)
+    {
         ImGui::PushID(id);
         const float left = ImGui::GetCursorScreenPos().x;
         const float right = left + ImGui::GetContentRegionAvail().x - m_App->Dpi(Metrics::InspectorRightPad);
@@ -469,7 +533,9 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         const float headerH = ImGui::GetFrameHeight();
         ImGui::SetCursorScreenPos(ImVec2(left, top.y + pad * 0.5f));
         if (ImGui::InvisibleButton("##header", ImVec2(right - left, headerH)))
+        {
             open = !open;
+        }
         const bool headerHovered = ImGui::IsItemHovered();
         const float textY = top.y + pad * 0.5f + (headerH - ImGui::GetTextLineHeight()) * 0.5f;
         dl->AddText(ImVec2(innerL, textY), ImGui::GetColorU32(Palette::Dim),
@@ -486,19 +552,27 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         if (ImGui::CalcTextSize(shown.c_str()).x > nameRoom)
         {
             while (!shown.empty() && ImGui::CalcTextSize((shown + "...").c_str()).x > nameRoom)
+            {
                 shown.pop_back();
+            }
             shown += "...";
         }
         dl->AddText(ImVec2(x, textY), ImGui::GetColorU32(dimName ? Palette::Dim : Palette::Fg), shown.c_str());
         if (note)
+        {
             dl->AddText(ImVec2(innerR - noteW, textY), ImGui::GetColorU32(Palette::Dim), note);
+        }
         if (headerHovered)
         {
             const float mx = ImGui::GetIO().MousePos.x;
             if (note && noteTip && mx >= innerR - noteW)
+            {
                 DekiEditor::Tooltip(noteTip);
+            }
             else if (nameTip)
+            {
                 DekiEditor::Tooltip(nameTip);
+            }
         }
 
         const float labelX = innerL + ImGui::CalcTextSize(ICON_TI_CHEVRON_DOWN).x + 6.0f * dpi;
@@ -516,7 +590,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
             // Controls line up with the inspector's value column (the other
             // sections' controls), never closer than a label's width.
             const float sectionLabelX = InspectorUtils::SectionAlignedCursorX();
-            const float columnX = ImGui::GetWindowPos().x + sectionLabelX + InspectorUtils::PropertyLabelWidth(sectionLabelX);
+            const float columnX =
+                ImGui::GetWindowPos().x + sectionLabelX + InspectorUtils::PropertyLabelWidth(sectionLabelX);
             const float valueX = std::max(labelX + 70.0f * dpi, columnX);
             body(labelX, valueX, std::max(40.0f * dpi, innerR - valueX));
         }
@@ -526,8 +601,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
 
         // The card behind it, now that its height is known.
         split.SetCurrentChannel(dl, 0);
-        dl->AddRectFilled(top, ImVec2(right, bottom),
-                          ImGui::GetColorU32(headerHovered ? Palette::Bg2 : Palette::Panel), rounding);
+        dl->AddRectFilled(top, ImVec2(right, bottom), ImGui::GetColorU32(headerHovered ? Palette::Bg2 : Palette::Panel),
+                          rounding);
         dl->AddRect(top, ImVec2(right, bottom), ImGui::GetColorU32(Palette::Line2), rounding);
         split.Merge(dl);
 
@@ -536,7 +611,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         ImGui::PopID();
     };
     // A row inside a card: the label, then the control at valueX.
-    auto cardRow = [&](const char* label, float labelX, float valueX) {
+    auto cardRow = [&](const char* label, float labelX, float valueX)
+    {
         ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", label);
@@ -546,33 +622,50 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
 
     ImGui::Spacing();
     {
-        const std::string summary = std::string(s_FormatNames[m_SelectedFormatIndex]) + "  \xC2\xB7  Max Size " +
-                                    MaxSizeLabel(m_MaxSizeIndex);
+        const std::string summary =
+            std::string(s_FormatNames[m_SelectedFormatIndex]) + "  \xC2\xB7  Max Size " + MaxSizeLabel(m_MaxSizeIndex);
         card("##default", false, "Default", false, "all targets", nullptr,
              "What every target uses, unless its own card overrides it", summary, m_DefaultOpen,
-             [&](float labelX, float valueX, float valueW) {
+             [&](float labelX, float valueX, float valueW)
+             {
                  cardRow("Format", labelX, valueX);
                  ImGui::SetNextItemWidth(valueW);
                  if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, s_FormatCount))
+                 {
                      write([&](nlohmann::json& tex) { tex["format"] = s_FormatNames[m_SelectedFormatIndex]; });
+                 }
                  if (ImGui::IsItemHovered())
+                 {
                      DekiEditor::Tooltip("Automatic stores the image in each target's screen format");
+                 }
 
                  cardRow("Max Size", labelX, valueX);
                  const char* items[kTextureMaxSizeCount];
                  for (int i = 0; i < kTextureMaxSizeCount; ++i)
+                 {
                      items[i] = MaxSizeLabel(i);
+                 }
                  ImGui::SetNextItemWidth(valueW);
                  if (DekiEditor::SchematicCombo("##MaxSize", &m_MaxSizeIndex, items, kTextureMaxSizeCount))
-                     write([&](nlohmann::json& tex) {
-                         if (m_MaxSizeIndex == 0)
-                             tex.erase("maxSize");
-                         else
-                             tex["maxSize"] = kTextureMaxSizes[m_MaxSizeIndex];
-                     });
+                 {
+                     write(
+                         [&](nlohmann::json& tex)
+                         {
+                             if (m_MaxSizeIndex == 0)
+                             {
+                                 tex.erase("maxSize");
+                             }
+                             else
+                             {
+                                 tex["maxSize"] = kTextureMaxSizes[m_MaxSizeIndex];
+                             }
+                         });
+                 }
                  if (ImGui::IsItemHovered())
+                 {
                      DekiEditor::Tooltip("An image whose larger side is over this is stored scaled down so that "
                                          "side is exactly this. None never shrinks it.");
+                 }
              });
     }
     for (const PlatformConfig* platform : targets)
@@ -589,7 +682,9 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         const TextureFormat fromDefault = ResolveTextureFormat(assetFormat, "", screen, m_SourceHasAlpha);
         TextureFormat stored = fromDefault;
         if (formatOverridden)
+        {
             ParseTextureFormat(s_FormatNames[formatIndex], stored);
+        }
         const int shownMax = maxOverridden ? maxIndex : m_MaxSizeIndex;
 
         // What it takes there: the stored format at the stored size.
@@ -598,25 +693,33 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         if (m_PreviewWidth > 0 && m_PreviewHeight > 0)
         {
             int w = 0, h = 0;
-            MaxSizeDims(static_cast<int>(m_PreviewWidth), static_cast<int>(m_PreviewHeight),
-                        kTextureMaxSizes[shownMax], w, h);
+            MaxSizeDims(static_cast<int>(m_PreviewWidth), static_cast<int>(m_PreviewHeight), kTextureMaxSizes[shownMax],
+                        w, h);
             snprintf(memory, sizeof(memory), "%.1f KB", static_cast<double>(w) * h * BytesPerTexel(stored) / 1024.0);
             snprintf(memoryTip, sizeof(memoryTip), "Stored at %d x %d", w, h);
         }
         std::string nameTip = name;
         if (knownScreen)
+        {
             nameTip += "\n" + platform->colorFormat + " screen";
+        }
         if (overridden)
+        {
             nameTip += "\nOverrides Default";
-        const std::string summary = std::string(TextureFormatName(stored)) + "  \xC2\xB7  Max Size " +
-                                    MaxSizeLabel(shownMax);
+        }
+        const std::string summary =
+            std::string(TextureFormatName(stored)) + "  \xC2\xB7  Max Size " + MaxSizeLabel(shownMax);
 
         auto openIt = m_TargetOpen.find(platform->id);
         if (openIt == m_TargetOpen.end())
+        {
             openIt = m_TargetOpen.emplace(platform->id, overridden).first;
+        }
 
         card(platform->id.c_str(), overridden, name, false, memory[0] ? memory : nullptr, memoryTip, nameTip.c_str(),
-             summary, openIt->second, [&](float labelX, float valueX, float valueW) {
+             summary, openIt->second,
+             [&](float labelX, float valueX, float valueW)
+             {
                  cardRow("Format", labelX, valueX);
                  snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
                  if (overrideCombo("##TargetFormat", valueW, TextureFormatName(stored), !formatOverridden, buf,
@@ -632,9 +735,13 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                                    maxLabel, kTextureMaxSizeCount, 0, maxIndex))
                  {
                      if (maxIndex < 0)
+                     {
                          m_TargetMaxIndex.erase(platform->id);
+                     }
                      else
+                     {
                          m_TargetMaxIndex[platform->id] = maxIndex;
+                     }
                      writeTarget(platform->id);
                  }
              });
@@ -644,29 +751,45 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     // removed.
     std::vector<std::string> gone;
     for (const auto& [id, index] : m_TargetFormatIndex)
+    {
         if (index > 0)
+        {
             gone.push_back(id);
+        }
+    }
     for (const auto& [id, index] : m_TargetMaxIndex)
+    {
         gone.push_back(id);
+    }
     std::sort(gone.begin(), gone.end());
     gone.erase(std::unique(gone.begin(), gone.end()), gone.end());
     for (const std::string& id : gone)
     {
         bool known = false;
         for (const PlatformConfig* platform : targets)
+        {
             known = known || platform->id == id;
+        }
         if (known)
+        {
             continue;
+        }
         const int fi = targetFormatIndex(id);
         const int mi = targetMaxIndex(id);
         std::string held;
         if (fi > 0)
+        {
             held += s_FormatNames[fi];
+        }
         if (mi >= 0)
+        {
             held += std::string(held.empty() ? "" : "  \xC2\xB7  ") + "Max Size " + MaxSizeLabel(mi);
+        }
         bool open = true;
-        card(id.c_str(), true, id + " (removed)", true, nullptr, nullptr, "Not a target of this project any more",
-             held, open, [&](float labelX, float, float) {
+        card(id.c_str(), true, id + " (removed)", true, nullptr, nullptr, "Not a target of this project any more", held,
+             open,
+             [&](float labelX, float, float)
+             {
                  ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
                  ImGui::TextDisabled("%s", held.c_str());
                  ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
@@ -692,14 +815,15 @@ bool TextureInspector::IsTextureFile(const std::string& path)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
-    return ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
-           ext == ".bmp" || ext == ".tga" || ext == ".gif";
+    return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".gif";
 }
 
 void TextureInspector::UpdatePreviewTexture(const std::string& cachePath)
 {
     if (m_PreviewTexturePath == cachePath && m_PreviewTextureId != 0)
+    {
         return;
+    }
 
     CleanupPreviewTexture();
 
@@ -731,9 +855,8 @@ void TextureInspector::UpdatePreviewTexture(const std::string& cachePath)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-                 texData.header.width, texData.header.height,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texData.header.width, texData.header.height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 rgbaData.data());
 
     glBindTexture(GL_TEXTURE_2D, 0);
 

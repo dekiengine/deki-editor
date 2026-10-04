@@ -42,7 +42,9 @@ ComponentUsage Using(std::vector<std::string> types)
 {
     ComponentUsage u;
     for (const auto& t : types)
+    {
         u.byType[t].push_back("assets/scenes/a.scene");
+    }
     return u;
 }
 
@@ -166,19 +168,18 @@ TEST(FeatureResolver, AnEditorOnlyOrFeatureGuardedIncludeKeepsNothing)
     const fs::path root = fs::temp_directory_path() / "deki-feature-resolver-test3";
     fs::remove_all(root);
     fs::create_directories(root / "deki-2d");
-    std::ofstream(root / "deki-2d" / "Deki2DPackage.cpp")
-        << "#include \"Deki2DPackage.h\"\n"
-           "#ifdef DEKI_EDITOR\n"
-           "#include \"ClipComponent.h\"\n"
-           "#else\n"
-           "#include \"SortingGroupComponent.h\"\n"
-           "#endif\n"
-           "#ifdef DEKI_FEATURE_ROLLER\n"
-           "#include \"RollerComponent.h\"\n"
-           "#endif\n"
-           "#ifndef DEKI_EDITOR\n"
-           "#include \"GradientComponent.h\"\n"
-           "#endif\n";
+    std::ofstream(root / "deki-2d" / "Deki2DPackage.cpp") << "#include \"Deki2DPackage.h\"\n"
+                                                             "#ifdef DEKI_EDITOR\n"
+                                                             "#include \"ClipComponent.h\"\n"
+                                                             "#else\n"
+                                                             "#include \"SortingGroupComponent.h\"\n"
+                                                             "#endif\n"
+                                                             "#ifdef DEKI_FEATURE_ROLLER\n"
+                                                             "#include \"RollerComponent.h\"\n"
+                                                             "#endif\n"
+                                                             "#ifndef DEKI_EDITOR\n"
+                                                             "#include \"GradientComponent.h\"\n"
+                                                             "#endif\n";
 
     const std::vector<CMakeGen::PackageEntry> pkgs = {
         Pkg("deki-2d", "DEKI_PACKAGE_2D",
@@ -332,7 +333,9 @@ std::vector<CMakeGen::PackageEntry> InputWithBus(bool busInstalled)
               FeatNeeding("keyboard", "DEKI_FEATURE_KEYBOARD", "KeyboardComponent", "deki-bus") }),
     };
     if (busInstalled)
+    {
         all.push_back(Pkg("deki-bus", "DEKI_PACKAGE_BUS", { Feat("bus", "DEKI_FEATURE_BUS", { "BusComponent" }) }));
+    }
     return all;
 }
 }  // namespace
@@ -364,13 +367,23 @@ TEST(FeatureRequires, StrippingKeepsTheBusForAKeyboardInUseAndDropsItOtherwise)
     const StripPlan used = ResolveStripPlan(InputWithBus(true), Using({ "KeyboardComponent" }), s, "");
     const PackageDecision* bus = nullptr;
     for (const auto& p : used.packages)
-        if (p.packageId == "deki-bus") bus = &p;
+    {
+        if (p.packageId == "deki-bus")
+        {
+            bus = &p;
+        }
+    }
     ASSERT_NE(bus, nullptr);
     EXPECT_TRUE(bus->on) << bus->reason;
 
     const StripPlan unused = ResolveStripPlan(InputWithBus(true), Using({ "InputCollider" }), s, "");
     for (const auto& p : unused.packages)
-        if (p.packageId == "deki-bus") EXPECT_FALSE(p.on) << "no keyboard in use, so nothing needs the bus";
+    {
+        if (p.packageId == "deki-bus")
+        {
+            EXPECT_FALSE(p.on) << "no keyboard in use, so nothing needs the bus";
+        }
+    }
 }
 
 TEST(FeatureRequires, AFeatureInUseWithoutItsPackageIsReported)

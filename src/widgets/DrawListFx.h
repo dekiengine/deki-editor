@@ -19,7 +19,9 @@ inline void Transform(ImDrawList* dl, float alpha, const ImVec2& center, float s
     const bool fade = alpha < 1.0f;
     const bool move = scale != 1.0f || dy != 0.0f;
     if (!fade && !move)
+    {
         return;
+    }
     const ImU32 a = static_cast<ImU32>(ImClamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
     for (ImDrawVert& v : dl->VtxBuffer)
     {
@@ -35,6 +37,7 @@ inline void Transform(ImDrawList* dl, float alpha, const ImVec2& center, float s
         }
     }
     if (move)
+    {
         for (ImDrawCmd& cmd : dl->CmdBuffer)
         {
             cmd.ClipRect.x = center.x + (cmd.ClipRect.x - center.x) * scale;
@@ -42,6 +45,7 @@ inline void Transform(ImDrawList* dl, float alpha, const ImVec2& center, float s
             cmd.ClipRect.z = center.x + (cmd.ClipRect.z - center.x) * scale;
             cmd.ClipRect.w = center.y + (cmd.ClipRect.w - center.y) * scale + dy;
         }
+    }
 }
 
 // Draw a copy made with CloneOutput on top of this frame. CloneOutput copies
@@ -53,7 +57,9 @@ inline void Transform(ImDrawList* dl, float alpha, const ImVec2& center, float s
 inline void Append(ImDrawData* dd, ImDrawList* copy)
 {
     if (!dd || copy->CmdBuffer.Size == 0 || copy->IdxBuffer.Size == 0)
+    {
         return;
+    }
     copy->_VtxWritePtr = copy->VtxBuffer.Data + copy->VtxBuffer.Size;
     copy->_IdxWritePtr = copy->IdxBuffer.Data + copy->IdxBuffer.Size;
     copy->_VtxCurrentIdx = static_cast<unsigned int>(copy->VtxBuffer.Size) - copy->CmdBuffer.back().VtxOffset;
@@ -63,7 +69,9 @@ inline void Append(ImDrawData* dd, ImDrawList* copy)
 inline void Free(ImVector<ImDrawList*>& lists)
 {
     for (ImDrawList* l : lists)
+    {
         IM_DELETE(l);
+    }
     lists.clear();
 }
 }  // namespace DrawListFx

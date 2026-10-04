@@ -23,7 +23,6 @@ namespace DekiEditor
 
 using InspectorUtils::ComponentIsOrDerivesFrom;
 
-
 void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                               const char* displayName)
 {
@@ -170,8 +169,14 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             int n = static_cast<int>(currentValue.size());
             float minY = arrayTopY;
             float maxY = arrayTopY + (n - 1) * (cardHeight + cardSpacing);
-            if (floatingY < minY) floatingY = minY;
-            if (floatingY > maxY) floatingY = maxY;
+            if (floatingY < minY)
+            {
+                floatingY = minY;
+            }
+            if (floatingY > maxY)
+            {
+                floatingY = maxY;
+            }
 
             float dragOffsetY = floatingY - cardMin.y;
 
@@ -201,20 +206,16 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         // Shadow under floating card
         if (isDragSource)
         {
-            drawList->AddRectFilled(
-                ImVec2(cardMin.x + 4, cardMin.y + 4),
-                ImVec2(cardMax.x + 4, cardMax.y + 4),
-                IM_COL32(0, 0, 0, 50), rounding);
+            drawList->AddRectFilled(ImVec2(cardMin.x + 4, cardMin.y + 4), ImVec2(cardMax.x + 4, cardMax.y + 4),
+                                    IM_COL32(0, 0, 0, 50), rounding);
         }
         drawList->AddRectFilled(cardMin, cardMax, bgColor, rounding);
         drawList->AddRect(cardMin, cardMax, borderCol, rounding);
 
         // Left accent stripe
         ImU32 accent = isDragSource ? IM_COL32(86, 158, 255, 200) : (showHover ? accentHoverColor : accentColor);
-        drawList->AddRectFilled(
-            ImVec2(cardMin.x, cardMin.y + 1),
-            ImVec2(cardMin.x + accentWidth, cardMax.y - 1),
-            accent, rounding, ImDrawFlags_RoundCornersLeft);
+        drawList->AddRectFilled(ImVec2(cardMin.x, cardMin.y + 1), ImVec2(cardMin.x + accentWidth, cardMax.y - 1),
+                                accent, rounding, ImDrawFlags_RoundCornersLeft);
 
         // --- Drag handle (left, after accent stripe) ---
         float handleX = cardMin.x + accentWidth;
@@ -238,9 +239,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             for (int line = -1; line <= 1; line++)
             {
                 float ly = cy + line * 4.5f;
-                drawList->AddLine(
-                    ImVec2(cx - lineHalfW, ly), ImVec2(cx + lineHalfW, ly),
-                    gripColor, 1.5f);
+                drawList->AddLine(ImVec2(cx - lineHalfW, ly), ImVec2(cx + lineHalfW, ly), gripColor, 1.5f);
             }
         }
 
@@ -349,13 +348,17 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
                         auto& reg = Deki::ComponentRegistry::Instance();
                         const auto* meta = reg.GetMeta(typeId);
                         if (meta && meta->name)
+                        {
                             btnLabel += " - " + std::string(meta->name);
+                        }
                     }
                     else if (prop.componentRefType)
                     {
                         std::string compName = InspectorUtils::GetMatchingComponentName(refObj, prop.componentRefType);
                         if (!compName.empty())
+                        {
                             btnLabel += " - " + compName;
+                        }
                     }
                 }
                 btnLabel += "##objref" + std::to_string(i);
@@ -373,9 +376,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
                 ImGui::PopStyleColor(3);
                 break;
             }
-            default:
-                ImGui::TextDisabled("(unsupported element type)");
-                break;
+            default: ImGui::TextDisabled("(unsupported element type)"); break;
         }
 
         if (changed)
@@ -392,8 +393,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         if (ImGui::IsItemDeactivatedAfterEdit() && newValue != s_OldArrayValue)
         {
             ApplyArray(comp, prop, s_OldArrayValue);
-            CommandHistory::Instance().Execute(
-                std::make_unique<ModifyComponentPropertyCommand>(comp, prop, newValue));
+            CommandHistory::Instance().Execute(std::make_unique<ModifyComponentPropertyCommand>(comp, prop, newValue));
         }
 
         // --- Remove button (right) ---

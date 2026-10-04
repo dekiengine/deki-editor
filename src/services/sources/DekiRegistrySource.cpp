@@ -17,7 +17,9 @@ std::vector<std::string> DekiRegistrySource::BaseUrls()
     {
         std::string u = override_;
         while (!u.empty() && u.back() == '/')
+        {
             u.pop_back();
+        }
         if (!u.empty())
         {
             // An explicit override is a decision, not a hint - don't second-guess
@@ -42,8 +44,10 @@ static std::string FetchFromAnyBase(const std::string& path)
         if (!body.empty())
         {
             if (i > 0)
-                DEKI_LOG_WARNING("[registry] %s unreachable; served %s from %s",
-                                 bases[0].c_str(), path.c_str(), bases[i].c_str());
+            {
+                DEKI_LOG_WARNING("[registry] %s unreachable; served %s from %s", bases[0].c_str(), path.c_str(),
+                                 bases[i].c_str());
+            }
             return body;
         }
     }
@@ -54,8 +58,7 @@ bool DekiRegistrySource::CanHandle(const std::string& url) const
 {
     // Handles deki- prefixed package IDs (e.g., "deki-2d"), or a URL pointing at
     // the registry repo itself.
-    return url.find("deki-") == 0 ||
-           url.find("dekiengine/registry") != std::string::npos;
+    return url.find("deki-") == 0 || url.find("dekiengine/registry") != std::string::npos;
 }
 
 bool DekiRegistrySource::ParseUrl(const std::string& url, PackageEntry& outInfo)
@@ -76,20 +79,22 @@ void DekiRegistrySource::FetchVersions(const PackageEntry& pkg, VersionsCallback
     std::string packageId = pkg.id;
     std::string repoName = RepoNameForPackage(packageId);
 
-    std::thread([repoName, callback]()
-                {
-        std::string json = FetchFromAnyBase("/packages/" + repoName + ".json");
+    std::thread(
+        [repoName, callback]()
+        {
+            std::string json = FetchFromAnyBase("/packages/" + repoName + ".json");
 
-        if (json.empty()) {
-            callback(false, {});
-            return;
-        }
+            if (json.empty())
+            {
+                callback(false, {});
+                return;
+            }
 
-        auto versions = ParsePackageVersionsJson(json);
-        callback(!versions.empty(), versions); })
+            auto versions = ParsePackageVersionsJson(json);
+            callback(!versions.empty(), versions);
+        })
         .detach();
 }
-
 
 void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
 {
@@ -102,7 +107,9 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_Cache->fetchTime).count();
             if (!m_Cache->index.empty() && elapsed < CACHE_TTL_SECONDS)
+            {
                 cached = m_Cache->index;
+            }
         }
         if (!cached.empty())
         {
@@ -111,27 +118,30 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
         }
     }
 
-    std::thread([cache = m_Cache, callback]()
-                {
-        std::string json = FetchFromAnyBase("/index.json");
-
-        // No fallback: REGISTRY_BASE_URL now points at the registry repo itself,
-        // so the old "fall back to raw GitHub" branch would just refetch the same
-        // URL. Failure here means the repo or the network is unreachable.
-        if (json.empty()) {
-            callback(false, {});
-            return;
-        }
-
-        auto packages = ParseIndexJson(json);
-
+    std::thread(
+        [cache = m_Cache, callback]()
         {
-            std::lock_guard<std::mutex> lock(cache->mutex);
-            cache->index = packages;
-            cache->fetchTime = std::chrono::steady_clock::now();
-        }
+            std::string json = FetchFromAnyBase("/index.json");
 
-        callback(!packages.empty(), packages); })
+            // No fallback: REGISTRY_BASE_URL now points at the registry repo itself,
+            // so the old "fall back to raw GitHub" branch would just refetch the same
+            // URL. Failure here means the repo or the network is unreachable.
+            if (json.empty())
+            {
+                callback(false, {});
+                return;
+            }
+
+            auto packages = ParseIndexJson(json);
+
+            {
+                std::lock_guard<std::mutex> lock(cache->mutex);
+                cache->index = packages;
+                cache->fetchTime = std::chrono::steady_clock::now();
+            }
+
+            callback(!packages.empty(), packages);
+        })
         .detach();
 }
 
@@ -160,9 +170,11 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
 
     const int schema = doc.value("schemaVersion", 1);
     if (schema > kSupportedIndexSchema)
+    {
         DEKI_LOG_WARNING("Registry: index.json is schemaVersion %d, this editor understands %d; "
                          "reading the fields it knows (update the editor for the rest)",
                          schema, kSupportedIndexSchema);
+    }
 
     auto str = [](const nlohmann::json& j, const char* key) -> std::string
     {
@@ -172,10 +184,16 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
 
     for (const auto& pkg : doc["packages"])
     {
-        if (!pkg.is_object()) continue;
+        if (!pkg.is_object())
+        {
+            continue;
+        }
         RegistryPackageEntry entry;
         entry.id = str(pkg, "id");
-        if (entry.id.empty()) continue;
+        if (entry.id.empty())
+        {
+            continue;
+        }
         entry.displayName = str(pkg, "displayName");
         entry.description = str(pkg, "description");
         entry.repo = str(pkg, "repo");
@@ -193,7 +211,8 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
             }
             if (!entry.repo.empty() && !SafeNames::IsSafeRepoSlug(entry.repo, reason))
             {
-                DEKI_LOG_WARNING("Registry: dropping '%s', unsafe repo '%s': %s", entry.id.c_str(), entry.repo.c_str(), reason.c_str());
+                DEKI_LOG_WARNING("Registry: dropping '%s', unsafe repo '%s': %s", entry.id.c_str(), entry.repo.c_str(),
+                                 reason.c_str());
                 continue;
             }
         }
@@ -202,8 +221,15 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
         entry.docs = str(pkg, "docs");
         const auto req = pkg.find("requires");
         if (req != pkg.end() && req->is_array())
+        {
             for (const auto& r : *req)
-                if (r.is_string()) entry.requiredPackages.push_back(r.get<std::string>());
+            {
+                if (r.is_string())
+                {
+                    entry.requiredPackages.push_back(r.get<std::string>());
+                }
+            }
+        }
         entries.push_back(std::move(entry));
     }
     return entries;
@@ -224,9 +250,16 @@ std::vector<std::string> DekiRegistrySource::ParsePackageVersionsJson(const std:
     }
     const auto it = doc.is_object() ? doc.find("versions") : doc.end();
     if (it == doc.end() || !it->is_array())
+    {
         return versions;
+    }
     for (const auto& v : *it)
-        if (v.is_string()) versions.push_back(v.get<std::string>());
+    {
+        if (v.is_string())
+        {
+            versions.push_back(v.get<std::string>());
+        }
+    }
     return versions;
 }
 

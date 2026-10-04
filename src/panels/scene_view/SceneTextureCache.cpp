@@ -45,12 +45,18 @@ void SceneTextureCache::EvictToBudget(const std::string& keep)
         for (auto it = m_Cache.begin(); it != m_Cache.end(); ++it)
         {
             if (it->first == keep)
+            {
                 continue;
+            }
             if (victim == m_Cache.end() || it->second.lastUse < victim->second.lastUse)
+            {
                 victim = it;
+            }
         }
         if (victim == m_Cache.end())
+        {
             break;
+        }
         if (victim->second.textureId != 0)
         {
             GLuint texId = victim->second.textureId;
@@ -79,7 +85,9 @@ void SceneTextureCache::Invalidate(const std::string& assetRef)
 CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
 {
     if (assetRef.empty())
+    {
         return nullptr;
+    }
 
     // Check cache first (keyed by the asset reference - could be GUID or path)
     auto it = m_Cache.find(assetRef);
@@ -92,7 +100,9 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
     // Need to load the texture
     auto* project = m_App->GetProject();
     if (!project)
+    {
         return nullptr;
+    }
 
     std::string cachePath;
 
@@ -127,7 +137,10 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
         // Normalize path separators
         for (char& c : fullAssetPath)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
 
         // Get asset GUID and find cached TEX
@@ -178,9 +191,7 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-                 texWidth, texHeight,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaData);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaData);
 
     glBindTexture(GL_TEXTURE_2D, 0);
 

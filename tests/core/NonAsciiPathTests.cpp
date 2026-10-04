@@ -55,8 +55,12 @@ TEST(NonAsciiPath, SidecarKeepsItsGuid)
 {
     NonAsciiDir d;
     const std::string asset = d.utf8 + "/sprite.png";
-    { std::ofstream(fs::path(d.dir / "sprite.png")) << "x"; }
-    { std::ofstream(fs::path(d.dir / "sprite.png.data")) << R"({"guid":"11111111-2222-4333-8444-555555555555"})"; }
+    {
+        std::ofstream(fs::path(d.dir / "sprite.png")) << "x";
+    }
+    {
+        std::ofstream(fs::path(d.dir / "sprite.png.data")) << R"({"guid":"11111111-2222-4333-8444-555555555555"})";
+    }
 
     EXPECT_EQ(DekiEditor::GetOrCreateAssetGuid(asset), "11111111-2222-4333-8444-555555555555");
 }

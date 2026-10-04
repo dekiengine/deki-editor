@@ -33,8 +33,7 @@ bool SafeCallVoid(void (*fn)(), const char* context)
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s",
-                       GetExceptionCode(), context ? context : "unknown");
+        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s", GetExceptionCode(), context ? context : "unknown");
         return false;
     }
 }
@@ -48,8 +47,7 @@ bool SafeCallVoidPtr(void (*fn)(void*), void* arg, const char* context)
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s",
-                       GetExceptionCode(), context ? context : "unknown");
+        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s", GetExceptionCode(), context ? context : "unknown");
         return false;
     }
 }
@@ -62,8 +60,7 @@ const char* SafeCallGetString(const char* (*fn)(), const char* context)
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s",
-                       GetExceptionCode(), context ? context : "unknown");
+        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s", GetExceptionCode(), context ? context : "unknown");
         return nullptr;
     }
 }
@@ -76,8 +73,7 @@ int SafeCallGetInt(int (*fn)(), int defaultVal, const char* context)
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s",
-                       GetExceptionCode(), context ? context : "unknown");
+        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s", GetExceptionCode(), context ? context : "unknown");
         return defaultVal;
     }
 }
@@ -90,8 +86,7 @@ void* SafeCallGetPtr(void* (*fn)(int), int arg, const char* context)
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s",
-                       GetExceptionCode(), context ? context : "unknown");
+        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s", GetExceptionCode(), context ? context : "unknown");
         return nullptr;
     }
 }
@@ -104,8 +99,7 @@ int SafeCallInit(int (*fn)(), const char* context)
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
-        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s",
-                       GetExceptionCode(), context ? context : "unknown");
+        DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s", GetExceptionCode(), context ? context : "unknown");
         return -1;
     }
 }
@@ -124,11 +118,8 @@ namespace
 
 void LogFault(const FaultGuard& g, const char* context)
 {
-    DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s [%s] ip=%p addr=%p",
-                   static_cast<unsigned>(g.code),
-                   context ? context : "unknown",
-                   FaultGuardDescribe(g),
-                   reinterpret_cast<void*>(g.faultIp),
+    DEKI_LOG_ERROR("SEH exception 0x%08X in DLL call: %s [%s] ip=%p addr=%p", static_cast<unsigned>(g.code),
+                   context ? context : "unknown", FaultGuardDescribe(g), reinterpret_cast<void*>(g.faultIp),
                    reinterpret_cast<void*>(g.accessAddr));
 }
 

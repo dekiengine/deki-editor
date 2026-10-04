@@ -23,8 +23,7 @@ DEKI_EDITOR_API void SetImGuiContext(void* context)
 // This DLL's own ImGui copy has its own allocator globals; point them at the
 // host's so allocations made here can be freed there (and vice versa).
 DEKI_EDITOR_API void SetImGuiAllocators(void* (*allocFunc)(size_t sz, void* userData),
-                                        void (*freeFunc)(void* ptr, void* userData),
-                                        void* userData)
+                                        void (*freeFunc)(void* ptr, void* userData), void* userData)
 {
     ImGui::SetAllocatorFunctions(allocFunc, freeFunc, userData);
 }

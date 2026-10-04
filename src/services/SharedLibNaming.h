@@ -61,9 +61,13 @@ inline std::string ProjectPluginTarget(const std::string& projectFolderName)
         const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
                         c == '.' || c == '+' || c == '-';
         if (ok)
+        {
             name += static_cast<char>(c);
+        }
         else if ((c & 0xC0) != 0x80)  // one '_' per character, not per UTF-8 byte
+        {
             name += '_';
+        }
     }
     return name + "-components";
 }
@@ -85,13 +89,17 @@ inline std::string SharedLibStem(const std::string& filename)
     // Strip the prefix only on toolchains that add one. Under the MSVC ABI
     // nothing is prefixed, so a DLL genuinely named "libfoo.dll" keeps its name.
     if (*kSharedLibPrefix != '\0' && stem.rfind(kSharedLibPrefix, 0) == 0)
+    {
         stem = stem.substr(std::char_traits<char>::length(kSharedLibPrefix));
+    }
 
     // Cut at the FIRST dot, not the last: versioned sonames ("libdeki-2d.so.1")
     // and the loader's own ".stale-N" shadow suffixes both trail the extension.
     const auto dot = stem.find('.');
     if (dot != std::string::npos)
+    {
         stem = stem.substr(0, dot);
+    }
 
     return stem;
 }

@@ -70,7 +70,9 @@ void AssetTypeRegistry::Register(const AssetTypeHandler& handler)
         }
     }
     if (!replaced)
+    {
         m_Types.push_back(handler);
+    }
 
     // Mirror the handler's declared category into the extension map so
     // GetCategoryForExtension can resolve types registered through the
@@ -81,7 +83,9 @@ void AssetTypeRegistry::Register(const AssetTypeHandler& handler)
         {
             std::string lower = ext;
             for (auto& c : lower)
+            {
                 c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
             m_ExtensionCategory[lower] = handler.category;
         }
     }
@@ -109,7 +113,9 @@ const AssetTypeHandler* AssetTypeRegistry::GetHandlerForExtension(const std::str
     std::string ext = extension;
     // Normalize to lowercase
     for (auto& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
     for (const auto& handler : m_Types)
     {
@@ -155,7 +161,8 @@ bool AssetTypeRegistry::CompileAsset(const nlohmann::json& data, std::vector<uin
     const AssetTypeHandler* handler = GetHandler(type);
     if (!handler)
     {
-        DEKI_LOG_WARNING("AssetTypeRegistry::CompileAsset: No handler for type '%s' (registered types: %zu)", type.c_str(), m_Types.size());
+        DEKI_LOG_WARNING("AssetTypeRegistry::CompileAsset: No handler for type '%s' (registered types: %zu)",
+                         type.c_str(), m_Types.size());
         for (const auto& h : m_Types)
         {
             DEKI_LOG_EDITOR("  - %s", h.typeName.c_str());
@@ -194,7 +201,9 @@ void AssetTypeRegistry::RegisterCategory(const std::string& extension, AssetCate
 {
     std::string lower = extension;
     for (auto& c : lower)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
     m_ExtensionCategory[lower] = category;
 }
 
@@ -202,11 +211,15 @@ AssetCategory AssetTypeRegistry::GetCategoryForExtension(const std::string& exte
 {
     std::string lower = extension;
     for (auto& c : lower)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
     auto it = m_ExtensionCategory.find(lower);
     if (it != m_ExtensionCategory.end())
+    {
         return it->second;
+    }
     return AssetCategory::Unknown;
 }
 
@@ -216,7 +229,9 @@ std::vector<std::string> AssetTypeRegistry::GetExtensionsForCategory(AssetCatego
     for (const auto& [ext, cat] : m_ExtensionCategory)
     {
         if (cat == category)
+        {
             result.push_back(ext);
+        }
     }
     return result;
 }

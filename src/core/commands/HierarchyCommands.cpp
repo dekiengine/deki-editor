@@ -23,7 +23,10 @@ void CreateObjectCommand::Execute()
         m_CreatedObject = m_Scene->CreateDekiObject(m_Name);
         if (!m_CreatedObject)
         {
-            if (m_OnCreated) m_OnCreated(m_CreatedObject);
+            if (m_OnCreated)
+            {
+                m_OnCreated(m_CreatedObject);
+            }
             return;
         }
     }
@@ -52,10 +55,13 @@ void CreateObjectCommand::Execute()
         m_CreatedObject->SetOwnerScene(m_Scene);
         // On redo, put it back where it was rather than at the end.
         if (!firstRun && m_DetachedIndex >= 0)
-            resolvedParent->InsertChildAt(m_CreatedObject,
-                                          static_cast<size_t>(m_DetachedIndex));
+        {
+            resolvedParent->InsertChildAt(m_CreatedObject, static_cast<size_t>(m_DetachedIndex));
+        }
         else
+        {
             resolvedParent->AddChild(m_CreatedObject);
+        }
     }
     else if (!firstRun)
     {
@@ -65,24 +71,32 @@ void CreateObjectCommand::Execute()
     }
 
     m_IsDetached = false;
-    if (m_OnCreated) m_OnCreated(m_CreatedObject);
+    if (m_OnCreated)
+    {
+        m_OnCreated(m_CreatedObject);
+    }
 }
 
 void CreateObjectCommand::Undo()
 {
     if (!m_CreatedObject)
+    {
         return;
+    }
 
-    if (m_OnUndone) m_OnUndone();
+    if (m_OnUndone)
+    {
+        m_OnUndone();
+    }
 
     // Remember where it sat so redo restores the same position.
     Deki::Object* parent = m_CreatedObject->GetParent();
-    m_DetachedIndex = parent
-                          ? parent->GetChildIndex(m_CreatedObject)
-                          : m_Scene->GetObjectIndex(m_CreatedObject);
+    m_DetachedIndex = parent ? parent->GetChildIndex(m_CreatedObject) : m_Scene->GetObjectIndex(m_CreatedObject);
 
     if (parent)
+    {
         m_CreatedObject->RemoveFromParent();
+    }
     m_Scene->RemoveObject(m_CreatedObject);
 
     m_IsDetached = true;
@@ -121,9 +135,13 @@ bool RenameObjectCommand::ReferencesAny(const DeadMemory& dead) const
 std::string ReparentObjectCommand::GetDescription() const
 {
     if (m_NewParent)
+    {
         return "Parent " + m_ObjectName;
+    }
     else
+    {
         return "Unparent " + m_ObjectName;
+    }
 }
 
 void ReparentObjectCommand::Execute()
@@ -140,7 +158,9 @@ void ReparentObjectCommand::Execute()
     {
         auto& roots = m_Scene->GetObjects();
         if (!roots.empty())
+        {
             targetParent = roots[0];
+        }
     }
 
     if (targetParent)
@@ -203,7 +223,9 @@ bool ReparentObjectCommand::ReferencesAny(const DeadMemory& dead) const
 std::string MoveObjectsCommand::GetDescription() const
 {
     if (m_Objects.size() == 1)
+    {
         return "Move " + m_Objects[0]->GetName();
+    }
     return "Move " + std::to_string(m_Objects.size()) + " objects";
 }
 
@@ -215,7 +237,9 @@ void MoveObjectsCommand::Execute()
     {
         auto& roots = m_Scene->GetObjects();
         if (!roots.empty())
+        {
             resolvedParent = roots[0];
+        }
     }
 
     // The target index was taken with the moved objects still in the list. Each
@@ -224,19 +248,28 @@ void MoveObjectsCommand::Execute()
     // object (and dropping an object just below itself moved it).
     size_t removedBefore = 0;
     for (size_t i = 0; i < m_Objects.size(); i++)
+    {
         if (m_OldStates[i].parent == resolvedParent && m_OldStates[i].index < m_TargetIndex)
+        {
             ++removedBefore;
+        }
+    }
     const size_t targetIndex = m_TargetIndex - removedBefore;
 
     // Remove all objects from their current positions (reverse index order per parent to avoid shifting)
     // Sort by parent then descending index so removals don't affect each other
     std::vector<size_t> removalOrder(m_Objects.size());
     for (size_t i = 0; i < m_Objects.size(); i++)
+    {
         removalOrder[i] = i;
-    std::sort(removalOrder.begin(), removalOrder.end(), [this](size_t a, size_t b)
+    }
+    std::sort(removalOrder.begin(), removalOrder.end(),
+              [this](size_t a, size_t b)
               {
                   if (m_OldStates[a].parent != m_OldStates[b].parent)
+                  {
                       return m_OldStates[a].parent < m_OldStates[b].parent;
+                  }
                   return m_OldStates[a].index > m_OldStates[b].index;  // descending index
               });
 
@@ -286,7 +319,9 @@ void MoveObjectsCommand::Undo()
     {
         auto& roots = m_Scene->GetObjects();
         if (!roots.empty())
+        {
             resolvedParent = roots[0];
+        }
     }
 
     // Remove all objects from the target (reverse order to avoid index shifting)
@@ -308,11 +343,16 @@ void MoveObjectsCommand::Undo()
     // Process in ascending index order per parent to avoid shifting issues
     std::vector<size_t> restoreOrder(m_OldStates.size());
     for (size_t i = 0; i < m_OldStates.size(); i++)
+    {
         restoreOrder[i] = i;
-    std::sort(restoreOrder.begin(), restoreOrder.end(), [this](size_t a, size_t b)
+    }
+    std::sort(restoreOrder.begin(), restoreOrder.end(),
+              [this](size_t a, size_t b)
               {
                   if (m_OldStates[a].parent != m_OldStates[b].parent)
+                  {
                       return m_OldStates[a].parent < m_OldStates[b].parent;
+                  }
                   return m_OldStates[a].index < m_OldStates[b].index;  // ascending index
               });
 
@@ -339,13 +379,19 @@ void MoveObjectsCommand::Undo()
 bool MoveObjectsCommand::ReferencesAny(const DeadMemory& dead) const
 {
     if (CommandRefs::HasAny(dead, m_Scene, m_TargetParent))
+    {
         return true;
+    }
     if (CommandRefs::HasAnyIn(dead, m_Objects))
+    {
         return true;
+    }
     for (const auto& state : m_OldStates)
     {
         if (CommandRefs::HasAny(dead, state.object, state.parent))
+        {
             return true;
+        }
     }
     return false;
 }

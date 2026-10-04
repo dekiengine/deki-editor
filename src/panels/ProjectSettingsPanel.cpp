@@ -33,33 +33,41 @@ namespace
 void ShowTooltip(const Deki::PropertyInfo& prop)
 {
     if (prop.tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
         DekiEditor::Tooltip("%s", prop.tooltip);
+    }
 }
 
 // Visibility check for DEKI_VISIBLE_WHEN(...). Returns true if the
 // property should be rendered. Mirrors InspectorUtils::IsPropertyVisible
 // for the bool-toggle and threshold cases - sufficient for settings.
-bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props,
-               int propCount, const Deki::PropertyInfo& prop)
+bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props, int propCount,
+               const Deki::PropertyInfo& prop)
 {
-    if (!prop.visibilityProperty) return true;
+    if (!prop.visibilityProperty)
+    {
+        return true;
+    }
     for (int i = 0; i < propCount; ++i)
     {
         const Deki::PropertyInfo& other = props[i];
-        if (!other.name || std::strcmp(other.name, prop.visibilityProperty) != 0) continue;
+        if (!other.name || std::strcmp(other.name, prop.visibilityProperty) != 0)
+        {
+            continue;
+        }
         // Read controlling-property value as int32.
         int32_t controllingValue = 0;
         switch (other.type)
         {
-            case Deki::PropertyType::Bool:
-                controllingValue = Deki::GetPropertyValue<bool>(comp, other) ? 1 : 0;
-                break;
+            case Deki::PropertyType::Bool: controllingValue = Deki::GetPropertyValue<bool>(comp, other) ? 1 : 0; break;
             case Deki::PropertyType::Int8: controllingValue = Deki::GetPropertyValue<int8_t>(comp, other); break;
             case Deki::PropertyType::Int16: controllingValue = Deki::GetPropertyValue<int16_t>(comp, other); break;
             case Deki::PropertyType::Int32: controllingValue = Deki::GetPropertyValue<int32_t>(comp, other); break;
             case Deki::PropertyType::UInt8: controllingValue = Deki::GetPropertyValue<uint8_t>(comp, other); break;
             case Deki::PropertyType::UInt16: controllingValue = Deki::GetPropertyValue<uint16_t>(comp, other); break;
-            case Deki::PropertyType::UInt32: controllingValue = (int32_t)Deki::GetPropertyValue<uint32_t>(comp, other); break;
+            case Deki::PropertyType::UInt32:
+                controllingValue = (int32_t)Deki::GetPropertyValue<uint32_t>(comp, other);
+                break;
             case Deki::PropertyType::Enum:
                 switch (other.enumSize)
                 {
@@ -71,7 +79,9 @@ bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props,
             default: return true;
         }
         if (prop.visibilityMask != 0)
+        {
             return (prop.visibilityMask & (1u << controllingValue)) != 0;
+        }
         return controllingValue >= prop.visibilityMinValue;
     }
     return true;
@@ -87,8 +97,7 @@ bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props,
 // settings are undoable like the Inspector rows they are modelled on (they
 // used to write straight into the instance). `onChanged` runs after undo/redo
 // so the file on disk follows the in-memory value.
-bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                         const std::function<void()>& onChanged)
+bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const std::function<void()>& onChanged)
 {
     std::string displayName = InspectorUtils::GetDisplayName(prop);
     const char* label = displayName.c_str();
@@ -101,11 +110,19 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
         uint8_t newBytes[16];
         std::memcpy(newBytes, target, size);
         if (std::memcmp(newBytes, oldBytes, size) == 0)
+        {
             return;
+        }
         std::memcpy(target, oldBytes, size);
-        auto onApply = [onChanged](const void*) { if (onChanged) onChanged(); };
-        CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-            target, size, oldBytes, newBytes, displayName, onApply, onApply));
+        auto onApply = [onChanged](const void*)
+        {
+            if (onChanged)
+            {
+                onChanged();
+            }
+        };
+        CommandHistory::Instance().ExecuteNoMerge(
+            std::make_unique<ModifyValueCommand>(target, size, oldBytes, newBytes, displayName, onApply, onApply));
         committed = true;
     };
 
@@ -117,7 +134,9 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             const bool old = v;
             BeginPropertyRow(label);
             if (DekiEditor::SchematicCheckbox("##value", &v))
+            {
                 commitBytes(&v, sizeof(v), &old);
+            }
             ShowTooltip(prop);
             break;
         }
@@ -128,17 +147,29 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             static int32_t s_Old = 0;
             BeginPropertyRow(label);
             if (prop.useSlider && prop.hasRange)
+            {
                 ImGui::SliderInt("##value", &v, (int)prop.minValue, (int)prop.maxValue);
+            }
             else if (prop.hasRange)
+            {
                 DekiEditor::SchematicDragInt("##value", &v, 1.0f, (int)prop.minValue, (int)prop.maxValue);
+            }
             else
+            {
                 DekiEditor::SchematicDragInt("##value", &v);
+            }
             if (prop.hasRange)
+            {
                 v = std::clamp(v, (int)prop.minValue, (int)prop.maxValue);
+            }
             if (ImGui::IsItemActivated())
+            {
                 s_Old = captured;
+            }
             if (ImGui::IsItemDeactivatedAfterEdit())
+            {
                 commitBytes(&v, sizeof(v), &s_Old);
+            }
             ShowTooltip(prop);
             break;
         }
@@ -149,17 +180,29 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             static float s_Old = 0.0f;
             BeginPropertyRow(label);
             if (prop.useSlider && prop.hasRange)
+            {
                 ImGui::SliderFloat("##value", &v, prop.minValue, prop.maxValue);
+            }
             else if (prop.hasRange)
+            {
                 DekiEditor::SchematicDragFloat("##value", &v, 0.1f, prop.minValue, prop.maxValue);
+            }
             else
+            {
                 DekiEditor::SchematicDragFloat("##value", &v, 0.1f);
+            }
             if (prop.hasRange)
+            {
                 v = std::clamp(v, prop.minValue, prop.maxValue);
+            }
             if (ImGui::IsItemActivated())
+            {
                 s_Old = captured;
+            }
             if (ImGui::IsItemDeactivatedAfterEdit())
+            {
                 commitBytes(&v, sizeof(v), &s_Old);
+            }
             ShowTooltip(prop);
             break;
         }
@@ -173,15 +216,19 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             buf[sizeof(buf) - 1] = 0;
             BeginPropertyRow(label);
             if (ImGui::InputText("##value", buf, sizeof(buf)))
+            {
                 v = buf;  // live preview
+            }
             if (ImGui::IsItemActivated())
+            {
                 s_Old = captured;
+            }
             if (ImGui::IsItemDeactivatedAfterEdit() && v != s_Old)
             {
                 const std::string newValue = v;
                 v = s_Old;
-                CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyFieldCommand<std::string>>(
-                    &v, newValue, displayName, onChanged));
+                CommandHistory::Instance().ExecuteNoMerge(
+                    std::make_unique<ModifyFieldCommand<std::string>>(&v, newValue, displayName, onChanged));
                 committed = true;
             }
             ShowTooltip(prop);
@@ -212,7 +259,10 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
             if (prop.enumValues && prop.enumCount > 0)
             {
                 int idx = currentValue;
-                if (idx < 0 || idx >= prop.enumCount) idx = 0;
+                if (idx < 0 || idx >= prop.enumCount)
+                {
+                    idx = 0;
+                }
                 BeginPropertyRow(label);
                 if (DekiEditor::SchematicCombo("##value", &idx, prop.enumValues, prop.enumCount))
                 {
@@ -256,7 +306,9 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
     const size_t assetCount = pipeline ? pipeline->GetAllAssets().size() : 0;
     m_ScanAge += ImGui::GetIO().DeltaTime;
     if (assetCount == m_ScannedAssetCount && m_ScanAge < 2.0f)
+    {
         return;
+    }
     m_ScannedAssetCount = assetCount;
     m_ScanAge = 0.0f;
 
@@ -269,13 +321,17 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
 
     const std::string assetsPath = project->GetAssetsPath();
     if (assetsPath.empty() || !fs::exists(assetsPath))
+    {
         return;
+    }
     const std::string projectPath = project->GetPath();
 
     for (const auto& entry : fs::recursive_directory_iterator(assetsPath))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
         const fs::path ext = entry.path().extension();
         if (ext == ".scene")
         {
@@ -288,7 +344,10 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
                 std::ifstream f(entry.path());
                 nlohmann::json j;
                 f >> j;
-                if (j.value("type", "") != "RenderPipeline") continue;
+                if (j.value("type", "") != "RenderPipeline")
+                {
+                    continue;
+                }
             }
             catch (...)
             {
@@ -297,7 +356,12 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
             m_PipelineFiles.push_back(fs::relative(entry.path(), assetsPath).generic_string());
             std::string lookupPath = fs::relative(entry.path(), projectPath).string();
             for (char& c : lookupPath)
-                if (c == '\\') c = '/';
+            {
+                if (c == '\\')
+                {
+                    c = '/';
+                }
+            }
             const auto* info = pipeline->GetAssetInfo(lookupPath);
             m_PipelineGuids.push_back(info ? info->guid : "");
         }
@@ -310,7 +374,9 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
     // section is a list of properties, and there is no reason for it to be laid
     // out differently from every other list of properties in the editor.
     if (!DekiEditor::SchematicSectionBegin("Startup"))
+    {
         return;
+    }
 
     DekiEditor::BeginPropertyContext();
 
@@ -330,16 +396,22 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
 
     std::vector<const char*> names;
     for (const std::string& f : sceneFiles)
+    {
         names.push_back(f.c_str());
+    }
 
     InspectorUtils::SetNextRowTooltip("The scene the game opens with.");
     BeginPropertyRow("Startup Scene");
     if (DekiEditor::SchematicCombo("##startup_scene", &currentIndex, names.data(), (int)names.size()))
     {
         if (currentIndex == 0)
+        {
             project->SetStartupScene("");
+        }
         else
+        {
             project->SetStartupScene(sceneFiles[currentIndex]);
+        }
         project->Save();
     }
     if (currentIndex == 0)
@@ -355,7 +427,9 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
 void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
 {
     if (!DekiEditor::SchematicSectionBegin("Render Pipeline"))
+    {
         return;
+    }
 
     DekiEditor::BeginPropertyContext();
 
@@ -373,7 +447,9 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
     {
         const auto it = std::find(guids.begin() + 1, guids.end(), currentGuid);
         if (it != guids.end())
+        {
             currentPipelineIndex = static_cast<int>(it - guids.begin());
+        }
         else
         {
             files.push_back("(Unknown pipeline)");
@@ -384,7 +460,9 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
 
     std::vector<const char*> names;
     for (const std::string& f : files)
+    {
         names.push_back(f.c_str());
+    }
 
     InspectorUtils::SetNextRowTooltip("The renderer and passes device builds draw with.");
     BeginPropertyRow("Pipeline");
@@ -405,11 +483,15 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
 
 void ProjectSettingsPanel::Draw()
 {
-    if (!m_Open) return;
+    if (!m_Open)
+    {
+        return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(420, 400);
 
-    if (ImGui::Begin("PROJECT SETTINGS###Project Settings", &m_Open, DekiEditor::MaximizedWindowFlags("PROJECT SETTINGS###Project Settings")))
+    if (ImGui::Begin("PROJECT SETTINGS###Project Settings", &m_Open,
+                     DekiEditor::MaximizedWindowFlags("PROJECT SETTINGS###Project Settings")))
     {
         Project* project = m_App->GetProject();
         if (!project)
@@ -447,10 +529,14 @@ void ProjectSettingsPanel::Draw()
                 {
                     const Deki::PropertyInfo& prop = info.meta->properties[i];
                     if (!IsVisible(info.instance, info.meta->properties, info.meta->propertyCount, prop))
+                    {
                         continue;
+                    }
                     ImGui::PushID(prop.name);
                     if (DrawSettingProperty(info.instance, prop, onChanged))
+                    {
                         sectionCommitted = true;
+                    }
                     ImGui::PopID();
                 }
                 ImGui::PopID();

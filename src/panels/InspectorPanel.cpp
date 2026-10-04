@@ -52,10 +52,12 @@ namespace
 
 // Look up a Deki::PropertyInfo by component serialized name + property name.
 // Walks base-class properties too, mirroring how CollectOverrides diffs.
-const Deki::PropertyInfo* FindPropertyInfo(const std::string& componentName,
-                                         const std::string& propertyName)
+const Deki::PropertyInfo* FindPropertyInfo(const std::string& componentName, const std::string& propertyName)
 {
-    if (componentName.empty() || propertyName.empty()) return nullptr;
+    if (componentName.empty() || propertyName.empty())
+    {
+        return nullptr;
+    }
 
     auto& registry = Deki::ComponentRegistry::Instance();
     const Deki::ComponentMeta* meta = registry.GetMeta(componentName);
@@ -65,7 +67,9 @@ const Deki::PropertyInfo* FindPropertyInfo(const std::string& componentName,
         {
             const Deki::PropertyInfo& prop = meta->properties[i];
             if (prop.name && propertyName == prop.name)
+            {
                 return &prop;
+            }
         }
         meta = (meta->baseTypeId != 0) ? registry.GetMeta(meta->baseTypeId) : nullptr;
     }
@@ -75,11 +79,16 @@ const Deki::PropertyInfo* FindPropertyInfo(const std::string& componentName,
 // Format a JSON value for display, using the property's type to pick a
 // friendly representation (hex for colors, enum names, true/false, asset
 // source label, etc.). Falls back to json.dump() for unknown shapes.
-std::string FormatOverrideValue(const nlohmann::json& value,
-                                const Deki::PropertyInfo* prop)
+std::string FormatOverrideValue(const nlohmann::json& value, const Deki::PropertyInfo* prop)
 {
-    if (value.is_null()) return "null";
-    if (value.is_boolean()) return value.get<bool>() ? "true" : "false";
+    if (value.is_null())
+    {
+        return "null";
+    }
+    if (value.is_boolean())
+    {
+        return value.get<bool>() ? "true" : "false";
+    }
 
     if (prop)
     {
@@ -90,8 +99,7 @@ std::string FormatOverrideValue(const nlohmann::json& value,
                 if (value.is_number_unsigned())
                 {
                     char buf[16];
-                    snprintf(buf, sizeof(buf), "#%08X",
-                             value.get<uint32_t>());
+                    snprintf(buf, sizeof(buf), "#%08X", value.get<uint32_t>());
                     return buf;
                 }
                 break;
@@ -101,7 +109,9 @@ std::string FormatOverrideValue(const nlohmann::json& value,
                 {
                     int idx = value.get<int>();
                     if (idx >= 0 && idx < prop->enumCount && prop->enumValues[idx])
+                    {
                         return prop->enumValues[idx];
+                    }
                 }
                 break;
 
@@ -109,31 +119,44 @@ std::string FormatOverrideValue(const nlohmann::json& value,
                 if (value.is_object())
                 {
                     std::string src = value.value("source", "");
-                    if (src.empty()) src = value.value("guid", "");
-                    if (src.empty()) return "<none>";
+                    if (src.empty())
+                    {
+                        src = value.value("guid", "");
+                    }
+                    if (src.empty())
+                    {
+                        return "<none>";
+                    }
                     if (::Deki::Scene::s_GuidToPathResolver)
                     {
                         std::string p = ::Deki::Scene::s_GuidToPathResolver(src);
                         if (!p.empty())
+                        {
                             return std::filesystem::path(p).filename().string();
+                        }
                     }
                     return src.size() > 8 ? src.substr(0, 8) + "\xe2\x80\xa6" : src;
                 }
                 break;
 
-            default:
-                break;
+            default: break;
         }
     }
 
-    if (value.is_string()) return "\"" + value.get<std::string>() + "\"";
+    if (value.is_string())
+    {
+        return "\"" + value.get<std::string>() + "\"";
+    }
     if (value.is_number_float())
     {
         char buf[32];
         snprintf(buf, sizeof(buf), "%g", value.get<double>());
         return buf;
     }
-    if (value.is_number()) return std::to_string(value.get<int64_t>());
+    if (value.is_number())
+    {
+        return std::to_string(value.get<int64_t>());
+    }
 
     return value.dump();
 }
@@ -141,7 +164,10 @@ std::string FormatOverrideValue(const nlohmann::json& value,
 }  // anonymous namespace
 
 InspectorPanel::InspectorPanel(EditorApp* app)
-    : m_App(app), m_AssetPicker(std::make_unique<AssetPicker>()), m_TextureInspector(std::make_unique<TextureInspector>(app)), m_ComponentManager(std::make_unique<ComponentManager>(app))
+    : m_App(app),
+      m_AssetPicker(std::make_unique<AssetPicker>()),
+      m_TextureInspector(std::make_unique<TextureInspector>(app)),
+      m_ComponentManager(std::make_unique<ComponentManager>(app))
 {
     // Create subsystems with dependencies
     m_AssetPropertyEditor = std::make_unique<AssetPropertyEditor>(app, m_AssetPicker.get());
@@ -170,32 +196,44 @@ void InspectorPanel::ClearSceneReferences()
             {
                 live.insert(o);
                 for (const Deki::Object* c : o->GetChildren())
+                {
                     collect(c);
+                }
             };
             for (const Deki::Object* root : scene->GetObjects())
+            {
                 collect(root);
+            }
         }
         std::erase_if(m_LockedObjects, [&](Deki::Object* o) { return !live.contains(o); });
         if (m_LockedObjects.empty())
+        {
             m_Locked = false;
+        }
     }
 }
 
 void InspectorPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
 {
     if (m_LockedObjects.empty())
+    {
         return;
-    std::erase_if(m_LockedObjects, [&](Deki::Object* o)
-                  { return std::find(dying.begin(), dying.end(), o) != dying.end(); });
+    }
+    std::erase_if(m_LockedObjects,
+                  [&](Deki::Object* o) { return std::find(dying.begin(), dying.end(), o) != dying.end(); });
     if (m_LockedObjects.empty())
+    {
         m_Locked = false;
+    }
 }
 
 void InspectorPanel::ResetTransientUiState()
 {
     ClearSceneReferences();
     if (m_PropertyEditor)
+    {
         m_PropertyEditor->ResetTransientState();
+    }
 }
 
 void InspectorPanel::InvalidatePreview()
@@ -209,11 +247,17 @@ void InspectorPanel::Draw()
     // held (its field vanished mid-edit: object deleted, panel closed) is
     // closed here, or the Play View would re-render every frame for good.
     if (m_LiveEditCount > 0 && ImGui::GetActiveID() == 0)
+    {
         while (m_LiveEditCount > 0)
+        {
             EndLiveEdit();
+        }
+    }
 
     if (!m_Open)
+    {
         return;
+    }
 
     // The filter belongs to the single-object view, which republishes it below
     // once it has drawn its field. Cleared here so the other views (assets,
@@ -259,27 +303,34 @@ void InspectorPanel::Draw()
 
     // Check if an asset is selected (from asset browser or deploy analysis)
     const std::string& selectedAsset = m_App->GetSelectedAssetPath();
-    bool isBakedCacheAsset = selectedAsset.empty() && m_App->GetSelectedAssetHasCached() && !m_App->GetSelectedAssetCachePath().empty();
+    bool isBakedCacheAsset =
+        selectedAsset.empty() && m_App->GetSelectedAssetHasCached() && !m_App->GetSelectedAssetCachePath().empty();
     bool hasAssetSelection = !selectedAsset.empty() || isBakedCacheAsset;
 
     // Asset header: the file name as a title ("dirt_a.png" reads "Dirt A"),
     // set like the object heading below. Pin/lock lives in the under-tab toolbar.
     if (hasAssetSelection)
     {
-        const std::string headerName = isBakedCacheAsset
-                                           ? m_App->GetSelectedAssetGuid()
-                                           : InspectorUtils::NicifyName(
-                                                 std::filesystem::path(selectedAsset).stem().string().c_str());
+        const std::string headerName =
+            isBakedCacheAsset
+                ? m_App->GetSelectedAssetGuid()
+                : InspectorUtils::NicifyName(std::filesystem::path(selectedAsset).stem().string().c_str());
         const float pathLeftPad = m_App->Dpi(16.0f);
         ImGui::Unindent(bodyIndent - pathLeftPad);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // top padding
         ImFont* display = g_DisplayFont;
-        if (display) ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        if (display)
+        {
+            ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        }
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
         ImGui::TextUnformatted(headerName.c_str());
         ImGui::PopStyleColor();
-        if (display) ImGui::PopFont();
+        if (display)
+        {
+            ImGui::PopFont();
+        }
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // bottom padding
         ImGui::PopStyleVar();
         DekiEditor::FullBleedSeparator();
@@ -292,7 +343,9 @@ void InspectorPanel::Draw()
 
         // Restore original selection if locked
         if (m_Locked && !m_LockedAssetPath.empty())
+        {
             m_App->SetSelectedAsset(savedAssetPath, savedCachePath, savedHasCached, savedGuid);
+        }
 
         DekiEditor::EndPropertyContext();
         ImGui::End();
@@ -301,7 +354,9 @@ void InspectorPanel::Draw()
 
     // Restore if locked but no asset was showing
     if (m_Locked && !m_LockedAssetPath.empty())
+    {
         m_App->SetSelectedAsset(savedAssetPath, savedCachePath, savedHasCached, savedGuid);
+    }
 
     // Check if scene objects are selected
     const auto& selectedObjects = m_Locked && !m_LockedObjects.empty() ? m_LockedObjects : m_App->GetSelectedObjects();
@@ -337,25 +392,33 @@ void InspectorPanel::Draw()
         // (ImGui otherwise adds an extra ItemSpacing below the text).
         const float pathLeftPad = m_App->Dpi(16.0f);
         ImGui::Unindent(bodyIndent - pathLeftPad);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // top padding
 
         bool partOfInstance = obj->IsPartOfInstance();
         if (partOfInstance)
         {
-            if (g_FontUISmall) ImGui::PushFont(g_FontUISmall);
+            if (g_FontUISmall)
+            {
+                ImGui::PushFont(g_FontUISmall);
+            }
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim2);
             ImGui::TextUnformatted("Part of scene instance");
             ImGui::PopStyleColor();
-            if (g_FontUISmall) ImGui::PopFont();
+            if (g_FontUISmall)
+            {
+                ImGui::PopFont();
+            }
         }
 
         Deki::Object* parent = obj->GetParent();
         ImFont* display = g_DisplayFont;  // SpaceGrotesk-Medium (weight 500)
         // Render at an explicit size: the one-arg PushFont keeps the inherited
         // ~13px base instead of the display size, so the heading looked small.
-        if (display) ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        if (display)
+        {
+            ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        }
         if (parent)
         {
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Fg);
@@ -372,7 +435,9 @@ void InspectorPanel::Draw()
         // second place to edit what the header was already showing, and the one
         // you were looking at was the one that could not be edited.
         if (m_RenamingObject != obj)
+        {
             m_RenamingObject = nullptr;  // a rename never outlives its object
+        }
 
         if (!m_RenamingObject)
         {
@@ -402,9 +467,15 @@ void InspectorPanel::Draw()
                 // Body font for the hint: the display font is still pushed here
                 // and a tooltip inherits it, which would set a one-line hint at
                 // heading size.
-                if (g_FontUI) ImGui::PushFont(g_FontUI, DekiEditor::Fonts::CssPx(g_FontUI, 13.0f));
+                if (g_FontUI)
+                {
+                    ImGui::PushFont(g_FontUI, DekiEditor::Fonts::CssPx(g_FontUI, 13.0f));
+                }
                 DekiEditor::Tooltip("Click to rename");
-                if (g_FontUI) ImGui::PopFont();
+                if (g_FontUI)
+                {
+                    ImGui::PopFont();
+                }
             }
             ImGui::SetCursorScreenPos(afterName);
         }
@@ -423,7 +494,9 @@ void InspectorPanel::Draw()
                 m_RenameFocusPending = false;
             }
             if (ImGui::InputText("##obj_rename", m_RenameBuffer, sizeof(m_RenameBuffer)))
+            {
                 obj->SetName(m_RenameBuffer);  // live, so the hierarchy follows along
+            }
             const bool edited = ImGui::IsItemDeactivatedAfterEdit();
             const bool finished = ImGui::IsItemDeactivated();
             ImGui::PopStyleColor();
@@ -439,15 +512,19 @@ void InspectorPanel::Draw()
                 // "never mind" rather than as a nameless object.
                 if (!typed.empty() && typed != m_RenameOldName)
                 {
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<RenameObjectCommand>(obj, typed));
+                    CommandHistory::Instance().Execute(std::make_unique<RenameObjectCommand>(obj, typed));
                 }
             }
             // Closes on Enter or on clicking anywhere else, typed in or not.
             if (finished)
+            {
                 m_RenamingObject = nullptr;
+            }
         }
-        if (display) ImGui::PopFont();
+        if (display)
+        {
+            ImGui::PopFont();
+        }
 
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));  // bottom padding
         ImGui::PopStyleVar();
@@ -475,7 +552,9 @@ void InspectorPanel::Draw()
         {
             sourcePath = Deki::Scene::s_GuidToPathResolver(obj->GetSourceSceneGuid());
             if (!sourcePath.empty())
+            {
                 sourceName = std::filesystem::path(sourcePath).filename().string();
+            }
         }
 
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Accent);
@@ -495,7 +574,9 @@ void InspectorPanel::Draw()
                 {
                     const AssetInfo* info = pipeline->GetAssetInfoByGuid(obj->GetSourceSceneGuid());
                     if (info)
+                    {
                         browser->RevealAsset(pipeline->GetAbsolutePath(info->path));
+                    }
                 }
             }
             ImGui::PopStyleColor();
@@ -531,19 +612,23 @@ void InspectorPanel::Draw()
                     std::vector<std::string> otherScenePaths;
                     if (auto* pipeline = m_App->GetAssetPipeline())
                     {
-                        const auto currentPath = std::filesystem::path(
-                                                     m_App->GetCurrentScenePath())
-                                                     .lexically_normal();
+                        const auto currentPath = std::filesystem::path(m_App->GetCurrentScenePath()).lexically_normal();
                         for (const auto& [relPath, info] : pipeline->GetAllAssets())
                         {
-                            const auto ext = std::filesystem::path(relPath)
-                                                 .extension()
-                                                 .string();
-                            if (ext != ".scene") continue;
-                            std::string abs = pipeline->GetAbsolutePath(info.path);
-                            if (abs.empty()) continue;
-                            if (std::filesystem::path(abs).lexically_normal() == currentPath)
+                            const auto ext = std::filesystem::path(relPath).extension().string();
+                            if (ext != ".scene")
+                            {
                                 continue;
+                            }
+                            std::string abs = pipeline->GetAbsolutePath(info.path);
+                            if (abs.empty())
+                            {
+                                continue;
+                            }
+                            if (std::filesystem::path(abs).lexically_normal() == currentPath)
+                            {
+                                continue;
+                            }
                             otherScenePaths.push_back(std::move(abs));
                         }
                     }
@@ -559,8 +644,7 @@ void InspectorPanel::Draw()
                         e.selected = true;
                         e.path = entry.value("objectPath", "");
 
-                        const nlohmann::json& newVal =
-                            entry.contains("value") ? entry["value"] : nlohmann::json();
+                        const nlohmann::json& newVal = entry.contains("value") ? entry["value"] : nlohmann::json();
                         const nlohmann::json& oldVal =
                             entry.contains("sourceValue") ? entry["sourceValue"] : nlohmann::json();
 
@@ -578,16 +662,12 @@ void InspectorPanel::Draw()
                             // (GUID, for scene format stability). Resolve it
                             // through the registry so we display the class
                             // name the user recognizes.
-                            const std::string compGuid = entry.value("component",
-                                                                     std::string());
-                            const Deki::ComponentMeta* cmeta =
-                                Deki::ComponentRegistry::Instance().GetMeta(compGuid);
+                            const std::string compGuid = entry.value("component", std::string());
+                            const Deki::ComponentMeta* cmeta = Deki::ComponentRegistry::Instance().GetMeta(compGuid);
                             e.component = cmeta ? cmeta->GetDisplayName() : compGuid;
 
-                            const std::string propName = entry.value("property",
-                                                                     std::string());
-                            const Deki::PropertyInfo* pi = FindPropertyInfo(compGuid,
-                                                                          propName);
+                            const std::string propName = entry.value("property", std::string());
+                            const Deki::PropertyInfo* pi = FindPropertyInfo(compGuid, propName);
                             e.label = pi ? InspectorUtils::GetDisplayName(*pi) : propName;
                             e.oldStr = FormatOverrideValue(oldVal, pi);
                             e.newStr = FormatOverrideValue(newVal, pi);
@@ -600,16 +680,26 @@ void InspectorPanel::Draw()
                     std::sort(m_ApplyPopupEntries.begin(), m_ApplyPopupEntries.end(),
                               [](const ApplyPopupEntry& a, const ApplyPopupEntry& b)
                               {
-                                  if (a.path != b.path) return a.path < b.path;
-                                  if (a.component != b.component) return a.component < b.component;
+                                  if (a.path != b.path)
+                                  {
+                                      return a.path < b.path;
+                                  }
+                                  if (a.component != b.component)
+                                  {
+                                      return a.component < b.component;
+                                  }
                                   return a.label < b.label;
                               });
 
                     std::string sourceName;
                     if (!sourcePath.empty())
+                    {
                         sourceName = std::filesystem::path(sourcePath).filename().string();
+                    }
                     if (sourceName.empty())
+                    {
                         sourceName = "source scene";
+                    }
 
                     m_ApplyPopupSourceName = std::move(sourceName);
                     m_ApplyPopupInstance = obj;
@@ -620,8 +710,7 @@ void InspectorPanel::Draw()
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Revert"))
                 {
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<RevertInstanceOverridesCommand>(scene, obj));
+                    CommandHistory::Instance().Execute(std::make_unique<RevertInstanceOverridesCommand>(scene, obj));
                 }
             }
         }
@@ -633,11 +722,12 @@ void InspectorPanel::Draw()
         // Find the instance root for display
         Deki::Object* instanceRoot = obj->GetParent();
         while (instanceRoot && !instanceRoot->IsSceneInstance())
+        {
             instanceRoot = instanceRoot->GetParent();
+        }
 
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
-        ImGui::Text("Part of Scene Instance%s",
-                    instanceRoot ? (": " + instanceRoot->GetName()).c_str() : "");
+        ImGui::Text("Part of Scene Instance%s", instanceRoot ? (": " + instanceRoot->GetName()).c_str() : "");
         ImGui::PopStyleColor();
         ImGui::Separator();
     }
@@ -655,8 +745,7 @@ void InspectorPanel::Draw()
     // each - the band keeps exactly the height it has today, but the air is
     // split evenly, which puts the checkbox on the band's center line.
     const float activeBandPad = m_App->Dpi(Metrics::RowSpacing * 0.5f);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0, activeBandPad));
 
     bool active = obj->IsActive();
@@ -681,14 +770,12 @@ void InspectorPanel::Draw()
     // does, rather than as one more property row that happens to have a
     // magnifier. Its bottom hairline IS the divider the Transform band hangs
     // from, so that boundary stays one line instead of two.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     DekiEditor::FullBleedSeparator();
     ImGui::SetCursorPosX(InspectorUtils::SectionAlignedCursorX());
     DekiEditor::SearchField("##inspector_filter", m_PropertyFilter, sizeof(m_PropertyFilter),
-                            m_App->Dpi(Metrics::InspectorRightPad), /*bottomBorder*/ true,
-                            nullptr, nullptr, nullptr, nullptr,
-                            "Filter properties and components");
+                            m_App->Dpi(Metrics::InspectorRightPad), /*bottomBorder*/ true, nullptr, nullptr, nullptr,
+                            nullptr, "Filter properties and components");
     InspectorUtils::SetPropertyFilter(m_PropertyFilter);
     ImGui::PopStyleVar();
 
@@ -709,8 +796,7 @@ void InspectorPanel::Draw()
     {
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
-        ImGui::TextWrapped("Nothing on this object matches \"%s\".",
-                           InspectorUtils::PropertyFilter().c_str());
+        ImGui::TextWrapped("Nothing on this object matches \"%s\".", InspectorUtils::PropertyFilter().c_str());
         ImGui::PopStyleColor();
     }
 
@@ -782,29 +868,29 @@ void InspectorPanel::DrawApplyConfirmPopup()
     if (DekiEditor::BeginSchematicModal("Apply to Scene", 760.0f))
     {
         const size_t total = m_ApplyPopupEntries.size();
-        const size_t chosen = static_cast<size_t>(std::count_if(
-            m_ApplyPopupEntries.begin(), m_ApplyPopupEntries.end(),
-            [](const ApplyPopupEntry& e)
-            { return e.selected; }));
+        const size_t chosen = static_cast<size_t>(std::count_if(m_ApplyPopupEntries.begin(), m_ApplyPopupEntries.end(),
+                                                                [](const ApplyPopupEntry& e) { return e.selected; }));
 
-        ImGui::Text("Applying %zu of %zu change%s to",
-                    chosen, total, total == 1 ? "" : "s");
+        ImGui::Text("Applying %zu of %zu change%s to", chosen, total, total == 1 ? "" : "s");
         ImGui::SameLine();
-        ImGui::TextColored(DekiEditor::Palette::Accent, "%s",
-                           m_ApplyPopupSourceName.c_str());
+        ImGui::TextColored(DekiEditor::Palette::Accent, "%s", m_ApplyPopupSourceName.c_str());
         ImGui::TextColored(DekiEditor::Palette::Dim, "Other scenes that use this scene are refreshed too.");
 
         // Select all / Deselect all affordances above the list.
         if (ImGui::SmallButton(ICON_TI_LIST_CHECK "  Select all"))
         {
             for (auto& e : m_ApplyPopupEntries)
+            {
                 e.selected = true;
+            }
         }
         ImGui::SameLine();
         if (ImGui::SmallButton(ICON_TI_LIST_DETAILS "  Deselect all"))
         {
             for (auto& e : m_ApplyPopupEntries)
+            {
                 e.selected = false;
+            }
         }
         ImGui::Spacing();
 
@@ -831,7 +917,10 @@ void InspectorPanel::DrawApplyConfirmPopup()
 
                 if (e.path != prevPath)
                 {
-                    if (i != 0) ImGui::Spacing();
+                    if (i != 0)
+                    {
+                        ImGui::Spacing();
+                    }
                     const char* pathText = e.path.empty() ? "Root" : e.path.c_str();
                     ImGui::TextColored(pathColor, ICON_TI_BOX "  %s", pathText);
                     prevPath = e.path;
@@ -843,8 +932,7 @@ void InspectorPanel::DrawApplyConfirmPopup()
                     if (!e.component.empty())
                     {
                         ImGui::Indent();
-                        ImGui::TextColored(compColor, ICON_TI_COMPONENTS "  %s",
-                                           e.component.c_str());
+                        ImGui::TextColored(compColor, ICON_TI_COMPONENTS "  %s", e.component.c_str());
                         ImGui::Unindent();
                     }
                     prevComp = e.component;
@@ -877,19 +965,19 @@ void InspectorPanel::DrawApplyConfirmPopup()
             { { "Cancel" }, { "Apply", DekiEditor::DialogButton::Primary, chosen > 0 } });
         if (button == 1)
         {
-            if (m_ApplyPopupScene && m_ApplyPopupInstance &&
-                m_ApplyPopupInstance->IsSceneInstance())
+            if (m_ApplyPopupScene && m_ApplyPopupInstance && m_ApplyPopupInstance->IsSceneInstance())
             {
                 nlohmann::json selected = nlohmann::json::array();
                 for (const auto& e : m_ApplyPopupEntries)
-                    if (e.selected) selected.push_back(e.raw);
+                {
+                    if (e.selected)
+                    {
+                        selected.push_back(e.raw);
+                    }
+                }
 
-                CommandHistory::Instance().Execute(
-                    std::make_unique<ApplyInstanceToSceneCommand>(
-                        m_ApplyPopupScene,
-                        m_ApplyPopupInstance,
-                        std::move(m_ApplyPopupOtherPaths),
-                        std::move(selected)));
+                CommandHistory::Instance().Execute(std::make_unique<ApplyInstanceToSceneCommand>(
+                    m_ApplyPopupScene, m_ApplyPopupInstance, std::move(m_ApplyPopupOtherPaths), std::move(selected)));
             }
             ClearApplyPopupState();
             ImGui::CloseCurrentPopup();
@@ -914,33 +1002,33 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
     // Filter cleared: put the section back the way it was found.
     if (!filtering && m_TransformStateKnown)
     {
-        ImGui::GetStateStorage()->SetInt(static_cast<ImGuiID>(m_TransformHeaderId),
-                                         m_TransformPreFilterOpen ? 1 : 0);
+        ImGui::GetStateStorage()->SetInt(static_cast<ImGuiID>(m_TransformHeaderId), m_TransformPreFilterOpen ? 1 : 0);
         m_TransformStateKnown = false;
     }
 
-    if (filtering &&
-        !InspectorUtils::TextMatchesFilter("Transform") &&
-        !InspectorUtils::PropertyMatchesFilter("Position") &&
-        !InspectorUtils::PropertyMatchesFilter("Rotation") &&
+    if (filtering && !InspectorUtils::TextMatchesFilter("Transform") &&
+        !InspectorUtils::PropertyMatchesFilter("Position") && !InspectorUtils::PropertyMatchesFilter("Rotation") &&
         !InspectorUtils::PropertyMatchesFilter("Scale"))
     {
         return;
     }
     if (filtering)
+    {
         InspectorUtils::NoteFilterHit();
+    }
 
     // Matched under a filter, so it is shown open - a hit behind a collapsed
     // header reads as no hit. State recorded the first frame, forced after.
     if (filtering && m_TransformStateKnown)
+    {
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+    }
 
     // Section, not a bare header: the body slides shut instead of vanishing.
     // Note the flag is the SECTION's, not the header's - it stays true while the
     // section is closing, which is when the body still has to be submitted.
     ImGuiID transformHeaderId = 0;
-    const bool transformBody =
-        SchematicSectionBegin("Transform", ImGuiTreeNodeFlags_DefaultOpen, &transformHeaderId);
+    const bool transformBody = SchematicSectionBegin("Transform", ImGuiTreeNodeFlags_DefaultOpen, &transformHeaderId);
     if (filtering && !m_TransformStateKnown && transformHeaderId != 0)
     {
         m_TransformHeaderId = static_cast<unsigned int>(transformHeaderId);
@@ -993,46 +1081,30 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
         const char* posLabel = obj->GetParent() ? "Local Position" : "Position";
         {
             EditorUI::VecCallbacks cb;
-            cb.onStartChange = [this](const float*)
-            { BeginLiveEdit(); };
-            cb.onChange = [obj](const float* v)
-            { obj->SetLocalPosition(v[0], v[1]); };
-            cb.onUndo = [obj](const float* v)
-            { obj->SetLocalPosition(v[0], v[1]); };
-            cb.onRedo = [obj](const float* v)
-            { obj->SetLocalPosition(v[0], v[1]); };
-            cb.onEndChange = [this](const float*, const float*)
-            { EndLiveEdit(); };
+            cb.onStartChange = [this](const float*) { BeginLiveEdit(); };
+            cb.onChange = [obj](const float* v) { obj->SetLocalPosition(v[0], v[1]); };
+            cb.onUndo = [obj](const float* v) { obj->SetLocalPosition(v[0], v[1]); };
+            cb.onRedo = [obj](const float* v) { obj->SetLocalPosition(v[0], v[1]); };
+            cb.onEndChange = [this](const float*, const float*) { EndLiveEdit(); };
             EditorUI::Get().Vector2Field(posLabel, obj->GetX(), obj->GetY(), EditorUI::Unit::Distance, cb);
         }
         {
             EditorUI::FloatCallbacks cb;
-            cb.onStartChange = [this](float)
-            { BeginLiveEdit(); };
-            cb.onChange = [obj](float v)
-            { obj->SetRotation(v); };  // radians (Unit::Angle shows degrees)
-            cb.onUndo = [obj](float v)
-            { obj->SetRotation(v); };
-            cb.onRedo = [obj](float v)
-            { obj->SetRotation(v); };
-            cb.onEndChange = [this](float, float)
-            { EndLiveEdit(); };
+            cb.onStartChange = [this](float) { BeginLiveEdit(); };
+            cb.onChange = [obj](float v) { obj->SetRotation(v); };  // radians (Unit::Angle shows degrees)
+            cb.onUndo = [obj](float v) { obj->SetRotation(v); };
+            cb.onRedo = [obj](float v) { obj->SetRotation(v); };
+            cb.onEndChange = [this](float, float) { EndLiveEdit(); };
             EditorUI::Get().FloatField("Rotation", obj->GetLocalRotation(), EditorUI::Unit::Angle, cb);
         }
         {
             EditorUI::VecCallbacks cb;
-            cb.onStartChange = [this](const float*)
-            { BeginLiveEdit(); };
-            cb.onChange = [obj](const float* v)
-            { obj->SetScale(v[0], v[1]); };
-            cb.onUndo = [obj](const float* v)
-            { obj->SetScale(v[0], v[1]); };
-            cb.onRedo = [obj](const float* v)
-            { obj->SetScale(v[0], v[1]); };
-            cb.onEndChange = [this](const float*, const float*)
-            { EndLiveEdit(); };
-            EditorUI::Get().Vector2Field("Scale", obj->GetScaleX(), obj->GetScaleY(),
-                                         0.01f, 0.01f, 10.0f, "%.3f", cb);
+            cb.onStartChange = [this](const float*) { BeginLiveEdit(); };
+            cb.onChange = [obj](const float* v) { obj->SetScale(v[0], v[1]); };
+            cb.onUndo = [obj](const float* v) { obj->SetScale(v[0], v[1]); };
+            cb.onRedo = [obj](const float* v) { obj->SetScale(v[0], v[1]); };
+            cb.onEndChange = [this](const float*, const float*) { EndLiveEdit(); };
+            EditorUI::Get().Vector2Field("Scale", obj->GetScaleX(), obj->GetScaleY(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
         }
 #ifdef DEKI_TRANSFORM_3D
         // The third axis, only when the project declares transform_3d: a 2D
@@ -1042,58 +1114,38 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
         {
             {
                 EditorUI::FloatCallbacks cb;
-                cb.onStartChange = [this](float)
-                { BeginLiveEdit(); };
-                cb.onChange = [obj](float v)
-                { obj->SetZ(v); };
-                cb.onUndo = [obj](float v)
-                { obj->SetZ(v); };
-                cb.onRedo = [obj](float v)
-                { obj->SetZ(v); };
-                cb.onEndChange = [this](float, float)
-                { EndLiveEdit(); };
+                cb.onStartChange = [this](float) { BeginLiveEdit(); };
+                cb.onChange = [obj](float v) { obj->SetZ(v); };
+                cb.onUndo = [obj](float v) { obj->SetZ(v); };
+                cb.onRedo = [obj](float v) { obj->SetZ(v); };
+                cb.onEndChange = [this](float, float) { EndLiveEdit(); };
                 EditorUI::Get().FloatField("Z", obj->GetZ(), EditorUI::Unit::Distance, cb);
             }
             {
                 EditorUI::FloatCallbacks cb;
-                cb.onStartChange = [this](float)
-                { BeginLiveEdit(); };
-                cb.onChange = [obj](float v)
-                { obj->SetRotationX(v); };
-                cb.onUndo = [obj](float v)
-                { obj->SetRotationX(v); };
-                cb.onRedo = [obj](float v)
-                { obj->SetRotationX(v); };
-                cb.onEndChange = [this](float, float)
-                { EndLiveEdit(); };
+                cb.onStartChange = [this](float) { BeginLiveEdit(); };
+                cb.onChange = [obj](float v) { obj->SetRotationX(v); };
+                cb.onUndo = [obj](float v) { obj->SetRotationX(v); };
+                cb.onRedo = [obj](float v) { obj->SetRotationX(v); };
+                cb.onEndChange = [this](float, float) { EndLiveEdit(); };
                 EditorUI::Get().FloatField("Rotation X", obj->GetRotationX(), EditorUI::Unit::Angle, cb);
             }
             {
                 EditorUI::FloatCallbacks cb;
-                cb.onStartChange = [this](float)
-                { BeginLiveEdit(); };
-                cb.onChange = [obj](float v)
-                { obj->SetRotationY(v); };
-                cb.onUndo = [obj](float v)
-                { obj->SetRotationY(v); };
-                cb.onRedo = [obj](float v)
-                { obj->SetRotationY(v); };
-                cb.onEndChange = [this](float, float)
-                { EndLiveEdit(); };
+                cb.onStartChange = [this](float) { BeginLiveEdit(); };
+                cb.onChange = [obj](float v) { obj->SetRotationY(v); };
+                cb.onUndo = [obj](float v) { obj->SetRotationY(v); };
+                cb.onRedo = [obj](float v) { obj->SetRotationY(v); };
+                cb.onEndChange = [this](float, float) { EndLiveEdit(); };
                 EditorUI::Get().FloatField("Rotation Y", obj->GetRotationY(), EditorUI::Unit::Angle, cb);
             }
             {
                 EditorUI::FloatCallbacks cb;
-                cb.onStartChange = [this](float)
-                { BeginLiveEdit(); };
-                cb.onChange = [obj](float v)
-                { obj->SetScaleZ(v); };
-                cb.onUndo = [obj](float v)
-                { obj->SetScaleZ(v); };
-                cb.onRedo = [obj](float v)
-                { obj->SetScaleZ(v); };
-                cb.onEndChange = [this](float, float)
-                { EndLiveEdit(); };
+                cb.onStartChange = [this](float) { BeginLiveEdit(); };
+                cb.onChange = [obj](float v) { obj->SetScaleZ(v); };
+                cb.onUndo = [obj](float v) { obj->SetScaleZ(v); };
+                cb.onRedo = [obj](float v) { obj->SetScaleZ(v); };
+                cb.onEndChange = [this](float, float) { EndLiveEdit(); };
                 EditorUI::Get().FloatField("Scale Z", obj->GetScaleZ(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
             }
         }
@@ -1118,17 +1170,17 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
     bool wantsOverride = false;
     if (customEditor)
     {
-        DekiEditor::Guard(meta->name, [&]
-                          { wantsOverride = customEditor->WantsInspectorOverride(comp); });
+        DekiEditor::Guard(meta->name, [&] { wantsOverride = customEditor->WantsInspectorOverride(comp); });
     }
     if (customEditor && wantsOverride)
     {
         // Set up EditorUI singleton state for this component
         // Parameter order: drawByName, drawByOffset, drawDefault, resolveAsset, getFontAtlas
-        EditorUI::Get().BeginComponent(comp, meta,
-                                       // DrawPropertyByName callback
-                                       [this, comp, meta, &registry](const char* name)
-                                       {
+        EditorUI::Get().BeginComponent(
+            comp, meta,
+            // DrawPropertyByName callback
+            [this, comp, meta, &registry](const char* name)
+            {
                 // Search this component's properties first
                 for (int i = 0; i < meta->propertyCount; ++i)
                 {
@@ -1153,10 +1205,11 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                             }
                         }
                     }
-                } },
-                                       // DrawPropertyByOffset callback
-                                       [this, comp, meta](size_t offset)
-                                       {
+                }
+            },
+            // DrawPropertyByOffset callback
+            [this, comp, meta](size_t offset)
+            {
                 for (int i = 0; i < meta->propertyCount; ++i)
                 {
                     if (meta->properties[i].offset == offset)
@@ -1164,10 +1217,11 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                         m_PropertyEditor->DrawProperty(comp, meta->properties[i]);
                         break;
                     }
-                } },
-                                       // DrawDefaultProperties callback
-                                       [this, comp, meta, &registry]()
-                                       {
+                }
+            },
+            // DrawDefaultProperties callback
+            [this, comp, meta, &registry]()
+            {
                 // Draw base class properties first. DEKI_VISIBLE_WHEN applies
                 // here as in the plain inspector: a custom editor that draws
                 // the defaults gets the same fields shown and hidden.
@@ -1179,7 +1233,9 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                         for (int i = 0; i < baseMeta->propertyCount; ++i)
                         {
                             if (InspectorUtils::EvaluateVisibility(comp, baseMeta->properties[i], baseMeta))
+                            {
                                 m_PropertyEditor->DrawProperty(comp, baseMeta->properties[i]);
+                            }
                         }
                     }
                 }
@@ -1187,24 +1243,34 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                 for (int i = 0; i < meta->propertyCount; ++i)
                 {
                     if (InspectorUtils::EvaluateVisibility(comp, meta->properties[i], meta))
+                    {
                         m_PropertyEditor->DrawProperty(comp, meta->properties[i]);
-                } },
-                                       // ResolveAssetName callback
-                                       [this](const std::string& guid) -> std::string
-                                       {
-                auto* pipeline = m_App->GetAssetPipeline();
-                if (pipeline) {
-                    const AssetInfo* info = pipeline->GetAssetInfoByGuid(guid);
-                    if (info) return info->path;
+                    }
                 }
-                return guid; },
-                                       // GetFontAtlasTexture callback (uses on-demand font compilation via EditorAssets)
-                                       [](const std::string& fontGuid, int fontSize, uint32_t* outWidth, uint32_t* outHeight) -> uint32_t
-                                       { return EditorAssets::Get()->LoadFontAtlasWithBaking(fontGuid, fontSize, outWidth, outHeight); },
-                                       // ModifyAsset callback
-                                       [this](const std::string& assetPath, const std::string& assetGuid, const std::string& oldJson, const std::string& newJson)
-                                       {
-                try {
+            },
+            // ResolveAssetName callback
+            [this](const std::string& guid) -> std::string
+            {
+                auto* pipeline = m_App->GetAssetPipeline();
+                if (pipeline)
+                {
+                    const AssetInfo* info = pipeline->GetAssetInfoByGuid(guid);
+                    if (info)
+                    {
+                        return info->path;
+                    }
+                }
+                return guid;
+            },
+            // GetFontAtlasTexture callback (uses on-demand font compilation via EditorAssets)
+            [](const std::string& fontGuid, int fontSize, uint32_t* outWidth, uint32_t* outHeight) -> uint32_t
+            { return EditorAssets::Get()->LoadFontAtlasWithBaking(fontGuid, fontSize, outWidth, outHeight); },
+            // ModifyAsset callback
+            [this](const std::string& assetPath, const std::string& assetGuid, const std::string& oldJson,
+                   const std::string& newJson)
+            {
+                try
+                {
                     // Parse JSON strings
                     nlohmann::json oldData = nlohmann::json::parse(oldJson);
                     nlohmann::json newData = nlohmann::json::parse(newJson);
@@ -1212,7 +1278,8 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                     // Create and execute command with callback for asset reimport
                     auto command = std::make_unique<ModifyAssetCommand>(
                         assetPath, assetGuid, oldData, newData,
-                        [this, assetPath, assetGuid]() {
+                        [this, assetPath, assetGuid]()
+                        {
                             // Trigger asset reimport (recompiles DTEX on disk)
                             AssetDatabase::ImportAsset(AssetDatabase::GUIDToAssetPath(assetGuid));
 
@@ -1225,20 +1292,21 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
                             // Invalidate GPU texture caches
                             EditorAssets::Get()->InvalidateTexture(assetGuid);
                             m_App->GetSceneViewPanel()->InvalidateTexture(assetGuid);
-                        }
-                    );
+                        });
 
                     CommandHistory::Instance().Execute(std::move(command));
-                } catch (...) {
+                }
+                catch (...)
+                {
                     // Silently ignore JSON parse errors
-                } });
+                }
+            });
 
         // Call the custom editor - uses EditorUI::Get() for drawing.
         // Guarded so a faulty CustomEditor (e.g. stale package-DLL state)
         // doesn't terminate the editor; EndComponent still runs to keep
         // the EditorUI singleton state balanced.
-        DekiEditor::Guard(meta->name, [&]
-                          { customEditor->OnInspectorGUI(comp); });
+        DekiEditor::Guard(meta->name, [&] { customEditor->OnInspectorGUI(comp); });
 
         EditorUI::Get().EndComponent();
         return;
@@ -1308,18 +1376,28 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0, m_App->Dpi(10.0f)));
         ImFont* display = g_DisplayFont;
-        if (display) ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        if (display)
+        {
+            ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
+        }
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
         ImGui::Text("%zu objects", objects.size());
         ImGui::PopStyleColor();
-        if (display) ImGui::PopFont();
+        if (display)
+        {
+            ImGui::PopFont();
+        }
 
         std::string names;
         const size_t shown = std::min<size_t>(objects.size(), 3);
         for (size_t i = 0; i < shown; ++i)
+        {
             names += (i ? ", " : "") + objects[i]->GetName();
+        }
         if (objects.size() > shown)
+        {
             names += " and " + std::to_string(objects.size() - shown) + " more";
+        }
         ImGui::Dummy(ImVec2(0, m_App->Dpi(4.0f)));
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
         ImGui::PushTextWrapPos(0.0f);
@@ -1336,8 +1414,7 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
     // Play mode indicator
     if (m_App->IsPlaying() || m_App->IsPaused())
     {
-        ImGui::TextColored(DekiEditor::Palette::Amber,
-                           "Play Mode - Changes won't persist");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "Play Mode - Changes won't persist");
         ImGui::Separator();
     }
 
@@ -1454,11 +1531,15 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
         for (int i = 0; i < r.count; ++i)
         {
             if (i > 0)
+            {
                 ImGui::SameLine(0.0f, gap);
+            }
             const float first = get(objects[0], row, i);
             bool mixed = false;
             for (Deki::Object* o : objects)
+            {
                 mixed |= get(o, row, i) != first;
+            }
 
             float disp = first * r.toDisplay;
             ImGui::PushID(i);
@@ -1470,12 +1551,19 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
             {
                 s_Before.clear();
                 for (Deki::Object* o : objects)
-                    s_Before.push_back({ o, o->GetX(), o->GetY(), o->GetLocalRotation(), o->GetScaleX(), o->GetScaleY() });
+                {
+                    s_Before.push_back(
+                        { o, o->GetX(), o->GetY(), o->GetLocalRotation(), o->GetScaleX(), o->GetScaleY() });
+                }
                 BeginLiveEdit();
             }
             if (edited && r.toDisplay != 0.0f)
+            {
                 for (Deki::Object* o : objects)
+                {
                     set(o, row, i, disp / r.toDisplay);
+                }
+            }
             if (ImGui::IsItemDeactivated())
             {
                 EndLiveEdit();
@@ -1486,15 +1574,25 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
                     {
                         Deki::Object* o = b.obj;
                         if (row == 0 && (o->GetX() != b.x || o->GetY() != b.y))
+                        {
                             steps.push_back(std::make_unique<SetPositionCommand>(o, b.x, b.y, o->GetX(), o->GetY()));
+                        }
                         else if (row == 1 && o->GetLocalRotation() != b.rot)
+                        {
                             steps.push_back(std::make_unique<SetRotationCommand>(o, b.rot, o->GetLocalRotation()));
+                        }
                         else if (row == 2 && (o->GetScaleX() != b.sx || o->GetScaleY() != b.sy))
-                            steps.push_back(std::make_unique<SetScaleCommand>(o, b.sx, b.sy, o->GetScaleX(), o->GetScaleY()));
+                        {
+                            steps.push_back(
+                                std::make_unique<SetScaleCommand>(o, b.sx, b.sy, o->GetScaleX(), o->GetScaleY()));
+                        }
                     }
                     if (!steps.empty())
+                    {
                         CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-                            std::string(r.label) + " (" + std::to_string(objects.size()) + " objects)", std::move(steps)));
+                            std::string(r.label) + " (" + std::to_string(objects.size()) + " objects)",
+                            std::move(steps)));
+                    }
                 }
                 s_Before.clear();
             }
@@ -1504,12 +1602,14 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
     }
 }
 
-std::vector<InspectorPanel::ComponentGroup> InspectorPanel::GetCommonComponents(
-    const std::vector<Deki::Object*>& objects)
+std::vector<InspectorPanel::ComponentGroup>
+InspectorPanel::GetCommonComponents(const std::vector<Deki::Object*>& objects)
 {
     std::vector<ComponentGroup> result;
     if (objects.empty())
+    {
         return result;
+    }
 
     auto& registry = Deki::ComponentRegistry::Instance();
 
@@ -1555,9 +1655,13 @@ std::vector<InspectorPanel::ComponentGroup> InspectorPanel::GetCommonComponents(
         for (auto it = componentMap.begin(); it != componentMap.end();)
         {
             if (presentTypes.find(it->first) == presentTypes.end())
+            {
                 it = componentMap.erase(it);
+            }
             else
+            {
                 ++it;
+            }
         }
     }
 
@@ -1576,7 +1680,9 @@ std::vector<InspectorPanel::ComponentGroup> InspectorPanel::GetCommonComponents(
 void InspectorPanel::DrawMultiComponentSection(const ComponentGroup& group)
 {
     if (!group.meta)
+    {
         return;
+    }
 
     const bool open = SchematicSectionBegin(group.meta->GetDisplayName(),
                                             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
@@ -1591,7 +1697,9 @@ void InspectorPanel::DrawMultiComponentSection(const ComponentGroup& group)
     }
 
     if (!open)
+    {
         return;
+    }
 
     // Draw base class properties first
     auto& registry = Deki::ComponentRegistry::Instance();

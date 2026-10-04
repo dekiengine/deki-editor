@@ -14,21 +14,26 @@ namespace DekiEditor
 // the Hierarchy and the Asset Browser, which used to carry one copy each.
 inline void AutoScrollOnDrag(float edgePx = 32.0f, float maxSpeed = 1200.0f)
 {
-    if (!ImGui::IsDragDropActive()) return;
+    if (!ImGui::IsDragDropActive())
+    {
+        return;
+    }
 
     const ImVec2 wmin = ImGui::GetWindowPos();
     const ImVec2 wsize = ImGui::GetWindowSize();
     const ImVec2 mp = ImGui::GetMousePos();
 
     // Cursor outside the window horizontally: it is dragging into another panel.
-    if (mp.x < wmin.x || mp.x > wmin.x + wsize.x) return;
+    if (mp.x < wmin.x || mp.x > wmin.x + wsize.x)
+    {
+        return;
+    }
 
     const float topEdgeEnd = wmin.y + edgePx;
     const float bottomEdgeStart = wmin.y + wsize.y - edgePx;
     const float dt = ImGui::GetIO().DeltaTime;
 
-    auto clamp01 = [](float v)
-    { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); };
+    auto clamp01 = [](float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); };
 
     if (mp.y < topEdgeEnd && mp.y >= wmin.y - edgePx)
     {

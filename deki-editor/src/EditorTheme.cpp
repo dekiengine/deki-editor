@@ -40,7 +40,9 @@ float AnimateTo(ImGuiID id, float target, float seconds)
     // The section-height table outlives frames too; sweep it on the same
     // rhythm Motion sweeps its own.
     if ((ImGui::GetFrameCount() & 255) == 0)
+    {
         PruneSectionHeights();
+    }
     return Motion::To(id, target, seconds);
 }
 
@@ -58,7 +60,9 @@ float Smooth(float t)
 void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
 {
     if (rad == 0.0f || dl->VtxBuffer.Size <= vtxStart)
+    {
         return;
+    }
 
     ImVec2 lo(FLT_MAX, FLT_MAX), hi(-FLT_MAX, -FLT_MAX);
     for (int i = vtxStart; i < dl->VtxBuffer.Size; ++i)
@@ -93,7 +97,9 @@ void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
 void SnapVerticesFrom(ImDrawList* dl, int vtxStart)
 {
     if (dl->VtxBuffer.Size <= vtxStart)
+    {
         return;
+    }
 
     ImVec2 lo(FLT_MAX, FLT_MAX);
     for (int i = vtxStart; i < dl->VtxBuffer.Size; ++i)
@@ -104,7 +110,9 @@ void SnapVerticesFrom(ImDrawList* dl, int vtxStart)
     const float dx = ImFloor(lo.x + 0.5f) - lo.x;
     const float dy = ImFloor(lo.y + 0.5f) - lo.y;
     if (dx == 0.0f && dy == 0.0f)
+    {
         return;
+    }
     for (int i = vtxStart; i < dl->VtxBuffer.Size; ++i)
     {
         dl->VtxBuffer[i].pos.x += dx;
@@ -120,8 +128,8 @@ void SnapVerticesFrom(ImDrawList* dl, int vtxStart)
 // wander as it turns. The one glyph is used at every angle - swapping in
 // chevron-down at the end would land it wherever THAT glyph's ink sits,
 // which is not where the turning one arrives.
-void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center,
-                        ImU32 col, const char* glyph, float openT, float sweepRad)
+void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center, ImU32 col, const char* glyph,
+                        float openT, float sweepRad)
 {
     const ImVec2 sz = font->CalcTextSizeA(size, FLT_MAX, 0.0f, glyph);
     const ImVec2 pos(ImFloor(center.x - sz.x * 0.5f), ImFloor(center.y - sz.y * 0.5f));
@@ -132,7 +140,9 @@ void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center,
     const bool atRest = (openT <= 0.0f || openT >= 1.0f);
     RotateVerticesFrom(dl, start, Smooth(openT) * sweepRad);
     if (atRest)
+    {
         SnapVerticesFrom(dl, start);
+    }
 }
 
 // ---- animated section bodies -------------------------------------------
@@ -173,7 +183,9 @@ void KeepSectionHeight(ImGuiID id)
 {
     auto it = s_SectionHeights.find(id);
     if (it != s_SectionHeights.end())
+    {
         it->second.frame = ImGui::GetFrameCount();
+    }
 }
 
 // The body's animation is keyed apart from the chevron's: same widget, two
@@ -233,7 +245,9 @@ void SectionBodyGap()
 {
     const float gap = ImGui::GetStyle().ItemSpacing.y;
     if (gap <= 0.0f)
+    {
         return;
+    }
     const ImVec2 cur = ImGui::GetCursorScreenPos();
     ImGui::SetCursorScreenPos(ImVec2(cur.x, cur.y + gap));
 }
@@ -245,10 +259,14 @@ void SectionBodyGap()
 void PruneSectionHeights()
 {
     if (s_SectionHeights.size() <= 512)
+    {
         return;
+    }
     const int frame = ImGui::GetFrameCount();
     for (auto i = s_SectionHeights.begin(); i != s_SectionHeights.end();)
+    {
         i = (frame - i->second.frame > 600) ? s_SectionHeights.erase(i) : ++i;
+    }
 }
 }  // namespace
 
@@ -279,9 +297,10 @@ void Tooltip(const char* fmt, ...)
     // Either measure says "resting": the item timer for anything ImGui knows as
     // an item, the stationary timer for tooltips hung off hand-drawn regions
     // (canvas pins, toolbar cells) where there is no hovered id to time.
-    if (g.HoveredIdTimer < TooltipDelaySeconds &&
-        g.MouseStationaryTimer < TooltipDelaySeconds)
+    if (g.HoveredIdTimer < TooltipDelaySeconds && g.MouseStationaryTimer < TooltipDelaySeconds)
+    {
         return;
+    }
 
     // The theme zeroes WindowPadding for panels, and a tooltip window bakes the
     // current padding when it begins: without this its text touched the edge.
@@ -297,7 +316,9 @@ void Tooltip(const char* fmt, ...)
 bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID* outHeaderId)
 {
     if (outHeaderId)
+    {
         *outHeaderId = 0;
+    }
 
     const bool open = SchematicCollapsingHeader(label, flags);
 
@@ -306,17 +327,23 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
     // this would drive that widget's animation instead.
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return false;
+    }
 
     const ImGuiID id = ImGui::GetItemID();
     const ImGuiID key = SectionBodyKey(id);
     if (outHeaderId)
+    {
         *outHeaderId = id;  // set even when the section is shut
+    }
 
     const float t = AnimateTo(key, open ? 1.0f : 0.0f, 0.16f);
     KeepSectionHeight(id);
     if (t <= 0.0f)
+    {
         return false;  // fully shut: nothing to submit, nothing to end
+    }
 
     SectionScope sc;
     sc.id = id;
@@ -345,9 +372,7 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
     // alternative was to show it at full height and then animate it from a
     // fifth of that, which is why the first click used to just snap open.
     sc.clipped = true;
-    sc.visibleH = (measured == s_SectionHeights.end())
-                      ? 0.0f
-                      : ImMax(0.0f, measured->second.height * Smooth(t));
+    sc.visibleH = (measured == s_SectionHeights.end()) ? 0.0f : ImMax(0.0f, measured->second.height * Smooth(t));
     sc.savedMaxY = w->DC.CursorMaxPos.y;
     // Clip from the top of the BAND, not the top of the body: whatever a caller
     // draws on the band right after the header (the `EDIT ->` link) is drawn
@@ -355,8 +380,7 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
     // the animation. The band itself is already painted, so including its row
     // costs nothing.
     const float clipTop = ImMin(ImGui::GetItemRectMin().y, sc.startY);
-    ImGui::PushClipRect(ImVec2(w->ClipRect.Min.x, clipTop),
-                        ImVec2(w->ClipRect.Max.x, sc.startY + sc.visibleH), true);
+    ImGui::PushClipRect(ImVec2(w->ClipRect.Min.x, clipTop), ImVec2(w->ClipRect.Max.x, sc.startY + sc.visibleH), true);
     SectionBodyGap();
     s_SectionStack.push_back(sc);
     return true;
@@ -407,12 +431,9 @@ bool SchematicTreeBodyBegin(bool open, ImGuiID nodeId)
     // First expand of a node nobody has ever opened: invisible for one frame
     // while its children are measured, then animated. See SchematicSectionBegin.
     sc.clipped = true;
-    sc.visibleH = (measured == s_SectionHeights.end())
-                      ? 0.0f
-                      : ImMax(0.0f, measured->second.height * Smooth(t));
+    sc.visibleH = (measured == s_SectionHeights.end()) ? 0.0f : ImMax(0.0f, measured->second.height * Smooth(t));
     sc.savedMaxY = w->DC.CursorMaxPos.y;
-    ImGui::PushClipRect(ImVec2(w->ClipRect.Min.x, sc.startY),
-                        ImVec2(w->ClipRect.Max.x, sc.startY + sc.visibleH), true);
+    ImGui::PushClipRect(ImVec2(w->ClipRect.Min.x, sc.startY), ImVec2(w->ClipRect.Max.x, sc.startY + sc.visibleH), true);
     s_SectionStack.push_back(sc);
     return true;
 }
@@ -421,7 +442,9 @@ void SchematicTreeBodyEnd()
 {
     IM_ASSERT(!s_SectionStack.empty() && "SchematicTreeBodyEnd without a Begin");
     if (s_SectionStack.empty())
+    {
         return;
+    }
 
     // Nothing was submitted (shut, or a skipped window): drop the marker only.
     if (!s_SectionStack.back().active)
@@ -433,21 +456,27 @@ void SchematicTreeBodyEnd()
     const bool pushed = s_SectionStack.back().treePushed;
     SchematicSectionEnd();  // same clip / measure / compress
     if (pushed)
+    {
         ImGui::TreePop();
+    }
 }
 
 void SchematicSectionEnd()
 {
     IM_ASSERT(!s_SectionStack.empty() && "SchematicSectionEnd without a Begin that returned true");
     if (s_SectionStack.empty())
+    {
         return;
+    }
 
     const SectionScope sc = s_SectionStack.back();
     s_SectionStack.pop_back();
 
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w)
+    {
         return;
+    }
 
     // The body was submitted whole either way - a clip hides items, it does not
     // shorten the layout - so this is the full height whatever the state, and
@@ -455,15 +484,16 @@ void SchematicSectionEnd()
     // itself changes size.
     const float h = ImGui::GetCursorScreenPos().y - sc.startY;
     if (h > 0.0f)
+    {
         s_SectionHeights[sc.id] = SectionHeight{ h, ImGui::GetFrameCount() };
+    }
 
     if (!sc.clipped)
     {
         // Close on a real (zero-size) item: the body may have submitted nothing
         // at all after SectionBodyGap moved the cursor, and a window that ends
         // on a bare cursor write trips ImGui's boundary check at End().
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 0.0f));
         ImGui::PopStyleVar();
         return;
@@ -475,8 +505,7 @@ void SchematicSectionEnd()
     // than a bare cursor write: a section that ends a window would otherwise
     // leave the cursor "set" and trip ImGui's check at End().
     ImGui::SetCursorScreenPos(ImVec2(sc.startX, sc.startY + sc.visibleH));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 0.0f));
     ImGui::PopStyleVar();
 
@@ -491,9 +520,15 @@ namespace Fonts
 {
 void RegisterTtf(ImFont* font, const char* ttfPath)
 {
-    if (!font || !ttfPath) return;
+    if (!font || !ttfPath)
+    {
+        return;
+    }
     FT_Library lib = nullptr;
-    if (FT_Init_FreeType(&lib) != 0) return;
+    if (FT_Init_FreeType(&lib) != 0)
+    {
+        return;
+    }
     FT_Face face = nullptr;
     if (FT_New_Face(lib, ttfPath, 0, &face) == 0)
     {
@@ -505,13 +540,17 @@ void RegisterTtf(ImFont* font, const char* ttfPath)
         const float upm = (float)face->units_per_EM;
         const float ascDesc = (float)(face->ascender - face->descender);
         if (upm > 0.0f)
+        {
             s_FontCssRatios[font] = ascDesc / upm;
+        }
 
         FT_Fixed advance = 0;
         const FT_UInt zero = FT_Get_Char_Index(face, '0');
         if (upm > 0.0f && FT_IS_FIXED_WIDTH(face) && zero != 0 &&
             FT_Get_Advance(face, zero, FT_LOAD_NO_SCALE, &advance) == 0 && advance > 0)
+        {
             s_FontMonoAdvance[font] = (float)advance / upm;
+        }
         FT_Done_Face(face);
     }
     FT_Done_FreeType(lib);
@@ -528,7 +567,9 @@ float CssPx(ImFont* font, float cssPx)
     {
         const float cell = std::round(cssPx * adv->second);
         if (cell >= 1.0f)
+        {
             cssPx = cell / adv->second;
+        }
     }
     auto it = s_FontCssRatios.find(font);
     return cssPx * (it != s_FontCssRatios.end() ? it->second : 1.0f);
@@ -588,7 +629,9 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
 {
     const int count = static_cast<int>(buttons.size());
     if (count == 0)
+    {
         return -1;
+    }
 
     // A little air above the row, then the row across the full width.
     ImGui::Spacing();
@@ -604,7 +647,9 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
     for (const DialogButtonSpec& b : buttons)
     {
         if (i > 0)
+        {
             ImGui::SameLine(0.0f, gap);
+        }
         int colours = 0;
         if (b.kind != DialogButton::Normal)
         {
@@ -612,8 +657,8 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
             // their own press: held since last frame -> toward the pressed colour.
             const ImGuiID id = ImGui::GetID(b.label);
             const bool held = ImGui::GetActiveID() == id;
-            const float t = Motion::EaseOut(
-                Motion::To(id ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Motion::Fast : Motion::Normal));
+            const float t =
+                Motion::EaseOut(Motion::To(id ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Motion::Fast : Motion::Normal));
             ImVec4 rest, hovered, pressed;
             if (b.kind == DialogButton::Primary)
             {
@@ -639,7 +684,9 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
         }
         ImGui::BeginDisabled(!b.enabled);
         if (ImGui::Button(b.label, ImVec2(width, 0.0f)))
+        {
             clicked = i;
+        }
         ImGui::EndDisabled();
         ImGui::PopStyleColor(colours);
         ++i;
@@ -858,19 +905,23 @@ void SetupEditorTheme(float dpiScale)
 // Draw `text` with `letterSpacing` extra pixels between glyphs at the given
 // font size. Walks UTF-8 codepoints; uses CalcTextSizeA for per-char advance
 // (kerning ignored - fine for short uppercase labels). Returns total width.
-static float DrawSpacedText(ImDrawList* dl, ImFont* font, float fontSize,
-                            ImVec2 pos, ImU32 col, const char* text,
+static float DrawSpacedText(ImDrawList* dl, ImFont* font, float fontSize, ImVec2 pos, ImU32 col, const char* text,
                             float letterSpacing)
 {
     if (!font || !text || !*text)
+    {
         return 0.0f;
+    }
     float x = pos.x;
     const char* s = text;
     while (*s)
     {
         unsigned int c;
         int bytes = ImTextCharFromUtf8(&c, s, nullptr);
-        if (bytes <= 0) break;
+        if (bytes <= 0)
+        {
+            break;
+        }
         const char* glyphBegin = s;
         const char* glyphEnd = s + bytes;
         dl->AddText(font, fontSize, ImVec2(x, pos.y), col, glyphBegin, glyphEnd);
@@ -889,7 +940,10 @@ static void Upper(const char* in, char* out, size_t outCap)
     while (in[i] && i + 1 < outCap)
     {
         char c = in[i];
-        if (c >= 'a' && c <= 'z') c -= 32;
+        if (c >= 'a' && c <= 'z')
+        {
+            c -= 32;
+        }
         out[i] = c;
         ++i;
     }
@@ -909,7 +963,9 @@ static void Upper(const char* in, char* out, size_t outCap)
 static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, float rightEdgeX)
 {
     if (!bar || bar->Tabs.Size == 0 || !g_FontUIBold)
+    {
         return;
+    }
 
     const ImU32 colAccent = ImGui::ColorConvertFloat4ToU32(Palette::Accent);
     const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
@@ -952,24 +1008,26 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
 
         // Push central-section clip rect so scrolled-out tabs don't bleed
         // into the leading/trailing buttons or beyond the bar.
-        const bool want_clip = is_central &&
-                               (x0 < bar->ScrollingRectMinX || x1 > bar->ScrollingRectMaxX);
+        const bool want_clip = is_central && (x0 < bar->ScrollingRectMinX || x1 > bar->ScrollingRectMaxX);
         if (want_clip)
-            dl->PushClipRect(ImVec2(bar->ScrollingRectMinX, barY0),
-                             ImVec2(bar->ScrollingRectMaxX, barY1), true);
+        {
+            dl->PushClipRect(ImVec2(bar->ScrollingRectMinX, barY0), ImVec2(bar->ScrollingRectMaxX, barY1), true);
+        }
 
         // Wipe the native label area so the default-font text is hidden.
         // Reserve the close-button strip on the right so the native (X) glyph
         // stays visible - ImGui drew it earlier in this frame and our fill
         // would otherwise paint over it.
         const float labelAreaRight = ImMax(x0, x1 - closeStripW);
-        dl->AddRectFilled(ImVec2(x0, barY0), ImVec2(labelAreaRight, barY1),
-                          active ? colBgAct : colBgInact);
+        dl->AddRectFilled(ImVec2(x0, barY0), ImVec2(labelAreaRight, barY1), active ? colBgAct : colBgInact);
 
         // Resolve the panel display name from the tab name (strip the ###ID
         // suffix so e.g. "Hierarchy###Hierarchy" renders just "HIERARCHY").
         const char* rawName = ImGui::TabBarGetTabName(bar, tab);
-        if (!rawName) continue;
+        if (!rawName)
+        {
+            continue;
+        }
         char visible[64];
         {
             size_t i = 0;
@@ -977,7 +1035,9 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
             {
                 // ImGui's ###ID convention: everything from "###" onward is ID-only.
                 if (rawName[i] == '#' && rawName[i + 1] == '#' && rawName[i + 2] == '#')
+                {
                     break;
+                }
                 visible[i] = rawName[i];
                 ++i;
             }
@@ -996,12 +1056,18 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         {
             unsigned int c;
             int bytes = ImTextCharFromUtf8(&c, s, nullptr);
-            if (bytes <= 0) break;
+            if (bytes <= 0)
+            {
+                break;
+            }
             s += bytes;
             ++chars;
         }
         float labelW = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, upper).x;
-        if (chars > 1) labelW += letterSpacing * (chars - 1);
+        if (chars > 1)
+        {
+            labelW += letterSpacing * (chars - 1);
+        }
 
         // Request a tab width that fits our drawn label exactly the way
         // TabItemCalcSize would - but using OUR measured label width instead
@@ -1020,25 +1086,24 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         const float labelX = x0 + style.FramePadding.x;
         const float labelY = barY0 + ImFloor((barY1 - barY0 - fontSize) * 0.5f);
 
-        DrawSpacedText(dl, font, fontSize, ImVec2(labelX, labelY),
-                       active ? colFg : colDim, upper, letterSpacing);
+        DrawSpacedText(dl, font, fontSize, ImVec2(labelX, labelY), active ? colFg : colDim, upper, letterSpacing);
 
         // 2px accent bottom underline for the active tab - spans the full
         // tab width (label + X + surrounding padding).
         if (active)
         {
-            dl->AddRectFilled(ImVec2(x0, barY1 - 2.0f),
-                              ImVec2(x1, barY1), colAccent);
+            dl->AddRectFilled(ImVec2(x0, barY1 - 2.0f), ImVec2(x1, barY1), colAccent);
         }
 
         if (want_clip)
+        {
             dl->PopClipRect();
+        }
     }
 
     // 1px hairline along the bar's bottom edge - extend to the dock node's
     // true edges on both sides so it meets the column separators with no gap.
-    dl->AddLine(ImVec2(leftEdgeX, barY1),
-                ImVec2(rightEdgeX, barY1), colLine, 1.0f);
+    dl->AddLine(ImVec2(leftEdgeX, barY1), ImVec2(rightEdgeX, barY1), colLine, 1.0f);
 }
 
 // The seam line between two docked panels is drawn by ImGui itself: its dock
@@ -1065,16 +1130,23 @@ void DrawDockSeams()
     {
         ImGuiWindow* w = g.Windows[i];
         if (!w || !w->WasActive || w->Hidden)
+        {
             continue;
+        }
         if (w != w->RootWindow)
+        {
             continue;
+        }
         if (w->DockIsActive || w->DockNodeAsHost)
+        {
             continue;
-        if (w->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Popup |
-                        ImGuiWindowFlags_Tooltip))
+        }
+        if (w->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Popup | ImGuiWindowFlags_Tooltip))
+        {
             continue;
-        w->DrawList->AddRect(w->Pos, ImVec2(w->Pos.x + w->Size.x, w->Pos.y + w->Size.y),
-                             col, w->WindowRounding, 0, 1.0f);
+        }
+        w->DrawList->AddRect(w->Pos, ImVec2(w->Pos.x + w->Size.x, w->Pos.y + w->Size.y), col, w->WindowRounding, 0,
+                             1.0f);
     }
 }
 
@@ -1097,7 +1169,9 @@ void DrawAllTabTopAccents()
     {
         ImGuiWindow* w = g.Windows[i];
         if (!w || !w->DockNode || w->DockNode == lastNode)
+        {
             continue;
+        }
         lastNode = w->DockNode;
         // Only a host drawn this frame. A dock node outlives its windows: on
         // the project manager screen no panel is drawn, and after a minute
@@ -1112,8 +1186,7 @@ void DrawAllTabTopAccents()
             // separators on either side.
             const float leftEdgeX = w->DockNode->Pos.x;
             const float rightEdgeX = w->DockNode->Pos.x + w->DockNode->Size.x;
-            RestyleTabRow(w->DockNode->TabBar, w->DockNode->HostWindow->DrawList,
-                          leftEdgeX, rightEdgeX);
+            RestyleTabRow(w->DockNode->TabBar, w->DockNode->HostWindow->DrawList, leftEdgeX, rightEdgeX);
         }
     }
 
@@ -1125,9 +1198,13 @@ void DrawAllTabTopAccents()
     {
         ImGuiTabBar* bar = g.TabBars.TryGetMapData(i);
         if (!bar)
+        {
             continue;
+        }
         if (bar->PrevFrameVisible + 1 < g.FrameCount)
+        {
             continue;
+        }
 
         ImGuiWindow* owner = nullptr;
         float ownerArea = FLT_MAX;
@@ -1136,13 +1213,19 @@ void DrawAllTabTopAccents()
         {
             ImGuiWindow* w = g.Windows[wi];
             if (!w || !w->Active || w->Hidden)
+            {
                 continue;
+            }
             // Skip tooltip / popup / menu layers - we want the underlying panel.
             if (w->Flags & (ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_Popup))
+            {
                 continue;
+            }
             ImRect r = w->Rect();
             if (!r.Contains(probe))
+            {
                 continue;
+            }
             float area = r.GetWidth() * r.GetHeight();
             if (area < ownerArea)
             {
@@ -1151,7 +1234,9 @@ void DrawAllTabTopAccents()
             }
         }
         if (owner)
+        {
             RestyleTabRow(bar, owner->DrawList, bar->BarRect.Min.x, bar->BarRect.Max.x);
+        }
     }
 }
 
@@ -1159,7 +1244,9 @@ bool SchematicCheckbox(const char* label, bool* v, const ImVec4& fillColor)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
+    {
         return false;
+    }
 
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
@@ -1173,13 +1260,14 @@ bool SchematicCheckbox(const char* label, bool* v, const ImVec4& fillColor)
 
     const ImVec2 pos = window->DC.CursorPos;
     const ImVec2 boxPos(pos.x, pos.y + ImFloor((frameH - box) * 0.5f));
-    const ImRect total(pos,
-                       ImVec2(pos.x + box + (labelSize.x > 0.0f ? style.ItemInnerSpacing.x + labelSize.x : 0.0f),
-                              pos.y + ImMax(frameH, box)));
+    const ImRect total(pos, ImVec2(pos.x + box + (labelSize.x > 0.0f ? style.ItemInnerSpacing.x + labelSize.x : 0.0f),
+                                   pos.y + ImMax(frameH, box)));
 
     ImGui::ItemSize(total, style.FramePadding.y);
     if (!ImGui::ItemAdd(total, id))
+    {
         return false;
+    }
 
     bool hovered = false, held = false;
     bool pressed = ImGui::ButtonBehavior(total, id, &hovered, &held);
@@ -1190,8 +1278,7 @@ bool SchematicCheckbox(const char* label, bool* v, const ImVec4& fillColor)
     }
 
     ImDrawList* dl = window->DrawList;
-    const ImU32 borderCol = ImGui::ColorConvertFloat4ToU32(
-        hovered ? Palette::Line3 : Palette::Line2);
+    const ImU32 borderCol = ImGui::ColorConvertFloat4ToU32(hovered ? Palette::Line3 : Palette::Line2);
 
     // Outer box (1px border, fully transparent fill - matches mockup where the
     // box sits flush on the panel background). Rounded to the same radius as the
@@ -1206,15 +1293,14 @@ bool SchematicCheckbox(const char* label, bool* v, const ImVec4& fillColor)
         const ImU32 inner = ImGui::ColorConvertFloat4ToU32(fillColor);
         const float innerInset = ImFloor(box * 0.28f);
         dl->AddRectFilled(ImVec2(bMin.x + innerInset, bMin.y + innerInset),
-                          ImVec2(bMax.x - innerInset, bMax.y - innerInset),
-                          inner, ImMax(0.0f, boxRounding - innerInset));
+                          ImVec2(bMax.x - innerInset, bMax.y - innerInset), inner,
+                          ImMax(0.0f, boxRounding - innerInset));
     }
 
     if (labelSize.x > 0.0f)
     {
-        ImGui::RenderText(ImVec2(bMax.x + style.ItemInnerSpacing.x,
-                                 pos.y + ImFloor((ImMax(frameH, box) - fontSize) * 0.5f)),
-                          label);
+        ImGui::RenderText(
+            ImVec2(bMax.x + style.ItemInnerSpacing.x, pos.y + ImFloor((ImMax(frameH, box) - fontSize) * 0.5f)), label);
     }
 
     return pressed;
@@ -1232,10 +1318,8 @@ void BeginPropertyContext()
     // Row gap and field padding together: separation comes from the height of
     // the fields, not from air between them, which is what keeps a long list
     // reading as a table instead of a stack of loose controls.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, Metrics::RowSpacing * dpi));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                        ImVec2(Metrics::FieldPadding * dpi, Metrics::FieldPadding * dpi));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, Metrics::RowSpacing * dpi));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Metrics::FieldPadding * dpi, Metrics::FieldPadding * dpi));
 }
 
 void EndPropertyContext()
@@ -1265,16 +1349,22 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         char vis[128];
         size_t n = visLen < sizeof(vis) - 1 ? visLen : sizeof(vis) - 1;
         for (size_t i = 0; i < n; ++i)
+        {
             vis[i] = label[i];
+        }
         vis[n] = 0;
         Upper(vis, visUpper, sizeof(visUpper));
     }
 
     char idStr[160];
     if (hasId)
+    {
         ImFormatString(idStr, sizeof(idStr), "%s", hash);  // "###ID"
+    }
     else
+    {
         ImFormatString(idStr, sizeof(idStr), "###%s", visUpper);  // id == hash(visUpper)
+    }
 
     // Full-bleed the header band to the panel's real side edges (the dock
     // separators), reaching past the scrollbar on the right.
@@ -1303,8 +1393,7 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         w->WorkRect.Max.x = bandRight;
         // Widen the clip so the band paints under the scrollbar all the way to
         // the separator instead of being cut off at the content edge.
-        ImGui::PushClipRect(ImVec2(bandLeft, w->ClipRect.Min.y),
-                            ImVec2(bandRight, w->ClipRect.Max.y), false);
+        ImGui::PushClipRect(ImVec2(bandLeft, w->ClipRect.Min.y), ImVec2(bandRight, w->ClipRect.Max.y), false);
         pushedBandClip = true;
     }
 
@@ -1329,8 +1418,7 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     // SchematicSectionBegin, which emits it), so a collapsed section sits flush
     // on the hairline under it instead of leaving a row of air with nothing in
     // it - and so that gap slides away with the body rather than outliving it.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     const bool open = ImGui::CollapsingHeader(idStr, flags);
     ImGui::PopStyleVar();
     // Chevron zone from the theme token, NOT from GetTreeNodeToLabelSpacing():
@@ -1343,7 +1431,9 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     ImGui::PopStyleColor(4);
 
     if (pushedBandClip)
+    {
         ImGui::PopClipRect();
+    }
 
     // Restore the work rect; keep CursorPosPrevLine at the un-bled right edge so
     // a trailing SameLine (the `EDIT ->` link) still positions as before.
@@ -1362,8 +1452,8 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         ImDrawList* dl = w->DrawList;
 
         // Soft-gray for both chevron and label: rgb(165,166,164).
-        const ImU32 gray = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
+        const ImU32 gray =
+            ImGui::ColorConvertFloat4ToU32(ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
 
         // Thin Tabler chevron in place of ImGui's filled triangle, centered in
         // the arrow zone before the label. It TURNS from right to down over the
@@ -1375,9 +1465,8 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         if (!(flags & ImGuiTreeNodeFlags_Leaf))  // a leaf band does not fold
         {
             const float openT = AnimateTo(ImGui::GetItemID(), open ? 1.0f : 0.0f, 0.13f);
-            DrawTurningChevron(dl, ico, icoSize,
-                               ImVec2(labelBaseX + labelSpacing * 0.5f, centerY),
-                               gray, ICON_TI_CHEVRON_RIGHT, openT, IM_PI * 0.5f);
+            DrawTurningChevron(dl, ico, icoSize, ImVec2(labelBaseX + labelSpacing * 0.5f, centerY), gray,
+                               ICON_TI_CHEVRON_RIGHT, openT, IM_PI * 0.5f);
         }
 
         // Tab label: uppercase, letter-spaced, Inter SemiBold, after the arrow.
@@ -1386,8 +1475,7 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         const float letterSpacing = bodyFont * (1.0f / 13.0f);
         ImFont* f = g_FontUIBold ? g_FontUIBold : ImGui::GetFont();
         const float labelY = ImFloor(centerY - fontSize * 0.5f);
-        DrawSpacedText(dl, f, fontSize, ImVec2(labelBaseX + labelSpacing, labelY),
-                       gray, visUpper, letterSpacing);
+        DrawSpacedText(dl, f, fontSize, ImVec2(labelBaseX + labelSpacing, labelY), gray, visUpper, letterSpacing);
     }
 
     return open;
@@ -1397,7 +1485,9 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
 {
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return false;
+    }
 
     // Label split like SchematicCollapsingHeader's: the visible text is drawn by
     // hand and any "###id" tail only identifies the row, so a band whose text
@@ -1416,7 +1506,9 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     {
         size_t n = visLen < sizeof(vis) - 1 ? visLen : sizeof(vis) - 1;
         for (size_t i = 0; i < n; ++i)
+        {
             vis[i] = label[i];
+        }
         vis[n] = 0;
     }
 
@@ -1434,8 +1526,8 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // Label one step outside the content-left, floored at a margin from the
     // panel edge - the same offset the collapsing header uses, so the two kinds
     // of band line up with each other and the rows nest under both.
-    const float labelBaseX = ImMax(bandLeft + Metrics::SectionHeaderMargin * dpi,
-                                   pos.x - Metrics::SectionHeaderOutdent * dpi);
+    const float labelBaseX =
+        ImMax(bandLeft + Metrics::SectionHeaderMargin * dpi, pos.x - Metrics::SectionHeaderOutdent * dpi);
 
     // The row is a button, not a Dummy: a band that titles something renameable
     // is clicked, and this way the caller gets the click without reaching for
@@ -1463,15 +1555,18 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // sitting on the band's bottom edge and dropped its field half a band lower,
     // over the row underneath. The button IS the band's item; leave it that way.
 
-    ImGui::PushClipRect(ImVec2(bandLeft, w->ClipRect.Min.y),
-                        ImVec2(bandRight, w->ClipRect.Max.y), false);
+    ImGui::PushClipRect(ImVec2(bandLeft, w->ClipRect.Min.y), ImVec2(bandRight, w->ClipRect.Max.y), false);
     dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH),
                       ImGui::ColorConvertFloat4ToU32(Palette::Bg));
     if (const float hoverT = Motion::ItemHover(hovered); hoverT > 0.0f)
+    {
         dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH),
                           Motion::WithAlpha(IM_COL32(255, 255, 255, 10), hoverT));
+    }
     if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+    {
         dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH), Motion::PressShade(pressT));
+    }
     ImGui::PopClipRect();
 
     // No chevron is drawn, but the label still starts on the shared column:
@@ -1487,16 +1582,19 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     dl->AddText(f, fontSize, ImVec2(labelTextX, labelY), BandTitleColor(), vis);
 
     if (outLabelX)
+    {
         *outLabelX = labelTextX;
+    }
     return clicked;
 }
 
-bool SchematicBandTitleField(const char* id, char* buf, int bufSize,
-                             float x, float bandTop, float bandBottom, float width,
-                             const char* hint)
+bool SchematicBandTitleField(const char* id, char* buf, int bufSize, float x, float bandTop, float bandBottom,
+                             float width, const char* hint)
 {
     if (!buf || bufSize <= 0)
+    {
         return false;
+    }
 
     // Everything that makes an ImGui field LOOK like a field is turned off:
     // no frame background, no border, no padding. What is left is text in the
@@ -1535,7 +1633,9 @@ void SchematicSubHeader(const char* label)
 {
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return;
+    }
 
     // One rung below the section band in the same ladder: same uppercase
     // letter-spaced treatment, smaller and dimmer, with a short rule beside it
@@ -1558,16 +1658,17 @@ void SchematicSubHeader(const char* label)
     const ImU32 dim = ImGui::ColorConvertFloat4ToU32(Palette::Dim);
     const ImU32 line = ImGui::ColorConvertFloat4ToU32(Palette::Line);
     const float textY = ImFloor(pos.y + (rowH - fontSize) * 0.5f);
-    const float textW = DrawSpacedText(dl, f, fontSize, ImVec2(pos.x, textY), dim,
-                                       visUpper, letterSpacing);
+    const float textW = DrawSpacedText(dl, f, fontSize, ImVec2(pos.x, textY), dim, visUpper, letterSpacing);
 
     // Rule from the end of the label to the content edge, on the text's center
     // line: it ties the label to the rows under it without cutting the column.
     const float ruleX0 = pos.x + textW + 10.0f * dpi;
     const float ruleX1 = w->WorkRect.Max.x;
     if (ruleX1 > ruleX0)
-        dl->AddLine(ImVec2(ruleX0, ImFloor(pos.y + rowH * 0.5f)),
-                    ImVec2(ruleX1, ImFloor(pos.y + rowH * 0.5f)), line, 1.0f);
+    {
+        dl->AddLine(ImVec2(ruleX0, ImFloor(pos.y + rowH * 0.5f)), ImVec2(ruleX1, ImFloor(pos.y + rowH * 0.5f)), line,
+                    1.0f);
+    }
 
     ImGui::Dummy(ImVec2(ImMax(1.0f, w->WorkRect.Max.x - pos.x), rowH));
 }
@@ -1576,7 +1677,9 @@ bool SchematicAddButton(const char* label, float width)
 {
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return false;
+    }
 
     // An "add" is an invitation, not a command: an outlined, centered box that
     // sits quietly (transparent fill, hairline border, dim label) and only
@@ -1588,8 +1691,14 @@ bool SchematicAddButton(const char* label, float width)
     const float avail = ImGui::GetContentRegionAvail().x;
 
     float boxW = width > 0.0f ? width : 240.0f * dpi;
-    if (boxW > avail) boxW = avail;
-    if (boxW < 1.0f) boxW = 1.0f;
+    if (boxW > avail)
+    {
+        boxW = avail;
+    }
+    if (boxW < 1.0f)
+    {
+        boxW = 1.0f;
+    }
 
     const ImVec2 start = ImGui::GetCursorScreenPos();
     const ImVec2 boxMin(ImFloor(start.x + (avail - boxW) * 0.5f), start.y);
@@ -1610,21 +1719,21 @@ bool SchematicAddButton(const char* label, float width)
     const float rounding = 2.0f * dpi;
 
     if (fill)
+    {
         dl->AddRectFilled(boxMin, boxMax, fill, rounding);
+    }
     dl->AddRect(boxMin, boxMax, border, rounding, 0, 1.0f);
 
     ImFont* f = g_FontUIMed ? g_FontUIMed : ImGui::GetFont();
     const float fontSize = Fonts::CssPx(f, 12.5f) * dpi;
     const ImVec2 textSz = f->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
     dl->AddText(f, fontSize,
-                ImVec2(ImFloor(boxMin.x + (boxW - textSz.x) * 0.5f),
-                       ImFloor(boxMin.y + (boxH - textSz.y) * 0.5f)),
+                ImVec2(ImFloor(boxMin.x + (boxW - textSz.x) * 0.5f), ImFloor(boxMin.y + (boxH - textSz.y) * 0.5f)),
                 text, label);
 
     // Put x back for whatever follows; the button itself reserved the row.
     ImGui::SetCursorScreenPos(ImVec2(start.x, ImGui::GetCursorScreenPos().y));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 0.0f));
     ImGui::PopStyleVar();
     return clicked;
@@ -1634,7 +1743,9 @@ void DrawTreeNodeChevronLabel(bool open, bool expandable, const char* label, ImU
 {
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return;
+    }
 
     const ImVec2 mn = ImGui::GetItemRectMin();
     const ImVec2 mx = ImGui::GetItemRectMax();
@@ -1649,12 +1760,11 @@ void DrawTreeNodeChevronLabel(bool open, bool expandable, const char* label, ImU
     {
         ImFont* ico = g_FontUI ? g_FontUI : ImGui::GetFont();
         const float icoSize = ImGui::GetFontSize();
-        const ImU32 gray = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
+        const ImU32 gray =
+            ImGui::ColorConvertFloat4ToU32(ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
         const float openT = AnimateTo(ImGui::GetItemID(), open ? 1.0f : 0.0f, 0.13f);
-        DrawTurningChevron(dl, ico, icoSize,
-                           ImVec2(mn.x + labelSpacing * 0.5f, centerY),
-                           gray, ICON_TI_CHEVRON_RIGHT, openT, IM_PI * 0.5f);
+        DrawTurningChevron(dl, ico, icoSize, ImVec2(mn.x + labelSpacing * 0.5f, centerY), gray, ICON_TI_CHEVRON_RIGHT,
+                           openT, IM_PI * 0.5f);
     }
 
     // Label - same font/size ImGui would have used, after the arrow zone.
@@ -1662,8 +1772,7 @@ void DrawTreeNodeChevronLabel(bool open, bool expandable, const char* label, ImU
     {
         ImFont* f = ImGui::GetFont();
         const float fs = ImGui::GetFontSize();
-        dl->AddText(f, fs, ImVec2(mn.x + labelSpacing, ImFloor(centerY - fs * 0.5f)),
-                    labelColor, label);
+        dl->AddText(f, fs, ImVec2(mn.x + labelSpacing, ImFloor(centerY - fs * 0.5f)), labelColor, label);
     }
 }
 
@@ -1684,8 +1793,7 @@ void FullBleedSeparator()
     const float right = w->Pos.x + w->Size.x - w->ScrollbarSizes.x;  // stop at the scrollbar
     w->DC.CursorPos.x = left;
     w->WorkRect.Max.x = right;
-    ImGui::PushClipRect(ImVec2(left, w->ClipRect.Min.y),
-                        ImVec2(right, w->ClipRect.Max.y), false);
+    ImGui::PushClipRect(ImVec2(left, w->ClipRect.Min.y), ImVec2(right, w->ClipRect.Max.y), false);
 
     // The line costs exactly its own pixel: no ItemSpacing charged above or
     // below it. A separator is a BOUNDARY, and the band or content on either
@@ -1693,8 +1801,7 @@ void FullBleedSeparator()
     // hairline and the section header hanging off it, and the gap grew with
     // whatever row spacing the panel happened to be using (the property context
     // uses 12, so the boundary opened to 24). Tight here, deliberate there.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Separator();
     ImGui::PopStyleVar();
 
@@ -1708,11 +1815,15 @@ bool PanelToolbar(bool* pinnedExt)
     // which only the Inspector wires up. Panels that don't pin pass no flag and
     // get no toolbar - no Pin button, no kebab, no reserved strip.
     if (!pinnedExt)
+    {
         return false;
+    }
 
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return *pinnedExt;
+    }
 
     bool* pinned = pinnedExt;
 
@@ -1749,18 +1860,23 @@ bool PanelToolbar(bool* pinnedExt)
 
         ImGui::SetCursorScreenPos(ImVec2(left, top));
         if (ImGui::InvisibleButton("##deki_pin_btn", ImVec2(btnW, barH)))
+        {
             *pinned = !*pinned;
+        }
         if (const float hoverT = Motion::ItemHover(ImGui::IsItemHovered()); hoverT > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(left, top), ImVec2(left + btnW, top + barH), Motion::WithAlpha(colHover, hoverT));
+        }
         if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(left, top), ImVec2(left + btnW, top + barH), Motion::PressShade(pressT));
+        }
 
         const ImU32 col = *pinned ? colAccent : colDim;
         const float ix = left + padX;
         dl->AddText(iconFont, iconSize, ImVec2(ix, ImFloor(cy - icoSz.y * 0.5f)), col, ico);
-        DrawSpacedText(dl, lblFont, lblSize,
-                       ImVec2(ix + icoSz.x + gapIcoLbl, ImFloor(cy - lblSize * 0.5f)),
-                       col, lbl, lblSpacing);
+        DrawSpacedText(dl, lblFont, lblSize, ImVec2(ix + icoSz.x + gapIcoLbl, ImFloor(cy - lblSize * 0.5f)), col, lbl,
+                       lblSpacing);
     }
 
     // Kebab menu (right).
@@ -1772,11 +1888,17 @@ bool PanelToolbar(bool* pinnedExt)
 
         ImGui::SetCursorScreenPos(ImVec2(bx, top));
         if (ImGui::InvisibleButton("##deki_panel_menu_btn", ImVec2(btnW, barH)))
+        {
             ImGui::OpenPopup("##deki_panel_menu");
+        }
         if (const float hoverT = Motion::ItemHover(ImGui::IsItemHovered()); hoverT > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(bx, top), ImVec2(bx + btnW, top + barH), Motion::WithAlpha(colHover, hoverT));
+        }
         if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(bx, top), ImVec2(bx + btnW, top + barH), Motion::PressShade(pressT));
+        }
         dl->AddText(iconFont, iconSize, ImVec2(bx + padX, ImFloor(cy - icoSz.y * 0.5f)), colDim, ico);
     }
 
@@ -1786,7 +1908,9 @@ bool PanelToolbar(bool* pinnedExt)
     {
         PushContextMenuItemStyle();
         if (ImGui::MenuItem("Pin", nullptr, *pinned))
+        {
             *pinned = !*pinned;
+        }
         ImGui::PopStyleVar();  // ItemSpacing
         ImGui::EndPopup();
     }
@@ -1802,17 +1926,14 @@ bool PanelToolbar(bool* pinnedExt)
     // Reserved as an item rather than a bare cursor move, so a panel that draws
     // nothing under its bar does not trip ImGui's "submit an item" check.
     ImGui::SetCursorScreenPos(ImVec2(left, top + barH));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 1.0f));
     ImGui::PopStyleVar();
     return *pinned;
 }
 
-void SearchField(const char* id, char* buf, size_t bufSize,
-                 float rightReserve, bool bottomBorder,
-                 float* outSlotX, float* outSlotY, float* outSlotW, float* outSlotH,
-                 const char* hint)
+void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, bool bottomBorder, float* outSlotX,
+                 float* outSlotY, float* outSlotW, float* outSlotH, const char* hint)
 {
     // A dim magnifier + a borderless transparent input (no box), vertically
     // centered, hinting "Search". Sizing mirrors EditorApp::Dpi() via the
@@ -1857,7 +1978,9 @@ void SearchField(const char* id, char* buf, size_t bufSize,
     // it; otherwise the input keeps the symmetric searchInset gutter.
     float inputRight = winRight - searchInset;
     if (rightReserve > 0.0f)
+    {
         inputRight = (winRight - rightReserve) - slotGap;
+    }
 
     // Magnifier icon, vertically centered on the input text's middle.
     const float iconCursorOffset = framePadY + (inputLineH - iconLineH) * 0.5f;
@@ -1919,18 +2042,19 @@ void SearchField(const char* id, char* buf, size_t bufSize,
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_Text,
-                              ImGui::IsMouseHoveringRect(ImVec2(clearX, inputY),
-                                                         ImVec2(clearX + clearAdvance,
-                                                                inputY + inputFrameH))
-                                  ? Palette::Fg
-                                  : Palette::Dim2);
+        ImGui::PushStyleColor(
+            ImGuiCol_Text,
+            ImGui::IsMouseHoveringRect(ImVec2(clearX, inputY), ImVec2(clearX + clearAdvance, inputY + inputFrameH))
+                ? Palette::Fg
+                : Palette::Dim2);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
         // Scoped by the field's own id, so two search fields in one window do not
         // share a button.
         ImGui::PushID(id);
         if (ImGui::Button(ICON_TI_X "##clear"))
+        {
             buf[0] = '\0';
+        }
         ImGui::PopID();
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor(4);
@@ -1941,10 +2065,22 @@ void SearchField(const char* id, char* buf, size_t bufSize,
 
     // Report the reserved slot (flush right, spanning the full band height) so the
     // caller can fill it with a toolbar-style control sitting flush to the hairline.
-    if (outSlotX) *outSlotX = winRight - rightReserve;
-    if (outSlotY) *outSlotY = bandStart.y;
-    if (outSlotW) *outSlotW = rightReserve;
-    if (outSlotH) *outSlotH = bandBottom - bandStart.y;
+    if (outSlotX)
+    {
+        *outSlotX = winRight - rightReserve;
+    }
+    if (outSlotY)
+    {
+        *outSlotY = bandStart.y;
+    }
+    if (outSlotW)
+    {
+        *outSlotW = rightReserve;
+    }
+    if (outSlotH)
+    {
+        *outSlotH = bandBottom - bandStart.y;
+    }
 
     // Full-width hairline beneath the row (matches the panel toolbar's bottom
     // border above it), floored to a crisp 1px row. It sits a clear searchPadY
@@ -1961,8 +2097,7 @@ void SearchField(const char* id, char* buf, size_t bufSize,
     // zero item: a bare cursor move as a window's last act is what ImGui's
     // "submit an item e.g. Dummy()" check complains about.
     ImGui::SetCursorScreenPos(ImVec2(bandStart.x, bandBottom));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 0.0f));
     ImGui::PopStyleVar();
 }
@@ -1971,8 +2106,8 @@ void SearchField(const char* id, char* buf, size_t bufSize,
 // given draw list. Shared core: OverlayLeftAlignedValue uses the current item's
 // rect; the schematic combo uses the box rect it captured before BeginCombo
 // (the open popup changes the last-item rect, so GetItemRect* can't be trusted).
-static void DrawLeftAlignedValue(ImDrawList* dl, const ImVec2& itemMin, const ImVec2& itemMax,
-                                 const char* formatted, float xOffset = 0.0f)
+static void DrawLeftAlignedValue(ImDrawList* dl, const ImVec2& itemMin, const ImVec2& itemMax, const char* formatted,
+                                 float xOffset = 0.0f)
 {
     ImFont* font = g_FontMono ? g_FontMono : ImGui::GetFont();
     // Mono value font at 12.5 CSS px. CssPx applies the mono em-ratio and we
@@ -1982,10 +2117,8 @@ static void DrawLeftAlignedValue(ImDrawList* dl, const ImVec2& itemMin, const Im
     const float padX = ImGui::GetStyle().FramePadding.x;
     const float y = itemMin.y + ImMax(0.0f, (itemMax.y - itemMin.y - textSize.y) * 0.5f);
 
-    dl->PushClipRect(ImVec2(itemMin.x + 1 + xOffset, itemMin.y + 1),
-                     ImVec2(itemMax.x - 1, itemMax.y - 1), true);
-    dl->AddText(font, fontSize, ImVec2(itemMin.x + xOffset + padX, y),
-                ImGui::GetColorU32(ImGuiCol_Text), formatted);
+    dl->PushClipRect(ImVec2(itemMin.x + 1 + xOffset, itemMin.y + 1), ImVec2(itemMax.x - 1, itemMax.y - 1), true);
+    dl->AddText(font, fontSize, ImVec2(itemMin.x + xOffset + padX, y), ImGui::GetColorU32(ImGuiCol_Text), formatted);
     dl->PopClipRect();
 }
 
@@ -1998,10 +2131,12 @@ static void OverlayLeftAlignedValue(const char* formatted, float xOffset = 0.0f)
 {
     const ImGuiID id = ImGui::GetItemID();
     if (ImGui::TempInputIsActive(id))
+    {
         return;
+    }
 
-    DrawLeftAlignedValue(ImGui::GetWindowDrawList(),
-                         ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), formatted, xOffset);
+    DrawLeftAlignedValue(ImGui::GetWindowDrawList(), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), formatted,
+                         xOffset);
 }
 
 // Paint a colored axis stamp on the left edge of the just-drawn drag frame.
@@ -2016,25 +2151,22 @@ static float OverlayAxisStamp(const char* axisLabel, const ImVec4& axisColor)
     const float stampW = labelSize.x + padX * 2.0f;
     const bool active = ImGui::TempInputIsActive(id);
     if (active)
+    {
         return stampW;  // skip overlay paint during text edit; reserve width anyway
+    }
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const ImU32 bg = IM_COL32(255, 255, 255, 8);
     const ImU32 sep = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
     const ImU32 fg = ImGui::ColorConvertFloat4ToU32(axisColor);
 
-    dl->AddRectFilled(ImVec2(itemMin.x + 1, itemMin.y + 1),
-                      ImVec2(itemMin.x + stampW, itemMax.y - 1), bg);
-    dl->AddLine(ImVec2(itemMin.x + stampW, itemMin.y + 1),
-                ImVec2(itemMin.x + stampW, itemMax.y - 1), sep, 1.0f);
-    dl->AddText(ImVec2(itemMin.x + padX,
-                       itemMin.y + (itemMax.y - itemMin.y - labelSize.y) * 0.5f),
-                fg, axisLabel);
+    dl->AddRectFilled(ImVec2(itemMin.x + 1, itemMin.y + 1), ImVec2(itemMin.x + stampW, itemMax.y - 1), bg);
+    dl->AddLine(ImVec2(itemMin.x + stampW, itemMin.y + 1), ImVec2(itemMin.x + stampW, itemMax.y - 1), sep, 1.0f);
+    dl->AddText(ImVec2(itemMin.x + padX, itemMin.y + (itemMax.y - itemMin.y - labelSize.y) * 0.5f), fg, axisLabel);
     return stampW;
 }
 
-bool SchematicDragFloat(const char* id, float* v, float v_speed,
-                        float v_min, float v_max, const char* format)
+bool SchematicDragFloat(const char* id, float* v, float v_speed, float v_min, float v_max, const char* format)
 {
     // Empty format suppresses ImGui's centered value text without disabling
     // the widget; edit mode (TempInput) still uses the real format via
@@ -2049,8 +2181,7 @@ bool SchematicDragFloat(const char* id, float* v, float v_speed,
     return changed;
 }
 
-bool SchematicDragInt(const char* id, int* v, float v_speed,
-                      int v_min, int v_max, const char* format)
+bool SchematicDragInt(const char* id, int* v, float v_speed, int v_min, int v_max, const char* format)
 {
     bool changed = ImGui::DragInt(id, v, v_speed, v_min, v_max, "");
     if (format && format[0])
@@ -2072,8 +2203,7 @@ static const ImVec4 kAxisColors[3] = {
 };
 
 template <int N>
-static bool SchematicDragFloatN(const char* id, float v[N], float v_speed,
-                                float v_min, float v_max, const char* format)
+static bool SchematicDragFloatN(const char* id, float v[N], float v_speed, float v_min, float v_max, const char* format)
 {
     // Split available row width across N components with inner spacing.
     const float total = ImGui::CalcItemWidth();
@@ -2085,14 +2215,19 @@ static bool SchematicDragFloatN(const char* id, float v[N], float v_speed,
     ImGui::BeginGroup();
     for (int i = 0; i < N; ++i)
     {
-        if (i > 0) ImGui::SameLine(0.0f, spacing);
+        if (i > 0)
+        {
+            ImGui::SameLine(0.0f, spacing);
+        }
         ImGui::SetNextItemWidth(compW);
         char compId[8];
         ImFormatString(compId, IM_ARRAYSIZE(compId), "##c%d", i);
 
         // Draw the drag with no value text (empty format).
         if (ImGui::DragFloat(compId, &v[i], v_speed, v_min, v_max, ""))
+        {
             changed = true;
+        }
 
         // Axis stamp on the left, value overlay offset past the stamp.
         const float stampW = OverlayAxisStamp(kAxisLabels[i], kAxisColors[i]);
@@ -2108,20 +2243,18 @@ static bool SchematicDragFloatN(const char* id, float v[N], float v_speed,
     return changed;
 }
 
-bool SchematicDragFloat2(const char* id, float v[2], float v_speed,
-                         float v_min, float v_max, const char* format)
+bool SchematicDragFloat2(const char* id, float v[2], float v_speed, float v_min, float v_max, const char* format)
 {
     return SchematicDragFloatN<2>(id, v, v_speed, v_min, v_max, format);
 }
 
-bool SchematicDragFloat3(const char* id, float v[3], float v_speed,
-                         float v_min, float v_max, const char* format)
+bool SchematicDragFloat3(const char* id, float v[3], float v_speed, float v_min, float v_max, const char* format)
 {
     return SchematicDragFloatN<3>(id, v, v_speed, v_min, v_max, format);
 }
 
-bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed,
-                            float v_min, float v_max, const char* format)
+bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed, float v_min, float v_max,
+                            const char* format)
 {
     axis = ImClamp(axis, 0, 2);
     const bool changed = ImGui::DragFloat(id, v, v_speed, v_min, v_max, "");
@@ -2167,7 +2300,10 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
 
     for (int ch = 0; ch < N; ++ch)
     {
-        if (ch > 0) ImGui::SameLine(0.0f, gap);
+        if (ch > 0)
+        {
+            ImGui::SameLine(0.0f, gap);
+        }
 
         const ImVec2 cellPos = ImGui::GetCursorScreenPos();
         const float cellH = ImGui::GetFrameHeight();
@@ -2175,8 +2311,7 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // 3px colored stripe on the left
-        dl->AddRectFilled(cellPos, ImVec2(cellPos.x + stripeW, cellMax.y),
-                          channelStripeCols[ch]);
+        dl->AddRectFilled(cellPos, ImVec2(cellPos.x + stripeW, cellMax.y), channelStripeCols[ch]);
 
         // Drag widget for the 0-255 value, offset past the stripe
         ImGui::PushID(ch);
@@ -2202,15 +2337,17 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
     ImGui::InvisibleButton("##swatch", ImVec2(swatchW, swatchH));
     const bool swatchHovered = ImGui::IsItemHovered();
     if (ImGui::IsItemClicked())
+    {
         ImGui::OpenPopup("##colorpicker");
+    }
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     // Round the swatch to match the themed frames, clamped to half its size.
     const float swatchRounding = ImMin(ImGui::GetStyle().FrameRounding, swatchW * 0.5f);
-    dl->AddRectFilled(swatchPos, swatchMax,
-                      ImGui::ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 1.0f)), swatchRounding);
-    dl->AddRect(swatchPos, swatchMax,
-                ImGui::ColorConvertFloat4ToU32(swatchHovered ? Palette::Line3 : Palette::Line2), swatchRounding);
+    dl->AddRectFilled(swatchPos, swatchMax, ImGui::ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 1.0f)),
+                      swatchRounding);
+    dl->AddRect(swatchPos, swatchMax, ImGui::ColorConvertFloat4ToU32(swatchHovered ? Palette::Line3 : Palette::Line2),
+                swatchRounding);
 
     // A fixed picker width, and the popup placed under the swatch but pulled
     // left so it ends inside the editor window: the Inspector sits at the
@@ -2229,15 +2366,17 @@ static bool SchematicColorEditN(const char* id, float* col, int N)
         ImGui::SetNextItemWidth(pickerW);
         if (N >= 4)
         {
-            if (ImGui::ColorPicker4("##pick", col,
-                                    ImGuiColorEditFlags_AlphaBar |
-                                        ImGuiColorEditFlags_NoSidePreview))
+            if (ImGui::ColorPicker4("##pick", col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoSidePreview))
+            {
                 changed = true;
+            }
         }
         else
         {
             if (ImGui::ColorPicker3("##pick", col, ImGuiColorEditFlags_NoSidePreview))
+            {
                 changed = true;
+            }
         }
         ImGui::EndPopup();
     }
@@ -2260,7 +2399,9 @@ bool SchematicBeginCombo(const char* id, const char* preview)
 {
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return false;
+    }
 
     const float dpi = ImGui::GetStyle().FontScaleDpi;
 
@@ -2312,8 +2453,7 @@ bool SchematicBeginCombo(const char* id, const char* preview)
         // twice that makes the highlight bleed exactly to both window edges while
         // the label keeps its inset (same trick as the menu dropdowns). Popped in
         // SchematicEndCombo.
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(2.0f * ImGui::GetStyle().FramePadding.x, 8.0f * dpi));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2.0f * ImGui::GetStyle().FramePadding.x, 8.0f * dpi));
     }
 
     if (preview && preview[0])
@@ -2332,8 +2472,8 @@ bool SchematicBeginCombo(const char* id, const char* preview)
         const float pad = ImGui::GetStyle().FramePadding.x;
         const ImU32 col = ImGui::ColorConvertFloat4ToU32(Palette::Dim);
         DrawTurningChevron(w->DrawList, ico, icoSize,
-                           ImVec2(boxMax.x - pad - cs.x * 0.5f, (boxMin.y + boxMax.y) * 0.5f),
-                           col, ICON_TI_CHEVRON_DOWN, openT, IM_PI);
+                           ImVec2(boxMax.x - pad - cs.x * 0.5f, (boxMin.y + boxMax.y) * 0.5f), col,
+                           ICON_TI_CHEVRON_DOWN, openT, IM_PI);
     }
 
     return open;
@@ -2380,11 +2520,15 @@ bool SchematicBeginToolbarCombo(const char* id, const char* preview, float heigh
     // Left-edge divider (matching the toolbar cell separators), drawn on the
     // parent window's draw list so it shows whether or not the popup is open.
     if (leftDivider && w)
+    {
         w->DrawList->AddLine(ImVec2(boxMin.x, boxMin.y), ImVec2(boxMin.x, boxMin.y + height),
                              ImGui::ColorConvertFloat4ToU32(Palette::Line2), 1.0f);
+    }
 
     if (!open)
+    {
         PopToolbarComboStyle();
+    }
     return open;
 }
 
@@ -2405,19 +2549,24 @@ float SchematicToolbarComboWidth(const char* preview)
     return std::ceil(textW + padX * 3.0f + ImGui::GetFontSize());
 }
 
-bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items, float height,
-                           bool leftDivider)
+bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items, float height, bool leftDivider)
 {
     if (!currentIndex || !items)
+    {
         return false;
+    }
 
     // Parse the "A\0B\0" zero-separated item list.
     const char* item[64];
     int count = 0;
     for (const char* p = items; p && *p && count < 64; p += strlen(p) + 1)
+    {
         item[count++] = p;
+    }
     if (count == 0)
+    {
         return false;
+    }
 
     const char* preview = (*currentIndex >= 0 && *currentIndex < count) ? item[*currentIndex] : "";
 
@@ -2427,14 +2576,15 @@ bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items,
         for (int i = 0; i < count; ++i)
         {
             const bool selected = (i == *currentIndex);
-            if (ImGui::Selectable(item[i], selected, ImGuiSelectableFlags_SpanAvailWidth) &&
-                *currentIndex != i)
+            if (ImGui::Selectable(item[i], selected, ImGuiSelectableFlags_SpanAvailWidth) && *currentIndex != i)
             {
                 *currentIndex = i;
                 changed = true;
             }
             if (selected)
+            {
                 ImGui::SetItemDefaultFocus();
+            }
         }
         SchematicEndToolbarCombo();
     }
@@ -2444,11 +2594,12 @@ bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items,
 bool SchematicCombo(const char* id, int* currentIndex, const char* const items[], int count)
 {
     if (!currentIndex || !items || count <= 0)
+    {
         return false;
+    }
 
-    const char* preview = (*currentIndex >= 0 && *currentIndex < count && items[*currentIndex])
-                              ? items[*currentIndex]
-                              : "";
+    const char* preview =
+        (*currentIndex >= 0 && *currentIndex < count && items[*currentIndex]) ? items[*currentIndex] : "";
 
     bool changed = false;
     if (SchematicBeginCombo(id, preview))
@@ -2459,15 +2610,16 @@ bool SchematicCombo(const char* id, int* currentIndex, const char* const items[]
             // SpanAvailWidth so the option's hover/selected highlight fills the
             // whole row width (combined with the full-bleed ItemSpacing pushed in
             // SchematicBeginCombo, it bleeds to both popup edges).
-            if (ImGui::Selectable(items[i] ? items[i] : "", selected,
-                                  ImGuiSelectableFlags_SpanAvailWidth) &&
+            if (ImGui::Selectable(items[i] ? items[i] : "", selected, ImGuiSelectableFlags_SpanAvailWidth) &&
                 *currentIndex != i)
             {
                 *currentIndex = i;
                 changed = true;
             }
             if (selected)
+            {
                 ImGui::SetItemDefaultFocus();
+            }
         }
         SchematicEndCombo();
     }
@@ -2480,7 +2632,9 @@ bool SchematicCombo(const char* id, int* currentIndex, const char* itemsSeparate
     const char* items[64];
     int count = 0;
     for (const char* p = itemsSeparatedByZeros; p && *p && count < 64; p += strlen(p) + 1)
+    {
         items[count++] = p;
+    }
     return SchematicCombo(id, currentIndex, items, count);
 }
 
@@ -2493,7 +2647,9 @@ bool SchematicActionLink(const char* label)
     // advances exactly as it would without the link.
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
+    {
         return false;
+    }
 
     // The preceding item is the header band (nothing else added between).
     const ImVec2 bandMin = ImGui::GetItemRectMin();
@@ -2503,7 +2659,9 @@ bool SchematicActionLink(const char* label)
     // Visible text stops at the "##" id marker.
     const char* visEnd = label;
     while (visEnd[0] != '\0' && !(visEnd[0] == '#' && visEnd[1] == '#'))
+    {
         ++visEnd;
+    }
     const ImVec2 sz = ImGui::CalcTextSize(label, visEnd);
 
     // Anchor to the right content edge (before the scrollbar), one frame
@@ -2515,8 +2673,7 @@ bool SchematicActionLink(const char* label)
     const bool clicked = ImGui::InvisibleButton(label, ImVec2(sz.x, bandH));
     const bool hovered = ImGui::IsItemHovered();
 
-    const ImU32 col = ImGui::ColorConvertFloat4ToU32(
-        hovered ? Palette::Accent : Palette::AccentDim);
+    const ImU32 col = ImGui::ColorConvertFloat4ToU32(hovered ? Palette::Accent : Palette::AccentDim);
     ImDrawList* dl = w->DrawList;
     const float textY = ImFloor(bandMin.y + (bandH - sz.y) * 0.5f);
     dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(x, textY), col, label, visEnd);

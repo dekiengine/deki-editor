@@ -26,7 +26,9 @@ ProcessRunner::~ProcessRunner()
 void ProcessRunner::Wait()
 {
     if (m_Thread.joinable())
+    {
         m_Thread.join();
+    }
 }
 
 std::vector<std::string> ProcessRunner::PollLines()
@@ -53,9 +55,13 @@ void ProcessRunner::Append(const char* data, size_t size, std::string& lineBuffe
     {
         std::string line = lineBuffer.substr(0, pos);
         if (!line.empty() && line.back() == '\r')
+        {
             line.pop_back();
+        }
         if (!line.empty())
+        {
             m_Lines.push_back(std::move(line));
+        }
         lineBuffer.erase(0, pos + 1);
     }
 }
@@ -63,12 +69,18 @@ void ProcessRunner::Append(const char* data, size_t size, std::string& lineBuffe
 void ProcessRunner::FlushLine(std::string& lineBuffer)
 {
     if (lineBuffer.empty())
+    {
         return;
+    }
     std::lock_guard<std::mutex> lock(m_Mutex);
     if (lineBuffer.back() == '\r')
+    {
         lineBuffer.pop_back();
+    }
     if (!lineBuffer.empty())
+    {
         m_Lines.push_back(lineBuffer);
+    }
     lineBuffer.clear();
 }
 
@@ -77,7 +89,9 @@ void ProcessRunner::FlushLine(std::string& lineBuffer)
 bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
 {
     if (m_Running)
+    {
         return false;
+    }
     Wait();  // a previous run's thread, if any
 
     m_TimeoutMs = timeoutMs;
@@ -98,7 +112,9 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
     HANDLE readPipe = nullptr;
     HANDLE writePipe = nullptr;
     if (!CreatePipe(&readPipe, &writePipe, &sa, 0))
+    {
         return false;
+    }
     SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
 
     STARTUPINFOA si;
@@ -127,8 +143,8 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
 
     // Suspended so the process joins the job before it can spawn children;
     // CREATE_NO_WINDOW keeps the console window from flashing up.
-    BOOL ok = CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE,
-                             CREATE_NO_WINDOW | CREATE_SUSPENDED, envPtr, nullptr, &si, &pi);
+    BOOL ok = CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED,
+                             envPtr, nullptr, &si, &pi);
     CloseHandle(writePipe);
     if (!ok)
     {
@@ -176,13 +192,19 @@ void ProcessRunner::ThreadMain()
     {
         DWORD available = 0;
         if (!PeekNamedPipe(pipe, nullptr, 0, nullptr, &available, nullptr))
+        {
             return false;
+        }
         if (available == 0)
+        {
             return false;
+        }
         DWORD toRead = (std::min)(available, static_cast<DWORD>(sizeof(buffer)));
         DWORD bytesRead = 0;
         if (!ReadFile(pipe, buffer, toRead, &bytesRead, nullptr) || bytesRead == 0)
+        {
             return false;
+        }
         Append(buffer, bytesRead, lineBuffer);
         return true;
     };
@@ -197,7 +219,9 @@ void ProcessRunner::ThreadMain()
     for (;;)
     {
         if (readAvailable())
+        {
             continue;  // keep reading while data is flowing
+        }
 
         if (WaitForSingleObject(process, 50) == WAIT_OBJECT_0)
         {
@@ -209,9 +233,13 @@ void ProcessRunner::ThreadMain()
         if (m_Cancel || timedOut)
         {
             if (job)
+            {
                 TerminateJobObject(job, 1);
+            }
             else
+            {
                 TerminateProcess(process, 1);
+            }
             WaitForSingleObject(process, 5000);
             m_TimedOut = timedOut && !m_Cancel;
             killed = true;
@@ -224,15 +252,21 @@ void ProcessRunner::ThreadMain()
     DWORD code = 0;
     int exitCode = -1;
     if (GetExitCodeProcess(process, &code))
+    {
         exitCode = static_cast<int>(code);
+    }
     if (killed && exitCode == 0)
+    {
         exitCode = 1;
+    }
     m_ExitCode = exitCode;
 
     CloseHandle(pipe);
     CloseHandle(process);
     if (job)
+    {
         CloseHandle(job);
+    }
     m_Process = nullptr;
     m_ReadPipe = nullptr;
     m_Job = nullptr;
@@ -245,7 +279,9 @@ void ProcessRunner::ThreadMain()
 bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
 {
     if (m_Running)
+    {
         return false;
+    }
     Wait();
 
     m_TimeoutMs = timeoutMs;
@@ -260,7 +296,9 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
 
     int fds[2];
     if (pipe(fds) != 0)
+    {
         return false;
+    }
 
     pid_t pid = fork();
     if (pid < 0)
@@ -308,14 +346,17 @@ void ProcessRunner::ThreadMain()
         {
             ssize_t n = read(m_ReadFd, buffer, sizeof(buffer));
             if (n > 0)
+            {
                 Append(buffer, static_cast<size_t>(n), lineBuffer);
+            }
             else
+            {
                 eof = true;
+            }
         }
 
-        const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                   std::chrono::steady_clock::now() - start)
-                                   .count();
+        const auto elapsedMs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
         const bool timedOut = m_TimeoutMs != 0 && elapsedMs > static_cast<long long>(m_TimeoutMs);
         if (!killed && (m_Cancel || timedOut))
         {
@@ -331,12 +372,18 @@ void ProcessRunner::ThreadMain()
     if (waitpid(m_Pid, &status, 0) == m_Pid)
     {
         if (WIFEXITED(status))
+        {
             exitCode = WEXITSTATUS(status);
+        }
         else
+        {
             exitCode = 1;
+        }
     }
     if (killed && exitCode == 0)
+    {
         exitCode = 1;
+    }
     m_ExitCode = exitCode;
 
     close(m_ReadFd);

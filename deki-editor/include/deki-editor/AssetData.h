@@ -72,8 +72,6 @@ DEKI_EDITOR_API std::string GetOrCreateAssetGuid(const std::string& assetPath);
  */
 DEKI_EDITOR_API std::string SalvageAssetGuid(const std::string& dataPath);
 
-
-
 /**
  * @brief Generate a deterministic GUID from a seed string (for derived assets like font sizes)
  * @param seed Seed string for GUID generation

@@ -13,7 +13,10 @@ namespace EditorNaming
 
 std::string NicifyName(const char* name)
 {
-    if (!name || !name[0]) return "";
+    if (!name || !name[0])
+    {
+        return "";
+    }
 
     std::string result;
     bool capitalizeNext = true;
@@ -74,9 +77,12 @@ const std::string& GetDisplayName(const Deki::PropertyInfo& prop)
 {
     auto it = s_DisplayNames.find(&prop);
     if (it != s_DisplayNames.end() && it->second.name == prop.name && it->second.displayName == prop.displayName)
+    {
         return it->second.text;
+    }
 
-    CachedName entry{ prop.name, prop.displayName, prop.displayName ? std::string(prop.displayName) : NicifyName(prop.name) };
+    CachedName entry{ prop.name, prop.displayName,
+                      prop.displayName ? std::string(prop.displayName) : NicifyName(prop.name) };
     return (s_DisplayNames[&prop] = std::move(entry)).text;
 }
 

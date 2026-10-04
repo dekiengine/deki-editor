@@ -45,7 +45,9 @@ bool DecodeImageFile(const std::string& absolutePath, DecodedImage& out)
     int w = 0, h = 0, channels = 0;
     unsigned char* pixels = stbi_load(absolutePath.c_str(), &w, &h, &channels, 4);
     if (!pixels)
+    {
         return false;
+    }
 
     out.width = w;
     out.height = h;
@@ -55,14 +57,12 @@ bool DecodeImageFile(const std::string& absolutePath, DecodedImage& out)
 }
 
 // IAssetImporter implementation
-ImportResult TextureImporter::Import(const std::string& sourcePath,
-                                     const std::string& cachePath)
+ImportResult TextureImporter::Import(const std::string& sourcePath, const std::string& cachePath)
 {
     return ImportWithFormat(sourcePath, cachePath, TextureFormat::RGB565A8);
 }
 
-ImportResult TextureImporter::ImportWithFormat(const std::string& sourcePath,
-                                               const std::string& cachePath,
+ImportResult TextureImporter::ImportWithFormat(const std::string& sourcePath, const std::string& cachePath,
                                                TextureFormat format)
 {
     // Load source image with stb_image
@@ -75,8 +75,7 @@ ImportResult TextureImporter::ImportWithFormat(const std::string& sourcePath,
     }
 
     // Write DTEX file
-    bool success = WriteTexFile(cachePath, data, static_cast<uint32_t>(width),
-                                static_cast<uint32_t>(height), format);
+    bool success = WriteTexFile(cachePath, data, static_cast<uint32_t>(width), static_cast<uint32_t>(height), format);
     stbi_image_free(data);
 
     if (!success)
@@ -95,17 +94,23 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
 
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open())
+    {
         return false;
+    }
 
     const std::streamoff fileSize = file.tellg();
     if (fileSize < kHeaderBytes)
+    {
         return false;
+    }
     file.seekg(0, std::ios::beg);
 
     // Read magic
     file.read(outData.header.magic, 4);
     if (std::string(outData.header.magic, 4) != "2DTX")
+    {
         return false;
+    }
 
     // Read header fields
     file.read(reinterpret_cast<char*>(&outData.header.version), sizeof(uint32_t));
@@ -117,7 +122,9 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     file.read(reinterpret_cast<char*>(&outData.header.flags), sizeof(uint32_t));
 
     if (!file.good())
+    {
         return false;
+    }
 
     // dataSize is a raw uint32 straight out of the file, so it can claim up to
     // 4 GiB. Passing it to resize() unchecked turned any corrupt or crafted
@@ -129,8 +136,7 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     {
         DEKI_LOG_WARNING("ReadTexFile: '%s' claims %u bytes of pixel data but only %lld "
                          "remain in the file; treating as corrupt",
-                         path.c_str(), outData.header.dataSize,
-                         static_cast<long long>(available));
+                         path.c_str(), outData.header.dataSize, static_cast<long long>(available));
         return false;
     }
 
@@ -140,29 +146,25 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     // Deki targets small embedded displays; nothing legitimate here approaches
     // this, and it keeps width * height inside 64 bits with room to spare.
     constexpr uint32_t kMaxTextureDimension = 32768;
-    if (outData.header.width == 0 || outData.header.height == 0 ||
-        outData.header.width > kMaxTextureDimension ||
+    if (outData.header.width == 0 || outData.header.height == 0 || outData.header.width > kMaxTextureDimension ||
         outData.header.height > kMaxTextureDimension)
     {
-        DEKI_LOG_WARNING("ReadTexFile: '%s' has implausible dimensions %ux%u",
-                         path.c_str(), outData.header.width, outData.header.height);
+        DEKI_LOG_WARNING("ReadTexFile: '%s' has implausible dimensions %ux%u", path.c_str(), outData.header.width,
+                         outData.header.height);
         return false;
     }
 
-    const uint64_t pixels = static_cast<uint64_t>(outData.header.width) *
-                            static_cast<uint64_t>(outData.header.height);
+    const uint64_t pixels = static_cast<uint64_t>(outData.header.width) * static_cast<uint64_t>(outData.header.height);
     const uint64_t bpp = static_cast<uint64_t>(outData.getBytesPerPixel());
     if (bpp == 0)
     {
-        DEKI_LOG_WARNING("ReadTexFile: '%s' has unknown pixel format %u",
-                         path.c_str(), outData.header.format);
+        DEKI_LOG_WARNING("ReadTexFile: '%s' has unknown pixel format %u", path.c_str(), outData.header.format);
         return false;
     }
     if (pixels * bpp != static_cast<uint64_t>(outData.header.dataSize))
     {
-        DEKI_LOG_WARNING("ReadTexFile: '%s' dataSize %u does not match %ux%u at %u bytes/pixel",
-                         path.c_str(), outData.header.dataSize,
-                         outData.header.width, outData.header.height, bpp);
+        DEKI_LOG_WARNING("ReadTexFile: '%s' dataSize %u does not match %ux%u at %u bytes/pixel", path.c_str(),
+                         outData.header.dataSize, outData.header.width, outData.header.height, bpp);
         return false;
     }
 
@@ -173,7 +175,10 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     return file.good() || file.eof();
 }
 
-bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaData, uint32_t width, uint32_t height, TextureFormat format, const SpriteSettings* spriteSettings, const std::vector<SubAssetInfo>* frameSubAssets, const ChromaKeySettings* chromaKey, uint32_t sourceWidth, uint32_t sourceHeight)
+bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaData, uint32_t width, uint32_t height,
+                                   TextureFormat format, const SpriteSettings* spriteSettings,
+                                   const std::vector<SubAssetInfo>* frameSubAssets, const ChromaKeySettings* chromaKey,
+                                   uint32_t sourceWidth, uint32_t sourceHeight)
 {
     // Create cache directory if it doesn't exist
     fs::path filePath(path);
@@ -189,7 +194,9 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     const std::string tmpPath = path + ".tmp";
     std::ofstream file(tmpPath, std::ios::binary | std::ios::trunc);
     if (!file.is_open())
+    {
         return false;
+    }
 
     // Check for transparency and alpha
     bool hasTransparency = false;
@@ -203,7 +210,9 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         {
             hasAlpha = true;
             if (a == 0)
+            {
                 hasTransparency = true;
+            }
         }
     }
 
@@ -296,8 +305,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     uint8_t qKeyB = chromaKey ? chromaKey->b : 0;
     if (hasChromaKey)
     {
-        const bool isRGB565Family = (format == TextureFormat::RGB565 ||
-                                     format == TextureFormat::RGB565A8);
+        const bool isRGB565Family = (format == TextureFormat::RGB565 || format == TextureFormat::RGB565A8);
         if (isRGB565Family)
         {
             qKeyR = static_cast<uint8_t>((qKeyR >> 3) << 3);
@@ -373,8 +381,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     uint32_t numChunks = 0;
 
     // Stored smaller than the image (Max Size): record the image's size.
-    const bool hasSourceSize = sourceWidth > 0 && sourceHeight > 0 &&
-                               (sourceWidth != width || sourceHeight != height);
+    const bool hasSourceSize = sourceWidth > 0 && sourceHeight > 0 && (sourceWidth != width || sourceHeight != height);
 
     if (hasSpriteMetadata || hasFrameList || hasChromaKey || hasSourceSize)
     {
@@ -391,7 +398,9 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     //   (1 byte hasNineSlice + 4 * uint16 borders)
     uint32_t spriteChunkPayloadSize = 8;
     if (spriteSettings && spriteSettings->hasNineSlice)
+    {
         spriteChunkPayloadSize += 9;
+    }
 
     if (hasSpriteMetadata)
     {
@@ -410,8 +419,10 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         {
             auto it = FrameNineSlices().find((*frameSubAssets)[i].guid);
             if (it != FrameNineSlices().end())
-                frameBorders.push_back({ static_cast<uint16_t>(i), it->second.left, it->second.right,
-                                         it->second.top, it->second.bottom });
+            {
+                frameBorders.push_back(
+                    { static_cast<uint16_t>(i), it->second.left, it->second.right, it->second.top, it->second.bottom });
+            }
         }
     }
     const uint32_t frameBordersSize =
@@ -446,11 +457,17 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     header.metadataSize = metadataSize;
     header.flags = 0;
     if (hasTransparency || hasChromaKey)
+    {
         header.flags |= static_cast<uint32_t>(TexFlags::HasTransparency);
+    }
     if (hasAlpha)
+    {
         header.flags |= static_cast<uint32_t>(TexFlags::HasAlpha);
+    }
     if (!hasAlpha && format == TextureFormat::RGB565A8)
+    {
         header.flags |= static_cast<uint32_t>(TexFlags::AllOpaque);
+    }
 
     // Write header
     file.write(header.magic, 4);
@@ -495,7 +512,8 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         {
             uint32_t chunkType = static_cast<uint32_t>(MetadataChunkType::FrameList);
             uint16_t frameCount = static_cast<uint16_t>(frameSubAssets->size());
-            uint32_t chunkSize = 2 + frameCount * 52 + frameBordersSize;  // frameCount + N * (36 guid + 4*4 coords) + borders
+            uint32_t chunkSize =
+                2 + frameCount * 52 + frameBordersSize;  // frameCount + N * (36 guid + 4*4 coords) + borders
             file.write(reinterpret_cast<const char*>(&chunkType), sizeof(uint32_t));
             file.write(reinterpret_cast<const char*>(&chunkSize), sizeof(uint32_t));
             file.write(reinterpret_cast<const char*>(&frameCount), sizeof(uint16_t));
@@ -535,7 +553,9 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                 const uint16_t count = static_cast<uint16_t>(frameBorders.size());
                 file.write(reinterpret_cast<const char*>(&count), sizeof(uint16_t));
                 for (const auto& b : frameBorders)
+                {
                     file.write(reinterpret_cast<const char*>(b.data()), 5 * sizeof(uint16_t));
+                }
             }
         }
 
@@ -556,8 +576,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
             file.write(reinterpret_cast<const char*>(&spansCount), sizeof(uint32_t));
             if (spansCount > 0)
             {
-                file.write(reinterpret_cast<const char*>(chromaSpans.data()),
-                           spansCount * sizeof(int16_t));
+                file.write(reinterpret_cast<const char*>(chromaSpans.data()), spansCount * sizeof(int16_t));
             }
         }
 
@@ -590,25 +609,35 @@ bool TextureImporter::ReadSourceSize(const std::string& texPath, int& outWidth, 
 {
     std::ifstream file(texPath, std::ios::binary);
     if (!file.is_open())
+    {
         return false;
+    }
     TexHeader header;
     if (!file.read(reinterpret_cast<char*>(&header), sizeof(header)) || std::string(header.magic, 4) != "2DTX")
+    {
         return false;
+    }
     outWidth = static_cast<int>(header.width);
     outHeight = static_cast<int>(header.height);
     if (header.metadataSize == 0)
+    {
         return true;
+    }
 
     file.seekg(header.dataSize, std::ios::cur);
     uint32_t numChunks = 0;
     if (!file.read(reinterpret_cast<char*>(&numChunks), sizeof(uint32_t)))
+    {
         return true;
+    }
     for (uint32_t i = 0; i < numChunks; ++i)
     {
         uint32_t chunkType = 0, chunkSize = 0;
         if (!file.read(reinterpret_cast<char*>(&chunkType), sizeof(uint32_t)) ||
             !file.read(reinterpret_cast<char*>(&chunkSize), sizeof(uint32_t)))
+        {
             return true;
+        }
         if (chunkType == static_cast<uint32_t>(MetadataChunkType::SourceSize) && chunkSize >= 8)
         {
             uint32_t w = 0, h = 0;
@@ -630,7 +659,9 @@ bool TextureImporter::HasAlphaChannel(const uint8_t* rgbaData, size_t pixelCount
     for (size_t i = 0; i < pixelCount; ++i)
     {
         if (rgbaData[i * 4 + 3] < 255)
+        {
             return true;
+        }
     }
     return false;
 }
@@ -714,16 +745,15 @@ std::vector<uint8_t> TextureImporter::ConvertToRGBA(const TexData& data)
     return rgba;
 }
 
-std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaData,
-                                                          uint32_t width, uint32_t height,
-                                                          uint8_t alphaThreshold,
-                                                          int minWidth,
-                                                          int minHeight)
+std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaData, uint32_t width, uint32_t height,
+                                                          uint8_t alphaThreshold, int minWidth, int minHeight)
 {
     std::vector<AtlasFrame> frames;
 
     if (!rgbaData || width == 0 || height == 0)
+    {
         return frames;
+    }
 
     // Create visited bitmap (false = unvisited)
     std::vector<bool> visited(width * height, false);
@@ -732,7 +762,9 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
     auto isOpaque = [&](int x, int y) -> bool
     {
         if (x < 0 || x >= (int)width || y < 0 || y >= (int)height)
+        {
             return false;
+        }
         int idx = (y * width + x) * 4;
         return rgbaData[idx + 3] > alphaThreshold;
     };
@@ -757,24 +789,42 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
 
             // Skip if out of bounds or already visited
             if (x < 0 || x >= (int)width || y < 0 || y >= (int)height)
+            {
                 continue;
+            }
 
             int idx = y * width + x;
             if (visited[idx])
+            {
                 continue;
+            }
 
             // Skip transparent pixels
             if (!isOpaque(x, y))
+            {
                 continue;
+            }
 
             // Mark as visited
             visited[idx] = true;
 
             // Update bounding box
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+            if (x < minX)
+            {
+                minX = x;
+            }
+            if (x > maxX)
+            {
+                maxX = x;
+            }
+            if (y < minY)
+            {
+                minY = y;
+            }
+            if (y > maxY)
+            {
+                maxY = y;
+            }
 
             // Add neighbors to stack (4-connectivity)
             stack.push_back({ x + 1, y });
@@ -793,7 +843,9 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
 
             // Skip if already visited or transparent
             if (visited[idx] || !isOpaque(x, y))
+            {
                 continue;
+            }
 
             // Found new opaque region - flood fill to find bounding box
             int minX, minY, maxX, maxY;
@@ -847,22 +899,30 @@ void TextureImporter::SetFrameNineSlice(const std::string& frameGuid, bool has, 
                                         uint16_t top, uint16_t bottom)
 {
     if (has)
+    {
         FrameNineSlices()[frameGuid] = { left, right, top, bottom };
+    }
     else
+    {
         FrameNineSlices().erase(frameGuid);
+    }
 }
 
 bool TextureImporter::HasFrameListChunk(const std::string& texPath)
 {
     std::ifstream file(texPath, std::ios::binary);
     if (!file.is_open())
+    {
         return false;
+    }
 
     // Read and validate header
     TexHeader header;
     file.read(header.magic, 4);
     if (std::string(header.magic, 4) != "2DTX")
+    {
         return false;
+    }
 
     file.read(reinterpret_cast<char*>(&header.version), sizeof(uint32_t));
     file.read(reinterpret_cast<char*>(&header.width), sizeof(uint32_t));
@@ -874,7 +934,9 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
 
     // No metadata means no frame list
     if (header.metadataSize == 0)
+    {
         return false;
+    }
 
     // Skip pixel data to reach metadata
     file.seekg(header.dataSize, std::ios::cur);
@@ -883,7 +945,9 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
     uint32_t numChunks = 0;
     file.read(reinterpret_cast<char*>(&numChunks), sizeof(uint32_t));
     if (!file.good() || numChunks == 0)
+    {
         return false;
+    }
 
     // Scan chunks for FrameList
     for (uint32_t i = 0; i < numChunks; ++i)
@@ -894,10 +958,14 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
         file.read(reinterpret_cast<char*>(&chunkSize), sizeof(uint32_t));
 
         if (!file.good())
+        {
             return false;
+        }
 
         if (chunkType == static_cast<uint32_t>(MetadataChunkType::FrameList))
+        {
             return true;
+        }
 
         // Skip to next chunk
         file.seekg(chunkSize, std::ios::cur);
@@ -911,14 +979,19 @@ void TextureImporter::CarryFrameIds(const std::vector<AtlasFrame>& previous, std
 {
     auto idOf = [&](size_t i) { return previous[i].id >= 0 ? previous[i].id : static_cast<int32_t>(i); };
     for (size_t i = 0; i < previous.size(); ++i)
+    {
         nextId = std::max(nextId, idOf(i) + 1);
+    }
 
     std::vector<bool> taken(previous.size(), false);
     for (AtlasFrame& f : frames)
+    {
         f.id = -1;
+    }
 
     // Same rect: the same frame.
     for (AtlasFrame& f : frames)
+    {
         for (size_t i = 0; i < previous.size(); ++i)
         {
             const AtlasFrame& p = previous[i];
@@ -929,6 +1002,7 @@ void TextureImporter::CarryFrameIds(const std::vector<AtlasFrame>& previous, std
                 break;
             }
         }
+    }
 
     // Mostly the same pixels: the same frame, cut a little differently.
     auto overlap = [](const AtlasFrame& a, const AtlasFrame& b)
@@ -936,7 +1010,9 @@ void TextureImporter::CarryFrameIds(const std::vector<AtlasFrame>& previous, std
         const int64_t w = std::min(a.x + a.width, b.x + b.width) - std::max(a.x, b.x);
         const int64_t h = std::min(a.y + a.height, b.y + b.height) - std::max(a.y, b.y);
         if (w <= 0 || h <= 0)
+        {
             return 0.0;
+        }
         const double inter = static_cast<double>(w) * static_cast<double>(h);
         const double uni = static_cast<double>(a.width) * a.height + static_cast<double>(b.width) * b.height - inter;
         return uni > 0.0 ? inter / uni : 0.0;
@@ -944,13 +1020,17 @@ void TextureImporter::CarryFrameIds(const std::vector<AtlasFrame>& previous, std
     for (AtlasFrame& f : frames)
     {
         if (f.id >= 0)
+        {
             continue;
+        }
         double best = 0.0;
         int bestIndex = -1;
         for (size_t i = 0; i < previous.size(); ++i)
         {
             if (taken[i])
+            {
                 continue;
+            }
             const double o = overlap(previous[i], f);
             if (o >= 0.5 && o > best)  // a tie keeps the earlier frame
             {
@@ -966,26 +1046,31 @@ void TextureImporter::CarryFrameIds(const std::vector<AtlasFrame>& previous, std
     }
 
     for (AtlasFrame& f : frames)
+    {
         if (f.id < 0)
+        {
             f.id = nextId++;
+        }
+    }
 }
 
-std::vector<SubAssetInfo> TextureImporter::GenerateFrameSubAssets(
-    const std::string& parentGuid,
-    int texWidth,
-    int texHeight,
-    const SpriteSettings& settings)
+std::vector<SubAssetInfo> TextureImporter::GenerateFrameSubAssets(const std::string& parentGuid, int texWidth,
+                                                                  int texHeight, const SpriteSettings& settings)
 {
     std::vector<SubAssetInfo> subAssets;
 
     if (!settings.HasData())
+    {
         return subAssets;
+    }
 
     if (settings.mode == SpriteSlicingMode::Grid)
     {
         // Grid mode: uniform frame sizes
         if (settings.frameWidth <= 0 || settings.frameHeight <= 0)
+        {
             return subAssets;
+        }
 
         int cols = texWidth / settings.frameWidth;
         int rows = texHeight / settings.frameHeight;

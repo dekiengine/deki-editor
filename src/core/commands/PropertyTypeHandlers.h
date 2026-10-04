@@ -123,10 +123,12 @@ inline nlohmann::json CaptureEnumSized(const Deki::Component* comp, size_t offse
 
 inline nlohmann::json CaptureObjectRef(const Deki::Component* comp, size_t offset)
 {
-    const Deki::ObjectRefBase& ref = *reinterpret_cast<const Deki::ObjectRefBase*>(
-        reinterpret_cast<const char*>(comp) + offset);
+    const Deki::ObjectRefBase& ref =
+        *reinterpret_cast<const Deki::ObjectRefBase*>(reinterpret_cast<const char*>(comp) + offset);
     if (ref.componentTypeId != 0)
+    {
         return nlohmann::json{ { "id", ref.id }, { "typeId", ref.componentTypeId } };
+    }
     return nlohmann::json(ref.id);
 }
 
@@ -139,73 +141,100 @@ inline nlohmann::json CaptureNoop(const Deki::Component*, size_t)
 inline void ApplyInt8(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
+    {
         *reinterpret_cast<int8_t*>(reinterpret_cast<char*>(comp) + offset) = static_cast<int8_t>(value.get<int32_t>());
+    }
 }
 
 inline void ApplyInt16(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
-        *reinterpret_cast<int16_t*>(reinterpret_cast<char*>(comp) + offset) = static_cast<int16_t>(value.get<int32_t>());
+    {
+        *reinterpret_cast<int16_t*>(reinterpret_cast<char*>(comp) + offset) =
+            static_cast<int16_t>(value.get<int32_t>());
+    }
 }
 
 inline void ApplyInt32(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
+    {
         *reinterpret_cast<int32_t*>(reinterpret_cast<char*>(comp) + offset) = value.get<int32_t>();
+    }
 }
 
 inline void ApplyInt64(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
+    {
         *reinterpret_cast<int64_t*>(reinterpret_cast<char*>(comp) + offset) = value.get<int64_t>();
+    }
 }
 
 inline void ApplyUInt8(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
-        *reinterpret_cast<uint8_t*>(reinterpret_cast<char*>(comp) + offset) = static_cast<uint8_t>(value.get<int32_t>());
+    {
+        *reinterpret_cast<uint8_t*>(reinterpret_cast<char*>(comp) + offset) =
+            static_cast<uint8_t>(value.get<int32_t>());
+    }
 }
 
 inline void ApplyUInt16(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
-        *reinterpret_cast<uint16_t*>(reinterpret_cast<char*>(comp) + offset) = static_cast<uint16_t>(value.get<int32_t>());
+    {
+        *reinterpret_cast<uint16_t*>(reinterpret_cast<char*>(comp) + offset) =
+            static_cast<uint16_t>(value.get<int32_t>());
+    }
 }
 
 inline void ApplyUInt32(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_unsigned() || value.is_number_integer())
+    {
         *reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(comp) + offset) = value.get<uint32_t>();
+    }
 }
 
 inline void ApplyUInt64(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_unsigned() || value.is_number_integer())
+    {
         *reinterpret_cast<uint64_t*>(reinterpret_cast<char*>(comp) + offset) = value.get<uint64_t>();
+    }
 }
 
 inline void ApplyFloat(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number())
+    {
         *reinterpret_cast<float*>(reinterpret_cast<char*>(comp) + offset) = value.get<float>();
+    }
 }
 
 inline void ApplyDouble(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number())
+    {
         *reinterpret_cast<double*>(reinterpret_cast<char*>(comp) + offset) = value.get<double>();
+    }
 }
 
 inline void ApplyBool(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_boolean())
+    {
         *reinterpret_cast<bool*>(reinterpret_cast<char*>(comp) + offset) = value.get<bool>();
+    }
 }
 
 inline void ApplyString(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_string())
+    {
         *reinterpret_cast<std::string*>(reinterpret_cast<char*>(comp) + offset) = value.get<std::string>();
+    }
 }
 
 inline void ApplyColor(Deki::Component* comp, size_t offset, const nlohmann::json& value)
@@ -244,7 +273,9 @@ inline void ApplyVector3(Deki::Component* comp, size_t offset, const nlohmann::j
 inline void ApplyEnum(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
     if (value.is_number_integer())
+    {
         *reinterpret_cast<int*>(reinterpret_cast<char*>(comp) + offset) = value.get<int>();
+    }
 }
 
 // Size-aware enum apply. Writes only enumSize bytes at the offset, so a
@@ -252,7 +283,10 @@ inline void ApplyEnum(Deki::Component* comp, size_t offset, const nlohmann::json
 // is how the editor used to zero out width/height when changing dither_mode).
 inline void ApplyEnumSized(Deki::Component* comp, size_t offset, const nlohmann::json& value, uint8_t enumSize)
 {
-    if (!value.is_number_integer()) return;
+    if (!value.is_number_integer())
+    {
+        return;
+    }
     int v = value.get<int>();
     char* base = reinterpret_cast<char*>(comp) + offset;
     switch (enumSize)
@@ -265,8 +299,7 @@ inline void ApplyEnumSized(Deki::Component* comp, size_t offset, const nlohmann:
 
 inline void ApplyObjectRef(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
-    Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(
-        reinterpret_cast<char*>(comp) + offset);
+    Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + offset);
     if (value.is_object())
     {
         ref.id = value.value("id", 0u);
@@ -313,21 +346,27 @@ inline nlohmann::json CaptureArray(const Deki::Component* comp, const Deki::Prop
             for (const auto& ref : vec)
             {
                 if (ref.componentTypeId != 0)
+                {
                     arr.push_back(nlohmann::json{ { "id", ref.id }, { "typeId", ref.componentTypeId } });
+                }
                 else
+                {
                     arr.push_back(ref.id);
+                }
             }
             return arr;
         }
-        default:
-            return nlohmann::json::array();
+        default: return nlohmann::json::array();
     }
 }
 
 // Array apply - dispatches based on element type from property info
 inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, const nlohmann::json& value)
 {
-    if (!value.is_array()) return;
+    if (!value.is_array())
+    {
+        return;
+    }
     void* ptr = reinterpret_cast<char*>(comp) + prop.offset;
     switch (prop.elementType)
     {
@@ -337,7 +376,10 @@ inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, co
             vec.clear();
             for (const auto& item : value)
             {
-                if (item.is_string()) vec.push_back(item.get<std::string>());
+                if (item.is_string())
+                {
+                    vec.push_back(item.get<std::string>());
+                }
             }
             break;
         }
@@ -347,7 +389,10 @@ inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, co
             vec.clear();
             for (const auto& item : value)
             {
-                if (item.is_number_integer()) vec.push_back(item.get<int32_t>());
+                if (item.is_number_integer())
+                {
+                    vec.push_back(item.get<int32_t>());
+                }
             }
             break;
         }
@@ -357,7 +402,10 @@ inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, co
             vec.clear();
             for (const auto& item : value)
             {
-                if (item.is_number()) vec.push_back(item.get<float>());
+                if (item.is_number())
+                {
+                    vec.push_back(item.get<float>());
+                }
             }
             break;
         }
@@ -367,7 +415,10 @@ inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, co
             vec.clear();
             for (const auto& item : value)
             {
-                if (item.is_boolean()) vec.push_back(item.get<bool>());
+                if (item.is_boolean())
+                {
+                    vec.push_back(item.get<bool>());
+                }
             }
             break;
         }
@@ -393,8 +444,7 @@ inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, co
             }
             break;
         }
-        default:
-            break;
+        default: break;
     }
 }
 
@@ -429,30 +479,29 @@ inline const PropertyTypeHandler& GetPropertyTypeHandler(Deki::PropertyType type
 
     switch (type)
     {
-    case Deki::PropertyType::Int8: return kInt8;
-    case Deki::PropertyType::Int16: return kInt16;
-    case Deki::PropertyType::Int32: return kInt32;
-    case Deki::PropertyType::Int64: return kInt64;
-    case Deki::PropertyType::UInt8: return kUInt8;
-    case Deki::PropertyType::UInt16: return kUInt16;
-    case Deki::PropertyType::UInt32: return kUInt32;
-    case Deki::PropertyType::UInt64: return kUInt64;
-    case Deki::PropertyType::Float: return kFloat;
-    case Deki::PropertyType::Double: return kDouble;
-    case Deki::PropertyType::Bool: return kBool;
-    case Deki::PropertyType::String: return kString;
-    case Deki::PropertyType::Asset: return kString;  // legacy GUID string field
-    case Deki::PropertyType::Color: return kColor;
-    case Deki::PropertyType::Vector2: return kVector2;
-    case Deki::PropertyType::Vector3: return kVector3;
-    case Deki::PropertyType::Enum: return kEnum;
-    case Deki::PropertyType::ObjectRef: return kObjectRef;
-    case Deki::PropertyType::Array:     // CaptureArray/ApplyArray, with the property info
-    case Deki::PropertyType::AssetRef:  // handled separately
-    case Deki::PropertyType::NodeRef:
-    case Deki::PropertyType::PropertyRef:
-    default:
-        return kNoop;
+        case Deki::PropertyType::Int8: return kInt8;
+        case Deki::PropertyType::Int16: return kInt16;
+        case Deki::PropertyType::Int32: return kInt32;
+        case Deki::PropertyType::Int64: return kInt64;
+        case Deki::PropertyType::UInt8: return kUInt8;
+        case Deki::PropertyType::UInt16: return kUInt16;
+        case Deki::PropertyType::UInt32: return kUInt32;
+        case Deki::PropertyType::UInt64: return kUInt64;
+        case Deki::PropertyType::Float: return kFloat;
+        case Deki::PropertyType::Double: return kDouble;
+        case Deki::PropertyType::Bool: return kBool;
+        case Deki::PropertyType::String: return kString;
+        case Deki::PropertyType::Asset: return kString;  // legacy GUID string field
+        case Deki::PropertyType::Color: return kColor;
+        case Deki::PropertyType::Vector2: return kVector2;
+        case Deki::PropertyType::Vector3: return kVector3;
+        case Deki::PropertyType::Enum: return kEnum;
+        case Deki::PropertyType::ObjectRef: return kObjectRef;
+        case Deki::PropertyType::Array:     // CaptureArray/ApplyArray, with the property info
+        case Deki::PropertyType::AssetRef:  // handled separately
+        case Deki::PropertyType::NodeRef:
+        case Deki::PropertyType::PropertyRef:
+        default: return kNoop;
     }
 }
 

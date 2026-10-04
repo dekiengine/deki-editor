@@ -21,13 +21,14 @@ bool ListIconButton(const char* icon, const char* tooltip)
     const bool clicked = ImGui::Button(icon, ImVec2(side, side));
     ImGui::PopStyleColor(2);
     if (ImGui::IsItemHovered())
+    {
         ImGui::SetTooltip("%s", tooltip);
+    }
     return clicked;
 }
 }  // namespace
 
-void DrawStringListEditor(const char* label, std::vector<std::string>& list,
-                          char* newItemBuffer, size_t bufSize)
+void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize)
 {
     SchematicSubHeader(label);
 
@@ -65,7 +66,8 @@ void DrawStringListEditor(const char* label, std::vector<std::string>& list,
     }
 
     ImGui::SetNextItemWidth(fieldW);
-    bool add = ImGui::InputTextWithHint("##new", "Add...", newItemBuffer, bufSize, ImGuiInputTextFlags_EnterReturnsTrue);
+    bool add =
+        ImGui::InputTextWithHint("##new", "Add...", newItemBuffer, bufSize, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::SameLine(0.0f, gap);
     add |= ListIconButton(ICON_TI_PLUS, "Add");
     if (add && strlen(newItemBuffer) > 0)

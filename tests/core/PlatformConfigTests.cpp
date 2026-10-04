@@ -127,7 +127,7 @@ TEST(PlatformCapabilities, ExternalMemoryComesFromItsSizeNotFromProvides)
 {
     PlatformConfig board;
     board.framework = "espidf";
-    board.externalMemorySize = 4 * 1024 * 1024;   // and nothing in provides
+    board.externalMemorySize = 4 * 1024 * 1024;  // and nothing in provides
 
     EXPECT_EQ(board.Capabilities().count("memory:external"), 1u)
         << "a target with external memory must satisfy a package that asks for it, "
@@ -155,8 +155,8 @@ TEST(PlatformCapabilities, DerivedAndDeclaredCapabilitiesCoexist)
     board.provides = { "memory:rtc", "wifi" };
 
     const auto caps = board.Capabilities();
-    EXPECT_EQ(caps.count("memory:external"), 1u);   // derived
-    EXPECT_EQ(caps.count("memory:rtc"), 1u);        // declared: only the board knows
+    EXPECT_EQ(caps.count("memory:external"), 1u);  // derived
+    EXPECT_EQ(caps.count("memory:rtc"), 1u);       // declared: only the board knows
     EXPECT_EQ(caps.count("wifi"), 1u);
     EXPECT_EQ(caps.count("framework:espidf"), 1u);
 }
@@ -174,7 +174,9 @@ TEST(PlatformCapabilities, ARegionsCapabilityNameIsTheRegionName)
 
     const auto caps = board.Capabilities();
     for (const char* need : { "memory:internal", "memory:external", "memory:rtc" })
+    {
         EXPECT_EQ(caps.count(need), 1u) << need;
+    }
 
     // And a region this board does not have is simply absent, which is what
     // lets the build refuse the target by name instead of failing at runtime.
@@ -192,8 +194,8 @@ TEST(PlatformCapabilities, ANameThatCannotMatchIsRejected)
     EXPECT_TRUE(IsValidCapabilityName("framework:espidf"));
     EXPECT_TRUE(IsValidCapabilityName("posix-process"));
 
-    EXPECT_FALSE(IsValidCapabilityName("WiFi"));      // the one that bites
-    EXPECT_FALSE(IsValidCapabilityName("wifi "));     // and the other one
+    EXPECT_FALSE(IsValidCapabilityName("WiFi"));   // the one that bites
+    EXPECT_FALSE(IsValidCapabilityName("wifi "));  // and the other one
     EXPECT_FALSE(IsValidCapabilityName(""));
     EXPECT_FALSE(IsValidCapabilityName("mem external"));
     EXPECT_FALSE(IsValidCapabilityName(std::string(65, 'a')));
@@ -283,10 +285,10 @@ TEST(PlatformConfig, MissingOrMistypedOptionsGiveTheFallback)
     PlatformConfig p;
     p.frameworkOptions = R"({"a": "text", "b": 7})";
     EXPECT_EQ(p.Option("missing", "dflt"), "dflt");
-    EXPECT_EQ(p.Option("b", "dflt"), "dflt");        // wrong type
-    EXPECT_EQ(p.OptionU32("a", 42u), 42u);           // wrong type
+    EXPECT_EQ(p.Option("b", "dflt"), "dflt");  // wrong type
+    EXPECT_EQ(p.OptionU32("a", 42u), 42u);     // wrong type
     EXPECT_TRUE(p.OptionList("missing").empty());
 
     p.frameworkOptions = "not json at all";
-    EXPECT_EQ(p.Option("a", "dflt"), "dflt");        // malformed blob
+    EXPECT_EQ(p.Option("a", "dflt"), "dflt");  // malformed blob
 }

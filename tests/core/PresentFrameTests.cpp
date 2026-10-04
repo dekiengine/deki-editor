@@ -36,14 +36,23 @@ public:
     void Shutdown() override {}
     void Present(const uint8_t*, int, int, Deki::ColorFormat) override { ++fullCalls; }
     bool SupportsPartialPresent() const override { return partial; }
-    void PresentRegions(const uint8_t*, int, int, Deki::ColorFormat, const Deki::Rect* rects,
-                        int32_t count) override
+    void PresentRegions(const uint8_t*, int, int, Deki::ColorFormat, const Deki::Rect* rects, int32_t count) override
     {
         ++regionCalls;
         lastCount = count;
         lastRects.assign(rects, rects + (count > 0 ? count : 0));
     }
-    void GetDisplaySize(int32_t* w, int32_t* h) const override { if (w) *w = 8; if (h) *h = 8; }
+    void GetDisplaySize(int32_t* w, int32_t* h) const override
+    {
+        if (w)
+        {
+            *w = 8;
+        }
+        if (h)
+        {
+            *h = 8;
+        }
+    }
     Deki::ColorFormat GetColorFormat() const override { return Deki::ColorFormat::RGB565; }
     bool IsInitialized() const override { return true; }
     void RequestFullRefresh() override { ++refreshCalls; }
@@ -84,7 +93,10 @@ public:
     void MarkAllDirty() override { ++markAllDirtyCalls; }
     const Deki::Rect* GetPresentRects(int32_t* out) const override
     {
-        if (out) *out = count;
+        if (out)
+        {
+            *out = count;
+        }
         return count > 0 ? rects.data() : nullptr;
     }
 };
@@ -235,10 +247,14 @@ std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
     uint32_t h = Deki::HashStringLen("dirtyTileTracking", 17);
     uint8_t tag = static_cast<uint8_t>(Deki::PropertyType::Bool);
     uint8_t bv = tracking ? 1 : 0;
-    Put(payload, &h, 4); Put(payload, &tag, 1); Put(payload, &bv, 1);
+    Put(payload, &h, 4);
+    Put(payload, &tag, 1);
+    Put(payload, &bv, 1);
     h = Deki::HashStringLen("dirtyTileSize", 13);
     tag = static_cast<uint8_t>(Deki::PropertyType::Int32);
-    Put(payload, &h, 4); Put(payload, &tag, 1); Put(payload, &align, 4);
+    Put(payload, &h, 4);
+    Put(payload, &tag, 1);
+    Put(payload, &align, 4);
 
     const uint16_t sections = 1;
     Put(img, &sections, 2);

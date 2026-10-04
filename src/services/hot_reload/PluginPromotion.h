@@ -25,9 +25,9 @@ namespace PluginPromotion
 
 struct Result
 {
-    int promoted = 0;                    ///< files moved into place
+    int promoted = 0;                                  ///< files moved into place
     std::vector<std::filesystem::path> promotedFiles;  ///< where they are now
-    std::vector<std::string> failures;   ///< "<file>: <reason>", one per file that could not be moved
+    std::vector<std::string> failures;                 ///< "<file>: <reason>", one per file that could not be moved
 };
 
 /// Move every staged shared library (and its .pdb, so the debugger does not keep
@@ -39,5 +39,5 @@ struct Result
 /// caller decides how loudly to say so.
 Result PromoteStaged(const std::string& runtimeDir);
 
-} // namespace PluginPromotion
-} // namespace DekiEditor
+}  // namespace PluginPromotion
+}  // namespace DekiEditor

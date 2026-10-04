@@ -28,9 +28,13 @@ inline int CountSceneObjects(const nlohmann::json& node)
     {
         auto it = node.find(key);
         if (it == node.end() || !it->is_array())
+        {
             continue;
+        }
         for (const auto& child : *it)
+        {
             n += 1 + CountSceneObjects(child);
+        }
     }
     return n;
 }
@@ -57,29 +61,36 @@ inline std::vector<SceneOutlineNode> BuildSceneOutline(const nlohmann::json& nod
     {
         auto it = node.find(key);
         if (it == node.end() || !it->is_array())
+        {
             continue;
+        }
 
         for (const auto& child : *it)
         {
             if (!child.is_object())
+            {
                 continue;
+            }
 
             SceneOutlineNode n;
 
             auto nameIt = child.find("name");
-            n.name = (nameIt != child.end() && nameIt->is_string())
-                         ? nameIt->get<std::string>()
-                         : "(unnamed)";
+            n.name = (nameIt != child.end() && nameIt->is_string()) ? nameIt->get<std::string>() : "(unnamed)";
 
             auto compIt = child.find("components");
             if (compIt != child.end() && compIt->is_array())
             {
                 for (const auto& c : *compIt)
                 {
-                    if (!c.is_object()) continue;
+                    if (!c.is_object())
+                    {
+                        continue;
+                    }
                     auto classIt = c.find("class");
                     if (classIt != c.end() && classIt->is_string())
+                    {
                         n.components.push_back(classIt->get<std::string>());
+                    }
                 }
             }
 

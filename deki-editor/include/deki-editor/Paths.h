@@ -33,7 +33,10 @@ inline std::string NormalizeProjectRoot(const std::string& projectPath)
 {
     std::error_code ec;
     std::filesystem::path p = std::filesystem::absolute(projectPath, ec);
-    if (ec) return projectPath;
+    if (ec)
+    {
+        return projectPath;
+    }
     return p.lexically_normal().string();
 }
 

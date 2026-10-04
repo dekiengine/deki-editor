@@ -27,7 +27,10 @@ namespace
 class FailAfterProvider : public Deki::IMemoryProvider
 {
 public:
-    explicit FailAfterProvider(int allowed) : m_Allowed(allowed) {}
+    explicit FailAfterProvider(int allowed)
+        : m_Allowed(allowed)
+    {
+    }
 
     bool Initialize() override { return true; }
     void Shutdown() override {}
@@ -43,7 +46,9 @@ public:
     {
         (void)needsDma;
         if (!Serves(region) || m_Allowed <= 0)
+        {
             return nullptr;
+        }
         --m_Allowed;
         return malloc(bytes);
     }
@@ -61,10 +66,7 @@ private:
 
 struct ScopedFailingAllocator
 {
-    explicit ScopedFailingAllocator(int allowed)
-    {
-        Deki::Memory::SetBackend(new FailAfterProvider(allowed));
-    }
+    explicit ScopedFailingAllocator(int allowed) { Deki::Memory::SetBackend(new FailAfterProvider(allowed)); }
     ~ScopedFailingAllocator() { Deki::Memory::SetBackend(nullptr); }
 };
 
@@ -84,12 +86,16 @@ TEST(DekiVector, PushBackGrowsAndKeepsOrder)
 {
     Vector<int> v(Deki::Memory::Internal);
     for (int i = 0; i < 10; ++i)
+    {
         ASSERT_TRUE(v.PushBack(i)) << i;
+    }
 
     ASSERT_EQ(v.Size(), 10u);
     EXPECT_GE(v.Capacity(), 10u);
     for (int i = 0; i < 10; ++i)
+    {
         EXPECT_EQ(v[i], i) << i;
+    }
     EXPECT_EQ(v.Back(), 9);
 }
 
@@ -107,7 +113,9 @@ TEST(DekiVector, EndFollowsSizeNotCapacity)
 
     int sum = 0;
     for (int x : v)
+    {
         sum += x;
+    }
     EXPECT_EQ(sum, 15);
 }
 
@@ -119,9 +127,9 @@ TEST(DekiVector, ReserveNeverShrinksAndIsIdempotent)
     EXPECT_EQ(v.Capacity(), 16u);
 
     EXPECT_TRUE(v.Reserve(16));
-    EXPECT_EQ(v.Data(), raw);          // no churn
+    EXPECT_EQ(v.Data(), raw);  // no churn
     EXPECT_TRUE(v.Reserve(4));
-    EXPECT_EQ(v.Capacity(), 16u);      // and no shrink
+    EXPECT_EQ(v.Capacity(), 16u);  // and no shrink
     EXPECT_EQ(v.Data(), raw);
 }
 
@@ -133,7 +141,9 @@ TEST(DekiVector, ReserveUpFrontMakesTheFollowingPushesInfallible)
     const int* raw = v.Data();
 
     for (int i = 0; i < 64; ++i)
+    {
         ASSERT_TRUE(v.PushBack(i)) << i;
+    }
 
     EXPECT_EQ(v.Data(), raw);  // never reallocated, so no push could fail
 }
@@ -142,9 +152,13 @@ TEST(DekiVector, GrowthPreservesWhatWasAlreadyThere)
 {
     Vector<uint32_t> v(Deki::Memory::Internal);
     for (uint32_t i = 0; i < 100; ++i)
+    {
         ASSERT_TRUE(v.PushBack(i * 7u)) << i;
+    }
     for (uint32_t i = 0; i < 100; ++i)
+    {
         EXPECT_EQ(v[i], i * 7u) << i;
+    }
 }
 
 TEST(DekiVector, PopBackShrinksAndReportsAnEmptyVector)
@@ -165,7 +179,9 @@ TEST(DekiVector, RemoveUnorderedFillsTheHoleWithTheLast)
 {
     Vector<int> v(Deki::Memory::Internal);
     for (int i = 0; i < 4; ++i)
+    {
         ASSERT_TRUE(v.PushBack(i));
+    }
 
     ASSERT_TRUE(v.RemoveUnordered(1));
     EXPECT_EQ(v.Size(), 3u);
@@ -191,16 +207,18 @@ TEST(DekiVector, RemoveUnorderedRejectsAnIndexPastTheEnd)
     ASSERT_TRUE(v.Reserve(8));
     ASSERT_TRUE(v.PushBack(1));
 
-    EXPECT_FALSE(v.RemoveUnordered(1));   // reserved but not live
+    EXPECT_FALSE(v.RemoveUnordered(1));  // reserved but not live
     EXPECT_FALSE(v.RemoveUnordered(99));
-    EXPECT_EQ(v.Size(), 1u);              // and neither removed anything
+    EXPECT_EQ(v.Size(), 1u);  // and neither removed anything
 }
 
 TEST(DekiVector, ClearKeepsTheMemoryAndResetReleasesIt)
 {
     Vector<int> v(Deki::Memory::Internal);
     for (int i = 0; i < 8; ++i)
+    {
         ASSERT_TRUE(v.PushBack(i));
+    }
     const size_t capacity = v.Capacity();
 
     v.Clear();
@@ -226,10 +244,10 @@ TEST(DekiVector, MoveTransfersAndLeavesTheSourceEmpty)
     EXPECT_EQ(a.Size(), 0u);
     EXPECT_EQ(a.Capacity(), 0u);
     EXPECT_TRUE(a.Empty());
-    EXPECT_EQ(a.begin(), a.end());   // a range-for over it walks nothing
+    EXPECT_EQ(a.begin(), a.end());  // a range-for over it walks nothing
 
     ASSERT_EQ(b.Size(), 2u);
-    EXPECT_EQ(b.Data(), raw);        // same memory, not a copy
+    EXPECT_EQ(b.Data(), raw);  // same memory, not a copy
     EXPECT_EQ(b.Back(), 2);
 }
 
@@ -287,18 +305,22 @@ TEST(DekiVector, AFailedGrowthLeavesEverythingAlreadyStoredIntact)
     Vector<int> v(Deki::Memory::Internal);
     ASSERT_TRUE(v.Reserve(4));
     for (int i = 0; i < 4; ++i)
+    {
         ASSERT_TRUE(v.PushBack(i));
+    }
     const int* raw = v.Data();
 
     {
         ScopedFailingAllocator oom(0);
-        EXPECT_FALSE(v.PushBack(99));   // needs to double, cannot
+        EXPECT_FALSE(v.PushBack(99));  // needs to double, cannot
     }
 
     EXPECT_EQ(v.Size(), 4u);
-    EXPECT_EQ(v.Data(), raw);           // still the original block
+    EXPECT_EQ(v.Data(), raw);  // still the original block
     for (int i = 0; i < 4; ++i)
+    {
         EXPECT_EQ(v[i], i) << i;
+    }
 }
 
 TEST(DekiVector, AVectorKeepsWorkingAfterAFailedGrowth)

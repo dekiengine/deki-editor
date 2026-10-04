@@ -19,7 +19,9 @@ std::string ToBareExtensions(const std::string& spec)
     {
         size_t end = spec.find(';', start);
         if (end == std::string::npos)
+        {
             end = spec.size();
+        }
 
         std::string one = spec.substr(start, end - start);
 
@@ -40,12 +42,16 @@ std::string ToBareExtensions(const std::string& spec)
         if (!one.empty())
         {
             if (!out.empty())
+            {
                 out += ';';
+            }
             out += one;
         }
 
         if (end == spec.size())
+        {
             break;
+        }
         start = end + 1;
     }
     return out;
@@ -57,7 +63,9 @@ std::vector<DialogFilter> ParseWin32Filter(const char* filter)
 {
     std::vector<DialogFilter> filters;
     if (!filter || filter[0] == '\0')
+    {
         return filters;
+    }
 
     // Walk the NUL-separated run. The terminator is a NUL immediately after
     // the NUL that ended the previous string, so an empty string ends it.
@@ -70,14 +78,18 @@ std::vector<DialogFilter> ParseWin32Filter(const char* filter)
         // A name with no spec behind it is malformed; drop it rather than
         // reading past the terminator looking for one.
         if (*cursor == '\0')
+        {
             break;
+        }
 
         std::string spec(cursor);
         cursor += spec.size() + 1;
 
         std::string pattern = ToBareExtensions(spec);
         if (!pattern.empty())
+        {
             filters.push_back({ name, pattern });
+        }
     }
 
     return filters;

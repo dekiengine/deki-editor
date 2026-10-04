@@ -14,7 +14,9 @@ std::string SaveObjectAsScene(Deki::Object* obj, const std::string& folderPath)
 {
     namespace fs = std::filesystem;
     if (!obj)
+    {
         return "";
+    }
 
     // Unique target path
     const std::string baseName = obj->GetName();

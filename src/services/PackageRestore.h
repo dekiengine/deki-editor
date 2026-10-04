@@ -34,8 +34,7 @@ struct PackageRestoreResult
 /// Reports the package about to be installed, and how far along we are.
 /// `total` is a lower bound: installing a package can reveal further
 /// dependencies, so it may grow as the restore proceeds.
-using PackageRestoreProgress =
-    std::function<void(const std::string& packageId, int done, int total)>;
+using PackageRestoreProgress = std::function<void(const std::string& packageId, int done, int total)>;
 
 /// True if the project declares packages that are not on disk. Purely local -
 /// no network - so it is cheap enough to call on every project open.
@@ -58,8 +57,7 @@ bool TryFillFromRegistry(PackageManager& mgr, PackageEntry& pkg);
 /// `mgr` must already have had LoadPackages() called for this project.
 /// Saves the manifest/lock and invalidates generated build files if anything
 /// was installed.
-PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
-                                            PackageManager& mgr,
+PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, PackageManager& mgr,
                                             const PackageRestoreProgress& onProgress = {});
 
 /// A package deki-packages.json pins to one version while another is installed.

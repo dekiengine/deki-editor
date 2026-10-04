@@ -10,7 +10,10 @@
 // The editor holds bitmap fonts only as opaque handles; the type itself
 // belongs to deki-2d, so name it there rather than declaring a second one at
 // global scope that is ambiguous wherever both are visible.
-namespace Deki2D { class BitmapFont; }
+namespace Deki2D
+{
+class BitmapFont;
+}
 
 #include <deki-editor/EditorExport.h>
 namespace DekiEditor
@@ -41,7 +44,8 @@ public:
 
     /// Load a .dfont file, returning an opaque Deki2D::BitmapFont* and the atlas RGBA data for GPU upload.
     /// The caller must free() outAtlasRGBA after uploading. The returned font is owned by the caller.
-    using FontFromDfontFn = void* (*)(const char* dfontPath, uint8_t** outAtlasRGBA, int32_t& outAtlasW, int32_t& outAtlasH);
+    using FontFromDfontFn = void* (*)(const char* dfontPath, uint8_t** outAtlasRGBA, int32_t& outAtlasW,
+                                      int32_t& outAtlasH);
 
     /// Destroy an opaque Deki2D::BitmapFont* returned by FontFromDfontFn.
     using FontDestroyFn = void (*)(void* font);
@@ -98,9 +102,7 @@ public:
      *
      * Uses AssetManager::LookupPath() to resolve the baked GUID to a .dfont path.
      */
-    uint32_t LoadFontAtlas(const std::string& bakedGuid,
-                           uint32_t* outWidth = nullptr,
-                           uint32_t* outHeight = nullptr);
+    uint32_t LoadFontAtlas(const std::string& bakedGuid, uint32_t* outWidth = nullptr, uint32_t* outHeight = nullptr);
 
     /**
      * @brief Load font atlas from filesystem path
@@ -109,8 +111,7 @@ public:
      * @param outHeight Optional output for atlas height
      * @return OpenGL texture ID, or 0 on failure
      */
-    uint32_t LoadFontAtlasFromPath(const std::string& dfontPath,
-                                   uint32_t* outWidth = nullptr,
+    uint32_t LoadFontAtlasFromPath(const std::string& dfontPath, uint32_t* outWidth = nullptr,
                                    uint32_t* outHeight = nullptr);
 
     /**
@@ -181,8 +182,8 @@ public:
      * @param outHeight Optional output for atlas height
      * @return OpenGL texture ID, or 0 on failure
      */
-    uint32_t LoadFontAtlasWithBaking(const std::string& sourceGuid, int fontSize,
-                                     uint32_t* outWidth = nullptr, uint32_t* outHeight = nullptr);
+    uint32_t LoadFontAtlasWithBaking(const std::string& sourceGuid, int fontSize, uint32_t* outWidth = nullptr,
+                                     uint32_t* outHeight = nullptr);
 
     // ===== Sprite Settings =====
 
@@ -210,7 +211,8 @@ public:
      * Frame sprites reference the same texture as their parent spritesheet.
      * Use GetFrameUVs() to get the UV coordinates for the specific frame.
      */
-    uint32_t LoadFrameTexture(const std::string& frameGuid, uint32_t* outWidth = nullptr, uint32_t* outHeight = nullptr);
+    uint32_t LoadFrameTexture(const std::string& frameGuid, uint32_t* outWidth = nullptr,
+                              uint32_t* outHeight = nullptr);
 
     /**
      * @brief Get UV coordinates for a frame sprite

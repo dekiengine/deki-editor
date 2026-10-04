@@ -54,18 +54,12 @@ public:
     /**
      * @brief Get all factory infos
      */
-    const std::vector<EditorFactoryInfo>& GetAllFactories() const
-    {
-        return m_Factories;
-    }
+    const std::vector<EditorFactoryInfo>& GetAllFactories() const { return m_Factories; }
 
     /**
      * @brief Get total count of registered factories
      */
-    size_t GetTotalCount() const
-    {
-        return m_Factories.size();
-    }
+    size_t GetTotalCount() const { return m_Factories.size(); }
 
     /**
      * @brief Clear all factories (must be called before package DLLs are unloaded)
@@ -91,7 +85,9 @@ public:
     void TrimTo(size_t count)
     {
         if (count < m_Factories.size())
+        {
             m_Factories.resize(count);
+        }
     }
 
 private:
@@ -111,12 +107,8 @@ struct EditorRegistrar
     EditorRegistrar()
     {
         static T prototype;
-        EditorRegistry::Instance().AddFactory(
-            &prototype,
-            []() -> std::unique_ptr<DekiEditor::EditorExtension>
-            {
-                return std::make_unique<T>();
-            });
+        EditorRegistry::Instance().AddFactory(&prototype, []() -> std::unique_ptr<DekiEditor::EditorExtension>
+                                              { return std::make_unique<T>(); });
     }
 };
 
@@ -130,7 +122,7 @@ struct EditorRegistrar
  * Works for both CustomEditor and AssetTypeEditor subclasses.
  * Now uses factory pattern to create fresh instances per-component.
  */
-#define REGISTER_EDITOR(EditorClass) \
+#define REGISTER_EDITOR(EditorClass)                                                                                   \
     static DekiEditorInternal::EditorRegistrar<EditorClass> g_##EditorClass##_Registrar;
 
 }  // namespace DekiEditorInternal

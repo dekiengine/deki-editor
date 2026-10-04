@@ -64,7 +64,9 @@ void RenameDialog::Draw()
         // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
         // frame, leaving the input inactive so typing goes nowhere.
         if (ImGui::IsWindowAppearing())
+        {
             ImGui::SetKeyboardFocusHere();
+        }
 
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool enterPressed = ImGui::InputText("##renameinput", m_RenameBuffer, sizeof(m_RenameBuffer),
@@ -88,7 +90,9 @@ void RenameDialog::Draw()
         ImGui::SameLine(0.0f, gap);
 
         if (!canRename)
+        {
             ImGui::BeginDisabled();
+        }
         ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
@@ -102,7 +106,9 @@ void RenameDialog::Draw()
 
         ImGui::PopStyleColor(3);
         if (!canRename)
+        {
             ImGui::EndDisabled();
+        }
         ImGui::PopStyleVar();  // ButtonTextAlign
 
         EndSchematicModal();

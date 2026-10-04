@@ -37,7 +37,9 @@ std::string RunCapture(const std::string& cmd)
         std::lock_guard<std::mutex> lock(s_Mutex);
         const auto it = s_Answers.find(cmd);
         if (it != s_Answers.end())
+        {
             return it->second;
+        }
     }
 
 #ifdef _WIN32
@@ -51,14 +53,20 @@ std::string RunCapture(const std::string& cmd)
                                    [&](const std::string& l)
                                    {
                                        if (first)
+                                       {
                                            out = l;
+                                       }
                                        first = false;
                                    });
     if (rc != 0)
+    {
         return "";
+    }
 
     while (!out.empty() && (out.back() == ' ' || out.back() == '\t' || out.back() == '\r'))
+    {
         out.pop_back();
+    }
     if (!out.empty())
     {
         std::lock_guard<std::mutex> lock(s_Mutex);
@@ -85,9 +93,13 @@ bool ToolExists(const std::string& tool)
             const size_t end = list.find(';', start);
             const std::string e = list.substr(start, end == std::string::npos ? std::string::npos : end - start);
             if (!e.empty())
+            {
                 exts.push_back(e);
+            }
             if (end == std::string::npos)
+            {
                 break;
+            }
             start = end + 1;
         }
     }
@@ -103,17 +115,23 @@ bool ToolExists(const std::string& tool)
             fs::path candidate = p;
             candidate += e;
             if (fs::is_regular_file(candidate, ec))
+            {
                 return true;
+            }
         }
         return false;
     };
 
     if (tool.find('/') != std::string::npos || tool.find('\\') != std::string::npos)
+    {
         return runnable(fs::path(tool));
+    }
 
     const char* path = std::getenv("PATH");
     if (!path)
+    {
         return false;
+    }
     const std::string dirs = path;
     size_t start = 0;
     while (start <= dirs.size())
@@ -121,11 +139,17 @@ bool ToolExists(const std::string& tool)
         const size_t end = dirs.find(sep, start);
         std::string dir = dirs.substr(start, end == std::string::npos ? std::string::npos : end - start);
         if (dir.size() >= 2 && dir.front() == '"' && dir.back() == '"')
+        {
             dir = dir.substr(1, dir.size() - 2);
+        }
         if (!dir.empty() && runnable(fs::path(dir) / tool))
+        {
             return true;
+        }
         if (end == std::string::npos)
+        {
             break;
+        }
         start = end + 1;
     }
     return false;
@@ -136,8 +160,13 @@ int MajorVersion(const std::string& v)
 {
     size_t i = 0;
     while (i < v.size() && !isdigit(static_cast<unsigned char>(v[i])))
+    {
         ++i;
-    if (i >= v.size()) return -1;
+    }
+    if (i >= v.size())
+    {
+        return -1;
+    }
     return std::atoi(v.c_str() + i);
 }
 
@@ -167,7 +196,9 @@ Prerequisite CheckReflectionCompiler()
     for (const std::string& candidate : { projectCxx, std::string("g++-16"), std::string("g++") })
     {
         if (!ToolExists(candidate))
+        {
             continue;
+        }
         const std::string version = RunCapture(candidate + " -dumpversion");
         if (MajorVersion(version) >= 16)
         {
@@ -191,12 +222,13 @@ Prerequisite CheckReflectionCompiler()
     p.required = true;
     p.ok = tc.valid;
     if (tc.valid)
+    {
         p.found = tc.displayName + " (" + tc.cxxCompiler + ")";
+    }
     return p;
 }
 
-Prerequisite CheckTool(const std::string& tool, const std::string& why,
-                       const std::string& install, bool required,
+Prerequisite CheckTool(const std::string& tool, const std::string& why, const std::string& install, bool required,
                        const std::string& versionArg = "--version")
 {
     Prerequisite p;
@@ -207,7 +239,10 @@ Prerequisite CheckTool(const std::string& tool, const std::string& why,
     if (ToolExists(tool))
     {
         p.found = RunCapture(tool + " " + versionArg);
-        if (p.found.empty()) p.found = "present";
+        if (p.found.empty())
+        {
+            p.found = "present";
+        }
         p.ok = true;
     }
     return p;
@@ -231,10 +266,8 @@ std::vector<Prerequisite> CheckPrerequisites()
 #endif
 
     results.push_back(CheckReflectionCompiler());
-    results.push_back(CheckTool(ResolveTool("cmake"), "configures and drives every project build",
-                                cmakeInstall, true));
-    results.push_back(CheckTool("git", "installs packages declared by the project",
-                                gitInstall, true));
+    results.push_back(CheckTool(ResolveTool("cmake"), "configures and drives every project build", cmakeInstall, true));
+    results.push_back(CheckTool("git", "installs packages declared by the project", gitInstall, true));
 
 #ifdef _WIN32
     // ninja and sccache ship next to the executable on Windows. The compiler
@@ -244,7 +277,9 @@ std::vector<Prerequisite> CheckPrerequisites()
     // that build fine and skipped the first build, leaving every component
     // unresolved.
     if constexpr (PluginToolchain::HostAbi() == PluginAbi::Msvc)
+    {
         results.push_back(CheckPluginToolchain());
+    }
 #else
     results.push_back(CheckTool(ResolveTool("ninja"), "the build generator the editor drives",
 #if defined(__APPLE__)
@@ -272,8 +307,12 @@ std::vector<Prerequisite> CheckPrerequisites()
 bool PrerequisitesSatisfied(const std::vector<Prerequisite>& results)
 {
     for (const auto& p : results)
+    {
         if (p.required && !p.ok)
+        {
             return false;
+        }
+    }
     return true;
 }
 
@@ -282,7 +321,10 @@ std::vector<std::string> DescribeMissing(const std::vector<Prerequisite>& result
     std::vector<std::string> lines;
     for (const auto& p : results)
     {
-        if (p.ok) continue;
+        if (p.ok)
+        {
+            continue;
+        }
         lines.push_back((p.required ? "MISSING: " : "optional, missing: ") + p.name);
         lines.push_back("    needed for: " + p.why);
         lines.push_back("    install:    " + p.install);

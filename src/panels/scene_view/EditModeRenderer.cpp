@@ -63,7 +63,9 @@ struct BufferGL
     bool Load()
     {
         if (loaded)
+        {
             return ok;
+        }
         loaded = true;
         genBuffers = reinterpret_cast<decltype(genBuffers)>(SDL_GL_GetProcAddress("glGenBuffers"));
         deleteBuffers = reinterpret_cast<decltype(deleteBuffers)>(SDL_GL_GetProcAddress("glDeleteBuffers"));
@@ -110,7 +112,9 @@ EditModeRenderer::~EditModeRenderer()
 bool EditModeRenderer::Initialize(int width, int height)
 {
     if (width <= 0 || height <= 0)
+    {
         return false;
+    }
 
     // Zooming changes the buffer size at nearly every step. Freeing and
     // reallocating tens of megabytes (and a full-size GPU texture) each time
@@ -135,7 +139,9 @@ bool EditModeRenderer::Initialize(int width, int height)
 void EditModeRenderer::PrepareTexture(int width, int height)
 {
     if (m_Streaming)
+    {
         m_Current = (m_Current + 1) % kTextureRing;
+    }
     int& capW = m_TexCapW[m_Current];
     int& capH = m_TexCapH[m_Current];
 
@@ -173,7 +179,9 @@ void EditModeRenderer::PrepareTexture(int width, int height)
         }
     }
     else
+    {
         realloc = width != capW || height != capH;
+    }
 
     if (realloc)
     {
@@ -190,7 +198,9 @@ void EditModeRenderer::PrepareTexture(int width, int height)
 void EditModeRenderer::Shutdown()
 {
     if (!m_Initialized)
+    {
         return;
+    }
 
     for (int i = 0; i < kTextureRing; ++i)
     {
@@ -225,10 +235,14 @@ void EditModeRenderer::Shutdown()
 bool EditModeRenderer::Resize(int width, int height)
 {
     if (width <= 0 || height <= 0)
+    {
         return false;
+    }
 
     if (width == m_Width && height == m_Height)
+    {
         return true;
+    }
 
     // Keeps the buffer's memory when it fits (see Initialize).
     return Initialize(width, height);
@@ -237,7 +251,9 @@ bool EditModeRenderer::Resize(int width, int height)
 void EditModeRenderer::ClearBuffer(uint8_t r, uint8_t g, uint8_t b)
 {
     if (!m_RenderBuffer)
+    {
         return;
+    }
 
     // Convert RGB to RGB565
     uint16_t rgb565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
@@ -259,12 +275,18 @@ void* EditModeRenderer::MapUploadBuffer(size_t bytes)
     // It was last written three renders ago, long drawn by now, so it is
     // mapped without waiting for the GPU to finish with it.
     if (!s_GL.Load())
+    {
         return nullptr;
+    }
     GLuint& pbo = m_Pbos[m_Current];
     if (pbo == 0)
+    {
         s_GL.genBuffers(1, &pbo);
+    }
     if (pbo == 0)
+    {
         return nullptr;
+    }
     s_GL.bindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
     size_t& size = m_PboSize[m_Current];
     if (bytes > size || bytes * 8 < size)
@@ -275,7 +297,9 @@ void* EditModeRenderer::MapUploadBuffer(size_t bytes)
     void* ptr = s_GL.mapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, static_cast<ptrdiff_t>(bytes),
                                     GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
     if (!ptr)
+    {
         s_GL.bindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    }
     return ptr;
 }
 
@@ -287,7 +311,9 @@ void EditModeRenderer::UnmapUploadBuffer()
 void EditModeRenderer::PresentToGPU(float displayScale)
 {
     if (!m_Initialized || !m_RenderBuffer)
+    {
         return;
+    }
 
     // Zoomed out, the buffer holds many pixels per screen pixel, and uploading
     // them all (and the driver widening each to RGBA on the CPU) was nearly
@@ -309,9 +335,13 @@ void EditModeRenderer::PresentToGPU(float displayScale)
         // matches what was drawn before and never flips between neighbours.
         constexpr float kEdgeBias = 1e-3f;
         for (int i = 0; i < upW; ++i)
+        {
             m_ShrinkCols[i] = std::clamp(static_cast<int>((i + 0.5f) / displayScale - kEdgeBias), 0, m_Width - 1);
+        }
         for (int j = 0; j < upH; ++j)
+        {
             m_ShrinkRows[j] = std::clamp(static_cast<int>((j + 0.5f) / displayScale - kEdgeBias), 0, m_Height - 1);
+        }
     }
 
     PrepareTexture(upW, upH);
@@ -350,19 +380,31 @@ void EditModeRenderer::PresentToGPU(float displayScale)
             const uint16_t* row = src + static_cast<size_t>(shrink ? m_ShrinkRows[j] : j) * m_Width;
             uint32_t* out = dst + static_cast<size_t>(j) * sendW;
             if (shrink)
+            {
                 for (int i = 0; i < upW; ++i)
+                {
                     out[i] = toRgba[row[m_ShrinkCols[i]]];
+                }
+            }
             else
+            {
                 for (int i = 0; i < upW; ++i)
+                {
                     out[i] = toRgba[row[i]];
+                }
+            }
             out[upW] = out[upW - 1];
         }
         std::memcpy(dst + static_cast<size_t>(upH) * sendW, dst + static_cast<size_t>(upH - 1) * sendW,
                     static_cast<size_t>(sendW) * 4);
         if (mapped)
+        {
             UnmapUploadBuffer();  // stays bound: the upload below reads from it
+        }
         else
+        {
             pixels = dst;
+        }
         format = GL_RGBA;
         type = GL_UNSIGNED_BYTE;
         alignment = 4;
@@ -380,7 +422,9 @@ void EditModeRenderer::PresentToGPU(float displayScale)
                 const uint16_t* row = src + static_cast<size_t>(m_ShrinkRows[j]) * m_Width;
                 uint16_t* out = m_Shrunk.data() + static_cast<size_t>(j) * upW;
                 for (int i = 0; i < upW; ++i)
+                {
                     out[i] = row[m_ShrinkCols[i]];
+                }
             }
             pixels = m_Shrunk.data();
         }
@@ -398,15 +442,18 @@ void EditModeRenderer::PresentToGPU(float displayScale)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     glBindTexture(GL_TEXTURE_2D, 0);
     if (mapped)
+    {
         s_GL.bindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    }
 }
 
-void EditModeRenderer::RenderScene(Deki::Scene* scene, Deki::ICamera* camera,
-                                   uint8_t clearR, uint8_t clearG, uint8_t clearB,
-                                   float displayScale)
+void EditModeRenderer::RenderScene(Deki::Scene* scene, Deki::ICamera* camera, uint8_t clearR, uint8_t clearG,
+                                   uint8_t clearB, float displayScale)
 {
     if (!m_Initialized || !scene || !camera)
+    {
         return;
+    }
 
     // Clear buffer with background color
     ClearBuffer(clearR, clearG, clearB);
@@ -414,8 +461,9 @@ void EditModeRenderer::RenderScene(Deki::Scene* scene, Deki::ICamera* camera,
     // Use shared render function via interface (same as play mode!)
     auto* rs = Deki::Engine::GetInstance().GetRenderSystem();
     if (rs)
-        rs->RenderToBuffer(scene, camera, m_RenderBuffer,
-                           m_Width, m_Height, Deki::ColorFormat::RGB565);
+    {
+        rs->RenderToBuffer(scene, camera, m_RenderBuffer, m_Width, m_Height, Deki::ColorFormat::RGB565);
+    }
 
     // Upload to GPU for ImGui display
     PresentToGPU(displayScale);

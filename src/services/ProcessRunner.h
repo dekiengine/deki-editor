@@ -74,9 +74,9 @@ private:
     std::string m_Output;
 
 #ifdef _WIN32
-    void* m_Process = nullptr;  // HANDLE
-    void* m_Job = nullptr;      // HANDLE, may be null if the job could not be created
-    void* m_ReadPipe = nullptr; // HANDLE
+    void* m_Process = nullptr;   // HANDLE
+    void* m_Job = nullptr;       // HANDLE, may be null if the job could not be created
+    void* m_ReadPipe = nullptr;  // HANDLE
 #else
     int m_Pid = -1;
     int m_ReadFd = -1;

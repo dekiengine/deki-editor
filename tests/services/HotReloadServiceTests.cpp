@@ -24,10 +24,7 @@ protected:
         std::filesystem::create_directories(m_TempDir);
     }
 
-    void TearDown() override
-    {
-        std::filesystem::remove_all(m_TempDir);
-    }
+    void TearDown() override { std::filesystem::remove_all(m_TempDir); }
 
     void CreateSourceFile(const std::string& filename, const std::string& content = "// test")
     {
@@ -137,7 +134,8 @@ TEST_F(HotReloadUtilityTest, ResolvePackageSourceDir_FindsDekiPrefixedDir)
 TEST_F(HotReloadUtilityTest, ResolvePackageSourceDir_FindsIntegrationSuffix)
 {
     // Simulate packages/deki-lovyangfx-integration/
-    auto packageDir = std::filesystem::path(DekiEditor::GetPackagesDirectory(m_TempDir.string())) / "deki-lovyangfx-integration";
+    auto packageDir =
+        std::filesystem::path(DekiEditor::GetPackagesDirectory(m_TempDir.string())) / "deki-lovyangfx-integration";
     std::filesystem::create_directories(packageDir);
 
     std::string result = PackageLoader::ResolvePackageSourceDir(m_TempDir.string(), "deki-lovyangfx.dll");
@@ -161,7 +159,8 @@ TEST_F(HotReloadUtilityTest, ResolvePackageSourceDir_EmptyProjectPath_ReturnsEmp
 TEST_F(HotReloadUtilityTest, ResolvePackageSourceDir_FallbackScanFindsPartialMatch)
 {
     // Package dir name doesn't match exact pattern but contains the name
-    auto packageDir = std::filesystem::path(DekiEditor::GetPackagesDirectory(m_TempDir.string())) / "deki-custom-rendering-v2";
+    auto packageDir =
+        std::filesystem::path(DekiEditor::GetPackagesDirectory(m_TempDir.string())) / "deki-custom-rendering-v2";
     std::filesystem::create_directories(packageDir);
 
     std::string result = PackageLoader::ResolvePackageSourceDir(m_TempDir.string(), "deki-rendering.dll");

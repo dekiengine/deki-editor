@@ -31,8 +31,7 @@ void OpenFolder(const char* title, ResultCallback onResult, const char* defaultP
 void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResult);
 
 // defaultExt is appended when the chosen name carries no extension of its own.
-void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath,
-              ResultCallback onResult);
+void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath, ResultCallback onResult);
 
 // True between a request and its callback. Disable whatever opened the dialog
 // while this holds, which is how stacking is avoided.

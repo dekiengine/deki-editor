@@ -49,13 +49,10 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
 
     float cursorX = rowMin.x;
 
-    auto drawDivider = [&](float x)
-    {
-        dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f);
-    };
+    auto drawDivider = [&](float x) { dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f); };
 
-    auto iconBtn = [&](const char* id, const char* icon, const char* tooltip,
-                       bool active, const std::function<void()>& onClick)
+    auto iconBtn =
+        [&](const char* id, const char* icon, const char* tooltip, bool active, const std::function<void()>& onClick)
     {
         const ImVec2 iconSz = ImGui::CalcTextSize(icon);
         const float w = iconSz.x + 22.0f * dpi;
@@ -63,7 +60,10 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         ImGui::PushID(id);
         bool clicked = ImGui::InvisibleButton(id, ImVec2(w, rowH));
         bool hovered = ImGui::IsItemHovered();
-        if (hovered && tooltip) DekiEditor::Tooltip("%s", tooltip);
+        if (hovered && tooltip)
+        {
+            DekiEditor::Tooltip("%s", tooltip);
+        }
         // Active and hover backgrounds fade in and out; hover shows only
         // while the cell is not active.
         const float hoverT = DekiEditor::Motion::ItemHover(hovered);
@@ -72,20 +72,28 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
             DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
         ImGui::PopID();
         if (activeT > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                               DekiEditor::Motion::WithAlpha(colActiveBg, activeT));
+        }
         if (hoverT * (1.0f - activeT) > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                               DekiEditor::Motion::WithAlpha(colHoverBg, hoverT * (1.0f - activeT)));
+        }
         if (pressT > 0.0f)
+        {
             dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                               DekiEditor::Motion::PressShade(pressT));
+        }
         const ImU32 fg = active ? colAccent : colDim;
-        dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f),
-                    fg, icon);
+        dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f), fg, icon);
         cursorX += w;
         drawDivider(cursorX);
-        if (clicked && onClick) onClick();
+        if (clicked && onClick)
+        {
+            onClick();
+        }
     };
 
     // Leading divider at strip start.
@@ -93,14 +101,11 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
 
     // Tool selection.
     iconBtn("select", ICON_TI_POINTER, "Select (Q)", m_CurrentTool == SceneTool::Select,
-            [&]
-            { m_CurrentTool = SceneTool::Select; });
+            [&] { m_CurrentTool = SceneTool::Select; });
     iconBtn("move", ICON_TI_ARROWS_MOVE, "Move (W)", m_CurrentTool == SceneTool::Move,
-            [&]
-            { m_CurrentTool = SceneTool::Move; });
+            [&] { m_CurrentTool = SceneTool::Move; });
     iconBtn("rect", ICON_TI_FRAME, "Rect (R)", m_CurrentTool == SceneTool::Rect,
-            [&]
-            { m_CurrentTool = SceneTool::Rect; });
+            [&] { m_CurrentTool = SceneTool::Rect; });
 
     // Anchor edge toggle (only visible when Rect tool is active).
     if (m_CurrentTool == SceneTool::Rect)
@@ -108,14 +113,11 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         iconBtn("anchor", ICON_TI_ANCHOR,
                 m_RectAnchorEdge ? "Anchor opposite edge (click to resize from center)"
                                  : "Resize from center (click to anchor opposite edge)",
-                m_RectAnchorEdge, [&]
-                { m_RectAnchorEdge = !m_RectAnchorEdge; });
+                m_RectAnchorEdge, [&] { m_RectAnchorEdge = !m_RectAnchorEdge; });
     }
 
     // Grid toggle.
-    iconBtn("grid", ICON_TI_GRID_DOTS, "Toggle Grid", m_ShowGrid,
-            [&]
-            { m_ShowGrid = !m_ShowGrid; });
+    iconBtn("grid", ICON_TI_GRID_DOTS, "Toggle Grid", m_ShowGrid, [&] { m_ShowGrid = !m_ShowGrid; });
 
     // Grid size - borderless transparent numeric cell that fills the row
     // height, like the console's search input.
@@ -132,7 +134,9 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         ImGui::SetNextItemWidth(cellW);
         ImGui::DragInt("##GridSize", &m_GridSize, 1, 8, 64, "%d px");
         if (ImGui::IsItemHovered())
+        {
             DekiEditor::Tooltip("Grid size. Drag to change, or double-click to type.");
+        }
         ImGui::PopStyleColor(4);
         ImGui::PopStyleVar(2);
         cursorX += cellW;
@@ -140,19 +144,18 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
     }
 
     // Outlines toggle.
-    iconBtn("outlines", ICON_TI_SCAN, "Toggle Outlines", m_ShowOutlines,
-            [&]
-            { m_ShowOutlines = !m_ShowOutlines; });
+    iconBtn("outlines", ICON_TI_SCAN, "Toggle Outlines", m_ShowOutlines, [&] { m_ShowOutlines = !m_ShowOutlines; });
 
     // Gizmos toggle (device frame, camera rect, selection bounds).
-    iconBtn("gizmos", ICON_TI_VECTOR, "Toggle Gizmos", m_ShowGizmos,
-            [&]
-            { m_ShowGizmos = !m_ShowGizmos; });
+    iconBtn("gizmos", ICON_TI_VECTOR, "Toggle Gizmos", m_ShowGizmos, [&] { m_ShowGizmos = !m_ShowGizmos; });
 
     // 1:1 zoom reset (action, never "active").
     iconBtn("fitview", ICON_TI_MAXIMIZE, "Reset zoom 1:1", false,
             [&]
-            { zoom = 1.0f; needsCentering = true; });
+            {
+                zoom = 1.0f;
+                needsCentering = true;
+            });
 
     m_CellsRightX = cursorX;
 

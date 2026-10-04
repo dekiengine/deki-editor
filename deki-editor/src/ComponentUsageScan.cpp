@@ -46,8 +46,12 @@ std::string Relative(const fs::path& p, const fs::path& root)
 std::string CurrentTypeName(const std::string& written)
 {
     if (const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(written))
+    {
         if (meta->serializedName && *meta->serializedName)
+        {
             return meta->serializedName;
+        }
+    }
     return written;
 }
 
@@ -59,14 +63,20 @@ void CollectSceneTypes(const nlohmann::json& node, std::set<std::string>& out)
     if (node.is_object())
     {
         if (node.contains("type") && node["type"].is_string() && node.contains("properties"))
+        {
             out.insert(ShortTypeName(CurrentTypeName(node["type"].get<std::string>())));
+        }
         for (const auto& item : node.items())
+        {
             CollectSceneTypes(item.value(), out);
+        }
     }
     else if (node.is_array())
     {
         for (const auto& item : node)
+        {
             CollectSceneTypes(item, out);
+        }
     }
 }
 
@@ -86,7 +96,9 @@ bool NamesType(const std::string& text, const std::string& type)
         const size_t end = pos + type.size();
         const bool endOk = end >= text.size() || !IsIdentifierChar(text[end]);
         if (startOk && endOk)
+        {
             return true;
+        }
         pos = end;
     }
     return false;
@@ -102,16 +114,16 @@ std::string ReadWhole(const fs::path& p)
 
 }  // namespace
 
-ComponentUsage ScanComponentUsage(const std::string& projectPath,
-                                  const std::vector<std::string>& knownTypes,
-                                  const std::vector<std::string>& scanPackageIds,
-                                  const std::string& targetPlatformId,
+ComponentUsage ScanComponentUsage(const std::string& projectPath, const std::vector<std::string>& knownTypes,
+                                  const std::vector<std::string>& scanPackageIds, const std::string& targetPlatformId,
                                   const std::set<std::string>& targetCapabilities,
                                   const std::vector<std::string>& extraSceneDirs)
 {
     ComponentUsage usage;
     if (projectPath.empty())
+    {
         return usage;
+    }
 
     const fs::path root(projectPath);
     std::error_code ec;
@@ -130,20 +142,30 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
     // panels want when no platform is selected.
     std::vector<fs::path> sceneRoots{ fs::path(GetAssetsDirectory(projectPath)) };
     if (targetPlatformId.empty())
+    {
         sceneRoots.push_back(fs::path(GetPlatformsDirectory(projectPath)));
+    }
     else
+    {
         sceneRoots.push_back(fs::path(GetPlatformsDirectory(projectPath)) / targetPlatformId);
+    }
     for (const std::string& dir : extraSceneDirs)
+    {
         sceneRoots.push_back(fs::path(dir));
+    }
 
     for (const fs::path& dir : sceneRoots)
     {
         if (!fs::exists(dir, ec))
+        {
             continue;
+        }
         for (const auto& entry : fs::recursive_directory_iterator(dir, ec))
         {
             if (!entry.is_regular_file() || entry.path().extension() != ".scene")
+            {
                 continue;
+            }
             try
             {
                 std::ifstream in(entry.path());
@@ -155,7 +177,9 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
                 CollectSceneTypes(FilterSceneForTarget(j, targetCapabilities), types);
                 const std::string where = Relative(entry.path(), root);
                 for (const auto& t : types)
+                {
                     usage.byType[t].push_back(where);
+                }
             }
             catch (const std::exception& e)
             {
@@ -180,28 +204,40 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
         {
             std::error_code dirEc;
             if (!fs::exists(dir, dirEc))
+            {
                 return;
+            }
             for (const auto& entry : fs::recursive_directory_iterator(dir, dirEc))
             {
                 if (!entry.is_regular_file())
+                {
                     continue;
+                }
                 const std::string ext = entry.path().extension().string();
                 if (ext != ".cpp" && ext != ".h" && ext != ".hpp" && ext != ".cc")
+                {
                     continue;
+                }
                 const std::string generic = entry.path().generic_string();
                 if (generic.find("/generated/") != std::string::npos)
+                {
                     continue;
+                }
                 // A package's editor-only and test code is never compiled into
                 // a game, so it is no evidence that the game needs a component.
-                if (skipEditorAndTests && (generic.find("/editor/") != std::string::npos ||
-                                           generic.find("/tests/") != std::string::npos))
+                if (skipEditorAndTests &&
+                    (generic.find("/editor/") != std::string::npos || generic.find("/tests/") != std::string::npos))
+                {
                     continue;
+                }
                 const std::string text = ReadWhole(entry.path());
                 const std::string where = Relative(entry.path(), root);
                 for (const auto& type : knownTypes)
                 {
                     if (NamesType(text, type))
+                    {
                         usage.byType[type].push_back(where);
+                    }
                 }
             }
         };
@@ -210,7 +246,9 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath,
 
         const fs::path packagesRoot(GetPackagesDirectory(projectPath));
         for (const auto& id : scanPackageIds)
+        {
             scanTree(packagesRoot / id, true);
+        }
     }
 
     return usage;

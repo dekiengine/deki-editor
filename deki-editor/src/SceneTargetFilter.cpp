@@ -26,7 +26,9 @@ nlohmann::json FilterNode(const nlohmann::json& node, const std::set<std::string
         for (const auto& item : node)
         {
             if (LooksLikeObject(item) && !ObjectMissingCapabilities(item, capabilities).empty())
+            {
                 continue;  // and with it every child, which is the point
+            }
             out.push_back(FilterNode(item, capabilities));
         }
         return out;
@@ -36,7 +38,9 @@ nlohmann::json FilterNode(const nlohmann::json& node, const std::set<std::string
     {
         nlohmann::json out = nlohmann::json::object();
         for (const auto& entry : node.items())
+        {
             out[entry.key()] = FilterNode(entry.value(), capabilities);
+        }
         return out;
     }
 
@@ -48,48 +52,68 @@ bool NodeHasRequirements(const nlohmann::json& node)
     if (node.is_array())
     {
         for (const auto& item : node)
-            if (NodeHasRequirements(item)) return true;
+        {
+            if (NodeHasRequirements(item))
+            {
+                return true;
+            }
+        }
         return false;
     }
     if (node.is_object())
     {
         if (node.contains("requires") && node["requires"].is_array() && !node["requires"].empty())
+        {
             return true;
+        }
         for (const auto& entry : node.items())
-            if (NodeHasRequirements(entry.value())) return true;
+        {
+            if (NodeHasRequirements(entry.value()))
+            {
+                return true;
+            }
+        }
     }
     return false;
 }
 
 }  // namespace
 
-std::vector<std::string> ObjectMissingCapabilities(const nlohmann::json& obj,
-                                                   const std::set<std::string>& capabilities)
+std::vector<std::string> ObjectMissingCapabilities(const nlohmann::json& obj, const std::set<std::string>& capabilities)
 {
     // No target in hand means nothing is judged: the editor has to see every
     // object, or an object that exists only on a board could not be authored.
     if (capabilities.empty())
+    {
         return {};
+    }
     if (!obj.is_object() || !obj.contains("requires") || !obj["requires"].is_array())
+    {
         return {};
+    }
 
     std::vector<std::string> missing;
     for (const auto& need : obj["requires"])
     {
         if (!need.is_string())
+        {
             continue;
+        }
         const std::string name = need.get<std::string>();
         if (capabilities.count(name) == 0)
+        {
             missing.push_back(name);
+        }
     }
     return missing;
 }
 
-nlohmann::json FilterSceneForTarget(const nlohmann::json& scene,
-                                    const std::set<std::string>& capabilities)
+nlohmann::json FilterSceneForTarget(const nlohmann::json& scene, const std::set<std::string>& capabilities)
 {
     if (capabilities.empty() || !SceneHasTargetRequirements(scene))
+    {
         return scene;
+    }
     return FilterNode(scene, capabilities);
 }
 
@@ -105,10 +129,16 @@ std::map<int64_t, std::vector<std::string>> CollectTargetRequirements(const nloh
     {
         if (node.is_array())
         {
-            for (const auto& item : node) visit(item);
+            for (const auto& item : node)
+            {
+                visit(item);
+            }
             return;
         }
-        if (!node.is_object()) return;
+        if (!node.is_object())
+        {
+            return;
+        }
         // Components carry an "id" too, so matching on that alone tags the
         // wrong node. Only an object holds "components" or "children".
         if (LooksLikeObject(node) && node.contains("id") && node["id"].is_number_integer() &&
@@ -116,11 +146,21 @@ std::map<int64_t, std::vector<std::string>> CollectTargetRequirements(const nloh
         {
             std::vector<std::string> needs;
             for (const auto& n : node["requires"])
-                if (n.is_string()) needs.push_back(n.get<std::string>());
+            {
+                if (n.is_string())
+                {
+                    needs.push_back(n.get<std::string>());
+                }
+            }
             if (!needs.empty())
+            {
                 out[node["id"].get<int64_t>()] = needs;
+            }
         }
-        for (const auto& entry : node.items()) visit(entry.value());
+        for (const auto& entry : node.items())
+        {
+            visit(entry.value());
+        }
     };
     visit(scene);
     return out;
@@ -130,13 +170,18 @@ bool PreserveTargetRequirements(const std::string& scenePath, const nlohmann::js
 {
     const auto wanted = CollectTargetRequirements(before);
     if (wanted.empty())
+    {
         return false;
+    }
 
     nlohmann::json after;
     try
     {
         std::ifstream in(scenePath);
-        if (!in) return false;
+        if (!in)
+        {
+            return false;
+        }
         in >> after;
     }
     catch (const std::exception&)
@@ -149,10 +194,16 @@ bool PreserveTargetRequirements(const std::string& scenePath, const nlohmann::js
     {
         if (node.is_array())
         {
-            for (auto& item : node) visit(item);
+            for (auto& item : node)
+            {
+                visit(item);
+            }
             return;
         }
-        if (!node.is_object()) return;
+        if (!node.is_object())
+        {
+            return;
+        }
         if (LooksLikeObject(node) && node.contains("id") && node["id"].is_number_integer())
         {
             auto it = wanted.find(node["id"].get<int64_t>());
@@ -162,12 +213,17 @@ bool PreserveTargetRequirements(const std::string& scenePath, const nlohmann::js
                 changed = true;
             }
         }
-        for (auto& entry : node.items()) visit(entry.value());
+        for (auto& entry : node.items())
+        {
+            visit(entry.value());
+        }
     };
     visit(after);
 
     if (!changed)
+    {
         return false;
+    }
 
     try
     {

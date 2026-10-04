@@ -20,14 +20,14 @@ TEST(SceneDataLoss, InstanceOverridesSurviveASaveWithoutTheirSource)
     auto previous = Deki::Scene::s_GuidToPathResolver;
     Deki::Scene::s_GuidToPathResolver = [](const std::string&) { return std::string(); };
 
-    const nlohmann::json overrides = nlohmann::json::parse(
-        R"([{"path":"Obj","component":"MockComponent","property":"intValue","value":5}])");
-    const nlohmann::json file = {
-        { "objects",
-          { { { "name", "Root" },
-              { "children",
-                { { { "name", "Inst" }, { "instance", "0f0f0f0f-0000-4000-8000-000000000001" },
-                    { "overrides", overrides } } } } } } } };
+    const nlohmann::json overrides =
+        nlohmann::json::parse(R"([{"path":"Obj","component":"MockComponent","property":"intValue","value":5}])");
+    const nlohmann::json file = { { "objects",
+                                    { { { "name", "Root" },
+                                        { "children",
+                                          { { { "name", "Inst" },
+                                              { "instance", "0f0f0f0f-0000-4000-8000-000000000001" },
+                                              { "overrides", overrides } } } } } } } };
 
     Deki::Scene scene;
     ASSERT_TRUE(scene.LoadFromJsonString(file.dump()));
@@ -62,15 +62,21 @@ TEST(SceneDataLoss, UnknownKeysDoNotPassToTheNextComponentAtThatAddress)
     // within a size class), then keep only that one.
     Deki::Component* comp = nullptr;
     for (int i = 0; i < 512 && comp != old; ++i)
+    {
         comp = Deki::Internal::AddComponentByName(*fresh, Deki::TypeName<MockComponent>());
+    }
     if (comp != old)
     {
         MockComponent::Unregister();
         GTEST_SKIP() << "the allocator did not reuse the address; nothing to check";
     }
     for (Deki::Component* c : std::vector<Deki::Component*>(fresh->GetComponents()))
+    {
         if (c != comp)
+        {
             fresh->RemoveComponent(c);
+        }
+    }
 
     const nlohmann::json saved = nlohmann::json::parse(scene.SaveToJsonString());
     ASSERT_EQ(saved["objects"][0]["children"][0]["components"].size(), 1u);

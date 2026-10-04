@@ -63,7 +63,9 @@ public:
 
         uint8_t lenBytes[8];
         for (int i = 0; i < 8; ++i)
+        {
             lenBytes[i] = static_cast<uint8_t>(bitLen >> (56 - i * 8));
+        }
 
         Update2(pad, padLen);
         Update2(lenBytes, 8);
@@ -71,7 +73,9 @@ public:
         std::ostringstream out;
         out << std::hex << std::setfill('0');
         for (uint32_t h : m_State)
+        {
             out << std::setw(8) << h;
+        }
         return out.str();
     }
 
@@ -113,10 +117,8 @@ private:
         uint32_t w[64];
         for (int i = 0; i < 16; ++i)
         {
-            w[i] = (static_cast<uint32_t>(block[i * 4]) << 24) |
-                   (static_cast<uint32_t>(block[i * 4 + 1]) << 16) |
-                   (static_cast<uint32_t>(block[i * 4 + 2]) << 8) |
-                   (static_cast<uint32_t>(block[i * 4 + 3]));
+            w[i] = (static_cast<uint32_t>(block[i * 4]) << 24) | (static_cast<uint32_t>(block[i * 4 + 1]) << 16) |
+                   (static_cast<uint32_t>(block[i * 4 + 2]) << 8) | (static_cast<uint32_t>(block[i * 4 + 3]));
         }
         for (int i = 16; i < 64; ++i)
         {
@@ -167,7 +169,12 @@ private:
 std::string ToLowerAscii(std::string s)
 {
     for (char& c : s)
-        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    {
+        if (c >= 'A' && c <= 'Z')
+        {
+            c = static_cast<char>(c - 'A' + 'a');
+        }
+    }
     return s;
 }
 
@@ -182,7 +189,9 @@ std::string PowerShellSingleQuote(const std::string& value)
     {
         out.push_back(c);
         if (c == '\'')
+        {
             out.push_back('\'');
+        }
     }
     return out;
 }
@@ -193,22 +202,18 @@ std::string PowerShellSingleQuote(const std::string& value)
 std::string EncodeCommandUtf16Base64(const std::string& utf8Script)
 {
     // UTF-8 -> UTF-16LE
-    const int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8Script.c_str(),
-                                            static_cast<int>(utf8Script.size()),
-                                            nullptr, 0);
+    const int wideLen =
+        MultiByteToWideChar(CP_UTF8, 0, utf8Script.c_str(), static_cast<int>(utf8Script.size()), nullptr, 0);
     std::wstring wide(static_cast<size_t>(wideLen), L'\0');
     if (wideLen > 0)
     {
-        MultiByteToWideChar(CP_UTF8, 0, utf8Script.c_str(),
-                            static_cast<int>(utf8Script.size()),
-                            wide.data(), wideLen);
+        MultiByteToWideChar(CP_UTF8, 0, utf8Script.c_str(), static_cast<int>(utf8Script.size()), wide.data(), wideLen);
     }
 
     const auto* bytes = reinterpret_cast<const uint8_t*>(wide.data());
     const size_t byteLen = wide.size() * sizeof(wchar_t);
 
-    static const char kTable[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    static const char kTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     std::string out;
     out.reserve(((byteLen + 2) / 3) * 4);
@@ -233,24 +238,35 @@ std::string EncodeCommandUtf16Base64(const std::string& utf8Script)
 // quote or semicolon in a path is just a character in a filename.
 int RunProcess(const std::vector<std::string>& args)
 {
-    if (args.empty()) return -1;
+    if (args.empty())
+    {
+        return -1;
+    }
 
     pid_t pid = fork();
-    if (pid < 0) return -1;
+    if (pid < 0)
+    {
+        return -1;
+    }
 
     if (pid == 0)
     {
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
         for (const auto& a : args)
+        {
             argv.push_back(const_cast<char*>(a.c_str()));
+        }
         argv.push_back(nullptr);
         execvp(argv[0], argv.data());
         _exit(127);
     }
 
     int st = 0;
-    if (waitpid(pid, &st, 0) < 0) return -1;
+    if (waitpid(pid, &st, 0) < 0)
+    {
+        return -1;
+    }
     return WIFEXITED(st) ? WEXITSTATUS(st) : -1;
 }
 
@@ -259,10 +275,16 @@ int RunProcess(const std::vector<std::string>& args)
 int RunProcessCapture(const std::vector<std::string>& args, std::string& out)
 {
     out.clear();
-    if (args.empty()) return -1;
+    if (args.empty())
+    {
+        return -1;
+    }
 
     int fds[2];
-    if (pipe(fds) != 0) return -1;
+    if (pipe(fds) != 0)
+    {
+        return -1;
+    }
 
     pid_t pid = fork();
     if (pid < 0)
@@ -280,7 +302,9 @@ int RunProcessCapture(const std::vector<std::string>& args, std::string& out)
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
         for (const auto& a : args)
+        {
             argv.push_back(const_cast<char*>(a.c_str()));
+        }
         argv.push_back(nullptr);
         execvp(argv[0], argv.data());
         _exit(127);
@@ -291,13 +315,19 @@ int RunProcessCapture(const std::vector<std::string>& args, std::string& out)
     for (;;)
     {
         const ssize_t n = read(fds[0], buffer, sizeof(buffer));
-        if (n <= 0) break;
+        if (n <= 0)
+        {
+            break;
+        }
         out.append(buffer, static_cast<size_t>(n));
     }
     close(fds[0]);
 
     int st = 0;
-    if (waitpid(pid, &st, 0) < 0) return -1;
+    if (waitpid(pid, &st, 0) < 0)
+    {
+        return -1;
+    }
     return WIFEXITED(st) ? WEXITSTATUS(st) : -1;
 }
 #endif
@@ -308,7 +338,9 @@ int RunProcessCapture(const std::vector<std::string>& args, std::string& out)
 std::string QuoteWindowsArgument(const std::string& arg)
 {
     if (!arg.empty() && arg.find_first_of(" \t\"") == std::string::npos)
+    {
         return arg;
+    }
     std::string out = "\"";
     size_t backslashes = 0;
     for (char c : arg)
@@ -341,12 +373,18 @@ std::string QuoteWindowsArgument(const std::string& arg)
 int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& out, DWORD timeoutMs)
 {
     out.clear();
-    if (args.empty()) return -1;
+    if (args.empty())
+    {
+        return -1;
+    }
 
     std::string command;
     for (const auto& a : args)
     {
-        if (!command.empty()) command += ' ';
+        if (!command.empty())
+        {
+            command += ' ';
+        }
         command += QuoteWindowsArgument(a);
     }
 
@@ -355,7 +393,10 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
     sa.bInheritHandle = TRUE;
     sa.lpSecurityDescriptor = NULL;
     HANDLE readPipe = NULL, writePipe = NULL;
-    if (!CreatePipe(&readPipe, &writePipe, &sa, 0)) return -1;
+    if (!CreatePipe(&readPipe, &writePipe, &sa, 0))
+    {
+        return -1;
+    }
     SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
 
     STARTUPINFOA si;
@@ -390,7 +431,9 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
         {
             DWORD n = 0;
             if (ReadFile(readPipe, buffer, sizeof(buffer), &n, NULL) && n > 0)
+            {
                 out.append(buffer, n);
+            }
             continue;
         }
         if (WaitForSingleObject(pi.hProcess, 50) != WAIT_TIMEOUT)
@@ -399,7 +442,9 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
             DWORD n = 0;
             while (PeekNamedPipe(readPipe, NULL, 0, NULL, &avail, NULL) && avail > 0 &&
                    ReadFile(readPipe, buffer, sizeof(buffer), &n, NULL) && n > 0)
+            {
                 out.append(buffer, n);
+            }
             break;
         }
         if (GetTickCount64() >= deadline)
@@ -437,7 +482,10 @@ std::string WindowsSystemTool(const char* exe)
 // Helper to convert wide string to narrow string (UTF-8)
 static std::string WideToNarrow(const std::wstring& wide)
 {
-    if (wide.empty()) return "";
+    if (wide.empty())
+    {
+        return "";
+    }
     int size = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string result(size - 1, 0);
     WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, &result[0], size, nullptr, nullptr);
@@ -492,9 +540,8 @@ bool EditorHttpUtils::IsAllowedUrl(const std::string& url, std::string& reason)
         // Nothing here reaches a shell any more; the metacharacters are refused
         // anyway so the intent stays explicit and a future caller cannot
         // reintroduce the problem.
-        if (c < 0x21 || c > 0x7e || c == '"' || c == '\'' || c == '`' || c == '\\' ||
-            c == '|' || c == '<' || c == '>' || c == '^' || c == '$' || c == '(' ||
-            c == ')' || c == '{' || c == '}' || c == ';')
+        if (c < 0x21 || c > 0x7e || c == '"' || c == '\'' || c == '`' || c == '\\' || c == '|' || c == '<' ||
+            c == '>' || c == '^' || c == '$' || c == '(' || c == ')' || c == '{' || c == '}' || c == ';')
         {
             reason = "URL contains an invalid character";
             return false;
@@ -507,7 +554,10 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
 {
     {
         std::string reason;
-        if (!IsAllowedUrl(url, reason)) return "";
+        if (!IsAllowedUrl(url, reason))
+        {
+            return "";
+        }
     }
 
 #ifdef _WIN32
@@ -534,12 +584,13 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
         return "";
     }
 
-    HINTERNET hSession = WinHttpOpen(L"DekiEditor/1.0",
-                                     WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                                     WINHTTP_NO_PROXY_NAME,
+    HINTERNET hSession = WinHttpOpen(L"DekiEditor/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
                                      WINHTTP_NO_PROXY_BYPASS, 0);
 
-    if (!hSession) return "";
+    if (!hSession)
+    {
+        return "";
+    }
     // The same bounds curl gets below: 5 s to connect, 30 s per send and
     // receive. WinHttp's defaults let a null-routed host hang a fetch thread
     // well past the 30 s every caller waits.
@@ -553,8 +604,8 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     }
 
     DWORD flags = (urlComp.nScheme == INTERNET_SCHEME_HTTPS) ? WINHTTP_FLAG_SECURE : 0;
-    HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlPath,
-                                            NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+    HINTERNET hRequest =
+        WinHttpOpenRequest(hConnect, L"GET", urlPath, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
 
     if (!hRequest)
     {
@@ -566,8 +617,7 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     // GitHub API requires User-Agent header
     WinHttpAddRequestHeaders(hRequest, L"User-Agent: DekiEditor/1.0", -1, WINHTTP_ADDREQ_FLAG_ADD);
 
-    if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                            WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
+    if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
     {
         WinHttpCloseHandle(hRequest);
         WinHttpCloseHandle(hConnect);
@@ -590,10 +640,8 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     {
         DWORD statusCode = 0;
         DWORD statusSize = sizeof(statusCode);
-        if (WinHttpQueryHeaders(hRequest,
-                                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                                WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusSize,
-                                WINHTTP_NO_HEADER_INDEX) &&
+        if (WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusSize, WINHTTP_NO_HEADER_INDEX) &&
             (statusCode < 200 || statusCode >= 300))
         {
             WinHttpCloseHandle(hRequest);
@@ -609,7 +657,9 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     char buffer[4096];
     DWORD bytesRead = 0;
     while (WinHttpReadData(hRequest, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0)
+    {
         result.append(buffer, bytesRead);
+    }
 
     WinHttpCloseHandle(hRequest);
     WinHttpCloseHandle(hConnect);
@@ -636,11 +686,13 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     // into a popen() command line, where `$(...)` in a registry id ran.
     // --proto '=https' --proto-redir '=https' keep every hop on TLS.
     std::string result;
-    const int rc = RunProcessCapture({ "curl", "-sfL", "--connect-timeout", "5", "--max-time", "30",
-                                       "--proto", "=https", "--proto-redir", "=https",
-                                       "-H", "User-Agent: DekiEditor", "--", url },
+    const int rc = RunProcessCapture({ "curl", "-sfL", "--connect-timeout", "5", "--max-time", "30", "--proto",
+                                       "=https", "--proto-redir", "=https", "-H", "User-Agent: DekiEditor", "--", url },
                                      result);
-    if (rc != 0) return "";
+    if (rc != 0)
+    {
+        return "";
+    }
     return result;
 #endif
 }
@@ -649,7 +701,9 @@ std::string EditorHttpUtils::Sha256File(const std::string& path)
 {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open())
+    {
         return "";
+    }
 
     Sha256 hash;
     std::vector<char> buffer(64 * 1024);
@@ -658,21 +712,21 @@ std::string EditorHttpUtils::Sha256File(const std::string& path)
         file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
         const std::streamsize got = file.gcount();
         if (got > 0)
-            hash.Update(reinterpret_cast<const uint8_t*>(buffer.data()),
-                        static_cast<size_t>(got));
+        {
+            hash.Update(reinterpret_cast<const uint8_t*>(buffer.data()), static_cast<size_t>(got));
+        }
     }
     if (file.bad())
+    {
         return "";
+    }
 
     return hash.HexDigest();
 }
 
-bool EditorHttpUtils::DownloadFileVerified(const std::string& url,
-                                           const std::string& localPath,
-                                           const std::string& expectedSha256,
-                                           std::atomic<bool>* cancelFlag,
-                                           HttpStatusCallback status,
-                                           bool allowUnpinned)
+bool EditorHttpUtils::DownloadFileVerified(const std::string& url, const std::string& localPath,
+                                           const std::string& expectedSha256, std::atomic<bool>* cancelFlag,
+                                           HttpStatusCallback status, bool allowUnpinned)
 {
     if (expectedSha256.empty() && !allowUnpinned)
     {
@@ -680,26 +734,38 @@ bool EditorHttpUtils::DownloadFileVerified(const std::string& url,
         // pin decorative. The built-in toolchain definitions carry a hash for
         // every archive; only a user-added source may opt out, loudly.
         if (status)
+        {
             status("Refusing to download " + url + ": no SHA-256 is pinned for it");
+        }
         return false;
     }
 
     if (!DownloadFile(url, localPath, cancelFlag, status))
+    {
         return false;
+    }
 
     if (expectedSha256.empty())
     {
         if (status)
+        {
             status("WARNING: no SHA-256 pinned for " + url + " - contents not verified");
+        }
         return true;
     }
 
-    if (status) status("Verifying SHA-256...");
+    if (status)
+    {
+        status("Verifying SHA-256...");
+    }
 
     const std::string actual = Sha256File(localPath);
     if (actual.empty())
     {
-        if (status) status("Could not hash downloaded file: " + localPath);
+        if (status)
+        {
+            status("Could not hash downloaded file: " + localPath);
+        }
         std::error_code ec;
         std::filesystem::remove(localPath, ec);
         return false;
@@ -711,23 +777,23 @@ bool EditorHttpUtils::DownloadFileVerified(const std::string& url,
         // so a mismatch is not something to warn about and continue past.
         if (status)
         {
-            status("SHA-256 mismatch for " + url +
-                   "\n  expected " + ToLowerAscii(expectedSha256) +
-                   "\n  actual   " + actual +
-                   "\nDiscarding the download.");
+            status("SHA-256 mismatch for " + url + "\n  expected " + ToLowerAscii(expectedSha256) + "\n  actual   " +
+                   actual + "\nDiscarding the download.");
         }
         std::error_code ec;
         std::filesystem::remove(localPath, ec);
         return false;
     }
 
-    if (status) status("SHA-256 verified");
+    if (status)
+    {
+        status("SHA-256 verified");
+    }
     return true;
 }
 
 bool EditorHttpUtils::ParseGitHubRelease(const std::string& json, const std::string& assetPattern,
-                                         const std::string& repo,
-                                         std::string& outVersion, std::string& outDownloadUrl)
+                                         const std::string& repo, std::string& outVersion, std::string& outDownloadUrl)
 {
     // A real JSON parse (this used to be substring scanning that took the
     // first quoted string after "browser_download_url" wherever it sat), and
@@ -735,26 +801,47 @@ bool EditorHttpUtils::ParseGitHubRelease(const std::string& json, const std::str
     // release body can name any URL, and what it names gets executed as a
     // toolchain.
     const nlohmann::json j = nlohmann::json::parse(json, nullptr, false);
-    if (!j.is_object()) return false;
+    if (!j.is_object())
+    {
+        return false;
+    }
 
     const std::string tag = j.value("tag_name", "");
-    if (tag.empty()) return false;
+    if (tag.empty())
+    {
+        return false;
+    }
 
     const std::string prefix = repo.empty() ? std::string() : "https://github.com/" + repo + "/releases/download/";
 
     const auto assets = j.find("assets");
-    if (assets == j.end() || !assets->is_array()) return false;
+    if (assets == j.end() || !assets->is_array())
+    {
+        return false;
+    }
 
     for (const auto& asset : *assets)
     {
-        if (!asset.is_object()) continue;
+        if (!asset.is_object())
+        {
+            continue;
+        }
         const std::string downloadUrl = asset.value("browser_download_url", "");
-        if (downloadUrl.empty() || downloadUrl.find(assetPattern) == std::string::npos) continue;
+        if (downloadUrl.empty() || downloadUrl.find(assetPattern) == std::string::npos)
+        {
+            continue;
+        }
 
-        if (!prefix.empty() && downloadUrl.rfind(prefix, 0) != 0) return false;
+        if (!prefix.empty() && downloadUrl.rfind(prefix, 0) != 0)
+        {
+            return false;
+        }
 
         std::string reason;
-        if (!IsAllowedUrl(downloadUrl, reason)) return false;
+        if (!IsAllowedUrl(downloadUrl, reason))
+        {
+            return false;
+        }
 
         outVersion = tag;
         outDownloadUrl = downloadUrl;
@@ -767,23 +854,51 @@ bool EditorHttpUtils::ParseGitHubRelease(const std::string& json, const std::str
 // Archive checks: shared by both platforms below.
 bool EditorHttpUtils::IsSafeArchiveEntry(const std::string& entry)
 {
-    if (entry.empty()) return false;
+    if (entry.empty())
+    {
+        return false;
+    }
     std::string e = entry;
     for (char& c : e)
-        if (c == '\\') c = '/';
-    if (e.front() == '/') return false;                                   // absolute
-    if (e.size() >= 2 && e[1] == ':') return false;                       // drive letter
-    if (e.rfind("//", 0) == 0) return false;                              // UNC
+    {
+        if (c == '\\')
+        {
+            c = '/';
+        }
+    }
+    if (e.front() == '/')
+    {
+        return false;  // absolute
+    }
+    if (e.size() >= 2 && e[1] == ':')
+    {
+        return false;  // drive letter
+    }
+    if (e.rfind("//", 0) == 0)
+    {
+        return false;  // UNC
+    }
     for (unsigned char c : e)
-        if (c < 0x20) return false;                                       // control characters
+    {
+        if (c < 0x20)
+        {
+            return false;  // control characters
+        }
+    }
     // Any ".." path segment, wherever it sits.
     size_t start = 0;
     while (start <= e.size())
     {
         const size_t end = e.find('/', start);
         const std::string seg = e.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        if (seg == "..") return false;
-        if (end == std::string::npos) break;
+        if (seg == "..")
+        {
+            return false;
+        }
+        if (end == std::string::npos)
+        {
+            break;
+        }
         start = end + 1;
     }
     return true;
@@ -806,8 +921,14 @@ bool EditorHttpUtils::ZipEntriesAreSafe(const std::string& zipPath, std::string&
     std::string line;
     while (std::getline(lines, line))
     {
-        while (!line.empty() && (line.back() == '\r' || line.back() == '\n')) line.pop_back();
-        if (line.empty()) continue;
+        while (!line.empty() && (line.back() == '\r' || line.back() == '\n'))
+        {
+            line.pop_back();
+        }
+        if (line.empty())
+        {
+            continue;
+        }
         if (!IsSafeArchiveEntry(line))
         {
             reason = "archive entry escapes the destination: " + line;
@@ -819,14 +940,17 @@ bool EditorHttpUtils::ZipEntriesAreSafe(const std::string& zipPath, std::string&
 
 #ifdef _WIN32
 
-bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& localPath,
-                                   std::atomic<bool>* cancelFlag, HttpStatusCallback status)
+bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& localPath, std::atomic<bool>* cancelFlag,
+                                   HttpStatusCallback status)
 {
     {
         std::string reason;
         if (!IsAllowedUrl(url, reason))
         {
-            if (status) status("Refusing to download " + url + ": " + reason);
+            if (status)
+            {
+                status("Refusing to download " + url + ": " + reason);
+            }
             return false;
         }
     }
@@ -861,7 +985,10 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
 
         if (!WinHttpCrackUrl(wUrl.c_str(), 0, 0, &urlComp))
         {
-            if (status) status("Failed to parse URL: " + currentUrl);
+            if (status)
+            {
+                status("Failed to parse URL: " + currentUrl);
+            }
             return false;
         }
 
@@ -875,22 +1002,29 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             // Refusing the downgrade is the whole point: the payload is a
             // toolchain the build will execute, so allowing a redirect to drop
             // TLS hands substitution rights to anyone on the path.
-            if (status) status("Refusing redirect from HTTPS to plain HTTP: " + currentUrl);
+            if (status)
+            {
+                status("Refusing redirect from HTTPS to plain HTTP: " + currentUrl);
+            }
             return false;
         }
 
         host = WideToNarrow(hostName);
-        if (status) status("Connecting to " + host + "...");
+        if (status)
+        {
+            status("Connecting to " + host + "...");
+        }
 
         // Open session
-        HINTERNET hSession = WinHttpOpen(L"DekiEditor/1.0",
-                                         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                                         WINHTTP_NO_PROXY_NAME,
+        HINTERNET hSession = WinHttpOpen(L"DekiEditor/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
                                          WINHTTP_NO_PROXY_BYPASS, 0);
 
         if (!hSession)
         {
-            if (status) status("Failed to open HTTP session");
+            if (status)
+            {
+                status("Failed to open HTTP session");
+            }
             return false;
         }
 
@@ -899,29 +1033,37 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
 
         if (!hConnect)
         {
-            if (status) status("Failed to connect to " + host);
+            if (status)
+            {
+                status("Failed to connect to " + host);
+            }
             WinHttpCloseHandle(hSession);
             return false;
         }
 
         // Open request
         DWORD flags = isSecure ? WINHTTP_FLAG_SECURE : 0;
-        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlPath,
-                                                NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlPath, NULL, WINHTTP_NO_REFERER,
+                                                WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
 
         if (!hRequest)
         {
-            if (status) status("Failed to open request to " + host);
+            if (status)
+            {
+                status("Failed to open request to " + host);
+            }
             WinHttpCloseHandle(hConnect);
             WinHttpCloseHandle(hSession);
             return false;
         }
 
         // Send request
-        if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                                WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
+        if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
         {
-            if (status) status("Failed to send request to " + host);
+            if (status)
+            {
+                status("Failed to send request to " + host);
+            }
             WinHttpCloseHandle(hRequest);
             WinHttpCloseHandle(hConnect);
             WinHttpCloseHandle(hSession);
@@ -942,14 +1084,17 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         {
             wchar_t redirectUrl[2048] = { 0 };
             DWORD redirectUrlSize = sizeof(redirectUrl);
-            if (!WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_LOCATION,
-                                     WINHTTP_HEADER_NAME_BY_INDEX, redirectUrl, &redirectUrlSize,
-                                     WINHTTP_NO_HEADER_INDEX))
+            if (!WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_LOCATION, WINHTTP_HEADER_NAME_BY_INDEX, redirectUrl,
+                                     &redirectUrlSize, WINHTTP_NO_HEADER_INDEX))
+            {
                 return false;
+            }
 
             currentUrl = WideToNarrow(redirectUrl);
             if (status)
+            {
                 status("Redirecting (HTTP " + std::to_string(code) + ") to " + currentUrl);
+            }
             return true;
         };
 
@@ -958,8 +1103,7 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         {
             DWORD statusCode = 0;
             DWORD statusCodeSize = sizeof(statusCode);
-            WinHttpQueryHeaders(hRequest,
-                                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+            WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
                                 WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize, WINHTTP_NO_HEADER_INDEX);
 
             if (statusCode >= 300 && statusCode < 400 && takeRedirect(statusCode))
@@ -968,7 +1112,10 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
                 continue;
             }
 
-            if (status) status("Failed to receive response from " + host);
+            if (status)
+            {
+                status("Failed to receive response from " + host);
+            }
             closeAll();
             return false;
         }
@@ -976,8 +1123,7 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         // Check status code
         DWORD statusCode = 0;
         DWORD statusCodeSize = sizeof(statusCode);
-        WinHttpQueryHeaders(hRequest,
-                            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+        WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
                             WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize, WINHTTP_NO_HEADER_INDEX);
 
         // Handle redirect
@@ -989,7 +1135,10 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
 
         if (statusCode != 200)
         {
-            if (status) status("HTTP error " + std::to_string(statusCode) + " from " + host);
+            if (status)
+            {
+                status("HTTP error " + std::to_string(statusCode) + " from " + host);
+            }
             closeAll();
             return false;
         }
@@ -997,16 +1146,19 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         // Get content length
         DWORD contentLength = 0;
         DWORD contentLengthSize = sizeof(contentLength);
-        WinHttpQueryHeaders(hRequest,
-                            WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
+        WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
                             WINHTTP_HEADER_NAME_BY_INDEX, &contentLength, &contentLengthSize, WINHTTP_NO_HEADER_INDEX);
 
         if (status)
         {
             if (contentLength > 0)
+            {
                 status("HTTP 200 OK, downloading " + FormatBytes(contentLength) + "...");
+            }
             else
+            {
                 status("HTTP 200 OK, downloading (unknown size)...");
+            }
         }
 
         // Ensure parent directory exists
@@ -1022,7 +1174,10 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         std::ofstream outFile(localPath, std::ios::binary);
         if (!outFile.is_open())
         {
-            if (status) status("Failed to open output file: " + localPath);
+            if (status)
+            {
+                status("Failed to open output file: " + localPath);
+            }
             closeAll();
             return false;
         }
@@ -1037,7 +1192,10 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         {
             if (cancelFlag && cancelFlag->load())
             {
-                if (status) status("Download cancelled");
+                if (status)
+                {
+                    status("Download cancelled");
+                }
                 outFile.close();
                 // Don't leave a truncated file behind for a caller to mistake
                 // for a complete download.
@@ -1062,19 +1220,27 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         outFile.close();
         closeAll();
 
-        if (status) status("Download complete (" + FormatBytes(totalRead) + ")");
+        if (status)
+        {
+            status("Download complete (" + FormatBytes(totalRead) + ")");
+        }
 
         return true;
     }
 
     if (status)
+    {
         status("Too many redirects (" + std::to_string(kMaxRedirects) + ") downloading " + url);
+    }
     return false;
 }
 
 bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status)
 {
-    if (status) status("Extracting archive to " + destDir + "...");
+    if (status)
+    {
+        status("Extracting archive to " + destDir + "...");
+    }
 
     // Two layers against zip-slip. The listing check refuses any entry with a
     // ".." segment, an absolute path or a drive letter before anything is
@@ -1085,7 +1251,10 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
         std::string reason;
         if (!ZipEntriesAreSafe(zipPath, reason))
         {
-            if (status) status("Refusing to extract " + zipPath + ": " + reason);
+            if (status)
+            {
+                status("Refusing to extract " + zipPath + ": " + reason);
+            }
             return false;
         }
     }
@@ -1095,16 +1264,23 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
 
     std::string output;
     const DWORD kUnzipTimeoutMs = 10u * 60u * 1000u;
-    const int rc = RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-xf", zipPath, "-C", destDir }, output, kUnzipTimeoutMs);
+    const int rc = RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-xf", zipPath, "-C", destDir }, output,
+                                            kUnzipTimeoutMs);
 
     if (status)
     {
         if (rc == 0)
+        {
             status("Extraction complete");
+        }
         else if (rc < 0)
+        {
             status("Extraction failed to start or timed out after 10 minutes");
+        }
         else
+        {
             status("Extraction failed (exit code " + std::to_string(rc) + "): " + output);
+        }
     }
     return rc == 0;
 }
@@ -1112,46 +1288,68 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
 #else
 // Linux/macOS implementations
 
-bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& localPath,
-                                   std::atomic<bool>* cancelFlag, HttpStatusCallback status)
+bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& localPath, std::atomic<bool>* cancelFlag,
+                                   HttpStatusCallback status)
 {
     (void)cancelFlag;
     {
         std::string reason;
         if (!IsAllowedUrl(url, reason))
         {
-            if (status) status("Refusing to download " + url + ": " + reason);
+            if (status)
+            {
+                status("Refusing to download " + url + ": " + reason);
+            }
             return false;
         }
     }
-    if (status) status("Downloading with curl: " + url);
+    if (status)
+    {
+        status("Downloading with curl: " + url);
+    }
 
     // --proto '=https' --proto-redir '=https' keep both the initial request and
     // every redirect on TLS, matching the Windows path's refusal to downgrade.
     // --max-redirs bounds the hop count the same way.
-    std::vector<std::string> args = {
-        "curl", "-fL", "--proto", "=https", "--proto-redir", "=https",
-        "--max-redirs", std::to_string(kMaxRedirects),
-        "-o", localPath, "--", url
-    };
+    std::vector<std::string> args = { "curl",
+                                      "-fL",
+                                      "--proto",
+                                      "=https",
+                                      "--proto-redir",
+                                      "=https",
+                                      "--max-redirs",
+                                      std::to_string(kMaxRedirects),
+                                      "-o",
+                                      localPath,
+                                      "--",
+                                      url };
     bool ok = RunProcess(args) == 0;
     if (!ok)
     {
         std::error_code ec;
         std::filesystem::remove(localPath, ec);
     }
-    if (status) status(ok ? "Download complete" : "Download failed");
+    if (status)
+    {
+        status(ok ? "Download complete" : "Download failed");
+    }
     return ok;
 }
 
 bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status)
 {
-    if (status) status("Extracting archive to " + destDir + "...");
+    if (status)
+    {
+        status("Extracting archive to " + destDir + "...");
+    }
     {
         std::string reason;
         if (!ZipEntriesAreSafe(zipPath, reason))
         {
-            if (status) status("Refusing to extract " + zipPath + ": " + reason);
+            if (status)
+            {
+                status("Refusing to extract " + zipPath + ": " + reason);
+            }
             return false;
         }
     }
@@ -1160,7 +1358,10 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
     // well; the listing check above is what refuses instead of silently
     // rewriting.
     bool ok = RunProcess({ "unzip", "-o", "--", zipPath, "-d", destDir }) == 0;
-    if (status) status(ok ? "Extraction complete" : "Extraction failed");
+    if (status)
+    {
+        status(ok ? "Extraction complete" : "Extraction failed");
+    }
     return ok;
 }
 #endif

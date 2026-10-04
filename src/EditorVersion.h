@@ -40,9 +40,8 @@ inline const char* EngineVersionString()
 inline std::string EditorVersionLine()
 {
     char buf[160];
-    std::snprintf(buf, sizeof(buf), "Deki Editor %s (engine %s, reflection ABI %u)",
-                  EditorVersionString(), EngineVersionString(),
-                  static_cast<unsigned>(kDekiReflectionAbiVersion));
+    std::snprintf(buf, sizeof(buf), "Deki Editor %s (engine %s, reflection ABI %u)", EditorVersionString(),
+                  EngineVersionString(), static_cast<unsigned>(kDekiReflectionAbiVersion));
     return buf;
 }
 

@@ -101,19 +101,18 @@ struct DEKI_EDITOR_API StripPlan
 // `packagesDir` is where the package sources are, for the include inspection;
 // empty skips that step (the unit tests do this to test the rules alone).
 DEKI_EDITOR_API StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackages,
-                           const ComponentUsage& usage,
-                           const BuildStripSettings& settings,
-                           const std::string& packagesDir);
+                                           const ComponentUsage& usage, const BuildStripSettings& settings,
+                                           const std::string& packagesDir);
 
 // A component this target's own content uses, from a package this target
 // cannot have. The one case that genuinely is a mistake rather than a normal
 // exclusion, and the one worth refusing a build over.
 struct DEKI_EDITOR_API TargetContentConflict
 {
-    std::string componentType;            // e.g. "SDL3DisplaySetup"
-    std::string where;                    // the scene or source that names it
-    std::string packageId;                // the package providing it
-    std::vector<std::string> missing;     // what the package needs and the target lacks
+    std::string componentType;         // e.g. "SDL3DisplaySetup"
+    std::string where;                 // the scene or source that names it
+    std::string packageId;             // the package providing it
+    std::vector<std::string> missing;  // what the package needs and the target lacks
 
     // One line a person can act on, naming all four.
     std::string Describe() const;
@@ -123,7 +122,7 @@ struct DEKI_EDITOR_API TargetContentConflict
 // Empty means the build is coherent: packages left out are left out because
 // nothing here needs them, which is the normal multi-target case and no error.
 DEKI_EDITOR_API std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string& projectPath,
-                                                              const std::string& targetPlatformId);
+                                                                              const std::string& targetPlatformId);
 
 // The whole thing for a project: descriptors, scan, settings.
 //

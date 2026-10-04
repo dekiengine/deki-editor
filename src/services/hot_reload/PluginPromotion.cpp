@@ -16,14 +16,18 @@ Result PromoteStaged(const std::string& runtimeDir)
 {
     Result result;
     if (runtimeDir.empty())
+    {
         return result;
+    }
 
     const fs::path binDir(runtimeDir);
     const fs::path tempDir = binDir / ".build_temp";
 
     std::error_code ec;
     if (!fs::exists(tempDir, ec))
-        return result;   // no staged build; nothing to do
+    {
+        return result;  // no staged build; nothing to do
+    }
 
     // Collect first: renaming entries out from under an open directory iterator
     // is undefined.
@@ -34,14 +38,16 @@ Result PromoteStaged(const std::string& runtimeDir)
         // PDBs move too, or the debugger keeps the old one locked. (MSVC only -
         // ELF/Mach-O carry their debug info inside the library.)
         if (ext == kSharedLibExt || ext == ".pdb")
+        {
             staged.push_back(entry.path());
+        }
     }
 
     for (const fs::path& src : staged)
     {
         const fs::path dest = binDir / src.filename();
         std::error_code moveEc;
-        fs::remove(dest, moveEc);   // replace whatever is there
+        fs::remove(dest, moveEc);  // replace whatever is there
         fs::rename(src, dest, moveEc);
         if (!moveEc)
         {
@@ -54,5 +60,5 @@ Result PromoteStaged(const std::string& runtimeDir)
     return result;
 }
 
-} // namespace PluginPromotion
-} // namespace DekiEditor
+}  // namespace PluginPromotion
+}  // namespace DekiEditor

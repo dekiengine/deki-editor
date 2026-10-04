@@ -24,12 +24,16 @@ TEST(Prerequisites, HostAbiFollowsTheCompiler)
 TEST(Prerequisites, GnuAbiNeverAsksForClangCl)
 {
     if (PluginToolchain::HostAbi() != PluginAbi::Gnu)
+    {
         GTEST_SKIP() << "MSVC-ABI editor: clang-cl is a legitimate requirement";
+    }
 
     const auto results = CheckPrerequisites();
     ASSERT_FALSE(results.empty());
     for (const auto& p : results)
+    {
         EXPECT_NE(p.name, "clang-cl") << "clang-cl required under the GNU ABI";
+    }
 }
 
 // When the toolchain resolves, the reflection-compiler entry is the one the
@@ -38,12 +42,13 @@ TEST(Prerequisites, ValidToolchainMeansCompilerPrerequisiteHolds)
 {
     const PluginToolchainInfo& tc = PluginToolchain::Get();
     if (!tc.valid)
+    {
         GTEST_SKIP() << "no plugin toolchain on this machine: " << tc.error;
+    }
 
     const auto results = CheckPrerequisites();
-    const auto it = std::find_if(results.begin(), results.end(), [](const Prerequisite& p) {
-        return p.name.rfind("GCC 16+", 0) == 0;
-    });
+    const auto it = std::find_if(results.begin(), results.end(),
+                                 [](const Prerequisite& p) { return p.name.rfind("GCC 16+", 0) == 0; });
     ASSERT_NE(it, results.end());
     EXPECT_TRUE(it->ok) << it->install;
 }
@@ -51,8 +56,12 @@ TEST(Prerequisites, ValidToolchainMeansCompilerPrerequisiteHolds)
 TEST(Prerequisites, SatisfiedIgnoresOptionalTools)
 {
     std::vector<Prerequisite> v(2);
-    v[0].name = "cmake"; v[0].required = true;  v[0].ok = true;
-    v[1].name = "curl";  v[1].required = false; v[1].ok = false;
+    v[0].name = "cmake";
+    v[0].required = true;
+    v[0].ok = true;
+    v[1].name = "curl";
+    v[1].required = false;
+    v[1].ok = false;
     EXPECT_TRUE(PrerequisitesSatisfied(v));
 
     v[0].ok = false;

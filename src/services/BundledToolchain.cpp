@@ -21,11 +21,12 @@ constexpr const char* kExeSuffix = "";
 /// <toolchain>/bin/<name><suffix> if it exists, else "".
 std::string BundledPath(const std::string& name)
 {
-    const fs::path candidate =
-        fs::path(BundledToolchainDir()) / "bin" / (name + kExeSuffix);
+    const fs::path candidate = fs::path(BundledToolchainDir()) / "bin" / (name + kExeSuffix);
     std::error_code ec;
     if (fs::exists(candidate, ec) && !ec)
+    {
         return candidate.string();
+    }
     return "";
 }
 
@@ -55,7 +56,9 @@ std::string ProjectCxxCompiler()
     {
         const std::string bundled = BundledPath(name);
         if (!bundled.empty())
+        {
             return bundled;
+        }
     }
     // Otherwise the compiler this editor was built with. Packages are dlopen'd
     // into this process, so anything else risks two standard libraries meeting
@@ -69,7 +72,9 @@ std::string ProjectCCompiler()
     {
         const std::string bundled = BundledPath(name);
         if (!bundled.empty())
+        {
             return bundled;
+        }
     }
     return DEKI_EDITOR_C_COMPILER;
 }

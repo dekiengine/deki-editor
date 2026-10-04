@@ -10,12 +10,27 @@
 #include <nlohmann/json.hpp>
 
 // Forward declarations
-namespace Deki { class Component; }
-namespace Deki { class Scene; }
-namespace Deki { struct PropertyInfo; }
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+class Scene;
+}
+namespace Deki
+{
+struct PropertyInfo;
+}
+namespace Deki
+{
+struct ComponentMeta;
+}
 
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {
@@ -29,8 +44,7 @@ using EditorNaming::GetDisplayName;
 
 // Evaluate visibility condition for a property
 // Returns true if property should be visible based on its visibilityProperty metadata
-bool EvaluateVisibility(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                        const Deki::ComponentMeta* meta);
+bool EvaluateVisibility(Deki::Component* comp, const Deki::PropertyInfo& prop, const Deki::ComponentMeta* meta);
 
 /// Is @p comp of type @p targetTypeName, or does it derive from it?
 /// Walks the reflected baseTypeId chain. Used to resolve componentRef
@@ -114,7 +128,9 @@ inline std::string LowerAscii(const char* text)
 {
     std::string out(text ? text : "");
     for (char& c : out)
+    {
         c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+    }
     return out;
 }
 
@@ -137,8 +153,14 @@ inline const std::string& PropertyFilter()
 // Case-insensitive substring match; no filter matches everything.
 inline bool TextMatchesFilter(const char* text)
 {
-    if (g_PropertyFilterLower.empty()) return true;
-    if (!text) return false;
+    if (g_PropertyFilterLower.empty())
+    {
+        return true;
+    }
+    if (!text)
+    {
+        return false;
+    }
     return LowerAscii(text).find(g_PropertyFilterLower) != std::string::npos;
 }
 
@@ -146,8 +168,14 @@ inline bool TextMatchesFilter(const char* text)
 // the query named survives whole: you asked for that component.
 inline bool PropertyMatchesFilter(const char* displayName)
 {
-    if (g_PropertyFilter.empty()) return true;
-    if (g_ComponentNameMatched) return true;
+    if (g_PropertyFilter.empty())
+    {
+        return true;
+    }
+    if (g_ComponentNameMatched)
+    {
+        return true;
+    }
     return TextMatchesFilter(displayName);
 }
 
@@ -239,8 +267,14 @@ inline float PropertyLabelWidth(float labelStartX)
     float w = rowWidth * 0.42f;
     const float minW = font * 5.5f;
     const float maxW = font * 9.0f;
-    if (w < minW) w = minW;
-    if (w > maxW) w = maxW;
+    if (w < minW)
+    {
+        w = minW;
+    }
+    if (w > maxW)
+    {
+        w = maxW;
+    }
     return w;
 }
 
@@ -281,9 +315,9 @@ inline void BeginPropertyRow(const char* displayName)
         const float barW = 2.0f * dpi;
         const float barX = rowPos.x - ::DekiEditor::Metrics::SectionLabelIndent * dpi * 0.5f;
         const float inset = rowH * 0.22f;
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            ImVec2(barX, rowPos.y + inset), ImVec2(barX + barW, rowPos.y + rowH - inset),
-            ImGui::ColorConvertFloat4ToU32(::DekiEditor::Palette::Accent));
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(barX, rowPos.y + inset),
+                                                  ImVec2(barX + barW, rowPos.y + rowH - inset),
+                                                  ImGui::ColorConvertFloat4ToU32(::DekiEditor::Palette::Accent));
     }
 
     // The label column doubles as a handle: drag it sideways to scrub a
@@ -300,9 +334,13 @@ inline void BeginPropertyRow(const char* displayName)
     g_RowLabelHovered = labelHovered;
     g_RowLabelDragging = ImGui::IsItemActive() && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     if (g_RowLabelDragging)
+    {
         g_RowLabelDragX = ImGui::GetIO().MouseDelta.x;
+    }
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
         g_RowLabelMenuClick = true;
+    }
     ImGui::PopID();
 
     // The label is PAINTED, not submitted as an ImGui item. Two reasons:
@@ -319,14 +357,14 @@ inline void BeginPropertyRow(const char* displayName)
     // for Inter), so frame padding left it sitting ~1.4px below the
     // checkbox box, which is centered in this same rowH.
     if (::DekiEditor::g_FontUIMed)
-        ImGui::PushFont(::DekiEditor::g_FontUIMed,
-                        ::DekiEditor::Fonts::CssPx(::DekiEditor::g_FontUIMed, 13.0f));
+    {
+        ImGui::PushFont(::DekiEditor::g_FontUIMed, ::DekiEditor::Fonts::CssPx(::DekiEditor::g_FontUIMed, 13.0f));
+    }
     const float labelH = ImGui::GetFontSize();
     const ImVec2 labelPos(rowPos.x, rowPos.y + std::floor((rowH - labelH) * 0.5f));
     // GetColorU32, not ColorConvertFloat4ToU32: it folds in style.Alpha, so
     // the label keeps dimming with the rest of the row inside BeginDisabled.
-    const ImU32 labelCol = ImGui::GetColorU32(
-        ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
+    const ImU32 labelCol = ImGui::GetColorU32(ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
 
     // Keep the label inside its column: a name too long for the label font
     // is cut with "..." instead of running under the value widget, and
@@ -342,9 +380,13 @@ inline void BeginPropertyRow(const char* displayName)
         {
             size_t next = keep + 1;
             while (next < len && (static_cast<unsigned char>(displayName[next]) & 0xC0) == 0x80)
+            {
                 ++next;  // never split a UTF-8 sequence
+            }
             if (ImGui::CalcTextSize(displayName, displayName + next).x > fitWidth)
+            {
                 break;
+            }
             keep = next;
         }
         clipped.assign(displayName, keep);
@@ -352,19 +394,27 @@ inline void BeginPropertyRow(const char* displayName)
     }
     // Font and size passed explicitly: the draw list's own font is not the
     // one we just pushed to measure with.
-    ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-                                        labelPos, labelCol,
+    ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), labelPos, labelCol,
                                         truncated ? clipped.c_str() : displayName);
-    if (::DekiEditor::g_FontUIMed) ImGui::PopFont();
+    if (::DekiEditor::g_FontUIMed)
+    {
+        ImGui::PopFont();
+    }
 
     if (labelHovered && (truncated || tooltip))
     {
         if (truncated && tooltip)
+        {
             DekiEditor::Tooltip("%s\n\n%s", displayName, tooltip);
+        }
         else if (truncated)
+        {
             DekiEditor::Tooltip("%s", displayName);
+        }
         else
+        {
             DekiEditor::Tooltip("%s", tooltip);
+        }
     }
 
     ImGui::SameLine(labelStartX + labelWidth);

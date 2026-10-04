@@ -46,7 +46,9 @@ std::string EditorSettings::GetSettingsDir()
         CoTaskMemFree(roaming);
         std::error_code ec;
         if (!fs::exists(settingsDir, ec))
+        {
             fs::create_directories(settingsDir, ec);
+        }
         return settingsDir.string();
     }
 #endif
@@ -55,7 +57,9 @@ std::string EditorSettings::GetSettingsDir()
     // settings, layout and the log landed in whatever the current directory was.
     std::string dataDir = EditorPaths::GetEditorDataDir();
     if (dataDir.empty())
+    {
         return ".";
+    }
     std::error_code ec;
     fs::create_directories(dataDir, ec);
     return dataDir;
@@ -84,17 +88,23 @@ bool s_SettingsDirty = false;
 void EditorSettings::Load()
 {
     if (s_Loaded)
+    {
         return;
+    }
 
     s_Loaded = true;
 
     std::string settingsPath = GetSettingsFilePath();
     if (!fs::exists(settingsPath))
+    {
         return;
+    }
 
     std::ifstream file(settingsPath);
     if (!file.is_open())
+    {
         return;
+    }
 
     try
     {
@@ -187,8 +197,7 @@ void EditorSettings::Save()
     std::string err;
     if (!AtomicWriteFile(settingsPath, data.dump(2), err))
     {
-        DEKI_LOG_WARNING("EditorSettings: failed to save '%s': %s",
-                         settingsPath.c_str(), err.c_str());
+        DEKI_LOG_WARNING("EditorSettings: failed to save '%s': %s", settingsPath.c_str(), err.c_str());
     }
 }
 
@@ -212,13 +221,15 @@ std::string EditorSettings::GetEnginePath()
     // BuildFileGenerator), so engine-path resolution works under either generator.
     fs::path exeDir = fs::path(EditorPaths::GetExecutableDir());
     std::string lastSeg = exeDir.filename().string();
-    const bool multiConfig = (lastSeg == "Debug" || lastSeg == "Release" || lastSeg == "RelWithDebInfo" || lastSeg == "MinSizeRel");
-    fs::path editorRoot = multiConfig
-                              ? exeDir.parent_path().parent_path().parent_path()
-                              : exeDir.parent_path().parent_path();
+    const bool multiConfig =
+        (lastSeg == "Debug" || lastSeg == "Release" || lastSeg == "RelWithDebInfo" || lastSeg == "MinSizeRel");
+    fs::path editorRoot =
+        multiConfig ? exeDir.parent_path().parent_path().parent_path() : exeDir.parent_path().parent_path();
     fs::path candidate = editorRoot / "deki-engine";
     if (fs::exists(candidate / "CMakeLists.txt"))
+    {
         return fs::weakly_canonical(candidate).string();
+    }
     return "";
 }
 
@@ -228,7 +239,8 @@ std::string EditorSettings::GetBuildDir()
     // build/bin/ (single-config) up to the directory holding CMakeCache.txt.
     fs::path exeDir = fs::path(EditorPaths::GetExecutableDir());
     std::string lastSeg = exeDir.filename().string();
-    const bool multiConfig = (lastSeg == "Debug" || lastSeg == "Release" || lastSeg == "RelWithDebInfo" || lastSeg == "MinSizeRel");
+    const bool multiConfig =
+        (lastSeg == "Debug" || lastSeg == "Release" || lastSeg == "RelWithDebInfo" || lastSeg == "MinSizeRel");
     fs::path buildDir = multiConfig ? exeDir.parent_path().parent_path() : exeDir.parent_path();
     return fs::weakly_canonical(buildDir).string();
 }
@@ -238,7 +250,9 @@ std::string EditorSettings::GetDepsDir()
     const std::string buildDir = GetBuildDir();
     const std::string fromCache = ReadCMakeCacheVar(buildDir, "FETCHCONTENT_BASE_DIR");
     if (!fromCache.empty() && fs::exists(fromCache))
+    {
         return fs::weakly_canonical(fs::path(fromCache)).string();
+    }
     return (fs::path(buildDir) / "_deps").string();
 }
 
@@ -250,9 +264,9 @@ std::string EditorSettings::GetCMakeLocationArgs()
         return path;
     };
 
-    std::string args = " -DDEKI_ENGINE_PATH=\"" + toCMakePath(GetEnginePath()) + "\"" +
-                       " -DDEKI_EDITOR_DIR=\"" + toCMakePath(EditorPaths::GetExecutableDir()) + "\"" +
-                       " -DDEKI_DEPS_DIR=\"" + toCMakePath(GetDepsDir()) + "\"";
+    std::string args = " -DDEKI_ENGINE_PATH=\"" + toCMakePath(GetEnginePath()) + "\"" + " -DDEKI_EDITOR_DIR=\"" +
+                       toCMakePath(EditorPaths::GetExecutableDir()) + "\"" + " -DDEKI_DEPS_DIR=\"" +
+                       toCMakePath(GetDepsDir()) + "\"";
 
     // Where the editor's own configure put SDL3's headers and link library
     // (a prebuilt archive on Windows, a source build elsewhere); generated
@@ -262,9 +276,13 @@ std::string EditorSettings::GetCMakeLocationArgs()
     const std::string sdl3Include = ReadCMakeCacheVar(buildDir, "DEKI_SDL3_INCLUDE_DIR");
     const std::string sdl3Lib = ReadCMakeCacheVar(buildDir, "DEKI_SDL3_LIB_DIR");
     if (!sdl3Include.empty())
+    {
         args += " -DDEKI_SDL3_INCLUDE_DIR=\"" + toCMakePath(sdl3Include) + "\"";
+    }
     if (!sdl3Lib.empty())
+    {
         args += " -DDEKI_SDL3_LIB_DIR=\"" + toCMakePath(sdl3Lib) + "\"";
+    }
     return args;
 }
 
@@ -282,7 +300,9 @@ bool EditorSettings::GetPanelOpen(const std::string& panelName, bool defaultValu
 void EditorSettings::FlushIfDirty()
 {
     if (s_SettingsDirty)
+    {
         Save();
+    }
 }
 
 void EditorSettings::SetPanelOpen(const std::string& panelName, bool open)
@@ -296,7 +316,9 @@ bool EditorSettings::GetBool(const std::string& key, bool defaultValue)
     Load();
     auto it = s_Preferences.find(key);
     if (it != s_Preferences.end())
+    {
         return it->second;
+    }
     return defaultValue;
 }
 
@@ -311,7 +333,9 @@ std::string EditorSettings::GetString(const std::string& key, const std::string&
     Load();
     auto it = s_StringPreferences.find(key);
     if (it != s_StringPreferences.end())
+    {
         return it->second;
+    }
     return defaultValue;
 }
 
@@ -342,36 +366,60 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
     // Helper: scan a packages directory for platform dependencies
     auto scanDir = [&](const fs::path& packagesDir)
     {
-        if (!fs::exists(packagesDir)) return;
+        if (!fs::exists(packagesDir))
+        {
+            return;
+        }
         for (const auto& entry : fs::directory_iterator(packagesDir))
         {
-            if (!entry.is_directory()) continue;
+            if (!entry.is_directory())
+            {
+                continue;
+            }
             fs::path jsonPath = entry.path() / "package.json";
-            if (!fs::exists(jsonPath)) continue;
+            if (!fs::exists(jsonPath))
+            {
+                continue;
+            }
             try
             {
                 std::ifstream file(jsonPath);
                 json j;
                 file >> j;
-                if (!j.contains("dependencies")) continue;
+                if (!j.contains("dependencies"))
+                {
+                    continue;
+                }
                 auto& pd = j["dependencies"];
 
                 json deps;
                 if (pd.contains(platformKey))
+                {
                     deps = pd[platformKey];
+                }
                 else if (pd.contains("default"))
+                {
                     deps = pd["default"];
+                }
                 else
+                {
                     continue;
+                }
 
                 for (const auto& dep : deps)
                 {
                     // dependencies.<platform> mixes bare strings (ESP-IDF component names,
                     // consumed as REQUIRES via ScanPackageManifests) with {name,git,...}
                     // objects. This parser only wants the object package-deps; skip the rest.
-                    if (!dep.is_object()) continue;
+                    if (!dep.is_object())
+                    {
+                        continue;
+                    }
                     std::string name = dep.value("name", "");
-                    if (name.empty() || name.rfind("deki-", 0) == 0) continue;
+                    if (name.empty() || name.rfind("deki-", 0) == 0)
+                    {
+                        continue;
+                    }
                     // Skip duplicates
                     bool exists = false;
                     for (const auto& r : result)
@@ -382,13 +430,19 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
                             break;
                         }
                     }
-                    if (exists) continue;
+                    if (exists)
+                    {
+                        continue;
+                    }
                     PackageDepInfo info;
                     info.name = name;
                     info.version = dep.value("version", "");
                     {
                         auto oit = overrides.find(name);
-                        if (oit != overrides.end()) info.version = oit->second;
+                        if (oit != overrides.end())
+                        {
+                            info.version = oit->second;
+                        }
                     }
                     info.gitUrl = dep.value("git", "");
                     if (dep.contains("cmakePatch"))
@@ -409,7 +463,9 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
     // Scan project-installed packages (standalone DLLs)
     std::string projectPath = GetLastProjectPath();
     if (!projectPath.empty())
+    {
         scanDir(fs::path(GetPackagesDirectory(projectPath)));
+    }
 
     return result;
 }

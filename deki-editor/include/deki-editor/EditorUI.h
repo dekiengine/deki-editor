@@ -6,8 +6,14 @@
 
 #include <deki-editor/EditorExport.h>
 // Forward declarations
-namespace Deki { class Component; }
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+struct ComponentMeta;
+}
 
 namespace DekiEditor
 {
@@ -78,8 +84,7 @@ public:
      * @param outHeight Output atlas height
      * @return OpenGL texture ID, or 0 on failure
      */
-    uint32_t GetFontAtlasTexture(const std::string& fontGuid, int fontSize,
-                                 uint32_t* outWidth, uint32_t* outHeight);
+    uint32_t GetFontAtlasTexture(const std::string& fontGuid, int fontSize, uint32_t* outWidth, uint32_t* outHeight);
 
     /**
      * @brief Modify an asset file with undo/redo support
@@ -88,8 +93,8 @@ public:
      * @param oldJson Old JSON state (for undo)
      * @param newJson New JSON state (to apply)
      */
-    void ModifyAsset(const std::string& assetPath, const std::string& assetGuid,
-                     const std::string& oldJson, const std::string& newJson);
+    void ModifyAsset(const std::string& assetPath, const std::string& assetGuid, const std::string& oldJson,
+                     const std::string& newJson);
 
     // =========================================================================
     // Styled UI controls
@@ -106,8 +111,8 @@ public:
     void PropertyRow(const char* label);
 
     bool DragInt(const char* id, int* v, float speed = 1.0f, int vmin = 0, int vmax = 0);
-    bool DragFloat(const char* id, float* v, float speed = 1.0f, float vmin = 0.0f,
-                   float vmax = 0.0f, const char* format = "%.3f");
+    bool DragFloat(const char* id, float* v, float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
+                   const char* format = "%.3f");
     // Unified checkbox. A visible label (e.g. "Antialiased") draws a complete
     // labeled row, compact (sized to the checkbox box, not the tall field frame).
     // A hidden/empty label ("##id") draws just the bare styled box for custom
@@ -161,8 +166,8 @@ public:
     /** @brief Pack an RGBA color (components 0-255) for the Draw* methods. */
     static uint32_t Rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
-        return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) |
-               (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(r);
+        return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(g) << 8) |
+               static_cast<uint32_t>(r);
     }
 
     // Custom drawing maps 1:1 to ImGui: draw at GetCursorScreenPos(), then call
@@ -183,8 +188,8 @@ public:
     void DrawRectFilled(float x0, float y0, float x1, float y1, uint32_t rgba, float rounding = 0.0f);
     void DrawCircle(float cx, float cy, float radius, uint32_t rgba, float thickness = 1.0f);
     void DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba);
-    void DrawImage(uint32_t texture, float x0, float y0, float x1, float y1,
-                   float u0 = 0.0f, float v0 = 0.0f, float u1 = 1.0f, float v1 = 1.0f, uint32_t tint = 0xFFFFFFFFu);
+    void DrawImage(uint32_t texture, float x0, float y0, float x1, float y1, float u0 = 0.0f, float v0 = 0.0f,
+                   float u1 = 1.0f, float v1 = 1.0f, uint32_t tint = 0xFFFFFFFFu);
     // Named DrawTextAt (not DrawText) on purpose: <windows.h> #defines DrawText
     // as DrawTextA/W, which would break any package that includes it.
     void DrawTextAt(float pixelSize, float x, float y, uint32_t rgba, const char* text);
@@ -289,8 +294,8 @@ public:
     bool Selectable(const char* label, bool selected);
     // Selectable that spans every column of the enclosing table (full-width row).
     bool Selectable(const char* label, bool selected, bool spanAllColumns);
-    bool ImageButton(const char* id, uint32_t texture, float w, float h,
-                     float u0 = 0.0f, float v0 = 0.0f, float u1 = 1.0f, float v1 = 1.0f);
+    bool ImageButton(const char* id, uint32_t texture, float w, float h, float u0 = 0.0f, float v0 = 0.0f,
+                     float u1 = 1.0f, float v1 = 1.0f);
     bool InvisibleButton(const char* id, float w, float h);
     void SetNextItemWidth(float w);
     // Virtualized list helper (one active clipper at a time; do not nest):
@@ -328,8 +333,7 @@ public:
     //     for (...) { ui.TableNextRow(); ui.TableNextColumn(); ...; ui.TableNextColumn(); ... }
     //     ui.EndTable();
     //   }
-    bool BeginTable(const char* id, int columns, int tableFlags = 0,
-                    float outerW = 0.0f, float outerH = 0.0f);
+    bool BeginTable(const char* id, int columns, int tableFlags = 0, float outerW = 0.0f, float outerH = 0.0f);
     void TableSetupColumn(const char* label, int columnFlags = 0, float widthOrWeight = 0.0f);
     void TableSetupScrollFreeze(int cols, int rows);
     void TableHeadersRow();
@@ -350,8 +354,8 @@ public:
     // `destructive` marks a cell whose verb removes something: it is drawn in
     // the palette's red instead of the neutral tier, with a red hover fill, so
     // a delete never looks like the buttons beside it.
-    bool ToolbarIconButton(const char* id, const char* icon, const char* tooltip = nullptr,
-                           bool enabled = true, bool active = false, bool destructive = false);
+    bool ToolbarIconButton(const char* id, const char* icon, const char* tooltip = nullptr, bool enabled = true,
+                           bool active = false, bool destructive = false);
     void EndToolbar();
 
     // Sub-nav "tab links": a full-bleed row of text labels with a 2px accent
@@ -474,10 +478,10 @@ public:
 
     // Low-level styled controls (label-less; building blocks for the *Field
     // helpers and for custom rows). DragFloat2/3 wrap N drag fields + axis stamps.
-    bool DragFloat2(const char* id, float v[2], float speed = 1.0f, float vmin = 0.0f,
-                    float vmax = 0.0f, const char* format = "%.3f");
-    bool DragFloat3(const char* id, float v[3], float speed = 1.0f, float vmin = 0.0f,
-                    float vmax = 0.0f, const char* format = "%.3f");
+    bool DragFloat2(const char* id, float v[2], float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
+                    const char* format = "%.3f");
+    bool DragFloat3(const char* id, float v[3], float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
+                    const char* format = "%.3f");
     void FullBleedSeparator();
     void BeginDisabled(bool disabled = true);
     void EndDisabled();
@@ -538,12 +542,18 @@ public:
 
     // --- Pointer mode (the field reads/writes your member) ---
     // Integer field: the width/signedness is chosen by the pointer overload.
-    bool IntField(const char* label, int32_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0, const IntCallbacks& cb = {});
-    bool IntField(const char* label, uint32_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0, const IntCallbacks& cb = {});
-    bool IntField(const char* label, int16_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0, const IntCallbacks& cb = {});
-    bool IntField(const char* label, uint16_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0, const IntCallbacks& cb = {});
-    bool IntField(const char* label, int8_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0, const IntCallbacks& cb = {});
-    bool IntField(const char* label, uint8_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0, const IntCallbacks& cb = {});
+    bool IntField(const char* label, int32_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
+                  const IntCallbacks& cb = {});
+    bool IntField(const char* label, uint32_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
+                  const IntCallbacks& cb = {});
+    bool IntField(const char* label, int16_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
+                  const IntCallbacks& cb = {});
+    bool IntField(const char* label, uint16_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
+                  const IntCallbacks& cb = {});
+    bool IntField(const char* label, int8_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
+                  const IntCallbacks& cb = {});
+    bool IntField(const char* label, uint8_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
+                  const IntCallbacks& cb = {});
 
     bool FloatField(const char* label, float* v, float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
                     const char* format = "%.3f", const FloatCallbacks& cb = {});
@@ -559,7 +569,8 @@ public:
     bool EnumField(const char* label, int* index, const char* const items[], int count, const EnumCallbacks& cb = {});
     bool EnumField(const char* label, int* index, const char* itemsZeroSep, const EnumCallbacks& cb = {});
     bool InputField(const char* label, char* buf, size_t bufSize, const TextCallbacks& cb = {});
-    bool SliderField(const char* label, float* v, float vmin, float vmax, const char* format = "%.3f", const FloatCallbacks& cb = {});
+    bool SliderField(const char* label, float* v, float vmin, float vmax, const char* format = "%.3f",
+                     const FloatCallbacks& cb = {});
     bool SliderField(const char* label, int* v, int vmin, int vmax, const EnumCallbacks& cb = {});
 
     // --- Value mode (pointerless): pass the current value(s) by value; apply via
@@ -569,9 +580,12 @@ public:
     bool Vector2Field(const char* label, float x, float y, Unit unit, const VecCallbacks& cb);
     bool Vector3Field(const char* label, float x, float y, float z, Unit unit, const VecCallbacks& cb);
     // Value mode with explicit drag speed/range (no unit), for things like Scale.
-    bool FloatField(const char* label, float value, float speed, float vmin, float vmax, const char* format, const FloatCallbacks& cb);
-    bool Vector2Field(const char* label, float x, float y, float speed, float vmin, float vmax, const char* format, const VecCallbacks& cb);
-    bool Vector3Field(const char* label, float x, float y, float z, float speed, float vmin, float vmax, const char* format, const VecCallbacks& cb);
+    bool FloatField(const char* label, float value, float speed, float vmin, float vmax, const char* format,
+                    const FloatCallbacks& cb);
+    bool Vector2Field(const char* label, float x, float y, float speed, float vmin, float vmax, const char* format,
+                      const VecCallbacks& cb);
+    bool Vector3Field(const char* label, float x, float y, float z, float speed, float vmin, float vmax,
+                      const char* format, const VecCallbacks& cb);
 
     // ImGui-backed implementations, installed once by the editor executable.
     // Byte-level edit callbacks the backend invokes during the lifecycle.
@@ -646,18 +660,18 @@ public:
         // pointer mode, an internal temp in value mode). `ownsStorage` true =>
         // the pushed command memcpy's `value` on undo/redo (pointer mode);
         // false => value mode, the command only fires cb.onUndo/onRedo.
-        std::function<void(void* value, size_t size, bool ownsStorage, const void* before,
-                           const char* label, const EditCallbacksBytes& cb)>
+        std::function<void(void* value, size_t size, bool ownsStorage, const void* before, const char* label,
+                           const EditCallbacksBytes& cb)>
             recordEdit;
         // Same as recordEdit but for atomic widgets (combo): the DLL calls it only
         // on the frame the value changed.
-        std::function<void(void* value, size_t size, bool ownsStorage, const void* before,
-                           const char* label, const EditCallbacksBytes& cb)>
+        std::function<void(void* value, size_t size, bool ownsStorage, const void* before, const char* label,
+                           const EditCallbacksBytes& cb)>
             commitEdit;
         // Unit-aware float/vector field: draws + converts (px/m, degrees) + snaps,
         // then runs the drag-style lifecycle. `value` is `count` canonical floats.
-        std::function<bool(const char* label, float* value, int count, int unitKind,
-                           bool ownsStorage, const EditCallbacksBytes& cb)>
+        std::function<bool(const char* label, float* value, int count, int unitKind, bool ownsStorage,
+                           const EditCallbacksBytes& cb)>
             unitField;
         // CSS-px text (see DrawTextCss): backend applies Fonts::CssPx + DPI scale.
         std::function<void(float, float, float, uint32_t, const char*)> drawTextCss;
@@ -691,17 +705,15 @@ public:
     using DrawDefaultPropertiesFunc = std::function<void()>;
     using ResolveAssetNameFunc = std::function<std::string(const std::string&)>;
     using GetFontAtlasFunc = std::function<uint32_t(const std::string&, int, uint32_t*, uint32_t*)>;
-    using ModifyAssetFunc = std::function<void(const std::string&, const std::string&, const std::string&, const std::string&)>;
+    using ModifyAssetFunc =
+        std::function<void(const std::string&, const std::string&, const std::string&, const std::string&)>;
 
     /**
      * @brief Begin editing a component (called by InspectorPanel)
      */
-    void BeginComponent(Deki::Component* comp, const Deki::ComponentMeta* meta,
-                        DrawPropertyByNameFunc drawByName,
-                        DrawPropertyByOffsetFunc drawByOffset,
-                        DrawDefaultPropertiesFunc drawDefault,
-                        ResolveAssetNameFunc resolveAsset,
-                        GetFontAtlasFunc getFontAtlas,
+    void BeginComponent(Deki::Component* comp, const Deki::ComponentMeta* meta, DrawPropertyByNameFunc drawByName,
+                        DrawPropertyByOffsetFunc drawByOffset, DrawDefaultPropertiesFunc drawDefault,
+                        ResolveAssetNameFunc resolveAsset, GetFontAtlasFunc getFontAtlas,
                         ModifyAssetFunc modifyAsset = nullptr);
 
     /**
@@ -737,5 +749,5 @@ private:
  *
  * Usage: DRAW_PROPERTY_FIELD(SpriteComponent, width);
  */
-#define DRAW_PROPERTY_FIELD(ComponentType, member) \
+#define DRAW_PROPERTY_FIELD(ComponentType, member)                                                                     \
     DekiEditor::EditorUI::Get().PropertyField(offsetof(ComponentType, member))

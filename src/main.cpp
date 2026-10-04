@@ -92,7 +92,6 @@ int main(int argc, char* argv[])
     // Register crash handler as early as possible
     DekiEditor::CrashHandler::Initialize();
 
-
     DekiEditor::CliOptions cli;
     const bool parsed = DekiEditor::ParseArgs(argc, argv, cli);
 
@@ -102,7 +101,9 @@ int main(int argc, char* argv[])
     // too.
     const bool headless = DekiEditor::HasCommand(cli);
     if (headless || cli.help || cli.version || cli.mcp || !parsed)
+    {
         DekiEditor::AttachParentConsole();
+    }
 
     if (!parsed)
     {
@@ -132,7 +133,9 @@ int main(int argc, char* argv[])
     // The short list of verbs that read the project directory and nothing
     // else. See EditorCli.h - everything not on it boots.
     if (headless && DekiEditor::IsLightCommand(cli))
+    {
         return DekiEditor::RunLightCommand(cli);
+    }
 
     // A project a running editor has open: run the tools there, live, rather
     // than boot a second editor on it.
@@ -140,7 +143,9 @@ int main(int argc, char* argv[])
     {
         int rc = 0;
         if (DekiEditor::TryRunInLiveEditor(cli, rc))
+        {
             return rc;
+        }
     }
 
     // The build-tool check a project open makes, answered while the window
@@ -155,7 +160,9 @@ int main(int argc, char* argv[])
 
     DekiEditor::BootContext ctx;
     if (!DekiEditor::BootPlatform(boot, ctx))
+    {
         return 1;
+    }
 
     DekiEditor::EditorApp editor;
     const bool opened = DekiEditor::BootEditor(boot, ctx, editor);
@@ -211,10 +218,13 @@ int main(int argc, char* argv[])
             // Quit is a request, not a fact: the editor asks about unsaved
             // changes first and grants it via ConsumeQuitRequest() below.
             if (event.type == SDL_EVENT_QUIT)
+            {
                 editor.RequestQuit();
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
-                event.window.windowID == SDL_GetWindowID(ctx.window))
+            }
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(ctx.window))
+            {
                 editor.RequestQuit();
+            }
             if (event.type == SDL_EVENT_DROP_FILE)
             {
                 const char* droppedFile = event.drop.data;
@@ -229,7 +239,9 @@ int main(int argc, char* argv[])
         // A close request that arrived while a long operation was pumping
         // events itself (see ProgressModal) is replayed here.
         if (DekiEditor::ProgressModal::TakeDeferredQuit())
+        {
             editor.RequestQuit();
+        }
         if (editor.ConsumeQuitRequest())
         {
             running = false;
@@ -251,7 +263,9 @@ int main(int argc, char* argv[])
         // automation input below, whose timed steps (a held click, a hover)
         // count the same clock.
         if (DekiEditor::EditorCapture::Get().IsRecordingSequence())
+        {
             ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
+        }
         // Automation input (MCP click, key, ...): after the backend's report of
         // the real cursor so an injected position wins, before NewFrame so
         // ImGui sees it this frame.
@@ -275,15 +289,10 @@ int main(int argc, char* argv[])
         ImGui::SetNextWindowSize(viewport->WorkSize);
         ImGui::SetNextWindowViewport(viewport->ID);
 
-        ImGuiWindowFlags window_flags_dock =
-            ImGuiWindowFlags_NoDocking |
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoBringToFrontOnFocus |
-            ImGuiWindowFlags_NoNavFocus |
-            ImGuiWindowFlags_MenuBar;
+        ImGuiWindowFlags window_flags_dock = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+                                             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                             ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -302,8 +311,7 @@ int main(int argc, char* argv[])
             const float barH = 36.0f * scale;          // physical
             const float fontH = ImGui::GetFontSize();  // physical
             const float padY = (barH - fontH) * 0.5f;
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                                ImVec2(8.0f * scale, padY));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f * scale, padY));
         }
 
         ImGui::Begin("DockSpace", nullptr, window_flags_dock);
@@ -320,7 +328,9 @@ int main(int argc, char* argv[])
         // strip above the docked panels - the DockSpace call below uses
         // ImVec2(0, -statusBarHeight) which fills the remaining height.
         if (!projectManagerMode)
+        {
             editor.DrawGlobalToolbar();
+        }
 
         // DockSpace (leave room for status bar at bottom)
         if (!projectManagerMode)
@@ -343,8 +353,7 @@ int main(int argc, char* argv[])
             DekiEditor::BeginPanelMaximizeFrame();
 
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, -statusBarHeight),
-                             ImGuiDockNodeFlags_NoWindowMenuButton |
-                                 ImGuiDockNodeFlags_NoCloseButton);
+                             ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
 
             // Set up initial dock layout only if no saved layout exists
             if (firstFrame)
@@ -354,13 +363,17 @@ int main(int argc, char* argv[])
                 // Only build default layout if imgui.ini doesn't exist (first run)
                 ImGuiDockNode* node = ImGui::DockBuilderGetNode(dockspace_id);
                 if (!node || node->IsEmpty())
+                {
                     BuildDefaultDockLayout(dockspace_id, viewport->WorkSize);
+                }
             }
 
             // View > Restore Layout. Same builder as first run, so the layout the
             // menu restores is by definition the one the editor ships with.
             if (editor.ConsumeRestoreLayoutRequest())
+            {
                 BuildDefaultDockLayout(dockspace_id, viewport->WorkSize);
+            }
 
             // Double-click a tab to blow that panel up over the dockspace, and its
             // title bar to put it back. Must run after DockSpace() (the node rect
@@ -377,7 +390,9 @@ int main(int argc, char* argv[])
 
         // Draw status bar at the bottom of the dockspace window
         if (!projectManagerMode)
+        {
             editor.DrawStatusBar();
+        }
 
         ImGui::End();
 
@@ -399,8 +414,7 @@ int main(int argc, char* argv[])
 
         // Screenshot / sequence capture reads the backbuffer, so it has to run
         // after the draw data is submitted and before the swap discards it.
-        DekiEditor::EditorCapture::Get().ProcessEndOfFrame(
-            (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+        DekiEditor::EditorCapture::Get().ProcessEndOfFrame((int)io.DisplaySize.x, (int)io.DisplaySize.y);
 
         // Blocks until vsync: time here is waiting, not work.
         phase.emplace("Frame: swap (waits for vsync)");

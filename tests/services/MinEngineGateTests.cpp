@@ -11,35 +11,35 @@ namespace fs = std::filesystem;
 
 namespace
 {
-    // A package directory holding exactly the manifest text given (or none).
-    class PackageDir
+// A package directory holding exactly the manifest text given (or none).
+class PackageDir
+{
+public:
+    explicit PackageDir(const char* name)
+        : m_Path(fs::temp_directory_path() / (std::string("deki_minengine_") + name))
     {
-    public:
-        explicit PackageDir(const char* name)
-            : m_Path(fs::temp_directory_path() / (std::string("deki_minengine_") + name))
-        {
-            std::error_code ec;
-            fs::remove_all(m_Path, ec);
-            fs::create_directories(m_Path, ec);
-        }
-        ~PackageDir()
-        {
-            std::error_code ec;
-            fs::remove_all(m_Path, ec);
-        }
+        std::error_code ec;
+        fs::remove_all(m_Path, ec);
+        fs::create_directories(m_Path, ec);
+    }
+    ~PackageDir()
+    {
+        std::error_code ec;
+        fs::remove_all(m_Path, ec);
+    }
 
-        void WriteManifest(const std::string& body) const
-        {
-            std::ofstream out(m_Path / "package.json");
-            out << body;
-        }
+    void WriteManifest(const std::string& body) const
+    {
+        std::ofstream out(m_Path / "package.json");
+        out << body;
+    }
 
-        const fs::path& Path() const { return m_Path; }
+    const fs::path& Path() const { return m_Path; }
 
-    private:
-        fs::path m_Path;
-    };
-}
+private:
+    fs::path m_Path;
+};
+}  // namespace
 
 // The engine this editor embeds. The gate compares against exactly this.
 TEST(MinEngineGate, EmbeddedVersionIsDefined)
@@ -116,8 +116,7 @@ TEST(MinEngineGate, RefusesAPackageBuiltForAnOlderEngine)
 TEST(MinEngineGate, AcceptsTheOldestSupportedGeneration)
 {
     PackageDir dir("oldest");
-    dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")")
-                      + DEKI_OLDEST_SUPPORTED_PACKAGE + R"("})");
+    dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")") + DEKI_OLDEST_SUPPORTED_PACKAGE + R"("})");
 
     std::string reason;
     EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason)) << reason;
@@ -128,8 +127,7 @@ TEST(MinEngineGate, AcceptsTheOldestSupportedGeneration)
 TEST(MinEngineGate, ThisEnginesOwnPackagesPassBothBounds)
 {
     PackageDir dir("current");
-    dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")")
-                      + DEKI_ENGINE_VERSION + R"("})");
+    dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")") + DEKI_ENGINE_VERSION + R"("})");
 
     std::string reason;
     EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason)) << reason;
@@ -141,13 +139,17 @@ TEST(MinEngineGate, ThisEnginesOwnPackagesPassBothBounds)
 // checked against each other here.
 TEST(MinEngineGate, TheListAgreesWithTheInstaller)
 {
-    struct Case { const char* minEngine; bool compatible; };
+    struct Case
+    {
+        const char* minEngine;
+        bool compatible;
+    };
     const Case cases[] = {
         { DEKI_ENGINE_VERSION, true },
         { DEKI_OLDEST_SUPPORTED_PACKAGE, true },
-        { "99.0.0", false },   // needs a newer editor
-        { "0.1.0", false },    // built for an editor too old
-        { "", true },          // said nothing; both paths accept that
+        { "99.0.0", false },  // needs a newer editor
+        { "0.1.0", false },   // built for an editor too old
+        { "", true },         // said nothing; both paths accept that
     };
 
     for (const Case& c : cases)
@@ -160,9 +162,13 @@ TEST(MinEngineGate, TheListAgreesWithTheInstaller)
         const std::string dirName = std::string("agree_") + (c.minEngine[0] ? c.minEngine : "empty");
         PackageDir dir(dirName.c_str());
         if (c.minEngine[0])
+        {
             dir.WriteManifest(std::string(R"({"id":"deki-x","minEngine":")") + c.minEngine + R"("})");
+        }
         else
+        {
             dir.WriteManifest(R"({"id":"deki-x"})");
+        }
 
         std::string reason;
         const bool installerSaysOk = DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason);

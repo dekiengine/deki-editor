@@ -69,16 +69,15 @@ TEST(ComponentUsageScan, PlatformBootScenesCountToo)
 TEST(ComponentUsageScan, SourcesCountOnlyWholeIdentifiersOfKnownTypes)
 {
     TempProject p;
-    std::ofstream(p.root / "src" / "Game.cpp")
-        << "void f(Deki::Object* o) { o->AddComponent<GradientComponent>(); }\n"
-           "struct MyGradientComponentX {};  // not the component\n"
-           "// mentions RollerComponent in a comment only\n";
+    std::ofstream(p.root / "src" / "Game.cpp") << "void f(Deki::Object* o) { o->AddComponent<GradientComponent>(); }\n"
+                                                  "struct MyGradientComponentX {};  // not the component\n"
+                                                  "// mentions RollerComponent in a comment only\n";
     std::ofstream(p.root / "src" / "generated" / "X.gen.cpp") << "TextComponent\n";  // generated: ignored
 
     const ComponentUsage u =
         ScanComponentUsage(p.root.string(), { "GradientComponent", "TextComponent", "SpriteComponent" }, {});
     EXPECT_TRUE(u.Uses("GradientComponent"));
-    EXPECT_FALSE(u.Uses("TextComponent"));   // only in generated/
+    EXPECT_FALSE(u.Uses("TextComponent"));  // only in generated/
     EXPECT_FALSE(u.Uses("SpriteComponent"));
     EXPECT_FALSE(u.Uses("RollerComponent"));  // not a known type, and a comment
     EXPECT_EQ(u.byType.at("GradientComponent")[0], "src/Game.cpp");
@@ -95,8 +94,7 @@ TEST(ComponentUsageScan, AnotherPackageNamingAComponentCountsAsUsage)
     std::ofstream(p.root / "packages" / "deki-fsm" / "FsmActions.cpp")
         << "void act(Deki2D::AnimationComponent* a) { a->Play(true); }\n";
 
-    const ComponentUsage u =
-        ScanComponentUsage(p.root.string(), { "AnimationComponent" }, { "deki-fsm" });
+    const ComponentUsage u = ScanComponentUsage(p.root.string(), { "AnimationComponent" }, { "deki-fsm" });
     EXPECT_TRUE(u.Uses("AnimationComponent"));
     EXPECT_EQ(u.byType.at("AnimationComponent")[0], "packages/deki-fsm/FsmActions.cpp");
 }

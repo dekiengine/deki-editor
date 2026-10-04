@@ -59,8 +59,8 @@ std::string EditorUI::ResolveAssetName(const std::string& guid)
     return guid;
 }
 
-uint32_t EditorUI::GetFontAtlasTexture(const std::string& fontGuid, int fontSize,
-                                       uint32_t* outWidth, uint32_t* outHeight)
+uint32_t EditorUI::GetFontAtlasTexture(const std::string& fontGuid, int fontSize, uint32_t* outWidth,
+                                       uint32_t* outHeight)
 {
     if (m_GetFontAtlas)
     {
@@ -69,8 +69,8 @@ uint32_t EditorUI::GetFontAtlasTexture(const std::string& fontGuid, int fontSize
     return 0;
 }
 
-void EditorUI::ModifyAsset(const std::string& assetPath, const std::string& assetGuid,
-                           const std::string& oldJson, const std::string& newJson)
+void EditorUI::ModifyAsset(const std::string& assetPath, const std::string& assetGuid, const std::string& oldJson,
+                           const std::string& newJson)
 {
     if (m_ModifyAsset)
     {
@@ -82,12 +82,9 @@ void EditorUI::ModifyAsset(const std::string& assetPath, const std::string& asse
 // State Management
 // ============================================================================
 
-void EditorUI::BeginComponent(Deki::Component* comp, const Deki::ComponentMeta* meta,
-                              DrawPropertyByNameFunc drawByName,
-                              DrawPropertyByOffsetFunc drawByOffset,
-                              DrawDefaultPropertiesFunc drawDefault,
-                              ResolveAssetNameFunc resolveAsset,
-                              GetFontAtlasFunc getFontAtlas,
+void EditorUI::BeginComponent(Deki::Component* comp, const Deki::ComponentMeta* meta, DrawPropertyByNameFunc drawByName,
+                              DrawPropertyByOffsetFunc drawByOffset, DrawDefaultPropertiesFunc drawDefault,
+                              ResolveAssetNameFunc resolveAsset, GetFontAtlasFunc getFontAtlas,
                               ModifyAssetFunc modifyAsset)
 {
     m_CurrentComponent = comp;
@@ -130,7 +127,10 @@ bool EditorUI::SectionHeader(const char* label)
 
 void EditorUI::PropertyRow(const char* label)
 {
-    if (s_widgetBackend.propertyRow) s_widgetBackend.propertyRow(label);
+    if (s_widgetBackend.propertyRow)
+    {
+        s_widgetBackend.propertyRow(label);
+    }
 }
 
 bool EditorUI::DragInt(const char* id, int* v, float speed, int vmin, int vmax)
@@ -195,52 +195,82 @@ bool EditorUI::SmallButton(const char* label)
 
 void EditorUI::Text(const char* text)
 {
-    if (s_widgetBackend.text) s_widgetBackend.text(text);
+    if (s_widgetBackend.text)
+    {
+        s_widgetBackend.text(text);
+    }
 }
 
 void EditorUI::TextColored(float r, float g, float b, float a, const char* text)
 {
-    if (s_widgetBackend.textColored) s_widgetBackend.textColored(r, g, b, a, text);
+    if (s_widgetBackend.textColored)
+    {
+        s_widgetBackend.textColored(r, g, b, a, text);
+    }
 }
 
 void EditorUI::TextDisabled(const char* text)
 {
-    if (s_widgetBackend.textDisabled) s_widgetBackend.textDisabled(text);
+    if (s_widgetBackend.textDisabled)
+    {
+        s_widgetBackend.textDisabled(text);
+    }
 }
 
 void EditorUI::SameLine(float offsetFromStartX, float spacing)
 {
-    if (s_widgetBackend.sameLine) s_widgetBackend.sameLine(offsetFromStartX, spacing);
+    if (s_widgetBackend.sameLine)
+    {
+        s_widgetBackend.sameLine(offsetFromStartX, spacing);
+    }
 }
 
 void EditorUI::Spacing()
 {
-    if (s_widgetBackend.spacing) s_widgetBackend.spacing();
+    if (s_widgetBackend.spacing)
+    {
+        s_widgetBackend.spacing();
+    }
 }
 
 void EditorUI::Separator()
 {
-    if (s_widgetBackend.separator) s_widgetBackend.separator();
+    if (s_widgetBackend.separator)
+    {
+        s_widgetBackend.separator();
+    }
 }
 
 void EditorUI::PushID(int id)
 {
-    if (s_widgetBackend.pushIdInt) s_widgetBackend.pushIdInt(id);
+    if (s_widgetBackend.pushIdInt)
+    {
+        s_widgetBackend.pushIdInt(id);
+    }
 }
 
 void EditorUI::PopID()
 {
-    if (s_widgetBackend.popId) s_widgetBackend.popId();
+    if (s_widgetBackend.popId)
+    {
+        s_widgetBackend.popId();
+    }
 }
 
 void EditorUI::Indent()
 {
-    if (s_widgetBackend.indent) s_widgetBackend.indent();
+    if (s_widgetBackend.indent)
+    {
+        s_widgetBackend.indent();
+    }
 }
 
 void EditorUI::Unindent()
 {
-    if (s_widgetBackend.unindent) s_widgetBackend.unindent();
+    if (s_widgetBackend.unindent)
+    {
+        s_widgetBackend.unindent();
+    }
 }
 
 void EditorUI::Indent(float amount)
@@ -254,93 +284,147 @@ void EditorUI::Unindent(float amount)
 
 void EditorUI::BulletText(const char* text)
 {
-    if (s_widgetBackend.bulletText) s_widgetBackend.bulletText(text);
+    if (s_widgetBackend.bulletText)
+    {
+        s_widgetBackend.bulletText(text);
+    }
 }
 
 bool EditorUI::CollapsingHeader(const char* label, bool* pVisible, bool defaultOpen)
 {
-    return s_widgetBackend.collapsingHeader
-               ? s_widgetBackend.collapsingHeader(label, pVisible, defaultOpen)
-               : false;
+    return s_widgetBackend.collapsingHeader ? s_widgetBackend.collapsingHeader(label, pVisible, defaultOpen) : false;
 }
 
 void EditorUI::GetCursorScreenPos(float* outX, float* outY)
 {
     if (s_widgetBackend.cursorScreenPos)
+    {
         s_widgetBackend.cursorScreenPos(outX, outY);
+    }
     else
     {
-        if (outX) *outX = 0.0f;
-        if (outY) *outY = 0.0f;
+        if (outX)
+        {
+            *outX = 0.0f;
+        }
+        if (outY)
+        {
+            *outY = 0.0f;
+        }
     }
 }
 
 void EditorUI::SetCursorScreenPos(float x, float y)
 {
-    if (s_widgetBackend.setCursorScreenPos) s_widgetBackend.setCursorScreenPos(x, y);
+    if (s_widgetBackend.setCursorScreenPos)
+    {
+        s_widgetBackend.setCursorScreenPos(x, y);
+    }
 }
 
 void EditorUI::Dummy(float width, float height)
 {
-    if (s_widgetBackend.dummy) s_widgetBackend.dummy(width, height);
+    if (s_widgetBackend.dummy)
+    {
+        s_widgetBackend.dummy(width, height);
+    }
 }
 
 void EditorUI::DrawLine(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness)
 {
-    if (s_widgetBackend.drawLine) s_widgetBackend.drawLine(x0, y0, x1, y1, rgba, thickness);
+    if (s_widgetBackend.drawLine)
+    {
+        s_widgetBackend.drawLine(x0, y0, x1, y1, rgba, thickness);
+    }
 }
 
 void EditorUI::DrawRect(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness, float rounding)
 {
-    if (s_widgetBackend.drawRect) s_widgetBackend.drawRect(x0, y0, x1, y1, rgba, thickness, rounding);
+    if (s_widgetBackend.drawRect)
+    {
+        s_widgetBackend.drawRect(x0, y0, x1, y1, rgba, thickness, rounding);
+    }
 }
 
 void EditorUI::DrawRectFilled(float x0, float y0, float x1, float y1, uint32_t rgba, float rounding)
 {
-    if (s_widgetBackend.drawRectFilled) s_widgetBackend.drawRectFilled(x0, y0, x1, y1, rgba, rounding);
+    if (s_widgetBackend.drawRectFilled)
+    {
+        s_widgetBackend.drawRectFilled(x0, y0, x1, y1, rgba, rounding);
+    }
 }
 
 void EditorUI::DrawCircle(float cx, float cy, float radius, uint32_t rgba, float thickness)
 {
-    if (s_widgetBackend.drawCircle) s_widgetBackend.drawCircle(cx, cy, radius, rgba, thickness);
+    if (s_widgetBackend.drawCircle)
+    {
+        s_widgetBackend.drawCircle(cx, cy, radius, rgba, thickness);
+    }
 }
 
 void EditorUI::DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba)
 {
-    if (s_widgetBackend.drawCircleFilled) s_widgetBackend.drawCircleFilled(cx, cy, radius, rgba);
+    if (s_widgetBackend.drawCircleFilled)
+    {
+        s_widgetBackend.drawCircleFilled(cx, cy, radius, rgba);
+    }
 }
 
-void EditorUI::DrawImage(uint32_t texture, float x0, float y0, float x1, float y1,
-                         float u0, float v0, float u1, float v1, uint32_t tint)
+void EditorUI::DrawImage(uint32_t texture, float x0, float y0, float x1, float y1, float u0, float v0, float u1,
+                         float v1, uint32_t tint)
 {
-    if (s_widgetBackend.drawImage) s_widgetBackend.drawImage(texture, x0, y0, x1, y1, u0, v0, u1, v1, tint);
+    if (s_widgetBackend.drawImage)
+    {
+        s_widgetBackend.drawImage(texture, x0, y0, x1, y1, u0, v0, u1, v1, tint);
+    }
 }
 
 void EditorUI::DrawTextAt(float pixelSize, float x, float y, uint32_t rgba, const char* text)
 {
-    if (s_widgetBackend.drawText) s_widgetBackend.drawText(pixelSize, x, y, rgba, text);
+    if (s_widgetBackend.drawText)
+    {
+        s_widgetBackend.drawText(pixelSize, x, y, rgba, text);
+    }
 }
 
 void EditorUI::DrawTextCss(float cssPx, float x, float y, uint32_t rgba, const char* text)
 {
-    if (s_widgetBackend.drawTextCss) s_widgetBackend.drawTextCss(cssPx, x, y, rgba, text);
+    if (s_widgetBackend.drawTextCss)
+    {
+        s_widgetBackend.drawTextCss(cssPx, x, y, rgba, text);
+    }
 }
 
 void EditorUI::MeasureTextCss(float cssPx, const char* text, float* outW, float* outH)
 {
-    if (outW) *outW = 0.0f;
-    if (outH) *outH = 0.0f;
-    if (s_widgetBackend.measureTextCss) s_widgetBackend.measureTextCss(cssPx, text, outW, outH);
+    if (outW)
+    {
+        *outW = 0.0f;
+    }
+    if (outH)
+    {
+        *outH = 0.0f;
+    }
+    if (s_widgetBackend.measureTextCss)
+    {
+        s_widgetBackend.measureTextCss(cssPx, text, outW, outH);
+    }
 }
 
 void EditorUI::PushClipRect(float x0, float y0, float x1, float y1, bool intersectWithCurrent)
 {
-    if (s_widgetBackend.pushClipRect) s_widgetBackend.pushClipRect(x0, y0, x1, y1, intersectWithCurrent);
+    if (s_widgetBackend.pushClipRect)
+    {
+        s_widgetBackend.pushClipRect(x0, y0, x1, y1, intersectWithCurrent);
+    }
 }
 
 void EditorUI::PopClipRect()
 {
-    if (s_widgetBackend.popClipRect) s_widgetBackend.popClipRect();
+    if (s_widgetBackend.popClipRect)
+    {
+        s_widgetBackend.popClipRect();
+    }
 }
 
 // ============================================================================
@@ -377,41 +461,83 @@ bool EditorUI::IsItemClicked()
 void EditorUI::GetContentRegionAvail(float* w, float* h)
 {
     ImVec2 a = ImGui::GetContentRegionAvail();
-    if (w) *w = a.x;
-    if (h) *h = a.y;
+    if (w)
+    {
+        *w = a.x;
+    }
+    if (h)
+    {
+        *h = a.y;
+    }
 }
 void EditorUI::GetContentRegionMax(float* x, float* y)
 {
     ImVec2 a = ImGui::GetContentRegionMax();
-    if (x) *x = a.x;
-    if (y) *y = a.y;
+    if (x)
+    {
+        *x = a.x;
+    }
+    if (y)
+    {
+        *y = a.y;
+    }
 }
 void EditorUI::GetFramePadding(float* x, float* y)
 {
     const ImGuiStyle& s = ImGui::GetStyle();
-    if (x) *x = s.FramePadding.x;
-    if (y) *y = s.FramePadding.y;
+    if (x)
+    {
+        *x = s.FramePadding.x;
+    }
+    if (y)
+    {
+        *y = s.FramePadding.y;
+    }
 }
 void EditorUI::GetItemSpacing(float* x, float* y)
 {
     const ImGuiStyle& s = ImGui::GetStyle();
-    if (x) *x = s.ItemSpacing.x;
-    if (y) *y = s.ItemSpacing.y;
+    if (x)
+    {
+        *x = s.ItemSpacing.x;
+    }
+    if (y)
+    {
+        *y = s.ItemSpacing.y;
+    }
 }
 void EditorUI::GetItemInnerSpacing(float* x, float* y)
 {
     const ImGuiStyle& s = ImGui::GetStyle();
-    if (x) *x = s.ItemInnerSpacing.x;
-    if (y) *y = s.ItemInnerSpacing.y;
+    if (x)
+    {
+        *x = s.ItemInnerSpacing.x;
+    }
+    if (y)
+    {
+        *y = s.ItemInnerSpacing.y;
+    }
 }
 void EditorUI::GetItemRect(float* minX, float* minY, float* maxX, float* maxY)
 {
     const ImVec2 mn = ImGui::GetItemRectMin();
     const ImVec2 mx = ImGui::GetItemRectMax();
-    if (minX) *minX = mn.x;
-    if (minY) *minY = mn.y;
-    if (maxX) *maxX = mx.x;
-    if (maxY) *maxY = mx.y;
+    if (minX)
+    {
+        *minX = mn.x;
+    }
+    if (minY)
+    {
+        *minY = mn.y;
+    }
+    if (maxX)
+    {
+        *maxX = mx.x;
+    }
+    if (maxY)
+    {
+        *maxY = mx.y;
+    }
 }
 float EditorUI::GetFrameHeight()
 {
@@ -432,8 +558,14 @@ void EditorUI::PushID(const void* ptr)
 void EditorUI::MeasureText(const char* text, float* w, float* h)
 {
     ImVec2 s = ImGui::CalcTextSize(text);
-    if (w) *w = s.x;
-    if (h) *h = s.y;
+    if (w)
+    {
+        *w = s.x;
+    }
+    if (h)
+    {
+        *h = s.y;
+    }
 }
 void EditorUI::AlignTextToFramePadding()
 {
@@ -462,10 +594,22 @@ void EditorUI::PopItemWidth()
 void EditorUI::GetMainViewportRect(float* x, float* y, float* w, float* h)
 {
     const ImGuiViewport* v = ImGui::GetMainViewport();
-    if (x) *x = v->Pos.x;
-    if (y) *y = v->Pos.y;
-    if (w) *w = v->Size.x;
-    if (h) *h = v->Size.y;
+    if (x)
+    {
+        *x = v->Pos.x;
+    }
+    if (y)
+    {
+        *y = v->Pos.y;
+    }
+    if (w)
+    {
+        *w = v->Size.x;
+    }
+    if (h)
+    {
+        *h = v->Size.y;
+    }
 }
 
 // --- Text / widgets ---
@@ -509,8 +653,14 @@ void EditorUI::BeginListClipper(int itemCount, float itemHeight)
 bool EditorUI::ListClipperStep(int* s, int* e)
 {
     bool r = s_listClipper.Step();
-    if (s) *s = s_listClipper.DisplayStart;
-    if (e) *e = s_listClipper.DisplayEnd;
+    if (s)
+    {
+        *s = s_listClipper.DisplayStart;
+    }
+    if (e)
+    {
+        *e = s_listClipper.DisplayEnd;
+    }
     return r;
 }
 void EditorUI::EndListClipper()
@@ -528,9 +678,13 @@ bool EditorUI::BeginCombo(const char* label, const char* preview)
 void EditorUI::EndCombo()
 {
     if (s_widgetBackend.endCombo)
+    {
         s_widgetBackend.endCombo();
+    }
     else
+    {
         ImGui::EndCombo();
+    }
 }
 
 // --- Containers ---
@@ -561,10 +715,22 @@ void EditorUI::EndTabItem()
 bool EditorUI::TreeNodeEx(const char* label, int f)
 {
     int im = 0;
-    if (f & TreeDefaultOpen) im |= ImGuiTreeNodeFlags_DefaultOpen;
-    if (f & TreeLeaf) im |= ImGuiTreeNodeFlags_Leaf;
-    if (f & TreeOpenOnArrow) im |= ImGuiTreeNodeFlags_OpenOnArrow;
-    if (f & TreeSelected) im |= ImGuiTreeNodeFlags_Selected;
+    if (f & TreeDefaultOpen)
+    {
+        im |= ImGuiTreeNodeFlags_DefaultOpen;
+    }
+    if (f & TreeLeaf)
+    {
+        im |= ImGuiTreeNodeFlags_Leaf;
+    }
+    if (f & TreeOpenOnArrow)
+    {
+        im |= ImGuiTreeNodeFlags_OpenOnArrow;
+    }
+    if (f & TreeSelected)
+    {
+        im |= ImGuiTreeNodeFlags_Selected;
+    }
     return ImGui::TreeNodeEx(label, im);
 }
 void EditorUI::TreePop()
@@ -586,18 +752,39 @@ void EditorUI::EndGroup()
 bool EditorUI::BeginTable(const char* id, int columns, int f, float w, float h)
 {
     int im = 0;
-    if (f & TableResizable) im |= ImGuiTableFlags_Resizable;
-    if (f & TableRowBg) im |= ImGuiTableFlags_RowBg;
-    if (f & TableScrollY) im |= ImGuiTableFlags_ScrollY;
-    if (f & TableBordersInnerV) im |= ImGuiTableFlags_BordersInnerV;
-    if (f & TableBordersOuter) im |= ImGuiTableFlags_BordersOuter;
+    if (f & TableResizable)
+    {
+        im |= ImGuiTableFlags_Resizable;
+    }
+    if (f & TableRowBg)
+    {
+        im |= ImGuiTableFlags_RowBg;
+    }
+    if (f & TableScrollY)
+    {
+        im |= ImGuiTableFlags_ScrollY;
+    }
+    if (f & TableBordersInnerV)
+    {
+        im |= ImGuiTableFlags_BordersInnerV;
+    }
+    if (f & TableBordersOuter)
+    {
+        im |= ImGuiTableFlags_BordersOuter;
+    }
     return ImGui::BeginTable(id, columns, im, ImVec2(w, h));
 }
 void EditorUI::TableSetupColumn(const char* label, int f, float width)
 {
     int im = 0;
-    if (f & TableColumnWidthStretch) im |= ImGuiTableColumnFlags_WidthStretch;
-    if (f & TableColumnWidthFixed) im |= ImGuiTableColumnFlags_WidthFixed;
+    if (f & TableColumnWidthStretch)
+    {
+        im |= ImGuiTableColumnFlags_WidthStretch;
+    }
+    if (f & TableColumnWidthFixed)
+    {
+        im |= ImGuiTableColumnFlags_WidthFixed;
+    }
     ImGui::TableSetupColumn(label, im, width);
 }
 void EditorUI::TableSetupScrollFreeze(int cols, int rows)
@@ -624,14 +811,17 @@ void EditorUI::EndTable()
 // --- Toolbar (backend-drawn: the strip chrome lives in the editor exe) ---
 void EditorUI::BeginToolbar()
 {
-    if (s_widgetBackend.beginToolbar) s_widgetBackend.beginToolbar();
+    if (s_widgetBackend.beginToolbar)
+    {
+        s_widgetBackend.beginToolbar();
+    }
 }
 bool EditorUI::ToolbarButton(const char* label, bool enabled, bool active)
 {
     return s_widgetBackend.toolbarButton ? s_widgetBackend.toolbarButton(label, enabled, active) : false;
 }
-bool EditorUI::ToolbarIconButton(const char* id, const char* icon, const char* tooltip,
-                                 bool enabled, bool active, bool destructive)
+bool EditorUI::ToolbarIconButton(const char* id, const char* icon, const char* tooltip, bool enabled, bool active,
+                                 bool destructive)
 {
     return s_widgetBackend.toolbarIconButton
                ? s_widgetBackend.toolbarIconButton(id, icon, tooltip, enabled, active, destructive)
@@ -639,11 +829,17 @@ bool EditorUI::ToolbarIconButton(const char* id, const char* icon, const char* t
 }
 void EditorUI::EndToolbar()
 {
-    if (s_widgetBackend.endToolbar) s_widgetBackend.endToolbar();
+    if (s_widgetBackend.endToolbar)
+    {
+        s_widgetBackend.endToolbar();
+    }
 }
 void EditorUI::BeginTabLinks()
 {
-    if (s_widgetBackend.beginTabLinks) s_widgetBackend.beginTabLinks();
+    if (s_widgetBackend.beginTabLinks)
+    {
+        s_widgetBackend.beginTabLinks();
+    }
 }
 bool EditorUI::TabLink(const char* label, bool active)
 {
@@ -651,11 +847,16 @@ bool EditorUI::TabLink(const char* label, bool active)
 }
 void EditorUI::EndTabLinks()
 {
-    if (s_widgetBackend.endTabLinks) s_widgetBackend.endTabLinks();
+    if (s_widgetBackend.endTabLinks)
+    {
+        s_widgetBackend.endTabLinks();
+    }
 }
-bool EditorUI::SelectableCard(const char* id, const char* title, const char* subtitle, bool selected, uint32_t subtitleColor)
+bool EditorUI::SelectableCard(const char* id, const char* title, const char* subtitle, bool selected,
+                              uint32_t subtitleColor)
 {
-    return s_widgetBackend.selectableCard ? s_widgetBackend.selectableCard(id, title, subtitle, selected, subtitleColor) : false;
+    return s_widgetBackend.selectableCard ? s_widgetBackend.selectableCard(id, title, subtitle, selected, subtitleColor)
+                                          : false;
 }
 
 // --- Popups / menus ---
@@ -690,16 +891,30 @@ bool EditorUI::BeginPopup(const char* id)
 bool EditorUI::BeginPopupModal(const char* name, bool* open, int f)
 {
     int im = 0;
-    if (f & WinNoScrollbar) im |= ImGuiWindowFlags_NoScrollbar;
-    if (f & WinAlwaysAutoResize) im |= ImGuiWindowFlags_AlwaysAutoResize;
-    if (f & WinNoSavedSettings) im |= ImGuiWindowFlags_NoSavedSettings;
-    if (f & WinNoCollapse) im |= ImGuiWindowFlags_NoCollapse;
+    if (f & WinNoScrollbar)
+    {
+        im |= ImGuiWindowFlags_NoScrollbar;
+    }
+    if (f & WinAlwaysAutoResize)
+    {
+        im |= ImGuiWindowFlags_AlwaysAutoResize;
+    }
+    if (f & WinNoSavedSettings)
+    {
+        im |= ImGuiWindowFlags_NoSavedSettings;
+    }
+    if (f & WinNoCollapse)
+    {
+        im |= ImGuiWindowFlags_NoCollapse;
+    }
     const float dpi = ImGui::GetStyle().FontScaleDpi;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f * dpi, 16.0f * dpi));
     const bool shown = ImGui::BeginPopupModal(name, open, im);
     ImGui::PopStyleVar();
     if (shown)
+    {
         s_PopupRowStyle.push_back(false);
+    }
     return shown;
 }
 bool EditorUI::BeginPopupContextItem(const char* id)
@@ -712,7 +927,9 @@ void EditorUI::EndPopup()
     if (!s_PopupRowStyle.empty())
     {
         if (s_PopupRowStyle.back())
+        {
             ImGui::PopStyleVar();  // ItemSpacing from PushContextMenuItemStyle
+        }
         s_PopupRowStyle.pop_back();
     }
     ImGui::EndPopup();
@@ -737,9 +954,13 @@ void EditorUI::OpenPopupOnItemClick(const char* id, int mouseButton)
 {
     ImGuiPopupFlags flags = ImGuiPopupFlags_MouseButtonLeft;
     if (mouseButton == 1)
+    {
         flags = ImGuiPopupFlags_MouseButtonRight;
+    }
     else if (mouseButton == 2)
+    {
         flags = ImGuiPopupFlags_MouseButtonMiddle;
+    }
     ImGui::OpenPopupOnItemClick(id, flags);
 }
 
@@ -753,14 +974,29 @@ void EditorUI::SetExtraWindowFlagsProvider(std::function<int(const char*)> fn)
 bool EditorUI::Begin(const char* name, bool* open, int f)
 {
     int im = 0;
-    if (f & WinNoScrollbar) im |= ImGuiWindowFlags_NoScrollbar;
-    if (f & WinAlwaysAutoResize) im |= ImGuiWindowFlags_AlwaysAutoResize;
-    if (f & WinNoSavedSettings) im |= ImGuiWindowFlags_NoSavedSettings;
-    if (f & WinNoCollapse) im |= ImGuiWindowFlags_NoCollapse;
+    if (f & WinNoScrollbar)
+    {
+        im |= ImGuiWindowFlags_NoScrollbar;
+    }
+    if (f & WinAlwaysAutoResize)
+    {
+        im |= ImGuiWindowFlags_AlwaysAutoResize;
+    }
+    if (f & WinNoSavedSettings)
+    {
+        im |= ImGuiWindowFlags_NoSavedSettings;
+    }
+    if (f & WinNoCollapse)
+    {
+        im |= ImGuiWindowFlags_NoCollapse;
+    }
     // Whatever the editor wants to add for this window by name - NoResize while
     // it is the maximized panel. Every EditorUI window passes here, the panels
     // that use it and the package tool windows alike.
-    if (s_extraWindowFlags) im |= s_extraWindowFlags(name);
+    if (s_extraWindowFlags)
+    {
+        im |= s_extraWindowFlags(name);
+    }
     return ImGui::Begin(name, open, im);
 }
 void EditorUI::End()
@@ -770,9 +1006,13 @@ void EditorUI::End()
 void EditorUI::SetNextWindowSize(float w, float h, bool firstUseEver)
 {
     if (firstUseEver)
+    {
         DekiEditor::FirstUseWindowPlacement(w, h);  // centred too, not at (60, 60)
+    }
     else
+    {
         ImGui::SetNextWindowSize(ImVec2(w, h), 0);
+    }
 }
 void EditorUI::SetNextWindowSizeConstraints(float a, float b, float c, float d)
 {
@@ -840,14 +1080,26 @@ void EditorUI::Image(uint32_t tex, float w, float h, float u0, float v0, float u
 void EditorUI::GetMousePos(float* x, float* y)
 {
     ImVec2 p = ImGui::GetMousePos();
-    if (x) *x = p.x;
-    if (y) *y = p.y;
+    if (x)
+    {
+        *x = p.x;
+    }
+    if (y)
+    {
+        *y = p.y;
+    }
 }
 void EditorUI::GetMouseDelta(float* x, float* y)
 {
     ImVec2 d = ImGui::GetIO().MouseDelta;
-    if (x) *x = d.x;
-    if (y) *y = d.y;
+    if (x)
+    {
+        *x = d.x;
+    }
+    if (y)
+    {
+        *y = d.y;
+    }
 }
 bool EditorUI::IsMouseDown(int b)
 {
@@ -939,9 +1191,18 @@ void EditorUI::SetKeyboardFocusHere()
 bool EditorUI::InvisibleButton(const char* id, float w, float h, bool l, bool m, bool r)
 {
     int f = 0;
-    if (l) f |= ImGuiButtonFlags_MouseButtonLeft;
-    if (m) f |= ImGuiButtonFlags_MouseButtonMiddle;
-    if (r) f |= ImGuiButtonFlags_MouseButtonRight;
+    if (l)
+    {
+        f |= ImGuiButtonFlags_MouseButtonLeft;
+    }
+    if (m)
+    {
+        f |= ImGuiButtonFlags_MouseButtonMiddle;
+    }
+    if (r)
+    {
+        f |= ImGuiButtonFlags_MouseButtonRight;
+    }
     return ImGui::InvisibleButton(id, ImVec2(w, h), f);
 }
 void EditorUI::SetNextItemAllowOverlap()
@@ -965,17 +1226,26 @@ bool EditorUI::DragFloat3(const char* id, float v[3], float speed, float vmin, f
 
 void EditorUI::FullBleedSeparator()
 {
-    if (s_widgetBackend.fullBleedSeparator) s_widgetBackend.fullBleedSeparator();
+    if (s_widgetBackend.fullBleedSeparator)
+    {
+        s_widgetBackend.fullBleedSeparator();
+    }
 }
 
 void EditorUI::BeginDisabled(bool disabled)
 {
-    if (s_widgetBackend.beginDisabled) s_widgetBackend.beginDisabled(disabled);
+    if (s_widgetBackend.beginDisabled)
+    {
+        s_widgetBackend.beginDisabled(disabled);
+    }
 }
 
 void EditorUI::EndDisabled()
 {
-    if (s_widgetBackend.endDisabled) s_widgetBackend.endDisabled();
+    if (s_widgetBackend.endDisabled)
+    {
+        s_widgetBackend.endDisabled();
+    }
 }
 
 // ============================================================================
@@ -997,101 +1267,166 @@ inline std::string FieldId(const char* label)
 ECB AdaptFloat(const EditorUI::FloatCallbacks& cb)
 {
     ECB b;
-    if (cb.onStartChange) b.onStartChange = [cb](const void* v)
-    { cb.onStartChange(*static_cast<const float*>(v)); };
-    if (cb.onChange) b.onChange = [cb](const void* v)
-    { cb.onChange(*static_cast<const float*>(v)); };
-    if (cb.onUndo) b.onUndo = [cb](const void* v)
-    { cb.onUndo(*static_cast<const float*>(v)); };
-    if (cb.onRedo) b.onRedo = [cb](const void* v)
-    { cb.onRedo(*static_cast<const float*>(v)); };
-    if (cb.onEndChange) b.onEndChange = [cb](const void* o, const void* n)
-    { cb.onEndChange(*static_cast<const float*>(o), *static_cast<const float*>(n)); };
+    if (cb.onStartChange)
+    {
+        b.onStartChange = [cb](const void* v) { cb.onStartChange(*static_cast<const float*>(v)); };
+    }
+    if (cb.onChange)
+    {
+        b.onChange = [cb](const void* v) { cb.onChange(*static_cast<const float*>(v)); };
+    }
+    if (cb.onUndo)
+    {
+        b.onUndo = [cb](const void* v) { cb.onUndo(*static_cast<const float*>(v)); };
+    }
+    if (cb.onRedo)
+    {
+        b.onRedo = [cb](const void* v) { cb.onRedo(*static_cast<const float*>(v)); };
+    }
+    if (cb.onEndChange)
+    {
+        b.onEndChange = [cb](const void* o, const void* n)
+        { cb.onEndChange(*static_cast<const float*>(o), *static_cast<const float*>(n)); };
+    }
     return b;
 }
 ECB AdaptVec(const EditorUI::VecCallbacks& cb)
 {
     ECB b;
-    if (cb.onStartChange) b.onStartChange = [cb](const void* v)
-    { cb.onStartChange(static_cast<const float*>(v)); };
-    if (cb.onChange) b.onChange = [cb](const void* v)
-    { cb.onChange(static_cast<const float*>(v)); };
-    if (cb.onUndo) b.onUndo = [cb](const void* v)
-    { cb.onUndo(static_cast<const float*>(v)); };
-    if (cb.onRedo) b.onRedo = [cb](const void* v)
-    { cb.onRedo(static_cast<const float*>(v)); };
-    if (cb.onEndChange) b.onEndChange = [cb](const void* o, const void* n)
-    { cb.onEndChange(static_cast<const float*>(o), static_cast<const float*>(n)); };
+    if (cb.onStartChange)
+    {
+        b.onStartChange = [cb](const void* v) { cb.onStartChange(static_cast<const float*>(v)); };
+    }
+    if (cb.onChange)
+    {
+        b.onChange = [cb](const void* v) { cb.onChange(static_cast<const float*>(v)); };
+    }
+    if (cb.onUndo)
+    {
+        b.onUndo = [cb](const void* v) { cb.onUndo(static_cast<const float*>(v)); };
+    }
+    if (cb.onRedo)
+    {
+        b.onRedo = [cb](const void* v) { cb.onRedo(static_cast<const float*>(v)); };
+    }
+    if (cb.onEndChange)
+    {
+        b.onEndChange = [cb](const void* o, const void* n)
+        { cb.onEndChange(static_cast<const float*>(o), static_cast<const float*>(n)); };
+    }
     return b;
 }
 template <typename T>
 ECB AdaptInt(const EditorUI::IntCallbacks& cb)
 {
     ECB b;
-    if (cb.onStartChange) b.onStartChange = [cb](const void* v)
-    { cb.onStartChange(static_cast<int64_t>(*static_cast<const T*>(v))); };
-    if (cb.onChange) b.onChange = [cb](const void* v)
-    { cb.onChange(static_cast<int64_t>(*static_cast<const T*>(v))); };
-    if (cb.onUndo) b.onUndo = [cb](const void* v)
-    { cb.onUndo(static_cast<int64_t>(*static_cast<const T*>(v))); };
-    if (cb.onRedo) b.onRedo = [cb](const void* v)
-    { cb.onRedo(static_cast<int64_t>(*static_cast<const T*>(v))); };
-    if (cb.onEndChange) b.onEndChange = [cb](const void* o, const void* n)
-    { cb.onEndChange(static_cast<int64_t>(*static_cast<const T*>(o)), static_cast<int64_t>(*static_cast<const T*>(n))); };
+    if (cb.onStartChange)
+    {
+        b.onStartChange = [cb](const void* v) { cb.onStartChange(static_cast<int64_t>(*static_cast<const T*>(v))); };
+    }
+    if (cb.onChange)
+    {
+        b.onChange = [cb](const void* v) { cb.onChange(static_cast<int64_t>(*static_cast<const T*>(v))); };
+    }
+    if (cb.onUndo)
+    {
+        b.onUndo = [cb](const void* v) { cb.onUndo(static_cast<int64_t>(*static_cast<const T*>(v))); };
+    }
+    if (cb.onRedo)
+    {
+        b.onRedo = [cb](const void* v) { cb.onRedo(static_cast<int64_t>(*static_cast<const T*>(v))); };
+    }
+    if (cb.onEndChange)
+    {
+        b.onEndChange = [cb](const void* o, const void* n)
+        {
+            cb.onEndChange(static_cast<int64_t>(*static_cast<const T*>(o)),
+                           static_cast<int64_t>(*static_cast<const T*>(n)));
+        };
+    }
     return b;
 }
 ECB AdaptEnum(const EditorUI::EnumCallbacks& cb)
 {
     ECB b;
-    if (cb.onStartChange) b.onStartChange = [cb](const void* v)
-    { cb.onStartChange(*static_cast<const int*>(v)); };
-    if (cb.onChange) b.onChange = [cb](const void* v)
-    { cb.onChange(*static_cast<const int*>(v)); };
-    if (cb.onUndo) b.onUndo = [cb](const void* v)
-    { cb.onUndo(*static_cast<const int*>(v)); };
-    if (cb.onRedo) b.onRedo = [cb](const void* v)
-    { cb.onRedo(*static_cast<const int*>(v)); };
-    if (cb.onEndChange) b.onEndChange = [cb](const void* o, const void* n)
-    { cb.onEndChange(*static_cast<const int*>(o), *static_cast<const int*>(n)); };
+    if (cb.onStartChange)
+    {
+        b.onStartChange = [cb](const void* v) { cb.onStartChange(*static_cast<const int*>(v)); };
+    }
+    if (cb.onChange)
+    {
+        b.onChange = [cb](const void* v) { cb.onChange(*static_cast<const int*>(v)); };
+    }
+    if (cb.onUndo)
+    {
+        b.onUndo = [cb](const void* v) { cb.onUndo(*static_cast<const int*>(v)); };
+    }
+    if (cb.onRedo)
+    {
+        b.onRedo = [cb](const void* v) { cb.onRedo(*static_cast<const int*>(v)); };
+    }
+    if (cb.onEndChange)
+    {
+        b.onEndChange = [cb](const void* o, const void* n)
+        { cb.onEndChange(*static_cast<const int*>(o), *static_cast<const int*>(n)); };
+    }
     return b;
 }
 ECB AdaptText(const EditorUI::TextCallbacks& cb)
 {
     ECB b;
-    if (cb.onStartChange) b.onStartChange = [cb](const void* v)
-    { cb.onStartChange(static_cast<const char*>(v)); };
-    if (cb.onChange) b.onChange = [cb](const void* v)
-    { cb.onChange(static_cast<const char*>(v)); };
-    if (cb.onUndo) b.onUndo = [cb](const void* v)
-    { cb.onUndo(static_cast<const char*>(v)); };
-    if (cb.onRedo) b.onRedo = [cb](const void* v)
-    { cb.onRedo(static_cast<const char*>(v)); };
-    if (cb.onEndChange) b.onEndChange = [cb](const void* o, const void* n)
-    { cb.onEndChange(static_cast<const char*>(o), static_cast<const char*>(n)); };
+    if (cb.onStartChange)
+    {
+        b.onStartChange = [cb](const void* v) { cb.onStartChange(static_cast<const char*>(v)); };
+    }
+    if (cb.onChange)
+    {
+        b.onChange = [cb](const void* v) { cb.onChange(static_cast<const char*>(v)); };
+    }
+    if (cb.onUndo)
+    {
+        b.onUndo = [cb](const void* v) { cb.onUndo(static_cast<const char*>(v)); };
+    }
+    if (cb.onRedo)
+    {
+        b.onRedo = [cb](const void* v) { cb.onRedo(static_cast<const char*>(v)); };
+    }
+    if (cb.onEndChange)
+    {
+        b.onEndChange = [cb](const void* o, const void* n)
+        { cb.onEndChange(static_cast<const char*>(o), static_cast<const char*>(n)); };
+    }
     return b;
 }
 
 template <typename T>
-bool IntFieldImpl(const char* label, T* v, float speed, int64_t vmin, int64_t vmax,
-                  const EditorUI::IntCallbacks& cb)
+bool IntFieldImpl(const char* label, T* v, float speed, int64_t vmin, int64_t vmax, const EditorUI::IntCallbacks& cb)
 {
     const T before = *v;
     int tmp = static_cast<int>(*v);
     EditorUI& ui = EditorUI::Get();
     ui.PropertyRow(label);
-    const bool changed = ui.DragInt(FieldId(label).c_str(), &tmp, speed,
-                                    static_cast<int>(vmin), static_cast<int>(vmax));
+    const bool changed =
+        ui.DragInt(FieldId(label).c_str(), &tmp, speed, static_cast<int>(vmin), static_cast<int>(vmax));
     if (changed)
     {
         if (vmin != vmax)
         {
-            if (tmp < static_cast<int>(vmin)) tmp = static_cast<int>(vmin);
-            if (tmp > static_cast<int>(vmax)) tmp = static_cast<int>(vmax);
+            if (tmp < static_cast<int>(vmin))
+            {
+                tmp = static_cast<int>(vmin);
+            }
+            if (tmp > static_cast<int>(vmax))
+            {
+                tmp = static_cast<int>(vmax);
+            }
         }
         *v = static_cast<T>(tmp);
     }
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(T), /*ownsStorage*/ true, &before, label, AdaptInt<T>(cb));
+    }
     return changed;
 }
 }  // namespace
@@ -1121,57 +1456,72 @@ bool EditorUI::IntField(const char* label, uint8_t* v, float s, int64_t mn, int6
     return IntFieldImpl(label, v, s, mn, mx, cb);
 }
 
-bool EditorUI::FloatField(const char* label, float* v, float speed, float vmin, float vmax,
-                          const char* format, const FloatCallbacks& cb)
+bool EditorUI::FloatField(const char* label, float* v, float speed, float vmin, float vmax, const char* format,
+                          const FloatCallbacks& cb)
 {
     const float before = *v;
     PropertyRow(label);
     const bool changed = DragFloat(FieldId(label).c_str(), v, speed, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(float), true, &before, label, AdaptFloat(cb));
+    }
     return changed;
 }
 
-bool EditorUI::Vector2Field(const char* label, float v[2], float speed, float vmin, float vmax,
-                            const char* format, const VecCallbacks& cb)
+bool EditorUI::Vector2Field(const char* label, float v[2], float speed, float vmin, float vmax, const char* format,
+                            const VecCallbacks& cb)
 {
     const float before[2] = { v[0], v[1] };
     PropertyRow(label);
     const bool changed = DragFloat2(FieldId(label).c_str(), v, speed, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(float) * 2, true, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
-bool EditorUI::Vector3Field(const char* label, float v[3], float speed, float vmin, float vmax,
-                            const char* format, const VecCallbacks& cb)
+bool EditorUI::Vector3Field(const char* label, float v[3], float speed, float vmin, float vmax, const char* format,
+                            const VecCallbacks& cb)
 {
     const float before[3] = { v[0], v[1], v[2] };
     PropertyRow(label);
     const bool changed = DragFloat3(FieldId(label).c_str(), v, speed, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(float) * 3, true, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
 // --- Unit-aware, pointer mode ---
 bool EditorUI::FloatField(const char* label, float* v, Unit unit, const FloatCallbacks& cb)
 {
-    if (unit == Unit::None) return FloatField(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
+    if (unit == Unit::None)
+    {
+        return FloatField(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
+    }
     return s_widgetBackend.unitField
                ? s_widgetBackend.unitField(label, v, 1, static_cast<int>(unit), /*ownsStorage*/ true, AdaptFloat(cb))
                : false;
 }
 bool EditorUI::Vector2Field(const char* label, float v[2], Unit unit, const VecCallbacks& cb)
 {
-    if (unit == Unit::None) return Vector2Field(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
+    if (unit == Unit::None)
+    {
+        return Vector2Field(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
+    }
     return s_widgetBackend.unitField
                ? s_widgetBackend.unitField(label, v, 2, static_cast<int>(unit), true, AdaptVec(cb))
                : false;
 }
 bool EditorUI::Vector3Field(const char* label, float v[3], Unit unit, const VecCallbacks& cb)
 {
-    if (unit == Unit::None) return Vector3Field(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
+    if (unit == Unit::None)
+    {
+        return Vector3Field(label, v, 1.0f, 0.0f, 0.0f, "%.3f", cb);
+    }
     return s_widgetBackend.unitField
                ? s_widgetBackend.unitField(label, v, 3, static_cast<int>(unit), true, AdaptVec(cb))
                : false;
@@ -1183,7 +1533,9 @@ bool EditorUI::ColorField(const char* label, float v[4], const VecCallbacks& cb)
     PropertyRow(label);
     const bool changed = ColorEdit4(FieldId(label).c_str(), v);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(float) * 4, true, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
@@ -1193,7 +1545,9 @@ bool EditorUI::ColorRGBField(const char* label, float v[3], const VecCallbacks& 
     PropertyRow(label);
     const bool changed = ColorEdit3(FieldId(label).c_str(), v);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(float) * 3, true, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
@@ -1203,7 +1557,9 @@ bool EditorUI::EnumField(const char* label, int* index, const char* const items[
     PropertyRow(label);
     const bool changed = Combo(FieldId(label).c_str(), index, items, count);
     if (changed && s_widgetBackend.commitEdit)
+    {
         s_widgetBackend.commitEdit(index, sizeof(int), true, &before, label, AdaptEnum(cb));
+    }
     return changed;
 }
 
@@ -1213,7 +1569,9 @@ bool EditorUI::EnumField(const char* label, int* index, const char* itemsZeroSep
     PropertyRow(label);
     const bool changed = Combo(FieldId(label).c_str(), index, itemsZeroSep);
     if (changed && s_widgetBackend.commitEdit)
+    {
         s_widgetBackend.commitEdit(index, sizeof(int), true, &before, label, AdaptEnum(cb));
+    }
     return changed;
 }
 
@@ -1224,17 +1582,22 @@ bool EditorUI::InputField(const char* label, char* buf, size_t bufSize, const Te
     PropertyRow(label);
     const bool changed = InputText(FieldId(label).c_str(), buf, bufSize);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(buf, bufSize, true, before.data(), label, AdaptText(cb));
+    }
     return changed;
 }
 
-bool EditorUI::SliderField(const char* label, float* v, float vmin, float vmax, const char* format, const FloatCallbacks& cb)
+bool EditorUI::SliderField(const char* label, float* v, float vmin, float vmax, const char* format,
+                           const FloatCallbacks& cb)
 {
     const float before = *v;
     PropertyRow(label);
     const bool changed = SliderFloat(FieldId(label).c_str(), v, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(float), true, &before, label, AdaptFloat(cb));
+    }
     return changed;
 }
 
@@ -1242,11 +1605,12 @@ bool EditorUI::SliderField(const char* label, int* v, int vmin, int vmax, const 
 {
     const int before = *v;
     PropertyRow(label);
-    const bool changed = s_widgetBackend.sliderInt
-                             ? s_widgetBackend.sliderInt(FieldId(label).c_str(), v, vmin, vmax)
-                             : false;
+    const bool changed =
+        s_widgetBackend.sliderInt ? s_widgetBackend.sliderInt(FieldId(label).c_str(), v, vmin, vmax) : false;
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(v, sizeof(int), true, &before, label, AdaptEnum(cb));
+    }
     return changed;
 }
 
@@ -1256,13 +1620,17 @@ bool EditorUI::FloatField(const char* label, float value, Unit unit, const Float
     float temp = value;
     const float before = value;
     if (unit != Unit::None)
-        return s_widgetBackend.unitField
-                   ? s_widgetBackend.unitField(label, &temp, 1, static_cast<int>(unit), /*ownsStorage*/ false, AdaptFloat(cb))
-                   : false;
+    {
+        return s_widgetBackend.unitField ? s_widgetBackend.unitField(label, &temp, 1, static_cast<int>(unit),
+                                                                     /*ownsStorage*/ false, AdaptFloat(cb))
+                                         : false;
+    }
     PropertyRow(label);
     const bool changed = DragFloat(FieldId(label).c_str(), &temp, 1.0f, 0.0f, 0.0f, "%.3f");
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(&temp, sizeof(float), false, &before, label, AdaptFloat(cb));
+    }
     return changed;
 }
 
@@ -1271,13 +1639,17 @@ bool EditorUI::Vector2Field(const char* label, float x, float y, Unit unit, cons
     float temp[2] = { x, y };
     const float before[2] = { x, y };
     if (unit != Unit::None)
+    {
         return s_widgetBackend.unitField
                    ? s_widgetBackend.unitField(label, temp, 2, static_cast<int>(unit), false, AdaptVec(cb))
                    : false;
+    }
     PropertyRow(label);
     const bool changed = DragFloat2(FieldId(label).c_str(), temp, 1.0f, 0.0f, 0.0f, "%.3f");
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(temp, sizeof(float) * 2, false, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
@@ -1286,25 +1658,31 @@ bool EditorUI::Vector3Field(const char* label, float x, float y, float z, Unit u
     float temp[3] = { x, y, z };
     const float before[3] = { x, y, z };
     if (unit != Unit::None)
+    {
         return s_widgetBackend.unitField
                    ? s_widgetBackend.unitField(label, temp, 3, static_cast<int>(unit), false, AdaptVec(cb))
                    : false;
+    }
     PropertyRow(label);
     const bool changed = DragFloat3(FieldId(label).c_str(), temp, 1.0f, 0.0f, 0.0f, "%.3f");
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(temp, sizeof(float) * 3, false, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
-bool EditorUI::FloatField(const char* label, float value, float speed, float vmin, float vmax,
-                          const char* format, const FloatCallbacks& cb)
+bool EditorUI::FloatField(const char* label, float value, float speed, float vmin, float vmax, const char* format,
+                          const FloatCallbacks& cb)
 {
     float temp = value;
     const float before = value;
     PropertyRow(label);
     const bool changed = DragFloat(FieldId(label).c_str(), &temp, speed, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(&temp, sizeof(float), false, &before, label, AdaptFloat(cb));
+    }
     return changed;
 }
 
@@ -1316,7 +1694,9 @@ bool EditorUI::Vector2Field(const char* label, float x, float y, float speed, fl
     PropertyRow(label);
     const bool changed = DragFloat2(FieldId(label).c_str(), temp, speed, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(temp, sizeof(float) * 2, false, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 
@@ -1328,7 +1708,9 @@ bool EditorUI::Vector3Field(const char* label, float x, float y, float z, float 
     PropertyRow(label);
     const bool changed = DragFloat3(FieldId(label).c_str(), temp, speed, vmin, vmax, format);
     if (s_widgetBackend.recordEdit)
+    {
         s_widgetBackend.recordEdit(temp, sizeof(float) * 3, false, before, label, AdaptVec(cb));
+    }
     return changed;
 }
 

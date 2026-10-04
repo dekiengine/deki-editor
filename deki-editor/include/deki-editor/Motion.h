@@ -138,7 +138,9 @@ struct RowHover
     void Track(ImGuiID id)
     {
         if (ImGui::IsItemHovered())
+        {
             next = id;
+        }
     }
 };
 
@@ -153,7 +155,9 @@ inline float RowHighlight(ImGuiID id, bool selected, bool hovered, float selecte
     const float s = EaseOut(To(id ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Fast));
     const float h = EaseOut(To(id ^ 0x40E7EDu, hovered ? 1.0f : 0.0f, Fast));
     if (outSelected)
+    {
         *outSelected = s;
+    }
     const float a = selectedAlpha * s, b = hoveredAlpha * h;
     return a > b ? a : b;
 }

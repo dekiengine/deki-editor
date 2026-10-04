@@ -39,8 +39,7 @@ public:
     /// Queue a toast. Safe to call from any thread: builds and package work run
     /// on a ProcessRunner thread, and the queue is drained on the main thread.
     /// @param seconds visible lifetime before the fade-out begins; hovering pauses it.
-    static void Push(Level level, const char* title, const std::string& message,
-                     float seconds = 8.0f);
+    static void Push(Level level, const char* title, const std::string& message, float seconds = 8.0f);
 
     /// Draw and age the stack. Call once per frame from EditorApp::Update,
     /// INSIDE the ImGui frame, after the build progress card so a toast never

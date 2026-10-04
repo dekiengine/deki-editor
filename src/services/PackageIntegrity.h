@@ -64,8 +64,7 @@ struct PackageIntegrityResult
     /// been and could not be.
     bool NeedsReport() const
     {
-        return action == Action::Stashed || action == Action::CheckedOut ||
-               action == Action::Failed;
+        return action == Action::Stashed || action == Action::CheckedOut || action == Action::Failed;
     }
 };
 
@@ -76,8 +75,7 @@ struct PackageIntegrityResult
 ///
 /// @param pinnedRef the version the project pins (a tag, usually). May be empty,
 ///                  in which case only the dirty-tree check runs.
-PackageIntegrityResult RestorePackage(const std::filesystem::path& packageDir,
-                                      const std::string& packageName,
+PackageIntegrityResult RestorePackage(const std::filesystem::path& packageDir, const std::string& packageName,
                                       const std::string& pinnedRef);
 
 }  // namespace DekiEditor

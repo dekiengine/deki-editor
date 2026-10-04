@@ -51,8 +51,7 @@ const char* ExceptionCodeName(uint32_t code)
 void FormatMessage(CrashInfo& info, const char* name)
 {
     char buf[256];
-    std::snprintf(buf, sizeof(buf), "%s at 0x%016llx", name,
-                  (unsigned long long)(uintptr_t)info.faultAddress);
+    std::snprintf(buf, sizeof(buf), "%s at 0x%016llx", name, (unsigned long long)(uintptr_t)info.faultAddress);
     info.message = buf;
 }
 
@@ -63,11 +62,13 @@ void FormatMessage(CrashInfo& info, const char* name)
 void FormatAccessDetails(CrashInfo& info, std::uintptr_t accessType, std::uintptr_t addr, bool known)
 {
     if (!known)
+    {
         return;
+    }
     const char* verb = accessType == 1 ? "WRITE" : accessType == 8 ? "EXECUTE" : "READ";
     char buf[160];
-    std::snprintf(buf, sizeof(buf), "Attempted to %s address 0x%016llx%s", verb,
-                  (unsigned long long)addr, addr < 0x10000 ? " [null pointer dereference]" : "");
+    std::snprintf(buf, sizeof(buf), "Attempted to %s address 0x%016llx%s", verb, (unsigned long long)addr,
+                  addr < 0x10000 ? " [null pointer dereference]" : "");
     info.accessDetails = buf;
 }
 
@@ -76,7 +77,9 @@ void FormatAccessDetails(CrashInfo& info, std::uintptr_t accessType, std::uintpt
 int SehFilter(EXCEPTION_POINTERS* ep, CrashInfo* outInfo)
 {
     if (!ep || !outInfo)
+    {
         return EXCEPTION_EXECUTE_HANDLER;
+    }
 
     // Filter expressions must not let a C++ exception escape; wrap the
     // string-allocating work in a catch-all so any std::bad_alloc / etc.
@@ -137,14 +140,18 @@ static bool RunUnderFaultGuard(const std::function<void()>& fn, CrashInfo& outIn
         outInfo.faultAddress = reinterpret_cast<const void*>(g.faultIp);
         const bool isAv = g.code == EXCEPTION_ACCESS_VIOLATION;
         if (outInfo.accessDetails.empty())
+        {
             FormatAccessDetails(outInfo, g.accessType, g.accessAddr, isAv);
+        }
         FormatMessage(outInfo, ExceptionCodeName(outInfo.exceptionCode));
 #else
         // POSIX reports the address touched, not the instruction; that is the
         // more useful of the two for a null dereference anyway.
         outInfo.faultAddress = reinterpret_cast<const void*>(g.accessAddr);
         if (outInfo.accessDetails.empty())
+        {
             FormatAccessDetails(outInfo, 0, g.accessAddr, g.code == SIGSEGV || g.code == SIGBUS);
+        }
         FormatMessage(outInfo, FaultGuardDescribe(g));
 #endif
         return false;
@@ -168,9 +175,7 @@ bool Invoke(const char* phase, const std::function<void()>& fn, CrashInfo& outIn
     try
     {
 #if defined(_MSC_VER)
-        ok = RunUnderSeh(&StdFunctionTrampoline,
-                         const_cast<std::function<void()>*>(&fn),
-                         &outInfo);
+        ok = RunUnderSeh(&StdFunctionTrampoline, const_cast<std::function<void()>*>(&fn), &outInfo);
 #else
         ok = RunUnderFaultGuard(fn, outInfo);
 #endif
@@ -192,7 +197,9 @@ bool Invoke(const char* phase, const std::function<void()>& fn, CrashInfo& outIn
 
 #if defined(_MSC_VER)
     if (!ok)
+    {
         FormatMessage(outInfo, ExceptionCodeName(outInfo.exceptionCode));
+    }
 #endif
     return ok;
 }

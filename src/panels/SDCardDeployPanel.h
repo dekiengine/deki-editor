@@ -22,7 +22,6 @@ public:
 
     void Draw();
 
-
 private:
     EditorApp* m_App;
     std::unique_ptr<AssetDeployer> m_Deployer;

@@ -16,10 +16,8 @@ namespace fs = std::filesystem;
 namespace DekiEditor
 {
 
-bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
-                            const std::string& cacheDir,
-                            const std::string& outputPath,
-                            const std::set<FontUsageInfo>& fontUsages,
+bool AssetPacker::BuildPack(const std::string& dpackJsonPath, const std::string& cacheDir,
+                            const std::string& outputPath, const std::set<FontUsageInfo>& fontUsages,
                             const SourceResolver& resolveSource)
 {
     // Read .dpack JSON
@@ -53,7 +51,9 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
     for (const auto& asset : dpack["assets"])
     {
         if (!asset.contains("guid") || !asset.contains("type"))
+        {
             continue;
+        }
 
         PackEntry entry;
         entry.guid = asset["guid"].get<std::string>();
@@ -63,7 +63,9 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
         // in the cache directory
         entry.cachePath = resolveSource ? resolveSource(entry.guid) : std::string();
         if (entry.cachePath.empty())
+        {
             entry.cachePath = cacheDir + "/" + entry.guid;
+        }
         if (!fs::exists(entry.cachePath))
         {
             // For fonts, the .dpack may list the source/TTF GUID.
@@ -74,13 +76,16 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
                 continue;
             }
 
-            DEKI_LOG_WARNING("AssetPacker: Asset not in cache: %s (GUID: %s)",
-                             entry.typeName.c_str(), entry.guid.c_str());
+            DEKI_LOG_WARNING("AssetPacker: Asset not in cache: %s (GUID: %s)", entry.typeName.c_str(),
+                             entry.guid.c_str());
             continue;
         }
 
         entry.size = static_cast<uint32_t>(fs::file_size(entry.cachePath));
-        if (entry.size == 0) continue;
+        if (entry.size == 0)
+        {
+            continue;
+        }
 
         entries.push_back(entry);
     }
@@ -89,7 +94,9 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
     {
         std::unordered_set<std::string> existingGuids;
         for (const auto& e : entries)
+        {
             existingGuids.insert(e.guid);
+        }
 
         std::vector<PackEntry> autoEntries;
         for (const auto& entry : entries)
@@ -159,8 +166,7 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
         currentOffset += entries[i].size;
     }
 
-    out.write(reinterpret_cast<const char*>(packEntries.data()),
-              packEntries.size() * sizeof(Deki::DPackEntry));
+    out.write(reinterpret_cast<const char*>(packEntries.data()), packEntries.size() * sizeof(Deki::DPackEntry));
 
     // Write asset data
     for (const auto& entry : entries)
@@ -188,8 +194,7 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath,
     out.close();
 
     uint32_t totalSize = currentOffset;
-    DEKI_LOG_EDITOR("AssetPacker: Built pack (%u assets, %.1f KB):",
-                    (uint32_t)entries.size(), totalSize / 1024.0f);
+    DEKI_LOG_EDITOR("AssetPacker: Built pack (%u assets, %.1f KB):", (uint32_t)entries.size(), totalSize / 1024.0f);
     for (const auto& entry : entries)
     {
         DEKI_LOG_DEBUG("  [%s] %s (%.1f KB)", entry.typeName.c_str(), entry.guid.c_str(), entry.size / 1024.0f);
@@ -223,32 +228,42 @@ struct GlyphInfoPacked
 std::string AssetPacker::ResolveFontAtlasGuid(const std::string& dfontCachePath)
 {
     std::ifstream file(dfontCachePath, std::ios::binary);
-    if (!file.is_open()) return "";
+    if (!file.is_open())
+    {
+        return "";
+    }
 
     DFontHeader header;
     file.read(reinterpret_cast<char*>(&header), sizeof(header));
-    if (!file || memcmp(header.magic, "DFNT", 4) != 0) return "";
+    if (!file || memcmp(header.magic, "DFNT", 4) != 0)
+    {
+        return "";
+    }
 
     // Skip glyph data
     size_t glyphsSize = header.glyph_count * sizeof(GlyphInfoPacked);
     file.seekg(glyphsSize, std::ios::cur);
 
     // Read atlas path (stored as null-terminated string = atlas GUID)
-    if (header.atlas_path_len == 0) return "";
+    if (header.atlas_path_len == 0)
+    {
+        return "";
+    }
     std::string atlasPath(header.atlas_path_len - 1, '\0');
     file.read(atlasPath.data(), header.atlas_path_len - 1);
 
     return atlasPath;
 }
 
-void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid,
-                                          const std::string& cacheDir,
-                                          const std::set<FontUsageInfo>& fontUsages,
-                                          std::vector<PackEntry>& outEntries)
+void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid, const std::string& cacheDir,
+                                          const std::set<FontUsageInfo>& fontUsages, std::vector<PackEntry>& outEntries)
 {
     for (const auto& usage : fontUsages)
     {
-        if (usage.sourceGuid != sourceGuid) continue;
+        if (usage.sourceGuid != sourceGuid)
+        {
+            continue;
+        }
 
         // Generate deterministic GUIDs (same formula as AssetExporter::BakeFontsForExport)
         std::string seedString = sourceGuid + ":" + std::to_string(usage.fontSize);
@@ -285,20 +300,19 @@ void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid,
     }
 }
 
-bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
-                                 const std::string& cacheDir,
-                                 const std::string& storageDir,
-                                 const std::string& outputPath,
+bool AssetPacker::BuildPackIndex(const std::string& assetsDir, const std::string& cacheDir,
+                                 const std::string& storageDir, const std::string& outputPath,
                                  const std::set<FontUsageInfo>& fontUsages,
-                                 std::unordered_set<std::string>* outPackedGuids,
-                                 const SourceResolver& resolveSource)
+                                 std::unordered_set<std::string>* outPackedGuids, const SourceResolver& resolveSource)
 {
     // Find all .dpack files in asset directory
     std::vector<std::string> dpackFiles;
     for (const auto& entry : fs::recursive_directory_iterator(assetsDir))
     {
         if (entry.is_regular_file() && entry.path().extension() == ".dpack")
+        {
             dpackFiles.push_back(entry.path().string());
+        }
     }
 
     if (dpackFiles.empty())
@@ -324,10 +338,16 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
     {
         // Read pack GUID from .data sidecar
         std::string dataPath = dpackPath + ".data";
-        if (!fs::exists(dataPath)) continue;
+        if (!fs::exists(dataPath))
+        {
+            continue;
+        }
 
         std::ifstream dataFile(dataPath);
-        if (!dataFile.is_open()) continue;
+        if (!dataFile.is_open())
+        {
+            continue;
+        }
 
         nlohmann::json dataJson;
         try
@@ -340,34 +360,45 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
         }
         dataFile.close();
 
-        if (!dataJson.contains("guid")) continue;
+        if (!dataJson.contains("guid"))
+        {
+            continue;
+        }
         std::string packGuid = dataJson["guid"].get<std::string>();
 
         // Build the .pack file
         std::string packOutputPath = storageDir + "/" + packGuid + ".pack";
         if (!BuildPack(dpackPath, cacheDir, packOutputPath, fontUsages, resolveSource))
+        {
             continue;
+        }
 
         // Only add index entries if the .pack file was actually created
         if (!fs::exists(packOutputPath))
+        {
             continue;
+        }
 
         // Read actual pack contents to build index (so variant GUIDs appear, not source GUIDs)
         std::ifstream packFile(packOutputPath, std::ios::binary);
-        if (!packFile.is_open()) continue;
+        if (!packFile.is_open())
+        {
+            continue;
+        }
 
         Deki::DPackHeader packHeader;
         packFile.read(reinterpret_cast<char*>(&packHeader), sizeof(packHeader));
         if (!packFile || memcmp(packHeader.magic, Deki::DPACK_MAGIC, 4) != 0 || packHeader.entryCount == 0)
+        {
             continue;
+        }
 
         // The name only: the runtime finds a pack next to the index, on
         // whichever storage the build's assets are.
         std::string packFileName = packGuid + ".pack";
 
         std::vector<Deki::DPackEntry> packEntries(packHeader.entryCount);
-        packFile.read(reinterpret_cast<char*>(packEntries.data()),
-                      packHeader.entryCount * sizeof(Deki::DPackEntry));
+        packFile.read(reinterpret_cast<char*>(packEntries.data()), packHeader.entryCount * sizeof(Deki::DPackEntry));
 
         for (const auto& pe : packEntries)
         {
@@ -377,12 +408,16 @@ bool AssetPacker::BuildPackIndex(const std::string& assetsDir,
             indexEntries.push_back(ie);
 
             if (outPackedGuids)
+            {
                 outPackedGuids->insert(ie.assetGuid);
+            }
         }
     }
 
     if (indexEntries.empty())
+    {
         return true;
+    }
 
     // Write binary pack_index.bin
     std::ofstream out(outputPath, std::ios::binary);

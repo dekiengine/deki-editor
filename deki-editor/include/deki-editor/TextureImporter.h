@@ -97,15 +97,19 @@ struct DEKI_EDITOR_API SpriteSettings
     int32_t FrameId(size_t index) const
     {
         if (mode == SpriteSlicingMode::Atlas)
+        {
             return index < frames.size() && frames[index].id >= 0 ? frames[index].id : static_cast<int32_t>(index);
+        }
         return index < frameIds.size() && frameIds[index] >= 0 ? frameIds[index] : static_cast<int32_t>(index);
     }
 
     bool HasData() const
     {
-        if (hasNineSlice) return true;
-        return mode == SpriteSlicingMode::Grid ? (frameWidth > 0 || frameHeight > 0)
-                                               : !frames.empty();
+        if (hasNineSlice)
+        {
+            return true;
+        }
+        return mode == SpriteSlicingMode::Grid ? (frameWidth > 0 || frameHeight > 0) : !frames.empty();
     }
 };
 
@@ -132,28 +136,20 @@ public:
         return { ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif" };
     }
 
-    std::string GetImporterName() const override
-    {
-        return "TextureImporter";
-    }
+    std::string GetImporterName() const override { return "TextureImporter"; }
 
-    ImportResult Import(const std::string& sourcePath,
-                        const std::string& cachePath) override;
+    ImportResult Import(const std::string& sourcePath, const std::string& cachePath) override;
 
     // Specific texture import with format control
-    ImportResult ImportWithFormat(const std::string& sourcePath,
-                                  const std::string& cachePath,
-                                  TextureFormat format);
+    ImportResult ImportWithFormat(const std::string& sourcePath, const std::string& cachePath, TextureFormat format);
 
     // Low-level static functions (for direct usage without importer instance)
-    static bool WriteTexFile(const std::string& path,
-                             const uint8_t* rgbaData,
-                             uint32_t width, uint32_t height,
+    static bool WriteTexFile(const std::string& path, const uint8_t* rgbaData, uint32_t width, uint32_t height,
                              TextureFormat format = TextureFormat::RGB565A8,
                              const SpriteSettings* spriteSettings = nullptr,
                              const std::vector<SubAssetInfo>* frameSubAssets = nullptr,
-                             const ChromaKeySettings* chromaKey = nullptr,
-                             uint32_t sourceWidth = 0, uint32_t sourceHeight = 0);
+                             const ChromaKeySettings* chromaKey = nullptr, uint32_t sourceWidth = 0,
+                             uint32_t sourceHeight = 0);
 
     static bool ReadTexFile(const std::string& path, TexData& outData);
 
@@ -182,11 +178,8 @@ public:
      * @param minHeight Minimum frame height to detect (ignore smaller regions)
      * @return Vector of detected atlas frames
      */
-    static std::vector<AtlasFrame> AutoDetectFrames(const uint8_t* rgbaData,
-                                                    uint32_t width, uint32_t height,
-                                                    uint8_t alphaThreshold = 10,
-                                                    int minWidth = 1,
-                                                    int minHeight = 1);
+    static std::vector<AtlasFrame> AutoDetectFrames(const uint8_t* rgbaData, uint32_t width, uint32_t height,
+                                                    uint8_t alphaThreshold = 10, int minWidth = 1, int minHeight = 1);
 
     /**
      * Give re-sliced frames the ids of the frames they replace, so references
@@ -208,11 +201,8 @@ public:
      * @param settings Sprite slicing settings
      * @return Vector of SubAssetInfo for each frame (empty if no frames)
      */
-    static std::vector<SubAssetInfo> GenerateFrameSubAssets(
-        const std::string& parentGuid,
-        int texWidth,
-        int texHeight,
-        const SpriteSettings& settings);
+    static std::vector<SubAssetInfo> GenerateFrameSubAssets(const std::string& parentGuid, int texWidth, int texHeight,
+                                                            const SpriteSettings& settings);
 
     // Sprite frame data registry (for runtime frame coordinate lookup)
     /**
@@ -239,8 +229,8 @@ public:
      * image's pixels. WriteTexFile stores them after the frame list. `has`
      * false forgets them. Cleared with ClearFrameData.
      */
-    static void SetFrameNineSlice(const std::string& frameGuid, bool has, uint16_t left, uint16_t right,
-                                  uint16_t top, uint16_t bottom);
+    static void SetFrameNineSlice(const std::string& frameGuid, bool has, uint16_t left, uint16_t right, uint16_t top,
+                                  uint16_t bottom);
 
     /**
      * @brief Check if a .tex file contains a FrameList metadata chunk

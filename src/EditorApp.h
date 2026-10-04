@@ -56,9 +56,18 @@ struct SDL_Window;
 #include "PlayMode.h"
 #include <optional>
 
-namespace Deki { class LifecycleManager; } // Forward declaration (from engine)
-namespace Deki { class IRenderSystem; } // Forward declaration (from engine)
-namespace Deki { class ICamera; } // Forward declaration (from engine)
+namespace Deki
+{
+class LifecycleManager;
+}  // namespace Deki
+namespace Deki
+{
+class IRenderSystem;
+}  // namespace Deki
+namespace Deki
+{
+class ICamera;
+}  // namespace Deki
 
 namespace DekiEditor
 {
@@ -121,7 +130,9 @@ public:
         // the prompt, or never changed, so this session's autosave snapshots
         // would only come back as a false "recovery" on the next open.
         if (q)
+        {
             m_Recovery.DiscardSessionSnapshots();
+        }
         return q;
     }
 
@@ -362,7 +373,7 @@ private:
     ProjectLock m_ProjectLock;  // held while m_Project is open
     std::string m_OpenProjectError;
     std::string m_PendingOpenProject;  // RequestOpenProject
-    int m_ProjectTransformWidth = 2;  // 0, 2 or 3; see GetProjectTransformWidth
+    int m_ProjectTransformWidth = 2;   // 0, 2 or 3; see GetProjectTransformWidth
     std::unique_ptr<::Deki::Scene> m_CurrentScene;
     std::unique_ptr<AssetPipeline> m_AssetPipeline;
     std::unique_ptr<PluginLoader> m_PluginLoader;

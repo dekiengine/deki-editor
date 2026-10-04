@@ -44,7 +44,9 @@ BuilderRegistry::~BuilderRegistry()
 void BuilderRegistry::Shutdown()
 {
     if (m_ShutDown)
+    {
         return;
+    }
     m_ShutDown = true;
 
     // A build thread still running plugin code when its module is unloaded is
@@ -53,16 +55,24 @@ void BuilderRegistry::Shutdown()
     for (const auto& entry : m_Builders)
     {
         if (entry.builder != nullptr && entry.builder->IsBuilding())
+        {
             entry.builder->Cancel();
+        }
     }
     for (int waited = 0; waited < 5000; waited += 50)
     {
         bool anyBuilding = false;
         for (const auto& entry : m_Builders)
+        {
             if (entry.builder != nullptr && entry.builder->IsBuilding())
+            {
                 anyBuilding = true;
+            }
+        }
         if (!anyBuilding)
+        {
             break;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
@@ -71,11 +81,17 @@ void BuilderRegistry::Shutdown()
     for (auto& entry : m_Builders)
     {
         if (entry.builder == nullptr)
+        {
             continue;
+        }
         if (entry.destroy != nullptr)
+        {
             entry.destroy(entry.builder);
+        }
         else
+        {
             delete entry.builder;
+        }
         entry.builder = nullptr;
     }
     m_Builders.clear();
@@ -85,7 +101,9 @@ void BuilderRegistry::Shutdown()
     for (auto it = m_PluginHandles.rbegin(); it != m_PluginHandles.rend(); ++it)
     {
         if (*it == nullptr)
+        {
             continue;
+        }
 #ifdef _WIN32
         FreeLibrary((HMODULE)*it);
 #else
@@ -104,12 +122,13 @@ void BuilderRegistry::RegisterBuilder(std::unique_ptr<ITargetBuilder> builder)
     m_Builders.push_back(entry);
 }
 
-void BuilderRegistry::RegisterPluginBuilder(ITargetBuilder* builder,
-                                            void (*destroy)(ITargetBuilder*),
+void BuilderRegistry::RegisterPluginBuilder(ITargetBuilder* builder, void (*destroy)(ITargetBuilder*),
                                             const std::string& package)
 {
     if (builder == nullptr)
+    {
         return;
+    }
     LoadedBuilder entry;
     entry.builder = builder;
     entry.destroy = destroy;
@@ -122,7 +141,9 @@ void BuilderRegistry::RegisterPluginBuilder(ITargetBuilder* builder,
 void BuilderRegistry::RemovePackageBuilders(const std::string& package)
 {
     if (package.empty())
+    {
         return;
+    }
     for (auto it = m_Builders.begin(); it != m_Builders.end();)
     {
         if (it->package != package || it->builder == nullptr)
@@ -132,11 +153,17 @@ void BuilderRegistry::RemovePackageBuilders(const std::string& package)
         }
         // A build still running on the builder's thread would outlive it.
         for (int i = 0; i < 200 && it->builder->IsBuilding(); ++i)
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
         if (it->destroy != nullptr)
+        {
             it->destroy(it->builder);
+        }
         else
+        {
             delete it->builder;
+        }
         it = m_Builders.erase(it);
     }
 }
@@ -161,8 +188,12 @@ std::vector<ITargetBuilder*> BuilderRegistry::GetAllBuilders() const
     std::vector<ITargetBuilder*> result;
     result.reserve(m_Builders.size());
     for (const auto& entry : m_Builders)
+    {
         if (entry.builder != nullptr)
+        {
             result.push_back(entry.builder);
+        }
+    }
     return result;
 }
 
@@ -172,7 +203,9 @@ void BuilderRegistry::EnsureLoaded()
     {
         m_BuiltInsRegistered = true;
         if (m_BuiltInProvider != nullptr)
+        {
             m_BuiltInProvider(*this);
+        }
     }
     LoadBuilderPlugins();
 }
@@ -183,8 +216,12 @@ std::vector<std::string> BuilderRegistry::GetSupportedPlatforms(const std::strin
     // FirmwareBuilderBase. Asking m_Builders[0] specifically only worked
     // because NativeBuilder happened to be registered first.
     for (const auto& entry : m_Builders)
+    {
         if (entry.builder != nullptr)
+        {
             return entry.builder->GetPackageSupportedPlatforms(metadataPath);
+        }
+    }
     return {};
 }
 
@@ -196,7 +233,9 @@ void BuilderRegistry::SetBuiltInProvider(BuiltInProvider provider)
 void BuilderRegistry::LoadBuilderPlugins()
 {
     if (m_PluginsLoaded)
+    {
         return;
+    }
     m_PluginsLoaded = true;
 
     std::vector<std::string> dirs;
@@ -215,10 +254,14 @@ void BuilderRegistry::LoadBuilderPlugins()
             if (*c == '\0' || sep)
             {
                 if (!acc.empty())
+                {
                     dirs.push_back(acc);
+                }
                 acc.clear();
                 if (*c == '\0')
+                {
                     break;
+                }
             }
             else
             {
@@ -228,25 +271,40 @@ void BuilderRegistry::LoadBuilderPlugins()
     }
     const std::string userDir = EditorPaths::GetBuildersDir();
     if (!userDir.empty())
+    {
         dirs.push_back(userDir);
+    }
 
     for (const std::string& dir : dirs)
     {
         std::error_code ec;
         if (dir.empty() || !fs::exists(dir, ec))
+        {
             continue;
+        }
 
         for (const auto& entry : fs::directory_iterator(dir, ec))
         {
             if (!entry.is_regular_file())
+            {
                 continue;
+            }
             const std::string ext = entry.path().extension().string();
 #ifdef _WIN32
-            if (ext != ".dll") continue;
+            if (ext != ".dll")
+            {
+                continue;
+            }
 #elif __APPLE__
-            if (ext != ".dylib") continue;
+            if (ext != ".dylib")
+            {
+                continue;
+            }
 #else
-            if (ext != ".so") continue;
+            if (ext != ".so")
+            {
+                continue;
+            }
 #endif
             LoadOneBuilderPlugin(entry.path().string());
         }
@@ -268,14 +326,14 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
     }
 
 #ifdef _WIN32
-    #define DEKI_BUILDER_SYM(t, n) (t)GetProcAddress(module, n)
+#define DEKI_BUILDER_SYM(t, n) (t) GetProcAddress(module, n)
 #else
-    #define DEKI_BUILDER_SYM(t, n) (t)dlsym(module, n)
+#define DEKI_BUILDER_SYM(t, n) (t) dlsym(module, n)
 #endif
     auto getAbi = DEKI_BUILDER_SYM(const DekiBuilderAbi* (*)(), "DekiBuilder_GetAbi");
     auto getName = DEKI_BUILDER_SYM(const char* (*)(), "DekiBuilder_GetName");
     auto getCount = DEKI_BUILDER_SYM(int (*)(), "DekiBuilder_GetBuilderCount");
-    auto create = DEKI_BUILDER_SYM(ITargetBuilder* (*)(int), "DekiBuilder_CreateBuilder");
+    auto create = DEKI_BUILDER_SYM(ITargetBuilder * (*)(int), "DekiBuilder_CreateBuilder");
     auto destroy = DEKI_BUILDER_SYM(void (*)(ITargetBuilder*), "DekiBuilder_DestroyBuilder");
 #undef DEKI_BUILDER_SYM
 
@@ -290,38 +348,53 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
         return false;
     };
 
-    if (getAbi == nullptr || getName == nullptr || getCount == nullptr || create == nullptr ||
-        destroy == nullptr)
+    if (getAbi == nullptr || getName == nullptr || getCount == nullptr || create == nullptr || destroy == nullptr)
+    {
         return refuse("missing one of DekiBuilder_GetAbi/GetName/GetBuilderCount/"
                       "CreateBuilder/DestroyBuilder");
+    }
 
     // Before anything else, and read THROUGH the pointer: a plugin built
     // against a different revision may return a differently sized struct, and
     // copying it first is exactly the bug PluginLoader documents.
     const DekiBuilderAbi* abi = getAbi();
     if (abi == nullptr)
+    {
         return refuse("DekiBuilder_GetAbi returned null");
+    }
     if (abi->version != kDekiBuilderAbiVersion)
+    {
         return refuse("built against builder ABI " + std::to_string(abi->version) + ", this editor is " +
                       std::to_string(kDekiBuilderAbiVersion));
+    }
     if (abi->structSize != sizeof(DekiBuilderAbi))
+    {
         return refuse("DekiBuilderAbi size disagrees");
+    }
     if (abi->platformConfigSize != sizeof(PlatformConfig))
-        return refuse("PlatformConfig layout disagrees (plugin " +
-                      std::to_string(abi->platformConfigSize) + ", editor " +
-                      std::to_string(sizeof(PlatformConfig)) + ")");
+    {
+        return refuse("PlatformConfig layout disagrees (plugin " + std::to_string(abi->platformConfigSize) +
+                      ", editor " + std::to_string(sizeof(PlatformConfig)) + ")");
+    }
     if (abi->packageEntrySize != sizeof(CMakeGen::PackageEntry))
-        return refuse("CMakeGen::PackageEntry layout disagrees (plugin " +
-                      std::to_string(abi->packageEntrySize) + ", editor " +
-                      std::to_string(sizeof(CMakeGen::PackageEntry)) + ")");
+    {
+        return refuse("CMakeGen::PackageEntry layout disagrees (plugin " + std::to_string(abi->packageEntrySize) +
+                      ", editor " + std::to_string(sizeof(CMakeGen::PackageEntry)) + ")");
+    }
     if (abi->stdStringSize != sizeof(std::string) || abi->stdVectorSize != sizeof(std::vector<int>))
+    {
         return refuse("standard library layout disagrees");
+    }
     if (abi->compilerTag != DekiBuilder_CompilerTag())
+    {
         return refuse("built with a different compiler or standard library");
+    }
 
     const int count = getCount();
     if (count <= 0)
+    {
         return refuse("declares no builders");
+    }
 
     m_PluginHandles.push_back((void*)module);
     const size_t moduleIndex = m_PluginHandles.size() - 1;
@@ -331,15 +404,17 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
     {
         ITargetBuilder* builder = create(i);
         if (builder == nullptr)
+        {
             continue;
+        }
         LoadedBuilder entry;
         entry.builder = builder;
         entry.destroy = destroy;
         entry.moduleIndex = moduleIndex;
         m_Builders.push_back(entry);
         ++taken;
-        DEKI_LOG_EDITOR("Builder plugin '%s' provides '%s' (framework '%s')", getName(),
-                        builder->GetName(), builder->GetFrameworkId().c_str());
+        DEKI_LOG_EDITOR("Builder plugin '%s' provides '%s' (framework '%s')", getName(), builder->GetName(),
+                        builder->GetFrameworkId().c_str());
     }
 
     if (taken == 0)

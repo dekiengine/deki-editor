@@ -34,7 +34,7 @@ struct CliToolContext
  */
 class DEKI_EDITOR_API CliTool : public EditorExtension
 {
-   public:
+public:
     // Out of line (CliTool.cpp) so deki-editor.dll emits the vtable a
     // package's tool links against.
     ~CliTool() override;

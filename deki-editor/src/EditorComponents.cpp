@@ -7,7 +7,10 @@ namespace DekiEditor
 
 Deki::Component* AddComponentByName(Deki::Object* object, const std::string& typeName)
 {
-    if (!object) return nullptr;
+    if (!object)
+    {
+        return nullptr;
+    }
     return Deki::Internal::AddComponentByName(*object, typeName);
 }
 

@@ -66,9 +66,9 @@ ImVec4 LevelColor(Toast::Level level)
     {
         case Toast::Level::Success: return Palette::Green;
         case Toast::Level::Warning: return Palette::Amber;
-        case Toast::Level::Error:   return Palette::Red;
+        case Toast::Level::Error: return Palette::Red;
         case Toast::Level::Info:
-        default:                    return Palette::Accent;
+        default: return Palette::Accent;
     }
 }
 
@@ -80,7 +80,9 @@ float BuildProgressHeight()
 {
     ImGuiWindow* w = ImGui::FindWindowByName("##BuildProgress");
     if (!w || !(w->Active || w->WasActive))
+    {
         return 0.0f;
+    }
     return w->Size.y;
 }
 
@@ -101,10 +103,16 @@ void Toast::Push(Level level, const char* title, const std::string& message, flo
     // Over the limit: the oldest cards still showing start leaving.
     std::size_t staying = 0;
     for (auto it = g_Entries.rbegin(); it != g_Entries.rend(); ++it)
+    {
         if (it->remaining > 0.0f && ++staying > kMaxVisible)
+        {
             it->remaining = 0.0f;
+        }
+    }
     if (g_Entries.size() > kHardCap)
+    {
         g_Entries.erase(g_Entries.begin(), g_Entries.begin() + (g_Entries.size() - kHardCap));
+    }
 }
 
 void Toast::DismissAll()
@@ -123,7 +131,9 @@ void Toast::DrawInFrame()
 {
     std::lock_guard<std::mutex> lock(g_Mutex);
     if (g_Entries.empty())
+    {
         return;
+    }
 
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     const float dpi = (vp->DpiScale > 0.0f) ? vp->DpiScale : 1.0f;
@@ -134,7 +144,9 @@ void Toast::DrawInFrame()
     float cursorY = vp->WorkPos.y + vp->WorkSize.y - kMarginBottom * dpi;
     const float buildH = BuildProgressHeight();
     if (buildH > 0.0f)
+    {
         cursorY -= buildH + kGap * dpi;
+    }
 
     const float rightX = vp->WorkPos.x + vp->WorkSize.x - kMarginRight * dpi;
 
@@ -161,16 +173,11 @@ void Toast::DrawInFrame()
         ImGui::SetNextWindowSize(ImVec2(cardW, 0.0f), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.97f * alpha);
 
-        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
-                                       ImGuiWindowFlags_NoMove |
-                                       ImGuiWindowFlags_NoCollapse |
-                                       ImGuiWindowFlags_NoSavedSettings |
-                                       ImGuiWindowFlags_NoTitleBar |
-                                       ImGuiWindowFlags_NoScrollbar |
-                                       ImGuiWindowFlags_NoScrollWithMouse |
-                                       ImGuiWindowFlags_NoDocking |
-                                       ImGuiWindowFlags_NoFocusOnAppearing |
-                                       ImGuiWindowFlags_NoNav;
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
+                                       ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
+                                       ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDocking |
+                                       ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
 
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f * dpi, 12.0f * dpi));
@@ -202,12 +209,13 @@ void Toast::DrawInFrame()
                 barCol.w *= alpha;
                 dl->AddRectFilled(ImVec2(wpos.x + inset, wpos.y + inset),
                                   ImVec2(wpos.x + inset + barW, wpos.y + wsize.y - inset),
-                                  ImGui::ColorConvertFloat4ToU32(barCol),
-                                  barW * 0.5f);
+                                  ImGui::ColorConvertFloat4ToU32(barCol), barW * 0.5f);
             }
 
             if (!e.title.empty())
+            {
                 ImGui::TextColored(accent, "%s", e.title.c_str());
+            }
 
             if (!e.message.empty())
             {
@@ -219,8 +227,8 @@ void Toast::DrawInFrame()
             e.height = ImGui::GetWindowHeight();
             e.measured = true;
 
-            hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
-                                             ImGuiHoveredFlags_ChildWindows);
+            hovered =
+                ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_ChildWindows);
             clicked = hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
         }
         ImGui::End();
@@ -231,9 +239,13 @@ void Toast::DrawInFrame()
         // Hover holds the toast open: a message worth reading should not expire
         // while it is being read. Click anywhere to dismiss immediately.
         if (clicked)
+        {
             e.remaining = 0.0f;
+        }
         else if (!hovered && e.remaining > 0.0f)
+        {
             e.remaining -= dt;
+        }
 
         // A leaving card gives up its space as it fades, so the ones above
         // settle down smoothly rather than all at once.

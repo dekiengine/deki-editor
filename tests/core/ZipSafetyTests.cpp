@@ -30,14 +30,18 @@ uint32_t Crc32(const std::string& data)
         {
             uint32_t c = i;
             for (int k = 0; k < 8; ++k)
+            {
                 c = (c & 1) ? (0xEDB88320u ^ (c >> 1)) : (c >> 1);
+            }
             table[i] = c;
         }
         init = true;
     }
     uint32_t crc = 0xFFFFFFFFu;
     for (unsigned char b : data)
+    {
         crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+    }
     return crc ^ 0xFFFFFFFFu;
 }
 
@@ -71,11 +75,11 @@ std::string BuildZip(const std::vector<Entry>& entries)
         const uint32_t size = static_cast<uint32_t>(e.data.size());
         // local file header
         Put32(out, 0x04034b50);
-        Put16(out, 20);        // version needed
-        Put16(out, 0);         // flags
-        Put16(out, 0);         // method: stored
-        Put16(out, 0);         // time
-        Put16(out, 0x21);      // date
+        Put16(out, 20);    // version needed
+        Put16(out, 0);     // flags
+        Put16(out, 0);     // method: stored
+        Put16(out, 0);     // time
+        Put16(out, 0x21);  // date
         Put32(out, crc);
         Put32(out, size);
         Put32(out, size);
@@ -168,7 +172,8 @@ TEST(ZipSafety, SlipArchiveIsRefusedAndWritesNothing)
     EXPECT_NE(reason.find("evil"), std::string::npos) << reason;
 
     std::string log;
-    EXPECT_FALSE(EditorHttpUtils::ExtractZip(zip.string(), dest.string(), [&](const std::string& m) { log += m + "\n"; }));
+    EXPECT_FALSE(
+        EditorHttpUtils::ExtractZip(zip.string(), dest.string(), [&](const std::string& m) { log += m + "\n"; }));
     EXPECT_FALSE(fs::exists(s.dir / "evil.txt"));
     EXPECT_FALSE(fs::exists(dest / "ok" / "file.txt")) << "nothing may be written when one entry escapes";
 }
@@ -182,7 +187,9 @@ TEST(ZipSafety, PlainArchiveExtracts)
     std::string reason;
     EXPECT_TRUE(EditorHttpUtils::ZipEntriesAreSafe(zip.string(), reason)) << reason;
     std::string log;
-    ASSERT_TRUE(EditorHttpUtils::ExtractZip(zip.string(), dest.string(), [&](const std::string& m) { log += m + "\n"; })) << log;
+    ASSERT_TRUE(
+        EditorHttpUtils::ExtractZip(zip.string(), dest.string(), [&](const std::string& m) { log += m + "\n"; }))
+        << log;
     std::ifstream in(dest / "ok" / "file.txt", std::ios::binary);
     std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     EXPECT_EQ(content, "hello");

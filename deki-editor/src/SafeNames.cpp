@@ -33,8 +33,8 @@ bool IsSafeName(const std::string& name, std::string& reason)
     }
     for (unsigned char c : name)
     {
-        const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                        (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
+        const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' ||
+                        c == '_' || c == '-';
         if (!ok)
         {
             reason = "name contains a character outside A-Z, a-z, 0-9, '.', '_', '-'";
@@ -48,7 +48,9 @@ bool IsSafeRepoSlug(const std::string& slug, std::string& reason)
 {
     const size_t slash = slug.find('/');
     if (slash == std::string::npos)
+    {
         return IsSafeName(slug, reason);
+    }
     if (slug.find('/', slash + 1) != std::string::npos)
     {
         reason = "repository must be 'owner/name'";
@@ -69,28 +71,36 @@ bool IsSafeSerialPort(const std::string& port, std::string& reason)
         reason = "serial port name is too long";
         return false;
     }
-    auto safeChars = [](const std::string& s, size_t from) {
+    auto safeChars = [](const std::string& s, size_t from)
+    {
         for (size_t i = from; i < s.size(); ++i)
         {
             const unsigned char c = static_cast<unsigned char>(s[i]);
-            const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                            (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
-            if (!ok) return false;
+            const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' ||
+                            c == '_' || c == '-';
+            if (!ok)
+            {
+                return false;
+            }
         }
         return true;
     };
     if (port.rfind("COM", 0) == 0 && port.size() > 3)
     {
         for (size_t i = 3; i < port.size(); ++i)
+        {
             if (port[i] < '0' || port[i] > '9')
             {
                 reason = "a COM port is COM followed by digits";
                 return false;
             }
+        }
         return true;
     }
     if (port.rfind("/dev/", 0) == 0 && port.size() > 5 && safeChars(port, 5))
+    {
         return true;
+    }
     reason = "serial port must be COM<n> or /dev/<name>";
     return false;
 }
@@ -123,7 +133,8 @@ bool IsSafeDefine(const std::string& define, std::string& reason)
         for (size_t i = eq + 1; i < define.size(); ++i)
         {
             const unsigned char c = static_cast<unsigned char>(define[i]);
-            const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.';
+            const bool ok =
+                (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.';
             if (!ok)
             {
                 reason = "define value contains a character outside A-Z, a-z, 0-9, '_', '.'";
@@ -138,18 +149,29 @@ bool IsInsideDirectory(const fs::path& child, const fs::path& parent)
 {
     std::error_code ec;
     const fs::path c = fs::weakly_canonical(child, ec);
-    if (ec) return false;
+    if (ec)
+    {
+        return false;
+    }
     const fs::path p = fs::weakly_canonical(parent, ec);
-    if (ec) return false;
+    if (ec)
+    {
+        return false;
+    }
 
     // Component-wise prefix test: a string prefix would let "packages-evil"
     // pass for "packages".
     auto ci = c.begin();
     for (auto pi = p.begin(); pi != p.end(); ++pi, ++ci)
     {
-        if (pi->empty()) continue;  // trailing separator
+        if (pi->empty())
+        {
+            continue;  // trailing separator
+        }
         if (ci == c.end() || *ci != *pi)
+        {
             return false;
+        }
     }
     return true;
 }

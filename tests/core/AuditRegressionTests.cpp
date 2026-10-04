@@ -71,7 +71,7 @@ std::string ReadFile(const fs::path& path)
     return std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 }
 
-} // namespace
+}  // namespace
 
 // ============================================================================
 // CRASH-1 - undoing a create must not free the object
@@ -83,8 +83,7 @@ TEST(AuditCreateObjectCommand, RedoRestoresTheSameObjectInstance)
     scene.CreateDekiObject("Root");
 
     Deki::Object* created = nullptr;
-    CreateObjectCommand cmd(&scene, "Child",
-                            [&created](Deki::Object* obj) { created = obj; });
+    CreateObjectCommand cmd(&scene, "Child", [&created](Deki::Object* obj) { created = obj; });
 
     cmd.Execute();
     ASSERT_NE(created, nullptr);
@@ -154,26 +153,44 @@ namespace
 class PointerCommand : public Command
 {
 public:
-    PointerCommand(void* target, int* counter) : m_Target(target), m_Counter(counter) {}
+    PointerCommand(void* target, int* counter)
+        : m_Target(target),
+          m_Counter(counter)
+    {
+    }
 
-    void Execute() override { if (m_Counter) ++(*m_Counter); }
-    void Undo() override    { if (m_Counter) --(*m_Counter); }
+    void Execute() override
+    {
+        if (m_Counter)
+        {
+            ++(*m_Counter);
+        }
+    }
+    void Undo() override
+    {
+        if (m_Counter)
+        {
+            --(*m_Counter);
+        }
+    }
     std::string GetDescription() const override { return "Pointer"; }
 
-    bool ReferencesAny(const DeadMemory& dead) const override
-    {
-        return dead.Contains(m_Target);
-    }
+    bool ReferencesAny(const DeadMemory& dead) const override { return dead.Contains(m_Target); }
 
 private:
     void* m_Target;
     int* m_Counter;
 };
-} // namespace
+}  // namespace
 
 TEST(AuditDeadMemory, MatchesInteriorPointers)
 {
-    struct Fake { int a; int b; int c; };
+    struct Fake
+    {
+        int a;
+        int b;
+        int c;
+    };
     Fake obj{};
 
     DeadMemory dead;
@@ -197,7 +214,10 @@ TEST(AuditCommandHistory, DiscardsCommandsReferencingFreedMemory)
 
     int liveTarget = 0;
     int counter = 0;
-    struct Doomed { int field; } doomed{};
+    struct Doomed
+    {
+        int field;
+    } doomed{};
 
     history.Execute(std::make_unique<PointerCommand>(&liveTarget, &counter));
     history.Execute(std::make_unique<PointerCommand>(&doomed, &counter));
@@ -222,7 +242,10 @@ TEST(AuditCommandHistory, DiscardAlsoClearsTheRedoStack)
     history.Clear();
 
     int counter = 0;
-    struct Doomed { int field; } doomed{};
+    struct Doomed
+    {
+        int field;
+    } doomed{};
 
     history.Execute(std::make_unique<PointerCommand>(&doomed, &counter));
     history.Undo();
@@ -248,7 +271,10 @@ TEST(AuditCommandHistory, DiscardLeavesUnrelatedHistoryAlone)
     history.Execute(std::make_unique<PointerCommand>(&liveTarget, &counter));
     history.Execute(std::make_unique<PointerCommand>(&liveTarget, &counter));
 
-    struct Unrelated { int field; } unrelated{};
+    struct Unrelated
+    {
+        int field;
+    } unrelated{};
     DeadMemory dead;
     dead.Add(&unrelated, sizeof(Unrelated));
     history.DiscardCommandsReferencing(dead);
@@ -283,12 +309,11 @@ protected:
     {
         const fs::path assetPath = m_Root / "assets" / relPath;
         WriteFile(assetPath, "dummy");
-        WriteFile(fs::path(assetPath.string() + ".data"),
-                  std::string(R"({"guid":")") + guid + R"("})");
+        WriteFile(fs::path(assetPath.string() + ".data"), std::string(R"({"guid":")") + guid + R"("})");
     }
 
     std::string AssetsRoot() const { return (m_Root / "assets").string(); }
-    std::string CachePath()  const { return (m_Root / "cache" / "guids.json").string(); }
+    std::string CachePath() const { return (m_Root / "cache" / "guids.json").string(); }
 
     fs::path m_Root;
 };
@@ -297,7 +322,7 @@ TEST_F(AuditGuidCacheTest, DuplicateSidecarGetsAFreshGuid)
 {
     const std::string shared = "11111111-1111-4111-8111-111111111111";
     CreateAsset("original.png", shared);
-    CreateAsset("copy.png", shared);   // e.g. a duplicated folder
+    CreateAsset("copy.png", shared);  // e.g. a duplicated folder
 
     GuidCache cache;
     cache.Load(CachePath());
@@ -352,10 +377,8 @@ TEST_F(AuditGuidCacheTest, MovedAssetKeepsItsGuid)
     // Move it: the original is gone, so this is a rename, not a duplicate, and
     // the GUID must follow the file rather than being re-minted.
     fs::create_directories(m_Root / "assets" / "new");
-    fs::rename(m_Root / "assets" / "old" / "sprite.png",
-               m_Root / "assets" / "new" / "sprite.png");
-    fs::rename(m_Root / "assets" / "old" / "sprite.png.data",
-               m_Root / "assets" / "new" / "sprite.png.data");
+    fs::rename(m_Root / "assets" / "old" / "sprite.png", m_Root / "assets" / "new" / "sprite.png");
+    fs::rename(m_Root / "assets" / "old" / "sprite.png.data", m_Root / "assets" / "new" / "sprite.png.data");
 
     cache.Sync(AssetsRoot());
 
@@ -419,8 +442,7 @@ TEST(AuditSceneSave, ReportsFailureForAnUnwritablePath)
     // A path whose parent does not exist cannot be written. The old
     // implementation returned file.good() before flushing, so failures like this
     // could be reported as success and the editor would clear its dirty flag.
-    const fs::path bogus = fs::temp_directory_path() /
-                           "deki_audit_missing_dir" / "nested" / "x.scene";
+    const fs::path bogus = fs::temp_directory_path() / "deki_audit_missing_dir" / "nested" / "x.scene";
     std::error_code ec;
     fs::remove_all(fs::temp_directory_path() / "deki_audit_missing_dir", ec);
 
@@ -447,7 +469,9 @@ TEST(AuditSceneSave, DoesNotDestroyTheExistingFileWhenTheWriteFails)
 
     EXPECT_FALSE(ReadFile(target).empty());
     if (!ok)
+    {
         EXPECT_EQ(ReadFile(target), saved);
+    }
 }
 
 // ============================================================================
@@ -462,7 +486,7 @@ TEST(AuditDeleteAssetsCommand, UndoRestoresEachFileToItsOwnPath)
     WriteFile(a, "contents-a");
     WriteFile(b, "contents-b");
 
-    DeleteAssetsCommand cmd({a.string(), b.string()}, nullptr, dir.Path().string());
+    DeleteAssetsCommand cmd({ a.string(), b.string() }, nullptr, dir.Path().string());
     cmd.Execute();
     ASSERT_FALSE(fs::exists(a));
     ASSERT_FALSE(fs::exists(b));
@@ -485,7 +509,7 @@ TEST(AuditDeleteAssetsCommand, UndoStaysAlignedWhenAPathIsMissing)
     // `missing` does not exist, so Execute skips it. Pairing backups with
     // originals by index used to drift here and restore `here.png`'s bytes to
     // `gone.png` - a silent rename of the user's asset.
-    DeleteAssetsCommand cmd({missing.string(), present.string()}, nullptr, dir.Path().string());
+    DeleteAssetsCommand cmd({ missing.string(), present.string() }, nullptr, dir.Path().string());
     cmd.Execute();
     ASSERT_FALSE(fs::exists(present));
 
@@ -505,7 +529,7 @@ TEST(AuditDeleteAssetsCommand, SameFilenameInDifferentFoldersBothSurvive)
     WriteFile(hud, "contents-hud");
 
     // Backups keyed on filename alone collided, and one file was destroyed.
-    DeleteAssetsCommand cmd({ui.string(), hud.string()}, nullptr, dir.Path().string());
+    DeleteAssetsCommand cmd({ ui.string(), hud.string() }, nullptr, dir.Path().string());
     cmd.Execute();
     cmd.Undo();
 
@@ -523,7 +547,7 @@ TEST(AuditDeleteAssetsCommand, SidecarTravelsWithTheAsset)
     WriteFile(asset, "pixels");
     WriteFile(sidecar, R"({"guid":"abc"})");
 
-    DeleteAssetsCommand cmd({asset.string()}, nullptr, dir.Path().string());
+    DeleteAssetsCommand cmd({ asset.string() }, nullptr, dir.Path().string());
     cmd.Execute();
     EXPECT_FALSE(fs::exists(sidecar));
 
@@ -640,11 +664,13 @@ TEST(AuditPackageNameValidation, RemoveRefusesAPathThatLeavesPackages)
     pkg.name = "x/../victim";
     bool called = false, ok = true;
     std::string message;
-    installer.Remove(project.string(), pkg, [&](bool success, const std::string& msg) {
-        called = true;
-        ok = success;
-        message = msg;
-    });
+    installer.Remove(project.string(), pkg,
+                     [&](bool success, const std::string& msg)
+                     {
+                         called = true;
+                         ok = success;
+                         message = msg;
+                     });
     EXPECT_TRUE(called);
     EXPECT_FALSE(ok);
     EXPECT_NE(message.find("Refusing"), std::string::npos) << message;
@@ -678,7 +704,8 @@ TEST(AuditUrlValidation, HttpsOnlyAndNoMetacharacters)
 {
     std::string reason;
     EXPECT_TRUE(EditorHttpUtils::IsAllowedUrl("https://dekiengine.github.io/registry/index.json", reason));
-    EXPECT_TRUE(EditorHttpUtils::IsAllowedUrl("https://api.github.com/repos/dekiengine/deki-editor/releases/latest", reason));
+    EXPECT_TRUE(
+        EditorHttpUtils::IsAllowedUrl("https://api.github.com/repos/dekiengine/deki-editor/releases/latest", reason));
     EXPECT_FALSE(EditorHttpUtils::IsAllowedUrl("http://dekiengine.github.io/registry/index.json", reason));
     EXPECT_FALSE(EditorHttpUtils::IsAllowedUrl("file:///etc/passwd", reason));
     EXPECT_FALSE(EditorHttpUtils::IsAllowedUrl("https://x`whoami`", reason));
@@ -710,16 +737,17 @@ TEST(AuditUrlValidation, ReleaseAssetsMustLiveUnderTheRepository)
         {"browser_download_url": "http://github.com/espressif/esp-idf/releases/download/v9/esp-idf-v9.zip"}]})";
     EXPECT_FALSE(EditorHttpUtils::ParseGitHubRelease(plainHttp, ".zip", "espressif/esp-idf", version, url));
 
-    EXPECT_FALSE(EditorHttpUtils::ParseGitHubRelease("<html>rate limited</html>", ".zip", "espressif/esp-idf", version, url));
+    EXPECT_FALSE(
+        EditorHttpUtils::ParseGitHubRelease("<html>rate limited</html>", ".zip", "espressif/esp-idf", version, url));
 }
 
 TEST(AuditUrlValidation, UnpinnedDownloadIsRefused)
 {
     TempDir dir("deki_audit_unpinned");
     std::string log;
-    const bool ok = EditorHttpUtils::DownloadFileVerified(
-        "https://dekiengine.github.io/registry/index.json", (dir.Path() / "out").string(), "",
-        nullptr, [&](const std::string& s) { log += s + "\n"; });
+    const bool ok = EditorHttpUtils::DownloadFileVerified("https://dekiengine.github.io/registry/index.json",
+                                                          (dir.Path() / "out").string(), "", nullptr,
+                                                          [&](const std::string& s) { log += s + "\n"; });
     EXPECT_FALSE(ok);
     EXPECT_NE(log.find("no SHA-256"), std::string::npos) << log;
     EXPECT_FALSE(fs::exists(dir.Path() / "out"));
@@ -752,8 +780,8 @@ TEST(AuditSha256, MatchesKnownVectors)
 
 TEST(AuditSha256, ReportsFailureForAMissingFile)
 {
-    EXPECT_TRUE(EditorHttpUtils::Sha256File(
-        (fs::temp_directory_path() / "deki_audit_no_such_file.bin").string()).empty());
+    EXPECT_TRUE(
+        EditorHttpUtils::Sha256File((fs::temp_directory_path() / "deki_audit_no_such_file.bin").string()).empty());
 }
 
 // ============================================================================
@@ -763,8 +791,8 @@ TEST(AuditSha256, ReportsFailureForAMissingFile)
 namespace
 {
 /// Write a .dtex header with explicit field values, then `payloadBytes` of data.
-void WriteTexHeader(const fs::path& path, uint32_t width, uint32_t height,
-                    uint32_t format, uint32_t dataSize, size_t payloadBytes)
+void WriteTexHeader(const fs::path& path, uint32_t width, uint32_t height, uint32_t format, uint32_t dataSize,
+                    size_t payloadBytes)
 {
     fs::create_directories(path.parent_path());
     std::ofstream f(path, std::ios::binary);
@@ -784,7 +812,7 @@ void WriteTexHeader(const fs::path& path, uint32_t width, uint32_t height,
     const std::string payload(payloadBytes, '\0');
     f.write(payload.data(), static_cast<std::streamsize>(payload.size()));
 }
-} // namespace
+}  // namespace
 
 TEST(AuditReadTexFile, RejectsAnAbsurdDataSizeInsteadOfAllocatingIt)
 {
@@ -860,18 +888,24 @@ TEST(AuditDeleteAssetsCommand, DeletedFilesOutliveTheUndoHistoryAndTheNextOpen)
     const fs::path trash = DeleteAssetsCommand::TrashRoot(dir.Path().string());
     bool found = false;
     for (const auto& e : fs::recursive_directory_iterator(trash))
+    {
         found |= e.path().filename().string().find("keep.png") != std::string::npos;
+    }
     EXPECT_TRUE(found) << "the deleted file is gone for good";
 
     // Old enough (its name says it was deleted 8 days ago): swept.
     std::vector<fs::path> deletes;
     for (const auto& e : fs::directory_iterator(trash))
+    {
         deletes.push_back(e.path());
+    }
     const auto eightDaysAgo = std::chrono::duration_cast<std::chrono::milliseconds>(
                                   (std::chrono::system_clock::now() - std::chrono::hours(24 * 8)).time_since_epoch())
                                   .count();
     for (const fs::path& d : deletes)
+    {
         fs::rename(d, trash / ("delete_" + std::to_string(eightDaysAgo)));
+    }
     DeleteAssetsCommand::SweepStaleTrash(dir.Path().string());
     EXPECT_FALSE(fs::exists(trash));
 }

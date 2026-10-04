@@ -17,7 +17,9 @@ EditorInput& EditorInput::Get()
 bool EditorInput::PanelExists(const std::string& panel)
 {
     if (panel.empty())
+    {
         return true;
+    }
     ImGuiWindow* win = ImGui::FindWindowByName(panel.c_str());
     return win && win->WasActive;
 }
@@ -63,12 +65,14 @@ void EditorInput::RequestDrag(const std::string& panel, float x, float y, const 
     m_Steps.push_back(s);
 }
 
-void EditorInput::RequestClick(const std::string& panel, float x, float y, Button button, int count,
-                               float holdSeconds, Modifiers mods)
+void EditorInput::RequestClick(const std::string& panel, float x, float y, Button button, int count, float holdSeconds,
+                               Modifiers mods)
 {
     Move(panel, x, y);
     if (mods.Any())
+    {
         m_Steps.push_back(ModsStep(mods, true));
+    }
     for (int i = 0; i < count; ++i)
     {
         Step down;
@@ -87,7 +91,9 @@ void EditorInput::RequestClick(const std::string& panel, float x, float y, Butto
         m_Steps.push_back(up);
     }
     if (mods.Any())
+    {
         m_Steps.push_back(ModsStep(mods, false));
+    }
 }
 
 void EditorInput::RequestHover(const std::string& panel, float x, float y, float holdSeconds)
@@ -123,7 +129,8 @@ bool EditorInput::RequestKey(const std::string& key, bool ctrl, bool shift, bool
     }
     if (found == ImGuiKey_None)
     {
-        error = "'" + key + "' is not a key; use ImGui's names: Enter, Escape, Tab, Space, Backspace, "
+        error = "'" + key +
+                "' is not a key; use ImGui's names: Enter, Escape, Tab, Space, Backspace, "
                 "Delete, LeftArrow, A, 0, F2, ...";
         return false;
     }
@@ -168,7 +175,9 @@ void EditorInput::InjectPending()
         io.AddMousePosEvent(m_MouseX, m_MouseY);
         m_Steps.front().seconds -= io.DeltaTime;
         if (m_Steps.front().seconds <= 0.0f)
+        {
             m_Steps.pop_front();
+        }
         return;
     }
 
@@ -213,25 +222,40 @@ void EditorInput::InjectPending()
         {
             const bool down = step.kind == Step::Kind::KeyDown;
             // Modifiers go down before the key and come up with it.
-            if (step.ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, down);
-            if (step.shift) io.AddKeyEvent(ImGuiMod_Shift, down);
-            if (step.alt) io.AddKeyEvent(ImGuiMod_Alt, down);
+            if (step.ctrl)
+            {
+                io.AddKeyEvent(ImGuiMod_Ctrl, down);
+            }
+            if (step.shift)
+            {
+                io.AddKeyEvent(ImGuiMod_Shift, down);
+            }
+            if (step.alt)
+            {
+                io.AddKeyEvent(ImGuiMod_Alt, down);
+            }
             io.AddKeyEvent(static_cast<ImGuiKey>(step.key), down);
             break;
         }
-        case Step::Kind::Text:
-            io.AddInputCharactersUTF8(step.text.c_str());
-            break;
+        case Step::Kind::Text: io.AddInputCharactersUTF8(step.text.c_str()); break;
         case Step::Kind::Hold:
             io.AddMousePosEvent(m_MouseX, m_MouseY);
             m_HoldSeconds = step.seconds;
             break;
-        case Step::Kind::Wait:
-            break;  // handled above, before the step is taken off the queue
+        case Step::Kind::Wait: break;  // handled above, before the step is taken off the queue
         case Step::Kind::Mods:
-            if (step.ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, step.down);
-            if (step.shift) io.AddKeyEvent(ImGuiMod_Shift, step.down);
-            if (step.alt) io.AddKeyEvent(ImGuiMod_Alt, step.down);
+            if (step.ctrl)
+            {
+                io.AddKeyEvent(ImGuiMod_Ctrl, step.down);
+            }
+            if (step.shift)
+            {
+                io.AddKeyEvent(ImGuiMod_Shift, step.down);
+            }
+            if (step.alt)
+            {
+                io.AddKeyEvent(ImGuiMod_Alt, step.down);
+            }
             break;
         case Step::Kind::DragBegin:
         {
@@ -243,7 +267,9 @@ void EditorInput::InjectPending()
                 {
                     ImGuiWindow* win = ImGui::FindWindowByName(panel.c_str());
                     if (!win || !win->WasActive)
+                    {
                         return false;
+                    }
                     ox = win->Pos.x;
                     oy = win->Pos.y;
                 }
@@ -270,7 +296,9 @@ void EditorInput::InjectPending()
             mods.alt = step.alt;
             std::deque<Step> drag;
             if (mods.Any())
+            {
                 drag.push_back(ModsStep(mods, true));
+            }
             Step down;
             down.kind = Step::Kind::ButtonDown;
             down.button = step.button;
@@ -295,7 +323,9 @@ void EditorInput::InjectPending()
             up.kind = Step::Kind::ButtonUp;
             drag.push_back(up);
             if (mods.Any())
+            {
                 drag.push_back(ModsStep(mods, false));
+            }
             m_Steps.insert(m_Steps.begin(), drag.begin(), drag.end());
             break;
         }

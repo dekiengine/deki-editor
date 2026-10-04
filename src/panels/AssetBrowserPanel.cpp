@@ -54,7 +54,11 @@ struct ScopedTrue
     bool& flag;
     bool prev;
     explicit ScopedTrue(bool& f)
-        : flag(f), prev(f) { flag = true; }
+        : flag(f),
+          prev(f)
+    {
+        flag = true;
+    }
     ~ScopedTrue() { flag = prev; }
     ScopedTrue(const ScopedTrue&) = delete;
     ScopedTrue& operator=(const ScopedTrue&) = delete;
@@ -70,8 +74,7 @@ void TintTreeNodeFolderIcon()
     ImVec2 mx = ImGui::GetItemRectMax();
     float iconX = mn.x + ImGui::GetTreeNodeToLabelSpacing();
     float iconY = (mn.y + mx.y) * 0.5f - ImGui::GetFontSize() * 0.5f;
-    ImGui::GetWindowDrawList()->AddText(ImVec2(iconX, iconY),
-                                        ImGui::GetColorU32(Palette::FolderIcon), ICON_TI_FOLDER);
+    ImGui::GetWindowDrawList()->AddText(ImVec2(iconX, iconY), ImGui::GetColorU32(Palette::FolderIcon), ICON_TI_FOLDER);
 }
 
 // Context-menu styling helpers (PushContextMenuPopupStyle /
@@ -90,7 +93,11 @@ void RevealInFileExplorer(const std::string& absolutePath)
 }  // namespace
 
 AssetBrowserPanel::AssetBrowserPanel(EditorApp* app)
-    : m_App(app), m_CreateFolderDialog(std::make_unique<CreateFolderDialog>(this)), m_CreateAssetDialog(std::make_unique<CreateAssetDialog>(app, this)), m_DeleteConfirmDialog(std::make_unique<DeleteConfirmDialog>(this)), m_RenameDialog(std::make_unique<RenameDialog>(this))
+    : m_App(app),
+      m_CreateFolderDialog(std::make_unique<CreateFolderDialog>(this)),
+      m_CreateAssetDialog(std::make_unique<CreateAssetDialog>(app, this)),
+      m_DeleteConfirmDialog(std::make_unique<DeleteConfirmDialog>(this)),
+      m_RenameDialog(std::make_unique<RenameDialog>(this))
 {
 }
 
@@ -99,9 +106,12 @@ AssetBrowserPanel::~AssetBrowserPanel() = default;
 void AssetBrowserPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
-    ImGui::Begin("ASSET BROWSER###Asset Browser", &m_Open, DekiEditor::MaximizedWindowFlags("ASSET BROWSER###Asset Browser"));
+    ImGui::Begin("ASSET BROWSER###Asset Browser", &m_Open,
+                 DekiEditor::MaximizedWindowFlags("ASSET BROWSER###Asset Browser"));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
     m_RowHover.BeginFrame();  // rows fade their hover from last frame's
 
@@ -139,14 +149,19 @@ void AssetBrowserPanel::Draw()
 
     // Search bar (outside the scroll region), styled like the Hierarchy search.
     if (m_BrowserMode == BrowserMode::Scripts)
+    {
         DrawHierarchyStyleSearch("##scriptfilter", m_ScriptFilter, sizeof(m_ScriptFilter));
+    }
     else
+    {
         DrawHierarchyStyleSearch("##assetfilter", m_AssetFilter, sizeof(m_AssetFilter));
+    }
 
     ImGui::Separator();
 
     // Scrollable content area as a child window
-    ImGui::BeginChild("AssetBrowserContent", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    ImGui::BeginChild("AssetBrowserContent", ImVec2(0, 0), ImGuiChildFlags_None,
+                      ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
     // Auto-scroll while dragging items near the top/bottom edge.
     AutoScrollOnDrag();
@@ -156,8 +171,7 @@ void AssetBrowserPanel::Draw()
     // FramePadding.x uses the theme value (same left inset as the Hierarchy
     // tree); FramePadding.y is DPI-scaled (the old raw 6px was tiny at high
     // DPI). ItemSpacing.y is zeroed only for the tree, not the tabs.
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                        ImVec2(ImGui::GetStyle().FramePadding.x, 6.0f * m_App->Dpi(1.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 6.0f * m_App->Dpi(1.0f)));
     const ImVec2 abItemSp = ImGui::GetStyle().ItemSpacing;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(abItemSp.x, 0.0f));
     // Mark the iteration window so any asset mutation triggered from inside the
@@ -174,11 +188,15 @@ void AssetBrowserPanel::Draw()
         const int contentStart = contentDl->VtxBuffer.Size;
         const bool scripts = m_BrowserMode == BrowserMode::Scripts;
         if (scripts)
+        {
             DrawScriptsList();
+        }
         else
+        {
             DrawAssetTree();
-        const float t = DekiEditor::Motion::EaseOut(
-            DekiEditor::Motion::To(kModeSlideKey, 1.0f, DekiEditor::Motion::Slow));
+        }
+        const float t =
+            DekiEditor::Motion::EaseOut(DekiEditor::Motion::To(kModeSlideKey, 1.0f, DekiEditor::Motion::Slow));
         if (t < 1.0f)
         {
             const float slide = std::min(ImGui::GetWindowWidth() * 0.3f, 120.0f * m_App->Dpi(1.0f));
@@ -210,9 +228,7 @@ void AssetBrowserPanel::Draw()
                     if (obj)
                     {
                         std::string folder = m_CurrentPath;
-                        m_DeferredActions.push_back(
-                            [this, obj, folder]()
-                            { SaveObjectAsScene(obj, folder); });
+                        m_DeferredActions.push_back([this, obj, folder]() { SaveObjectAsScene(obj, folder); });
                     }
                 }
                 ImGui::EndDragDropTarget();
@@ -224,7 +240,8 @@ void AssetBrowserPanel::Draw()
     if (m_BrowserMode == BrowserMode::Scripts)
     {
         // Use window-level drop target (covers all empty space in the child)
-        if (ImGui::BeginDragDropTargetCustom(ImGui::GetCurrentWindow()->ContentRegionRect, ImGui::GetID("##scripts_child_drop")))
+        if (ImGui::BeginDragDropTargetCustom(ImGui::GetCurrentWindow()->ContentRegionRect,
+                                             ImGui::GetID("##scripts_child_drop")))
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCRIPT_VFOLDER"))
             {
@@ -251,7 +268,9 @@ void AssetBrowserPanel::Draw()
         m_PendingTreeRebuild = false;
         BuildFolderTree();
         if (m_BrowserMode == BrowserMode::Scripts)
+        {
             BuildScriptFlatList();
+        }
     }
 
     m_CreateFolderDialog->Draw();
@@ -280,12 +299,7 @@ void AssetBrowserPanel::Draw()
                 // Trash inside the project: rename cannot cross volumes, so a
                 // %TEMP% on another drive would fail every move silently.
                 auto command = std::make_unique<DeleteAssetsCommand>(
-                    std::vector<std::string>{ folderPath },
-                    [this]()
-                    {
-                        BuildFolderTree();
-                    },
-                    m_ProjectRoot);
+                    std::vector<std::string>{ folderPath }, [this]() { BuildFolderTree(); }, m_ProjectRoot);
                 CommandHistory::Instance().Execute(std::move(command));
                 m_PendingTreeRebuild = true;
                 ImGui::CloseCurrentPopup();
@@ -316,11 +330,13 @@ void AssetBrowserPanel::Draw()
         // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
         // frame, leaving the input inactive so typing goes nowhere.
         if (ImGui::IsWindowAppearing())
+        {
             ImGui::SetKeyboardFocusHere();
+        }
 
         ImGui::SetNextItemWidth(-FLT_MIN);
-        bool enterPressed = ImGui::InputText("##renamefolder", m_RenameFolderBuffer,
-                                             sizeof(m_RenameFolderBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
+        bool enterPressed = ImGui::InputText("##renamefolder", m_RenameFolderBuffer, sizeof(m_RenameFolderBuffer),
+                                             ImGuiInputTextFlags_EnterReturnsTrue);
 
         ImGui::Spacing();
         ImGui::Spacing();
@@ -341,7 +357,9 @@ void AssetBrowserPanel::Draw()
         ImGui::SameLine(0.0f, gap);
 
         if (!canRename)
+        {
             ImGui::BeginDisabled();
+        }
         ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
@@ -356,7 +374,9 @@ void AssetBrowserPanel::Draw()
 
         ImGui::PopStyleColor(3);
         if (!canRename)
+        {
             ImGui::EndDisabled();
+        }
         ImGui::PopStyleVar();  // ButtonTextAlign
 
         EndSchematicModal();
@@ -382,8 +402,7 @@ void AssetBrowserPanel::Draw()
                 if (scene)
                 {
                     CommandHistory::Instance().Execute(
-                        std::make_unique<LinkInstanceCommand>(
-                            scene, m_PendingLinkObject, m_PendingLinkSceneGuid));
+                        std::make_unique<LinkInstanceCommand>(scene, m_PendingLinkObject, m_PendingLinkSceneGuid));
                 }
             }
             m_PendingLinkObject = nullptr;
@@ -416,7 +435,9 @@ void AssetBrowserPanel::Draw()
         // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
         // frame, leaving the input inactive so typing goes nowhere.
         if (ImGui::IsWindowAppearing())
+        {
             ImGui::SetKeyboardFocusHere();
+        }
 
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool enterPressed = ImGui::InputText("##scriptname", m_NewScriptName, sizeof(m_NewScriptName),
@@ -441,7 +462,9 @@ void AssetBrowserPanel::Draw()
         ImGui::SameLine(0.0f, gap);
 
         if (!canCreate)
+        {
             ImGui::BeginDisabled();
+        }
         ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
@@ -453,15 +476,21 @@ void AssetBrowserPanel::Draw()
             CreateScript(scriptDir, m_NewScriptName);
             m_NewScriptName[0] = '\0';
             if (m_BrowserMode == BrowserMode::Scripts)
+            {
                 BuildScriptFlatList();
+            }
             else
+            {
                 NavigateTo(m_CurrentPath);
+            }
             ImGui::CloseCurrentPopup();
         }
 
         ImGui::PopStyleColor(3);
         if (!canCreate)
+        {
             ImGui::EndDisabled();
+        }
         ImGui::PopStyleVar();  // ButtonTextAlign
 
         EndSchematicModal();
@@ -517,8 +546,7 @@ void AssetBrowserPanel::DrawModeTabs()
     };
 
     float cx = rowMin.x + padX;
-    if (drawLink("Assets", m_BrowserMode == BrowserMode::Assets, cx) &&
-        m_BrowserMode != BrowserMode::Assets)
+    if (drawLink("Assets", m_BrowserMode == BrowserMode::Assets, cx) && m_BrowserMode != BrowserMode::Assets)
     {
         DekiEditor::Motion::Set(kModeSlideKey, 0.0f);
         m_BrowserMode = BrowserMode::Assets;
@@ -527,14 +555,15 @@ void AssetBrowserPanel::DrawModeTabs()
         BuildFolderTree();
     }
     cx += gapX;
-    if (drawLink("Scripts", m_BrowserMode == BrowserMode::Scripts, cx) &&
-        m_BrowserMode != BrowserMode::Scripts)
+    if (drawLink("Scripts", m_BrowserMode == BrowserMode::Scripts, cx) && m_BrowserMode != BrowserMode::Scripts)
     {
         DekiEditor::Motion::Set(kModeSlideKey, 0.0f);
         m_BrowserMode = BrowserMode::Scripts;
         m_RootPath = m_SrcRoot;
         if (!m_RootPath.empty() && !fs::exists(m_RootPath))
+        {
             fs::create_directories(m_RootPath);
+        }
         m_CurrentPath = m_RootPath;
         BuildScriptFlatList();
     }
@@ -557,13 +586,18 @@ void AssetBrowserPanel::DrawModeTabs()
     {
         char buf[32];
         snprintf(buf, sizeof(buf), m_Entries.size() == 1 ? "%zu item" : "%zu items", m_Entries.size());
-        if (DekiEditor::g_FontMonoSmall) ImGui::PushFont(DekiEditor::g_FontMonoSmall, DekiEditor::Fonts::CssPx(DekiEditor::g_FontMonoSmall, 11.5f));
+        if (DekiEditor::g_FontMonoSmall)
+        {
+            ImGui::PushFont(DekiEditor::g_FontMonoSmall, DekiEditor::Fonts::CssPx(DekiEditor::g_FontMonoSmall, 11.5f));
+        }
         ImVec2 sz = ImGui::CalcTextSize(buf);
         const float countX = rowMax.x - sz.x - padX;
         const float countY = rowMin.y + (rowH - sz.y) * 0.5f;
-        dl->AddText(ImVec2(countX, countY),
-                    ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim2), buf);
-        if (DekiEditor::g_FontMonoSmall) ImGui::PopFont();
+        dl->AddText(ImVec2(countX, countY), ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim2), buf);
+        if (DekiEditor::g_FontMonoSmall)
+        {
+            ImGui::PopFont();
+        }
     }
 
     // 1px hairline along the bar's bottom edge.
@@ -596,17 +630,27 @@ void AssetBrowserPanel::RefreshAssets()
 
     // Set root based on current mode
     if (m_BrowserMode == BrowserMode::Scripts)
+    {
         m_RootPath = m_SrcRoot;
+    }
     else
+    {
         m_RootPath = m_AssetsRoot;
+    }
 
     if (m_CurrentPath.empty())
+    {
         m_CurrentPath = m_RootPath;
+    }
 
     if (m_BrowserMode == BrowserMode::Scripts)
+    {
         BuildScriptFlatList();
+    }
     else
+    {
         BuildFolderTree();
+    }
 }
 
 void AssetBrowserPanel::NavigateTo(const std::string& path)
@@ -651,7 +695,9 @@ void AssetBrowserPanel::BuildFolderTree()
     }
 
     if (m_SelectedAsset && m_SelectedIndex >= 0 && m_SelectedIndex < static_cast<int>(m_Entries.size()))
+    {
         m_ReselectPath = m_Entries[m_SelectedIndex].path;
+    }
 
     m_RootNode = FolderNode();
     m_Entries.clear();
@@ -661,7 +707,9 @@ void AssetBrowserPanel::BuildFolderTree()
     m_SelectedIndices.clear();
 
     if (m_RootPath.empty() || !fs::exists(m_RootPath))
+    {
         return;
+    }
 
     // Initialize root node
     m_RootNode.name = (m_BrowserMode == BrowserMode::Scripts) ? "src" : "assets";
@@ -679,7 +727,9 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
     namespace fs = std::filesystem;
 
     if (!fs::exists(dirPath) || !fs::is_directory(dirPath))
+    {
         return;
+    }
 
     std::vector<FolderNode> subfolders;
     std::vector<AssetEntry> files;
@@ -690,13 +740,17 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
 
         // Skip hidden files
         if (name[0] == '.')
+        {
             continue;
+        }
 
         if (entry.is_directory())
         {
             // In Scripts mode, hide generated folder
             if (m_BrowserMode == BrowserMode::Scripts && name == "generated")
+            {
                 continue;
+            }
 
             FolderNode subfolder;
             subfolder.name = name;
@@ -710,11 +764,15 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
 
             // Skip metadata files
             if (ext == ".dekiguid" || ext == ".data")
+            {
                 continue;
+            }
 
             // In Scripts mode, hide PluginExports.cpp
             if (m_BrowserMode == BrowserMode::Scripts && name == "PluginExports.cpp")
+            {
                 continue;
+            }
 
             AssetEntry asset;
             asset.name = name;
@@ -723,7 +781,10 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
             // Normalize slashes
             for (char& c : asset.relativePath)
             {
-                if (c == '\\') c = '/';
+                if (c == '\\')
+                {
+                    c = '/';
+                }
             }
             asset.isDirectory = false;
 
@@ -820,11 +881,8 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
 
     // Sort alphabetically
     std::sort(subfolders.begin(), subfolders.end(),
-              [](const FolderNode& a, const FolderNode& b)
-              { return a.name < b.name; });
-    std::sort(files.begin(), files.end(),
-              [](const AssetEntry& a, const AssetEntry& b)
-              { return a.name < b.name; });
+              [](const FolderNode& a, const FolderNode& b) { return a.name < b.name; });
+    std::sort(files.begin(), files.end(), [](const AssetEntry& a, const AssetEntry& b) { return a.name < b.name; });
 
     node.subfolders = std::move(subfolders);
     node.files = std::move(files);
@@ -840,11 +898,12 @@ void AssetBrowserPanel::DrawHierarchyStyleSearch(const char* id, char* buf, size
 // True if `name` (case-insensitive) contains the already-lowercased needle.
 static bool AssetNameMatches(const std::string& name, const std::string& needleLower)
 {
-    if (needleLower.empty()) return true;
+    if (needleLower.empty())
+    {
+        return true;
+    }
     std::string n = name;
-    std::transform(n.begin(), n.end(), n.begin(),
-                   [](unsigned char c)
-                   { return (char)std::tolower(c); });
+    std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return (char)std::tolower(c); });
     return n.find(needleLower) != std::string::npos;
 }
 
@@ -852,9 +911,19 @@ static bool AssetNameMatches(const std::string& name, const std::string& needleL
 static bool FolderHasMatchingFile(const FolderNode& node, const std::string& needleLower)
 {
     for (const auto& f : node.files)
-        if (AssetNameMatches(f.name, needleLower)) return true;
+    {
+        if (AssetNameMatches(f.name, needleLower))
+        {
+            return true;
+        }
+    }
     for (const auto& sub : node.subfolders)
-        if (FolderHasMatchingFile(sub, needleLower)) return true;
+    {
+        if (FolderHasMatchingFile(sub, needleLower))
+        {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -865,10 +934,8 @@ void AssetBrowserPanel::DrawAssetTree()
     if (m_AssetFilter[0])
     {
         m_AssetFilterLower = m_AssetFilter;
-        std::transform(m_AssetFilterLower.begin(), m_AssetFilterLower.end(),
-                       m_AssetFilterLower.begin(),
-                       [](unsigned char c)
-                       { return (char)std::tolower(c); });
+        std::transform(m_AssetFilterLower.begin(), m_AssetFilterLower.end(), m_AssetFilterLower.begin(),
+                       [](unsigned char c) { return (char)std::tolower(c); });
     }
 
     m_HoveredFolderPath.clear();
@@ -877,17 +944,24 @@ void AssetBrowserPanel::DrawAssetTree()
     // every frame: a search or an opened folder shifts them, and the highlight
     // used to land on whatever asset now sat in the selected row. Note what was
     // selected, and carry it over once the new rows exist.
-    auto keyOf = [](const AssetEntry& e)
-    { return e.guid + "|" + e.path; };
+    auto keyOf = [](const AssetEntry& e) { return e.guid + "|" + e.path; };
     std::vector<std::string> selectedKeys;
     std::string primaryKey, anchorKey;
     for (int idx : m_SelectedIndices)
+    {
         if (idx >= 0 && idx < (int)m_Entries.size())
+        {
             selectedKeys.push_back(keyOf(m_Entries[idx]));
+        }
+    }
     if (m_SelectedIndex >= 0 && m_SelectedIndex < (int)m_Entries.size())
+    {
         primaryKey = keyOf(m_Entries[m_SelectedIndex]);
+    }
     if (m_LastClickedIndex >= 0 && m_LastClickedIndex < (int)m_Entries.size())
+    {
         anchorKey = keyOf(m_Entries[m_LastClickedIndex]);
+    }
     const std::set<int> indicesBefore = m_SelectedIndices;
     const int primaryBefore = m_SelectedIndex;
 
@@ -895,7 +969,9 @@ void AssetBrowserPanel::DrawAssetTree()
     int flatIndex = 0;
     DrawFolderNode(m_RootNode, flatIndex);
     if (!m_AssetFilterLower.empty() && m_Entries.empty())
+    {
         DekiEditor::EmptyStateText("No assets match the search.");
+    }
 
     // Nothing was clicked this frame: put the selection back on its assets.
     if (!selectedKeys.empty() && m_SelectedIndices == indicesBefore && m_SelectedIndex == primaryBefore)
@@ -908,14 +984,18 @@ void AssetBrowserPanel::DrawAssetTree()
         {
             const std::string key = keyOf(m_Entries[i]);
             if (std::find(selectedKeys.begin(), selectedKeys.end(), key) != selectedKeys.end())
+            {
                 m_SelectedIndices.insert(static_cast<int>(i));
+            }
             if (key == primaryKey)
             {
                 m_SelectedIndex = static_cast<int>(i);
                 m_SelectedAsset = &m_Entries[i];
             }
             if (key == anchorKey)
+            {
                 m_LastClickedIndex = static_cast<int>(i);
+            }
         }
     }
 
@@ -959,13 +1039,16 @@ void AssetBrowserPanel::DrawAssetTree()
 
         // Delete and Ctrl+D, as the context menu lists them.
         if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !m_SelectedIndices.empty())
+        {
             m_DeleteConfirmDialog->Open();
+        }
         if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D) && m_SelectedIndices.size() == 1)
         {
             const int idx = *m_SelectedIndices.begin();
             if (idx >= 0 && idx < (int)m_Entries.size())
-                m_DeferredActions.push_back([this, p = m_Entries[idx].path]()
-                                            { DuplicateAsset(p); });
+            {
+                m_DeferredActions.push_back([this, p = m_Entries[idx].path]() { DuplicateAsset(p); });
+            }
         }
 
         // Enter (or F2, as elsewhere) to rename selected asset
@@ -1002,7 +1085,8 @@ void AssetBrowserPanel::DrawAssetTree()
             auto& e = m_Entries[newIdx];
             m_App->SetSelectedAsset(e.path, e.cachePath, e.hasCachedVersion, e.guid);
         }
-        else if (m_SelectedIndex < 0 && (ImGui::IsKeyPressed(ImGuiKey_UpArrow) || ImGui::IsKeyPressed(ImGuiKey_DownArrow)))
+        else if (m_SelectedIndex < 0 &&
+                 (ImGui::IsKeyPressed(ImGuiKey_UpArrow) || ImGui::IsKeyPressed(ImGuiKey_DownArrow)))
         {
             m_SelectedIndices.clear();
             m_SelectedIndices.insert(0);
@@ -1021,24 +1105,27 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
 
     // Asset search: hide non-root folders that have no matching descendant.
     const bool filtering = !m_AssetFilterLower.empty();
-    if (filtering && node.path != m_RootPath &&
-        !FolderHasMatchingFile(node, m_AssetFilterLower))
+    if (filtering && node.path != m_RootPath && !FolderHasMatchingFile(node, m_AssetFilterLower))
+    {
         return;
+    }
 
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
-                               ImGuiTreeNodeFlags_OpenOnDoubleClick |
-                               ImGuiTreeNodeFlags_SpanAvailWidth |
-                               ImGuiTreeNodeFlags_FramePadding;
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                               ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
     bool hasChildren = !node.subfolders.empty() || !node.files.empty();
     if (!hasChildren)
+    {
         flags |= ImGuiTreeNodeFlags_Leaf;
+    }
 
     // Check if this folder is expanded. While filtering, force matching
     // folders open so results show without manual expansion.
     bool isExpanded = m_ExpandedFolders.count(node.path) > 0;
     if (isExpanded || filtering)
+    {
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+    }
 
     ImGui::PushID(node.path.c_str());
 
@@ -1046,9 +1133,12 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     // Cyan hover background (global Header is transparent), fading in and out.
     const ImVec4 acc = DekiEditor::Palette::Accent;
     const ImGuiID folderRowId = ImGui::GetID("##folder");
-    const float folderAlpha = DekiEditor::Motion::RowHighlight(folderRowId, false, m_RowHover.WasHovered(folderRowId), 0.22f, 0.12f);
+    const float folderAlpha =
+        DekiEditor::Motion::RowHighlight(folderRowId, false, m_RowHover.WasHovered(folderRowId), 0.22f, 0.12f);
     if (folderAlpha > 0.0f)
+    {
         flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
+    }
     const ImVec4 folderBg(acc.x, acc.y, acc.z, folderAlpha);
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));  // hide ImGui triangle
     ImGui::PushStyleColor(ImGuiCol_Header, folderBg);
@@ -1067,9 +1157,13 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     if (!filtering && open != isExpanded)
     {
         if (open)
+        {
             m_ExpandedFolders.insert(node.path);
+        }
         else
+        {
             m_ExpandedFolders.erase(node.path);
+        }
     }
 
     // Track hovered folder for external drops
@@ -1104,14 +1198,22 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             std::string line;
             while (std::getline(stream, line))
             {
-                if (line.empty()) continue;
+                if (line.empty())
+                {
+                    continue;
+                }
                 size_t tabPos = line.find('\t');
-                if (tabPos == std::string::npos) continue;
+                if (tabPos == std::string::npos)
+                {
+                    continue;
+                }
                 std::string relPath = line.substr(tabPos + 1);
                 std::string srcPath = (fs::path(m_ProjectRoot) / relPath).string();
                 fs::path dest = fs::path(node.path) / fs::path(srcPath).filename();
                 if (fs::path(srcPath) != dest.parent_path())
+                {
                     DeferMove(srcPath, dest.string());
+                }
             }
             m_PendingTreeRebuild = true;
         }
@@ -1123,7 +1225,9 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             fs::path src(droppedPath);
             fs::path dest = fs::path(node.path) / src.filename();
             if (src != dest.parent_path())
+            {
                 DeferMove(droppedPath, dest.string());
+            }
             m_PendingTreeRebuild = true;
         }
         else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FOLDER_PATH"))
@@ -1138,8 +1242,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             std::string parentNorm = src.parent_path().lexically_normal().string();
 
             bool isSelf = (srcNorm == nodeNorm);
-            bool isDescendant = nodeNorm.size() > srcNorm.size() &&
-                                nodeNorm.compare(0, srcNorm.size(), srcNorm) == 0 &&
+            bool isDescendant = nodeNorm.size() > srcNorm.size() && nodeNorm.compare(0, srcNorm.size(), srcNorm) == 0 &&
                                 (nodeNorm[srcNorm.size()] == '/' || nodeNorm[srcNorm.size()] == '\\');
             bool isNoOp = (parentNorm == nodeNorm);
 
@@ -1156,9 +1259,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             if (obj)
             {
                 std::string folder = node.path;
-                m_DeferredActions.push_back(
-                    [this, obj, folder]()
-                    { SaveObjectAsScene(obj, folder); });
+                m_DeferredActions.push_back([this, obj, folder]() { SaveObjectAsScene(obj, folder); });
             }
         }
         ImGui::EndDragDropTarget();
@@ -1194,7 +1295,9 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
                     // Images, fonts and the like are imported, not created: a
                     // type with no starting content made an empty, broken file.
                     if (type.defaultContent.empty())
+                    {
                         continue;
+                    }
                     if (ImGui::MenuItem(type.displayName.c_str()))
                     {
                         m_CurrentPath = node.path;
@@ -1252,7 +1355,9 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         {
             // Asset search: only show files whose name matches the filter.
             if (filtering && !AssetNameMatches(file.name, m_AssetFilterLower))
+            {
                 continue;
+            }
 
             // Add to flat entries for selection tracking
             m_Entries.push_back(file);
@@ -1271,9 +1376,8 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
                         for (const auto& subAsset : *subAssets)
                         {
                             AssetEntry frameEntry;
-                            frameEntry.name = subAsset.name.empty()
-                                                  ? "Frame " + std::to_string(subAsset.subAssetIndex)
-                                                  : subAsset.name;
+                            frameEntry.name = subAsset.name.empty() ? "Frame " + std::to_string(subAsset.subAssetIndex)
+                                                                    : subAsset.name;
                             frameEntry.path = file.path;
                             frameEntry.relativePath = file.relativePath;
                             frameEntry.guid = subAsset.guid;
@@ -1307,7 +1411,10 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         }
     }
     DekiEditor::SchematicTreeBodyEnd();
-    if (open) ImGui::TreePop();
+    if (open)
+    {
+        ImGui::TreePop();
+    }
     ImGui::PopID();
 }
 
@@ -1322,7 +1429,9 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
     ImGui::PushID(entry.path.c_str());
     if (entry.isSubAsset)
+    {
         ImGui::PushID(entry.subAssetIndex);
+    }
 
     // Icon prefix based on file type
     std::string icon;
@@ -1382,8 +1491,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
     // Handle pending reveal selection. The filename is compared first so the
     // filesystem call runs for one candidate row, not for every row drawn
     // while a reveal is pending.
-    if (!m_PendingRevealPath.empty() &&
-        fs::path(entry.path).filename() == fs::path(m_PendingRevealPath).filename() &&
+    if (!m_PendingRevealPath.empty() && fs::path(entry.path).filename() == fs::path(m_PendingRevealPath).filename() &&
         fs::weakly_canonical(fs::path(entry.path)) == fs::path(m_PendingRevealPath))
     {
         m_SelectedIndices.clear();
@@ -1404,12 +1512,14 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
     // in and out with selection and hover.
     const ImVec4 acc = DekiEditor::Palette::Accent;
     const ImGuiID fileRowId = ImGui::GetID("##file");
-    const float fileAlpha = DekiEditor::Motion::RowHighlight(fileRowId, isSelected, m_RowHover.WasHovered(fileRowId), 0.22f, 0.12f);
+    const float fileAlpha =
+        DekiEditor::Motion::RowHighlight(fileRowId, isSelected, m_RowHover.WasHovered(fileRowId), 0.22f, 0.12f);
     const ImVec4 fileBg(acc.x, acc.y, acc.z, fileAlpha);
     ImGui::PushStyleColor(ImGuiCol_Header, fileBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, fileBg);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(acc.x, acc.y, acc.z, 0.18f));
-    const bool fileClicked = ImGui::Selectable("##file", fileAlpha > 0.0f, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, rowHeight));
+    const bool fileClicked =
+        ImGui::Selectable("##file", fileAlpha > 0.0f, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, rowHeight));
     m_RowHover.Track(fileRowId);
     ImGui::PopStyleColor(3);
     if (fileClicked)
@@ -1430,9 +1540,13 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         else if (ctrlHeld)
         {
             if (m_SelectedIndices.count(flatIndex) > 0)
+            {
                 m_SelectedIndices.erase(flatIndex);
+            }
             else
+            {
                 m_SelectedIndices.insert(flatIndex);
+            }
             m_LastClickedIndex = flatIndex;
         }
         else if (isSelected && m_SelectedIndices.size() > 1)
@@ -1501,20 +1615,22 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             const char* chev = expanded ? ICON_TI_CHEVRON_DOWN : ICON_TI_CHEVRON_RIGHT;
             ImFont* chevFont = g_FontUI ? g_FontUI : ImGui::GetFont();
             const ImVec2 chevSz = chevFont->CalcTextSizeA(arrowSize, FLT_MAX, 0.0f, chev);
-            dl->AddText(chevFont, arrowSize,
-                        ImVec2(arrowX + (arrowSize - chevSz.x) * 0.5f, centerY - chevSz.y * 0.5f),
+            dl->AddText(chevFont, arrowSize, ImVec2(arrowX + (arrowSize - chevSz.x) * 0.5f, centerY - chevSz.y * 0.5f),
                         IM_COL32(165, 166, 164, 255), chev);
 
             // Click on arrow region toggles expand
             ImVec2 mousePos = ImGui::GetIO().MousePos;
-            if (ImGui::IsMouseClicked(0) &&
-                mousePos.x >= arrowX && mousePos.x < arrowX + arrowSize &&
+            if (ImGui::IsMouseClicked(0) && mousePos.x >= arrowX && mousePos.x < arrowX + arrowSize &&
                 mousePos.y >= selectablePos.y && mousePos.y < selectablePos.y + rowHeight)
             {
                 if (expanded)
+                {
                     m_ExpandedAssets.erase(entry.guid);
+                }
                 else
+                {
                     m_ExpandedAssets.insert(entry.guid);
+                }
             }
         }
 
@@ -1580,9 +1696,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         {
             if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
             {
-                m_DeferredActions.push_back(
-                    [this, p = entry.path]()
-                    { DuplicateAsset(p); });
+                m_DeferredActions.push_back([this, p = entry.path]() { DuplicateAsset(p); });
             }
         }
 
@@ -1663,7 +1777,9 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
     }
 
     if (entry.isSubAsset)
+    {
         ImGui::PopID();
+    }
     ImGui::PopID();
     ImGui::Unindent(arrowIndent);
 }
@@ -1688,40 +1804,57 @@ void AssetBrowserPanel::BuildScriptFlatList()
     m_SelectedIndices.clear();
 
     if (m_SrcRoot.empty() || !fs::exists(m_SrcRoot))
+    {
         return;
+    }
 
     // Load virtual folder assignments if not yet loaded
     if (m_VirtualFolders.Names().empty() && m_VirtualFolders.Assignments().empty() && !m_VirtualFolders.Dirty())
+    {
         m_VirtualFolders.Load(m_ProjectRoot);
+    }
 
     // Recursively collect all source/header files
     for (const auto& entry : fs::recursive_directory_iterator(m_SrcRoot))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string name = entry.path().filename().string();
 
         // Skip hidden files
         if (name[0] == '.')
+        {
             continue;
+        }
 
         // Skip generated folder
         std::string relToSrc = fs::relative(entry.path(), m_SrcRoot).string();
         for (char& c : relToSrc)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
         if (relToSrc.rfind("generated/", 0) == 0 || relToSrc.rfind("generated\\", 0) == 0)
+        {
             continue;
+        }
 
         // Skip PluginExports.cpp
         if (name == "PluginExports.cpp")
+        {
             continue;
+        }
 
         std::string ext = entry.path().extension().string();
         if (!IsSourceFile(ext) && !IsHeaderFile(ext))
+        {
             continue;
+        }
 
         ScriptEntry script;
         script.name = name;
@@ -1732,15 +1865,21 @@ void AssetBrowserPanel::BuildScriptFlatList()
 
     // Sort by name
     std::sort(m_ScriptFlatList.begin(), m_ScriptFlatList.end(),
-              [](const ScriptEntry& a, const ScriptEntry& b)
-              { return a.name < b.name; });
+              [](const ScriptEntry& a, const ScriptEntry& b) { return a.name < b.name; });
 
     // Clean up assignments for files that no longer exist
-    m_VirtualFolders.PruneMissing([this](const std::string& rel)
-                                  {
-        for (const auto& s : m_ScriptFlatList)
-            if (s.relativePath == rel) return true;
-        return false; });
+    m_VirtualFolders.PruneMissing(
+        [this](const std::string& rel)
+        {
+            for (const auto& s : m_ScriptFlatList)
+            {
+                if (s.relativePath == rel)
+                {
+                    return true;
+                }
+            }
+            return false;
+        });
 }
 
 void AssetBrowserPanel::MoveScriptToFolder(const std::string& relativePath, const std::string& folder)
@@ -1763,22 +1902,29 @@ void AssetBrowserPanel::DrawScriptsList()
     {
         filterLower = m_ScriptFilter;
         for (char& c : filterLower)
+        {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
     }
 
     // Helper lambda to check if a script passes the filter
     auto passesFilter = [&](const ScriptEntry& script) -> bool
     {
         if (filterLower.empty())
+        {
             return true;
+        }
         std::string nameLower = script.name;
         for (char& c : nameLower)
+        {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
         std::string relLower = script.relativePath;
         for (char& c : relLower)
+        {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return nameLower.find(filterLower) != std::string::npos ||
-               relLower.find(filterLower) != std::string::npos;
+        }
+        return nameLower.find(filterLower) != std::string::npos || relLower.find(filterLower) != std::string::npos;
     };
 
     // Helper to get the virtual folder for a script
@@ -1786,7 +1932,9 @@ void AssetBrowserPanel::DrawScriptsList()
     {
         auto it = m_VirtualFolders.Assignments().find(script.relativePath);
         if (it != m_VirtualFolders.Assignments().end())
+        {
             return it->second;
+        }
         return "";
     };
 
@@ -1835,7 +1983,10 @@ void AssetBrowserPanel::DrawScriptsList()
                         if (si < (int)m_Entries.size())
                         {
                             std::string rel = m_Entries[si].relativePath;
-                            if (rel.rfind("src/", 0) == 0) rel = rel.substr(4);
+                            if (rel.rfind("src/", 0) == 0)
+                            {
+                                rel = rel.substr(4);
+                            }
                             MoveScriptToFolder(rel, "");
                         }
                     }
@@ -1849,7 +2000,10 @@ void AssetBrowserPanel::DrawScriptsList()
                             if (si < (int)m_Entries.size())
                             {
                                 std::string rel = m_Entries[si].relativePath;
-                                if (rel.rfind("src/", 0) == 0) rel = rel.substr(4);
+                                if (rel.rfind("src/", 0) == 0)
+                                {
+                                    rel = rel.substr(4);
+                                }
                                 MoveScriptToFolder(rel, vf);
                             }
                         }
@@ -1899,7 +2053,9 @@ void AssetBrowserPanel::DrawScriptsList()
         for (const auto& script : m_ScriptFlatList)
         {
             if (passesFilter(script))
+            {
                 drawScript(script);
+            }
         }
     }
     else
@@ -1913,11 +2069,15 @@ void AssetBrowserPanel::DrawScriptsList()
             m_VFTreeNames = folderNames;
             m_VFTree.clear();
 
-            auto findOrCreateNode = [](std::vector<VFNode>& nodes, const std::string& name, const std::string& fullPath) -> VFNode&
+            auto findOrCreateNode = [](std::vector<VFNode>& nodes, const std::string& name,
+                                       const std::string& fullPath) -> VFNode&
             {
                 for (auto& n : nodes)
                 {
-                    if (n.displayName == name) return n;
+                    if (n.displayName == name)
+                    {
+                        return n;
+                    }
                 }
                 nodes.push_back({ name, fullPath, {} });
                 return nodes.back();
@@ -1932,9 +2092,8 @@ void AssetBrowserPanel::DrawScriptsList()
                 while (start < folderName.size())
                 {
                     size_t slash = folderName.find('/', start);
-                    std::string segment = (slash == std::string::npos)
-                                              ? folderName.substr(start)
-                                              : folderName.substr(start, slash - start);
+                    std::string segment = (slash == std::string::npos) ? folderName.substr(start)
+                                                                       : folderName.substr(start, slash - start);
                     pathSoFar = pathSoFar.empty() ? segment : pathSoFar + "/" + segment;
 
                     VFNode& node = findOrCreateNode(*currentLevel, segment, pathSoFar);
@@ -1946,10 +2105,12 @@ void AssetBrowserPanel::DrawScriptsList()
             // Sort nodes at each level recursively
             auto sortNodes = [](auto&& self, std::vector<VFNode>& nodes) -> void
             {
-                std::sort(nodes.begin(), nodes.end(), [](const VFNode& a, const VFNode& b)
-                          { return a.displayName < b.displayName; });
+                std::sort(nodes.begin(), nodes.end(),
+                          [](const VFNode& a, const VFNode& b) { return a.displayName < b.displayName; });
                 for (auto& n : nodes)
+                {
                     self(self, n.children);
+                }
             };
             sortNodes(sortNodes, m_VFTree);
         }
@@ -1962,7 +2123,9 @@ void AssetBrowserPanel::DrawScriptsList()
         auto drawInlineCreate = [&](const std::string& parentPath)
         {
             if (!m_InlineCreatingFolder || m_InlineCreateParentFolder != parentPath)
+            {
                 return;
+            }
 
             float arrowIndent = ImGui::GetTreeNodeToLabelSpacing();
             ImGui::Indent(arrowIndent);
@@ -1977,19 +2140,19 @@ void AssetBrowserPanel::DrawScriptsList()
             }
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            bool enterPressed = ImGui::InputText("##vfolder_create", m_NewVirtualFolderName, sizeof(m_NewVirtualFolderName),
-                                                 ImGuiInputTextFlags_EnterReturnsTrue);
+            bool enterPressed = ImGui::InputText("##vfolder_create", m_NewVirtualFolderName,
+                                                 sizeof(m_NewVirtualFolderName), ImGuiInputTextFlags_EnterReturnsTrue);
 
             if (enterPressed && strlen(m_NewVirtualFolderName) > 0)
             {
-                std::string newFullPath = parentPath.empty()
-                                              ? std::string(m_NewVirtualFolderName)
-                                              : parentPath + "/" + m_NewVirtualFolderName;
+                std::string newFullPath = parentPath.empty() ? std::string(m_NewVirtualFolderName)
+                                                             : parentPath + "/" + m_NewVirtualFolderName;
                 m_VirtualFolders.Create(newFullPath);
                 m_InlineCreatingFolder = false;
                 m_NewVirtualFolderName[0] = '\0';
             }
-            else if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (!ImGui::IsItemActive() && m_InlineFolderFocusSet && ImGui::IsItemDeactivated()))
+            else if (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+                     (!ImGui::IsItemActive() && m_InlineFolderFocusSet && ImGui::IsItemDeactivated()))
             {
                 m_InlineCreatingFolder = false;
                 m_NewVirtualFolderName[0] = '\0';
@@ -2019,8 +2182,9 @@ void AssetBrowserPanel::DrawScriptsList()
                 }
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                bool enterPressed = ImGui::InputText("##vfolder_rename", m_NewVirtualFolderName, sizeof(m_NewVirtualFolderName),
-                                                     ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+                bool enterPressed =
+                    ImGui::InputText("##vfolder_rename", m_NewVirtualFolderName, sizeof(m_NewVirtualFolderName),
+                                     ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
 
                 if (enterPressed && strlen(m_NewVirtualFolderName) > 0)
                 {
@@ -2033,7 +2197,8 @@ void AssetBrowserPanel::DrawScriptsList()
                     m_InlineRenamingFolder = false;
                     m_RenamingVirtualFolder.clear();
                 }
-                else if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (!ImGui::IsItemActive() && m_InlineFolderFocusSet && ImGui::IsItemDeactivated()))
+                else if (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+                         (!ImGui::IsItemActive() && m_InlineFolderFocusSet && ImGui::IsItemDeactivated()))
                 {
                     m_InlineRenamingFolder = false;
                     m_RenamingVirtualFolder.clear();
@@ -2047,21 +2212,26 @@ void AssetBrowserPanel::DrawScriptsList()
             int scriptCount = 0;
             for (const auto& script : m_ScriptFlatList)
             {
-                if (getVirtualFolder(script) == folderName) scriptCount++;
+                if (getVirtualFolder(script) == folderName)
+                {
+                    scriptCount++;
+                }
             }
 
             bool hasChildren = !node.children.empty() || scriptCount > 0;
 
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
-                                       ImGuiTreeNodeFlags_OpenOnDoubleClick |
-                                       ImGuiTreeNodeFlags_SpanAvailWidth |
-                                       ImGuiTreeNodeFlags_FramePadding;
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                                       ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
             if (!hasChildren)
+            {
                 flags |= ImGuiTreeNodeFlags_Leaf;
+            }
 
             bool isExpanded = m_VirtualFolders.IsExpanded(folderName);
             if (isExpanded)
+            {
                 ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            }
 
             ImGui::PushID(folderName.c_str());
             const ImU32 vfLblCol = ImGui::GetColorU32(ImGuiCol_Text);
@@ -2070,7 +2240,9 @@ void AssetBrowserPanel::DrawScriptsList()
             const ImGuiID vfRowId = ImGui::GetID("##vfolder");
             vfBg.w = DekiEditor::Motion::RowHighlight(vfRowId, false, m_RowHover.WasHovered(vfRowId), 0.0f, vfBg.w);
             if (vfBg.w > 0.0f)
+            {
                 flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
+            }
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));  // hide ImGui triangle
             ImGui::PushStyleColor(ImGuiCol_Header, vfBg);
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered, vfBg);
@@ -2099,7 +2271,10 @@ void AssetBrowserPanel::DrawScriptsList()
                         if (si < (int)m_Entries.size())
                         {
                             std::string rel = m_Entries[si].relativePath;
-                            if (rel.rfind("src/", 0) == 0) rel = rel.substr(4);
+                            if (rel.rfind("src/", 0) == 0)
+                            {
+                                rel = rel.substr(4);
+                            }
                             if (rel == relPath)
                             {
                                 draggedIsSelected = true;
@@ -2114,7 +2289,10 @@ void AssetBrowserPanel::DrawScriptsList()
                             if (si < (int)m_Entries.size())
                             {
                                 std::string rel = m_Entries[si].relativePath;
-                                if (rel.rfind("src/", 0) == 0) rel = rel.substr(4);
+                                if (rel.rfind("src/", 0) == 0)
+                                {
+                                    rel = rel.substr(4);
+                                }
                                 MoveScriptToFolder(rel, folderName);
                             }
                         }
@@ -2146,7 +2324,8 @@ void AssetBrowserPanel::DrawScriptsList()
                     m_RenamingVirtualFolder = folderName;
                     // Show only the leaf name in the input
                     size_t lastSlash = node.displayName.rfind('/');
-                    std::string leafName = (lastSlash == std::string::npos) ? node.displayName : node.displayName.substr(lastSlash + 1);
+                    std::string leafName =
+                        (lastSlash == std::string::npos) ? node.displayName : node.displayName.substr(lastSlash + 1);
                     strncpy(m_NewVirtualFolderName, leafName.c_str(), sizeof(m_NewVirtualFolderName) - 1);
                     m_NewVirtualFolderName[sizeof(m_NewVirtualFolderName) - 1] = '\0';
                     m_InlineRenamingFolder = true;
@@ -2166,7 +2345,9 @@ void AssetBrowserPanel::DrawScriptsList()
             {
                 // Draw child folders
                 for (const auto& child : node.children)
+                {
                     drawVFolderNode(child);
+                }
 
                 // Draw inline create if creating inside this folder
                 drawInlineCreate(folderName);
@@ -2175,21 +2356,30 @@ void AssetBrowserPanel::DrawScriptsList()
                 for (const auto& script : m_ScriptFlatList)
                 {
                     if (getVirtualFolder(script) == folderName)
+                    {
                         drawScript(script);
+                    }
                 }
             }
             DekiEditor::SchematicTreeBodyEnd();
-            if (open) ImGui::TreePop();
+            if (open)
+            {
+                ImGui::TreePop();
+            }
             ImGui::PopID();
         };
 
         // Draw root-level virtual folder nodes
         for (const auto& node : rootNodes)
+        {
             drawVFolderNode(node);
+        }
 
         // Deferred delete (safe after iteration)
         if (!folderToDelete.empty())
+        {
             m_VirtualFolders.Remove(folderToDelete);
+        }
 
         // Inline folder creation at root level
         drawInlineCreate("");
@@ -2198,7 +2388,9 @@ void AssetBrowserPanel::DrawScriptsList()
         for (const auto& script : m_ScriptFlatList)
         {
             if (getVirtualFolder(script).empty())
+            {
                 drawScript(script);
+            }
         }
     }
 
@@ -2206,7 +2398,9 @@ void AssetBrowserPanel::DrawScriptsList()
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
         if (avail.y > 0)
+        {
             ImGui::Dummy(ImVec2(avail.x, avail.y));
+        }
     }
 
     if (flatIndex == 0 && m_ScriptFlatList.empty())
@@ -2276,15 +2470,22 @@ void AssetBrowserPanel::DrawAssetDetails()
                 int imageW = 0, imageH = 0;
                 TextureImporter::ReadSourceSize(asset.cachePath, imageW, imageH);
                 ImGui::Text("  Size: %d x %d", imageW, imageH);
-                if (imageW != static_cast<int>(texData.header.width) || imageH != static_cast<int>(texData.header.height))
+                if (imageW != static_cast<int>(texData.header.width) ||
+                    imageH != static_cast<int>(texData.header.height))
+                {
                     ImGui::Text("  Stored: %u x %u (Max Size)", texData.header.width, texData.header.height);
+                }
                 ImGui::Text("  Format: %s", texData.getFormatName().c_str());
                 ImGui::Text("  Data: %.2f KB", texData.header.dataSize / 1024.0f);
 
                 if (texData.hasAlpha())
+                {
                     ImGui::Text("  Alpha: Yes");
+                }
                 if (texData.hasTransparency())
+                {
                     ImGui::Text("  Transparency: Yes");
+                }
             }
         }
         else if (!asset.guid.empty())
@@ -2312,7 +2513,9 @@ void AssetBrowserPanel::DrawAssetDetails()
             {
                 const auto* subAssets = pipeline->GetSubAssets(asset.guid);
                 if (subAssets)
+                {
                     ImGui::Text("  Variants: %zu", subAssets->size());
+                }
             }
         }
         else if (!asset.guid.empty())
@@ -2327,7 +2530,8 @@ void AssetBrowserPanel::DrawContextMenu()
     // Context menu for empty space in asset browser. Styled to match the top
     // menu bar's dropdowns (WindowPadding inset + taller, full-width-hover rows).
     PushContextMenuPopupStyle();
-    if (ImGui::BeginPopupContextWindow("AssetBrowserContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    if (ImGui::BeginPopupContextWindow("AssetBrowserContextMenu",
+                                       ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
     {
         PushContextMenuItemStyle();
         if (m_BrowserMode == BrowserMode::Scripts)
@@ -2361,7 +2565,9 @@ void AssetBrowserPanel::DrawContextMenu()
                 for (const auto& type : creatableTypes)
                 {
                     if (type.defaultContent.empty())
+                    {
                         continue;  // imported, not created (see above)
+                    }
                     if (ImGui::MenuItem(type.displayName.c_str()))
                     {
                         m_CreateAssetDialog->Open(type.typeName);
@@ -2415,14 +2621,15 @@ bool AssetBrowserPanel::IsBdfFile(const std::string& extension)
 void AssetBrowserPanel::HandleFileDrop(const std::string& droppedPath)
 {
     if (m_CurrentPath.empty())
+    {
         return;
+    }
 
     // Use hovered folder if available, otherwise use current directory
     const std::string targetDir = m_HoveredFolderPath.empty() ? m_CurrentPath : m_HoveredFolderPath;
 
     std::string error;
-    if (!AssetImportDrop::Import(droppedPath, targetDir,
-                                 m_App ? m_App->GetAssetPipeline() : nullptr, error))
+    if (!AssetImportDrop::Import(droppedPath, targetDir, m_App ? m_App->GetAssetPipeline() : nullptr, error))
     {
         // Not silently: a drop that produces nothing and says nothing reads
         // as a broken editor.
@@ -2443,7 +2650,9 @@ void AssetBrowserPanel::DeferMove(std::string srcPath, std::string destPath)
             // dropped files share a name - the first move wins). Checked at run
             // time, not enqueue time, so the order is respected.
             if (!std::filesystem::exists(dest))
+            {
                 AssetFileOps::MoveWithData(src, dest, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);
+            }
             m_PendingTreeRebuild = true;
         });
 }
@@ -2451,14 +2660,18 @@ void AssetBrowserPanel::DeferMove(std::string srcPath, std::string destPath)
 void AssetBrowserPanel::RunDeferredActions()
 {
     if (m_DeferredActions.empty())
+    {
         return;
+    }
 
     // Move out first: an action may enqueue more (those run next frame), and we
     // must not iterate a vector an action could reallocate.
     std::vector<std::function<void()>> actions = std::move(m_DeferredActions);
     m_DeferredActions.clear();
     for (auto& action : actions)
+    {
         action();
+    }
 }
 
 void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
@@ -2467,7 +2680,9 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
 
     fs::path src(srcPath);
     if (!fs::exists(src))
+    {
         return;
+    }
 
     fs::path parentDir = src.parent_path();
     std::string stem = src.stem().string();
@@ -2480,10 +2695,14 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
     {
         std::string newName = stem + "_" + std::to_string(i);
         if (!isDir)
+        {
             newName += ext;
+        }
         destPath = parentDir / newName;
         if (!fs::exists(destPath))
+        {
             break;
+        }
     }
 
     std::error_code ec;
@@ -2496,7 +2715,9 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
         fs::copy_file(src, destPath, ec);
     }
     if (ec)
+    {
         return;
+    }
 
     // Give every copied sidecar a fresh GUID (import settings are preserved).
     //
@@ -2505,9 +2726,13 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
     // carries the original's GUID. The cache then cannot tell the two apart and
     // scene references silently resolve to whichever one it saw last.
     if (isDir)
+    {
         AssetFileOps::ReassignGuidsInTree(destPath.string());
+    }
     else
+    {
         AssetFileOps::ReassignGuidForCopy(srcPath, destPath.string());
+    }
 
     // Register with asset pipeline
     if (m_App && m_App->GetAssetPipeline())
@@ -2515,7 +2740,10 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
         std::string newRelPath = fs::relative(destPath, m_ProjectRoot).string();
         for (char& c : newRelPath)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
         m_App->GetAssetPipeline()->RefreshAsset(newRelPath);
     }
@@ -2527,8 +2755,7 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
 
 void AssetBrowserPanel::RenameAssetWithData(const std::string& oldPath, const std::string& newName)
 {
-    AssetFileOps::RenameWithData(oldPath, newName,
-                                 m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);
+    AssetFileOps::RenameWithData(oldPath, newName, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);
     m_PendingTreeRebuild = true;
 }
 
@@ -2558,7 +2785,9 @@ void AssetBrowserPanel::CreateScript(const std::string& directory, const std::st
 {
     std::string error;
     if (!ScriptTemplate::CreateBehaviourScript(directory, name, error))
+    {
         DEKI_LOG_ERROR("Create script: %s", error.c_str());
+    }
 }
 
 void AssetBrowserPanel::SaveObjectAsScene(Deki::Object* obj, const std::string& folderPath)
@@ -2567,13 +2796,18 @@ void AssetBrowserPanel::SaveObjectAsScene(Deki::Object* obj, const std::string& 
 
     const std::string targetPath = SceneExport::SaveObjectAsScene(obj, folderPath);
     if (targetPath.empty())
+    {
         return;
+    }
 
     // Normalize path separators (Windows backslashes → forward slashes)
     std::string relativePath = fs::relative(targetPath, m_ProjectRoot).string();
     for (char& c : relativePath)
     {
-        if (c == '\\') c = '/';
+        if (c == '\\')
+        {
+            c = '/';
+        }
     }
 
     if (auto* pipeline = m_App->GetAssetPipeline())

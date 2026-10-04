@@ -32,7 +32,8 @@ namespace
 }  // namespace
 
 HierarchyPanel::HierarchyPanel(EditorApp* app)
-    : m_App(app), m_AssetPicker(std::make_unique<AssetPicker>())
+    : m_App(app),
+      m_AssetPicker(std::make_unique<AssetPicker>())
 {
 }
 
@@ -47,7 +48,9 @@ bool HierarchyPanel::IsProtectedObject(Deki::Object* obj) const
 void HierarchyPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     // The panel itself never scrolls: the breadcrumb and search stay put and
     // the tree below scrolls in its own region (it used to take the search
@@ -65,8 +68,8 @@ void HierarchyPanel::Draw()
     const std::string& scenePath = m_App->GetCurrentScenePath();
     std::string sceneName = scenePath.empty() ? "Untitled Scene" : std::filesystem::path(scenePath).stem().string();
     // During Play, the edit scene's state: Play's own changes are discarded on Stop.
-    bool isDirty = m_App->IsStopped() ? CommandHistory::Instance().IsDirty()
-                                      : CommandHistory::Instance().IsSavedAsideDirty();
+    bool isDirty =
+        m_App->IsStopped() ? CommandHistory::Instance().IsDirty() : CommandHistory::Instance().IsSavedAsideDirty();
 
     const float breadcrumbIndent = m_App->Dpi(16.0f);
 
@@ -85,8 +88,7 @@ void HierarchyPanel::Draw()
     const ImVec2 headerStart = ImGui::GetCursorScreenPos();
     const float headerEndY = headerStart.y + headerPadY + textH + headerPadY;
 
-    ImGui::SetCursorScreenPos(ImVec2(headerStart.x + breadcrumbIndent,
-                                     headerStart.y + headerPadY));
+    ImGui::SetCursorScreenPos(ImVec2(headerStart.x + breadcrumbIndent, headerStart.y + headerPadY));
 
     if (!navStack.empty())
     {
@@ -141,9 +143,7 @@ void HierarchyPanel::Draw()
         const float winRight = winLeft + ImGui::GetWindowSize().x;
         const float y = ImFloor(headerEndY);
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        dl->AddRectFilled(ImVec2(winLeft, y),
-                          ImVec2(winRight, y + 1.0f),
-                          ImGui::GetColorU32(ImGuiCol_Border));
+        dl->AddRectFilled(ImVec2(winLeft, y), ImVec2(winRight, y + 1.0f), ImGui::GetColorU32(ImGuiCol_Border));
     }
 
     // Position the layout cursor just below the breadcrumb divider - this is
@@ -166,8 +166,7 @@ void HierarchyPanel::Draw()
         // as the theme default (~10px). Pushed before measuring GetFrameHeight
         // so the band height reflects the reduced frame.
         const ImVec2 themePad = ImGui::GetStyle().FramePadding;
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                            ImVec2(themePad.x, m_App->Dpi(4.0f)));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(themePad.x, m_App->Dpi(4.0f)));
         const float framePadY = ImGui::GetStyle().FramePadding.y;
 
         // Measure the *rendered* (DPI-scaled) sizes with each font pushed.
@@ -214,8 +213,7 @@ void HierarchyPanel::Draw()
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_TextDisabled, Palette::Dim2);
         ImGui::SetNextItemWidth((winRight - searchInset) - inputLeftX);
-        ImGui::InputTextWithHint("##hierarchy_search", "Search hierarchy",
-                                 m_SearchBuf, sizeof(m_SearchBuf));
+        ImGui::InputTextWithHint("##hierarchy_search", "Search hierarchy", m_SearchBuf, sizeof(m_SearchBuf));
         ImGui::PopStyleColor(4);
         ImGui::PopStyleVar();
         ImGui::PopFont();
@@ -223,9 +221,8 @@ void HierarchyPanel::Draw()
         // Bottom separator at the band's end (same color/technique as the
         // breadcrumb divider so the two read as a matched pair).
         const float sepY = ImFloor(bandEndY);
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            ImVec2(winLeft, sepY), ImVec2(winRight, sepY + 1.0f),
-            ImGui::GetColorU32(ImGuiCol_Border));
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(winLeft, sepY), ImVec2(winRight, sepY + 1.0f),
+                                                  ImGui::GetColorU32(ImGuiCol_Border));
 
         // Advance the layout cursor below the separator for the tree content.
         ImGui::SetCursorScreenPos(ImVec2(bandStart.x, sepY + 1.0f));
@@ -260,7 +257,9 @@ void HierarchyPanel::Draw()
     {
         // Skip objects that have a parent (they'll be drawn as children)
         if (obj->GetParent() != nullptr)
+        {
             continue;
+        }
         if (DrawObjectNode(obj))
         {
             // Object was deleted - stop iterating to avoid invalid access
@@ -276,8 +275,8 @@ void HierarchyPanel::Draw()
 
         // Draw header with a distinct style
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Amber);  // Yellow-ish
-        bool persistentOpen = ImGui::TreeNodeEx("Persistent",
-                                                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
+        bool persistentOpen =
+            ImGui::TreeNodeEx("Persistent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
         ImGui::PopStyleColor();
 
         if (persistentOpen)
@@ -285,7 +284,9 @@ void HierarchyPanel::Draw()
             for (Deki::Object* obj : persistentObjects)
             {
                 if (obj->GetParent() != nullptr)
+                {
                     continue;
+                }
                 DrawObjectNode(obj, true);  // Pass flag to indicate read-only
             }
             ImGui::TreePop();
@@ -305,7 +306,9 @@ void HierarchyPanel::Draw()
     // Ctrl+D duplicates everything selected.
     Deki::Object* selected = m_App->GetSelectedObject();
     if (keysActive && selected && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D))
+    {
         m_App->DuplicateObjects(m_App->GetSelectedObjects());
+    }
 
     // Ctrl+C to copy selected objects
     if (keysActive && selected && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
@@ -324,13 +327,14 @@ void HierarchyPanel::Draw()
             {
                 Deki::Object* parent = selected ? selected->GetParent() : nullptr;
                 CommandHistory::Instance().Execute(
-                    std::make_unique<PasteObjectsCommand>(
-                        scene, data.value(), parent,
-                        [this](const std::vector<Deki::Object*>& pasted)
-                        {
-                            if (!pasted.empty())
-                                m_App->SetSelectedObject(pasted[0]);
-                        }));
+                    std::make_unique<PasteObjectsCommand>(scene, data.value(), parent,
+                                                          [this](const std::vector<Deki::Object*>& pasted)
+                                                          {
+                                                              if (!pasted.empty())
+                                                              {
+                                                                  m_App->SetSelectedObject(pasted[0]);
+                                                              }
+                                                          }));
             }
         }
     }
@@ -343,11 +347,17 @@ void HierarchyPanel::Draw()
         int idx = selected ? FindObjectIndex(selected) : -1;
         Deki::Object* newSel = nullptr;
         if (ImGui::IsKeyPressed(ImGuiKey_UpArrow) && idx > 0)
+        {
             newSel = m_FlattenedObjects[idx - 1];
+        }
         else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) && idx < (int)m_FlattenedObjects.size() - 1)
+        {
             newSel = m_FlattenedObjects[idx + 1];
+        }
         else if (idx == -1 && !m_FlattenedObjects.empty())
+        {
             newSel = m_FlattenedObjects[0];
+        }
         if (newSel)
         {
             m_App->SetSelectedObject(newSel);
@@ -359,11 +369,15 @@ void HierarchyPanel::Draw()
     // Delete key. EditorApp::DeleteObject applies the protection rules
     // (root, boot Setup, instance children) - the same ones the Scene View uses.
     if (keysActive && selected && ImGui::IsKeyPressed(ImGuiKey_Delete))
+    {
         m_App->DeleteObjects(m_App->GetSelectedObjects());
+    }
 
     // A search that matched nothing said nothing; say so.
     if (m_SearchBuf[0] != '\0' && m_FlattenedObjects.empty())
+    {
         DekiEditor::EmptyStateText("No objects match the search.");
+    }
 
     // Fill remaining space so the window is fully interactive
     ImVec2 availSpace = ImGui::GetContentRegionAvail();
@@ -397,7 +411,8 @@ void HierarchyPanel::Draw()
 
     // Context menu for empty space (right-click)
     PushContextMenuPopupStyle();
-    if (ImGui::BeginPopupContextWindow("HierarchyContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    if (ImGui::BeginPopupContextWindow("HierarchyContextMenu",
+                                       ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
     {
         PushContextMenuItemStyle();
         auto& roots = scene->GetObjects();
@@ -405,14 +420,9 @@ void HierarchyPanel::Draw()
 
         if (ImGui::MenuItem("Create Empty"))
         {
-            CommandHistory::Instance().Execute(
-                std::make_unique<CreateObjectCommand>(
-                    scene, "DekiObject",
-                    [this](Deki::Object* obj)
-                    { m_App->SetSelectedObject(obj); },
-                    sceneRoot,
-                    [this]()
-                    { m_App->ClearSelection(); }));
+            CommandHistory::Instance().Execute(std::make_unique<CreateObjectCommand>(
+                scene, "DekiObject", [this](Deki::Object* obj) { m_App->SetSelectedObject(obj); }, sceneRoot,
+                [this]() { m_App->ClearSelection(); }));
         }
 
         ImGui::Separator();
@@ -427,7 +437,9 @@ void HierarchyPanel::Draw()
             for (const auto& entry : entries)
             {
                 if (std::find(categories.begin(), categories.end(), entry.category) == categories.end())
+                {
                     categories.push_back(entry.category);
+                }
             }
 
             for (const auto& category : categories)
@@ -437,23 +449,22 @@ void HierarchyPanel::Draw()
                     for (const auto& entry : entries)
                     {
                         if (entry.category != category)
+                        {
                             continue;
+                        }
 
                         if (ImGui::MenuItem(entry.displayName.c_str()))
                         {
                             std::string compName = entry.componentName;
                             std::string objName = entry.objectName;
-                            CommandHistory::Instance().Execute(
-                                std::make_unique<CreateObjectCommand>(
-                                    scene, objName,
-                                    [this, compName](Deki::Object* obj)
-                                    {
-                                        Deki::Internal::AddComponentByName(*obj, compName);
-                                        m_App->SetSelectedObject(obj);
-                                    },
-                                    sceneRoot,
-                                    [this]()
-                                    { m_App->ClearSelection(); }));
+                            CommandHistory::Instance().Execute(std::make_unique<CreateObjectCommand>(
+                                scene, objName,
+                                [this, compName](Deki::Object* obj)
+                                {
+                                    Deki::Internal::AddComponentByName(*obj, compName);
+                                    m_App->SetSelectedObject(obj);
+                                },
+                                sceneRoot, [this]() { m_App->ClearSelection(); }));
                         }
                     }
                     ImGui::EndMenu();
@@ -470,13 +481,14 @@ void HierarchyPanel::Draw()
             if (data.has_value())
             {
                 CommandHistory::Instance().Execute(
-                    std::make_unique<PasteObjectsCommand>(
-                        scene, data.value(), nullptr,
-                        [this](const std::vector<Deki::Object*>& pasted)
-                        {
-                            if (!pasted.empty())
-                                m_App->SetSelectedObject(pasted[0]);
-                        }));
+                    std::make_unique<PasteObjectsCommand>(scene, data.value(), nullptr,
+                                                          [this](const std::vector<Deki::Object*>& pasted)
+                                                          {
+                                                              if (!pasted.empty())
+                                                              {
+                                                                  m_App->SetSelectedObject(pasted[0]);
+                                                              }
+                                                          }));
             }
         }
 
@@ -506,8 +518,7 @@ void HierarchyPanel::Draw()
                 if (ValidateHierarchyMatch(m_LinkTargetObject, selectedGuid))
                 {
                     CommandHistory::Instance().Execute(
-                        std::make_unique<LinkInstanceCommand>(
-                            scene, m_LinkTargetObject, selectedGuid));
+                        std::make_unique<LinkInstanceCommand>(scene, m_LinkTargetObject, selectedGuid));
                 }
                 else
                 {
@@ -540,15 +551,26 @@ void HierarchyPanel::Draw()
 // and used to lower-case a copy of each name (and of the needle, per node).
 static bool ContainsIgnoreCase(const char* haystack, const std::string& needleLower)
 {
-    if (needleLower.empty()) return true;
+    if (needleLower.empty())
+    {
+        return true;
+    }
     const size_t n = needleLower.size();
     for (const char* h = haystack; *h; ++h)
     {
         size_t i = 0;
         while (i < n && h[i] && (char)std::tolower((unsigned char)h[i]) == needleLower[i])
+        {
             ++i;
-        if (i == n) return true;
-        if (!h[i]) return false;
+        }
+        if (i == n)
+        {
+            return true;
+        }
+        if (!h[i])
+        {
+            return false;
+        }
     }
     return false;
 }
@@ -557,10 +579,21 @@ static bool ContainsIgnoreCase(const char* haystack, const std::string& needleLo
 // Needle is already lowercased by the caller.
 static bool SubtreeMatchesSearch(Deki::Object* obj, const std::string& needle)
 {
-    if (needle.empty()) return true;
-    if (ContainsIgnoreCase(obj->GetName().c_str(), needle)) return true;
+    if (needle.empty())
+    {
+        return true;
+    }
+    if (ContainsIgnoreCase(obj->GetName().c_str(), needle))
+    {
+        return true;
+    }
     for (Deki::Object* child : obj->GetChildren())
-        if (SubtreeMatchesSearch(child, needle)) return true;
+    {
+        if (SubtreeMatchesSearch(child, needle))
+        {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -575,11 +608,12 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             m_SearchLowerSource = m_SearchBuf;
             m_SearchLower = m_SearchLowerSource;
             std::transform(m_SearchLower.begin(), m_SearchLower.end(), m_SearchLower.begin(),
-                           [](unsigned char c)
-                           { return (char)std::tolower(c); });
+                           [](unsigned char c) { return (char)std::tolower(c); });
         }
         if (!SubtreeMatchesSearch(obj, m_SearchLower))
+        {
             return false;
+        }
     }
 
     // Track visible objects for arrow key navigation
@@ -589,10 +623,13 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // grow the row height. Without it, ImGui clamps a non-framed tree node's
     // vertical padding to ImMin(CurrLineTextBaseOffset, FramePadding.y) ≈ 0
     // (imgui_widgets.cpp:6888), so any FramePadding.y push is ignored.
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
     if (obj->GetChildren().empty())
+    {
         flags |= ImGuiTreeNodeFlags_Leaf;
+    }
 
     // The row's highlight is set where the node is drawn: it fades in and out
     // with selection and hover, so "selected" there means "highlight showing".
@@ -631,16 +668,14 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             // Enter pressed - apply rename via command for undo support
             if (std::string(m_RenameBuffer) != obj->GetName())
             {
-                CommandHistory::Instance().Execute(
-                    std::make_unique<RenameObjectCommand>(obj, m_RenameBuffer));
+                CommandHistory::Instance().Execute(std::make_unique<RenameObjectCommand>(obj, m_RenameBuffer));
             }
             StopRenaming();
             focusSet = false;
         }
 
         // Cancel on Escape or click outside
-        if (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
-            (!ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)))
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (!ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)))
         {
             StopRenaming();
             focusSet = false;
@@ -656,17 +691,20 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     bool instanceReadOnly = readOnly || isPartOfInstance;
 
     if (isInstance)
+    {
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Accent);  // Blue for instance roots
+    }
     else if (isPartOfInstance)
+    {
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);  // Dimmed for instance children
+    }
 
     bool wasOpen = ImGui::GetStateStorage()->GetInt(ImGui::GetCurrentWindow()->GetID(NodeKey(obj)), 0) != 0;
     // Push extra vertical FramePadding so tree-node rows are taller. Total row
     // height = font line height + 2 * FramePadding.y. The Inter 13px default
     // font has a ~15.7 logical-px line height (REAL_DIM), so padding.y ~= 6
     // gives ~28px rows. Requires the _FramePadding flag set above.
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                        ImVec2(ImGui::GetStyle().FramePadding.x, 6.0f * m_App->Dpi(1.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 6.0f * m_App->Dpi(1.0f)));
     // Empty label + transparent text hides ImGui's filled triangle; we draw a
     // Tabler chevron + the name ourselves (capturing the current text color so
     // instance/child tinting is preserved). See DrawTreeNodeChevronLabel.
@@ -695,7 +733,9 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     float selT = 0.0f;
     const float rowAlpha = Motion::RowHighlight(rowId, isSelected, m_RowHover.WasHovered(rowId), 0.22f, 0.12f, &selT);
     if (rowAlpha > 0.0f)
+    {
         flags |= ImGuiTreeNodeFlags_Selected;  // draws the (fading) background
+    }
     const ImVec4 rowBg(acc.x, acc.y, acc.z, rowAlpha);
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_Header, rowBg);
@@ -707,8 +747,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     const ImGuiID nodeId = ImGui::GetItemID();
     m_RowHover.Track(rowId);
     ImGui::PopStyleColor(4);
-    DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf),
-                             obj->GetName().c_str(), lblCol);
+    DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf), obj->GetName().c_str(), lblCol);
     ImGui::PopStyleVar();
 
     // Mockup-style 2px accent left border on the selected row (line 98 of
@@ -720,9 +759,8 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         const ImVec2 rmax = ImGui::GetItemRectMax();
         ImVec4 bar = Palette::Accent;
         bar.w *= selT;
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            ImVec2(rmin.x, rmin.y), ImVec2(rmin.x + 2.0f, rmax.y),
-            ImGui::ColorConvertFloat4ToU32(bar));
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(rmin.x, rmin.y), ImVec2(rmin.x + 2.0f, rmax.y),
+                                                  ImGui::ColorConvertFloat4ToU32(bar));
     }
 
     // Sync ImGui nav focus to match our selection after arrow key navigation
@@ -734,16 +772,19 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     }
 
     if (isInstance || isPartOfInstance)
+    {
         ImGui::PopStyleColor();
+    }
 
     // Double-click on instance root → open source scene (deferred to avoid destroying scene mid-draw)
     if (isInstance && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
     {
-        std::string sourcePath = Deki::Scene::s_GuidToPathResolver
-                                     ? Deki::Scene::s_GuidToPathResolver(obj->GetSourceSceneGuid())
-                                     : "";
+        std::string sourcePath =
+            Deki::Scene::s_GuidToPathResolver ? Deki::Scene::s_GuidToPathResolver(obj->GetSourceSceneGuid()) : "";
         if (!sourcePath.empty())
+        {
             m_PendingNavigatePath = sourcePath;
+        }
     }
     // Double-click to rename (not for read-only, protected, or instance objects)
     else if (!instanceReadOnly && !IsProtectedObject(obj) && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
@@ -757,8 +798,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // a rename in the Inspector - or in any other text field, with the object
     // still selected - immediately opened a second rename here.
     if (!readOnly && !IsProtectedObject(obj) && m_App->GetSelectedObject() == obj &&
-        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
-        !ImGui::GetIO().WantTextInput &&
+        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::GetIO().WantTextInput &&
         (ImGui::IsKeyPressed(ImGuiKey_F2) || ImGui::IsKeyPressed(ImGuiKey_Enter)))
     {
         StartRenaming(obj);
@@ -837,7 +877,8 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     }
 
     // Deferred single-selection on mouse-up (if no drag happened)
-    if (m_PendingClickObject == obj && ImGui::IsItemHovered() && ImGui::IsMouseReleased(0) && !ImGui::IsDragDropActive())
+    if (m_PendingClickObject == obj && ImGui::IsItemHovered() && ImGui::IsMouseReleased(0) &&
+        !ImGui::IsDragDropActive())
     {
         m_App->SetSelectedObject(obj);
         m_PendingClickObject = nullptr;
@@ -859,7 +900,9 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                                              ? Deki::Scene::s_GuidToPathResolver(obj->GetSourceSceneGuid())
                                              : "";
                 if (!sourcePath.empty())
+                {
                     m_PendingNavigatePath = sourcePath;
+                }
             }
             if (ImGui::MenuItem("Link to Scene..."))
             {
@@ -868,8 +911,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             }
             if (ImGui::MenuItem("Unlink Instance"))
             {
-                CommandHistory::Instance().Execute(
-                    std::make_unique<UnlinkInstanceCommand>(obj));
+                CommandHistory::Instance().Execute(std::make_unique<UnlinkInstanceCommand>(obj));
             }
             ImGui::Separator();
         }
@@ -892,18 +934,15 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                 // AddChild bypassed the undo stack (and scene registration), so the
                 // next Ctrl+Z undid an OLDER create command and deleted the wrong
                 // object.
-                CommandHistory::Instance().Execute(
-                    std::make_unique<CreateObjectCommand>(
-                        m_App->GetCurrentScene(), "Child",
-                        [this](Deki::Object* created)
-                        { m_App->SetSelectedObject(created); },
-                        obj,
-                        [this]()
-                        { m_App->ClearSelection(); }));
+                CommandHistory::Instance().Execute(std::make_unique<CreateObjectCommand>(
+                    m_App->GetCurrentScene(), "Child", [this](Deki::Object* created)
+                    { m_App->SetSelectedObject(created); }, obj, [this]() { m_App->ClearSelection(); }));
             }
             // On a multi-selection these act on all of it, as the keys do.
             if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
+            {
                 m_App->DuplicateObjects(m_App->ActionTargets(obj));
+            }
             if (ImGui::MenuItem("Copy", "Ctrl+C"))
             {
                 ClipboardService::Instance().CopyObjects(m_App->GetSelectedObjects());
@@ -917,13 +956,14 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                     auto* scene = m_App->GetCurrentScene();
                     Deki::Object* parent = obj->GetParent();
                     CommandHistory::Instance().Execute(
-                        std::make_unique<PasteObjectsCommand>(
-                            scene, data.value(), parent,
-                            [this](const std::vector<Deki::Object*>& pasted)
-                            {
-                                if (!pasted.empty())
-                                    m_App->SetSelectedObject(pasted[0]);
-                            }));
+                        std::make_unique<PasteObjectsCommand>(scene, data.value(), parent,
+                                                              [this](const std::vector<Deki::Object*>& pasted)
+                                                              {
+                                                                  if (!pasted.empty())
+                                                                  {
+                                                                      m_App->SetSelectedObject(pasted[0]);
+                                                                  }
+                                                              }));
                 }
             }
             // Link to Scene (for objects with children, including re-linking instances)
@@ -943,7 +983,10 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                 // then TreePop to close tree node in main hierarchy window
                 ImGui::PopStyleVar();  // context menu ItemSpacing
                 ImGui::EndPopup();
-                if (open) ImGui::TreePop();
+                if (open)
+                {
+                    ImGui::TreePop();
+                }
                 ImGui::PopStyleVar();  // context menu WindowPadding
                 return true;           // Signal that an object was deleted (before any body)
             }
@@ -963,24 +1006,22 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         {
             m_DraggedObjects = m_App->GetSelectedObjects();
             // Filter to topmost objects only (remove any whose ancestor is also selected)
-            m_DraggedObjects.erase(
-                std::remove_if(m_DraggedObjects.begin(), m_DraggedObjects.end(),
-                               [this](Deki::Object* o)
-                               {
-                                   for (Deki::Object* other : m_DraggedObjects)
-                                   {
-                                       if (other != o && o->IsDescendantOf(other))
-                                           return true;
-                                   }
-                                   return false;
-                               }),
-                m_DraggedObjects.end());
+            m_DraggedObjects.erase(std::remove_if(m_DraggedObjects.begin(), m_DraggedObjects.end(),
+                                                  [this](Deki::Object* o)
+                                                  {
+                                                      for (Deki::Object* other : m_DraggedObjects)
+                                                      {
+                                                          if (other != o && o->IsDescendantOf(other))
+                                                          {
+                                                              return true;
+                                                          }
+                                                      }
+                                                      return false;
+                                                  }),
+                                   m_DraggedObjects.end());
             // Sort by flattened order to preserve relative positioning
             std::sort(m_DraggedObjects.begin(), m_DraggedObjects.end(),
-                      [this](Deki::Object* a, Deki::Object* b)
-                      {
-                          return FindObjectIndex(a) < FindObjectIndex(b);
-                      });
+                      [this](Deki::Object* a, Deki::Object* b) { return FindObjectIndex(a) < FindObjectIndex(b); });
         }
         else
         {
@@ -989,9 +1030,13 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
 
         ImGui::SetDragDropPayload("HIERARCHY_OBJECT", &obj, sizeof(Deki::Object*));
         if (m_DraggedObjects.size() > 1)
+        {
             ImGui::Text("Move %d items", (int)m_DraggedObjects.size());
+        }
         else
+        {
             ImGui::Text("%s", obj->GetName().c_str());
+        }
         ImGui::EndDragDropSource();
     }
 
@@ -1014,11 +1059,17 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         };
         DropPos dropPos;
         if (relativeY < itemHeight * 0.25f)
+        {
             dropPos = DropPos::Above;
+        }
         else if (relativeY > itemHeight * 0.75f)
+        {
             dropPos = DropPos::Below;
+        }
         else
+        {
             dropPos = DropPos::AsChild;
+        }
 
         // Visual indicator - only show line for reordering, highlight for parenting
         ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -1027,17 +1078,11 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
 
         if (dropPos == DropPos::Above)
         {
-            drawList->AddLine(
-                ImVec2(itemMin.x, itemMin.y),
-                ImVec2(itemMax.x, itemMin.y),
-                lineColor, lineThickness);
+            drawList->AddLine(ImVec2(itemMin.x, itemMin.y), ImVec2(itemMax.x, itemMin.y), lineColor, lineThickness);
         }
         else if (dropPos == DropPos::Below)
         {
-            drawList->AddLine(
-                ImVec2(itemMin.x, itemMax.y),
-                ImVec2(itemMax.x, itemMax.y),
-                lineColor, lineThickness);
+            drawList->AddLine(ImVec2(itemMin.x, itemMax.y), ImVec2(itemMax.x, itemMax.y), lineColor, lineThickness);
         }
         else
         {
@@ -1047,14 +1092,17 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         }
 
         // Use AcceptNoDrawDefaultRect to suppress ImGui's default highlight
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_OBJECT", ImGuiDragDropFlags_AcceptNoDrawDefaultRect))
+        if (const ImGuiPayload* payload =
+                ImGui::AcceptDragDropPayload("HIERARCHY_OBJECT", ImGuiDragDropFlags_AcceptNoDrawDefaultRect))
         {
             // Filter dragged objects: remove any that are the target or an ancestor of it
             std::vector<Deki::Object*> validObjects;
             for (Deki::Object* dragObj : m_DraggedObjects)
             {
                 if (dragObj != obj && !obj->IsDescendantOf(dragObj))
+                {
                     validObjects.push_back(dragObj);
+                }
             }
 
             if (!validObjects.empty())
@@ -1074,12 +1122,18 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                     Deki::Object* targetParent = obj->GetParent();
                     size_t targetIndex;
                     if (targetParent)
+                    {
                         targetIndex = static_cast<size_t>(targetParent->GetChildIndex(obj));
+                    }
                     else
+                    {
                         targetIndex = static_cast<size_t>(scene->GetObjectIndex(obj));
+                    }
 
                     if (dropPos == DropPos::Below)
+                    {
                         targetIndex++;
+                    }
 
                     CommandHistory::Instance().Execute(
                         std::make_unique<MoveObjectsCommand>(scene, validObjects, targetParent, targetIndex));
@@ -1116,13 +1170,19 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             {
                 // Object was deleted - stop iterating to avoid invalid access
                 DekiEditor::SchematicTreeBodyEnd();
-                if (open) ImGui::TreePop();
+                if (open)
+                {
+                    ImGui::TreePop();
+                }
                 return true;
             }
         }
     }
     DekiEditor::SchematicTreeBodyEnd();
-    if (open) ImGui::TreePop();
+    if (open)
+    {
+        ImGui::TreePop();
+    }
 
     return false;
 }
@@ -1146,7 +1206,9 @@ void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
         {
             const size_t tab = line.find('\t');
             if (tab != std::string::npos)
+            {
                 paths.push_back(line.substr(tab + 1));
+            }
         }
     }
     else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH"))
@@ -1156,7 +1218,9 @@ void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
     auto* pipeline = m_App->GetAssetPipeline();
     auto* scene = m_App->GetCurrentScene();
     if (paths.empty() || !pipeline || !scene)
+    {
         return;
+    }
 
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -1167,10 +1231,14 @@ void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
     for (const std::string& relPath : paths)
     {
         if (fs::path(relPath).extension() != ".scene")
+        {
             continue;
+        }
         const AssetInfo* info = pipeline->GetAssetInfo(relPath);
         if (!info || info->guid.empty())
+        {
             continue;
+        }
         if (!editing.empty() && fs::weakly_canonical(fs::path(pipeline->GetAbsolutePath(relPath)), ec) == editing)
         {
             DEKI_LOG_WARNING("A scene cannot contain itself: '%s' is the scene being edited", relPath.c_str());
@@ -1189,17 +1257,22 @@ void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
                 }
                 m_App->AddToSelection(created);
             },
-            [this]()
-            { m_App->ClearSelection(); }));
+            [this]() { m_App->ClearSelection(); }));
     }
     if (cmds.empty())
+    {
         return;
+    }
     m_App->ClearSelection();
     if (cmds.size() == 1)
+    {
         CommandHistory::Instance().Execute(std::move(cmds[0]));
+    }
     else
+    {
         CommandHistory::Instance().Execute(
             std::make_unique<CompoundCommand>("Create " + std::to_string(cmds.size()) + " Instances", std::move(cmds)));
+    }
 }
 
 void HierarchyPanel::StartRenaming(Deki::Object* obj)
@@ -1217,17 +1290,28 @@ void HierarchyPanel::StopRenaming()
 
 void HierarchyPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
 {
-    if (dying.empty()) return;
+    if (dying.empty())
+    {
+        return;
+    }
     std::unordered_set<Deki::Object*> set(dying.begin(), dying.end());
 
     if (m_RenamingObject && set.count(m_RenamingObject))
+    {
         StopRenaming();
+    }
     if (m_CollapsedByArrow && set.count(m_CollapsedByArrow))
+    {
         m_CollapsedByArrow = nullptr;
+    }
     if (m_ScrollToObject && set.count(m_ScrollToObject))
+    {
         m_ScrollToObject = nullptr;
+    }
     if (m_PendingClickObject && set.count(m_PendingClickObject))
+    {
         m_PendingClickObject = nullptr;
+    }
     if (m_LinkTargetObject && set.count(m_LinkTargetObject))
     {
         m_LinkTargetObject = nullptr;
@@ -1236,17 +1320,14 @@ void HierarchyPanel::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
 
     if (!m_DraggedObjects.empty())
     {
-        m_DraggedObjects.erase(
-            std::remove_if(m_DraggedObjects.begin(), m_DraggedObjects.end(),
-                           [&set](Deki::Object* o)
-                           { return set.count(o) > 0; }),
-            m_DraggedObjects.end());
+        m_DraggedObjects.erase(std::remove_if(m_DraggedObjects.begin(), m_DraggedObjects.end(),
+                                              [&set](Deki::Object* o) { return set.count(o) > 0; }),
+                               m_DraggedObjects.end());
     }
 
     // m_FlattenedObjects is rebuilt every Draw; last frame's copy is kept.
     m_VisibleLastFrame.erase(std::remove_if(m_VisibleLastFrame.begin(), m_VisibleLastFrame.end(),
-                                            [&set](Deki::Object* o)
-                                            { return set.count(o) > 0; }),
+                                            [&set](Deki::Object* o) { return set.count(o) > 0; }),
                              m_VisibleLastFrame.end());
 }
 
@@ -1279,7 +1360,9 @@ int HierarchyPanel::FindObjectIndex(Deki::Object* obj) const
     for (size_t i = 0; i < m_FlattenedObjects.size(); ++i)
     {
         if (m_FlattenedObjects[i] == obj)
+        {
             return static_cast<int>(i);
+        }
     }
     return -1;
 }

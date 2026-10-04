@@ -33,15 +33,21 @@ std::string NormalizePath(const std::string& path)
     std::error_code ec;
 
     if (fs::is_regular_file(p, ec))
+    {
         p = p.parent_path();
+    }
 
     fs::path canonical = fs::weakly_canonical(p, ec);
     if (!ec && !canonical.empty())
+    {
         p = canonical;
+    }
 
     std::string s = p.generic_string();
     while (s.size() > 1 && s.back() == '/')
+    {
         s.pop_back();
+    }
     return s;
 }
 
@@ -51,8 +57,8 @@ bool SamePath(const std::string& a, const std::string& b)
     // Windows paths are case-insensitive; comparing them byte-wise is how the
     // same project opened from a shell and from the picker becomes two rows.
     return a.size() == b.size() &&
-           std::equal(a.begin(), a.end(), b.begin(), [](char x, char y)
-                      { return std::tolower((unsigned char)x) == std::tolower((unsigned char)y); });
+           std::equal(a.begin(), a.end(), b.begin(),
+                      [](char x, char y) { return std::tolower((unsigned char)x) == std::tolower((unsigned char)y); });
 #else
     return a == b;
 #endif
@@ -89,7 +95,9 @@ void ProjectRegistry::ReadMetadata(ProjectEntry& entry)
         // Keep the last known name - a row reading "MyGame (missing)" is more
         // use than one reading only a path the user has to parse.
         if (entry.name.empty())
+        {
             entry.name = fs::path(entry.path).filename().string();
+        }
         return;
     }
 
@@ -97,7 +105,9 @@ void ProjectRegistry::ReadMetadata(ProjectEntry& entry)
 
     std::ifstream file(dekiJson);
     if (!file.is_open())
+    {
         return;
+    }
 
     try
     {
@@ -113,7 +123,9 @@ void ProjectRegistry::ReadMetadata(ProjectEntry& entry)
     }
 
     if (entry.name.empty())
+    {
         entry.name = fs::path(entry.path).filename().string();
+    }
 }
 
 void ProjectRegistry::Load()
@@ -122,27 +134,37 @@ void ProjectRegistry::Load()
 
     std::error_code ec;
     if (!fs::exists(path, ec))
+    {
         return;
+    }
 
     std::ifstream file(path);
     if (!file.is_open())
+    {
         return;
+    }
 
     try
     {
         json data = json::parse(file);
         if (!data.contains("projects") || !data["projects"].is_array())
+        {
             return;
+        }
 
         for (const auto& item : data["projects"])
         {
             if (!item.is_object())
+            {
                 continue;
+            }
 
             ProjectEntry entry;
             entry.path = item.value("path", std::string{});
             if (entry.path.empty())
+            {
                 continue;
+            }
 
             entry.name = item.value("name", std::string{});
             entry.platformId = item.value("platform", std::string{});
@@ -157,8 +179,7 @@ void ProjectRegistry::Load()
     }
 
     std::stable_sort(m_Entries.begin(), m_Entries.end(),
-                     [](const ProjectEntry& a, const ProjectEntry& b)
-                     { return a.lastOpened > b.lastOpened; });
+                     [](const ProjectEntry& a, const ProjectEntry& b) { return a.lastOpened > b.lastOpened; });
 }
 
 void ProjectRegistry::Save()
@@ -179,18 +200,21 @@ void ProjectRegistry::Save()
 
     std::ofstream file(RegistryFilePath());
     if (file.is_open())
+    {
         file << data.dump(2);
+    }
 }
 
 void ProjectRegistry::Add(const std::string& path)
 {
     const std::string normalized = NormalizePath(path);
     if (normalized.empty())
+    {
         return;
+    }
 
     auto it = std::find_if(m_Entries.begin(), m_Entries.end(),
-                           [&](const ProjectEntry& e)
-                           { return SamePath(e.path, normalized); });
+                           [&](const ProjectEntry& e) { return SamePath(e.path, normalized); });
 
     if (it == m_Entries.end())
     {
@@ -205,7 +229,9 @@ void ProjectRegistry::Add(const std::string& path)
     }
 
     if (m_Entries.size() > kMaxEntries)
+    {
         m_Entries.resize(kMaxEntries);
+    }
 
     Save();
 }
@@ -214,11 +240,12 @@ void ProjectRegistry::Touch(const std::string& path)
 {
     const std::string normalized = NormalizePath(path);
     if (normalized.empty())
+    {
         return;
+    }
 
     auto it = std::find_if(m_Entries.begin(), m_Entries.end(),
-                           [&](const ProjectEntry& e)
-                           { return SamePath(e.path, normalized); });
+                           [&](const ProjectEntry& e) { return SamePath(e.path, normalized); });
 
     ProjectEntry entry;
     if (it != m_Entries.end())
@@ -239,7 +266,9 @@ void ProjectRegistry::Touch(const std::string& path)
     m_Entries.insert(m_Entries.begin(), std::move(entry));
 
     if (m_Entries.size() > kMaxEntries)
+    {
         m_Entries.resize(kMaxEntries);
+    }
 
     Save();
 }
@@ -249,11 +278,12 @@ void ProjectRegistry::Remove(std::string path)
     const std::string normalized = NormalizePath(path);
 
     auto it = std::remove_if(m_Entries.begin(), m_Entries.end(),
-                             [&](const ProjectEntry& e)
-                             { return SamePath(e.path, normalized); });
+                             [&](const ProjectEntry& e) { return SamePath(e.path, normalized); });
 
     if (it == m_Entries.end())
+    {
         return;
+    }
 
     m_Entries.erase(it, m_Entries.end());
     Save();
@@ -262,7 +292,9 @@ void ProjectRegistry::Remove(std::string path)
 void ProjectRegistry::Refresh()
 {
     for (auto& entry : m_Entries)
+    {
         ReadMetadata(entry);
+    }
 }
 
 }  // namespace DekiEditor

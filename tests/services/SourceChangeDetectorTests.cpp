@@ -76,7 +76,11 @@ protected:
         fs::create_directories(m_Root / "sub", ec);
         ASSERT_FALSE(ec);
     }
-    void TearDown() override { std::error_code ec; fs::remove_all(m_Root, ec); }
+    void TearDown() override
+    {
+        std::error_code ec;
+        fs::remove_all(m_Root, ec);
+    }
 
     void Write(const fs::path& rel, const std::string& content)
     {
@@ -115,9 +119,7 @@ TEST_F(SourceTreeTest, WalkVisitsEveryRegularFileRecursively)
     Write("sub/deep/c.h", "3");
 
     std::set<std::string> seen;
-    SCD::WalkSourceTree(m_Root, [&](const fs::directory_entry& e) {
-        seen.insert(e.path().filename().string());
-    });
+    SCD::WalkSourceTree(m_Root, [&](const fs::directory_entry& e) { seen.insert(e.path().filename().string()); });
 
     EXPECT_EQ(seen.size(), 3u);
     EXPECT_TRUE(seen.count("a.cpp"));
@@ -128,8 +130,7 @@ TEST_F(SourceTreeTest, WalkVisitsEveryRegularFileRecursively)
 TEST_F(SourceTreeTest, WalkOnAMissingRootIsANoOpRatherThanAThrow)
 {
     int calls = 0;
-    EXPECT_NO_THROW(SCD::WalkSourceTree(m_Root / "nope",
-                                        [&](const fs::directory_entry&) { ++calls; }));
+    EXPECT_NO_THROW(SCD::WalkSourceTree(m_Root / "nope", [&](const fs::directory_entry&) { ++calls; }));
     EXPECT_EQ(calls, 0);
 }
 
@@ -150,7 +151,11 @@ protected:
         m_CMake = m_Proj / "CMakeLists.txt";
         std::ofstream(m_CMake) << "project(x)\n";
     }
-    void TearDown() override { std::error_code ec; fs::remove_all(m_Proj, ec); }
+    void TearDown() override
+    {
+        std::error_code ec;
+        fs::remove_all(m_Proj, ec);
+    }
 
     uint64_t Hash() { return SCD::ComputeConfigureInputsHash(m_Proj.string(), m_CMake.string()); }
 
@@ -187,7 +192,7 @@ TEST_F(ConfigureHashTest, ChangesWhenAHeaderChanges)
     EXPECT_NE(before, Hash()) << "a header edit must re-run metadata generation";
 }
 
-} // namespace
+}  // namespace
 
 // The packages watcher is rooted at <project>/packages but reports paths
 // relative to <project>, so every event begins with the literal "packages".

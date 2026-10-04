@@ -75,14 +75,20 @@ void ProfilingService::Shutdown()
 static double SumIdleTimeMs(const ProfileEvent* event)
 {
     if (!event)
+    {
         return 0.0;
+    }
 
     double total = 0.0;
     if (event->isIdleTime)
+    {
         total += event->durationUs / 1000.0;
+    }
 
     for (const auto& child : event->children)
+    {
         total += SumIdleTimeMs(child.get());
+    }
 
     return total;
 }
@@ -90,16 +96,17 @@ static double SumIdleTimeMs(const ProfileEvent* event)
 void ProfilingService::BeginFrame()
 {
     if (!m_IsRecording)
+    {
         return;
+    }
 
     m_FrameStartTime = std::chrono::high_resolution_clock::now();
 
     // Create root event for this frame
     {
         std::lock_guard<std::mutex> lock(m_EventMutex);
-        uint64_t startTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                                   m_FrameStartTime.time_since_epoch())
-                                   .count();
+        uint64_t startTimeUs =
+            std::chrono::duration_cast<std::chrono::microseconds>(m_FrameStartTime.time_since_epoch()).count();
         m_CurrentFrameRoot = std::make_unique<ProfileEvent>("frame", "Frame", startTimeUs);
 
         m_EventStack.clear();
@@ -110,7 +117,9 @@ void ProfilingService::BeginFrame()
 void ProfilingService::EndFrame()
 {
     if (!m_IsRecording)
+    {
         return;
+    }
 
     auto frameEnd = std::chrono::high_resolution_clock::now();
     double frameTimeMs = std::chrono::duration<double, std::milli>(frameEnd - m_FrameStartTime).count();
@@ -120,9 +129,8 @@ void ProfilingService::EndFrame()
         std::lock_guard<std::mutex> lock(m_EventMutex);
         if (m_CurrentFrameRoot)
         {
-            uint64_t endTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                                     frameEnd.time_since_epoch())
-                                     .count();
+            uint64_t endTimeUs =
+                std::chrono::duration_cast<std::chrono::microseconds>(frameEnd.time_since_epoch()).count();
             m_CurrentFrameRoot->durationUs = endTimeUs - m_CurrentFrameRoot->startTimeUs;
         }
     }
@@ -164,15 +172,15 @@ void ProfilingService::EndFrame()
 void ProfilingService::PushEvent(const char* category, const char* name)
 {
     if (!m_IsRecording)
+    {
         return;
+    }
 
     // Build call tree for our custom UI
     std::lock_guard<std::mutex> lock(m_EventMutex);
 
     auto now = std::chrono::high_resolution_clock::now();
-    uint64_t startTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                               now.time_since_epoch())
-                               .count();
+    uint64_t startTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
 
     auto event = std::make_unique<ProfileEvent>(category, name, startTimeUs);
 
@@ -189,15 +197,15 @@ void ProfilingService::PushEvent(const char* category, const char* name)
 void ProfilingService::PushEventIdle(const char* category, const char* name)
 {
     if (!m_IsRecording)
+    {
         return;
+    }
 
     // Build call tree for our custom UI - marked as idle time
     std::lock_guard<std::mutex> lock(m_EventMutex);
 
     auto now = std::chrono::high_resolution_clock::now();
-    uint64_t startTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                               now.time_since_epoch())
-                               .count();
+    uint64_t startTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
 
     auto event = std::make_unique<ProfileEvent>(category, name, startTimeUs);
     event->isIdleTime = true;  // Mark as idle time (vsync, sleep, etc.)
@@ -215,7 +223,9 @@ void ProfilingService::PushEventIdle(const char* category, const char* name)
 void ProfilingService::PopEvent(uint64_t durationUs)
 {
     if (!m_IsRecording)
+    {
         return;
+    }
 
     // Update call tree
     std::lock_guard<std::mutex> lock(m_EventMutex);
@@ -227,9 +237,7 @@ void ProfilingService::PopEvent(uint64_t durationUs)
 
         // Calculate duration
         auto now = std::chrono::high_resolution_clock::now();
-        uint64_t endTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                                 now.time_since_epoch())
-                                 .count();
+        uint64_t endTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
         event->durationUs = endTimeUs - event->startTimeUs;
     }
 }
@@ -249,14 +257,17 @@ const FrameData* ProfilingService::GetFrame(size_t index) const
 // ScopedTrace implementation - only does our custom tracking
 // Tracy tracking is handled by the PROFILE_SCOPE macro
 ScopedTrace::ScopedTrace(const char* category, const char* name)
-    : m_Category(category), m_Active(ProfilingService::IsRecordingStatic())
+    : m_Category(category),
+      m_Active(ProfilingService::IsRecordingStatic())
 {
     // Cheap when the profiler is off. PushEvent already early-outs on
     // !m_IsRecording, but the timestamps did not: every PROFILE_SCOPE cost two
     // QueryPerformanceCounter reads whether or not anyone was recording, and
     // play mode puts one of these around every component update every frame.
     if (!m_Active)
+    {
         return;
+    }
 
     m_StartTime = std::chrono::high_resolution_clock::now();
     ProfilingService::Get().PushEvent(category, name);
@@ -268,12 +279,12 @@ ScopedTrace::~ScopedTrace()
     // recording that starts or stops mid-scope cannot leave the event stack
     // unbalanced.
     if (!m_Active)
+    {
         return;
+    }
 
     auto now = std::chrono::high_resolution_clock::now();
-    uint64_t durationUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                              now - m_StartTime)
-                              .count();
+    uint64_t durationUs = std::chrono::duration_cast<std::chrono::microseconds>(now - m_StartTime).count();
 
     ProfilingService::Get().PopEvent(durationUs);
 }
@@ -283,7 +294,9 @@ ScopedTraceIdle::ScopedTraceIdle(const char* category, const char* name)
     : m_Active(ProfilingService::IsRecordingStatic())
 {
     if (!m_Active)
+    {
         return;
+    }
     m_StartTime = std::chrono::high_resolution_clock::now();
     ProfilingService::Get().PushEventIdle(category, name);
 }
@@ -291,7 +304,9 @@ ScopedTraceIdle::ScopedTraceIdle(const char* category, const char* name)
 ScopedTraceIdle::~ScopedTraceIdle()
 {
     if (!m_Active)
+    {
         return;
+    }
     ProfilingService::Get().PopEvent(0);
 }
 
@@ -299,7 +314,9 @@ const char* ProfilingService::ResolveFunctionName(void* address)
 {
 #ifdef _WIN32
     if (!m_SymbolsInitialized)
+    {
         return nullptr;
+    }
 
     // Check cache first
     {
@@ -307,7 +324,9 @@ const char* ProfilingService::ResolveFunctionName(void* address)
         for (auto& entry : m_SymbolCache)
         {
             if (entry.address == address)
+            {
                 return entry.name.c_str();
+            }
         }
     }
 
@@ -343,7 +362,9 @@ void ProfilingService::OnProfileEnter(void* returnAddress)
     // s_IsRecording is false by default, so plugin loading won't trigger singleton access
     // s_DeepProfileEnabled must also be true for /Gh /GH hooks to record events
     if (!s_Initialized || !s_IsRecording || !s_DeepProfileEnabled)
+    {
         return;
+    }
 
     auto& profiler = ProfilingService::Get();
 
@@ -357,7 +378,9 @@ void ProfilingService::OnProfileExit()
     // CRITICAL: Check static flags BEFORE accessing singleton
     // This prevents crashes during DLL loading (DllMain holds loader lock)
     if (!s_Initialized || !s_IsRecording || !s_DeepProfileEnabled)
+    {
         return;
+    }
 
     auto& profiler = ProfilingService::Get();
     profiler.PopEvent(0);

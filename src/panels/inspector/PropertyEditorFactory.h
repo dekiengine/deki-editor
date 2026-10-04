@@ -7,10 +7,22 @@
 #include <vector>
 
 // Forward declarations
-namespace Deki { class Component; }
-namespace Deki { class Object; }
-namespace Deki { struct PropertyInfo; }
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+struct PropertyInfo;
+}
+namespace Deki
+{
+class Scene;
+}
 
 namespace DekiEditor
 {

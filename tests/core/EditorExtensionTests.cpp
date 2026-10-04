@@ -15,17 +15,17 @@ class MockAssetTypeEditor : public AssetTypeEditor
 {
 public:
     MockAssetTypeEditor(const std::string& typeName = "MockAsset")
-        : m_TypeName(typeName) {}
+        : m_TypeName(typeName)
+    {
+    }
 
     const char* GetTypeName() const override { return m_TypeName.c_str(); }
     const char* GetDisplayName() const override { return "Mock Asset Display"; }
     const char* GetExtension() const override { return ".mockasset"; }
     const char* GetDefaultContent() const override { return "{}"; }
-    int GetCompileTarget() const override { return 0; } // Texture
+    int GetCompileTarget() const override { return 0; }  // Texture
 
-    bool Compile(const std::string& jsonData,
-                 std::vector<uint8_t>& rgba,
-                 int& width, int& height) override
+    bool Compile(const std::string& jsonData, std::vector<uint8_t>& rgba, int& width, int& height) override
     {
         m_CompileCalled = true;
         width = 32;
@@ -34,17 +34,14 @@ public:
         return true;
     }
 
-    bool CompileToFile(const std::string& jsonData,
-                       const std::string& cachePath) override
+    bool CompileToFile(const std::string& jsonData, const std::string& cachePath) override
     {
         m_CompileToFileCalled = true;
         m_LastCachePath = cachePath;
         return true;
     }
 
-    bool OnInspectorGUI(std::string& jsonData,
-                        const std::string& assetPath,
-                        const std::string& assetGuid) override
+    bool OnInspectorGUI(std::string& jsonData, const std::string& assetPath, const std::string& assetGuid) override
     {
         m_InspectorCalled = true;
         return false;
@@ -68,25 +65,20 @@ public:
     const char* GetDisplayName() const override { return "Mock Data Asset"; }
     const char* GetExtension() const override { return ".mockdata"; }
     const char* GetDefaultContent() const override { return R"({"data": true})"; }
-    int GetCompileTarget() const override { return 2; } // Data
+    int GetCompileTarget() const override { return 2; }  // Data
 
-    bool Compile(const std::string& jsonData,
-                 std::vector<uint8_t>& rgba,
-                 int& width, int& height) override
+    bool Compile(const std::string& jsonData, std::vector<uint8_t>& rgba, int& width, int& height) override
     {
-        return false; // Data assets don't use Compile
+        return false;  // Data assets don't use Compile
     }
 
-    bool CompileToFile(const std::string& jsonData,
-                       const std::string& cachePath) override
+    bool CompileToFile(const std::string& jsonData, const std::string& cachePath) override
     {
         m_CompileToFileCalled = true;
         return true;
     }
 
-    bool OnInspectorGUI(std::string& jsonData,
-                        const std::string& assetPath,
-                        const std::string& assetGuid) override
+    bool OnInspectorGUI(std::string& jsonData, const std::string& assetPath, const std::string& assetGuid) override
     {
         return false;
     }
@@ -144,15 +136,9 @@ TEST_F(AssetTypeEditorTest, CompileToFile_DefaultImplementation_ReturnsFalse)
         const char* GetDefaultContent() const override { return "{}"; }
         int GetCompileTarget() const override { return 0; }
 
-        bool Compile(const std::string&, std::vector<uint8_t>&, int&, int&) override
-        {
-            return true;
-        }
+        bool Compile(const std::string&, std::vector<uint8_t>&, int&, int&) override { return true; }
 
-        bool OnInspectorGUI(std::string&, const std::string&, const std::string&) override
-        {
-            return false;
-        }
+        bool OnInspectorGUI(std::string&, const std::string&, const std::string&) override { return false; }
     };
 
     MinimalEditor editor;
@@ -266,9 +252,8 @@ TEST_F(EditorRegistryTest, AddFactory_CreatesFactoryInfo)
     size_t initialCount = registry.GetAllFactories().size();
 
     static MockAssetTypeEditor prototype;
-    registry.AddFactory(&prototype, []() -> std::unique_ptr<EditorExtension> {
-        return std::make_unique<MockAssetTypeEditor>();
-    });
+    registry.AddFactory(&prototype,
+                        []() -> std::unique_ptr<EditorExtension> { return std::make_unique<MockAssetTypeEditor>(); });
 
     EXPECT_EQ(registry.GetAllFactories().size(), initialCount + 1);
 }
@@ -278,9 +263,8 @@ TEST_F(EditorRegistryTest, Factory_CreatesFreshInstances)
     auto& registry = EditorRegistry::Instance();
 
     static MockAssetTypeEditor prototype("FactoryTestEditor");
-    registry.AddFactory(&prototype, []() -> std::unique_ptr<EditorExtension> {
-        return std::make_unique<MockAssetTypeEditor>("FactoryTestEditor");
-    });
+    registry.AddFactory(&prototype, []() -> std::unique_ptr<EditorExtension>
+                        { return std::make_unique<MockAssetTypeEditor>("FactoryTestEditor"); });
 
     // Find the factory
     const EditorFactoryInfo* factoryInfo = nullptr;
@@ -318,9 +302,8 @@ TEST_F(EditorRegistryTest, GetTotalCount_IncludesFactories)
 
     // Add factory
     static MockAssetTypeEditor factoryProto("CountTestFactory");
-    registry.AddFactory(&factoryProto, []() -> std::unique_ptr<EditorExtension> {
-        return std::make_unique<MockAssetTypeEditor>("CountTestFactory");
-    });
+    registry.AddFactory(&factoryProto, []() -> std::unique_ptr<EditorExtension>
+                        { return std::make_unique<MockAssetTypeEditor>("CountTestFactory"); });
 
     EXPECT_EQ(registry.GetTotalCount(), initialCount + 1);
 }

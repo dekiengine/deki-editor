@@ -43,10 +43,7 @@ public:
     /**
      * @brief Set callback for when project is created
      */
-    void SetOnProjectCreated(std::function<void(const std::string&)> callback)
-    {
-        m_OnProjectCreated = callback;
-    }
+    void SetOnProjectCreated(std::function<void(const std::string&)> callback) { m_OnProjectCreated = callback; }
 
 private:
     /**

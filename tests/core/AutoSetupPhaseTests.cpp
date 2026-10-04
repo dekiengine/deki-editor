@@ -40,7 +40,10 @@ public:
     void Setup(SetupCallback onComplete) override
     {
         Ran().push_back(Name);
-        if (onComplete) onComplete(true);
+        if (onComplete)
+        {
+            onComplete(true);
+        }
     }
     const char* GetSetupName() const override { return Name; }
 };
@@ -55,7 +58,12 @@ int CountOf(const char* name)
 {
     int n = 0;
     for (const auto& s : Ran())
-        if (s == name) ++n;
+    {
+        if (s == name)
+        {
+            ++n;
+        }
+    }
     return n;
 }
 
@@ -72,10 +80,10 @@ protected:
 
     static void RegisterBoth()
     {
-        SetupComponent::RegisterEditorAutoFactory(
-            []() -> SetupComponent* { return new LoadSetup(); }, Phase::EditorLoad);
-        SetupComponent::RegisterEditorAutoFactory(
-            []() -> SetupComponent* { return new PlaySetup(); }, Phase::PlayStart);
+        SetupComponent::RegisterEditorAutoFactory([]() -> SetupComponent* { return new LoadSetup(); },
+                                                  Phase::EditorLoad);
+        SetupComponent::RegisterEditorAutoFactory([]() -> SetupComponent* { return new PlaySetup(); },
+                                                  Phase::PlayStart);
     }
 };
 }  // namespace
@@ -151,8 +159,7 @@ TEST_F(AutoSetupPhase, RegisteringWithoutAPhaseMeansEditorLoad)
 {
     // The default keeps every package that predates the split working, and
     // matches what DEKI_REGISTER_EDITOR_AUTO_SETUP expands to.
-    SetupComponent::RegisterEditorAutoFactory(
-        []() -> SetupComponent* { return new LoadSetup(); });
+    SetupComponent::RegisterEditorAutoFactory([]() -> SetupComponent* { return new LoadSetup(); });
 
     SetupComponent::RunEditorAutoSetups(Phase::PlayStart);
     EXPECT_EQ(CountOf(kOnLoad), 0);

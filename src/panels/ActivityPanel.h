@@ -60,7 +60,6 @@ public:
     static void SetCancelCallback(const std::string& process, std::function<void()> callback);
     static float GetStatusBarHeight();
 
-
 private:
     ActivityProcess& FindOrCreateProcess(const std::string& name);
     void AddEntry(const std::string& process, const std::string& message, bool isError);

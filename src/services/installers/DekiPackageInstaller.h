@@ -26,10 +26,9 @@ public:
 
     bool IsApplicable(const std::string& projectPath) const override;
     std::vector<PackageEntry> GetInstalledPackages(const std::string& projectPath) override;
-    void Install(const std::string& projectPath, const PackageEntry& pkg,
-                 const std::string& version, PackageCallback callback) override;
-    void Remove(const std::string& projectPath, const PackageEntry& pkg,
-                PackageCallback callback) override;
+    void Install(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
+                 PackageCallback callback) override;
+    void Remove(const std::string& projectPath, const PackageEntry& pkg, PackageCallback callback) override;
 
     // Core dependency management (not used for desktop packages)
     std::vector<CoreDependency> GetCoreDependencies() const override;

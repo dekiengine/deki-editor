@@ -32,14 +32,13 @@ protected:
     }
 
     // Helper to create a test handler
-    AssetTypeHandler CreateTestHandler(const std::string& typeName,
-                                        const std::string& extension,
-                                        AssetCompileTarget target = AssetCompileTarget::Texture)
+    AssetTypeHandler CreateTestHandler(const std::string& typeName, const std::string& extension,
+                                       AssetCompileTarget target = AssetCompileTarget::Texture)
     {
         AssetTypeHandler handler;
         handler.typeName = typeName;
         handler.displayName = typeName + " Display";
-        handler.extensions = {extension};
+        handler.extensions = { extension };
         handler.defaultContent = R"({"type":")" + typeName + R"("})";
         handler.compilesTo = target;
         return handler;
@@ -164,7 +163,7 @@ TEST_F(AssetTypeRegistryTest, MultipleExtensions_AllResolveToSameHandler)
     AssetTypeHandler handler;
     handler.typeName = "MultiExtType";
     handler.displayName = "Multi Extension Type";
-    handler.extensions = {".multi1", ".multi2", ".multi3"};
+    handler.extensions = { ".multi1", ".multi2", ".multi3" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Texture;
     registry.Register(handler);
@@ -193,7 +192,7 @@ TEST_F(AssetTypeRegistryTest, CreateAsset_ValidType_CreatesFileWithDefaultConten
     AssetTypeHandler handler;
     handler.typeName = "CreateTest";
     handler.displayName = "Create Test";
-    handler.extensions = {".createtest"};
+    handler.extensions = { ".createtest" };
     handler.defaultContent = R"({"type":"CreateTest","value":42})";
     handler.compilesTo = AssetCompileTarget::Data;
     registry.Register(handler);
@@ -206,8 +205,7 @@ TEST_F(AssetTypeRegistryTest, CreateAsset_ValidType_CreatesFileWithDefaultConten
 
     // Verify content
     std::ifstream file(filePath);
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     EXPECT_EQ(content, handler.defaultContent);
 }
 
@@ -252,10 +250,11 @@ TEST_F(AssetTypeRegistryTest, CompileAsset_WithCompileFunc_CallsHandler)
     AssetTypeHandler handler;
     handler.typeName = "CompileTest";
     handler.displayName = "Compile Test";
-    handler.extensions = {".compiletest"};
+    handler.extensions = { ".compiletest" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Texture;
-    handler.compile = [&](const json& data, std::vector<uint8_t>& rgba, int& w, int& h) {
+    handler.compile = [&](const json& data, std::vector<uint8_t>& rgba, int& w, int& h)
+    {
         compileCalled = true;
         w = 64;
         h = 32;
@@ -264,7 +263,7 @@ TEST_F(AssetTypeRegistryTest, CompileAsset_WithCompileFunc_CallsHandler)
     };
     registry.Register(handler);
 
-    json data = {{"type", "CompileTest"}};
+    json data = { { "type", "CompileTest" } };
     std::vector<uint8_t> rgba;
     int width = 0, height = 0;
 
@@ -284,13 +283,13 @@ TEST_F(AssetTypeRegistryTest, CompileAsset_NoCompileFunc_ReturnsFalse)
     AssetTypeHandler handler;
     handler.typeName = "NoCompileTest";
     handler.displayName = "No Compile Test";
-    handler.extensions = {".nocompile"};
+    handler.extensions = { ".nocompile" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Texture;
     // compile function not set
     registry.Register(handler);
 
-    json data = {{"type", "NoCompileTest"}};
+    json data = { { "type", "NoCompileTest" } };
     std::vector<uint8_t> rgba;
     int width = 0, height = 0;
 
@@ -303,7 +302,7 @@ TEST_F(AssetTypeRegistryTest, CompileAsset_UnknownType_ReturnsFalse)
 {
     auto& registry = AssetTypeRegistry::Instance();
 
-    json data = {{"type", "UnknownType99999"}};
+    json data = { { "type", "UnknownType99999" } };
     std::vector<uint8_t> rgba;
     int width = 0, height = 0;
 
@@ -326,10 +325,11 @@ TEST_F(AssetTypeRegistryTest, CompileAssetToFile_WithCompileToFileFunc_CallsHand
     AssetTypeHandler handler;
     handler.typeName = "CompileToFileTest";
     handler.displayName = "Compile To File Test";
-    handler.extensions = {".compiletofile"};
+    handler.extensions = { ".compiletofile" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Data;
-    handler.compileToFile = [&](const json& data, const std::string& path) {
+    handler.compileToFile = [&](const json& data, const std::string& path)
+    {
         compileToFileCalled = true;
         capturedPath = path;
 
@@ -340,7 +340,7 @@ TEST_F(AssetTypeRegistryTest, CompileAssetToFile_WithCompileToFileFunc_CallsHand
     };
     registry.Register(handler);
 
-    json data = {{"type", "CompileToFileTest"}};
+    json data = { { "type", "CompileToFileTest" } };
     std::string outputPath = (m_TempDir / "output.bin").string();
 
     bool success = registry.CompileAssetToFile(data, outputPath);
@@ -357,13 +357,13 @@ TEST_F(AssetTypeRegistryTest, CompileAssetToFile_NoCompileToFileFunc_ReturnsFals
     AssetTypeHandler handler;
     handler.typeName = "NoCompileToFileTest";
     handler.displayName = "No Compile To File Test";
-    handler.extensions = {".nocompiletofile"};
+    handler.extensions = { ".nocompiletofile" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Data;
     // compileToFile function not set
     registry.Register(handler);
 
-    json data = {{"type", "NoCompileToFileTest"}};
+    json data = { { "type", "NoCompileToFileTest" } };
     std::string outputPath = (m_TempDir / "output.bin").string();
 
     bool success = registry.CompileAssetToFile(data, outputPath);
@@ -382,7 +382,7 @@ TEST_F(AssetTypeRegistryTest, CompileTarget_TextureType_HasCompileFunc)
     AssetTypeHandler handler;
     handler.typeName = "TextureTarget";
     handler.displayName = "Texture Target";
-    handler.extensions = {".texturetarget"};
+    handler.extensions = { ".texturetarget" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Texture;
     handler.compile = [](const json&, std::vector<uint8_t>&, int&, int&) { return true; };
@@ -401,7 +401,7 @@ TEST_F(AssetTypeRegistryTest, CompileTarget_DataType_HasCompileToFileFunc)
     AssetTypeHandler handler;
     handler.typeName = "DataTarget";
     handler.displayName = "Data Target";
-    handler.extensions = {".datatarget"};
+    handler.extensions = { ".datatarget" };
     handler.defaultContent = "{}";
     handler.compilesTo = AssetCompileTarget::Data;
     handler.compileToFile = [](const json&, const std::string&) { return true; };
@@ -427,7 +427,9 @@ TEST_F(AssetTypeRegistryTest, DefaultContent_IsValidJson_ForAllRegisteredTypes)
     for (const AssetTypeHandler& handler : registry.GetTypes())
     {
         if (handler.defaultContent.empty())
+        {
             continue;  // pass-through types may legitimately have no default
+        }
 
         try
         {
@@ -436,8 +438,7 @@ TEST_F(AssetTypeRegistryTest, DefaultContent_IsValidJson_ForAllRegisteredTypes)
         }
         catch (const json::exception& e)
         {
-            ADD_FAILURE() << "AssetTypeHandler '" << handler.typeName
-                          << "' has malformed defaultContent: " << e.what();
+            ADD_FAILURE() << "AssetTypeHandler '" << handler.typeName << "' has malformed defaultContent: " << e.what();
         }
     }
 }

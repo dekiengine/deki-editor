@@ -11,7 +11,10 @@
 #endif
 
 // Forward declaration
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+struct ComponentMeta;
+}
 
 namespace DekiEditor
 {

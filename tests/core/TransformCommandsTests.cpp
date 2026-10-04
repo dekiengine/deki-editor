@@ -10,15 +10,9 @@ using namespace DekiEditor;
 class TransformCommandsTest : public ::testing::Test
 {
 protected:
-    void SetUp() override
-    {
-        CommandHistory::Instance().Clear();
-    }
+    void SetUp() override { CommandHistory::Instance().Clear(); }
 
-    void TearDown() override
-    {
-        CommandHistory::Instance().Clear();
-    }
+    void TearDown() override { CommandHistory::Instance().Clear(); }
 };
 
 TEST_F(TransformCommandsTest, SetPositionCommand_ExecuteSetsLocal)
@@ -27,8 +21,7 @@ TEST_F(TransformCommandsTest, SetPositionCommand_ExecuteSetsLocal)
     ASSERT_FLOAT_EQ(obj.GetX(), 0.0f);
     ASSERT_FLOAT_EQ(obj.GetY(), 0.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&obj, 5.0f, 7.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&obj, 5.0f, 7.0f));
 
     EXPECT_FLOAT_EQ(obj.GetX(), 5.0f);
     EXPECT_FLOAT_EQ(obj.GetY(), 7.0f);
@@ -39,8 +32,7 @@ TEST_F(TransformCommandsTest, SetPositionCommand_UndoRestoresOriginal)
     Deki::Object obj("TestObj");
     obj.SetLocalPosition(3.0f, 4.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&obj, 10.0f, 20.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&obj, 10.0f, 20.0f));
 
     ASSERT_FLOAT_EQ(obj.GetX(), 10.0f);
     ASSERT_FLOAT_EQ(obj.GetY(), 20.0f);
@@ -56,8 +48,7 @@ TEST_F(TransformCommandsTest, SetPositionCommand_RedoReappliesNew)
     Deki::Object obj("TestObj");
     obj.SetLocalPosition(3.0f, 4.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&obj, 10.0f, 20.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&obj, 10.0f, 20.0f));
     CommandHistory::Instance().Undo();
     CommandHistory::Instance().Redo();
 
@@ -79,8 +70,7 @@ TEST_F(TransformCommandsTest, SetPositionCommand_ExplicitOldNewCtor)
 
     // Inspector's restore + ExecuteNoMerge pattern
     obj.SetLocalPosition(1.0f, 1.0f);
-    CommandHistory::Instance().ExecuteNoMerge(
-        std::make_unique<SetPositionCommand>(&obj, 1.0f, 1.0f, 2.0f, 2.0f));
+    CommandHistory::Instance().ExecuteNoMerge(std::make_unique<SetPositionCommand>(&obj, 1.0f, 1.0f, 2.0f, 2.0f));
 
     EXPECT_FLOAT_EQ(obj.GetX(), 2.0f);
     EXPECT_FLOAT_EQ(obj.GetY(), 2.0f);
@@ -144,10 +134,8 @@ TEST_F(TransformCommandsTest, SetPositionCommand_MergeCoalescesWithinWindow)
     obj.SetLocalPosition(0.0f, 0.0f);
 
     // Two Execute calls back-to-back land inside the 500ms merge window.
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&obj, 1.0f, 2.0f));
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&obj, 5.0f, 6.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&obj, 1.0f, 2.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&obj, 5.0f, 6.0f));
 
     EXPECT_EQ(CommandHistory::Instance().GetUndoCount(), 1u);
     EXPECT_FLOAT_EQ(obj.GetX(), 5.0f);
@@ -166,10 +154,8 @@ TEST_F(TransformCommandsTest, SetPositionCommand_NoMergeDifferentObjects)
     objA.SetLocalPosition(0.0f, 0.0f);
     objB.SetLocalPosition(0.0f, 0.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&objA, 1.0f, 0.0f));
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetPositionCommand>(&objB, 2.0f, 0.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&objA, 1.0f, 0.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetPositionCommand>(&objB, 2.0f, 0.0f));
 
     EXPECT_EQ(CommandHistory::Instance().GetUndoCount(), 2u);
 }
@@ -181,10 +167,8 @@ TEST_F(TransformCommandsTest, SetPositionCommand_ExecuteNoMergeBypassesMergeWind
     Deki::Object obj("TestObj");
     obj.SetLocalPosition(0.0f, 0.0f);
 
-    CommandHistory::Instance().ExecuteNoMerge(
-        std::make_unique<SetPositionCommand>(&obj, 0.0f, 0.0f, 1.0f, 1.0f));
-    CommandHistory::Instance().ExecuteNoMerge(
-        std::make_unique<SetPositionCommand>(&obj, 1.0f, 1.0f, 2.0f, 2.0f));
+    CommandHistory::Instance().ExecuteNoMerge(std::make_unique<SetPositionCommand>(&obj, 0.0f, 0.0f, 1.0f, 1.0f));
+    CommandHistory::Instance().ExecuteNoMerge(std::make_unique<SetPositionCommand>(&obj, 1.0f, 1.0f, 2.0f, 2.0f));
 
     EXPECT_EQ(CommandHistory::Instance().GetUndoCount(), 2u);
     EXPECT_FLOAT_EQ(obj.GetX(), 2.0f);
@@ -206,8 +190,7 @@ TEST_F(TransformCommandsTest, SetRotationCommand_UndoRestoresOriginal)
     const float oldRot = obj.GetLocalRotation();
     const float newRot = Deki::Math::kDegToRad * 90.0f;
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetRotationCommand>(&obj, oldRot, newRot));
+    CommandHistory::Instance().Execute(std::make_unique<SetRotationCommand>(&obj, oldRot, newRot));
 
     EXPECT_FLOAT_EQ(obj.GetLocalRotation(), newRot);
 
@@ -223,8 +206,7 @@ TEST_F(TransformCommandsTest, SetScaleCommand_UndoRestoresOriginal)
     Deki::Object obj("TestObj");
     obj.SetScale(1.0f, 1.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetScaleCommand>(&obj, 1.0f, 1.0f, 2.0f, 3.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetScaleCommand>(&obj, 1.0f, 1.0f, 2.0f, 3.0f));
 
     EXPECT_FLOAT_EQ(obj.GetScaleX(), 2.0f);
     EXPECT_FLOAT_EQ(obj.GetScaleY(), 3.0f);
@@ -245,10 +227,8 @@ TEST_F(TransformCommandsTest, SetRotationCommand_NoMerge)
     Deki::Object obj("TestObj");
     obj.SetRotation(0.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetRotationCommand>(&obj, 0.0f, 0.5f));
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetRotationCommand>(&obj, 0.5f, 1.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetRotationCommand>(&obj, 0.0f, 0.5f));
+    CommandHistory::Instance().Execute(std::make_unique<SetRotationCommand>(&obj, 0.5f, 1.0f));
 
     EXPECT_EQ(CommandHistory::Instance().GetUndoCount(), 2u);
 }
@@ -258,10 +238,8 @@ TEST_F(TransformCommandsTest, SetScaleCommand_NoMerge)
     Deki::Object obj("TestObj");
     obj.SetScale(1.0f, 1.0f);
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetScaleCommand>(&obj, 1.0f, 1.0f, 2.0f, 2.0f));
-    CommandHistory::Instance().Execute(
-        std::make_unique<SetScaleCommand>(&obj, 2.0f, 2.0f, 3.0f, 3.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetScaleCommand>(&obj, 1.0f, 1.0f, 2.0f, 2.0f));
+    CommandHistory::Instance().Execute(std::make_unique<SetScaleCommand>(&obj, 2.0f, 2.0f, 3.0f, 3.0f));
 
     EXPECT_EQ(CommandHistory::Instance().GetUndoCount(), 2u);
 }

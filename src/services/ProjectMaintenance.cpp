@@ -55,9 +55,13 @@ std::vector<std::string> ProjectMaintenance::Targets(MaintenanceAction action, c
 {
     std::vector<std::string> out;
     if (projectPath.empty())
+    {
         return out;
+    }
     for (const fs::path& target : TargetsFor(action, fs::path(projectPath)))
+    {
         out.push_back(target.string());
+    }
     return out;
 }
 
@@ -74,12 +78,16 @@ std::vector<MaintenanceAction> ProjectMaintenance::AllActions()
 MaintenanceResult ProjectMaintenance::Run(MaintenanceAction action, const std::string& projectPath)
 {
     if (projectPath.empty())
+    {
         return { false, "No project is open." };
+    }
 
     const fs::path root(projectPath);
     std::error_code rootEc;
     if (!fs::is_directory(root, rootEc))
+    {
         return { false, "Project path is not a directory: " + projectPath };
+    }
 
     int removed = 0;
     std::string failures;
@@ -88,7 +96,9 @@ MaintenanceResult ProjectMaintenance::Run(MaintenanceAction action, const std::s
     {
         std::error_code existsEc;
         if (!fs::exists(target, existsEc))
+        {
             continue;  // already clean
+        }
 
         std::error_code rmEc;
         fs::remove_all(target, rmEc);
@@ -97,7 +107,10 @@ MaintenanceResult ProjectMaintenance::Run(MaintenanceAction action, const std::s
             // Typically a DLL still mapped by this process or another editor
             // instance. Report it rather than leaving a half-deleted directory
             // looking like a success.
-            if (!failures.empty()) failures += "; ";
+            if (!failures.empty())
+            {
+                failures += "; ";
+            }
             failures += target.filename().string() + " (" + rmEc.message() + ")";
         }
         else
@@ -110,14 +123,15 @@ MaintenanceResult ProjectMaintenance::Run(MaintenanceAction action, const std::s
 
     if (!failures.empty())
     {
-        const std::string msg = std::string(info.label) + " could not remove: " + failures + ". Close other editor instances, stop play mode, and try again.";
+        const std::string msg = std::string(info.label) + " could not remove: " + failures +
+                                ". Close other editor instances, stop play mode, and try again.";
         DEKI_LOG_ERROR("ProjectMaintenance: %s", msg.c_str());
         return { false, msg };
     }
 
-    const std::string msg = removed == 0
-                                ? std::string(info.label) + ": already clean."
-                                : std::string(info.label) + ": removed " + std::to_string(removed) + (removed == 1 ? " directory." : " directories.");
+    const std::string msg = removed == 0 ? std::string(info.label) + ": already clean."
+                                         : std::string(info.label) + ": removed " + std::to_string(removed) +
+                                               (removed == 1 ? " directory." : " directories.");
     DEKI_LOG_EDITOR("ProjectMaintenance: %s", msg.c_str());
     return { true, msg };
 }

@@ -51,13 +51,14 @@ bool WaitBounded(FetchWait& w, const char* detail, const std::function<void()>& 
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
     while (!w.done && std::chrono::steady_clock::now() < deadline)
     {
-        w.cv.wait_for(lock, std::chrono::milliseconds(50), [&]
-                      { return w.done; });
+        w.cv.wait_for(lock, std::chrono::milliseconds(50), [&] { return w.done; });
         if (!w.done)
         {
             lock.unlock();
             if (drain)
+            {
                 drain();
+            }
             StartupProgress::Update("Installing packages...", detail);
             lock.lock();
         }
@@ -75,18 +76,25 @@ bool WaitBounded(FetchWait& w, const char* detail, const std::function<void()>& 
 std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
 {
     if (!pkg.availableVersions.empty())
+    {
         return HighestVersion(pkg.availableVersions);
+    }
 
     // FetchVersions answers on a detached thread; block until it reports.
     auto wait = std::make_shared<FetchWait>();
-    mgr.FetchVersionsForPackage(pkg, [wait](bool ok, const std::vector<std::string>& v)
+    mgr.FetchVersionsForPackage(pkg,
+                                [wait](bool ok, const std::vector<std::string>& v)
                                 {
-        {
-            std::lock_guard<std::mutex> lock(wait->m);
-            if (ok) wait->versions = v;
-            wait->done = true;
-        }
-        wait->cv.notify_one(); });
+                                    {
+                                        std::lock_guard<std::mutex> lock(wait->m);
+                                        if (ok)
+                                        {
+                                            wait->versions = v;
+                                        }
+                                        wait->done = true;
+                                    }
+                                    wait->cv.notify_one();
+                                });
 
     // Bounded: a hung network call must not wedge the CLI forever.
     WaitBounded(*wait, "Fetching package versions...", [&mgr] { mgr.DrainMainThread(); });
@@ -111,7 +119,9 @@ std::map<std::string, std::string> ReadManifestVersions(const std::string& proje
     std::map<std::string, std::string> out;
     const fs::path manifest = fs::path(projectPath) / GetPackageManifestFileName();
     if (!fs::exists(manifest))
+    {
         return out;
+    }
 
     try
     {
@@ -123,7 +133,9 @@ std::map<std::string, std::string> ReadManifestVersions(const std::string& proje
             for (auto& [id, entry] : j["packages"].items())
             {
                 if (entry.is_object() && entry.contains("version") && entry["version"].is_string())
+                {
                     out[id] = entry["version"].get<std::string>();
+                }
             }
         }
     }
@@ -149,19 +161,25 @@ bool WarmRegistryIndex(PackageManager& mgr)
 {
     auto* registry = mgr.GetRegistrySource();
     if (!registry)
+    {
         return false;
+    }
     if (registry->HasCachedIndex())
+    {
         return true;
+    }
 
     auto wait = std::make_shared<FetchWait>();
-    registry->FetchIndex([wait](bool success, const std::vector<RegistryPackageEntry>&)
-                         {
+    registry->FetchIndex(
+        [wait](bool success, const std::vector<RegistryPackageEntry>&)
         {
-            std::lock_guard<std::mutex> lock(wait->m);
-            wait->ok = success;
-            wait->done = true;
-        }
-        wait->cv.notify_one(); });
+            {
+                std::lock_guard<std::mutex> lock(wait->m);
+                wait->ok = success;
+                wait->done = true;
+            }
+            wait->cv.notify_one();
+        });
 
     WaitBounded(*wait, "Fetching registry index...");
     std::lock_guard<std::mutex> lock(wait->m);
@@ -180,28 +198,42 @@ bool WarmRegistryIndex(PackageManager& mgr)
 bool TryFillFromRegistry(PackageManager& mgr, PackageEntry& pkg)
 {
     if (!pkg.url.empty())
+    {
         return true;
+    }
 
     auto* registry = mgr.GetRegistrySource();
     if (!registry)
+    {
         return false;
+    }
 
     for (const auto& entry : registry->GetCachedIndex())
     {
         if (entry.id != pkg.id)
+        {
             continue;
+        }
 
         pkg.url = "https://github.com/" + entry.repo;
         pkg.name = entry.repo;
         pkg.packageType = PackageType::DekiPackage;
         if (pkg.displayName.empty() || pkg.displayName == pkg.id)
+        {
             pkg.displayName = entry.displayName;
+        }
         if (pkg.description.empty())
+        {
             pkg.description = entry.description;
+        }
         if (pkg.requiredPackages.empty())
+        {
             pkg.requiredPackages = entry.requiredPackages;
+        }
         if (pkg.availableVersions.empty() && !entry.latest.empty())
+        {
             pkg.availableVersions = { entry.latest };
+        }
         return true;
     }
     return false;
@@ -212,13 +244,14 @@ namespace
 
 // The routing itself is PackageManager::GetInstallerFor; this keeps the reason,
 // which the caller's "unresolvable" list has no room for.
-IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg,
-                                const std::string& projectPath)
+IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg, const std::string& projectPath)
 {
     std::string whyNot;
     IPackageInstaller* installer = mgr.GetInstallerFor(pkg, projectPath, whyNot);
     if (installer == nullptr)
+    {
         DEKI_LOG_WARNING("PackageRestore: %s", whyNot.c_str());
+    }
     return installer;
 }
 
@@ -244,8 +277,14 @@ bool HasMissingPackages(const std::string& projectPath, PackageManager& mgr)
     (void)projectPath;
     for (const auto& p : mgr.GetPackages())
     {
-        if (p.id.empty()) continue;
-        if (!p.isInstalled) return true;
+        if (p.id.empty())
+        {
+            continue;
+        }
+        if (!p.isInstalled)
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -263,13 +302,19 @@ std::vector<PinMismatch> FindPinMismatches(const std::string& projectPath, Packa
     {
         auto it = pinned.find(pkg.id);
         if (it == pinned.end() || !pkg.isInstalled || pkg.installedVersion.empty())
+        {
             continue;
+        }
         const std::string pin = bare(it->second);
         const std::string have = bare(pkg.installedVersion);
         if (!numeric(pin) || !numeric(have))
+        {
             continue;  // "*", a branch, or a version this cannot read
+        }
         if (CompareVersions(pin, have) != 0)
+        {
             out.push_back({ pkg.id, it->second, pkg.installedVersion });
+        }
     }
     return out;
 }
@@ -281,8 +326,7 @@ std::string DescribePinMismatch(const PinMismatch& m)
            " to install the pinned version, or change the pin.";
 }
 
-PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
-                                            PackageManager& mgr,
+PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, PackageManager& mgr,
                                             const PackageRestoreProgress& onProgress)
 {
     PackageRestoreResult result;
@@ -313,8 +357,14 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
             // package vector, invalidating any reference held across the call.
             PackageEntry pkg = mgr.GetPackages()[i];
 
-            if (pkg.isInstalled || pkg.id.empty()) continue;
-            if (seen.count(pkg.id)) continue;  // already reported; don't retry every sweep
+            if (pkg.isInstalled || pkg.id.empty())
+            {
+                continue;
+            }
+            if (seen.count(pkg.id))
+            {
+                continue;  // already reported; don't retry every sweep
+            }
 
             // A manifest entry may name a package by bare id and leave the URL to
             // the registry, so look it up before giving up on it.
@@ -347,11 +397,17 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
             std::string version;
             auto pinIt = pinned.find(pkg.id);
             if (pinIt != pinned.end() && pinIt->second != "*" && !pinIt->second.empty())
+            {
                 version = pinIt->second;
+            }
             else if (!pkg.lockedVersion.empty())
+            {
                 version = pkg.lockedVersion;
+            }
             else
+            {
                 version = ChooseVersion(mgr, pkg);
+            }
 
             if (version.empty())
             {
@@ -363,8 +419,11 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
             if (onProgress)
             {
                 const int done = static_cast<int>(result.installed.size());
-                const int total = done + 1 + static_cast<int>(std::count_if(mgr.GetPackages().begin(), mgr.GetPackages().end(), [&](const PackageEntry& e)
-                                                                            { return !e.isInstalled && !e.id.empty() && e.id != pkg.id && !seen.count(e.id); }));
+                const int total =
+                    done + 1 +
+                    static_cast<int>(std::count_if(
+                        mgr.GetPackages().begin(), mgr.GetPackages().end(), [&](const PackageEntry& e)
+                        { return !e.isInstalled && !e.id.empty() && e.id != pkg.id && !seen.count(e.id); }));
                 onProgress(pkg.id, done, total);
             }
 
@@ -372,7 +431,10 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
             std::string message;
             mgr.InstallWithDependencies(projectPath, pkg, version, installer,
                                         [&](bool success, const std::string& msg)
-                                        { ok = success; message = msg; });
+                                        {
+                                            ok = success;
+                                            message = msg;
+                                        });
 
             if (ok)
             {
@@ -389,7 +451,10 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath,
         // Pick up anything the installs added, and re-check disk state.
         mgr.RefreshInstalledStatus(projectPath);
 
-        if (!progressed) break;
+        if (!progressed)
+        {
+            break;
+        }
     }
 
     if (result.DidWork())

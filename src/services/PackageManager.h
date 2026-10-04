@@ -36,14 +36,19 @@ inline std::string PackageCompatibilityProblem(const PackageEntry& pkg)
     // No answer beats a wrong one: a package that never said which engine it
     // needs predates the field, and the installer accepts those too.
     if (pkg.minEngine.empty())
+    {
         return {};
+    }
 
     if (DekiEditor::CompareVersions(DEKI_ENGINE_VERSION, pkg.minEngine) < 0)
+    {
         return "Needs editor " + pkg.minEngine + "; this one is " + DEKI_ENGINE_VERSION;
+    }
 
     if (DekiEditor::CompareVersions(pkg.minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
-        return "Built for editor " + pkg.minEngine + "; this one needs "
-               + DEKI_OLDEST_SUPPORTED_PACKAGE + " or newer";
+    {
+        return "Built for editor " + pkg.minEngine + "; this one needs " + DEKI_OLDEST_SUPPORTED_PACKAGE + " or newer";
+    }
 
     return {};
 }
@@ -65,8 +70,7 @@ public:
     /// Register an installer created by a loaded package module, with that
     /// module's destroy function. Its vtable and operator delete live over
     /// there, so this must never `delete` it.
-    void RegisterPluginInstaller(IPackageInstaller* installer,
-                                 void (*destroy)(IPackageInstaller*),
+    void RegisterPluginInstaller(IPackageInstaller* installer, void (*destroy)(IPackageInstaller*),
                                  const std::string& package = {});
 
     /// Every live PackageManager drops the installers `package` created.
@@ -92,8 +96,7 @@ public:
     /// FrameworkComponent to an installer looked up by the display name of one
     /// particular framework - so a second framework's component manager could
     /// be registered and still never be handed anything.
-    IPackageInstaller* GetInstallerFor(const PackageEntry& pkg, const std::string& projectPath,
-                                       std::string& whyNot);
+    IPackageInstaller* GetInstallerFor(const PackageEntry& pkg, const std::string& projectPath, std::string& whyNot);
 
     // Package operations
     bool AddPackageFromUrl(const std::string& url, PackageEntry& outInfo);
@@ -142,15 +145,14 @@ public:
     // Install a package and all its dependencies. Reads package.json after install
     // for requiredPackages, resolves deps, and installs each one.
     // Callback receives (success, message).
-    void InstallWithDependencies(const std::string& projectPath, const PackageEntry& pkg,
-                                 const std::string& version, IPackageInstaller* installer,
-                                 PackageCallback callback);
+    void InstallWithDependencies(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
+                                 IPackageInstaller* installer, PackageCallback callback);
 
     // Remove a package and detect orphaned dependencies.
     // Returns orphaned dep IDs via the callback's message (comma-separated).
     // Removes orphans from disk and clears their resolvedBy.
-    void RemoveWithOrphans(const std::string& projectPath, const PackageEntry& pkg,
-                           IPackageInstaller* installer, PackageCallback callback);
+    void RemoveWithOrphans(const std::string& projectPath, const PackageEntry& pkg, IPackageInstaller* installer,
+                           PackageCallback callback);
 
 private:
     DekiEditor::EditorApp* m_App;

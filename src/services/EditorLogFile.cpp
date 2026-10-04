@@ -46,12 +46,9 @@ bool ShouldWrite(Deki::LogLevel level)
         case Deki::LogLevel::Editor:
         case Deki::LogLevel::Info:
         case Deki::LogLevel::Warning:
-        case Deki::LogLevel::Error:
-            return true;
-        case Deki::LogLevel::Debug:
-            return g_Verbose;
-        case Deki::LogLevel::Internal:
-            return false;
+        case Deki::LogLevel::Error: return true;
+        case Deki::LogLevel::Debug: return g_Verbose;
+        case Deki::LogLevel::Internal: return false;
     }
     return false;
 }
@@ -68,8 +65,7 @@ void FormatTimestamp(char* out, size_t outSize)
 #else
     localtime_r(&t, &tm);
 #endif
-    std::snprintf(out, outSize, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
-                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+    std::snprintf(out, outSize, "%04d-%02d-%02d %02d:%02d:%02d.%03d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
                   tm.tm_hour, tm.tm_min, tm.tm_sec, static_cast<int>(ms.count()));
 }
 
@@ -93,7 +89,9 @@ void WriteMarker(const char* text)
     FormatTimestamp(ts, sizeof(ts));
     int n = std::fprintf(g_File, "[%s] [EDITOR] EditorLogFile.cpp:0 | --- %s ---\n", ts, text);
     if (n > 0)
+    {
         g_Bytes += static_cast<size_t>(n);
+    }
     std::fflush(g_File);
 }
 }  // namespace
@@ -102,7 +100,9 @@ bool EditorLogFile::Initialize(const std::string& logPath, bool verbose)
 {
     std::lock_guard<std::mutex> lock(g_Mutex);
     if (g_File)
+    {
         return true;
+    }
 
     fs::path path(logPath);
     fs::path prev = path.parent_path() / (path.stem().string() + "-prev" + path.extension().string());
@@ -129,22 +129,27 @@ void EditorLogFile::Shutdown()
 {
     std::lock_guard<std::mutex> lock(g_Mutex);
     if (!g_File)
+    {
         return;
+    }
 
     WriteMarker("Session ended");
     std::fclose(g_File);
     g_File = nullptr;
 }
 
-void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message,
-                          const char* file, int line)
+void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message, const char* file, int line)
 {
     if (!ShouldWrite(level))
+    {
         return;
+    }
 
     std::lock_guard<std::mutex> lock(g_Mutex);
     if (!g_File)
+    {
         return;
+    }
 
     char ts[32];
     FormatTimestamp(ts, sizeof(ts));
@@ -152,22 +157,27 @@ void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message,
     // Basename of __FILE__, without copying the path.
     const char* filename = file ? file : "";
     for (const char* p = filename; *p; ++p)
+    {
         if (*p == '/' || *p == '\\')
+        {
             filename = p + 1;
+        }
+    }
 
     // Engine LogWithLevel prepends "<file>:<line> -> " to the message; strip
     // that so the file sink's own "file:line |" prefix doesn't duplicate it.
     const char* body = message.c_str();
     const size_t arrowPos = message.find(" -> ");
     if (arrowPos != std::string::npos)
+    {
         body += arrowPos + 4;
+    }
 
-    int n = std::fprintf(g_File, "[%s] [%s] %s:%d | %s\n",
-                         ts, LevelTag(level),
-                         *filename ? filename : "?",
-                         line, body);
+    int n = std::fprintf(g_File, "[%s] [%s] %s:%d | %s\n", ts, LevelTag(level), *filename ? filename : "?", line, body);
     if (n > 0)
+    {
         g_Bytes += static_cast<size_t>(n);
+    }
 
     // Every line used to be fflushed: an asset import writes several lines per
     // asset, which made a 2000-asset import perform over ten thousand
@@ -175,7 +185,9 @@ void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message,
     // (they are what a crash log needs); the rest is flushed by the periodic
     // Flush() from the editor loop and at shutdown.
     if (level == Deki::LogLevel::Warning || level == Deki::LogLevel::Error)
+    {
         std::fflush(g_File);
+    }
 
     // Size rotation. The line that crossed the limit stays in the previous
     // generation; the new file opens with a marker saying why it exists, so a
@@ -188,7 +200,9 @@ void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message,
         g_File = std::fopen(g_LogPath.c_str(), "wb");
         g_Bytes = 0;
         if (g_File)
+        {
             WriteMarker("Log rotated: the previous generation reached the size limit");
+        }
     }
 }
 
@@ -201,7 +215,9 @@ void EditorLogFile::Flush()
 {
     std::lock_guard<std::mutex> lock(g_Mutex);
     if (g_File)
+    {
         std::fflush(g_File);
+    }
 }
 
 std::string EditorLogFile::GetLogPath()

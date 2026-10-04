@@ -5,7 +5,10 @@
 #include <vector>
 #include <algorithm>
 
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {
@@ -52,8 +55,8 @@ public:
     const std::string& GetSelectedAssetGuid() const { return m_SelectedAssetGuid; }
     bool HasAssetSelection() const;
 
-    void SetSelectedAsset(const std::string& path, const std::string& cachePath,
-                          bool hasCached, const std::string& guid = "");
+    void SetSelectedAsset(const std::string& path, const std::string& cachePath, bool hasCached,
+                          const std::string& guid = "");
 
 private:
     void ClearAssetSelection();

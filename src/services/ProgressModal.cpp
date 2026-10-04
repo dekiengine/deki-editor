@@ -52,16 +52,20 @@ void FormatElapsed(uint64_t elapsedMs, char* out, size_t outSize)
     uint64_t secs = totalSec % 60;
     uint64_t centis = (elapsedMs % 1000) / 10;
     if (mins > 0)
+    {
         std::snprintf(out, outSize, "%llum %02llus", (unsigned long long)mins, (unsigned long long)secs);
+    }
     else
+    {
         std::snprintf(out, outSize, "%llu.%02llus", (unsigned long long)secs, (unsigned long long)centis);
+    }
 }
 
 // The card itself: title + elapsed chip, phase, animated bar, detail line and,
 // when cancelRequested is given, a Cancel button. Shared by Show (which owns
 // its own frame) and DrawInFrame (inside the editor's frame).
-void DrawCardBody(const char* title, const char* phase, const char* detail,
-                  uint64_t nowMs, float dpi, bool* cancelRequested)
+void DrawCardBody(const char* title, const char* phase, const char* detail, uint64_t nowMs, float dpi,
+                  bool* cancelRequested)
 {
     // -------- Title row --------
     if (title && title[0] != '\0')
@@ -73,9 +77,13 @@ void DrawCardBody(const char* title, const char* phase, const char* detail,
         ImVec2 ts = ImGui::CalcTextSize(elapsed);
         float avail = ImGui::GetContentRegionAvail().x;
         if (avail > ts.x)
+        {
             ImGui::SameLine(0.0f, avail - ts.x);
+        }
         else
+        {
             ImGui::SameLine();
+        }
         ImGui::TextColored(Palette::Dim, "%s", elapsed);
         ImGui::Spacing();
         ImGui::Separator();
@@ -141,12 +149,10 @@ void DrawCardBody(const char* title, const char* phase, const char* detail,
         {
             // Replace the middle with an ellipsis to keep both ends visible.
             const std::string ell = " ... ";
-            while (text.size() > 16 &&
-                   ImGui::CalcTextSize((text.substr(0, text.size() / 2 - ell.size() / 2) +
-                                        ell +
-                                        text.substr(text.size() / 2 + ell.size() / 2 + 1))
-                                           .c_str())
-                           .x > maxW)
+            while (text.size() > 16 && ImGui::CalcTextSize((text.substr(0, text.size() / 2 - ell.size() / 2) + ell +
+                                                            text.substr(text.size() / 2 + ell.size() / 2 + 1))
+                                                               .c_str())
+                                               .x > maxW)
             {
                 text = text.substr(0, text.size() / 2 - 1) + text.substr(text.size() / 2 + 1);
             }
@@ -160,16 +166,19 @@ void DrawCardBody(const char* title, const char* phase, const char* detail,
         ImGui::TextColored(Palette::Dim, " ");
     }
 
-
     if (cancelRequested)
     {
         ImGui::Spacing();
         const float buttonW = 90.0f * dpi;
         const float avail = ImGui::GetContentRegionAvail().x;
         if (avail > buttonW)
+        {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - buttonW);
+        }
         if (ImGui::Button("Cancel", ImVec2(buttonW, 0.0f)))
+        {
             *cancelRequested = true;
+        }
     }
 }
 }  // namespace
@@ -197,7 +206,9 @@ void ProgressModal::Reset()
 void ProgressModal::Show(const char* title, const char* phase, const char* detail)
 {
     if (!s_Window || !s_Enabled)
+    {
         return;
+    }
 
     // Pump SDL events to prevent "not responding". Everything is forwarded to
     // ImGui (so focus/mouse state stays coherent) except a close request,
@@ -219,7 +230,9 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     // so just pump events to keep the window responsive and skip the visual.
     bool midFrame = ImGui::GetCurrentContext() && ImGui::GetCurrentContext()->WithinFrameScope;
     if (midFrame)
+    {
         return;
+    }
 
     // First call after Reset (or first ever): start the elapsed-time clock.
     uint64_t nowMs = SDL_GetTicks();
@@ -233,7 +246,9 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     // what is skipped is only a redraw that would show the same phase.
     const char* phaseText = phase ? phase : "";
     if (g_State.lastDrawMs != 0 && nowMs - g_State.lastDrawMs < kMinRedrawMs && g_State.lastPhase == phaseText)
+    {
         return;
+    }
     g_State.lastDrawMs = nowMs;
     g_State.lastPhase = phaseText;
 
@@ -255,11 +270,8 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(modalW, 0.0f), ImGuiCond_Always);
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
-                             ImGuiWindowFlags_NoMove |
-                             ImGuiWindowFlags_NoCollapse |
-                             ImGuiWindowFlags_NoSavedSettings |
-                             ImGuiWindowFlags_NoTitleBar |
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar |
                              ImGuiWindowFlags_NoScrollbar;
 
     // Card styling: padded, rounded, a slightly-raised panel bg with a hairline
@@ -305,7 +317,9 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
 void ProgressModal::DrawInFrame(const char* title, const char* phase, const char* detail, bool* cancelRequested)
 {
     if (!s_Enabled)
+    {
         return;
+    }
 
     const uint64_t nowMs = SDL_GetTicks();
     if (!g_State.hasStartTime)
@@ -320,21 +334,15 @@ void ProgressModal::DrawInFrame(const char* title, const char* phase, const char
 
     // Bottom-right corner of the main viewport, above the status bar: the
     // editor stays usable while the build runs.
-    ImVec2 pos(vp->WorkPos.x + vp->WorkSize.x - 16.0f * dpi,
-               vp->WorkPos.y + vp->WorkSize.y - 40.0f * dpi);
+    ImVec2 pos(vp->WorkPos.x + vp->WorkSize.x - 16.0f * dpi, vp->WorkPos.y + vp->WorkSize.y - 40.0f * dpi);
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(1.0f, 1.0f));
     ImGui::SetNextWindowSize(ImVec2(modalW, 0.0f), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.97f);
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
-                             ImGuiWindowFlags_NoMove |
-                             ImGuiWindowFlags_NoCollapse |
-                             ImGuiWindowFlags_NoSavedSettings |
-                             ImGuiWindowFlags_NoTitleBar |
-                             ImGuiWindowFlags_NoScrollbar |
-                             ImGuiWindowFlags_NoDocking |
-                             ImGuiWindowFlags_NoFocusOnAppearing |
-                             ImGuiWindowFlags_NoNav;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar |
+                             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoDocking |
+                             ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f * dpi, 14.0f * dpi));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f * dpi, 8.0f * dpi));

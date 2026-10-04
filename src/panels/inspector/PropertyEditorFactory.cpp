@@ -57,8 +57,7 @@ EditorUI::IntCallbacks NotifyInt(Deki::Component* comp, const char* name)
 {
     EditorUI::IntCallbacks cb;
     const std::string n = name;
-    auto notify = [comp, n](int64_t)
-    { NotifyChanged(comp, n); };
+    auto notify = [comp, n](int64_t) { NotifyChanged(comp, n); };
     cb.onChange = notify;
     cb.onUndo = notify;
     cb.onRedo = notify;
@@ -68,8 +67,7 @@ EditorUI::FloatCallbacks NotifyFloat(Deki::Component* comp, const char* name)
 {
     EditorUI::FloatCallbacks cb;
     const std::string n = name;
-    auto notify = [comp, n](float)
-    { NotifyChanged(comp, n); };
+    auto notify = [comp, n](float) { NotifyChanged(comp, n); };
     cb.onChange = notify;
     cb.onUndo = notify;
     cb.onRedo = notify;
@@ -79,8 +77,7 @@ EditorUI::VecCallbacks NotifyVec(Deki::Component* comp, const char* name)
 {
     EditorUI::VecCallbacks cb;
     const std::string n = name;
-    auto notify = [comp, n](const float*)
-    { NotifyChanged(comp, n); };
+    auto notify = [comp, n](const float*) { NotifyChanged(comp, n); };
     cb.onChange = notify;
     cb.onUndo = notify;
     cb.onRedo = notify;
@@ -116,9 +113,13 @@ DefaultsSnapshot g_Defaults;
 nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
 {
     if (prop.type == Deki::PropertyType::Array)
+    {
         return CaptureArray(comp, prop);
+    }
     if (prop.type == Deki::PropertyType::Enum)
+    {
         return CaptureEnumSized(comp, prop.offset, prop.enumSize);
+    }
     return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
 }
 
@@ -130,27 +131,32 @@ void BuildDefaultsFor(uint32_t typeId)
     bool built = false;
     const char* context = "inspector defaults";
     if (const Deki::ComponentMeta* meta = registry.GetMeta(typeId))
+    {
         context = meta->name ? meta->name : context;
+    }
 
-    Guard(context, [&]
+    Guard(context,
+          [&]
           {
-        std::unique_ptr<Deki::Component> probe(
-            Deki::ComponentFactory::Instance().Create(typeId));
-        if (!probe)
-            return;
+              std::unique_ptr<Deki::Component> probe(Deki::ComponentFactory::Instance().Create(typeId));
+              if (!probe)
+              {
+                  return;
+              }
 
-        // Own properties and every inherited one: the inspector draws both.
-        const Deki::ComponentMeta* walk = registry.GetMeta(typeId);
-        while (walk)
-        {
-            for (int i = 0; i < walk->propertyCount; ++i)
-            {
-                const Deki::PropertyInfo& p = walk->properties[i];
-                slot[p.offset] = CaptureValue(probe.get(), p);
-            }
-            walk = walk->baseTypeId != 0 ? registry.GetMeta(walk->baseTypeId) : nullptr;
-        }
-        built = true; });
+              // Own properties and every inherited one: the inspector draws both.
+              const Deki::ComponentMeta* walk = registry.GetMeta(typeId);
+              while (walk)
+              {
+                  for (int i = 0; i < walk->propertyCount; ++i)
+                  {
+                      const Deki::PropertyInfo& p = walk->properties[i];
+                      slot[p.offset] = CaptureValue(probe.get(), p);
+                  }
+                  walk = walk->baseTypeId != 0 ? registry.GetMeta(walk->baseTypeId) : nullptr;
+              }
+              built = true;
+          });
 
     if (!built)
     {
@@ -175,13 +181,19 @@ const nlohmann::json* DefaultValueFor(uint32_t typeId, const Deki::PropertyInfo&
     }
 
     if (g_Defaults.unavailable.count(typeId))
+    {
         return nullptr;
+    }
     if (g_Defaults.byType.find(typeId) == g_Defaults.byType.end())
+    {
         BuildDefaultsFor(typeId);
+    }
 
     auto typeIt = g_Defaults.byType.find(typeId);
     if (typeIt == g_Defaults.byType.end())
+    {
         return nullptr;
+    }
     auto valIt = typeIt->second.find(prop.offset);
     return valIt == typeIt->second.end() ? nullptr : &valIt->second;
 }
@@ -210,14 +222,18 @@ bool ScrubbingThis(const Deki::Component* comp, const Deki::PropertyInfo& prop)
 
 // True while the row's label is being dragged; writes the scrubbed value out.
 // `speed` is value-per-pixel.
-bool LabelScrub(const Deki::Component* comp, const Deki::PropertyInfo& prop,
-                double current, float speed, double* outValue)
+bool LabelScrub(const Deki::Component* comp, const Deki::PropertyInfo& prop, double current, float speed,
+                double* outValue)
 {
     if (InspectorUtils::RowLabelHovered() && !ImGui::IsAnyItemActive())
+    {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    }
 
     if (!InspectorUtils::RowLabelDragging())
+    {
         return false;
+    }
 
     if (!ScrubbingThis(comp, prop))
     {
@@ -231,8 +247,14 @@ bool LabelScrub(const Deki::Component* comp, const Deki::PropertyInfo& prop,
     g_ScrubValue += static_cast<double>(InspectorUtils::RowLabelDragX()) * speed;
     if (prop.hasRange)
     {
-        if (g_ScrubValue < prop.minValue) g_ScrubValue = prop.minValue;
-        if (g_ScrubValue > prop.maxValue) g_ScrubValue = prop.maxValue;
+        if (g_ScrubValue < prop.minValue)
+        {
+            g_ScrubValue = prop.minValue;
+        }
+        if (g_ScrubValue > prop.maxValue)
+        {
+            g_ScrubValue = prop.maxValue;
+        }
     }
     *outValue = g_ScrubValue;
     return true;
@@ -240,29 +262,31 @@ bool LabelScrub(const Deki::Component* comp, const Deki::PropertyInfo& prop,
 
 // The drag ended: restore the pre-drag value and let one command re-apply the
 // result, so the whole gesture is a single undo step. Returns true if it did.
-bool EndLabelScrub(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                   const nlohmann::json& newValue,
+bool EndLabelScrub(Deki::Component* comp, const Deki::PropertyInfo& prop, const nlohmann::json& newValue,
                    const std::function<void(double)>& writeBack)
 {
     if (!ScrubbingThis(comp, prop) || InspectorUtils::RowLabelDragging())
+    {
         return false;
+    }
 
     g_ScrubActive = false;
     if (g_ScrubStart == g_ScrubValue)
+    {
         return false;
+    }
 
     writeBack(g_ScrubStart);
-    CommandHistory::Instance().ExecuteNoMerge(
-        std::make_unique<ModifyComponentPropertyCommand>(comp, prop, newValue));
+    CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyComponentPropertyCommand>(comp, prop, newValue));
     NotifyChanged(comp, prop.name);
     return true;
 }
 
 }  // namespace
 
-
 PropertyEditorFactory::PropertyEditorFactory(EditorApp* app, AssetPropertyEditor* assetEditor)
-    : m_App(app), m_AssetEditor(assetEditor)
+    : m_App(app),
+      m_AssetEditor(assetEditor)
 {
 }
 
@@ -326,41 +350,23 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
 
     switch (prop.type)
     {
-        case Deki::PropertyType::Int32:
-            DrawInt32Property(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Int32: DrawInt32Property(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::UInt32:
-            DrawUInt32Property(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::UInt32: DrawUInt32Property(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::UInt8:
-            DrawUInt8Property(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::UInt8: DrawUInt8Property(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Float:
-            DrawFloatProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Float: DrawFloatProperty(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Bool:
-            DrawBoolProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Bool: DrawBoolProperty(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::String:
-            DrawStringProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::String: DrawStringProperty(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Color:
-            DrawColorProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Color: DrawColorProperty(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Vector2:
-            DrawVector2Property(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Vector2: DrawVector2Property(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Vector3:
-            DrawVector3Property(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Vector3: DrawVector3Property(comp, prop, displayName.c_str()); break;
 
         case Deki::PropertyType::Asset:
             m_AssetEditor->DrawAssetProperty(comp, prop, displayName.c_str());
@@ -372,21 +378,13 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
             ShowTooltip(prop);
             break;
 
-        case Deki::PropertyType::Enum:
-            DrawEnumProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Enum: DrawEnumProperty(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::ObjectRef:
-            DrawObjectRefProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::ObjectRef: DrawObjectRefProperty(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Array:
-            DrawArrayProperty(comp, prop, displayName.c_str());
-            break;
+        case Deki::PropertyType::Array: DrawArrayProperty(comp, prop, displayName.c_str()); break;
 
-        default:
-            ImGui::TextDisabled("%s: (unsupported type)", displayName.c_str());
-            break;
+        default: ImGui::TextDisabled("%s: (unsupported type)", displayName.c_str()); break;
     }
 
     // Drop the one-shots if this field never drew a labeled row.
@@ -398,7 +396,9 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
     // known). Reset writes the default through the same command every edit
     // uses, so it undoes like one.
     if (InspectorUtils::TakeRowMenuClick())
+    {
         ImGui::OpenPopup("##rowmenu");
+    }
     PushContextMenuPopupStyle();
     if (ImGui::BeginPopup("##rowmenu"))
     {
@@ -437,11 +437,14 @@ void PropertyEditorFactory::DrawInt32Property(Deki::Component* comp, const Deki:
     int32_t& value = ::Deki::GetPropertyRef<int32_t>(comp, prop);
     const EditorUI::IntCallbacks cb = NotifyInt(comp, prop.name);
     if (prop.hasRange)
-        EditorUI::Get().IntField(displayName, &value, 1.0f,
-                                 static_cast<int64_t>(prop.minValue),
+    {
+        EditorUI::Get().IntField(displayName, &value, 1.0f, static_cast<int64_t>(prop.minValue),
                                  static_cast<int64_t>(prop.maxValue), cb);
+    }
     else
+    {
         EditorUI::Get().IntField(displayName, &value, 1.0f, 0, 0, cb);
+    }
 
     // Same label scrub as the float rows, a quarter unit per pixel.
     {
@@ -451,9 +454,7 @@ void PropertyEditorFactory::DrawInt32Property(Deki::Component* comp, const Deki:
             value = static_cast<int32_t>(scrubbed);
             NotifyChanged(comp, prop.name);
         }
-        EndLabelScrub(comp, prop, nlohmann::json(value),
-                      [&value](double v)
-                      { value = static_cast<int32_t>(v); });
+        EndLabelScrub(comp, prop, nlohmann::json(value), [&value](double v) { value = static_cast<int32_t>(v); });
     }
     ShowTooltip(prop);
 }
@@ -464,11 +465,14 @@ void PropertyEditorFactory::DrawUInt32Property(Deki::Component* comp, const Deki
     uint32_t& value = ::Deki::GetPropertyRef<uint32_t>(comp, prop);
     const EditorUI::IntCallbacks cb = NotifyInt(comp, prop.name);
     if (prop.hasRange)
-        EditorUI::Get().IntField(displayName, &value, 1.0f,
-                                 static_cast<int64_t>(prop.minValue),
+    {
+        EditorUI::Get().IntField(displayName, &value, 1.0f, static_cast<int64_t>(prop.minValue),
                                  static_cast<int64_t>(prop.maxValue), cb);
+    }
     else
+    {
         EditorUI::Get().IntField(displayName, &value, 1.0f, 0, INT_MAX, cb);
+    }
     ShowTooltip(prop);
 }
 
@@ -478,11 +482,14 @@ void PropertyEditorFactory::DrawUInt8Property(Deki::Component* comp, const Deki:
     uint8_t& value = ::Deki::GetPropertyRef<uint8_t>(comp, prop);
     const EditorUI::IntCallbacks cb = NotifyInt(comp, prop.name);
     if (prop.hasRange)
-        EditorUI::Get().IntField(displayName, &value, 1.0f,
-                                 static_cast<int64_t>(prop.minValue),
+    {
+        EditorUI::Get().IntField(displayName, &value, 1.0f, static_cast<int64_t>(prop.minValue),
                                  static_cast<int64_t>(prop.maxValue), cb);
+    }
     else
+    {
         EditorUI::Get().IntField(displayName, &value, 1.0f, 0, 255, cb);
+    }
     ShowTooltip(prop);
 }
 
@@ -504,13 +511,11 @@ void PropertyEditorFactory::DrawFloatProperty(Deki::Component* comp, const Deki:
         // leaves useSlider false, so the two macros have to be told apart here -
         // checking hasRange alone made DEKI_SLIDER a no-op that rendered an
         // ordinary drag field.
-        EditorUI::Get().SliderField(displayName, &value,
-                                    prop.minValue, prop.maxValue, "%.3f", cb);
+        EditorUI::Get().SliderField(displayName, &value, prop.minValue, prop.maxValue, "%.3f", cb);
     }
     else if (prop.hasRange)
     {
-        EditorUI::Get().FloatField(displayName, &value, 0.1f,
-                                   prop.minValue, prop.maxValue, "%.3f", cb);
+        EditorUI::Get().FloatField(displayName, &value, 0.1f, prop.minValue, prop.maxValue, "%.3f", cb);
     }
     else
     {
@@ -529,9 +534,7 @@ void PropertyEditorFactory::DrawFloatProperty(Deki::Component* comp, const Deki:
             value = static_cast<float>(scrubbed);
             NotifyChanged(comp, prop.name);
         }
-        EndLabelScrub(comp, prop, nlohmann::json(value),
-                      [&value](double v)
-                      { value = static_cast<float>(v); });
+        EndLabelScrub(comp, prop, nlohmann::json(value), [&value](double v) { value = static_cast<float>(v); });
     }
     ShowTooltip(prop);
 }
@@ -569,8 +572,7 @@ void PropertyEditorFactory::DrawStringProperty(Deki::Component* comp, const Deki
     {
         ImGui::Text("%s", displayName);
         ShowTooltip(prop);
-        if (ImGui::InputTextMultiline("##text_multiline", buf, sizeof(buf),
-                                      ImVec2(-1, ImGui::GetTextLineHeight() * 4),
+        if (ImGui::InputTextMultiline("##text_multiline", buf, sizeof(buf), ImVec2(-1, ImGui::GetTextLineHeight() * 4),
                                       ImGuiInputTextFlags_AllowTabInput))
         {
             value = buf;
@@ -626,12 +628,7 @@ void PropertyEditorFactory::DrawColorProperty(Deki::Component* comp, const Deki:
     Deki::Color capturedColor = colorRef;  // Capture BEFORE widget modifies it
 
     // Convert to float array for ImGui
-    float color[4] = {
-        colorRef.r / 255.0f,
-        colorRef.g / 255.0f,
-        colorRef.b / 255.0f,
-        colorRef.a / 255.0f
-    };
+    float color[4] = { colorRef.r / 255.0f, colorRef.g / 255.0f, colorRef.b / 255.0f, colorRef.a / 255.0f };
 
     BeginPropertyRow(displayName);
     if (EditorUI::Get().ColorEdit4("##value", color))
@@ -652,16 +649,15 @@ void PropertyEditorFactory::DrawColorProperty(Deki::Component* comp, const Deki:
     // Create undo command when editing finishes
     if (ImGui::IsItemDeactivatedAfterEdit())
     {
-        bool changed = (colorRef.r != s_OldColor.r || colorRef.g != s_OldColor.g ||
-                        colorRef.b != s_OldColor.b || colorRef.a != s_OldColor.a);
+        bool changed = (colorRef.r != s_OldColor.r || colorRef.g != s_OldColor.g || colorRef.b != s_OldColor.b ||
+                        colorRef.a != s_OldColor.a);
         if (changed)
         {
             Deki::Color newColor = colorRef;
             colorRef = s_OldColor;
             // Store color as array [r, g, b, a] in JSON
             nlohmann::json colorJson = nlohmann::json::array({ newColor.r, newColor.g, newColor.b, newColor.a });
-            CommandHistory::Instance().Execute(
-                std::make_unique<ModifyComponentPropertyCommand>(comp, prop, colorJson));
+            CommandHistory::Instance().Execute(std::make_unique<ModifyComponentPropertyCommand>(comp, prop, colorJson));
         }
     }
 
@@ -676,9 +672,13 @@ void PropertyEditorFactory::DrawVector2Property(Deki::Component* comp, const Dek
     const EditorUI::Unit unit = static_cast<EditorUI::Unit>(static_cast<int>(prop.physicalUnit));
     // Deki::Vector2 is two contiguous floats, so &stored.x is a valid float[2].
     if (unit != EditorUI::Unit::None)
+    {
         EditorUI::Get().Vector2Field(displayName, &stored.x, unit, cb);
+    }
     else
+    {
         EditorUI::Get().Vector2Field(displayName, &stored.x, 0.1f, 0.0f, 0.0f, "%.3f", cb);
+    }
     ShowTooltip(prop);
 }
 
@@ -703,16 +703,10 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
     int currentIndex = 0;
     switch (enumSize)
     {
-        case 1:
-            currentIndex = static_cast<int>(*reinterpret_cast<uint8_t*>(valuePtr));
-            break;
-        case 2:
-            currentIndex = static_cast<int>(*reinterpret_cast<uint16_t*>(valuePtr));
-            break;
+        case 1: currentIndex = static_cast<int>(*reinterpret_cast<uint8_t*>(valuePtr)); break;
+        case 2: currentIndex = static_cast<int>(*reinterpret_cast<uint16_t*>(valuePtr)); break;
         case 4:
-        default:
-            currentIndex = *reinterpret_cast<int32_t*>(valuePtr);
-            break;
+        default: currentIndex = *reinterpret_cast<int32_t*>(valuePtr); break;
     }
 
     int oldIndex = currentIndex;
@@ -726,7 +720,10 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
         // straight in as an index and clamp it into range, which silently
         // rewrote the field on any enum that was not numbered 0, 1, 2, ...
         int comboRow = Deki::EnumIndexForValue(prop, currentIndex);
-        if (comboRow < 0) comboRow = 0;  // a value the enum no longer declares
+        if (comboRow < 0)
+        {
+            comboRow = 0;  // a value the enum no longer declares
+        }
         oldIndex = currentIndex;
 
         BeginPropertyRow(displayName);
@@ -734,7 +731,9 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
         {
             int32_t chosen = comboRow;
             if (prop.enumInts && comboRow >= 0 && comboRow < prop.enumCount)
+            {
                 chosen = prop.enumInts[comboRow];
+            }
             // Combo is immediate; the command reads the component's old value.
             CommandHistory::Instance().ExecuteNoMerge(
                 std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nlohmann::json(chosen)));
@@ -750,16 +749,10 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
             // Write back using correct size for live preview
             switch (enumSize)
             {
-                case 1:
-                    *reinterpret_cast<uint8_t*>(valuePtr) = static_cast<uint8_t>(currentIndex);
-                    break;
-                case 2:
-                    *reinterpret_cast<uint16_t*>(valuePtr) = static_cast<uint16_t>(currentIndex);
-                    break;
+                case 1: *reinterpret_cast<uint8_t*>(valuePtr) = static_cast<uint8_t>(currentIndex); break;
+                case 2: *reinterpret_cast<uint16_t*>(valuePtr) = static_cast<uint16_t>(currentIndex); break;
                 case 4:
-                default:
-                    *reinterpret_cast<int32_t*>(valuePtr) = currentIndex;
-                    break;
+                default: *reinterpret_cast<int32_t*>(valuePtr) = currentIndex; break;
             }
         }
 
@@ -776,16 +769,10 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
             // Restore old value so command captures it
             switch (enumSize)
             {
-                case 1:
-                    *reinterpret_cast<uint8_t*>(valuePtr) = static_cast<uint8_t>(s_OldEnumValue);
-                    break;
-                case 2:
-                    *reinterpret_cast<uint16_t*>(valuePtr) = static_cast<uint16_t>(s_OldEnumValue);
-                    break;
+                case 1: *reinterpret_cast<uint8_t*>(valuePtr) = static_cast<uint8_t>(s_OldEnumValue); break;
+                case 2: *reinterpret_cast<uint16_t*>(valuePtr) = static_cast<uint16_t>(s_OldEnumValue); break;
                 case 4:
-                default:
-                    *reinterpret_cast<int32_t*>(valuePtr) = s_OldEnumValue;
-                    break;
+                default: *reinterpret_cast<int32_t*>(valuePtr) = s_OldEnumValue; break;
             }
             CommandHistory::Instance().Execute(
                 std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nlohmann::json(currentIndex)));
@@ -816,13 +803,20 @@ static std::string GetHierarchyPath(Deki::Object* obj)
 // Case-insensitive substring match
 static bool MatchesSearch(const std::string& text, const char* search)
 {
-    if (!search || search[0] == '\0') return true;
+    if (!search || search[0] == '\0')
+    {
+        return true;
+    }
     std::string lowerText = text;
     std::string lowerSearch = search;
     for (auto& c : lowerText)
+    {
         c = static_cast<char>(tolower(c));
+    }
     for (auto& c : lowerSearch)
+    {
         c = static_cast<char>(tolower(c));
+    }
     return lowerText.find(lowerSearch) != std::string::npos;
 }
 
@@ -876,8 +870,7 @@ void PropertyEditorFactory::ResetTransientState()
 void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                                   const char* displayName)
 {
-    Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(
-        reinterpret_cast<char*>(comp) + prop.offset);
+    Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + prop.offset);
 
     // Get display name of referenced object
     std::string refDisplayText = "(None)";
@@ -898,13 +891,17 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
                 auto& reg = Deki::ComponentRegistry::Instance();
                 const auto* meta = reg.GetMeta(ref.componentTypeId);
                 if (meta && meta->name)
+                {
                     refDisplayText += " - " + std::string(meta->name);
+                }
             }
             else if (prop.componentRefType)
             {
                 std::string compName = InspectorUtils::GetMatchingComponentName(targetObj, prop.componentRefType);
                 if (!compName.empty())
+                {
                     refDisplayText += " - " + compName;
+                }
             }
         }
         else
@@ -944,13 +941,19 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
 
     std::string nameBtnId = refDisplayText + "##objrefname_" + prop.name;
     if (ImGui::Button(nameBtnId.c_str(), ImVec2(nameFieldWidth, 0)))
+    {
         openPicker();
+    }
     if (refBroken && ImGui::IsItemHovered())
+    {
         DekiEditor::Tooltip("The object this points at is not in the scene any more.\n"
                             "Pick a new one, or clear it from the row menu (right-click the label).");
+    }
 
     if (refBroken)
+    {
         ImGui::PopStyleColor(2);
+    }
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
 
@@ -1004,14 +1007,18 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
     std::string pickerBtnId = std::string(ICON_TI_CHEVRON_DOWN "##objrefpicker_") + prop.name;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
     if (ImGui::Button(pickerBtnId.c_str(), ImVec2(pickerBtnWidth, 0)))
+    {
         openPicker();
+    }
     ImGui::PopStyleVar();
 }
 
 void PropertyEditorFactory::DrawObjectRefPicker()
 {
     if (!m_ObjectRefPickerProp || !m_ObjectRefPickerComp)
+    {
         return;
+    }
 
     const Deki::PropertyInfo& prop = *m_ObjectRefPickerProp;
     Deki::Component* comp = m_ObjectRefPickerComp;
@@ -1041,8 +1048,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
     }
     else
     {
-        Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(
-            reinterpret_cast<char*>(comp) + prop.offset);
+        Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + prop.offset);
         currentObjId = ref.id;
         currentTypeId = ref.componentTypeId;
     }
@@ -1077,8 +1083,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
 
     // Schematic search band (dim magnifier + borderless input) with a
     // full-width hairline beneath it, like the Add Component picker.
-    SearchField("##objref_search", m_ObjectRefSearchBuf, sizeof(m_ObjectRefSearchBuf),
-                0.0f, /*bottomBorder*/ true);
+    SearchField("##objref_search", m_ObjectRefSearchBuf, sizeof(m_ObjectRefSearchBuf), 0.0f, /*bottomBorder*/ true);
 
     // Row metrics. Rows are custom-drawn (name + dim component type on one
     // line, dim hierarchy path underneath) and every text draw is clipped to
@@ -1096,21 +1101,25 @@ void PropertyEditorFactory::DrawObjectRefPicker()
     // One picker row: primary-colored name, dim `suffix` (component type)
     // continuing on the same line, dim smaller `path` below. Returns true
     // when the row is clicked. Callers wrap in PushID for unique row ids.
-    auto drawRow = [&](const char* name, const std::string& suffix,
-                       const std::string& path, bool isSelected) -> bool
+    auto drawRow = [&](const char* name, const std::string& suffix, const std::string& path, bool isSelected) -> bool
     {
         const bool twoLines = !path.empty();
         const float rowH = padY * 2.0f + lineH + (twoLines ? lineGap + pathSize : 0.0f);
 
         if (isSelected)
+        {
             ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+        }
         // Size.x = 0 spans the remaining row width
-        const bool clicked = ImGui::Selectable("##item", isSelected,
-                                               ImGuiSelectableFlags_None, ImVec2(0, rowH));
+        const bool clicked = ImGui::Selectable("##item", isSelected, ImGuiSelectableFlags_None, ImVec2(0, rowH));
         if (isSelected)
+        {
             ImGui::PopStyleColor();
+        }
         if (isSelected && m_ObjectRefPickerNeedsScroll)
+        {
             ImGui::SetScrollHereY();
+        }
 
         const ImVec2 itemMin = ImGui::GetItemRectMin();
         const ImVec2 itemMax = ImGui::GetItemRectMax();
@@ -1127,8 +1136,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         }
         if (twoLines)
         {
-            dl->AddText(pathFont, pathSize,
-                        ImVec2(textX, line1Y + lineH + lineGap), dimCol, path.c_str());
+            dl->AddText(pathFont, pathSize, ImVec2(textX, line1Y + lineH + lineGap), dimCol, path.c_str());
         }
         dl->PopClipRect();
         return clicked;
@@ -1137,8 +1145,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
     // Compact list: snug for short content, scrolls once it reaches the cap.
     ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, m_App->Dpi(340.0f)));
     ImGui::BeginChild("##objref_list", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, m_App->Dpi(2.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, m_App->Dpi(2.0f)));
 
     auto selectNone = [&]()
     {
@@ -1165,9 +1172,13 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         if (drawRow("(None)", std::string(), std::string(), noneSelected))
         {
             if (currentObjId != 0)
+            {
                 selectNone();
+            }
             else
+            {
                 ImGui::CloseCurrentPopup();
+            }
         }
         ImGui::PopID();
     }
@@ -1189,7 +1200,9 @@ void PropertyEditorFactory::DrawObjectRefPicker()
                 for (auto* c : sceneObj->GetComponents())
                 {
                     if (!ComponentIsOrDerivesFrom(c, prop.componentRefType))
+                    {
                         continue;
+                    }
 
                     const auto* meta = registry.GetMeta(c->GetType());
                     std::string compName = (meta && meta->name) ? meta->name : "Unknown";

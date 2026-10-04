@@ -27,13 +27,19 @@ inline std::string MissingRequiredArguments(const McpToolDescriptor& tool, const
     std::string missing;
     const auto required = tool.inputSchema.find("required");
     if (required == tool.inputSchema.end() || !required->is_array())
+    {
         return missing;
+    }
     for (const auto& name : *required)
     {
         if (!name.is_string())
+        {
             continue;
+        }
         if (!args.is_object() || !args.contains(name.get<std::string>()))
+        {
             missing += (missing.empty() ? "" : ", ") + name.get<std::string>();
+        }
     }
     return missing;
 }
@@ -41,25 +47,23 @@ inline std::string MissingRequiredArguments(const McpToolDescriptor& tool, const
 class McpToolRegistry
 {
 public:
-    void Register(McpToolDescriptor tool)
-    {
-        m_Tools.push_back(std::move(tool));
-    }
+    void Register(McpToolDescriptor tool) { m_Tools.push_back(std::move(tool)); }
 
     /// Tools that are not known when the registry is built: the ones packages
     /// add (CliTool), which come and go as packages load and unload. Asked
     /// afresh on every listing and lookup.
-    void SetDynamicSource(std::function<std::vector<McpToolDescriptor>()> source)
-    {
-        m_Dynamic = std::move(source);
-    }
+    void SetDynamicSource(std::function<std::vector<McpToolDescriptor>()> source) { m_Dynamic = std::move(source); }
 
     std::vector<McpToolDescriptor> GetTools() const
     {
         std::vector<McpToolDescriptor> tools = m_Tools;
         if (m_Dynamic)
+        {
             for (auto& tool : m_Dynamic())
+            {
                 tools.push_back(std::move(tool));
+            }
+        }
         return tools;
     }
 
@@ -69,12 +73,20 @@ public:
         for (const auto& tool : m_Tools)
         {
             if (tool.name == name)
+            {
                 return tool;
+            }
         }
         if (m_Dynamic)
+        {
             for (auto& tool : m_Dynamic())
+            {
                 if (tool.name == name)
+                {
                     return tool;
+                }
+            }
+        }
         return std::nullopt;
     }
 

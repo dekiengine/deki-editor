@@ -8,15 +8,9 @@ using namespace DekiEditor;
 class ModifyFieldCommandTest : public ::testing::Test
 {
 protected:
-    void SetUp() override
-    {
-        CommandHistory::Instance().Clear();
-    }
+    void SetUp() override { CommandHistory::Instance().Clear(); }
 
-    void TearDown() override
-    {
-        CommandHistory::Instance().Clear();
-    }
+    void TearDown() override { CommandHistory::Instance().Clear(); }
 };
 
 // ============================================================================
@@ -197,8 +191,7 @@ TEST_F(ModifyFieldCommandTest, History_ExecuteUndo_Works)
 {
     float value = 1.0f;
 
-    CommandHistory::Instance().Execute(
-        std::make_unique<ModifyFieldCommand<float>>(&value, 5.0f, "Float"));
+    CommandHistory::Instance().Execute(std::make_unique<ModifyFieldCommand<float>>(&value, 5.0f, "Float"));
 
     EXPECT_FLOAT_EQ(value, 5.0f);
 

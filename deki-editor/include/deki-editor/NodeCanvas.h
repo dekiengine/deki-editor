@@ -112,10 +112,8 @@ public:
      * are written to `out` (reset at entry). Node positions are NOT mutated:
      * apply nodeMoving to your model each frame for live dragging.
      */
-    void Draw(const char* id, float width, float height,
-              const NodeCanvasNode* nodes, int nodeCount,
-              const NodeCanvasLink* links, int linkCount,
-              NodeCanvasEvents& out);
+    void Draw(const char* id, float width, float height, const NodeCanvasNode* nodes, int nodeCount,
+              const NodeCanvasLink* links, int linkCount, NodeCanvasEvents& out);
 
     /** @brief Frame all content on the next Draw (call after opening a graph). */
     void FocusContent() { m_FocusRequested = true; }
@@ -141,27 +139,19 @@ private:
         bool isOutput = false;
     };
 
-    static void PinGraphPos(const NodeCanvasNode& n, int pin, bool output,
-                            float* gx, float* gy);
+    static void PinGraphPos(const NodeCanvasNode& n, int pin, bool output, float* gx, float* gy);
     // graph-space -> screen-space (s = zoom * dpi)
-    void ToScreen(float originX, float originY, float s, float gx, float gy,
-                  float* sx, float* sy) const;
+    void ToScreen(float originX, float originY, float s, float gx, float gy, float* sx, float* sy) const;
 
-    PinRef HitTestPin(float originX, float originY, float s,
-                      const NodeCanvasNode* nodes, int nodeCount,
-                      float mx, float my) const;
-    int HitTestNode(float originX, float originY, float s,
-                    const NodeCanvasNode* nodes, int nodeCount,
-                    float mx, float my) const;
-    int HitTestLink(float originX, float originY, float s,
-                    const NodeCanvasNode* nodes, int nodeCount,
-                    const NodeCanvasLink* links, int linkCount,
-                    float mx, float my) const;
+    PinRef HitTestPin(float originX, float originY, float s, const NodeCanvasNode* nodes, int nodeCount, float mx,
+                      float my) const;
+    int HitTestNode(float originX, float originY, float s, const NodeCanvasNode* nodes, int nodeCount, float mx,
+                    float my) const;
+    int HitTestLink(float originX, float originY, float s, const NodeCanvasNode* nodes, int nodeCount,
+                    const NodeCanvasLink* links, int linkCount, float mx, float my) const;
 
-    void DrawLinkCurve(float p0x, float p0y, float p3x, float p3y,
-                       uint32_t color, float thickness) const;
-    const NodeCanvasNode* FindNode(const NodeCanvasNode* nodes, int nodeCount,
-                                   uint32_t id) const;
+    void DrawLinkCurve(float p0x, float p0y, float p3x, float p3y, uint32_t color, float thickness) const;
+    const NodeCanvasNode* FindNode(const NodeCanvasNode* nodes, int nodeCount, uint32_t id) const;
 
     // Viewport transform: screen = origin + pan + graph * zoom * dpi.
     float m_Zoom = 1.0f;

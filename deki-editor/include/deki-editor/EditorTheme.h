@@ -176,12 +176,9 @@ struct PickerItem
 // same list serves Add Component in the Inspector and Add Action in a node
 // graph stack. Returns the index of the item chosen this frame, or -1.
 // `justOpened` resets the query and level and takes keyboard focus.
-DEKI_EDITOR_API int SchematicPicker(const char* id, const char* title,
-                                   const PickerItem* items, int itemCount,
-                                   bool justOpened, float listHeight,
-                                   const char* itemIcon = nullptr,
-                                   const char* searchHint = nullptr,
-                                   const char* emptyText = nullptr);
+DEKI_EDITOR_API int SchematicPicker(const char* id, const char* title, const PickerItem* items, int itemCount,
+                                    bool justOpened, float listHeight, const char* itemIcon = nullptr,
+                                    const char* searchHint = nullptr, const char* emptyText = nullptr);
 
 // Open the shared property-list context: the body indent, the row gap and the
 // field padding every list of properties in the editor is laid out with.
@@ -202,7 +199,7 @@ DEKI_EDITOR_API void EndPropertyContext();
 // With ImGuiTreeNodeFlags_Leaf (and DefaultOpen) it is the same band without
 // the chevron and without folding: a column title in a tool window.
 DEKI_EDITOR_API bool SchematicCollapsingHeader(const char* label,
-                                              ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen);
+                                               ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen);
 
 // The same band as SchematicCollapsingHeader, with the body SLIDING open and
 // shut instead of appearing and vanishing.
@@ -222,9 +219,8 @@ DEKI_EDITOR_API bool SchematicCollapsingHeader(const char* label,
 // that return false. A caller that wants to force a section open (the property
 // filter does, so a match is never hidden under a collapsed header) needs it to
 // read and later restore the state ImGui keeps for that id.
-DEKI_EDITOR_API bool SchematicSectionBegin(const char* label,
-                                          ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen,
-                                          ImGuiID* outHeaderId = nullptr);
+DEKI_EDITOR_API bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen,
+                                           ImGuiID* outHeaderId = nullptr);
 DEKI_EDITOR_API void SchematicSectionEnd();
 
 // The children of a tree node, sliding open and shut the same way a section
@@ -265,9 +261,8 @@ DEKI_EDITOR_API bool SchematicSectionBand(const char* label, float* outLabelX = 
 // rect, so the text lands exactly where the title was and the header does not
 // change appearance when a rename starts. Returns true when the text changed
 // this frame; the caller keeps using the usual IsItem* queries after it.
-DEKI_EDITOR_API bool SchematicBandTitleField(const char* id, char* buf, int bufSize,
-                                            float x, float bandTop, float bandBottom,
-                                            float width, const char* hint);
+DEKI_EDITOR_API bool SchematicBandTitleField(const char* id, char* buf, int bufSize, float x, float bandTop,
+                                             float bandBottom, float width, const char* hint);
 
 // One rung below both of those: a DEKI_GROUP-style subdivision INSIDE a
 // section. Same uppercase letter-spaced treatment, smaller and dimmer, with a
@@ -327,11 +322,9 @@ DEKI_EDITOR_API bool PanelToolbar(bool* pinned = nullptr);
 // pressing Escape in the field empties the buffer. A borderless search box gives
 // no other way back to "no filter" than selecting the text and deleting it, and
 // a filter you cannot see the end of looks like a panel with things missing.
-DEKI_EDITOR_API void SearchField(const char* id, char* buf, size_t bufSize,
-                                float rightReserve = 0.0f, bool bottomBorder = false,
-                                float* outSlotX = nullptr, float* outSlotY = nullptr,
-                                float* outSlotW = nullptr, float* outSlotH = nullptr,
-                                const char* hint = "Search");
+DEKI_EDITOR_API void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve = 0.0f,
+                                 bool bottomBorder = false, float* outSlotX = nullptr, float* outSlotY = nullptr,
+                                 float* outSlotW = nullptr, float* outSlotH = nullptr, const char* hint = "Search");
 
 // Flat, toolbar-styled dropdown matching the panel toolbar's cells: a transparent
 // box with a subtle white hover background, no border, squared, `height` px tall
@@ -340,7 +333,7 @@ DEKI_EDITOR_API void SearchField(const char* id, char* buf, size_t bufSize,
 // divider) to set it off from a neighbour. Returns true the frame the selection
 // changes (writes *currentIndex).
 DEKI_EDITOR_API bool SchematicToolbarCombo(const char* id, int* currentIndex, const char* items, float height,
-                                          bool leftDivider = false);
+                                           bool leftDivider = false);
 
 // The same toolbar dropdown with rows of your own (sections, separators, items
 // that do more than pick an index): Begin draws the box and returns true while
@@ -348,7 +341,7 @@ DEKI_EDITOR_API bool SchematicToolbarCombo(const char* id, int* currentIndex, co
 // SchematicEndToolbarCombo() - only when Begin returned true. Size the box with
 // SetNextItemWidth; SchematicToolbarComboWidth(preview) fits it to its text.
 DEKI_EDITOR_API bool SchematicBeginToolbarCombo(const char* id, const char* preview, float height,
-                                               bool leftDivider = false);
+                                                bool leftDivider = false);
 DEKI_EDITOR_API void SchematicEndToolbarCombo();
 DEKI_EDITOR_API float SchematicToolbarComboWidth(const char* preview);
 
@@ -362,34 +355,24 @@ DEKI_EDITOR_API bool SchematicActionLink(const char* label);
 // widget with an empty format so it draws no value text, then overlays the
 // formatted value left-aligned via the window draw list. Edit mode (Ctrl+
 // click to type) falls through to ImGui's normal text input.
-DEKI_EDITOR_API bool SchematicDragFloat(const char* id, float* v,
-                                       float v_speed = 1.0f,
-                                       float v_min = 0.0f, float v_max = 0.0f,
-                                       const char* format = "%.3f");
-DEKI_EDITOR_API bool SchematicDragInt(const char* id, int* v,
-                                     float v_speed = 1.0f,
-                                     int v_min = 0, int v_max = 0,
-                                     const char* format = "%d");
+DEKI_EDITOR_API bool SchematicDragFloat(const char* id, float* v, float v_speed = 1.0f, float v_min = 0.0f,
+                                        float v_max = 0.0f, const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragInt(const char* id, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0,
+                                      const char* format = "%d");
 
 // Multi-component drag widgets. Components share the remaining row width and
 // are wrapped in a BeginGroup/EndGroup so callers can still use
 // ImGui::IsItemActivated / IsItemDeactivatedAfterEdit on the group as a whole
 // (for command-history capture). Returns true if any component changed.
-DEKI_EDITOR_API bool SchematicDragFloat2(const char* id, float v[2],
-                                        float v_speed = 1.0f,
-                                        float v_min = 0.0f, float v_max = 0.0f,
-                                        const char* format = "%.3f");
-DEKI_EDITOR_API bool SchematicDragFloat3(const char* id, float v[3],
-                                        float v_speed = 1.0f,
-                                        float v_min = 0.0f, float v_max = 0.0f,
-                                        const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragFloat2(const char* id, float v[2], float v_speed = 1.0f, float v_min = 0.0f,
+                                         float v_max = 0.0f, const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragFloat3(const char* id, float v[3], float v_speed = 1.0f, float v_min = 0.0f,
+                                         float v_max = 0.0f, const char* format = "%.3f");
 // One box of those, with its axis stamp (0 = X, 1 = Y, 2 = Z), as an item of
 // its own: for a caller that needs each box's activation, or a different
 // format per box (a dash for values that differ across a selection).
-DEKI_EDITOR_API bool SchematicDragFloatAxis(const char* id, float* v, int axis,
-                                           float v_speed = 1.0f,
-                                           float v_min = 0.0f, float v_max = 0.0f,
-                                           const char* format = "%.3f");
+DEKI_EDITOR_API bool SchematicDragFloatAxis(const char* id, float* v, int axis, float v_speed = 1.0f,
+                                            float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f");
 
 // Schematic color editors. Same semantics as ImGui::ColorEdit4 / ColorEdit3
 // (rgba / rgb in 0-1 floats). Render one cell per channel (each a vertical

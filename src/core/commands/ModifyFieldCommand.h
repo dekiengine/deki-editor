@@ -18,31 +18,42 @@ class ModifyFieldCommand : public Command
 public:
     ModifyFieldCommand(T* target, const T& newValue, const std::string& propertyName,
                        std::function<void()> onChange = nullptr)
-        : m_Target(target), m_OldValue(*target), m_NewValue(newValue), m_PropertyName(propertyName), m_OnChange(onChange), m_Executed(false)
+        : m_Target(target),
+          m_OldValue(*target),
+          m_NewValue(newValue),
+          m_PropertyName(propertyName),
+          m_OnChange(onChange),
+          m_Executed(false)
     {
     }
 
-    std::string GetDescription() const override
-    {
-        return "Change " + m_PropertyName;
-    }
+    std::string GetDescription() const override { return "Change " + m_PropertyName; }
 
     void Execute() override
     {
         *m_Target = m_NewValue;
         m_Executed = true;
-        if (m_OnChange) m_OnChange();
+        if (m_OnChange)
+        {
+            m_OnChange();
+        }
     }
 
     void Undo() override
     {
         *m_Target = m_OldValue;
-        if (m_OnChange) m_OnChange();
+        if (m_OnChange)
+        {
+            m_OnChange();
+        }
     }
 
     bool CanMerge(const Command* other) const override
     {
-        if (!m_Executed) return false;
+        if (!m_Executed)
+        {
+            return false;
+        }
         auto* cmd = dynamic_cast<const ModifyFieldCommand<T>*>(other);
         return cmd && cmd->m_Target == m_Target;
     }
@@ -80,10 +91,14 @@ template <typename T>
 class ModifyFieldPairCommand : public Command
 {
 public:
-    ModifyFieldPairCommand(T* target1, T* target2,
-                           T newValue1, T newValue2,
-                           const std::string& description)
-        : m_Target1(target1), m_Target2(target2), m_OldValue1(*target1), m_OldValue2(*target2), m_NewValue1(newValue1), m_NewValue2(newValue2), m_Description(description)
+    ModifyFieldPairCommand(T* target1, T* target2, T newValue1, T newValue2, const std::string& description)
+        : m_Target1(target1),
+          m_Target2(target2),
+          m_OldValue1(*target1),
+          m_OldValue2(*target2),
+          m_NewValue1(newValue1),
+          m_NewValue2(newValue2),
+          m_Description(description)
     {
     }
 

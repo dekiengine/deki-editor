@@ -7,7 +7,10 @@
 
 #include "SceneStats.h"  // SceneOutlineNode, CountSceneObjects, BuildSceneOutline
 
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Scene;
+}
 
 namespace DekiEditor
 {
@@ -85,8 +88,7 @@ public:
     ///        caller reports it (the crash dialog shows it) - this class stays
     ///        free of the crash handler, which lives in the editor executable
     ///        and drags in SDL and ImGui.
-    bool WriteSnapshot(Deki::Scene* scene, const std::string& scenePath,
-                       const std::string& projectPath,
+    bool WriteSnapshot(Deki::Scene* scene, const std::string& scenePath, const std::string& projectPath,
                        std::string* outWrittenPath = nullptr);
 
     /// Advance the autosave clock. Returns true exactly on the ticks where a

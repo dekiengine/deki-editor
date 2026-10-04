@@ -24,21 +24,32 @@ namespace DekiEditor
 // Case-insensitive string search
 static bool ContainsIgnoreCase(const std::string& str, const std::string& search)
 {
-    if (search.empty()) return true;
+    if (search.empty())
+    {
+        return true;
+    }
     auto it = std::search(str.begin(), str.end(), search.begin(), search.end(),
-                          [](char a, char b)
-                          { return std::tolower(a) == std::tolower(b); });
+                          [](char a, char b) { return std::tolower(a) == std::tolower(b); });
     return it != str.end();
 }
 
 // Check if event or any children match the search filter
 static bool EventMatchesFilter(const ProfileEvent* event, const std::string& filter)
 {
-    if (filter.empty()) return true;
-    if (ContainsIgnoreCase(event->name, filter)) return true;
+    if (filter.empty())
+    {
+        return true;
+    }
+    if (ContainsIgnoreCase(event->name, filter))
+    {
+        return true;
+    }
     for (const auto& child : event->children)
     {
-        if (EventMatchesFilter(child.get(), filter)) return true;
+        if (EventMatchesFilter(child.get(), filter))
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -57,23 +68,28 @@ static ImU32 GetCategoryColor(const std::string& category)
 
     auto it = s_CategoryColors.find(category);
     if (it != s_CategoryColors.end())
+    {
         return it->second;
+    }
     return IM_COL32(100, 100, 100, 255);  // Default gray
 }
 
 // Recursively aggregate category times from event tree
-static void AggregateCategoryTimes(const ProfileEvent* event,
-                                   std::map<std::string, double>& categoryTimes)
+static void AggregateCategoryTimes(const ProfileEvent* event, std::map<std::string, double>& categoryTimes)
 {
     if (!event || event->isIdleTime)
+    {
         return;
+    }
 
     double eventMs = event->durationUs / 1000.0;
     double childrenMs = 0.0;
     for (const auto& child : event->children)
     {
         if (!child->isIdleTime)
+        {
             childrenMs += child->durationUs / 1000.0;
+        }
     }
 
     double selfMs = eventMs - childrenMs;
@@ -100,12 +116,17 @@ struct AggregatedEvent
 // Recursively collect all events for flat view aggregation
 static void CollectAllEvents(const ProfileEvent* event, std::map<std::string, AggregatedEvent>& aggregated)
 {
-    if (!event || event->name.empty()) return;
+    if (!event || event->name.empty())
+    {
+        return;
+    }
 
     double eventMs = event->durationUs / 1000.0;
     double childrenMs = 0.0;
     for (const auto& child : event->children)
+    {
         childrenMs += child->durationUs / 1000.0;
+    }
     double selfMs = eventMs - childrenMs;
 
     auto& agg = aggregated[event->name];
@@ -115,7 +136,9 @@ static void CollectAllEvents(const ProfileEvent* event, std::map<std::string, Ag
     agg.calls++;
 
     for (const auto& child : event->children)
+    {
         CollectAllEvents(child.get(), aggregated);
+    }
 }
 
 // Helper to get total ms for an event
@@ -130,7 +153,9 @@ static double GetEventSelfMs(const ProfileEvent* event)
     double eventMs = event->durationUs / 1000.0;
     double childrenMs = 0.0;
     for (const auto& child : event->children)
+    {
         childrenMs += child->durationUs / 1000.0;
+    }
     double selfMs = eventMs - childrenMs;
     return selfMs > 0.0 ? selfMs : 0.0;
 }
@@ -152,9 +177,15 @@ static bool CompareEvents(const ProfileEvent* a, const ProfileEvent* b, double f
     switch (s_HierarchySortColumn)
     {
         case 0: return s_HierarchySortAscending ? a->name < b->name : b->name < a->name;
-        case 1: return s_HierarchySortAscending ? GetEventTotalMs(a) < GetEventTotalMs(b) : GetEventTotalMs(b) < GetEventTotalMs(a);
-        case 2: return s_HierarchySortAscending ? GetEventSelfMs(a) < GetEventSelfMs(b) : GetEventSelfMs(b) < GetEventSelfMs(a);
-        case 3: return s_HierarchySortAscending ? GetEventPercent(a, frameActiveMs) < GetEventPercent(b, frameActiveMs) : GetEventPercent(b, frameActiveMs) < GetEventPercent(a, frameActiveMs);
+        case 1:
+            return s_HierarchySortAscending ? GetEventTotalMs(a) < GetEventTotalMs(b)
+                                            : GetEventTotalMs(b) < GetEventTotalMs(a);
+        case 2:
+            return s_HierarchySortAscending ? GetEventSelfMs(a) < GetEventSelfMs(b)
+                                            : GetEventSelfMs(b) < GetEventSelfMs(a);
+        case 3:
+            return s_HierarchySortAscending ? GetEventPercent(a, frameActiveMs) < GetEventPercent(b, frameActiveMs)
+                                            : GetEventPercent(b, frameActiveMs) < GetEventPercent(a, frameActiveMs);
         default: return false;
     }
 }
@@ -165,7 +196,9 @@ static void RightAlignedCell(const char* text)
     const float w = ImGui::CalcTextSize(text).x;
     const float avail = ImGui::GetContentRegionAvail().x;
     if (avail > w)
+    {
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - w);
+    }
     ImGui::TextUnformatted(text);
 }
 
@@ -185,15 +218,18 @@ static void PercentCell(float percent)
 }
 
 // Recursive helper to draw profile event tree (table row per event)
-static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
-                          const std::string& searchFilter)
+static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const std::string& searchFilter)
 {
     if (!event || event->name.empty())
+    {
         return false;
+    }
 
     // Check if this event or children match filter
     if (!searchFilter.empty() && !EventMatchesFilter(event, searchFilter))
+    {
         return false;
+    }
 
     double eventMs = event->durationUs / 1000.0;
     float percent = frameActiveMs > 0 ? (float)(eventMs / frameActiveMs * 100.0) : 0.0f;
@@ -202,15 +238,24 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
     // Calculate self time (total - children)
     double childrenMs = 0.0;
     for (const auto& child : event->children)
+    {
         childrenMs += child->durationUs / 1000.0;
+    }
     double selfMs = eventMs - childrenMs;
-    if (selfMs < 0.0) selfMs = 0.0;
+    if (selfMs < 0.0)
+    {
+        selfMs = 0.0;
+    }
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
     if (!hasChildren)
+    {
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    }
     if (!searchFilter.empty())
+    {
         flags |= ImGuiTreeNodeFlags_DefaultOpen;
+    }
 
     ImGui::TableNextRow();
 
@@ -228,9 +273,13 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
     // Self ms column
     ImGui::TableNextColumn();
     if (hasChildren && selfMs > 0.001)
+    {
         std::snprintf(num, sizeof(num), "%.3f", selfMs);
+    }
     else
+    {
         std::snprintf(num, sizeof(num), "-");
+    }
     ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
     RightAlignedCell(num);
     ImGui::PopStyleColor();
@@ -246,12 +295,12 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs,
         // Sort children by current sort column
         std::vector<const ProfileEvent*> sortedChildren;
         for (const auto& child : event->children)
+        {
             sortedChildren.push_back(child.get());
+        }
         std::sort(sortedChildren.begin(), sortedChildren.end(),
                   [frameActiveMs](const ProfileEvent* a, const ProfileEvent* b)
-                  {
-                      return CompareEvents(a, b, frameActiveMs);
-                  });
+                  { return CompareEvents(a, b, frameActiveMs); });
 
         for (const auto* child : sortedChildren)
         {
@@ -305,7 +354,9 @@ void ProfilerPanel::RefreshDisplayBuffer()
 void ProfilerPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(m_App->Dpi(900.0f), m_App->Dpi(650.0f));
 
@@ -316,7 +367,9 @@ void ProfilerPanel::Draw()
         // Frame budget from the project's Core.targetFps
         int targetFps = 60;
         if (auto* core = DekiEditor::GetCoreSettings(); core && core->targetFps > 0)
+        {
             targetFps = core->targetFps;
+        }
         const float frameBudgetMs = 1000.0f / targetFps;
 
         // 1 Hz refresh batching - refresh display buffer once per second
@@ -346,8 +399,8 @@ void ProfilerPanel::Draw()
             const int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < (int)m_DisplayBuffer.size()
                                      ? m_SelectedFrame
                                      : (int)m_DisplayBuffer.size() - 1;
-            const uint64_t targetFrameNumber = (m_SelectedFrame < 0) ? m_CurrentFrameNumber
-                                                                     : m_DisplayBuffer[frameIdx].frameNumber;
+            const uint64_t targetFrameNumber =
+                (m_SelectedFrame < 0) ? m_CurrentFrameNumber : m_DisplayBuffer[frameIdx].frameNumber;
             const FrameData* displayFrame = nullptr;
             for (auto it = history.rbegin(); it != history.rend(); ++it)  // newest first
             {
@@ -374,9 +427,9 @@ void ProfilerPanel::Draw()
                 ImGui::SameLine(0.0f, m_App->Dpi(8.0f));
                 ImGui::Text("#%llu", (unsigned long long)frame.frameNumber);
                 ImGui::SameLine(0.0f, m_App->Dpi(20.0f));
-                const ImVec4 timeCol = activeTimeMs <= frameBudgetMs           ? DekiEditor::Palette::Green
-                                       : activeTimeMs <= frameBudgetMs * 2.0f  ? DekiEditor::Palette::Amber
-                                                                               : DekiEditor::Palette::Red;
+                const ImVec4 timeCol = activeTimeMs <= frameBudgetMs          ? DekiEditor::Palette::Green
+                                       : activeTimeMs <= frameBudgetMs * 2.0f ? DekiEditor::Palette::Amber
+                                                                              : DekiEditor::Palette::Red;
                 ImGui::TextColored(timeCol, "%.2f ms", activeTimeMs);
                 ImGui::SameLine(0.0f, m_App->Dpi(10.0f));
                 ImGui::TextColored(DekiEditor::Palette::Dim, "%.0f fps", fps);
@@ -392,13 +445,21 @@ void ProfilerPanel::Draw()
                 auto& ui = EditorUI::Get();
                 ui.BeginTabLinks();
                 if (ui.TabLink("Hierarchy", m_ViewMode == ProfilerViewMode::Hierarchy))
+                {
                     m_ViewMode = ProfilerViewMode::Hierarchy;
+                }
                 if (ui.TabLink("Flat", m_ViewMode == ProfilerViewMode::Flat))
+                {
                     m_ViewMode = ProfilerViewMode::Flat;
+                }
                 if (ui.TabLink("Flame Graph", m_ViewMode == ProfilerViewMode::FlameGraph))
+                {
                     m_ViewMode = ProfilerViewMode::FlameGraph;
+                }
                 if (ui.TabLink("Memory", m_ViewMode == ProfilerViewMode::Memory))
+                {
                     m_ViewMode = ProfilerViewMode::Memory;
+                }
                 ui.EndTabLinks();
 
                 // Search, for the views that list events
@@ -410,7 +471,9 @@ void ProfilerPanel::Draw()
                     char searchBuf[256] = {};
                     strncpy(searchBuf, m_SearchFilter.c_str(), sizeof(searchBuf) - 1);
                     if (ImGui::InputTextWithHint("##search", "Search events", searchBuf, sizeof(searchBuf)))
+                    {
                         m_SearchFilter = searchBuf;
+                    }
                     ImGui::Unindent(pad);
                     ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
                 }
@@ -429,14 +492,11 @@ void ProfilerPanel::Draw()
                             case ProfilerViewMode::Hierarchy:
                                 DrawHierarchyView(frame.rootEvent.get(), activeTimeMs);
                                 break;
-                            case ProfilerViewMode::Flat:
-                                DrawFlatView(frame.rootEvent.get(), activeTimeMs);
-                                break;
+                            case ProfilerViewMode::Flat: DrawFlatView(frame.rootEvent.get(), activeTimeMs); break;
                             case ProfilerViewMode::FlameGraph:
                                 DrawFlameGraph(frame.rootEvent.get(), activeTimeMs);
                                 break;
-                            case ProfilerViewMode::Memory:
-                                break;
+                            case ProfilerViewMode::Memory: break;
                         }
                     }
                     else
@@ -466,7 +526,9 @@ void ProfilerPanel::DrawToolbar(float frameBudgetMs, int targetFps)
     {
         m_SelectedFrame = -1;
         if (m_App->IsPlaying() && !m_IsPaused)
+        {
             profiler.StartRecording();
+        }
     }
     if (ui.ToolbarButton("Clear", !profiler.GetFrameHistory().empty()))
     {
@@ -493,11 +555,14 @@ void ProfilerPanel::DrawToolbar(float frameBudgetMs, int targetFps)
     dl->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Dim), budget);
     x -= m_App->Dpi(24.0f) + stateW;
     const bool recording = profiler.IsRecording();
-    dl->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(recording ? DekiEditor::Palette::Green : DekiEditor::Palette::Dim),
+    dl->AddText(ImVec2(x, y),
+                ImGui::ColorConvertFloat4ToU32(recording ? DekiEditor::Palette::Green : DekiEditor::Palette::Dim),
                 state);
     if (recording)
+    {
         dl->AddCircleFilled(ImVec2(x - m_App->Dpi(9.0f), y + lineH * 0.5f), m_App->Dpi(3.5f),
                             ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Green));
+    }
 }
 
 void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
@@ -548,7 +613,9 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
     {
         const int slot = (int)((mouse.x - chartMin.x) / slotW);
         if (slot >= firstSlot)
+        {
             hovered = slot - firstSlot;
+        }
     }
 
     const ImU32 accent = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Accent);
@@ -560,8 +627,10 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
         const float x1 = x0 + std::max(1.0f, slotW - 1.0f);
         const bool selected = i == m_SelectedFrame;
         if (selected || i == hovered)
+        {
             dl->AddRectFilled(ImVec2(x0, chartMin.y), ImVec2(x1, chartMax.y),
                               selected ? IM_COL32(255, 255, 255, 18) : IM_COL32(255, 255, 255, 10));
+        }
 
         if (frame.categoryTimeMs.empty() || selected)
         {
@@ -575,7 +644,9 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
             for (const auto& [category, timeMs] : frame.categoryTimeMs)
             {
                 if (timeMs <= 0)
+                {
                     continue;
+                }
                 const float h = std::min((float)(timeMs / maxMs) * chartH, yOffset - chartMin.y);
                 if (h > 0.5f)
                 {
@@ -615,7 +686,9 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
     for (size_t c = 0; c < IM_ARRAYSIZE(categories); ++c)
     {
         if (c > 0)
+        {
             ImGui::SameLine(0.0f, m_App->Dpi(14.0f));
+        }
         const ImVec2 p = ImGui::GetCursorScreenPos();
         const float y = p.y + (ImGui::GetTextLineHeight() - swatch) * 0.5f;
         dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + swatch, y + swatch), GetCategoryColor(categories[c]), 2.0f);
@@ -629,10 +702,15 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
 
 void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTimeMs)
 {
-    if (ImGui::BeginTable("HierarchyView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable | ImGuiTableFlags_PadOuterX))
+    if (ImGui::BeginTable("HierarchyView", 4,
+                          ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg |
+                              ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable | ImGuiTableFlags_PadOuterX))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, m_App->Dpi(90.0f));
+        ImGui::TableSetupColumn("Total (ms)",
+                                ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort |
+                                    ImGuiTableColumnFlags_PreferSortDescending,
+                                m_App->Dpi(90.0f));
         ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(90.0f));
         ImGui::TableSetupColumn("%", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(60.0f));
         ImGui::TableHeadersRow();
@@ -653,13 +731,13 @@ void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTim
         for (const auto& child : root->children)
         {
             if (!child->isIdleTime)
+            {
                 sortedChildren.push_back(child.get());
+            }
         }
         std::sort(sortedChildren.begin(), sortedChildren.end(),
                   [activeTimeMs](const ProfileEvent* a, const ProfileEvent* b)
-                  {
-                      return CompareEvents(a, b, activeTimeMs);
-                  });
+                  { return CompareEvents(a, b, activeTimeMs); });
 
         for (const auto* child : sortedChildren)
         {
@@ -685,12 +763,16 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
     {
         std::map<std::string, AggregatedEvent> aggregated;
         for (const auto& child : root->children)
+        {
             CollectAllEvents(child.get(), aggregated);
+        }
         sorted.clear();
         for (auto& pair : aggregated)
         {
             if (m_SearchFilter.empty() || ContainsIgnoreCase(pair.second.name, m_SearchFilter))
+            {
                 sorted.push_back(pair.second);
+            }
         }
         s_FlatRoot = root;
         s_FlatFilter = m_SearchFilter;
@@ -698,10 +780,15 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
     }
 
     // Draw table
-    if (ImGui::BeginTable("FlatView", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX))
+    if (ImGui::BeginTable("FlatView", 4,
+                          ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV |
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX))
     {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Self (ms)", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortDescending, m_App->Dpi(90.0f));
+        ImGui::TableSetupColumn("Self (ms)",
+                                ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort |
+                                    ImGuiTableColumnFlags_PreferSortDescending,
+                                m_App->Dpi(90.0f));
         ImGui::TableSetupColumn("Total (ms)", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(90.0f));
         ImGui::TableSetupColumn("Calls", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(60.0f));
         ImGui::TableHeadersRow();
@@ -710,24 +797,25 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs())
         {
             if (sortSpecs->SpecsCount > 0 &&
-                (rebuilt || sortSpecs->SpecsDirty ||
-                 s_SortColumn != sortSpecs->Specs[0].ColumnIndex ||
+                (rebuilt || sortSpecs->SpecsDirty || s_SortColumn != sortSpecs->Specs[0].ColumnIndex ||
                  s_SortAscending != (sortSpecs->Specs[0].SortDirection == ImGuiSortDirection_Ascending)))
             {
                 auto& spec = sortSpecs->Specs[0];
                 bool ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
                 s_SortColumn = spec.ColumnIndex;
                 s_SortAscending = ascending;
-                std::sort(sorted.begin(), sorted.end(), [&](const AggregatedEvent& a, const AggregatedEvent& b)
+                std::sort(sorted.begin(), sorted.end(),
+                          [&](const AggregatedEvent& a, const AggregatedEvent& b)
                           {
-                    switch (spec.ColumnIndex)
-                    {
-                        case 0: return ascending ? a.name < b.name : b.name < a.name;
-                        case 1: return ascending ? a.selfMs < b.selfMs : b.selfMs < a.selfMs;
-                        case 2: return ascending ? a.totalMs < b.totalMs : b.totalMs < a.totalMs;
-                        case 3: return ascending ? a.calls < b.calls : b.calls < a.calls;
-                        default: return false;
-                    } });
+                              switch (spec.ColumnIndex)
+                              {
+                                  case 0: return ascending ? a.name < b.name : b.name < a.name;
+                                  case 1: return ascending ? a.selfMs < b.selfMs : b.selfMs < a.selfMs;
+                                  case 2: return ascending ? a.totalMs < b.totalMs : b.totalMs < a.totalMs;
+                                  case 3: return ascending ? a.calls < b.calls : b.calls < a.calls;
+                                  default: return false;
+                              }
+                          });
             }
             sortSpecs->SpecsDirty = false;
         }

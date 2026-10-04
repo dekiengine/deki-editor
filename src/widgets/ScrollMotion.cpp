@@ -28,8 +28,12 @@ std::vector<Glide> s_Glides;
 Glide* FindGlide(ImGuiID windowId, int axis)
 {
     for (Glide& gl : s_Glides)
+    {
         if (gl.windowId == windowId && gl.axis == axis)
+        {
             return &gl;
+        }
+    }
     return nullptr;
 }
 
@@ -51,7 +55,9 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
         {
             const float target = wheeled->ScrollTarget[axis];
             if (target == FLT_MAX)
+            {
                 continue;
+            }
             Glide* gl = FindGlide(wheeled->ID, axis);
             if (gl)
             {
@@ -61,7 +67,8 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
             }
             else
             {
-                s_Glides.push_back(Glide{ wheeled->ID, axis, target, wheeled->ID ^ (0x5C8011u + static_cast<ImGuiID>(axis)) });
+                s_Glides.push_back(
+                    Glide{ wheeled->ID, axis, target, wheeled->ID ^ (0x5C8011u + static_cast<ImGuiID>(axis)) });
                 gl = &s_Glides.back();
                 Motion::Set(gl->key, wheeled->Scroll[axis]);
             }
@@ -93,9 +100,13 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
         w->ScrollTargetEdgeSnapDist[axis] = 0.0f;
 
         if (next == it->destination)
+        {
             it = s_Glides.erase(it);
+        }
         else
+        {
             ++it;
+        }
     }
 }
 }  // namespace

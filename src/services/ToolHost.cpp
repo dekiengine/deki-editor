@@ -41,7 +41,9 @@ void ToolHost::ClearWindows()
             // recreated instance.
             std::string json;
             if (instance.window->SaveSession(json))
+            {
                 m_PendingSessions.push_back({ instance.title, std::move(json) });
+            }
 
             instance.window->OnClose();
         }
@@ -63,7 +65,9 @@ void ToolHost::DiscoverTools()
         if (meta && meta->createFunc)
         {
             if (OnToolDiscovered)
+            {
                 OnToolDiscovered(meta->title ? meta->title : "");
+            }
 
             WindowInstance instance;
             instance.window.reset(meta->createFunc());
@@ -80,7 +84,9 @@ void ToolHost::DiscoverTools()
         for (auto& instance : m_Windows)
         {
             if (!instance.window || instance.title != pending.title)
+            {
                 continue;
+            }
 
             instance.window->SetOpen(true);
             instance.window->OnOpen();
@@ -97,7 +103,9 @@ void ToolHost::DrawToolsMenu()
     for (auto& instance : m_Windows)
     {
         if (!instance.window)
+        {
             continue;
+        }
 
         const char* title = instance.window->GetTitle();
         const char* shortcut = instance.window->GetShortcut();
@@ -119,28 +127,30 @@ void ToolHost::Update(float deltaTime)
     for (auto& instance : m_Windows)
     {
         if (!instance.window)
+        {
             continue;
+        }
 
         bool isOpen = instance.window->IsOpen();
 
         if (isOpen)
         {
             const char* title = instance.window->GetTitle();
-            if (!title) title = "tool";
+            if (!title)
+            {
+                title = "tool";
+            }
 
             // Each call guarded independently: a buggy OnUpdate shouldn't
             // skip OnGUI for other windows, and a bad OnGUI shouldn't
             // poison the rest of ToolHost::Update.
-            Guard(title, [&]
-                  { instance.window->OnUpdate(deltaTime); });
-            Guard(title, [&]
-                  { instance.window->OnGUI(); });
+            Guard(title, [&] { instance.window->OnUpdate(deltaTime); });
+            Guard(title, [&] { instance.window->OnGUI(); });
 
             // Check if window was closed
             if (!instance.window->IsOpen() && instance.wasOpenLastFrame)
             {
-                Guard(title, [&]
-                      { instance.window->OnClose(); });
+                Guard(title, [&] { instance.window->OnClose(); });
 
                 // Recreate window to reset all state automatically
                 if (instance.createFunc)
@@ -174,7 +184,9 @@ void ToolHost::OpenTool(const char* name)
 bool ToolHost::OpenToolForFile(const char* filePath, const char* cachePath, const char* toolTitle)
 {
     if (!filePath)
+    {
         return false;
+    }
 
     if (toolTitle && toolTitle[0])
     {
@@ -242,7 +254,9 @@ bool ToolHost::OpenToolForFile(const char* filePath, const char* cachePath, cons
 EditorWindow* ToolHost::GetWindow(int index) const
 {
     if (index < 0 || index >= static_cast<int>(m_Windows.size()))
+    {
         return nullptr;
+    }
 
     return m_Windows[index].window.get();
 }

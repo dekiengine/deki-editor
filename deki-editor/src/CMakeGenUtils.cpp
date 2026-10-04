@@ -31,7 +31,9 @@ static std::vector<std::string> TagsFrom(const nlohmann::json& j)
         for (const auto& t : j["tags"])
         {
             if (t.is_string())
+            {
                 tags.push_back(t.get<std::string>());
+            }
         }
     }
     return tags;
@@ -40,13 +42,21 @@ static std::vector<std::string> TagsFrom(const nlohmann::json& j)
 static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntry>& allPackages)
 {
     if (!fs::exists(packagesDir))
+    {
         return;
+    }
 
     for (const auto& entry : fs::directory_iterator(packagesDir))
     {
-        if (!entry.is_directory()) continue;
+        if (!entry.is_directory())
+        {
+            continue;
+        }
         fs::path manifestPath = entry.path() / "package.json";
-        if (!fs::exists(manifestPath)) continue;
+        if (!fs::exists(manifestPath))
+        {
+            continue;
+        }
 
         try
         {
@@ -68,7 +78,9 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 for (const auto& p : j["platformRequires"])
                 {
                     if (!p.is_string())
+                    {
                         continue;
+                    }
                     std::string need = p.get<std::string>();
                     // Both sides of the match are checked the same way. A
                     // platform's "provides" is validated when it loads; a
@@ -76,11 +88,12 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                     // otherwise surface as a package quietly excluded from
                     // every target, with nothing saying why.
                     if (!IsValidCapabilityName(need))
+                    {
                         DEKI_LOG_WARNING("Package '%s': platformRequires '%s' is not a valid "
                                          "capability name (lowercase letters, digits and "
                                          ". - : _ only), so no platform can provide it",
-                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(),
-                                         need.c_str());
+                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(), need.c_str());
+                    }
                     info.platformRequires.push_back(std::move(need));
                 }
             }
@@ -89,52 +102,86 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 for (const auto& f : j["features"])
                 {
                     if (!f.is_object())
+                    {
                         continue;
+                    }
                     FeatureEntry fe;
                     fe.id = f.value("id", "");
                     fe.displayName = f.value("displayName", "");
                     fe.buildDefine = f.value("buildDefine", "");
                     fe.required = f.value("required", false);
                     if (f.contains("componentTypes") && f["componentTypes"].is_array())
+                    {
                         for (const auto& t : f["componentTypes"])
+                        {
                             if (t.is_string())
+                            {
                                 fe.componentTypes.push_back(t.get<std::string>());
+                            }
+                        }
+                    }
                     if (f.contains("requires") && f["requires"].is_array())
+                    {
                         for (const auto& r : f["requires"])
+                        {
                             if (r.is_string() && r.get<std::string>().rfind("deki-", 0) == 0)
+                            {
                                 fe.requiredPackages.push_back(r.get<std::string>());
+                            }
+                        }
+                    }
                     if (!fe.id.empty())
+                    {
                         info.features.push_back(fe);
+                    }
                 }
             }
 
             // "requires": the packages this one cannot build without, whatever
             // the platform. The platform dependency lists below may repeat them.
             if (j.contains("requires") && j["requires"].is_array())
+            {
                 for (const auto& r : j["requires"])
+                {
                     if (r.is_string() && r.get<std::string>().rfind("deki-", 0) == 0)
+                    {
                         info.dekiDeps.push_back(r.get<std::string>());
+                    }
+                }
+            }
 
             // Collect dependencies from all platform dependency lists
             if (j.contains("dependencies"))
             {
                 for (auto& [platform, deps] : j["dependencies"].items())
                 {
-                    if (!deps.is_array()) continue;
+                    if (!deps.is_array())
+                    {
+                        continue;
+                    }
                     for (auto& dep : deps)
                     {
                         std::string name;
                         if (dep.is_string())
+                        {
                             name = dep.get<std::string>();
+                        }
                         else if (dep.is_object())
+                        {
                             name = dep.value("name", "");
+                        }
 
-                        if (name.empty()) continue;
+                        if (name.empty())
+                        {
+                            continue;
+                        }
 
                         if (name.rfind("deki-", 0) == 0)
                         {
                             if (std::find(info.dekiDeps.begin(), info.dekiDeps.end(), name) == info.dekiDeps.end())
+                            {
                                 info.dekiDeps.push_back(name);
+                            }
                         }
                         else
                         {
@@ -143,7 +190,9 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                             FrameworkDependency fd;
                             fd.name = name;
                             if (dep.is_object())
+                            {
                                 fd.json = dep.dump();
+                            }
                             info.frameworkDeps[platform].push_back(std::move(fd));
                         }
                     }
@@ -155,8 +204,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             if (fs::exists(cmakePath))
             {
                 std::ifstream cmf(cmakePath);
-                std::string cmakeContent((std::istreambuf_iterator<char>(cmf)),
-                                         std::istreambuf_iterator<char>());
+                std::string cmakeContent((std::istreambuf_iterator<char>(cmf)), std::istreambuf_iterator<char>());
 
                 // Extract PACKAGE_FILE_PREFIX
                 {
@@ -197,7 +245,9 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 // Extract PACKAGE_HAS_SYSTEM_INIT
                 {
                     if (cmakeContent.find("set(PACKAGE_HAS_SYSTEM_INIT ON)") != std::string::npos)
+                    {
                         info.hasSystemInit = true;
+                    }
                 }
 
                 // Extract PACKAGE_ENTRY filename for exclusion
@@ -236,12 +286,23 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                             const bool topLevel = it.depth() == 0;
                             if ((!name.empty() && name[0] == '.') ||
                                 (topLevel && (name == "editor" || name == "generated" || name == "tests")))
+                            {
                                 it.disable_recursion_pending();
+                            }
                             continue;
                         }
-                        if (!cppEntry.is_regular_file()) continue;
-                        if (cppEntry.path().extension() != ".cpp") continue;
-                        if (!entryFile.empty() && cppEntry.path().filename().string() == entryFile) continue;
+                        if (!cppEntry.is_regular_file())
+                        {
+                            continue;
+                        }
+                        if (cppEntry.path().extension() != ".cpp")
+                        {
+                            continue;
+                        }
+                        if (!entryFile.empty() && cppEntry.path().filename().string() == entryFile)
+                        {
+                            continue;
+                        }
                         info.sourceStems.push_back(cppEntry.path().stem().string());
                     }
                 }
@@ -251,7 +312,9 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
         }
         catch (const std::exception& e)
         {
-            DEKI_LOG_WARNING("CMakeGenUtils: package descriptor unreadable (%s); this package is left out of the build files", e.what());
+            DEKI_LOG_WARNING(
+                "CMakeGenUtils: package descriptor unreadable (%s); this package is left out of the build files",
+                e.what());
         }
     }
 }
@@ -260,7 +323,9 @@ std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath)
 {
     std::vector<PackageEntry> allPackages;
     if (!projectPath.empty())
+    {
         ScanPackagesDir(fs::path(GetPackagesDirectory(projectPath)), allPackages);
+    }
     return allPackages;
 }
 
@@ -268,26 +333,28 @@ std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath)
 // Active package resolution
 // ============================================================================
 
-std::vector<std::string> MissingCapabilities(const PackageEntry& pkg,
-                                             const std::set<std::string>& platformCapabilities)
+std::vector<std::string> MissingCapabilities(const PackageEntry& pkg, const std::set<std::string>& platformCapabilities)
 {
     // No requirements means it builds anywhere. No capability set means no
     // target is in hand (the editor's own build, which loads everything), so
     // nothing is judged.
     if (pkg.platformRequires.empty() || platformCapabilities.empty())
+    {
         return {};
+    }
 
     std::vector<std::string> missing;
     for (const auto& need : pkg.platformRequires)
     {
         if (platformCapabilities.count(need) == 0)
+        {
             missing.push_back(need);
+        }
     }
     return missing;
 }
 
-bool PackageSupportsPlatform(const PackageEntry& pkg,
-                             const std::set<std::string>& platformCapabilities)
+bool PackageSupportsPlatform(const PackageEntry& pkg, const std::set<std::string>& platformCapabilities)
 {
     return MissingCapabilities(pkg, platformCapabilities).empty();
 }
@@ -299,20 +366,29 @@ bool FeatureInBuild(const FeatureEntry& feature, const std::vector<std::string>&
     const bool configured = std::find(packageDefines.begin(), packageDefines.end(),
                                       "DEKI_PACKAGE_FEATURES_CONFIGURED") != packageDefines.end();
     if (!configured || feature.required || feature.buildDefine.empty())
+    {
         return true;
+    }
     return std::find(packageDefines.begin(), packageDefines.end(), feature.buildDefine) != packageDefines.end();
 }
 
-std::vector<std::string> RequiredPackagesInBuild(const PackageEntry& pkg, const std::vector<std::string>& packageDefines)
+std::vector<std::string> RequiredPackagesInBuild(const PackageEntry& pkg,
+                                                 const std::vector<std::string>& packageDefines)
 {
     std::vector<std::string> out = pkg.dekiDeps;
     for (const auto& feature : pkg.features)
     {
         if (!FeatureInBuild(feature, packageDefines))
+        {
             continue;
+        }
         for (const auto& dep : feature.requiredPackages)
+        {
             if (std::find(out.begin(), out.end(), dep) == out.end())
+            {
                 out.push_back(dep);
+            }
+        }
     }
     return out;
 }
@@ -326,9 +402,14 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
     std::set<std::string> activeIds;
     for (const auto& pkg : allPackages)
     {
-        if (!PackageSupportsPlatform(pkg, platformCapabilities)) continue;
+        if (!PackageSupportsPlatform(pkg, platformCapabilities))
+        {
+            continue;
+        }
         if (std::find(packageDefines.begin(), packageDefines.end(), pkg.buildDefine) != packageDefines.end())
+        {
             activeIds.insert(pkg.id);
+        }
     }
 
     // Resolve transitive deki:* dependencies (fixed-point loop).
@@ -337,7 +418,10 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
     // desktop-only dependency would otherwise be dragged into a firmware build
     // by a package that is itself perfectly buildable there.
     std::map<std::string, const PackageEntry*> byId;
-    for (const auto& pkg : allPackages) byId[pkg.id] = &pkg;
+    for (const auto& pkg : allPackages)
+    {
+        byId[pkg.id] = &pkg;
+    }
 
     bool changed = true;
     while (changed)
@@ -345,14 +429,21 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
         changed = false;
         for (const auto& pkg : allPackages)
         {
-            if (activeIds.count(pkg.id) == 0) continue;
+            if (activeIds.count(pkg.id) == 0)
+            {
+                continue;
+            }
             for (const auto& dep : RequiredPackagesInBuild(pkg, packageDefines))
             {
                 auto it = byId.find(dep);
                 if (it != byId.end() && !PackageSupportsPlatform(*it->second, platformCapabilities))
+                {
                     continue;
+                }
                 if (activeIds.insert(dep).second)
+                {
                     changed = true;
+                }
             }
         }
     }
@@ -364,8 +455,7 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
 // CMake snippet emission
 // ============================================================================
 
-void EmitEngineCoreSourceCollection(std::ostream& out,
-                                    const std::vector<std::string>& extraExclusions)
+void EmitEngineCoreSourceCollection(std::ostream& out, const std::vector<std::string>& extraExclusions)
 {
     out << "# Engine core sources (excluding packages, generated, desktop, editor)\n";
     out << "file(GLOB_RECURSE DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/src/*.cpp\")\n";
@@ -391,7 +481,9 @@ std::string CMakeIdentifier(const std::string& name)
         out.push_back(ok ? static_cast<char>(c) : '_');
     }
     if (out.empty() || (out[0] >= '0' && out[0] <= '9'))
+    {
         out.insert(out.begin(), '_');
+    }
     return out;
 }
 
@@ -433,31 +525,35 @@ std::string EscapeCMakeString(const std::string& s)
     return out;
 }
 
-void EmitActivePackageSources(std::ostream& out,
-                              const std::vector<PackageEntry>& allPackages,
+void EmitActivePackageSources(std::ostream& out, const std::vector<PackageEntry>& allPackages,
                               const std::set<std::string>& activePackageIds,
-                              const std::vector<std::string>& sourceExcludeRegexes,
-                              bool excludeGenerated)
+                              const std::vector<std::string>& sourceExcludeRegexes, bool excludeGenerated)
 {
     out << "# Active package sources (auto-detected from project configuration)\n";
     for (const auto& pkg : allPackages)
     {
-        if (activePackageIds.count(pkg.id) == 0) continue;
+        if (activePackageIds.count(pkg.id) == 0)
+        {
+            continue;
+        }
         // The directory name is a real on-disk name (SafeNames-validated at
         // install), but as a CMake variable suffix it still gets identifier
         // characters only, the way string(MAKE_C_IDENTIFIER) would spell it.
         const std::string var = "DEKI_PKG_SOURCES_" + CMakeIdentifier(pkg.dirName);
-        out << "file(GLOB_RECURSE " << var
-            << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.cpp\""
+        out << "file(GLOB_RECURSE " << var << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.cpp\""
             << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.c\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/editor/.*\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/tests/.*\")\n";
         if (excludeGenerated)
+        {
             out << "list(FILTER " << var << " EXCLUDE REGEX \".*/generated/.*\")\n";
+        }
         // The stripped components. The regexes name their package directory,
         // so applying every one to every package is harmless.
         for (const auto& rx : sourceExcludeRegexes)
+        {
             out << "list(FILTER " << var << " EXCLUDE REGEX \"" << EscapeCMakeString(rx) << "\")\n";
+        }
         out << "list(APPEND DEKI_ENGINE_SOURCES ${" << var << "})\n";
     }
 
@@ -466,14 +562,16 @@ void EmitActivePackageSources(std::ostream& out,
     out << "set(DEKI_PACKAGE_INCLUDE_DIRS\n";
     for (const auto& pkg : allPackages)
     {
-        if (activePackageIds.count(pkg.id) == 0) continue;
+        if (activePackageIds.count(pkg.id) == 0)
+        {
+            continue;
+        }
         out << "    \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "\"\n";
     }
     out << ")\n";
 }
 
-void EmitGeneratedFileSources(std::ostream& out,
-                              const std::string& enginePath,
+void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
                               const std::vector<PackageEntry>& allPackages,
                               const std::set<std::string>& activePackageIds)
 {
@@ -482,9 +580,13 @@ void EmitGeneratedFileSources(std::ostream& out,
     for (const auto& pkg : allPackages)
     {
         if (!pkg.filePrefix.empty())
+        {
             genStemToPackageId[pkg.filePrefix + "Registration"] = pkg.id;
+        }
         for (const auto& stem : pkg.sourceStems)
+        {
             genStemToPackageId[stem] = pkg.id;
+        }
     }
 
     // Scan generated/ directory and selectively include gen files
@@ -496,10 +598,16 @@ void EmitGeneratedFileSources(std::ostream& out,
         {
             std::string filename = genEntry.path().filename().string();
             auto genPos = filename.find(".gen.cpp");
-            if (genPos == std::string::npos) continue;
+            if (genPos == std::string::npos)
+            {
+                continue;
+            }
 
             // Skip ComponentFactory.gen.cpp (static initializers, not needed on firmware)
-            if (filename == "ComponentFactory.gen.cpp") continue;
+            if (filename == "ComponentFactory.gen.cpp")
+            {
+                continue;
+            }
             // CoreRegistration.gen.cpp was skipped here as "redundant with
             // AllComponentRegistration". It is the opposite: AllComponentRegistration
             // only forward-declares DekiCore_RegisterComponents() and calls it from
@@ -511,13 +619,16 @@ void EmitGeneratedFileSources(std::ostream& out,
             // link step before. Its static registrar is idempotent (a `done`
             // flag), so it costs nothing next to the explicit call.
             // Skip AllPackageInit.gen.cpp (deki_package_init.gen.cpp provides init/shutdown)
-            if (filename == "AllPackageInit.gen.cpp") continue;
+            if (filename == "AllPackageInit.gen.cpp")
+            {
+                continue;
+            }
 
             // Always include AllComponentRegistration (provides deki_register_all_components)
             if (filename == "AllComponentRegistration.gen.cpp")
             {
-                out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/"
-                    << filename << "\")\n";
+                out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/" << filename
+                    << "\")\n";
                 continue;
             }
 
@@ -530,26 +641,25 @@ void EmitGeneratedFileSources(std::ostream& out,
                 if (activePackageIds.count(it->second) > 0)
                 {
                     // Skip per-package Registration files (not called by Deki::Engine)
-                    if (stem.size() >= 12 &&
-                        stem.compare(stem.size() - 12, 12, "Registration") == 0)
+                    if (stem.size() >= 12 && stem.compare(stem.size() - 12, 12, "Registration") == 0)
+                    {
                         continue;
-                    out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/"
-                        << filename << "\")\n";
+                    }
+                    out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/" << filename
+                        << "\")\n";
                 }
             }
             else
             {
                 // Core gen file (not tied to any package) - always include
-                out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/"
-                    << filename << "\")\n";
+                out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/" << filename
+                    << "\")\n";
             }
         }
     }
 }
 
-void EmitProjectSourceCollection(std::ostream& out,
-                                 const std::string& relPath,
-                                 bool excludePluginExports)
+void EmitProjectSourceCollection(std::ostream& out, const std::string& relPath, bool excludePluginExports)
 {
     out << "\n";
     out << "# Project sources\n";
@@ -564,11 +674,8 @@ void EmitProjectSourceCollection(std::ostream& out,
     }
 }
 
-void EmitPlatformDefines(std::ostream& out,
-                         const std::string& targetName,
-                         const PlatformConfig& config,
-                         const std::vector<std::string>& packageDefines,
-                         const std::vector<std::string>& skipDefines)
+void EmitPlatformDefines(std::ostream& out, const std::string& targetName, const PlatformConfig& config,
+                         const std::vector<std::string>& packageDefines, const std::vector<std::string>& skipDefines)
 {
     out << "\n";
     out << "# Platform defines (" << config.displayName << ")\n";
@@ -588,16 +695,17 @@ void EmitPlatformDefines(std::ostream& out,
     out << "    DEKI_PACKAGE_FEATURES_CONFIGURED\n";
     for (const auto& define : packageDefines)
     {
-        if (skipSet.count(define) > 0) continue;
+        if (skipSet.count(define) > 0)
+        {
+            continue;
+        }
         out << "    " << define << "\n";
     }
 
     out << ")\n";
 }
 
-void EmitIncludePaths(std::ostream& out,
-                      const std::string& targetName,
-                      const std::string& projectSrcRelPath,
+void EmitIncludePaths(std::ostream& out, const std::string& targetName, const std::string& projectSrcRelPath,
                       const std::vector<std::string>& extraPaths)
 {
     out << "\n";
@@ -628,22 +736,23 @@ bool WriteIfChanged(const fs::path& filePath, const std::string& content)
     if (fs::exists(filePath))
     {
         std::ifstream existing(filePath, std::ios::binary);
-        std::string existingContent((std::istreambuf_iterator<char>(existing)),
-                                    std::istreambuf_iterator<char>());
+        std::string existingContent((std::istreambuf_iterator<char>(existing)), std::istreambuf_iterator<char>());
         if (existingContent == content)
+        {
             return true;
+        }
     }
     std::ofstream file(filePath, std::ios::binary);
     if (!file.is_open())
+    {
         return false;
+    }
     file << content;
     return true;
 }
 
-std::string GeneratePackageInitFile(const fs::path& outputDir,
-                                    const std::vector<PackageEntry>& allPackages,
-                                    const std::set<std::string>& activePackageIds,
-                                    const fs::path& projectSrcPath,
+std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector<PackageEntry>& allPackages,
+                                    const std::set<std::string>& activePackageIds, const fs::path& projectSrcPath,
                                     bool engineDefinesSystemInit)
 {
     std::ostringstream cpp;
@@ -654,14 +763,22 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
     // exactly like a package does through its own registration unit.
     const bool hasProjectSources = !projectSrcPath.empty() && fs::exists(projectSrcPath);
     if (hasProjectSources)
+    {
         cpp << "extern void Plugin_RegisterComponents();\n";
+    }
     cpp << "\n";
 
     // Declare extern registration functions (using PACKAGE_PREFIX from package.cmake)
     for (const auto& pkg : allPackages)
     {
-        if (activePackageIds.count(pkg.id) == 0) continue;
-        if (pkg.packagePrefix.empty()) continue;
+        if (activePackageIds.count(pkg.id) == 0)
+        {
+            continue;
+        }
+        if (pkg.packagePrefix.empty())
+        {
+            continue;
+        }
         cpp << "extern void " << pkg.packagePrefix << "_RegisterComponents();\n";
     }
 
@@ -670,8 +787,14 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
     std::vector<const PackageEntry*> initPackages;
     for (const auto& pkg : allPackages)
     {
-        if (activePackageIds.count(pkg.id) == 0) continue;
-        if (!pkg.hasSystemInit || pkg.packagePrefix.empty()) continue;
+        if (activePackageIds.count(pkg.id) == 0)
+        {
+            continue;
+        }
+        if (!pkg.hasSystemInit || pkg.packagePrefix.empty())
+        {
+            continue;
+        }
         initPackages.push_back(&pkg);
     }
 
@@ -686,8 +809,14 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
     cpp << "{\n";
     for (const auto& pkg : allPackages)
     {
-        if (activePackageIds.count(pkg.id) == 0) continue;
-        if (pkg.packagePrefix.empty()) continue;
+        if (activePackageIds.count(pkg.id) == 0)
+        {
+            continue;
+        }
+        if (pkg.packagePrefix.empty())
+        {
+            continue;
+        }
         cpp << "    " << pkg.packagePrefix << "_RegisterComponents();\n";
     }
 
@@ -698,12 +827,16 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
     {
         cpp << "\n    // Package systems (engine core owns the deki_init_package_systems() symbol)\n";
         for (const auto* pkg : initPackages)
+        {
             cpp << "    " << pkg->packagePrefix << "_InitSystem();\n";
+        }
     }
 
     // Project components (generated PluginRegistration.gen.cpp)
     if (hasProjectSources)
+    {
         cpp << "\n    Plugin_RegisterComponents();\n";
+    }
 
     cpp << "}\n";
 
@@ -715,14 +848,18 @@ std::string GeneratePackageInitFile(const fs::path& outputDir,
         cpp << "\nextern \"C\" void deki_init_package_systems(void)\n";
         cpp << "{\n";
         for (const auto* pkg : initPackages)
+        {
             cpp << "    " << pkg->packagePrefix << "_InitSystem();\n";
+        }
         cpp << "}\n";
 
         // deki_shutdown_package_systems (reverse order)
         cpp << "\nextern \"C\" void deki_shutdown_package_systems(void)\n";
         cpp << "{\n";
         for (auto it = initPackages.rbegin(); it != initPackages.rend(); ++it)
+        {
             cpp << "    " << (*it)->packagePrefix << "_ShutdownSystem();\n";
+        }
         cpp << "}\n";
     }
 
@@ -735,10 +872,14 @@ std::vector<std::string> ReadProjectTags(const std::string& projectPath)
 {
     std::vector<std::string> tags;
     if (projectPath.empty())
+    {
         return tags;
+    }
     std::ifstream in(fs::path(projectPath) / "deki.json");
     if (!in)
+    {
         return tags;
+    }
     try
     {
         nlohmann::json j;
@@ -754,8 +895,7 @@ std::vector<std::string> ReadProjectTags(const std::string& projectPath)
 
 TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackages,
                                      const std::set<std::string>& activeIds,
-                                     const std::vector<std::string>& projectTags,
-                                     std::string* why)
+                                     const std::vector<std::string>& projectTags, std::string* why)
 {
     TransformWidth width = TransformWidth::None;
     std::vector<std::string> declared2d;
@@ -773,7 +913,9 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
             else if (tag == "transform_2d")
             {
                 if (width == TransformWidth::None)
+                {
                     width = TransformWidth::TwoD;
+                }
                 declared2d.push_back(who);
             }
         }
@@ -782,18 +924,26 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
     for (const auto& pkg : allPackages)
     {
         if (activeIds.count(pkg.id) == 0)
+        {
             continue;
+        }
         std::vector<std::string> declared = pkg.tags;
         // A required feature whose define is the switch itself is the same
         // declaration, in the descriptor's own vocabulary.
         for (const auto& feat : pkg.features)
         {
             if (!feat.required)
+            {
                 continue;
+            }
             if (feat.buildDefine == "DEKI_TRANSFORM_2D")
+            {
                 declared.push_back("transform_2d");
+            }
             else if (feat.buildDefine == "DEKI_TRANSFORM_3D")
+            {
                 declared.push_back("transform_3d");
+            }
         }
         consider(pkg.id, declared);
     }
@@ -805,7 +955,9 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
         {
             std::string s;
             for (size_t i = 0; i < v.size(); ++i)
+            {
                 s += (i ? ", " : "") + v[i];
+            }
             return s;
         };
         switch (width)
@@ -813,13 +965,13 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
             case TransformWidth::None:
                 *why = "no transform: nothing active declares transform_2d or transform_3d";
                 break;
-            case TransformWidth::TwoD:
-                *why = "2D transform, declared by " + join(declared2d);
-                break;
+            case TransformWidth::TwoD: *why = "2D transform, declared by " + join(declared2d); break;
             case TransformWidth::ThreeD:
                 *why = "3D transform, declared by " + join(declared3d);
                 if (!declared2d.empty())
+                {
                     *why += " (2D by " + join(declared2d) + ")";
+                }
                 break;
         }
     }
@@ -827,14 +979,15 @@ TransformWidth ResolveTransformWidth(const std::vector<PackageEntry>& allPackage
 }
 
 TransformWidth ResolveProjectTransformWidth(const std::vector<PackageEntry>& allPackages,
-                                            const std::vector<std::string>& projectTags,
-                                            std::string* why)
+                                            const std::vector<std::string>& projectTags, std::string* why)
 {
     // Every installed package counts, not the ones a particular target keeps.
     // See the header for why the layout must not vary by target.
     std::set<std::string> everything;
     for (const auto& pkg : allPackages)
+    {
         everything.insert(pkg.id);
+    }
     return ResolveTransformWidth(allPackages, everything, projectTags, why);
 }
 
@@ -842,9 +995,13 @@ std::vector<std::string> TransformDefines(TransformWidth width)
 {
     std::vector<std::string> defines;
     if (width == TransformWidth::TwoD || width == TransformWidth::ThreeD)
+    {
         defines.push_back("DEKI_TRANSFORM_2D");
+    }
     if (width == TransformWidth::ThreeD)
+    {
         defines.push_back("DEKI_TRANSFORM_3D");
+    }
     return defines;
 }
 

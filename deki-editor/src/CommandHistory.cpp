@@ -103,14 +103,18 @@ void CommandHistory::Clear()
 std::string CommandHistory::GetUndoDescription() const
 {
     if (m_UndoStack.empty())
+    {
         return "";
+    }
     return m_UndoStack.back()->GetDescription();
 }
 
 std::string CommandHistory::GetRedoDescription() const
 {
     if (m_RedoStack.empty())
+    {
         return "";
+    }
     return m_RedoStack.back()->GetDescription();
 }
 
@@ -193,8 +197,7 @@ namespace
 // dying pointer. Both stacks are replayed from the back, so an unreachable
 // entry at index k also seals off everything older than it. Returns how many
 // entries were removed from the front.
-size_t TruncateAtDead(std::vector<std::unique_ptr<Command>>& stack,
-                      const DeadMemory& dead)
+size_t TruncateAtDead(std::vector<std::unique_ptr<Command>>& stack, const DeadMemory& dead)
 {
     size_t cutoff = 0;  // number of entries to erase from the front
     bool found = false;
@@ -209,7 +212,9 @@ size_t TruncateAtDead(std::vector<std::unique_ptr<Command>>& stack,
     }
 
     if (!found)
+    {
         return 0;
+    }
 
     stack.erase(stack.begin(), stack.begin() + static_cast<std::ptrdiff_t>(cutoff));
     return cutoff;
@@ -219,7 +224,9 @@ size_t TruncateAtDead(std::vector<std::unique_ptr<Command>>& stack,
 void CommandHistory::DiscardCommandsReferencing(const DeadMemory& dead)
 {
     if (dead.Empty())
+    {
         return;
+    }
 
     const size_t undoDropped = TruncateAtDead(m_UndoStack, dead);
     const size_t redoDropped = TruncateAtDead(m_RedoStack, dead);
@@ -231,10 +238,12 @@ void CommandHistory::DiscardCommandsReferencing(const DeadMemory& dead)
     TruncateAtDead(m_SavedRedoStack, dead);
 
     if (undoDropped == 0 && redoDropped == 0)
+    {
         return;
+    }
 
-    DEKI_LOG_DEBUG("[Undo] Dropped %zu undo / %zu redo entries referencing destroyed objects",
-                   undoDropped, redoDropped);
+    DEKI_LOG_DEBUG("[Undo] Dropped %zu undo / %zu redo entries referencing destroyed objects", undoDropped,
+                   redoDropped);
 
     // The save point is an index into the undo stack; shifting the stack
     // invalidates it. If the point itself was inside the dropped range there is
@@ -243,9 +252,13 @@ void CommandHistory::DiscardCommandsReferencing(const DeadMemory& dead)
     if (m_SavePointIndex != SIZE_MAX)
     {
         if (m_SavePointIndex >= undoDropped)
+        {
             m_SavePointIndex -= undoDropped;
+        }
         else
+        {
             m_SavePointIndex = SIZE_MAX;
+        }
     }
 
     NotifyChanged();

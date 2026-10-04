@@ -11,7 +11,10 @@
 #include "imgui.h"
 
 // Forward declarations
-namespace Deki { class Component; }
+namespace Deki
+{
+class Component;
+}
 
 namespace DekiEditor
 {
@@ -113,10 +116,7 @@ public:
      * @param outHeight Output height
      * @return True if component has a display size
      */
-    virtual bool GetDisplaySize(Deki::Component* comp, float& outWidth, float& outHeight)
-    {
-        return false;
-    }
+    virtual bool GetDisplaySize(Deki::Component* comp, float& outWidth, float& outHeight) { return false; }
 
     /**
      * @brief Hit test a point against the component
@@ -145,7 +145,6 @@ public:
     // Resize Support
     // =========================================================================
 
-
     /**
      * @brief Get resize target pointers
      * @param comp The component
@@ -154,8 +153,14 @@ public:
      */
     virtual void GetResizeTarget(Deki::Component* comp, int32_t** outWidth, int32_t** outHeight)
     {
-        if (outWidth) *outWidth = nullptr;
-        if (outHeight) *outHeight = nullptr;
+        if (outWidth)
+        {
+            *outWidth = nullptr;
+        }
+        if (outHeight)
+        {
+            *outHeight = nullptr;
+        }
     }
 
     // =========================================================================

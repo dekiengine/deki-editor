@@ -50,7 +50,9 @@ inline bool ReadFileToString(const std::string& path, std::string& out, std::str
     f.seekg(0, std::ios::beg);
     out.assign(static_cast<size_t>(size), '\0');
     if (size > 0)
+    {
         f.read(&out[0], size);
+    }
     if (f.bad())
     {
         err = "read error: " + path;
@@ -84,7 +86,9 @@ inline bool ReplaceFileWith(const std::filesystem::path& tmp, const std::filesys
     const std::wstring wTarget = target.wstring();
     if (::MoveFileExW(wTmp.c_str(), wTarget.c_str(),
                       MOVEFILE_REPLACE_EXISTING | (durable ? MOVEFILE_WRITE_THROUGH : 0)))
+    {
         return true;
+    }
     err = "rename failed (win32 error " + std::to_string(::GetLastError()) + ")";
     return false;
 #else
@@ -100,10 +104,7 @@ inline bool ReplaceFileWith(const std::filesystem::path& tmp, const std::filesys
 #endif
 }
 
-inline bool AtomicWriteFile(const std::string& path,
-                            std::string_view content,
-                            std::string& err,
-                            bool durable = true)
+inline bool AtomicWriteFile(const std::string& path, std::string_view content, std::string& err, bool durable = true)
 {
     namespace fs = std::filesystem;
     fs::path target(path);

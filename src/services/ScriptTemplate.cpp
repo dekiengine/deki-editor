@@ -29,44 +29,48 @@ bool CreateBehaviourScript(const std::string& directory, const std::string& name
     // identifies it by its name. Declare only the lifecycle methods you need;
     // with none the class is a data component. The markers above the class are
     // optional editor metadata.
-    const std::string headerContent =
-        "#pragma once\n"
-        "\n"
-        "#include <deki/Engine.h>\n"
-        "\n"
-        "DEKI_CATEGORY(\"Game\")\n"
-        "DEKI_DESCRIPTION(\"What " +
-        name + " does, in one line.\")\n"
-               "class " +
-        name + " : public Deki::Component\n"
-               "{\n"
-               "public:\n"
-               "    // Exported properties (visible in Inspector)\n"
-               "    DEKI_EXPORT\n"
-               "    float speed = 1.0f;\n"
-               "\n"
-               "    void Awake() override;\n"
-               "    void Start() override;\n"
-               "    void Update() override;\n"
-               "};\n";
+    const std::string headerContent = "#pragma once\n"
+                                      "\n"
+                                      "#include <deki/Engine.h>\n"
+                                      "\n"
+                                      "DEKI_CATEGORY(\"Game\")\n"
+                                      "DEKI_DESCRIPTION(\"What " +
+                                      name +
+                                      " does, in one line.\")\n"
+                                      "class " +
+                                      name +
+                                      " : public Deki::Component\n"
+                                      "{\n"
+                                      "public:\n"
+                                      "    // Exported properties (visible in Inspector)\n"
+                                      "    DEKI_EXPORT\n"
+                                      "    float speed = 1.0f;\n"
+                                      "\n"
+                                      "    void Awake() override;\n"
+                                      "    void Start() override;\n"
+                                      "    void Update() override;\n"
+                                      "};\n";
 
-    const std::string sourceContent =
-        "#include \"" + name + ".h\"\n"
-                               "\n"
-                               "void " +
-        name + "::Awake()\n"
-               "{\n"
-               "}\n"
-               "\n"
-               "void " +
-        name + "::Start()\n"
-               "{\n"
-               "}\n"
-               "\n"
-               "void " +
-        name + "::Update()\n"
-               "{\n"
-               "}\n";
+    const std::string sourceContent = "#include \"" + name +
+                                      ".h\"\n"
+                                      "\n"
+                                      "void " +
+                                      name +
+                                      "::Awake()\n"
+                                      "{\n"
+                                      "}\n"
+                                      "\n"
+                                      "void " +
+                                      name +
+                                      "::Start()\n"
+                                      "{\n"
+                                      "}\n"
+                                      "\n"
+                                      "void " +
+                                      name +
+                                      "::Update()\n"
+                                      "{\n"
+                                      "}\n";
 
     std::ofstream headerFile(headerPath);
     if (!headerFile.is_open())

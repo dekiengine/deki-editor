@@ -20,13 +20,19 @@ nlohmann::json IdentityTransform()
 void CollectIds(const nlohmann::json& objects, int64_t& maxId)
 {
     if (!objects.is_array())
+    {
         return;
+    }
     for (const auto& obj : objects)
     {
         if (obj.contains("id") && obj["id"].is_number_integer())
+        {
             maxId = std::max<int64_t>(maxId, obj["id"].get<int64_t>());
+        }
         if (obj.contains("children"))
+        {
             CollectIds(obj["children"], maxId);
+        }
     }
 }
 
@@ -34,16 +40,28 @@ void CollectIds(const nlohmann::json& objects, int64_t& maxId)
 nlohmann::json* FindSetupObject(nlohmann::json& objects)
 {
     if (!objects.is_array())
+    {
         return nullptr;
+    }
     for (auto& obj : objects)
     {
         if (obj.contains("components") && obj["components"].is_array())
+        {
             for (const auto& comp : obj["components"])
+            {
                 if (comp.value("type", std::string()) == kPlatformSetupType)
+                {
                     return &obj;
+                }
+            }
+        }
         if (obj.contains("children"))
+        {
             if (nlohmann::json* found = FindSetupObject(obj["children"]))
+            {
                 return found;
+            }
+        }
     }
     return nullptr;
 }
@@ -66,7 +84,9 @@ bool AddSimulationSteps(nlohmann::json& scene, const nlohmann::json& steps, std:
     }
 
     if (scene.is_null())
+    {
         scene = { { "formatVersion", 1 }, { "objects", nlohmann::json::array() } };
+    }
     if (!scene.contains("objects") || !scene["objects"].is_array())
     {
         error = "the boot scene has no objects";
@@ -80,32 +100,39 @@ bool AddSimulationSteps(nlohmann::json& scene, const nlohmann::json& steps, std:
     nlohmann::json* setup = FindSetupObject(scene["objects"]);
     if (!setup)
     {
-        nlohmann::json obj = {
-            { "active", true },
-            { "children", nlohmann::json::array() },
-            { "components",
-              nlohmann::json::array({ { { "type", kPlatformSetupType },
-                                        { "properties", { { "setupComponents", nlohmann::json::array() } } } } }) },
-            { "id", nextId++ },
-            { "name", "Setup" },
-            { "transform", IdentityTransform() }
-        };
+        nlohmann::json obj = { { "active", true },
+                               { "children", nlohmann::json::array() },
+                               { "components",
+                                 nlohmann::json::array(
+                                     { { { "type", kPlatformSetupType },
+                                         { "properties", { { "setupComponents", nlohmann::json::array() } } } } }) },
+                               { "id", nextId++ },
+                               { "name", "Setup" },
+                               { "transform", IdentityTransform() } };
         scene["objects"].push_back(obj);
         setup = &scene["objects"].back();
     }
 
     nlohmann::json* setupProps = nullptr;
     for (auto& comp : (*setup)["components"])
+    {
         if (comp.value("type", std::string()) == kPlatformSetupType)
         {
             if (!comp.contains("properties") || !comp["properties"].is_object())
+            {
                 comp["properties"] = nlohmann::json::object();
+            }
             setupProps = &comp["properties"];
         }
+    }
     if (!setupProps->contains("setupComponents") || !(*setupProps)["setupComponents"].is_array())
+    {
         (*setupProps)["setupComponents"] = nlohmann::json::array();
+    }
     if (!setup->contains("children") || !(*setup)["children"].is_array())
+    {
         (*setup)["children"] = nlohmann::json::array();
+    }
 
     for (const auto& step : steps)
     {
@@ -115,8 +142,8 @@ bool AddSimulationSteps(nlohmann::json& scene, const nlohmann::json& steps, std:
             { "active", true },
             { "children", nlohmann::json::array() },
             { "components",
-              nlohmann::json::array({ { { "type", type },
-                                        { "properties", step.value("properties", nlohmann::json::object()) } } }) },
+              nlohmann::json::array(
+                  { { { "type", type }, { "properties", step.value("properties", nlohmann::json::object()) } } }) },
             { "id", id },
             { "name", step.value("name", type) },
             { "transform", IdentityTransform() }

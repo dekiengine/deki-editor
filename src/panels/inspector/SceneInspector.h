@@ -3,8 +3,14 @@
 #include <string>
 #include <memory>
 
-namespace Deki { class Object; }
-namespace Deki { class ICamera; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class ICamera;
+}
 
 namespace DekiEditor
 {

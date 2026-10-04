@@ -34,8 +34,9 @@ struct LogDir
 
     LogDir()
     {
-        dir = fs::temp_directory_path() / fs::path("deki-logfile-test-" + std::to_string(::testing::UnitTest::GetInstance()->random_seed()) + "-" +
-                                                    std::to_string(reinterpret_cast<uintptr_t>(this)));
+        dir = fs::temp_directory_path() /
+              fs::path("deki-logfile-test-" + std::to_string(::testing::UnitTest::GetInstance()->random_seed()) + "-" +
+                       std::to_string(reinterpret_cast<uintptr_t>(this)));
         fs::create_directories(dir);
         log = dir / "Editor.log";
         prev = dir / "Editor-prev.log";
@@ -118,7 +119,9 @@ TEST(EditorLogFile, RotatesMidSessionAtTheSizeLimitAndKeepsWriting)
 
     Log(Deki::LogLevel::Info, "the very first line");
     for (int i = 0; i < 200; ++i)
+    {
         Log(Deki::LogLevel::Info, "filler line number " + std::to_string(i));
+    }
     Log(Deki::LogLevel::Info, "the very last line");
     EditorLogFile::Flush();
 
@@ -128,10 +131,8 @@ TEST(EditorLogFile, RotatesMidSessionAtTheSizeLimitAndKeepsWriting)
     EXPECT_TRUE(fs::exists(d.prev)) << "rotation keeps one previous generation";
 
     const std::string current = ReadAll(d.log);
-    EXPECT_NE(current.find("Log rotated"), std::string::npos)
-        << "the new file says why it starts mid-session";
-    EXPECT_NE(current.find("the very last line"), std::string::npos)
-        << "logging continues into the new file";
+    EXPECT_NE(current.find("Log rotated"), std::string::npos) << "the new file says why it starts mid-session";
+    EXPECT_NE(current.find("the very last line"), std::string::npos) << "logging continues into the new file";
     EXPECT_EQ(current.find("the very first line"), std::string::npos)
         << "the first line rotated out several generations ago";
 

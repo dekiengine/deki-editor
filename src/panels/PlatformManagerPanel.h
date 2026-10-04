@@ -34,8 +34,6 @@ public:
 
     void Draw();
 
-
-
     /// Access the board pack manager
     BoardPackManager& GetPackManager() { return *m_PackManager; }
 

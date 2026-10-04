@@ -14,7 +14,8 @@ namespace DekiEditor
 {
 
 CreateAssetDialog::CreateAssetDialog(EditorApp* app, AssetBrowserPanel* browser)
-    : m_App(app), m_Browser(browser)
+    : m_App(app),
+      m_Browser(browser)
 {
 }
 
@@ -54,15 +55,21 @@ void CreateAssetDialog::Draw()
         // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
         // frame, leaving the input inactive so typing goes nowhere.
         if (ImGui::IsWindowAppearing())
+        {
             ImGui::SetKeyboardFocusHere();
+        }
 
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool enterPressed = ImGui::InputText("##assetname", m_NewAssetName, sizeof(m_NewAssetName),
                                              ImGuiInputTextFlags_EnterReturnsTrue);
         if (ImGui::IsItemEdited())
+        {
             m_Error.clear();
+        }
         if (!m_Error.empty())
+        {
             ImGui::TextColored(Palette::Red, "%s", m_Error.c_str());
+        }
 
         ImGui::Spacing();
         ImGui::Spacing();
@@ -82,7 +89,9 @@ void CreateAssetDialog::Draw()
         ImGui::SameLine(0.0f, gap);
 
         if (!canCreate)
+        {
             ImGui::BeginDisabled();
+        }
         ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
@@ -114,8 +123,7 @@ void CreateAssetDialog::Draw()
                 // Create the asset using the registry
                 if (AssetTypeRegistry::Instance().CreateAsset(m_CreateAssetType, newAssetPath.string()))
                 {
-                    DEKI_LOG_EDITOR("Created %s asset %s", m_CreateAssetType.c_str(),
-                                    newAssetPath.string().c_str());
+                    DEKI_LOG_EDITOR("Created %s asset %s", m_CreateAssetType.c_str(), newAssetPath.string().c_str());
 
                     // Refresh the asset in the pipeline to generate GUID and cache
                     if (m_App && m_App->GetAssetPipeline() && m_App->GetProject())
@@ -127,7 +135,10 @@ void CreateAssetDialog::Draw()
                         // Normalize path separators
                         for (char& c : relativePath)
                         {
-                            if (c == '\\') c = '/';
+                            if (c == '\\')
+                            {
+                                c = '/';
+                            }
                         }
 
                         m_App->GetAssetPipeline()->RefreshAsset(relativePath);
@@ -146,12 +157,16 @@ void CreateAssetDialog::Draw()
                 }
             }
             if (m_Error.empty())
+            {
                 ImGui::CloseCurrentPopup();
+            }
         }
 
         ImGui::PopStyleColor(3);
         if (!canCreate)
+        {
             ImGui::EndDisabled();
+        }
         ImGui::PopStyleVar();  // ButtonTextAlign
 
         EndSchematicModal();

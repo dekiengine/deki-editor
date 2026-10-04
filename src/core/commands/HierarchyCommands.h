@@ -28,10 +28,14 @@ class CreateObjectCommand : public Command
 {
 public:
     CreateObjectCommand(Deki::Scene* scene, const std::string& name = "DekiObject",
-                        std::function<void(Deki::Object*)> onCreated = nullptr,
-                        Deki::Object* parent = nullptr,
+                        std::function<void(Deki::Object*)> onCreated = nullptr, Deki::Object* parent = nullptr,
                         std::function<void()> onUndone = nullptr)
-        : m_Scene(scene), m_Name(name), m_OnCreated(onCreated), m_Parent(parent), m_OnUndone(onUndone), m_CreatedObject(nullptr)
+        : m_Scene(scene),
+          m_Name(name),
+          m_OnCreated(onCreated),
+          m_Parent(parent),
+          m_OnUndone(onUndone),
+          m_CreatedObject(nullptr)
     {
     }
 
@@ -39,7 +43,9 @@ public:
     {
         // Detached means undone and unreachable from the scene, so we own it.
         if (m_IsDetached && m_CreatedObject)
+        {
             delete m_CreatedObject;
+        }
     }
 
     std::string GetDescription() const override;
@@ -72,7 +78,9 @@ class RenameObjectCommand : public Command
 {
 public:
     RenameObjectCommand(Deki::Object* obj, const std::string& newName)
-        : m_Object(obj), m_OldName(obj->GetName()), m_NewName(newName)
+        : m_Object(obj),
+          m_OldName(obj->GetName()),
+          m_NewName(newName)
     {
     }
 
@@ -99,7 +107,11 @@ class ReparentObjectCommand : public Command
 {
 public:
     ReparentObjectCommand(Deki::Object* obj, Deki::Object* newParent)
-        : m_Object(obj), m_Scene(obj->GetOwnerScene()), m_OldParent(obj->GetParent()), m_NewParent(newParent), m_ObjectName(obj->GetName())
+        : m_Object(obj),
+          m_Scene(obj->GetOwnerScene()),
+          m_OldParent(obj->GetParent()),
+          m_NewParent(newParent),
+          m_ObjectName(obj->GetName())
     {
     }
 
@@ -127,9 +139,12 @@ private:
 class MoveObjectsCommand : public Command
 {
 public:
-    MoveObjectsCommand(Deki::Scene* scene, std::vector<Deki::Object*> objects,
-                       Deki::Object* targetParent, size_t targetIndex)
-        : m_Scene(scene), m_Objects(std::move(objects)), m_TargetParent(targetParent), m_TargetIndex(targetIndex)
+    MoveObjectsCommand(Deki::Scene* scene, std::vector<Deki::Object*> objects, Deki::Object* targetParent,
+                       size_t targetIndex)
+        : m_Scene(scene),
+          m_Objects(std::move(objects)),
+          m_TargetParent(targetParent),
+          m_TargetIndex(targetIndex)
     {
         // Capture original parent + index for each object
         m_OldStates.reserve(m_Objects.size());
@@ -139,9 +154,13 @@ public:
             state.object = obj;
             state.parent = obj->GetParent();
             if (state.parent)
+            {
                 state.index = static_cast<size_t>(state.parent->GetChildIndex(obj));
+            }
             else
+            {
                 state.index = static_cast<size_t>(m_Scene->GetObjectIndex(obj));
+            }
             m_OldStates.push_back(state);
         }
     }

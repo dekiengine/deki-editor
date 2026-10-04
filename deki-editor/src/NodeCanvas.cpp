@@ -26,9 +26,8 @@ inline float Clampf(float v, float lo, float hi)
 }
 
 // Cubic bezier point at t in [0,1].
-inline void Bezier(float p0x, float p0y, float p1x, float p1y,
-                   float p2x, float p2y, float p3x, float p3y,
-                   float t, float* ox, float* oy)
+inline void Bezier(float p0x, float p0y, float p1x, float p1y, float p2x, float p2y, float p3x, float p3y, float t,
+                   float* ox, float* oy)
 {
     const float u = 1.0f - t;
     const float w0 = u * u * u;
@@ -71,15 +70,13 @@ float NodeCanvas::NodeHeight(const NodeCanvasNode& n)
     return kHeaderH + (rows > 0 ? rows * kRowH : 0.0f) + kBottomPad;
 }
 
-void NodeCanvas::PinGraphPos(const NodeCanvasNode& n, int pin, bool output,
-                             float* gx, float* gy)
+void NodeCanvas::PinGraphPos(const NodeCanvasNode& n, int pin, bool output, float* gx, float* gy)
 {
     *gx = output ? n.x + kNodeWidth : n.x;
     *gy = n.y + kHeaderH + kRowH * (static_cast<float>(pin) + 0.5f);
 }
 
-void NodeCanvas::ToScreen(float originX, float originY, float s,
-                          float gx, float gy, float* sx, float* sy) const
+void NodeCanvas::ToScreen(float originX, float originY, float s, float gx, float gy, float* sx, float* sy) const
 {
     *sx = originX + m_PanX + gx * s;
     *sy = originY + m_PanY + gy * s;
@@ -92,18 +89,20 @@ void NodeCanvas::SetView(float panX, float panY, float zoom)
     m_Zoom = Clampf(zoom, 0.25f, 3.0f);
 }
 
-const NodeCanvasNode* NodeCanvas::FindNode(const NodeCanvasNode* nodes, int nodeCount,
-                                           uint32_t id) const
+const NodeCanvasNode* NodeCanvas::FindNode(const NodeCanvasNode* nodes, int nodeCount, uint32_t id) const
 {
     for (int i = 0; i < nodeCount; ++i)
+    {
         if (nodes[i].id == id)
+        {
             return &nodes[i];
+        }
+    }
     return nullptr;
 }
 
-NodeCanvas::PinRef NodeCanvas::HitTestPin(float originX, float originY, float s,
-                                          const NodeCanvasNode* nodes, int nodeCount,
-                                          float mx, float my) const
+NodeCanvas::PinRef NodeCanvas::HitTestPin(float originX, float originY, float s, const NodeCanvasNode* nodes,
+                                          int nodeCount, float mx, float my) const
 {
     const float hit = (kPinRadius + kPinHitPad) * s;
     const float hitSq = hit * hit;
@@ -121,16 +120,17 @@ NodeCanvas::PinRef NodeCanvas::HitTestPin(float originX, float originY, float s,
                 ToScreen(originX, originY, s, gx, gy, &sx, &sy);
                 const float dx = mx - sx, dy = my - sy;
                 if (dx * dx + dy * dy <= hitSq)
+                {
                     return { i, p, output };
+                }
             }
         }
     }
     return {};
 }
 
-int NodeCanvas::HitTestNode(float originX, float originY, float s,
-                            const NodeCanvasNode* nodes, int nodeCount,
-                            float mx, float my) const
+int NodeCanvas::HitTestNode(float originX, float originY, float s, const NodeCanvasNode* nodes, int nodeCount, float mx,
+                            float my) const
 {
     // Topmost wins: nodes draw in array order, so hit-test from the end.
     for (int i = nodeCount - 1; i >= 0; --i)
@@ -140,15 +140,15 @@ int NodeCanvas::HitTestNode(float originX, float originY, float s,
         ToScreen(originX, originY, s, n.x, n.y, &x0, &y0);
         ToScreen(originX, originY, s, n.x + NodeWidth(n), n.y + NodeHeight(n), &x1, &y1);
         if (mx >= x0 && mx <= x1 && my >= y0 && my <= y1)
+        {
             return i;
+        }
     }
     return -1;
 }
 
-int NodeCanvas::HitTestLink(float originX, float originY, float s,
-                            const NodeCanvasNode* nodes, int nodeCount,
-                            const NodeCanvasLink* links, int linkCount,
-                            float mx, float my) const
+int NodeCanvas::HitTestLink(float originX, float originY, float s, const NodeCanvasNode* nodes, int nodeCount,
+                            const NodeCanvasLink* links, int linkCount, float mx, float my) const
 {
     auto& ui = EditorUI::Get();
     const float maxDist = kLinkHitDist * ui.GetDpiScale();
@@ -159,7 +159,9 @@ int NodeCanvas::HitTestLink(float originX, float originY, float s,
         const NodeCanvasNode* from = FindNode(nodes, nodeCount, links[l].fromNode);
         const NodeCanvasNode* to = FindNode(nodes, nodeCount, links[l].toNode);
         if (!from || !to)
+        {
             continue;
+        }
 
         float gx, gy, p0x, p0y, p3x, p3y;
         PinGraphPos(*from, links[l].fromPin, true, &gx, &gy);
@@ -178,7 +180,9 @@ int NodeCanvas::HitTestLink(float originX, float originY, float s,
             float cx, cy;
             Bezier(p0x, p0y, p1x, p0y, p2x, p3y, p3x, p3y, t, &cx, &cy);
             if (DistToSegmentSq(mx, my, px, py, cx, cy) <= maxDistSq)
+            {
                 return l;
+            }
             px = cx;
             py = cy;
         }
@@ -186,8 +190,7 @@ int NodeCanvas::HitTestLink(float originX, float originY, float s,
     return -1;
 }
 
-void NodeCanvas::DrawLinkCurve(float p0x, float p0y, float p3x, float p3y,
-                               uint32_t color, float thickness) const
+void NodeCanvas::DrawLinkCurve(float p0x, float p0y, float p3x, float p3y, uint32_t color, float thickness) const
 {
     auto& ui = EditorUI::Get();
 
@@ -207,17 +210,21 @@ void NodeCanvas::DrawLinkCurve(float p0x, float p0y, float p3x, float p3y,
     }
 }
 
-void NodeCanvas::Draw(const char* id, float width, float height,
-                      const NodeCanvasNode* nodes, int nodeCount,
-                      const NodeCanvasLink* links, int linkCount,
-                      NodeCanvasEvents& out)
+void NodeCanvas::Draw(const char* id, float width, float height, const NodeCanvasNode* nodes, int nodeCount,
+                      const NodeCanvasLink* links, int linkCount, NodeCanvasEvents& out)
 {
     out = NodeCanvasEvents{};
 
     auto& ui = EditorUI::Get();
 
-    if (width <= 0.0f) width = 100.0f;
-    if (height <= 0.0f) height = 100.0f;
+    if (width <= 0.0f)
+    {
+        width = 100.0f;
+    }
+    if (height <= 0.0f)
+    {
+        height = 100.0f;
+    }
 
     const float dpi = ui.GetDpiScale();
     float s = m_Zoom * dpi;
@@ -249,7 +256,9 @@ void NodeCanvas::Draw(const char* id, float width, float height,
             const float contentH = (maxY - minY) * dpi;
             float fit = 1.0f;
             if (contentW > 0.0f && contentH > 0.0f)
+            {
                 fit = std::fmin((width - margin * 2.0f) / contentW, (height - margin * 2.0f) / contentH);
+            }
             m_Zoom = Clampf(fit, 0.25f, 1.0f);
             s = m_Zoom * dpi;
             m_PanX = width * 0.5f - (minX + maxX) * 0.5f * s;
@@ -277,8 +286,7 @@ void NodeCanvas::Draw(const char* id, float width, float height,
     ui.GetMousePos(&mx, &my);
 
     // ----- Drawing -----
-    ui.DrawRectFilled(originX, originY, originX + width, originY + height,
-                      m_Palette.background, 0.0f);
+    ui.DrawRectFilled(originX, originY, originX + width, originY + height, m_Palette.background, 0.0f);
 
     ui.PushClipRect(originX, originY, originX + width, originY + height, true);
 
@@ -288,10 +296,14 @@ void NodeCanvas::Draw(const char* id, float width, float height,
     {
         float startX = std::fmod(m_PanX, step);
         for (float gx = startX; gx < width; gx += step)
+        {
             ui.DrawLine(originX + gx, originY, originX + gx, originY + height, m_Palette.grid, 1.0f);
+        }
         float startY = std::fmod(m_PanY, step);
         for (float gy = startY; gy < height; gy += step)
+        {
             ui.DrawLine(originX, originY + gy, originX + width, originY + gy, m_Palette.grid, 1.0f);
+        }
     }
 
     // Links under nodes.
@@ -300,7 +312,9 @@ void NodeCanvas::Draw(const char* id, float width, float height,
         const NodeCanvasNode* from = FindNode(nodes, nodeCount, links[l].fromNode);
         const NodeCanvasNode* to = FindNode(nodes, nodeCount, links[l].toNode);
         if (!from || !to)
+        {
             continue;
+        }
 
         float gx, gy, p0x, p0y, p3x, p3y;
         PinGraphPos(*from, links[l].fromPin, true, &gx, &gy);
@@ -308,9 +322,7 @@ void NodeCanvas::Draw(const char* id, float width, float height,
         PinGraphPos(*to, links[l].toPin, false, &gx, &gy);
         ToScreen(originX, originY, s, gx, gy, &p3x, &p3y);
 
-        DrawLinkCurve(p0x, p0y, p3x, p3y,
-                      links[l].selected ? m_Palette.linkSelected : m_Palette.link,
-                      2.0f * dpi);
+        DrawLinkCurve(p0x, p0y, p3x, p3y, links[l].selected ? m_Palette.linkSelected : m_Palette.link, 2.0f * dpi);
     }
 
     // Rubber band while dragging a new link.
@@ -331,9 +343,7 @@ void NodeCanvas::Draw(const char* id, float width, float height,
     }
 
     // Nodes (array order; last = topmost).
-    const PinRef hoverPin = hovered
-                                ? HitTestPin(originX, originY, s, nodes, nodeCount, mx, my)
-                                : PinRef{};
+    const PinRef hoverPin = hovered ? HitTestPin(originX, originY, s, nodes, nodeCount, mx, my) : PinRef{};
     for (int i = 0; i < nodeCount; ++i)
     {
         const NodeCanvasNode& n = nodes[i];
@@ -343,17 +353,15 @@ void NodeCanvas::Draw(const char* id, float width, float height,
         ToScreen(originX, originY, s, n.x + NodeWidth(n), n.y + NodeHeight(n), &x1, &y1);
 
         ui.DrawRectFilled(x0, y0, x1, y1, m_Palette.nodeBody, 6.0f * s);
-        ui.DrawRect(x0, y0, x1, y1,
-                    n.selected ? m_Palette.nodeBorderSelected : m_Palette.nodeBorder,
+        ui.DrawRect(x0, y0, x1, y1, n.selected ? m_Palette.nodeBorderSelected : m_Palette.nodeBorder,
                     n.selected ? 2.0f * dpi : 1.5f * dpi, 6.0f * s);
 
         // Title, vertically centered in the header band.
         {
             float tw, th;
             ui.MeasureTextCss(kTitleCss * m_Zoom, n.title, &tw, &th);
-            ui.DrawTextCss(kTitleCss * m_Zoom,
-                           x0 + 10.0f * s, y0 + (kHeaderH * s - th) * 0.5f,
-                           m_Palette.title, n.title);
+            ui.DrawTextCss(kTitleCss * m_Zoom, x0 + 10.0f * s, y0 + (kHeaderH * s - th) * 0.5f, m_Palette.title,
+                           n.title);
         }
 
         // "Contains a graph" affordance: two nested squares at the header's
@@ -365,10 +373,8 @@ void NodeCanvas::Draw(const char* id, float width, float height,
             const float inset = 3.0f * s;
             const float bx1 = x1 - 10.0f * s;
             const float by0 = y0 + (kHeaderH * s - box) * 0.5f;
-            ui.DrawRect(bx1 - box, by0 + inset, bx1 - inset, by0 + box,
-                        m_Palette.pinLabel, 1.0f * dpi, 1.0f * s);
-            ui.DrawRect(bx1 - box + inset, by0, bx1, by0 + box - inset,
-                        m_Palette.pinLabel, 1.0f * dpi, 1.0f * s);
+            ui.DrawRect(bx1 - box, by0 + inset, bx1 - inset, by0 + box, m_Palette.pinLabel, 1.0f * dpi, 1.0f * s);
+            ui.DrawRect(bx1 - box + inset, by0, bx1, by0 + box - inset, m_Palette.pinLabel, 1.0f * dpi, 1.0f * s);
         }
 
         // Pins + labels.
@@ -383,10 +389,8 @@ void NodeCanvas::Draw(const char* id, float width, float height,
                 PinGraphPos(n, p, output, &gx, &gy);
                 ToScreen(originX, originY, s, gx, gy, &sx, &sy);
 
-                const bool isHovered = hoverPin.nodeIndex == i &&
-                                       hoverPin.pin == p && hoverPin.isOutput == output;
-                ui.DrawCircleFilled(sx, sy, kPinRadius * s,
-                                    isHovered ? m_Palette.pinHovered : m_Palette.pin);
+                const bool isHovered = hoverPin.nodeIndex == i && hoverPin.pin == p && hoverPin.isOutput == output;
+                ui.DrawCircleFilled(sx, sy, kPinRadius * s, isHovered ? m_Palette.pinHovered : m_Palette.pin);
 
                 const char* label = labels && labels[p] ? labels[p] : "";
                 if (label[0] != '\0')
@@ -395,11 +399,13 @@ void NodeCanvas::Draw(const char* id, float width, float height,
                     ui.MeasureTextCss(kPinLabelCss * m_Zoom, label, &lw, &lh);
                     const float ly = sy - lh * 0.5f;
                     if (output)
-                        ui.DrawTextCss(kPinLabelCss * m_Zoom, sx - 10.0f * s - lw, ly,
-                                       m_Palette.pinLabel, label);
+                    {
+                        ui.DrawTextCss(kPinLabelCss * m_Zoom, sx - 10.0f * s - lw, ly, m_Palette.pinLabel, label);
+                    }
                     else
-                        ui.DrawTextCss(kPinLabelCss * m_Zoom, sx + 10.0f * s, ly,
-                                       m_Palette.pinLabel, label);
+                    {
+                        ui.DrawTextCss(kPinLabelCss * m_Zoom, sx + 10.0f * s, ly, m_Palette.pinLabel, label);
+                    }
                 }
             }
         }
@@ -459,8 +465,7 @@ void NodeCanvas::Draw(const char* id, float width, float height,
             }
             else
             {
-                const int linkIndex = HitTestLink(originX, originY, s, nodes, nodeCount,
-                                                  links, linkCount, mx, my);
+                const int linkIndex = HitTestLink(originX, originY, s, nodes, nodeCount, links, linkCount, mx, my);
                 if (linkIndex >= 0)
                 {
                     out.linkClicked = true;
@@ -480,9 +485,7 @@ void NodeCanvas::Draw(const char* id, float width, float height,
     if (hovered && ui.IsMouseClicked(1))
     {
         const PinRef pin = HitTestPin(originX, originY, s, nodes, nodeCount, mx, my);
-        const int nodeIndex = pin.nodeIndex < 0
-                                  ? HitTestNode(originX, originY, s, nodes, nodeCount, mx, my)
-                                  : 0;
+        const int nodeIndex = pin.nodeIndex < 0 ? HitTestNode(originX, originY, s, nodes, nodeCount, mx, my) : 0;
         if (pin.nodeIndex < 0 && nodeIndex < 0)
         {
             out.contextMenu = true;
@@ -526,8 +529,7 @@ void NodeCanvas::Draw(const char* id, float width, float height,
         if (m_LinkDragActive)
         {
             const PinRef pin = HitTestPin(originX, originY, s, nodes, nodeCount, mx, my);
-            if (pin.nodeIndex >= 0 && !pin.isOutput &&
-                nodes[pin.nodeIndex].id != m_LinkFromNode)
+            if (pin.nodeIndex >= 0 && !pin.isOutput && nodes[pin.nodeIndex].id != m_LinkFromNode)
             {
                 out.linkCreated = true;
                 out.fromNode = m_LinkFromNode;
@@ -551,7 +553,9 @@ void NodeCanvas::Draw(const char* id, float width, float height,
 
     // Delete key (gated on hover so typing in side panels never deletes nodes).
     if (hovered && ui.IsKeyPressed(EditorUI::Key::Delete, false))
+    {
         out.deleteRequested = true;
+    }
 }
 
 }  // namespace DekiEditor

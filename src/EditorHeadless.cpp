@@ -93,7 +93,9 @@ Project* ProjectOf(EditorApp& editor, const char* verb)
 {
     Project* project = editor.GetProject();
     if (!project)
+    {
         printf("Error: %s needs an open project, and none was opened.\n", verb);
+    }
     return project;
 }
 
@@ -117,7 +119,10 @@ void CountComponents(const Deki::Scene& scene, int& total, std::set<std::string>
 {
     std::function<void(const Deki::Object*)> visit = [&](const Deki::Object* obj)
     {
-        if (!obj) return;
+        if (!obj)
+        {
+            return;
+        }
         for (const Deki::Component* c : obj->GetComponents())
         {
             ++total;
@@ -128,16 +133,22 @@ void CountComponents(const Deki::Scene& scene, int& total, std::set<std::string>
             }
         }
         for (const Deki::Object* child : obj->GetChildren())
+        {
             visit(child);
+        }
     };
     for (const Deki::Object* root : scene.GetObjects())
+    {
         visit(root);
+    }
 }
 
 void PrintMissingTypes(const std::set<std::string>& types)
 {
     for (const std::string& t : types)
+    {
         printf("  %s\n", t.empty() ? "(no type name)" : t.c_str());
+    }
 }
 
 // Everything package-restore related lives in PackageRestore.{h,cpp} so the
@@ -160,8 +171,7 @@ struct VersionFetch
 // meanwhile: FetchVersionsForPackage posts its result there, and the GUI
 // drains it once per frame. Nothing drained it here, so every fetch used to
 // wait the full timeout and report "no version information".
-bool WaitForVersions(PackageManager& mgr, const std::shared_ptr<VersionFetch>& state,
-                     std::vector<std::string>& out)
+bool WaitForVersions(PackageManager& mgr, const std::shared_ptr<VersionFetch>& state, std::vector<std::string>& out)
 {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
     for (;;)
@@ -175,7 +185,10 @@ bool WaitForVersions(PackageManager& mgr, const std::shared_ptr<VersionFetch>& s
                 return !out.empty();
             }
         }
-        if (std::chrono::steady_clock::now() >= deadline) return false;
+        if (std::chrono::steady_clock::now() >= deadline)
+        {
+            return false;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
@@ -202,7 +215,9 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
     }
 
     if (!pkg.availableVersions.empty())
+    {
         return HighestVersion(pkg.availableVersions);
+    }
 
     std::vector<std::string> versions;
 
@@ -216,11 +231,16 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
         if (IPackageSource* registry = mgr.GetSourceForUrl(pkg.id))
         {
             auto state = std::make_shared<VersionFetch>();
-            registry->FetchVersions(pkg, [state](bool ok, const std::vector<std::string>& v)
+            registry->FetchVersions(pkg,
+                                    [state](bool ok, const std::vector<std::string>& v)
                                     {
-                std::lock_guard<std::mutex> lock(state->m);
-                if (ok) state->versions = v;
-                state->done = true; });
+                                        std::lock_guard<std::mutex> lock(state->m);
+                                        if (ok)
+                                        {
+                                            state->versions = v;
+                                        }
+                                        state->done = true;
+                                    });
             WaitForVersions(mgr, state, versions);
         }
     }
@@ -228,11 +248,16 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
     if (versions.empty())
     {
         auto state = std::make_shared<VersionFetch>();
-        mgr.FetchVersionsForPackage(pkg, [state](bool ok, const std::vector<std::string>& v)
+        mgr.FetchVersionsForPackage(pkg,
+                                    [state](bool ok, const std::vector<std::string>& v)
                                     {
-            std::lock_guard<std::mutex> lock(state->m);
-            if (ok) state->versions = v;
-            state->done = true; });
+                                        std::lock_guard<std::mutex> lock(state->m);
+                                        if (ok)
+                                        {
+                                            state->versions = v;
+                                        }
+                                        state->done = true;
+                                    });
         WaitForVersions(mgr, state, versions);
     }
 
@@ -246,13 +271,14 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
 
 // The routing itself is PackageManager::GetInstallerFor; this adds the reason
 // to the output, which is otherwise a bare "no applicable installer".
-IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg,
-                                const std::string& projectPath)
+IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg, const std::string& projectPath)
 {
     std::string whyNot;
     IPackageInstaller* installer = mgr.GetInstallerFor(pkg, projectPath, whyNot);
     if (installer == nullptr)
+    {
         printf("%s\n", whyNot.c_str());
+    }
     return installer;
 }
 
@@ -264,7 +290,9 @@ void RebuildAfterPackageChange(EditorApp& editor, const std::string& projectPath
 {
     HotReloadService* hr = editor.GetHotReloadService();
     if (!hr)
+    {
         return;
+    }
 
     hr->ForceNextBuild();
     hr->RequestBuildCheck(projectPath);
@@ -286,7 +314,9 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     bool anyFrameworkComponent = false;
     std::map<std::string, std::string> pinnedOther;  // id -> the pin, where it is not what is installed
     for (const PinMismatch& m : FindPinMismatches(projectPath, mgr))
+    {
         pinnedOther[m.id] = m.pinned;
+    }
     printf("%-40s %-12s %s\n", "PACKAGE", "STATE", "VERSION");
     for (const auto& p : pkgs)
     {
@@ -296,12 +326,17 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
         // says what is actually true, and it is never counted as missing -
         // there is no per-project install step it could be missing from.
         const bool frameworkComponent = (p.packageType == PackageType::FrameworkComponent);
-        if (frameworkComponent) anyFrameworkComponent = true;
-        if (!p.isInstalled && !frameworkComponent) ++missing;
+        if (frameworkComponent)
+        {
+            anyFrameworkComponent = true;
+        }
+        if (!p.isInstalled && !frameworkComponent)
+        {
+            ++missing;
+        }
 
         const auto pin = pinnedOther.find(p.id);
-        printf("%-40s %-12s %s%s%s\n",
-               p.id.c_str(),
+        printf("%-40s %-12s %s%s%s\n", p.id.c_str(),
                frameworkComponent ? "declared" : (p.isInstalled ? "installed" : "missing"),
                p.installedVersion.empty() ? "-" : p.installedVersion.c_str(),
                pin == pinnedOther.end() ? "" : (" (deki-packages.json pins " + pin->second + ")").c_str(),
@@ -309,11 +344,15 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     }
     printf("\n%zu package(s), %d missing\n", pkgs.size(), missing);
     if (!pinnedOther.empty())
+    {
         printf("%zu package(s) are not at the version deki-packages.json pins; --packages-restore "
                "does not change an installed version. Run --packages-add <id> --version <pin>.\n",
                pinnedOther.size());
+    }
     if (anyFrameworkComponent)
+    {
         printf("declared = a build framework's own component, fetched by that framework when it builds\n");
+    }
     return missing;
 }
 
@@ -329,8 +368,7 @@ int Report(const FirmwareOpResult& r, const char* what)
 {
     if (r.success)
     {
-        printf("%s succeeded for platform '%s' (%s)\n",
-               what, r.platformId.c_str(), r.platformName.c_str());
+        printf("%s succeeded for platform '%s' (%s)\n", what, r.platformId.c_str(), r.platformName.c_str());
         return 0;
     }
 
@@ -348,7 +386,9 @@ int CmdBuildAssets(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--build");
     if (!project)
+    {
         return 1;
+    }
 
     AssetPipeline* pipeline = editor.GetAssetPipeline();
     if (!pipeline)
@@ -365,11 +405,12 @@ int CmdBuildAssets(EditorApp& editor)
     {
         ++total;
         if (info.hasCachedVersion)
+        {
             ++cached;
+        }
     }
 
-    printf("Assets for %s: %zu imported, %zu compiled to cache/\n",
-           project->GetPath().c_str(), total, cached);
+    printf("Assets for %s: %zu imported, %zu compiled to cache/\n", project->GetPath().c_str(), total, cached);
 
     if (total == 0)
     {
@@ -384,7 +425,9 @@ int CmdExportAssets(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--export");
     if (!project || !CodeBuilt(editor, "Export"))
+    {
         return 1;
+    }
 
     AssetPipeline* pipeline = editor.GetAssetPipeline();
     if (!pipeline)
@@ -420,7 +463,9 @@ int CmdBuildCode(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--build-code");
     if (!project)
+    {
         return 1;
+    }
 
     HotReloadService* hr = editor.GetHotReloadService();
     if (!hr)
@@ -440,8 +485,7 @@ int CmdBuildCode(EditorApp& editor)
         return 1;
     }
 
-    printf("Build OK: build files generated, packages and plugin compiled for %s\n",
-           project->GetPath().c_str());
+    printf("Build OK: build files generated, packages and plugin compiled for %s\n", project->GetPath().c_str());
     return 0;
 }
 
@@ -470,8 +514,7 @@ int CmdNewProject(const char* parentDir, const char* name)
     }
     if (!ProjectTemplate::CreateProject(parentDir, name, nullptr))
     {
-        printf("Error: could not create %s (see %%APPDATA%%/DekiEditor/Editor.log)\n",
-               projectPath.string().c_str());
+        printf("Error: could not create %s (see %%APPDATA%%/DekiEditor/Editor.log)\n", projectPath.string().c_str());
         return 1;
     }
     printf("Created %s\n", projectPath.string().c_str());
@@ -506,7 +549,9 @@ int CmdPackagesRestore(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--packages-restore");
     if (!project)
+    {
         return 1;
+    }
 
     const std::string path = project->GetPath();
 
@@ -536,7 +581,9 @@ int CmdPackagesRestore(EditorApp& editor)
     {
         printf("\n");
         for (const PinMismatch& m : mismatches)
+        {
             printf("Error: %s\n", DescribePinMismatch(m).c_str());
+        }
         return 1;
     }
 
@@ -547,7 +594,9 @@ int CmdPackagesAdd(EditorApp& editor, const char* url, const char* version)
 {
     Project* project = ProjectOf(editor, "--packages-add");
     if (!project)
+    {
         return 1;
+    }
 
     const std::string projectPath = project->GetPath();
 
@@ -596,7 +645,10 @@ int CmdPackagesAdd(EditorApp& editor, const char* url, const char* version)
     std::string message;
     mgr.InstallWithDependencies(projectPath, pkg, ver, installer,
                                 [&](bool success, const std::string& msg)
-                                { ok = success; message = msg; });
+                                {
+                                    ok = success;
+                                    message = msg;
+                                });
 
     if (!ok)
     {
@@ -628,7 +680,9 @@ int CmdPackagesRemove(EditorApp& editor, const char* id)
 {
     Project* project = ProjectOf(editor, "--packages-remove");
     if (!project)
+    {
         return 1;
+    }
 
     const std::string projectPath = project->GetPath();
 
@@ -652,7 +706,10 @@ int CmdPackagesRemove(EditorApp& editor, const char* id)
         {
             std::string repo = p.name;
             const size_t slash = repo.find('/');
-            if (slash != std::string::npos) repo = repo.substr(slash + 1);
+            if (slash != std::string::npos)
+            {
+                repo = repo.substr(slash + 1);
+            }
             if (repo == id)
             {
                 found = &p;
@@ -680,7 +737,10 @@ int CmdPackagesRemove(EditorApp& editor, const char* id)
     std::string message;
     mgr.RemoveWithOrphans(projectPath, pkg, installer,
                           [&](bool success, const std::string& msg)
-                          { ok = success; message = msg; });
+                          {
+                              ok = success;
+                              message = msg;
+                          });
 
     if (!ok)
     {
@@ -691,7 +751,9 @@ int CmdPackagesRemove(EditorApp& editor, const char* id)
     // message carries the comma-separated ids of dependencies that were only
     // present for this package and have been removed with it.
     if (!message.empty())
+    {
         printf("Also removed orphaned dependencies: %s\n", message.c_str());
+    }
 
     mgr.RefreshInstalledStatus(projectPath);
     mgr.SavePackages(projectPath);
@@ -714,7 +776,9 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
 {
     Project* project = ProjectOf(editor, "--packages-update");
     if (!project)
+    {
         return 1;
+    }
 
     const std::string projectPath = project->GetPath();
 
@@ -729,23 +793,34 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
     for (const auto& p : mgr.GetPackages())
     {
         if (!p.isInstalled)
+        {
             continue;
+        }
         if (!all)
         {
             std::string repo = p.name;
             const size_t slash = repo.find('/');
-            if (slash != std::string::npos) repo = repo.substr(slash + 1);
+            if (slash != std::string::npos)
+            {
+                repo = repo.substr(slash + 1);
+            }
             if (p.id != idOrAll && repo != idOrAll)
+            {
                 continue;
+            }
         }
         targets.push_back(p);
     }
     if (targets.empty())
     {
         if (all)
+        {
             printf("No installed packages to update.\n");
+        }
         else
+        {
             printf("Error: '%s' is not an installed package of this project\n", idOrAll);
+        }
         return 1;
     }
 
@@ -785,7 +860,10 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
         std::string message;
         mgr.InstallWithDependencies(projectPath, pkg, version, installer,
                                     [&](bool success, const std::string& msg)
-                                    { ok = success; message = msg; });
+                                    {
+                                        ok = success;
+                                        message = msg;
+                                    });
         if (!ok)
         {
             printf("%s: update failed: %s\n", pkg.id.c_str(), message.c_str());
@@ -820,7 +898,9 @@ int CmdFirmwareBuild(EditorApp& editor, const char* platformId, bool simulate)
 {
     Project* project = ProjectOf(editor, "--build-firmware");
     if (!project)
+    {
         return 1;
+    }
 
     printf("Building firmware for: %s\n", project->GetPath().c_str());
 
@@ -837,7 +917,9 @@ int CmdDeploy(EditorApp& editor, const char* platformId, const char* deployTarge
 {
     Project* project = ProjectOf(editor, "--deploy");
     if (!project)
+    {
         return 1;
+    }
 
     printf("Deploying the build of: %s\n", project->GetPath().c_str());
     BuildOptions options;
@@ -850,7 +932,9 @@ int CmdClean(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--clean");
     if (!project)
+    {
         return 1;
+    }
 
     printf("Cleaning firmware build for: %s\n", project->GetPath().c_str());
     auto r = FirmwareBuildService::Clean(project->GetPath(), Str(platformId), EchoLine);
@@ -885,8 +969,7 @@ int CmdToolchainStatus(const char* projectPath, const char* platformId)
     return 0;
 }
 
-int CmdInstallToolchain(const char* projectPath, const char* platformId,
-                        const char* componentId)
+int CmdInstallToolchain(const char* projectPath, const char* platformId, const char* componentId)
 {
     if (!componentId || componentId[0] == '\0')
     {
@@ -896,8 +979,8 @@ int CmdInstallToolchain(const char* projectPath, const char* platformId,
     }
 
     printf("Installing toolchain component '%s'...\n", componentId);
-    auto r = FirmwareBuildService::InstallToolchainComponent(
-        Str(projectPath), Str(platformId), Str(componentId), EchoLine);
+    auto r =
+        FirmwareBuildService::InstallToolchainComponent(Str(projectPath), Str(platformId), Str(componentId), EchoLine);
     return Report(r, "Toolchain install");
 }
 
@@ -912,7 +995,9 @@ int CmdVerifyScenes(EditorApp& editor)
     // is now; it reported OK, and a CI gate passed a project that no longer
     // compiled.
     if (!project || !CodeBuilt(editor, "Verify"))
+    {
         return 1;
+    }
 
     // No loader bootstrap here any more. The packages and the project's own
     // plugin were loaded by the project open, from the same directories and in
@@ -936,9 +1021,14 @@ int CmdVerifyScenes(EditorApp& editor)
     std::set<std::string> missingTypes;
     for (const auto& entry : fs::recursive_directory_iterator(assetsDir, ec))
     {
-        if (ec) break;
+        if (ec)
+        {
+            break;
+        }
         if (!entry.is_regular_file() || entry.path().extension() != ".scene")
+        {
             continue;
+        }
 
         Deki::Scene scene;
         if (!scene.LoadFromFile(entry.path().string()))
@@ -988,7 +1078,9 @@ int CmdVerifyScenes(EditorApp& editor)
                "Each is a value that will silently revert to its default:\n",
                unknown.size());
         for (const auto& [component, key] : unknown)
+        {
             printf("  %s.%s\n", component.c_str(), key.c_str());
+        }
         printf("\nIf this appeared after a rename, the scene files still carry the old key.\n");
         return 1;
     }
@@ -1002,14 +1094,20 @@ int CmdVerifyScenes(EditorApp& editor)
                "before the property was renamed).\nOpen and re-save the scene to write the current names:\n",
                legacy.size());
         for (const auto& [component, key] : legacy)
+        {
             printf("  %s.%s\n", component.c_str(), key.c_str());
+        }
         printf("\n");
     }
 
     if (unreadable > 0)
+    {
         printf("Error: %d scene(s) could not be loaded (listed above).\n", unreadable);
+    }
     if (failed)
+    {
         return 1;
+    }
     printf("OK: every property key in %d scene(s) is recognised.\n", scenes);
     return 0;
 }
@@ -1023,10 +1121,21 @@ namespace
 
 Deki::ICamera* FindCameraInSubtree(Deki::Object* obj)
 {
-    if (!obj) return nullptr;
-    if (Deki::ICamera* cam = obj->FindInterface<Deki::ICamera>()) return cam;
+    if (!obj)
+    {
+        return nullptr;
+    }
+    if (Deki::ICamera* cam = obj->FindInterface<Deki::ICamera>())
+    {
+        return cam;
+    }
     for (Deki::Object* child : obj->GetChildren())
-        if (Deki::ICamera* cam = FindCameraInSubtree(child)) return cam;
+    {
+        if (Deki::ICamera* cam = FindCameraInSubtree(child))
+        {
+            return cam;
+        }
+    }
     return nullptr;
 }
 
@@ -1037,20 +1146,28 @@ Deki::ICamera* FindCameraInSubtree(Deki::Object* obj)
 std::string RendererNameOf(Project* project, AssetPipeline* pipeline)
 {
     if (!project || !pipeline)
+    {
         return "default";
+    }
     const std::string guid = project->GetRenderPipelineGuid();
     if (guid.empty())
+    {
         return "default";
+    }
 
     const AssetInfo* info = pipeline->GetAssetInfoByGuid(guid);
     if (!info)
+    {
         return "default";
+    }
 
     try
     {
         std::ifstream in(fs::path(pipeline->GetProjectPath()) / info->path);
         if (!in)
+        {
             return "default";
+        }
         nlohmann::json j;
         in >> j;
         const std::string name = j.value("renderer", "");
@@ -1079,11 +1196,15 @@ void PixelToRgb(Deki::ColorFormat format, const uint8_t* p, uint8_t& r, uint8_t&
 {
     if (format == Deki::ColorFormat::RGB888)
     {
-        r = p[0]; g = p[1]; b = p[2];
+        r = p[0];
+        g = p[1];
+        b = p[2];
     }
     else if (format == Deki::ColorFormat::ARGB8888)
     {
-        r = p[2]; g = p[1]; b = p[0];
+        r = p[2];
+        g = p[1];
+        b = p[0];
     }
     else
     {
@@ -1097,7 +1218,10 @@ void PixelToRgb(Deki::ColorFormat format, const uint8_t* p, uint8_t& r, uint8_t&
 bool WritePpm(const fs::path& path, const uint8_t* pixels, Deki::ColorFormat format, int w, int h)
 {
     FILE* f = std::fopen(path.string().c_str(), "wb");
-    if (!f) return false;
+    if (!f)
+    {
+        return false;
+    }
     std::fprintf(f, "P6\n%d %d\n255\n", w, h);
     const size_t bpp = Deki::FrameBufferBytes(format, 1, 1);
     std::vector<uint8_t> row(static_cast<size_t>(w) * 3);
@@ -1105,7 +1229,9 @@ bool WritePpm(const fs::path& path, const uint8_t* pixels, Deki::ColorFormat for
     {
         const uint8_t* src = pixels + static_cast<size_t>(y) * w * bpp;
         for (int x = 0; x < w; ++x)
+        {
             PixelToRgb(format, src + x * bpp, row[x * 3 + 0], row[x * 3 + 1], row[x * 3 + 2]);
+        }
         std::fwrite(row.data(), 1, row.size(), f);
     }
     std::fclose(f);
@@ -1119,14 +1245,32 @@ void FillClear(std::vector<uint8_t>& buffer, Deki::ColorFormat format, uint8_t r
     const uint16_t v565 = static_cast<uint16_t>(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
     switch (format)
     {
-        case Deki::ColorFormat::RGB565: px[0] = v565 & 0xFF; px[1] = v565 >> 8; break;
-        case Deki::ColorFormat::RGB565A8: px[0] = v565 & 0xFF; px[1] = v565 >> 8; px[2] = 255; break;
-        case Deki::ColorFormat::RGB888: px[0] = r; px[1] = g; px[2] = b; break;
-        case Deki::ColorFormat::ARGB8888: px[0] = b; px[1] = g; px[2] = r; px[3] = 255; break;
+        case Deki::ColorFormat::RGB565:
+            px[0] = v565 & 0xFF;
+            px[1] = v565 >> 8;
+            break;
+        case Deki::ColorFormat::RGB565A8:
+            px[0] = v565 & 0xFF;
+            px[1] = v565 >> 8;
+            px[2] = 255;
+            break;
+        case Deki::ColorFormat::RGB888:
+            px[0] = r;
+            px[1] = g;
+            px[2] = b;
+            break;
+        case Deki::ColorFormat::ARGB8888:
+            px[0] = b;
+            px[1] = g;
+            px[2] = r;
+            px[3] = 255;
+            break;
     }
     const size_t bpp = Deki::FrameBufferBytes(format, 1, 1);
     for (size_t i = 0; i + bpp <= buffer.size(); i += bpp)
+    {
         std::memcpy(buffer.data() + i, px, bpp);
+    }
 }
 
 }  // namespace
@@ -1136,7 +1280,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     Project* project = ProjectOf(editor, "--render-scenes");
     // A hash from the previous binaries is not a hash of the project as it is.
     if (!project || !CodeBuilt(editor, "Render"))
+    {
         return 1;
+    }
 
     Deki::IRenderSystem* rs = Deki::Engine::GetInstance().GetRenderSystem();
     if (!rs)
@@ -1147,7 +1293,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
 
     int frames = 60;
     if (const char* env = std::getenv("DEKI_RENDER_FRAMES"))
+    {
         frames = std::max(1, std::atoi(env));
+    }
 
     // DEKI_RENDER_MODE: "buffer" (default) renders through RenderToBuffer with
     // an explicit clear, the scene view's path. "system" drives the engine's
@@ -1157,7 +1305,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     // real scenes. All three must produce the same hash per scene.
     std::string mode = "buffer";
     if (const char* env = std::getenv("DEKI_RENDER_MODE"))
+    {
         mode = env;
+    }
     const bool useSystem = (mode == "system" || mode == "tracked");
     if (mode == "tracked")
     {
@@ -1168,7 +1318,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
         {
             if (!info.instance || !info.meta || std::string(info.meta->name) != "RenderingProjectSettings")
+            {
                 continue;
+            }
             for (int q = 0; q < info.meta->propertyCount; ++q)
             {
                 const Deki::PropertyInfo& p = info.meta->properties[q];
@@ -1188,7 +1340,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     const char* outDir = std::getenv("DEKI_RENDER_OUT");
     std::error_code ec;
     if (outDir)
+    {
         fs::create_directories(outDir, ec);
+    }
 
     // DEKI_RENDER_TICK_MS: run the scene the way play mode does - lifecycle
     // (Awake, Start, Update) and component updates before every frame - on a
@@ -1198,7 +1352,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     // hash is the last frame's. Unset (the default) the scene stays static.
     float tickMs = 0.0f;
     if (const char* env = std::getenv("DEKI_RENDER_TICK_MS"))
+    {
         tickMs = std::max(0.0f, static_cast<float>(std::atof(env)));
+    }
     struct SteppedClock : Deki::ITimeProvider
     {
         uint32_t ms = 0;
@@ -1275,9 +1431,14 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     std::vector<fs::path> scenePaths;
     for (const auto& entry : fs::recursive_directory_iterator(assetsDir, ec))
     {
-        if (ec) break;
+        if (ec)
+        {
+            break;
+        }
         if (entry.is_regular_file() && entry.path().extension() == ".scene")
+        {
             scenePaths.push_back(entry.path());
+        }
     }
     std::sort(scenePaths.begin(), scenePaths.end());
 
@@ -1295,11 +1456,15 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
            DekiEditor::ColorFormatName(format), frames);
 
     if (clock)
+    {
         printf("Rendering %zu scene(s) at %dx%d %s, %d frame(s) each, mode %s, ticking %.3f ms per frame\n",
                scenePaths.size(), width, height, DekiEditor::ColorFormatName(format), frames, mode.c_str(), tickMs);
+    }
     else
-        printf("Rendering %zu scene(s) at %dx%d %s, %d frame(s) each, mode %s\n",
-               scenePaths.size(), width, height, DekiEditor::ColorFormatName(format), frames, mode.c_str());
+    {
+        printf("Rendering %zu scene(s) at %dx%d %s, %d frame(s) each, mode %s\n", scenePaths.size(), width, height,
+               DekiEditor::ColorFormatName(format), frames, mode.c_str());
+    }
 
     if (useSystem && !rs->Setup(width, height, format))
     {
@@ -1322,7 +1487,12 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         CountComponents(scene, totalComponents, missingTypes, missingComponents);
         Deki::ICamera* camera = nullptr;
         for (Deki::Object* root : scene.GetObjects())
-            if ((camera = FindCameraInSubtree(root)) != nullptr) break;
+        {
+            if ((camera = FindCameraInSubtree(root)) != nullptr)
+            {
+                break;
+            }
+        }
         if (!camera)
         {
             printf("  - %-40s (no camera, skipped)\n", rel.c_str());
@@ -1333,7 +1503,12 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         camera->GetClearColor(cr, cg, cb);
         std::string name = rel;
         for (char& c : name)
-            if (c == '/' || c == '\\') c = '_';
+        {
+            if (c == '/' || c == '\\')
+            {
+                c = '_';
+            }
+        }
 
         int32_t presentCount = -1;
         int partialFrames = 0, emptyFrames = 0;
@@ -1356,8 +1531,14 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
             {
                 rs->Render(&scene);
                 rs->GetPresentRects(&presentCount);
-                if (presentCount > 0) ++partialFrames;
-                if (presentCount == 0) ++emptyFrames;
+                if (presentCount > 0)
+                {
+                    ++partialFrames;
+                }
+                if (presentCount == 0)
+                {
+                    ++emptyFrames;
+                }
             }
             else
             {
@@ -1369,7 +1550,10 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
                 if (useSystem)
                 {
                     const uint8_t* fb = rs->GetFrameBuffer();
-                    if (fb) std::memcpy(buffer.data(), fb, buffer.size());
+                    if (fb)
+                    {
+                        std::memcpy(buffer.data(), fb, buffer.size());
+                    }
                 }
                 char num[16];
                 snprintf(num, sizeof(num), "_%04d", f);
@@ -1379,19 +1563,28 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         if (useSystem)
         {
             const uint8_t* fb = rs->GetFrameBuffer();
-            if (fb) std::memcpy(buffer.data(), fb, buffer.size());
+            if (fb)
+            {
+                std::memcpy(buffer.data(), fb, buffer.size());
+            }
         }
         const uint64_t hash = Fnv1a(buffer.data(), buffer.size());
         if (useSystem)
+        {
             printf("  %016llx  %-40s (frames: %d partial, %d unchanged, %d full)\n",
                    static_cast<unsigned long long>(hash), rel.c_str(), partialFrames, emptyFrames,
                    frames - partialFrames - emptyFrames);
+        }
         else
+        {
             printf("  %016llx  %s\n", static_cast<unsigned long long>(hash), rel.c_str());
+        }
         ++rendered;
 
         if (outDir)
+        {
             WritePpm(fs::path(outDir) / (name + ".ppm"), buffer.data(), format, width, height);
+        }
     }
 
     if (rendered == 0)
@@ -1403,7 +1596,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     // pass with exit 0: a scene that did not load, and components drawn as
     // nothing because no package provides them.
     if (unreadable > 0)
+    {
         printf("Error: %d scene(s) could not be loaded (listed above).\n", unreadable);
+    }
     if (missingComponents > 0)
     {
         printf("Error: %d of %d components are of a type no package or project code provides, so they "
@@ -1413,7 +1608,6 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     }
     return (unreadable > 0 || missingComponents > 0) ? 1 : 0;
 }
-
 
 // ===========================================================================
 // Reflection metadata dump (the docs build's input)
@@ -1452,37 +1646,74 @@ const char* PropertyTypeName(Deki::PropertyType t)
     return "unknown";
 }
 
-
 nlohmann::json PropertyToJson(const Deki::PropertyInfo& p, const nlohmann::json& defaults)
 {
     nlohmann::json j;
     j["name"] = p.name ? p.name : "";
-    if (p.displayName) j["displayName"] = p.displayName;
+    if (p.displayName)
+    {
+        j["displayName"] = p.displayName;
+    }
     j["type"] = PropertyTypeName(p.type);
-    if (p.type == Deki::PropertyType::Array) j["elementType"] = PropertyTypeName(p.elementType);
-    if (p.tooltip && *p.tooltip) j["tooltip"] = p.tooltip;
+    if (p.type == Deki::PropertyType::Array)
+    {
+        j["elementType"] = PropertyTypeName(p.elementType);
+    }
+    if (p.tooltip && *p.tooltip)
+    {
+        j["tooltip"] = p.tooltip;
+    }
     if (p.hasRange)
+    {
         j["range"] = { { "min", p.minValue }, { "max", p.maxValue }, { "slider", p.useSlider } };
-    if (p.assetType && *p.assetType) j["assetType"] = p.assetType;
+    }
+    if (p.assetType && *p.assetType)
+    {
+        j["assetType"] = p.assetType;
+    }
     if (p.enumValues && p.enumCount > 0)
     {
         nlohmann::json values = nlohmann::json::array();
         for (int i = 0; i < p.enumCount; ++i)
+        {
             values.push_back(p.enumValues[i] ? p.enumValues[i] : "");
+        }
         j["enumValues"] = values;
     }
-    if (p.group && *p.group) j["group"] = p.group;
-    if (const char* unit = CanonicalUnitSymbol(p.physicalUnit)) j["unit"] = unit;
+    if (p.group && *p.group)
+    {
+        j["group"] = p.group;
+    }
+    if (const char* unit = CanonicalUnitSymbol(p.physicalUnit))
+    {
+        j["unit"] = unit;
+    }
     if (p.visibilityProperty && *p.visibilityProperty)
+    {
         j["visibleWhen"] = { { "property", p.visibilityProperty },
                              { "minValue", p.visibilityMinValue },
                              { "mask", p.visibilityMask } };
-    if (p.componentRefType) j["componentRefType"] = p.componentRefType;
-    if (p.isMultiline) j["multiline"] = true;
-    if (p.togglesObjectOf && *p.togglesObjectOf) j["togglesObjectOf"] = p.togglesObjectOf;
-    if (p.valueOfProperty && *p.valueOfProperty) j["valueOf"] = p.valueOfProperty;
+    }
+    if (p.componentRefType)
+    {
+        j["componentRefType"] = p.componentRefType;
+    }
+    if (p.isMultiline)
+    {
+        j["multiline"] = true;
+    }
+    if (p.togglesObjectOf && *p.togglesObjectOf)
+    {
+        j["togglesObjectOf"] = p.togglesObjectOf;
+    }
+    if (p.valueOfProperty && *p.valueOfProperty)
+    {
+        j["valueOf"] = p.valueOfProperty;
+    }
     if (p.name && defaults.is_object() && defaults.contains(p.name))
+    {
         j["default"] = defaults[p.name];
+    }
     return j;
 }
 
@@ -1511,15 +1742,19 @@ nlohmann::json MetaToJson(const Deki::ComponentMeta& meta, const nlohmann::json&
     if (meta.baseTypeId != 0)
     {
         if (const Deki::ComponentMeta* base = registry.GetMeta(meta.baseTypeId))
+        {
             for (int i = 0; i < base->propertyCount; ++i)
             {
                 nlohmann::json p = PropertyToJson(base->properties[i], values);
                 p["inheritedFrom"] = base->name ? base->name : "";
                 props.push_back(p);
             }
+        }
     }
     for (int i = 0; i < meta.propertyCount; ++i)
+    {
         props.push_back(PropertyToJson(meta.properties[i], values));
+    }
     j["properties"] = props;
     return j;
 }
@@ -1533,16 +1768,25 @@ std::unordered_map<std::string, std::string> PackageIdsByTarget(const std::strin
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(GetPackagesDirectory(projectPath), ec))
     {
-        if (!entry.is_directory(ec)) continue;
+        if (!entry.is_directory(ec))
+        {
+            continue;
+        }
         std::ifstream f(entry.path() / "package.cmake");
         std::string line;
         while (std::getline(f, line))
         {
             const size_t at = line.find("PACKAGE_TARGET");
-            if (at == std::string::npos) continue;
+            if (at == std::string::npos)
+            {
+                continue;
+            }
             const size_t q1 = line.find('"', at);
             const size_t q2 = q1 == std::string::npos ? q1 : line.find('"', q1 + 1);
-            if (q2 == std::string::npos) continue;
+            if (q2 == std::string::npos)
+            {
+                continue;
+            }
             byTarget[line.substr(q1 + 1, q2 - q1 - 1)] = entry.path().filename().string();
             break;
         }
@@ -1554,17 +1798,22 @@ std::string PackageIdForDll(const std::string& dllFilename,
                             const std::unordered_map<std::string, std::string>& byTarget)
 {
     std::string stem = fs::path(dllFilename).stem().string();
-    if (stem.rfind("lib", 0) == 0) stem = stem.substr(3);
+    if (stem.rfind("lib", 0) == 0)
+    {
+        stem = stem.substr(3);
+    }
     const auto it = byTarget.find(stem);
     return it != byTarget.end() ? it->second : stem;
 }
 
 void SortByName(nlohmann::json& arr)
 {
-    if (!arr.is_array()) return;
-    std::sort(arr.begin(), arr.end(), [](const nlohmann::json& a, const nlohmann::json& b) {
-        return a.value("name", "") < b.value("name", "");
-    });
+    if (!arr.is_array())
+    {
+        return;
+    }
+    std::sort(arr.begin(), arr.end(), [](const nlohmann::json& a, const nlohmann::json& b)
+              { return a.value("name", "") < b.value("name", ""); });
 }
 
 }  // namespace
@@ -1589,13 +1838,12 @@ McpToolRegistry BuildToolRegistry(EditorApp& editor)
 /// Runs one tool somewhere: in this process, or in the editor that has the
 /// project open (LiveSession.h). Throws are reported rather than escaping,
 /// because a script step failing is an ordinary outcome.
-using ToolCall = std::function<bool(const std::string& name, const nlohmann::json& args,
-                                    nlohmann::json& result, std::string& error)>;
+using ToolCall = std::function<bool(const std::string& name, const nlohmann::json& args, nlohmann::json& result,
+                                    std::string& error)>;
 
 ToolCall LocalToolCall(const McpToolRegistry& registry)
 {
-    return [&registry](const std::string& name, const nlohmann::json& args, nlohmann::json& result,
-                       std::string& error)
+    return [&registry](const std::string& name, const nlohmann::json& args, nlohmann::json& result, std::string& error)
     {
         const std::optional<McpToolDescriptor> tool = registry.FindTool(name);
         if (!tool)
@@ -1623,18 +1871,18 @@ ToolCall LocalToolCall(const McpToolRegistry& registry)
 
 ToolCall LiveToolCall(const LiveSession::Info& session)
 {
-    return [session](const std::string& name, const nlohmann::json& args, nlohmann::json& result,
-                      std::string& error)
+    return [session](const std::string& name, const nlohmann::json& args, nlohmann::json& result, std::string& error)
     { return LiveSession::CallTool(session, name, args, result, error); };
 }
 
 /// Run one tool, printing what it returned.
-bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::json& args,
-                std::string& outError)
+bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::json& args, std::string& outError)
 {
     nlohmann::json result;
     if (!call(name, args, result, outError))
+    {
         return false;
+    }
     printf("%s\n", result.dump(2).c_str());
     return true;
 }
@@ -1705,8 +1953,7 @@ int RunScriptWith(const ToolCall& call, const char* scriptPath)
             return 1;
         }
         const std::string name = step["tool"].get<std::string>();
-        const nlohmann::json args =
-            step.contains("args") ? step["args"] : nlohmann::json::object();
+        const nlohmann::json args = step.contains("args") ? step["args"] : nlohmann::json::object();
 
         printf("[%d/%d] %s\n", stepNumber, static_cast<int>(script.size()), name.c_str());
         std::string error;
@@ -1730,9 +1977,8 @@ int CmdListTools(EditorApp& editor)
     nlohmann::json out = nlohmann::json::array();
     for (const McpToolDescriptor& tool : registry.GetTools())
     {
-        out.push_back({ { "name", tool.name },
-                        { "description", tool.description },
-                        { "inputSchema", tool.inputSchema } });
+        out.push_back(
+            { { "name", tool.name }, { "description", tool.description }, { "inputSchema", tool.inputSchema } });
     }
     printf("%s\n", out.dump(2).c_str());
     return 0;
@@ -1753,7 +1999,9 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
 bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
 {
     if (!cli.projectPath || !(cli.listTools || cli.toolName || cli.scriptPath))
+    {
         return false;
+    }
     // Only a line of tool verbs runs in the live editor; anything else on it
     // (an export, a build) would be dropped there. Such a line boots, and the
     // project lock says the editor has it open.
@@ -1762,10 +2010,14 @@ bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
     rest.toolName = nullptr;
     rest.scriptPath = nullptr;
     if (HasCommand(rest))
+    {
         return false;
+    }
     const std::vector<LiveSession::Info> sessions = LiveSession::FindForProject(cli.projectPath);
     if (sessions.empty())
+    {
         return false;
+    }
     const LiveSession::Info& session = sessions.front();
 
     // stderr, so stdout stays the tool output a caller parses.
@@ -1787,8 +2039,7 @@ bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
     }
 
     const ToolCall call = LiveToolCall(session);
-    outRc = cli.toolName ? RunToolWith(call, cli.toolName, cli.toolArgs)
-                         : RunScriptWith(call, cli.scriptPath);
+    outRc = cli.toolName ? RunToolWith(call, cli.toolName, cli.toolArgs) : RunScriptWith(call, cli.scriptPath);
     return true;
 }
 
@@ -1801,10 +2052,16 @@ static std::vector<std::string> ProjectOwnPlatforms(const std::string& projectPa
     std::error_code ec;
     const std::filesystem::path dir(GetPlatformsDirectory(projectPath));
     if (!std::filesystem::exists(dir, ec))
+    {
         return ids;
+    }
     for (const auto& entry : std::filesystem::directory_iterator(dir, ec))
+    {
         if (entry.is_directory())
+        {
             ids.push_back(entry.path().filename().string());
+        }
+    }
     std::sort(ids.begin(), ids.end());
     return ids;
 }
@@ -1820,7 +2077,9 @@ int CmdBuildAllTargets(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--build-all-targets");
     if (!project)
+    {
         return 1;
+    }
 
     const std::vector<std::string> targets = ProjectOwnPlatforms(project->GetPath());
     if (targets.empty())
@@ -1835,10 +2094,14 @@ int CmdBuildAllTargets(EditorApp& editor)
     {
         const auto conflicts = FindTargetContentConflicts(project->GetPath(), t);
         if (conflicts.empty())
+        {
             continue;
+        }
         printf("%-24s BLOCKED\n", t.c_str());
         for (const auto& c : conflicts)
+        {
             printf("    %s\n", c.Describe().c_str());
+        }
         ++blocked;
     }
     if (blocked > 0)
@@ -1855,8 +2118,7 @@ int CmdBuildAllTargets(EditorApp& editor)
         // The editor is passed, not omitted: the asset export needs it, and
         // that is where the per-target boot scene and screen geometry are
         // decided. Without it each target would be built from the same assets.
-        const FirmwareOpResult r =
-            FirmwareBuildService::Build(project->GetPath(), t, nullptr, &editor);
+        const FirmwareOpResult r = FirmwareBuildService::Build(project->GetPath(), t, nullptr, &editor);
         if (r.success)
         {
             printf("%-24s ok\n", t.c_str());
@@ -1880,7 +2142,9 @@ int CmdPlatformCompat(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--platform-compat");
     if (!project)
+    {
         return 1;
+    }
 
     auto& registry = PlatformRegistry::Instance();
     std::vector<std::string> targets = registry.GetAvailablePlatforms();
@@ -1895,11 +2159,15 @@ int CmdPlatformCompat(EditorApp& editor)
 
     size_t nameWidth = 8;
     for (const auto& pkg : packages)
+    {
         nameWidth = std::max(nameWidth, pkg.id.size());
+    }
 
     printf("%-*s", (int)nameWidth + 2, "Package");
     for (const auto& t : targets)
+    {
         printf("%-22s", t.c_str());
+    }
     printf("\n");
 
     for (const auto& pkg : packages)
@@ -1916,7 +2184,9 @@ int CmdPlatformCompat(EditorApp& editor)
                 {
                     cell = "no (" + missing.front();
                     if (missing.size() > 1)
+                    {
                         cell += ", +" + std::to_string(missing.size() - 1);
+                    }
                     cell += ")";
                 }
             }
@@ -1931,15 +2201,21 @@ int CmdPlatformCompat(EditorApp& editor)
     {
         const auto conflicts = FindTargetContentConflicts(project->GetPath(), t);
         if (conflicts.empty())
+        {
             continue;
+        }
         printf("\n%s cannot build:\n", t.c_str());
         for (const auto& c : conflicts)
+        {
             printf("  %s\n", c.Describe().c_str());
+        }
         ++problems;
     }
 
     if (problems == 0)
+    {
         printf("\nEvery target is coherent: what each leaves out, nothing on it needs.\n");
+    }
     return problems == 0 ? 0 : 1;
 }
 
@@ -1947,13 +2223,17 @@ int CmdStripPlan(EditorApp& editor, const char* platformId)
 {
     Project* project = ProjectOf(editor, "--strip-plan");
     if (!project)
+    {
         return 1;
+    }
 
     // A plan is per target: another platform's boot scene says nothing about
     // this one. Defaults to the active platform; "all" asks for the pooled view.
     std::string target = platformId ? platformId : project->GetActivePlatformId();
     if (target == "all")
+    {
         target.clear();
+    }
     // A mistyped platform used to print a plan for a platform with no boot
     // scene and no capabilities, and exit 0; export and build refuse it.
     if (!target.empty() && !PlatformRegistry::Instance().GetPlatform(target))
@@ -1972,19 +2252,29 @@ int CmdStripPlan(EditorApp& editor, const char* platformId)
             currentPackage = d.packageId;
             const char* pkgNote = "";
             for (const auto& p : plan.packages)
+            {
                 if (p.packageId == d.packageId && !p.on)
+                {
                     pkgNote = "  [stripped]";
+                }
+            }
             printf("%s%s\n", d.packageId.c_str(), pkgNote);
         }
         printf("  %-4s %-16s %-12s %s\n", d.on ? "on" : "off", d.featureId.c_str(), FeatureStateName(d.state),
                d.reason.c_str());
     }
     for (const auto& p : plan.packages)
+    {
         if (!p.on)
+        {
             printf("%s stripped: %s\n", p.packageId.c_str(), p.reason.c_str());
+        }
+    }
     printf("%s\n", plan.summary.c_str());
     for (const auto& w : plan.warnings)
+    {
         printf("warning: %s\n", w.c_str());
+    }
     return 0;
 }
 
@@ -1992,7 +2282,9 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
 {
     Project* project = ProjectOf(editor, "--dump-metadata");
     if (!project)
+    {
         return 1;
+    }
     if (!outPath || !*outPath)
     {
         printf("Error: --dump-metadata needs an output file\n");
@@ -2009,7 +2301,10 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
         const auto byTarget = PackageIdsByTarget(project->GetPath());
         for (const auto& info : loader->GetLoadedPackages())
         {
-            if (!info.loaded) continue;
+            if (!info.loaded)
+            {
+                continue;
+            }
             nlohmann::json pkg;
             pkg["id"] = PackageIdForDll(info.dllFilename, byTarget);
             pkg["name"] = info.name;
@@ -2017,7 +2312,9 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
             pkg["components"] = nlohmann::json::array();
             pkg["settings"] = nlohmann::json::array();
             for (uint32_t typeId : info.registeredTypeIds)
+            {
                 ownerOf[typeId] = packages.size();
+            }
             packages.push_back(pkg);
         }
     }
@@ -2031,18 +2328,29 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
     int componentCount = 0, settingsCount = 0, skippedProject = 0;
     for (const Deki::ComponentMeta* meta : registry.GetAllComponents())
     {
-        if (!meta) continue;
+        if (!meta)
+        {
+            continue;
+        }
         nlohmann::json c = MetaToJson(*meta, Deki::Scene::ComponentDefaultsToJson(*meta));
         auto it = ownerOf.find(meta->typeId);
         if (it != ownerOf.end())
+        {
             packages[it->second]["components"].push_back(c);
+        }
         else if (registry.IsPluginComponent(meta->typeId))
         {
-            if (!includeProject) { ++skippedProject; continue; }
+            if (!includeProject)
+            {
+                ++skippedProject;
+                continue;
+            }
             projectOwn["components"].push_back(c);
         }
         else
+        {
             engine["components"].push_back(c);
+        }
         ++componentCount;
     }
 
@@ -2050,14 +2358,21 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
     // defaults the registry created them with.
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
     {
-        if (!info.meta) continue;
+        if (!info.meta)
+        {
+            continue;
+        }
         nlohmann::json s = MetaToJson(*info.meta, Deki::Scene::ComponentPropertiesToJson(info.instance, *info.meta));
         s["section"] = info.sectionName ? info.sectionName : "";
         auto it = ownerOf.find(info.meta->typeId);
         if (it != ownerOf.end())
+        {
             packages[it->second]["settings"].push_back(s);
+        }
         else
+        {
             engine["settings"].push_back(s);
+        }
         ++settingsCount;
     }
 
@@ -2069,9 +2384,8 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
     SortByName(engine["components"]);
     SortByName(engine["settings"]);
     SortByName(projectOwn["components"]);
-    std::sort(packages.begin(), packages.end(), [](const nlohmann::json& a, const nlohmann::json& b) {
-        return a.value("id", "") < b.value("id", "");
-    });
+    std::sort(packages.begin(), packages.end(),
+              [](const nlohmann::json& a, const nlohmann::json& b) { return a.value("id", "") < b.value("id", ""); });
 
     nlohmann::json out;
     out["schemaVersion"] = 1;
@@ -2082,7 +2396,9 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
     out["packages"] = packages;
     out["engine"] = engine;
     if (includeProject)
+    {
         out["projectComponents"] = projectOwn["components"];
+    }
 
     std::error_code ec;
     fs::create_directories(fs::path(outPath).parent_path(), ec);
@@ -2095,10 +2411,12 @@ int CmdDumpMetadata(EditorApp& editor, const char* outPath, bool includeProject)
     f << out.dump(2) << "\n";
     f.close();
 
-    printf("Wrote %s: %zu package(s), %d component(s), %d settings section(s)",
-           outPath, packages.size(), componentCount, settingsCount);
+    printf("Wrote %s: %zu package(s), %d component(s), %d settings section(s)", outPath, packages.size(),
+           componentCount, settingsCount);
     if (skippedProject > 0)
+    {
         printf(", %d project component(s) skipped (pass --include-project)", skippedProject);
+    }
     printf("\n");
     return 0;
 }

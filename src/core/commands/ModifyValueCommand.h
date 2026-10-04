@@ -31,16 +31,14 @@ class ModifyValueCommand : public Command
 public:
     using ValueCallback = std::function<void(const void* value)>;
 
-    ModifyValueCommand(void* target, size_t size,
-                       const void* oldBytes, const void* newBytes,
-                       std::string description,
-                       ValueCallback onUndo = nullptr,
-                       ValueCallback onRedo = nullptr)
-        : m_Target(target), m_Old(static_cast<const uint8_t*>(oldBytes),
-                                  static_cast<const uint8_t*>(oldBytes) + size),
-          m_New(static_cast<const uint8_t*>(newBytes),
-                static_cast<const uint8_t*>(newBytes) + size),
-          m_Description(std::move(description)), m_OnUndo(std::move(onUndo)), m_OnRedo(std::move(onRedo)),
+    ModifyValueCommand(void* target, size_t size, const void* oldBytes, const void* newBytes, std::string description,
+                       ValueCallback onUndo = nullptr, ValueCallback onRedo = nullptr)
+        : m_Target(target),
+          m_Old(static_cast<const uint8_t*>(oldBytes), static_cast<const uint8_t*>(oldBytes) + size),
+          m_New(static_cast<const uint8_t*>(newBytes), static_cast<const uint8_t*>(newBytes) + size),
+          m_Description(std::move(description)),
+          m_OnUndo(std::move(onUndo)),
+          m_OnRedo(std::move(onRedo)),
           m_Owners(HistoryGuards::CurrentEditOwners())
     {
     }
@@ -50,19 +48,34 @@ public:
     // Initial commit: apply the new value (pointer mode), without firing onRedo.
     void Execute() override
     {
-        if (m_Target) std::memcpy(m_Target, m_New.data(), m_New.size());
+        if (m_Target)
+        {
+            std::memcpy(m_Target, m_New.data(), m_New.size());
+        }
     }
 
     void Redo() override
     {
-        if (m_Target) std::memcpy(m_Target, m_New.data(), m_New.size());
-        if (m_OnRedo) m_OnRedo(m_New.data());
+        if (m_Target)
+        {
+            std::memcpy(m_Target, m_New.data(), m_New.size());
+        }
+        if (m_OnRedo)
+        {
+            m_OnRedo(m_New.data());
+        }
     }
 
     void Undo() override
     {
-        if (m_Target) std::memcpy(m_Target, m_Old.data(), m_Old.size());
-        if (m_OnUndo) m_OnUndo(m_Old.data());
+        if (m_Target)
+        {
+            std::memcpy(m_Target, m_Old.data(), m_Old.size());
+        }
+        if (m_OnUndo)
+        {
+            m_OnUndo(m_Old.data());
+        }
     }
 
     bool CanMerge(const Command* other) const override
@@ -74,7 +87,9 @@ public:
     void Merge(const Command* other) override
     {
         if (auto* cmd = dynamic_cast<const ModifyValueCommand*>(other))
+        {
             m_New = cmd->m_New;
+        }
     }
 
     bool ReferencesAny(const DeadMemory& dead) const override
@@ -84,10 +99,16 @@ public:
         // component; the owners recorded when the edit was made stand in for
         // those (HistoryGuards::EditOwnerScope).
         if (CommandRefs::Has(dead, m_Target))
+        {
             return true;
+        }
         for (const void* owner : m_Owners)
+        {
             if (CommandRefs::Has(dead, owner))
+            {
                 return true;
+            }
+        }
         return false;
     }
 

@@ -87,7 +87,9 @@ void CrashHandler::RefreshSymbols()
 #ifdef _WIN32
     std::lock_guard<std::recursive_timed_mutex> lock(s_SymLock);
     if (s_SymbolsInitialized)
+    {
         SymRefreshModuleList(GetCurrentProcess());
+    }
 #endif
 }
 
@@ -122,11 +124,13 @@ static void InvokePreCrashCallback()
 static std::string FormatPlayModeContext()
 {
     if (!s_PlayModePhase)
+    {
         return {};
+    }
 
     char buf[256];
-    snprintf(buf, sizeof(buf), "Play Mode Context:\n  Phase: %s\n  Scene: %s\n\n",
-             s_PlayModePhase, s_PlayModeSceneName ? s_PlayModeSceneName : "<unknown>");
+    snprintf(buf, sizeof(buf), "Play Mode Context:\n  Phase: %s\n  Scene: %s\n\n", s_PlayModePhase,
+             s_PlayModeSceneName ? s_PlayModeSceneName : "<unknown>");
     return buf;
 }
 
@@ -148,7 +152,8 @@ static std::string GetCrashDirPath()
         std::filesystem::create_directories(crashDir);
     }
     catch (...)
-    { /* never throw from the crash path: this runs while handling a fault, and an exception here loses the report entirely */
+    { /* never throw from the crash path: this runs while handling a fault, and an exception here loses the report
+         entirely */
     }
     return crashDir;
 }
@@ -178,7 +183,9 @@ static std::string GetTimestampedDumpPath(const char* extension)
     snprintf(filename, sizeof(filename), "deki_crash_%s%s", timestamp, extension);
 
     if (!base.empty())
+    {
         return base + filename;
+    }
     return filename;
 }
 
@@ -194,8 +201,8 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     }
 
     // Print to stderr
-    fprintf(stderr, "\n=== DEKI EDITOR CRASH ===\n%s\n\n%s\n\nCrash log written to: %s\n",
-            title.c_str(), callstack.c_str(), logPath.c_str());
+    fprintf(stderr, "\n=== DEKI EDITOR CRASH ===\n%s\n\n%s\n\nCrash log written to: %s\n", title.c_str(),
+            callstack.c_str(), logPath.c_str());
 
     // Try to create a custom ImGui crash dialog window
     // This is independent from the editor's SDL/ImGui state
@@ -220,12 +227,13 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
 
     // Query DPI for window sizing (before window is created)
     float preDpiScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
-    if (preDpiScale <= 0.0f) preDpiScale = 1.0f;
+    if (preDpiScale <= 0.0f)
+    {
+        preDpiScale = 1.0f;
+    }
 
-    SDL_Window* crashWindow = SDL_CreateWindow(
-        title.c_str(),
-        (int)(700 * preDpiScale), (int)(500 * preDpiScale),
-        SDL_WINDOW_OPENGL);
+    SDL_Window* crashWindow =
+        SDL_CreateWindow(title.c_str(), (int)(700 * preDpiScale), (int)(500 * preDpiScale), SDL_WINDOW_OPENGL);
 
     if (!crashWindow)
     {
@@ -246,7 +254,10 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
 
     // Query DPI scale
     float dpiScale = SDL_GetWindowDisplayScale(crashWindow);
-    if (dpiScale <= 0.0f) dpiScale = 1.0f;
+    if (dpiScale <= 0.0f)
+    {
+        dpiScale = 1.0f;
+    }
 
     // Create a fresh ImGui context for the crash dialog
     ImGuiContext* prevCtx = ImGui::GetCurrentContext();
@@ -271,7 +282,9 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     // Prepare callstack text buffer for InputTextMultiline
     std::string fullText = callstack + "\nCrash log: " + logPath;
     if (!s_LastDumpPath.empty())
+    {
         fullText += "\nDump file: " + s_LastDumpPath;
+    }
     bool copied = false;
 
     // Run crash dialog event loop
@@ -283,9 +296,13 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         {
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
+            {
                 running = false;
+            }
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+            {
                 running = false;
+            }
         }
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -296,8 +313,8 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(io.DisplaySize);
         ImGui::Begin("##CrashDialog", nullptr,
-                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                         ImGuiWindowFlags_NoCollapse);
 
         ImGui::TextColored(DekiEditor::Palette::Red, "Deki Editor has crashed");
         if (!s_RecoveryMessage.empty())
@@ -318,8 +335,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
 
         // Scrollable callstack
         float buttonAreaHeight = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
-        ImGui::InputTextMultiline("##callstack", fullText.data(), fullText.size() + 1,
-                                  ImVec2(-1, -buttonAreaHeight),
+        ImGui::InputTextMultiline("##callstack", fullText.data(), fullText.size() + 1, ImVec2(-1, -buttonAreaHeight),
                                   ImGuiInputTextFlags_ReadOnly);
 
         // Buttons
@@ -337,7 +353,9 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         float closeButtonWidth = 80.0f;
         ImGui::SetCursorPosX(ImGui::GetWindowWidth() - closeButtonWidth - ImGui::GetStyle().WindowPadding.x);
         if (ImGui::Button("Close", ImVec2(closeButtonWidth, 0)))
+        {
             running = false;
+        }
 
         ImGui::End();
 
@@ -356,7 +374,9 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
 
     // Restore previous ImGui context if it existed
     if (prevCtx)
+    {
         ImGui::SetCurrentContext(prevCtx);
+    }
 
     SDL_GL_DestroyContext(glCtx);
     SDL_DestroyWindow(crashWindow);
@@ -371,7 +391,9 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
 static void InitializeSymbols()
 {
     if (s_SymbolsInitialized)
+    {
         return;
+    }
 
     HANDLE process = GetCurrentProcess();
     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
@@ -380,7 +402,9 @@ static void InitializeSymbols()
     // This ensures PDBs in shadow directories (_hotreload_N/) are found
     std::string searchPath = GetBaseDirPath();
     if (!searchPath.empty() && searchPath.back() == '\\')
+    {
         searchPath.pop_back();
+    }
 
     // Also add any existing shadow directories
     try
@@ -398,7 +422,8 @@ static void InitializeSymbols()
         }
     }
     catch (...)
-    { /* never throw from the crash path: this runs while handling a fault, and an exception here loses the report entirely */
+    { /* never throw from the crash path: this runs while handling a fault, and an exception here loses the report
+         entirely */
     }
 
     SymInitialize(process, searchPath.empty() ? NULL : searchPath.c_str(), TRUE);
@@ -454,15 +479,13 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
     if (context->Rip == 0 && context->Rsp != 0)
     {
         char nullCallLine[128];
-        snprintf(nullCallLine, sizeof(nullCallLine),
-                 "#%-3d <null function pointer call>  (call target was 0x0)\n", 0);
+        snprintf(nullCallLine, sizeof(nullCallLine), "#%-3d <null function pointer call>  (call target was 0x0)\n", 0);
         result += nullCallLine;
         frameNum = 1;
 
         DWORD64 returnAddr = 0;
         SIZE_T bytesRead = 0;
-        if (ReadProcessMemory(process, (LPCVOID)context->Rsp, &returnAddr,
-                              sizeof(returnAddr), &bytesRead) &&
+        if (ReadProcessMemory(process, (LPCVOID)context->Rsp, &returnAddr, sizeof(returnAddr), &bytesRead) &&
             bytesRead == sizeof(returnAddr) && returnAddr != 0)
         {
             frame.AddrPC.Offset = returnAddr;
@@ -471,11 +494,13 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
     }
 #endif
 
-    while (StackWalk64(machineType, process, thread, &frame, context,
-                       NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+    while (StackWalk64(machineType, process, thread, &frame, context, NULL, SymFunctionTableAccess64,
+                       SymGetModuleBase64, NULL))
     {
         if (frame.AddrPC.Offset == 0)
+        {
             break;
+        }
 
         char line[512];
         DWORD64 displacement = 0;
@@ -490,7 +515,10 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
             if (GetModuleFileNameA(hMod, modPath, MAX_PATH))
             {
                 const char* lastSlash = strrchr(modPath, '\\');
-                if (!lastSlash) lastSlash = strrchr(modPath, '/');
+                if (!lastSlash)
+                {
+                    lastSlash = strrchr(modPath, '/');
+                }
                 strncpy(packageName, lastSlash ? lastSlash + 1 : modPath, sizeof(packageName) - 1);
             }
         }
@@ -503,21 +531,18 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
 
             if (SymGetLineFromAddr64(process, frame.AddrPC.Offset, &lineDisplacement, &lineInfo))
             {
-                snprintf(line, sizeof(line), "#%-3d %s!%s  (%s:%lu)",
-                         frameNum, packageName[0] ? packageName : "??",
+                snprintf(line, sizeof(line), "#%-3d %s!%s  (%s:%lu)", frameNum, packageName[0] ? packageName : "??",
                          symbol->Name, lineInfo.FileName, lineInfo.LineNumber);
             }
             else
             {
-                snprintf(line, sizeof(line), "#%-3d %s!%s  +0x%llx",
-                         frameNum, packageName[0] ? packageName : "??",
+                snprintf(line, sizeof(line), "#%-3d %s!%s  +0x%llx", frameNum, packageName[0] ? packageName : "??",
                          symbol->Name, (unsigned long long)displacement);
             }
         }
         else
         {
-            snprintf(line, sizeof(line), "#%-3d %s!0x%llx",
-                     frameNum, packageName[0] ? packageName : "??",
+            snprintf(line, sizeof(line), "#%-3d %s!0x%llx", frameNum, packageName[0] ? packageName : "??",
                      (unsigned long long)frame.AddrPC.Offset);
         }
 
@@ -526,7 +551,9 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
         frameNum++;
 
         if (frameNum >= maxFrames)
+        {
             break;
+        }
     }
 
     return result;
@@ -536,10 +563,11 @@ static std::string WriteMiniDump(EXCEPTION_POINTERS* exceptionInfo)
 {
     std::string dumpPath = GetTimestampedDumpPath(".dmp");
 
-    HANDLE hFile = CreateFileA(dumpPath.c_str(), GENERIC_WRITE, 0, NULL,
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hFile = CreateFileA(dumpPath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE)
+    {
         return {};
+    }
 
     MINIDUMP_EXCEPTION_INFORMATION mei = {};
     MINIDUMP_EXCEPTION_INFORMATION* pMei = nullptr;
@@ -552,21 +580,11 @@ static std::string WriteMiniDump(EXCEPTION_POINTERS* exceptionInfo)
         pMei = &mei;
     }
 
-    MINIDUMP_TYPE dumpType = static_cast<MINIDUMP_TYPE>(
-        MiniDumpWithDataSegs |
-        MiniDumpWithHandleData |
-        MiniDumpWithThreadInfo |
-        MiniDumpWithFullMemoryInfo |
-        MiniDumpWithUnloadedModules);
+    MINIDUMP_TYPE dumpType =
+        static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithThreadInfo |
+                                   MiniDumpWithFullMemoryInfo | MiniDumpWithUnloadedModules);
 
-    BOOL success = MiniDumpWriteDump(
-        GetCurrentProcess(),
-        GetCurrentProcessId(),
-        hFile,
-        dumpType,
-        pMei,
-        NULL,
-        NULL);
+    BOOL success = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, pMei, NULL, NULL);
 
     CloseHandle(hFile);
 
@@ -583,12 +601,15 @@ static std::string WriteMiniDump(EXCEPTION_POINTERS* exceptionInfo)
 
 static std::string FormatAccessViolationDetails(EXCEPTION_RECORD* record)
 {
-    if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION &&
-        record->ExceptionCode != EXCEPTION_IN_PAGE_ERROR)
+    if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION && record->ExceptionCode != EXCEPTION_IN_PAGE_ERROR)
+    {
         return {};
+    }
 
     if (record->NumberParameters < 2)
+    {
         return {};
+    }
 
     const char* accessType;
     switch (record->ExceptionInformation[0])
@@ -604,13 +625,12 @@ static std::string FormatAccessViolationDetails(EXCEPTION_RECORD* record)
     char buf[256];
     if (address < 0x10000)
     {
-        snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx (null pointer dereference)\n",
-                 accessType, (unsigned long long)address);
+        snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx (null pointer dereference)\n", accessType,
+                 (unsigned long long)address);
     }
     else
     {
-        snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx\n",
-                 accessType, (unsigned long long)address);
+        snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx\n", accessType, (unsigned long long)address);
     }
     return buf;
 }
@@ -654,9 +674,13 @@ static std::string FormatRegistersWindows(const CONTEXT* ctx)
     for (int i = 0; i < 29; i += 2)
     {
         if (i + 1 < 29)
+        {
             snprintf(line, sizeof(line), "  X%-2d=%016llx  X%-2d=%016llx\n", i, ctx->X[i], i + 1, ctx->X[i + 1]);
+        }
         else
+        {
             snprintf(line, sizeof(line), "  X%-2d=%016llx\n", i, ctx->X[i]);
+        }
         result += line;
     }
     snprintf(line, sizeof(line), "  FP =%016llx  LR =%016llx\n", ctx->Fp, ctx->Lr);
@@ -673,7 +697,9 @@ static std::string FormatLoadedModules()
     std::string result = "\nLoaded Packages:\n";
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, 0);
     if (snapshot == INVALID_HANDLE_VALUE)
+    {
         return result + "  (failed to enumerate)\n";
+    }
 
     MODULEENTRY32 me = {};
     me.dwSize = sizeof(me);
@@ -682,10 +708,8 @@ static std::string FormatLoadedModules()
         do
         {
             char line[512];
-            snprintf(line, sizeof(line), "  0x%p  %6lu KB  %s\n",
-                     (void*)me.modBaseAddr,
-                     (unsigned long)(me.modBaseSize / 1024),
-                     me.szExePath);
+            snprintf(line, sizeof(line), "  0x%p  %6lu KB  %s\n", (void*)me.modBaseAddr,
+                     (unsigned long)(me.modBaseSize / 1024), me.szExePath);
             result += line;
         } while (Module32Next(snapshot, &me));
     }
@@ -698,7 +722,9 @@ static std::string CaptureAllThreadStacks(DWORD crashingThreadId)
     std::string result;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snapshot == INVALID_HANDLE_VALUE)
+    {
         return result;
+    }
 
     DWORD currentPid = GetCurrentProcessId();
     THREADENTRY32 te = {};
@@ -710,17 +736,24 @@ static std::string CaptureAllThreadStacks(DWORD crashingThreadId)
         do
         {
             if (te.th32OwnerProcessID != currentPid)
+            {
                 continue;
+            }
             if (te.th32ThreadID == crashingThreadId)
+            {
                 continue;
+            }
             if (threadCount >= 16)
+            {
                 break;
+            }
 
-            HANDLE hThread = OpenThread(
-                THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
-                FALSE, te.th32ThreadID);
+            HANDLE hThread = OpenThread(THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION, FALSE,
+                                        te.th32ThreadID);
             if (!hThread)
+            {
                 continue;
+            }
 
             if (SuspendThread(hThread) != (DWORD)-1)
             {
@@ -774,7 +807,9 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 
     // Skip non-fatal exceptions (like debugger breakpoints in debug mode)
     if (code == EXCEPTION_BREAKPOINT || code == EXCEPTION_SINGLE_STEP)
+    {
         return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     // Write minidump first - this is the most valuable artifact
     std::string dumpPath = WriteMiniDump(exceptionInfo);
@@ -787,9 +822,13 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     // Refresh symbols in case new packages were loaded since startup
     std::unique_lock<std::recursive_timed_mutex> symLock(s_SymLock, std::chrono::seconds(2));
     if (!s_SymbolsInitialized)
+    {
         InitializeSymbols();
+    }
     else
+    {
         SymRefreshModuleList(GetCurrentProcess());
+    }
 
     std::string title = std::string("Deki Editor Crash: ") + GetExceptionCodeString(code);
 
@@ -798,18 +837,21 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 
     // Exception header
     char header[512];
-    snprintf(header, sizeof(header), "Exception Code: 0x%08lX (%s)\n",
-             code, GetExceptionCodeString(code));
+    snprintf(header, sizeof(header), "Exception Code: 0x%08lX (%s)\n", code, GetExceptionCodeString(code));
     message += header;
 
     // Access violation details
     std::string avDetails = FormatAccessViolationDetails(exceptionInfo->ExceptionRecord);
     if (!avDetails.empty())
+    {
         message += avDetails;
+    }
 
     // Minidump path
     if (!dumpPath.empty())
+    {
         message += "Minidump: " + dumpPath + "\n";
+    }
 
     message += "\n";
 
@@ -868,10 +910,12 @@ static std::string CaptureStackTraceUnix()
 
                 // Extract just the filename from the full path
                 const char* slash = strrchr(packageName, '/');
-                if (slash) packageName = slash + 1;
+                if (slash)
+                {
+                    packageName = slash + 1;
+                }
 
-                snprintf(line, sizeof(line), "#%-3d 0x%lx  %s  +0x%tx  [%s]",
-                         i, (unsigned long)(uintptr_t)frames[i],
+                snprintf(line, sizeof(line), "#%-3d 0x%lx  %s  +0x%tx  [%s]", i, (unsigned long)(uintptr_t)frames[i],
                          dlInfo.dli_sname, offset, packageName);
             }
             else
@@ -910,7 +954,9 @@ static std::string FormatFaultDetails(int sig, siginfo_t* info)
     char buf[256];
 
     if (!info)
+    {
         return result;
+    }
 
     if (sig == SIGSEGV)
     {
@@ -924,11 +970,14 @@ static std::string FormatFaultDetails(int sig, siginfo_t* info)
 
         uintptr_t addr = (uintptr_t)info->si_addr;
         if (addr < 0x10000)
-            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s, null pointer dereference)\n",
-                     (unsigned long)addr, reason);
+        {
+            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s, null pointer dereference)\n", (unsigned long)addr,
+                     reason);
+        }
         else
-            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s)\n",
-                     (unsigned long)addr, reason);
+        {
+            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s)\n", (unsigned long)addr, reason);
+        }
         result = buf;
     }
     else if (sig == SIGFPE)
@@ -957,8 +1006,7 @@ static std::string FormatFaultDetails(int sig, siginfo_t* info)
             case BUS_OBJERR: reason = "object-specific hardware error"; break;
             default: reason = "unknown bus error"; break;
         }
-        snprintf(buf, sizeof(buf), "Bus error: %s at address 0x%lx\n",
-                 reason, (unsigned long)(uintptr_t)info->si_addr);
+        snprintf(buf, sizeof(buf), "Bus error: %s at address 0x%lx\n", reason, (unsigned long)(uintptr_t)info->si_addr);
         result = buf;
     }
 
@@ -968,7 +1016,9 @@ static std::string FormatFaultDetails(int sig, siginfo_t* info)
 static std::string FormatRegistersUnix(void* ucontextRaw)
 {
     if (!ucontextRaw)
+    {
         return {};
+    }
 
     std::string result = "Registers:\n";
     char line[128];
@@ -1000,9 +1050,14 @@ static std::string FormatRegistersUnix(void* ucontextRaw)
     for (int i = 0; i < 29; i += 2)
     {
         if (i + 1 < 29)
-            snprintf(line, sizeof(line), "  X%-2d=%016llx  X%-2d=%016llx\n", i, mc->__ss.__x[i], i + 1, mc->__ss.__x[i + 1]);
+        {
+            snprintf(line, sizeof(line), "  X%-2d=%016llx  X%-2d=%016llx\n", i, mc->__ss.__x[i], i + 1,
+                     mc->__ss.__x[i + 1]);
+        }
         else
+        {
             snprintf(line, sizeof(line), "  X%-2d=%016llx\n", i, mc->__ss.__x[i]);
+        }
         result += line;
     }
     snprintf(line, sizeof(line), "  FP =%016llx  LR =%016llx\n", mc->__ss.__fp, mc->__ss.__lr);
@@ -1016,34 +1071,50 @@ static std::string FormatRegistersUnix(void* ucontextRaw)
 #elif defined(__linux__)
     ucontext_t* uc = static_cast<ucontext_t*>(ucontextRaw);
 #if defined(__x86_64__)
-    snprintf(line, sizeof(line), "  RAX=%016llx  RBX=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RAX], (unsigned long long)uc->uc_mcontext.gregs[REG_RBX]);
+    snprintf(line, sizeof(line), "  RAX=%016llx  RBX=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RAX],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_RBX]);
     result += line;
-    snprintf(line, sizeof(line), "  RCX=%016llx  RDX=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RCX], (unsigned long long)uc->uc_mcontext.gregs[REG_RDX]);
+    snprintf(line, sizeof(line), "  RCX=%016llx  RDX=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RCX],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_RDX]);
     result += line;
-    snprintf(line, sizeof(line), "  RSI=%016llx  RDI=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RSI], (unsigned long long)uc->uc_mcontext.gregs[REG_RDI]);
+    snprintf(line, sizeof(line), "  RSI=%016llx  RDI=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RSI],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_RDI]);
     result += line;
-    snprintf(line, sizeof(line), "  RBP=%016llx  RSP=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RBP], (unsigned long long)uc->uc_mcontext.gregs[REG_RSP]);
+    snprintf(line, sizeof(line), "  RBP=%016llx  RSP=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RBP],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_RSP]);
     result += line;
-    snprintf(line, sizeof(line), "  R8 =%016llx  R9 =%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R8], (unsigned long long)uc->uc_mcontext.gregs[REG_R9]);
+    snprintf(line, sizeof(line), "  R8 =%016llx  R9 =%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R8],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_R9]);
     result += line;
-    snprintf(line, sizeof(line), "  R10=%016llx  R11=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R10], (unsigned long long)uc->uc_mcontext.gregs[REG_R11]);
+    snprintf(line, sizeof(line), "  R10=%016llx  R11=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R10],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_R11]);
     result += line;
-    snprintf(line, sizeof(line), "  R12=%016llx  R13=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R12], (unsigned long long)uc->uc_mcontext.gregs[REG_R13]);
+    snprintf(line, sizeof(line), "  R12=%016llx  R13=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R12],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_R13]);
     result += line;
-    snprintf(line, sizeof(line), "  R14=%016llx  R15=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R14], (unsigned long long)uc->uc_mcontext.gregs[REG_R15]);
+    snprintf(line, sizeof(line), "  R14=%016llx  R15=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R14],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_R15]);
     result += line;
-    snprintf(line, sizeof(line), "  RIP=%016llx  EFL=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RIP], (unsigned long long)uc->uc_mcontext.gregs[REG_EFL]);
+    snprintf(line, sizeof(line), "  RIP=%016llx  EFL=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RIP],
+             (unsigned long long)uc->uc_mcontext.gregs[REG_EFL]);
     result += line;
 #elif defined(__aarch64__)
     for (int i = 0; i < 31; i += 2)
     {
         if (i + 1 < 31)
-            snprintf(line, sizeof(line), "  X%-2d=%016llx  X%-2d=%016llx\n", i, (unsigned long long)uc->uc_mcontext.regs[i], i + 1, (unsigned long long)uc->uc_mcontext.regs[i + 1]);
+        {
+            snprintf(line, sizeof(line), "  X%-2d=%016llx  X%-2d=%016llx\n", i,
+                     (unsigned long long)uc->uc_mcontext.regs[i], i + 1,
+                     (unsigned long long)uc->uc_mcontext.regs[i + 1]);
+        }
         else
+        {
             snprintf(line, sizeof(line), "  X%-2d=%016llx\n", i, (unsigned long long)uc->uc_mcontext.regs[i]);
+        }
         result += line;
     }
-    snprintf(line, sizeof(line), "  SP =%016llx  PC =%016llx\n", (unsigned long long)uc->uc_mcontext.sp, (unsigned long long)uc->uc_mcontext.pc);
+    snprintf(line, sizeof(line), "  SP =%016llx  PC =%016llx\n", (unsigned long long)uc->uc_mcontext.sp,
+             (unsigned long long)uc->uc_mcontext.pc);
     result += line;
 #else
     result += "  (register dump not supported on this architecture)\n";
@@ -1087,14 +1158,18 @@ static std::string WriteCoreDump()
                 // Remove trailing newline
                 size_t len = strlen(pattern);
                 if (len > 0 && pattern[len - 1] == '\n')
+                {
                     pattern[len - 1] = '\0';
+                }
                 corePath = std::string("Core pattern: ") + pattern;
             }
             fclose(f);
         }
 #endif
         if (corePath.empty())
+        {
             corePath = "Core dump requested (check system core dump settings)";
+        }
     }
 
     return corePath;
@@ -1108,7 +1183,9 @@ static std::string CaptureOtherThreadsMacOS()
     mach_msg_type_number_t threadCount = 0;
 
     if (task_threads(mach_task_self(), &threadList, &threadCount) != KERN_SUCCESS)
+    {
         return result;
+    }
 
     mach_port_t selfThread = mach_thread_self();
     int captured = 0;
@@ -1116,11 +1193,15 @@ static std::string CaptureOtherThreadsMacOS()
     for (mach_msg_type_number_t i = 0; i < threadCount && captured < 16; i++)
     {
         if (threadList[i] == selfThread)
+        {
             continue;
+        }
 
         // Suspend and get state
         if (thread_suspend(threadList[i]) != KERN_SUCCESS)
+        {
             continue;
+        }
 
         char header[64];
         snprintf(header, sizeof(header), "\n--- Thread %u ---\n", threadList[i]);
@@ -1136,8 +1217,7 @@ static std::string CaptureOtherThreadsMacOS()
     }
 
     // Deallocate the thread list
-    vm_deallocate(mach_task_self(), (vm_address_t)threadList,
-                  threadCount * sizeof(thread_act_t));
+    vm_deallocate(mach_task_self(), (vm_address_t)threadList, threadCount * sizeof(thread_act_t));
     mach_port_deallocate(mach_task_self(), selfThread);
 
     return result;
@@ -1148,7 +1228,9 @@ static std::string CaptureOtherThreadsLinux()
     std::string result;
     DIR* taskDir = opendir("/proc/self/task");
     if (!taskDir)
+    {
         return result;
+    }
 
     pid_t selfTid = (pid_t)syscall(SYS_gettid);
     int captured = 0;
@@ -1157,11 +1239,15 @@ static std::string CaptureOtherThreadsLinux()
     while ((entry = readdir(taskDir)) != nullptr && captured < 16)
     {
         if (entry->d_name[0] == '.')
+        {
             continue;
+        }
 
         pid_t tid = (pid_t)atoi(entry->d_name);
         if (tid == 0 || tid == selfTid)
+        {
             continue;
+        }
 
         char header[64];
         snprintf(header, sizeof(header), "\n--- Thread %d ---\n", tid);
@@ -1198,7 +1284,9 @@ static void CrashSignalHandlerUnix(int sig, siginfo_t* info, void* ucontext)
     // Fault details
     std::string faultDetails = FormatFaultDetails(sig, info);
     if (!faultDetails.empty())
+    {
         message += faultDetails;
+    }
 
     // Core dump
     std::string coreInfo = WriteCoreDump();
@@ -1282,7 +1370,9 @@ static void CrashTerminateHandler()
     // Write minidump (no exception info, but still captures threads + memory)
     std::string dumpPath = WriteMiniDump(nullptr);
     if (!dumpPath.empty())
+    {
         message += "Minidump: " + dumpPath + "\n\n";
+    }
 
     // Play mode context
     message += FormatPlayModeContext();
@@ -1294,9 +1384,13 @@ static void CrashTerminateHandler()
     // Refresh symbols in case new packages were loaded since startup
     std::unique_lock<std::recursive_timed_mutex> symLock(s_SymLock, std::chrono::seconds(2));
     if (!s_SymbolsInitialized)
+    {
         InitializeSymbols();
+    }
     else
+    {
         SymRefreshModuleList(GetCurrentProcess());
+    }
 
     message += FormatRegistersWindows(&ctx);
     message += "\nCallstack:\n";
@@ -1340,11 +1434,18 @@ static void FaultGuardTraceHook(void* platformInfo, std::string& outTrace, std::
 {
 #if defined(_WIN32)
     auto* ep = static_cast<EXCEPTION_POINTERS*>(platformInfo);
-    if (!ep) return;
+    if (!ep)
+    {
+        return;
+    }
     if (ep->ExceptionRecord)
+    {
         outAccess = FormatAccessViolationDetails(ep->ExceptionRecord);
+    }
     if (ep->ContextRecord)
+    {
         outTrace = CaptureStackTraceWindows(ep->ContextRecord);
+    }
 #else
     (void)platformInfo;
     outTrace = CaptureStackTraceUnix();
@@ -1395,28 +1496,47 @@ static void ExtendSymbolSearchPathForLoadedModules()
     HMODULE packages[1024];
     DWORD bytesNeeded = 0;
     if (!EnumProcessModules(process, packages, sizeof(packages), &bytesNeeded))
+    {
         return;
+    }
 
     DWORD count = bytesNeeded / sizeof(HMODULE);
-    if (count > 1024) count = 1024;
+    if (count > 1024)
+    {
+        count = 1024;
+    }
 
     std::set<std::string> seenDirs;
     for (DWORD i = 0; i < count; ++i)
     {
         char modPath[MAX_PATH];
         if (!GetModuleFileNameA(packages[i], modPath, MAX_PATH))
+        {
             continue;
+        }
         char* lastSep = strrchr(modPath, '\\');
-        if (!lastSep) lastSep = strrchr(modPath, '/');
-        if (!lastSep) continue;
+        if (!lastSep)
+        {
+            lastSep = strrchr(modPath, '/');
+        }
+        if (!lastSep)
+        {
+            continue;
+        }
         *lastSep = '\0';
         std::string dir(modPath);
-        if (dir.empty()) continue;
+        if (dir.empty())
+        {
+            continue;
+        }
         if (seenDirs.insert(dir).second)
         {
             if (searchPath.find(dir) == std::string::npos)
             {
-                if (!searchPath.empty()) searchPath += ";";
+                if (!searchPath.empty())
+                {
+                    searchPath += ";";
+                }
                 searchPath += dir;
             }
         }
@@ -1429,10 +1549,15 @@ static void ExtendSymbolSearchPathForLoadedModules()
 std::string CrashHandler::CaptureStackTrace(void* contextPtr)
 {
 #ifdef _WIN32
-    if (!contextPtr) return {};
+    if (!contextPtr)
+    {
+        return {};
+    }
     std::lock_guard<std::recursive_timed_mutex> lock(s_SymLock);
     if (!s_SymbolsInitialized)
+    {
         InitializeSymbols();
+    }
     // Cover plugin/project DLLs that live outside the editor's bin/.
     ExtendSymbolSearchPathForLoadedModules();
     // Pick up packages loaded after Initialize() (plugin DLLs, hot-reload copies).
@@ -1451,7 +1576,10 @@ std::string CrashHandler::CaptureStackTrace(void* contextPtr)
 std::string CrashHandler::FormatAccessViolationDetails(void* recordPtr)
 {
 #ifdef _WIN32
-    if (!recordPtr) return {};
+    if (!recordPtr)
+    {
+        return {};
+    }
     return ::DekiEditor::FormatAccessViolationDetails(static_cast<EXCEPTION_RECORD*>(recordPtr));
 #else
     (void)recordPtr;
@@ -1462,7 +1590,10 @@ std::string CrashHandler::FormatAccessViolationDetails(void* recordPtr)
 std::string CrashHandler::WriteMiniDumpFor(void* exceptionPointersPtr)
 {
 #ifdef _WIN32
-    if (!exceptionPointersPtr) return {};
+    if (!exceptionPointersPtr)
+    {
+        return {};
+    }
     return WriteMiniDump(static_cast<EXCEPTION_POINTERS*>(exceptionPointersPtr));
 #else
     (void)exceptionPointersPtr;

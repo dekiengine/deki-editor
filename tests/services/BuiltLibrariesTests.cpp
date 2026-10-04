@@ -79,8 +79,8 @@ TEST(BuiltLibraries, ALibraryReplacedAfterItsBuildGoes)
 TEST(BuiltLibraries, AStagedPluginFromBeforeThisSessionGoes)
 {
     Runtime r;
-    const fs::path staged =
-        r.dir / ".build_temp" / (std::string(DekiEditor::kSharedLibPrefix) + "game-components" + DekiEditor::kSharedLibExt);
+    const fs::path staged = r.dir / ".build_temp" /
+                            (std::string(DekiEditor::kSharedLibPrefix) + "game-components" + DekiEditor::kSharedLibExt);
     std::ofstream(staged, std::ios::binary) << "code";
     BL::Record({ staged });  // even a record does not keep the staging folder
     EXPECT_TRUE(Has(BL::RemoveUnknown(r.dir.string()), staged));

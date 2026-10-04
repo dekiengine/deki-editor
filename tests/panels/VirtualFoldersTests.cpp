@@ -31,12 +31,13 @@ protected:
         fs::create_directories(m_Root, ec);
         ASSERT_FALSE(ec);
     }
-    void TearDown() override { std::error_code ec; fs::remove_all(m_Root, ec); }
-
-    void WriteRaw(const std::string& content)
+    void TearDown() override
     {
-        std::ofstream(fs::path(m_Root) / "script_folders.json") << content;
+        std::error_code ec;
+        fs::remove_all(m_Root, ec);
     }
+
+    void WriteRaw(const std::string& content) { std::ofstream(fs::path(m_Root) / "script_folders.json") << content; }
 
     std::string m_Root;
 };
@@ -90,7 +91,8 @@ TEST_F(VirtualFoldersTest, RenameCarriesExpansionState)
 TEST_F(VirtualFoldersTest, RenameIsRefusedOntoAnExistingName)
 {
     VirtualFolders vf;
-    vf.Create("a"); vf.Create("b");
+    vf.Create("a");
+    vf.Create("b");
     vf.Assign("x.cpp", "a");
     vf.Rename("a", "b");
     EXPECT_TRUE(vf.Exists("a")) << "merging two folders silently would lose the distinction";
@@ -124,7 +126,7 @@ TEST_F(VirtualFoldersTest, PruneDropsAssignmentsForDeletedScripts)
     vf.Assign("still/here.cpp", "f");
     vf.Assign("was/deleted.cpp", "f");
 
-    const std::set<std::string> alive{"still/here.cpp"};
+    const std::set<std::string> alive{ "still/here.cpp" };
     vf.PruneMissing([&](const std::string& p) { return alive.count(p) != 0; });
 
     EXPECT_EQ(vf.AssignmentFor("still/here.cpp"), "f");
@@ -186,4 +188,4 @@ TEST_F(VirtualFoldersTest, EmptyProjectRootIsANoOp)
     EXPECT_NO_THROW(vf.Load(""));
 }
 
-} // namespace
+}  // namespace

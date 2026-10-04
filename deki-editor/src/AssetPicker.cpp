@@ -58,7 +58,9 @@ IconKind ClassifyByExtension(const std::string& path)
     std::string ext;
     size_t dot = path.find_last_of('.');
     if (dot != std::string::npos)
+    {
         ext = path.substr(dot);
+    }
 
     switch (AssetTypeRegistry::Instance().GetCategoryForExtension(ext))
     {
@@ -72,8 +74,7 @@ IconKind ClassifyByExtension(const std::string& path)
         case AssetCategory::Pipeline:
         case AssetCategory::Data:
         case AssetCategory::Unknown:
-        default:
-            return IconKind::Unknown;
+        default: return IconKind::Unknown;
     }
 }
 
@@ -119,19 +120,23 @@ void DrawPlaceholderIconAt(ImDrawList* dl, ImVec2 p, float size, IconKind kind)
     ImFont* font = ImGui::GetFont();
     float fontSize = size * 0.55f;
     ImVec2 ts = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, letter);
-    dl->AddText(font, fontSize,
-                ImVec2(p.x + (size - ts.x) * 0.5f, p.y + (size - ts.y) * 0.5f),
+    dl->AddText(font, fontSize, ImVec2(p.x + (size - ts.x) * 0.5f, p.y + (size - ts.y) * 0.5f),
                 IM_COL32(255, 255, 255, 255), letter);
 }
 
-void DrawFittedTextureAt(ImDrawList* dl, ImVec2 p, float boxSize,
-                         uint32_t texId, uint32_t texW, uint32_t texH,
+void DrawFittedTextureAt(ImDrawList* dl, ImVec2 p, float boxSize, uint32_t texId, uint32_t texW, uint32_t texH,
                          float u0, float v0, float u1, float v1)
 {
     float contentW = (u1 - u0) * static_cast<float>(texW);
     float contentH = (v1 - v0) * static_cast<float>(texH);
-    if (contentW <= 0.0f) contentW = 1.0f;
-    if (contentH <= 0.0f) contentH = 1.0f;
+    if (contentW <= 0.0f)
+    {
+        contentW = 1.0f;
+    }
+    if (contentH <= 0.0f)
+    {
+        contentH = 1.0f;
+    }
 
     float scale = std::min(boxSize / contentW, boxSize / contentH);
     float drawW = contentW * scale;
@@ -139,12 +144,9 @@ void DrawFittedTextureAt(ImDrawList* dl, ImVec2 p, float boxSize,
 
     float offX = (boxSize - drawW) * 0.5f;
     float offY = (boxSize - drawH) * 0.5f;
-    dl->AddRectFilled(p, ImVec2(p.x + boxSize, p.y + boxSize),
-                      ImGui::ColorConvertFloat4ToU32(Palette::Bg3));
-    dl->AddImage(static_cast<ImTextureID>(static_cast<intptr_t>(texId)),
-                 ImVec2(p.x + offX, p.y + offY),
-                 ImVec2(p.x + offX + drawW, p.y + offY + drawH),
-                 ImVec2(u0, v0), ImVec2(u1, v1));
+    dl->AddRectFilled(p, ImVec2(p.x + boxSize, p.y + boxSize), ImGui::ColorConvertFloat4ToU32(Palette::Bg3));
+    dl->AddImage(static_cast<ImTextureID>(static_cast<intptr_t>(texId)), ImVec2(p.x + offX, p.y + offY),
+                 ImVec2(p.x + offX + drawW, p.y + offY + drawH), ImVec2(u0, v0), ImVec2(u1, v1));
 }
 
 void DrawAssetRowIconAt(ImDrawList* dl, ImVec2 p, float size, const AssetPickerEntry& asset)
@@ -171,8 +173,7 @@ void DrawFrameRowIconAt(ImDrawList* dl, ImVec2 p, float size, const std::string&
     uint32_t w = 0, h = 0;
     uint32_t texId = EditorAssets::Get()->LoadFrameTexture(frameGuid, &w, &h);
     float u0 = 0.0f, v0 = 0.0f, u1 = 1.0f, v1 = 1.0f;
-    if (texId != 0 && w > 0 && h > 0 &&
-        EditorAssets::Get()->GetFrameUVs(frameGuid, &u0, &v0, &u1, &v1))
+    if (texId != 0 && w > 0 && h > 0 && EditorAssets::Get()->GetFrameUVs(frameGuid, &u0, &v0, &u1, &v1))
     {
         DrawFittedTextureAt(dl, p, size, texId, w, h, u0, v0, u1, v1);
         return;
@@ -185,8 +186,8 @@ AssetPicker::AssetPicker()
 {
 }
 
-bool AssetPicker::Open(const std::string& popupId, const std::string& currentValue,
-                       AssetFilterType filter, std::string& outSelectedPath)
+bool AssetPicker::Open(const std::string& popupId, const std::string& currentValue, AssetFilterType filter,
+                       std::string& outSelectedPath)
 {
     // Refresh if filter changed or first time
     if (filter != m_CurrentFilter || m_NeedsRefresh)
@@ -221,8 +222,7 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
 
     // The global theme zeroes WindowPadding (panels manage their own inset);
     // give the dialog a real one. It's baked at Begin, so pop right after.
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
-                        ImVec2(Dpi(12.0f), Dpi(10.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(Dpi(12.0f), Dpi(10.0f)));
     const bool open = ImGui::BeginPopupModal(ModalName(popupId).c_str(), nullptr, ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar();  // WindowPadding
 
@@ -243,8 +243,7 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             m_SearchBuffer[0] = '\0';
             ImGui::SetKeyboardFocusHere();
         }
-        SearchField("##assetpicker_search", m_SearchBuffer, sizeof(m_SearchBuffer),
-                    0.0f, /*bottomBorder*/ true);
+        SearchField("##assetpicker_search", m_SearchBuffer, sizeof(m_SearchBuffer), 0.0f, /*bottomBorder*/ true);
 
         // Meta row: dim uppercase filter/count summary + right-aligned REFRESH link
         const char* filterName = "ALL";
@@ -267,14 +266,15 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             ImGui::PopFont();
         }
         if (SchematicActionLink("REFRESH##assetpicker_refresh"))
+        {
             RefreshAssets(m_CurrentFilter);
+        }
         ImGui::Spacing();
 
         // Asset list - fills the space above the footer (hairline + buttons)
         const float footerH = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y * 2.0f + Dpi(8.0f);
         ImGui::BeginChild("AssetList", ImVec2(0, -footerH), ImGuiChildFlags_None);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(ImGui::GetStyle().ItemSpacing.x, Dpi(2.0f)));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, Dpi(2.0f)));
 
         // Row metrics - compact schematic rows; every icon/text draw is
         // clipped to the row rect so nothing bleeds outside the list.
@@ -304,13 +304,15 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             // The theme's Header color is transparent (hover-only rows); give
             // the persistent selection the accent-subtle fill instead.
             if (isSelected)
+            {
                 ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+            }
             // Size.x = 0 spans the remaining row width
-            const bool clicked = ImGui::Selectable("##row", isSelected,
-                                                   ImGuiSelectableFlags_None,
-                                                   ImVec2(0, rowH));
+            const bool clicked = ImGui::Selectable("##row", isSelected, ImGuiSelectableFlags_None, ImVec2(0, rowH));
             if (isSelected)
+            {
                 ImGui::PopStyleColor();
+            }
             const ImVec2 itemMin = ImGui::GetItemRectMin();
             const ImVec2 itemMax = ImGui::GetItemRectMax();
             ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -320,8 +322,7 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
 
             if (chevron != Chevron::None)
             {
-                const char* icon = (chevron == Chevron::Open) ? ICON_TI_CHEVRON_DOWN
-                                                              : ICON_TI_CHEVRON_RIGHT;
+                const char* icon = (chevron == Chevron::Open) ? ICON_TI_CHEVRON_DOWN : ICON_TI_CHEVRON_RIGHT;
                 ImFont* f = ImGui::GetFont();
                 const float isz = ImGui::GetFontSize();
                 const ImVec2 cs = f->CalcTextSizeA(isz, FLT_MAX, 0.0f, icon);
@@ -335,13 +336,13 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
                 x += iconSize + textGap;
             }
 
-            dl->AddText(ImVec2(x, itemMin.y + (rowH - ImGui::GetTextLineHeight()) * 0.5f),
-                        textCol, label);
+            dl->AddText(ImVec2(x, itemMin.y + (rowH - ImGui::GetTextLineHeight()) * 0.5f), textCol, label);
             dl->PopClipRect();
 
             if (outChevronClicked)
-                *outChevronClicked = clicked &&
-                                     ImGui::GetMousePos().x < itemMin.x + rowPadX + indent + chevronW;
+            {
+                *outChevronClicked = clicked && ImGui::GetMousePos().x < itemMin.x + rowPadX + indent + chevronW;
+            }
             return clicked;
         };
 
@@ -378,11 +379,15 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
 
             // Skip SubAssets in main list (they appear under parent)
             if (asset.isSubAsset)
+            {
                 continue;
+            }
 
             // Apply search filter (names were lower-cased when the list was built)
             if (!searchLower.empty() && asset.displayNameLower.find(searchLower) == std::string::npos)
+            {
                 continue;
+            }
 
             ImGui::PushID(static_cast<int>(i));
 
@@ -393,16 +398,22 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
                 bool isSelected = (static_cast<int>(i) == m_SelectedIndex && m_SelectedSubAsset.empty());
 
                 bool chevronClicked = false;
-                bool clicked = drawAssetRow(asset.displayName.c_str(), isSelected, 0.0f, isExpanded ? Chevron::Open : Chevron::Closed, [&asset](ImDrawList* dl, ImVec2 p, float sz)
-                                            { DrawAssetRowIconAt(dl, p, sz, asset); }, &chevronClicked);
+                bool clicked = drawAssetRow(
+                    asset.displayName.c_str(), isSelected, 0.0f, isExpanded ? Chevron::Open : Chevron::Closed,
+                    [&asset](ImDrawList* dl, ImVec2 p, float sz) { DrawAssetRowIconAt(dl, p, sz, asset); },
+                    &chevronClicked);
                 if (clicked)
                 {
                     if (chevronClicked)
                     {
                         if (isExpanded)
+                        {
                             m_ExpandedAssets.erase(asset.guid);
+                        }
                         else
+                        {
                             m_ExpandedAssets.insert(asset.guid);
+                        }
                     }
                     else
                     {
@@ -438,8 +449,10 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
                                                        : subAsset.name;
 
                             ImGui::PushID(subIdx++);
-                            if (drawAssetRow(subLabel.c_str(), subSelected, indentW, Chevron::None, [&subAsset](ImDrawList* dl, ImVec2 p, float sz)
-                                             { DrawFrameRowIconAt(dl, p, sz, subAsset.guid); }, nullptr))
+                            if (drawAssetRow(
+                                    subLabel.c_str(), subSelected, indentW, Chevron::None,
+                                    [&subAsset](ImDrawList* dl, ImVec2 p, float sz)
+                                    { DrawFrameRowIconAt(dl, p, sz, subAsset.guid); }, nullptr))
                             {
                                 m_SelectedIndex = static_cast<int>(i);
                                 m_SelectedSubAsset = subAsset.guid;
@@ -460,8 +473,10 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             {
                 // Regular entry
                 bool isSelected = (static_cast<int>(i) == m_SelectedIndex && m_SelectedSubAsset.empty());
-                if (drawAssetRow(asset.displayName.c_str(), isSelected, 0.0f, Chevron::None, [&asset](ImDrawList* dl, ImVec2 p, float sz)
-                                 { DrawAssetRowIconAt(dl, p, sz, asset); }, nullptr))
+                if (drawAssetRow(
+                        asset.displayName.c_str(), isSelected, 0.0f, Chevron::None,
+                        [&asset](ImDrawList* dl, ImVec2 p, float sz) { DrawAssetRowIconAt(dl, p, sz, asset); },
+                        nullptr))
                 {
                     m_SelectedIndex = static_cast<int>(i);
                     m_SelectedSubAsset.clear();
@@ -498,7 +513,9 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
         const float btnW = Dpi(110.0f);
         const float freeW = ImGui::GetContentRegionAvail().x - (btnW * 2.0f + ImGui::GetStyle().ItemSpacing.x);
         if (freeW > 0.0f)
+        {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + freeW);
+        }
 
         if (ImGui::Button("Select", ImVec2(btnW, 0)))
         {
@@ -541,20 +558,22 @@ void AssetPicker::RefreshAssets(AssetFilterType filter)
 
     auto* pipeline = AssetPipeline::Instance();
     if (!pipeline)
+    {
         return;
+    }
 
     const std::string& assetsPath = pipeline->GetAssetsPath();
     if (assetsPath.empty() || !fs::exists(assetsPath))
+    {
         return;
+    }
 
     auto extensions = GetExtensionsForFilter(filter);
     ScanDirectory(assetsPath, assetsPath, extensions, pipeline);
 
     // Sort by name
     auto comparator = [](const AssetPickerEntry& a, const AssetPickerEntry& b)
-    {
-        return a.displayName < b.displayName;
-    };
+    { return a.displayName < b.displayName; };
     std::sort(m_Assets.begin(), m_Assets.end(), comparator);
 }
 
@@ -567,26 +586,26 @@ std::vector<std::string> AssetPicker::GetExtensionsForFilter(AssetFilterType fil
     {
         switch (f)
         {
-        case AssetFilterType::Textures: return AssetCategory::Texture;
-        case AssetFilterType::Audio: return AssetCategory::Audio;
-        case AssetFilterType::Scripts: return AssetCategory::Script;
-        case AssetFilterType::Scenes: return AssetCategory::Scene;
-        case AssetFilterType::Fonts: return AssetCategory::Font;
-        case AssetFilterType::Animations: return AssetCategory::Animation;
-        default: return AssetCategory::Unknown;
+            case AssetFilterType::Textures: return AssetCategory::Texture;
+            case AssetFilterType::Audio: return AssetCategory::Audio;
+            case AssetFilterType::Scripts: return AssetCategory::Script;
+            case AssetFilterType::Scenes: return AssetCategory::Scene;
+            case AssetFilterType::Fonts: return AssetCategory::Font;
+            case AssetFilterType::Animations: return AssetCategory::Animation;
+            default: return AssetCategory::Unknown;
         }
     };
     auto fallback = [](AssetFilterType f) -> std::vector<std::string>
     {
         switch (f)
         {
-        case AssetFilterType::Textures: return { ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif" };
-        case AssetFilterType::Audio: return { ".wav", ".mp3", ".ogg", ".flac" };
-        case AssetFilterType::Scripts: return { ".cpp", ".h", ".hpp", ".c" };
-        case AssetFilterType::Scenes: return { ".scene" };
-        case AssetFilterType::Fonts: return { ".ttf", ".otf", ".fnt", ".bdf" };
-        case AssetFilterType::Animations: return { ".anim", ".spritedef" };
-        default: return {};
+            case AssetFilterType::Textures: return { ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif" };
+            case AssetFilterType::Audio: return { ".wav", ".mp3", ".ogg", ".flac" };
+            case AssetFilterType::Scripts: return { ".cpp", ".h", ".hpp", ".c" };
+            case AssetFilterType::Scenes: return { ".scene" };
+            case AssetFilterType::Fonts: return { ".ttf", ".otf", ".fnt", ".bdf" };
+            case AssetFilterType::Animations: return { ".anim", ".spritedef" };
+            default: return {};
         }
     };
     auto forFilter = [&](AssetFilterType f)
@@ -596,7 +615,9 @@ std::vector<std::string> AssetPicker::GetExtensionsForFilter(AssetFilterType fil
     };
 
     if (filter != AssetFilterType::All)
+    {
         return forFilter(filter);
+    }
 
     // "All" = every asset family except scripts, as before.
     std::vector<std::string> all;
@@ -610,8 +631,7 @@ std::vector<std::string> AssetPicker::GetExtensionsForFilter(AssetFilterType fil
 }
 
 void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseDir,
-                                const std::vector<std::string>& extensions,
-                                AssetPipeline* pipeline)
+                                const std::vector<std::string>& extensions, AssetPipeline* pipeline)
 {
     try
     {
@@ -673,11 +693,17 @@ void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseD
                     // Convert backslashes to forward slashes for consistency
                     for (char& c : asset.relativePath)
                     {
-                        if (c == '\\') c = '/';
+                        if (c == '\\')
+                        {
+                            c = '/';
+                        }
                     }
                     for (char& c : asset.displayName)
                     {
-                        if (c == '\\') c = '/';
+                        if (c == '\\')
+                        {
+                            c = '/';
+                        }
                     }
 
                     // Get GUID from AssetPipeline using project-relative path
@@ -689,7 +715,10 @@ void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseD
                             std::string projectRelativePath = fs::relative(entry.path(), projectPath).string();
                             for (char& c : projectRelativePath)
                             {
-                                if (c == '\\') c = '/';
+                                if (c == '\\')
+                                {
+                                    c = '/';
+                                }
                             }
                             const AssetInfo* info = pipeline->GetAssetInfo(projectRelativePath);
                             if (info)
@@ -709,8 +738,9 @@ void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseD
                     asset.displayNameLower = asset.displayName;
 
                     for (char& c : asset.displayNameLower)
-
+                    {
                         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    }
 
                     m_Assets.push_back(asset);
                 }

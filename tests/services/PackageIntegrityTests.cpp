@@ -49,8 +49,7 @@ public:
         // git leaves pack objects read-only, which makes remove_all fail on
         // Windows and strand the directory. Clear the attribute first.
         std::error_code ec;
-        for (auto it = fs::recursive_directory_iterator(m_Path, ec);
-             it != fs::recursive_directory_iterator();
+        for (auto it = fs::recursive_directory_iterator(m_Path, ec); it != fs::recursive_directory_iterator();
              it.increment(ec))
         {
             std::error_code pec;
@@ -105,10 +104,9 @@ private:
     static std::string UniqueDirName(const char* name)
     {
         static std::atomic<unsigned> counter{ 0 };
-        return "deki_integrity_" + std::string(name) + "_" +
-               std::to_string(counter.fetch_add(1)) + "_" +
-               std::to_string(static_cast<unsigned long long>(
-                   std::chrono::steady_clock::now().time_since_epoch().count()));
+        return "deki_integrity_" + std::string(name) + "_" + std::to_string(counter.fetch_add(1)) + "_" +
+               std::to_string(
+                   static_cast<unsigned long long>(std::chrono::steady_clock::now().time_since_epoch().count()));
     }
 
     fs::path m_Path;
@@ -127,10 +125,11 @@ bool IsBlank(const std::string& s)
     return s.find_first_not_of(" \t\r\n") == std::string::npos;
 }
 
-#define REQUIRE_GIT()                                          \
-    do                                                         \
-    {                                                          \
-        if (!GitAvailable()) GTEST_SKIP() << "git not on PATH"; \
+#define REQUIRE_GIT()                                                                                                  \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (!GitAvailable())                                                                                           \
+            GTEST_SKIP() << "git not on PATH";                                                                         \
     } while (0)
 
 }  // namespace
@@ -321,8 +320,8 @@ TEST(PackageIntegrity, APathInsideAnotherRepositoryIsSkipped)
         f << "work that must not be stashed\n";
     }
     DekiEditor::RunGit({ "-C", outer.string(), "add", "-A" }, out);
-    DekiEditor::RunGit({ "-C", outer.string(), "-c", "user.email=t@t", "-c", "user.name=t",
-                         "commit", "-m", "outer" }, out);
+    DekiEditor::RunGit({ "-C", outer.string(), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "outer" },
+                       out);
 
     // A package directory under it, with a .git that is not a repository.
     const fs::path inner = outer / "packages" / "deki-test";

@@ -9,26 +9,26 @@ namespace DekiEditor
 
 namespace
 {
-    std::vector<int> ParseSegments(const std::string& v)
+std::vector<int> ParseSegments(const std::string& v)
+{
+    std::vector<int> segments;
+    std::string current;
+    for (char c : v)
     {
-        std::vector<int> segments;
-        std::string current;
-        for (char c : v)
+        if (c == '.')
         {
-            if (c == '.')
-            {
-                segments.push_back(current.empty() ? 0 : std::atoi(current.c_str()));
-                current.clear();
-            }
-            else
-            {
-                current += c;
-            }
+            segments.push_back(current.empty() ? 0 : std::atoi(current.c_str()));
+            current.clear();
         }
-        segments.push_back(current.empty() ? 0 : std::atoi(current.c_str()));
-        return segments;
+        else
+        {
+            current += c;
+        }
     }
+    segments.push_back(current.empty() ? 0 : std::atoi(current.c_str()));
+    return segments;
 }
+}  // namespace
 
 int CompareVersions(const std::string& a, const std::string& b)
 {
@@ -39,8 +39,14 @@ int CompareVersions(const std::string& a, const std::string& b)
     {
         const int va = (i < segsA.size()) ? segsA[i] : 0;
         const int vb = (i < segsB.size()) ? segsB[i] : 0;
-        if (va < vb) return -1;
-        if (va > vb) return 1;
+        if (va < vb)
+        {
+            return -1;
+        }
+        if (va > vb)
+        {
+            return 1;
+        }
     }
     return 0;
 }
@@ -51,9 +57,13 @@ std::string HighestVersion(const std::vector<std::string>& versions)
     for (const std::string& v : versions)
     {
         if (v.empty())
+        {
             continue;
+        }
         if (best.empty() || CompareVersions(v, best) > 0)
+        {
             best = v;
+        }
     }
     return best;
 }

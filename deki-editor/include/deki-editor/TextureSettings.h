@@ -64,7 +64,9 @@ struct TextureSettings
     {
         auto it = targets.find(platformId);
         if (it != targets.end() && it->second.maxSize >= 0)
+        {
             return it->second.maxSize;
+        }
         return maxSize;
     }
 };
@@ -74,27 +76,41 @@ inline TextureSettings ReadTextureSettings(const nlohmann::json& tex)
 {
     TextureSettings out;
     if (!tex.is_object())
+    {
         return out;
+    }
     if (tex.contains("format") && tex["format"].is_string())
+    {
         out.format = tex["format"].get<std::string>();
+    }
     if (tex.contains("maxSize") && tex["maxSize"].is_number_integer())
+    {
         out.maxSize = std::max(0, tex["maxSize"].get<int>());
+    }
     if (tex.contains("targets") && tex["targets"].is_object())
     {
         for (auto it = tex["targets"].begin(); it != tex["targets"].end(); ++it)
         {
             TextureTargetSettings t;
             if (it.value().is_string())
+            {
                 t.format = it.value().get<std::string>();
+            }
             else if (it.value().is_object())
             {
                 if (it.value().contains("format") && it.value()["format"].is_string())
+                {
                     t.format = it.value()["format"].get<std::string>();
+                }
                 if (it.value().contains("maxSize") && it.value()["maxSize"].is_number_integer())
+                {
                     t.maxSize = std::max(0, it.value()["maxSize"].get<int>());
+                }
             }
             if (!t.Empty())
+            {
                 out.targets[it.key()] = t;
+            }
         }
     }
     return out;
@@ -110,15 +126,21 @@ inline void WriteTextureTarget(nlohmann::json& tex, const std::string& platformI
         {
             tex["targets"].erase(platformId);
             if (tex["targets"].empty())
+            {
                 tex.erase("targets");
+            }
         }
         return;
     }
     nlohmann::json entry = nlohmann::json::object();
     if (!t.format.empty())
+    {
         entry["format"] = t.format;
+    }
     if (t.maxSize >= 0)
+    {
         entry["maxSize"] = t.maxSize;
+    }
     tex["targets"][platformId] = entry;
 }
 
@@ -131,7 +153,9 @@ inline void MaxSizeDims(int srcW, int srcH, int maxSize, int& outW, int& outH)
     outH = srcH;
     const int larger = std::max(srcW, srcH);
     if (maxSize <= 0 || larger <= maxSize)
+    {
         return;
+    }
     if (srcW >= srcH)
     {
         outW = maxSize;
@@ -150,8 +174,11 @@ inline void MaxSizeDims(int srcW, int srcH, int maxSize, int& outW, int& outH)
 inline int SourceToStored(int v, int sourceSize, int storedSize)
 {
     if (sourceSize <= 0 || sourceSize == storedSize)
+    {
         return v;
-    return static_cast<int>((static_cast<int64_t>(v) * storedSize * 2 + sourceSize) / (2 * static_cast<int64_t>(sourceSize)));
+    }
+    return static_cast<int>((static_cast<int64_t>(v) * storedSize * 2 + sourceSize) /
+                            (2 * static_cast<int64_t>(sourceSize)));
 }
 
 }  // namespace DekiEditor

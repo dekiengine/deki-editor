@@ -39,23 +39,16 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
     std::unordered_map<std::string, Pending> pending;
 
     // Called by the efsw worker thread.
-    void handleFileAction(efsw::WatchID /*watchid*/, const std::string& dir,
-                          const std::string& filename, efsw::Action action,
-                          std::string oldFilename) override
+    void handleFileAction(efsw::WatchID /*watchid*/, const std::string& dir, const std::string& filename,
+                          efsw::Action action, std::string oldFilename) override
     {
         const auto now = std::chrono::steady_clock::now();
 
         switch (action)
         {
-            case efsw::Actions::Add:
-                Submit(dir, filename, EventKind::Added, now);
-                break;
-            case efsw::Actions::Modified:
-                Submit(dir, filename, EventKind::Modified, now);
-                break;
-            case efsw::Actions::Delete:
-                Submit(dir, filename, EventKind::Deleted, now);
-                break;
+            case efsw::Actions::Add: Submit(dir, filename, EventKind::Added, now); break;
+            case efsw::Actions::Modified: Submit(dir, filename, EventKind::Modified, now); break;
+            case efsw::Actions::Delete: Submit(dir, filename, EventKind::Deleted, now); break;
             case efsw::Actions::Moved:
                 Submit(dir, oldFilename, EventKind::Deleted, now);
                 Submit(dir, filename, EventKind::Added, now);
@@ -63,49 +56,60 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
         }
     }
 
-    void Submit(const std::string& dir, const std::string& filename,
-                EventKind kind, std::chrono::steady_clock::time_point now)
+    void Submit(const std::string& dir, const std::string& filename, EventKind kind,
+                std::chrono::steady_clock::time_point now)
     {
         std::string ext = fs::path(filename).extension().string();
         if (IsSidecarExt(ext))
+        {
             return;
+        }
 
         std::string relPath;
         if (!ToProjectRelative(dir, filename, relPath))
+        {
             return;
+        }
 
         std::lock_guard<std::mutex> lock(mutex);
         Upsert(relPath, kind, now);
     }
 
-    bool ToProjectRelative(const std::string& dir, const std::string& filename,
-                           std::string& outRel) const
+    bool ToProjectRelative(const std::string& dir, const std::string& filename, std::string& outRel) const
     {
         std::error_code ec;
         fs::path abs = fs::path(dir) / filename;
         fs::path canonical = fs::weakly_canonical(abs, ec);
         if (ec)
+        {
             canonical = abs;
+        }
 
         fs::path rel = fs::relative(canonical, projectPath, ec);
         if (ec)
+        {
             return false;
+        }
 
         std::string relStr = rel.string();
         if (relStr.empty() || relStr.rfind("..", 0) == 0)
+        {
             return false;
+        }
 
         for (char& c : relStr)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
         outRel = std::move(relStr);
         return true;
     }
 
     // Caller holds `mutex`.
-    void Upsert(const std::string& path, EventKind kind,
-                std::chrono::steady_clock::time_point now)
+    void Upsert(const std::string& path, EventKind kind, std::chrono::steady_clock::time_point now)
     {
         auto it = pending.find(path);
         if (it == pending.end())
@@ -128,11 +132,15 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
                 break;
             case EventKind::Modified:
                 if (kind == EventKind::Deleted)
+                {
                     p.kind = EventKind::Deleted;
+                }
                 break;
             case EventKind::Deleted:
                 if (kind == EventKind::Added || kind == EventKind::Modified)
+                {
                     p.kind = EventKind::Modified;
+                }
                 break;
         }
     }
@@ -160,16 +168,15 @@ void AssetFileWatcher::Start(const std::string& watchPath, const std::string& pr
     impl.watchId = impl.watcher->addWatch(watchPath, &impl, /*recursive*/ true);
     if (impl.watchId < 0)
     {
-        DEKI_LOG_ERROR("AssetFileWatcher: addWatch failed for %s (efsw error %d)",
-                       watchPath.c_str(), (int)impl.watchId);
+        DEKI_LOG_ERROR("AssetFileWatcher: addWatch failed for %s (efsw error %d)", watchPath.c_str(),
+                       (int)impl.watchId);
         impl.watcher.reset();
         return;
     }
 
     impl.watcher->watch();
     impl.watching = true;
-    DEKI_LOG_DEBUG("AssetFileWatcher: watching %s (id=%d)",
-                   watchPath.c_str(), (int)impl.watchId);
+    DEKI_LOG_DEBUG("AssetFileWatcher: watching %s (id=%d)", watchPath.c_str(), (int)impl.watchId);
 }
 
 void AssetFileWatcher::Stop()
@@ -184,7 +191,9 @@ void AssetFileWatcher::Stop()
     }
 
     if (impl.watcher && impl.watchId >= 0)
+    {
         impl.watcher->removeWatch(impl.watchId);
+    }
 
     // Destroying the FileWatcher joins its worker thread.
     impl.watcher.reset();
@@ -200,7 +209,9 @@ std::vector<AssetFileWatcher::Event> AssetFileWatcher::DrainReadyEvents()
     std::vector<Event> out;
     Impl& impl = *m_Impl;
     if (!impl.watching)
+    {
         return out;
+    }
 
     const auto now = std::chrono::steady_clock::now();
     const auto threshold = std::chrono::milliseconds(kDebounceMs);

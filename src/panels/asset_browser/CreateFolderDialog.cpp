@@ -42,15 +42,21 @@ void CreateFolderDialog::Draw()
         // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
         // frame, leaving the input inactive so typing goes nowhere.
         if (ImGui::IsWindowAppearing())
+        {
             ImGui::SetKeyboardFocusHere();
+        }
 
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool enterPressed = ImGui::InputText("##foldername", m_NewFolderName, sizeof(m_NewFolderName),
                                              ImGuiInputTextFlags_EnterReturnsTrue);
         if (ImGui::IsItemEdited())
+        {
             m_Error.clear();
+        }
         if (!m_Error.empty())
+        {
             ImGui::TextColored(Palette::Red, "%s", m_Error.c_str());
+        }
 
         ImGui::Spacing();
         ImGui::Spacing();
@@ -70,7 +76,9 @@ void CreateFolderDialog::Draw()
         ImGui::SameLine(0.0f, gap);
 
         if (!canCreate)
+        {
             ImGui::BeginDisabled();
+        }
         ImGui::PushStyleColor(ImGuiCol_Button, Palette::AccentDim);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
@@ -91,16 +99,16 @@ void CreateFolderDialog::Draw()
                 const std::string currentPath = m_Browser->GetCurrentPath();
                 AssetBrowserPanel* browser = m_Browser;
                 CommandHistory::Instance().Execute(std::make_unique<CreateFolderCommand>(
-                    newFolderPath.string(),
-                    [browser, currentPath]()
-                    { browser->NavigateTo(currentPath); }));
+                    newFolderPath.string(), [browser, currentPath]() { browser->NavigateTo(currentPath); }));
                 ImGui::CloseCurrentPopup();
             }
         }
 
         ImGui::PopStyleColor(3);
         if (!canCreate)
+        {
             ImGui::EndDisabled();
+        }
         ImGui::PopStyleVar();  // ButtonTextAlign
 
         EndSchematicModal();

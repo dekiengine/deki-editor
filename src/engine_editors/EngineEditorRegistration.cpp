@@ -47,8 +47,7 @@ extern "C"
      */
     DEKI_ENGINE_EDITOR_EXPORT int DekiEngine_GetEditorFactoryCount()
     {
-        return static_cast<int>(
-            DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
+        return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
     }
 
     /**
@@ -91,8 +90,7 @@ extern "C"
      */
     DEKI_ENGINE_EDITOR_EXPORT int DekiEngine_GetEditorCount()
     {
-        return static_cast<int>(
-            DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
+        return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
     }
 
     /**

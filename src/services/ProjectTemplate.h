@@ -44,7 +44,6 @@ public:
     static bool CreateProject(const std::string& parentPath, const std::string& projectName,
                               const PlatformConfig* platform = nullptr);
 
-
     /**
      * @brief Validate an existing project and create any missing build files
      * @param projectPath Path to the project root (containing deki.json)
@@ -55,13 +54,11 @@ public:
      * - Required directories (project/src, builders/, etc.)
      * - Build files (CMakeLists.txt, main.cpp) if platform provided
      */
-    static bool ValidateAndRepairProject(const std::string& projectPath,
-                                         const PlatformConfig* platform = nullptr);
+    static bool ValidateAndRepairProject(const std::string& projectPath, const PlatformConfig* platform = nullptr);
 
 private:
     // Directory creation
     static bool CreateDirectories(const std::string& projectPath);
-
 };
 
 }  // namespace DekiEditor

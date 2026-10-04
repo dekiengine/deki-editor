@@ -22,10 +22,10 @@ namespace
 constexpr int64_t kIntervalSec = 24 * 60 * 60;
 
 std::mutex g_Mutex;
-bool g_Started = false;          // Start() ran once
-bool g_InFlight = false;         // a request thread is running
-bool g_Manual = false;           // the in-flight request came from CheckNow()
-bool g_Ready = false;            // a result waits for Poll()
+bool g_Started = false;   // Start() ran once
+bool g_InFlight = false;  // a request thread is running
+bool g_Manual = false;    // the in-flight request came from CheckNow()
+bool g_Ready = false;     // a result waits for Poll()
 bool g_Newer = false;
 LatestRelease g_Result;
 std::string g_Error;             // empty when the request parsed
@@ -34,8 +34,8 @@ std::string g_AvailableUrl;
 
 int64_t NowEpoch()
 {
-    return std::chrono::duration_cast<std::chrono::seconds>(
-               std::chrono::system_clock::now().time_since_epoch()).count();
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+        .count();
 }
 
 // The worker: fetch, parse, compare, hand over. Everything it touches is
@@ -49,11 +49,17 @@ void Run(bool manual)
     std::string error;
     bool newer = false;
     if (body.empty())
+    {
         error = "no response (offline, or the repository is not public)";
+    }
     else if (!ParseLatestRelease(body, release))
+    {
         error = "no published release in the response";
+    }
     else
+    {
         newer = IsNewerRelease(release.tag, EditorVersionString());
+    }
 
     std::lock_guard<std::mutex> lock(g_Mutex);
     g_Result = release;
@@ -69,7 +75,9 @@ void Launch(bool manual)
     {
         std::lock_guard<std::mutex> lock(g_Mutex);
         if (g_InFlight)
+        {
             return;
+        }
         g_InFlight = true;
         g_Ready = false;
     }
@@ -92,15 +100,21 @@ void UpdateCheck::Start()
     {
         std::lock_guard<std::mutex> lock(g_Mutex);
         if (g_Started)
+        {
             return;
+        }
         g_Started = true;
     }
     if (!IsEnabled())
+    {
         return;
+    }
 
     const int64_t last = std::strtoll(EditorSettings::GetString(kSettingLastCheck, "0").c_str(), nullptr, 10);
     if (!UpdateCheckIsDue(last, NowEpoch(), kIntervalSec))
+    {
         return;
+    }
 
     // Recorded before the answer arrives: a machine that is offline every
     // morning must not retry on every launch.
@@ -123,7 +137,9 @@ void UpdateCheck::Poll()
     {
         std::lock_guard<std::mutex> lock(g_Mutex);
         if (!g_Ready)
+        {
             return;
+        }
         g_Ready = false;
         release = g_Result;
         error = g_Error;
@@ -140,15 +156,16 @@ void UpdateCheck::Poll()
     {
         DEKI_LOG_DEBUG("UpdateCheck: %s", error.c_str());
         if (manual)
-            Toast::Push(Toast::Level::Warning, "Update check",
-                        "Could not reach GitHub releases: " + error);
+        {
+            Toast::Push(Toast::Level::Warning, "Update check", "Could not reach GitHub releases: " + error);
+        }
         return;
     }
 
     if (newer)
     {
-        DEKI_LOG_INFO("UpdateCheck: Deki Editor %s is available (running %s): %s",
-                      release.tag.c_str(), EditorVersionString(), release.htmlUrl.c_str());
+        DEKI_LOG_INFO("UpdateCheck: Deki Editor %s is available (running %s): %s", release.tag.c_str(),
+                      EditorVersionString(), release.htmlUrl.c_str());
         Toast::Push(Toast::Level::Info, ("Deki Editor " + release.tag + " is available").c_str(),
                     "You are running " + std::string(EditorVersionString()) +
                         ". Help > Open release page has the download.",
@@ -158,8 +175,10 @@ void UpdateCheck::Poll()
     {
         DEKI_LOG_DEBUG("UpdateCheck: up to date (%s, latest %s)", EditorVersionString(), release.tag.c_str());
         if (manual)
+        {
             Toast::Push(Toast::Level::Success, "Up to date",
                         "Deki Editor " + std::string(EditorVersionString()) + " is the latest release.");
+        }
     }
 }
 

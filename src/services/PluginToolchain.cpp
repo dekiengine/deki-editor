@@ -38,26 +38,35 @@ std::string WhichExe(const std::string& stem)
     char buf[MAX_PATH];
     DWORD n = SearchPathA(nullptr, exe.c_str(), nullptr, MAX_PATH, buf, nullptr);
     if (n > 0 && n < MAX_PATH)
+    {
         return Normalize(std::string(buf, n));
+    }
     return {};
 #else
     const char* pathEnv = std::getenv("PATH");
     if (!pathEnv)
+    {
         return {};
+    }
 
     std::string path(pathEnv);
     size_t start = 0;
     while (start <= path.size())
     {
         size_t sep = path.find(':', start);
-        if (sep == std::string::npos) sep = path.size();
+        if (sep == std::string::npos)
+        {
+            sep = path.size();
+        }
 
         if (sep > start)
         {
             fs::path candidate = fs::path(path.substr(start, sep - start)) / exe;
             std::error_code ec;
             if (fs::exists(candidate, ec) && !fs::is_directory(candidate, ec))
+            {
                 return Normalize(candidate.string());
+            }
         }
         start = sep + 1;
     }
@@ -66,14 +75,15 @@ std::string WhichExe(const std::string& stem)
 }
 
 // PATH first, then well-known install locations for the platform.
-std::string FindCompiler(const char* const* stems, size_t stemCount,
-                         const char* const* extraDirs, size_t extraDirCount)
+std::string FindCompiler(const char* const* stems, size_t stemCount, const char* const* extraDirs, size_t extraDirCount)
 {
     for (size_t i = 0; i < stemCount; ++i)
     {
         std::string found = WhichExe(stems[i]);
         if (!found.empty())
+        {
             return found;
+        }
     }
 
     for (size_t d = 0; d < extraDirCount; ++d)
@@ -83,7 +93,9 @@ std::string FindCompiler(const char* const* stems, size_t stemCount,
             fs::path candidate = fs::path(extraDirs[d]) / (std::string(stems[i]) + kExeSuffix);
             std::error_code ec;
             if (fs::exists(candidate, ec))
+            {
                 return Normalize(candidate.string());
+            }
         }
     }
 
@@ -167,8 +179,7 @@ PluginToolchainInfo ResolveGnu()
 
     if (cc.empty() || cxx.empty())
     {
-        info.error = std::string("No GNU-ABI compiler found (looked for ") +
-                     kCcStems[0] + " / " + kCxxStems[0] + ").";
+        info.error = std::string("No GNU-ABI compiler found (looked for ") + kCcStems[0] + " / " + kCxxStems[0] + ").";
         return info;
     }
 
@@ -199,9 +210,13 @@ const PluginToolchainInfo& PluginToolchain::Get()
             {
                 info.cxxCompiler = Normalize(cxxOverride);
                 if (const char* ccOverride = std::getenv("DEKI_PLUGIN_CC"))
+                {
                     info.cCompiler = Normalize(ccOverride);
+                }
                 else
+                {
                     info.cCompiler = info.cxxCompiler;
+                }
 
                 info.displayName += " (DEKI_PLUGIN_CXX override)";
                 info.valid = true;
@@ -224,14 +239,15 @@ std::string PluginToolchain::CacheCompilerMarker()
 {
     const PluginToolchainInfo& info = Get();
     if (!info.valid)
+    {
         return {};
+    }
 
     // Compare on the compiler's filename rather than the full path: CMake writes
     // an absolute path that may differ in case or separators from ours.
     std::string stem = fs::path(info.cxxCompiler).stem().string();
     std::transform(stem.begin(), stem.end(), stem.begin(),
-                   [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return stem;
 }
 

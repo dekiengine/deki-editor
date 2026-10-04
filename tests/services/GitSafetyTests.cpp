@@ -35,10 +35,14 @@ void RemoveRepo(const fs::path& dir)
 {
     std::error_code ec;
     if (!fs::exists(dir, ec))
+    {
         return;
+    }
     for (auto it = fs::recursive_directory_iterator(dir, ec); !ec && it != fs::recursive_directory_iterator();
          it.increment(ec))
+    {
         fs::permissions(it->path(), fs::perms::owner_write, fs::perm_options::add, ec);
+    }
     fs::remove_all(dir, ec);
 }
 }  // namespace
@@ -85,7 +89,9 @@ TEST(GitSafety, ARepositorysHooksDoNotRun)
     fs::create_directories(dir);
     std::string out;
     if (RunGit({ "init", "-q", dir.string() }, out) != 0)
+    {
         GTEST_SKIP() << "git is not available: " << out;
+    }
 
     const fs::path marker = dir / "hook-ran";
     fs::remove(marker, ec);
@@ -95,9 +101,9 @@ TEST(GitSafety, ARepositorysHooksDoNotRun)
     }
     fs::permissions(dir / ".git" / "hooks" / "pre-commit", fs::perms::owner_all, fs::perm_options::add, ec);
 
-    const int rc = RunGit({ "-C", dir.string(), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
-                            "--allow-empty", "-m", "x" },
-                          out);
+    const int rc = RunGit(
+        { "-C", dir.string(), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x" },
+        out);
     EXPECT_EQ(rc, 0) << out;
     EXPECT_FALSE(fs::exists(marker)) << "the repository's pre-commit hook ran";
     RemoveRepo(dir);

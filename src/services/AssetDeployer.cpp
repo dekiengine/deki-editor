@@ -41,51 +41,53 @@ void AssetDeployer::DeployToDrive(const std::string& projectPath, const std::str
     }
 
     // Launch deployment thread for direct drive copy
-    m_DeployThread = std::thread([this, projectPath, drivePath, progressCallback]()
-                                 {
-        auto notifyProgress = [&]()
+    m_DeployThread = std::thread(
+        [this, projectPath, drivePath, progressCallback]()
         {
-            if (progressCallback)
+            auto notifyProgress = [&]()
             {
-                std::lock_guard<std::mutex> lock(m_ProgressMutex);
-                progressCallback(m_Progress);
+                if (progressCallback)
+                {
+                    std::lock_guard<std::mutex> lock(m_ProgressMutex);
+                    progressCallback(m_Progress);
+                }
+            };
+
+            // Verify drive exists
+            if (!fs::exists(drivePath))
+            {
+                SetError("Drive not found: " + drivePath);
+                notifyProgress();
+                m_IsDeploying = false;
+                return;
             }
-        };
 
-        // Verify drive exists
-        if (!fs::exists(drivePath))
-        {
-            SetError("Drive not found: " + drivePath);
+            SetProgress(DeployState::CopyingAssets, "Deploying to " + drivePath, 0.1f);
+            notifyProgress();
+
+            // Copy assets from storage/ folder
+            std::string storagePath = projectPath + "/storage";
+            if (!fs::exists(storagePath))
+            {
+                SetProgress(DeployState::Completed, "No assets to deploy (storage/ folder not found)", 1.0f);
+                notifyProgress();
+                m_IsDeploying = false;
+                return;
+            }
+
+            if (!CopyAssets(storagePath, drivePath, progressCallback))
+            {
+                // Error already set in CopyAssets
+                notifyProgress();
+                m_IsDeploying = false;
+                return;
+            }
+
+            // Done!
+            SetProgress(DeployState::Completed, "Assets deployed successfully to " + drivePath, 1.0f);
             notifyProgress();
             m_IsDeploying = false;
-            return;
-        }
-
-        SetProgress(DeployState::CopyingAssets, "Deploying to " + drivePath, 0.1f);
-        notifyProgress();
-
-        // Copy assets from storage/ folder
-        std::string storagePath = projectPath + "/storage";
-        if (!fs::exists(storagePath))
-        {
-            SetProgress(DeployState::Completed, "No assets to deploy (storage/ folder not found)", 1.0f);
-            notifyProgress();
-            m_IsDeploying = false;
-            return;
-        }
-
-        if (!CopyAssets(storagePath, drivePath, progressCallback))
-        {
-            // Error already set in CopyAssets
-            notifyProgress();
-            m_IsDeploying = false;
-            return;
-        }
-
-        // Done!
-        SetProgress(DeployState::Completed, "Assets deployed successfully to " + drivePath, 1.0f);
-        notifyProgress();
-        m_IsDeploying = false; });
+        });
 }
 
 std::vector<std::pair<std::string, std::string>> AssetDeployer::GetRemovableDrives()
@@ -110,8 +112,7 @@ std::vector<std::pair<std::string, std::string>> AssetDeployer::GetRemovableDriv
                 char fileSystem[MAX_PATH] = { 0 };
                 std::string label;
 
-                if (GetVolumeInformationA(drive, volumeName, MAX_PATH,
-                                          nullptr, nullptr, nullptr, fileSystem, MAX_PATH))
+                if (GetVolumeInformationA(drive, volumeName, MAX_PATH, nullptr, nullptr, nullptr, fileSystem, MAX_PATH))
                 {
                     if (volumeName[0] != '\0')
                     {

@@ -21,7 +21,6 @@ public:
 
     void Draw();
 
-
 private:
     void DrawStartupSceneSection(Project* project);
     void DrawRenderPipelineSection(Project* project);

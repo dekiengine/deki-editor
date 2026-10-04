@@ -15,7 +15,10 @@ class EditorSettingsPanel : public IPanel
 public:
     const char* Id() const override { return "EditorSettings"; }
     bool PersistOpenState() const override { return false; }
-    explicit EditorSettingsPanel(EditorApp* app) : m_App(app) {}
+    explicit EditorSettingsPanel(EditorApp* app)
+        : m_App(app)
+    {
+    }
 
     void Draw() override;
 

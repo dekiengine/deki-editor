@@ -84,17 +84,26 @@ bool MigrateModulesToPackages(const std::string& projectRoot, std::string& outSu
     for (const auto& [from, to] : renames)
     {
         if (!fs::exists(from, ec) || fs::exists(to, ec))
+        {
             continue;
+        }
         std::error_code moveEc;
         fs::rename(from, to, moveEc);
         if (moveEc)
+        {
             continue;
-        if (!moved.empty()) moved += ", ";
+        }
+        if (!moved.empty())
+        {
+            moved += ", ";
+        }
         moved += from.filename().string();
     }
 
     if (!moved.empty())
+    {
         outSummary = "renamed " + moved + " to packages";
+    }
     return !moved.empty();
 }
 
@@ -105,7 +114,9 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
 
     std::error_code ec;
     if (!fs::is_directory(legacy, ec))
+    {
         return false;
+    }
 
     const std::pair<fs::path, fs::path> moves[] = {
         { legacy / "src", fs::path(GetSourceDirectory(projectRoot)) },
@@ -131,7 +142,9 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
     for (const auto& [from, to] : moves)
     {
         if (!fs::exists(from, ec))
+        {
             continue;
+        }
         std::error_code moveEc;
         fs::rename(from, to, moveEc);
         if (moveEc)
@@ -146,11 +159,15 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
                 std::error_code backEc;
                 fs::rename(it->second, it->first, backEc);
             }
-            outSummary = "could not move project/" + from.filename().string() + " (" + moveEc.message() + "); left on the old layout, " + "will retry on next open";
+            outSummary = "could not move project/" + from.filename().string() + " (" + moveEc.message() +
+                         "); left on the old layout, " + "will retry on next open";
             return false;
         }
         done.emplace_back(from, to);
-        if (!moved.empty()) moved += ", ";
+        if (!moved.empty())
+        {
+            moved += ", ";
+        }
         moved += from.filename().string();
     }
 
@@ -160,25 +177,39 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
     std::error_code iterEc;
     for (const auto& entry : fs::recursive_directory_iterator(platforms, iterEc))
     {
-        if (iterEc) break;
+        if (iterEc)
+        {
+            break;
+        }
         if (!entry.is_regular_file() || entry.path().extension() != ".json")
+        {
             continue;
+        }
 
         std::ifstream in(entry.path());
-        if (!in.is_open()) continue;
+        if (!in.is_open())
+        {
+            continue;
+        }
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         in.close();
 
         const std::string needle = "project/" + GetPlatformsDirectoryRelative() + "/";
         if (text.find(needle) == std::string::npos)
+        {
             continue;
+        }
 
         for (size_t at = text.find(needle); at != std::string::npos; at = text.find(needle, at))
+        {
             text.erase(at, std::char_traits<char>::length("project/"));
+        }
 
         std::string err;
         if (AtomicWriteFile(entry.path().string(), text, err))
+        {
             ++rewritten;
+        }
     }
 
     // The folder only ever held those four; anything else is the user's and stays,
@@ -189,7 +220,9 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
     {
         outSummary = "lifted " + moved + " out of project/";
         if (rewritten > 0)
+        {
             outSummary += "; repointed " + std::to_string(rewritten) + " platform config(s)";
+        }
     }
     return !moved.empty();
 }
@@ -215,7 +248,9 @@ bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSu
     for (const auto& [from, to] : moves)
     {
         if (!fs::exists(from, ec) || fs::exists(to, ec))
+        {
             continue;
+        }
 
         fs::create_directories(to.parent_path(), ec);
 
@@ -223,13 +258,19 @@ bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSu
         fs::rename(from, to, moveEc);
         if (moveEc)
         {
-            if (!failed.empty()) failed += ", ";
+            if (!failed.empty())
+            {
+                failed += ", ";
+            }
             failed += from.filename().string();
             continue;
         }
 
         movedAny = true;
-        if (!moved.empty()) moved += ", ";
+        if (!moved.empty())
+        {
+            moved += ", ";
+        }
         moved += from.filename().string();
     }
 
@@ -243,15 +284,24 @@ bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSu
         if (!moveEc)
         {
             movedAny = true;
-            if (!moved.empty()) moved += ", ";
+            if (!moved.empty())
+            {
+                moved += ", ";
+            }
             moved += "cache/packages";
         }
     }
 
-    if (!moved.empty()) outSummary = "moved " + moved + " into generated/";
+    if (!moved.empty())
+    {
+        outSummary = "moved " + moved + " into generated/";
+    }
     if (!failed.empty())
     {
-        if (!outSummary.empty()) outSummary += "; ";
+        if (!outSummary.empty())
+        {
+            outSummary += "; ";
+        }
         outSummary += "could not move " + failed + " (in use; will retry on next open)";
     }
     return movedAny;

@@ -61,7 +61,9 @@ void CustomEditorRegistry::Register(CustomEditor* editor)
 CustomEditor* CustomEditorRegistry::GetEditorForComponent(const char* componentName, Deki::Component* comp)
 {
     if (!comp || !componentName)
+    {
         return nullptr;
+    }
 
     // Check if we have a cached editor for this component.
     // Validate the cached editor still matches the requested component name:
@@ -72,7 +74,9 @@ CustomEditor* CustomEditorRegistry::GetEditorForComponent(const char* componentN
     {
         const char* cachedName = cacheIt->second->GetComponentName();
         if (cachedName && std::strcmp(componentName, cachedName) == 0)
+        {
             return cacheIt->second.get();
+        }
         m_Cache.erase(cacheIt);
     }
 
@@ -177,7 +181,9 @@ FileInspectorRegistry& FileInspectorRegistry::Instance()
 void FileInspectorRegistry::Register(FileInspector* inspector)
 {
     if (!inspector)
+    {
         return;
+    }
 
     const char** extensions = inspector->GetExtensions();
     int count = inspector->GetExtensionCount();
@@ -189,7 +195,9 @@ void FileInspectorRegistry::Register(FileInspector* inspector)
             std::string ext = extensions[i];
             // Normalize to lowercase
             for (char& c : ext)
+            {
                 c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
             m_Inspectors[ext] = inspector;
         }
     }
@@ -200,7 +208,9 @@ FileInspector* FileInspectorRegistry::GetInspector(const std::string& extension)
     // Normalize to lowercase
     std::string ext = extension;
     for (char& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
     auto it = m_Inspectors.find(ext);
     return (it != m_Inspectors.end()) ? it->second : nullptr;

@@ -9,9 +9,18 @@
 #include <deki-editor/AssetPipeline.h>  // AssetExportTarget
 
 // Forward declarations
-namespace Deki { class Object; }
-namespace Deki { class Component; }
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+class Scene;
+}
 namespace Deki
 {
 struct AssetRefBase;
@@ -47,7 +56,10 @@ struct FontUsageInfo
 
     bool operator<(const FontUsageInfo& other) const
     {
-        if (sourceGuid != other.sourceGuid) return sourceGuid < other.sourceGuid;
+        if (sourceGuid != other.sourceGuid)
+        {
+            return sourceGuid < other.sourceGuid;
+        }
         return fontSize < other.fontSize;
     }
 
@@ -205,8 +217,7 @@ private:
      * @param storagePath Path to storage directory
      * @param usedGuids Set of GUIDs to export
      */
-    void CopyUsedAssetsToOutput(const std::string& storagePath,
-                                const std::unordered_set<std::string>& usedGuids,
+    void CopyUsedAssetsToOutput(const std::string& storagePath, const std::unordered_set<std::string>& usedGuids,
                                 const std::unordered_set<std::string>& skipGuids = {},
                                 const std::unordered_map<std::string, std::string>* referencedFrom = nullptr);
 

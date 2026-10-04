@@ -46,31 +46,41 @@ void SceneView::BeginObject(const SceneViewContext& ctx)
 void SceneView::DrawLine(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness)
 {
     if (m_DrawList)
+    {
         m_DrawList->AddLine(ImVec2(x0, y0), ImVec2(x1, y1), static_cast<ImU32>(rgba), thickness);
+    }
 }
 
 void SceneView::DrawRect(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness, float rounding)
 {
     if (m_DrawList)
+    {
         m_DrawList->AddRect(ImVec2(x0, y0), ImVec2(x1, y1), static_cast<ImU32>(rgba), rounding, 0, thickness);
+    }
 }
 
 void SceneView::DrawRectFilled(float x0, float y0, float x1, float y1, uint32_t rgba, float rounding)
 {
     if (m_DrawList)
+    {
         m_DrawList->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), static_cast<ImU32>(rgba), rounding);
+    }
 }
 
 void SceneView::DrawCircle(float cx, float cy, float radius, uint32_t rgba, float thickness)
 {
     if (m_DrawList)
+    {
         m_DrawList->AddCircle(ImVec2(cx, cy), radius, static_cast<ImU32>(rgba), 0, thickness);
+    }
 }
 
 void SceneView::DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba)
 {
     if (m_DrawList)
+    {
         m_DrawList->AddCircleFilled(ImVec2(cx, cy), radius, static_cast<ImU32>(rgba));
+    }
 }
 
 void SceneView::EndObject()

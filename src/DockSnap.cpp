@@ -19,19 +19,19 @@
 
 // Matches the typedef + global the CMake patch injects into imgui.cpp
 // (global namespace, null by default).
-typedef void (*DekiDockSnapFn)(ImGuiDockNode*, ImGuiDockNode*, ImGuiDockNode*,
-                               ImGuiAxis, float*, float*, float, float);
+typedef void (*DekiDockSnapFn)(ImGuiDockNode*, ImGuiDockNode*, ImGuiDockNode*, ImGuiAxis, float*, float*, float, float);
 extern DekiDockSnapFn GDekiDockSnapFn;
 
 namespace
 {
 
-void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode* child_1,
-                      ImGuiAxis axis, float* size_0, float* size_1,
-                      float min_size_0, float min_size_1)
+void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode* child_1, ImGuiAxis axis,
+                      float* size_0, float* size_1, float min_size_0, float min_size_1)
 {
     if (!node || !child_0 || !child_1 || !size_0 || !size_1)
+    {
         return;
+    }
 
     ImGuiContext& g = *GImGui;
 
@@ -57,9 +57,17 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
         ImGuiDockNode* n = stack.back();
         stack.pop_back();
         if (n == NULL)
+        {
             continue;
-        if (n->ChildNodes[0]) stack.push_back(n->ChildNodes[0]);
-        if (n->ChildNodes[1]) stack.push_back(n->ChildNodes[1]);
+        }
+        if (n->ChildNodes[0])
+        {
+            stack.push_back(n->ChildNodes[0]);
+        }
+        if (n->ChildNodes[1])
+        {
+            stack.push_back(n->ChildNodes[1]);
+        }
 
         // Skip everything inside the region being resized: child_0, child_1 and
         // all their descendants move WITH the separator, so their edges (e.g. a
@@ -67,18 +75,24 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
         // alignment targets. Only panels OUTSIDE this split count.
         bool inside_resized_region = false;
         for (ImGuiDockNode* p = n; p != NULL; p = p->ParentNode)
+        {
             if (p == node)
             {
                 inside_resized_region = true;
                 break;
             }
+        }
         if (inside_resized_region)
+        {
             continue;
+        }
 
         // Only real tabbed panels (leaf nodes that actually host windows), and
         // only their top edge - where the tab bar sits, never the bottom.
         if (!n->IsLeafNode() || n->Windows.Size == 0)
+        {
             continue;
+        }
 
         const float top_edge = n->Pos[axis];
         const float d_top = ImFabs(top_edge - moving_tab_top);
@@ -90,7 +104,9 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child_0, ImGuiDockNode
     }
 
     if (best == moving_tab_top)
+    {
         return;  // nothing within the snap zone
+    }
 
     // Solve for child_0's size so child_1's tab top lands on the target:
     //   child_0->Pos + size_0 + spacing == best  ->  size_0 == best - spacing - Pos.

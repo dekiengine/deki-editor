@@ -88,10 +88,14 @@ TEST(PlayModeGuard, GuardsNest)
 {
     PlayModeGuard::CrashInfo outer, inner;
     bool afterInner = false;
-    EXPECT_TRUE(PlayModeGuard::Invoke("Outer", [&] {
-        EXPECT_FALSE(PlayModeGuard::Invoke("Inner", [] { NullRead(); }, inner));
-        afterInner = true;
-    }, outer));
+    EXPECT_TRUE(PlayModeGuard::Invoke(
+        "Outer",
+        [&]
+        {
+            EXPECT_FALSE(PlayModeGuard::Invoke("Inner", [] { NullRead(); }, inner));
+            afterInner = true;
+        },
+        outer));
     EXPECT_TRUE(afterInner);
     EXPECT_STREQ(inner.phase, "Inner");
 }

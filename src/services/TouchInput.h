@@ -49,9 +49,9 @@ public:
 
     struct Gesture
     {
-        ImVec2 center;           // midpoint of the two fingers, ImGui pixels
-        ImVec2 pan;              // how far it moved this frame
-        float scale = 1.0f;      // pinch: >1 fingers spread apart
+        ImVec2 center;       // midpoint of the two fingers, ImGui pixels
+        ImVec2 pan;          // how far it moved this frame
+        float scale = 1.0f;  // pinch: >1 fingers spread apart
     };
 
     // This frame's two-finger gesture, when its midpoint is inside [min, max].
@@ -66,10 +66,7 @@ private:
     struct Rect
     {
         ImVec2 min, max;
-        bool Contains(float x, float y) const
-        {
-            return x >= min.x && y >= min.y && x < max.x && y < max.y;
-        }
+        bool Contains(float x, float y) const { return x >= min.x && y >= min.y && x < max.x && y < max.y; }
     };
 
     bool ToWindow(const SDL_Event& event, float& x, float& y) const;

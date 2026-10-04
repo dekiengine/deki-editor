@@ -27,7 +27,9 @@ std::map<std::string, std::string>& Map()
 void SetOwner(const std::string& sectionName, const std::string& packageId)
 {
     if (sectionName.empty() || packageId.empty())
+    {
         return;
+    }
     std::lock_guard<std::mutex> guard(Lock());
     Map()[sectionName] = packageId;
 }
@@ -43,7 +45,9 @@ void ClearPackage(const std::string& packageId)
 {
     std::lock_guard<std::mutex> guard(Lock());
     for (auto it = Map().begin(); it != Map().end();)
+    {
         it = (it->second == packageId) ? Map().erase(it) : std::next(it);
+    }
 }
 
 void Clear()

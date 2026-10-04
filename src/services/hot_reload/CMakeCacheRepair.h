@@ -12,8 +12,7 @@ class ConsolePanel;
 // Ninja+gcc configure from an editor started without vcvars). Running Ninja
 // against such a cache produces link errors that look nothing like a
 // toolchain mismatch. `console` may be null.
-void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath,
-                                  const std::filesystem::path& cmakeCachePath,
+void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath, const std::filesystem::path& cmakeCachePath,
                                   ConsolePanel* console);
 
 }  // namespace DekiEditor

@@ -44,7 +44,9 @@ std::string HashFile(const fs::path& file)
 {
     std::ifstream f(file, std::ios::binary);
     if (!f)
+    {
         return "";
+    }
 
     uint64_t hash = 1469598103934665603ull;  // FNV-1a
     char buffer[4096];
@@ -54,7 +56,9 @@ std::string HashFile(const fs::path& file)
         for (std::streamsize i = 0; i < f.gcount(); ++i)
         {
             if (buffer[i] == '\r')
+            {
                 continue;
+            }
             hash ^= static_cast<uint8_t>(buffer[i]);
             hash *= 1099511628211ull;
         }
@@ -74,10 +78,14 @@ std::vector<std::string> PlatformFiles(const fs::path& directory, const std::str
     for (fs::recursive_directory_iterator it(directory, ec), end; !ec && it != end; it.increment(ec))
     {
         if (!it->is_regular_file(ec))
+        {
             continue;
+        }
         const std::string relative = fs::relative(it->path(), directory, ec).generic_string();
         if (relative == platformId + ".json" || relative == kOriginFile)
+        {
             continue;
+        }
         files.push_back(relative);
     }
     std::sort(files.begin(), files.end());
@@ -92,15 +100,18 @@ struct Snapshot
     std::map<std::string, std::string> files;
 };
 
-Snapshot TakeSnapshot(const fs::path& directory, const std::string& platformId,
-                      const std::vector<std::string>& files)
+Snapshot TakeSnapshot(const fs::path& directory, const std::string& platformId, const std::vector<std::string>& files)
 {
     Snapshot snapshot;
     PlatformConfig config;
     if (PlatformFromJson(ReadText(directory / (platformId + ".json")), config))
+    {
         snapshot.platform = json::parse(PlatformToJson(config), nullptr, false);
+    }
     for (const std::string& file : files)
+    {
         snapshot.files[file] = HashFile(directory / fs::path(file));
+    }
     return snapshot;
 }
 
@@ -116,15 +127,23 @@ bool ReadOrigin(const fs::path& platformDirectory, OriginRecord& record)
     const json j = json::parse(ReadText(platformDirectory / kOriginFile), nullptr, false);
     if (!j.is_object() || !j.contains("package") || !j["package"].is_string() || !j.contains("platform") ||
         !j["platform"].is_object())
+    {
         return false;
+    }
 
     record.package = j["package"].get<std::string>();
     record.version = j.value("version", std::string());
     record.adopted.platform = j["platform"];
     if (j.contains("files") && j["files"].is_object())
+    {
         for (auto it = j["files"].begin(); it != j["files"].end(); ++it)
+        {
             if (it.value().is_string())
+            {
                 record.adopted.files[it.key()] = it.value().get<std::string>();
+            }
+        }
+    }
     return true;
 }
 
@@ -133,7 +152,9 @@ bool WriteOrigin(const fs::path& platformDirectory, const OriginRecord& record)
     json j;
     j["package"] = record.package;
     if (!record.version.empty())
+    {
         j["version"] = record.version;
+    }
     j["platform"] = record.adopted.platform;
     j["files"] = record.adopted.files;
 
@@ -148,10 +169,14 @@ std::string InstalledPackageVersion(const std::string& projectPath, const std::s
 {
     const json lock = json::parse(ReadText(GetPackageLockFile(projectPath)), nullptr, false);
     if (!lock.is_object() || !lock.contains("packages") || !lock["packages"].is_object())
+    {
         return "";
+    }
     const json& packages = lock["packages"];
     if (!packages.contains(packageId) || !packages[packageId].is_object())
+    {
         return "";
+    }
     return packages[packageId].value("installedVersion", std::string());
 }
 
@@ -164,17 +189,29 @@ std::set<std::string> KeysOf(std::initializer_list<const json*> objects)
 {
     std::set<std::string> keys;
     for (const json* object : objects)
+    {
         if (object->is_object())
+        {
             for (auto it = object->begin(); it != object->end(); ++it)
+            {
                 keys.insert(it.key());
+            }
+        }
+    }
     return keys;
 }
 
 std::vector<std::string> FileNames(const Snapshot& a, const Snapshot& b)
 {
     std::set<std::string> names;
-    for (const auto& entry : a.files) names.insert(entry.first);
-    for (const auto& entry : b.files) names.insert(entry.first);
+    for (const auto& entry : a.files)
+    {
+        names.insert(entry.first);
+    }
+    for (const auto& entry : b.files)
+    {
+        names.insert(entry.first);
+    }
     return { names.begin(), names.end() };
 }
 
@@ -194,20 +231,30 @@ std::vector<std::string> Differences(const Snapshot& a, const Snapshot& b)
         const json left = Member(a.platform, key);
         const json right = Member(b.platform, key);
         if (left == right)
+        {
             continue;
+        }
         if (key != "frameworkOptions")
         {
             names.push_back(key);
             continue;
         }
         for (const std::string& option : KeysOf({ &left, &right }))
+        {
             if (Member(left, option) != Member(right, option))
+            {
                 names.push_back(option);
+            }
+        }
     }
 
     for (const std::string& file : FileNames(a, b))
+    {
         if (HashIn(a, file) != HashIn(b, file))
+        {
             names.push_back(file);
+        }
+    }
     return names;
 }
 
@@ -228,7 +275,9 @@ json MergeSettings(const json& base, const json& mine, const json& theirs, bool 
         {
             json options = MergeSettings(b, m, t, false, taken, kept);
             if (!options.empty())
+            {
                 merged[key] = std::move(options);
+            }
             continue;
         }
 
@@ -237,7 +286,9 @@ json MergeSettings(const json& base, const json& mine, const json& theirs, bool 
         {
             result = t;
             if (t != b)
+            {
                 taken.push_back(key);
+            }
         }
         else if (t != b && t != m)
         {
@@ -245,7 +296,9 @@ json MergeSettings(const json& base, const json& mine, const json& theirs, bool 
         }
 
         if (!result.is_null())
+        {
             merged[key] = std::move(result);
+        }
     }
     return merged;
 }
@@ -255,9 +308,13 @@ bool CopyFileOver(const fs::path& from, const fs::path& to, std::string& error)
     std::error_code ec;
     fs::create_directories(to.parent_path(), ec);
     if (!ec)
+    {
         fs::copy_file(from, to, fs::copy_options::overwrite_existing, ec);
+    }
     if (ec)
+    {
         error = "could not write " + to.string() + ": " + ec.message();
+    }
     return !ec;
 }
 
@@ -270,34 +327,43 @@ std::vector<PlatformTemplate> FindPlatformTemplates(const std::string& projectPa
     std::error_code ec;
     const fs::path packagesDir = GetPackagesDirectory(projectPath);
     if (!fs::is_directory(packagesDir, ec))
+    {
         return found;
+    }
 
     for (const auto& package : fs::directory_iterator(packagesDir, ec))
     {
         const fs::path platformsDir = package.path() / "platforms";
         if (!fs::is_directory(platformsDir, ec))
+        {
             continue;
+        }
 
         for (const auto& entry : fs::directory_iterator(platformsDir, ec))
         {
             if (!entry.is_directory(ec))
+            {
                 continue;
+            }
 
             // The directory name becomes a directory name in the project, and
             // a package is downloaded content.
             const std::string id = entry.path().filename().string();
             std::string reason;
             if (!SafeNames::IsSafeName(id, reason))
+            {
                 continue;
+            }
             if (!fs::is_regular_file(entry.path() / (id + ".json"), ec))
+            {
                 continue;
+            }
 
             found.push_back({ id, package.path().filename().string(), entry.path().string() });
         }
     }
 
-    std::sort(found.begin(), found.end(),
-              [](const PlatformTemplate& a, const PlatformTemplate& b)
+    std::sort(found.begin(), found.end(), [](const PlatformTemplate& a, const PlatformTemplate& b)
               { return a.platformId != b.platformId ? a.platformId < b.platformId : a.packageId < b.packageId; });
     return found;
 }
@@ -314,7 +380,9 @@ bool FindOffer(const std::string& projectPath, const std::string& platformId, co
     for (const PlatformTemplate& t : FindPlatformTemplates(projectPath))
     {
         if (t.platformId != platformId || (!packageId.empty() && t.packageId != packageId))
+        {
             continue;
+        }
         offer = t;
         ++found;
     }
@@ -328,23 +396,31 @@ void RecordOriginIfPristine(const std::string& projectPath, const std::string& p
     const fs::path directory = fs::path(GetPlatformsDirectory(projectPath)) / platformId;
     std::error_code ec;
     if (fs::exists(directory / kOriginFile, ec))
+    {
         return;
+    }
 
     PlatformTemplate offer;
     if (!FindOffer(projectPath, platformId, "", offer))
+    {
         return;
+    }
 
     const std::vector<std::string> files = PlatformFiles(offer.directory, platformId);
     OriginRecord record;
     record.adopted = TakeSnapshot(offer.directory, platformId, files);
     if (record.adopted.platform.is_null() ||
         !Differences(record.adopted, TakeSnapshot(directory, platformId, files)).empty())
+    {
         return;
+    }
 
     record.package = offer.packageId;
     record.version = InstalledPackageVersion(projectPath, offer.packageId);
     if (WriteOrigin(directory, record))
+    {
         ++g_PlatformsRevision;
+    }
 }
 
 }  // namespace
@@ -362,20 +438,30 @@ AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const 
     std::error_code ec;
     const fs::path destination = fs::path(GetPlatformsDirectory(projectPath)) / platformId;
     if (fs::is_regular_file(destination / (platformId + ".json"), ec))
+    {
         return AdoptPlatformResult::AlreadyDefined;
+    }
 
     std::vector<PlatformTemplate> offers;
     for (const PlatformTemplate& t : FindPlatformTemplates(projectPath))
+    {
         if (t.platformId == platformId)
+        {
             offers.push_back(t);
+        }
+    }
 
     if (offers.empty())
+    {
         return AdoptPlatformResult::NoTemplate;
+    }
 
     if (offers.size() > 1)
     {
         for (const PlatformTemplate& t : offers)
+        {
             detail += (detail.empty() ? "" : ", ") + t.packageId;
+        }
         return AdoptPlatformResult::Ambiguous;
     }
 
@@ -383,8 +469,10 @@ AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const 
     // somebody wrote before the platform JSON existed is theirs.
     fs::create_directories(destination, ec);
     if (!ec)
-        fs::copy(offers.front().directory, destination,
-                 fs::copy_options::recursive | fs::copy_options::skip_existing, ec);
+    {
+        fs::copy(offers.front().directory, destination, fs::copy_options::recursive | fs::copy_options::skip_existing,
+                 ec);
+    }
     if (ec)
     {
         detail = ec.message();
@@ -396,12 +484,14 @@ AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const 
     OriginRecord record;
     record.package = offers.front().packageId;
     record.version = InstalledPackageVersion(projectPath, record.package);
-    record.adopted = TakeSnapshot(offers.front().directory, platformId,
-                                  PlatformFiles(offers.front().directory, platformId));
+    record.adopted =
+        TakeSnapshot(offers.front().directory, platformId, PlatformFiles(offers.front().directory, platformId));
     if (!WriteOrigin(destination, record))
+    {
         DEKI_LOG_WARNING("Platform '%s': could not record that it came from package '%s'; it cannot be "
                          "updated from the package later, only restored",
                          platformId.c_str(), record.package.c_str());
+    }
     ++g_PlatformsRevision;
 
     detail = offers.front().packageId;
@@ -411,17 +501,16 @@ AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const 
 bool EnsureProjectPlatform(const std::string& projectPath, const std::string& platformId, std::string& err)
 {
     if (platformId.empty())
+    {
         return true;
+    }
 
     std::string detail;
     switch (AdoptPlatformTemplate(projectPath, platformId, detail))
     {
-        case AdoptPlatformResult::AlreadyDefined:
-            RecordOriginIfPristine(projectPath, platformId);
-            return true;
+        case AdoptPlatformResult::AlreadyDefined: RecordOriginIfPristine(projectPath, platformId); return true;
 
-        case AdoptPlatformResult::NoTemplate:
-            return true;
+        case AdoptPlatformResult::NoTemplate: return true;
 
         case AdoptPlatformResult::Adopted:
             DEKI_LOG_INFO("Platform '%s' adopted into the project from package '%s'", platformId.c_str(),
@@ -446,13 +535,17 @@ void RegisterPlatformTemplates(const std::string& projectPath)
     std::error_code ec;
     const fs::path packagesDir = GetPackagesDirectory(projectPath);
     if (!fs::is_directory(packagesDir, ec))
+    {
         return;
+    }
 
     for (const auto& package : fs::directory_iterator(packagesDir, ec))
     {
         const fs::path platformsDir = package.path() / "platforms";
         if (fs::is_directory(platformsDir, ec))
+        {
             PlatformRegistry::Instance().LoadPlatformsFromDirectory(platformsDir.string());
+        }
     }
 }
 
@@ -462,7 +555,9 @@ PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath, const std
 
     std::string reason;
     if (!SafeNames::IsSafeName(platformId, reason))
+    {
         return status;
+    }
 
     const fs::path directory = fs::path(GetPlatformsDirectory(projectPath)) / platformId;
     std::error_code ec;
@@ -474,13 +569,17 @@ PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath, const std
     PlatformTemplate offer;
     status.packageInstalled = FindOffer(projectPath, platformId, status.recorded ? record.package : "", offer);
     if (!status.recorded && !status.packageInstalled)
+    {
         return status;
+    }
 
     status.fromPackage = true;
     status.packageId = status.recorded ? record.package : offer.packageId;
     status.adoptedVersion = record.version;
     if (!adopted)
+    {
         return status;  // on offer, not copied in yet: nothing to compare
+    }
 
     Snapshot theirs;
     if (status.packageInstalled)
@@ -494,10 +593,14 @@ PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath, const std
     const Snapshot& reference = status.recorded ? record.adopted : theirs;
     std::vector<std::string> files;
     for (const auto& entry : reference.files)
+    {
         files.push_back(entry.first);
+    }
     status.modifiedItems = Differences(reference, TakeSnapshot(directory, platformId, files));
     if (status.recorded && status.packageInstalled)
+    {
         status.updatedItems = Differences(record.adopted, theirs);
+    }
 
     status.modified = !status.modifiedItems.empty();
     status.updateAvailable = !status.updatedItems.empty();
@@ -523,9 +626,10 @@ PlatformSyncResult UpdatePlatformFromPackage(const std::string& projectPath, con
     if (!ReadOrigin(directory, record))
     {
         result.error = FindOffer(projectPath, platformId, "", offer)
-                           ? "Platform '" + platformId + "' has no record of what it was adopted from, so a "
-                             "package's change cannot be told from the project's own. Restore it from the "
-                             "package instead."
+                           ? "Platform '" + platformId +
+                                 "' has no record of what it was adopted from, so a "
+                                 "package's change cannot be told from the project's own. Restore it from the "
+                                 "package instead."
                            : "Platform '" + platformId + "' did not come from a package.";
         return result;
     }
@@ -541,8 +645,8 @@ PlatformSyncResult UpdatePlatformFromPackage(const std::string& projectPath, con
     const Snapshot mine = TakeSnapshot(directory, platformId, FileNames(record.adopted, theirs));
     if (theirs.platform.is_null() || mine.platform.is_null())
     {
-        result.error = "Platform '" + platformId + "': " +
-                       (theirs.platform.is_null() ? "the package's" : "the project's") +
+        result.error = "Platform '" + platformId +
+                       "': " + (theirs.platform.is_null() ? "the package's" : "the project's") +
                        " platform JSON could not be read.";
         return result;
     }
@@ -562,14 +666,18 @@ PlatformSyncResult UpdatePlatformFromPackage(const std::string& projectPath, con
         const std::string baseHash = HashIn(record.adopted, file);
         const std::string myHash = HashIn(mine, file);
         if (theirHash == baseHash || theirHash == myHash)
+        {
             continue;
+        }
         if (myHash != baseHash)
         {
             result.kept.push_back(file);
             continue;
         }
         if (!CopyFileOver(fs::path(offer.directory) / fs::path(file), directory / fs::path(file), result.error))
+        {
             return result;
+        }
         result.taken.push_back(file);
     }
 
@@ -626,8 +734,12 @@ PlatformSyncResult RestorePlatformFromPackage(const std::string& projectPath, co
     std::vector<std::string> toCopy = files;
     toCopy.push_back(platformId + ".json");
     for (const std::string& file : toCopy)
+    {
         if (!CopyFileOver(fs::path(offer.directory) / fs::path(file), directory / fs::path(file), result.error))
+        {
             return result;
+        }
+    }
 
     record.package = offer.packageId;
     record.version = InstalledPackageVersion(projectPath, offer.packageId);

@@ -29,24 +29,27 @@ using ObjectSerializationHelper::SerializeComponent;
 class DeleteObjectCommand : public Command
 {
 public:
-    DeleteObjectCommand(Deki::Scene* scene, Deki::Object* obj,
-                        std::function<void()> onDeleted = nullptr,
+    DeleteObjectCommand(Deki::Scene* scene, Deki::Object* obj, std::function<void()> onDeleted = nullptr,
                         std::function<void(Deki::Object*)> onRestored = nullptr)
-        : m_Scene(scene), m_Object(obj), m_ObjectName(obj->GetName()), m_OnDeleted(onDeleted), m_OnRestored(onRestored)
+        : m_Scene(scene),
+          m_Object(obj),
+          m_ObjectName(obj->GetName()),
+          m_OnDeleted(onDeleted),
+          m_OnRestored(onRestored)
     {
         // Record position for re-insertion
         Deki::Object* parent = obj->GetParent();
         m_ParentId = parent ? parent->GetId() : 0;
-        m_OriginalIndex = parent
-                              ? parent->GetChildIndex(obj)
-                              : scene->GetObjectIndex(obj);
+        m_OriginalIndex = parent ? parent->GetChildIndex(obj) : scene->GetObjectIndex(obj);
     }
 
     ~DeleteObjectCommand()
     {
         // If object is still detached (not in the scene), we own it
         if (m_IsDetached && m_Object)
+        {
             delete m_Object;
+        }
     }
 
     std::string GetDescription() const override;
@@ -75,7 +78,10 @@ class SetActiveCommand : public Command
 {
 public:
     SetActiveCommand(Deki::Object* obj, bool active)
-        : m_Object(obj), m_ObjectName(obj->GetName()), m_Old(obj->IsActive()), m_New(active)
+        : m_Object(obj),
+          m_ObjectName(obj->GetName()),
+          m_Old(obj->IsActive()),
+          m_New(active)
     {
     }
 
@@ -99,7 +105,9 @@ class AddComponentCommand : public Command
 public:
     AddComponentCommand(Deki::Object* obj, const std::string& typeName,
                         std::function<void(Deki::Component*)> onAdded = nullptr)
-        : m_Object(obj), m_TypeName(typeName), m_OnAdded(onAdded)
+        : m_Object(obj),
+          m_TypeName(typeName),
+          m_OnAdded(onAdded)
     {
     }
     ~AddComponentCommand() override;
@@ -132,9 +140,10 @@ private:
 class RemoveComponentCommand : public Command
 {
 public:
-    RemoveComponentCommand(Deki::Object* obj, Deki::Component* comp,
-                           std::function<void()> onRemoved = nullptr)
-        : m_Object(obj), m_Component(comp), m_OnRemoved(onRemoved)
+    RemoveComponentCommand(Deki::Object* obj, Deki::Component* comp, std::function<void()> onRemoved = nullptr)
+        : m_Object(obj),
+          m_Component(comp),
+          m_OnRemoved(onRemoved)
     {
         m_TypeName = SerializeComponent(comp).typeName;
     }
@@ -170,7 +179,12 @@ public:
     DuplicateObjectCommand(Deki::Scene* scene, Deki::Object* source, Deki::Object* parent = nullptr,
                            std::function<void(Deki::Object*)> onDuplicated = nullptr,
                            std::function<void()> onUndone = nullptr)
-        : m_Scene(scene), m_Source(source), m_Parent(parent), m_SourceName(source->GetName()), m_OnDuplicated(onDuplicated), m_OnUndone(onUndone)
+        : m_Scene(scene),
+          m_Source(source),
+          m_Parent(parent),
+          m_SourceName(source->GetName()),
+          m_OnDuplicated(onDuplicated),
+          m_OnUndone(onUndone)
     {
     }
 
@@ -178,7 +192,9 @@ public:
     {
         // If clone is detached (undone), we own it
         if (m_IsDetached && m_DuplicatedObject)
+        {
             delete m_DuplicatedObject;
+        }
     }
 
     std::string GetDescription() const override;

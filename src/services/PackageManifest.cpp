@@ -30,11 +30,12 @@ std::string PackageSourceToString(const PackageEntry& pkg)
 {
     switch (pkg.source)
     {
-        case PackageSourceType::GitHub:
-            return "github";
+        case PackageSourceType::GitHub: return "github";
         case PackageSourceType::FrameworkRegistry:
             if (!pkg.installer.empty())
+            {
                 return pkg.installer;
+            }
             // Nothing sets this source without also knowing the installer, so
             // this is a bug upstream. Say so; "custom" at least keeps the file
             // loadable, where an empty key would read back differently in the
@@ -43,8 +44,7 @@ std::string PackageSourceToString(const PackageEntry& pkg)
                            "recorded for it; written as \"custom\"",
                            pkg.id.c_str());
             return "custom";
-        default:
-            return "custom";
+        default: return "custom";
     }
 }
 
@@ -63,12 +63,18 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
         // ever match or install again. Producers are expected to always supply
         // one (see DekiPackageInstaller::GetInstalledPackages); this is the
         // backstop so a gap anywhere else cannot corrupt the manifest.
-        if (pkg.id.empty()) continue;
+        if (pkg.id.empty())
+        {
+            continue;
+        }
         // And an id that is not a plain name would be written back as a path
         // segment the next restore trusts (SafeNames.h).
         {
             std::string reason;
-            if (!SafeNames::IsSafeName(pkg.id, reason)) continue;
+            if (!SafeNames::IsSafeName(pkg.id, reason))
+            {
+                continue;
+            }
         }
 
         // Two things belong in the manifest, and only these two:
@@ -103,7 +109,10 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
         const bool declared = pkg.declaredInManifest;
         const bool adopted = pkg.isInstalled && pkg.resolvedBy.empty();
         const bool developing = pkg.editable;
-        if (!declared && !adopted && !developing) continue;
+        if (!declared && !adopted && !developing)
+        {
+            continue;
+        }
 
         json entry;
         entry["version"] = pkg.installedVersion.empty() ? "*" : pkg.installedVersion;
@@ -112,13 +121,18 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
         if (pkg.source == PackageSourceType::GitHub || pkg.source == PackageSourceType::FrameworkRegistry)
         {
             entry["source"] = PackageSourceToString(pkg);
-            if (!pkg.url.empty()) entry["url"] = pkg.url;
+            if (!pkg.url.empty())
+            {
+                entry["url"] = pkg.url;
+            }
         }
 
         // Written only when true: a manifest that never used the flag stays
         // byte-identical, so opening a project cannot dirty it.
         if (pkg.editable)
+        {
             entry["editable"] = true;
+        }
 
         manifest["packages"][pkg.id] = entry;
     }
@@ -127,7 +141,9 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
     {
         json deps;
         for (const auto& [n, v] : versionOverrides)
+        {
             deps[n] = v;
+        }
         manifest["dependencies"] = deps;
     }
 
@@ -142,7 +158,10 @@ nlohmann::json BuildPackageManifestForIds(const std::vector<std::string>& packag
     manifest["packages"] = json::object();
     for (const auto& id : packageIds)
     {
-        if (id.empty()) continue;
+        if (id.empty())
+        {
+            continue;
+        }
         manifest["packages"][id] = json{ { "version", "*" } };
     }
     return manifest;

@@ -41,11 +41,13 @@ inline bool ExportTargetForPlatform(const std::string& platformId, AssetExportTa
         out.assetStorage = Deki::Storage::External;
     }
     else if (platform->assetStorage == "internal")
+    {
         out.assetStorage = Deki::Storage::Internal;
+    }
     else
     {
-        DEKI_LOG_ERROR("Platform '%s' has assetStorage '%s'; expected internal or external",
-                       platformId.c_str(), platform->assetStorage.c_str());
+        DEKI_LOG_ERROR("Platform '%s' has assetStorage '%s'; expected internal or external", platformId.c_str(),
+                       platform->assetStorage.c_str());
         return false;
     }
     out.platformId = platformId;

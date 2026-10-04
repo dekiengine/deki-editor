@@ -6,10 +6,22 @@
 #include <array>
 
 // Forward declarations - engine types
-namespace Deki { class Object; }
-namespace Deki { class Component; }
-namespace Deki { struct PropertyInfo; }
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+struct PropertyInfo;
+}
+namespace Deki
+{
+struct ComponentMeta;
+}
 
 namespace DekiEditor
 {

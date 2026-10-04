@@ -29,7 +29,10 @@ class DeadMemory
 public:
     void Add(const void* base, size_t size)
     {
-        if (!base || size == 0) return;
+        if (!base || size == 0)
+        {
+            return;
+        }
         const auto* b = static_cast<const uint8_t*>(base);
         m_Ranges.emplace_back(b, b + size);
     }
@@ -39,11 +42,13 @@ public:
     /// True if `ptr` falls inside any dying range.
     bool Contains(const void* ptr) const
     {
-        if (!ptr) return false;
+        if (!ptr)
+        {
+            return false;
+        }
         const auto* p = static_cast<const uint8_t*>(ptr);
         return std::any_of(m_Ranges.begin(), m_Ranges.end(),
-                           [p](const Range& r)
-                           { return p >= r.first && p < r.second; });
+                           [p](const Range& r) { return p >= r.first && p < r.second; });
     }
 
     /// True if any element of a container of pointers falls inside a dying range.
@@ -53,7 +58,9 @@ public:
         for (const auto* item : items)
         {
             if (Contains(static_cast<const void*>(item)))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -108,9 +115,9 @@ public:
 class DEKI_EDITOR_API CompoundCommand : public Command
 {
 public:
-    explicit CompoundCommand(const std::string& description,
-                             std::vector<std::unique_ptr<Command>> commands)
-        : m_Description(description), m_Commands(std::move(commands))
+    explicit CompoundCommand(const std::string& description, std::vector<std::unique_ptr<Command>> commands)
+        : m_Description(description),
+          m_Commands(std::move(commands))
     {
     }
 
@@ -125,26 +132,36 @@ public:
     void Execute() override
     {
         for (auto& cmd : m_Commands)
+        {
             cmd->Execute();
+        }
     }
 
     void Undo() override
     {
         for (auto it = m_Commands.rbegin(); it != m_Commands.rend(); ++it)
+        {
             (*it)->Undo();
+        }
     }
 
     void Redo() override
     {
         for (auto& cmd : m_Commands)
+        {
             cmd->Redo();
+        }
     }
 
     bool ReferencesAny(const DeadMemory& dead) const override
     {
         for (const auto& cmd : m_Commands)
+        {
             if (cmd->ReferencesAny(dead))
+            {
                 return true;
+            }
+        }
         return false;
     }
 

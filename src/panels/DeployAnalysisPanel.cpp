@@ -33,7 +33,9 @@ DeployAnalysisPanel::~DeployAnalysisPanel() = default;
 void DeployAnalysisPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(550.0f, 400.0f, /*firstUseEver*/ true);
@@ -68,8 +70,8 @@ void DeployAnalysisPanel::Draw()
         // Pack a theme ImVec4 into EditorUI's RGBA word for the Draw* calls.
         auto pack = [](const ImVec4& c)
         {
-            return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f),
-                                  (uint8_t)(c.z * 255.0f), (uint8_t)(c.w * 255.0f));
+            return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
+                                  (uint8_t)(c.w * 255.0f));
         };
         const float dpi = m_App->Dpi(1.0f);
         const float rowH = 34.0f * dpi;
@@ -86,10 +88,7 @@ void DeployAnalysisPanel::Draw()
         const uint32_t colHoverBg = EditorUI::Rgba(255, 255, 255, 6);
 
         float cursorX = rowMinX;
-        auto drawDivider = [&](float x)
-        {
-            ui.DrawLine(x, rowMinY, x, rowMaxY, colLine, 1.0f);
-        };
+        auto drawDivider = [&](float x) { ui.DrawLine(x, rowMinY, x, rowMaxY, colLine, 1.0f); };
 
         // Leading divider at strip start.
         drawDivider(cursorX);
@@ -106,19 +105,29 @@ void DeployAnalysisPanel::Draw()
             {
                 clicked = ui.InvisibleButton("##rescan", w, rowH);
                 bool hovered = ui.IsItemHovered();
-                if (hovered) ui.SetTooltip("Rescan scenes to determine which assets are used");
+                if (hovered)
+                {
+                    ui.SetTooltip("Rescan scenes to determine which assets are used");
+                }
                 if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
+                {
                     ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY,
                                       DekiEditor::Motion::WithAlpha(colHoverBg, hoverT), 0.0f);
+                }
                 if (const float pressT = DekiEditor::Motion::ItemPress(); pressT > 0.0f)
-                    ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY,
-                                      DekiEditor::Motion::PressShade(pressT), 0.0f);
+                {
+                    ui.DrawRectFilled(cursorX, rowMinY, cursorX + w, rowMaxY, DekiEditor::Motion::PressShade(pressT),
+                                      0.0f);
+                }
             }
             ui.DrawTextAt(0.0f, cursorX + (w - iconW) * 0.5f, rowMinY + (rowH - iconH) * 0.5f,
                           hasProject ? colDim : colDim2, icon);
             cursorX += w;
             drawDivider(cursorX);
-            if (clicked) ScanAssets();
+            if (clicked)
+            {
+                ScanAssets();
+            }
         }
 
         // Reserve the row in layout flow and close the bottom edge with a hairline.
@@ -149,15 +158,18 @@ void DeployAnalysisPanel::Draw()
         ui.GetContentRegionAvail(&availW, &availH);
         const float reserveHeight = ui.GetFrameHeightWithSpacing() * 3.0f;
         float tableHeight = availH - reserveHeight;
-        if (tableHeight < 100.0f) tableHeight = 100.0f;
+        if (tableHeight < 100.0f)
+        {
+            tableHeight = 100.0f;
+        }
         const float tableWidth = availW - pad;  // right gutter
 
         // Roomier rows for legibility (extra cell padding -> taller rows, breathing
         // room between columns).
         ui.PushStyleVar(EditorUI::StyleVar::CellPadding, m_App->Dpi(8.0f), m_App->Dpi(5.0f));
         if (ui.BeginTable("AssetTable", 5,
-                          EditorUI::TableResizable | EditorUI::TableBordersInnerV |
-                              EditorUI::TableRowBg | EditorUI::TableScrollY,
+                          EditorUI::TableResizable | EditorUI::TableBordersInnerV | EditorUI::TableRowBg |
+                              EditorUI::TableScrollY,
                           tableWidth, tableHeight))
         {
             ui.TableSetupScrollFreeze(0, 1);
@@ -194,7 +206,9 @@ void DeployAnalysisPanel::Draw()
                         {
                             auto* browser = m_App->GetAssetBrowserPanel();
                             if (browser)
+                            {
                                 browser->RevealAsset(absPath);
+                            }
                         }
                     }
                 }
@@ -206,17 +220,25 @@ void DeployAnalysisPanel::Draw()
                 // Column 2: Status badge (theme palette)
                 ui.TableNextColumn();
                 if (entry.isUsed)
+                {
                     ui.TextColored(Palette::Green.x, Palette::Green.y, Palette::Green.z, Palette::Green.w, "Used");
+                }
                 else if (entry.forceIncluded)
+                {
                     ui.TextColored(Palette::Amber.x, Palette::Amber.y, Palette::Amber.z, Palette::Amber.w, "Forced");
+                }
                 else
+                {
                     ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, "Unused");
+                }
 
                 // Column 3: Pack
                 ui.TableNextColumn();
                 if (!entry.packName.empty())
+                {
                     ui.TextColored(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, Palette::Accent.w,
                                    entry.packName.c_str());
+                }
             }
 
             ui.EndTable();
@@ -234,21 +256,20 @@ void DeployAnalysisPanel::Draw()
         for (const auto& entry : m_AssetEntries)
         {
             if (!entry.packName.empty() && (entry.isUsed || entry.forceIncluded))
+            {
                 packedCount++;
+            }
         }
 
         char summary[256];
-        std::snprintf(summary, sizeof(summary),
-                      "Deploy: %d used + %d forced = %d assets (%s)",
-                      m_UsedCount, m_ForceIncludedCount,
-                      m_UsedCount + m_ForceIncludedCount,
+        std::snprintf(summary, sizeof(summary), "Deploy: %d used + %d forced = %d assets (%s)", m_UsedCount,
+                      m_ForceIncludedCount, m_UsedCount + m_ForceIncludedCount,
                       FormatFileSize(totalDeploySize).c_str());
         ui.Text(summary);
         if (packedCount > 0)
         {
             char packLine[128];
-            std::snprintf(packLine, sizeof(packLine),
-                          "  %d assets in packs (fewer SD card reads)", packedCount);
+            std::snprintf(packLine, sizeof(packLine), "  %d assets in packs (fewer SD card reads)", packedCount);
             ui.TextColored(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, Palette::Accent.w, packLine);
         }
 
@@ -261,8 +282,7 @@ void DeployAnalysisPanel::Draw()
         ui.Spacing();
         ui.Indent(pad);
         ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w,
-                       hasProject ? "Scanning assets..."
-                                  : "Open a project to analyze deploy assets.");
+                       hasProject ? "Scanning assets..." : "Open a project to analyze deploy assets.");
         ui.Unindent(pad);
     }
 
@@ -277,7 +297,10 @@ void DeployAnalysisPanel::ScanAssets()
 
     Project* project = m_App->GetProject();
     AssetPipeline* pipeline = m_App->GetAssetPipeline();
-    if (!project || !pipeline) return;
+    if (!project || !pipeline)
+    {
+        return;
+    }
 
     // Collect which GUIDs are used by scenes
     AssetExporter exporter(project, pipeline);
@@ -304,12 +327,17 @@ void DeployAnalysisPanel::ScanAssets()
             for (const auto& dpackEntry : fs::recursive_directory_iterator(assetsPath))
             {
                 if (!dpackEntry.is_regular_file() || dpackEntry.path().extension() != ".dpack")
+                {
                     continue;
+                }
 
                 std::string packDisplayName = dpackEntry.path().stem().string();
 
                 std::ifstream dpackFile(dpackEntry.path());
-                if (!dpackFile.is_open()) continue;
+                if (!dpackFile.is_open())
+                {
+                    continue;
+                }
 
                 try
                 {
@@ -318,7 +346,10 @@ void DeployAnalysisPanel::ScanAssets()
                     {
                         for (const auto& asset : dpack["assets"])
                         {
-                            if (!asset.contains("guid")) continue;
+                            if (!asset.contains("guid"))
+                            {
+                                continue;
+                            }
                             std::string guid = asset["guid"].get<std::string>();
                             guidToPackName[guid] = packDisplayName;
 
@@ -329,7 +360,10 @@ void DeployAnalysisPanel::ScanAssets()
                                 // Resolve baked variants from font usages
                                 for (const auto& fu : usage.fontUsages)
                                 {
-                                    if (fu.sourceGuid != guid) continue;
+                                    if (fu.sourceGuid != guid)
+                                    {
+                                        continue;
+                                    }
                                     std::string seed = guid + ":" + std::to_string(fu.fontSize);
                                     std::string variantGuid = GenerateDeterministicGuid(seed);
                                     std::string atlasGuid = GenerateDeterministicGuid(seed + ":atlas");
@@ -342,7 +376,9 @@ void DeployAnalysisPanel::ScanAssets()
                 }
                 catch (const std::exception& e)
                 {
-                    DEKI_LOG_WARNING("DeployAnalysisPanel: atlas metadata unreadable (%s); pack names will show as unknown", e.what());
+                    DEKI_LOG_WARNING(
+                        "DeployAnalysisPanel: atlas metadata unreadable (%s); pack names will show as unknown",
+                        e.what());
                 }
             }
         }
@@ -353,8 +389,14 @@ void DeployAnalysisPanel::ScanAssets()
 
     for (const auto& [path, info] : allAssets)
     {
-        if (info.guid.empty()) continue;
-        if (!info.hasCachedVersion || info.cachePath.empty()) continue;
+        if (info.guid.empty())
+        {
+            continue;
+        }
+        if (!info.hasCachedVersion || info.cachePath.empty())
+        {
+            continue;
+        }
 
         AssetEntry entry;
         entry.guid = info.guid;
@@ -368,7 +410,9 @@ void DeployAnalysisPanel::ScanAssets()
         entry.displayPath = info.path;
         const std::string assetsPrefix = GetAssetsDirectoryRelative() + "/";
         if (entry.displayPath.rfind(assetsPrefix, 0) == 0)
+        {
             entry.displayPath = entry.displayPath.substr(assetsPrefix.size());
+        }
 
         // Get cache file size
         std::string absoluteCachePath = pipeline->GetAbsolutePath(info.cachePath);
@@ -386,7 +430,9 @@ void DeployAnalysisPanel::ScanAssets()
 
         auto packIt = guidToPackName.find(info.guid);
         if (packIt != guidToPackName.end())
+        {
             entry.packName = packIt->second;
+        }
 
         m_AssetEntries.push_back(entry);
     }
@@ -395,7 +441,9 @@ void DeployAnalysisPanel::ScanAssets()
     {
         std::unordered_set<std::string> existingGuids;
         for (const auto& e : m_AssetEntries)
+        {
             existingGuids.insert(e.guid);
+        }
 
         std::string projectPath = project->GetPath();
         std::string cachePath = ProjectPaths::Cache(projectPath).string();
@@ -408,7 +456,10 @@ void DeployAnalysisPanel::ScanAssets()
 
             auto addBakedEntry = [&](const std::string& guid, const std::string& label)
             {
-                if (existingGuids.count(guid)) return;
+                if (existingGuids.count(guid))
+                {
+                    return;
+                }
                 existingGuids.insert(guid);
 
                 std::string cPath = cachePath + "/" + guid;
@@ -424,7 +475,9 @@ void DeployAnalysisPanel::ScanAssets()
 
                 auto packIt = guidToPackName.find(guid);
                 if (packIt != guidToPackName.end())
+                {
                     entry.packName = packIt->second;
+                }
 
                 m_AssetEntries.push_back(entry);
             };
@@ -432,7 +485,9 @@ void DeployAnalysisPanel::ScanAssets()
             std::string fontName = fu.sourceGuid;
             const AssetInfo* fontAsset = pipeline->GetAssetInfoByGuid(fu.sourceGuid);
             if (fontAsset)
+            {
                 fontName = fs::path(fontAsset->path).stem().string();
+            }
 
             addBakedEntry(variantGuid, "(baked) " + fontName + " @ " + std::to_string(fu.fontSize) + "px");
             addBakedEntry(atlasGuid, "(baked) " + fontName + " atlas @ " + std::to_string(fu.fontSize) + "px");
@@ -443,7 +498,10 @@ void DeployAnalysisPanel::ScanAssets()
     std::sort(m_AssetEntries.begin(), m_AssetEntries.end(),
               [](const AssetEntry& a, const AssetEntry& b)
               {
-                  if (a.isUsed != b.isUsed) return a.isUsed > b.isUsed;
+                  if (a.isUsed != b.isUsed)
+                  {
+                      return a.isUsed > b.isUsed;
+                  }
                   return a.displayPath < b.displayPath;
               });
 
@@ -475,8 +533,14 @@ void DeployAnalysisPanel::RecalculateTotals()
 
 std::string DeployAnalysisPanel::FormatFileSize(uintmax_t bytes)
 {
-    if (bytes < 1024) return std::to_string(bytes) + " B";
-    if (bytes < 1024 * 1024) return std::to_string(bytes / 1024) + " KB";
+    if (bytes < 1024)
+    {
+        return std::to_string(bytes) + " B";
+    }
+    if (bytes < 1024 * 1024)
+    {
+        return std::to_string(bytes / 1024) + " KB";
+    }
     char buf[32];
     snprintf(buf, sizeof(buf), "%.1f MB", bytes / (1024.0 * 1024.0));
     return buf;

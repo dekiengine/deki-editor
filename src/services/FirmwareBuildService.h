@@ -44,7 +44,7 @@ public:
     /// <project>/project/packages/<pkg>/package.json for buildDefine plus each
     /// feature's buildDefine. Pure filesystem work, no GUI state.
     static std::vector<std::string> CollectPackageDefines(const std::string& projectPath,
-                                                         const std::string& targetPlatformId = "");
+                                                          const std::string& targetPlatformId = "");
 
     /// Platforms visible for a project: built-ins, board packs, and the
     /// project's own project/platforms directory.
@@ -54,8 +54,7 @@ public:
     /// Toolchain component status for the platform's builder.
     /// Returns {"builder": "...", "installed": bool, "status": "...",
     ///          "components": [ {id, displayName, status, installedVersion, ...} ]}.
-    static nlohmann::json ToolchainStatus(const std::string& projectPath,
-                                          const std::string& platformId,
+    static nlohmann::json ToolchainStatus(const std::string& projectPath, const std::string& platformId,
                                           std::string& outError);
 
     /// Everything that has to happen between "a firmware build was asked for"
@@ -74,37 +73,28 @@ public:
     /// installed package's declared define and no boot payload is written.
     /// A booted editor is always the better input: its package panel scans the
     /// project's scenes and contributes only the defines actually used.
-    static FirmwareOpResult PrepareBuild(const std::string& projectPath,
-                                         const PlatformConfig& platform,
-                                         ITargetBuilder& builder,
-                                         EditorApp* editor,
-                                         const BuildOptions& options,
+    static FirmwareOpResult PrepareBuild(const std::string& projectPath, const PlatformConfig& platform,
+                                         ITargetBuilder& builder, EditorApp* editor, const BuildOptions& options,
                                          FirmwareLogCallback onLine);
 
     /// Regenerate build files, then build firmware. Blocks until complete.
     /// platformId empty => the project's activePlatformId.
     /// Intended for the CLI, where blocking is what the caller wants.
-    static FirmwareOpResult Build(const std::string& projectPath,
-                                  const std::string& platformId,
-                                  FirmwareLogCallback onLine = nullptr,
-                                  EditorApp* editor = nullptr,
+    static FirmwareOpResult Build(const std::string& projectPath, const std::string& platformId,
+                                  FirmwareLogCallback onLine = nullptr, EditorApp* editor = nullptr,
                                   const BuildOptions& options = {});
 
     /// Same preparation as Build(), but returns as soon as the build thread is
     /// running. success==true means "started", not "finished" - poll QueryStatus().
     /// Used by MCP, whose handlers run on the editor's frame loop and must not
     /// block for the minutes a firmware build takes.
-    static FirmwareOpResult StartBuild(const std::string& projectPath,
-                                       const std::string& platformId,
-                                       FirmwareLogCallback onLine = nullptr,
-                                       EditorApp* editor = nullptr,
+    static FirmwareOpResult StartBuild(const std::string& projectPath, const std::string& platformId,
+                                       FirmwareLogCallback onLine = nullptr, EditorApp* editor = nullptr,
                                        const BuildOptions& options = {});
 
     /// Non-blocking Deploy(). success==true means "started".
-    static FirmwareOpResult StartDeploy(const std::string& projectPath,
-                                        const std::string& platformId,
-                                        const std::string& deployTargetId,
-                                        FirmwareLogCallback onLine = nullptr,
+    static FirmwareOpResult StartDeploy(const std::string& projectPath, const std::string& platformId,
+                                        const std::string& deployTargetId, FirmwareLogCallback onLine = nullptr,
                                         const BuildOptions& options = {});
 
     /// Non-blocking InstallToolchainComponent(). success==true means "started".
@@ -117,8 +107,7 @@ public:
     /// Non-blocking SetupToolchainComponent(). success==true means "started".
     /// Runs the component's post-install step - for an SDK whose archive omits
     /// its compilers, the script that fetches them.
-    static FirmwareOpResult StartSetupToolchainComponent(const std::string& projectPath,
-                                                         const std::string& platformId,
+    static FirmwareOpResult StartSetupToolchainComponent(const std::string& projectPath, const std::string& platformId,
                                                          const std::string& componentId,
                                                          FirmwareLogCallback onLine = nullptr);
 
@@ -137,21 +126,17 @@ public:
     /// Refused when the backend has no deploy step.
     /// options.simulate deploys the simulated build: runs it in the backend's
     /// simulator.
-    static FirmwareOpResult Deploy(const std::string& projectPath,
-                                   const std::string& platformId,
-                                   const std::string& deployTargetId,
-                                   FirmwareLogCallback onLine = nullptr,
+    static FirmwareOpResult Deploy(const std::string& projectPath, const std::string& platformId,
+                                   const std::string& deployTargetId, FirmwareLogCallback onLine = nullptr,
                                    const BuildOptions& options = {});
 
     /// Clean the builder's build directory. Blocks until complete.
-    static FirmwareOpResult Clean(const std::string& projectPath,
-                                  const std::string& platformId,
+    static FirmwareOpResult Clean(const std::string& projectPath, const std::string& platformId,
                                   FirmwareLogCallback onLine = nullptr);
 
     /// Download/extract a toolchain component, then run its postInstall step
     /// when the component declares one. Blocks until complete.
-    static FirmwareOpResult InstallToolchainComponent(const std::string& projectPath,
-                                                      const std::string& platformId,
+    static FirmwareOpResult InstallToolchainComponent(const std::string& projectPath, const std::string& platformId,
                                                       const std::string& componentId,
                                                       FirmwareLogCallback onLine = nullptr);
 };

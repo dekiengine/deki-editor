@@ -10,10 +10,22 @@
 #include "inspector/InspectorTypes.h"
 
 // Forward declarations - engine types
-namespace Deki { class Object; }
-namespace Deki { class Component; }
-namespace Deki { struct ComponentMeta; }
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+struct ComponentMeta;
+}
+namespace Deki
+{
+class Scene;
+}
 
 namespace DekiEditor
 {
@@ -66,8 +78,14 @@ public:
     }
     void EndLiveEdit()
     {
-        if (m_LiveEditCount > 0) --m_LiveEditCount;
-        if (s_GlobalLiveEditCount > 0) --s_GlobalLiveEditCount;
+        if (m_LiveEditCount > 0)
+        {
+            --m_LiveEditCount;
+        }
+        if (s_GlobalLiveEditCount > 0)
+        {
+            --s_GlobalLiveEditCount;
+        }
     }
 
     // Global counter for edits made without an InspectorPanel pointer to hand.
@@ -78,7 +96,10 @@ public:
     static void GlobalBeginLiveEdit() { ++s_GlobalLiveEditCount; }
     static void GlobalEndLiveEdit()
     {
-        if (s_GlobalLiveEditCount > 0) --s_GlobalLiveEditCount;
+        if (s_GlobalLiveEditCount > 0)
+        {
+            --s_GlobalLiveEditCount;
+        }
     }
 
 private:

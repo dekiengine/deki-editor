@@ -14,7 +14,9 @@ namespace DekiEditor
 inline ::Deki::Scene* EnsureScene(std::unique_ptr<::Deki::Scene>& scene)
 {
     if (!scene)
+    {
         scene = std::make_unique<::Deki::Scene>();
+    }
     return scene.get();
 }
 

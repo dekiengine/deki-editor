@@ -17,21 +17,32 @@ std::string DeleteObjectCommand::GetDescription() const
 
 void DeleteObjectCommand::Execute()
 {
-    if (!m_Object) return;
+    if (!m_Object)
+    {
+        return;
+    }
 
     // Detach from scene without deleting
     if (m_Object->GetParent())
+    {
         m_Object->RemoveFromParent();
+    }
     m_Scene->RemoveObject(m_Object);
 
     m_IsDetached = true;
 
-    if (m_OnDeleted) m_OnDeleted();
+    if (m_OnDeleted)
+    {
+        m_OnDeleted();
+    }
 }
 
 void DeleteObjectCommand::Undo()
 {
-    if (!m_Object) return;
+    if (!m_Object)
+    {
+        return;
+    }
 
     size_t index = m_OriginalIndex >= 0 ? static_cast<size_t>(m_OriginalIndex) : 0;
 
@@ -54,7 +65,10 @@ void DeleteObjectCommand::Undo()
     }
 
     m_IsDetached = false;
-    if (m_OnRestored) m_OnRestored(m_Object);
+    if (m_OnRestored)
+    {
+        m_OnRestored(m_Object);
+    }
 }
 
 bool DeleteObjectCommand::ReferencesAny(const DeadMemory& dead) const
@@ -111,8 +125,13 @@ void AddComponentCommand::Execute()
         m_Component = Deki::Internal::AddComponentByName(*m_Object, m_TypeName);
     }
     if (auto* scene = m_Object->GetOwnerScene())
+    {
         scene->InvalidateComponentsCache();
-    if (m_Component && m_OnAdded) m_OnAdded(m_Component);
+    }
+    if (m_Component && m_OnAdded)
+    {
+        m_OnAdded(m_Component);
+    }
 }
 
 void AddComponentCommand::Undo()
@@ -120,12 +139,16 @@ void AddComponentCommand::Undo()
     // Take it off, keep it: deleting it here and creating a new one on redo
     // left every later edit of it writing into freed memory.
     if (!m_Component || m_Detached)
+    {
         return;
+    }
     CustomEditorRegistry::Instance().ClearCacheForComponent(m_Component);
     m_Index = Deki::Internal::DetachComponent(*m_Object, m_Component);
     m_Detached = m_Index >= 0;
     if (auto* scene = m_Object->GetOwnerScene())
+    {
         scene->InvalidateComponentsCache();
+    }
 }
 
 bool AddComponentCommand::ReferencesAny(const DeadMemory& dead) const
@@ -154,23 +177,34 @@ void RemoveComponentCommand::Execute()
     // to it before it was removed point at it. (Undo used to create a new
     // component, and undoing one of those edits then wrote into freed memory.)
     if (!m_Component || m_Detached)
+    {
         return;
+    }
     CustomEditorRegistry::Instance().ClearCacheForComponent(m_Component);
     m_Index = Deki::Internal::DetachComponent(*m_Object, m_Component);
     m_Detached = m_Index >= 0;
     if (auto* scene = m_Object->GetOwnerScene())
+    {
         scene->InvalidateComponentsCache();
-    if (m_OnRemoved) m_OnRemoved();
+    }
+    if (m_OnRemoved)
+    {
+        m_OnRemoved();
+    }
 }
 
 void RemoveComponentCommand::Undo()
 {
     if (!m_Component || !m_Detached)
+    {
         return;
+    }
     Deki::Internal::ReattachComponent(*m_Object, m_Component, static_cast<size_t>(m_Index));
     m_Detached = false;
     if (auto* scene = m_Object->GetOwnerScene())
+    {
         scene->InvalidateComponentsCache();
+    }
 }
 
 bool RemoveComponentCommand::ReferencesAny(const DeadMemory& dead) const
@@ -205,16 +239,23 @@ std::string NextDuplicateName(const Deki::Object* parent, const std::string& nam
     auto taken = [parent](const std::string& candidate)
     {
         if (!parent)
+        {
             return false;
+        }
         for (const Deki::Object* child : parent->GetChildren())
+        {
             if (child->GetName() == candidate)
+            {
                 return true;
+            }
+        }
         return false;
     };
     std::string candidate;
     do
+    {
         candidate = base + " (" + std::to_string(n++) + ")";
-    while (taken(candidate));
+    } while (taken(candidate));
     return candidate;
 }
 }  // namespace
@@ -225,10 +266,14 @@ void DuplicateObjectCommand::Execute()
     {
         // First time: clone via engine's JSON round-trip
         m_DuplicatedObject = m_Scene->DuplicateObject(m_Source);
-        if (!m_DuplicatedObject) return;
+        if (!m_DuplicatedObject)
+        {
+            return;
+        }
         // A copy named like its original was indistinguishable in the
         // Hierarchy; number it the way other editors do.
-        m_DuplicatedObject->SetName(NextDuplicateName(m_Source ? m_Source->GetParent() : nullptr, m_Source ? m_Source->GetName() : m_DuplicatedObject->GetName()));
+        m_DuplicatedObject->SetName(NextDuplicateName(m_Source ? m_Source->GetParent() : nullptr,
+                                                      m_Source ? m_Source->GetName() : m_DuplicatedObject->GetName()));
     }
 
     // Single-root invariant: a null parent means "inside the scene root", not "as a sibling of root".
@@ -251,11 +296,16 @@ void DuplicateObjectCommand::Execute()
     {
         // Right after the original when they share a parent, as a copy is
         // expected to appear; otherwise at the end.
-        int sourceIndex = (m_Source && m_Source->GetParent() == resolvedParent) ? resolvedParent->GetChildIndex(m_Source) : -1;
+        int sourceIndex =
+            (m_Source && m_Source->GetParent() == resolvedParent) ? resolvedParent->GetChildIndex(m_Source) : -1;
         if (sourceIndex >= 0)
+        {
             resolvedParent->InsertChildAt(m_DuplicatedObject, static_cast<size_t>(sourceIndex) + 1);
+        }
         else
+        {
             resolvedParent->AddChild(m_DuplicatedObject);
+        }
         m_DuplicatedObject->SetOwnerScene(m_Scene);
     }
     else
@@ -265,18 +315,26 @@ void DuplicateObjectCommand::Execute()
     }
 
     m_IsDetached = false;
-    if (m_OnDuplicated) m_OnDuplicated(m_DuplicatedObject);
+    if (m_OnDuplicated)
+    {
+        m_OnDuplicated(m_DuplicatedObject);
+    }
 }
 
 void DuplicateObjectCommand::Undo()
 {
     if (m_DuplicatedObject)
     {
-        if (m_OnUndone) m_OnUndone();
+        if (m_OnUndone)
+        {
+            m_OnUndone();
+        }
 
         Deki::Object* parent = m_DuplicatedObject->GetParent();
         if (parent)
+        {
             m_DuplicatedObject->RemoveFromParent();
+        }
         m_Scene->RemoveObject(m_DuplicatedObject);
 
         m_IsDetached = true;

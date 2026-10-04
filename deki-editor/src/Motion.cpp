@@ -36,7 +36,9 @@ Entry& Touch(ImGuiID id, float initial)
     if (s_Values.size() > 512 && (frame & 255) == 0)
     {
         for (auto i = s_Values.begin(); i != s_Values.end();)
+        {
             i = (frame - i->second.frame > 600) ? s_Values.erase(i) : ++i;
+        }
     }
     Entry& e = s_Values.try_emplace(id, Entry{ initial, frame }).first->second;
     e.frame = frame;
@@ -53,7 +55,9 @@ float Step(Entry& e, float target, float seconds)
     const float step = ImGui::GetIO().DeltaTime / seconds;
     e.value = (e.value < target) ? ImMin(target, e.value + step) : ImMax(target, e.value - step);
     if (e.value != target)
+    {
         s_MovingFrame = ImGui::GetFrameCount();
+    }
     return e.value;
 }
 }  // namespace
@@ -61,7 +65,9 @@ float Step(Entry& e, float target, float seconds)
 bool ReduceMotion()
 {
     if (s_ReduceMotion < 0)
+    {
         s_ReduceMotion = EditorSettings::GetBool("editor.reduceMotion", false) ? 1 : 0;
+    }
     return s_ReduceMotion == 1;
 }
 
@@ -94,9 +100,13 @@ float Follow(ImGuiID id, float target, float seconds, float epsilon)
     const float k = 1.0f - std::exp(-3.0f * ImGui::GetIO().DeltaTime / seconds);
     e.value += (target - e.value) * k;
     if (std::fabs(target - e.value) <= epsilon)
+    {
         e.value = target;
+    }
     else
+    {
         s_MovingFrame = ImGui::GetFrameCount();
+    }
     return e.value;
 }
 

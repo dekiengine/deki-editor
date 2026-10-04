@@ -13,22 +13,17 @@ namespace DekiEditor
 namespace ObjectSerializationHelper
 {
 
-void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::ComponentMeta* meta, nlohmann::json& properties)
+void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::ComponentMeta* meta,
+                                 nlohmann::json& properties)
 {
     for (int i = 0; i < meta->propertyCount; ++i)
     {
         const Deki::PropertyInfo& prop = meta->properties[i];
         switch (prop.type)
         {
-            case Deki::PropertyType::Int32:
-                properties[prop.name] = Deki::GetPropertyValue<int32_t>(comp, prop);
-                break;
-            case Deki::PropertyType::Float:
-                properties[prop.name] = Deki::GetPropertyValue<float>(comp, prop);
-                break;
-            case Deki::PropertyType::Bool:
-                properties[prop.name] = Deki::GetPropertyValue<bool>(comp, prop);
-                break;
+            case Deki::PropertyType::Int32: properties[prop.name] = Deki::GetPropertyValue<int32_t>(comp, prop); break;
+            case Deki::PropertyType::Float: properties[prop.name] = Deki::GetPropertyValue<float>(comp, prop); break;
+            case Deki::PropertyType::Bool: properties[prop.name] = Deki::GetPropertyValue<bool>(comp, prop); break;
             case Deki::PropertyType::String:
                 properties[prop.name] = Deki::GetPropertyValue<std::string>(comp, prop);
                 break;
@@ -41,9 +36,7 @@ void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::Compon
                 properties[prop.name] = assetJson;
                 break;
             }
-            case Deki::PropertyType::Color:
-                properties[prop.name] = Deki::GetPropertyValue<uint32_t>(comp, prop);
-                break;
+            case Deki::PropertyType::Color: properties[prop.name] = Deki::GetPropertyValue<uint32_t>(comp, prop); break;
             case Deki::PropertyType::Enum:
             {
                 uint8_t enumSize = prop.enumSize > 0 ? prop.enumSize : 1;
@@ -59,19 +52,18 @@ void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::Compon
                 // spelling in JSON wherever it appears. This shape also reaches
                 // the clipboard, where it can be pasted into another session.
                 if (const char* enumName = Deki::EnumNameForValue(prop, enumValue))
+                {
                     properties[prop.name] = enumName;
+                }
                 else
+                {
                     properties[prop.name] = enumValue;
+                }
                 break;
             }
-            case Deki::PropertyType::ObjectRef:
-                properties[prop.name] = CaptureObjectRef(comp, prop.offset);
-                break;
-            case Deki::PropertyType::Array:
-                properties[prop.name] = CaptureArray(comp, prop);
-                break;
-            default:
-                break;
+            case Deki::PropertyType::ObjectRef: properties[prop.name] = CaptureObjectRef(comp, prop.offset); break;
+            case Deki::PropertyType::Array: properties[prop.name] = CaptureArray(comp, prop); break;
+            default: break;
         }
     }
 }
@@ -98,9 +90,13 @@ ComponentData SerializeComponent(const Deki::Component* comp)
 
             // Move to base class
             if (currentMeta->baseTypeId != 0)
+            {
                 currentMeta = registry.GetMeta(currentMeta->baseTypeId);
+            }
             else
+            {
                 currentMeta = nullptr;
+            }
         }
     }
 
@@ -123,34 +119,48 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
             {
                 case Deki::PropertyType::Int32:
                     if (value.is_number_integer())
+                    {
                         Deki::SetPropertyValue<int32_t>(comp, prop, value.get<int32_t>());
+                    }
                     break;
                 case Deki::PropertyType::Float:
                     if (value.is_number())
+                    {
                         Deki::SetPropertyValue<float>(comp, prop, value.get<float>());
+                    }
                     break;
                 case Deki::PropertyType::Bool:
                     if (value.is_boolean())
+                    {
                         Deki::SetPropertyValue<bool>(comp, prop, value.get<bool>());
+                    }
                     break;
                 case Deki::PropertyType::String:
                     if (value.is_string())
+                    {
                         Deki::SetPropertyValue<std::string>(comp, prop, value.get<std::string>());
+                    }
                     break;
                 case Deki::PropertyType::AssetRef:
                     if (value.is_object())
                     {
                         Deki::AssetRefBase& assetRef = Deki::GetPropertyRef<Deki::AssetRefBase>(comp, prop);
                         if (value.contains("guid"))
+                        {
                             assetRef.guid = value["guid"].get<std::string>();
+                        }
                         if (value.contains("source"))
+                        {
                             assetRef.source = value["source"].get<std::string>();
+                        }
                         assetRef.ptr = nullptr;  // Will be loaded on demand
                     }
                     break;
                 case Deki::PropertyType::Color:
                     if (value.is_number_unsigned())
+                    {
                         Deki::SetPropertyValue<uint32_t>(comp, prop, value.get<uint32_t>());
+                    }
                     break;
                 case Deki::PropertyType::Enum:
                 {
@@ -159,7 +169,9 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
                     bool haveValue = false;
                     int32_t v = 0;
                     if (value.is_string())
+                    {
                         haveValue = Deki::EnumValueForName(prop, value.get<std::string>().c_str(), v);
+                    }
                     else if (value.is_number_integer())
                     {
                         v = value.get<int32_t>();
@@ -178,15 +190,14 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
                     }
                     break;
                 }
-                case Deki::PropertyType::ObjectRef:
-                    ApplyObjectRef(comp, prop.offset, value);
-                    break;
+                case Deki::PropertyType::ObjectRef: ApplyObjectRef(comp, prop.offset, value); break;
                 case Deki::PropertyType::Array:
                     if (value.is_array())
+                    {
                         ApplyArray(comp, prop, value);
+                    }
                     break;
-                default:
-                    break;
+                default: break;
             }
         }
     }
@@ -211,9 +222,13 @@ void RestoreComponentProperties(Deki::Component* comp, const ComponentData& data
 
             // Move to base class
             if (currentMeta->baseTypeId != 0)
+            {
                 currentMeta = registry.GetMeta(currentMeta->baseTypeId);
+            }
             else
+            {
                 currentMeta = nullptr;
+            }
         }
     }
 }
@@ -334,7 +349,9 @@ void CreateChildrenRecursive(Deki::Object* parent, const std::vector<ChildData>&
     {
         Deki::Object* child = new Deki::Object(childData.objectData.name);
         if (childData.objectData.objectId != 0)
+        {
             child->SetId(childData.objectData.objectId);
+        }
         parent->AddChild(child);                       // Set parent FIRST so ApplyObjectData knows the parent
         ApplyObjectData(child, childData.objectData);  // Now SetLocalPosition updates world transform correctly
         RestoreComponents(child, childData.components);

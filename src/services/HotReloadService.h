@@ -14,7 +14,6 @@
 #include <cstdint>
 #include "hot_reload/SourceChangeDetector.h"
 
-
 namespace DekiEditor
 {
 

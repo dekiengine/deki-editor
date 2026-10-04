@@ -33,9 +33,19 @@ const char* FeatureStateName(FeatureState state)
 bool StripPlan::AnythingStripped() const
 {
     for (const auto& f : features)
-        if (!f.on) return true;
+    {
+        if (!f.on)
+        {
+            return true;
+        }
+    }
     for (const auto& p : packages)
-        if (!p.on) return true;
+    {
+        if (!p.on)
+        {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -43,8 +53,12 @@ std::vector<std::string> StripPlan::CodegenExcludeRegexes() const
 {
     std::vector<std::string> out;
     for (const auto& pkg : excludedStems)
+    {
         for (const auto& stem : pkg.second)
+        {
             out.push_back("/" + pkg.first + "/" + stem + "\\.(h|cpp|c)$");
+        }
+    }
     return out;
 }
 
@@ -52,16 +66,24 @@ std::vector<std::string> StripPlan::SourceExcludeRegexes() const
 {
     std::vector<std::string> out;
     for (const auto& pkg : excludedStems)
+    {
         for (const auto& stem : pkg.second)
+        {
             out.push_back("/" + pkg.first + "/" + stem + "\\.(cpp|c)$");
+        }
+    }
     return out;
 }
 
 const FeatureDecision* StripPlan::Find(const std::string& packageId, const std::string& featureId) const
 {
     for (const auto& f : features)
+    {
         if (f.packageId == packageId && f.featureId == featureId)
+        {
             return &f;
+        }
+    }
     return nullptr;
 }
 
@@ -72,9 +94,13 @@ std::string Join(const std::vector<std::string>& v, size_t limit = 3)
 {
     std::string s;
     for (size_t i = 0; i < v.size() && i < limit; ++i)
+    {
         s += (i ? ", " : "") + v[i];
+    }
     if (v.size() > limit)
+    {
         s += ", ...";
+    }
     return s;
 }
 
@@ -102,7 +128,9 @@ std::vector<std::string> DeviceIncludeLines(const std::string& text)
     {
         size_t i = line.find_first_not_of(" \t");
         if (i == std::string::npos || line[i] != '#')
+        {
             continue;
+        }
         std::string directive = line.substr(i + 1);
         directive.erase(0, directive.find_first_not_of(" \t"));
         const bool ifdef = directive.rfind("ifdef", 0) == 0;
@@ -127,9 +155,13 @@ std::vector<std::string> DeviceIncludeLines(const std::string& text)
         {
             bool inGuarded = false;
             for (bool g : guarded)
+            {
                 inGuarded = inGuarded || g;
+            }
             if (!inGuarded)
+            {
                 out.push_back(directive);
+            }
         }
     }
     return out;
@@ -139,35 +171,48 @@ std::vector<std::string> DeviceIncludeLines(const std::string& text)
 // "<Stem>.h" for one of `offStems`, outside an editor-only or feature-guarded
 // block? Returns the stems that are included and by whom. This is what keeps
 // roller's dependency on clip alive without the descriptor having to say so.
-std::map<std::string, std::string> IncludedByKeptSources(const fs::path& pkgDir,
-                                                         const std::set<std::string>& offStems)
+std::map<std::string, std::string> IncludedByKeptSources(const fs::path& pkgDir, const std::set<std::string>& offStems)
 {
     std::map<std::string, std::string> included;
     if (offStems.empty())
+    {
         return included;
+    }
     std::error_code ec;
     if (!fs::exists(pkgDir, ec))
+    {
         return included;
+    }
 
     for (const auto& entry : fs::recursive_directory_iterator(pkgDir, ec))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
         const std::string ext = entry.path().extension().string();
         if (ext != ".cpp" && ext != ".h" && ext != ".c")
+        {
             continue;
+        }
         const std::string generic = entry.path().generic_string();
         if (generic.find("/editor/") != std::string::npos || generic.find("/tests/") != std::string::npos ||
             generic.find("/generated/") != std::string::npos)
+        {
             continue;
+        }
         const std::string stem = entry.path().stem().string();
         if (offStems.count(stem))
+        {
             continue;  // an excluded file may include what it likes
+        }
         const std::vector<std::string> includes = DeviceIncludeLines(ReadWhole(entry.path()));
         for (const auto& off : offStems)
         {
             if (included.count(off))
+            {
                 continue;
+            }
             for (const auto& inc : includes)
             {
                 if (inc.find("\"" + off + ".h\"") != std::string::npos ||
@@ -185,10 +230,8 @@ std::map<std::string, std::string> IncludedByKeptSources(const fs::path& pkgDir,
 
 }  // namespace
 
-StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackages,
-                           const ComponentUsage& usage,
-                           const BuildStripSettings& settings,
-                           const std::string& packagesDir)
+StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackages, const ComponentUsage& usage,
+                           const BuildStripSettings& settings, const std::string& packagesDir)
 {
     StripPlan plan;
 
@@ -243,19 +286,22 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                 // animation feature, and stripping it broke the link.
                 // Intra-package dependencies are handled separately, by the
                 // include inspection that marks a feature Kept.
-                const std::string ownPrefix =
-                    GetPackagesDirectoryRelative() + "/" + pkg.id + "/";
+                const std::string ownPrefix = GetPackagesDirectoryRelative() + "/" + pkg.id + "/";
 
                 std::vector<std::string> where;
                 for (const auto& type : feat.componentTypes)
                 {
                     auto it = usage.byType.find(type);
                     if (it == usage.byType.end())
+                    {
                         continue;
+                    }
                     for (const auto& w : it->second)
                     {
                         if (w.rfind(ownPrefix, 0) == 0)
+                        {
                             continue;
+                        }
                         where.push_back(type + " in " + w);
                     }
                 }
@@ -296,7 +342,9 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                 for (auto& d : plan.features)
                 {
                     if (d.packageDir != pkg.dirName || d.on)
+                    {
                         continue;
+                    }
                     for (const auto& stem : d.componentTypes)
                     {
                         offStems.insert(stem);
@@ -304,13 +352,17 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                     }
                 }
                 if (offStems.empty())
+                {
                     continue;
+                }
                 const auto included = IncludedByKeptSources(fs::path(packagesDir) / pkg.dirName, offStems);
                 for (const auto& hit : included)
                 {
                     FeatureDecision* d = byStem[hit.first];
                     if (!d || d->on)
+                    {
                         continue;
+                    }
                     d->on = true;
                     d->state = FeatureState::Kept;
                     d->reason = hit.first + ".h is included by " + hit.second;
@@ -332,11 +384,17 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
         for (const auto& d : plan.features)
         {
             if (d.packageDir != pkg.dirName)
+            {
                 continue;
+            }
             if (!d.componentTypes.empty())
+            {
                 hasComponentFeatures = true;
+            }
             if (d.state == FeatureState::Used || d.state == FeatureState::Pinned || d.state == FeatureState::Required)
+            {
                 anyWanted = true;
+            }
         }
         PackageDecision p;
         p.packageId = pkg.id;
@@ -364,18 +422,28 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
             auto self = std::find_if(plan.packages.begin(), plan.packages.end(),
                                      [&](const PackageDecision& p) { return p.packageId == pkg.id; });
             if (self == plan.packages.end() || !self->on)
+            {
                 continue;
+            }
             std::vector<std::string> needed = pkg.dekiDeps;
             for (const auto& d : plan.features)
+            {
                 if (d.packageDir == pkg.dirName && d.on)
+                {
                     for (const auto& dep : d.requiredPackages)
+                    {
                         needed.push_back(dep);
+                    }
+                }
+            }
             for (const auto& dep : needed)
             {
                 for (auto& other : plan.packages)
                 {
                     if (other.on)
+                    {
                         continue;
+                    }
                     if (other.packageId == dep || other.packageDir == dep)
                     {
                         other.on = true;
@@ -391,15 +459,20 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
     for (const auto& d : plan.features)
     {
         if (!d.on)
+        {
             continue;
+        }
         for (const auto& dep : d.requiredPackages)
         {
-            const bool installed = std::any_of(allPackages.begin(), allPackages.end(), [&](const CMakeGen::PackageEntry& p)
-                                               { return p.id == dep || p.dirName == dep; });
+            const bool installed =
+                std::any_of(allPackages.begin(), allPackages.end(),
+                            [&](const CMakeGen::PackageEntry& p) { return p.id == dep || p.dirName == dep; });
             if (!installed)
+            {
                 plan.warnings.push_back(d.packageId + ": feature '" + d.featureId + "' needs package '" + dep +
                                         "', which is not installed; it is built without it. Install " + dep +
                                         " to use it.");
+            }
         }
     }
 
@@ -424,22 +497,32 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                                  [&](const PackageDecision& p) { return p.packageId == pkg.id; });
         const bool pkgOn = self != plan.packages.end() && self->on;
         if (!pkgOn)
+        {
             continue;
+        }
         if (!pkg.buildDefine.empty())
+        {
             plan.defines.push_back(pkg.buildDefine);
+        }
         for (const auto& d : plan.features)
         {
             if (d.packageDir != pkg.dirName)
+            {
                 continue;
+            }
             if (d.on)
             {
                 if (!d.buildDefine.empty())
+                {
                     plan.defines.push_back(d.buildDefine);
+                }
             }
             else
             {
                 for (const auto& stem : d.componentTypes)
+                {
                     plan.excludedStems[pkg.dirName].push_back(stem);
+                }
             }
         }
     }
@@ -451,14 +534,20 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
         for (const auto& d : plan.features)
         {
             if (d.on)
+            {
                 continue;
+            }
             offByPkg[d.packageId].push_back(d.featureId);
             ++offFeatures;
         }
         std::vector<std::string> offPkgs;
         for (const auto& p : plan.packages)
+        {
             if (!p.on)
+            {
                 offPkgs.push_back(p.packageId);
+            }
+        }
 
         if (offFeatures == 0 && offPkgs.empty())
         {
@@ -480,9 +569,12 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
             }
             if (!offPkgs.empty())
             {
-                if (offFeatures) s << "; ";
-                s << "stripped " << offPkgs.size() << " package" << (offPkgs.size() == 1 ? "" : "s")
-                  << " (" << Join(offPkgs, 12) << ")";
+                if (offFeatures)
+                {
+                    s << "; ";
+                }
+                s << "stripped " << offPkgs.size() << " package" << (offPkgs.size() == 1 ? "" : "s") << " ("
+                  << Join(offPkgs, 12) << ")";
             }
             plan.summary = s.str();
         }
@@ -495,9 +587,10 @@ std::string TargetContentConflict::Describe() const
 {
     std::string s = where + " uses " + componentType + " from " + packageId + ", which needs ";
     for (size_t i = 0; i < missing.size(); ++i)
+    {
         s += (i ? ", " : "") + missing[i];
-    s += missing.size() == 1 ? "; this target does not provide it."
-                             : "; this target provides none of those.";
+    }
+    s += missing.size() == 1 ? "; this target does not provide it." : "; this target provides none of those.";
     return s;
 }
 
@@ -506,11 +599,15 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
 {
     std::vector<TargetContentConflict> conflicts;
     if (targetPlatformId.empty())
+    {
         return conflicts;  // no target, nothing to be incompatible with
+    }
 
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(targetPlatformId);
     if (!platform)
+    {
         return conflicts;
+    }
     const std::set<std::string> caps = platform->Capabilities();
 
     const auto all = CMakeGen::ScanPackageManifests(projectPath);
@@ -519,12 +616,16 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
     std::map<std::string, const CMakeGen::PackageEntry*> owner;
     std::vector<std::string> knownTypes;
     for (const auto& pkg : all)
+    {
         for (const auto& feat : pkg.features)
+        {
             for (const auto& type : feat.componentTypes)
             {
                 owner[type] = &pkg;
                 knownTypes.push_back(type);
             }
+        }
+    }
 
     // Scoped to this target, and with the objects it will not carry already
     // dropped: an object excluded by its own "requires" is not this target's
@@ -533,20 +634,27 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
     // sources are not its content either.
     std::vector<std::string> eligibleIds;
     for (const auto& pkg : all)
+    {
         if (CMakeGen::MissingCapabilities(pkg, caps).empty())
+        {
             eligibleIds.push_back(pkg.id);
+        }
+    }
 
-    const ComponentUsage usage =
-        ScanComponentUsage(projectPath, knownTypes, eligibleIds, targetPlatformId, caps);
+    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, eligibleIds, targetPlatformId, caps);
 
     for (const auto& [type, places] : usage.byType)
     {
         auto it = owner.find(type);
         if (it == owner.end())
+        {
             continue;
+        }
         const std::vector<std::string> missing = CMakeGen::MissingCapabilities(*it->second, caps);
         if (missing.empty())
+        {
             continue;
+        }
 
         TargetContentConflict c;
         c.componentType = type;
@@ -565,9 +673,15 @@ StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& ta
     const auto all = CMakeGen::ScanPackageManifests(projectPath);
     std::vector<std::string> knownTypes;
     for (const auto& pkg : all)
+    {
         for (const auto& feat : pkg.features)
+        {
             for (const auto& type : feat.componentTypes)
+            {
                 knownTypes.push_back(type);
+            }
+        }
+    }
     // What the target offers, so objects a scene marks as needing something it
     // has not got stop keeping their components alive. Resolved from whatever
     // platforms are registered; an unknown target simply offers nothing, which
@@ -575,20 +689,25 @@ StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& ta
     std::set<std::string> targetCapabilities;
     if (!targetPlatformId.empty())
     {
-        if (const PlatformConfig* platform =
-                PlatformRegistry::Instance().GetPlatform(targetPlatformId))
+        if (const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(targetPlatformId))
+        {
             targetCapabilities = platform->Capabilities();
+        }
     }
 
     // Only packages this target can build count as usage; see the note in
     // ComponentUsageScan.h.
     std::vector<std::string> eligibleIds;
     for (const auto& pkg : all)
+    {
         if (CMakeGen::MissingCapabilities(pkg, targetCapabilities).empty())
+        {
             eligibleIds.push_back(pkg.id);
+        }
+    }
 
-    const ComponentUsage usage = ScanComponentUsage(projectPath, knownTypes, eligibleIds,
-                                                    targetPlatformId, targetCapabilities, extraSceneDirs);
+    const ComponentUsage usage =
+        ScanComponentUsage(projectPath, knownTypes, eligibleIds, targetPlatformId, targetCapabilities, extraSceneDirs);
     const BuildStripSettings settings = BuildStripSettings::Load(projectPath);
     return ResolveStripPlan(all, usage, settings, GetPackagesDirectory(projectPath));
 }

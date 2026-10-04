@@ -28,7 +28,8 @@ namespace DekiEditor
 
 // Baud rate options
 const int SerialMonitorPanel::s_BaudRates[] = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
-const char* SerialMonitorPanel::s_BaudRateNames[] = { "9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600" };
+const char* SerialMonitorPanel::s_BaudRateNames[] = { "9600",   "19200",  "38400",  "57600",
+                                                      "115200", "230400", "460800", "921600" };
 const int SerialMonitorPanel::s_BaudRateCount = 8;
 
 SerialMonitorPanel::SerialMonitorPanel(EditorApp* app)
@@ -51,11 +52,14 @@ SerialMonitorPanel::~SerialMonitorPanel()
 void SerialMonitorPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(700, 400);
 
-    if (!ImGui::Begin("SERIAL MONITOR###Serial Monitor", &m_Open, DekiEditor::MaximizedWindowFlags("SERIAL MONITOR###Serial Monitor")))
+    if (!ImGui::Begin("SERIAL MONITOR###Serial Monitor", &m_Open,
+                      DekiEditor::MaximizedWindowFlags("SERIAL MONITOR###Serial Monitor")))
     {
         ImGui::End();
         return;
@@ -77,14 +81,18 @@ void SerialMonitorPanel::DrawToolbar()
     if (m_IsConnected)
     {
         if (ui.ToolbarButton("Disconnect", true, /*active*/ true))
+        {
             Disconnect();
+        }
     }
     else if (ui.ToolbarButton("Connect", !m_SelectedPort.empty()))
     {
         Connect();
     }
     if (ui.ToolbarIconButton("##refreshports", ICON_TI_REFRESH, "Look for serial ports again"))
+    {
         m_AvailablePorts = EnumeratePorts();
+    }
     if (ui.ToolbarIconButton("##clear", ICON_TI_ERASER, "Clear the output"))
     {
         std::lock_guard<std::mutex> lock(m_OutputMutex);
@@ -92,13 +100,21 @@ void SerialMonitorPanel::DrawToolbar()
         m_DropPartialLine = true;
     }
     if (ui.ToolbarButton("DTR", true, m_DtrEnabled))
+    {
         m_DtrEnabled = !m_DtrEnabled;
+    }
     if (ui.ToolbarButton("RTS", true, m_RtsEnabled))
+    {
         m_RtsEnabled = !m_RtsEnabled;
+    }
     if (ui.ToolbarButton("Auto-scroll", true, m_AutoScroll))
+    {
         m_AutoScroll = !m_AutoScroll;
+    }
     if (ui.ToolbarButton("Timestamps", true, m_ShowTimestamps))
+    {
         m_ShowTimestamps = !m_ShowTimestamps;
+    }
     ui.EndToolbar();
 
     if (SchematicSectionBegin("Connection"))
@@ -118,7 +134,9 @@ void SerialMonitorPanel::DrawToolbar()
             {
                 ports.push_back(m_AvailablePorts[i].c_str());
                 if (m_AvailablePorts[i] == m_SelectedPort)
+                {
                     current = static_cast<int>(i);
+                }
             }
             ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::BeginDisabled(m_IsConnected);
@@ -139,16 +157,20 @@ void SerialMonitorPanel::DrawToolbar()
         InspectorUtils::BeginPropertyRow("Status");
         ImGui::AlignTextToFramePadding();
         if (m_IsConnected)
+        {
             ImGui::TextColored(Palette::Green, "Connected");
+        }
         else
+        {
             ImGui::TextColored(Palette::Dim, "Not connected");
+        }
         EndPropertyContext();
         SchematicSectionEnd();
     }
 
     // Filter the lines shown, as the Console's search does.
-    SearchField("##filter", m_FilterText, sizeof(m_FilterText), 0.0f, /*bottomBorder*/ true, nullptr, nullptr,
-                nullptr, nullptr, "Filter");
+    SearchField("##filter", m_FilterText, sizeof(m_FilterText), 0.0f, /*bottomBorder*/ true, nullptr, nullptr, nullptr,
+                nullptr, "Filter");
 }
 
 void SerialMonitorPanel::DrawOutput()
@@ -174,7 +196,9 @@ void SerialMonitorPanel::DrawOutput()
             std::string textLower = line.text;
             std::transform(textLower.begin(), textLower.end(), textLower.begin(), ::tolower);
             if (textLower.find(filterStr) == std::string::npos)
+            {
                 continue;
+            }
         }
 
         ImGui::PushID(lineIndex);
@@ -184,9 +208,7 @@ void SerialMonitorPanel::DrawOutput()
         if (m_ShowTimestamps)
         {
             auto time_t_val = std::chrono::system_clock::to_time_t(line.timestamp);
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          line.timestamp.time_since_epoch()) %
-                      1000;
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(line.timestamp.time_since_epoch()) % 1000;
 
             std::tm tm_val;
 #ifdef _WIN32
@@ -195,8 +217,8 @@ void SerialMonitorPanel::DrawOutput()
             localtime_r(&time_t_val, &tm_val);
 #endif
             char timeBuf[24];
-            snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d.%03d] ",
-                     tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec, (int)ms.count());
+            snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d.%03d] ", tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec,
+                     (int)ms.count());
             displayText = timeBuf;
         }
         displayText += line.text;
@@ -207,14 +229,10 @@ void SerialMonitorPanel::DrawOutput()
         ImVec2 textSize = ImGui::CalcTextSize(displayText.c_str());
         float rowHeight = textSize.y + ImGui::GetStyle().ItemSpacing.y;
 
-        ImU32 bgColor = (lineIndex % 2 == 0)
-                            ? IM_COL32(40, 40, 40, 255)
-                            : IM_COL32(50, 50, 50, 255);
+        ImU32 bgColor = (lineIndex % 2 == 0) ? IM_COL32(40, 40, 40, 255) : IM_COL32(50, 50, 50, 255);
 
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            cursorPos,
-            ImVec2(cursorPos.x + availWidth, cursorPos.y + rowHeight),
-            bgColor);
+        ImGui::GetWindowDrawList()->AddRectFilled(cursorPos, ImVec2(cursorPos.x + availWidth, cursorPos.y + rowHeight),
+                                                  bgColor);
 
         // Render with ANSI colors
         if (line.isError)
@@ -248,7 +266,9 @@ void SerialMonitorPanel::DrawOutput()
                 ImGui::TextUnformatted(seg.text.c_str());
                 ImGui::PopStyleColor();
                 if (s + 1 < line.segments.size())
+                {
                     ImGui::SameLine(0, 0);
+                }
             }
         }
 
@@ -314,7 +334,9 @@ void SerialMonitorPanel::DrawInputArea()
     ImGui::SameLine(0.0f, gap);
     SchematicCheckbox("Newline", &m_SendNewline);
     if (ImGui::IsItemHovered())
+    {
         DekiEditor::Tooltip("End each line sent with a newline");
+    }
 }
 
 std::vector<std::string> SerialMonitorPanel::EnumeratePorts()
@@ -325,7 +347,9 @@ std::vector<std::string> SerialMonitorPanel::EnumeratePorts()
 bool SerialMonitorPanel::Connect()
 {
     if (m_IsConnected)
+    {
         return true;
+    }
 
 #ifdef _WIN32
     // Format port name for Windows
@@ -335,20 +359,11 @@ bool SerialMonitorPanel::Connect()
         portName = "\\\\.\\" + portName;
     }
 
-    m_SerialHandle = CreateFileA(
-        portName.c_str(),
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        nullptr);
+    m_SerialHandle = CreateFileA(portName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
 
     if (m_SerialHandle == INVALID_HANDLE_VALUE)
     {
-        AddOutputLine("Failed to open " + m_SelectedPort + " (Error: " +
-                          std::to_string(GetLastError()) + ")",
-                      true);
+        AddOutputLine("Failed to open " + m_SelectedPort + " (Error: " + std::to_string(GetLastError()) + ")", true);
         return false;
     }
 
@@ -452,8 +467,7 @@ bool SerialMonitorPanel::Connect()
     // Start read thread
     m_ReadThread = std::thread(&SerialMonitorPanel::ReadThreadFunc, this);
 
-    AddOutputLine("Connected to " + m_SelectedPort + " at " +
-                  std::to_string(s_BaudRates[m_BaudRateIndex]) + " baud");
+    AddOutputLine("Connected to " + m_SelectedPort + " at " + std::to_string(s_BaudRates[m_BaudRateIndex]) + " baud");
 
     return true;
 }
@@ -461,7 +475,9 @@ bool SerialMonitorPanel::Connect()
 void SerialMonitorPanel::Disconnect()
 {
     if (!m_IsConnected)
+    {
         return;
+    }
 
     // Stop read thread
     m_Running = false;
@@ -491,7 +507,9 @@ void SerialMonitorPanel::Disconnect()
 void SerialMonitorPanel::SendCommand(const std::string& cmd)
 {
     if (!m_IsConnected)
+    {
         return;
+    }
 
     std::string data = cmd;
     if (m_SendNewline)
@@ -521,7 +539,9 @@ void SerialMonitorPanel::ReadThreadFunc()
     while (m_Running)
     {
         if (m_DropPartialLine.exchange(false))
+        {
             m_PartialLine.clear();
+        }
 #ifdef _WIN32
         DWORD bytesRead = 0;
         if (ReadFile(m_SerialHandle, buffer, sizeof(buffer) - 1, &bytesRead, nullptr) && bytesRead > 0)
@@ -642,9 +662,13 @@ std::vector<AnsiSegment> SerialMonitorPanel::ParseAnsi(const std::string& text)
                     {
                         int code = std::atoi(token.c_str());
                         if (code == 0)
+                        {
                             currentColor = AnsiCodeToColor(0);
+                        }
                         else if (code >= 30 && code <= 37)
+                        {
                             currentColor = AnsiCodeToColor(code);
+                        }
                         // Ignore bold (1), dim (2), etc. - just use color
                     }
                 }
@@ -681,7 +705,9 @@ void SerialMonitorPanel::AddOutputLine(const std::string& text, bool isError)
     // Store plain text for filtering
     line.text.clear();
     for (const auto& seg : line.segments)
+    {
         line.text += seg.text;
+    }
 
     line.timestamp = std::chrono::system_clock::now();
     line.isError = isError;
@@ -692,8 +718,7 @@ void SerialMonitorPanel::AddOutputLine(const std::string& text, bool isError)
     const size_t maxLines = 10000;
     if (m_OutputLines.size() > maxLines)
     {
-        m_OutputLines.erase(m_OutputLines.begin(),
-                            m_OutputLines.begin() + (m_OutputLines.size() - maxLines));
+        m_OutputLines.erase(m_OutputLines.begin(), m_OutputLines.begin() + (m_OutputLines.size() - maxLines));
     }
 }
 

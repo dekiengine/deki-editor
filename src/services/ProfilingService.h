@@ -33,9 +33,19 @@ struct ProfileEvent
     std::vector<std::unique_ptr<ProfileEvent>> children;
 
     ProfileEvent()
-        : startTimeUs(0), durationUs(0), isIdleTime(false) {}
+        : startTimeUs(0),
+          durationUs(0),
+          isIdleTime(false)
+    {
+    }
     ProfileEvent(const char* cat, const char* n, uint64_t start)
-        : category(cat ? cat : ""), name(n ? n : ""), startTimeUs(start), durationUs(0), isIdleTime(false) {}
+        : category(cat ? cat : ""),
+          name(n ? n : ""),
+          startTimeUs(start),
+          durationUs(0),
+          isIdleTime(false)
+    {
+    }
 };
 
 // Frame data with hierarchical call tree
@@ -50,7 +60,13 @@ struct FrameData
     MemorySnapshot memoryStats;  // Memory snapshot at end of frame
 
     FrameData()
-        : frameNumber(0), totalTimeMs(0.0), idleTimeMs(0.0), objectCount(0), componentCount(0) {}
+        : frameNumber(0),
+          totalTimeMs(0.0),
+          idleTimeMs(0.0),
+          objectCount(0),
+          componentCount(0)
+    {
+    }
 };
 
 // Main profiling service (singleton)
@@ -178,15 +194,12 @@ private:
 };
 
 // Convenience macro for profiling scopes
-#define PROFILE_SCOPE(category, name) \
-    DekiEditor::ScopedTrace _trace_##__LINE__(category, name)
+#define PROFILE_SCOPE(category, name) DekiEditor::ScopedTrace _trace_##__LINE__(category, name)
 
 // Macro for static scope names
-#define PROFILE_SCOPE_STATIC(name) \
-    DekiEditor::ScopedTrace _trace_static_##__LINE__("", name)
+#define PROFILE_SCOPE_STATIC(name) DekiEditor::ScopedTrace _trace_static_##__LINE__("", name)
 
 // Macro for idle time scopes (vsync wait, sleep, etc.) - excluded from budget calculations
-#define PROFILE_SCOPE_IDLE(category, name) \
-    DekiEditor::ScopedTraceIdle _trace_idle_##__LINE__(category, name)
+#define PROFILE_SCOPE_IDLE(category, name) DekiEditor::ScopedTraceIdle _trace_idle_##__LINE__(category, name)
 
 }  // namespace DekiEditor

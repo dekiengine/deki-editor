@@ -43,7 +43,6 @@ public:
 
     void Draw();
 
-
 private:
     void DrawToolbar();
     void DrawOutput();

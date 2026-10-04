@@ -42,7 +42,9 @@ std::string GenerateSessionToken()
     {
         const std::string token(fromEnv);
         if (token.size() >= 16)
+        {
             return token;
+        }
         DEKI_LOG_WARNING("MCP: ignoring DEKI_MCP_TOKEN (needs at least 16 characters); "
                          "generating a session token instead");
     }
@@ -51,7 +53,9 @@ std::string GenerateSessionToken()
     std::ostringstream out;
     out << std::hex << std::setfill('0');
     for (int i = 0; i < 8; ++i)
+    {
         out << std::setw(8) << rd();
+    }
     return out.str();
 }
 
@@ -59,16 +63,21 @@ std::string GenerateSessionToken()
 bool SecureEquals(const std::string& a, const std::string& b)
 {
     if (a.size() != b.size())
+    {
         return false;
+    }
     unsigned char diff = 0;
     for (size_t i = 0; i < a.size(); ++i)
+    {
         diff |= static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i]);
+    }
     return diff == 0;
 }
 }  // namespace
 
 McpServer::McpServer(EditorApp* editor)
-    : m_Editor(editor), m_ToolRegistry(std::make_unique<McpToolRegistry>())
+    : m_Editor(editor),
+      m_ToolRegistry(std::make_unique<McpToolRegistry>())
 {
     RegisterAllTools(*m_ToolRegistry, m_Editor);
 }
@@ -95,8 +104,8 @@ bool McpServer::Authorize(const httplib::Request& req, httplib::Response& res) c
     {
         const std::string host = req.get_header_value("Host");
         const std::string port = std::to_string(m_Port);
-        const bool ok = host == "127.0.0.1:" + port || host == "localhost:" + port ||
-                        host == "[::1]:" + port || host == "127.0.0.1" || host == "localhost";
+        const bool ok = host == "127.0.0.1:" + port || host == "localhost:" + port || host == "[::1]:" + port ||
+                        host == "127.0.0.1" || host == "localhost";
         if (!ok)
         {
             res.status = 403;
@@ -124,19 +133,22 @@ bool McpServer::Authorize(const httplib::Request& req, httplib::Response& res) c
         const std::string auth = req.get_header_value("Authorization");
         constexpr const char* kPrefix = "Bearer ";
         if (auth.rfind(kPrefix, 0) == 0)
+        {
             presented = auth.substr(std::strlen(kPrefix));
+        }
     }
     // The SSE stream is opened by an EventSource-style client that cannot set
     // headers, so the token is also accepted as a query parameter there.
     if (presented.empty() && req.has_param("token"))
+    {
         presented = req.get_param_value("token");
+    }
 
     if (!SecureEquals(presented, m_Token))
     {
         res.status = 401;
         res.set_header("WWW-Authenticate", "Bearer");
-        res.set_content(MakeError(nullptr, -32002, "Missing or invalid session token").dump(),
-                        "application/json");
+        res.set_content(MakeError(nullptr, -32002, "Missing or invalid session token").dump(), "application/json");
         return false;
     }
 
@@ -145,7 +157,10 @@ bool McpServer::Authorize(const httplib::Request& req, httplib::Response& res) c
 
 bool McpServer::Start(int port)
 {
-    if (m_Running.load()) return true;
+    if (m_Running.load())
+    {
+        return true;
+    }
 
     m_Token = GenerateSessionToken();
     m_HttpServer = std::make_unique<httplib::Server>();
@@ -157,129 +172,152 @@ bool McpServer::Start(int port)
     m_HttpServer->set_write_timeout(kRequestTimeoutSeconds, 0);
 
     // POST /message - receive JSON-RPC requests from MCP client
-    m_HttpServer->Post("/message", [this](const httplib::Request& req, httplib::Response& res)
-                       {
-        if (!Authorize(req, res))
-            return;
-
-        try
+    m_HttpServer->Post(
+        "/message",
+        [this](const httplib::Request& req, httplib::Response& res)
         {
-            auto msg = nlohmann::json::parse(req.body);
-
-            // Check if this is a notification (no id field) - process directly
-            if (!msg.contains("id"))
+            if (!Authorize(req, res))
             {
-                // Notifications don't need responses. Queue for main thread processing anyway.
-                PendingRequest pending;
-                pending.message = std::move(msg);
-                m_IncomingRequests.Push(std::move(pending));
-                res.status = 202;
                 return;
             }
 
-            // Create promise/future pair for synchronous response
-            auto promise = std::make_shared<std::promise<std::string>>();
-            auto future = promise->get_future();
-
-            PendingRequest pending;
-            pending.message = std::move(msg);
-            pending.responsePromise = promise;
-            m_IncomingRequests.Push(std::move(pending));
-
-            // Wait for the main thread to process. Handlers run inline on the
-            // main thread, and some of them are genuinely long: a package install
-            // is a git clone, `rebuild` is a full CMake build. Those would trip
-            // a short timeout even though the work completes fine, so the cap
-            // here is a liveness backstop, not a latency budget. Clients that
-            // want to bail sooner should use their own request timeout.
-            //
-            // Waited in short steps so a server that is stopping lets go at
-            // once: Stop() joins this thread, and a request that arrived as the
-            // editor was closing used to hold the quit for the full 15 minutes.
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(kRequestTimeoutSeconds);
-            std::future_status status = std::future_status::timeout;
-            while (m_Running.load() && std::chrono::steady_clock::now() < deadline)
+            try
             {
-                status = future.wait_for(std::chrono::milliseconds(250));
-                if (status == std::future_status::ready)
-                    break;
-            }
-            if (status != std::future_status::ready && !m_Running.load() &&
-                future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-                status = std::future_status::ready;  // answered by Stop()
-            if (status == std::future_status::ready)
-            {
-                std::string responseStr = future.get();
-                res.set_content(responseStr, "application/json");
+                auto msg = nlohmann::json::parse(req.body);
 
-                // Also push to SSE stream, if one is listening
-                if (m_SseClients.load() > 0)
+                // Check if this is a notification (no id field) - process directly
+                if (!msg.contains("id"))
                 {
-                    SseResponse sseResp;
-                    sseResp.jsonStr = responseStr;
-                    m_SseResponses.Push(std::move(sseResp));
+                    // Notifications don't need responses. Queue for main thread processing anyway.
+                    PendingRequest pending;
+                    pending.message = std::move(msg);
+                    m_IncomingRequests.Push(std::move(pending));
+                    res.status = 202;
+                    return;
+                }
+
+                // Create promise/future pair for synchronous response
+                auto promise = std::make_shared<std::promise<std::string>>();
+                auto future = promise->get_future();
+
+                PendingRequest pending;
+                pending.message = std::move(msg);
+                pending.responsePromise = promise;
+                m_IncomingRequests.Push(std::move(pending));
+
+                // Wait for the main thread to process. Handlers run inline on the
+                // main thread, and some of them are genuinely long: a package install
+                // is a git clone, `rebuild` is a full CMake build. Those would trip
+                // a short timeout even though the work completes fine, so the cap
+                // here is a liveness backstop, not a latency budget. Clients that
+                // want to bail sooner should use their own request timeout.
+                //
+                // Waited in short steps so a server that is stopping lets go at
+                // once: Stop() joins this thread, and a request that arrived as the
+                // editor was closing used to hold the quit for the full 15 minutes.
+                const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(kRequestTimeoutSeconds);
+                std::future_status status = std::future_status::timeout;
+                while (m_Running.load() && std::chrono::steady_clock::now() < deadline)
+                {
+                    status = future.wait_for(std::chrono::milliseconds(250));
+                    if (status == std::future_status::ready)
+                    {
+                        break;
+                    }
+                }
+                if (status != std::future_status::ready && !m_Running.load() &&
+                    future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+                {
+                    status = std::future_status::ready;  // answered by Stop()
+                }
+                if (status == std::future_status::ready)
+                {
+                    std::string responseStr = future.get();
+                    res.set_content(responseStr, "application/json");
+
+                    // Also push to SSE stream, if one is listening
+                    if (m_SseClients.load() > 0)
+                    {
+                        SseResponse sseResp;
+                        sseResp.jsonStr = responseStr;
+                        m_SseResponses.Push(std::move(sseResp));
+                    }
+                }
+                else
+                {
+                    auto errJson =
+                        MakeError(nullptr, -32603, m_Running.load() ? "Request timed out" : "The editor is closing");
+                    res.set_content(errJson.dump(), "application/json");
                 }
             }
-            else
+            catch (const std::exception& e)
             {
-                auto errJson = MakeError(nullptr, -32603, m_Running.load() ? "Request timed out" : "The editor is closing");
+                auto errJson = MakeError(nullptr, -32700, std::string("Parse error: ") + e.what());
                 res.set_content(errJson.dump(), "application/json");
             }
-        }
-        catch (const std::exception& e)
-        {
-            auto errJson = MakeError(nullptr, -32700, std::string("Parse error: ") + e.what());
-            res.set_content(errJson.dump(), "application/json");
-        } });
+        });
 
     // GET /sse - Server-Sent Events stream for MCP client
-    m_HttpServer->Get("/sse", [this](const httplib::Request& req, httplib::Response& res)
+    m_HttpServer->Get("/sse",
+                      [this](const httplib::Request& req, httplib::Response& res)
                       {
-        if (!Authorize(req, res))
-            return;
+                          if (!Authorize(req, res))
+                          {
+                              return;
+                          }
 
-        res.set_header("Content-Type", "text/event-stream");
-        res.set_header("Cache-Control", "no-cache");
-        res.set_header("Connection", "keep-alive");
-        // No Access-Control-Allow-Origin: browsers are not clients of this
-        // server, and advertising a wildcard invited exactly the cross-origin
-        // access Authorize() now rejects.
+                          res.set_header("Content-Type", "text/event-stream");
+                          res.set_header("Cache-Control", "no-cache");
+                          res.set_header("Connection", "keep-alive");
+                          // No Access-Control-Allow-Origin: browsers are not clients of this
+                          // server, and advertising a wildcard invited exactly the cross-origin
+                          // access Authorize() now rejects.
 
-        res.set_content_provider(
-            "text/event-stream",
-            [this](size_t /*offset*/, httplib::DataSink& sink) -> bool {
-                struct Listening
-                {
-                    std::atomic<int>& n;
-                    explicit Listening(std::atomic<int>& c) : n(c) { ++n; }
-                    ~Listening() { --n; }
-                } listening(m_SseClients);
-                // Send endpoint event first
-                std::string endpointEvent = "event: endpoint\ndata: /message\n\n";
-                sink.write(endpointEvent.c_str(), endpointEvent.size());
+                          res.set_content_provider(
+                              "text/event-stream",
+                              [this](size_t /*offset*/, httplib::DataSink& sink) -> bool
+                              {
+                                  struct Listening
+                                  {
+                                      std::atomic<int>& n;
+                                      explicit Listening(std::atomic<int>& c)
+                                          : n(c)
+                                      {
+                                          ++n;
+                                      }
+                                      ~Listening() { --n; }
+                                  } listening(m_SseClients);
+                                  // Send endpoint event first
+                                  std::string endpointEvent = "event: endpoint\ndata: /message\n\n";
+                                  sink.write(endpointEvent.c_str(), endpointEvent.size());
 
-                // Keep streaming SSE events
-                while (m_Running.load())
-                {
-                    SseResponse resp;
-                    if (m_SseResponses.WaitPop(resp, 1000))
-                    {
-                        std::string sseEvent = "event: message\ndata: " + resp.jsonStr + "\n\n";
-                        if (!sink.write(sseEvent.c_str(), sseEvent.size()))
-                            return false;  // Client disconnected
-                    }
-                    else
-                    {
-                        // Send keepalive comment every second of inactivity
-                        std::string keepalive = ": keepalive\n\n";
-                        if (!sink.write(keepalive.c_str(), keepalive.size()))
-                            return false;
-                    }
-                }
-                return false;  // Server stopping
-            },
-            [](bool) {}  // Content provider done callback
-        ); });
+                                  // Keep streaming SSE events
+                                  while (m_Running.load())
+                                  {
+                                      SseResponse resp;
+                                      if (m_SseResponses.WaitPop(resp, 1000))
+                                      {
+                                          std::string sseEvent = "event: message\ndata: " + resp.jsonStr + "\n\n";
+                                          if (!sink.write(sseEvent.c_str(), sseEvent.size()))
+                                          {
+                                              return false;  // Client disconnected
+                                          }
+                                      }
+                                      else
+                                      {
+                                          // Send keepalive comment every second of inactivity
+                                          std::string keepalive = ": keepalive\n\n";
+                                          if (!sink.write(keepalive.c_str(), keepalive.size()))
+                                          {
+                                              return false;
+                                          }
+                                      }
+                                  }
+                                  return false;  // Server stopping
+                              },
+                              [](bool) {}  // Content provider done callback
+                          );
+                      });
 
     // Bind here, on the caller's thread: listen() on the server thread used to
     // fail silently when the port was taken, leaving a server that reported
@@ -293,7 +331,9 @@ bool McpServer::Start(int port)
     {
         m_Port = port;
         if (!m_HttpServer->bind_to_port(kBindAddress, port))
+        {
             m_Port = -1;
+        }
     }
     if (m_Port <= 0)
     {
@@ -311,7 +351,10 @@ bool McpServer::Start(int port)
 
 void McpServer::Stop()
 {
-    if (!m_Running.load()) return;
+    if (!m_Running.load())
+    {
+        return;
+    }
 
     m_Running.store(false);
 
@@ -321,15 +364,21 @@ void McpServer::Stop()
     while (m_IncomingRequests.TryPop(req))
     {
         if (req.responsePromise)
+        {
             req.responsePromise->set_value(
                 MakeError(req.message.value("id", nlohmann::json()), -32603, "The editor is closing").dump());
+        }
     }
 
     if (m_HttpServer)
+    {
         m_HttpServer->stop();
+    }
 
     if (m_ServerThread.joinable())
+    {
         m_ServerThread.join();
+    }
 
     m_HttpServer.reset();
     // Never reuse a token across sessions.
@@ -365,37 +414,53 @@ void McpServer::ProcessMessages()
 nlohmann::json McpServer::HandleMessage(const nlohmann::json& msg)
 {
     if (!msg.contains("method") || !msg["method"].is_string())
+    {
         return MakeError(msg.value("id", nlohmann::json()), -32600, "Invalid request: missing method");
+    }
 
     std::string method = msg["method"];
     auto id = msg.value("id", nlohmann::json());
     auto params = msg.value("params", nlohmann::json::object());
 
     if (method == "initialize")
+    {
         return MakeResponse(id, HandleInitialize(params));
+    }
     else if (method == "notifications/initialized")
+    {
         return nlohmann::json();  // No response for notifications
+    }
     else if (method == "tools/list")
+    {
         return MakeResponse(id, HandleToolsList());
+    }
     else if (method == "tools/call")
+    {
         return MakeResponse(id, HandleToolsCall(params));
+    }
     else if (method == "resources/list")
+    {
         return MakeResponse(id, HandleResourcesList());
+    }
     else if (method == "resources/read")
+    {
         return MakeResponse(id, HandleResourcesRead(params));
+    }
     else if (method == "ping")
+    {
         return MakeResponse(id, nlohmann::json::object());
+    }
     else
+    {
         return MakeError(id, -32601, "Method not found: " + method);
+    }
 }
 
 nlohmann::json McpServer::HandleInitialize(const nlohmann::json& /*params*/)
 {
-    return {
-        { "protocolVersion", "2024-11-05" },
-        { "capabilities", { { "tools", nlohmann::json::object() }, { "resources", nlohmann::json::object() } } },
-        { "serverInfo", { { "name", "deki-editor" }, { "version", "1.1.0" } } }
-    };
+    return { { "protocolVersion", "2024-11-05" },
+             { "capabilities", { { "tools", nlohmann::json::object() }, { "resources", nlohmann::json::object() } } },
+             { "serverInfo", { { "name", "deki-editor" }, { "version", "1.1.0" } } } };
 }
 
 nlohmann::json McpServer::HandleToolsList()
@@ -403,9 +468,8 @@ nlohmann::json McpServer::HandleToolsList()
     nlohmann::json tools = nlohmann::json::array();
     for (const auto& tool : m_ToolRegistry->GetTools())
     {
-        tools.push_back({ { "name", tool.name },
-                          { "description", tool.description },
-                          { "inputSchema", tool.inputSchema } });
+        tools.push_back(
+            { { "name", tool.name }, { "description", tool.description }, { "inputSchema", tool.inputSchema } });
     }
     return { { "tools", tools } };
 }
@@ -418,37 +482,28 @@ nlohmann::json McpServer::HandleToolsCall(const nlohmann::json& params)
     const auto tool = m_ToolRegistry->FindTool(toolName);
     if (!tool)
     {
-        return {
-            { "content", nlohmann::json::array({ { { "type", "text" },
-                                                   { "text", "Unknown tool: " + toolName } } }) },
-            { "isError", true }
-        };
+        return { { "content",
+                   nlohmann::json::array({ { { "type", "text" }, { "text", "Unknown tool: " + toolName } } }) },
+                 { "isError", true } };
     }
 
     if (const std::string missing = MissingRequiredArguments(*tool, arguments); !missing.empty())
     {
-        return {
-            { "content", nlohmann::json::array({ { { "type", "text" },
-                                                   { "text", "Error: " + toolName + " needs " + missing } } }) },
-            { "isError", true }
-        };
+        return { { "content", nlohmann::json::array(
+                                  { { { "type", "text" }, { "text", "Error: " + toolName + " needs " + missing } } }) },
+                 { "isError", true } };
     }
 
     try
     {
         nlohmann::json result = tool->handler(arguments);
-        return {
-            { "content", nlohmann::json::array({ { { "type", "text" },
-                                                   { "text", result.dump() } } }) }
-        };
+        return { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", result.dump() } } }) } };
     }
     catch (const std::exception& e)
     {
-        return {
-            { "content", nlohmann::json::array({ { { "type", "text" },
-                                                   { "text", std::string("Error: ") + e.what() } } }) },
-            { "isError", true }
-        };
+        return { { "content",
+                   nlohmann::json::array({ { { "type", "text" }, { "text", std::string("Error: ") + e.what() } } }) },
+                 { "isError", true } };
     }
 }
 
@@ -461,29 +516,19 @@ nlohmann::json McpServer::HandleResourcesRead(const nlohmann::json& params)
 {
     std::string uri = params.value("uri", "");
     auto result = HandleResourceRead(uri, m_Editor);
-    return {
-        { "contents", nlohmann::json::array({ { { "uri", uri },
-                                                { "mimeType", "application/json" },
-                                                { "text", result.dump() } } }) }
-    };
+    return { { "contents",
+               nlohmann::json::array(
+                   { { { "uri", uri }, { "mimeType", "application/json" }, { "text", result.dump() } } }) } };
 }
 
 nlohmann::json McpServer::MakeResponse(const nlohmann::json& id, const nlohmann::json& result)
 {
-    return {
-        { "jsonrpc", "2.0" },
-        { "id", id },
-        { "result", result }
-    };
+    return { { "jsonrpc", "2.0" }, { "id", id }, { "result", result } };
 }
 
 nlohmann::json McpServer::MakeError(const nlohmann::json& id, int code, const std::string& message)
 {
-    return {
-        { "jsonrpc", "2.0" },
-        { "id", id },
-        { "error", { { "code", code }, { "message", message } } }
-    };
+    return { { "jsonrpc", "2.0" }, { "id", id }, { "error", { { "code", code }, { "message", message } } } };
 }
 
 }  // namespace DekiEditor

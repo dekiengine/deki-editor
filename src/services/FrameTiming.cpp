@@ -46,7 +46,9 @@ void Restart()
 void Add(const char* name, Clock::time_point start)
 {
     if (!s_Collecting || !name)
+    {
         return;
+    }
     Entry& e = s_Entries[name];
     e.totalMs += MsSince(start);
     ++e.calls;
@@ -55,7 +57,9 @@ void Add(const char* name, Clock::time_point start)
 void EndFrame(Clock::time_point frameStart)
 {
     if (!s_Collecting)
+    {
         return;
+    }
     const double ms = MsSince(frameStart);
     ++s_Frames;
     s_FrameMsTotal += ms;

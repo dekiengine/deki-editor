@@ -57,7 +57,9 @@ void TrimRegisteredWindows(int keepCount)
 {
     auto& registry = GetWindowRegistry();
     if (keepCount >= 0 && keepCount < static_cast<int>(registry.size()))
+    {
         registry.resize(keepCount);
+    }
 }
 
 }  // namespace DekiEditor

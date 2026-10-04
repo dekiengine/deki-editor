@@ -39,7 +39,9 @@ static void FormatTime(char* buf, size_t bufSize, std::chrono::system_clock::tim
 void ActivityPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(450, 350);
 
@@ -64,10 +66,7 @@ void ActivityPanel::Draw()
         const ImU32 colHoverBg = IM_COL32(255, 255, 255, 6);
 
         float cursorX = rowMin.x;
-        auto drawDivider = [&](float x)
-        {
-            dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f);
-        };
+        auto drawDivider = [&](float x) { dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f); };
 
         // Leading divider at strip start.
         drawDivider(cursorX);
@@ -80,18 +79,27 @@ void ActivityPanel::Draw()
             ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
             bool clicked = ImGui::InvisibleButton("##clear", ImVec2(w, rowH));
             bool hovered = ImGui::IsItemHovered();
-            if (hovered) DekiEditor::Tooltip("Clear");
+            if (hovered)
+            {
+                DekiEditor::Tooltip("Clear");
+            }
             if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::WithAlpha(colHoverBg, hoverT));
+            }
             if (const float pressT = DekiEditor::Motion::ItemPress(); pressT > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::PressShade(pressT));
-            dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f),
-                        colDim, icon);
+            }
+            dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f), colDim, icon);
             cursorX += w;
             drawDivider(cursorX);
-            if (clicked) Clear();
+            if (clicked)
+            {
+                Clear();
+            }
         }
 
         // Reserve the row in layout flow and close the bottom edge with a hairline.
@@ -136,11 +144,8 @@ void ActivityPanel::Draw()
         float cardHeight = lineH * 2.0f + 4.0f + cardPadY * 2.0f;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        ImU32 bgColor = proc.expanded
-                            ? IM_COL32(50, 55, 60, 255)
-                            : IM_COL32(40, 42, 45, 255);
-        drawList->AddRectFilled(cardPos, ImVec2(cardPos.x + cardWidth, cardPos.y + cardHeight),
-                                bgColor, 4.0f);
+        ImU32 bgColor = proc.expanded ? IM_COL32(50, 55, 60, 255) : IM_COL32(40, 42, 45, 255);
+        drawList->AddRectFilled(cardPos, ImVec2(cardPos.x + cardWidth, cardPos.y + cardHeight), bgColor, 4.0f);
 
         // Clickable area
         if (ImGui::InvisibleButton("##card", ImVec2(cardWidth, cardHeight)))
@@ -175,7 +180,9 @@ void ActivityPanel::Draw()
             if (ImGui::Button("##cancel", ImVec2(cancelBtnSize, cancelBtnSize)))
             {
                 if (proc.onCancel)
+                {
                     proc.onCancel();
+                }
                 proc.status = ProcessStatus::Cancelled;
                 proc.lastMessage = "Cancelled";
             }
@@ -193,8 +200,7 @@ void ActivityPanel::Draw()
         char timeBuf[16];
         FormatTime(timeBuf, sizeof(timeBuf), proc.startTime);
         ImVec2 timeSize = ImGui::CalcTextSize(timeBuf);
-        drawList->AddText(ImVec2(rightEdge - timeSize.x, nameY),
-                          ImGui::GetColorU32(ImGuiCol_TextDisabled), timeBuf);
+        drawList->AddText(ImVec2(rightEdge - timeSize.x, nameY), ImGui::GetColorU32(ImGuiCol_TextDisabled), timeBuf);
 
         // Last message (subtitle, second row)
         if (!proc.lastMessage.empty())
@@ -204,20 +210,17 @@ void ActivityPanel::Draw()
             // Truncate if too long
             float maxSubWidth = cardWidth - textX + cardPos.x - padding;
             const char* subtitleEnd = nullptr;
-            ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxSubWidth, maxSubWidth,
-                                            proc.lastMessage.c_str(), nullptr, &subtitleEnd);
+            ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxSubWidth, maxSubWidth, proc.lastMessage.c_str(),
+                                            nullptr, &subtitleEnd);
 
-            drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-                              ImVec2(textX, subtitleY),
-                              ImGui::GetColorU32(ImGuiCol_TextDisabled),
-                              proc.lastMessage.c_str(), subtitleEnd);
+            drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(textX, subtitleY),
+                              ImGui::GetColorU32(ImGuiCol_TextDisabled), proc.lastMessage.c_str(), subtitleEnd);
         }
 
         // Expanded: show log entries
         if (proc.expanded && !proc.entries.empty())
         {
-            float logHeight = (std::min)((float)proc.entries.size() * (ImGui::GetTextLineHeightWithSpacing()),
-                                         300.0f);
+            float logHeight = (std::min)((float)proc.entries.size() * (ImGui::GetTextLineHeightWithSpacing()), 300.0f);
             ImGui::BeginChild("##log", ImVec2(0, logHeight), true);
 
             for (int e = 0; e < (int)proc.entries.size(); e++)
@@ -226,9 +229,7 @@ void ActivityPanel::Draw()
                 char entryTime[16];
                 FormatTime(entryTime, sizeof(entryTime), entry.timestamp);
 
-                ImVec4 color = entry.isError
-                                   ? DekiEditor::Palette::Red
-                                   : DekiEditor::Palette::Dim;
+                ImVec4 color = entry.isError ? DekiEditor::Palette::Red : DekiEditor::Palette::Dim;
 
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 ImGui::PushID(e);
@@ -272,7 +273,9 @@ void ActivityPanel::Draw()
 
             // Auto-scroll to bottom
             if (proc.status == ProcessStatus::Running)
+            {
                 ImGui::SetScrollHereY(1.0f);
+            }
 
             ImGui::EndChild();
         }
@@ -295,7 +298,9 @@ ActivityProcess& ActivityPanel::FindOrCreateProcess(const std::string& name)
     for (auto& proc : m_Processes)
     {
         if (proc.name == name && proc.status == ProcessStatus::Running)
+        {
             return proc;
+        }
     }
 
     // Always create a new entry (newest first)
@@ -322,18 +327,17 @@ void ActivityPanel::AddEntry(const std::string& process, const std::string& mess
     // Cap entries per process
     const size_t maxEntries = 500;
     if (proc.entries.size() > maxEntries)
-        proc.entries.erase(proc.entries.begin(),
-                           proc.entries.begin() + (int)(proc.entries.size() - maxEntries));
+    {
+        proc.entries.erase(proc.entries.begin(), proc.entries.begin() + (int)(proc.entries.size() - maxEntries));
+    }
 }
 
 void ActivityPanel::Clear()
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
-    m_Processes.erase(
-        std::remove_if(m_Processes.begin(), m_Processes.end(),
-                       [](const ActivityProcess& p)
-                       { return p.status != ProcessStatus::Running; }),
-        m_Processes.end());
+    m_Processes.erase(std::remove_if(m_Processes.begin(), m_Processes.end(),
+                                     [](const ActivityProcess& p) { return p.status != ProcessStatus::Running; }),
+                      m_Processes.end());
 }
 
 // ============================================================================
@@ -343,18 +347,25 @@ void ActivityPanel::Clear()
 void ActivityPanel::Log(const std::string& process, const std::string& message)
 {
     if (s_Instance)
+    {
         s_Instance->AddEntry(process, message, false);
+    }
 }
 
 void ActivityPanel::LogError(const std::string& process, const std::string& message)
 {
     if (s_Instance)
+    {
         s_Instance->AddEntry(process, message, true);
+    }
 }
 
 void ActivityPanel::CompleteProcess(const std::string& process)
 {
-    if (!s_Instance) return;
+    if (!s_Instance)
+    {
+        return;
+    }
     std::lock_guard<std::mutex> lock(s_Instance->m_Mutex);
 
     for (auto& proc : s_Instance->m_Processes)
@@ -370,7 +381,10 @@ void ActivityPanel::CompleteProcess(const std::string& process)
 
 void ActivityPanel::FailProcess(const std::string& process, const std::string& error)
 {
-    if (!s_Instance) return;
+    if (!s_Instance)
+    {
+        return;
+    }
     std::lock_guard<std::mutex> lock(s_Instance->m_Mutex);
 
     for (auto& proc : s_Instance->m_Processes)
@@ -392,7 +406,10 @@ void ActivityPanel::FailProcess(const std::string& process, const std::string& e
 
 void ActivityPanel::CancelProcess(const std::string& process)
 {
-    if (!s_Instance) return;
+    if (!s_Instance)
+    {
+        return;
+    }
     std::lock_guard<std::mutex> lock(s_Instance->m_Mutex);
 
     for (auto& proc : s_Instance->m_Processes)
@@ -400,7 +417,9 @@ void ActivityPanel::CancelProcess(const std::string& process)
         if (proc.name == process && proc.status == ProcessStatus::Running)
         {
             if (proc.onCancel)
+            {
                 proc.onCancel();
+            }
             proc.status = ProcessStatus::Cancelled;
             proc.lastMessage = "Cancelled";
             return;
@@ -410,20 +429,28 @@ void ActivityPanel::CancelProcess(const std::string& process)
 
 bool ActivityPanel::IsCancelled(const std::string& process)
 {
-    if (!s_Instance) return false;
+    if (!s_Instance)
+    {
+        return false;
+    }
     std::lock_guard<std::mutex> lock(s_Instance->m_Mutex);
 
     for (const auto& proc : s_Instance->m_Processes)
     {
         if (proc.name == process && proc.status == ProcessStatus::Cancelled)
+        {
             return true;
+        }
     }
     return false;
 }
 
 void ActivityPanel::SetCancelCallback(const std::string& process, std::function<void()> callback)
 {
-    if (!s_Instance) return;
+    if (!s_Instance)
+    {
+        return;
+    }
     std::lock_guard<std::mutex> lock(s_Instance->m_Mutex);
 
     for (auto& proc : s_Instance->m_Processes)
@@ -486,22 +513,22 @@ void ActivityPanel::DrawStatusBar()
         {
             runningCount++;
             if (!latestRunning)
+            {
                 latestRunning = &proc;
+            }
         }
     }
 
     if (runningCount > 0)
     {
         // Running indicator icon
-        drawList->AddText(ImVec2(cursorX, textY),
-                          ImGui::GetColorU32(ImVec4(0.5f, 0.7f, 1.0f, 1.0f)), ICON_TI_LOADER);
+        drawList->AddText(ImVec2(cursorX, textY), ImGui::GetColorU32(ImVec4(0.5f, 0.7f, 1.0f, 1.0f)), ICON_TI_LOADER);
         cursorX += ImGui::CalcTextSize(ICON_TI_LOADER).x + 6.0f;
 
         // Task count
         char countBuf[32];
         snprintf(countBuf, sizeof(countBuf), "%d task%s", runningCount, runningCount == 1 ? "" : "s");
-        drawList->AddText(ImVec2(cursorX, textY),
-                          ImGui::GetColorU32(ImGuiCol_Text), countBuf);
+        drawList->AddText(ImVec2(cursorX, textY), ImGui::GetColorU32(ImGuiCol_Text), countBuf);
         cursorX += ImGui::CalcTextSize(countBuf).x + 24.0f;
 
         // Separator
@@ -512,8 +539,7 @@ void ActivityPanel::DrawStatusBar()
         // Latest running process name + status
         if (latestRunning)
         {
-            drawList->AddText(ImVec2(cursorX, textY),
-                              ImGui::GetColorU32(ImGuiCol_TextDisabled),
+            drawList->AddText(ImVec2(cursorX, textY), ImGui::GetColorU32(ImGuiCol_TextDisabled),
                               latestRunning->name.c_str());
             cursorX += ImGui::CalcTextSize(latestRunning->name.c_str()).x + 24.0f;
 
@@ -525,10 +551,9 @@ void ActivityPanel::DrawStatusBar()
                     const char* msgEnd = nullptr;
                     ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxMsgWidth, maxMsgWidth,
                                                     latestRunning->lastMessage.c_str(), nullptr, &msgEnd);
-                    drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-                                      ImVec2(cursorX, textY),
-                                      ImGui::GetColorU32(DekiEditor::Palette::Dim),
-                                      latestRunning->lastMessage.c_str(), msgEnd);
+                    drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(cursorX, textY),
+                                      ImGui::GetColorU32(DekiEditor::Palette::Dim), latestRunning->lastMessage.c_str(),
+                                      msgEnd);
                 }
             }
         }
@@ -550,19 +575,16 @@ void ActivityPanel::DrawStatusBar()
             statusColor = DekiEditor::Palette::Amber;
         }
 
-        drawList->AddText(ImVec2(cursorX, textY),
-                          ImGui::GetColorU32(statusColor), statusIcon);
+        drawList->AddText(ImVec2(cursorX, textY), ImGui::GetColorU32(statusColor), statusIcon);
         cursorX += ImGui::CalcTextSize(statusIcon).x + 6.0f;
 
         std::string summary = proc.name + ": " + proc.lastMessage;
         float maxWidth = barMax.x - cursorX - padding;
         const char* summaryEnd = nullptr;
-        ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxWidth, maxWidth,
-                                        summary.c_str(), nullptr, &summaryEnd);
-        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-                          ImVec2(cursorX, textY),
-                          ImGui::GetColorU32(ImGuiCol_TextDisabled),
-                          summary.c_str(), summaryEnd);
+        ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxWidth, maxWidth, summary.c_str(), nullptr,
+                                        &summaryEnd);
+        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(cursorX, textY),
+                          ImGui::GetColorU32(ImGuiCol_TextDisabled), summary.c_str(), summaryEnd);
     }
     else
     {
@@ -570,8 +592,7 @@ void ActivityPanel::DrawStatusBar()
         const float dotSize = 7.0f;
         const float lineH = ImGui::GetTextLineHeight();
         drawList->AddRectFilled(ImVec2(cursorX, textY + (lineH - dotSize) * 0.5f),
-                                ImVec2(cursorX + dotSize, textY + (lineH + dotSize) * 0.5f),
-                                accentCol);
+                                ImVec2(cursorX + dotSize, textY + (lineH + dotSize) * 0.5f), accentCol);
         cursorX += dotSize + 6.0f;
         drawList->AddText(ImVec2(cursorX, textY), accentCol, "Ready");
         cursorX += ImGui::CalcTextSize("Ready").x;
@@ -603,7 +624,9 @@ void ActivityPanel::DrawStatusBar()
         snprintf(verBuf, sizeof(verBuf), "v%s", EditorVersionString());
         const float verX = barMax.x - mcpBtnWidth - padding - 16.0f - ImGui::CalcTextSize(verBuf).x;
         if (verX > cursorX + 24.0f)
+        {
             drawList->AddText(ImVec2(verX, textY), ImGui::ColorConvertFloat4ToU32(Palette::Dim), verBuf);
+        }
     }
 
     // MCP server toggle button (right-aligned)
@@ -619,9 +642,13 @@ void ActivityPanel::DrawStatusBar()
         if (ImGui::InvisibleButton("##McpBtn", ImVec2(mcpBtnWidth, barHeight)))
         {
             if (mcpRunning)
+            {
                 m_App->StopMcpServer();
+            }
             else
+            {
                 m_App->StartMcpServer();
+            }
         }
         ImGui::PopID();
 
@@ -629,18 +656,18 @@ void ActivityPanel::DrawStatusBar()
         // mints a fresh token each start, so the URL cannot be written down in
         // advance - the user needs a way to get the current one.
         if (mcpRunning && ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        {
             ImGui::SetClipboardText(m_App->GetMcpSseUrl().c_str());
+        }
 
         // Hover highlight
         if (ImGui::IsItemHovered())
         {
-            drawList->AddRectFilled(
-                ImVec2(mcpBtnX, barMin.y),
-                ImVec2(mcpBtnX + mcpBtnWidth, barMax.y),
-                ImGui::ColorConvertFloat4ToU32(Palette::Bg2));
-            DekiEditor::Tooltip(mcpRunning
-                                    ? "MCP server running on 127.0.0.1:3000\nRight-click to copy the connection URL (includes session token)"
-                                    : "Start MCP server (local only, port 3000)");
+            drawList->AddRectFilled(ImVec2(mcpBtnX, barMin.y), ImVec2(mcpBtnX + mcpBtnWidth, barMax.y),
+                                    ImGui::ColorConvertFloat4ToU32(Palette::Bg2));
+            DekiEditor::Tooltip(mcpRunning ? "MCP server running on 127.0.0.1:3000\nRight-click to copy the connection "
+                                             "URL (includes session token)"
+                                           : "Start MCP server (local only, port 3000)");
         }
 
         drawList->AddText(ImVec2(mcpX, textY), ImGui::GetColorU32(mcpColor), mcpLabel);

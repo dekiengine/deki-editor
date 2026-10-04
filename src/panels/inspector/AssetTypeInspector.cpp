@@ -28,7 +28,9 @@ namespace DekiEditor
 {
 
 AssetTypeInspector::AssetTypeInspector(EditorApp* app, TextureInspector* textureInspector)
-    : m_App(app), m_TextureInspector(textureInspector), m_SceneInspector(std::make_unique<SceneInspector>(app))
+    : m_App(app),
+      m_TextureInspector(textureInspector),
+      m_SceneInspector(std::make_unique<SceneInspector>(app))
 {
 }
 
@@ -49,7 +51,9 @@ void AssetTypeInspector::Draw()
     {
         const AssetInfo* info = pipeline->GetAssetInfo(assetPath);
         if (info)
+        {
             pipelineGuid = info->guid;
+        }
     }
 
     // Selected GUID may differ from pipeline GUID for sub-assets
@@ -62,7 +66,9 @@ void AssetTypeInspector::Draw()
     {
         const auto* subInfo = pipeline->GetSubAsset(selectedGuid);
         if (subInfo && subInfo->hasPreview)
+        {
             isSubAssetWithPreview = true;
+        }
     }
 
     // Baked cache-only asset (e.g., font atlas from deploy analysis) - no source path
@@ -95,10 +101,14 @@ void AssetTypeInspector::Draw()
         // Format/chroma-key sidecar settings only apply to imported images;
         // the procedural compile path bakes RGB565A8 and ignores the sidecar
         if (!isCompiledTextureAsset)
+        {
             m_TextureInspector->DrawSettings();
+        }
 
         if (!isSubAssetWithPreview && !isBakedCacheAsset)
+        {
             DrawDeployProperties(assetGuid);
+        }
 
         m_TextureInspector->EndScrollRegion();
     }
@@ -107,7 +117,9 @@ void AssetTypeInspector::Draw()
         bool isScene = ext == ".scene";
 
         if (isScene)
+        {
             m_SceneInspector->DrawPreview(assetPath);
+        }
 
         if (!isSubAssetWithPreview)
         {
@@ -122,14 +134,15 @@ void AssetTypeInspector::Draw()
 
             DrawDeployProperties(assetGuid);
         }
-
     }
 }
 
 bool AssetTypeInspector::CompilesToTexture(const std::string& assetPath)
 {
     if (assetPath == m_CompileTargetPath)
+    {
         return m_CompilesToTexture;
+    }
 
     // Only cache definitive answers; unreadable/broken files retry next frame
     // (the type editor shows the parse error, and the file may be mid-write)
@@ -138,7 +151,9 @@ bool AssetTypeInspector::CompilesToTexture(const std::string& assetPath)
 
     std::ifstream file(assetPath);
     if (!file.is_open())
+    {
         return false;
+    }
 
     nlohmann::json data;
     try
@@ -202,7 +217,9 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
     // one in the object inspector: separator boundary, band, rows underneath.
     DekiEditor::FullBleedSeparator();
     if (!DekiEditor::SchematicSectionBegin(editor->GetDisplayName()))
+    {
         return;
+    }
 
     // Call the editor - it uses ImGui directly
     std::string jsonStr = jsonData.dump(2);
@@ -222,7 +239,9 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
 
                 // Clear component AssetRef pointers (prevents dangling pointers)
                 if (m_App->GetSceneViewPanel())
+                {
                     m_App->GetSceneViewPanel()->InvalidateAllAssets();
+                }
 
                 // Evict stale sprite from engine cache
                 Deki::AssetManager::Get()->InvalidateAsset("Sprite", assetGuid);
@@ -230,7 +249,9 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
                 // Invalidate GPU texture caches
                 EditorAssets::Get()->InvalidateTexture(assetGuid);
                 if (m_App->GetSceneViewPanel())
+                {
                     m_App->GetSceneViewPanel()->InvalidateTexture(assetGuid);
+                }
 
                 // Refresh the anchored inspector preview - the cache path is
                 // unchanged, so it would otherwise keep the stale GL texture
@@ -246,11 +267,15 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
 void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
 {
     if (assetGuid.empty())
+    {
         return;
+    }
 
     DekiEditor::FullBleedSeparator();
     if (!DekiEditor::SchematicSectionBegin("Deploy"))
+    {
         return;
+    }
 
     if (!m_HasScannedUsage)
     {
@@ -273,8 +298,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
 
     // Scenes are always deployed - treat them as always included
     const std::string& assetPath = m_App->GetSelectedAssetPath();
-    bool isScene = assetPath.size() >= 7 &&
-                   assetPath.compare(assetPath.size() - 7, 7, ".scene") == 0;
+    bool isScene = assetPath.size() >= 7 && assetPath.compare(assetPath.size() - 7, 7, ".scene") == 0;
 
     bool isUsed = isScene || m_UsedGuids.count(assetGuid) > 0;
     Project* proj = m_App->GetProject();
@@ -300,9 +324,13 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
     else if (DekiEditor::SchematicCheckbox("##Included", &isForceIncluded) && proj)
     {
         if (isForceIncluded)
+        {
             proj->AddForceIncludeGuid(assetGuid);
+        }
         else
+        {
             proj->RemoveForceIncludeGuid(assetGuid);
+        }
     }
 
     DekiEditor::SchematicSectionEnd();

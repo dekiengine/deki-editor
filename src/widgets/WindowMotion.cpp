@@ -39,8 +39,8 @@ struct Opening
     ImVec2 center;
 };
 
-std::unordered_set<ImGuiID> s_ShownLast;     // panels on screen last frame
-std::unordered_set<ImGuiID> s_FloatingLast;  // the floating ones among them
+std::unordered_set<ImGuiID> s_ShownLast;          // panels on screen last frame
+std::unordered_set<ImGuiID> s_FloatingLast;       // the floating ones among them
 std::unordered_set<ImGuiID> s_Shown, s_Floating;  // this frame's, swapped in at the end
 std::vector<ImGuiWindow*> s_Appeared;
 std::vector<Opening> s_Opening;
@@ -55,16 +55,19 @@ int s_Frame = 0;
 // child of its node's host, so that flag alone does not rule a window out.
 bool IsPanel(const ImGuiWindow* w)
 {
-    constexpr ImGuiWindowFlags kNotPanel = ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_Popup |
-                                           ImGuiWindowFlags_Modal | ImGuiWindowFlags_ChildMenu |
-                                           ImGuiWindowFlags_DockNodeHost;
+    constexpr ImGuiWindowFlags kNotPanel = ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_Popup | ImGuiWindowFlags_Modal |
+                                           ImGuiWindowFlags_ChildMenu | ImGuiWindowFlags_DockNodeHost;
     if (w->RootWindow != w || (w->Flags & kNotPanel) || w->DockNodeAsHost)
+    {
         return false;
+    }
     // A window covering the whole OS window is the editor's backdrop (the dock
     // space, or the project manager screen in it), not a panel.
     if (w->Viewport && w->Pos.x <= w->Viewport->Pos.x && w->Pos.y <= w->Viewport->Pos.y &&
         w->Size.x >= w->Viewport->Size.x && w->Size.y >= w->Viewport->Size.y)
+    {
         return false;
+    }
     return !(w->Flags & ImGuiWindowFlags_ChildWindow) || w->DockIsActive;
 }
 
@@ -86,10 +89,16 @@ ImGuiID OpenKey(ImGuiID windowId)
 void CopyLastFrame(ImGuiWindow* w, ImVector<ImDrawList*>& out)
 {
     if (w->DrawList->CmdBuffer.Size > 0 && w->DrawList->IdxBuffer.Size > 0)
+    {
         out.push_back(w->DrawList->CloneOutput());
+    }
     for (ImGuiWindow* child : w->DC.ChildWindows)
+    {
         if (child->WasActive && !child->Hidden)
+        {
             CopyLastFrame(child, out);
+        }
+    }
 }
 
 void AddGhost(ImGuiWindow* w)
@@ -99,9 +108,13 @@ void AddGhost(ImGuiWindow* w)
     ghost.center = ImVec2(w->Pos.x + w->Size.x * 0.5f, w->Pos.y + w->Size.y * 0.5f);
     CopyLastFrame(w, ghost.frozen);
     if (ghost.frozen.empty())
+    {
         return;
+    }
     for (ImDrawList* l : ghost.frozen)
+    {
         ghost.shown.push_back(l->CloneOutput());
+    }
     Motion::Set(ghost.key, 1.0f);
     s_Ghosts.push_back(std::move(ghost));
 }
@@ -123,7 +136,9 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
     ImGuiContext& g = *ctx;
     const bool still = Motion::ReduceMotion() || ++s_Frame <= kSettleFrames;
     if (still)
+    {
         ClearGhosts();
+    }
 
     // Reused every frame, so a frame allocates nothing once they have grown.
     std::unordered_set<ImGuiID>& shown = s_Shown;
@@ -135,14 +150,20 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
     for (ImGuiWindow* w : g.Windows)
     {
         if (!IsPanel(w))
+        {
             continue;
+        }
         if (IsShown(w))
         {
             shown.insert(w->ID);
             if (!w->DockIsActive)
+            {
                 floating.insert(w->ID);
+            }
             if (!s_ShownLast.count(w->ID))
+            {
                 appeared.push_back(w);
+            }
         }
         else if (!still && !w->Active && s_FloatingLast.count(w->ID))
         {
@@ -155,21 +176,29 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
     // Fresh panels start from nothing, unless a whole layout just appeared.
     const bool animate = !still && static_cast<int>(appeared.size()) < kLayoutChange;
     for (ImGuiWindow* w : appeared)
+    {
         Motion::Set(OpenKey(w->ID), animate ? 0.0f : 1.0f);
+    }
     if (still)
+    {
         return;
+    }
 
     std::vector<Opening>& opening = s_Opening;
     opening.clear();
     for (ImGuiWindow* w : g.Windows)
     {
         if (!IsPanel(w) || !IsShown(w))
+        {
             continue;
+        }
         // Docked content only fades, quickly: the dock around it does not move.
         const bool docked = w->DockIsActive;
         const float t = Motion::To(OpenKey(w->ID), 1.0f, docked ? Motion::Fast : Motion::Normal);
         if (t >= 1.0f)
+        {
             continue;
+        }
         const float eased = Motion::EaseOut(t);
         Opening o;
         o.rootId = w->ID;
@@ -179,19 +208,25 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
         opening.push_back(o);
     }
     if (opening.empty())
+    {
         return;
+    }
 
     // The panel and every child window inside it.
     for (ImGuiWindow* w : g.Windows)
     {
         if (!w->Active || w->Hidden || !w->RootWindow)
+        {
             continue;
+        }
         for (const Opening& o : opening)
+        {
             if (o.rootId == w->RootWindow->ID)
             {
                 DrawListFx::Transform(w->DrawList, o.alpha, o.center, o.scale, 0.0f);
                 break;
             }
+        }
     }
 }
 

@@ -44,7 +44,9 @@ static std::string FindComponentSourceFile(const std::string& dir, const std::st
 {
     namespace fs = std::filesystem;
     if (dir.empty() || !fs::exists(dir))
+    {
         return "";
+    }
 
     // Look for ComponentName.cpp first, then .h
     for (const char* ext : { ".cpp", ".h" })
@@ -55,9 +57,13 @@ static std::string FindComponentSourceFile(const std::string& dir, const std::st
             for (const auto& entry : fs::recursive_directory_iterator(dir))
             {
                 if (!entry.is_regular_file())
+                {
                     continue;
+                }
                 if (entry.path().filename().string() == filename)
+                {
                     return entry.path().string();
+                }
             }
         }
         catch (const fs::filesystem_error&)
@@ -71,14 +77,18 @@ bool ComponentManager::IsEditableComponent(EditorApp* app, uint32_t typeId)
 {
     // Check if registered as a plugin component (project plugins)
     if (Deki::ComponentRegistry::Instance().IsPluginComponent(typeId))
+    {
         return true;
+    }
 
     // Check if it belongs to any loaded package. This runs per component per
     // frame and used to walk every package's type list each time; the answer
     // is cached per type and dropped when the set of loaded packages changes.
     auto* packageLoader = app->GetPackageLoader();
     if (!packageLoader)
+    {
         return false;
+    }
     const auto& packages = packageLoader->GetLoadedPackages();
 
     static std::unordered_map<uint32_t, bool> s_Cache;
@@ -92,7 +102,9 @@ bool ComponentManager::IsEditableComponent(EditorApp* app, uint32_t typeId)
     }
     auto it = s_Cache.find(typeId);
     if (it != s_Cache.end())
+    {
         return it->second;
+    }
 
     bool editable = false;
     for (const auto& pkg : packages)
@@ -105,7 +117,10 @@ bool ComponentManager::IsEditableComponent(EditorApp* app, uint32_t typeId)
                 break;
             }
         }
-        if (editable) break;
+        if (editable)
+        {
+            break;
+        }
     }
     s_Cache[typeId] = editable;
     return editable;
@@ -114,7 +129,9 @@ bool ComponentManager::IsEditableComponent(EditorApp* app, uint32_t typeId)
 void ComponentManager::OpenComponentSourceFile(EditorApp* app, const Deki::ComponentMeta* meta)
 {
     if (!meta || !meta->name)
+    {
         return;
+    }
 
     std::string componentName = meta->name;
     std::string sourcePath;
@@ -136,7 +153,9 @@ void ComponentManager::OpenComponentSourceFile(EditorApp* app, const Deki::Compo
                 }
             }
             if (!sourcePath.empty())
+            {
                 break;
+            }
         }
     }
 
@@ -145,11 +164,15 @@ void ComponentManager::OpenComponentSourceFile(EditorApp* app, const Deki::Compo
     {
         auto* project = app->GetProject();
         if (project)
+        {
             sourcePath = FindComponentSourceFile(project->GetSrcPath(), componentName);
+        }
     }
 
     if (sourcePath.empty())
+    {
         return;
+    }
 
     OpenInCodeEditor(sourcePath);
 }
@@ -157,11 +180,15 @@ void ComponentManager::OpenComponentSourceFile(EditorApp* app, const Deki::Compo
 bool ComponentManager::IsProtectedComponent(Deki::Object* obj) const
 {
     if (!obj || obj->GetName() != "Setup" || obj->GetParent() != nullptr)
+    {
         return false;
+    }
 
     auto* project = m_App->GetProject();
     if (!project)
+    {
         return false;
+    }
 
     const std::string& absPath = m_App->GetCurrentScenePath();
     std::string platformsDir = GetPlatformsDirectory(project->GetPath());
@@ -174,16 +201,24 @@ bool ComponentManager::IsProtectedComponent(Deki::Object* obj) const
 bool ComponentManager::IsBootScene() const
 {
     auto* project = m_App->GetProject();
-    if (!project) return false;
+    if (!project)
+    {
+        return false;
+    }
 
     const std::string& currentPath = m_App->GetCurrentScenePath();
-    if (currentPath.empty()) return false;
+    if (currentPath.empty())
+    {
+        return false;
+    }
 
     // Get active platform's boot scene path
-    const PlatformConfig* config =
-        PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId());
+    const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId());
 
-    if (!config || config->bootScene.empty()) return false;
+    if (!config || config->bootScene.empty())
+    {
+        return false;
+    }
 
     // Compare paths (normalize for comparison)
     namespace fs = std::filesystem;
@@ -197,10 +232,16 @@ bool ComponentManager::IsBootScene() const
 bool ComponentManager::IsPlatformScene() const
 {
     auto* project = m_App->GetProject();
-    if (!project) return false;
+    if (!project)
+    {
+        return false;
+    }
 
     const std::string& absPath = m_App->GetCurrentScenePath();
-    if (absPath.empty()) return false;
+    if (absPath.empty())
+    {
+        return false;
+    }
 
     std::string platformsDir = GetPlatformsDirectory(project->GetPath());
     auto normPath = std::filesystem::path(absPath).lexically_normal().generic_string();
@@ -229,7 +270,9 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
     {
         ImGuiStorage* storage = ImGui::GetStateStorage();
         for (const auto& [key, state] : m_PreFilterOpen)
+        {
             storage->SetInt(static_cast<ImGuiID>(state.headerId), state.open ? 1 : 0);
+        }
         m_PreFilterOpen.clear();
     }
     m_FilterWasActive = filtering;
@@ -255,7 +298,10 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             // Missing component header: schematic font but red emphasis to
             // signal the error state.
             ImFont* f = g_DisplaySmallFont;
-            if (f) ImGui::PushFont(f);
+            if (f)
+            {
+                ImGui::PushFont(f);
+            }
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2.0f, 8.0f));
             ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.5f, 0.1f, 0.1f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
@@ -267,7 +313,10 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
 
             ImGui::PopStyleColor(4);
             ImGui::PopStyleVar();
-            if (f) ImGui::PopFont();
+            if (f)
+            {
+                ImGui::PopFont();
+            }
 
             // Context menu - only allow remove
             PushContextMenuPopupStyle();
@@ -276,8 +325,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                 PushContextMenuItemStyle();
                 if (ImGui::MenuItem("Remove Component"))
                 {
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<RemoveComponentCommand>(obj, comp));
+                    CommandHistory::Instance().Execute(std::make_unique<RemoveComponentCommand>(obj, comp));
                     ImGui::PopStyleVar();  // context menu ItemSpacing
                     ImGui::EndPopup();
                     ImGui::PopID();
@@ -295,13 +343,12 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                 ImGui::TextColored(DekiEditor::Palette::Red, "Component type not found");
                 if (!missing->m_JsonProperties.empty())
                 {
-                    ImGui::TextDisabled("Data preserved (%u properties)",
-                                        (unsigned)missing->m_JsonProperties.size());
+                    ImGui::TextDisabled("Data preserved (%u properties)", (unsigned)missing->m_JsonProperties.size());
                 }
                 else if (!missing->m_RawData.empty())
                 {
-                    ImGui::TextDisabled("Data preserved (%u bytes, %u fields)",
-                                        (unsigned)missing->m_RawData.size(), missing->m_DataMapSize);
+                    ImGui::TextDisabled("Data preserved (%u bytes, %u fields)", (unsigned)missing->m_RawData.size(),
+                                        missing->m_DataMapSize);
                 }
                 else
                 {
@@ -328,36 +375,37 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         // row: a header is a visible answer to the query even collapsed, and
         // even on a component that has no properties to list under it.
         if (InspectorUtils::PropertyFilterActive())
+        {
             InspectorUtils::NoteFilterHit();
+        }
 
         const char* compDisplayName = meta ? meta->GetDisplayName() : "Unknown Component";
         // A component that survived the filter has something to show, so it is
         // shown: forced open for as long as the filter lasts. Its own state was
         // recorded the first frame it was seen (see below) and is put back when
         // the filter clears.
-        const uint64_t stateKey =
-            (static_cast<uint64_t>(comp->GetType()) << 32) | static_cast<uint32_t>(i);
+        const uint64_t stateKey = (static_cast<uint64_t>(comp->GetType()) << 32) | static_cast<uint32_t>(i);
         const bool stateKnown = m_PreFilterOpen.find(stateKey) != m_PreFilterOpen.end();
         if (filtering && stateKnown)
+        {
             ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        }
 
         // Section, not a bare header: `open` stays true while the component is
         // closing, which is when its rows still have to be submitted for the
         // slide-up. Every path out of this iteration that took the flag must
         // close the section - including the removal below, which returns.
         ImGuiID headerId = 0;
-        const bool open = DekiEditor::SchematicSectionBegin(compDisplayName,
-                                                            ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap, &headerId);
+        const bool open = DekiEditor::SchematicSectionBegin(
+            compDisplayName, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap, &headerId);
 
         // First frame this component is seen under a filter: it was NOT forced
         // above, so what ImGui holds right now is the user's own state. Record
         // it, and force from the next frame on.
         if (filtering && !stateKnown && headerId != 0)
         {
-            m_PreFilterOpen[stateKey] = PreFilterState{
-                static_cast<unsigned int>(headerId),
-                ImGui::GetStateStorage()->GetInt(headerId, 1) != 0
-            };
+            m_PreFilterOpen[stateKey] = PreFilterState{ static_cast<unsigned int>(headerId),
+                                                        ImGui::GetStateStorage()->GetInt(headerId, 1) != 0 };
         }
         ImGui::OpenPopupOnItemClick("ComponentContextMenu", ImGuiPopupFlags_MouseButtonRight);
 
@@ -411,8 +459,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                     if (!targetComponents.empty())
                     {
                         CommandHistory::Instance().Execute(
-                            std::make_unique<PasteComponentValuesCommand>(
-                                targetComponents, compDataOpt.value()));
+                            std::make_unique<PasteComponentValuesCommand>(targetComponents, compDataOpt.value()));
                     }
                 }
             }
@@ -443,14 +490,15 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                             }
                         }
                         if (canAdd)
+                        {
                             targetObjects.push_back(selObj);
+                        }
                     }
 
                     if (!targetObjects.empty())
                     {
                         CommandHistory::Instance().Execute(
-                            std::make_unique<PasteComponentAsNewCommand>(
-                                targetObjects, compDataOpt.value()));
+                            std::make_unique<PasteComponentAsNewCommand>(targetObjects, compDataOpt.value()));
                     }
                 }
             }
@@ -460,15 +508,16 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             bool protectRemove = (typeName == "PlatformSetupComponent" && IsProtectedComponent(obj));
             if (ImGui::MenuItem("Remove Component", nullptr, false, !protectRemove))
             {
-                CommandHistory::Instance().Execute(
-                    std::make_unique<RemoveComponentCommand>(obj, comp));
+                CommandHistory::Instance().Execute(std::make_unique<RemoveComponentCommand>(obj, comp));
                 ImGui::PopStyleVar();  // context menu ItemSpacing
                 ImGui::EndPopup();
                 ImGui::PopID();
                 componentRemoved = true;
                 ImGui::PopStyleVar();  // context menu WindowPadding
                 if (open)
+                {
                     DekiEditor::SchematicSectionEnd();
+                }
                 return componentRemoved;
             }
             ImGui::PopStyleVar();  // context menu ItemSpacing
@@ -484,8 +533,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                 // A filter that named this component shows all of it. Set around
                 // the rows and cleared straight after, so the next component is
                 // judged on its own properties again.
-                InspectorUtils::SetComponentNameMatched(
-                    InspectorUtils::ComponentNameMatchesFilter(meta));
+                InspectorUtils::SetComponentNameMatched(InspectorUtils::ComponentNameMatchesFilter(meta));
                 {
                     // Edits made in these rows record whose they are, so the
                     // undo history can drop them when it is freed.
@@ -548,12 +596,15 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         // height would not fit. Resolved to a TOP edge here rather than left to
         // a pivot, so the same clamp can apply to both cases.
         const bool fitsBelow = m_AddPopupAnchor.bottom + popupMaxH + margin <= m_AddPopupAnchor.workBottom;
-        float top = fitsBelow ? m_AddPopupAnchor.bottom + gap
-                              : m_AddPopupAnchor.top - gap - popupMaxH;
+        float top = fitsBelow ? m_AddPopupAnchor.bottom + gap : m_AddPopupAnchor.top - gap - popupMaxH;
         if (top + popupMaxH > m_AddPopupAnchor.workBottom - margin)
+        {
             top = m_AddPopupAnchor.workBottom - margin - popupMaxH;
+        }
         if (top < m_AddPopupAnchor.workTop + margin)
+        {
             top = m_AddPopupAnchor.workTop + margin;
+        }
 
         // Horizontal: the picker is wider than the panel it opens from, so left
         // aligning it with the button pushes it past the right edge - and a
@@ -561,9 +612,13 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         // which is how it lands off the desktop.
         float left = m_AddPopupAnchor.x;
         if (left + popupW > m_AddPopupAnchor.workRight - margin)
+        {
             left = m_AddPopupAnchor.workRight - margin - popupW;
+        }
         if (left < m_AddPopupAnchor.workLeft + margin)
+        {
             left = m_AddPopupAnchor.workLeft + margin;
+        }
 
         // Always, not Appearing: re-stated every frame the popup is open, so
         // even a frame that got placed before this ran is corrected on the next
@@ -575,8 +630,7 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
     // No scrollbar on the popup itself: the list inside is the one thing meant
     // to scroll, and a second scroller on the window that contains it is both
     // confusing and a sign the chrome estimate above is off.
-    if (ImGui::BeginPopup("AddComponentPopup",
-                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    if (ImGui::BeginPopup("AddComponentPopup", ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         auto& registry = Deki::ComponentRegistry::Instance();
 
@@ -594,21 +648,41 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         m_AddCompTips.clear();
         for (const auto& category : registry.GetCategories())
         {
-            if (category == "Settings") continue;
+            if (category == "Settings")
+            {
+                continue;
+            }
             for (const auto* meta : registry.GetComponentsByCategory(category))
             {
-                if (meta->isAbstract) continue;
-                if (meta->bootSceneOnly && !IsBootScene()) continue;
-                if (meta->platformSceneOnly && !IsPlatformScene()) continue;
+                if (meta->isAbstract)
+                {
+                    continue;
+                }
+                if (meta->bootSceneOnly && !IsBootScene())
+                {
+                    continue;
+                }
+                if (meta->platformSceneOnly && !IsPlatformScene())
+                {
+                    continue;
+                }
                 m_AddCompMetas.push_back(meta);
             }
         }
 
         auto isTaken = [&](const Deki::ComponentMeta* meta)
         {
-            if (!meta->isUnique) return false;
+            if (!meta->isUnique)
+            {
+                return false;
+            }
             for (auto* comp : obj->GetComponents())
-                if (comp->GetType() == meta->typeId) return true;
+            {
+                if (comp->GetType() == meta->typeId)
+                {
+                    return true;
+                }
+            }
             return false;
         };
 
@@ -626,8 +700,7 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
             if (item.disabled)
             {
                 char tip[160];
-                std::snprintf(tip, sizeof(tip), "Only one %s allowed per object",
-                              item.label ? item.label : "");
+                std::snprintf(tip, sizeof(tip), "Only one %s allowed per object", item.label ? item.label : "");
                 m_AddCompTips.push_back(tip);
                 item.disabledTip = m_AddCompTips.back().c_str();
             }
@@ -635,10 +708,8 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         }
 
         const int chosen = DekiEditor::SchematicPicker(
-            "##addcomp", "Add Component",
-            m_AddCompItems.data(), static_cast<int>(m_AddCompItems.size()),
-            m_PopupJustOpened, listMaxH, ICON_TI_PUZZLE,
-            "Search components", "No components available");
+            "##addcomp", "Add Component", m_AddCompItems.data(), static_cast<int>(m_AddCompItems.size()),
+            m_PopupJustOpened, listMaxH, ICON_TI_PUZZLE, "Search components", "No components available");
         m_PopupJustOpened = false;
 
         if (chosen >= 0 && chosen < static_cast<int>(m_AddCompMetas.size()))

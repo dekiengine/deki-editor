@@ -54,7 +54,10 @@ std::string EditorPaths::GetUserHomeDir()
 std::string EditorPaths::GetEditorDataDir()
 {
     std::string home = GetUserHomeDir();
-    if (home.empty()) return "";
+    if (home.empty())
+    {
+        return "";
+    }
 
 #ifdef _WIN32
     return home + "/.deki-editor";
@@ -69,11 +72,15 @@ std::string EditorPaths::GetEditorDataDir()
     const std::string legacy = home + "/.deki-editor";
     std::error_code ec;
     if (std::filesystem::exists(legacy, ec))
+    {
         return legacy;
+    }
 
     const char* xdg = getenv("XDG_DATA_HOME");
     if (xdg && xdg[0] != '\0')
+    {
         return std::string(xdg) + "/deki-editor";
+    }
     return home + "/.local/share/deki-editor";
 #endif
 }
@@ -81,21 +88,30 @@ std::string EditorPaths::GetEditorDataDir()
 std::string EditorPaths::GetToolchainsDir()
 {
     std::string dataDir = GetEditorDataDir();
-    if (dataDir.empty()) return "";
+    if (dataDir.empty())
+    {
+        return "";
+    }
     return dataDir + "/toolchains";
 }
 
 std::string EditorPaths::GetBoardPacksDir()
 {
     std::string dataDir = GetEditorDataDir();
-    if (dataDir.empty()) return "";
+    if (dataDir.empty())
+    {
+        return "";
+    }
     return dataDir + "/board-packs";
 }
 
 std::string EditorPaths::GetBuildersDir()
 {
     std::string dataDir = GetEditorDataDir();
-    if (dataDir.empty()) return "";
+    if (dataDir.empty())
+    {
+        return "";
+    }
     return dataDir + "/builders";
 }
 

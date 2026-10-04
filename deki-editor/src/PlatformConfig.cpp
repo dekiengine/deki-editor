@@ -83,7 +83,9 @@ static const char* kDefaultFamily = "custom";
 static json ParseOptions(const std::string& text)
 {
     if (text.empty())
+    {
         return json::object();
+    }
     json parsed = json::parse(text, nullptr, false);
     return parsed.is_object() ? parsed : json::object();
 }
@@ -115,9 +117,15 @@ std::vector<std::string> PlatformConfig::OptionList(const std::string& key) cons
     const json o = ParseOptions(frameworkOptions);
     const auto it = o.find(key);
     if (it != o.end() && it->is_array())
+    {
         for (const auto& v : *it)
+        {
             if (v.is_string())
+            {
                 out.push_back(v.get<std::string>());
+            }
+        }
+    }
     return out;
 }
 
@@ -156,7 +164,9 @@ std::set<std::string> PlatformConfig::Capabilities() const
     // package tied to one toolchain requires "framework:espidf" and every
     // ESP-IDF board satisfies it without listing anything.
     if (!framework.empty())
+    {
         caps.insert("framework:" + framework);
+    }
     caps.insert("family:" + (family.empty() ? std::string(kDefaultFamily) : family));
 
     // Memory regions are capabilities named after the region, so a package
@@ -177,7 +187,9 @@ std::set<std::string> PlatformConfig::Capabilities() const
     // `provides` ("memory:rtc"), because only that board knows it has them.
     caps.insert("memory:internal");
     if (externalMemorySize > 0)
+    {
         caps.insert("memory:external");
+    }
 
     return caps;
 }
@@ -188,13 +200,17 @@ std::set<std::string> PlatformConfig::Capabilities() const
 bool IsValidCapabilityName(const std::string& name)
 {
     if (name.empty() || name.size() > 64)
+    {
         return false;
+    }
     for (unsigned char c : name)
     {
-        const bool ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
-                        c == '.' || c == '-' || c == ':' || c == '_';
+        const bool ok =
+            (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == ':' || c == '_';
         if (!ok)
+        {
             return false;
+        }
     }
     return true;
 }
@@ -203,7 +219,9 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 {
     config.id = j.value("id", "");
     if (config.id.empty())
+    {
         return false;
+    }
     // The id names the platform's folder (deleted when the platform is
     // restored) and its build directory: a project someone sent you must not
     // be able to point those anywhere with "../" or a drive letter.
@@ -224,8 +242,9 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     // table of three chip names; no platform file has carried one since.)
     config.family = j.value("family", kDefaultFamily);
     if (config.family.empty())
+    {
         config.family = kDefaultFamily;
-
+    }
 
     // No default, and no guess. The framework is what chooses a build backend;
     // a platform that does not say resolves to no backend, and the build says
@@ -251,20 +270,29 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     // failure much further downstream.
     {
         static const std::set<std::string> kOwnKeys = {
-            "id",          "displayName", "family",   "framework", "frameworkOptions",  "externalMemorySize",
-            "psramSize",   "screenWidth", "screenHeight", "colorFormat", "defines",     "cFlags",
-            "cxxFlags",    "linkFlags",   "provides", "requiresPackages", "bootScene", "assetStorage" };
+            "id",        "displayName", "family",       "framework",        "frameworkOptions", "externalMemorySize",
+            "psramSize", "screenWidth", "screenHeight", "colorFormat",      "defines",          "cFlags",
+            "cxxFlags",  "linkFlags",   "provides",     "requiresPackages", "bootScene",        "assetStorage"
+        };
 
         json options = json::object();
         if (j.contains("frameworkOptions") && j["frameworkOptions"].is_object())
+        {
             options = j["frameworkOptions"];
+        }
 
         for (auto it = j.begin(); it != j.end(); ++it)
+        {
             if (kOwnKeys.count(it.key()) == 0 && !options.contains(it.key()))
+            {
                 options[it.key()] = it.value();
+            }
+        }
 
         if (!options.empty())
+        {
             config.frameworkOptions = options.dump();
+        }
     }
 
     // "psramSize" is what this key was called when the platform type
@@ -277,12 +305,20 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.assetStorage = j.value("assetStorage", "internal");
 
     if (j.contains("requiresPackages") && j["requiresPackages"].is_array())
+    {
         for (const auto& id : j["requiresPackages"])
+        {
             if (id.is_string())
+            {
                 config.requiresPackages.push_back(id.get<std::string>());
+            }
+        }
+    }
 
     if (j.contains("provides") && j["provides"].is_array())
+    {
         for (const auto& cap : j["provides"])
+        {
             if (cap.is_string())
             {
                 std::string name = cap.get<std::string>();
@@ -292,18 +328,25 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
                 // package mysteriously refused on a board that has the
                 // hardware. "WiFi" and "wifi " are the two that bite.
                 if (!IsValidCapabilityName(name))
+                {
                     DEKI_LOG_WARNING("Platform '%s': capability '%s' is not a valid name "
                                      "(lowercase letters, digits and . - : _ only), so no "
                                      "package requirement can match it",
                                      config.id.c_str(), name.c_str());
+                }
                 config.provides.push_back(std::move(name));
             }
+        }
+    }
 
     if (j.contains("defines") && j["defines"].is_array())
+    {
         for (const auto& def : j["defines"])
         {
             if (!def.is_string())
+            {
                 continue;
+            }
             const std::string d = def.get<std::string>();
 
             // Which packages and features a build has is the resolver's answer
@@ -321,18 +364,31 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
             }
             config.defines.push_back(d);
         }
+    }
 
     if (j.contains("cxxFlags") && j["cxxFlags"].is_array())
+    {
         for (const auto& flag : j["cxxFlags"])
+        {
             config.cxxFlags.push_back(flag.get<std::string>());
+        }
+    }
 
     if (j.contains("cFlags") && j["cFlags"].is_array())
+    {
         for (const auto& flag : j["cFlags"])
+        {
             config.cFlags.push_back(flag.get<std::string>());
+        }
+    }
 
     if (j.contains("linkFlags") && j["linkFlags"].is_array())
+    {
         for (const auto& flag : j["linkFlags"])
+        {
             config.linkFlags.push_back(flag.get<std::string>());
+        }
+    }
 
     config.bootScene = j.value("bootScene", "");
     return true;
@@ -342,7 +398,9 @@ bool PlatformFromJson(const std::string& text, PlatformConfig& config)
 {
     const json j = json::parse(text, nullptr, false);
     if (!j.is_object())
+    {
         return false;
+    }
     config = PlatformConfig();
     return LoadPlatformFromJson(j, config);
 }
@@ -362,26 +420,64 @@ std::string PlatformToJson(const PlatformConfig& config)
     {
         json options = json::parse(config.frameworkOptions, nullptr, false);
         if (options.is_object() && !options.empty())
+        {
             j["frameworkOptions"] = options;
+        }
     }
 
     j["framework"] = config.framework;
 
-    if (config.externalMemorySize > 0) j["externalMemorySize"] = config.externalMemorySize;
+    if (config.externalMemorySize > 0)
+    {
+        j["externalMemorySize"] = config.externalMemorySize;
+    }
 
-    if (config.screenWidth > 0) j["screenWidth"] = config.screenWidth;
-    if (config.screenHeight > 0) j["screenHeight"] = config.screenHeight;
-    if (!config.colorFormat.empty()) j["colorFormat"] = config.colorFormat;
+    if (config.screenWidth > 0)
+    {
+        j["screenWidth"] = config.screenWidth;
+    }
+    if (config.screenHeight > 0)
+    {
+        j["screenHeight"] = config.screenHeight;
+    }
+    if (!config.colorFormat.empty())
+    {
+        j["colorFormat"] = config.colorFormat;
+    }
 
-    if (!config.provides.empty()) j["provides"] = config.provides;
-    if (!config.requiresPackages.empty()) j["requiresPackages"] = config.requiresPackages;
-    if (!config.defines.empty()) j["defines"] = config.defines;
-    if (!config.cFlags.empty()) j["cFlags"] = config.cFlags;
-    if (!config.cxxFlags.empty()) j["cxxFlags"] = config.cxxFlags;
-    if (!config.linkFlags.empty()) j["linkFlags"] = config.linkFlags;
+    if (!config.provides.empty())
+    {
+        j["provides"] = config.provides;
+    }
+    if (!config.requiresPackages.empty())
+    {
+        j["requiresPackages"] = config.requiresPackages;
+    }
+    if (!config.defines.empty())
+    {
+        j["defines"] = config.defines;
+    }
+    if (!config.cFlags.empty())
+    {
+        j["cFlags"] = config.cFlags;
+    }
+    if (!config.cxxFlags.empty())
+    {
+        j["cxxFlags"] = config.cxxFlags;
+    }
+    if (!config.linkFlags.empty())
+    {
+        j["linkFlags"] = config.linkFlags;
+    }
 
-    if (!config.bootScene.empty()) j["bootScene"] = config.bootScene;
-    if (config.assetStorage != "internal") j["assetStorage"] = config.assetStorage;
+    if (!config.bootScene.empty())
+    {
+        j["bootScene"] = config.bootScene;
+    }
+    if (config.assetStorage != "internal")
+    {
+        j["assetStorage"] = config.assetStorage;
+    }
 
     return j.dump(2);
 }
@@ -389,18 +485,24 @@ std::string PlatformToJson(const PlatformConfig& config)
 bool PlatformRegistry::LoadPlatformsFromDirectory(const std::string& path)
 {
     if (!fs::exists(path) || !fs::is_directory(path))
+    {
         return false;
+    }
 
     bool loaded = false;
     for (const auto& entry : fs::directory_iterator(path))
     {
         if (!entry.is_directory())
+        {
             continue;
+        }
 
         // Each platform lives in its own subdirectory: <id>/<id>.json
         fs::path jsonFile = entry.path() / (entry.path().filename().string() + ".json");
         if (!fs::exists(jsonFile))
+        {
             continue;
+        }
 
         try
         {
@@ -430,7 +532,9 @@ bool PlatformRegistry::LoadPlatformsFromBoardPacks()
     std::string boardPacksDir = DekiEditor::EditorPaths::GetBoardPacksDir();
 
     if (boardPacksDir.empty() || !fs::exists(boardPacksDir))
+    {
         return false;
+    }
 
     bool loaded = false;
     try
@@ -438,15 +542,21 @@ bool PlatformRegistry::LoadPlatformsFromBoardPacks()
         for (const auto& packEntry : fs::directory_iterator(boardPacksDir))
         {
             if (!packEntry.is_directory())
+            {
                 continue;
+            }
 
             // Each board pack directory contains platform JSON files
             for (const auto& platformFile : fs::directory_iterator(packEntry.path()))
             {
                 if (platformFile.path().extension() != ".json")
+                {
                     continue;
+                }
                 if (platformFile.path().filename() == "pack.json")
+                {
                     continue;
+                }
 
                 try
                 {

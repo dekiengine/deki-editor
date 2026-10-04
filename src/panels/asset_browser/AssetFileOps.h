@@ -30,16 +30,14 @@ namespace AssetFileOps
 ///
 /// Returns false when the asset itself could not be moved, in which case
 /// nothing was changed.
-bool MoveWithData(const std::string& srcPath, const std::string& destPath,
-                  AssetPipeline* pipeline = nullptr,
+bool MoveWithData(const std::string& srcPath, const std::string& destPath, AssetPipeline* pipeline = nullptr,
                   const std::string& projectRoot = {});
 
 /// Rename in place, keeping the file's extension (directories keep just the
 /// name). Refuses rather than overwrites when the destination already exists.
 ///
 /// Returns false if the rename did not happen.
-bool RenameWithData(const std::string& oldPath, const std::string& newName,
-                    AssetPipeline* pipeline = nullptr,
+bool RenameWithData(const std::string& oldPath, const std::string& newName, AssetPipeline* pipeline = nullptr,
                     const std::string& projectRoot = {});
 
 /// Give a freshly copied asset its own GUID.

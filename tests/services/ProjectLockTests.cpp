@@ -23,8 +23,8 @@ struct TempProject
 
     TempProject()
     {
-        root = fs::temp_directory_path() /
-               ("deki-projectlock-test-" + std::to_string(reinterpret_cast<uintptr_t>(this)));
+        root =
+            fs::temp_directory_path() / ("deki-projectlock-test-" + std::to_string(reinterpret_cast<uintptr_t>(this)));
         fs::create_directories(root);
     }
     ~TempProject()

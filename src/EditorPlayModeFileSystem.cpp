@@ -21,7 +21,9 @@ EditorPlayModeFileSystem::~EditorPlayModeFileSystem()
 bool EditorPlayModeFileSystem::Initialize()
 {
     if (m_Initialized)
+    {
         return true;
+    }
 
     m_Initialized = true;
     return true;
@@ -35,7 +37,10 @@ void EditorPlayModeFileSystem::Shutdown()
 
 std::string EditorPlayModeFileSystem::ResolvePath(const char* path)
 {
-    if (!path) return "";
+    if (!path)
+    {
+        return "";
+    }
 
     std::string pathStr(path);
 
@@ -65,25 +70,20 @@ std::string EditorPlayModeFileSystem::ResolvePath(const char* path)
 
 Deki::IFileSystem::FileHandle EditorPlayModeFileSystem::OpenFile(const char* path, OpenMode mode)
 {
-    if (!m_Initialized || !path) return nullptr;
+    if (!m_Initialized || !path)
+    {
+        return nullptr;
+    }
 
     std::string realPath = ResolvePath(path);
     const char* modeStr = "";
 
     switch (mode)
     {
-        case OpenMode::READ_BINARY:
-            modeStr = "rb";
-            break;
-        case OpenMode::WRITE_BINARY:
-            modeStr = "wb";
-            break;
-        case OpenMode::READ_TEXT:
-            modeStr = "r";
-            break;
-        case OpenMode::WRITE_TEXT:
-            modeStr = "w";
-            break;
+        case OpenMode::READ_BINARY: modeStr = "rb"; break;
+        case OpenMode::WRITE_BINARY: modeStr = "wb"; break;
+        case OpenMode::READ_TEXT: modeStr = "r"; break;
+        case OpenMode::WRITE_TEXT: modeStr = "w"; break;
     }
 
     FILE* file = fopen(realPath.c_str(), modeStr);
@@ -100,32 +100,35 @@ void EditorPlayModeFileSystem::CloseFile(FileHandle handle)
 
 size_t EditorPlayModeFileSystem::ReadFile(FileHandle handle, void* buffer, size_t size)
 {
-    if (!handle || !buffer) return 0;
+    if (!handle || !buffer)
+    {
+        return 0;
+    }
     return fread(buffer, 1, size, static_cast<FILE*>(handle));
 }
 
 size_t EditorPlayModeFileSystem::WriteFile(FileHandle handle, const void* buffer, size_t size)
 {
-    if (!handle || !buffer) return 0;
+    if (!handle || !buffer)
+    {
+        return 0;
+    }
     return fwrite(buffer, 1, size, static_cast<FILE*>(handle));
 }
 
 long EditorPlayModeFileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin)
 {
-    if (!handle) return -1;
+    if (!handle)
+    {
+        return -1;
+    }
 
     int whence = SEEK_SET;
     switch (origin)
     {
-        case SeekOrigin::BEGIN:
-            whence = SEEK_SET;
-            break;
-        case SeekOrigin::CURRENT:
-            whence = SEEK_CUR;
-            break;
-        case SeekOrigin::END:
-            whence = SEEK_END;
-            break;
+        case SeekOrigin::BEGIN: whence = SEEK_SET; break;
+        case SeekOrigin::CURRENT: whence = SEEK_CUR; break;
+        case SeekOrigin::END: whence = SEEK_END; break;
     }
 
     if (fseek(static_cast<FILE*>(handle), offset, whence) == 0)
@@ -137,13 +140,19 @@ long EditorPlayModeFileSystem::SeekFile(FileHandle handle, long offset, SeekOrig
 
 long EditorPlayModeFileSystem::TellFile(FileHandle handle)
 {
-    if (!handle) return -1;
+    if (!handle)
+    {
+        return -1;
+    }
     return ftell(static_cast<FILE*>(handle));
 }
 
 long EditorPlayModeFileSystem::GetFileSize(FileHandle handle)
 {
-    if (!handle) return -1;
+    if (!handle)
+    {
+        return -1;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     long currentPos = ftell(file);
@@ -163,7 +172,10 @@ long EditorPlayModeFileSystem::GetFileSize(FileHandle handle)
 
 bool EditorPlayModeFileSystem::FileExists(const char* path)
 {
-    if (!m_Initialized || !path) return false;
+    if (!m_Initialized || !path)
+    {
+        return false;
+    }
 
     std::string realPath = ResolvePath(path);
     return fs::exists(realPath);
@@ -171,10 +183,16 @@ bool EditorPlayModeFileSystem::FileExists(const char* path)
 
 bool EditorPlayModeFileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize)
 {
-    if (!virtualPath || !outBuffer || bufferSize == 0) return false;
+    if (!virtualPath || !outBuffer || bufferSize == 0)
+    {
+        return false;
+    }
 
     std::string converted = ResolvePath(virtualPath);
-    if (converted.length() >= bufferSize) return false;
+    if (converted.length() >= bufferSize)
+    {
+        return false;
+    }
 
     strcpy(outBuffer, converted.c_str());
     return true;

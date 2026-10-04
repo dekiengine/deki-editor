@@ -40,8 +40,8 @@ inline void TextCol(EditorUI& ui, const ImVec4& c, const char* s)
 // Pack a theme color into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
-    return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f),
-                          (uint8_t)(c.z * 255.0f), (uint8_t)(c.w * 255.0f));
+    return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
+                          (uint8_t)(c.w * 255.0f));
 }
 }  // namespace
 
@@ -60,7 +60,10 @@ void PackageManagerPanel::Draw()
     // fetch started from an open panel still completes.
     m_PackageManager->DrainMainThread();
 
-    if (!m_Open) return;
+    if (!m_Open)
+    {
+        return;
+    }
 
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(m_App->Dpi(820.0f), m_App->Dpi(520.0f), /*firstUseEver*/ true);
@@ -83,7 +86,9 @@ void PackageManagerPanel::Draw()
             m_RegistryFetchedOnce = true;
             FetchRegistryIndex(false);
             for (const auto& reg : m_CustomRegistries)
+            {
                 FetchCustomRegistry(reg, false);
+            }
         }
 
         const float pad = m_App->Dpi(12.0f);
@@ -105,9 +110,8 @@ void PackageManagerPanel::Draw()
             // borderless magnifier input on the left, the dropdown in a reserved
             // slot on the right, with a full-width hairline beneath both.
             float slotX = 0.0f, slotY = 0.0f, slotW = 0.0f, slotH = 0.0f;
-            DekiEditor::SearchField("##search", m_SearchFilter, sizeof(m_SearchFilter),
-                                    m_App->Dpi(140.0f), /*bottomBorder*/ true,
-                                    &slotX, &slotY, &slotW, &slotH);
+            DekiEditor::SearchField("##search", m_SearchFilter, sizeof(m_SearchFilter), m_App->Dpi(140.0f),
+                                    /*bottomBorder*/ true, &slotX, &slotY, &slotW, &slotH);
 
             // Fill the reserved slot with a flat, toolbar-styled dropdown (same
             // height/edges as the action toolbar's cells). Restore the cursor to
@@ -116,8 +120,7 @@ void PackageManagerPanel::Draw()
             ui.GetCursorScreenPos(&belowX, &belowY);
             ui.SetCursorScreenPos(slotX, slotY);
             ui.SetNextItemWidth(slotW);
-            DekiEditor::SchematicToolbarCombo("##filter", &m_FilterMode,
-                                              "All\0Installed\0Available\0", slotH,
+            DekiEditor::SchematicToolbarCombo("##filter", &m_FilterMode, "All\0Installed\0Available\0", slotH,
                                               /*leftDivider*/ true);
             ui.SetCursorScreenPos(belowX, belowY);
 
@@ -167,7 +170,9 @@ void PackageManagerPanel::Draw()
             const bool spHovered = ui.IsItemHovered();
             const bool spActive = ui.IsItemActive();
             if (spHovered || spActive)
+            {
                 ui.SetMouseCursor(EditorUI::MouseCursor::ResizeEW);
+            }
             if (spActive)
             {
                 float dx = 0.0f;
@@ -185,8 +190,7 @@ void PackageManagerPanel::Draw()
             const uint32_t spCol = spActive    ? Pack(Palette::Accent)
                                    : spHovered ? Pack(Palette::Line3)
                                                : Pack(Palette::Line2);
-            ui.DrawRectFilled(spLineX, spY, spLineX + m_App->Dpi(1.0f),
-                              spY + splitterHeight, spCol);
+            ui.DrawRectFilled(spLineX, spY, spLineX + m_App->Dpi(1.0f), spY + splitterHeight, spCol);
 
             ui.SameLine(0.0f, 0.0f);
 
@@ -228,8 +232,7 @@ void PackageManagerPanel::DrawToolbar()
         m_AddRegistryUrl[0] = '\0';
     }
     if (ui.ToolbarIconButton("##refreshPackages", ICON_TI_REFRESH,
-                             m_RegistryFetching ? "Checking for updates..." : "Refresh",
-                             !m_RegistryFetching))
+                             m_RegistryFetching ? "Checking for updates..." : "Refresh", !m_RegistryFetching))
     {
         m_NeedsRefresh = true;
         FetchRegistryIndex(true);
@@ -244,13 +247,17 @@ void PackageManagerPanel::DrawPackageList()
 
     IPackageInstaller* installer = nullptr;
     if (auto* project = m_App->GetProject())
+    {
         installer = m_PackageManager->GetInstallerForProject(project->GetPath());
+    }
 
     // Does a package belong to the named registry?
     auto isFromRegistry = [this](const PackageEntry& pkg, const std::string& registryName) -> bool
     {
         if (registryName == "Deki")
+        {
             return m_LatestVersions.count(pkg.id) > 0 || pkg.packageType == PackageType::DekiPackage;
+        }
         return pkg.registrySource == registryName;
     };
 
@@ -267,10 +274,18 @@ void PackageManagerPanel::DrawPackageList()
             std::transform(fullNameLower.begin(), fullNameLower.end(), fullNameLower.begin(), ::tolower);
             if (nameLower.find(searchLower) == std::string::npos &&
                 fullNameLower.find(searchLower) == std::string::npos)
+            {
                 return true;
+            }
         }
-        if (m_FilterMode == 1 && !pkg.isInstalled) return true;
-        if (m_FilterMode == 2 && pkg.isInstalled) return true;
+        if (m_FilterMode == 1 && !pkg.isInstalled)
+        {
+            return true;
+        }
+        if (m_FilterMode == 2 && pkg.isInstalled)
+        {
+            return true;
+        }
         return false;
     };
 
@@ -308,13 +323,19 @@ void PackageManagerPanel::DrawPackageList()
             else if (HasUpdateAvailable(pkg))
             {
                 subtitle = "Update available";
-                if (!pkg.installedVersion.empty()) subtitle += "  \xc2\xb7  v" + pkg.installedVersion;
+                if (!pkg.installedVersion.empty())
+                {
+                    subtitle += "  \xc2\xb7  v" + pkg.installedVersion;
+                }
                 subCol = Palette::Amber;
             }
             else
             {
                 subtitle = "Installed";
-                if (!pkg.installedVersion.empty()) subtitle += "  \xc2\xb7  v" + pkg.installedVersion;
+                if (!pkg.installedVersion.empty())
+                {
+                    subtitle += "  \xc2\xb7  v" + pkg.installedVersion;
+                }
                 subCol = Palette::Green;
             }
         }
@@ -324,10 +345,11 @@ void PackageManagerPanel::DrawPackageList()
         }
 
         std::string id = "##mod_" + std::to_string(cardSeq++);
-        if (ui.SelectableCard(id.c_str(), pkg.displayName.c_str(),
-                              subtitle.empty() ? nullptr : subtitle.c_str(),
+        if (ui.SelectableCard(id.c_str(), pkg.displayName.c_str(), subtitle.empty() ? nullptr : subtitle.c_str(),
                               isSelected, Pack(subCol)))
+        {
             OnPackageSelected(&pkg);
+        }
 
         // Tooltip listing the installed packages that depend on this one.
         if (ui.IsItemHovered())
@@ -335,20 +357,28 @@ void PackageManagerPanel::DrawPackageList()
             std::vector<std::string> parents;
             for (const auto& p : packages)
             {
-                if (!p.isInstalled) continue;
+                if (!p.isInstalled)
+                {
+                    continue;
+                }
                 for (const auto& req : p.requiredPackages)
+                {
                     if (req == pkg.id)
                     {
                         parents.push_back(!p.displayName.empty() ? p.displayName : p.id);
                         break;
                     }
+                }
             }
             if (!parents.empty())
             {
                 std::string tip = "Dependency of ";
                 for (size_t n = 0; n < parents.size(); ++n)
                 {
-                    if (n) tip += ", ";
+                    if (n)
+                    {
+                        tip += ", ";
+                    }
                     tip += parents[n];
                 }
                 ui.SetTooltip(tip.c_str());
@@ -363,18 +393,33 @@ void PackageManagerPanel::DrawPackageList()
         bool any = false;
         for (auto& pkg : packages)
         {
-            if (shouldSkip(pkg)) continue;
-            if (!matches(pkg)) continue;
+            if (shouldSkip(pkg))
+            {
+                continue;
+            }
+            if (!matches(pkg))
+            {
+                continue;
+            }
             any = true;
             break;
         }
-        if (!any) return;
+        if (!any)
+        {
+            return;
+        }
 
         groupHeader(label);
         for (auto& pkg : packages)
         {
-            if (shouldSkip(pkg)) continue;
-            if (!matches(pkg)) continue;
+            if (shouldSkip(pkg))
+            {
+                continue;
+            }
+            if (!matches(pkg))
+            {
+                continue;
+            }
             drawCard(pkg);
         }
     };
@@ -383,19 +428,30 @@ void PackageManagerPanel::DrawPackageList()
     // Custom-registry packages are DekiPackages too, so exclude any with a
     // registrySource here - they belong to (and are drawn once in) their own
     // registry group below, not the built-in one.
-    drawGroup("Deki Registry", [&](const PackageEntry& pkg)
-              { return isFromRegistry(pkg, "Deki") && pkg.registrySource.empty(); });
+    drawGroup("Deki Registry",
+              [&](const PackageEntry& pkg) { return isFromRegistry(pkg, "Deki") && pkg.registrySource.empty(); });
 
     for (const auto& reg : m_CustomRegistries)
-        drawGroup(reg.name.c_str(), [&](const PackageEntry& pkg)
-                  { return isFromRegistry(pkg, reg.name); });
+    {
+        drawGroup(reg.name.c_str(), [&](const PackageEntry& pkg) { return isFromRegistry(pkg, reg.name); });
+    }
 
-    drawGroup("Custom", [&](const PackageEntry& pkg)
+    drawGroup("Custom",
+              [&](const PackageEntry& pkg)
               {
-        if (isFromRegistry(pkg, "Deki")) return false;
-        for (const auto& reg : m_CustomRegistries)
-            if (isFromRegistry(pkg, reg.name)) return false;
-        return true; });
+                  if (isFromRegistry(pkg, "Deki"))
+                  {
+                      return false;
+                  }
+                  for (const auto& reg : m_CustomRegistries)
+                  {
+                      if (isFromRegistry(pkg, reg.name))
+                      {
+                          return false;
+                      }
+                  }
+                  return true;
+              });
 }
 
 void PackageManagerPanel::DrawPackageDetails()
@@ -418,8 +474,12 @@ void PackageManagerPanel::DrawPackageDetails()
     // Is this a core / auto-managed dependency?
     bool isCoreDep = false;
     if (auto* project = m_App->GetProject())
+    {
         if (auto* installer = m_PackageManager->GetInstallerForProject(project->GetPath()))
+        {
             isCoreDep = installer->IsCoreDependency(pkg.name);
+        }
+    }
 
     // Header: display name (bold) + repo id (dim).
     ui.PushBoldFont();
@@ -432,20 +492,28 @@ void PackageManagerPanel::DrawPackageDetails()
         std::vector<std::string> parentNames;
         for (const auto& p : m_PackageManager->GetPackages())
         {
-            if (!p.isInstalled) continue;
+            if (!p.isInstalled)
+            {
+                continue;
+            }
             for (const auto& req : p.requiredPackages)
+            {
                 if (req == pkg.id)
                 {
                     parentNames.push_back(!p.displayName.empty() ? p.displayName : p.id);
                     break;
                 }
+            }
         }
         if (!parentNames.empty())
         {
             std::string label = std::string(ICON_TI_LINK) + " Dependency of ";
             for (size_t n = 0; n < parentNames.size(); ++n)
             {
-                if (n) label += ", ";
+                if (n)
+                {
+                    label += ", ";
+                }
                 label += parentNames[n];
             }
             TextCol(ui, Palette::Accent, label.c_str());
@@ -461,11 +529,13 @@ void PackageManagerPanel::DrawPackageDetails()
         {
             std::string depName = dep;
             for (const auto& p : m_PackageManager->GetPackages())
+            {
                 if (p.id == dep && !p.displayName.empty())
                 {
                     depName = p.displayName;
                     break;
                 }
+            }
             needs += (needs.empty() ? "" : ", ") + depName;
         }
         ui.Spacing();
@@ -481,7 +551,8 @@ void PackageManagerPanel::DrawPackageDetails()
     // framework's own components). Otherwise the labels describe the project,
     // not the package.
     auto* project = m_App->GetProject();
-    const PlatformConfig* config = project ? PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId()) : nullptr;
+    const PlatformConfig* config =
+        project ? PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId()) : nullptr;
 
     bool packageUsesFramework = false;
     if (config)
@@ -494,7 +565,9 @@ void PackageManagerPanel::DrawPackageDetails()
         {
             auto it = m_PackageDetails.dependencies.find(config->framework);
             if (it != m_PackageDetails.dependencies.end() && !it->second.empty())
+            {
                 packageUsesFramework = true;
+            }
         }
     }
 
@@ -502,7 +575,9 @@ void PackageManagerPanel::DrawPackageDetails()
     {
         std::string frameworkDisplay = config->framework;
         if (!frameworkDisplay.empty())
+        {
             frameworkDisplay[0] = (char)std::toupper((unsigned char)frameworkDisplay[0]);
+        }
 
         ui.Spacing();
         TextCol(ui, Palette::Dim, "Framework");
@@ -524,8 +599,7 @@ void PackageManagerPanel::DrawPackageDetails()
     // what specifically is unsettled.
     if (pkg.experimental)
     {
-        TextCol(ui, Palette::Amber,
-                "Experimental - its API and formats can change without a migration path.");
+        TextCol(ui, Palette::Amber, "Experimental - its API and formats can change without a migration path.");
         ui.Spacing();
     }
 
@@ -546,8 +620,14 @@ void PackageManagerPanel::DrawPackageDetails()
         ui.TextWrapped(pkg.description.c_str());
         ui.Spacing();
     }
-    if (!pkg.author.empty()) ui.Text(("Author: " + pkg.author).c_str());
-    if (!pkg.license.empty()) ui.Text(("License: " + pkg.license).c_str());
+    if (!pkg.author.empty())
+    {
+        ui.Text(("Author: " + pkg.author).c_str());
+    }
+    if (!pkg.license.empty())
+    {
+        ui.Text(("License: " + pkg.license).c_str());
+    }
     if (!pkg.url.empty())
     {
         ui.Text("URL:");
@@ -575,7 +655,10 @@ void PackageManagerPanel::DrawPackageDetails()
                 std::string depsStr;
                 for (size_t i = 0; i < m_PackageDetails.linkDeps.size(); i++)
                 {
-                    if (i) depsStr += ", ";
+                    if (i)
+                    {
+                        depsStr += ", ";
+                    }
                     depsStr += m_PackageDetails.linkDeps[i];
                 }
                 ui.Text(("Link Dependencies: " + depsStr).c_str());
@@ -598,7 +681,9 @@ void PackageManagerPanel::DrawPackageDetails()
                     // package is not installed) displays as itself.
                     std::string platformLabel = platform;
                     if (ITargetBuilder* named = BuilderRegistry::Instance().GetBuilder(platform))
+                    {
                         platformLabel = named->GetName();
+                    }
 
                     if (ui.TreeNodeEx(platformLabel.c_str(), EditorUI::TreeDefaultOpen))
                     {
@@ -668,14 +753,17 @@ void PackageManagerPanel::DrawPackageDetails()
             {
                 pkg.editable = editable;
                 if (auto* proj = m_App->GetProject())
+                {
                     m_PackageManager->SavePackages(proj->GetPath());
+                }
                 if (editable)
+                {
                     OnMarkedEditable(pkg);
+                }
             }
             TextCol(ui, Palette::Dim,
-                    pkg.editable
-                        ? "Your changes here are left alone."
-                        : "Local changes here are stashed and reverted on focus.");
+                    pkg.editable ? "Your changes here are left alone."
+                                 : "Local changes here are stashed and reverted on focus.");
             ui.Spacing();
         }
 
@@ -686,30 +774,52 @@ void PackageManagerPanel::DrawPackageDetails()
         else
         {
             bool canUpdate = (m_VersionInput[0] != '\0');
-            if (!canUpdate) ui.BeginDisabled();
-            if (ui.Button("Update", btnW, 0.0f)) OnInstallClicked();
-            if (!canUpdate) ui.EndDisabled();
+            if (!canUpdate)
+            {
+                ui.BeginDisabled();
+            }
+            if (ui.Button("Update", btnW, 0.0f))
+            {
+                OnInstallClicked();
+            }
+            if (!canUpdate)
+            {
+                ui.EndDisabled();
+            }
 
             ui.SameLine();
 
             const ImVec4 red = Palette::Red;
             ui.PushStyleColor(EditorUI::Col::Button, Pack(ImVec4(red.x * 0.55f, red.y * 0.55f, red.z * 0.55f, 1.0f)));
-            ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
+            ui.PushStyleColor(EditorUI::Col::ButtonHovered,
+                              Pack(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
             ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(red));
-            if (ui.Button("Uninstall", btnW, 0.0f)) OnRemoveClicked();
+            if (ui.Button("Uninstall", btnW, 0.0f))
+            {
+                OnRemoveClicked();
+            }
             ui.PopStyleColor(3);
         }
     }
     else
     {
         bool canInstall = (m_VersionInput[0] != '\0');
-        if (!canInstall) ui.BeginDisabled();
+        if (!canInstall)
+        {
+            ui.BeginDisabled();
+        }
         ui.PushStyleColor(EditorUI::Col::Button, Pack(Palette::AccentDim));
         ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(Palette::Accent));
         ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(Palette::Accent));
-        if (ui.Button("Install", btnW, 0.0f)) OnInstallClicked();
+        if (ui.Button("Install", btnW, 0.0f))
+        {
+            OnInstallClicked();
+        }
         ui.PopStyleColor(3);
-        if (!canInstall) ui.EndDisabled();
+        if (!canInstall)
+        {
+            ui.EndDisabled();
+        }
     }
 
     ui.PopStyleVar();  // ButtonTextAlign
@@ -722,7 +832,9 @@ void PackageManagerPanel::DrawAddPackagePopup()
     auto& ui = EditorUI::Get();
 
     if (m_ShowAddPopup)
+    {
         ui.OpenPopup("Add Package");
+    }
 
     // Center over the viewport; fixed width, auto height, generous padding.
     float vx = 0.0f, vy = 0.0f, vw = 0.0f, vh = 0.0f;
@@ -764,7 +876,9 @@ void PackageManagerPanel::DrawAddPackagePopup()
         {
             OnAddPackageConfirmed();
             if (!m_ShowAddPopup)  // confirmed (cleared on success)
+            {
                 ui.CloseCurrentPopup();
+            }
         }
         ui.PopStyleColor(3);
         ui.PopStyleVar();  // ButtonTextAlign
@@ -795,13 +909,18 @@ void PackageManagerPanel::RefreshPackages()
 void PackageManagerPanel::OnMarkedEditable(const PackageEntry& pkg)
 {
     auto* project = m_App->GetProject();
-    if (!project) return;
+    if (!project)
+    {
+        return;
+    }
 
     const std::filesystem::path dir =
-        std::filesystem::path(GetPackagesDirectory(project->GetPath())) /
-        DekiPackageInstaller::GetRepoName(pkg);
+        std::filesystem::path(GetPackagesDirectory(project->GetPath())) / DekiPackageInstaller::GetRepoName(pkg);
 
-    if (!std::filesystem::exists(dir / ".git")) return;
+    if (!std::filesystem::exists(dir / ".git"))
+    {
+        return;
+    }
 
     // An installed package is checked out AT ITS TAG, so HEAD is detached. That
     // is right for a consumer and wrong the moment you start editing: commits
@@ -809,7 +928,9 @@ void PackageManagerPanel::OnMarkedEditable(const PackageEntry& pkg)
     // now, while the tree is known to match the tag.
     std::string out;
     if (DekiEditor::RunGit({ "-C", dir.string(), "symbolic-ref", "-q", "HEAD" }, out) == 0)
+    {
         return;  // already on a branch
+    }
 
     if (DekiEditor::RunGit({ "-C", dir.string(), "checkout", "master" }, out) != 0)
     {
@@ -852,10 +973,16 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
     namespace fs = std::filesystem;
 
     auto* project = m_App->GetProject();
-    if (!project) return;
+    if (!project)
+    {
+        return;
+    }
 
     fs::path packagesDir = fs::path(GetPackagesDirectory(project->GetPath()));
-    if (!fs::exists(packagesDir)) return;
+    if (!fs::exists(packagesDir))
+    {
+        return;
+    }
 
     // Find the package directory by matching .deki-package.json id/name
     fs::path packageDir;
@@ -863,8 +990,14 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
     {
         for (const auto& entry : fs::directory_iterator(packagesDir))
         {
-            if (!entry.is_directory()) continue;
-            if (!fs::exists(entry.path() / "package.cmake")) continue;
+            if (!entry.is_directory())
+            {
+                continue;
+            }
+            if (!fs::exists(entry.path() / "package.cmake"))
+            {
+                continue;
+            }
 
             fs::path metaPath = entry.path() / ".deki-package.json";
             if (fs::exists(metaPath))
@@ -880,8 +1013,8 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 }
                 catch (const std::exception& e)
                 {
-                    DEKI_LOG_WARNING("PackageManagerPanel: could not parse %s: %s",
-                                     metaPath.string().c_str(), e.what());
+                    DEKI_LOG_WARNING("PackageManagerPanel: could not parse %s: %s", metaPath.string().c_str(),
+                                     e.what());
                 }
                 if ((!pkg.id.empty() && metaId == pkg.id) || metaName == pkg.name)
                 {
@@ -906,19 +1039,37 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         return;
     }
 
-    if (packageDir.empty()) return;
+    if (packageDir.empty())
+    {
+        return;
+    }
 
     // Count .cpp source files in package directory (excluding editor/ and generated/)
     try
     {
         for (auto& cppEntry : fs::recursive_directory_iterator(packageDir))
         {
-            if (!cppEntry.is_regular_file()) continue;
-            if (cppEntry.path().extension() != ".cpp") continue;
+            if (!cppEntry.is_regular_file())
+            {
+                continue;
+            }
+            if (cppEntry.path().extension() != ".cpp")
+            {
+                continue;
+            }
             std::string rel = fs::relative(cppEntry.path(), packageDir).generic_string();
-            if (rel.rfind("editor/", 0) == 0) continue;
-            if (rel.rfind("generated/", 0) == 0) continue;
-            if (rel.rfind("tests/", 0) == 0) continue;
+            if (rel.rfind("editor/", 0) == 0)
+            {
+                continue;
+            }
+            if (rel.rfind("generated/", 0) == 0)
+            {
+                continue;
+            }
+            if (rel.rfind("tests/", 0) == 0)
+            {
+                continue;
+            }
             m_PackageDetails.sourceCount++;
         }
     }
@@ -947,16 +1098,25 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 std::string token;
                 while (iss >> token)
                 {
-                    if (token == ")" || token.front() == ')') break;
+                    if (token == ")" || token.front() == ')')
+                    {
+                        break;
+                    }
                     if (!token.empty() && token.back() == ')')
                     {
                         token.pop_back();
-                        if (!token.empty()) m_PackageDetails.linkDeps.push_back(token);
+                        if (!token.empty())
+                        {
+                            m_PackageDetails.linkDeps.push_back(token);
+                        }
                         break;
                     }
                     m_PackageDetails.linkDeps.push_back(token);
                 }
-                if (line.find(')') != std::string::npos) inLinkDeps = false;
+                if (line.find(')') != std::string::npos)
+                {
+                    inLinkDeps = false;
+                }
                 continue;
             }
             if (inLinkDeps)
@@ -972,7 +1132,10 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 {
                     std::string token = trimmed.substr(first);
                     size_t end = token.find_first_of(" \t)");
-                    if (end != std::string::npos) token = token.substr(0, end);
+                    if (end != std::string::npos)
+                    {
+                        token = token.substr(0, end);
+                    }
                     if (!token.empty() && token[0] != '#')
                     {
                         m_PackageDetails.linkDeps.push_back(token);
@@ -988,8 +1151,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
     if (fs::exists(metaPath))
     {
         std::ifstream metaFile(metaPath);
-        std::string content((std::istreambuf_iterator<char>(metaFile)),
-                            std::istreambuf_iterator<char>());
+        std::string content((std::istreambuf_iterator<char>(metaFile)), std::istreambuf_iterator<char>());
 
         size_t pdPos = content.find("\"dependencies\"");
         if (pdPos != std::string::npos)
@@ -1004,10 +1166,17 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 while (outerEnd < content.size() && depth > 0)
                 {
                     if (content[outerEnd] == '{')
+                    {
                         depth++;
+                    }
                     else if (content[outerEnd] == '}')
+                    {
                         depth--;
-                    if (depth > 0) outerEnd++;
+                    }
+                    if (depth > 0)
+                    {
+                        outerEnd++;
+                    }
                 }
 
                 std::string pdContent = content.substr(outerStart, outerEnd - outerStart + 1);
@@ -1017,18 +1186,30 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 while (true)
                 {
                     size_t keyStart = pdContent.find('"', searchPos);
-                    if (keyStart == std::string::npos) break;
+                    if (keyStart == std::string::npos)
+                    {
+                        break;
+                    }
                     size_t keyEnd = pdContent.find('"', keyStart + 1);
-                    if (keyEnd == std::string::npos) break;
+                    if (keyEnd == std::string::npos)
+                    {
+                        break;
+                    }
 
                     std::string platform = pdContent.substr(keyStart + 1, keyEnd - keyStart - 1);
                     searchPos = keyEnd + 1;
 
                     // Find the array for this platform
                     size_t arrStart = pdContent.find('[', searchPos);
-                    if (arrStart == std::string::npos) break;
+                    if (arrStart == std::string::npos)
+                    {
+                        break;
+                    }
                     size_t arrEnd = pdContent.find(']', arrStart);
-                    if (arrEnd == std::string::npos) break;
+                    if (arrEnd == std::string::npos)
+                    {
+                        break;
+                    }
                     searchPos = arrEnd + 1;
 
                     std::string arrContent = pdContent.substr(arrStart, arrEnd - arrStart + 1);
@@ -1038,9 +1219,15 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                     while (true)
                     {
                         size_t objStart = arrContent.find('{', objSearch);
-                        if (objStart == std::string::npos) break;
+                        if (objStart == std::string::npos)
+                        {
+                            break;
+                        }
                         size_t objEnd = arrContent.find('}', objStart);
-                        if (objEnd == std::string::npos) break;
+                        if (objEnd == std::string::npos)
+                        {
+                            break;
+                        }
                         objSearch = objEnd + 1;
 
                         std::string obj = arrContent.substr(objStart, objEnd - objStart + 1);
@@ -1049,14 +1236,26 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                         {
                             std::string needle = "\"" + key + "\"";
                             size_t pos = obj.find(needle);
-                            if (pos == std::string::npos) return "";
+                            if (pos == std::string::npos)
+                            {
+                                return "";
+                            }
                             pos = obj.find(':', pos + needle.size());
-                            if (pos == std::string::npos) return "";
+                            if (pos == std::string::npos)
+                            {
+                                return "";
+                            }
                             pos = obj.find('"', pos + 1);
-                            if (pos == std::string::npos) return "";
+                            if (pos == std::string::npos)
+                            {
+                                return "";
+                            }
                             pos++;
                             size_t end = obj.find('"', pos);
-                            if (end == std::string::npos) return "";
+                            if (end == std::string::npos)
+                            {
+                                return "";
+                            }
                             return obj.substr(pos, end - pos);
                         };
 
@@ -1092,8 +1291,14 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 for (auto& [platform, deps] : mj["dependencies"].items())
                 {
                     // .deki-package.json wins on overlapping framework keys
-                    if (m_PackageDetails.dependencies.count(platform)) continue;
-                    if (!deps.is_array()) continue;
+                    if (m_PackageDetails.dependencies.count(platform))
+                    {
+                        continue;
+                    }
+                    if (!deps.is_array())
+                    {
+                        continue;
+                    }
 
                     for (const auto& entry : deps)
                     {
@@ -1135,7 +1340,10 @@ void PackageManagerPanel::OnInstallClicked()
     }
 
     auto* project = m_App->GetProject();
-    if (!project) return;
+    if (!project)
+    {
+        return;
+    }
     std::string projectPath = project->GetPath();
 
     std::string whyNot;
@@ -1175,7 +1383,8 @@ void PackageManagerPanel::OnInstallClicked()
                                                           // The package may offer boards: list them now
                                                           DekiEditor::ReloadProjectPlatforms(proj->GetPath());
 
-                                                          // For Deki packages, force CMakeLists.txt regeneration and trigger rebuild
+                                                          // For Deki packages, force CMakeLists.txt regeneration and
+                                                          // trigger rebuild
                                                           if (dekiPackage)
                                                           {
                                                               namespace fs = std::filesystem;
@@ -1184,7 +1393,8 @@ void PackageManagerPanel::OnInstallClicked()
                                                               std::error_code ec;
                                                               fs::remove(cmakePath, ec);
 
-                                                              // Trigger plugin rebuild (force to bypass timestamp detection)
+                                                              // Trigger plugin rebuild (force to bypass timestamp
+                                                              // detection)
                                                               if (auto* hotReload = m_App->GetHotReloadService())
                                                               {
                                                                   hotReload->ForceNextBuild();
@@ -1208,7 +1418,10 @@ void PackageManagerPanel::OnRemoveClicked()
     }
 
     auto* project = m_App->GetProject();
-    if (!project) return;
+    if (!project)
+    {
+        return;
+    }
     std::string projectPath = project->GetPath();
 
     std::string whyNot;
@@ -1312,47 +1525,62 @@ void PackageManagerPanel::ScanProjectForPackageUsage()
 void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
 {
     auto* registry = m_PackageManager->GetRegistrySource();
-    if (!registry) return;
+    if (!registry)
+    {
+        return;
+    }
 
     m_RegistryFetching = true;
-    registry->FetchIndex([this](bool success, const std::vector<RegistryPackageEntry>& packages)
-                         {
-        // May run on the registry's fetch thread; the package list and the
-        // panel's own state are main-thread only.
-        m_PackageManager->PostToMainThread([this, success, packages]()
+    registry->FetchIndex(
+        [this](bool success, const std::vector<RegistryPackageEntry>& packages)
         {
-            if (success) {
-                m_LatestVersions.clear();
-                for (const auto& entry : packages) {
-                    m_LatestVersions[entry.id] = entry.latest;
+            // May run on the registry's fetch thread; the package list and the
+            // panel's own state are main-thread only.
+            m_PackageManager->PostToMainThread(
+                [this, success, packages]()
+                {
+                    if (success)
+                    {
+                        m_LatestVersions.clear();
+                        for (const auto& entry : packages)
+                        {
+                            m_LatestVersions[entry.id] = entry.latest;
 
-                    // Add registry packages as available packages
-                    PackageEntry pkg;
-                    pkg.id = entry.id;
-                    pkg.name = entry.id;
-                    pkg.displayName = entry.displayName;
-                    pkg.description = entry.description;
-                    pkg.experimental = entry.experimental;
-                    pkg.minEngine = entry.minEngine;
-                    pkg.url = "https://github.com/" + entry.repo;
-                    pkg.source = PackageSourceType::Custom;
-                    pkg.packageType = PackageType::DekiPackage;
-                    pkg.isInstalled = false;
-                    pkg.availableVersions = { entry.latest };
-                    pkg.requiredPackages = entry.requiredPackages;
-                    m_PackageManager->AddPackageIfNew(pkg);
-                }
-            }
-            m_RegistryFetching = false;
-        }); }, forceRefresh);
+                            // Add registry packages as available packages
+                            PackageEntry pkg;
+                            pkg.id = entry.id;
+                            pkg.name = entry.id;
+                            pkg.displayName = entry.displayName;
+                            pkg.description = entry.description;
+                            pkg.experimental = entry.experimental;
+                            pkg.minEngine = entry.minEngine;
+                            pkg.url = "https://github.com/" + entry.repo;
+                            pkg.source = PackageSourceType::Custom;
+                            pkg.packageType = PackageType::DekiPackage;
+                            pkg.isInstalled = false;
+                            pkg.availableVersions = { entry.latest };
+                            pkg.requiredPackages = entry.requiredPackages;
+                            m_PackageManager->AddPackageIfNew(pkg);
+                        }
+                    }
+                    m_RegistryFetching = false;
+                });
+        },
+        forceRefresh);
 }
 
 bool PackageManagerPanel::HasUpdateAvailable(const PackageEntry& pkg) const
 {
-    if (!pkg.isInstalled || pkg.installedVersion.empty()) return false;
+    if (!pkg.isInstalled || pkg.installedVersion.empty())
+    {
+        return false;
+    }
 
     auto it = m_LatestVersions.find(pkg.id);
-    if (it == m_LatestVersions.end()) return false;
+    if (it == m_LatestVersions.end())
+    {
+        return false;
+    }
 
     return it->second != pkg.installedVersion;
 }
@@ -1362,14 +1590,20 @@ bool PackageManagerPanel::HasUpdateAvailable(const PackageEntry& pkg) const
 bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
 {
     auto* project = m_App->GetProject();
-    if (!project) return false;
+    if (!project)
+    {
+        return false;
+    }
     const std::string projectPath = project->GetPath();
 
     m_PackageManager->LoadPackages(projectPath);
     LoadCustomRegistries(projectPath);
 
     auto* registry = m_PackageManager->GetRegistrySource();
-    if (!registry) return false;
+    if (!registry)
+    {
+        return false;
+    }
 
     // FetchIndex answers inline on a cache hit and on a detached thread
     // otherwise, so hand the result over a shared promise rather than capturing
@@ -1377,10 +1611,13 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
     auto promise = std::make_shared<std::promise<std::vector<RegistryPackageEntry>>>();
     auto future = promise->get_future();
     registry->FetchIndex([promise](bool ok, const std::vector<RegistryPackageEntry>& mods)
-                         { promise->set_value(ok ? mods : std::vector<RegistryPackageEntry>{}); }, /*forceRefresh*/ false);
+                         { promise->set_value(ok ? mods : std::vector<RegistryPackageEntry>{}); },
+                         /*forceRefresh*/ false);
 
     if (future.wait_for(std::chrono::seconds(timeoutSeconds)) != std::future_status::ready)
+    {
         return false;
+    }
 
     const auto packages = future.get();
     m_LatestVersions.clear();
@@ -1412,12 +1649,13 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
 const std::vector<PackageEntry>& PackageManagerPanel::GetPackages()
 {
     if (auto* project = m_App->GetProject())
+    {
         m_PackageManager->RefreshInstalledStatus(project->GetPath());
+    }
     return m_PackageManager->GetPackages();
 }
 
-bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::string& version,
-                                             std::string& outMessage)
+bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::string& version, std::string& outMessage)
 {
     auto* project = m_App->GetProject();
     if (!project)
@@ -1450,7 +1688,9 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 
     std::string useVersion = version;
     if (useVersion.empty())
+    {
         useVersion = pkg->availableVersions.empty() ? "main" : pkg->availableVersions[0];
+    }
 
     std::string whyNot;
     IPackageInstaller* installer = m_PackageManager->GetInstallerFor(*pkg, projectPath, whyNot);
@@ -1500,8 +1740,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
     return true;
 }
 
-std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(
-    const std::string& targetPlatformId) const
+std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(const std::string& targetPlatformId) const
 {
     // The stripper decides what a device build defines (services/FeatureResolver).
     // The plan is kept so the details view can show each feature's fate.
@@ -1511,7 +1750,9 @@ std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(
     // would let another platform's boot scene decide what this one compiles.
     auto* project = m_App->GetProject();
     if (!project)
+    {
         return { "DEKI_PACKAGE_FEATURES_CONFIGURED" };
+    }
     m_StripPlan = ComputeStripPlan(project->GetPath(), targetPlatformId);
     m_StripPlanValid = true;
     m_StripPlanPlatform = targetPlatformId;
@@ -1526,12 +1767,13 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
 {
     auto* project = m_App->GetProject();
     if (!project)
+    {
         return;
+    }
     // The details view shows what the ACTIVE target would do, so a plan computed
     // for another one is stale even when the project has not changed.
     const std::string& activePlatform = project->GetActivePlatformId();
-    if (!m_StripPlanValid || m_StripSettingsProject != project->GetPath() ||
-        m_StripPlanPlatform != activePlatform)
+    if (!m_StripPlanValid || m_StripSettingsProject != project->GetPath() || m_StripPlanPlatform != activePlatform)
     {
         m_StripSettings = BuildStripSettings::Load(project->GetPath());
         m_StripSettingsProject = project->GetPath();
@@ -1546,10 +1788,14 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
     for (const auto& d : m_StripPlan.features)
     {
         if (d.packageId == pkg.id || d.packageDir == pkg.id || d.packageDir == pkg.name)
+        {
             rows.push_back(&d);
+        }
     }
     if (rows.empty())
+    {
         return;
+    }
 
     auto& ui = EditorUI::Get();
     ui.Spacing();
@@ -1583,7 +1829,9 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
             ImGui::TextColored(d->on ? Palette::Dim : Palette::Amber, "%s", FeatureStateName(d->state));
         }
         if (ImGui::IsItemHovered() && !d->reason.empty())
+        {
             DekiEditor::Tooltip("%s", d->reason.c_str());
+        }
 
         // Packages this feature needs that installing its package does not
         // bring (the board or project that uses the feature does).
@@ -1591,18 +1839,28 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
         {
             bool installed = false;
             for (const auto& p : m_PackageManager->GetPackages())
+            {
                 if (p.id == dep && p.isInstalled)
+                {
                     installed = true;
+                }
+            }
             ImGui::SameLine();
             if (installed)
+            {
                 ImGui::TextColored(Palette::Dim, "needs %s", dep.c_str());
+            }
             else
+            {
                 ImGui::TextColored(Palette::Amber, "needs %s (not installed)", dep.c_str());
+            }
             if (ImGui::IsItemHovered())
+            {
                 DekiEditor::Tooltip(installed ? "%s is installed, so this feature builds."
                                               : "Install %s to use this feature. Until then it builds as a step that "
                                                 "logs what is missing.",
                                     dep.c_str());
+            }
         }
         ImGui::PopID();
     }
@@ -1619,7 +1877,9 @@ void PackageManagerPanel::DrawAddRegistryPopup()
     auto& ui = EditorUI::Get();
 
     if (m_ShowAddRegistryPopup)
+    {
         ui.OpenPopup("Add Registry");
+    }
 
     float vx = 0.0f, vy = 0.0f, vw = 0.0f, vh = 0.0f;
     ui.GetMainViewportRect(&vx, &vy, &vw, &vh);
@@ -1636,7 +1896,8 @@ void PackageManagerPanel::DrawAddRegistryPopup()
         float aw = 0.0f;
         ui.GetContentRegionAvail(&aw, nullptr);
         ui.SetNextItemWidth(aw);
-        ui.InputTextWithHint("##reg_url", "https://example.com/registry", m_AddRegistryUrl, (int)sizeof(m_AddRegistryUrl));
+        ui.InputTextWithHint("##reg_url", "https://example.com/registry", m_AddRegistryUrl,
+                             (int)sizeof(m_AddRegistryUrl));
 
         ui.Spacing();
         ui.Spacing();
@@ -1664,19 +1925,27 @@ void PackageManagerPanel::DrawAddRegistryPopup()
                 // Derive a display name from the URL (strip protocol + trailing slash).
                 std::string name = url;
                 if (name.find("https://") == 0)
+                {
                     name = name.substr(8);
+                }
                 else if (name.find("http://") == 0)
+                {
                     name = name.substr(7);
+                }
                 while (!name.empty() && name.back() == '/')
+                {
                     name.pop_back();
+                }
 
                 bool exists = false;
                 for (const auto& r : m_CustomRegistries)
+                {
                     if (r.url == url)
                     {
                         exists = true;
                         break;
                     }
+                }
 
                 if (!exists)
                 {
@@ -1686,7 +1955,9 @@ void PackageManagerPanel::DrawAddRegistryPopup()
                     m_CustomRegistries.push_back(reg);
 
                     if (auto* project = m_App->GetProject())
+                    {
                         SaveCustomRegistries(project->GetPath());
+                    }
 
                     FetchCustomRegistry(reg, true);
                     m_StatusMessage = "Registry added: " + name;
@@ -1713,39 +1984,45 @@ void PackageManagerPanel::FetchCustomRegistry(const CustomRegistryInfo& registry
     std::string url = registry.url;
     std::string name = registry.name;
 
-    std::thread([this, url, name]()
-                {
-        // Only the download happens here; the package list is main-thread only.
-        std::string indexUrl = url + "/index.json";
-        std::string json = DekiEditor::EditorHttpUtils::FetchUrl(indexUrl);
-
-        m_PackageManager->PostToMainThread([this, json, name]()
+    std::thread(
+        [this, url, name]()
         {
-            if (!json.empty()) {
-                auto* registrySource = m_PackageManager->GetRegistrySource();
-                if (registrySource) {
-                    auto packages = registrySource->ParseIndexJson(json);
-                    for (const auto& entry : packages) {
-                        PackageEntry pkg;
-                        pkg.id = entry.id;
-                        pkg.name = entry.id;
-                        pkg.displayName = entry.displayName;
-                        pkg.description = entry.description;
-                        pkg.experimental = entry.experimental;
-                        pkg.minEngine = entry.minEngine;
-                        pkg.url = "https://github.com/" + entry.repo;
-                        pkg.source = PackageSourceType::Custom;
-                        pkg.packageType = PackageType::DekiPackage;
-                        pkg.isInstalled = false;
-                        pkg.availableVersions = { entry.latest };
-                        pkg.requiredPackages = entry.requiredPackages;
-                        pkg.registrySource = name;
-                        m_PackageManager->AddPackageIfNew(pkg);
+            // Only the download happens here; the package list is main-thread only.
+            std::string indexUrl = url + "/index.json";
+            std::string json = DekiEditor::EditorHttpUtils::FetchUrl(indexUrl);
+
+            m_PackageManager->PostToMainThread(
+                [this, json, name]()
+                {
+                    if (!json.empty())
+                    {
+                        auto* registrySource = m_PackageManager->GetRegistrySource();
+                        if (registrySource)
+                        {
+                            auto packages = registrySource->ParseIndexJson(json);
+                            for (const auto& entry : packages)
+                            {
+                                PackageEntry pkg;
+                                pkg.id = entry.id;
+                                pkg.name = entry.id;
+                                pkg.displayName = entry.displayName;
+                                pkg.description = entry.description;
+                                pkg.experimental = entry.experimental;
+                                pkg.minEngine = entry.minEngine;
+                                pkg.url = "https://github.com/" + entry.repo;
+                                pkg.source = PackageSourceType::Custom;
+                                pkg.packageType = PackageType::DekiPackage;
+                                pkg.isInstalled = false;
+                                pkg.availableVersions = { entry.latest };
+                                pkg.requiredPackages = entry.requiredPackages;
+                                pkg.registrySource = name;
+                                m_PackageManager->AddPackageIfNew(pkg);
+                            }
+                        }
                     }
-                }
-            }
-            m_RegistryFetching = false;
-        }); })
+                    m_RegistryFetching = false;
+                });
+        })
         .detach();
 }
 
@@ -1753,7 +2030,10 @@ void PackageManagerPanel::LoadCustomRegistries(const std::string& projectPath)
 {
     namespace fs = std::filesystem;
     fs::path path = fs::path(projectPath) / "deki.json";
-    if (!fs::exists(path)) return;
+    if (!fs::exists(path))
+    {
+        return;
+    }
 
     try
     {
@@ -1770,13 +2050,16 @@ void PackageManagerPanel::LoadCustomRegistries(const std::string& projectPath)
                 reg.url = entry.value("url", "");
                 reg.name = entry.value("name", reg.url);
                 if (!reg.url.empty())
+                {
                     m_CustomRegistries.push_back(reg);
+                }
             }
         }
     }
     catch (const std::exception& e)
     {
-        DEKI_LOG_WARNING("PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted", e.what());
+        DEKI_LOG_WARNING("PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted",
+                         e.what());
     }
 }
 
@@ -1796,7 +2079,9 @@ void PackageManagerPanel::SaveCustomRegistries(const std::string& projectPath)
         }
         catch (const std::exception& e)
         {
-            DEKI_LOG_WARNING("PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted", e.what());
+            DEKI_LOG_WARNING(
+                "PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted",
+                e.what());
         }
     }
 
@@ -1815,7 +2100,8 @@ void PackageManagerPanel::SaveCustomRegistries(const std::string& projectPath)
     }
     catch (const std::exception& e)
     {
-        DEKI_LOG_WARNING("PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted", e.what());
+        DEKI_LOG_WARNING("PackageManagerPanel: package manifest unreadable (%s); its features and defines are omitted",
+                         e.what());
     }
 }
 

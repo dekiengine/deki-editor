@@ -26,8 +26,8 @@ public:
     static const Deki::ComponentTypeInfo kInfo;
     TickCounter() { SetTypeInfo(&kInfo); }
 
-    void Awake() override  { ++awakes; }
-    void Start() override  { ++starts; }
+    void Awake() override { ++awakes; }
+    void Start() override { ++starts; }
     void Update() override { ++updates; }
 
     int awakes = 0;
@@ -48,7 +48,8 @@ public:
 };
 
 const Deki::ComponentTypeInfo TickCounter::kInfo = Deki::MakeHandWrittenTypeInfo<TickCounter>(/*declaresUpdate=*/true);
-const Deki::ComponentTypeInfo SilentBehaviour::kInfo = Deki::MakeHandWrittenTypeInfo<SilentBehaviour>(/*declaresUpdate=*/false);
+const Deki::ComponentTypeInfo SilentBehaviour::kInfo =
+    Deki::MakeHandWrittenTypeInfo<SilentBehaviour>(/*declaresUpdate=*/false);
 
 void RunFrames(Deki::LifecycleManager* lm, Deki::Scene& scene, int frames)
 {
@@ -61,7 +62,7 @@ void RunFrames(Deki::LifecycleManager* lm, Deki::Scene& scene, int frames)
     }
 }
 
-} // namespace
+}  // namespace
 
 // The update gate: DeclaresUpdate() was never consulted, so every started
 // behaviour paid a virtual call per frame whether or not it had anything to run.

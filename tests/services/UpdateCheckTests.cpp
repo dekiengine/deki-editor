@@ -31,7 +31,8 @@ TEST(UpdateCheckParse, ReadsTagAndReleasePage)
 TEST(UpdateCheckParse, StripsALeadingV)
 {
     LatestRelease r;
-    ASSERT_TRUE(ParseLatestRelease(R"({"tag_name": "v1.2.3", "html_url": "https://github.com/dekiengine/deki-editor/releases/tag/v1.2.3"})", r));
+    ASSERT_TRUE(ParseLatestRelease(
+        R"({"tag_name": "v1.2.3", "html_url": "https://github.com/dekiengine/deki-editor/releases/tag/v1.2.3"})", r));
     EXPECT_EQ(r.tag, "1.2.3");
 }
 
@@ -40,11 +41,15 @@ TEST(UpdateCheckParse, OnlyOurOwnReleasePageIsOpened)
     // html_url goes to SDL_OpenURL: a file:// or foreign-host URL in a spoofed
     // response is a reason to distrust the whole release.
     LatestRelease r;
-    EXPECT_FALSE(ParseLatestRelease(R"({"tag_name": "0.11.0", "html_url": "file:///C:/Windows/System32/calc.exe"})", r));
-    EXPECT_FALSE(ParseLatestRelease(R"({"tag_name": "0.11.0", "html_url": "https://evil.example/releases/tag/0.11.0"})", r));
-    EXPECT_FALSE(ParseLatestRelease(R"({"tag_name": "0.11.0", "html_url": "http://github.com/dekiengine/deki-editor/releases/tag/0.11.0"})", r));
+    EXPECT_FALSE(
+        ParseLatestRelease(R"({"tag_name": "0.11.0", "html_url": "file:///C:/Windows/System32/calc.exe"})", r));
+    EXPECT_FALSE(
+        ParseLatestRelease(R"({"tag_name": "0.11.0", "html_url": "https://evil.example/releases/tag/0.11.0"})", r));
+    EXPECT_FALSE(ParseLatestRelease(
+        R"({"tag_name": "0.11.0", "html_url": "http://github.com/dekiengine/deki-editor/releases/tag/0.11.0"})", r));
     EXPECT_FALSE(ParseLatestRelease(R"({"tag_name": "0.11.0"})", r));
-    EXPECT_TRUE(ParseLatestRelease(R"({"tag_name": "0.11.0", "html_url": "https://github.com/dekiengine/deki-editor/releases/tag/0.11.0"})", r));
+    EXPECT_TRUE(ParseLatestRelease(
+        R"({"tag_name": "0.11.0", "html_url": "https://github.com/dekiengine/deki-editor/releases/tag/0.11.0"})", r));
 }
 
 TEST(UpdateCheckParse, RejectsDraftsPrereleasesAndJunk)

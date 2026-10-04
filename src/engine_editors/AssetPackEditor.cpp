@@ -36,16 +36,12 @@ public:
 
     int GetCompileTarget() const override { return 3; }  // None - packing is handled by AssetPacker
 
-    bool Compile(const std::string& jsonData,
-                 std::vector<uint8_t>& rgba,
-                 int& width, int& height) override
+    bool Compile(const std::string& jsonData, std::vector<uint8_t>& rgba, int& width, int& height) override
     {
         return false;  // Not a texture target
     }
 
-    bool OnInspectorGUI(std::string& jsonData,
-                        const std::string& assetPath,
-                        const std::string& assetGuid) override
+    bool OnInspectorGUI(std::string& jsonData, const std::string& assetPath, const std::string& assetGuid) override
     {
         bool modified = false;
 
@@ -98,11 +94,17 @@ public:
                 size_t lastSlash = assetPath2.find_last_of("/\\");
                 size_t dotPos = assetPath2.find_last_of('.');
                 if (lastSlash != std::string::npos && dotPos != std::string::npos && dotPos > lastSlash)
+                {
                     displayName = assetPath2.substr(lastSlash + 1, dotPos - lastSlash - 1);
+                }
                 else if (lastSlash != std::string::npos)
+                {
                     displayName = assetPath2.substr(lastSlash + 1);
+                }
                 else
+                {
                     displayName = assetPath2;
+                }
             }
             else
             {
@@ -143,25 +145,32 @@ public:
         // Draw drop zone border
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         ImU32 borderColor = ImGui::IsItemHovered() ? IM_COL32(100, 180, 255, 200) : IM_COL32(128, 128, 128, 128);
-        drawList->AddRect(cursorPos, ImVec2(cursorPos.x + dropSize.x, cursorPos.y + dropSize.y),
-                          borderColor, 4.0f, 0, 2.0f);
+        drawList->AddRect(cursorPos, ImVec2(cursorPos.x + dropSize.x, cursorPos.y + dropSize.y), borderColor, 4.0f, 0,
+                          2.0f);
 
         // Center text in drop zone
         const char* dropText = "Drop Asset Here";
         ImVec2 textSize = ImGui::CalcTextSize(dropText);
         drawList->AddText(
-            ImVec2(cursorPos.x + (dropSize.x - textSize.x) * 0.5f,
-                   cursorPos.y + (dropSize.y - textSize.y) * 0.5f),
+            ImVec2(cursorPos.x + (dropSize.x - textSize.x) * 0.5f, cursorPos.y + (dropSize.y - textSize.y) * 0.5f),
             IM_COL32(128, 128, 128, 200), dropText);
 
         // Helper: try to add an asset by GUID+path to the pack
         auto tryAddAsset = [&](const std::string& guid, const std::string& path)
         {
-            if (guid.empty()) return;
+            if (guid.empty())
+            {
+                return;
+            }
 
             // Check duplicate
             for (const auto& existing : assets)
-                if (existing.value("guid", "") == guid) return;
+            {
+                if (existing.value("guid", "") == guid)
+                {
+                    return;
+                }
+            }
 
             // Determine type from path extension
             std::string assetType = "Unknown";
@@ -170,7 +179,10 @@ public:
             {
                 std::string ext = path.substr(dotPos);
                 assetType = AssetPipeline::GetAssetTypeFromExtension(ext);
-                if (assetType.empty()) assetType = "Unknown";
+                if (assetType.empty())
+                {
+                    assetType = "Unknown";
+                }
             }
 
             nlohmann::json newAsset;
@@ -190,16 +202,24 @@ public:
                 std::string line;
                 while (std::getline(stream, line))
                 {
-                    if (line.empty()) continue;
+                    if (line.empty())
+                    {
+                        continue;
+                    }
                     size_t tabPos = line.find('\t');
-                    if (tabPos == std::string::npos) continue;
+                    if (tabPos == std::string::npos)
+                    {
+                        continue;
+                    }
 
                     std::string guid = line.substr(0, tabPos);
                     std::string path = line.substr(tabPos + 1);
 
                     // Resolve GUID from path if empty
                     if (guid.empty())
+                    {
                         guid = AssetDatabase::AssetPathToGUID(path);
+                    }
 
                     tryAddAsset(guid, path);
                 }

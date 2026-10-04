@@ -2,7 +2,10 @@
 
 #include <string>
 
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {

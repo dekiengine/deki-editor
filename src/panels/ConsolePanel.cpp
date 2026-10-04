@@ -49,26 +49,43 @@ bool ConsolePanel::PassesFilter(const LogEntry& e, const std::string& filterLowe
     switch (e.level)
     {
         case ::Deki::LogLevel::Editor:
-            if (!m_ShowEditor) return false;
+            if (!m_ShowEditor)
+            {
+                return false;
+            }
             break;
         case ::Deki::LogLevel::Debug:
-            if (!m_ShowDebug) return false;
+            if (!m_ShowDebug)
+            {
+                return false;
+            }
             break;
         case ::Deki::LogLevel::Warning:
-            if (!m_ShowWarnings) return false;
+            if (!m_ShowWarnings)
+            {
+                return false;
+            }
             break;
         case ::Deki::LogLevel::Error:
-            if (!m_ShowErrors) return false;
+            if (!m_ShowErrors)
+            {
+                return false;
+            }
             break;
         case ::Deki::LogLevel::Info:
-            if (!m_ShowInfo) return false;
+            if (!m_ShowInfo)
+            {
+                return false;
+            }
             break;
         default: break;
     }
     if (!filterLower.empty())
     {
         if (e.messageLower.find(filterLower) == std::string::npos)
+        {
             return false;
+        }
     }
     return true;
 }
@@ -99,7 +116,9 @@ std::string ConsolePanel::FormatLogLine(const LogEntry& e)
 void ConsolePanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(600, 300);
 
@@ -115,7 +134,8 @@ void ConsolePanel::Draw()
     // toolbar, instead of ImGui scrolling the whole window (which dragged the
     // log along with it).
     if (!ImGui::Begin("CONSOLE###Console", &m_Open,
-                      DekiEditor::MaximizedWindowFlags("CONSOLE###Console") | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+                      DekiEditor::MaximizedWindowFlags("CONSOLE###Console") | ImGuiWindowFlags_NoScrollbar |
+                          ImGuiWindowFlags_NoScrollWithMouse))
     {
         ImGui::End();
         return;
@@ -144,13 +164,10 @@ void ConsolePanel::Draw()
 
         float cursorX = rowMin.x;
 
-        auto drawDivider = [&](float x)
-        {
-            dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f);
-        };
+        auto drawDivider = [&](float x) { dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f); };
 
-        auto iconBtn = [&](const char* id, const char* icon, const char* tooltip,
-                           bool active, std::function<void()> onClick)
+        auto iconBtn =
+            [&](const char* id, const char* icon, const char* tooltip, bool active, std::function<void()> onClick)
         {
             const ImVec2 iconSz = ImGui::CalcTextSize(icon);
             const float w = iconSz.x + 22.0f * dpi;
@@ -158,7 +175,10 @@ void ConsolePanel::Draw()
             ImGui::PushID(id);
             bool clicked = ImGui::InvisibleButton(id, ImVec2(w, rowH));
             bool hovered = ImGui::IsItemHovered();
-            if (hovered && tooltip) DekiEditor::Tooltip("%s", tooltip);
+            if (hovered && tooltip)
+            {
+                DekiEditor::Tooltip("%s", tooltip);
+            }
             // Active and hover backgrounds fade; hover only while not active.
             const float hoverT = DekiEditor::Motion::ItemHover(hovered);
             const float pressT = DekiEditor::Motion::ItemPress();
@@ -166,25 +186,34 @@ void ConsolePanel::Draw()
                 DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, active ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
             ImGui::PopID();
             if (activeT > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::WithAlpha(colActiveBg, activeT));
+            }
             if (hoverT * (1.0f - activeT) > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::WithAlpha(colHoverBg, hoverT * (1.0f - activeT)));
+            }
             if (pressT > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::PressShade(pressT));
+            }
             const ImU32 fg = active ? colFg : colDim;
             const float iconX = cursorX + (w - iconSz.x) * 0.5f;
             const float iconY = rowMin.y + (rowH - iconSz.y) * 0.5f;
             dl->AddText(ImVec2(iconX, iconY), fg, icon);
             cursorX += w;
             drawDivider(cursorX);
-            if (clicked && onClick) onClick();
+            if (clicked && onClick)
+            {
+                onClick();
+            }
         };
 
-        auto chip = [&](const char* id, const char* label, ImU32 dotColor,
-                        bool* onPtr, const char* settingKey, bool useRedBg)
+        auto chip =
+            [&](const char* id, const char* label, ImU32 dotColor, bool* onPtr, const char* settingKey, bool useRedBg)
         {
             ImFont* lf = g_FontUI ? g_FontUI : ImGui::GetFont();
             const float lfSize = ImGui::GetFontSize();
@@ -202,14 +231,20 @@ void ConsolePanel::Draw()
                 DekiEditor::Motion::To(ImGui::GetItemID() ^ 0xAC71u, *onPtr ? 1.0f : 0.0f, DekiEditor::Motion::Fast));
             ImGui::PopID();
             if (onT > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::WithAlpha(useRedBg ? colRedBg : colActiveBg, onT));
+            }
             if (hoverT * (1.0f - onT) > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::WithAlpha(colHoverBg, hoverT * (1.0f - onT)));
+            }
             if (pressT > 0.0f)
+            {
                 dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
                                   DekiEditor::Motion::PressShade(pressT));
+            }
 
             const ImU32 textCol = *onPtr ? colFg : colDim;
             const float dotX = cursorX + 11.0f * dpi;
@@ -230,7 +265,10 @@ void ConsolePanel::Draw()
             if (clicked)
             {
                 *onPtr = !*onPtr;
-                if (settingKey) EditorSettings::SetBool(settingKey, *onPtr);
+                if (settingKey)
+                {
+                    EditorSettings::SetBool(settingKey, *onPtr);
+                }
             }
         };
 
@@ -255,14 +293,19 @@ void ConsolePanel::Draw()
         drawDivider(cursorX);
 
         // Action icon buttons.
-        iconBtn("##clear", ICON_TI_ERASER, "Clear", false, [&]
-                { Clear(); });
+        iconBtn("##clear", ICON_TI_ERASER, "Clear", false, [&] { Clear(); });
         iconBtn("##fold", ICON_TI_FOLD, "Collapse repeats", m_Collapse,
                 [&]
-                { m_Collapse = !m_Collapse; EditorSettings::SetBool("console.collapse", m_Collapse); });
+                {
+                    m_Collapse = !m_Collapse;
+                    EditorSettings::SetBool("console.collapse", m_Collapse);
+                });
         iconBtn("##autoscroll", ICON_TI_ARROW_DOWN, "Auto-scroll", m_AutoScroll,
                 [&]
-                { m_AutoScroll = !m_AutoScroll; EditorSettings::SetBool("console.autoScroll", m_AutoScroll); });
+                {
+                    m_AutoScroll = !m_AutoScroll;
+                    EditorSettings::SetBool("console.autoScroll", m_AutoScroll);
+                });
 
         // Level chips.
         const ImU32 dotAccent = ImGui::ColorConvertFloat4ToU32(Palette::Accent);
@@ -322,8 +365,7 @@ void ConsolePanel::Draw()
         // More: the levels for working on the editor itself.
         cursorX = moreX;
         drawDivider(cursorX);
-        iconBtn("##more", ICON_TI_DOTS_VERTICAL, "More filters", false, [&]
-                { ImGui::OpenPopup("##consolemore"); });
+        iconBtn("##more", ICON_TI_DOTS_VERTICAL, "More filters", false, [&] { ImGui::OpenPopup("##consolemore"); });
 
         ImGui::PopClipRect();
 
@@ -334,9 +376,13 @@ void ConsolePanel::Draw()
         {
             PushContextMenuItemStyle();
             if (ImGui::MenuItem("Editor messages", nullptr, &m_ShowEditor))
+            {
                 EditorSettings::SetBool("console.showEditor", m_ShowEditor);
+            }
             if (ImGui::MenuItem("Debug messages", nullptr, &m_ShowDebug))
+            {
                 EditorSettings::SetBool("console.showDebug", m_ShowDebug);
+            }
             ImGui::PopStyleVar();  // ItemSpacing
             ImGui::EndPopup();
         }
@@ -347,8 +393,7 @@ void ConsolePanel::Draw()
         const float maxScroll = std::max(0.0f, contentW - trackW);
         ImGuiIO& io = ImGui::GetIO();
         const ImVec2 mp = io.MousePos;
-        const bool overTrack = mp.x >= rowMin.x && mp.x < rowMax.x &&
-                               mp.y >= rowMin.y && mp.y < rowMax.y;
+        const bool overTrack = mp.x >= rowMin.x && mp.x < rowMax.x && mp.y >= rowMin.y && mp.y < rowMax.y;
         if (overTrack && maxScroll > 0.0f && (io.MouseWheel != 0.0f || io.MouseWheelH != 0.0f))
         {
             const float wheel = (io.MouseWheelH != 0.0f) ? io.MouseWheelH : io.MouseWheel;
@@ -372,8 +417,7 @@ void ConsolePanel::Draw()
     // Zero the vertical item spacing so consecutive entry rows sit flush - each
     // row reserves its own InvisibleButton and the default ItemSpacing.y would
     // otherwise leave an unpainted gap between the zebra/severity backgrounds.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
 
     std::lock_guard<std::mutex> lock(m_Mutex);
 
@@ -403,8 +447,14 @@ void ConsolePanel::Draw()
 
     // Severity color + uppercase badge label (mockup line 549-553), and each
     // badge's width, measured once here rather than once per row.
-    struct Severity { ImVec4 color; const char* badge; float width; };
-    auto makeSeverity = [&](const ImVec4& c, const char* b) { return Severity{ c, b, badgeFont->CalcTextSizeA(badgeSize, FLT_MAX, 0.0f, b).x }; };
+    struct Severity
+    {
+        ImVec4 color;
+        const char* badge;
+        float width;
+    };
+    auto makeSeverity = [&](const ImVec4& c, const char* b)
+    { return Severity{ c, b, badgeFont->CalcTextSizeA(badgeSize, FLT_MAX, 0.0f, b).x }; };
     const Severity sevEditor = makeSeverity(Palette::Accent, "EDITOR");
     const Severity sevDebug = makeSeverity(Palette::Dim, "DEBUG");
     const Severity sevWarn = makeSeverity(Palette::Amber, "WARN");
@@ -413,8 +463,7 @@ void ConsolePanel::Draw()
     const float timeW = monoFont->CalcTextSizeA(monoSize, FLT_MAX, 0.0f, "00:00:00").x;
     // One badge column for every row, as wide as the widest label, so the
     // time and message line up down the list whatever the severity.
-    const float badgeW = std::max({ sevEditor.width, sevDebug.width, sevWarn.width,
-                                    sevError.width, sevInfo.width });
+    const float badgeW = std::max({ sevEditor.width, sevDebug.width, sevWarn.width, sevError.width, sevInfo.width });
 
     // Rows outside this band are advanced past with their cached height and
     // never formatted, measured or drawn. The console used to do all of that
@@ -427,7 +476,9 @@ void ConsolePanel::Draw()
     {
         const auto& entry = m_Entries[vecIndex];
         if (!PassesFilter(entry, filterStr))
+        {
             continue;
+        }
 
         const Severity* sev = &sevInfo;
         switch (entry.level)
@@ -491,7 +542,9 @@ void ConsolePanel::Draw()
             continue;
         }
         if (body.empty())
+        {
             buildBody(body);
+        }
 
         // Format timestamp HH:MM:SS - mono dim.
         auto time_t_val = std::chrono::system_clock::to_time_t(entry.timestamp);
@@ -502,8 +555,7 @@ void ConsolePanel::Draw()
         localtime_r(&time_t_val, &tm_val);
 #endif
         char timeBuf[16];
-        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d",
-                 tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec);
+        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec);
 
         // Zebra striping: every other visible row gets the slightly-lighter
         // alt-row background (Palette::Bg2). entryIndex counts only displayed
@@ -511,8 +563,7 @@ void ConsolePanel::Draw()
         ImDrawList* dl = ImGui::GetWindowDrawList();
         if (entryIndex % 2 == 0)
         {
-            dl->AddRectFilled(origin,
-                              ImVec2(origin.x + availWidth, origin.y + rowHeight),
+            dl->AddRectFilled(origin, ImVec2(origin.x + availWidth, origin.y + rowHeight),
                               ImGui::ColorConvertFloat4ToU32(Palette::Bg2));
         }
 
@@ -521,28 +572,20 @@ void ConsolePanel::Draw()
         {
             const ImU32 errBg = IM_COL32(232, 90, 80, 18);
             const ImU32 errLine = ImGui::ColorConvertFloat4ToU32(Palette::Red);
-            dl->AddRectFilled(origin,
-                              ImVec2(origin.x + availWidth, origin.y + rowHeight),
-                              errBg);
-            dl->AddRectFilled(origin,
-                              ImVec2(origin.x + 3.0f * dpi, origin.y + rowHeight),
-                              errLine);
+            dl->AddRectFilled(origin, ImVec2(origin.x + availWidth, origin.y + rowHeight), errBg);
+            dl->AddRectFilled(origin, ImVec2(origin.x + 3.0f * dpi, origin.y + rowHeight), errLine);
         }
         else if (entry.level == ::Deki::LogLevel::Warning)
         {
             const ImU32 warnLine = ImGui::ColorConvertFloat4ToU32(Palette::Amber);
-            dl->AddRectFilled(origin,
-                              ImVec2(origin.x + 3.0f * dpi, origin.y + rowHeight),
-                              warnLine);
+            dl->AddRectFilled(origin, ImVec2(origin.x + 3.0f * dpi, origin.y + rowHeight), warnLine);
         }
 
         // Selection highlight (translucent accent), on top of zebra/severity.
         const bool isSelected = m_SelectedRows.count(vecIndex) > 0;
         if (isSelected)
         {
-            dl->AddRectFilled(origin,
-                              ImVec2(origin.x + availWidth, origin.y + rowHeight),
-                              IM_COL32(59, 195, 255, 45));
+            dl->AddRectFilled(origin, ImVec2(origin.x + availWidth, origin.y + rowHeight), IM_COL32(59, 195, 255, 45));
         }
 
         // Cell positions.
@@ -557,10 +600,8 @@ void ConsolePanel::Draw()
 
         dl->AddText(badgeFont, badgeSize, ImVec2(badgeX, badgeY), sevU32, badge);
         dl->AddText(monoFont, monoSize, ImVec2(timeX, timeY), dimU32, timeBuf);
-        dl->PushClipRect(ImVec2(bodyX, bodyY),
-                         ImVec2(bodyX + bodyW, bodyY + bodySize2.y + 1.0f), true);
-        dl->AddText(monoFont, bodySize, ImVec2(bodyX, bodyY), sevU32,
-                    body.c_str(), nullptr, bodyW);
+        dl->PushClipRect(ImVec2(bodyX, bodyY), ImVec2(bodyX + bodyW, bodyY + bodySize2.y + 1.0f), true);
+        dl->AddText(monoFont, bodySize, ImVec2(bodyX, bodyY), sevU32, body.c_str(), nullptr, bodyW);
         dl->PopClipRect();
 
         // Reserve the row space + add an invisible button so hit-testing for
@@ -570,8 +611,8 @@ void ConsolePanel::Draw()
 
         // Double-click to open source file in VS Code
         bool handledDoubleClick = false;
-        if (entry.sourceLine > 0 && !entry.sourceFile.empty() &&
-            ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        if (entry.sourceLine > 0 && !entry.sourceFile.empty() && ImGui::IsItemHovered() &&
+            ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
             // Use full path directly if it exists, otherwise search by filename
             std::string fullPath = entry.sourceFile;
@@ -599,15 +640,23 @@ void ConsolePanel::Draw()
                 const int lo = std::min(m_LastClickedRow, vecIndex);
                 const int hi = std::max(m_LastClickedRow, vecIndex);
                 for (int i = lo; i <= hi && i < (int)m_Entries.size(); ++i)
+                {
                     if (PassesFilter(m_Entries[i], filterStr))
+                    {
                         m_SelectedRows.insert(i);
+                    }
+                }
             }
             else if (io.KeyCtrl)
             {
                 if (m_SelectedRows.count(vecIndex))
+                {
                     m_SelectedRows.erase(vecIndex);
+                }
                 else
+                {
                     m_SelectedRows.insert(vecIndex);
+                }
                 m_LastClickedRow = vecIndex;
             }
             else
@@ -624,7 +673,9 @@ void ConsolePanel::Draw()
                 {
                     Deki::Object* obj = scene->FindDekiObject(entry.objectId);
                     if (obj)
+                    {
                         m_App->SetSelectedObject(obj);
+                    }
                 }
             }
         }
@@ -649,17 +700,21 @@ void ConsolePanel::Draw()
             }
             bool hasSource = entry.sourceLine > 0 && !entry.sourceFile.empty();
 
-            std::string displayFilename = hasSource
-                                              ? std::filesystem::path(entry.sourceFile).filename().string()
-                                              : "";
+            std::string displayFilename = hasSource ? std::filesystem::path(entry.sourceFile).filename().string() : "";
 
             if (hasObject && hasSource)
-                DekiEditor::Tooltip("Click to select '%s' | Double-click to open %s:%d",
-                                    objectName.c_str(), displayFilename.c_str(), entry.sourceLine);
+            {
+                DekiEditor::Tooltip("Click to select '%s' | Double-click to open %s:%d", objectName.c_str(),
+                                    displayFilename.c_str(), entry.sourceLine);
+            }
             else if (hasObject)
+            {
                 DekiEditor::Tooltip("Click to select '%s'", objectName.c_str());
+            }
             else if (hasSource)
+            {
                 DekiEditor::Tooltip("Double-click to open %s:%d", displayFilename.c_str(), entry.sourceLine);
+            }
         }
 
         // Right-click context menu for copying (use unique ID per entry)
@@ -678,8 +733,12 @@ void ConsolePanel::Draw()
                 {
                     std::string out;
                     for (int idx : m_SelectedRows)
+                    {
                         if (idx >= 0 && idx < (int)m_Entries.size())
+                        {
                             out += FormatLogLine(m_Entries[idx]) + "\n";
+                        }
+                    }
                     ImGui::SetClipboardText(out.c_str());
                 }
                 else
@@ -691,8 +750,12 @@ void ConsolePanel::Draw()
             {
                 std::string allText;
                 for (const auto& e : m_Entries)
+                {
                     if (PassesFilter(e, filterStr))
+                    {
                         allText += FormatLogLine(e) + "\n";
+                    }
+                }
                 ImGui::SetClipboardText(allText.c_str());
             }
             ImGui::PopStyleVar();  // context menu ItemSpacing
@@ -707,15 +770,21 @@ void ConsolePanel::Draw()
     // Ctrl+C copies the selected entries (sorted ascending, one formatted line
     // each). Gated on the log child being focused (clicking a row focuses it) so
     // it doesn't hijack Ctrl+C while the search box is being edited.
-    if (!m_SelectedRows.empty() && ImGui::IsWindowFocused() &&
-        ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
+    if (!m_SelectedRows.empty() && ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl &&
+        ImGui::IsKeyPressed(ImGuiKey_C, false))
     {
         std::string out;
         for (int idx : m_SelectedRows)  // std::set iterates ascending
+        {
             if (idx >= 0 && idx < (int)m_Entries.size())
+            {
                 out += FormatLogLine(m_Entries[idx]) + "\n";
+            }
+        }
         if (!out.empty())
+        {
             ImGui::SetClipboardText(out.c_str());
+        }
     }
 
     // Auto-scroll to bottom
@@ -733,11 +802,8 @@ void ConsolePanel::Draw()
 void ConsolePanel::Clear()
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
-    m_Entries.erase(
-        std::remove_if(m_Entries.begin(), m_Entries.end(),
-                       [](const LogEntry& e)
-                       { return !e.pinned; }),
-        m_Entries.end());
+    m_Entries.erase(std::remove_if(m_Entries.begin(), m_Entries.end(), [](const LogEntry& e) { return !e.pinned; }),
+                    m_Entries.end());
     m_SelectedRows.clear();
     m_LastClickedRow = -1;
 }
@@ -747,7 +813,12 @@ int ConsolePanel::GetErrorCount()
     std::lock_guard<std::mutex> lock(m_Mutex);
     int n = 0;
     for (const auto& e : m_Entries)
-        if (e.level == ::Deki::LogLevel::Error) ++n;
+    {
+        if (e.level == ::Deki::LogLevel::Error)
+        {
+            ++n;
+        }
+    }
     return n;
 }
 
@@ -756,7 +827,12 @@ int ConsolePanel::GetBuildErrorCount()
     std::lock_guard<std::mutex> lock(m_Mutex);
     int n = 0;
     for (const auto& e : m_Entries)
-        if (e.level == ::Deki::LogLevel::Error && e.pinned) ++n;
+    {
+        if (e.level == ::Deki::LogLevel::Error && e.pinned)
+        {
+            ++n;
+        }
+    }
     return n;
 }
 
@@ -779,11 +855,8 @@ void ConsolePanel::LogBuildError(const std::string& message, const std::string& 
 void ConsolePanel::ClearBuildErrors()
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
-    m_Entries.erase(
-        std::remove_if(m_Entries.begin(), m_Entries.end(),
-                       [](const LogEntry& e)
-                       { return e.pinned; }),
-        m_Entries.end());
+    m_Entries.erase(std::remove_if(m_Entries.begin(), m_Entries.end(), [](const LogEntry& e) { return e.pinned; }),
+                    m_Entries.end());
     m_SelectedRows.clear();
     m_LastClickedRow = -1;
 }
@@ -791,11 +864,9 @@ void ConsolePanel::ClearBuildErrors()
 void ConsolePanel::ClearBuildErrorsForPackage(const std::string& buildKey)
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
-    m_Entries.erase(
-        std::remove_if(m_Entries.begin(), m_Entries.end(),
-                       [&buildKey](const LogEntry& e)
-                       { return e.pinned && e.buildKey == buildKey; }),
-        m_Entries.end());
+    m_Entries.erase(std::remove_if(m_Entries.begin(), m_Entries.end(),
+                                   [&buildKey](const LogEntry& e) { return e.pinned && e.buildKey == buildKey; }),
+                    m_Entries.end());
     m_SelectedRows.clear();
     m_LastClickedRow = -1;
 }
@@ -841,11 +912,18 @@ void ConsolePanel::AddEntry(const std::string& message, ::Deki::LogLevel level, 
         {
             std::set<int> shifted;
             for (int idx : m_SelectedRows)
-                if (idx - removed >= 0) shifted.insert(idx - removed);
+            {
+                if (idx - removed >= 0)
+                {
+                    shifted.insert(idx - removed);
+                }
+            }
             m_SelectedRows.swap(shifted);
         }
         if (m_LastClickedRow >= 0)
+        {
             m_LastClickedRow = (m_LastClickedRow >= removed) ? (m_LastClickedRow - removed) : -1;
+        }
     }
 }
 
@@ -882,29 +960,36 @@ void ConsolePanel::LogWithLevel(::Deki::LogLevel level, const std::string& messa
 void ConsolePanel::LogStatic(const std::string& message)
 {
     if (s_Instance)
+    {
         s_Instance->Log(message);
+    }
 }
 
 void ConsolePanel::LogDebugStatic(const std::string& message)
 {
     if (s_Instance)
+    {
         s_Instance->LogDebug(message);
+    }
 }
 
 void ConsolePanel::LogWarningStatic(const std::string& message)
 {
     if (s_Instance)
+    {
         s_Instance->LogWarning(message);
+    }
 }
 
 void ConsolePanel::LogErrorStatic(const std::string& message)
 {
     if (s_Instance)
+    {
         s_Instance->LogError(message);
+    }
 }
 
-void ConsolePanel::EngineLogCallback(::Deki::LogLevel level, const std::string& message,
-                                     const char* file, int line)
+void ConsolePanel::EngineLogCallback(::Deki::LogLevel level, const std::string& message, const char* file, int line)
 {
     if (s_Instance)
     {
@@ -914,7 +999,9 @@ void ConsolePanel::EngineLogCallback(::Deki::LogLevel level, const std::string& 
         std::string displayMessage = message;
         size_t arrowPos = message.find(" -> ");
         if (arrowPos != std::string::npos)
+        {
             displayMessage = message.substr(arrowPos + 4);
+        }
 
         // Use the full file path directly from __FILE__
         std::string sourceFile = file ? file : "";
@@ -926,20 +1013,28 @@ std::string ConsolePanel::FindSourceFile(const std::string& filename) const
 {
     namespace fs = std::filesystem;
     if (filename.empty())
+    {
         return "";
+    }
 
     auto searchDir = [&](const std::string& dir) -> std::string
     {
         if (dir.empty() || !fs::exists(dir))
+        {
             return "";
+        }
         try
         {
             for (const auto& entry : fs::recursive_directory_iterator(dir))
             {
                 if (!entry.is_regular_file())
+                {
                     continue;
+                }
                 if (entry.path().filename().string() == filename)
+                {
                     return entry.path().string();
+                }
             }
         }
         catch (const fs::filesystem_error&)
@@ -958,7 +1053,9 @@ std::string ConsolePanel::FindSourceFile(const std::string& filename) const
             std::string sourceDir = PackageLoader::ResolvePackageSourceDir(projectPath, pkg.dllFilename);
             std::string result = searchDir(sourceDir);
             if (!result.empty())
+            {
                 return result;
+            }
         }
     }
 
@@ -968,7 +1065,9 @@ std::string ConsolePanel::FindSourceFile(const std::string& filename) const
     {
         std::string result = searchDir(project->GetSrcPath());
         if (!result.empty())
+        {
             return result;
+        }
     }
 
     return "";

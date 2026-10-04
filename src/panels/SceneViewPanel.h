@@ -9,10 +9,22 @@
 #include <vector>
 #include <cstdint>
 
-namespace Deki { class Object; }
-namespace Deki { class ICamera; }
-namespace Deki { class LifecycleManager; }
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class ICamera;
+}
+namespace Deki
+{
+class LifecycleManager;
+}
+namespace Deki
+{
+class Scene;
+}
 
 namespace DekiEditor
 {
@@ -45,7 +57,6 @@ public:
 
     // Destroy editor camera component before package DLL unload (avoids stale vtable)
     void InvalidateEditorCamera();
-
 
     // The scene camera is found by a full tree walk. It changes only when the
     // scene, an object or a component changes, so the answer is kept until

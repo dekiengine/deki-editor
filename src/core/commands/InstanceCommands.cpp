@@ -20,7 +20,10 @@ std::string CreateInstanceCommand::GetDescription() const
 void CreateInstanceCommand::Execute()
 {
     m_InstanceObject = m_Scene->CreateDekiObject(m_InstanceName);
-    if (!m_InstanceObject) return;
+    if (!m_InstanceObject)
+    {
+        return;
+    }
 
     m_InstanceObject->SetSourceSceneGuid(m_SourceSceneGuid);
 
@@ -31,7 +34,9 @@ void CreateInstanceCommand::Execute()
     {
         auto& roots = m_Scene->GetObjects();
         if (!roots.empty())
+        {
             resolvedParent = roots[0];
+        }
     }
 
     if (resolvedParent)
@@ -43,14 +48,20 @@ void CreateInstanceCommand::Execute()
 
     m_Scene->ExpandInstance(m_InstanceObject);
 
-    if (m_OnCreated) m_OnCreated(m_InstanceObject);
+    if (m_OnCreated)
+    {
+        m_OnCreated(m_InstanceObject);
+    }
 }
 
 void CreateInstanceCommand::Undo()
 {
     if (m_InstanceObject)
     {
-        if (m_OnUndone) m_OnUndone();
+        if (m_OnUndone)
+        {
+            m_OnUndone();
+        }
         m_Scene->DestroyDekiObject(m_InstanceObject);
         m_InstanceObject = nullptr;
     }
@@ -78,7 +89,10 @@ void UnlinkInstanceCommand::Execute()
     m_InstanceObject->SetInstanceOverridesJson("");
     ClearInstanceFlags(m_InstanceObject);
 
-    if (m_OnUnlinked) m_OnUnlinked();
+    if (m_OnUnlinked)
+    {
+        m_OnUnlinked();
+    }
 }
 
 void UnlinkInstanceCommand::Undo()
@@ -98,7 +112,9 @@ void UnlinkInstanceCommand::ClearInstanceFlags(Deki::Object* obj)
 {
     obj->SetPartOfInstance(false);
     for (auto* child : obj->GetChildren())
+    {
         ClearInstanceFlags(child);
+    }
 }
 
 void UnlinkInstanceCommand::SetInstanceFlags(Deki::Object* obj)
@@ -125,16 +141,22 @@ void LinkInstanceCommand::Execute()
     m_Scene->CollectOverrides(m_Object, m_Object, overrides);
 
     if (!overrides.empty())
+    {
         m_Object->SetInstanceOverridesJson(overrides.dump());
+    }
     else
+    {
         m_Object->SetInstanceOverridesJson("");
+    }
 
     // Delete existing children (will be replaced by expanded source). Through
     // the scene, which tells the editor first: selection and undo history held
     // pointers into them.
     auto children = m_Object->GetChildren();  // copy
     for (auto* child : children)
+    {
         m_Scene->DestroyDekiObject(child);
+    }
 
     // Clear existing components (ExpandInstance will re-add from source;
     // without this, Redo would duplicate them)
@@ -150,7 +172,10 @@ void LinkInstanceCommand::Execute()
     m_Scene->ExpandInstance(m_Object);
     m_Object->SetName(savedName);
 
-    if (m_OnLinked) m_OnLinked();
+    if (m_OnLinked)
+    {
+        m_OnLinked();
+    }
 }
 
 void LinkInstanceCommand::Undo()
@@ -183,13 +208,18 @@ void LinkInstanceCommand::Undo()
             {
                 o->SetPartOfInstance(true);
                 for (auto* c : o->GetChildren())
+                {
                     markRecursive(c);
+                }
             };
             markRecursive(child);
         }
     }
 
-    if (m_OnUndone) m_OnUndone();
+    if (m_OnUndone)
+    {
+        m_OnUndone();
+    }
 }
 
 void LinkInstanceCommand::Redo()
@@ -215,15 +245,25 @@ void ApplyInstanceToSceneCommand::Execute()
     using namespace InstanceCommandsDetail;
 
     if (!m_Scene || !m_Instance || !m_Instance->IsSceneInstance())
+    {
         return;
+    }
     if (!m_SelectedOverrides.is_array() || m_SelectedOverrides.empty())
+    {
         return;
+    }
 
     m_SourceGuid = m_Instance->GetSourceSceneGuid();
-    if (!Deki::Scene::s_GuidToPathResolver) return;
+    if (!Deki::Scene::s_GuidToPathResolver)
+    {
+        return;
+    }
 
     m_SourcePath = Deki::Scene::s_GuidToPathResolver(m_SourceGuid);
-    if (m_SourcePath.empty()) return;
+    if (m_SourcePath.empty())
+    {
+        return;
+    }
 
     // Snapshot for undo.
     m_SavedSourceJson = ReadFileToString(m_SourcePath);
@@ -231,10 +271,16 @@ void ApplyInstanceToSceneCommand::Execute()
 
     // Load source, patch only the selected overrides, save.
     Deki::Scene source;
-    if (!source.LoadFromFile(m_SourcePath)) return;
+    if (!source.LoadFromFile(m_SourcePath))
+    {
+        return;
+    }
 
     const auto& sourceRoots = source.GetObjects();
-    if (sourceRoots.empty()) return;
+    if (sourceRoots.empty())
+    {
+        return;
+    }
     if (sourceRoots.size() > 1)
     {
         DEKI_LOG_WARNING("ApplyInstanceToScene: multi-root source '%s' - "
@@ -243,18 +289,29 @@ void ApplyInstanceToSceneCommand::Execute()
     }
     source.ApplyOverrides(sourceRoots[0], m_SelectedOverrides);
     if (!source.SaveToFile(m_SourcePath))
+    {
         return;
+    }
 
     // Propagate to unopened scene files (each one's LoadFromFile expands
     // against the new source; SaveToFile recomputes its overrides fresh).
     m_SavedOtherScenes.clear();
     for (const auto& path : m_OtherScenePaths)
     {
-        if (path == m_SourcePath) continue;
+        if (path == m_SourcePath)
+        {
+            continue;
+        }
 
         Deki::Scene otherScene;
-        if (!otherScene.LoadFromFile(path)) continue;
-        if (!SceneReferencesGuid(otherScene, m_SourceGuid)) continue;
+        if (!otherScene.LoadFromFile(path))
+        {
+            continue;
+        }
+        if (!SceneReferencesGuid(otherScene, m_SourceGuid))
+        {
+            continue;
+        }
 
         m_SavedOtherScenes.emplace_back(path, ReadFileToString(path));
         otherScene.SaveToFile(path);
@@ -265,34 +322,43 @@ void ApplyInstanceToSceneCommand::Execute()
     // is left alone - its in-memory render is already correct, and
     // touching it would discard any uncommitted live edits.
     std::vector<Deki::Object*> siblings;
-    CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance,
-                           siblings);
+    CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance, siblings);
     for (auto* inst : siblings)
+    {
         ReexpandInstance(m_Scene, inst);
+    }
 }
 
 void ApplyInstanceToSceneCommand::Undo()
 {
     using namespace InstanceCommandsDetail;
 
-    if (m_SourcePath.empty()) return;
+    if (m_SourcePath.empty())
+    {
+        return;
+    }
 
     // Roll back any scene files we rewrote.
     for (const auto& [path, content] : m_SavedOtherScenes)
+    {
         WriteStringToFile(path, content);
+    }
     m_SavedOtherScenes.clear();
 
     WriteStringToFile(m_SourcePath, m_SavedSourceJson);
     if (m_Instance)
+    {
         m_Instance->SetInstanceOverridesJson(m_SavedInstanceOverrides);
+    }
 
     // Re-expand siblings against the rolled-back source. The applied
     // instance wasn't re-expanded in Execute, so no need to touch it here.
     std::vector<Deki::Object*> siblings;
-    CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance,
-                           siblings);
+    CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance, siblings);
     for (auto* inst : siblings)
+    {
         ReexpandInstance(m_Scene, inst);
+    }
 }
 
 bool ApplyInstanceToSceneCommand::ReferencesAny(const DeadMemory& dead) const
@@ -304,14 +370,30 @@ bool ApplyInstanceToSceneCommand::SceneReferencesGuid(const Deki::Scene& p, cons
 {
     std::function<bool(const Deki::Object*)> walk = [&](const Deki::Object* obj) -> bool
     {
-        if (!obj) return false;
-        if (obj->GetSourceSceneGuid() == guid) return true;
+        if (!obj)
+        {
+            return false;
+        }
+        if (obj->GetSourceSceneGuid() == guid)
+        {
+            return true;
+        }
         for (auto* c : obj->GetChildren())
-            if (walk(c)) return true;
+        {
+            if (walk(c))
+            {
+                return true;
+            }
+        }
         return false;
     };
     for (auto* root : p.GetObjects())
-        if (walk(root)) return true;
+    {
+        if (walk(root))
+        {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -324,7 +406,9 @@ void RevertInstanceOverridesCommand::Execute()
 {
     using namespace InstanceCommandsDetail;
     if (!m_Scene || !m_Instance || !m_Instance->IsSceneInstance())
+    {
         return;
+    }
 
     m_SavedOverrides = m_Instance->GetInstanceOverridesJson();
     m_Instance->SetInstanceOverridesJson("");
@@ -334,7 +418,10 @@ void RevertInstanceOverridesCommand::Execute()
 void RevertInstanceOverridesCommand::Undo()
 {
     using namespace InstanceCommandsDetail;
-    if (!m_Scene || !m_Instance) return;
+    if (!m_Scene || !m_Instance)
+    {
+        return;
+    }
 
     m_Instance->SetInstanceOverridesJson(m_SavedOverrides);
     ReexpandInstance(m_Scene, m_Instance);

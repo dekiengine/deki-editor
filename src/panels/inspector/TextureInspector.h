@@ -18,9 +18,9 @@ public:
     ~TextureInspector();
 
     // Granular draw methods for orchestrated layout
-    void DrawPreview();                             // Anchored texture preview (always visible)
-    void BeginScrollRegion();                       // Opens scrollable child region
-    void DrawSettings();                            // Settings (chroma key, spritesheet button) and Targets
+    void DrawPreview();        // Anchored texture preview (always visible)
+    void BeginScrollRegion();  // Opens scrollable child region
+    void DrawSettings();       // Settings (chroma key, spritesheet button) and Targets
     // The Targets section: a Default card with the settings every target
     // uses, then one card per target that can override them. `write` edits the
     // image's settings.texture and reimports it.
@@ -42,20 +42,20 @@ private:
     // Texture preview state
     uint32_t m_PreviewTextureId = 0;
     std::string m_PreviewTexturePath;
-    uint32_t m_PreviewWidth = 0;   // the image's own size (frames and Max Size are in it)
+    uint32_t m_PreviewWidth = 0;  // the image's own size (frames and Max Size are in it)
     uint32_t m_PreviewHeight = 0;
-    uint32_t m_StoredWidth = 0;    // the cached texture's, smaller when Max Size shrank it
+    uint32_t m_StoredWidth = 0;  // the cached texture's, smaller when Max Size shrank it
     uint32_t m_StoredHeight = 0;
 
     // Format selection state
-    int m_SelectedFormatIndex = 0;      // 0 = Automatic
+    int m_SelectedFormatIndex = 0;                   // 0 = Automatic
     std::map<std::string, int> m_TargetFormatIndex;  // platform id -> index; absent/0 = the asset's own
     int m_MaxSizeIndex = 0;                          // into kTextureMaxSizes; 0 = no limit
     std::map<std::string, int> m_TargetMaxIndex;     // platform id -> index; absent = the asset's own
-    bool m_DefaultOpen = true;                        // the Default card unfolded
-    std::map<std::string, bool> m_TargetOpen;         // platform id -> card unfolded (first seen: open if overridden)
-    bool m_SourceHasAlpha = false;       // from the cached header, for showing what Automatic gives
-    std::string m_LastFormatAssetPath;  // Detect asset selection changes
+    bool m_DefaultOpen = true;                       // the Default card unfolded
+    std::map<std::string, bool> m_TargetOpen;        // platform id -> card unfolded (first seen: open if overridden)
+    bool m_SourceHasAlpha = false;                   // from the cached header, for showing what Automatic gives
+    std::string m_LastFormatAssetPath;               // Detect asset selection changes
 
     // Chroma key state (loaded from / written to .data sidecar's
     // settings.texture.chroma_key block)

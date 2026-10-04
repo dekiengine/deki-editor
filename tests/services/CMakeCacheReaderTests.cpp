@@ -43,10 +43,8 @@ TEST(CMakeCacheReader, ReadsTheValueAfterTheType)
             "CMAKE_CXX_COMPILER:FILEPATH=C:/msys64/mingw64/bin/g++.exe\n"
             "FETCHCONTENT_BASE_DIR:PATH=C:/work/deki-editor/build-alt/_deps\n"
             "DEKI_ENGINE_PATH:PATH=C:/work/deki-editor/deki-engine\n");
-    EXPECT_EQ(ReadCMakeCacheVar(t.dir.string(), "FETCHCONTENT_BASE_DIR"),
-              "C:/work/deki-editor/build-alt/_deps");
-    EXPECT_EQ(ReadCMakeCacheVar(t.dir.string(), "DEKI_ENGINE_PATH"),
-              "C:/work/deki-editor/deki-engine");
+    EXPECT_EQ(ReadCMakeCacheVar(t.dir.string(), "FETCHCONTENT_BASE_DIR"), "C:/work/deki-editor/build-alt/_deps");
+    EXPECT_EQ(ReadCMakeCacheVar(t.dir.string(), "DEKI_ENGINE_PATH"), "C:/work/deki-editor/deki-engine");
 }
 
 TEST(CMakeCacheReader, NameMatchesUpToTheColon)

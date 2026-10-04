@@ -53,11 +53,15 @@ static std::vector<int> GetFontSizesFromData(const std::string& fontPath)
     std::string dataPath = fontPath + ".data";
 
     if (!fs::exists(dataPath))
+    {
         return sizes;
+    }
 
     std::ifstream file(dataPath);
     if (!file.is_open())
+    {
         return sizes;
+    }
 
     try
     {
@@ -67,7 +71,9 @@ static std::vector<int> GetFontSizesFromData(const std::string& fontPath)
             for (const auto& size : j["fontSettings"]["sizes"])
             {
                 if (size.is_number_integer())
+                {
                     sizes.push_back(size.get<int>());
+                }
             }
         }
     }
@@ -79,14 +85,17 @@ static std::vector<int> GetFontSizesFromData(const std::string& fontPath)
 }
 
 AssetPropertyEditor::AssetPropertyEditor(EditorApp* app, AssetPicker* picker)
-    : m_App(app), m_AssetPicker(picker)
+    : m_App(app),
+      m_AssetPicker(picker)
 {
 }
 
 std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& guid)
 {
     if (guid.empty())
+    {
         return "(None)";
+    }
 
     // Check if this looks like a GUID (contains dashes and is long enough)
     bool isGuid = (guid.find('-') != std::string::npos && guid.length() >= 32);
@@ -107,19 +116,15 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
                 {
                     // Extract filename from path
                     size_t lastSlash = parentInfo->path.find_last_of("/\\");
-                    std::string parentName = (lastSlash != std::string::npos)
-                                                 ? parentInfo->path.substr(lastSlash + 1)
-                                                 : parentInfo->path;
-                    std::string frameName = subAsset->name.empty()
-                                                ? "Frame " + std::to_string(subAsset->subAssetIndex)
-                                                : subAsset->name;
+                    std::string parentName =
+                        (lastSlash != std::string::npos) ? parentInfo->path.substr(lastSlash + 1) : parentInfo->path;
+                    std::string frameName =
+                        subAsset->name.empty() ? "Frame " + std::to_string(subAsset->subAssetIndex) : subAsset->name;
                     return parentName + " > " + frameName;
                 }
                 else
                 {
-                    return subAsset->name.empty()
-                               ? "Frame " + std::to_string(subAsset->subAssetIndex)
-                               : subAsset->name;
+                    return subAsset->name.empty() ? "Frame " + std::to_string(subAsset->subAssetIndex) : subAsset->name;
                 }
             }
 
@@ -163,9 +168,13 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
         // Legacy path - show filename
         size_t lastSlash = guid.find_last_of("/\\");
         if (lastSlash != std::string::npos)
+        {
             return guid.substr(lastSlash + 1);
+        }
         else
+        {
             return guid;
+        }
     }
 }
 
@@ -175,17 +184,29 @@ AssetFilterType AssetPropertyEditor::GetAssetFilterType(const std::string& asset
     std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
 
     if (typeLower == "texture" || typeLower == "sprite" || typeLower == "image")
+    {
         return AssetFilterType::Textures;
+    }
     if (typeLower == "audio" || typeLower == "sound" || typeLower == "music")
+    {
         return AssetFilterType::Audio;
+    }
     if (typeLower == "script")
+    {
         return AssetFilterType::Scripts;
+    }
     if (typeLower == "scene" || typeLower == "scene")
+    {
         return AssetFilterType::Scenes;
+    }
     if (typeLower == "font" || typeLower == "bitmapfont")
+    {
         return AssetFilterType::Fonts;
+    }
     if (typeLower == "animation" || typeLower == "anim")
+    {
         return AssetFilterType::Animations;
+    }
 
     return AssetFilterType::All;
 }
@@ -198,11 +219,16 @@ void AssetPropertyEditor::FindDimensionPointers(Deki::Component* comp, int32_t**
     auto& registry = Deki::ComponentRegistry::Instance();
     const Deki::ComponentMeta* compMeta = registry.GetMeta(comp->GetType());
     if (!compMeta || !compMeta->name)
+    {
         return;
+    }
 
     auto findProperty = [&](const Deki::ComponentMeta* m, const char* name) -> int32_t*
     {
-        if (!m || !m->properties) return nullptr;
+        if (!m || !m->properties)
+        {
+            return nullptr;
+        }
         for (int i = 0; i < m->propertyCount; ++i)
         {
             const Deki::PropertyInfo& p = m->properties[i];
@@ -214,14 +240,19 @@ void AssetPropertyEditor::FindDimensionPointers(Deki::Component* comp, int32_t**
         return nullptr;
     };
 
-    const Deki::ComponentMeta* baseMeta = (compMeta->baseTypeId != 0)
-                                            ? registry.GetMeta(compMeta->baseTypeId)
-                                            : nullptr;
+    const Deki::ComponentMeta* baseMeta =
+        (compMeta->baseTypeId != 0) ? registry.GetMeta(compMeta->baseTypeId) : nullptr;
 
     int32_t* widthPtr = findProperty(baseMeta, "width");
-    if (!widthPtr) widthPtr = findProperty(compMeta, "width");
+    if (!widthPtr)
+    {
+        widthPtr = findProperty(compMeta, "width");
+    }
     int32_t* heightPtr = findProperty(baseMeta, "height");
-    if (!heightPtr) heightPtr = findProperty(compMeta, "height");
+    if (!heightPtr)
+    {
+        heightPtr = findProperty(compMeta, "height");
+    }
 
     *outWidth = widthPtr;
     *outHeight = heightPtr;
@@ -231,7 +262,9 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
 {
     auto* pipeline = m_App->GetAssetPipeline();
     if (!pipeline)
+    {
         return;
+    }
 
     int32_t* widthPtr = nullptr;
     int32_t* heightPtr = nullptr;
@@ -263,8 +296,7 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
             DekiEditor::AssetData assetData;
             bool usedFrameSize = false;
 
-            if (DekiEditor::LoadAssetData(dataPath, assetData) &&
-                assetData.settings.contains("sprite"))
+            if (DekiEditor::LoadAssetData(dataPath, assetData) && assetData.settings.contains("sprite"))
             {
                 auto& sprite = assetData.settings["sprite"];
                 if (sprite.contains("frameWidth") && sprite.contains("frameHeight"))
@@ -298,11 +330,17 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
 
 void AssetPropertyEditor::RevealAssetInBrowser(const std::string& guid)
 {
-    if (guid.empty()) return;
+    if (guid.empty())
+    {
+        return;
+    }
 
     auto* pipeline = m_App->GetAssetPipeline();
     auto* browser = m_App->GetAssetBrowserPanel();
-    if (!pipeline || !browser) return;
+    if (!pipeline || !browser)
+    {
+        return;
+    }
 
     const AssetInfo* info = pipeline->GetAssetInfoByGuid(guid);
     if (info)
@@ -317,8 +355,7 @@ bool AssetPropertyEditor::DrawAssetProperty(Deki::Component* comp, const Deki::P
 {
     // Asset properties - show asset reference with picker
     // Value is stored as GUID (like Unity)
-    std::string& assetRef = *reinterpret_cast<std::string*>(
-        reinterpret_cast<char*>(comp) + prop.offset);
+    std::string& assetRef = *reinterpret_cast<std::string*>(reinterpret_cast<char*>(comp) + prop.offset);
 
     std::string displayText = ResolveGuidToDisplayName(assetRef);
 
@@ -390,8 +427,8 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
     // AssetRef properties - uses AssetRefBase struct with guid and source fields
     // For derived assets (like fonts), source holds the original asset GUID
     // and guid holds the baked/compiled asset GUID
-    Deki::AssetRefBase& assetRefBase = *reinterpret_cast<Deki::AssetRefBase*>(
-        reinterpret_cast<char*>(comp) + prop.offset);
+    Deki::AssetRefBase& assetRefBase =
+        *reinterpret_cast<Deki::AssetRefBase*>(reinterpret_cast<char*>(comp) + prop.offset);
 
     // Use source for display if available (e.g., TTF font), otherwise guid
     const std::string& displayGuid = assetRefBase.source.empty() ? assetRefBase.guid : assetRefBase.source;
@@ -431,8 +468,8 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
         // auto-populated width/height by snapshotting the component's current values,
         // applying the auto-populate, capturing the new values, then restoring -
         // so all changes are applied through commands and a single Undo reverts them.
-        auto applyDrop = [&](const std::string& newGuid, const std::string& newSource,
-                             const std::string& dimGuid, bool autoPopulate)
+        auto applyDrop =
+            [&](const std::string& newGuid, const std::string& newSource, const std::string& dimGuid, bool autoPopulate)
         {
             std::vector<std::unique_ptr<Command>> commands;
             commands.push_back(std::make_unique<ModifyAssetRefCommand>(comp, prop, newGuid, newSource));
@@ -455,9 +492,14 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
                     *heightPtr = oldHeight;
 
                     if (newWidth != oldWidth)
+                    {
                         commands.push_back(std::make_unique<ModifyFieldCommand<int32_t>>(widthPtr, newWidth, "width"));
+                    }
                     if (newHeight != oldHeight)
-                        commands.push_back(std::make_unique<ModifyFieldCommand<int32_t>>(heightPtr, newHeight, "height"));
+                    {
+                        commands.push_back(
+                            std::make_unique<ModifyFieldCommand<int32_t>>(heightPtr, newHeight, "height"));
+                    }
                 }
             }
 
@@ -483,9 +525,13 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
                     bool isSourceAsset = (ext == ".ttf" || ext == ".otf");
 
                     if (isSourceAsset)
+                    {
                         applyDrop(/*guid*/ "", /*source*/ info->guid, /*dimGuid*/ "", false);
+                    }
                     else
+                    {
                         applyDrop(info->guid, "", info->guid, true);
+                    }
 
                     handled = true;
                 }

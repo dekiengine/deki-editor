@@ -57,13 +57,23 @@ bool HoveringResizeHandle(ImGuiContext& g, ImGuiWindow* window)
 {
     const ImGuiID hovered = g.HoveredIdPreviousFrame;
     if (hovered == 0)
+    {
         return false;
+    }
     for (int n = 0; n < 4; n++)
+    {
         if (hovered == ImGui::GetWindowResizeCornerID(window, n))
+        {
             return true;
+        }
+    }
     for (int dir = 0; dir < ImGuiDir_COUNT; dir++)
+    {
         if (hovered == ImGui::GetWindowResizeBorderID(window, (ImGuiDir)dir))
+        {
             return true;
+        }
+    }
     return false;
 }
 
@@ -75,15 +85,20 @@ bool HoveringResizeHandle(ImGuiContext& g, ImGuiWindow* window)
 bool HoveringTitleBarVoid(ImGuiContext& g, ImGuiWindow* window)
 {
     if (window->Flags & ImGuiWindowFlags_NoTitleBar)
+    {
         return false;
+    }
     // Something else is in front (a popup opened over the bar): its clicks
     // are its own.
-    if (g.HoveredWindow == nullptr ||
-        g.HoveredWindow->RootWindowDockTree != window->RootWindowDockTree)
+    if (g.HoveredWindow == nullptr || g.HoveredWindow->RootWindowDockTree != window->RootWindowDockTree)
+    {
         return false;
+    }
     const ImGuiID hovered = g.HoveredIdPreviousFrame;
     if (hovered != 0 && hovered != window->MoveId)
+    {
         return false;  // an actual widget in the bar
+    }
     const ImRect bar = window->TitleBarRect();
     return ImGui::IsMouseHoveringRect(bar.Min, bar.Max, /*clip*/ false);
 }
@@ -91,8 +106,12 @@ bool HoveringTitleBarVoid(ImGuiContext& g, ImGuiWindow* window)
 int FindTabIndex(ImGuiTabBar* bar, const ImGuiWindow* window)
 {
     for (int i = 0; i < bar->Tabs.Size; i++)
+    {
         if (bar->Tabs[i].Window == window)
+        {
             return i;
+        }
+    }
     return -1;
 }
 
@@ -112,7 +131,9 @@ int FindTabIndex(ImGuiTabBar* bar, const ImGuiWindow* window)
 void ProcessPendingReorder()
 {
     if (!s_PendingReorderWindow)
+    {
         return;
+    }
     if (--s_PendingReorderFrames < 0)
     {
         s_PendingReorderWindow = 0;  // Never came back; leave it where it is.
@@ -122,18 +143,28 @@ void ProcessPendingReorder()
 
     ImGuiWindow* w = ImGui::FindWindowByID(s_PendingReorderWindow);
     if (!w || !w->DockNode || !w->DockNode->TabBar)
+    {
         return;  // Not docked again yet.
+    }
 
     ImGuiTabBar* bar = w->DockNode->TabBar;
     const int n = bar->Tabs.Size;
 
     const int cur = FindTabIndex(bar, w);
     if (cur < 0)
+    {
         return;  // Tab not in the strip yet.
+    }
 
     int want = s_RestoreTabIndex;
-    if (want < 0) want = cur;     // never captured
-    if (want >= n) want = n - 1;  // node shrank meanwhile
+    if (want < 0)
+    {
+        want = cur;  // never captured
+    }
+    if (want >= n)
+    {
+        want = n - 1;  // node shrank meanwhile
+    }
 
     if (cur != want && n > 1)
     {
@@ -142,10 +173,16 @@ void ProcessPendingReorder()
         std::vector<ImGuiWindow*> order;
         order.reserve(n);
         for (int i = 0; i < n; ++i)
+        {
             if (i != cur && bar->Tabs[i].Window)
+            {
                 order.push_back(bar->Tabs[i].Window);
+            }
+        }
         if (want > (int)order.size())
+        {
             want = (int)order.size();
+        }
         order.insert(order.begin() + want, w);
 
         // Hand it to ImGui's own "multiple tabs appeared this frame" path
@@ -159,9 +196,13 @@ void ProcessPendingReorder()
         // flagging the whole strip, not just ours), and ImGui clears the
         // flag itself as it scans, so this lasts exactly one frame.
         for (int i = 0; i < (int)order.size(); ++i)
+        {
             order[i]->DockOrder = (short)i;
+        }
         for (int i = 0; i < n; ++i)
+        {
             bar->Tabs[i].Flags |= ImGuiTabItemFlags_Unsorted;
+        }
     }
 
     s_PendingReorderWindow = 0;
@@ -181,15 +222,21 @@ ImGuiWindow* FindWindowWithTabUnderMouse(ImGuiContext& g)
         // its node - which is most of the default layout. Every window in a
         // node gets its tab submitted, so every one of them has a rect.
         if (!w->WasActive || w->DockNode == nullptr)
+        {
             continue;
+        }
         // Per-frame temp data, so this is last frame's rect: it is written
         // when the dock node submits the tab, which happens after this
         // runs. Fine for a target that only moves when dragged.
         const ImRect& tab = w->DC.DockTabItemRect;
         if (tab.GetWidth() <= 0.0f || tab.GetHeight() <= 0.0f)
+        {
             continue;
+        }
         if (ImGui::IsMouseHoveringRect(tab.Min, tab.Max, /*clip*/ false))
+        {
             return w;
+        }
     }
     return nullptr;
 }
@@ -202,11 +249,15 @@ namespace DekiEditor
 ImGuiWindowFlags MaximizedWindowFlags(const char* windowName)
 {
     if (s_MaximizedWindow == 0 || windowName == nullptr)
+    {
         return 0;
+    }
     // ImHashStr is exactly how ImGui derives a window's id from its name, "###"
     // handling included, so this matches without needing the window to exist yet.
     if (ImHashStr(windowName) != s_MaximizedWindow)
+    {
         return 0;
+    }
 
     // NoMove alongside NoResize: a maximized panel is pinned to the dockspace
     // every frame, so dragging its title bar could only fight the pin and snap
@@ -218,7 +269,9 @@ ImGuiWindowFlags MaximizedWindowFlags(const char* windowName)
 void BeginPanelMaximizeFrame()
 {
     if (!ImGui::GetCurrentContext())
+    {
         return;
+    }
     ProcessPendingReorder();
 }
 
@@ -226,7 +279,9 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
 {
     ImGuiContext* ctx = ImGui::GetCurrentContext();
     if (!ctx)
+    {
         return;
+    }
     ImGuiContext& g = *ctx;
 
     ImGuiWindow* maximized = s_MaximizedWindow ? ImGui::FindWindowByID(s_MaximizedWindow) : nullptr;
@@ -242,9 +297,8 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
     {
         if (maximized)
         {
-            const ImGuiID target = (s_RestoreDockId && ImGui::DockBuilderGetNode(s_RestoreDockId))
-                                       ? s_RestoreDockId
-                                       : dockspaceId;
+            const ImGuiID target =
+                (s_RestoreDockId && ImGui::DockBuilderGetNode(s_RestoreDockId)) ? s_RestoreDockId : dockspaceId;
             // Direct, not through the request queue: the window is not being
             // submitted any more, so this just parks the id for whenever it is
             // reopened and Begin() binds it to that node.
@@ -290,8 +344,12 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
         // popups outermost-first (a submenu sits above its parent menu), then
         // tooltips, which belong above everything.
         for (const ImGuiPopupData& popup : g.OpenPopupStack)
+        {
             if (popup.Window && popup.Window->WasActive)
+            {
                 ImGui::BringWindowToDisplayFront(popup.Window);
+            }
+        }
 
         // Collected first: fronting shuffles the very list being walked.
         ImGuiWindow* tooltips[8];
@@ -299,13 +357,19 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
         for (ImGuiWindow* w : g.Windows)
         {
             if (!w->WasActive || !(w->Flags & ImGuiWindowFlags_Tooltip))
+            {
                 continue;
+            }
             if (tooltipCount == IM_COUNTOF(tooltips))
+            {
                 break;
+            }
             tooltips[tooltipCount++] = w;
         }
         for (int i = 0; i < tooltipCount; ++i)
+        {
             ImGui::BringWindowToDisplayFront(tooltips[i]);
+        }
 
         // Backstop. Panels ask for NoResize | NoMove themselves while maximized
         // (see MaximizedWindowFlags), which is what removes the grips, the
@@ -338,8 +402,7 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
         // the drag delta in NewFrame(), so without this the panel would fight
         // the pin for as long as the button is held, and dropping it over the
         // dockspace would dock it.
-        if (g.MovingWindow != nullptr &&
-            g.MovingWindow->RootWindowDockTree == maximized->RootWindowDockTree)
+        if (g.MovingWindow != nullptr && g.MovingWindow->RootWindowDockTree == maximized->RootWindowDockTree)
         {
             g.MovingWindow = nullptr;
         }
@@ -356,9 +419,13 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
     // A double-click that is already doing something else (inside a popup, or
     // mid drag-and-drop) is not ours to reinterpret.
     if (!ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
         return;
+    }
     if (g.OpenPopupStack.Size > 0 || g.DragDropActive)
+    {
         return;
+    }
 
     // ActiveId is checked per-candidate below, not globally: pressing a tab
     // MAKES that tab the active item (tabs are draggable), so a blanket
@@ -399,8 +466,7 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
                 // with it selected. SetWindowDock() binds at the window's own
                 // Begin(), one frame too late to affect that layout - which is
                 // exactly the flash of the wrong tab on the way back.
-                ImGui::DockContextQueueDock(ctx, /*target window*/ nullptr, target,
-                                            maximized, ImGuiDir_None, 0.0f,
+                ImGui::DockContextQueueDock(ctx, /*target window*/ nullptr, target, maximized, ImGuiDir_None, 0.0f,
                                             /*split_outer*/ false);
 
                 // The node's OWN selection, which the dock request does not
@@ -443,18 +509,20 @@ void UpdatePanelMaximize(ImGuiID dockspaceId)
     // ---- Maximize: double-click a tab ----
     ImGuiWindow* hit = FindWindowWithTabUnderMouse(g);
     if (!hit || !hit->DockId)
+    {
         return;
+    }
     if (g.ActiveId != 0 && g.ActiveId != hit->TabId)
+    {
         return;  // The mouse is busy with something else.
+    }
 
     s_MaximizedWindow = hit->ID;
     s_RestoreDockId = hit->DockId;
 
     // Remember the slot, not just the node: restoring into the right node at
     // the wrong end of the strip still shuffles the user's tabs around.
-    s_RestoreTabIndex = (hit->DockNode && hit->DockNode->TabBar)
-                            ? FindTabIndex(hit->DockNode->TabBar, hit)
-                            : -1;
+    s_RestoreTabIndex = (hit->DockNode && hit->DockNode->TabBar) ? FindTabIndex(hit->DockNode->TabBar, hit) : -1;
     s_PendingReorderWindow = 0;  // supersede any reorder still pending
 
     // Through the undock REQUEST QUEUE, not SetWindowDock(0). This runs after

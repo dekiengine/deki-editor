@@ -39,18 +39,22 @@ void FocusPanelTab(const char* idName)
     const std::string fullId = std::string("###") + idName;
     ImGuiWindow* window = ImGui::FindWindowByName(fullId.c_str());
     if (!window)
+    {
         return;
+    }
     ImGui::FocusWindow(window);
     // Select the tab and scroll the dock tab bar to it. Assigning NextSelectedTabId
     // drives the scroll-into-view animation; this mirrors ImGui's own dock code and
     // is the dock-node-safe path (the public TabBarQueueFocus(name) overload asserts
     // on dock-node tab bars).
     if (ImGuiDockNode* node = window->DockNode)
+    {
         if (ImGuiTabBar* tabBar = node->TabBar)
         {
             node->SelectedTabId = window->TabId;
             tabBar->SelectedTabId = tabBar->NextSelectedTabId = window->TabId;
         }
+    }
 }
 
 // The bar menu that was open last frame and this frame's, for telling a click
@@ -106,8 +110,7 @@ void EditorApp::DrawMenuBar()
         {
             ImDrawList* barDl = ImGui::GetWindowDrawList();
             const float barBottomPx = ImFloor(barRect.Max.y);
-            barDl->AddRectFilled(ImVec2(barRect.Min.x, barBottomPx - 1.0f),
-                                 ImVec2(barRect.Max.x, barBottomPx),
+            barDl->AddRectFilled(ImVec2(barRect.Min.x, barBottomPx - 1.0f), ImVec2(barRect.Max.x, barBottomPx),
                                  ImGui::GetColorU32(ImGuiCol_Border));
         }
 
@@ -186,8 +189,8 @@ void EditorApp::DrawMenuBar()
             ImVec2 rMin = ImGui::GetItemRectMin();
             ImVec2 rMax = ImGui::GetItemRectMax();
             const ImVec2 mousePos = ImGui::GetIO().MousePos;
-            const bool inColumn = (mousePos.x >= rMin.x && mousePos.x < rMax.x &&
-                                   mousePos.y >= barTopY && mousePos.y < barBottomY);
+            const bool inColumn =
+                (mousePos.x >= rMin.x && mousePos.x < rMax.x && mousePos.y >= barTopY && mousePos.y < barBottomY);
             ImGuiContext& g = *ImGui::GetCurrentContext();
             const ImGuiID id = g.LastItemData.ID;
             if (inColumn)
@@ -200,7 +203,9 @@ void EditorApp::DrawMenuBar()
                 // and we're hovered, swap to us. OpenPopup at the same stack
                 // level auto-closes the previous popup.
                 if (!isOpen && g.OpenPopupStack.Size > 0)
+                {
                     ImGui::OpenPopup(id);
+                }
             }
             // Click anywhere in the column opens the menu (covers dead area
             // above/below the text rect when no menu is currently open), and
@@ -212,17 +217,25 @@ void EditorApp::DrawMenuBar()
             if (inColumn && ImGui::IsMouseClicked(0))
             {
                 if (!wasOpen && !isOpen)
+                {
                     ImGui::OpenPopup(id);
+                }
                 else if (wasOpen && isOpen)
+                {
                     for (int i = 0; i < g.OpenPopupStack.Size; ++i)
+                    {
                         if (g.OpenPopupStack[i].PopupId == id)
                         {
                             ImGui::ClosePopupToLevel(i, true);
                             break;
                         }
+                    }
+                }
             }
             if (isOpen)
+            {
                 s_BarMenuOpenThisFrame = id;
+            }
             if (inColumn || isOpen)
             {
                 rMin.y = barTopY;
@@ -253,12 +266,15 @@ void EditorApp::DrawMenuBar()
             if (ImGui::MenuItem("Quit to Project Manager", nullptr, false, m_Project != nullptr))
             {
                 if (!CheckUnsavedChanges(PendingSceneAction::CloseProject))
+                {
                     CloseProject();
+                }
             }
             ImGui::Separator();
 
             // Save current scene (Ctrl+S)
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S", false, m_CurrentScene != nullptr && !m_CurrentScenePath.empty()))
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S", false,
+                                m_CurrentScene != nullptr && !m_CurrentScenePath.empty()))
             {
                 SaveScene();
             }
@@ -319,13 +335,14 @@ void EditorApp::DrawMenuBar()
                             Deki::Object* selected = GetSelectedObject();
                             Deki::Object* parent = selected ? selected->GetParent() : nullptr;
                             CommandHistory::Instance().Execute(
-                                std::make_unique<PasteObjectsCommand>(
-                                    GetCurrentScene(), data.value(), parent,
-                                    [this](const std::vector<Deki::Object*>& pasted)
-                                    {
-                                        if (!pasted.empty())
-                                            SetSelectedObject(pasted[0]);
-                                    }));
+                                std::make_unique<PasteObjectsCommand>(GetCurrentScene(), data.value(), parent,
+                                                                      [this](const std::vector<Deki::Object*>& pasted)
+                                                                      {
+                                                                          if (!pasted.empty())
+                                                                          {
+                                                                              SetSelectedObject(pasted[0]);
+                                                                          }
+                                                                      }));
                         }
                     }
                 }
@@ -352,7 +369,9 @@ void EditorApp::DrawMenuBar()
                     if (ImGui::BeginMenu("Maintenance", m_Project != nullptr))
                     {
                         if (busy)
+                        {
                             ImGui::TextDisabled("Unavailable while playing or building");
+                        }
 
                         for (MaintenanceAction action : ProjectMaintenance::AllActions())
                         {
@@ -363,7 +382,9 @@ void EditorApp::DrawMenuBar()
                                 m_PendingMaintenance = action;
                             }
                             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                            {
                                 ImGui::SetTooltip("%s", info.cost);
+                            }
                         }
                         ImGui::EndMenu();
                     }
@@ -455,14 +476,20 @@ void EditorApp::DrawMenuBar()
                 auto Group = [&firstGroup](const char* title)
                 {
                     if (!firstGroup)
+                    {
                         ImGui::Separator();
+                    }
                     firstGroup = false;
                     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
                     if (g_FontUISmall)
+                    {
                         ImGui::PushFont(g_FontUISmall, 11.0f);
+                    }
                     ImGui::TextUnformatted(title);
                     if (g_FontUISmall)
+                    {
                         ImGui::PopFont();
+                    }
                     ImGui::PopStyleColor();
                 };
 
@@ -525,9 +552,15 @@ void EditorApp::DrawMenuBar()
                     // Package tool windows (Node Graph and friends) are hosted, not
                     // owned, so they close through the host.
                     if (m_ToolHost)
+                    {
                         for (int i = 0; i < m_ToolHost->GetWindowCount(); ++i)
+                        {
                             if (EditorWindow* w = m_ToolHost->GetWindow(i))
+                            {
                                 w->SetOpen(false);
+                            }
+                        }
+                    }
 
                     // The dock tree is rebuilt beside the DockSpace() call, not
                     // here in the middle of a menu.
@@ -538,9 +571,13 @@ void EditorApp::DrawMenuBar()
                 // developer tools for working on the editor, not features of it.
                 ImGui::Separator();
                 if (ImGui::MenuItem("ImGui Demo"))
+                {
                     m_ShowDemoWindow = true;
+                }
                 if (ImGui::MenuItem("ImGui Metrics/Debugger"))
+                {
                     m_ShowMetricsWindow = true;
+                }
                 if (ImGui::MenuItem("Item Picker (click any widget to inspect)"))
                 {
                     ImGui::DebugStartItemPicker();
@@ -557,7 +594,9 @@ void EditorApp::DrawMenuBar()
             {
                 // The version line a bug report should quote (EditorApp::DrawAboutWindow).
                 if (ImGui::MenuItem("About Deki Editor"))
+                {
                     m_ShowAboutWindow = true;
+                }
                 ImGui::Separator();
                 // The release check is a notice only (services/UpdateCheck.h);
                 // opening the page is the one action it offers.
@@ -565,13 +604,19 @@ void EditorApp::DrawMenuBar()
                 if (!available.empty())
                 {
                     if (ImGui::MenuItem(("Open release page (" + available + " available)").c_str()))
+                    {
                         SDL_OpenURL(UpdateCheck::AvailableUrl().c_str());
+                    }
                 }
                 if (ImGui::MenuItem("Check for updates now"))
+                {
                     UpdateCheck::CheckNow();
+                }
                 bool checkOnStartup = UpdateCheck::IsEnabled();
                 if (ImGui::MenuItem("Check for updates daily", nullptr, &checkOnStartup))
+                {
                     UpdateCheck::SetEnabled(checkOnStartup);
+                }
                 EndBarMenu();
             }
         }
@@ -581,7 +626,9 @@ void EditorApp::DrawMenuBar()
 
         // --- Window control buttons (Chromium style) ---
         if (m_Window)
+        {
             DrawWindowControls(barRect.Min, barRect.Max);
+        }
 
         ImGui::EndMenuBar();
     }
@@ -612,8 +659,7 @@ void EditorApp::DrawGlobalToolbar()
     // on a floored y row gives a crisp hard line that matches the thicker dock
     // separators (AddLineH at the same thickness would AA-bleed).
     const float bottomY = ImFloor(startPos.y + toolbarH);
-    dl->AddRectFilled(ImVec2(startPos.x, bottomY - Dpi(2.0f)),
-                      ImVec2(startPos.x + availW, bottomY), colLine2);
+    dl->AddRectFilled(ImVec2(startPos.x, bottomY - Dpi(2.0f)), ImVec2(startPos.x + availW, bottomY), colLine2);
 
     // Reserve the strip in layout so DockSpace below starts under it.
     ImGui::Dummy(ImVec2(availW, toolbarH));
@@ -637,10 +683,8 @@ void EditorApp::DrawGlobalToolbar()
     // Cursor for placing transport buttons starts at toolbar left edge.
     float cursorX = startPos.x;
 
-    auto drawTransportBtn = [&](
-                                const char* id, const char* iconGlyph, const char* label,
-                                bool active, bool disabled, bool tintBg,
-                                const char* tooltip, std::function<void()> onClick)
+    auto drawTransportBtn = [&](const char* id, const char* iconGlyph, const char* label, bool active, bool disabled,
+                                bool tintBg, const char* tooltip, std::function<void()> onClick)
     {
         const ImVec2 iconSize = ImGui::CalcTextSize(iconGlyph);
         const ImVec2 labelSize = ImGui::CalcTextSize(label);
@@ -648,15 +692,22 @@ void EditorApp::DrawGlobalToolbar()
         const ImVec2 btnPos(cursorX, startPos.y);
 
         ImGui::SetCursorScreenPos(btnPos);
-        if (disabled) ImGui::BeginDisabled();
+        if (disabled)
+        {
+            ImGui::BeginDisabled();
+        }
         ImGui::InvisibleButton(id, ImVec2(btnW, toolbarH));
         const bool hovered = ImGui::IsItemHovered();
         const bool clicked = ImGui::IsItemClicked();
 
         if (tintBg)
+        {
             dl->AddRectFilled(btnPos, ImVec2(btnPos.x + btnW, btnPos.y + toolbarH), colActiveBg);
+        }
         else if (hovered && !disabled)
+        {
             dl->AddRectFilled(btnPos, ImVec2(btnPos.x + btnW, btnPos.y + toolbarH), colHoverBg);
+        }
 
         const ImU32 fgCol = disabled ? colDim2 : (active ? colAccent : colDim);
         const float iconY = btnPos.y + (toolbarH - iconSize.y) * 0.5f;
@@ -665,34 +716,52 @@ void EditorApp::DrawGlobalToolbar()
         dl->AddText(ImVec2(btnPos.x + padX + iconSize.x + iconGap, textY), fgCol, label);
 
         // Right-edge vertical separator, full toolbar height.
-        dl->AddLine(ImVec2(btnPos.x + btnW, btnPos.y),
-                    ImVec2(btnPos.x + btnW, btnPos.y + toolbarH), colSepLine, 1.0f);
+        dl->AddLine(ImVec2(btnPos.x + btnW, btnPos.y), ImVec2(btnPos.x + btnW, btnPos.y + toolbarH), colSepLine, 1.0f);
 
-        if (disabled) ImGui::EndDisabled();
-        if (hovered && !disabled) DekiEditor::Tooltip("%s", tooltip);
-        if (clicked && !disabled) onClick();
+        if (disabled)
+        {
+            ImGui::EndDisabled();
+        }
+        if (hovered && !disabled)
+        {
+            DekiEditor::Tooltip("%s", tooltip);
+        }
+        if (clicked && !disabled)
+        {
+            onClick();
+        }
 
         cursorX += btnW + 1.0f;  // +1px so the next button starts past the separator
     };
 
-    drawTransportBtn("##gt_run", ICON_TI_PLAYER_PLAY, "Run",
-                     isPlaying || isPaused, /*disabled*/ false, /*tintBg*/ isPlaying,
-                     isStopped ? "Play (Ctrl+P)" : (isPaused ? "Resume (Ctrl+P)" : "Playing"),
+    drawTransportBtn("##gt_run", ICON_TI_PLAYER_PLAY, "Run", isPlaying || isPaused, /*disabled*/ false,
+                     /*tintBg*/ isPlaying, isStopped ? "Play (Ctrl+P)" : (isPaused ? "Resume (Ctrl+P)" : "Playing"),
                      [&]
-                     { if (!isPlaying) Play(); });
+                     {
+                         if (!isPlaying)
+                         {
+                             Play();
+                         }
+                     });
 
     const bool canPause = isPlaying || isPaused;
-    drawTransportBtn("##gt_pause", ICON_TI_PLAYER_PAUSE, "Pause",
-                     isPaused, /*disabled*/ !canPause, /*tintBg*/ isPaused,
+    drawTransportBtn("##gt_pause", ICON_TI_PLAYER_PAUSE, "Pause", isPaused, /*disabled*/ !canPause, /*tintBg*/ isPaused,
                      isPaused ? "Resume (Ctrl+P)" : "Pause (Ctrl+P)",
                      [&]
-                     { if (isPlaying) Pause(); else if (isPaused) Play(); });
+                     {
+                         if (isPlaying)
+                         {
+                             Pause();
+                         }
+                         else if (isPaused)
+                         {
+                             Play();
+                         }
+                     });
 
     drawTransportBtn("##gt_stop", ICON_TI_PLAYER_STOP, "Stop",
-                     /*active*/ false, /*disabled*/ isStopped, /*tintBg*/ false,
-                     "Stop (Ctrl+Shift+P)",
-                     [&]
-                     { Stop(); });
+                     /*active*/ false, /*disabled*/ isStopped, /*tintBg*/ false, "Stop (Ctrl+Shift+P)",
+                     [&] { Stop(); });
 
     // Restore cursor to the row directly below the toolbar so the next
     // sibling widget (the DockSpace) renders below.
@@ -746,20 +815,26 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
         ImVec2 btnMin(barMin.x + slotX, barMin.y);
         ImVec2 btnMax(btnMin.x + buttonW, barMax.y);
 
-        bool hovered = (mousePos.x >= btnMin.x && mousePos.x < btnMax.x &&
-                        mousePos.y >= btnMin.y && mousePos.y < btnMax.y);
+        bool hovered =
+            (mousePos.x >= btnMin.x && mousePos.x < btnMax.x && mousePos.y >= btnMin.y && mousePos.y < btnMax.y);
 
         // Handle click directly (more reliable than WM_NCLBUTTONUP)
         if (hovered && ImGui::IsMouseClicked(0))
         {
             if (buttons[i].btnId == 1)
+            {
                 SDL_MinimizeWindow(m_Window);
+            }
             else if (buttons[i].btnId == 2)
             {
                 if (isMaximized)
+                {
                     SDL_RestoreWindow(m_Window);
+                }
                 else
+                {
                     SDL_MaximizeWindow(m_Window);
+                }
             }
             else if (buttons[i].btnId == 3)
             {
@@ -772,12 +847,12 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
 
         // Draw hover background, fading in and out. These are not ImGui items,
         // so each button keys its own fade.
-        const float hoverT = Motion::Hover(ImHashStr("##WindowControl") + static_cast<ImGuiID>(buttons[i].btnId), hovered);
+        const float hoverT =
+            Motion::Hover(ImHashStr("##WindowControl") + static_cast<ImGuiID>(buttons[i].btnId), hovered);
         if (hoverT > 0.0f)
         {
-            ImU32 hoverColor = (buttons[i].btnId == 3)
-                                   ? IM_COL32(232, 17, 35, 230)    // Close: red
-                                   : IM_COL32(255, 255, 255, 25);  // Min/Max: subtle
+            ImU32 hoverColor = (buttons[i].btnId == 3) ? IM_COL32(232, 17, 35, 230)    // Close: red
+                                                       : IM_COL32(255, 255, 255, 25);  // Min/Max: subtle
             dl->AddRectFilled(btnMin, btnMax, Motion::WithAlpha(hoverColor, hoverT));
         }
 
@@ -786,8 +861,8 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
         float iconX = btnMin.x + (buttonW - iconSize.x) * 0.5f;
         float iconY = btnMin.y + (barHeight - iconSize.y) * 0.5f;
         const float closeT = (buttons[i].btnId == 3) ? hoverT : 0.0f;  // the X brightens on red
-        ImU32 iconColor = ImGui::ColorConvertFloat4ToU32(
-            Motion::Mix(ImVec4(200 / 255.0f, 200 / 255.0f, 200 / 255.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), closeT));
+        ImU32 iconColor = ImGui::ColorConvertFloat4ToU32(Motion::Mix(
+            ImVec4(200 / 255.0f, 200 / 255.0f, 200 / 255.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), closeT));
         dl->AddText(scaledFont, scaledFontSize, ImVec2(iconX, iconY), iconColor, buttons[i].icon);
     }
 
@@ -819,8 +894,7 @@ void EditorApp::DrawProjectManagerMenuBar()
         {
             ImDrawList* barDl = ImGui::GetWindowDrawList();
             const float barBottomPx = ImFloor(barRect.Max.y);
-            barDl->AddRectFilled(ImVec2(barRect.Min.x, barBottomPx - 1.0f),
-                                 ImVec2(barRect.Max.x, barBottomPx),
+            barDl->AddRectFilled(ImVec2(barRect.Min.x, barBottomPx - 1.0f), ImVec2(barRect.Max.x, barBottomPx),
                                  ImGui::GetColorU32(ImGuiCol_Border));
         }
 
@@ -835,7 +909,9 @@ void EditorApp::DrawProjectManagerMenuBar()
         }
 
         if (m_Window)
+        {
             DrawWindowControls(barRect.Min, barRect.Max);
+        }
 
         // With no menu items, the whole bar left of the window buttons drags
         // the window. g_MenuItemsStartX is the boundary the Win32 hit test
@@ -854,25 +930,33 @@ void EditorApp::OpenProjectDialog()
                             [this](const std::string& path)
                             {
                                 if (path.empty())
+                                {
                                     return;
+                                }
                                 // Ask about the dirty scene BEFORE OpenProject: its internal
                                 // CloseProject runs mid-open and cannot stop to ask.
                                 if (!CheckUnsavedChanges(PendingSceneAction::OpenProject, path))
+                                {
                                     RequestOpenProject(path);
+                                }
                             });
 }
 
 void EditorApp::SaveSceneAsDialog()
 {
     if (!m_CurrentScene)
+    {
         return;
+    }
     const std::string defaultPath = m_Project ? m_Project->GetAssetsPath() : "";
     FileDialogs::SaveFile("Scene Files (*.scene)\0*.scene\0", "scene", defaultPath.c_str(),
                           [this](const std::string& path)
                           {
                               // The scene may have been closed while the dialog was up.
                               if (path.empty() || !m_CurrentScene)
+                              {
                                   return;
+                              }
                               SaveSceneAs(path);
                           });
 }

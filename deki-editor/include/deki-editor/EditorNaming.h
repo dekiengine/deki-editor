@@ -14,7 +14,10 @@
 #include <string>
 
 #include <deki-editor/EditorExport.h>
-namespace Deki { struct PropertyInfo; }
+namespace Deki
+{
+struct PropertyInfo;
+}
 
 namespace DekiEditor
 {

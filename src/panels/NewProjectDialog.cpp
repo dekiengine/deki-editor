@@ -59,10 +59,14 @@ void NewProjectDialog::Show()
 void NewProjectDialog::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     if (!ImGui::IsPopupOpen("New Project"))
+    {
         ImGui::OpenPopup("New Project");
+    }
     if (!BeginSchematicModal("New Project", 480.0f))
     {
         m_Open = false;  // closed some other way (Escape)
@@ -91,14 +95,17 @@ void NewProjectDialog::Draw()
     if (ImGui::Button("Browse", ImVec2(browseW, 0.0f)))
     {
         // The answer arrives on a later frame; the dialog outlives it.
-        FileDialogs::OpenFolder("Select Project Location",
-                                [this](const std::string& folder)
-                                {
-                                    if (folder.empty())
-                                        return;
-                                    strncpy(m_Location, folder.c_str(), sizeof(m_Location) - 1);
-                                },
-                                m_Location);
+        FileDialogs::OpenFolder(
+            "Select Project Location",
+            [this](const std::string& folder)
+            {
+                if (folder.empty())
+                {
+                    return;
+                }
+                strncpy(m_Location, folder.c_str(), sizeof(m_Location) - 1);
+            },
+            m_Location);
     }
     ImGui::PopStyleVar();
 
@@ -117,7 +124,9 @@ void NewProjectDialog::Draw()
         std::vector<const char*> names;
         names.reserve(m_Platforms.size());
         for (const auto& [id, name] : m_Platforms)
+        {
             names.push_back(name.c_str());
+        }
         ImGui::SetNextItemWidth(-FLT_MIN);
         SchematicCombo("##TargetPlatform", &m_SelectedPlatformIndex, names.data(), static_cast<int>(names.size()));
         // Only the desktop on offer (no board package anywhere yet): say where
@@ -145,8 +154,8 @@ void NewProjectDialog::Draw()
         ImGui::PopStyleColor();
     }
 
-    const int button = SchematicDialogButtons(
-        { { "Cancel" }, { "Create", DialogButton::Primary, m_ProjectName[0] != '\0' } });
+    const int button =
+        SchematicDialogButtons({ { "Cancel" }, { "Create", DialogButton::Primary, m_ProjectName[0] != '\0' } });
     if (button == 1 && CreateProject())
     {
         m_Open = false;
@@ -173,8 +182,7 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
     std::string name(m_ProjectName);
     for (char c : name)
     {
-        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' ||
-            c == '"' || c == '<' || c == '>' || c == '|')
+        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|')
         {
             errorMessage = "Project name contains invalid characters.";
             return false;

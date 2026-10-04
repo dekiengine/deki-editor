@@ -21,7 +21,9 @@ void MigrateMock(nlohmann::json& components)
     {
         auto& props = comp["properties"];
         if (!props.is_object() || !props.contains("legacyTimesTen"))
+        {
             continue;
+        }
         props["renamedValue"] = props["legacyTimesTen"].get<int>() / 10;
         props.erase("legacyTimesTen");
     }
@@ -29,7 +31,8 @@ void MigrateMock(nlohmann::json& components)
 
 std::string SceneWith(const char* properties)
 {
-    return std::string(R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
+    return std::string(
+               R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
            Deki::TypeName<MockComponent>() + R"(","class":"MockComponent","properties":)" + properties + "}]}]}]}";
 }
 
@@ -37,8 +40,12 @@ const MockComponent* FirstMock(const Deki::Scene& scene)
 {
     const Deki::Object* obj = scene.GetObjects()[0]->GetChildren()[0];
     for (const Deki::Component* c : obj->GetComponents())
+    {
         if (c->GetType() == MockComponent::StaticType)
+        {
             return static_cast<const MockComponent*>(c);
+        }
+    }
     return nullptr;
 }
 }  // namespace

@@ -26,13 +26,11 @@ protected:
         MockRefComponent::Register();
     }
 
-    void TearDown() override
-    {
-    }
+    void TearDown() override {}
 
     /// Helper: create a Deki::Object with a MockComponent that has known values
-    Deki::Object* CreateObjectWithMock(Deki::Scene* scene, const std::string& name,
-                                      int intVal = 0, float floatVal = 0.0f)
+    Deki::Object* CreateObjectWithMock(Deki::Scene* scene, const std::string& name, int intVal = 0,
+                                       float floatVal = 0.0f)
     {
         Deki::Object* obj = scene->CreateDekiObject(name);
         auto* comp = Deki::Internal::AddComponentByName(*obj, Deki::TypeName<MockComponent>());
@@ -92,8 +90,7 @@ TEST_F(SceneInstanceTest, SmallEnumRestore_OneByte_WritesOnlyOneByte)
 
     EXPECT_EQ(static_cast<int>(comp.smallEnum2), 2);
     // The critical check: trailing pointer must not be corrupted
-    EXPECT_EQ(comp.trailingPointer, nullptr)
-        << "1-byte enum restore overwrote adjacent memory (heap corruption bug)";
+    EXPECT_EQ(comp.trailingPointer, nullptr) << "1-byte enum restore overwrote adjacent memory (heap corruption bug)";
 }
 
 TEST_F(SceneInstanceTest, SmallEnumRestore_TwoByte_WritesOnlyTwoBytes)
@@ -130,8 +127,7 @@ TEST_F(SceneInstanceTest, SmallEnumRoundTrip_AllSizes_PreserveValues)
     EXPECT_EQ(static_cast<int>(restored.smallEnum1), 1);
     EXPECT_EQ(static_cast<int>(restored.smallEnum2), 2);
     EXPECT_EQ(static_cast<int>(restored.mediumEnum), 1);
-    EXPECT_EQ(restored.trailingPointer, nullptr)
-        << "Round-trip corrupted memory adjacent to enum fields";
+    EXPECT_EQ(restored.trailingPointer, nullptr) << "Round-trip corrupted memory adjacent to enum fields";
 }
 
 // ============================================================================
@@ -180,14 +176,13 @@ TEST_F(SceneInstanceTest, ObjectRefRestore_WithTypeId_RestoresBothFields)
 
     ComponentData data;
     data.typeName = Deki::TypeName<MockRefComponent>();
-    data.properties["targetRef"] = nlohmann::json{{"id", 999}, {"typeId", 111}};
+    data.properties["targetRef"] = nlohmann::json{ { "id", 999 }, { "typeId", 111 } };
 
     RestoreComponentProperties(&comp, data);
 
     EXPECT_EQ(comp.targetRef.id, 999u);
     EXPECT_EQ(comp.targetRef.componentTypeId, 111u);
-    EXPECT_EQ(comp.targetRef.resolved, nullptr)
-        << "Resolved pointer should be cleared on restore";
+    EXPECT_EQ(comp.targetRef.resolved, nullptr) << "Resolved pointer should be cleared on restore";
 }
 
 TEST_F(SceneInstanceTest, ObjectRefRestore_PlainId_RestoresWithZeroTypeId)
@@ -348,8 +343,7 @@ TEST_F(SceneInstanceTest, CreateChildrenRecursive_RestoresObjectIds)
 
     ASSERT_EQ(restoredChild->GetChildren().size(), 1u);
     Deki::Object* restoredGrandchild = restoredChild->GetChildren()[0];
-    EXPECT_EQ(restoredGrandchild->GetId(), originalGrandchildId)
-        << "Restored grandchild must have its original ID";
+    EXPECT_EQ(restoredGrandchild->GetId(), originalGrandchildId) << "Restored grandchild must have its original ID";
 }
 
 TEST_F(SceneInstanceTest, CreateChildrenRecursive_RestoresComponents)
@@ -442,8 +436,8 @@ TEST_F(SceneInstanceTest, ObjectRefAfterRestore_PointsToRestoredObject)
 
     Deki::Object* bgObj = new Deki::Object("Background");
     root->AddChild(bgObj);
-    auto* refComp = static_cast<MockRefComponent*>(
-        Deki::Internal::AddComponentByName(*bgObj, Deki::TypeName<MockRefComponent>()));
+    auto* refComp =
+        static_cast<MockRefComponent*>(Deki::Internal::AddComponentByName(*bgObj, Deki::TypeName<MockRefComponent>()));
     refComp->targetRef.id = buttonId;
     refComp->targetRef.componentTypeId = 12345;
 
@@ -464,16 +458,13 @@ TEST_F(SceneInstanceTest, ObjectRefAfterRestore_PointsToRestoredObject)
 
     // Verify the button object has the same ID
     Deki::Object* restoredButton = root->GetChildren()[0];
-    EXPECT_EQ(restoredButton->GetId(), buttonId)
-        << "Button must keep original ID so ObjectRefs resolve";
+    EXPECT_EQ(restoredButton->GetId(), buttonId) << "Button must keep original ID so ObjectRefs resolve";
 
     // Verify the ObjectRef still points to the correct ID
     Deki::Object* restoredBg = root->GetChildren()[1];
     auto* restoredRef = static_cast<MockRefComponent*>(restoredBg->GetComponents()[0]);
-    EXPECT_EQ(restoredRef->targetRef.id, buttonId)
-        << "ObjectRef must still point to the button's ID";
-    EXPECT_EQ(restoredRef->targetRef.componentTypeId, 12345u)
-        << "ObjectRef componentTypeId must be preserved";
+    EXPECT_EQ(restoredRef->targetRef.id, buttonId) << "ObjectRef must still point to the button's ID";
+    EXPECT_EQ(restoredRef->targetRef.componentTypeId, 12345u) << "ObjectRef componentTypeId must be preserved";
 }
 
 // ============================================================================
@@ -513,7 +504,7 @@ TEST_F(SceneInstanceTest, RestoreComponents_RecreatesInOrder)
     ComponentData cd2;
     cd2.typeName = Deki::TypeName<MockRefComponent>();
     cd2.properties["someValue"] = 20;
-    cd2.properties["targetRef"] = nlohmann::json{{"id", 100}, {"typeId", 200}};
+    cd2.properties["targetRef"] = nlohmann::json{ { "id", 100 }, { "typeId", 200 } };
     comps.push_back(cd2);
 
     RestoreComponents(&obj, comps);
@@ -674,9 +665,13 @@ TEST_F(SceneInstanceTest, CreateInstance_Callbacks_FireCorrectly)
     bool undoneFired = false;
     Deki::Object* createdObj = nullptr;
 
-    CreateInstanceCommand cmd(&scene, "source-guid", "Callback",
-        nullptr,
-        [&](Deki::Object* obj) { createdFired = true; createdObj = obj; },
+    CreateInstanceCommand cmd(
+        &scene, "source-guid", "Callback", nullptr,
+        [&](Deki::Object* obj)
+        {
+            createdFired = true;
+            createdObj = obj;
+        },
         [&]() { undoneFired = true; });
 
     cmd.Execute();
@@ -715,7 +710,8 @@ TEST_F(SceneInstanceTest, DeepHierarchy_SerializeAndRestore_PreservesFullTree)
 
     Deki::Object* b = new Deki::Object("B");
     root->AddChild(b);
-    auto* bRef = static_cast<MockRefComponent*>(Deki::Internal::AddComponentByName(*b, Deki::TypeName<MockRefComponent>()));
+    auto* bRef =
+        static_cast<MockRefComponent*>(Deki::Internal::AddComponentByName(*b, Deki::TypeName<MockRefComponent>()));
     bRef->targetRef.id = a->GetId();
 
     // Level 2: one child under A

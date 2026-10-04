@@ -32,10 +32,8 @@ public:
     //
     // Redirects are followed iteratively up to kMaxRedirects, and a redirect may
     // not downgrade an https request to http.
-    static bool DownloadFile(const std::string& url,
-                             const std::string& localPath,
-                             std::atomic<bool>* cancelFlag = nullptr,
-                             HttpStatusCallback status = nullptr);
+    static bool DownloadFile(const std::string& url, const std::string& localPath,
+                             std::atomic<bool>* cancelFlag = nullptr, HttpStatusCallback status = nullptr);
 
     // Download and verify against an expected lowercase hex SHA-256.
     //
@@ -49,21 +47,16 @@ public:
     // An empty expectedSha256 is refused unless allowUnpinned is set (user-added
     // board-pack sources only); the built-in toolchain definitions pin every
     // archive.
-    static bool DownloadFileVerified(const std::string& url,
-                                     const std::string& localPath,
-                                     const std::string& expectedSha256,
-                                     std::atomic<bool>* cancelFlag = nullptr,
-                                     HttpStatusCallback status = nullptr,
-                                     bool allowUnpinned = false);
+    static bool DownloadFileVerified(const std::string& url, const std::string& localPath,
+                                     const std::string& expectedSha256, std::atomic<bool>* cancelFlag = nullptr,
+                                     HttpStatusCallback status = nullptr, bool allowUnpinned = false);
 
     // SHA-256 of a file as lowercase hex, or "" if it cannot be read.
     static std::string Sha256File(const std::string& path);
 
     // Extract zip archive to destination directory. Refuses an archive whose
     // entries would land outside destDir (ZipEntriesAreSafe) before writing.
-    static bool ExtractZip(const std::string& zipPath,
-                           const std::string& destDir,
-                           HttpStatusCallback status = nullptr);
+    static bool ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status = nullptr);
 
     // Lists the archive and applies IsSafeArchiveEntry to every entry.
     static bool ZipEntriesAreSafe(const std::string& zipPath, std::string& reason);
@@ -81,11 +74,8 @@ public:
     // browser_download_url contains assetPattern. When `repo` ("owner/name")
     // is given, the asset must live under that repository's releases; a
     // release body naming any other host is rejected whole.
-    static bool ParseGitHubRelease(const std::string& json,
-                                   const std::string& assetPattern,
-                                   const std::string& repo,
-                                   std::string& outVersion,
-                                   std::string& outDownloadUrl);
+    static bool ParseGitHubRelease(const std::string& json, const std::string& assetPattern, const std::string& repo,
+                                   std::string& outVersion, std::string& outDownloadUrl);
 };
 
 }  // namespace DekiEditor

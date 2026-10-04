@@ -21,8 +21,7 @@ namespace
 // it is testing and puts back what it found.
 struct ScopedUnitMode
 {
-    explicit ScopedUnitMode(Deki::UnitMode mode, float ppm,
-                            Deki::TemperatureUnit temp = Deki::TemperatureUnit::Celsius)
+    explicit ScopedUnitMode(Deki::UnitMode mode, float ppm, Deki::TemperatureUnit temp = Deki::TemperatureUnit::Celsius)
         : m_Mode(Deki::EngineSettings::Global().inspectorUnit),
           m_Ppm(Deki::EngineSettings::Global().pixelsPerMeter),
           m_Temp(Deki::EngineSettings::Global().temperatureUnit)
@@ -60,10 +59,10 @@ TEST(Units, PixelsModeScalesTheDistanceFamilyByPixelsPerMeter)
 {
     ScopedUnitMode mode(Deki::UnitMode::Pixels, 32.0f);
 
-    for (auto unit : { Deki::PhysicalUnit::Distance,
-                       Deki::PhysicalUnit::Velocity,
-                       Deki::PhysicalUnit::Acceleration })
+    for (auto unit : { Deki::PhysicalUnit::Distance, Deki::PhysicalUnit::Velocity, Deki::PhysicalUnit::Acceleration })
+    {
         EXPECT_FLOAT_EQ(GetUnitDisplay(unit).multiplier, 32.0f);
+    }
 
     EXPECT_NE(strstr(GetUnitDisplay(Deki::PhysicalUnit::Distance).format, "px"), nullptr);
 }
@@ -74,8 +73,7 @@ TEST(Units, AngleIsDegreesInBothModesBecauseNobodyReadsRadians)
     // not differ between modes.
     {
         ScopedUnitMode mode(Deki::UnitMode::Pixels, 16.0f);
-        EXPECT_FLOAT_EQ(GetUnitDisplay(Deki::PhysicalUnit::Angle).multiplier,
-                        Deki::Math::kRadToDeg);
+        EXPECT_FLOAT_EQ(GetUnitDisplay(Deki::PhysicalUnit::Angle).multiplier, Deki::Math::kRadToDeg);
     }
     ScopedUnitMode mode(Deki::UnitMode::Meters, 16.0f);
     EXPECT_FLOAT_EQ(GetUnitDisplay(Deki::PhysicalUnit::Angle).multiplier, Deki::Math::kRadToDeg);
@@ -177,7 +175,7 @@ TEST(Units, FahrenheitConvertsAtTheTwoFixedPoints)
 
     EXPECT_FLOAT_EQ(ToDisplay(0.0f, ud), 32.0f);
     EXPECT_FLOAT_EQ(ToDisplay(100.0f, ud), 212.0f);
-    EXPECT_FLOAT_EQ(ToDisplay(-40.0f, ud), -40.0f);   // where the scales cross
+    EXPECT_FLOAT_EQ(ToDisplay(-40.0f, ud), -40.0f);  // where the scales cross
     EXPECT_NE(strstr(ud.format, "F"), nullptr);
 }
 
@@ -199,16 +197,13 @@ TEST(Units, EveryQuantityRoundTripsThroughDisplayAndBack)
     // every mode - that is the contract the inspector relies on to avoid
     // drifting a value a little on each edit.
     for (auto mode : { Deki::UnitMode::Pixels, Deki::UnitMode::Meters })
+    {
         for (auto temp : { Deki::TemperatureUnit::Celsius, Deki::TemperatureUnit::Fahrenheit })
         {
             ScopedUnitMode scope(mode, 32.0f, temp);
-            for (auto unit : { Deki::PhysicalUnit::None,
-                               Deki::PhysicalUnit::Distance,
-                               Deki::PhysicalUnit::Velocity,
-                               Deki::PhysicalUnit::Acceleration,
-                               Deki::PhysicalUnit::Angle,
-                               Deki::PhysicalUnit::AngularVelocity,
-                               Deki::PhysicalUnit::Temperature })
+            for (auto unit : { Deki::PhysicalUnit::None, Deki::PhysicalUnit::Distance, Deki::PhysicalUnit::Velocity,
+                               Deki::PhysicalUnit::Acceleration, Deki::PhysicalUnit::Angle,
+                               Deki::PhysicalUnit::AngularVelocity, Deki::PhysicalUnit::Temperature })
             {
                 const UnitDisplay ud = GetUnitDisplay(unit);
                 const float stored = 3.75f;
@@ -216,6 +211,7 @@ TEST(Units, EveryQuantityRoundTripsThroughDisplayAndBack)
                     << "unit " << static_cast<int>(unit);
             }
         }
+    }
 }
 
 TEST(Units, AngularVelocityShowsDegreesPerSecond)

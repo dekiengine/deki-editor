@@ -10,12 +10,12 @@ namespace DekiEditor
 // One remembered project, as shown by the project manager screen.
 struct ProjectEntry
 {
-    std::string path;        // project root directory (the folder holding deki.json)
-    std::string name;        // deki.json "name", or the folder name if absent
-    std::string platformId;  // active build target, shown as a chip
+    std::string path;           // project root directory (the folder holding deki.json)
+    std::string name;           // deki.json "name", or the folder name if absent
+    std::string platformId;     // active build target, shown as a chip
     std::string engineVersion;  // deki.json "engineVersion": the engine it was last saved with
-    int64_t lastOpened = 0;  // unix seconds; 0 = never opened by this editor
-    bool missing = false;    // deki.json is gone from disk (set by Refresh)
+    int64_t lastOpened = 0;     // unix seconds; 0 = never opened by this editor
+    bool missing = false;       // deki.json is gone from disk (set by Refresh)
 };
 
 /**

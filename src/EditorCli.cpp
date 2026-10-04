@@ -54,7 +54,8 @@ void PrintUsage(const char* program)
     printf("  --build-code          Regenerate build files and compile packages + plugin\n");
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
     printf("  --strip-plan          Print what a device build leaves out, feature by feature, and why\n");
-    printf("                        Answers for --platform <id>; default the active one, \"all\" pools every platform\n");
+    printf(
+        "                        Answers for --platform <id>; default the active one, \"all\" pools every platform\n");
     printf("  --build-all-targets   Build every platform the project declares, not just one\n");
     printf("  --platform-compat     Which packages build for which of the project's targets, and\n");
     printf("                        what a package needs that a target does not provide\n");
@@ -310,13 +311,10 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
 bool HasCommand(const CliOptions& o)
 {
     return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes || o.stripPlan ||
-           o.platformCompat || o.buildAllTargets ||
-           o.listTools || o.toolName || o.scriptPath ||
-           o.dumpMetadataOut ||
-           o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId ||
-           o.firmwareBuild || o.deploy || o.clean ||
-           o.packagesList || o.listPlatforms || o.toolchainStatus ||
-           o.installToolchainId || o.newProjectName;
+           o.platformCompat || o.buildAllTargets || o.listTools || o.toolName || o.scriptPath || o.dumpMetadataOut ||
+           o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId || o.firmwareBuild ||
+           o.deploy || o.clean || o.packagesList || o.listPlatforms || o.toolchainStatus || o.installToolchainId ||
+           o.newProjectName;
 }
 
 bool IsLightCommand(const CliOptions& o)
@@ -325,7 +323,9 @@ bool IsLightCommand(const CliOptions& o)
     // there is nothing to boot. The first open (GUI or any other verb) does
     // the restore and build.
     if (o.newProjectName)
+    {
         return true;
+    }
 
     // --packages-list reports what the manifest declares and what is on disk;
     // booting would install the missing ones first and there would be nothing
@@ -345,14 +345,20 @@ bool IsLightCommand(const CliOptions& o)
 int RunLightCommand(const CliOptions& o)
 {
     if (o.newProjectName)
+    {
         return CmdNewProject(o.projectPath, o.newProjectName);
+    }
 
     // ParseArgs allows these two together and nothing else with them.
     int rc = 0;
     if (o.packagesList)
+    {
         rc = CmdPackagesList(o.projectPath);
+    }
     if (rc == 0 && o.listPlatforms)
+    {
         rc = CmdListPlatforms(o.projectPath);
+    }
     return rc;
 }
 
@@ -369,7 +375,9 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
     auto run = [&rc](bool wanted, const auto& verb)
     {
         if (rc == 0 && wanted)
+        {
             rc = verb();
+        }
     };
 
     run(o.packagesAddUrl != nullptr, [&] { return CmdPackagesAdd(editor, o.packagesAddUrl, o.packageVersion); });
@@ -415,18 +423,26 @@ void AttachParentConsole()
     const bool needOut = orphaned(STD_OUTPUT_HANDLE);
     const bool needErr = orphaned(STD_ERROR_HANDLE);
     if (!needOut && !needErr)
+    {
         return;
+    }
 
     // Fails when there is no parent console at all (launched from Explorer, or
     // from a detached service). Nothing to attach to, and nothing to do.
     if (!AttachConsole(ATTACH_PARENT_PROCESS))
+    {
         return;
+    }
 
     FILE* f = nullptr;
     if (needOut)
+    {
         freopen_s(&f, "CONOUT$", "w", stdout);
+    }
     if (needErr)
+    {
         freopen_s(&f, "CONOUT$", "w", stderr);
+    }
 
     // Line-buffered would still hold output across a crash inside a package
     // DLL's static initialiser, which is exactly when the last line printed is

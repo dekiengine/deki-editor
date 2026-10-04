@@ -29,12 +29,10 @@ public:
     virtual std::string GetImporterName() const = 0;
 
     // Import asset from source to cache
-    virtual ImportResult Import(const std::string& sourcePath,
-                                const std::string& cachePath) = 0;
+    virtual ImportResult Import(const std::string& sourcePath, const std::string& cachePath) = 0;
 
     // Check if asset needs re-import (for incremental builds)
-    virtual bool NeedsReimport(const std::string& sourcePath,
-                               const std::string& cachePath) const
+    virtual bool NeedsReimport(const std::string& sourcePath, const std::string& cachePath) const
     {
         return !std::filesystem::exists(cachePath);
     }

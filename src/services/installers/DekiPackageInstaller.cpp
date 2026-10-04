@@ -13,7 +13,6 @@
 #include <sstream>
 #include <map>
 
-
 namespace
 {
 // package.cmake is only there when the package compiles something; a data-only
@@ -23,7 +22,7 @@ bool IsPackageDirectory(const fs::path& dir)
     std::error_code ec;
     return fs::exists(dir / "package.json", ec) || fs::exists(dir / "package.cmake", ec);
 }
-}
+}  // namespace
 
 DekiPackageInstaller::DekiPackageInstaller() = default;
 DekiPackageInstaller::~DekiPackageInstaller() = default;
@@ -50,24 +49,31 @@ std::string DekiPackageInstaller::ParseDisplayName(const fs::path& packageCmakeP
     return ParsePackageVar(packageCmakePath, "PACKAGE_DISPLAY_NAME");
 }
 
-std::string DekiPackageInstaller::ParsePackageVar(const fs::path& packageCmakePath,
-                                                  const char* varName) const
+std::string DekiPackageInstaller::ParsePackageVar(const fs::path& packageCmakePath, const char* varName) const
 {
     std::ifstream file(packageCmakePath);
-    if (!file.is_open()) return "";
+    if (!file.is_open())
+    {
+        return "";
+    }
 
     std::string line;
     while (std::getline(file, line))
     {
         // Look for: set(VAR "Value") or set(VAR Value)
         size_t pos = line.find(varName);
-        if (pos == std::string::npos) continue;
+        if (pos == std::string::npos)
+        {
+            continue;
+        }
 
         // Find the value after the variable name
         pos += strlen(varName);
         // Skip whitespace
         while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
+        {
             pos++;
+        }
 
         // Extract value (remove quotes and closing paren)
         std::string value;
@@ -80,21 +86,34 @@ std::string DekiPackageInstaller::ParsePackageVar(const fs::path& packageCmakePa
                 inQuotes = !inQuotes;
                 continue;
             }
-            if (c == ')' && !inQuotes) break;
-            if ((c == ' ' || c == '\t') && !inQuotes) break;
+            if (c == ')' && !inQuotes)
+            {
+                break;
+            }
+            if ((c == ' ' || c == '\t') && !inQuotes)
+            {
+                break;
+            }
             value += c;
         }
-        if (!value.empty()) return value;
+        if (!value.empty())
+        {
+            return value;
+        }
     }
     return "";
 }
 
-std::map<std::string, std::vector<DependencyInfo>> DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
+std::map<std::string, std::vector<DependencyInfo>>
+DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
 {
     std::map<std::string, std::vector<DependencyInfo>> result;
 
     std::ifstream file(packageCmakePath);
-    if (!file.is_open()) return result;
+    if (!file.is_open())
+    {
+        return result;
+    }
 
     std::string line;
     bool inPlatformDeps = false;
@@ -119,16 +138,28 @@ std::map<std::string, std::vector<DependencyInfo>> DekiPackageInstaller::ParsePl
 
         // Extract quoted entry: "platform:name;version" or "platform:name;version;git_url"
         size_t quoteStart = line.find('"');
-        if (quoteStart == std::string::npos) continue;
+        if (quoteStart == std::string::npos)
+        {
+            continue;
+        }
         size_t quoteEnd = line.find('"', quoteStart + 1);
-        if (quoteEnd == std::string::npos) continue;
+        if (quoteEnd == std::string::npos)
+        {
+            continue;
+        }
 
         std::string entry = line.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
-        if (entry.empty()) continue;
+        if (entry.empty())
+        {
+            continue;
+        }
 
         // Split on ':' to get platform prefix
         size_t colonPos = entry.find(':');
-        if (colonPos == std::string::npos) continue;
+        if (colonPos == std::string::npos)
+        {
+            continue;
+        }
 
         std::string platform = entry.substr(0, colonPos);
         std::string rest = entry.substr(colonPos + 1);
@@ -136,7 +167,10 @@ std::map<std::string, std::vector<DependencyInfo>> DekiPackageInstaller::ParsePl
         // Split rest on ';' to get name, version, optional gitUrl
         DependencyInfo dep;
         size_t semi1 = rest.find(';');
-        if (semi1 == std::string::npos) continue;  // need at least name;version
+        if (semi1 == std::string::npos)
+        {
+            continue;  // need at least name;version
+        }
 
         dep.name = rest.substr(0, semi1);
         std::string afterName = rest.substr(semi1 + 1);
@@ -181,10 +215,16 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
     {
         for (const auto& entry : fs::directory_iterator(packagesDir))
         {
-            if (!entry.is_directory()) continue;
+            if (!entry.is_directory())
+            {
+                continue;
+            }
 
             fs::path packageCmake = entry.path() / "package.cmake";
-            if (!IsPackageDirectory(entry.path())) continue;
+            if (!IsPackageDirectory(entry.path()))
+            {
+                continue;
+            }
 
             std::string dirName = entry.path().filename().string();
             std::string displayName = ParseDisplayName(packageCmake);
@@ -204,24 +244,35 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
             if (fs::exists(metaPath))
             {
                 std::ifstream metaFile(metaPath);
-                std::string content((std::istreambuf_iterator<char>(metaFile)),
-                                    std::istreambuf_iterator<char>());
+                std::string content((std::istreambuf_iterator<char>(metaFile)), std::istreambuf_iterator<char>());
 
                 // Simple JSON field extraction (find "key": "value" patterns)
                 auto extractField = [&content](const std::string& key) -> std::string
                 {
                     std::string needle = "\"" + key + "\"";
                     size_t pos = content.find(needle);
-                    if (pos == std::string::npos) return "";
+                    if (pos == std::string::npos)
+                    {
+                        return "";
+                    }
                     // Skip past key and colon
                     pos = content.find(':', pos + needle.size());
-                    if (pos == std::string::npos) return "";
+                    if (pos == std::string::npos)
+                    {
+                        return "";
+                    }
                     // Find opening quote of value
                     pos = content.find('"', pos + 1);
-                    if (pos == std::string::npos) return "";
+                    if (pos == std::string::npos)
+                    {
+                        return "";
+                    }
                     pos++;  // skip opening quote
                     size_t end = content.find('"', pos);
-                    if (end == std::string::npos) return "";
+                    if (end == std::string::npos)
+                    {
+                        return "";
+                    }
                     return content.substr(pos, end - pos);
                 };
 
@@ -229,7 +280,10 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
                 pkg.id = extractField("id");
                 pkg.url = extractField("url");
                 std::string pkgName = extractField("name");
-                if (!pkgName.empty()) pkg.name = pkgName;
+                if (!pkgName.empty())
+                {
+                    pkg.name = pkgName;
+                }
             }
 
             // Extract owner/repo for ID from URL if not already set
@@ -281,13 +335,14 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
     return packages;
 }
 
-void DekiPackageInstaller::ExcludeFromGitLocally(const fs::path& repoDir,
-                                                 const std::string& entry) const
+void DekiPackageInstaller::ExcludeFromGitLocally(const fs::path& repoDir, const std::string& entry) const
 {
     std::error_code ec;
     const fs::path infoDir = repoDir / ".git" / "info";
     if (!fs::exists(infoDir) && !fs::create_directories(infoDir, ec))
+    {
         return;  // worktree or unusual layout - skip silently, this is a nicety
+    }
 
     const fs::path excludePath = infoDir / "exclude";
 
@@ -298,16 +353,21 @@ void DekiPackageInstaller::ExcludeFromGitLocally(const fs::path& repoDir,
         while (std::getline(in, line))
         {
             while (!line.empty() && (line.back() == '\r' || line.back() == ' '))
+            {
                 line.pop_back();
+            }
             if (line == entry)
+            {
                 return;
+            }
         }
     }
 
     std::ofstream out(excludePath, std::ios::app);
     if (out.is_open())
-        out << "\n# Added by Deki Editor: package install metadata\n"
-            << entry << "\n";
+    {
+        out << "\n# Added by Deki Editor: package install metadata\n" << entry << "\n";
+    }
 }
 
 bool DekiPackageInstaller::IsSafeGitRef(const std::string& ref, std::string& reason)
@@ -326,9 +386,8 @@ bool DekiPackageInstaller::IsSafeGitRef(const std::string& ref, std::string& rea
     }
     for (unsigned char c : ref)
     {
-        const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                        (c >= '0' && c <= '9') ||
-                        c == '.' || c == '_' || c == '-' || c == '/' || c == '+';
+        const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' ||
+                        c == '_' || c == '-' || c == '/' || c == '+';
         if (!ok)
         {
             reason = "version/branch contains an unexpected character";
@@ -369,9 +428,8 @@ bool DekiPackageInstaller::IsSafeGitUrl(const std::string& url, std::string& rea
     // and rejecting it keeps the intent explicit.
     for (unsigned char c : url)
     {
-        if (c < 0x21 || c == '"' || c == '\'' || c == '`' || c == '\\' ||
-            c == '|' || c == '&' || c == ';' || c == '<' || c == '>' ||
-            c == '$' || c == '^' || c == '%')
+        if (c < 0x21 || c == '"' || c == '\'' || c == '`' || c == '\\' || c == '|' || c == '&' || c == ';' ||
+            c == '<' || c == '>' || c == '$' || c == '^' || c == '%')
         {
             reason = "repository URL contains an invalid character";
             return false;
@@ -394,24 +452,36 @@ std::string DekiPackageInstaller::RefreshCheckedOutVersion(const std::string& pr
 {
     std::string reason;
     if (!SafeNames::IsSafeName(id, reason))
+    {
         return "";
+    }
     const fs::path packageDir = GetPackagesDir(projectPath) / id;
     std::error_code ec;
     if (!fs::exists(packageDir / ".git", ec))
+    {
         return "";
+    }
 
     std::string out;
     if (RunGit({ "-C", packageDir.string(), "describe", "--tags", "--abbrev=0", "HEAD" }, out) != 0)
+    {
         return "";
+    }
     while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' '))
+    {
         out.pop_back();
+    }
     if (out.empty() || out.find_first_of(" \n") != std::string::npos)
+    {
         return "";
+    }
 
     const fs::path metaPath = packageDir / ".deki-package.json";
     std::ifstream in(metaPath);
     if (!in.is_open())
+    {
         return out;
+    }
     nlohmann::json meta = nlohmann::json::parse(in, nullptr, false);
     in.close();
     if (meta.is_object() && meta.value("version", "") != out)
@@ -430,8 +500,8 @@ bool DekiPackageInstaller::HasUnpushedCommits(const std::string& dirArg) const
     return !out.empty();
 }
 
-void DekiPackageInstaller::Install(const std::string& projectPath, const PackageEntry& pkg,
-                                   const std::string& version, PackageCallback callback)
+void DekiPackageInstaller::Install(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
+                                   PackageCallback callback)
 {
     std::string repoName = GetRepoName(pkg);
     fs::path packagesDir = GetPackagesDir(projectPath);
@@ -512,8 +582,9 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         RunGit({ "-C", dirArg, "status", "--porcelain" }, status);
         if (!status.empty())
         {
-            callback(false, "'" + repoName + "' has uncommitted changes - commit, stash or "
-                                             "revert them before switching version (project/packages/" +
+            callback(false, "'" + repoName +
+                                "' has uncommitted changes - commit, stash or "
+                                "revert them before switching version (project/packages/" +
                                 repoName + ")");
             return;
         }
@@ -526,9 +597,10 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // refused on unpushed work for the same reason; this is the other half.
         if (pkg.editable && HasUnpushedCommits(dirArg))
         {
-            callback(false, "'" + repoName + "' is marked editable and has commits that are not "
-                                             "pushed - push them before switching version "
-                                             "(project/packages/" +
+            callback(false, "'" + repoName +
+                                "' is marked editable and has commits that are not "
+                                "pushed - push them before switching version "
+                                "(project/packages/" +
                                 repoName + ")");
             return;
         }
@@ -586,22 +658,30 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     // checked, so choosing another version still works.
     std::string headCommit;
     if (RunGit({ "-C", dirArg, "rev-parse", "HEAD" }, headCommit) == 0)
+    {
         while (!headCommit.empty() && (headCommit.back() == '\n' || headCommit.back() == '\r'))
+        {
             headCommit.pop_back();
+        }
+    }
     {
         std::ifstream lockIn(fs::path(projectPath) / DekiEditor::GetPackageLockFileName());
         const nlohmann::json lock = lockIn ? nlohmann::json::parse(lockIn, nullptr, false) : nlohmann::json();
         const nlohmann::json* pinned = nullptr;
         if (lock.is_object() && lock.contains("packages") && lock["packages"].is_object() &&
             lock["packages"].contains(pkg.id))
+        {
             pinned = &lock["packages"][pkg.id];
+        }
         if (pinned && pinned->is_object() && pinned->value("installedVersion", "") == version)
         {
             const std::string want = pinned->value("commit", "");
             if (!want.empty() && !headCommit.empty() && want != headCommit)
             {
                 if (!isExistingClone)
+                {
                     fs::remove_all(packageDir, ec);
+                }
                 callback(false, "'" + repoName + "' " + version + " is now commit " + headCommit.substr(0, 12) +
                                     ", but the project's lock recorded " + want.substr(0, 12) +
                                     ". The release was changed after the project pinned it. If that is expected, "
@@ -618,7 +698,9 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // Only discard a directory this call created - never one that already
         // held a clone, which may carry the developer's branches.
         if (!isExistingClone)
+        {
             fs::remove_all(packageDir, ec);
+        }
         callback(false, "Not a valid Deki package (no package.json or package.cmake)");
         return;
     }
@@ -636,7 +718,9 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         if (!EngineSatisfiesPackage(packageDir, reason))
         {
             if (!isExistingClone)
+            {
                 fs::remove_all(packageDir, ec);
+            }
             callback(false, reason);
             return;
         }
@@ -660,7 +744,9 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         metaFile << "  \"url\": \"" << pkg.url << "\",\n";
         metaFile << "  \"version\": \"" << version << "\",\n";
         if (!headCommit.empty())
+        {
             metaFile << "  \"commit\": \"" << headCommit << "\",\n";
+        }
         metaFile << "  \"name\": \"" << pkg.name << "\"";
 
         if (!platformDeps.empty())
@@ -669,13 +755,19 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
             bool firstPlatform = true;
             for (const auto& [platform, deps] : platformDeps)
             {
-                if (!firstPlatform) metaFile << ",";
+                if (!firstPlatform)
+                {
+                    metaFile << ",";
+                }
                 firstPlatform = false;
                 metaFile << "\n    \"" << platform << "\": [";
                 bool firstDep = true;
                 for (const auto& dep : deps)
                 {
-                    if (!firstDep) metaFile << ",";
+                    if (!firstDep)
+                    {
+                        metaFile << ",";
+                    }
                     firstDep = false;
                     metaFile << "\n      { \"name\": \"" << dep.name << "\", \"version\": \"" << dep.version << "\"";
                     if (!dep.gitUrl.empty())
@@ -696,8 +788,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     callback(true, "Package installed successfully");
 }
 
-void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageEntry& pkg,
-                                  PackageCallback callback)
+void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageEntry& pkg, PackageCallback callback)
 {
     std::string repoName = GetRepoName(pkg);
     const fs::path packagesDir = GetPackagesDir(projectPath);
@@ -748,16 +839,18 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         RunGit({ "-C", dirArg, "status", "--porcelain" }, out);
         if (!out.empty())
         {
-            callback(false, "'" + repoName + "' has uncommitted changes - commit or discard "
-                                             "them before removing (project/packages/" +
+            callback(false, "'" + repoName +
+                                "' has uncommitted changes - commit or discard "
+                                "them before removing (project/packages/" +
                                 repoName + ")");
             return;
         }
 
         if (HasUnpushedCommits(dirArg))
         {
-            callback(false, "'" + repoName + "' has commits that are not pushed - push them "
-                                             "before removing (project/packages/" +
+            callback(false, "'" + repoName +
+                                "' has commits that are not pushed - push them "
+                                "before removing (project/packages/" +
                                 repoName + ")");
             return;
         }
@@ -773,7 +866,9 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         // same allowlist as the package name.
         std::string reason;
         if (packageTarget.empty() || !IsSafeName(packageTarget, reason))
+        {
             packageTarget = repoName;
+        }
     }
 
     std::error_code ec;
@@ -804,14 +899,25 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         for (const fs::path& dir : { binDir, shadowDir })
         {
             std::error_code iterEc;
-            if (!fs::exists(dir, iterEc)) continue;
+            if (!fs::exists(dir, iterEc))
+            {
+                continue;
+            }
 
             for (const auto& entry : fs::directory_iterator(dir, iterEc))
             {
-                if (iterEc) break;
-                if (!entry.is_regular_file()) continue;
-                if (DekiEditor::SharedLibStem(entry.path().filename().string()) != packageTarget)
+                if (iterEc)
+                {
+                    break;
+                }
+                if (!entry.is_regular_file())
+                {
                     continue;
+                }
+                if (DekiEditor::SharedLibStem(entry.path().filename().string()) != packageTarget)
+                {
+                    continue;
+                }
 
                 std::error_code rmEc;
                 fs::remove(entry.path(), rmEc);
@@ -826,11 +932,13 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         const fs::path packageSettingsDir =
             DekiEditor::ProjectPaths::Settings(projectPath) / "packages" / packageTarget;
         if (fs::exists(packageSettingsDir, settingsEc))
+        {
             fs::remove_all(packageSettingsDir, settingsEc);
+        }
     }
 
-    callback(true, wasInstalled ? "Package removed successfully"
-                                : "Package was not installed; cleared from the project");
+    callback(true,
+             wasInstalled ? "Package removed successfully" : "Package was not installed; cleared from the project");
 }
 
 // ============================================================================
@@ -852,18 +960,21 @@ bool DekiPackageInstaller::IsCoreDependency(const std::string& /*name*/) const
     return false;
 }
 
-bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir,
-                                                  std::string& reason)
+bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir, std::string& reason)
 {
     const fs::path manifest = packageDir / "package.json";
     if (!fs::exists(manifest))
+    {
         return true;  // not every package ships one; nothing to check against
+    }
 
     nlohmann::json j;
     {
         std::ifstream in(manifest);
         if (!in.is_open())
+        {
             return true;  // unreadable manifest is not this check's business
+        }
         try
         {
             in >> j;
@@ -875,16 +986,20 @@ bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir,
     }
 
     if (!j.contains("minEngine") || !j["minEngine"].is_string())
+    {
         return true;
+    }
 
     const std::string minEngine = j["minEngine"].get<std::string>();
     if (minEngine.empty())
+    {
         return true;
+    }
 
     if (DekiEditor::CompareVersions(DEKI_ENGINE_VERSION, minEngine) < 0)
     {
-        reason = "Package needs engine " + minEngine + " or newer; this editor embeds "
-                 + DEKI_ENGINE_VERSION + ". Update the editor, or install an older "
+        reason = "Package needs engine " + minEngine + " or newer; this editor embeds " + DEKI_ENGINE_VERSION +
+                 ". Update the editor, or install an older "
                  "version of the package.";
         return false;
     }
@@ -900,8 +1015,8 @@ bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir,
     // nothing naming the package that caused it.
     if (DekiEditor::CompareVersions(minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
     {
-        reason = "Package was built for engine " + minEngine + "; this editor needs "
-                 + DEKI_OLDEST_SUPPORTED_PACKAGE + " or newer. Update the package, or "
+        reason = "Package was built for engine " + minEngine + "; this editor needs " + DEKI_OLDEST_SUPPORTED_PACKAGE +
+                 " or newer. Update the package, or "
                  "use an editor from its own release.";
         return false;
     }

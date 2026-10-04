@@ -66,14 +66,27 @@ static WNDPROC g_OriginalWndProc = nullptr;
 static int GetTitleBarButton(HWND hwnd, int x, int y)
 {
     if (y >= (int)g_MenuBarHeight || g_ControlButtonW <= 0.0f)
+    {
         return 0;
+    }
     float fx = (float)x;
     if (fx < g_ControlsStartX)
+    {
         return 0;
+    }
     float offset = fx - g_ControlsStartX;
-    if (offset < g_ControlButtonW) return 1;         // minimize
-    if (offset < g_ControlButtonW * 2.0f) return 2;  // maximize
-    if (offset < g_ControlButtonW * 3.0f) return 3;  // close
+    if (offset < g_ControlButtonW)
+    {
+        return 1;  // minimize
+    }
+    if (offset < g_ControlButtonW * 2.0f)
+    {
+        return 2;  // maximize
+    }
+    if (offset < g_ControlButtonW * 3.0f)
+    {
+        return 3;  // close
+    }
     return 0;
 }
 
@@ -95,13 +108,21 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 // If the proposed rect extends beyond the work area, clamp it.
                 // This handles maximize (where Windows overshoots to hide borders).
                 if (params->rgrc[0].top < mi.rcWork.top)
+                {
                     params->rgrc[0].top = mi.rcWork.top;
+                }
                 if (params->rgrc[0].bottom > mi.rcWork.bottom)
+                {
                     params->rgrc[0].bottom = mi.rcWork.bottom;
+                }
                 if (params->rgrc[0].left < mi.rcWork.left)
+                {
                     params->rgrc[0].left = mi.rcWork.left;
+                }
                 if (params->rgrc[0].right > mi.rcWork.right)
+                {
                     params->rgrc[0].right = mi.rcWork.right;
+                }
 
                 return 0;
             }
@@ -147,9 +168,18 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             // Caption buttons FIRST - they take priority over resize borders
             // so the close button reaches the top-right corner (Chromium behavior).
             int btn = GetTitleBarButton(hwnd, x, y);
-            if (btn == 1) return HTMINBUTTON;
-            if (btn == 2) return HTMAXBUTTON;
-            if (btn == 3) return HTCLOSE;
+            if (btn == 1)
+            {
+                return HTMINBUTTON;
+            }
+            if (btn == 2)
+            {
+                return HTMAXBUTTON;
+            }
+            if (btn == 3)
+            {
+                return HTCLOSE;
+            }
 
             const int border = 6;
 
@@ -158,18 +188,36 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             {
                 if (y < border)
                 {
-                    if (x < border) return HTTOPLEFT;
-                    if (x > w - border) return HTTOPRIGHT;
+                    if (x < border)
+                    {
+                        return HTTOPLEFT;
+                    }
+                    if (x > w - border)
+                    {
+                        return HTTOPRIGHT;
+                    }
                     return HTTOP;
                 }
                 if (y > h - border)
                 {
-                    if (x < border) return HTBOTTOMLEFT;
-                    if (x > w - border) return HTBOTTOMRIGHT;
+                    if (x < border)
+                    {
+                        return HTBOTTOMLEFT;
+                    }
+                    if (x > w - border)
+                    {
+                        return HTBOTTOMRIGHT;
+                    }
                     return HTBOTTOM;
                 }
-                if (x < border) return HTLEFT;
-                if (x > w - border) return HTRIGHT;
+                if (x < border)
+                {
+                    return HTLEFT;
+                }
+                if (x > w - border)
+                {
+                    return HTRIGHT;
+                }
             }
 
             // Title bar drag - only the "D DEKI/EDITOR" block on the left side of
@@ -184,7 +232,9 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 if (ctx && !ImGui::IsAnyItemHovered() && !ImGui::IsAnyItemActive())
                 {
                     if (!ImGui::IsPopupOpen((ImGuiID)0, ImGuiPopupFlags_AnyPopup))
+                    {
                         return HTCAPTION;
+                    }
                 }
             }
             return HTCLIENT;
@@ -227,13 +277,21 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         case WM_NCMOUSEMOVE:
         {
             if (wParam == HTMINBUTTON)
+            {
                 g_NCHoverButton = 1;
+            }
             else if (wParam == HTMAXBUTTON)
+            {
                 g_NCHoverButton = 2;
+            }
             else if (wParam == HTCLOSE)
+            {
                 g_NCHoverButton = 3;
+            }
             else
+            {
                 g_NCHoverButton = 0;
+            }
             TRACKMOUSEEVENT tme = {};
             tme.cbSize = sizeof(tme);
             tme.dwFlags = TME_LEAVE | TME_NONCLIENT;
@@ -241,9 +299,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             TrackMouseEvent(&tme);
             return 0;
         }
-        case WM_NCMOUSELEAVE:
-            g_NCHoverButton = 0;
-            return 0;
+        case WM_NCMOUSELEAVE: g_NCHoverButton = 0; return 0;
         case WM_NCACTIVATE:
             // Prevent Windows from painting the default activation border
             // on our custom-framed borderless window. Returning TRUE tells
@@ -288,10 +344,7 @@ bool BootDisplay(BootContext& ctx)
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    SDL_WindowFlags window_flags =
-        SDL_WINDOW_OPENGL |
-        SDL_WINDOW_RESIZABLE |
-        SDL_WINDOW_BORDERLESS;
+    SDL_WindowFlags window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
 
 #ifdef _WIN32
     // Started minimized (`start /min`, a shortcut set to "Run: Minimized",
@@ -306,8 +359,8 @@ bool BootDisplay(BootContext& ctx)
         if (si.dwFlags & STARTF_USESHOWWINDOW)
         {
             const WORD show = si.wShowWindow;
-            startInBackground = show == SW_SHOWMINNOACTIVE || show == SW_MINIMIZE ||
-                                show == SW_SHOWMINIMIZED || show == SW_FORCEMINIMIZE;
+            startInBackground = show == SW_SHOWMINNOACTIVE || show == SW_MINIMIZE || show == SW_SHOWMINIMIZED ||
+                                show == SW_FORCEMINIMIZE;
         }
     }
     if (startInBackground)
@@ -321,10 +374,7 @@ bool BootDisplay(BootContext& ctx)
     }
 #endif
 
-    ctx.window = SDL_CreateWindow(
-        "Deki Editor",
-        1600, 900,
-        window_flags);
+    ctx.window = SDL_CreateWindow("Deki Editor", 1600, 900, window_flags);
 
     if (ctx.window == nullptr)
     {
@@ -336,9 +386,8 @@ bool BootDisplay(BootContext& ctx)
 #ifdef _WIN32
     // Custom title bar: subclass WndProc for native window controls (snap layouts, etc.)
     {
-        HWND hwnd = (HWND)SDL_GetPointerProperty(
-            SDL_GetWindowProperties(ctx.window),
-            SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        HWND hwnd =
+            (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
         if (hwnd)
         {
             g_OriginalWndProc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)CustomWndProc);
@@ -359,41 +408,72 @@ bool BootDisplay(BootContext& ctx)
             // Started in the background, the window is shown later, once GL
             // is up: SW_MAXIMIZE would activate it.
             if (!startInBackground)
+            {
                 ShowWindow(hwnd, SW_MAXIMIZE);
+            }
         }
     }
 #else
     // Non-Windows: use SDL3 hit test for borderless window drag/resize
-    SDL_SetWindowHitTest(ctx.window, [](SDL_Window* win, const SDL_Point* area, void*) -> SDL_HitTestResult
-                         {
-        int w, h;
-        SDL_GetWindowSize(win, &w, &h);
-        int x = area->x, y = area->y;
-        const int border = 6;
-
-        if (!(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED))
+    SDL_SetWindowHitTest(
+        ctx.window,
+        [](SDL_Window* win, const SDL_Point* area, void*) -> SDL_HitTestResult
         {
-            if (y < border) {
-                if (x < border) return SDL_HITTEST_RESIZE_TOPLEFT;
-                if (x > w - border) return SDL_HITTEST_RESIZE_TOPRIGHT;
-                return SDL_HITTEST_RESIZE_TOP;
-            }
-            if (y > h - border) {
-                if (x < border) return SDL_HITTEST_RESIZE_BOTTOMLEFT;
-                if (x > w - border) return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
-                return SDL_HITTEST_RESIZE_BOTTOM;
-            }
-            if (x < border) return SDL_HITTEST_RESIZE_LEFT;
-            if (x > w - border) return SDL_HITTEST_RESIZE_RIGHT;
-        }
+            int w, h;
+            SDL_GetWindowSize(win, &w, &h);
+            int x = area->x, y = area->y;
+            const int border = 6;
 
-        if (y < (int)g_MenuBarHeight && !g_HoveringWindowControls) {
-            ImGuiContext* ctx = ImGui::GetCurrentContext();
-            if (ctx && !ImGui::IsAnyItemHovered() && !ImGui::IsAnyItemActive())
-                if (!ImGui::IsPopupOpen((ImGuiID)0, ImGuiPopupFlags_AnyPopup))
-                    return SDL_HITTEST_DRAGGABLE;
-        }
-        return SDL_HITTEST_NORMAL; }, nullptr);
+            if (!(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED))
+            {
+                if (y < border)
+                {
+                    if (x < border)
+                    {
+                        return SDL_HITTEST_RESIZE_TOPLEFT;
+                    }
+                    if (x > w - border)
+                    {
+                        return SDL_HITTEST_RESIZE_TOPRIGHT;
+                    }
+                    return SDL_HITTEST_RESIZE_TOP;
+                }
+                if (y > h - border)
+                {
+                    if (x < border)
+                    {
+                        return SDL_HITTEST_RESIZE_BOTTOMLEFT;
+                    }
+                    if (x > w - border)
+                    {
+                        return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+                    }
+                    return SDL_HITTEST_RESIZE_BOTTOM;
+                }
+                if (x < border)
+                {
+                    return SDL_HITTEST_RESIZE_LEFT;
+                }
+                if (x > w - border)
+                {
+                    return SDL_HITTEST_RESIZE_RIGHT;
+                }
+            }
+
+            if (y < (int)g_MenuBarHeight && !g_HoveringWindowControls)
+            {
+                ImGuiContext* ctx = ImGui::GetCurrentContext();
+                if (ctx && !ImGui::IsAnyItemHovered() && !ImGui::IsAnyItemActive())
+                {
+                    if (!ImGui::IsPopupOpen((ImGuiID)0, ImGuiPopupFlags_AnyPopup))
+                    {
+                        return SDL_HITTEST_DRAGGABLE;
+                    }
+                }
+            }
+            return SDL_HITTEST_NORMAL;
+        },
+        nullptr);
 #endif
 
     ctx.glContext = SDL_GL_CreateContext(ctx.window);
@@ -456,16 +536,17 @@ bool BootDisplay(BootContext& ctx)
     {
         auto* ctx = ImGui::GetCurrentContext();
         ctx->ErrorCallback = [](ImGuiContext*, void*, const char* msg)
-        {
-            DEKI_LOG_ERROR("[imgui] recovered: %s", msg ? msg : "(null)");
-        };
+        { DEKI_LOG_ERROR("[imgui] recovered: %s", msg ? msg : "(null)"); };
         ctx->ErrorCallbackUserData = nullptr;
     }
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Multi-viewport (optional)
 
     // Determine DPI scale using SDL_GetWindowDisplayScale
     ctx.dpiScale = SDL_GetWindowDisplayScale(ctx.window);
-    if (ctx.dpiScale <= 0.0f) ctx.dpiScale = 1.0f;
+    if (ctx.dpiScale <= 0.0f)
+    {
+        ctx.dpiScale = 1.0f;
+    }
 
     // Setup Dear ImGui style - Godot 4.6 Modern theme
     DekiEditor::SetupEditorTheme(ctx.dpiScale);
@@ -490,14 +571,20 @@ bool BootDisplay(BootContext& ctx)
     // Edit > Editor Settings > Text can pin it; the variable still wins.
     auto modeFor = [](const std::string& v) { return (v == "rgb") ? 1 : (v == "bgr") ? 2 : 0; };
     if (const std::string pinned = EditorSettings::GetString("editor.textSmoothing", "auto"); pinned != "auto")
+    {
         lcdMode = modeFor(pinned);
+    }
     if (const char* aa = getenv("DEKI_TEXT_AA"))
+    {
         lcdMode = modeFor(aa);
+    }
     ImGuiFreeType::DekiSetLcdMode(lcdMode);
     // Coverage exponents for black and for white text: light text on the dark
     // theme is thickened a little, as DirectWrite and Chromium do.
     ImGui_ImplOpenGL3_DekiSetTextGamma(1.0f, 0.8f);
-    DEKI_LOG_EDITOR("Text antialiasing: %s", lcdMode == 1 ? "subpixel RGB" : lcdMode == 2 ? "subpixel BGR" : "greyscale");
+    DEKI_LOG_EDITOR("Text antialiasing: %s", lcdMode == 1   ? "subpixel RGB"
+                                             : lcdMode == 2 ? "subpixel BGR"
+                                                            : "greyscale");
 
     // Setup Platform/Renderer backends
     ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
@@ -508,8 +595,8 @@ bool BootDisplay(BootContext& ctx)
     // inactive, restoring to maximized when the user clicks it.
     if (startInBackground)
     {
-        HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window),
-                                                 SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        HWND hwnd =
+            (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
         if (hwnd)
         {
             WINDOWPLACEMENT wp{};
@@ -547,11 +634,12 @@ bool BootDisplay(BootContext& ctx)
             if (!std::filesystem::exists(p))
             {
                 DEKI_LOG_ERROR("[fonts] required font missing: %s", p.c_str());
-                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Deki Editor",
-                                         ("Required font file not found:\n" + p +
-                                          "\n\nRebuild the project so resources/fonts/ is copied next to the executable.")
-                                             .c_str(),
-                                         ctx.window);
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_ERROR, "Deki Editor",
+                    ("Required font file not found:\n" + p +
+                     "\n\nRebuild the project so resources/fonts/ is copied next to the executable.")
+                        .c_str(),
+                    ctx.window);
                 return false;
             }
         }
@@ -584,7 +672,9 @@ bool BootDisplay(BootContext& ctx)
         // the horizontal resolution, so it keeps LightHinting like DirectWrite.
         ImFontConfig monoCfg = baseCfg;
         if (ImGuiFreeType::DekiGetLcdMode() == 0)
+        {
             monoCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_ForceAutoHint;
+        }
 
         auto mergeIcons = [&](float size)
         {
@@ -666,7 +756,9 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     if (!opts.headless)
     {
         if (!BootDisplay(ctx))
+        {
             return false;
+        }
     }
     else
     {
@@ -701,9 +793,7 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     ProfilingService::Get().Initialize();
 
     // Deep profiling callbacks (for plugin /Gh /GH instrumentation)
-    Profiling_SetCallbacks(
-        &ProfilingService::OnProfileEnter,
-        &ProfilingService::OnProfileExit);
+    Profiling_SetCallbacks(&ProfilingService::OnProfileEnter, &ProfilingService::OnProfileExit);
 
     return true;
 }
@@ -725,8 +815,7 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
         if (!opened)
         {
             DEKI_LOG_ERROR("[boot] could not open project '%s'", opts.projectPath);
-            printf("Error: could not open project '%s'. %s\n", opts.projectPath,
-                   editor.GetOpenProjectError().c_str());
+            printf("Error: could not open project '%s'. %s\n", opts.projectPath, editor.GetOpenProjectError().c_str());
             fflush(stdout);
         }
     }
@@ -739,9 +828,13 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
         // The URL carries a per-session token; the server binds loopback only
         // and rejects requests without it, so this line is what a client needs.
         if (editor.StartMcpServer(opts.mcpPort))
+        {
             printf("MCP server listening on %s\n", editor.GetMcpSseUrl().c_str());
+        }
         else
+        {
             printf("Error: MCP server could not listen on port %d (in use?)\n", opts.mcpPort);
+        }
         fflush(stdout);
     }
     else if (!opts.headless)
@@ -750,8 +843,10 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
         // port, published per user for `--tool/--script <project>` to find
         // (services/LiveSession.h), never printed.
         if (!editor.StartMcpServer(0))
+        {
             DEKI_LOG_WARNING("[boot] live session server did not start; the command line "
                              "cannot reach this editor");
+        }
     }
 
     // OpenProject defers a package check and a build check to
@@ -762,7 +857,9 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     if (ctx.headless)
     {
         if (auto* hr = editor.GetHotReloadService(); hr && hr->HasPendingPackageCheck())
+        {
             hr->ProcessPendingPackageCheck();
+        }
     }
 
     // Drive the deferred plugin build to completion while the startup modal is

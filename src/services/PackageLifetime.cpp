@@ -26,7 +26,9 @@ void Forget(const void* owner)
 {
     auto& list = Releases();
     for (auto it = list.begin(); it != list.end();)
+    {
         it = (it->first == owner) ? list.erase(it) : it + 1;
+    }
 }
 
 void ReleaseAll()
@@ -34,8 +36,12 @@ void ReleaseAll()
     // A copy: a release may register or forget.
     const auto list = Releases();
     for (const auto& [owner, release] : list)
+    {
         if (release)
+        {
             release();
+        }
+    }
 }
 }  // namespace PackageLifetime
 }  // namespace DekiEditor

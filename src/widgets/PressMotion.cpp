@@ -44,16 +44,20 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
     // taking those as the theme's would drift a little further each time.
     Restore(g.Style.Colors);
     if (Motion::ReduceMotion())
+    {
         return;
+    }
 
     // ImGui ends a press inside the item's own update, so at the start of a
     // frame ActiveId still names the item held last frame. Typing in a field
     // and dragging a window hold an item too, but are not presses.
     ImGuiID held = g.ActiveId;
     if (held != 0 && (held == g.InputTextState.ID || g.MovingWindow != nullptr))
+    {
         held = 0;
-    const float t = Motion::EaseOut(
-        Motion::To(kKey, held != 0 ? 1.0f : 0.0f, held != 0 ? Motion::Fast : Motion::Normal));
+    }
+    const float t =
+        Motion::EaseOut(Motion::To(kKey, held != 0 ? 1.0f : 0.0f, held != 0 ? Motion::Fast : Motion::Normal));
 
     // The pressed colour always follows the eased value: on the frame a press
     // starts it equals the hovered colour, so the item darkens from there
@@ -68,7 +72,9 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
         const ImVec4 now = Motion::Mix(colors[p.hovered], colors[p.pressed], t);
         colors[p.pressed] = now;
         if (t > 0.0f)
+        {
             colors[p.hovered] = now;
+        }
         s_Written[i][0] = colors[p.hovered];
         s_Written[i][1] = colors[p.pressed];
     }
@@ -80,15 +86,21 @@ void OnNewFramePost(ImGuiContext* ctx, ImGuiContextHook*)
 void Restore(ImVec4* colors)
 {
     if (!s_Active)
+    {
         return;
+    }
     s_Active = false;
     for (int i = 0; i < kPairCount; ++i)
     {
         const Pair& p = kPairs[i];
         if (Same(colors[p.hovered], s_Written[i][0]))
+        {
             colors[p.hovered] = s_Theme[i][0];
+        }
         if (Same(colors[p.pressed], s_Written[i][1]))
+        {
             colors[p.pressed] = s_Theme[i][1];
+        }
     }
 }
 

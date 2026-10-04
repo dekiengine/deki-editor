@@ -25,7 +25,9 @@ class ProjectManagerScreen
 {
 public:
     explicit ProjectManagerScreen(EditorApp* app)
-        : m_App(app) {}
+        : m_App(app)
+    {
+    }
 
     // Called when the screen becomes visible (startup, or a project close):
     // re-reads project metadata from disk and preselects the top row.

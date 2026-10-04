@@ -23,7 +23,10 @@ namespace
 std::string Trim(const std::string& s)
 {
     size_t b = s.find_first_not_of(" \t\r\n");
-    if (b == std::string::npos) return {};
+    if (b == std::string::npos)
+    {
+        return {};
+    }
     size_t e = s.find_last_not_of(" \t\r\n");
     return s.substr(b, e - b + 1);
 }
@@ -49,7 +52,9 @@ bool IsReparsePoint(const fs::path& path)
 #ifdef _WIN32
     const DWORD attrs = ::GetFileAttributesW(path.c_str());
     if (attrs == INVALID_FILE_ATTRIBUTES)
+    {
         return false;
+    }
     return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 #else
     std::error_code ec;
@@ -57,8 +62,7 @@ bool IsReparsePoint(const fs::path& path)
 #endif
 }
 
-PackageIntegrityResult RestorePackage(const fs::path& packageDir,
-                                      const std::string& packageName,
+PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::string& packageName,
                                       const std::string& pinnedRef)
 {
     PackageIntegrityResult result;
@@ -72,8 +76,7 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
     if (IsReparsePoint(packageDir))
     {
         result.action = PackageIntegrityResult::Action::Skipped;
-        result.detail = "'" + packageName +
-                        "' is a junction/symlink; leaving it alone (manage it in its source repo)";
+        result.detail = "'" + packageName + "' is a junction/symlink; leaving it alone (manage it in its source repo)";
         return result;
     }
 
@@ -108,13 +111,11 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
     {
         std::error_code cmpEc;
         const fs::path reportedRoot = fs::path(Trim(out));
-        if (!fs::exists(reportedRoot, cmpEc) ||
-            !fs::equivalent(reportedRoot, packageDir, cmpEc) || cmpEc)
+        if (!fs::exists(reportedRoot, cmpEc) || !fs::equivalent(reportedRoot, packageDir, cmpEc) || cmpEc)
         {
             result.action = PackageIntegrityResult::Action::Skipped;
-            result.detail = "'" + packageName + "' is not the root of its own repository (git says " +
-                            Trim(out) + "); leaving it alone rather than running git in " +
-                            "whatever encloses it";
+            result.detail = "'" + packageName + "' is not the root of its own repository (git says " + Trim(out) +
+                            "); leaving it alone rather than running git in " + "whatever encloses it";
             return result;
         }
     }
@@ -137,8 +138,7 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
         // way, but the work stays recoverable. -u takes untracked files too and
         // still leaves ignored ones (generated/) in place, which is exactly the
         // split we want.
-        const std::string message =
-            "deki auto-restore: " + packageName + " " + TimestampUtc();
+        const std::string message = "deki auto-restore: " + packageName + " " + TimestampUtc();
 
         if (RunGit({ "-C", dirArg, "stash", "push", "-u", "-m", message }, out) != 0)
         {
@@ -146,8 +146,8 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
             // means the edits are still in the tree, and moving HEAD now is the
             // one path that could actually lose them.
             result.action = PackageIntegrityResult::Action::Failed;
-            result.detail = "could not stash local changes in '" + packageName +
-                            "', leaving it untouched: " + Trim(out);
+            result.detail =
+                "could not stash local changes in '" + packageName + "', leaving it untouched: " + Trim(out);
             return result;
         }
 
@@ -157,7 +157,9 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
 
     // ---- 2. HEAD position --------------------------------------------------
     if (pinnedRef.empty())
+    {
         return result;
+    }
 
     std::string reason;
     if (!DekiPackageInstaller::IsSafeGitRef(pinnedRef, reason))
@@ -169,7 +171,9 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
 
     std::string headSha;
     if (RunGit({ "-C", dirArg, "rev-parse", "HEAD" }, headSha) != 0)
+    {
         return result;  // no HEAD yet (empty repo); nothing to correct
+    }
 
     std::string pinSha;
     if (RunGit({ "-C", dirArg, "rev-parse", pinnedRef + "^{commit}" }, pinSha) != 0)
@@ -180,15 +184,16 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir,
     }
 
     if (Trim(headSha) == Trim(pinSha))
+    {
         return result;
+    }
 
     // Non-destructive even with local commits: they stay reachable on whatever
     // branch carried them.
     if (RunGit({ "-C", dirArg, "checkout", pinnedRef }, out) != 0)
     {
         result.action = PackageIntegrityResult::Action::Failed;
-        result.detail = "git checkout " + pinnedRef + " failed for '" + packageName +
-                        "': " + Trim(out);
+        result.detail = "git checkout " + pinnedRef + " failed for '" + packageName + "': " + Trim(out);
         return result;
     }
 

@@ -10,11 +10,12 @@ class TestCommand : public Command
 {
 public:
     TestCommand(int* target, int newValue, const std::string& desc = "Test")
-        : m_Target(target)
-        , m_OldValue(*target)
-        , m_NewValue(newValue)
-        , m_Description(desc)
-    {}
+        : m_Target(target),
+          m_OldValue(*target),
+          m_NewValue(newValue),
+          m_Description(desc)
+    {
+    }
 
     void Execute() override { *m_Target = m_NewValue; }
     void Undo() override { *m_Target = m_OldValue; }
@@ -32,10 +33,11 @@ class MergeableCommand : public Command
 {
 public:
     MergeableCommand(int* target, int newValue)
-        : m_Target(target)
-        , m_OldValue(*target)
-        , m_NewValue(newValue)
-    {}
+        : m_Target(target),
+          m_OldValue(*target),
+          m_NewValue(newValue)
+    {
+    }
 
     void Execute() override { *m_Target = m_NewValue; }
     void Undo() override { *m_Target = m_OldValue; }
@@ -71,10 +73,7 @@ protected:
         CommandHistory::Instance().Clear();
     }
 
-    void TearDown() override
-    {
-        CommandHistory::Instance().Clear();
-    }
+    void TearDown() override { CommandHistory::Instance().Clear(); }
 };
 
 // ============================================================================

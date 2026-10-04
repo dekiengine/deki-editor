@@ -61,7 +61,10 @@ namespace DekiEditor
 
 bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
 {
-    if (!fn) return true;
+    if (!fn)
+    {
+        return true;
+    }
 
     // Snapshot ImGui state so we can unwind orphaned Begin/BeginChild/Push*
     // if the dispatched call faults. Only valid when inside an ImGui frame
@@ -70,7 +73,9 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
     ImGuiErrorRecoveryState saved;
     const bool canRecover = (ImGui::GetCurrentContext() != nullptr) && (GImGui->CurrentWindow != nullptr);
     if (canRecover)
+    {
         ImGui::ErrorRecoveryStoreState(&saved);
+    }
 
     bool ok;
     EXCEPTION_POINTERS* ep = nullptr;
@@ -84,26 +89,25 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
         void* faultAddr = ep && ep->ExceptionRecord ? ep->ExceptionRecord->ExceptionAddress : nullptr;
         void* accessedAddr = nullptr;
         ULONG_PTR accessType = 0;
-        if (ep && ep->ExceptionRecord &&
-            code == EXCEPTION_ACCESS_VIOLATION &&
+        if (ep && ep->ExceptionRecord && code == EXCEPTION_ACCESS_VIOLATION &&
             ep->ExceptionRecord->NumberParameters >= 2)
         {
             accessType = ep->ExceptionRecord->ExceptionInformation[0];
             accessedAddr = reinterpret_cast<void*>(ep->ExceptionRecord->ExceptionInformation[1]);
         }
-        DEKI_LOG_ERROR("SEH 0x%08X in %s @ip=%p access=%s addr=%p",
-                       code,
-                       context ? context : "unknown",
-                       faultAddr,
-                       (code == EXCEPTION_ACCESS_VIOLATION) ? (accessType == 0 ? "read" : accessType == 1 ? "write"
-                                                                                                          : "execute")
+        DEKI_LOG_ERROR("SEH 0x%08X in %s @ip=%p access=%s addr=%p", code, context ? context : "unknown", faultAddr,
+                       (code == EXCEPTION_ACCESS_VIOLATION) ? (accessType == 0   ? "read"
+                                                               : accessType == 1 ? "write"
+                                                                                 : "execute")
                                                             : "n/a",
                        accessedAddr);
         ok = false;
     }
 
     if (!ok && canRecover)
+    {
         ImGui::ErrorRecoveryTryToRecoverState(&saved);
+    }
     return ok;
 }
 
@@ -120,12 +124,17 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
 
 bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
 {
-    if (!fn) return true;
+    if (!fn)
+    {
+        return true;
+    }
 
     ImGuiErrorRecoveryState saved;
     const bool canRecover = (ImGui::GetCurrentContext() != nullptr) && (GImGui->CurrentWindow != nullptr);
     if (canRecover)
+    {
         ImGui::ErrorRecoveryStoreState(&saved);
+    }
 
     // Read after recovery, so they go in volatile storage: on the POSIX path
     // recovery is a siglongjmp, which restores only callee-saved registers, and
@@ -141,11 +150,8 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
     if (g.faulted)
     {
         DEKI_FAULT_GUARD_END(g);
-        DEKI_LOG_ERROR("Fault in %s [%s] ip=%p addr=%p",
-                       safeContext ? safeContext : "unknown",
-                       FaultGuardDescribe(g),
-                       reinterpret_cast<void*>(g.faultIp),
-                       reinterpret_cast<void*>(g.accessAddr));
+        DEKI_LOG_ERROR("Fault in %s [%s] ip=%p addr=%p", safeContext ? safeContext : "unknown", FaultGuardDescribe(g),
+                       reinterpret_cast<void*>(g.faultIp), reinterpret_cast<void*>(g.accessAddr));
         ok = false;
     }
     else
@@ -155,7 +161,9 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
     }
 
     if (!ok && safeCanRecover)
+    {
         ImGui::ErrorRecoveryTryToRecoverState(&saved);
+    }
     return ok;
 }
 

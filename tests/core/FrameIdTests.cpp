@@ -33,7 +33,9 @@ TEST(FrameIds, SheetsWithoutIdsKeepTheirGuids)
     const auto subs = TextureImporter::GenerateFrameSubAssets(kSheet, 24, 8, atlas);
     ASSERT_EQ(subs.size(), 3u);
     for (size_t i = 0; i < subs.size(); ++i)
+    {
         EXPECT_EQ(subs[i].guid, GenerateDeterministicGuid(kSheet + ":" + std::to_string(i)));
+    }
 
     SpriteSettings grid;
     grid.mode = SpriteSlicingMode::Grid;
@@ -82,7 +84,9 @@ TEST(FrameIds, ANewGridSizeKeepsFramesThatMostlyOverlap)
     std::vector<AtlasFrame> back = saved;
     TextureImporter::CarryFrameIds(saved, back, next);
     for (size_t i = 0; i < back.size(); ++i)
+    {
         EXPECT_EQ(back[i].id, static_cast<int32_t>(i));
+    }
 }
 
 TEST(FrameIds, NewFramesNeverReuseAnId)

@@ -38,12 +38,10 @@ json Transform(double x, double y)
 
 json Object(uint32_t id, const char* name, json components, json children, double x = 0.0, double y = 0.0)
 {
-    return json{ { "active", true },
-                 { "children", std::move(children) },
-                 { "components", std::move(components) },
-                 { "id", id },
-                 { "name", name },
-                 { "transform", Transform(x, y) } };
+    return json{
+        { "active", true }, { "children", std::move(children) }, { "components", std::move(components) }, { "id", id },
+        { "name", name },   { "transform", Transform(x, y) }
+    };
 }
 
 json Component(const char* type, const char* className, json properties)
@@ -113,8 +111,8 @@ bool LoadProjectStarter(const std::string& path, ProjectStarter& out, std::strin
     return true;
 }
 
-bool WriteDekiJson(const std::string& projectPath, const std::string& projectName,
-                   const std::string& activePlatformId, std::string& err)
+bool WriteDekiJson(const std::string& projectPath, const std::string& projectName, const std::string& activePlatformId,
+                   std::string& err)
 {
     json j;
     j["name"] = projectName;
@@ -140,8 +138,8 @@ bool WriteDekiJson(const std::string& projectPath, const std::string& projectNam
     return WriteText(fs::path(projectPath) / "deki.json", j.dump(2), err);
 }
 
-bool WritePackageManifestFor(const std::string& projectPath,
-                             const std::vector<std::string>& packageIds, std::string& err)
+bool WritePackageManifestFor(const std::string& projectPath, const std::vector<std::string>& packageIds,
+                             std::string& err)
 {
     return WritePackageManifest((fs::path(projectPath) / "deki-packages.json").string(),
                                 BuildPackageManifestForIds(packageIds), err);
@@ -154,23 +152,22 @@ bool WriteGitIgnore(const std::string& projectPath, std::string& err)
     // directory nothing creates, another hid a tracked file - because nothing
     // forced the list to track reality. With all generated state under
     // generated/, there is no list to drift.
-    const std::string text =
-        "# Everything the Deki Editor generates. Safe to delete; recreated on open/build.\n"
-        "generated/\n"
-        "\n"
-        "# Package sources - Package Manager clones of the source repos\n"
-        "packages/deki-*/\n"
-        "\n"
-        "# Exported asset packs (--export / the Build panel); rebuilt from assets/\n"
-        "storage/\n"
-        "\n"
-        "# IDE / tooling\n"
-        ".vscode/\n"
-        ".idea/\n"
-        ".vs/\n"
-        ".claude/\n"
-        ".cache/\n"
-        "*.swp\n";
+    const std::string text = "# Everything the Deki Editor generates. Safe to delete; recreated on open/build.\n"
+                             "generated/\n"
+                             "\n"
+                             "# Package sources - Package Manager clones of the source repos\n"
+                             "packages/deki-*/\n"
+                             "\n"
+                             "# Exported asset packs (--export / the Build panel); rebuilt from assets/\n"
+                             "storage/\n"
+                             "\n"
+                             "# IDE / tooling\n"
+                             ".vscode/\n"
+                             ".idea/\n"
+                             ".vs/\n"
+                             ".claude/\n"
+                             ".cache/\n"
+                             "*.swp\n";
     return WriteText(fs::path(projectPath) / ".gitignore", text, err);
 }
 
@@ -196,8 +193,7 @@ bool WriteRenderPipeline(const std::string& projectPath, std::string& err)
     return WriteText(path, j.dump(2), err);
 }
 
-std::string InstallStarterFont(const std::string& projectPath, const std::string& editorFontsDir,
-                               std::string& err)
+std::string InstallStarterFont(const std::string& projectPath, const std::string& editorFontsDir, std::string& err)
 {
     const fs::path src = fs::path(editorFontsDir) / kStarterFontFile;
     std::error_code ec;
@@ -221,9 +217,8 @@ std::string InstallStarterFont(const std::string& projectPath, const std::string
     // baked so the text renders on the first open.
     AssetData data;
     data.guid = GenerateGuid();
-    data.settings["fontSettings"] = json{ { "firstChar", 32 },
-                                          { "lastChar", 126 },
-                                          { "sizes", json::array({ kStarterFontSize }) } };
+    data.settings["fontSettings"] =
+        json{ { "firstChar", 32 }, { "lastChar", 126 }, { "sizes", json::array({ kStarterFontSize }) } };
     if (!SaveAssetData(GetAssetDataPath(dst.string()), data))
     {
         err = "could not write the font sidecar for " + dst.string();
@@ -232,29 +227,37 @@ std::string InstallStarterFont(const std::string& projectPath, const std::string
     return data.guid;
 }
 
-bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid,
-                       std::string& err)
+bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid, std::string& err)
 {
     // The camera shows 15 m top to bottom, so on the default 320x240 design
     // size it is 20 x 15 m at 16 px/m and the gradient fills it.
     json children = json::array();
 
     children.push_back(Object(2, "Camera",
-        json::array({ Component(kCameraType, "CameraComponent",
-            json{ { "orthoHeight", 15.0 }, { "clearColor", 202250495 } }) }),
-        json::array()));
+                              json::array({ Component(kCameraType, "CameraComponent",
+                                                      json{ { "orthoHeight", 15.0 }, { "clearColor", 202250495 } }) }),
+                              json::array()));
 
     children.push_back(Object(3, "Sky",
-        json::array({ Component(kGradientType, "GradientComponent",
-            json{ { "width", 20.0 }, { "height", 15.0 }, { "angle", 90.0 },
-                  { "gradientType", 0 }, { "stopCount", 4 },
-                  { "stop1Color", 390692863 }, { "stop1Position", 0.0 },
-                  { "stop2Color", 779860223 }, { "stop2Position", 0.45 },
-                  { "stop3Color", 1656020223 }, { "stop3Position", 0.78 },
-                  { "stop4Color", 2849894655 }, { "stop4Position", 1.0 },
-                  { "ditherMode", 3 }, { "ditherScale", 1 }, { "sortingOrder", 0 },
-                  { "pixelSnap", true } }) }),
-        json::array()));
+                              json::array({ Component(kGradientType, "GradientComponent",
+                                                      json{ { "width", 20.0 },
+                                                            { "height", 15.0 },
+                                                            { "angle", 90.0 },
+                                                            { "gradientType", 0 },
+                                                            { "stopCount", 4 },
+                                                            { "stop1Color", 390692863 },
+                                                            { "stop1Position", 0.0 },
+                                                            { "stop2Color", 779860223 },
+                                                            { "stop2Position", 0.45 },
+                                                            { "stop3Color", 1656020223 },
+                                                            { "stop3Position", 0.78 },
+                                                            { "stop4Color", 2849894655 },
+                                                            { "stop4Position", 1.0 },
+                                                            { "ditherMode", 3 },
+                                                            { "ditherScale", 1 },
+                                                            { "sortingOrder", 0 },
+                                                            { "pixelSnap", true } }) }),
+                              json::array()));
 
     if (!fontSourceGuid.empty())
     {
@@ -262,16 +265,19 @@ bool WriteStarterScene(const std::string& projectPath, const std::string& fontSo
         // asset exporter and the editor's font-resolve hook derive it.
         const std::string variantGuid =
             GenerateDeterministicGuid(fontSourceGuid + ":" + std::to_string(kStarterFontSize));
-        children.push_back(Object(4, "Hello",
+        children.push_back(Object(
+            4, "Hello",
             json::array({ Component(kTextType, "TextComponent",
-                json{ { "text", "Hello, Deki" },
-                      { "fontSize", kStarterFontSize },
-                      { "font", json{ { "guid", variantGuid }, { "source", fontSourceGuid } } },
-                      { "color", 4294967295u },
-                      { "align", 1 },          // TextAlign::Center
-                      { "verticalAlign", 1 },
-                      { "width", 20.0 }, { "height", 2.0 },
-                      { "sortingOrder", 1 }, { "pixelSnap", true } }) }),
+                                    json{ { "text", "Hello, Deki" },
+                                          { "fontSize", kStarterFontSize },
+                                          { "font", json{ { "guid", variantGuid }, { "source", fontSourceGuid } } },
+                                          { "color", 4294967295u },
+                                          { "align", 1 },  // TextAlign::Center
+                                          { "verticalAlign", 1 },
+                                          { "width", 20.0 },
+                                          { "height", 2.0 },
+                                          { "sortingOrder", 1 },
+                                          { "pixelSnap", true } }) }),
             json::array()));
     }
 

@@ -40,8 +40,8 @@ struct TempDir
     fs::path path;
     TempDir()
     {
-        path = fs::temp_directory_path() /
-               ("deki-livesession-test-" + std::to_string(reinterpret_cast<uintptr_t>(this)));
+        path =
+            fs::temp_directory_path() / ("deki-livesession-test-" + std::to_string(reinterpret_cast<uintptr_t>(this)));
         fs::create_directories(path);
     }
     ~TempDir()
@@ -49,10 +49,7 @@ struct TempDir
         std::error_code ec;
         fs::remove_all(path, ec);
     }
-    void Write(const std::string& name, const LS::Info& info) const
-    {
-        std::ofstream(path / name) << LS::ToJson(info);
-    }
+    void Write(const std::string& name, const LS::Info& info) const { std::ofstream(path / name) << LS::ToJson(info); }
 };
 
 LS::Info MakeInfo(long long pid, const std::string& project)
@@ -75,31 +72,41 @@ struct FakeEditor
 
     FakeEditor()
     {
-        server.Post("/message", [this](const httplib::Request& req, httplib::Response& res)
-                    {
-            if (req.get_header_value("Authorization") != "Bearer " + token)
+        server.Post(
+            "/message",
+            [this](const httplib::Request& req, httplib::Response& res)
             {
-                res.status = 401;
-                return;
-            }
-            const nlohmann::json msg = nlohmann::json::parse(req.body);
-            nlohmann::json result;
-            if (msg["method"] == "tools/list")
-            {
-                result = { { "tools", nlohmann::json::array({ { { "name", "echo" } } }) } };
-            }
-            else
-            {
-                const std::string name = msg["params"]["name"];
-                const nlohmann::json args = msg["params"]["arguments"];
-                if (name == "echo")
-                    result = { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", args.dump() } } }) } };
+                if (req.get_header_value("Authorization") != "Bearer " + token)
+                {
+                    res.status = 401;
+                    return;
+                }
+                const nlohmann::json msg = nlohmann::json::parse(req.body);
+                nlohmann::json result;
+                if (msg["method"] == "tools/list")
+                {
+                    result = { { "tools", nlohmann::json::array({ { { "name", "echo" } } }) } };
+                }
                 else
-                    result = { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", "Error: it broke" } } }) },
-                               { "isError", true } };
-            }
-            res.set_content(nlohmann::json{ { "jsonrpc", "2.0" }, { "id", msg["id"] }, { "result", result } }.dump(),
-                            "application/json"); });
+                {
+                    const std::string name = msg["params"]["name"];
+                    const nlohmann::json args = msg["params"]["arguments"];
+                    if (name == "echo")
+                    {
+                        result = { { "content",
+                                     nlohmann::json::array({ { { "type", "text" }, { "text", args.dump() } } }) } };
+                    }
+                    else
+                    {
+                        result = { { "content",
+                                     nlohmann::json::array({ { { "type", "text" }, { "text", "Error: it broke" } } }) },
+                                   { "isError", true } };
+                    }
+                }
+                res.set_content(
+                    nlohmann::json{ { "jsonrpc", "2.0" }, { "id", msg["id"] }, { "result", result } }.dump(),
+                    "application/json");
+            });
         port = server.bind_to_any_port("127.0.0.1");
         thread = std::thread([this] { server.listen_after_bind(); });
         server.wait_until_ready();

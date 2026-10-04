@@ -27,8 +27,8 @@
 // Package type (which installer manages it)
 enum class PackageType
 {
-    Unknown,          // Not yet determined
-    DekiPackage,      // Deki package (has package.cmake, installed to project/packages/)
+    Unknown,      // Not yet determined
+    DekiPackage,  // Deki package (has package.cmake, installed to project/packages/)
 
     // Managed by a build framework's OWN package manager rather than by Deki:
     // a component the framework fetches itself at build time, say. WHICH
@@ -93,7 +93,6 @@ struct DEKI_EDITOR_API PackageEntry
     std::string minEngine;
 };
 
-
 // Core dependency information (managed by editor, not user)
 struct DEKI_EDITOR_API CoreDependency
 {
@@ -150,10 +149,9 @@ public:
     virtual std::vector<PackageEntry> GetInstalledPackages(const std::string& projectPath) = 0;
 
     // Install/remove package
-    virtual void Install(const std::string& projectPath, const PackageEntry& pkg,
-                         const std::string& version, PackageCallback callback) = 0;
-    virtual void Remove(const std::string& projectPath, const PackageEntry& pkg,
-                        PackageCallback callback) = 0;
+    virtual void Install(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
+                         PackageCallback callback) = 0;
+    virtual void Remove(const std::string& projectPath, const PackageEntry& pkg, PackageCallback callback) = 0;
 
     // Core dependency management (managed by editor, hidden from users)
     virtual std::vector<CoreDependency> GetCoreDependencies() const = 0;

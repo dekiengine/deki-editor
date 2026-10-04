@@ -63,28 +63,34 @@ bool PackageLoader::IsPackageDLL(const std::string& filename) const
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
     if (lower.find(kSharedLibExt) == std::string::npos)
+    {
         return false;
+    }
 
     const std::string stem = SharedLibStem(filename);
 
     // Skip the editor's own libraries - they sit alongside real packages but are
     // linked, not dlopen'd. Compare on the stem so this holds for
     // "deki-engine-core.dll" and "libdeki-engine-core.so" alike.
-    if (stem == "deki-engine-core" ||
-        stem == "deki-editor" ||
-        stem == "deki-profiling-hooks")
+    if (stem == "deki-engine-core" || stem == "deki-editor" || stem == "deki-profiling-hooks")
+    {
         return false;
+    }
 
     // The project's own component plugin is loaded by PluginLoader, on its own
     // lifecycle. It happens to live in the same directory.
     if (stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0)
+    {
         return false;
+    }
 
     // A project's runtime/ holds exactly what that project's build produced, so
     // anything left is a package regardless of who published it. The old rule
     // required a "deki-" prefix and so refused every third-party package.
     if (m_VendorAgnosticDiscovery)
+    {
         return true;
+    }
 
     // No project open: this is the editor's own directory, which carries no such
     // guarantee, so the first-party prefix still does the distinguishing.
@@ -113,16 +119,15 @@ std::string PackageLoader::CreateShadowDirectory()
     // which is fine - the per-file mtime check still gates each copy.
     // With no project open there is nowhere project-scoped to put copies, so fall
     // back to a sibling of the directory being scanned.
-    fs::path shadowDir = m_ShadowDir.empty()
-                             ? fs::path(m_PackageDirectory) / kFallbackShadowDirName
-                             : fs::path(m_ShadowDir);
+    fs::path shadowDir =
+        m_ShadowDir.empty() ? fs::path(m_PackageDirectory) / kFallbackShadowDirName : fs::path(m_ShadowDir);
 
     std::error_code ec;
     fs::create_directories(shadowDir, ec);
     if (ec)
     {
-        DEKI_LOG_ERROR("PackageLoader: Failed to create shadow directory '%s': %s",
-                       shadowDir.string().c_str(), ec.message().c_str());
+        DEKI_LOG_ERROR("PackageLoader: Failed to create shadow directory '%s': %s", shadowDir.string().c_str(),
+                       ec.message().c_str());
         return {};
     }
 
@@ -138,7 +143,9 @@ std::string PackageLoader::CreateShadowDirectory()
     {
         const fs::path ownerFile = shadowDir / "owner.pid";
         if (std::ofstream out{ ownerFile, std::ios::trunc })
+        {
             out << GetCurrentProcessId();
+        }
     }
 
     // Remove ".stale-*" shunts left by previous sessions (see the locked-file
@@ -168,16 +175,19 @@ std::string PackageLoader::CreateShadowDirectory()
     // the shadow dir does not help, since the next copy is stamped fresh
     // again. Propagate it explicitly so the invariant is real on any standard
     // library rather than relying on one implementation's side effect.
-    auto copyPreservingTime = [](const fs::path& src, const fs::path& dst,
-                                 std::error_code& outEc)
+    auto copyPreservingTime = [](const fs::path& src, const fs::path& dst, std::error_code& outEc)
     {
         fs::copy_file(src, dst, fs::copy_options::overwrite_existing, outEc);
         if (outEc)
+        {
             return;
+        }
         std::error_code timeEc;
         const auto srcTime = fs::last_write_time(src, timeEc);
         if (!timeEc)
+        {
             fs::last_write_time(dst, srcTime, timeEc);
+        }
         // A failure to stamp is not fatal here: the load-time check will catch
         // the mismatch and refuse the package, which is the safe direction.
     };
@@ -212,10 +222,11 @@ std::string PackageLoader::CreateShadowDirectory()
             const auto srcSize = fs::file_size(src, srcSizeEc);
             const auto dstSize = fs::file_size(dst, dstSizeEc);
             if (!srcSizeEc && !dstSizeEc && dstTime == srcTime && dstSize == srcSize)
+            {
                 return;  // up-to-date
+            }
         }
-        DEKI_LOG_DEBUG("PackageLoader: refreshing shadow copy '%s'",
-                       dst.filename().string().c_str());
+        DEKI_LOG_DEBUG("PackageLoader: refreshing shadow copy '%s'", dst.filename().string().c_str());
         copyPreservingTime(src, dst, ec);
 
         if (ec && fs::exists(dst, statEc))
@@ -233,7 +244,9 @@ std::string PackageLoader::CreateShadowDirectory()
                 aside += ".stale-" + std::to_string(attempt);
                 fs::rename(dst, aside, mvEc);
                 if (!mvEc)
+                {
                     break;
+                }
             }
             if (!mvEc)
             {
@@ -257,11 +270,15 @@ std::string PackageLoader::CreateShadowDirectory()
     for (const auto& entry : fs::directory_iterator(m_PackageDirectory))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string filename = entry.path().filename().string();
         if (!IsPackageDLL(filename))
+        {
             continue;
+        }
 
         expected.insert(filename);
 
@@ -277,8 +294,7 @@ std::string PackageLoader::CreateShadowDirectory()
             // instance still shutting down holds the shadow file locked.
             std::error_code cmpEc;
             const bool staleShadow =
-                fs::exists(dest, cmpEc) &&
-                fs::last_write_time(dest, cmpEc) < fs::last_write_time(entry.path(), cmpEc);
+                fs::exists(dest, cmpEc) && fs::last_write_time(dest, cmpEc) < fs::last_write_time(entry.path(), cmpEc);
             if (staleShadow)
             {
                 DEKI_LOG_ERROR("PackageLoader: could not refresh shadow copy of '%s' (%s) - "
@@ -288,8 +304,8 @@ std::string PackageLoader::CreateShadowDirectory()
             }
             else
             {
-                DEKI_LOG_WARNING("PackageLoader: Failed to copy '%s' to shadow dir: %s",
-                                 filename.c_str(), ec.message().c_str());
+                DEKI_LOG_WARNING("PackageLoader: Failed to copy '%s' to shadow dir: %s", filename.c_str(),
+                                 ec.message().c_str());
             }
             ec.clear();
         }
@@ -303,11 +319,16 @@ std::string PackageLoader::CreateShadowDirectory()
         expected.insert(pdbName);
         fs::path pdbSrc = entry.path().parent_path() / ".pdb_archive" / pdbName;
         if (!fs::exists(pdbSrc))
+        {
             pdbSrc = entry.path().parent_path() / pdbName;
+        }
         if (fs::exists(pdbSrc))
         {
             copyIfStale(pdbSrc, shadowDir / pdbName);
-            if (ec) ec.clear();
+            if (ec)
+            {
+                ec.clear();
+            }
         }
     }
 
@@ -334,9 +355,13 @@ std::string PackageLoader::CreateShadowDirectory()
             for (const std::string& dir : m_ShadowSourceDirs)
             {
                 if (dir == m_PackageDirectory)
+                {
                     continue;  // already covered by `expected`
+                }
                 if (fs::exists(fs::path(dir) / dllName, exEc))
+                {
                     return true;
+                }
             }
             return false;
         };
@@ -345,31 +370,42 @@ std::string PackageLoader::CreateShadowDirectory()
         for (const auto& leftover : fs::directory_iterator(shadowDir, iterEc))
         {
             if (!leftover.is_regular_file())
+            {
                 continue;
+            }
 
             const std::string name = leftover.path().filename().string();
             if (name.find(".stale-") != std::string::npos)
+            {
                 continue;
+            }
             // Bookkeeping for the stale-lock reclaim above, not a package file.
             if (name == "owner.pid")
+            {
                 continue;
+            }
 
             std::string ext = leftover.path().extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             // .pdb is the MSVC debug sidecar; on ELF/Mach-O the debug info is
             // inside the library itself, so there is no companion file to prune.
             if (ext != kSharedLibExt && ext != ".pdb")
+            {
                 continue;
+            }
 
             if (expected.count(name))
+            {
                 continue;
+            }
 
             // A .pdb lives or dies with its DLL, so resolve both through the
             // library name rather than looking for a stray .pdb in the source dirs.
-            const std::string dllName =
-                name.substr(0, name.find_last_of('.')) + kSharedLibExt;
+            const std::string dllName = name.substr(0, name.find_last_of('.')) + kSharedLibExt;
             if (providedElsewhere(dllName))
+            {
                 continue;
+            }
 
             std::error_code rmEc;
             if (fs::remove(leftover.path(), rmEc))
@@ -382,8 +418,8 @@ std::string PackageLoader::CreateShadowDirectory()
             {
                 // Still mapped by this process, or locked by a dying instance.
                 // Harmless: the next startup retries.
-                DEKI_LOG_WARNING("PackageLoader: could not prune orphaned shadow copy '%s': %s",
-                                 name.c_str(), rmEc.message().c_str());
+                DEKI_LOG_WARNING("PackageLoader: could not prune orphaned shadow copy '%s': %s", name.c_str(),
+                                 rmEc.message().c_str());
             }
         }
     }
@@ -394,14 +430,16 @@ std::string PackageLoader::CreateShadowDirectory()
 void PackageLoader::CleanupShadowDirectory(const std::string& shadowDir)
 {
     if (shadowDir.empty())
+    {
         return;
+    }
 
     std::error_code ec;
     std::filesystem::remove_all(shadowDir, ec);
     if (ec)
     {
-        DEKI_LOG_WARNING("PackageLoader: Could not clean up shadow dir '%s': %s",
-                         shadowDir.c_str(), ec.message().c_str());
+        DEKI_LOG_WARNING("PackageLoader: Could not clean up shadow dir '%s': %s", shadowDir.c_str(),
+                         ec.message().c_str());
     }
 }
 
@@ -430,11 +468,15 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
     for (const auto& entry : std::filesystem::directory_iterator(shadowDir))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string filename = entry.path().filename().string();
         if (!IsPackageDLL(filename))
+        {
             continue;
+        }
 
         // Only the packages THIS pass owns. The shadow dir is fed by several
         // source dirs (the exe dir, then the project's bin/) and deliberately
@@ -447,7 +489,9 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
         // failed load outright when the editor DLL's exports have moved on).
         std::error_code srcEc;
         if (!std::filesystem::exists(std::filesystem::path(directory) / filename, srcEc))
+        {
             continue;
+        }
 
         packagePaths.push_back(entry.path());
     }
@@ -462,14 +506,18 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
                   bool aIsRendering = nameA.find("deki-rendering") == 0;
                   bool bIsRendering = nameB.find("deki-rendering") == 0;
                   if (aIsRendering != bIsRendering)
+                  {
                       return aIsRendering;
+                  }
                   return nameA < nameB;
               });
 
     for (const auto& path : packagePaths)
     {
         if (OnPackageLoading)
+        {
             OnPackageLoading(path.stem().string());
+        }
 
         if (LoadPackage(path.string(), imguiContext))
         {
@@ -483,13 +531,14 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
     // background thread runs. The fired-tracking inside RunEditorAutoSetups is
     // still idempotent, so calling it after the loop is safe even if a future
     // path also calls it post-load.
-    Deki::SetupComponent::RunEditorAutoSetups(
-        Deki::SetupComponent::SetupPhase::EditorLoad);
+    Deki::SetupComponent::RunEditorAutoSetups(Deki::SetupComponent::SetupPhase::EditorLoad);
 
     // Packages loaded successfully from existing DLLs - clear any stale build errors
     // from BuildStalePackages() so play mode isn't blocked when DLLs are actually working
     if (loadedCount > 0)
+    {
         m_HasBuildErrors = false;
+    }
 
     return loadedCount;
 }
@@ -548,8 +597,12 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // the ones this package's static initialisers added.
     std::set<uint32_t> typesBeforePackage;
     for (const Deki::ComponentMeta* meta : Deki::ComponentRegistry::Instance().GetAllComponents())
+    {
         if (meta)
+        {
             typesBeforePackage.insert(meta->typeId);
+        }
+    }
 
     // A package that fails after LoadLibrary is skipped but stays mapped, as
     // the layout-mismatch paths below do: its static initialisers have already
@@ -562,10 +615,16 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         auto& registry = Deki::ComponentRegistry::Instance();
         std::vector<uint32_t> added;
         for (const Deki::ComponentMeta* meta : registry.GetAllComponents())
+        {
             if (meta && !typesBeforePackage.count(meta->typeId))
+            {
                 added.push_back(meta->typeId);
+            }
+        }
         for (uint32_t typeId : added)
+        {
             registry.Unregister(typeId);
+        }
         DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
     };
 
@@ -577,8 +636,8 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // Load from the shadow directory path using LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR
     // so inter-package dependencies resolve within the shadow directory,
     // while non-package deps (deki-engine-core.dll) resolve via default search.
-    HMODULE handle = LoadLibraryExA(path.c_str(), NULL,
-                                    LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    HMODULE handle =
+        LoadLibraryExA(path.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 
     SetErrorMode(oldErrorMode);
 
@@ -586,8 +645,8 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     {
         DWORD error = GetLastError();
         char errMsg[256] = {};
-        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                       NULL, error, 0, errMsg, sizeof(errMsg), NULL);
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0, errMsg,
+                       sizeof(errMsg), NULL);
         DEKI_LOG_ERROR("PackageLoader: Failed to load DLL (error %lu: %s): %s", error, errMsg, path.c_str());
         return false;
     }
@@ -770,10 +829,12 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         int count = SafeCallGetInt(getComponentCount, 0, "PackageLoader::getComponentCount");
         for (int i = 0; i < count; ++i)
         {
-            const auto* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
-                (void* (*)(int))getComponentMeta, i, "PackageLoader::getComponentMeta");
+            const auto* meta = (const Deki::ComponentMeta*)SafeCallGetPtr((void* (*)(int))getComponentMeta, i,
+                                                                          "PackageLoader::getComponentMeta");
             if (meta)
+            {
                 info.registeredTypeIds.push_back(meta->typeId);
+            }
         }
     }
     info.componentCount = static_cast<int>(info.registeredTypeIds.size());
@@ -794,12 +855,15 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         for (const auto& setting : Deki::SettingsRegistry::Instance().GetAll())
         {
             if (setting.meta == nullptr || setting.sectionName == nullptr)
+            {
                 continue;
-            const bool ownedByThisPackage =
-                std::find(info.registeredTypeIds.begin(), info.registeredTypeIds.end(),
-                          setting.meta->typeId) != info.registeredTypeIds.end();
+            }
+            const bool ownedByThisPackage = std::find(info.registeredTypeIds.begin(), info.registeredTypeIds.end(),
+                                                      setting.meta->typeId) != info.registeredTypeIds.end();
             if (ownedByThisPackage)
+            {
                 SettingsOwnership::SetOwner(setting.sectionName, packageId);
+            }
         }
     }
 
@@ -817,9 +881,8 @@ void PackageLoader::UnloadPackage(const std::string& name)
     // and would dangle after FreeLibrary. Next package load re-registers them.
     Deki::SetupComponent::ClearEditorAutoFactories();
 
-    auto it = std::find_if(m_Packages.begin(), m_Packages.end(),
-                           [&name](const PackageInfo& m)
-                           { return m.name == name; });
+    auto it =
+        std::find_if(m_Packages.begin(), m_Packages.end(), [&name](const PackageInfo& m) { return m.name == name; });
 
     if (it == m_Packages.end())
     {
@@ -830,15 +893,21 @@ void PackageLoader::UnloadPackage(const std::string& name)
     if (it->handle)
     {
         if (OnPackageUnloading)
+        {
             OnPackageUnloading(it->name);
+        }
 #ifdef _WIN32
         auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)it->handle, "DekiPlugin_Shutdown");
         if (shutdown)
+        {
             SafeCallVoid(shutdown, it->name.c_str());
+        }
 #else
         auto shutdown = (ShutdownFunc)dlsym(it->handle, "DekiPlugin_Shutdown");
         if (shutdown)
+        {
             SafeCallVoid(shutdown, it->name.c_str());
+        }
 #endif
 
         // Remove this package's components from the registry BEFORE FreeLibrary.
@@ -866,7 +935,9 @@ void PackageLoader::ReleaseImGuiContext()
     for (auto& package : m_Packages)
     {
         if (!package.handle)
+        {
             continue;
+        }
 #ifdef _WIN32
         auto setImGuiContext =
             (SetImGuiContextFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_SetImGuiContext");
@@ -874,7 +945,9 @@ void PackageLoader::ReleaseImGuiContext()
         auto setImGuiContext = (SetImGuiContextFunc)dlsym(package.handle, "DekiPlugin_SetImGuiContext");
 #endif
         if (setImGuiContext)
+        {
             SafeCallVoidPtr((void (*)(void*))setImGuiContext, nullptr, "PackageLoader::setImGuiContext");
+        }
     }
 }
 
@@ -887,9 +960,15 @@ void PackageLoader::UnloadAllPackages()
 
     // Phase 0: whatever the editor holds that packages created goes first.
     if (OnPackageUnloading)
+    {
         for (auto& package : m_Packages)
+        {
             if (package.handle)
+            {
                 OnPackageUnloading(package.name);
+            }
+        }
+    }
 
     // Phase 1: Call all shutdown functions first (while all packages are still loaded).
     // This is critical because shutdown code may reference types in other packages
@@ -901,11 +980,15 @@ void PackageLoader::UnloadAllPackages()
 #ifdef _WIN32
             auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_Shutdown");
             if (shutdown)
+            {
                 SafeCallVoid(shutdown, package.name.c_str());
+            }
 #else
             auto shutdown = (ShutdownFunc)dlsym(package.handle, "DekiPlugin_Shutdown");
             if (shutdown)
+            {
                 SafeCallVoid(shutdown, package.name.c_str());
+            }
 #endif
         }
     }
@@ -936,8 +1019,8 @@ void PackageLoader::UnloadAllPackages()
 #ifdef _WIN32
             if (!FreeLibrary((HMODULE)m_Packages[i].handle))
             {
-                DEKI_LOG_WARNING("PackageLoader: FreeLibrary failed for '%s' (error %lu)",
-                                 m_Packages[i].name.c_str(), GetLastError());
+                DEKI_LOG_WARNING("PackageLoader: FreeLibrary failed for '%s' (error %lu)", m_Packages[i].name.c_str(),
+                                 GetLastError());
             }
 #else
             dlclose(m_Packages[i].handle);
@@ -960,7 +1043,9 @@ std::vector<std::string> PackageLoader::CheckForUpdates()
     for (const auto& package : m_Packages)
     {
         if (!std::filesystem::exists(package.path))
+        {
             continue;
+        }
 
         try
         {
@@ -971,17 +1056,11 @@ std::vector<std::string> PackageLoader::CheckForUpdates()
                 // explainable rather than mysterious. Goes through file_time
                 // → seconds-since-epoch for a portable readable number.
                 auto toEpoch = [](std::filesystem::file_time_type t)
-                {
-                    return std::chrono::duration_cast<std::chrono::seconds>(
-                               t.time_since_epoch())
-                        .count();
-                };
-                DEKI_LOG_EDITOR("PackageLoader: '%s' mtime changed (loaded=%lld, current=%lld, delta=%lld s, path=%s)",
-                                package.name.c_str(),
-                                (long long)toEpoch(package.lastModified),
-                                (long long)toEpoch(currentTime),
-                                (long long)(toEpoch(currentTime) - toEpoch(package.lastModified)),
-                                package.path.c_str());
+                { return std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count(); };
+                DEKI_LOG_EDITOR(
+                    "PackageLoader: '%s' mtime changed (loaded=%lld, current=%lld, delta=%lld s, path=%s)",
+                    package.name.c_str(), (long long)toEpoch(package.lastModified), (long long)toEpoch(currentTime),
+                    (long long)(toEpoch(currentTime) - toEpoch(package.lastModified)), package.path.c_str());
                 changedPackages.push_back(package.name);
             }
         }
@@ -997,9 +1076,8 @@ std::vector<std::string> PackageLoader::CheckForUpdates()
 bool PackageLoader::ReloadPackage(const std::string& name, void* imguiContext)
 {
     // Find the package to get its original path before unloading
-    auto it = std::find_if(m_Packages.begin(), m_Packages.end(),
-                           [&name](const PackageInfo& m)
-                           { return m.name == name; });
+    auto it =
+        std::find_if(m_Packages.begin(), m_Packages.end(), [&name](const PackageInfo& m) { return m.name == name; });
 
     if (it == m_Packages.end())
     {
@@ -1047,7 +1125,9 @@ bool PackageLoader::ReloadPackage(const std::string& name, void* imguiContext)
     CleanupShadowDirectory(oldShadowDir);
 
     if (!success)
+    {
         DEKI_LOG_ERROR("PackageLoader: Failed to reload package '%s'", name.c_str());
+    }
 
     return success;
 }
@@ -1073,7 +1153,9 @@ void PackageLoader::NotifyPlayModeStart(void* scene)
     for (const auto& package : m_Packages)
     {
         if (!package.handle)
+        {
             continue;
+        }
 
 #ifdef _WIN32
         auto func = (OnPlayModeStartFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_OnPlayModeStart");
@@ -1092,7 +1174,9 @@ void PackageLoader::NotifyPlayModeStop()
     for (const auto& package : m_Packages)
     {
         if (!package.handle)
+        {
             continue;
+        }
 
 #ifdef _WIN32
         auto func = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_OnPlayModeStop");
@@ -1111,7 +1195,9 @@ void PackageLoader::ClearPackageRegistries()
     for (const auto& package : m_Packages)
     {
         if (!package.handle)
+        {
             continue;
+        }
 
 #ifdef _WIN32
         auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_ClearRegistries");
@@ -1130,7 +1216,9 @@ void PackageLoader::ReRegisterAllPackages()
     for (const auto& package : m_Packages)
     {
         if (!package.handle)
+        {
             continue;
+        }
 
 #ifdef _WIN32
         auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPlugin_RegisterComponents");
@@ -1153,7 +1241,9 @@ std::string PackageLoader::ResolveBuildDir(const std::string& packageDirectory)
     namespace fs = std::filesystem;
 
     if (packageDirectory.empty())
+    {
         return "";
+    }
 
     // packageDirectory is the exe directory (build/bin/Debug/)
     // Build dir is ../../ from there (build/)
@@ -1161,7 +1251,9 @@ std::string PackageLoader::ResolveBuildDir(const std::string& packageDirectory)
     buildDir = fs::weakly_canonical(buildDir);
 
     if (fs::exists(buildDir / "CMakeCache.txt"))
+    {
         return buildDir.string();
+    }
 
     return "";
 }
@@ -1171,20 +1263,26 @@ std::string PackageLoader::ResolveEnginePath(const std::string& buildDir)
     namespace fs = std::filesystem;
 
     if (buildDir.empty())
+    {
         return "";
+    }
 
     // Try to resolve from CMakeCache.txt
     {
         const std::string path = ReadCMakeCacheVar(buildDir, "DEKI_ENGINE_PATH");
         if (!path.empty() && fs::exists(path))
+        {
             return path;
+        }
     }
 
     // Fallback: submodule directory relative to editor root
     fs::path editorRoot = fs::weakly_canonical(fs::path(buildDir) / "..");
     fs::path enginePath = editorRoot / "deki-engine";
     if (fs::exists(enginePath / "CMakeLists.txt"))
+    {
         return fs::weakly_canonical(enginePath).string();
+    }
 
     return "";
 }
@@ -1197,33 +1295,47 @@ std::string PackageLoader::ResolvePackageSourceDir(const std::string& enginePath
     // name ("libdeki-2d.so" -> "2d").
     std::string name = SharedLibStem(dllFilename);
     if (name.rfind("deki-", 0) == 0)
+    {
         name = name.substr(5);
+    }
 
     // Packages are standalone - source lives in project/packages/deki-{name}/
     // enginePath is repurposed: callers now pass the project path
     const std::string& projectPath = enginePath;
 
     fs::path projectPackages = fs::path(GetPackagesDirectory(projectPath));
-    if (!fs::exists(projectPackages)) return "";
+    if (!fs::exists(projectPackages))
+    {
+        return "";
+    }
 
     // Try "deki-{name}" (e.g., "2d" → "deki-2d")
     fs::path deki = projectPackages / ("deki-" + name);
     if (fs::exists(deki) && fs::is_directory(deki))
+    {
         return deki.string();
+    }
 
     // Try "deki-{name}-integration" (e.g., "lovyangfx" → "deki-lovyangfx-integration")
     fs::path integration = projectPackages / ("deki-" + name + "-integration");
     if (fs::exists(integration) && fs::is_directory(integration))
+    {
         return integration.string();
+    }
 
     // Scan for any directory containing the name
     try
     {
         for (const auto& entry : fs::directory_iterator(projectPackages))
         {
-            if (!entry.is_directory()) continue;
+            if (!entry.is_directory())
+            {
+                continue;
+            }
             if (entry.path().filename().string().find(name) != std::string::npos)
+            {
                 return entry.path().string();
+            }
         }
     }
     catch (const fs::filesystem_error&)
@@ -1250,16 +1362,22 @@ bool PackageLoader::HasNewerSources(const std::string& srcDir, std::filesystem::
             {
                 const std::string name = entry.path().filename().string();
                 if ((!name.empty() && name[0] == '.') || name == "generated" || name == "build")
+                {
                     it.disable_recursion_pending();
+                }
                 continue;
             }
             if (!entry.is_regular_file())
+            {
                 continue;
+            }
             auto ext = entry.path().extension().string();
             if (ext == ".cpp" || ext == ".h" || ext == ".hpp")
             {
                 if (fs::last_write_time(entry.path()) > refTime)
+                {
                     return true;
+                }
             }
         }
     }
@@ -1275,7 +1393,9 @@ int PackageLoader::RemoveOrphanedPackageLibraries(const std::string& binDir, con
     namespace fs = std::filesystem;
     std::error_code ec;
     if (!fs::is_directory(binDir, ec))
+    {
         return 0;
+    }
 
     // Live targets: PACKAGE_TARGET of every packages/*/package.cmake, or the
     // directory name when the descriptor does not set one (the generator's
@@ -1285,7 +1405,9 @@ int PackageLoader::RemoveOrphanedPackageLibraries(const std::string& binDir, con
     for (const auto& dir : fs::directory_iterator(packagesDir, ec))
     {
         if (!dir.is_directory(ec))
+        {
             continue;
+        }
         std::string target = dir.path().filename().string();
         std::ifstream f(dir.path() / "package.cmake");
         std::string line;
@@ -1293,7 +1415,9 @@ int PackageLoader::RemoveOrphanedPackageLibraries(const std::string& binDir, con
         {
             const size_t at = line.find("PACKAGE_TARGET");
             if (at == std::string::npos || line.find("set(") == std::string::npos)
+            {
                 continue;
+            }
             const size_t q1 = line.find('"', at);
             const size_t q2 = (q1 == std::string::npos) ? std::string::npos : line.find('"', q1 + 1);
             if (q1 != std::string::npos && q2 != std::string::npos)
@@ -1305,34 +1429,53 @@ int PackageLoader::RemoveOrphanedPackageLibraries(const std::string& binDir, con
                 std::string tok = line.substr(at + strlen("PACKAGE_TARGET"));
                 tok.erase(0, tok.find_first_not_of(" \t"));
                 const size_t end = tok.find_first_of(" \t)");
-                if (end != std::string::npos) tok = tok.substr(0, end);
-                if (!tok.empty()) target = tok;
+                if (end != std::string::npos)
+                {
+                    tok = tok.substr(0, end);
+                }
+                if (!tok.empty())
+                {
+                    target = tok;
+                }
             }
             break;
         }
         live.insert(target);
     }
     if (live.empty())
+    {
         return 0;
+    }
 
     int removed = 0;
     for (const auto& entry : fs::directory_iterator(binDir, ec))
     {
         if (!entry.is_regular_file(ec))
+        {
             continue;
+        }
         const std::string fn = entry.path().filename().string();
         if (!IsSharedLibFile(fn))
+        {
             continue;
+        }
         const std::string stem = SharedLibStem(fn);
         // Only package libraries: not the project's plugin, not the editor's own.
         if (stem.rfind("deki-", 0) != 0 || live.count(stem))
+        {
             continue;
+        }
         if (stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0)
+        {
             continue;
+        }
         if (stem == "deki-engine-core" || stem == "deki-editor")
+        {
             continue;
+        }
 
-        DEKI_LOG_EDITOR("PackageLoader: removing orphaned package library '%s' (no package declares that target)", fn.c_str());
+        DEKI_LOG_EDITOR("PackageLoader: removing orphaned package library '%s' (no package declares that target)",
+                        fn.c_str());
         const fs::path dir = entry.path().parent_path();
         fs::remove(entry.path(), ec);
         ++removed;

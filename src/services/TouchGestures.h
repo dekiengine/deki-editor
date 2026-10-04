@@ -40,10 +40,10 @@ public:
     {
         enum class Kind
         {
-            Move,   // pointer to (x, y)
-            Down,   // `button` pressed at the current position
-            Up,     // `button` released at the current position
-            Leave   // no pointer: a touchscreen has nothing hovering once lifted
+            Move,  // pointer to (x, y)
+            Down,  // `button` pressed at the current position
+            Up,    // `button` released at the current position
+            Leave  // no pointer: a touchscreen has nothing hovering once lifted
         } kind = Kind::Move;
         int button = 0;  // 0 left, 1 right
         float x = 0.0f, y = 0.0f;
@@ -64,7 +64,10 @@ public:
     };
 
     TouchGestures() = default;
-    explicit TouchGestures(const Config& config) : m_Config(config) {}
+    explicit TouchGestures(const Config& config)
+        : m_Config(config)
+    {
+    }
 
     void SetConfig(const Config& config) { m_Config = config; }
     const Config& GetConfig() const { return m_Config; }

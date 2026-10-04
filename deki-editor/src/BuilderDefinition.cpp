@@ -42,7 +42,9 @@ static void ParseComponent(const json& j, ComponentDef& comp)
         // The digest pins the fallback archive, so it may be written beside
         // that URL; a component-level "sha256" wins when both are present.
         if (comp.sha256.empty())
+        {
             comp.sha256 = fb.value("sha256", "");
+        }
     }
 
     // Detection - map of platform -> path pattern
@@ -93,7 +95,9 @@ bool ParseBuilderDefinition(const std::string& jsonText, BuilderDefinition& outD
         if (j.contains("supportedTargets") && j["supportedTargets"].is_array())
         {
             for (const auto& t : j["supportedTargets"])
+            {
                 outDef.supportedTargets.push_back(t.get<std::string>());
+            }
         }
 
         if (j.contains("components") && j["components"].is_array())
@@ -103,7 +107,9 @@ bool ParseBuilderDefinition(const std::string& jsonText, BuilderDefinition& outD
                 ComponentDef comp;
                 ParseComponent(compJson, comp);
                 if (!comp.id.empty())
+                {
                     outDef.components.push_back(comp);
+                }
             }
         }
 

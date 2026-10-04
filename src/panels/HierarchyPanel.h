@@ -7,7 +7,10 @@
 #include <string>
 #include <vector>
 
-namespace Deki { class Object; } // Engine's DekiObject
+namespace Deki
+{
+class Object;
+}  // namespace Deki
 
 namespace DekiEditor
 {
@@ -37,7 +40,6 @@ public:
     // Drop any cached pointers to objects that are about to be destroyed.
     // Wired to Scene::SetOnObjectsAboutToBeDestroyed via EditorApp.
     void OnObjectsDestroyed(const std::vector<Deki::Object*>& dying);
-
 
 private:
     // Returns true if an object was deleted (signals caller to break iteration)
@@ -80,7 +82,7 @@ private:
 
     // Arrow key navigation state
     Deki::Object* m_CollapsedByArrow = nullptr;  // Suppress auto-expand for node collapsed via Left arrow
-    bool m_ArrowKeyHandled = false;            // Prevent multiple nodes handling same key press
+    bool m_ArrowKeyHandled = false;              // Prevent multiple nodes handling same key press
     Deki::Object* m_ScrollToObject = nullptr;    // Sync ImGui nav focus after arrow key navigation
 
     // Multi-object drag state (snapshot of selected objects at drag start)
@@ -93,7 +95,7 @@ private:
     // Link to Scene state
     std::unique_ptr<AssetPicker> m_AssetPicker;
     Deki::Object* m_LinkTargetObject = nullptr;  // Object being linked to a scene
-    bool m_OpenLinkPicker = false;             // Deferred open (can't open modal from context menu)
+    bool m_OpenLinkPicker = false;               // Deferred open (can't open modal from context menu)
 
     // Deferred navigation (can't navigate during draw loop - destroys scene mid-iteration)
     std::string m_PendingNavigatePath;

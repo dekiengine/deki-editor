@@ -217,7 +217,10 @@ TEST(ProjectScaffold, StarterSceneHasCameraGradientAndText)
         {
             classes.insert(c.at("class").get<std::string>());
             EXPECT_EQ(c.at("type").get<std::string>(), c.at("class").get<std::string>());  // the class name is the type
-            if (c.at("class") == "TextComponent") textProps = c.at("properties");
+            if (c.at("class") == "TextComponent")
+            {
+                textProps = c.at("properties");
+            }
         }
     }
     EXPECT_EQ(classes, (std::set<std::string>{ "CameraComponent", "GradientComponent", "TextComponent" }));
@@ -237,6 +240,10 @@ TEST(ProjectScaffold, StarterSceneWithoutFontSkipsTheText)
     ASSERT_TRUE(ProjectScaffold::WriteStarterScene(t.Path(), "", err)) << err;
     const json j = t.ReadJson(fs::path(GetAssetsDirectoryRelative()) / ProjectScaffold::kStartupScene);
     for (const json& child : j.at("objects")[0].at("children"))
+    {
         for (const json& c : child.at("components"))
+        {
             EXPECT_NE(c.at("class"), "TextComponent");
+        }
+    }
 }

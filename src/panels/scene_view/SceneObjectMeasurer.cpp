@@ -12,11 +12,12 @@
 namespace DekiEditor
 {
 
-bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta,
-                          float** outWidth, float** outHeight)
+bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta, float** outWidth, float** outHeight)
 {
     if (!comp || !meta || !meta->properties || meta->propertyCount == 0)
+    {
         return false;
+    }
 
     float* widthPtr = nullptr;
     float* heightPtr = nullptr;
@@ -27,12 +28,16 @@ bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta
     auto searchProperties = [&](const Deki::ComponentMeta* m)
     {
         if (!m || !m->properties)
+        {
             return;
+        }
         for (int i = 0; i < m->propertyCount; ++i)
         {
             const Deki::PropertyInfo& prop = m->properties[i];
             if (!prop.name)
+            {
                 continue;
+            }
 
             if (prop.type == Deki::PropertyType::Float)
             {
@@ -54,8 +59,14 @@ bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta
 
     if (widthPtr && heightPtr)
     {
-        if (outWidth) *outWidth = widthPtr;
-        if (outHeight) *outHeight = heightPtr;
+        if (outWidth)
+        {
+            *outWidth = widthPtr;
+        }
+        if (outHeight)
+        {
+            *outHeight = heightPtr;
+        }
         return true;
     }
 
@@ -63,7 +74,8 @@ bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta
 }
 
 SceneObjectMeasurer::SceneObjectMeasurer(EditorApp* app, SceneTextureCache* textureCache)
-    : m_App(app), m_TextureCache(textureCache)
+    : m_App(app),
+      m_TextureCache(textureCache)
 {
 }
 
@@ -79,17 +91,20 @@ bool SceneObjectMeasurer::GetDisplaySize(Deki::Object* obj, float& outWidth, flo
         auto& registry = Deki::ComponentRegistry::Instance();
         const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
         if (!meta || !meta->name)
+        {
             continue;
+        }
 
         CustomEditor* editor = CustomEditorRegistry::Instance().GetEditorForComponent(meta->name, comp);
         if (!editor)
+        {
             continue;
+        }
 
         // Call simplified GetDisplaySize - editors use EditorAssets directly.
         // Guarded so a faulty editor falls through to the next component.
         bool gotSize = false;
-        Guard(meta->name, [&]
-              { gotSize = editor->GetDisplaySize(comp, outWidth, outHeight); });
+        Guard(meta->name, [&] { gotSize = editor->GetDisplaySize(comp, outWidth, outHeight); });
         if (gotSize)
         {
             return true;
@@ -101,24 +116,34 @@ bool SceneObjectMeasurer::GetDisplaySize(Deki::Object* obj, float& outWidth, flo
 
 void SceneObjectMeasurer::UpdateEditors(Deki::Scene* scene)
 {
-    if (!scene) return;
+    if (!scene)
+    {
+        return;
+    }
 
     auto& editorRegistry = CustomEditorRegistry::Instance();
     auto& compRegistry = Deki::ComponentRegistry::Instance();
 
     std::function<void(Deki::Object*)> visitObject = [&](Deki::Object* obj)
     {
-        if (!obj) return;
+        if (!obj)
+        {
+            return;
+        }
 
         for (Deki::Component* comp : obj->GetComponents())
         {
             const Deki::ComponentMeta* meta = compRegistry.GetMeta(comp->GetType());
-            if (!meta || !meta->name) continue;
+            if (!meta || !meta->name)
+            {
+                continue;
+            }
 
             CustomEditor* editor = editorRegistry.GetEditorForComponent(meta->name, comp);
             if (editor)
-                Guard(meta->name, [&]
-                      { editor->OnEditorUpdate(comp); });
+            {
+                Guard(meta->name, [&] { editor->OnEditorUpdate(comp); });
+            }
         }
 
         // Copy the children list before recursing: a CustomEditor's OnEditorUpdate
@@ -126,11 +151,15 @@ void SceneObjectMeasurer::UpdateEditors(Deki::Scene* scene)
         // trigger a reallocation, invalidating range-for's cached begin/end.
         auto children = obj->GetChildren();
         for (Deki::Object* child : children)
+        {
             visitObject(child);
+        }
     };
 
     for (Deki::Object* root : scene->GetObjects())
+    {
         visitObject(root);
+    }
 }
 
 }  // namespace DekiEditor

@@ -27,7 +27,6 @@ DEKI_EDITOR_API void SetImGuiContext(void* context);
  * the header does not have to pull in imgui.h.
  */
 DEKI_EDITOR_API void SetImGuiAllocators(void* (*allocFunc)(size_t sz, void* userData),
-                                        void (*freeFunc)(void* ptr, void* userData),
-                                        void* userData);
+                                        void (*freeFunc)(void* ptr, void* userData), void* userData);
 
 }  // namespace Deki

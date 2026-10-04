@@ -21,26 +21,33 @@ bool NeedsGuid(const std::string& extension)
 {
     const AssetCategory category = AssetTypeRegistry::Instance().GetCategoryForExtension(extension);
     if (category == AssetCategory::Texture || category == AssetCategory::Animation || category == AssetCategory::Scene)
+    {
         return true;
+    }
     std::string ext = extension;
     for (char& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
     return ext == ".bdf";
 }
 
 void RegisterAsset(const std::filesystem::path& path, AssetPipeline* pipeline)
 {
     if (!NeedsGuid(path.extension().string()))
+    {
         return;
+    }
     GetOrCreateAssetGuid(path.string());
     // Compile to the cache (the pipeline wants a project-relative path)
     if (pipeline)
+    {
         pipeline->RefreshAsset(pipeline->MakeProjectRelative(path.string()));
+    }
 }
 }  // namespace
 
-bool Import(const std::string& droppedPath, const std::string& targetDir,
-            AssetPipeline* pipeline, std::string& error)
+bool Import(const std::string& droppedPath, const std::string& targetDir, AssetPipeline* pipeline, std::string& error)
 {
     namespace fs = std::filesystem;
 
@@ -69,7 +76,9 @@ bool Import(const std::string& droppedPath, const std::string& targetDir,
             for (const auto& entry : fs::recursive_directory_iterator(destPath))
             {
                 if (entry.is_regular_file())
+                {
                     RegisterAsset(entry.path(), pipeline);
+                }
             }
         }
         else

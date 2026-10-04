@@ -10,11 +10,17 @@ namespace DekiEditor
 static void FormatBytes(uint32_t bytes, char* buffer, size_t bufferSize)
 {
     if (bytes >= 1024 * 1024)
+    {
         snprintf(buffer, bufferSize, "%.2f MB", bytes / (1024.0f * 1024.0f));
+    }
     else if (bytes >= 1024)
+    {
         snprintf(buffer, bufferSize, "%.2f KB", bytes / 1024.0f);
+    }
     else
+    {
         snprintf(buffer, bufferSize, "%u B", bytes);
+    }
 }
 
 void ProfilerPanel::DrawMemoryView()
@@ -29,9 +35,8 @@ void ProfilerPanel::DrawMemoryView()
     }
 
     // Get current frame for stats display
-    int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < (int)history.size()
-                       ? m_SelectedFrame
-                       : (int)history.size() - 1;
+    int frameIdx =
+        m_SelectedFrame >= 0 && m_SelectedFrame < (int)history.size() ? m_SelectedFrame : (int)history.size() - 1;
 
     const auto& currentFrame = history[frameIdx];
     const auto& memStats = currentFrame.memoryStats;
@@ -99,9 +104,13 @@ void ProfilerPanel::DrawMemoryView()
 
     // Add some headroom for the graph
     if (maxMemory > 0)
+    {
         maxMemory = (uint32_t)(maxMemory * 1.1f);
+    }
     else
+    {
         maxMemory = 1024;  // Default 1KB if no data
+    }
 
     // Background
     drawList->AddRectFilled(graphPos, ImVec2(graphPos.x + availWidth, graphPos.y + graphHeight),
@@ -118,19 +127,16 @@ void ProfilerPanel::DrawMemoryView()
 
         // Total memory bar (blue)
         float totalHeight = (float)frame.memoryStats.totalAllocated / maxMemory * graphHeight;
-        drawList->AddRectFilled(
-            ImVec2(x, graphPos.y + graphHeight - totalHeight),
-            ImVec2(x + barWidth - 1, graphPos.y + graphHeight),
-            (int)i == m_SelectedFrame ? IM_COL32(100, 150, 255, 255) : IM_COL32(60, 120, 200, 200));
+        drawList->AddRectFilled(ImVec2(x, graphPos.y + graphHeight - totalHeight),
+                                ImVec2(x + barWidth - 1, graphPos.y + graphHeight),
+                                (int)i == m_SelectedFrame ? IM_COL32(100, 150, 255, 255) : IM_COL32(60, 120, 200, 200));
 
         // External-region portion (green overlay)
         if (frame.memoryStats.externalAllocated > 0)
         {
             float externalHeight = (float)frame.memoryStats.externalAllocated / maxMemory * graphHeight;
-            drawList->AddRectFilled(
-                ImVec2(x, graphPos.y + graphHeight - externalHeight),
-                ImVec2(x + barWidth - 1, graphPos.y + graphHeight),
-                IM_COL32(60, 180, 60, 150));
+            drawList->AddRectFilled(ImVec2(x, graphPos.y + graphHeight - externalHeight),
+                                    ImVec2(x + barWidth - 1, graphPos.y + graphHeight), IM_COL32(60, 180, 60, 150));
         }
     }
 
@@ -138,8 +144,7 @@ void ProfilerPanel::DrawMemoryView()
     for (int i = 1; i <= 4; i++)
     {
         float y = graphPos.y + graphHeight * (1.0f - i / 4.0f);
-        drawList->AddLine(ImVec2(graphPos.x, y), ImVec2(graphPos.x + availWidth, y),
-                          IM_COL32(100, 100, 100, 100));
+        drawList->AddLine(ImVec2(graphPos.x, y), ImVec2(graphPos.x + availWidth, y), IM_COL32(100, 100, 100, 100));
 
         char label[32];
         FormatBytes((uint32_t)(maxMemory * i / 4), label, sizeof(label));

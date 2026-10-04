@@ -38,7 +38,7 @@ struct BuildOutputSummary
 // a pseudo-package such as "__plugin__"), warnings and notes as configured.
 // One copy of the classification and the "nothing matched, show the raw
 // text" fallback; three places used to carry their own loops.
-BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& output,
-                                     const std::string& tag, const BuildOutputOptions& options);
+BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& output, const std::string& tag,
+                                     const BuildOutputOptions& options);
 
 }  // namespace DekiEditor

@@ -50,9 +50,7 @@ std::unordered_map<ImGuiID, PickerState> s_Pickers;
 
 std::string LowerOf(std::string v)
 {
-    std::transform(v.begin(), v.end(), v.begin(),
-                   [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return v;
 }
 
@@ -62,13 +60,13 @@ float SmoothStep(float t)
 }
 }  // namespace
 
-int SchematicPicker(const char* id, const char* title,
-                    const PickerItem* items, int itemCount,
-                    bool justOpened, float listHeight,
-                    const char* itemIcon, const char* searchHint, const char* emptyText)
+int SchematicPicker(const char* id, const char* title, const PickerItem* items, int itemCount, bool justOpened,
+                    float listHeight, const char* itemIcon, const char* searchHint, const char* emptyText)
 {
     if (!id || !items)
+    {
         return -1;
+    }
 
     ImGuiContext& g = *GImGui;
     const float dpi = ImGui::GetStyle().FontScaleDpi;
@@ -91,22 +89,26 @@ int SchematicPicker(const char* id, const char* title,
     // block instead of a stray line floating above a field.
     if (title && title[0])
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 2.0f * dpi));
-        if (g_FontDisplay) ImGui::PushFont(g_FontDisplay, Fonts::CssPx(g_FontDisplay, 16.0f));
+        if (g_FontDisplay)
+        {
+            ImGui::PushFont(g_FontDisplay, Fonts::CssPx(g_FontDisplay, 16.0f));
+        }
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Fg);
         ImGui::TextUnformatted(title);
         ImGui::PopStyleColor();
-        if (g_FontDisplay) ImGui::PopFont();
+        if (g_FontDisplay)
+        {
+            ImGui::PopFont();
+        }
         ImGui::Dummy(ImVec2(0.0f, 10.0f * dpi));
         FullBleedSeparator();
         ImGui::PopStyleVar();
     }
 
-    SearchField("##picker_search", st.search, sizeof(st.search), 0.0f, /*bottomBorder*/ true,
-                nullptr, nullptr, nullptr, nullptr,
-                searchHint && searchHint[0] ? searchHint : "Search");
+    SearchField("##picker_search", st.search, sizeof(st.search), 0.0f, /*bottomBorder*/ true, nullptr, nullptr, nullptr,
+                nullptr, searchHint && searchHint[0] ? searchHint : "Search");
 
     const std::string query = LowerOf(st.search);
 
@@ -126,25 +128,43 @@ int SchematicPicker(const char* id, const char* title,
     for (size_t i = 0; i < query.size();)
     {
         while (i < query.size() && query[i] == ' ')
+        {
             ++i;
+        }
         size_t j = i;
         while (j < query.size() && query[j] != ' ')
+        {
             ++j;
-        if (j > i) words.push_back(query.substr(i, j - i));
+        }
+        if (j > i)
+        {
+            words.push_back(query.substr(i, j - i));
+        }
         i = j;
     }
     for (char c : query)
-        if (c != ' ') squashed.push_back(c);
+    {
+        if (c != ' ')
+        {
+            squashed.push_back(c);
+        }
+    }
 
     // Every letter of `needle`, in order, somewhere in `hay`.
     auto inOrder = [](const std::string& hay, const std::string& needle) -> bool
     {
-        if (needle.empty()) return false;
+        if (needle.empty())
+        {
+            return false;
+        }
         size_t at = 0;
         for (char c : needle)
         {
             at = hay.find(c, at);
-            if (at == std::string::npos) return false;
+            if (at == std::string::npos)
+            {
+                return false;
+            }
             ++at;
         }
         return true;
@@ -179,7 +199,9 @@ int SchematicPicker(const char* id, const char* title,
     static int s_LoweredCount = 0;
     bool loweredStale = (s_LoweredItems != items || s_LoweredCount != itemCount);
     for (int i = 0; !loweredStale && i < itemCount; ++i)
+    {
         loweredStale = s_Lowered[i].label != items[i].label;
+    }
     if (loweredStale)
     {
         s_Lowered.clear();
@@ -187,9 +209,7 @@ int SchematicPicker(const char* id, const char* title,
         for (int i = 0; i < itemCount; ++i)
         {
             const PickerItem& it = items[i];
-            s_Lowered.push_back({ it.label,
-                                  LowerOf(it.label ? it.label : ""),
-                                  LowerOf(it.altName ? it.altName : ""),
+            s_Lowered.push_back({ it.label, LowerOf(it.label ? it.label : ""), LowerOf(it.altName ? it.altName : ""),
                                   LowerOf(it.description ? it.description : "") });
         }
         s_LoweredItems = items;
@@ -219,11 +239,17 @@ int SchematicPicker(const char* id, const char* title,
             out->matchPos = inLabel;  // npos when only the alternate name matched
             const size_t at = inLabel < inAlt ? inLabel : inAlt;
             if (at == 0 && (labelLow == query || altLow == query))
+            {
                 out->rank = 0;
+            }
             else if (at == 0)
+            {
                 out->rank = 1;
+            }
             else
+            {
                 out->rank = 2 + static_cast<int>(at < 50 ? at : 50);
+            }
             return true;
         }
 
@@ -236,15 +262,22 @@ int SchematicPicker(const char* id, const char* title,
         {
             size_t at = labelLow.find(word);
             if (at == std::string::npos && altLow.find(word) != std::string::npos)
+            {
                 at = labelLow.size() + 1 + altLow.find(word);
+            }
             if (at == std::string::npos && descLow.find(word) != std::string::npos)
+            {
                 at = labelLow.size() + altLow.size() + 2 + descLow.find(word);
+            }
             if (at == std::string::npos)
             {
                 allWords = false;
                 break;
             }
-            if (at < earliest) earliest = at;
+            if (at < earliest)
+            {
+                earliest = at;
+            }
         }
         if (allWords)
         {
@@ -268,7 +301,9 @@ int SchematicPicker(const char* id, const char* title,
     {
         const std::string cat = items[i].category ? items[i].category : "";
         if (std::find(categories.begin(), categories.end(), cat) == categories.end())
+        {
             categories.push_back(cat);
+        }
     }
     const bool flat = (categories.size() <= 1);  // nothing to browse: one list
 
@@ -277,17 +312,27 @@ int SchematicPicker(const char* id, const char* title,
         for (int i = 0; i < itemCount; ++i)
         {
             const std::string cat = items[i].category ? items[i].category : "";
-            if (cat != category) continue;
+            if (cat != category)
+            {
+                continue;
+            }
             Hit hit;
             if (scoreOf(i, &hit))
+            {
                 out->push_back(hit);
+            }
         }
-        std::sort(out->begin(), out->end(), [&](const Hit& a, const Hit& b)
+        std::sort(out->begin(), out->end(),
+                  [&](const Hit& a, const Hit& b)
                   {
-            if (a.rank != b.rank) return a.rank < b.rank;
-            const char* an = items[a.index].label;
-            const char* bn = items[b.index].label;
-            return std::strcmp(an ? an : "", bn ? bn : "") < 0; });
+                      if (a.rank != b.rank)
+                      {
+                          return a.rank < b.rank;
+                      }
+                      const char* an = items[a.index].label;
+                      const char* bn = items[b.index].label;
+                      return std::strcmp(an ? an : "", bn ? bn : "") < 0;
+                  });
     };
 
     enum class RowKind
@@ -322,13 +367,14 @@ int SchematicPicker(const char* id, const char* title,
             Group group;
             group.header = category;
             categoryHits(category, &group.hits);
-            if (group.hits.empty()) continue;
+            if (group.hits.empty())
+            {
+                continue;
+            }
             group.best = group.hits.front().rank;
             groups.push_back(std::move(group));
         }
-        std::stable_sort(groups.begin(), groups.end(),
-                         [](const Group& a, const Group& b)
-                         { return a.best < b.best; });
+        std::stable_sort(groups.begin(), groups.end(), [](const Group& a, const Group& b) { return a.best < b.best; });
 
         for (const Group& group : groups)
         {
@@ -355,7 +401,10 @@ int SchematicPicker(const char* id, const char* title,
         {
             std::vector<Hit> hits;
             categoryHits(category, &hits);
-            if (hits.empty()) continue;
+            if (hits.empty())
+            {
+                continue;
+            }
 
             Row row;
             row.kind = RowKind::Category;
@@ -385,7 +434,12 @@ int SchematicPicker(const char* id, const char* title,
 
     int navCount = 0;
     for (const Row& row : rows)
-        if (row.kind != RowKind::Header) ++navCount;
+    {
+        if (row.kind != RowKind::Header)
+        {
+            ++navCount;
+        }
+    }
 
     // --- keyboard --------------------------------------------------------
     // Read AFTER the field has had its go at the input. A single-line InputText
@@ -404,7 +458,9 @@ int SchematicPicker(const char* id, const char* title,
             st.scrollTo = true;
         }
         if (st.highlight >= navCount)
+        {
             st.highlight = navCount - 1;
+        }
     }
     const bool acceptPressed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
                                ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false) ||
@@ -422,7 +478,9 @@ int SchematicPicker(const char* id, const char* title,
     // Left steps back out of a category. Only while the query is empty: with
     // text in the box the arrows belong to the caret.
     if (query.empty() && !st.category.empty() && ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
+    {
         goToLevel(std::string(), -1.0f);
+    }
 
     // --- the list --------------------------------------------------------
     // Runs edge to edge inside the popup: left where the popup's window padding
@@ -441,8 +499,7 @@ int SchematicPicker(const char* id, const char* title,
     // you are aiming at, and stepping into a small category made the whole
     // window jump - the same reason a menu does not shrink around its items.
     ImGui::BeginChild("##picker_list", ImVec2(listW, listHeight), ImGuiChildFlags_None);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 4.0f * dpi));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 4.0f * dpi));
 
     // Advance the level slide. Rows are drawn a whole list-width off to one
     // side and travel in, which is what makes stepping into a group feel like
@@ -450,11 +507,12 @@ int SchematicPicker(const char* id, const char* title,
     if (st.slideT < 1.0f)
     {
         st.slideT += g.IO.DeltaTime / 0.16f;
-        if (st.slideT > 1.0f) st.slideT = 1.0f;
+        if (st.slideT > 1.0f)
+        {
+            st.slideT = 1.0f;
+        }
     }
-    const float slideX = (st.slideT >= 1.0f)
-                             ? 0.0f
-                             : (1.0f - SmoothStep(st.slideT)) * st.slideDir * listW;
+    const float slideX = (st.slideT >= 1.0f) ? 0.0f : (1.0f - SmoothStep(st.slideT)) * st.slideDir * listW;
 
     // Two-line rows when there is something to say about the item, one line
     // when there is not. That second line is the point of the list: a project
@@ -470,22 +528,26 @@ int SchematicPicker(const char* id, const char* title,
     // One row: an empty selectable with the content placed by hand over it, so a
     // row can carry an icon, a tinted match and a trailing count or chevron
     // without fighting a label's layout.
-    auto drawRow = [&](const char* leadIcon, const std::string& label,
-                       const Hit* hit, const char* trailText, bool trailChevron,
-                       bool disabled, bool highlighted, const char* subtitle = nullptr) -> bool
+    auto drawRow = [&](const char* leadIcon, const std::string& label, const Hit* hit, const char* trailText,
+                       bool trailChevron, bool disabled, bool highlighted, const char* subtitle = nullptr) -> bool
     {
         const bool twoLine = (subtitle && subtitle[0]);
         const float rowH = twoLine ? rowH2 : rowH1;
 
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + slideX);
         const ImVec2 rowStart = ImGui::GetCursorScreenPos();
-        if (disabled) ImGui::BeginDisabled();
+        if (disabled)
+        {
+            ImGui::BeginDisabled();
+        }
         // Explicit size: a default Selectable is exactly one line of text tall,
         // a cramped target for a list you scan and click. Explicit WIDTH too, so
         // a row keeps its full width while the level slides across.
-        const bool clicked = ImGui::Selectable("##row", highlighted, ImGuiSelectableFlags_None,
-                                               ImVec2(listW, rowH));
-        if (disabled) ImGui::EndDisabled();
+        const bool clicked = ImGui::Selectable("##row", highlighted, ImGuiSelectableFlags_None, ImVec2(listW, rowH));
+        if (disabled)
+        {
+            ImGui::EndDisabled();
+        }
 
         if (highlighted && st.scrollTo)
         {
@@ -503,9 +565,8 @@ int SchematicPicker(const char* id, const char* title,
         const float subSize = Fonts::CssPx(subFont, 11.5f) * dpi;
         const float subGap = 3.0f * dpi;
         // One line centres; two lines stack around the centre.
-        const float textY = twoLine
-                                ? rowStart.y + (rowSize.y - (fontSize + subGap + subSize)) * 0.5f
-                                : rowStart.y + (rowSize.y - fontSize) * 0.5f;
+        const float textY = twoLine ? rowStart.y + (rowSize.y - (fontSize + subGap + subSize)) * 0.5f
+                                    : rowStart.y + (rowSize.y - fontSize) * 0.5f;
         const ImU32 dim = ImGui::ColorConvertFloat4ToU32(disabled ? Palette::Dim2 : Palette::Dim);
         const ImU32 fg = ImGui::ColorConvertFloat4ToU32(disabled ? Palette::Dim2 : Palette::Fg);
         const ImU32 tint = ImGui::ColorConvertFloat4ToU32(Palette::Accent);
@@ -559,20 +620,19 @@ int SchematicPicker(const char* id, const char* title,
             // that ends in an ellipsis. The whole text is one hover away.
             const float avail = rowSize.x - rowPadX * 2.0f;
             std::string text = subtitle;
-            const ImU32 subCol =
-                ImGui::ColorConvertFloat4ToU32(disabled ? Palette::Dim2 : Palette::Dim);
+            const ImU32 subCol = ImGui::ColorConvertFloat4ToU32(disabled ? Palette::Dim2 : Palette::Dim);
             if (subFont->CalcTextSizeA(subSize, FLT_MAX, 0.0f, text.c_str()).x > avail)
             {
                 const char* ellipsis = "...";
                 const float dotsW = subFont->CalcTextSizeA(subSize, FLT_MAX, 0.0f, ellipsis).x;
-                while (!text.empty() &&
-                       subFont->CalcTextSizeA(subSize, FLT_MAX, 0.0f, text.c_str()).x + dotsW > avail)
+                while (!text.empty() && subFont->CalcTextSizeA(subSize, FLT_MAX, 0.0f, text.c_str()).x + dotsW > avail)
+                {
                     text.pop_back();
+                }
                 text += ellipsis;
             }
-            dl->AddText(subFont, subSize,
-                        ImVec2(rowStart.x + rowPadX, textY + fontSize + subGap),
-                        subCol, text.c_str());
+            dl->AddText(subFont, subSize, ImVec2(rowStart.x + rowPadX, textY + fontSize + subGap), subCol,
+                        text.c_str());
         }
         return clicked;
     };
@@ -584,7 +644,10 @@ int SchematicPicker(const char* id, const char* title,
     {
         if (row.kind == RowKind::Header)
         {
-            if (!firstHeader) ImGui::Spacing();
+            if (!firstHeader)
+            {
+                ImGui::Spacing();
+            }
             firstHeader = false;
             // The editor's sub-header treatment, the same one a DEKI_GROUP gets
             // inside a component: a category is a heading here, not a caption.
@@ -600,26 +663,30 @@ int SchematicPicker(const char* id, const char* title,
         {
             std::string upper = row.text;
             std::transform(upper.begin(), upper.end(), upper.begin(),
-                           [](unsigned char c)
-                           { return static_cast<char>(std::toupper(c)); });
+                           [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
             if (drawRow(ICON_TI_CHEVRON_LEFT, upper, nullptr, nullptr, false, false, highlighted) ||
                 (highlighted && acceptPressed))
             {
                 goToLevel(std::string(), -1.0f);
             }
-            if (ImGui::IsItemHovered()) st.highlight = navIndex;
+            if (ImGui::IsItemHovered())
+            {
+                st.highlight = navIndex;
+            }
         }
         else if (row.kind == RowKind::Category)
         {
             char count[16];
             std::snprintf(count, sizeof(count), "%d", row.count);
-            if (drawRow(ICON_TI_FOLDER, row.text, nullptr, count, /*chevron*/ true,
-                        false, highlighted) ||
+            if (drawRow(ICON_TI_FOLDER, row.text, nullptr, count, /*chevron*/ true, false, highlighted) ||
                 (highlighted && acceptPressed))
             {
                 goToLevel(row.text, 1.0f);
             }
-            if (ImGui::IsItemHovered()) st.highlight = navIndex;
+            if (ImGui::IsItemHovered())
+            {
+                st.highlight = navIndex;
+            }
         }
         else
         {
@@ -631,17 +698,23 @@ int SchematicPicker(const char* id, const char* title,
             // A row with neither stays one line rather than showing filler.
             const char* subtitle = nullptr;
             if (item.description && item.description[0])
+            {
                 subtitle = item.description;
+            }
             else if (item.altName && item.altName[0] && label != item.altName)
+            {
                 subtitle = item.altName;
+            }
 
-            const bool clicked = drawRow(itemIcon, label, &row.hit, nullptr, false,
-                                         item.disabled, highlighted, subtitle);
+            const bool clicked =
+                drawRow(itemIcon, label, &row.hit, nullptr, false, item.disabled, highlighted, subtitle);
             if (item.disabled)
             {
                 if (item.disabledTip && item.disabledTip[0] &&
                     ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                {
                     Tooltip("%s", item.disabledTip);
+                }
             }
             else
             {
@@ -649,15 +722,24 @@ int SchematicPicker(const char* id, const char* title,
                 if (ImGui::IsItemHovered())
                 {
                     if (item.tooltip && item.tooltip[0])
+                    {
                         Tooltip("%s", item.tooltip);
+                    }
                     else if (subtitle)
+                    {
                         Tooltip("%s\n%s", label.c_str(), subtitle);
+                    }
                 }
                 // Mouse and keyboard share one highlight, so Enter always acts
                 // on the row you are pointing at.
-                if (ImGui::IsItemHovered()) st.highlight = navIndex;
+                if (ImGui::IsItemHovered())
+                {
+                    st.highlight = navIndex;
+                }
                 if (clicked || (highlighted && acceptPressed))
+                {
                     chosen = row.hit.index;
+                }
             }
         }
 
@@ -678,7 +760,9 @@ int SchematicPicker(const char* id, const char* title,
     ImGui::EndChild();
 
     if (chosen >= 0)
+    {
         st.search[0] = 0;  // next open starts clean even if the caller keeps the popup
+    }
     return chosen;
 }
 

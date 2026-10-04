@@ -22,19 +22,28 @@ using InspectorUtils::BeginPropertyRow;
 
 // Helper to check if all values are the same across components
 template <typename T>
-static bool AreValuesSame(const std::vector<Deki::Component*>& components, const Deki::PropertyInfo& prop, T* outValue = nullptr)
+static bool AreValuesSame(const std::vector<Deki::Component*>& components, const Deki::PropertyInfo& prop,
+                          T* outValue = nullptr)
 {
-    if (components.empty()) return false;
+    if (components.empty())
+    {
+        return false;
+    }
 
     T firstValue = ::Deki::GetPropertyRef<T>(components[0], prop);
     for (size_t i = 1; i < components.size(); ++i)
     {
         T value = ::Deki::GetPropertyRef<T>(components[i], prop);
         if (value != firstValue)
+        {
             return false;
+        }
     }
 
-    if (outValue) *outValue = firstValue;
+    if (outValue)
+    {
+        *outValue = firstValue;
+    }
     return true;
 }
 
@@ -53,7 +62,10 @@ void PropertyEditorFactory::DrawReadOnlyMulti(const std::vector<Deki::Component*
 void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*>& components,
                                               const Deki::PropertyInfo& prop)
 {
-    if (components.empty()) return;
+    if (components.empty())
+    {
+        return;
+    }
 
     ImGui::PushID(prop.name);
 
@@ -83,8 +95,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     if (sscanf(buf, "%d", &newValue) == 1)
                     {
                         CommandHistory::Instance().ExecuteNoMerge(
-                            std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                                components, prop, nlohmann::json(newValue)));
+                            std::make_unique<ModifyMultipleComponentPropertyCommand>(components, prop,
+                                                                                     nlohmann::json(newValue)));
                     }
                 }
                 ImGui::PopStyleColor();
@@ -97,9 +109,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 {
                     if (ImGui::InputInt("##value", &value))
                     {
-                        value = std::clamp(value,
-                                           static_cast<int32_t>(prop.minValue),
-                                           static_cast<int32_t>(prop.maxValue));
+                        value =
+                            std::clamp(value, static_cast<int32_t>(prop.minValue), static_cast<int32_t>(prop.maxValue));
                     }
                 }
                 else
@@ -120,9 +131,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     {
                         ::Deki::GetPropertyRef<int32_t>(comp, prop) = s_OldValue;
                     }
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                            components, prop, nlohmann::json(value)));
+                    CommandHistory::Instance().Execute(std::make_unique<ModifyMultipleComponentPropertyCommand>(
+                        components, prop, nlohmann::json(value)));
                 }
             }
             break;
@@ -145,8 +155,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     if (sscanf(buf, "%f", &newValue) == 1)
                     {
                         CommandHistory::Instance().ExecuteNoMerge(
-                            std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                                components, prop, nlohmann::json(newValue)));
+                            std::make_unique<ModifyMultipleComponentPropertyCommand>(components, prop,
+                                                                                     nlohmann::json(newValue)));
                     }
                 }
                 ImGui::PopStyleColor();
@@ -179,9 +189,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     {
                         ::Deki::GetPropertyRef<float>(comp, prop) = s_OldValue;
                     }
-                    CommandHistory::Instance().Execute(
-                        std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                            components, prop, nlohmann::json(value)));
+                    CommandHistory::Instance().Execute(std::make_unique<ModifyMultipleComponentPropertyCommand>(
+                        components, prop, nlohmann::json(value)));
                 }
             }
             break;
@@ -206,9 +215,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 if (DekiEditor::SchematicCheckbox("##value", &dummy))
                 {
                     // Set all to true
-                    CommandHistory::Instance().ExecuteNoMerge(
-                        std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                            components, prop, nlohmann::json(true)));
+                    CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyMultipleComponentPropertyCommand>(
+                        components, prop, nlohmann::json(true)));
                 }
                 ImGui::SameLine();
                 ImGui::TextDisabled("-");
@@ -225,9 +233,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     {
                         ::Deki::GetPropertyRef<bool>(comp, prop) = oldValue;
                     }
-                    CommandHistory::Instance().ExecuteNoMerge(
-                        std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                            components, prop, nlohmann::json(!oldValue)));
+                    CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyMultipleComponentPropertyCommand>(
+                        components, prop, nlohmann::json(!oldValue)));
                 }
             }
             break;
@@ -281,9 +288,8 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 {
                     ::Deki::GetPropertyRef<std::string>(comp, prop) = s_OldValue;
                 }
-                CommandHistory::Instance().Execute(
-                    std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                        components, prop, nlohmann::json(newValue)));
+                CommandHistory::Instance().Execute(std::make_unique<ModifyMultipleComponentPropertyCommand>(
+                    components, prop, nlohmann::json(newValue)));
             }
             break;
         }
@@ -294,12 +300,20 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             const bool same = AreValuesSame<Deki::Color>(components, prop, &value);
             float color[4] = { value.r / 255.0f, value.g / 255.0f, value.b / 255.0f, value.a / 255.0f };
             if (!same)
+            {
                 color[0] = color[1] = color[2] = 0.5f, color[3] = 1.0f;
+            }
 
             BeginPropertyRow(displayName.c_str());
-            if (!same) ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+            if (!same)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+            }
             const bool edited = EditorUI::Get().ColorEdit4("##value", color);
-            if (!same) ImGui::PopStyleColor();
+            if (!same)
+            {
+                ImGui::PopStyleColor();
+            }
             if (edited)
             {
                 // Live preview on every selected component; the command below
@@ -319,19 +333,22 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             {
                 s_OldColors.clear();
                 for (Deki::Component* comp : components)
+                {
                     s_OldColors.push_back(::Deki::GetPropertyRef<Deki::Color>(comp, prop));
+                }
             }
             if (ImGui::IsItemDeactivatedAfterEdit() && s_OldColors.size() == components.size())
             {
                 const Deki::Color newColor{ static_cast<uint8_t>(color[0] * 255), static_cast<uint8_t>(color[1] * 255),
-                                            static_cast<uint8_t>(color[2] * 255), static_cast<uint8_t>(color[3] * 255) };
+                                            static_cast<uint8_t>(color[2] * 255),
+                                            static_cast<uint8_t>(color[3] * 255) };
                 // Restore, then let the command apply so undo sees each old value.
                 for (size_t i = 0; i < components.size(); ++i)
+                {
                     ::Deki::GetPropertyRef<Deki::Color>(components[i], prop) = s_OldColors[i];
-                CommandHistory::Instance().Execute(
-                    std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                        components, prop,
-                        nlohmann::json::array({ newColor.r, newColor.g, newColor.b, newColor.a })));
+                }
+                CommandHistory::Instance().Execute(std::make_unique<ModifyMultipleComponentPropertyCommand>(
+                    components, prop, nlohmann::json::array({ newColor.r, newColor.g, newColor.b, newColor.a })));
             }
             break;
         }
@@ -360,22 +377,34 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             const int32_t value = readIndex(components[0]);
             bool same = true;
             for (size_t i = 1; i < components.size() && same; ++i)
+            {
                 same = readIndex(components[i]) == value;
+            }
             int index = Deki::EnumIndexForValue(prop, value);
-            if (index < 0) index = 0;  // a value the enum no longer declares
+            if (index < 0)
+            {
+                index = 0;  // a value the enum no longer declares
+            }
 
             BeginPropertyRow(displayName.c_str());
-            if (!same) ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+            if (!same)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
+            }
             const bool changed = EditorUI::Get().Combo("##value", &index, prop.enumValues, prop.enumCount);
-            if (!same) ImGui::PopStyleColor();
+            if (!same)
+            {
+                ImGui::PopStyleColor();
+            }
             if (changed)
             {
                 int32_t chosen = index;
                 if (prop.enumInts && index >= 0 && index < prop.enumCount)
+                {
                     chosen = prop.enumInts[index];
+                }
                 CommandHistory::Instance().ExecuteNoMerge(
-                    std::make_unique<ModifyMultipleComponentPropertyCommand>(
-                        components, prop, nlohmann::json(chosen)));
+                    std::make_unique<ModifyMultipleComponentPropertyCommand>(components, prop, nlohmann::json(chosen)));
             }
             break;
         }
@@ -390,9 +419,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
         case Deki::PropertyType::AssetRef:
         case Deki::PropertyType::ObjectRef:
         case Deki::PropertyType::Array:
-        default:
-            DrawReadOnlyMulti(components, prop);
-            break;
+        default: DrawReadOnlyMulti(components, prop); break;
     }
 
     ShowTooltip(prop);

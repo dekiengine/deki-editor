@@ -44,7 +44,9 @@ int RunAndCapture(const std::string& command, std::string& output)
     SECURITY_ATTRIBUTES sa{ sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
     HANDLE hRead = nullptr, hWrite = nullptr;
     if (!CreatePipe(&hRead, &hWrite, &sa, 0))
+    {
         return -1;
+    }
     SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
 
     STARTUPINFOA si{};
@@ -59,9 +61,8 @@ int RunAndCapture(const std::string& command, std::string& output)
     std::vector<char> cmdBuf(cmdLine.begin(), cmdLine.end());
     cmdBuf.push_back('\0');
 
-    BOOL ok = CreateProcessA(
-        nullptr, cmdBuf.data(), nullptr, nullptr, TRUE,
-        CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+    BOOL ok =
+        CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
 
     CloseHandle(hWrite);
     if (!ok)
@@ -73,7 +74,9 @@ int RunAndCapture(const std::string& command, std::string& output)
     char buf[4096];
     DWORD read = 0;
     while (ReadFile(hRead, buf, sizeof(buf), &read, nullptr) && read > 0)
+    {
         output.append(buf, buf + read);
+    }
     CloseHandle(hRead);
 
     WaitForSingleObject(pi.hProcess, 30000);  // 30s hard cap
@@ -87,7 +90,9 @@ int RunAndCapture(const std::string& command, std::string& output)
 std::string TrimCRLF(std::string s)
 {
     while (!s.empty() && (s.back() == '\r' || s.back() == '\n' || s.back() == ' '))
+    {
         s.pop_back();
+    }
     return s;
 }
 
@@ -95,7 +100,12 @@ std::string TrimCRLF(std::string s)
 std::string UpperAscii(std::string s)
 {
     for (auto& c : s)
-        if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 32);
+    {
+        if (c >= 'a' && c <= 'z')
+        {
+            c = static_cast<char>(c - 32);
+        }
+    }
     return s;
 }
 
@@ -108,27 +118,37 @@ std::string MsvcEnvironment::FindVswhere() const
     if (pf86)
     {
         fs::path p = fs::path(pf86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe";
-        if (fs::exists(p)) return p.string();
+        if (fs::exists(p))
+        {
+            return p.string();
+        }
     }
     const char* pf = std::getenv("ProgramFiles");
     if (pf)
     {
         fs::path p = fs::path(pf) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe";
-        if (fs::exists(p)) return p.string();
+        if (fs::exists(p))
+        {
+            return p.string();
+        }
     }
     return "";
 }
 
 std::string MsvcEnvironment::FindLatestVsInstall(const std::string& vswherePath) const
 {
-    std::string cmd = "\"" + vswherePath + "\""
-                                           " -latest"
-                                           " -products *"
-                                           " -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
-                                           " -property installationPath";
+    std::string cmd = "\"" + vswherePath +
+                      "\""
+                      " -latest"
+                      " -products *"
+                      " -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+                      " -property installationPath";
 
     std::string out;
-    if (RunAndCapture(cmd, out) != 0) return "";
+    if (RunAndCapture(cmd, out) != 0)
+    {
+        return "";
+    }
     return TrimCRLF(std::move(out));
 }
 
@@ -167,18 +187,26 @@ bool MsvcEnvironment::CaptureEnvironment(const std::string& vcvarsallPath)
     while (std::getline(iss, line))
     {
         line = TrimCRLF(std::move(line));
-        if (line.empty()) continue;
+        if (line.empty())
+        {
+            continue;
+        }
         size_t eq = line.find('=');
-        if (eq == std::string::npos) continue;
+        if (eq == std::string::npos)
+        {
+            continue;
+        }
         std::string key = line.substr(0, eq);
         std::string val = line.substr(eq + 1);
-        if (key.empty()) continue;
+        if (key.empty())
+        {
+            continue;
+        }
         m_Vars[UpperAscii(key)] = std::move(val);
     }
 
     // Sanity check - vcvars always sets these.
-    if (m_Vars.find("INCLUDE") == m_Vars.end() ||
-        m_Vars.find("LIB") == m_Vars.end() ||
+    if (m_Vars.find("INCLUDE") == m_Vars.end() || m_Vars.find("LIB") == m_Vars.end() ||
         m_Vars.find("PATH") == m_Vars.end())
     {
         m_Status = "vcvars output missing INCLUDE/LIB/PATH - environment not usable";
@@ -190,7 +218,10 @@ bool MsvcEnvironment::CaptureEnvironment(const std::string& vcvarsallPath)
 
 bool MsvcEnvironment::Initialize()
 {
-    if (m_Initialized) return m_Available;
+    if (m_Initialized)
+    {
+        return m_Available;
+    }
     m_Initialized = true;
 
     std::string vswhere = FindVswhere();
@@ -232,7 +263,10 @@ bool MsvcEnvironment::Initialize()
 std::vector<char> MsvcEnvironment::BuildEnvironmentBlock() const
 {
     std::vector<char> block;
-    if (!m_Available) return block;
+    if (!m_Available)
+    {
+        return block;
+    }
 
     // Start from the current process environment, case-fold keys so we can
     // override vcvars-owned vars deterministically.
@@ -245,7 +279,10 @@ std::vector<char> MsvcEnvironment::BuildEnvironmentBlock() const
             std::string entry(p);
             p += entry.size() + 1;
             size_t eq = entry.find('=');
-            if (eq == std::string::npos || eq == 0) continue;  // skip "=::=::" etc.
+            if (eq == std::string::npos || eq == 0)
+            {
+                continue;  // skip "=::=::" etc.
+            }
             std::string key = entry.substr(0, eq);
             std::string val = entry.substr(eq + 1);
             merged[UpperAscii(key)] = std::move(val);
@@ -255,7 +292,9 @@ std::vector<char> MsvcEnvironment::BuildEnvironmentBlock() const
 
     // vcvars wins on conflict (PATH/INCLUDE/LIB/LIBPATH must come from MSVC env).
     for (const auto& kv : m_Vars)
+    {
         merged[kv.first] = kv.second;
+    }
 
     // Serialize to KEY=VAL\0KEY=VAL\0\0
     for (const auto& kv : merged)

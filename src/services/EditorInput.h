@@ -46,8 +46,8 @@ public:
     // Move the mouse to (x, y) and click there. `count` 2 is a double click.
     // `holdSeconds` keeps the button down that long before releasing, for
     // press states and long presses.
-    void RequestClick(const std::string& panel, float x, float y, Button button, int count,
-                      float holdSeconds = 0.0f, Modifiers mods = {});
+    void RequestClick(const std::string& panel, float x, float y, Button button, int count, float holdSeconds = 0.0f,
+                      Modifiers mods = {});
     // Press at (x, y) in `panel`, move to (toX, toY) in `toPanel` over
     // `frames` frames with the button held, wait `holdSeconds` there (a drop
     // target or a dock overlay reacts after the pointer has rested on it),
@@ -96,15 +96,15 @@ private:
             KeyUp,
             Text,
             Hold,
-            Wait,       // keep the mouse where it is and play nothing else for `seconds`
-            Mods,       // modifier keys `ctrl`/`shift`/`alt` go down (`down`) or up
-            DragBegin   // expands into the steps of a drag once both points are known
+            Wait,      // keep the mouse where it is and play nothing else for `seconds`
+            Mods,      // modifier keys `ctrl`/`shift`/`alt` go down (`down`) or up
+            DragBegin  // expands into the steps of a drag once both points are known
         } kind = Kind::Move;
         std::string panel;
         float x = 0.0f, y = 0.0f;  // Move: position; Wheel: dx, dy
         int button = 0;
-        int key = 0;               // ImGuiKey
-        float seconds = 0.0f;      // Hold, Wait
+        int key = 0;           // ImGuiKey
+        float seconds = 0.0f;  // Hold, Wait
         bool ctrl = false, shift = false, alt = false;
         bool down = false;           // Mods
         std::string panel2;          // DragBegin: the end point's panel

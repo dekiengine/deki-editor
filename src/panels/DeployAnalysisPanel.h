@@ -20,7 +20,6 @@ public:
 
     void Draw();
 
-
 private:
     EditorApp* m_App;
 

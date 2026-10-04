@@ -9,8 +9,14 @@
 
 #include <deki-editor/EditorExport.h>
 // Forward declarations - engine types
-namespace Deki { class Component; }
-namespace Deki { class Object; }
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+class Object;
+}
 class BitmapFont;
 
 // Forward declaration for ImGui
@@ -79,18 +85,21 @@ public:
     // AssetTypeRegistry::RegisterCategory from a static initializer.
 
     // Compile to RGBA buffer (Texture target). Default no-op for native types.
-    virtual bool Compile(const std::string& /*jsonData*/,
-                         std::vector<uint8_t>& /*rgba*/,
-                         int& /*width*/, int& /*height*/) { return false; }
+    virtual bool Compile(const std::string& /*jsonData*/, std::vector<uint8_t>& /*rgba*/, int& /*width*/,
+                         int& /*height*/)
+    {
+        return false;
+    }
 
     // Compile to binary file (Data target). Default no-op.
-    virtual bool CompileToFile(const std::string& /*jsonData*/,
-                               const std::string& /*cachePath*/) { return false; }
+    virtual bool CompileToFile(const std::string& /*jsonData*/, const std::string& /*cachePath*/) { return false; }
 
     // Custom inspector UI. Default no-op - native types let the generic inspector handle them.
-    virtual bool OnInspectorGUI(std::string& /*jsonData*/,
-                                const std::string& /*assetPath*/,
-                                const std::string& /*assetGuid*/) { return false; }
+    virtual bool OnInspectorGUI(std::string& /*jsonData*/, const std::string& /*assetPath*/,
+                                const std::string& /*assetGuid*/)
+    {
+        return false;
+    }
 };
 
 // ============================================================================
@@ -111,8 +120,7 @@ public:
     virtual int GetExtensionCount() const = 0;
 
     // Draw the inspector UI for this file type
-    virtual void OnInspectorGUI(const std::string& assetPath,
-                                const std::string& assetGuid) = 0;
+    virtual void OnInspectorGUI(const std::string& assetPath, const std::string& assetGuid) = 0;
 
     // Override the generic cache status bar for this file type.
     // Return true from OverridesCacheStatus() to use IsCached() instead of the default.
@@ -242,8 +250,8 @@ class DEKI_EDITOR_API CreateMenuRegistry
 public:
     static CreateMenuRegistry& Instance();
 
-    void Register(const std::string& category, const std::string& displayName,
-                  const std::string& objectName, const std::string& componentName);
+    void Register(const std::string& category, const std::string& displayName, const std::string& objectName,
+                  const std::string& componentName);
 
     const std::vector<CreateMenuEntry>& GetEntries() const { return m_Entries; }
     void Clear();
@@ -265,14 +273,13 @@ private:
  * @param ObjName    Name for the created Deki::Object string
  * @param CompName   Component class name string to add
  */
-#define REGISTER_CREATE_MENU_ITEM(Id, Category, Display, ObjName, CompName) \
-    static struct CreateMenu_##Id##_Registrar                               \
-    {                                                                       \
-        CreateMenu_##Id##_Registrar()                                       \
-        {                                                                   \
-            DekiEditor::CreateMenuRegistry::Instance().Register(            \
-                Category, Display, ObjName, CompName);                      \
-        }                                                                   \
+#define REGISTER_CREATE_MENU_ITEM(Id, Category, Display, ObjName, CompName)                                            \
+    static struct CreateMenu_##Id##_Registrar                                                                          \
+    {                                                                                                                  \
+        CreateMenu_##Id##_Registrar()                                                                                  \
+        {                                                                                                              \
+            DekiEditor::CreateMenuRegistry::Instance().Register(Category, Display, ObjName, CompName);                 \
+        }                                                                                                              \
     } s_CreateMenu_##Id##_Registrar;
 
 }  // namespace DekiEditor

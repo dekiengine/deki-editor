@@ -38,7 +38,9 @@ protected:
         m_ProjectPath = (fs::temp_directory_path() / "deki_recovery_test_project").string();
         m_Dir = EditorRecovery::RecoveryDirFor(m_ProjectPath);
         if (m_Dir.empty())
+        {
             GTEST_SKIP() << "no editor data directory in this environment";
+        }
         std::error_code ec;
         fs::remove_all(m_Dir, ec);
         fs::create_directories(m_Dir, ec);
@@ -47,7 +49,10 @@ protected:
 
     void TearDown() override
     {
-        if (m_Dir.empty()) return;
+        if (m_Dir.empty())
+        {
+            return;
+        }
         std::error_code ec;
         fs::remove_all(m_Dir, ec);
     }
@@ -59,14 +64,16 @@ protected:
         f << R"({"objects":[)";
         for (int i = 0; i < objectCount; ++i)
         {
-            if (i) f << ",";
+            if (i)
+            {
+                f << ",";
+            }
             f << R"({"name":"obj)" << i << R"(","children":[],"components":[]})";
         }
         f << "]}";
     }
 
-    void WriteSidecar(const std::string& sceneName, const std::string& originalPath,
-                      long long savedAt)
+    void WriteSidecar(const std::string& sceneName, const std::string& originalPath, long long savedAt)
     {
         std::ofstream f(fs::path(m_Dir) / (sceneName + ".meta.json"));
         f << R"({"originalPath":")" << originalPath << R"(","savedAt":)" << savedAt << "}";
@@ -124,9 +131,12 @@ TEST_F(EditorRecoveryTest, IgnoresSidecarsAsEntriesInTheirOwnRight)
 
 TEST_F(EditorRecoveryTest, OrdersNewestFirst)
 {
-    WriteScene("old.scene", 1);    WriteSidecar("old.scene",    "o", 1000LL);
-    WriteScene("newest.scene", 1); WriteSidecar("newest.scene", "n", 3000LL);
-    WriteScene("middle.scene", 1); WriteSidecar("middle.scene", "m", 2000LL);
+    WriteScene("old.scene", 1);
+    WriteSidecar("old.scene", "o", 1000LL);
+    WriteScene("newest.scene", 1);
+    WriteSidecar("newest.scene", "n", 3000LL);
+    WriteScene("middle.scene", 1);
+    WriteSidecar("middle.scene", "m", 2000LL);
 
     EditorRecovery rec;
     rec.ScanProject(m_ProjectPath);
@@ -170,8 +180,10 @@ TEST_F(EditorRecoveryTest, StillOffersATruncatedScene)
 
 TEST_F(EditorRecoveryTest, SelectionIsClampedRatherThanLeftDangling)
 {
-    WriteScene("a.scene", 1); WriteSidecar("a.scene", "a", 2LL);
-    WriteScene("b.scene", 1); WriteSidecar("b.scene", "b", 1LL);
+    WriteScene("a.scene", 1);
+    WriteSidecar("a.scene", "a", 2LL);
+    WriteScene("b.scene", 1);
+    WriteSidecar("b.scene", "b", 1LL);
 
     EditorRecovery rec;
     rec.ScanProject(m_ProjectPath);
@@ -192,28 +204,29 @@ TEST_F(EditorRecoveryTest, SelectionIsClampedRatherThanLeftDangling)
 // being offered.
 TEST_F(EditorRecoveryTest, ConsumingOneEntryLeavesTheOthers)
 {
-    WriteScene("first.scene", 1);  WriteSidecar("first.scene",  "f", 2000LL);
-    WriteScene("second.scene", 1); WriteSidecar("second.scene", "s", 1000LL);
+    WriteScene("first.scene", 1);
+    WriteSidecar("first.scene", "f", 2000LL);
+    WriteScene("second.scene", 1);
+    WriteSidecar("second.scene", "s", 1000LL);
 
     EditorRecovery rec;
     rec.ScanProject(m_ProjectPath);
     ASSERT_EQ(rec.Entries().size(), 2u);
 
-    ASSERT_TRUE(rec.ConsumeEntry(0));   // the newest, "first.scene"
+    ASSERT_TRUE(rec.ConsumeEntry(0));  // the newest, "first.scene"
 
     EXPECT_EQ(rec.Entries().size(), 1u);
     EXPECT_EQ(rec.Entries()[0].displayName, "second.scene");
     EXPECT_FALSE(fs::exists(fs::path(m_Dir) / "first.scene"));
-    EXPECT_FALSE(fs::exists(fs::path(m_Dir) / "first.scene.meta.json"))
-        << "the sidecar must go with its scene";
-    EXPECT_TRUE(fs::exists(fs::path(m_Dir) / "second.scene"))
-        << "the unresolved recovery must survive";
+    EXPECT_FALSE(fs::exists(fs::path(m_Dir) / "first.scene.meta.json")) << "the sidecar must go with its scene";
+    EXPECT_TRUE(fs::exists(fs::path(m_Dir) / "second.scene")) << "the unresolved recovery must survive";
     EXPECT_TRUE(rec.DialogRequested()) << "still something to offer";
 }
 
 TEST_F(EditorRecoveryTest, ConsumingTheLastEntryRemovesTheDirectory)
 {
-    WriteScene("only.scene", 1); WriteSidecar("only.scene", "o", 1LL);
+    WriteScene("only.scene", 1);
+    WriteSidecar("only.scene", "o", 1LL);
 
     EditorRecovery rec;
     rec.ScanProject(m_ProjectPath);
@@ -237,8 +250,10 @@ TEST_F(EditorRecoveryTest, ConsumingAnOutOfRangeIndexIsRefused)
 
 TEST_F(EditorRecoveryTest, DiscardAllRemovesEverything)
 {
-    WriteScene("a.scene", 1); WriteSidecar("a.scene", "a", 2LL);
-    WriteScene("b.scene", 1); WriteSidecar("b.scene", "b", 1LL);
+    WriteScene("a.scene", 1);
+    WriteSidecar("a.scene", "a", 2LL);
+    WriteScene("b.scene", 1);
+    WriteSidecar("b.scene", "b", 1LL);
 
     EditorRecovery rec;
     rec.ScanProject(m_ProjectPath);
@@ -357,8 +372,7 @@ TEST(EditorRecoveryAutosave, NotReadyParksTheClockAtZero)
     EXPECT_FALSE(rec.TickAutosaveTimer(10.0f, false));
 
     // ...then edits again: a full interval must pass, not the leftover 1 second.
-    EXPECT_FALSE(rec.TickAutosaveTimer(2.0f, true))
-        << "the clock kept its old value instead of parking at zero";
+    EXPECT_FALSE(rec.TickAutosaveTimer(2.0f, true)) << "the clock kept its old value instead of parking at zero";
 }
 
 // --- preview ---------------------------------------------------------------
@@ -393,7 +407,10 @@ TEST(EditorRecoveryDir, SameProjectSpelledDifferentlyMapsToOneDirectory)
 {
     const std::string a = EditorRecovery::RecoveryDirFor("C:\\Foo\\Bar");
     const std::string b = EditorRecovery::RecoveryDirFor("c:/foo/bar/");
-    if (a.empty()) GTEST_SKIP() << "no editor data directory in this environment";
+    if (a.empty())
+    {
+        GTEST_SKIP() << "no editor data directory in this environment";
+    }
     EXPECT_EQ(a, b) << "normalisation failure here is what broke the dialog's relative paths";
 }
 
@@ -401,7 +418,10 @@ TEST(EditorRecoveryDir, DifferentProjectsWithTheSameNameStaySeparate)
 {
     const std::string a = EditorRecovery::RecoveryDirFor("C:/work/game");
     const std::string b = EditorRecovery::RecoveryDirFor("D:/archive/game");
-    if (a.empty()) GTEST_SKIP() << "no editor data directory in this environment";
+    if (a.empty())
+    {
+        GTEST_SKIP() << "no editor data directory in this environment";
+    }
     EXPECT_NE(a, b) << "two projects must never see each other's recoveries";
 }
 
@@ -410,7 +430,7 @@ TEST(EditorRecoveryDir, EmptyProjectPathHasNoRecoveryDirectory)
     EXPECT_TRUE(EditorRecovery::RecoveryDirFor("").empty());
 }
 
-} // namespace
+}  // namespace
 
 // Two scenes with one file name in different folders each keep their own
 // snapshot; they used to overwrite each other's.
@@ -445,7 +465,9 @@ TEST_F(EditorRecoveryTest, FindsARecoveryInTheOldFolder)
 {
     const std::string legacy = EditorRecovery::LegacyRecoveryDirFor(m_ProjectPath);
     if (legacy == m_Dir)
+    {
         GTEST_SKIP() << "the old and new hashes agree here";
+    }
     std::error_code ec;
     fs::create_directories(legacy, ec);
     std::ofstream(fs::path(legacy) / "old.scene") << R"({"objects":[]})";

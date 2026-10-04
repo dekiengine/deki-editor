@@ -35,7 +35,9 @@ Deki::CoreProjectSettings* GetCoreSettings()
 void ApplySettingsToGlobalCache()
 {
     if (auto* units = GetUnitSettings())
+    {
         units->ApplyToGlobalCache();
+    }
 }
 
 namespace
@@ -49,33 +51,15 @@ void SaveSettingProperty(const Deki::Component* comp, const Deki::PropertyInfo& 
 {
     switch (prop.type)
     {
-        case Deki::PropertyType::Bool:
-            out[prop.name] = Deki::GetPropertyValue<bool>(comp, prop);
-            break;
-        case Deki::PropertyType::Int8:
-            out[prop.name] = (int32_t)Deki::GetPropertyValue<int8_t>(comp, prop);
-            break;
-        case Deki::PropertyType::Int16:
-            out[prop.name] = (int32_t)Deki::GetPropertyValue<int16_t>(comp, prop);
-            break;
-        case Deki::PropertyType::Int32:
-            out[prop.name] = Deki::GetPropertyValue<int32_t>(comp, prop);
-            break;
-        case Deki::PropertyType::UInt8:
-            out[prop.name] = (int32_t)Deki::GetPropertyValue<uint8_t>(comp, prop);
-            break;
-        case Deki::PropertyType::UInt16:
-            out[prop.name] = (int32_t)Deki::GetPropertyValue<uint16_t>(comp, prop);
-            break;
-        case Deki::PropertyType::UInt32:
-            out[prop.name] = Deki::GetPropertyValue<uint32_t>(comp, prop);
-            break;
-        case Deki::PropertyType::Float:
-            out[prop.name] = Deki::GetPropertyValue<float>(comp, prop);
-            break;
-        case Deki::PropertyType::String:
-            out[prop.name] = Deki::GetPropertyValue<std::string>(comp, prop);
-            break;
+        case Deki::PropertyType::Bool: out[prop.name] = Deki::GetPropertyValue<bool>(comp, prop); break;
+        case Deki::PropertyType::Int8: out[prop.name] = (int32_t)Deki::GetPropertyValue<int8_t>(comp, prop); break;
+        case Deki::PropertyType::Int16: out[prop.name] = (int32_t)Deki::GetPropertyValue<int16_t>(comp, prop); break;
+        case Deki::PropertyType::Int32: out[prop.name] = Deki::GetPropertyValue<int32_t>(comp, prop); break;
+        case Deki::PropertyType::UInt8: out[prop.name] = (int32_t)Deki::GetPropertyValue<uint8_t>(comp, prop); break;
+        case Deki::PropertyType::UInt16: out[prop.name] = (int32_t)Deki::GetPropertyValue<uint16_t>(comp, prop); break;
+        case Deki::PropertyType::UInt32: out[prop.name] = Deki::GetPropertyValue<uint32_t>(comp, prop); break;
+        case Deki::PropertyType::Float: out[prop.name] = Deki::GetPropertyValue<float>(comp, prop); break;
+        case Deki::PropertyType::String: out[prop.name] = Deki::GetPropertyValue<std::string>(comp, prop); break;
         case Deki::PropertyType::Enum:
             switch (prop.enumSize)
             {
@@ -93,39 +77,70 @@ void SaveSettingProperty(const Deki::Component* comp, const Deki::PropertyInfo& 
 
 void LoadSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const nlohmann::json& in)
 {
-    if (!in.contains(prop.name)) return;
+    if (!in.contains(prop.name))
+    {
+        return;
+    }
     const auto& v = in[prop.name];
     switch (prop.type)
     {
         case Deki::PropertyType::Bool:
-            if (v.is_boolean()) Deki::SetPropertyValue<bool>(comp, prop, v.get<bool>());
+            if (v.is_boolean())
+            {
+                Deki::SetPropertyValue<bool>(comp, prop, v.get<bool>());
+            }
             break;
         case Deki::PropertyType::Int8:
-            if (v.is_number_integer()) Deki::SetPropertyValue<int8_t>(comp, prop, (int8_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                Deki::SetPropertyValue<int8_t>(comp, prop, (int8_t)v.get<int32_t>());
+            }
             break;
         case Deki::PropertyType::Int16:
-            if (v.is_number_integer()) Deki::SetPropertyValue<int16_t>(comp, prop, (int16_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                Deki::SetPropertyValue<int16_t>(comp, prop, (int16_t)v.get<int32_t>());
+            }
             break;
         case Deki::PropertyType::Int32:
-            if (v.is_number_integer()) Deki::SetPropertyValue<int32_t>(comp, prop, v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                Deki::SetPropertyValue<int32_t>(comp, prop, v.get<int32_t>());
+            }
             break;
         case Deki::PropertyType::UInt8:
-            if (v.is_number_integer()) Deki::SetPropertyValue<uint8_t>(comp, prop, (uint8_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                Deki::SetPropertyValue<uint8_t>(comp, prop, (uint8_t)v.get<int32_t>());
+            }
             break;
         case Deki::PropertyType::UInt16:
-            if (v.is_number_integer()) Deki::SetPropertyValue<uint16_t>(comp, prop, (uint16_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                Deki::SetPropertyValue<uint16_t>(comp, prop, (uint16_t)v.get<int32_t>());
+            }
             break;
         case Deki::PropertyType::UInt32:
             if (v.is_number_unsigned())
+            {
                 Deki::SetPropertyValue<uint32_t>(comp, prop, v.get<uint32_t>());
+            }
             else if (v.is_number_integer())
+            {
                 Deki::SetPropertyValue<uint32_t>(comp, prop, (uint32_t)v.get<int32_t>());
+            }
             break;
         case Deki::PropertyType::Float:
-            if (v.is_number()) Deki::SetPropertyValue<float>(comp, prop, v.get<float>());
+            if (v.is_number())
+            {
+                Deki::SetPropertyValue<float>(comp, prop, v.get<float>());
+            }
             break;
         case Deki::PropertyType::String:
-            if (v.is_string()) Deki::SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
+            if (v.is_string())
+            {
+                Deki::SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
+            }
             break;
         case Deki::PropertyType::Enum:
             if (v.is_number_integer())
@@ -139,8 +154,7 @@ void LoadSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, 
                 }
             }
             break;
-        default:
-            break;
+        default: break;
     }
 }
 }  // namespace
@@ -158,12 +172,13 @@ std::filesystem::path SectionFilePath(const std::string& root, const std::string
 {
     std::string lower = section;
     std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     const std::string owner = DekiEditor::SettingsOwnership::OwnerOf(section);
     if (!owner.empty())
+    {
         return DekiEditor::ProjectPaths::Settings(root) / "packages" / owner / (lower + ".json");
+    }
 
     return DekiEditor::ProjectPaths::Settings(root) / "core.json";
 }
@@ -174,14 +189,23 @@ std::filesystem::path SectionFilePath(const std::string& root, const std::string
 nlohmann::json ReadJsonFile(const std::filesystem::path& p, bool* unreadable = nullptr)
 {
     if (unreadable)
+    {
         *unreadable = false;
+    }
     std::ifstream in(p);
-    if (!in.is_open()) return nlohmann::json::object();
+    if (!in.is_open())
+    {
+        return nlohmann::json::object();
+    }
     nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
     if (j.is_object())
+    {
         return j;
+    }
     if (unreadable)
+    {
         *unreadable = true;
+    }
     DEKI_LOG_ERROR("Project settings: %s could not be read (a merge conflict?). Its settings are at their "
                    "defaults until it is fixed, and saving leaves it as it is.",
                    p.string().c_str());
@@ -204,7 +228,9 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
     {
         if (info.meta == nullptr || info.sectionName == nullptr || info.instance == nullptr)
+        {
             continue;
+        }
 
         const fs::path dest = SectionFilePath(root, info.sectionName);
         auto it = byFile.find(dest);
@@ -213,14 +239,20 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
             bool bad = false;
             it = byFile.emplace(dest, ReadJsonFile(dest, &bad)).first;
             if (bad)
+            {
                 unreadable.insert(dest);
+            }
         }
         if (unreadable.count(dest))
+        {
             continue;
+        }
 
         nlohmann::json sectionJson = nlohmann::json::object();
         for (int i = 0; i < info.meta->propertyCount; ++i)
+        {
             SaveSettingProperty(info.instance, info.meta->properties[i], sectionJson);
+        }
 
         it->second[info.sectionName] = sectionJson;
         written.push_back(info.sectionName);
@@ -229,12 +261,16 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
     for (const auto& [dest, contents] : byFile)
     {
         if (unreadable.count(dest))
+        {
             continue;  // rewriting it from defaults would erase what the conflict holds
+        }
         std::error_code ec;
         fs::create_directories(dest.parent_path(), ec);
         std::string err;
         if (!DekiEditor::AtomicWriteFile(dest.string(), contents.dump(2) + "\n", err))
+        {
             DEKI_LOG_ERROR("Project settings: could not save %s: %s", dest.string().c_str(), err.c_str());
+        }
     }
 
     return written;
@@ -254,7 +290,9 @@ nlohmann::json ReadLegacyFramebuffer(const std::string& root)
 {
     const nlohmann::json file = ReadJsonFile(DekiEditor::ProjectPaths::Settings(root) / "framebuffer.json");
     if (file.contains("Framebuffer") && file["Framebuffer"].is_object())
+    {
         return file["Framebuffer"];
+    }
     return nlohmann::json();
 }
 
@@ -269,18 +307,26 @@ void Project::LoadSettingsFiles(const std::string& root)
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
     {
         if (info.meta == nullptr || info.sectionName == nullptr || info.instance == nullptr)
+        {
             continue;
+        }
 
         const nlohmann::json fileJson = ReadJsonFile(SectionFilePath(root, info.sectionName));
         if (!fileJson.contains(info.sectionName))
+        {
             continue;
+        }
 
         const nlohmann::json& sectionJson = fileJson[info.sectionName];
         if (!sectionJson.is_object())
+        {
             continue;
+        }
 
         for (int i = 0; i < info.meta->propertyCount; ++i)
+        {
             LoadSettingProperty(info.instance, info.meta->properties[i], sectionJson);
+        }
     }
 }
 
@@ -289,7 +335,9 @@ void ActivePlatformScreen(const Project* project, int& width, int& height)
     width = 320;
     height = 240;
     if (project == nullptr)
+    {
         return;
+    }
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId());
     if (platform != nullptr && platform->screenWidth > 0 && platform->screenHeight > 0)
     {
@@ -305,12 +353,18 @@ void Project::LoadLegacyFraming(const nlohmann::json& legacyFramebuffer)
     const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
     SceneView::LegacyFraming legacy;
     if (const float h = LegacyNumber(legacyFramebuffer, "designHeight"); h > 0.0f)
+    {
         legacy.designHeight = h;
+    }
     else if (const float px = LegacyNumber(legacyFramebuffer, "targetHeight"); px > 0.0f && ppm > 0.0f)
+    {
         legacy.designHeight = px / ppm;
+    }
     if (legacyFramebuffer.is_object() && legacyFramebuffer.contains("pixelPerfect") &&
         legacyFramebuffer["pixelPerfect"].is_boolean())
+    {
         legacy.pixelPerfect = legacyFramebuffer["pixelPerfect"].get<bool>();
+    }
     SceneView::Get().SetLegacyFraming(legacy);
 }
 
@@ -382,8 +436,8 @@ bool Project::Load(const std::string& path)
         const std::string wroteWith = json.value("lastSavedBy", "");
         if (ProjectNeedsNewerEditor(wroteWith, DEKI_ENGINE_VERSION))
         {
-            m_LoadError = "This project was last saved by Deki " + wroteWith +
-                          "; this editor is " + DEKI_ENGINE_VERSION +
+            m_LoadError = "This project was last saved by Deki " + wroteWith + "; this editor is " +
+                          DEKI_ENGINE_VERSION +
                           ". Update the editor to open it. Opening it here would "
                           "write its scenes back in the older format.";
             DEKI_LOG_ERROR("Project: %s", m_LoadError.c_str());
@@ -396,26 +450,36 @@ bool Project::Load(const std::string& path)
         {
             std::string summary;
             if (ProjectPaths::MigrateToGeneratedLayout(m_Path, summary))
+            {
                 DEKI_LOG_EDITOR("Project: layout migration - %s", summary.c_str());
+            }
 
             // After the generated/ move so the two never contend for a name.
             std::string flattenSummary;
             const bool flattened = ProjectPaths::MigrateFlattenProjectFolder(m_Path, flattenSummary);
             if (flattened)
+            {
                 DEKI_LOG_EDITOR("Project: layout migration - %s", flattenSummary.c_str());
+            }
             else if (!flattenSummary.empty())
+            {
                 DEKI_LOG_ERROR("Project: %s", flattenSummary.c_str());
+            }
 
             // Only record the new version once the project actually reached it.
             // Advancing regardless would mark a project migrated that is not, and
             // the gate would then stop it ever being retried.
             std::string pkgSummary;
             if (ProjectPaths::MigrateModulesToPackages(m_Path, pkgSummary))
+            {
                 DEKI_LOG_EDITOR("Project: layout migration - %s", pkgSummary.c_str());
+            }
 
             const bool stillOnOldLayout = std::filesystem::exists(fs::path(m_Path) / "project");
             if (!stillOnOldLayout)
+            {
                 m_StructureVersion = ProjectPaths::kStructureVersion;
+            }
         }
 
         fs::path assetsPath = GetAssetsDirectory(m_Path);
@@ -461,19 +525,29 @@ bool Project::Load(const std::string& path)
                                 Deki::ComponentRegistry::Instance().GetMeta(core->GetType()))
                         {
                             for (int i = 0; i < coreMeta->propertyCount; ++i)
+                            {
                                 LoadSettingProperty(core, coreMeta->properties[i], sectionJson);
+                            }
                         }
                     }
                     section = "Framebuffer";
                 }
 
                 if (section == "Framebuffer")
+                {
                     legacyFramebuffer = sectionJson;
+                }
 
                 Deki::Component* inst = Deki::SettingsRegistry::Instance().GetByName(section.c_str());
-                if (inst == nullptr) continue;  // unknown package; leave alone
+                if (inst == nullptr)
+                {
+                    continue;  // unknown package; leave alone
+                }
                 const Deki::ComponentMeta* compMeta = Deki::ComponentRegistry::Instance().GetMeta(inst->GetType());
-                if (compMeta == nullptr) continue;
+                if (compMeta == nullptr)
+                {
+                    continue;
+                }
                 for (int i = 0; i < compMeta->propertyCount; ++i)
                 {
                     LoadSettingProperty(inst, compMeta->properties[i], sectionJson);
@@ -528,7 +602,9 @@ bool Project::Save()
     namespace fs = std::filesystem;
 
     if (m_Path.empty())
+    {
         return false;
+    }
 
     fs::path dekiJsonPath = fs::path(m_Path) / "deki.json";
 
@@ -546,8 +622,8 @@ bool Project::Save()
             {
                 // A malformed deki.json leaves every field at its default, which
                 // reads downstream as "an empty project" rather than "a broken file".
-                DEKI_LOG_WARNING("Project: could not parse %s (%s); using defaults",
-                                 dekiJsonPath.string().c_str(), e.what());
+                DEKI_LOG_WARNING("Project: could not parse %s (%s); using defaults", dekiJsonPath.string().c_str(),
+                                 e.what());
             }
         }
     }
@@ -574,9 +650,7 @@ bool Project::Save()
     json["lastSavedBy"] = DEKI_ENGINE_VERSION;
     json["engineVersion"] = DEKI_ENGINE_VERSION;
 
-    json["structure"] = m_StructureVersion.empty()
-                            ? std::string(ProjectPaths::kStructureVersion)
-                            : m_StructureVersion;
+    json["structure"] = m_StructureVersion.empty() ? std::string(ProjectPaths::kStructureVersion) : m_StructureVersion;
 
     // Update startup scene
     json["startupScene"] = m_StartupScene;
@@ -611,10 +685,14 @@ bool Project::Save()
         // "Framebuffer" (once "Display") is never written any more and stays:
         // scenes that have not loaded since still migrate their cameras from it.
         for (const std::string& section : writtenSections)
+        {
             legacy.erase(section);
+        }
 
         if (legacy.empty())
+        {
             json.erase("packageSettings");
+        }
     }
     // Only ever written, never read by anything - dropped rather than migrated.
     json.erase("assetSettings");

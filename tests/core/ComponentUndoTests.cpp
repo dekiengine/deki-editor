@@ -30,16 +30,15 @@ protected:
     static void EditInt(MockComponent* comp, int32_t from, int32_t to)
     {
         comp->intValue = to;
-        CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-            &comp->intValue, sizeof(int32_t), &from, &to, "intValue"));
+        CommandHistory::Instance().ExecuteNoMerge(
+            std::make_unique<ModifyValueCommand>(&comp->intValue, sizeof(int32_t), &from, &to, "intValue"));
     }
 };
 
 TEST_F(ComponentUndoTest, RemoveThenUndoRestoresTheSameInstance)
 {
     Deki::Object obj("O");
-    auto* comp = static_cast<MockComponent*>(
-        Deki::Internal::AddComponentByName(obj, Deki::TypeName<MockComponent>()));
+    auto* comp = static_cast<MockComponent*>(Deki::Internal::AddComponentByName(obj, Deki::TypeName<MockComponent>()));
     ASSERT_NE(comp, nullptr);
     EditInt(comp, 0, 5);
     EditInt(comp, 5, 9);
@@ -111,8 +110,7 @@ TEST_F(ComponentUndoTest, ValueModeEditIsDroppedWhenItsOwnerDies)
     {
         HistoryGuards::EditOwnerScope owner(&obj);
         history.ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-            nullptr, sizeof(float), &before, &after, "x",
-            [&obj](const void*) { obj.SetName("undone"); }, nullptr));
+            nullptr, sizeof(float), &before, &after, "x", [&obj](const void*) { obj.SetName("undone"); }, nullptr));
     }
     ASSERT_TRUE(history.CanUndo());
     HistoryGuards::ForgetObjectTree(&obj);

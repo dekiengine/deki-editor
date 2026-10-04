@@ -35,7 +35,9 @@ namespace
 std::string CorpusDir()
 {
     if (const char* env = std::getenv("DEKI_SCENE_CORPUS"))
+    {
         return env;
+    }
     return {};
 }
 
@@ -43,7 +45,9 @@ TEST(SceneCorpus, EveryPropertyKeyIsRecognised)
 {
     const std::string dir = CorpusDir();
     if (dir.empty())
+    {
         GTEST_SKIP() << "set DEKI_SCENE_CORPUS to a project's assets dir to run the rename gate";
+    }
 
     std::error_code ec;
     ASSERT_TRUE(fs::exists(dir, ec)) << "DEKI_SCENE_CORPUS does not exist: " << dir;
@@ -55,9 +59,14 @@ TEST(SceneCorpus, EveryPropertyKeyIsRecognised)
     int missingComponents = 0;
     for (const auto& entry : fs::recursive_directory_iterator(dir, ec))
     {
-        if (ec) break;
+        if (ec)
+        {
+            break;
+        }
         if (!entry.is_regular_file() || entry.path().extension() != ".scene")
+        {
             continue;
+        }
 
         Deki::Scene scene;
         // A scene that fails to load is a different problem from a scene with
@@ -71,19 +80,29 @@ TEST(SceneCorpus, EveryPropertyKeyIsRecognised)
         ++loaded;
 
         // Walk the whole tree, not just roots: nested objects carry components too.
-        std::function<void(const Deki::Object*)> visit = [&](const Deki::Object* obj) {
-            if (!obj) return;
+        std::function<void(const Deki::Object*)> visit = [&](const Deki::Object* obj)
+        {
+            if (!obj)
+            {
+                return;
+            }
             for (const Deki::Component* c : obj->GetComponents())
             {
                 ++totalComponents;
                 if (c && c->GetType() == Deki::MissingComponent::StaticType)
+                {
                     ++missingComponents;
+                }
             }
             for (const Deki::Object* child : obj->GetChildren())
+            {
                 visit(child);
+            }
         };
         for (const Deki::Object* root : scene.GetObjects())
+        {
             visit(root);
+        }
     }
 
     ASSERT_GT(loaded, 0) << "no .scene files under " << dir << " -- the gate would pass vacuously";
@@ -96,30 +115,30 @@ TEST(SceneCorpus, EveryPropertyKeyIsRecognised)
     ASSERT_GT(totalComponents, 0) << "scenes loaded but contained no components";
     if (missingComponents == totalComponents)
     {
-        GTEST_SKIP() << "no component types are registered in this binary ("
-                     << totalComponents << " components, all unresolved), so unknown "
+        GTEST_SKIP() << "no component types are registered in this binary (" << totalComponents
+                     << " components, all unresolved), so unknown "
                      << "property keys cannot be detected. Run this where the project's "
                      << "packages are loaded.";
     }
-    EXPECT_EQ(missingComponents, 0)
-        << missingComponents << " of " << totalComponents << " components did not resolve; "
-        << "the gate can only vouch for the ones that did";
+    EXPECT_EQ(missingComponents, 0) << missingComponents << " of " << totalComponents << " components did not resolve; "
+                                    << "the gate can only vouch for the ones that did";
 
     const auto unknown = Deki::Scene::CollectUnknownProperties();
     if (!unknown.empty())
     {
         std::string detail;
         for (const auto& [component, key] : unknown)
+        {
             detail += "\n  " + component + "." + key;
+        }
         FAIL() << "loaded " << loaded << " scene(s); " << unknown.size()
                << " property key(s) are not recognised by any component's current metadata."
                << "\nEach one is a value that will silently revert to its default."
-               << "\nIf this appeared after a rename, the scene files still carry the old key:"
-               << detail;
+               << "\nIf this appeared after a rename, the scene files still carry the old key:" << detail;
     }
 
     SUCCEED() << "loaded " << loaded << " scene(s), " << totalComponents
               << " components, every property key recognised";
 }
 
-} // namespace
+}  // namespace

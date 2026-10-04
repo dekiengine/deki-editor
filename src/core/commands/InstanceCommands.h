@@ -36,11 +36,16 @@ using ObjectSerializationHelper::SerializeComponents;
 class CreateInstanceCommand : public Command
 {
 public:
-    CreateInstanceCommand(Deki::Scene* scene, const std::string& sourceSceneGuid,
-                          const std::string& instanceName, Deki::Object* parent = nullptr,
-                          std::function<void(Deki::Object*)> onCreated = nullptr,
+    CreateInstanceCommand(Deki::Scene* scene, const std::string& sourceSceneGuid, const std::string& instanceName,
+                          Deki::Object* parent = nullptr, std::function<void(Deki::Object*)> onCreated = nullptr,
                           std::function<void()> onUndone = nullptr)
-        : m_Scene(scene), m_SourceSceneGuid(sourceSceneGuid), m_InstanceName(instanceName), m_Parent(parent), m_OnCreated(onCreated), m_OnUndone(onUndone), m_InstanceObject(nullptr)
+        : m_Scene(scene),
+          m_SourceSceneGuid(sourceSceneGuid),
+          m_InstanceName(instanceName),
+          m_Parent(parent),
+          m_OnCreated(onCreated),
+          m_OnUndone(onUndone),
+          m_InstanceObject(nullptr)
     {
     }
 
@@ -73,9 +78,9 @@ private:
 class UnlinkInstanceCommand : public Command
 {
 public:
-    UnlinkInstanceCommand(Deki::Object* instanceObj,
-                          std::function<void()> onUnlinked = nullptr)
-        : m_InstanceObject(instanceObj), m_OnUnlinked(onUnlinked)
+    UnlinkInstanceCommand(Deki::Object* instanceObj, std::function<void()> onUnlinked = nullptr)
+        : m_InstanceObject(instanceObj),
+          m_OnUnlinked(onUnlinked)
     {
         m_SavedGuid = instanceObj->GetSourceSceneGuid();
         m_SavedOverrides = instanceObj->GetInstanceOverridesJson();
@@ -106,40 +111,59 @@ private:
  */
 inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGuid)
 {
-    if (!Deki::Scene::s_GuidToPathResolver) return false;
+    if (!Deki::Scene::s_GuidToPathResolver)
+    {
+        return false;
+    }
 
     std::string sourcePath = Deki::Scene::s_GuidToPathResolver(sceneGuid);
-    if (sourcePath.empty()) return false;
+    if (sourcePath.empty())
+    {
+        return false;
+    }
 
     Deki::Scene sourceScene;
-    if (!sourceScene.LoadFromFile(sourcePath)) return false;
+    if (!sourceScene.LoadFromFile(sourcePath))
+    {
+        return false;
+    }
 
     auto& registry = Deki::ComponentRegistry::Instance();
 
     // Recursive comparison: same child count and same component types
-    std::function<bool(const Deki::Object*, const Deki::Object*)> compareNodes =
-        [&](const Deki::Object* a, const Deki::Object* b) -> bool
+    std::function<bool(const Deki::Object*, const Deki::Object*)> compareNodes = [&](const Deki::Object* a,
+                                                                                     const Deki::Object* b) -> bool
     {
         // Compare component types
         const auto& aComps = a->GetComponents();
         const auto& bComps = b->GetComponents();
-        if (aComps.size() != bComps.size()) return false;
+        if (aComps.size() != bComps.size())
+        {
+            return false;
+        }
 
         for (size_t i = 0; i < aComps.size(); ++i)
         {
             if (aComps[i]->GetType() != bComps[i]->GetType())
+            {
                 return false;
+            }
         }
 
         // Compare children count
         const auto& aChildren = a->GetChildren();
         const auto& bChildren = b->GetChildren();
-        if (aChildren.size() != bChildren.size()) return false;
+        if (aChildren.size() != bChildren.size())
+        {
+            return false;
+        }
 
         for (size_t i = 0; i < aChildren.size(); ++i)
         {
             if (!compareNodes(aChildren[i], bChildren[i]))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -153,12 +177,17 @@ inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGu
     const std::vector<Deki::Object*>& sourceCompareList =
         (sourceRoots.size() == 1) ? sourceRoots[0]->GetChildren() : sourceRoots;
 
-    if (objChildren.size() != sourceCompareList.size()) return false;
+    if (objChildren.size() != sourceCompareList.size())
+    {
+        return false;
+    }
 
     for (size_t i = 0; i < objChildren.size(); ++i)
     {
         if (!compareNodes(objChildren[i], sourceCompareList[i]))
+        {
             return false;
+        }
     }
 
     return true;
@@ -172,9 +201,12 @@ class LinkInstanceCommand : public Command
 {
 public:
     LinkInstanceCommand(Deki::Scene* scene, Deki::Object* obj, const std::string& sourceSceneGuid,
-                        std::function<void()> onLinked = nullptr,
-                        std::function<void()> onUndone = nullptr)
-        : m_Scene(scene), m_Object(obj), m_SourceSceneGuid(sourceSceneGuid), m_OnLinked(onLinked), m_OnUndone(onUndone)
+                        std::function<void()> onLinked = nullptr, std::function<void()> onUndone = nullptr)
+        : m_Scene(scene),
+          m_Object(obj),
+          m_SourceSceneGuid(sourceSceneGuid),
+          m_OnLinked(onLinked),
+          m_OnUndone(onUndone)
     {
         // Save previous instance state for undo (supports re-link)
         m_PreviousGuid = obj->GetSourceSceneGuid();
@@ -215,7 +247,10 @@ namespace InstanceCommandsDetail
 inline std::string ReadFileToString(const std::string& path)
 {
     std::ifstream f(path, std::ios::binary);
-    if (!f) return {};
+    if (!f)
+    {
+        return {};
+    }
     std::ostringstream ss;
     ss << f.rdbuf();
     return ss.str();
@@ -233,36 +268,49 @@ inline bool WriteStringToFile(const std::string& path, const std::string& conten
 // Collect all DekiObjects in the scene (roots + descendants) whose
 // SourceSceneGuid matches `guid`, excluding `exclude`. Caller gets raw
 // pointers - safe for the duration of a single command invocation.
-inline void CollectInstancesByGuid(Deki::Scene* scene, const std::string& guid,
-                                   Deki::Object* exclude,
+inline void CollectInstancesByGuid(Deki::Scene* scene, const std::string& guid, Deki::Object* exclude,
                                    std::vector<Deki::Object*>& out)
 {
-    if (!scene || guid.empty()) return;
+    if (!scene || guid.empty())
+    {
+        return;
+    }
 
     std::function<void(Deki::Object*)> walk = [&](Deki::Object* obj)
     {
-        if (!obj) return;
+        if (!obj)
+        {
+            return;
+        }
         if (obj != exclude && obj->GetSourceSceneGuid() == guid)
+        {
             out.push_back(obj);
+        }
         for (auto* child : obj->GetChildren())
+        {
             walk(child);
+        }
     };
 
     for (auto* root : scene->GetObjects())
+    {
         walk(root);
+    }
 }
 
 // Build a fresh in-memory Scene whose single root holds a deep clone of
 // `instanceObj`'s components and children. The clone intentionally strips
 // instance metadata (SourceSceneGuid / overrides) so the written file is a
 // plain source scene, not another instance.
-inline bool BuildSourceSceneFromInstance(const Deki::Object* instanceObj,
-                                         Deki::Scene& outScene)
+inline bool BuildSourceSceneFromInstance(const Deki::Object* instanceObj, Deki::Scene& outScene)
 {
     using namespace ObjectSerializationHelper;
 
     Deki::Object* root = outScene.CreateDekiObject(instanceObj->GetName());
-    if (!root) return false;
+    if (!root)
+    {
+        return false;
+    }
 
     RestoreComponents(root, SerializeComponents(instanceObj));
     CreateChildrenRecursive(root, SerializeChildren(instanceObj));
@@ -275,7 +323,10 @@ inline bool BuildSourceSceneFromInstance(const Deki::Object* instanceObj,
 // duplicate on every re-expand.
 inline void ReexpandInstance(Deki::Scene* scene, Deki::Object* inst)
 {
-    if (!scene || !inst || !inst->IsSceneInstance()) return;
+    if (!scene || !inst || !inst->IsSceneInstance())
+    {
+        return;
+    }
     scene->CollapseInstance(inst);
     auto comps = inst->GetComponents();  // copy; RemoveComponent mutates
     for (auto* c : comps)
@@ -311,9 +362,11 @@ class ApplyInstanceToSceneCommand : public Command
 {
 public:
     ApplyInstanceToSceneCommand(Deki::Scene* scene, Deki::Object* instanceObj,
-                                std::vector<std::string> otherScenePaths = {},
-                                nlohmann::json selectedOverrides = {})
-        : m_Scene(scene), m_Instance(instanceObj), m_OtherScenePaths(std::move(otherScenePaths)), m_SelectedOverrides(std::move(selectedOverrides))
+                                std::vector<std::string> otherScenePaths = {}, nlohmann::json selectedOverrides = {})
+        : m_Scene(scene),
+          m_Instance(instanceObj),
+          m_OtherScenePaths(std::move(otherScenePaths)),
+          m_SelectedOverrides(std::move(selectedOverrides))
     {
     }
 
@@ -349,7 +402,8 @@ class RevertInstanceOverridesCommand : public Command
 {
 public:
     RevertInstanceOverridesCommand(Deki::Scene* scene, Deki::Object* instanceObj)
-        : m_Scene(scene), m_Instance(instanceObj)
+        : m_Scene(scene),
+          m_Instance(instanceObj)
     {
     }
 

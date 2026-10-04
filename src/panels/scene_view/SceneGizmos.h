@@ -4,9 +4,18 @@
 #include "imgui.h"
 #include <cstdint>
 
-namespace Deki { class Object; }
-namespace Deki { class Scene; }
-namespace Deki { class ICamera; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Scene;
+}
+namespace Deki
+{
+class ICamera;
+}
 struct ImDrawList;
 
 namespace DekiEditor
@@ -23,15 +32,13 @@ public:
     SceneGizmos(SceneCoordinates* coords, SceneObjectMeasurer* measurer, SceneSnapping* snapping);
 
     // Component outlines - draws rect outlines for components that opt in via GetOutlineColor()
-    void DrawComponentOutlines(ImDrawList* drawList, Deki::Scene* scene,
-                               Deki::ICamera* camera, int bufferWidth, int bufferHeight,
-                               ImVec2 bufferCanvasTopLeft);
+    void DrawComponentOutlines(ImDrawList* drawList, Deki::Scene* scene, Deki::ICamera* camera, int bufferWidth,
+                               int bufferHeight, ImVec2 bufferCanvasTopLeft);
 
     // Selection bounds - uses ICamera::WorldToScreen + QuadBlit math for exact alignment
     // bufferCanvasTopLeft is where buffer pixel (0,0) appears on canvas
-    void DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj,
-                             Deki::ICamera* camera, int bufferWidth, int bufferHeight,
-                             ImVec2 bufferCanvasTopLeft);
+    void DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, Deki::ICamera* camera, int bufferWidth,
+                             int bufferHeight, ImVec2 bufferCanvasTopLeft);
 
     // Translate gizmo
     void DrawTranslateGizmo(ImDrawList* drawList, Deki::Object* obj);
@@ -55,10 +62,8 @@ public:
     // meters-internal migration).
     // `storedWidth`/`storedHeight`: the component's own values when they
     // differ from the start size (0 = sizes itself); -1 = same as the start.
-    void StartResizeDrag(ResizeEdge edge, float startWidth, float startHeight,
-                         float startMouseX, float startMouseY,
-                         float startObjX, float startObjY,
-                         float storedWidth = -1.0f, float storedHeight = -1.0f);
+    void StartResizeDrag(ResizeEdge edge, float startWidth, float startHeight, float startMouseX, float startMouseY,
+                         float startObjX, float startObjY, float storedWidth = -1.0f, float storedHeight = -1.0f);
 
     // Handle resize drag (call each frame while dragging)
     // When anchorEdge is true, the opposite edge stays fixed (object moves).

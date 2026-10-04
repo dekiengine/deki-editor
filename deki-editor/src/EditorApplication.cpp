@@ -19,8 +19,7 @@ EditorApplication& EditorApplication::Get()
 // Project Paths
 // ============================================================================
 
-void EditorApplication::SetProjectPaths(const std::string& projectPath,
-                                        const std::string& assetsPath,
+void EditorApplication::SetProjectPaths(const std::string& projectPath, const std::string& assetsPath,
                                         const std::string& cachePath)
 {
     m_ProjectPath = projectPath;

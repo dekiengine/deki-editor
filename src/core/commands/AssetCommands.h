@@ -53,8 +53,7 @@ public:
     /// `projectRoot` anchors the trash directory. Pass the project path so the
     /// move stays on one volume; when empty the temp directory is used, which
     /// still works whenever project and temp share a drive.
-    DeleteAssetsCommand(const std::vector<std::string>& paths,
-                        std::function<void()> onComplete = nullptr,
+    DeleteAssetsCommand(const std::vector<std::string>& paths, std::function<void()> onComplete = nullptr,
                         const std::string& projectRoot = {});
     ~DeleteAssetsCommand();
 
@@ -101,9 +100,8 @@ private:
 class ModifyAssetCommand : public Command
 {
 public:
-    ModifyAssetCommand(const std::string& assetPath, const std::string& assetGuid,
-                       const nlohmann::json& oldData, const nlohmann::json& newData,
-                       std::function<void()> onApply = nullptr);
+    ModifyAssetCommand(const std::string& assetPath, const std::string& assetGuid, const nlohmann::json& oldData,
+                       const nlohmann::json& newData, std::function<void()> onApply = nullptr);
 
     std::string GetDescription() const override;
     void Execute() override;

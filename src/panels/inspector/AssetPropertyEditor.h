@@ -5,8 +5,14 @@
 #include <deki-editor/AssetPickerTypes.h>
 
 // Forward declarations
-namespace Deki { class Component; }
-namespace Deki { struct PropertyInfo; }
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+struct PropertyInfo;
+}
 
 namespace DekiEditor
 {
@@ -21,12 +27,10 @@ public:
     AssetPropertyEditor(EditorApp* app, AssetPicker* picker);
 
     // Draw Asset property (string GUID)
-    bool DrawAssetProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                           const char* displayName);
+    bool DrawAssetProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const char* displayName);
 
     // Draw AssetRef property (AssetRefBase with guid and source fields)
-    bool DrawAssetRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                              const char* displayName);
+    bool DrawAssetRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const char* displayName);
 
     // Convert asset type string to filter type
     static AssetFilterType GetAssetFilterType(const std::string& assetType);

@@ -46,14 +46,11 @@ static void PrintRegisteredComponents()
 {
     auto& registry = Deki::ComponentRegistry::Instance();
 
-    DEKI_LOG_EDITOR("ComponentRegistry: %zu components registered",
-                    registry.GetAllComponents().size());
+    DEKI_LOG_EDITOR("ComponentRegistry: %zu components registered", registry.GetAllComponents().size());
     for (const auto* meta : registry.GetAllComponents())
     {
-        DEKI_LOG_DEBUG("  - %s (category: %s, abstract: %d)",
-                       meta->name ? meta->name : "null",
-                       meta->category ? meta->category : "none",
-                       meta->isAbstract ? 1 : 0);
+        DEKI_LOG_DEBUG("  - %s (category: %s, abstract: %d)", meta->name ? meta->name : "null",
+                       meta->category ? meta->category : "none", meta->isAbstract ? 1 : 0);
     }
 }
 
@@ -76,8 +73,8 @@ ToolbarStrip g_toolbar;
 
 // Draw one toolbar cell (icon glyph or text label). Returns true when clicked.
 // `tooltip` may be null. Advances the strip cursor and draws the trailing divider.
-bool DrawToolbarCell(const char* id, const char* text, const char* tooltip,
-                     bool enabled, bool active, bool destructive = false)
+bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool enabled, bool active,
+                     bool destructive = false)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float dpi = g_toolbar.dpi;
@@ -93,7 +90,10 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip,
     {
         clicked = ImGui::InvisibleButton(id, ImVec2(w, rowH));
         hovered = ImGui::IsItemHovered();
-        if (hovered && tooltip && tooltip[0]) DekiEditor::Tooltip("%s", tooltip);
+        if (hovered && tooltip && tooltip[0])
+        {
+            DekiEditor::Tooltip("%s", tooltip);
+        }
     }
     else
     {
@@ -112,17 +112,21 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip,
     // rest, full red and a red fill under the cursor. Same shape as its
     // neighbours - the color is the whole warning.
     const ImU32 colRed = ImGui::ColorConvertFloat4ToU32(Palette::Red);
-    const ImU32 colRedDim = ImGui::ColorConvertFloat4ToU32(
-        ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.75f));
-    const ImU32 colRedFill = ImGui::ColorConvertFloat4ToU32(
-        ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.14f));
+    const ImU32 colRedDim =
+        ImGui::ColorConvertFloat4ToU32(ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.75f));
+    const ImU32 colRedFill =
+        ImGui::ColorConvertFloat4ToU32(ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.14f));
 
     if (active)
+    {
         dl->AddRectFilled(ImVec2(cx, g_toolbar.rowMin.y), ImVec2(cx + w, g_toolbar.rowMax.y),
                           destructive ? colRedFill : colActive);
+    }
     else if (enabled && hovered)
+    {
         dl->AddRectFilled(ImVec2(cx, g_toolbar.rowMin.y), ImVec2(cx + w, g_toolbar.rowMax.y),
                           destructive ? colRedFill : colHover);
+    }
 
     const ImU32 fg = !enabled      ? colDim2
                      : destructive ? ((active || hovered) ? colRed : colRedDim)
@@ -132,8 +136,8 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip,
     dl->AddText(ImVec2(tx, ty), fg, text);
 
     g_toolbar.cursorX += w;
-    dl->AddLine(ImVec2(g_toolbar.cursorX, g_toolbar.rowMin.y),
-                ImVec2(g_toolbar.cursorX, g_toolbar.rowMax.y), colLine, 1.0f);
+    dl->AddLine(ImVec2(g_toolbar.cursorX, g_toolbar.rowMin.y), ImVec2(g_toolbar.cursorX, g_toolbar.rowMax.y), colLine,
+                1.0f);
     return clicked;
 }
 
@@ -166,8 +170,9 @@ bool DrawTabLink(const char* label, bool active)
     const float textY = g_tabLinks.rowMin.y + (rowH - textSize.y) * 0.5f;
     dl->AddText(ImVec2(x0, textY), col, label);
     if (active)
-        dl->AddRectFilled(ImVec2(x0, g_tabLinks.rowMax.y - 2.0f * dpi),
-                          ImVec2(x1, g_tabLinks.rowMax.y), colAccent);
+    {
+        dl->AddRectFilled(ImVec2(x0, g_tabLinks.rowMax.y - 2.0f * dpi), ImVec2(x1, g_tabLinks.rowMax.y), colAccent);
+    }
 
     g_tabLinks.cursorX = x1 + gapX;
     return clicked;
@@ -175,8 +180,7 @@ bool DrawTabLink(const char* label, bool active)
 
 // A full-width two-line "card" list entry: bold title + optional dim subtitle,
 // rounded hover/selected backgrounds, and a left accent bar when selected.
-bool DrawSelectableCard(const char* id, const char* title, const char* subtitle, bool selected,
-                        uint32_t subtitleColor)
+bool DrawSelectableCard(const char* id, const char* title, const char* subtitle, bool selected, uint32_t subtitleColor)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float dpi = ImGui::GetStyle().FontScaleDpi;
@@ -198,18 +202,25 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
     const ImVec2 pmax(p0.x + availW, p0.y + h);
     const float rounding = 4.0f * dpi;
 
-    const ImU32 selBg = ImGui::ColorConvertFloat4ToU32(
-        ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.12f));
+    const ImU32 selBg =
+        ImGui::ColorConvertFloat4ToU32(ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.12f));
     const ImU32 hovBg = IM_COL32(255, 255, 255, 8);
     // Selected and hover backgrounds fade; hover only while not selected.
     const float hoverT = Motion::ItemHover(hovered);
-    const float selT = Motion::EaseOut(Motion::To(ImGui::GetItemID() ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Motion::Fast));
+    const float selT =
+        Motion::EaseOut(Motion::To(ImGui::GetItemID() ^ 0x5E1EC7u, selected ? 1.0f : 0.0f, Motion::Fast));
     if (selT > 0.0f)
+    {
         dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(selBg, selT), rounding);
+    }
     if (hoverT * (1.0f - selT) > 0.0f)
+    {
         dl->AddRectFilled(pmin, pmax, Motion::WithAlpha(hovBg, hoverT * (1.0f - selT)), rounding);
+    }
     if (const float pressT = Motion::ItemPress(); pressT > 0.0f)
+    {
         dl->AddRectFilled(pmin, pmax, Motion::PressShade(pressT), rounding);
+    }
 
     if (selected)
     {
@@ -218,8 +229,7 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
     }
 
     const ImU32 titleCol = ImGui::ColorConvertFloat4ToU32(Palette::Fg);
-    const ImU32 subCol = subtitleColor ? (ImU32)subtitleColor
-                                       : ImGui::ColorConvertFloat4ToU32(Palette::Dim);
+    const ImU32 subCol = subtitleColor ? (ImU32)subtitleColor : ImGui::ColorConvertFloat4ToU32(Palette::Dim);
     const float tx = pmin.x + padX;
     float ty = pmin.y + padY;
     dl->AddText(ImVec2(tx, ty), titleCol, title);
@@ -239,12 +249,9 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
 static void InstallEditorUIBackend()
 {
     EditorUI::WidgetBackend b;
-    b.sectionHeader = [](const char* l)
-    { return SchematicCollapsingHeader(l); };
-    b.propertyRow = [](const char* l)
-    { InspectorUtils::BeginPropertyRow(l); };
-    b.dragInt = [](const char* id, int* v, float s, int mn, int mx)
-    { return SchematicDragInt(id, v, s, mn, mx); };
+    b.sectionHeader = [](const char* l) { return SchematicCollapsingHeader(l); };
+    b.propertyRow = [](const char* l) { InspectorUtils::BeginPropertyRow(l); };
+    b.dragInt = [](const char* id, int* v, float s, int mn, int mx) { return SchematicDragInt(id, v, s, mn, mx); };
     b.dragFloat = [](const char* id, float* v, float s, float mn, float mx, const char* fmt)
     { return SchematicDragFloat(id, v, s, mn, mx, fmt); };
     // Unified checkbox: a visible label draws the complete labeled row at the
@@ -255,7 +262,9 @@ static void InstallEditorUIBackend()
     {
         const bool hasLabel = label && label[0] && !(label[0] == '#' && label[1] == '#');
         if (!hasLabel)
+        {
             return SchematicCheckbox(label && label[0] ? label : "##chk", v);
+        }
 
         // Keep the labeled checkbox at the full inspector field height so all rows
         // are uniform. We deliberately do NOT collapse FramePadding here: with the
@@ -268,32 +277,23 @@ static void InstallEditorUIBackend()
         ImGui::PopID();
         return changed;
     };
-    b.colorEdit4 = [](const char* id, float* c)
-    { return SchematicColorEdit4(id, c); };
-    b.colorEdit3 = [](const char* id, float* c)
-    { return SchematicColorEdit3(id, c); };
+    b.colorEdit4 = [](const char* id, float* c) { return SchematicColorEdit4(id, c); };
+    b.colorEdit3 = [](const char* id, float* c) { return SchematicColorEdit3(id, c); };
     b.combo = [](const char* id, int* idx, const char* const* items, int count)
     { return SchematicCombo(id, idx, items, count); };
-    b.comboStr = [](const char* id, int* idx, const char* items)
-    { return SchematicCombo(id, idx, items); };
-    b.beginCombo = [](const char* id, const char* preview)
-    { return SchematicBeginCombo(id, preview); };
-    b.endCombo = []()
-    { SchematicEndCombo(); };
+    b.comboStr = [](const char* id, int* idx, const char* items) { return SchematicCombo(id, idx, items); };
+    b.beginCombo = [](const char* id, const char* preview) { return SchematicBeginCombo(id, preview); };
+    b.endCombo = []() { SchematicEndCombo(); };
     b.sliderFloat = [](const char* id, float* v, float mn, float mx, const char* fmt)
     { return ImGui::SliderFloat(id, v, mn, mx, fmt); };
-    b.sliderInt = [](const char* id, int* v, int mn, int mx)
-    { return ImGui::SliderInt(id, v, mn, mx); };
+    b.sliderInt = [](const char* id, int* v, int mn, int mx) { return ImGui::SliderInt(id, v, mn, mx); };
     b.dragFloat2 = [](const char* id, float* v, float s, float mn, float mx, const char* fmt)
     { return SchematicDragFloat2(id, v, s, mn, mx, fmt); };
     b.dragFloat3 = [](const char* id, float* v, float s, float mn, float mx, const char* fmt)
     { return SchematicDragFloat3(id, v, s, mn, mx, fmt); };
-    b.fullBleedSeparator = []()
-    { FullBleedSeparator(); };
-    b.beginDisabled = [](bool d)
-    { ImGui::BeginDisabled(d); };
-    b.endDisabled = []()
-    { ImGui::EndDisabled(); };
+    b.fullBleedSeparator = []() { FullBleedSeparator(); };
+    b.beginDisabled = [](bool d) { ImGui::BeginDisabled(d); };
+    b.endDisabled = []() { ImGui::EndDisabled(); };
     // Console-style toolbar strip.
     b.beginToolbar = []()
     {
@@ -311,14 +311,10 @@ static void InstallEditorUIBackend()
         dl->AddLine(ImVec2(rowMin.x, rowMin.y), ImVec2(rowMin.x, g_toolbar.rowMax.y), colLine, 1.0f);
     };
     b.toolbarButton = [](const char* label, bool enabled, bool active)
-    {
-        return DrawToolbarCell(label, label, nullptr, enabled, active);
-    };
-    b.toolbarIconButton = [](const char* id, const char* icon, const char* tooltip,
-                             bool enabled, bool active, bool destructive)
-    {
-        return DrawToolbarCell(id, icon, tooltip, enabled, active, destructive);
-    };
+    { return DrawToolbarCell(label, label, nullptr, enabled, active); };
+    b.toolbarIconButton =
+        [](const char* id, const char* icon, const char* tooltip, bool enabled, bool active, bool destructive)
+    { return DrawToolbarCell(id, icon, tooltip, enabled, active, destructive); };
     b.endToolbar = []()
     {
         // Reserve the row in layout flow and close the bottom edge with a hairline.
@@ -331,22 +327,20 @@ static void InstallEditorUIBackend()
         // keeps the strip bounded whatever follows it.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
-        dl->AddLine(ImVec2(g_toolbar.rowMin.x, g_toolbar.rowMax.y),
-                    ImVec2(g_toolbar.rowMax.x, g_toolbar.rowMax.y), colLine, 1.0f);
+        dl->AddLine(ImVec2(g_toolbar.rowMin.x, g_toolbar.rowMax.y), ImVec2(g_toolbar.rowMax.x, g_toolbar.rowMax.y),
+                    colLine, 1.0f);
         // Reserved as an ITEM, not a bare cursor move: ImGui reports a window
         // whose last act was moving the cursor ("submit an item e.g. Dummy()"),
         // and a panel whose toolbar is the last thing it draws would trip that
         // every frame. Zero item spacing around it so the pixel is all it costs.
         ImGui::SetCursorScreenPos(ImVec2(g_toolbar.rowMin.x, g_toolbar.rowMax.y));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 1.0f));
         ImGui::PopStyleVar();
     };
-    b.selectableCard = [](const char* id, const char* title, const char* subtitle, bool selected, uint32_t subtitleColor)
-    {
-        return DrawSelectableCard(id, title, subtitle, selected, subtitleColor);
-    };
+    b.selectableCard =
+        [](const char* id, const char* title, const char* subtitle, bool selected, uint32_t subtitleColor)
+    { return DrawSelectableCard(id, title, subtitle, selected, subtitleColor); };
     // Sub-nav tab links (Asset Browser style).
     b.beginTabLinks = []()
     {
@@ -359,19 +353,17 @@ static void InstallEditorUIBackend()
         g_tabLinks.cursorX = rowMin.x + 14.0f * dpi;  // left padding
         g_tabLinks.dpi = dpi;
     };
-    b.tabLink = [](const char* label, bool active)
-    { return DrawTabLink(label, active); };
+    b.tabLink = [](const char* label, bool active) { return DrawTabLink(label, active); };
     b.endTabLinks = []()
     {
         // Same one-pixel reservation as the toolbar above: the row's hairline
         // must survive whatever the panel draws under it.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
-        dl->AddLine(ImVec2(g_tabLinks.rowMin.x, g_tabLinks.rowMax.y),
-                    ImVec2(g_tabLinks.rowMax.x, g_tabLinks.rowMax.y), colLine, 1.0f);
+        dl->AddLine(ImVec2(g_tabLinks.rowMin.x, g_tabLinks.rowMax.y), ImVec2(g_tabLinks.rowMax.x, g_tabLinks.rowMax.y),
+                    colLine, 1.0f);
         ImGui::SetCursorScreenPos(ImVec2(g_tabLinks.rowMin.x, g_tabLinks.rowMax.y));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                            ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 1.0f));
         ImGui::PopStyleVar();
     };
@@ -380,20 +372,23 @@ static void InstallEditorUIBackend()
     // deactivate-after-edit fire onEndChange + push the undo command (carrying
     // onUndo/onRedo). ownsStorage=false (value mode) => command has a null target
     // and only replays via onUndo/onRedo; true (pointer mode) => it also memcpy's.
-    b.recordEdit = [](void* value, size_t size, bool ownsStorage, const void* before,
-                      const char* label, const ECB& cb)
+    b.recordEdit = [](void* value, size_t size, bool ownsStorage, const void* before, const char* label, const ECB& cb)
     {
         static std::vector<uint8_t> s_old;
         static bool s_started = false;
         if (ImGui::IsItemActivated())
         {
-            s_old.assign(static_cast<const uint8_t*>(before),
-                         static_cast<const uint8_t*>(before) + size);
-            if (cb.onStartChange) cb.onStartChange(before);
+            s_old.assign(static_cast<const uint8_t*>(before), static_cast<const uint8_t*>(before) + size);
+            if (cb.onStartChange)
+            {
+                cb.onStartChange(before);
+            }
             s_started = true;
         }
         if (ImGui::IsItemEdited() && cb.onChange)
+        {
             cb.onChange(value);
+        }
         if (ImGui::IsItemDeactivated() && s_started)
         {
             // Every start gets its end, changed or not: a click that leaves
@@ -406,10 +401,13 @@ static void InstallEditorUIBackend()
             {
                 std::vector<uint8_t> newBytes(static_cast<const uint8_t*>(value),
                                               static_cast<const uint8_t*>(value) + size);
-                if (cb.onEndChange) cb.onEndChange(s_old.data(), newBytes.data());
-                CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-                    ownsStorage ? value : nullptr, size, s_old.data(), newBytes.data(),
-                    label ? label : "", cb.onUndo, cb.onRedo));
+                if (cb.onEndChange)
+                {
+                    cb.onEndChange(s_old.data(), newBytes.data());
+                }
+                CommandHistory::Instance().ExecuteNoMerge(
+                    std::make_unique<ModifyValueCommand>(ownsStorage ? value : nullptr, size, s_old.data(),
+                                                         newBytes.data(), label ? label : "", cb.onUndo, cb.onRedo));
             }
             else if (cb.onEndChange && s_old.size() == size)
             {
@@ -418,22 +416,27 @@ static void InstallEditorUIBackend()
         }
     };
     // Atomic-widget lifecycle (combo): the DLL calls this only when changed.
-    b.commitEdit = [](void* value, size_t size, bool ownsStorage, const void* before,
-                      const char* label, const ECB& cb)
+    b.commitEdit = [](void* value, size_t size, bool ownsStorage, const void* before, const char* label, const ECB& cb)
     {
-        if (std::memcmp(before, value, size) == 0) return;
-        std::vector<uint8_t> newBytes(static_cast<const uint8_t*>(value),
-                                      static_cast<const uint8_t*>(value) + size);
-        if (cb.onChange) cb.onChange(value);
-        if (cb.onEndChange) cb.onEndChange(before, newBytes.data());
+        if (std::memcmp(before, value, size) == 0)
+        {
+            return;
+        }
+        std::vector<uint8_t> newBytes(static_cast<const uint8_t*>(value), static_cast<const uint8_t*>(value) + size);
+        if (cb.onChange)
+        {
+            cb.onChange(value);
+        }
+        if (cb.onEndChange)
+        {
+            cb.onEndChange(before, newBytes.data());
+        }
         CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
-            ownsStorage ? value : nullptr, size, before, newBytes.data(),
-            label ? label : "", cb.onUndo, cb.onRedo));
+            ownsStorage ? value : nullptr, size, before, newBytes.data(), label ? label : "", cb.onUndo, cb.onRedo));
     };
     // Unit-aware float/vector field: canonical (meters/radians) -> display (px/deg)
     // with Distance pixel-snapping, plus the drag-style lifecycle above.
-    b.unitField = [](const char* label, float* value, int count, int unitKind, bool ownsStorage,
-                     const ECB& cb) -> bool
+    b.unitField = [](const char* label, float* value, int count, int unitKind, bool ownsStorage, const ECB& cb) -> bool
     {
         const Deki::PhysicalUnit unit = static_cast<Deki::PhysicalUnit>(unitKind);
         const UnitDisplay ud = GetUnitDisplay(unit);
@@ -451,16 +454,25 @@ static void InstallEditorUIBackend()
         const std::string id = std::string("##") + label;
         bool changed = false;
         if (count >= 3)
+        {
             changed = SchematicDragFloat3(id.c_str(), disp, ud.dragSpeed, 0.0f, 0.0f, ud.format);
+        }
         else if (count == 2)
+        {
             changed = SchematicDragFloat2(id.c_str(), disp, ud.dragSpeed, 0.0f, 0.0f, ud.format);
+        }
         else
+        {
             changed = SchematicDragFloat(id.c_str(), &disp[0], ud.dragSpeed, 0.0f, 0.0f, ud.format);
+        }
 
         for (int i = 0; i < count; ++i)
         {
             float edited = FromDisplay(disp[i], ud);
-            if (snapPx) edited = SnapMetersToPixel(edited);
+            if (snapPx)
+            {
+                edited = SnapMetersToPixel(edited);
+            }
             value[i] = edited;
         }
 
@@ -470,14 +482,18 @@ static void InstallEditorUIBackend()
         static bool s_started = false;
         if (ImGui::IsItemActivated())
         {
-            s_old.assign(reinterpret_cast<const uint8_t*>(before),
-                         reinterpret_cast<const uint8_t*>(before) + size);
+            s_old.assign(reinterpret_cast<const uint8_t*>(before), reinterpret_cast<const uint8_t*>(before) + size);
             s_count = count;
-            if (cb.onStartChange) cb.onStartChange(before);
+            if (cb.onStartChange)
+            {
+                cb.onStartChange(before);
+            }
             s_started = true;
         }
         if (ImGui::IsItemEdited() && cb.onChange)
+        {
             cb.onChange(value);
+        }
         if (ImGui::IsItemDeactivated() && s_started)
         {
             // Every start gets its end, changed or not (see recordEdit).
@@ -487,7 +503,10 @@ static void InstallEditorUIBackend()
             {
                 std::vector<uint8_t> newBytes(reinterpret_cast<const uint8_t*>(value),
                                               reinterpret_cast<const uint8_t*>(value) + size);
-                if (cb.onEndChange) cb.onEndChange(s_old.data(), newBytes.data());
+                if (cb.onEndChange)
+                {
+                    cb.onEndChange(s_old.data(), newBytes.data());
+                }
                 CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
                     ownsStorage ? static_cast<void*>(value) : nullptr, size, s_old.data(), newBytes.data(),
                     label ? label : "", cb.onUndo, cb.onRedo));
@@ -499,74 +518,51 @@ static void InstallEditorUIBackend()
         }
         return changed;
     };
-    b.inputInt = [](const char* id, int* v, int step, int fast)
-    { return ImGui::InputInt(id, v, step, fast); };
-    b.inputText = [](const char* id, char* buf, size_t sz)
-    { return ImGui::InputText(id, buf, sz); };
-    b.button = [](const char* label, float w, float h)
-    { return ImGui::Button(label, ImVec2(w, h)); };
-    b.smallButton = [](const char* label)
-    { return ImGui::SmallButton(label); };
-    b.text = [](const char* t)
-    { ImGui::TextUnformatted(t); };
+    b.inputInt = [](const char* id, int* v, int step, int fast) { return ImGui::InputInt(id, v, step, fast); };
+    b.inputText = [](const char* id, char* buf, size_t sz) { return ImGui::InputText(id, buf, sz); };
+    b.button = [](const char* label, float w, float h) { return ImGui::Button(label, ImVec2(w, h)); };
+    b.smallButton = [](const char* label) { return ImGui::SmallButton(label); };
+    b.text = [](const char* t) { ImGui::TextUnformatted(t); };
     b.textColored = [](float r, float g, float bl, float a, const char* t)
     { ImGui::TextColored(ImVec4(r, g, bl, a), "%s", t); };
-    b.textDisabled = [](const char* t)
-    { ImGui::TextDisabled("%s", t); };
-    b.sameLine = [](float off, float sp)
-    { ImGui::SameLine(off, sp); };
-    b.spacing = []()
-    { ImGui::Spacing(); };
-    b.separator = []()
-    { ImGui::Separator(); };
-    b.pushIdInt = [](int id)
-    { ImGui::PushID(id); };
-    b.popId = []()
-    { ImGui::PopID(); };
-    b.indent = []()
-    { ImGui::Indent(); };
-    b.unindent = []()
-    { ImGui::Unindent(); };
-    b.bulletText = [](const char* t)
-    { ImGui::BulletText("%s", t); };
+    b.textDisabled = [](const char* t) { ImGui::TextDisabled("%s", t); };
+    b.sameLine = [](float off, float sp) { ImGui::SameLine(off, sp); };
+    b.spacing = []() { ImGui::Spacing(); };
+    b.separator = []() { ImGui::Separator(); };
+    b.pushIdInt = [](int id) { ImGui::PushID(id); };
+    b.popId = []() { ImGui::PopID(); };
+    b.indent = []() { ImGui::Indent(); };
+    b.unindent = []() { ImGui::Unindent(); };
+    b.bulletText = [](const char* t) { ImGui::BulletText("%s", t); };
     b.collapsingHeader = [](const char* label, bool* pVisible, bool defaultOpen)
-    {
-        return ImGui::CollapsingHeader(label, pVisible,
-                                       defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
-    };
+    { return ImGui::CollapsingHeader(label, pVisible, defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0); };
     // Custom drawing into the current window's draw list (tool grids, previews).
     b.cursorScreenPos = [](float* ox, float* oy)
     {
         const ImVec2 p = ImGui::GetCursorScreenPos();
-        if (ox) *ox = p.x;
-        if (oy) *oy = p.y;
+        if (ox)
+        {
+            *ox = p.x;
+        }
+        if (oy)
+        {
+            *oy = p.y;
+        }
     };
-    b.setCursorScreenPos = [](float x, float y)
-    { ImGui::SetCursorScreenPos(ImVec2(x, y)); };
-    b.dummy = [](float w, float h)
-    { ImGui::Dummy(ImVec2(w, h)); };
+    b.setCursorScreenPos = [](float x, float y) { ImGui::SetCursorScreenPos(ImVec2(x, y)); };
+    b.dummy = [](float w, float h) { ImGui::Dummy(ImVec2(w, h)); };
     b.drawLine = [](float x0, float y0, float x1, float y1, uint32_t c, float t)
-    {
-        ImGui::GetWindowDrawList()->AddLine(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, t);
-    };
+    { ImGui::GetWindowDrawList()->AddLine(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, t); };
     b.drawRect = [](float x0, float y0, float x1, float y1, uint32_t c, float t, float r)
-    {
-        ImGui::GetWindowDrawList()->AddRect(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, r, 0, t);
-    };
+    { ImGui::GetWindowDrawList()->AddRect(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, r, 0, t); };
     b.drawRectFilled = [](float x0, float y0, float x1, float y1, uint32_t c, float r)
-    {
-        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, r);
-    };
+    { ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, r); };
     b.drawCircle = [](float cx, float cy, float rad, uint32_t c, float t)
-    {
-        ImGui::GetWindowDrawList()->AddCircle(ImVec2(cx, cy), rad, (ImU32)c, 0, t);
-    };
+    { ImGui::GetWindowDrawList()->AddCircle(ImVec2(cx, cy), rad, (ImU32)c, 0, t); };
     b.drawCircleFilled = [](float cx, float cy, float rad, uint32_t c)
-    {
-        ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(cx, cy), rad, (ImU32)c);
-    };
-    b.drawImage = [](uint32_t tex, float x0, float y0, float x1, float y1,
-                     float u0, float v0, float u1, float v1, uint32_t tint)
+    { ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(cx, cy), rad, (ImU32)c); };
+    b.drawImage =
+        [](uint32_t tex, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint32_t tint)
     {
         ImGui::GetWindowDrawList()->AddImage((ImTextureID)(uintptr_t)tex, ImVec2(x0, y0), ImVec2(x1, y1),
                                              ImVec2(u0, v0), ImVec2(u1, v1), (ImU32)tint);
@@ -589,22 +585,24 @@ static void InstallEditorUIBackend()
         ImFont* font = ImGui::GetFont();
         const float sz = Fonts::CssPx(font, cssPx) * ImGui::GetStyle().FontScaleDpi;
         const ImVec2 v = font->CalcTextSizeA(sz, FLT_MAX, 0.0f, s);
-        if (w) *w = v.x;
-        if (h) *h = v.y;
+        if (w)
+        {
+            *w = v.x;
+        }
+        if (h)
+        {
+            *h = v.y;
+        }
     };
     b.pushClipRect = [](float x0, float y0, float x1, float y1, bool intersect)
-    {
-        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(x0, y0), ImVec2(x1, y1), intersect);
-    };
-    b.popClipRect = []()
-    { ImGui::GetWindowDrawList()->PopClipRect(); };
+    { ImGui::GetWindowDrawList()->PushClipRect(ImVec2(x0, y0), ImVec2(x1, y1), intersect); };
+    b.popClipRect = []() { ImGui::GetWindowDrawList()->PopClipRect(); };
     EditorUI::SetWidgetBackend(b);
 
     // A maximized panel must not offer resize handles. EditorUI lives in
     // deki-editor.dll and cannot see the maximize state, which is the
     // executable's, so it asks through here.
-    EditorUI::SetExtraWindowFlagsProvider([](const char* name) -> int
-                                          { return MaximizedWindowFlags(name); });
+    EditorUI::SetExtraWindowFlagsProvider([](const char* name) -> int { return MaximizedWindowFlags(name); });
 }
 
 void RegisterEngineEditors()
@@ -632,7 +630,9 @@ void RegisterEngineEditors()
             // Get prototype for metadata queries
             DekiEditor::EditorExtension* prototype = DekiEngine_GetEditorPrototype(i);
             if (!prototype)
+            {
                 continue;
+            }
 
             switch (prototype->GetEditorType())
             {
@@ -640,19 +640,19 @@ void RegisterEngineEditors()
                 {
                     // Register a factory that creates fresh instances
                     const int factoryIndex = i;  // Capture index for lambda
-                    customEditorRegistry.RegisterFactory(
-                        prototype->GetName(),
-                        [factoryIndex]() -> std::unique_ptr<DekiEditor::CustomEditor>
-                        {
-                            auto* rawPtr = DekiEngine_CreateEditor(factoryIndex);
-                            if (rawPtr && rawPtr->GetEditorType() == DekiEditor::EditorType::CustomEditor)
-                            {
-                                return std::unique_ptr<DekiEditor::CustomEditor>(
-                                    static_cast<DekiEditor::CustomEditor*>(rawPtr));
-                            }
-                            delete rawPtr;
-                            return nullptr;
-                        });
+                    customEditorRegistry.RegisterFactory(prototype->GetName(),
+                                                         [factoryIndex]() -> std::unique_ptr<DekiEditor::CustomEditor>
+                                                         {
+                                                             auto* rawPtr = DekiEngine_CreateEditor(factoryIndex);
+                                                             if (rawPtr && rawPtr->GetEditorType() ==
+                                                                               DekiEditor::EditorType::CustomEditor)
+                                                             {
+                                                                 return std::unique_ptr<DekiEditor::CustomEditor>(
+                                                                     static_cast<DekiEditor::CustomEditor*>(rawPtr));
+                                                             }
+                                                             delete rawPtr;
+                                                             return nullptr;
+                                                         });
                     DEKI_LOG_DEBUG("Registered custom editor factory: %s", prototype->GetName());
                     break;
                 }
@@ -673,9 +673,10 @@ void RegisterEngineEditors()
 
                     // Map compile target: 0=Texture, 1=Audio, 2=Data
                     int target = assetEditor->GetCompileTarget();
-                    handler.compilesTo = (target == 0) ? DekiEditor::AssetCompileTarget::Texture : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
-                                                                                               : (target == 2)   ? DekiEditor::AssetCompileTarget::Data
-                                                                                                                 : DekiEditor::AssetCompileTarget::None;
+                    handler.compilesTo = (target == 0)   ? DekiEditor::AssetCompileTarget::Texture
+                                         : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
+                                         : (target == 2) ? DekiEditor::AssetCompileTarget::Data
+                                                         : DekiEditor::AssetCompileTarget::None;
                     // Asset category is registered separately by each package's
                     // static initializer (see ImageCacheHandler.cpp pattern).
                     // We do not call assetEditor->GetCategory() because adding
@@ -685,20 +686,15 @@ void RegisterEngineEditors()
                     // Wire compile callback to editor's Compile method
                     if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
                     {
-                        handler.compile = [assetEditor](const nlohmann::json& data,
-                                                        std::vector<uint8_t>& rgba,
+                        handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba,
                                                         int& width, int& height) -> bool
-                        {
-                            return assetEditor->Compile(data.dump(), rgba, width, height);
-                        };
+                        { return assetEditor->Compile(data.dump(), rgba, width, height); };
                     }
                     else if (handler.compilesTo == DekiEditor::AssetCompileTarget::Data)
                     {
                         handler.compileToFile = [assetEditor](const nlohmann::json& data,
                                                               const std::string& cachePath) -> bool
-                        {
-                            return assetEditor->CompileToFile(data.dump(), cachePath);
-                        };
+                        { return assetEditor->CompileToFile(data.dump(), cachePath); };
                     }
 
                     DekiEditor::AssetTypeRegistry::Instance().Register(handler);
@@ -719,7 +715,9 @@ void RegisterEngineEditors()
         {
             DekiEditor::EditorExtension* editor = DekiEngine_GetEditor(i);
             if (!editor)
+            {
                 continue;
+            }
 
             switch (editor->GetEditorType())
             {
@@ -743,9 +741,10 @@ void RegisterEngineEditors()
 
                     // Map compile target: 0=Texture, 1=Audio, 2=Data
                     int target = assetEditor->GetCompileTarget();
-                    handler.compilesTo = (target == 0) ? DekiEditor::AssetCompileTarget::Texture : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
-                                                                                               : (target == 2)   ? DekiEditor::AssetCompileTarget::Data
-                                                                                                                 : DekiEditor::AssetCompileTarget::None;
+                    handler.compilesTo = (target == 0)   ? DekiEditor::AssetCompileTarget::Texture
+                                         : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
+                                         : (target == 2) ? DekiEditor::AssetCompileTarget::Data
+                                                         : DekiEditor::AssetCompileTarget::None;
                     // Asset category is registered separately by each package's
                     // static initializer (see ImageCacheHandler.cpp pattern).
                     // We do not call assetEditor->GetCategory() because adding
@@ -755,20 +754,15 @@ void RegisterEngineEditors()
                     // Wire compile callback to editor's Compile method
                     if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
                     {
-                        handler.compile = [assetEditor](const nlohmann::json& data,
-                                                        std::vector<uint8_t>& rgba,
+                        handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba,
                                                         int& width, int& height) -> bool
-                        {
-                            return assetEditor->Compile(data.dump(), rgba, width, height);
-                        };
+                        { return assetEditor->Compile(data.dump(), rgba, width, height); };
                     }
                     else if (handler.compilesTo == DekiEditor::AssetCompileTarget::Data)
                     {
                         handler.compileToFile = [assetEditor](const nlohmann::json& data,
                                                               const std::string& cachePath) -> bool
-                        {
-                            return assetEditor->CompileToFile(data.dump(), cachePath);
-                        };
+                        { return assetEditor->CompileToFile(data.dump(), cachePath); };
                     }
 
                     DekiEditor::AssetTypeRegistry::Instance().Register(handler);

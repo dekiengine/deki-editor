@@ -35,14 +35,18 @@ static std::string ProjectFolderName(const std::string& projectPath)
     std::error_code ec;
     fs::path resolved = fs::weakly_canonical(fs::path(projectPath), ec);
     if (ec || resolved.empty())
+    {
         resolved = fs::absolute(fs::path(projectPath), ec);
+    }
     resolved = resolved.lexically_normal();
 
     // lexically_normal leaves a trailing separator on "a/b/", whose filename()
     // is empty; the directory itself is then the parent path.
     std::string name = resolved.filename().string();
     if (name.empty())
+    {
         name = resolved.parent_path().filename().string();
+    }
     return name;
 }
 
@@ -55,27 +59,38 @@ static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePane
 {
     namespace fs = std::filesystem;
     if (!console)
+    {
         return;
+    }
     std::error_code ec;
     const fs::path packagesDir = fs::path(GetPackagesDirectory(projectPath));
     for (const auto& entry : fs::directory_iterator(packagesDir, ec))
     {
         if (!entry.is_directory(ec))
+        {
             continue;
+        }
         const fs::path cmakePath = entry.path() / "package.cmake";
         const fs::path jsonPath = entry.path() / "package.json";
         if (!fs::exists(cmakePath, ec) || !fs::exists(jsonPath, ec))
+        {
             continue;
+        }
 
         std::ifstream cmakeFile(cmakePath);
         std::string cmakeText((std::istreambuf_iterator<char>(cmakeFile)), std::istreambuf_iterator<char>());
         const size_t at = cmakeText.find("PACKAGE_LINK_DEPS");
         if (at == std::string::npos)
+        {
             continue;
+        }
         const size_t close = cmakeText.find(')', at);
         if (close == std::string::npos)
+        {
             continue;
-        std::istringstream deps(cmakeText.substr(at + strlen("PACKAGE_LINK_DEPS"), close - at - strlen("PACKAGE_LINK_DEPS")));
+        }
+        std::istringstream deps(
+            cmakeText.substr(at + strlen("PACKAGE_LINK_DEPS"), close - at - strlen("PACKAGE_LINK_DEPS")));
 
         // Not `requires`: a keyword since C++20.
         std::vector<std::string> declaredRequires;
@@ -84,14 +99,26 @@ static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePane
             std::ifstream jsonFile(jsonPath);
             nlohmann::json j = nlohmann::json::parse(jsonFile, nullptr, true, true);
             for (const auto& r : j.value("requires", nlohmann::json::array()))
+            {
                 if (r.is_string())
+                {
                     declaredRequires.push_back(r.get<std::string>());
+                }
+            }
             // A feature's own requires count too: linked only when installed.
             for (const auto& f : j.value("features", nlohmann::json::array()))
+            {
                 if (f.is_object())
+                {
                     for (const auto& r : f.value("requires", nlohmann::json::array()))
+                    {
                         if (r.is_string())
+                        {
                             declaredRequires.push_back(r.get<std::string>());
+                        }
+                    }
+                }
+            }
         }
         catch (const std::exception&)
         {
@@ -103,7 +130,9 @@ static void WarnOnUndeclaredLinkDeps(const std::string& projectPath, ConsolePane
         {
             // Engine/editor libraries are provided by the editor, not by a package.
             if (dep.rfind("deki-", 0) != 0 || dep == "deki-editor" || dep == "deki-engine-core")
+            {
                 continue;
+            }
             if (std::find(declaredRequires.begin(), declaredRequires.end(), dep) == declaredRequires.end())
             {
                 console->LogWarning("Package '" + entry.path().filename().string() + "' links '" + dep +
@@ -218,7 +247,8 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "if(NOT EXISTS \"${DEKI_DEPS_DIR}/imgui-src/imgui.h\")\n";
     file << "    message(FATAL_ERROR\n";
     file << "        \"DEKI_DEPS_DIR (${DEKI_DEPS_DIR}) does not contain imgui-src/imgui.h.\\n\"\n";
-    file << "        \"It must be the editor build's FetchContent directory (FETCHCONTENT_BASE_DIR in its CMakeCache.txt); \"\n";
+    file << "        \"It must be the editor build's FetchContent directory (FETCHCONTENT_BASE_DIR in its "
+            "CMakeCache.txt); \"\n";
     file << "        \"the editor passes it as -DDEKI_DEPS_DIR on every configure.\")\n";
     file << "endif()\n\n";
 
@@ -237,7 +267,8 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "        find_program(DEKI_GXX16 NAMES g++-16 g++)\n";
     file << "    endif()\n";
     file << "    if(NOT DEKI_GXX16)\n";
-    file << "        message(FATAL_ERROR \"Deki reflection codegen needs GCC 16.1+; pass -DDEKI_GXX16=<path to g++>\")\n";
+    file << "        message(FATAL_ERROR \"Deki reflection codegen needs GCC 16.1+; pass -DDEKI_GXX16=<path to "
+            "g++>\")\n";
     file << "    endif()\n";
     file << "endif()\n\n";
 
@@ -523,7 +554,8 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "        PACKAGE_OUTDIRS ${_RC_PKG_OUTDIRS}\n";
     file << "        GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "        INCLUDE_DIRS ${_RC_INCS}\n";
-    file << "        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n";
+    file << "        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D "
+            "DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n";
     file << "endif()\n\n";
 
     file << "foreach(PACKAGE_CMAKE ${PACKAGE_CMAKE_FILES})\n";
@@ -738,7 +770,8 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    PACKAGE_OUTDIRS \"${GENERATED_DIR}\"\n";
     file << "    GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "    INCLUDE_DIRS ${_RC_INCS}\n";
-    file << "    DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n\n";
+    file << "    DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D "
+            "DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n\n";
 
     // Game sources
     file << "# Game component sources\n";
@@ -950,8 +983,7 @@ bool BuildFileGenerator::GeneratePluginExports(const std::string& projectPath, C
     if (fs::exists(pluginPath))
     {
         std::ifstream existingFile(pluginPath);
-        std::string existingContent((std::istreambuf_iterator<char>(existingFile)),
-                                    std::istreambuf_iterator<char>());
+        std::string existingContent((std::istreambuf_iterator<char>(existingFile)), std::istreambuf_iterator<char>());
 
         if (existingContent == newContentStr)
         {
@@ -973,7 +1005,9 @@ bool BuildFileGenerator::GeneratePluginExports(const std::string& projectPath, C
 
     DEKI_LOG_EDITOR("HotReloadService: Updated PluginExports.cpp");
     if (console)
+    {
         console->LogEditor("Updated PluginExports.cpp");
+    }
 
     return true;
 }

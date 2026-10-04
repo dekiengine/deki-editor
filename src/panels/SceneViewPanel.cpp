@@ -50,7 +50,9 @@ static int GetSortingOrder(Deki::Object* obj)
 {
     Deki::ISortableProvider* sortable = obj->FindInterface<Deki::ISortableProvider>();
     if (sortable)
+    {
         return sortable->GetSortingOrder();
+    }
     return 0;
 }
 
@@ -82,15 +84,19 @@ float GridLineAlpha(double spacing, float minSpacing)
 // coarsened by 4 until they are at least `minSpacing` apart, so there are a
 // few hundred at most at any zoom. Each is snapped to a pixel centre so it
 // stays a crisp single pixel instead of smearing over two faint ones.
-void DrawGridAxis(ImDrawList* dl, bool vertical, double origin, double cell,
-                  float lo, float hi, float spanLo, float spanHi, float minSpacing)
+void DrawGridAxis(ImDrawList* dl, bool vertical, double origin, double cell, float lo, float hi, float spanLo,
+                  float spanHi, float minSpacing)
 {
     if (cell <= 0.0)
+    {
         return;
+    }
     double base = cell;
     int guard = 0;
     while (base < minSpacing && guard++ < 32)
+    {
         base *= 4.0;
+    }
 
     const long long first = static_cast<long long>(std::ceil((lo - origin) / base));
     const long long last = static_cast<long long>(std::floor((hi - origin) / base));
@@ -106,29 +112,39 @@ void DrawGridAxis(ImDrawList* dl, bool vertical, double origin, double cell,
             spacing *= 4.0;
         }
         if (j == 0)
+        {
             spacing = 1e9;
+        }
 
         const float alpha = GridLineAlpha(spacing, minSpacing);
         if (alpha < 1.0f)
+        {
             continue;
+        }
         const ImU32 col = IM_COL32(255, 255, 255, static_cast<int>(alpha + 0.5f));
         const float p = std::floor(static_cast<float>(origin + static_cast<double>(i) * base)) + 0.5f;
         if (vertical)
+        {
             dl->AddLine(ImVec2(p, spanLo), ImVec2(p, spanHi), col);
+        }
         else
+        {
             dl->AddLine(ImVec2(spanLo, p), ImVec2(spanHi, p), col);
+        }
     }
 }
 
 // Pixel grid: one line per world pixel, fading in between 2.5x and 4x (the
 // maximum zoom, where it used to switch on at full strength) instead of
 // appearing all at once.
-void DrawPixelGridAxis(ImDrawList* dl, bool vertical, double origin, float pixelSize,
-                       float lo, float hi, float spanLo, float spanHi)
+void DrawPixelGridAxis(ImDrawList* dl, bool vertical, double origin, float pixelSize, float lo, float hi, float spanLo,
+                       float spanHi)
 {
     const float alpha = 20.0f * Saturate((pixelSize - 2.5f) / 1.5f);
     if (alpha < 1.0f)
+    {
         return;
+    }
     const ImU32 col = IM_COL32(255, 255, 255, static_cast<int>(alpha + 0.5f));
     const long long first = static_cast<long long>(std::ceil((lo - origin) / pixelSize));
     const long long last = static_cast<long long>(std::floor((hi - origin) / pixelSize));
@@ -136,9 +152,13 @@ void DrawPixelGridAxis(ImDrawList* dl, bool vertical, double origin, float pixel
     {
         const float p = std::floor(static_cast<float>(origin + static_cast<double>(i) * pixelSize)) + 0.5f;
         if (vertical)
+        {
             dl->AddLine(ImVec2(p, spanLo), ImVec2(p, spanHi), col);
+        }
         else
+        {
             dl->AddLine(ImVec2(spanLo, p), ImVec2(spanHi, p), col);
+        }
     }
 }
 }  // namespace
@@ -193,13 +213,17 @@ void SceneViewPanel::UpdateCustomEditors()
 {
     auto* scene = m_App->GetCurrentScene();
     if (scene)
+    {
         m_Measurer->UpdateEditors(scene);
+    }
 }
 
 void SceneViewPanel::SetCurrentTool(SceneTool tool)
 {
     if (m_Toolbar)
+    {
         m_Toolbar->SetCurrentTool(tool);
+    }
 }
 
 void SceneViewPanel::InvalidateTexture(const std::string& assetRef)
@@ -211,12 +235,17 @@ void SceneViewPanel::InvalidateAllAssets()
 {
     auto* scene = m_App->GetCurrentScene();
     if (!scene)
+    {
         return;
+    }
 
     // Recursively unload assets from all objects in the scene
     std::function<void(Deki::Object*)> unloadRecursive = [&](Deki::Object* obj)
     {
-        if (!obj) return;
+        if (!obj)
+        {
+            return;
+        }
 
         // Unload assets from all components and reset resolution state
         for (Deki::Component* comp : obj->GetComponents())
@@ -246,20 +275,24 @@ void SceneViewPanel::RefreshSceneCameraCache()
     // Play mode spawns objects outside the command history, so it is not
     // cached: the walk runs every frame there, as it always did.
     if (scene == m_SceneCamScene && gen == m_SceneCamGeneration && !m_App->IsPlaying())
+    {
         return;
+    }
 
     m_SceneCamScene = scene;
     m_SceneCamGeneration = gen;
     m_SceneCam = nullptr;
     m_SceneCamObject = nullptr;
     if (!scene)
+    {
         return;
+    }
 
     // Search recursively through all objects via ICamera interface
     for (Deki::Object* obj : scene->GetObjects())
     {
-        Deki::Object* holder = FindInSubtree(obj, [](Deki::Object* o)
-                                           { return o->FindInterface<Deki::ICamera>() != nullptr; });
+        Deki::Object* holder =
+            FindInSubtree(obj, [](Deki::Object* o) { return o->FindInterface<Deki::ICamera>() != nullptr; });
         if (holder)
         {
             m_SceneCamObject = holder;
@@ -284,9 +317,13 @@ Deki::Object* SceneViewPanel::GetSceneCameraObject()
 void SceneViewPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
-    bool visible = ImGui::Begin("SCENE VIEW###Scene View", &m_Open, DekiEditor::MaximizedWindowFlags("SCENE VIEW###Scene View") | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    bool visible = ImGui::Begin("SCENE VIEW###Scene View", &m_Open,
+                                DekiEditor::MaximizedWindowFlags("SCENE VIEW###Scene View") |
+                                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     if (!visible)
     {
@@ -318,11 +355,17 @@ void SceneViewPanel::HandleInput()
     if (isCanvasHovered && !io.WantTextInput)
     {
         if (ImGui::IsKeyPressed(ImGuiKey_Q))
+        {
             m_Toolbar->SetCurrentTool(SceneTool::Select);
+        }
         else if (ImGui::IsKeyPressed(ImGuiKey_W))
+        {
             m_Toolbar->SetCurrentTool(SceneTool::Move);
+        }
         else if (ImGui::IsKeyPressed(ImGuiKey_R))
+        {
             m_Toolbar->SetCurrentTool(SceneTool::Rect);
+        }
     }
 
     // Delete key. Goes through EditorApp::DeleteObject so the protection rules
@@ -330,13 +373,14 @@ void SceneViewPanel::HandleInput()
     // the Hierarchy - this path used to have none.
     Deki::Object* selected = m_App->GetSelectedObject();
     if (selected && isCanvasHovered && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Delete))
+    {
         m_App->DeleteObjects(m_App->GetSelectedObjects());
+    }
 
     // Panning with Alt+Left, Middle or Right mouse
     bool startPan = isCanvasHovered &&
                     ((ImGui::IsMouseClicked(ImGuiMouseButton_Left) && io.KeyAlt) ||
-                     ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
-                     ImGui::IsMouseClicked(ImGuiMouseButton_Right));
+                     ImGui::IsMouseClicked(ImGuiMouseButton_Middle) || ImGui::IsMouseClicked(ImGuiMouseButton_Right));
 
     if (startPan)
     {
@@ -371,8 +415,7 @@ void SceneViewPanel::HandleInput()
         // Scale by wheel delta so high-precision wheels/trackpads don't rocket
         // through the zoom range. Ctrl is the precision modifier (smaller step).
         float zoomBase = io.KeyCtrl ? 1.03f : 1.10f;
-        m_ZoomTarget = std::clamp(m_ZoomTarget * std::pow(zoomBase, io.MouseWheel),
-                                  SceneViewConstants::MinZoom,
+        m_ZoomTarget = std::clamp(m_ZoomTarget * std::pow(zoomBase, io.MouseWheel), SceneViewConstants::MinZoom,
                                   SceneViewConstants::MaxZoom);
         DekiEditor::Motion::Set(zoomKey, m_Zoom);  // continue from where it is
     }
@@ -390,16 +433,15 @@ void SceneViewPanel::HandleInput()
         // from before the gesture, which is the view the old midpoint was in.
         const ImVec2 before(touch.center.x - touch.pan.x, touch.center.y - touch.pan.y);
         const ImVec2 world = m_Coords->ScreenToWorld(before.x, before.y);
-        m_Zoom = m_ZoomTarget = std::clamp(m_Zoom * touch.scale, SceneViewConstants::MinZoom,
-                                           SceneViewConstants::MaxZoom);
+        m_Zoom = m_ZoomTarget =
+            std::clamp(m_Zoom * touch.scale, SceneViewConstants::MinZoom, SceneViewConstants::MaxZoom);
         DekiEditor::Motion::Set(zoomKey, m_Zoom);
         KeepWorldPointAt(world, touch.center);
     }
 
     if (m_Zoom != m_ZoomTarget)
     {
-        m_Zoom = DekiEditor::Motion::Follow(zoomKey, m_ZoomTarget, DekiEditor::Motion::Normal,
-                                            m_ZoomTarget * 0.001f);
+        m_Zoom = DekiEditor::Motion::Follow(zoomKey, m_ZoomTarget, DekiEditor::Motion::Normal, m_ZoomTarget * 0.001f);
         KeepWorldPointAt(m_ZoomAnchorWorld, m_ZoomAnchorScreen);
     }
 }
@@ -436,7 +478,9 @@ void SceneViewPanel::DrawSceneCanvas()
 {
     auto* scene = m_App->GetCurrentScene();
     if (!scene)
+    {
         return;
+    }
 
     // Detect scene change and trigger centering
     if (m_LastScene != scene)
@@ -448,7 +492,9 @@ void SceneViewPanel::DrawSceneCanvas()
 
     ImVec2 availSize = ImGui::GetContentRegionAvail();
     if (availSize.x <= 0 || availSize.y <= 0)
+    {
         return;
+    }
 
     m_CanvasTopLeft = ImGui::GetCursorScreenPos();
     m_CanvasSize = availSize;
@@ -505,7 +551,9 @@ void SceneViewPanel::DrawSceneCanvas()
     // open) would dereference an unmapped vtable. Bail out - the next frame
     // re-enters once the rendering package is registered.
     if (!Deki::ComponentRegistry::Instance().GetMetaByClassName("CameraComponent"))
+    {
         return;
+    }
 
     Deki::ICamera* sceneCam = GetSceneCamera();
     // Must match HandleInput's zoom-to-cursor math, or ScreenToWorld and the
@@ -545,7 +593,8 @@ void SceneViewPanel::DrawSceneCanvas()
     ImGuiIO& io = ImGui::GetIO();
     const std::vector<Deki::Object*>& rootObjects = scene->GetObjects();
     const uint64_t curGen = CommandHistory::Instance().GetGeneration();
-    const bool flatStale = (m_CachedFlatScene != scene) || (m_CachedFlatRootCount != rootObjects.size()) || (m_CachedFlatGeneration != curGen) || m_IsDragging || m_Gizmos->IsDraggingResize();
+    const bool flatStale = (m_CachedFlatScene != scene) || (m_CachedFlatRootCount != rootObjects.size()) ||
+                           (m_CachedFlatGeneration != curGen) || m_IsDragging || m_Gizmos->IsDraggingResize();
     if (flatStale)
     {
         m_CachedFlatObjects.clear();
@@ -553,15 +602,16 @@ void SceneViewPanel::DrawSceneCanvas()
         {
             m_CachedFlatObjects.push_back(obj);
             for (Deki::Object* child : obj->GetChildren())
+            {
                 collectObjects(child);
+            }
         };
         for (Deki::Object* obj : rootObjects)
+        {
             collectObjects(obj);
+        }
         std::sort(m_CachedFlatObjects.begin(), m_CachedFlatObjects.end(),
-                  [](Deki::Object* a, Deki::Object* b)
-                  {
-                      return GetSortingOrder(a) < GetSortingOrder(b);
-                  });
+                  [](Deki::Object* a, Deki::Object* b) { return GetSortingOrder(a) < GetSortingOrder(b); });
         m_CachedFlatScene = scene;
         m_CachedFlatRootCount = rootObjects.size();
         m_CachedFlatGeneration = curGen;
@@ -580,9 +630,15 @@ void SceneViewPanel::DrawSceneCanvas()
         std::vector<SnapTarget> targets;
         for (Deki::Object* obj : allObjects)
         {
-            if (obj == exclude) continue;
+            if (obj == exclude)
+            {
+                continue;
+            }
             float w = 0.0f, h = 0.0f;
-            if (!m_Measurer->GetDisplaySize(obj, w, h)) continue;
+            if (!m_Measurer->GetDisplaySize(obj, w, h))
+            {
+                continue;
+            }
             float ox = obj->GetWorldX();
             float oy = obj->GetWorldY();
             float hw = w * obj->GetWorldScaleX() * 0.5f * invPPM;
@@ -610,7 +666,9 @@ void SceneViewPanel::DrawSceneCanvas()
     if (selected && isCanvasHovered && !m_IsDragging && m_Toolbar->GetCurrentTool() == SceneTool::Move)
     {
         if (hoverNeedsUpdate)
+        {
             m_Gizmos->UpdateTranslateHover(selected, ImGui::GetMousePos());
+        }
     }
     else if (m_Toolbar->GetCurrentTool() != SceneTool::Move)
     {
@@ -618,10 +676,13 @@ void SceneViewPanel::DrawSceneCanvas()
     }
 
     // Update resize gizmo hover state
-    if (selected && isCanvasHovered && !m_IsDragging && !m_Gizmos->IsDraggingResize() && m_Toolbar->GetCurrentTool() == SceneTool::Rect)
+    if (selected && isCanvasHovered && !m_IsDragging && !m_Gizmos->IsDraggingResize() &&
+        m_Toolbar->GetCurrentTool() == SceneTool::Rect)
     {
         if (hoverNeedsUpdate)
+        {
             m_Gizmos->UpdateResizeHover(selected);
+        }
     }
     else if (m_Toolbar->GetCurrentTool() != SceneTool::Rect)
     {
@@ -651,7 +712,9 @@ void SceneViewPanel::DrawSceneCanvas()
             {
                 const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
                 if (!meta)
+                {
                     continue;
+                }
 
                 float* widthPtr = nullptr;
                 float* heightPtr = nullptr;
@@ -665,14 +728,17 @@ void SceneViewPanel::DrawSceneCanvas()
                     if ((startW <= 0.0f || startH <= 0.0f) && m_Measurer->GetDisplaySize(selected, drawnW, drawnH))
                     {
                         const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
-                        if (startW <= 0.0f && ppm > 0.0f) startW = drawnW / ppm;
-                        if (startH <= 0.0f && ppm > 0.0f) startH = drawnH / ppm;
+                        if (startW <= 0.0f && ppm > 0.0f)
+                        {
+                            startW = drawnW / ppm;
+                        }
+                        if (startH <= 0.0f && ppm > 0.0f)
+                        {
+                            startH = drawnH / ppm;
+                        }
                     }
-                    m_Gizmos->StartResizeDrag(m_Gizmos->GetHoveredEdge(),
-                                              startW, startH,
-                                              mousePos.x, mousePos.y,
-                                              selected->GetWorldX(), selected->GetWorldY(),
-                                              *widthPtr, *heightPtr);
+                    m_Gizmos->StartResizeDrag(m_Gizmos->GetHoveredEdge(), startW, startH, mousePos.x, mousePos.y,
+                                              selected->GetWorldX(), selected->GetWorldY(), *widthPtr, *heightPtr);
                     break;
                 }
             }
@@ -725,9 +791,13 @@ void SceneViewPanel::DrawSceneCanvas()
                 Deki::Object* clicked = m_Selection->HandleClick(allObjects, m_MarqueeAdditive ? nullptr : selected,
                                                                  at.x, at.y, projectPPM);
                 if (clicked && m_MarqueeAdditive)
+                {
                     m_App->ToggleSelection(clicked);
+                }
                 else if (!m_MarqueeAdditive)
+                {
                     m_App->SetSelectedObject(clicked);
+                }
             }
             m_MarqueePending = m_MarqueeActive = false;
             m_MarqueeBase.clear();
@@ -735,17 +805,25 @@ void SceneViewPanel::DrawSceneCanvas()
         else
         {
             if (!m_MarqueeActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, -1.0f))
+            {
                 m_MarqueeActive = true;
+            }
             if (m_MarqueeActive && (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f || flatStale))
             {
                 const ImVec2 a = m_Coords->ScreenToWorld(m_MarqueeStart.x, m_MarqueeStart.y);
                 const ImVec2 b = m_Coords->ScreenToWorld(io.MousePos.x, io.MousePos.y);
                 std::vector<Deki::Object*> next = m_MarqueeBase;
                 for (Deki::Object* obj : m_Selection->ObjectsInRect(allObjects, a.x, a.y, b.x, b.y, projectPPM))
+                {
                     if (std::find(next.begin(), next.end(), obj) == next.end())
+                    {
                         next.push_back(obj);
+                    }
+                }
                 if (next != m_App->GetSelectedObjects())
+                {
                     m_App->SetSelectedObjects(next);
+                }
             }
         }
     }
@@ -824,13 +902,10 @@ void SceneViewPanel::DrawSceneCanvas()
             {
                 float objW = 0.0f, objH = 0.0f;
                 m_Measurer->GetDisplaySize(selected, objW, objH);
-                m_Snapping->SetDeviceBounds(
-                    static_cast<float>(screenW) * invPPM,
-                    static_cast<float>(screenH) * invPPM);
+                m_Snapping->SetDeviceBounds(static_cast<float>(screenW) * invPPM, static_cast<float>(screenH) * invPPM);
                 m_Snapping->SetSnapThreshold(4.0f * invPPM);
                 m_Snapping->SetObjectTargets(buildObjectSnapTargets(selected));
-                m_Snapping->CalculateSnap(newWorldX, newWorldY,
-                                          objW * selected->GetWorldScaleX() * invPPM,
+                m_Snapping->CalculateSnap(newWorldX, newWorldY, objW * selected->GetWorldScaleX() * invPPM,
                                           objH * selected->GetWorldScaleY() * invPPM);
             }
             else
@@ -852,7 +927,8 @@ void SceneViewPanel::DrawSceneCanvas()
 
             if (selected)
             {
-                bool posChanged = (selected->GetWorldX() != m_DragStartObjX || selected->GetWorldY() != m_DragStartObjY);
+                bool posChanged =
+                    (selected->GetWorldX() != m_DragStartObjX || selected->GetWorldY() != m_DragStartObjY);
                 if (posChanged)
                 {
                     float finalLocalX = selected->GetX();
@@ -896,8 +972,7 @@ void SceneViewPanel::DrawSceneCanvas()
         ImVec2 devTopLeft = m_Coords->WorldToScreen(-halfDevW, halfDevH);
         ImVec2 devBottomRight = m_Coords->WorldToScreen(halfDevW, -halfDevH);
 
-        drawList->AddRectFilled(devTopLeft, devBottomRight,
-                                IM_COL32(clearR, clearG, clearB, 255));
+        drawList->AddRectFilled(devTopLeft, devBottomRight, IM_COL32(clearR, clearG, clearB, 255));
 
         ImU32 overlayColor = IM_COL32(0, 0, 0, 150);
 
@@ -905,16 +980,24 @@ void SceneViewPanel::DrawSceneCanvas()
         const float cL = m_CanvasTopLeft.x, cT = m_CanvasTopLeft.y;
         const float cR = cL + m_CanvasSize.x, cB = cT + m_CanvasSize.y;
         if (devTopLeft.y > cT)
+        {
             drawList->AddRectFilled(ImVec2(cL, cT), ImVec2(cR, devTopLeft.y), overlayColor);
+        }
         if (devBottomRight.y < cB)
+        {
             drawList->AddRectFilled(ImVec2(cL, devBottomRight.y), ImVec2(cR, cB), overlayColor);
+        }
 
         float overlayTop = (std::max)(cT, devTopLeft.y);
         float overlayBottom = (std::min)(cB, devBottomRight.y);
         if (devTopLeft.x > cL)
+        {
             drawList->AddRectFilled(ImVec2(cL, overlayTop), ImVec2(devTopLeft.x, overlayBottom), overlayColor);
+        }
         if (devBottomRight.x < cR)
+        {
             drawList->AddRectFilled(ImVec2(devBottomRight.x, overlayTop), ImVec2(cR, overlayBottom), overlayColor);
+        }
 
         // Device bounds in the theme accent rather than a hardcoded orange, so
         // the overlay belongs to the same palette as the rest of the editor.
@@ -937,7 +1020,9 @@ void SceneViewPanel::DrawSceneCanvas()
     // is idempotent - only loads unloaded assets.
     const bool playing = m_App->IsPlaying();
     if (!playing)
+    {
         m_EditModeLifecycle->ProcessInternalAwake(scene);
+    }
 
     // Calculate render buffer size to cover the full canvas area (not just
     // device bounds). Forced even so the camera's center (bufferWidth * 0.5)
@@ -947,10 +1032,22 @@ void SceneViewPanel::DrawSceneCanvas()
     // (visible as clear-color stripes at tile joins).
     int renderWidth = static_cast<int>(std::ceil(m_CanvasSize.x / effectiveZoom)) + 2;
     int renderHeight = static_cast<int>(std::ceil(m_CanvasSize.y / effectiveZoom)) + 2;
-    if (renderWidth & 1) ++renderWidth;
-    if (renderHeight & 1) ++renderHeight;
-    if (renderWidth < 2) renderWidth = 2;
-    if (renderHeight < 2) renderHeight = 2;
+    if (renderWidth & 1)
+    {
+        ++renderWidth;
+    }
+    if (renderHeight & 1)
+    {
+        ++renderHeight;
+    }
+    if (renderWidth < 2)
+    {
+        renderWidth = 2;
+    }
+    if (renderHeight < 2)
+    {
+        renderHeight = 2;
+    }
 
     // Position camera at the world location corresponding to canvas center
     // This ensures the buffer always contains what's visible, allowing objects
@@ -960,9 +1057,7 @@ void SceneViewPanel::DrawSceneCanvas()
     float canvasCenterY = m_CanvasSize.y * 0.5f;
     float deviceCenterX = m_PanOffsetX + sceneWidth * 0.5f;
     float deviceCenterY = m_PanOffsetY + sceneHeight * 0.5f;
-    const float canvasToWorld = (effectiveZoom * projectPPM > 0.0f)
-                                    ? (1.0f / (effectiveZoom * projectPPM))
-                                    : 0.0f;
+    const float canvasToWorld = (effectiveZoom * projectPPM > 0.0f) ? (1.0f / (effectiveZoom * projectPPM)) : 0.0f;
 
     // World position at canvas center (Y inverted for screen-to-world)
     float camWorldX = (canvasCenterX - deviceCenterX) * canvasToWorld;
@@ -975,7 +1070,10 @@ void SceneViewPanel::DrawSceneCanvas()
     {
         Deki::Internal::AddComponentByName(*m_EditorCameraObject, "CameraComponent");
         m_EditorCamera = m_EditorCameraObject->FindInterface<Deki::ICamera>();
-        if (!m_EditorCamera) return;
+        if (!m_EditorCamera)
+        {
+            return;
+        }
     }
 
     // Snap the editor camera to whole buffer-pixel boundaries (1/projectPPM
@@ -997,20 +1095,26 @@ void SceneViewPanel::DrawSceneCanvas()
     m_EditorCamera->SetClearColor(clearR, clearG, clearB);
 
     if (m_IsDragging || m_Gizmos->IsDraggingResize())
+    {
         s_EditingObjectsFrame = ImGui::GetFrameCount();
+    }
 
     // Where this frame's buffer sits on the canvas. Gizmos always use it, so
     // they follow the view exactly even while the picture is not re-rendered.
     ImVec2 bufferCanvasTopLeft, bufferCanvasBottomRight;
-    m_Coords->GetBufferScreenBounds(renderWidth, renderHeight, camRenderX, camRenderY,
-                                    bufferCanvasTopLeft, bufferCanvasBottomRight);
+    m_Coords->GetBufferScreenBounds(renderWidth, renderHeight, camRenderX, camRenderY, bufferCanvasTopLeft,
+                                    bufferCanvasBottomRight);
 
     // Edit-mode render dirty flags: only call RenderScene when something
     // visible to the buffer actually changed since last render. What the scene
     // shows changing always renders. Drag-active is included because drags
     // mutate the selected object's world position every frame outside the
     // command system.
-    const bool contentChanged = !m_EditRenderHasRendered || m_LastEditRenderedScene != scene || m_LastEditRenderClearR != clearR || m_LastEditRenderClearG != clearG || m_LastEditRenderClearB != clearB || m_LastEditRenderGeneration != curGen || m_IsDragging || m_Gizmos->IsDraggingResize()
+    const bool contentChanged = !m_EditRenderHasRendered || m_LastEditRenderedScene != scene ||
+                                m_LastEditRenderClearR != clearR || m_LastEditRenderClearG != clearG ||
+                                m_LastEditRenderClearB != clearB || m_LastEditRenderGeneration != curGen ||
+                                m_IsDragging ||
+                                m_Gizmos->IsDraggingResize()
                                 // Inspector live-edits (transform fields + reflection-based property
                                 // widgets) mutate object state every frame without pushing a command,
                                 // so the generation counter stays put. Forcing a re-render while any
@@ -1036,13 +1140,15 @@ void SceneViewPanel::DrawSceneCanvas()
     const bool viewMoving = m_Zoom != m_ZoomTarget || m_IsPanning;
     const double now = ImGui::GetTime();
     const bool refreshDue = (now - m_LastEditRenderTime) >= 4.0 * m_LastEditRenderCost;
-    const bool viewWaits = viewChanged && !contentChanged && viewMoving && !refreshDue &&
-                           m_EditModeRenderer->IsInitialized();
+    const bool viewWaits =
+        viewChanged && !contentChanged && viewMoving && !refreshDue && m_EditModeRenderer->IsInitialized();
 
     if ((contentChanged || viewChanged) && !viewWaits)
     {
         if (bufferResized)
+        {
             m_EditModeRenderer->Initialize(renderWidth, renderHeight);
+        }
         const auto renderStart = std::chrono::steady_clock::now();
         // Zoomed out, the renderer uploads a screen-size copy (same pixels);
         // see EditModeRenderer::RenderScene.
@@ -1089,11 +1195,17 @@ void SceneViewPanel::DrawSceneCanvas()
         // ImGui's GL backend binds a GL_LINEAR sampler object that overrides the texture's
         // own GL_NEAREST params, blurring the scene when zoomed. Unbind the sampler for
         // this draw so the texture's nearest-neighbor filtering takes effect.
-        drawList->AddCallback([](const ImDrawList*, const ImDrawCmd*)
-                              {
-            typedef void (APIENTRY *PFN_glBindSampler)(GLuint unit, GLuint sampler);
-            static auto fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
-            if (fn) fn(0, 0); }, nullptr);
+        drawList->AddCallback(
+            [](const ImDrawList*, const ImDrawCmd*)
+            {
+                typedef void(APIENTRY * PFN_glBindSampler)(GLuint unit, GLuint sampler);
+                static auto fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
+                if (fn)
+                {
+                    fn(0, 0);
+                }
+            },
+            nullptr);
         drawList->AddImage((ImTextureID)(intptr_t)texId, lastTopLeft, lastBottomRight, ImVec2(0, 0),
                            ImVec2(m_EditModeRenderer->GetTextureU(), m_EditModeRenderer->GetTextureV()));
         drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
@@ -1137,13 +1249,15 @@ void SceneViewPanel::DrawSceneCanvas()
         // allocation and indirect call per object, every frame.
         auto visit = [&](auto&& self, Deki::Object* obj) -> void
         {
-            if (!obj || !obj->IsActive()) return;
+            if (!obj || !obj->IsActive())
+            {
+                return;
+            }
 
             // Convert world → buffer pixel → canvas screen (matches the same
             // coord chain that DrawComponentOutlines uses).
             float bufX, bufY;
-            m_EditorCamera->WorldToScreen(obj->GetWorldX(), obj->GetWorldY(),
-                                          renderWidth, renderHeight, bufX, bufY);
+            m_EditorCamera->WorldToScreen(obj->GetWorldX(), obj->GetWorldY(), renderWidth, renderHeight, bufX, bufY);
             float screenX = bufferCanvasTopLeft.x + bufX * zoom;
             float screenY = bufferCanvasTopLeft.y + bufY * zoom;
 
@@ -1170,30 +1284,48 @@ void SceneViewPanel::DrawSceneCanvas()
             for (Deki::Component* comp : obj->GetComponents())
             {
                 const Deki::ComponentMeta* meta = compRegistry.GetMeta(comp->GetType());
-                if (!meta || !meta->name) continue;
+                if (!meta || !meta->name)
+                {
+                    continue;
+                }
                 DekiEditor::CustomEditor* ed = editorRegistry.GetEditorForComponent(meta->name, comp);
-                if (!ed) continue;
+                if (!ed)
+                {
+                    continue;
+                }
                 ed->OnDrawGizmos(comp);
                 if (ctx.isSelected)
+                {
                     ed->OnDrawGizmosSelected(comp);
+                }
             }
             view.EndObject();
 
             for (Deki::Object* child : obj->GetChildren())
+            {
                 self(self, child);
+            }
         };
 
         for (Deki::Object* root : scene->GetObjects())
+        {
             visit(visit, root);
+        }
     }
 
     // Bounds around the rest of a multiple selection; the first one gets
     // them, and its tool gizmo, below.
     if (m_Toolbar->ShowGizmos() && m_App->HasMultipleSelected())
+    {
         for (Deki::Object* obj : m_App->GetSelectedObjects())
+        {
             if (obj && obj != selected && obj->IsActive())
+            {
                 m_Gizmos->DrawSelectionBounds(drawList, obj, m_EditorCamera, renderWidth, renderHeight,
                                               bufferCanvasTopLeft);
+            }
+        }
+    }
 
     // Draw gizmos
     if (selected && selected->IsActive())
@@ -1208,27 +1340,24 @@ void SceneViewPanel::DrawSceneCanvas()
         // Update snapping device bounds and object targets for resize.
         // Convert pixel viewport size to world meters so snap targets are
         // comparable with world-space edges computed in HandleResizeDrag.
-        m_Snapping->SetDeviceBounds(
-            static_cast<float>(screenW) * invPPM,
-            static_cast<float>(screenH) * invPPM);
+        m_Snapping->SetDeviceBounds(static_cast<float>(screenW) * invPPM, static_cast<float>(screenH) * invPPM);
         m_Snapping->SetSnapThreshold(4.0f * invPPM);
 
         if (m_Gizmos->IsDraggingResize() && io.KeyCtrl)
+        {
             m_Snapping->SetObjectTargets(buildObjectSnapTargets(selected));
+        }
         else if (!m_IsDragging)
+        {
             m_Snapping->SetObjectTargets({});
+        }
 
         // Draw tool-specific gizmos
         switch (m_Toolbar->GetCurrentTool())
         {
-            case SceneTool::Select:
-                break;
-            case SceneTool::Move:
-                m_Gizmos->DrawTranslateGizmo(drawList, selected);
-                break;
-            case SceneTool::Rect:
-                m_Gizmos->DrawResizeGizmo(drawList, selected, m_Toolbar->RectAnchorEdge());
-                break;
+            case SceneTool::Select: break;
+            case SceneTool::Move: m_Gizmos->DrawTranslateGizmo(drawList, selected); break;
+            case SceneTool::Rect: m_Gizmos->DrawResizeGizmo(drawList, selected, m_Toolbar->RectAnchorEdge()); break;
         }
     }
 

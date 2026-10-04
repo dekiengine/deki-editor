@@ -40,7 +40,6 @@ class PackageManagerPanel : public IPanel
 public:
     const char* Id() const override { return "PackageManager"; }
 
-
     // Put a newly-editable package on a branch: installs check out the pinned
     // TAG, and committing on a detached HEAD loses work.
     void OnMarkedEditable(const PackageEntry& pkg);
@@ -73,9 +72,7 @@ public:
     // `version` empty = the registry's latest. Regenerates CMakeLists.txt and
     // queues a rebuild, exactly as OnInstallClicked does. Blocking: the
     // installer's git clone runs inline.
-    bool InstallPackageById(const std::string& id, const std::string& version,
-                            std::string& outMessage);
-
+    bool InstallPackageById(const std::string& id, const std::string& version, std::string& outMessage);
 
 private:
     void DrawToolbar();

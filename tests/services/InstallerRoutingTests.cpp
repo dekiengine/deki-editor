@@ -25,7 +25,10 @@ namespace
 class StubInstaller : public IPackageInstaller
 {
 public:
-    explicit StubInstaller(std::string id) : m_Id(std::move(id)) {}
+    explicit StubInstaller(std::string id)
+        : m_Id(std::move(id))
+    {
+    }
 
     std::string GetId() const override { return m_Id; }
     std::string GetPlatformName() const override { return "Stub (" + m_Id + ")"; }
@@ -150,29 +153,31 @@ TEST(PackageSourceSpelling, TheEditorsOwnSourcesAndAnInstallersId)
 TEST(InstallerRouting, AnOlderLockStillSaysWhichInstaller)
 {
     TempProject project;
-    project.Write("deki-packages.json",
-                  json{ { "schemaVersion", 1 },
-                        { "packages",
-                          { { "github:someone/widget",
-                              { { "version", "1.0.0" },
-                                { "source", "github" },
-                                { "url", "https://github.com/someone/widget" } } } } } });
-    project.Write("deki-packages-lock.json",
-                  json{ { "lockVersion", 1 },
-                        { "packages",
-                          { { "github:someone/widget",
-                              { { "name", "someone/widget" },
-                                { "installedVersion", "1.0.0" },
-                                { "source", "github" },
-                                { "packageType", "alpha_component" } } } } } });
+    project.Write("deki-packages.json", json{ { "schemaVersion", 1 },
+                                              { "packages",
+                                                { { "github:someone/widget",
+                                                    { { "version", "1.0.0" },
+                                                      { "source", "github" },
+                                                      { "url", "https://github.com/someone/widget" } } } } } });
+    project.Write("deki-packages-lock.json", json{ { "lockVersion", 1 },
+                                                   { "packages",
+                                                     { { "github:someone/widget",
+                                                         { { "name", "someone/widget" },
+                                                           { "installedVersion", "1.0.0" },
+                                                           { "source", "github" },
+                                                           { "packageType", "alpha_component" } } } } } });
 
     PackageManager mgr(nullptr);
     mgr.LoadPackages(project.dir.string());
 
     const PackageEntry* found = nullptr;
     for (const auto& p : mgr.GetPackages())
+    {
         if (p.id == "github:someone/widget")
+        {
             found = &p;
+        }
+    }
     ASSERT_NE(found, nullptr);
     EXPECT_EQ(found->packageType, PackageType::FrameworkComponent);
     EXPECT_EQ(found->installer, "alpha");
@@ -215,14 +220,17 @@ TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)
 TEST(PackageLock, RecordsTheCommitOfEachInstalledVersion)
 {
     TempProject project;
-    project.Write("deki-packages.json",
-                  json{ { "schemaVersion", 1 },
-                        { "packages", { { "deki-here", { { "version", "1.0.0" } } },
-                                        { "deki-away", { { "version", "2.0.0" } } } } } });
+    project.Write("deki-packages.json", json{ { "schemaVersion", 1 },
+                                              { "packages",
+                                                { { "deki-here", { { "version", "1.0.0" } } },
+                                                  { "deki-away", { { "version", "2.0.0" } } } } } });
     project.Write("deki-packages-lock.json",
                   json{ { "lockVersion", 1 },
-                        { "packages", { { "deki-away", { { "name", "deki-away" }, { "installedVersion", "2.0.0" },
-                                                         { "commit", "feedfacefeedfacefeedfacefeedfacefeedface" } } } } } });
+                        { "packages",
+                          { { "deki-away",
+                              { { "name", "deki-away" },
+                                { "installedVersion", "2.0.0" },
+                                { "commit", "feedfacefeedfacefeedfacefeedfacefeedface" } } } } } });
     const fs::path pkg = project.dir / "packages" / "deki-here";
     fs::create_directories(pkg);
     std::ofstream(pkg / "package.json") << R"({"name":"deki-here"})";
@@ -233,11 +241,13 @@ TEST(PackageLock, RecordsTheCommitOfEachInstalledVersion)
     mgr.LoadPackages(project.dir.string());
     // As RefreshInstalledStatus finds it (no installer is registered here).
     for (PackageEntry& p : mgr.GetPackages())
+    {
         if (p.id == "deki-here")
         {
             p.isInstalled = true;
             p.installedVersion = "1.0.0";
         }
+    }
     mgr.SavePackages(project.dir.string());
     const json lock = project.Read("deki-packages-lock.json");
     EXPECT_EQ(lock["packages"]["deki-here"].value("commit", ""), "0123456789abcdef0123456789abcdef01234567");

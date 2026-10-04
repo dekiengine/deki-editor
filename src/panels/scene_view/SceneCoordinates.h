@@ -13,8 +13,7 @@ public:
     SceneCoordinates(EditorApp* app);
 
     // Update viewport parameters (call before using conversions)
-    void SetViewport(ImVec2 canvasTopLeft, ImVec2 canvasSize,
-                     float zoom, float panX, float panY,
+    void SetViewport(ImVec2 canvasTopLeft, ImVec2 canvasSize, float zoom, float panX, float panY,
                      float pixelsPerMeter = 1.0f);
 
     // Convert world coordinates to screen coordinates
@@ -26,8 +25,7 @@ public:
     // Calculate pixel-perfect screen bounds for a buffer centered at a world position.
     // Uses integer division (width/2) to match engine's CameraComponent::WorldToScreen.
     // Returns floored screen coordinates ready for rendering.
-    void GetBufferScreenBounds(int bufferWidth, int bufferHeight,
-                               float centerWorldX, float centerWorldY,
+    void GetBufferScreenBounds(int bufferWidth, int bufferHeight, float centerWorldX, float centerWorldY,
                                ImVec2& outTopLeft, ImVec2& outBottomRight) const;
 
     // Accessors

@@ -50,8 +50,7 @@ struct Ctx
 
 // Mirrors EditorProjectManager::OpenProject's registry setup so headless callers
 // see exactly the same platform set the GUI would.
-bool Prepare(const std::string& projectPath, const std::string& platformId,
-             Ctx& ctx, std::string& err)
+bool Prepare(const std::string& projectPath, const std::string& platformId, Ctx& ctx, std::string& err)
 {
     if (!fs::exists(fs::path(projectPath) / "deki.json"))
     {
@@ -79,7 +78,9 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     // A platform a package only offers becomes the project's own before it is
     // built for: its boot scene path is relative to the project.
     if (!EnsureProjectPlatform(projectPath, ctx.platformId, err))
+    {
         return false;
+    }
 
     ctx.platform = platforms.GetPlatform(ctx.platformId);
     if (!ctx.platform)
@@ -87,11 +88,13 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
         std::string avail;
         for (const auto& id : platforms.GetAvailablePlatforms())
         {
-            if (!avail.empty()) avail += ", ";
+            if (!avail.empty())
+            {
+                avail += ", ";
+            }
             avail += id;
         }
-        err = "Unknown platform '" + ctx.platformId + "'. Available: " +
-              (avail.empty() ? "(none)" : avail);
+        err = "Unknown platform '" + ctx.platformId + "'. Available: " + (avail.empty() ? "(none)" : avail);
         return false;
     }
 
@@ -99,8 +102,8 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     ctx.builder = BuilderRegistry::Instance().GetBuilderForPlatform(*ctx.platform);
     if (!ctx.builder)
     {
-        err = BuilderRegistry::Instance().DescribeMissingBuilder(*ctx.platform) +
-              " (platform '" + ctx.platformId + "')";
+        err =
+            BuilderRegistry::Instance().DescribeMissingBuilder(*ctx.platform) + " (platform '" + ctx.platformId + "')";
         return false;
     }
 
@@ -109,10 +112,11 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     const std::vector<std::string> problems = ctx.builder->ValidatePlatform(*ctx.platform);
     if (!problems.empty())
     {
-        err = "Platform '" + ctx.platformId + "' is not valid for the " +
-              ctx.builder->GetFrameworkId() + " builder:";
+        err = "Platform '" + ctx.platformId + "' is not valid for the " + ctx.builder->GetFrameworkId() + " builder:";
         for (const auto& problem : problems)
+        {
             err += "\n  " + problem;
+        }
         return false;
     }
 
@@ -123,7 +127,9 @@ bool Prepare(const std::string& projectPath, const std::string& platformId,
     // described whatever platform it was last given, or none. Never under a
     // running operation, which reads the platform it was started with.
     if (!ctx.builder->IsBuilding())
+    {
         ctx.builder->SetPlatformConfig(*ctx.platform);
+    }
 
     return true;
 }
@@ -148,10 +154,16 @@ ActiveOp g_Active;
 ITargetBuilder* ActiveBuilder()
 {
     if (!g_Active.builder)
+    {
         return nullptr;
+    }
     for (ITargetBuilder* b : BuilderRegistry::Instance().GetAllBuilders())
+    {
         if (b == g_Active.builder)
+        {
             return b;
+        }
+    }
     g_Active = ActiveOp{};
     return nullptr;
 }
@@ -186,14 +198,23 @@ BuildProgressCallback MakeToolchainProgressSink(FirmwareLogCallback onLine)
             }
             g_ToolchainProgress = p.progress;
             if (!p.error.empty())
+            {
                 g_ToolchainError = p.error;
+            }
         }
 
-        if (!onLine) return;
+        if (!onLine)
+        {
+            return;
+        }
         if (!toLog.empty())
+        {
             onLine(toLog, false);
+        }
         if (!p.error.empty())
+        {
             onLine(p.error, true);
+        }
     };
 }
 
@@ -201,21 +222,29 @@ BuildProgressCallback MakeToolchainProgressSink(FirmwareLogCallback onLine)
 FirmwareOpResult ValidateComponent(const Ctx& ctx, const std::string& componentId)
 {
     if (ctx.builder->IsToolchainBusy())
-        return FirmwareOpResult{ false, "A toolchain operation is already in progress.", ctx.platformId, ctx.platform->displayName };
+    {
+        return FirmwareOpResult{ false, "A toolchain operation is already in progress.", ctx.platformId,
+                                 ctx.platform->displayName };
+    }
 
     // InstallComponent() silently no-ops on an unknown id, which would look like success.
     std::string ids;
     for (const auto& c : ctx.builder->GetToolchainComponents())
     {
         if (c.id == componentId)
+        {
             return FirmwareOpResult{ true, "", ctx.platformId, ctx.platform->displayName };
-        if (!ids.empty()) ids += ", ";
+        }
+        if (!ids.empty())
+        {
+            ids += ", ";
+        }
         ids += c.id;
     }
 
     return FirmwareOpResult{ false,
-                             "Unknown toolchain component '" + componentId + "'. Available: " +
-                                 (ids.empty() ? "(none)" : ids),
+                             "Unknown toolchain component '" + componentId +
+                                 "'. Available: " + (ids.empty() ? "(none)" : ids),
                              ctx.platformId, ctx.platform->displayName };
 }
 
@@ -224,7 +253,9 @@ FirmwareOpResult ValidateComponent(const Ctx& ctx, const std::string& componentI
 FirmwareOpResult WaitForBuild(ITargetBuilder* builder, const Ctx& ctx)
 {
     while (builder->IsBuilding())
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
 
     FirmwareOpResult r;
     r.platformId = ctx.platformId;
@@ -233,7 +264,9 @@ FirmwareOpResult WaitForBuild(ITargetBuilder* builder, const Ctx& ctx)
     const BuildProgress progress = builder->GetProgress();
     r.success = (builder->GetState() != BuildState::Failed);
     if (!r.success)
+    {
         r.error = progress.error.empty() ? "Build failed (no error reported)" : progress.error;
+    }
 
     return r;
 }
@@ -257,22 +290,27 @@ FirmwareOpResult Started(const Ctx& ctx)
 
 // Shared by Build() and StartBuild(): resolve, validate the toolchain,
 // regenerate build files, and kick the build thread off.
-FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string& platformId,
-                              FirmwareLogCallback onLine, Ctx& ctx, EditorApp* editor,
-                              const BuildOptions& options)
+FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string& platformId, FirmwareLogCallback onLine,
+                              Ctx& ctx, EditorApp* editor, const BuildOptions& options)
 {
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     if (ctx.builder->IsBuilding())
+    {
         return Failure("A build is already in progress for this builder.");
+    }
 
     // One definition of "prepare a firmware build", shared with the Build panel.
-    FirmwareOpResult prepared = FirmwareBuildService::PrepareBuild(
-        projectPath, *ctx.platform, *ctx.builder, editor, options, onLine);
+    FirmwareOpResult prepared =
+        FirmwareBuildService::PrepareBuild(projectPath, *ctx.platform, *ctx.builder, editor, options, onLine);
     if (!prepared.success)
+    {
         return prepared;
+    }
 
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
     ctx.builder->Build(projectPath, onLine, nullptr);
@@ -291,8 +329,7 @@ std::vector<std::string> FirmwareBuildService::CollectPackageDefines(const std::
     return ComputeStripPlan(projectPath, targetPlatformId).defines;
 }
 
-nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPath,
-                                                   std::string& outError)
+nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPath, std::string& outError)
 {
     Ctx ctx;
     std::string err;
@@ -314,7 +351,10 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
     for (const auto& id : platforms.GetAvailablePlatforms())
     {
         const PlatformConfig* p = platforms.GetPlatform(id);
-        if (!p) continue;
+        if (!p)
+        {
+            continue;
+        }
 
         ITargetBuilder* b = BuilderRegistry::Instance().GetBuilderForPlatform(*p);
 
@@ -335,8 +375,14 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
             nlohmann::json o;
             o["package"] = origin.packageId;
             o["packageInstalled"] = origin.packageInstalled;
-            if (!origin.adoptedVersion.empty()) o["adoptedVersion"] = origin.adoptedVersion;
-            if (!origin.offeredVersion.empty()) o["offeredVersion"] = origin.offeredVersion;
+            if (!origin.adoptedVersion.empty())
+            {
+                o["adoptedVersion"] = origin.adoptedVersion;
+            }
+            if (!origin.offeredVersion.empty())
+            {
+                o["offeredVersion"] = origin.offeredVersion;
+            }
             o["modified"] = origin.modifiedItems;
             o["updateAvailable"] = origin.updatedItems;
             o["canUpdate"] = origin.CanUpdate();
@@ -350,13 +396,14 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
     return out;
 }
 
-nlohmann::json FirmwareBuildService::ToolchainStatus(const std::string& projectPath,
-                                                     const std::string& platformId,
+nlohmann::json FirmwareBuildService::ToolchainStatus(const std::string& projectPath, const std::string& platformId,
                                                      std::string& outError)
 {
     Ctx ctx;
     if (!Prepare(projectPath, platformId, ctx, outError))
+    {
         return nlohmann::json::object();
+    }
 
     nlohmann::json out;
     out["platformId"] = ctx.platformId;
@@ -385,22 +432,21 @@ nlohmann::json FirmwareBuildService::ToolchainStatus(const std::string& projectP
     return out;
 }
 
-FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPath,
-                                                    const PlatformConfig& platform,
-                                                    ITargetBuilder& builder,
-                                                    EditorApp* editor,
-                                                    const BuildOptions& options,
-                                                    FirmwareLogCallback onLine)
+FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPath, const PlatformConfig& platform,
+                                                    ITargetBuilder& builder, EditorApp* editor,
+                                                    const BuildOptions& options, FirmwareLogCallback onLine)
 {
     auto log = [&](const std::string& line, bool isError)
     {
-        if (onLine) onLine(line, isError);
+        if (onLine)
+        {
+            onLine(line, isError);
+        }
     };
 
     if (!builder.IsToolchainInstalled())
     {
-        return Failure("Toolchain not installed for '" + platform.id + "': " +
-                       builder.GetToolchainStatus() +
+        return Failure("Toolchain not installed for '" + platform.id + "': " + builder.GetToolchainStatus() +
                        ". Install it with --install-toolchain or the Build Panel.");
     }
 
@@ -414,16 +460,22 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // payload below goes into it.
     builder.SetBuildOptions(options);
     if (options.simulate && !builder.SupportsSimulation())
+    {
         return Failure("The '" + std::string(builder.GetName()) + "' backend cannot build '" + platform.id +
                        "' for a simulator.");
+    }
     if (options.simulate && !editor)
+    {
         return Failure("A simulated build needs the editor, which writes its boot scene.");
+    }
     // Where a simulated build's boot scene goes; its scenes count for the
     // strip plan like the board's own.
     std::string simulationSceneDir;
     if (options.simulate)
+    {
         simulationSceneDir =
             (std::filesystem::path(builder.GetBuildDirectory(projectPath)) / kSimulationSceneDir).string();
+    }
 
     // Boot payload - project_data.bin plus the platform's boot scene - written
     // where the backend asks for it, before it assembles anything. Without it
@@ -436,7 +488,9 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // Packages that did not build leave their components out of every scene
     // the export reads, and the firmware is compiled from the same sources.
     if (editor && editor->GetHotReloadService() && editor->GetHotReloadService()->HasBuildErrors())
+    {
         return Failure("The project's code did not build; fix the errors in the Console first.");
+    }
     if (editor && editor->GetProject() && editor->GetAssetPipeline() && !bootPayloadDir.empty())
     {
         // A platform may name its own boot scene (a splash that then loads
@@ -460,19 +514,25 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
             {
                 std::ifstream in(std::filesystem::path(projectPath) / platform.bootScene, std::ios::binary);
                 if (!in)
+                {
                     return Failure("Cannot read the boot scene " + platform.bootScene);
+                }
                 scene.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
             }
             std::vector<std::string> notes;
             std::string why;
             if (!builder.MakeSimulationBootScene(scene, platform, notes, why))
+            {
                 return Failure("Cannot make the simulated boot scene: " + why);
+            }
             std::error_code ec;
             std::filesystem::create_directories(simulationSceneDir, ec);
             const std::filesystem::path simulated = std::filesystem::path(simulationSceneDir) / "boot.scene";
             std::ofstream out(simulated, std::ios::binary | std::ios::trunc);
             if (!out)
+            {
                 return Failure("Cannot write " + simulated.string());
+            }
             out << scene;
             out.close();
             bootScene = simulated.generic_string();
@@ -480,12 +540,16 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
                     simulated.generic_string() + ")",
                 false);
             for (const std::string& note : notes)
+            {
                 log("  " + note, false);
+            }
         }
 
         AssetExportTarget target;
         if (!ExportTargetForPlatform(platform.id, target))
+        {
             return Failure("Cannot export for '" + platform.id + "'; the log says why.");
+        }
 
         AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline());
         exporter.SetTarget(target);
@@ -504,7 +568,9 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
             // with a blank screen and a build that said it succeeded.
             std::string why;
             for (const std::string& problem : exporter.GetProblems())
+            {
                 why += (why.empty() ? "" : "; ") + problem;
+            }
             return Failure("Failed to export the boot payload" + (why.empty() ? std::string(".") : ": " + why));
         }
 
@@ -514,7 +580,9 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         if (target.assetStorage == Deki::Storage::Internal)
         {
             if (!exporter.ExportAssets((std::filesystem::path(bootPayloadDir) / "assets").string()))
+            {
                 return Failure("Failed to export the assets into the build; the log lists what is wrong.");
+            }
             log("Exported the assets into the build (internal storage)", false);
         }
 
@@ -527,11 +595,15 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
             std::filesystem::remove_all(cardDir, ec);
             std::filesystem::create_directories(cardDir, ec);
             if (ec)
+            {
                 return Failure("Cannot make " + cardDir.string() + ": " + ec.message());
+            }
             if (target.assetStorage == Deki::Storage::External)
             {
                 if (!exporter.ExportAssets(cardDir.string()))
+                {
                     return Failure("Failed to export the assets onto the simulated SD card");
+                }
                 log("Exported the assets onto the simulated SD card (external storage)", false);
             }
         }
@@ -566,7 +638,9 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     // so a project cloned from another machine would otherwise build against
     // paths that do not exist here.
     if (!builder.GenerateBuildFiles(projectPath, platform, defines))
+    {
         return Failure("Failed to generate build files for '" + platform.id + "'.");
+    }
 
     FirmwareOpResult ok;
     ok.success = true;
@@ -575,24 +649,21 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     return ok;
 }
 
-FirmwareOpResult FirmwareBuildService::Build(const std::string& projectPath,
-                                             const std::string& platformId,
-                                             FirmwareLogCallback onLine,
-                                             EditorApp* editor,
-                                             const BuildOptions& options)
+FirmwareOpResult FirmwareBuildService::Build(const std::string& projectPath, const std::string& platformId,
+                                             FirmwareLogCallback onLine, EditorApp* editor, const BuildOptions& options)
 {
     Ctx ctx;
     FirmwareOpResult started = KickOffBuild(projectPath, platformId, onLine, ctx, editor, options);
     if (!started.success)
+    {
         return started;
+    }
 
     return WaitForBuild(ctx.builder, ctx);
 }
 
-FirmwareOpResult FirmwareBuildService::StartBuild(const std::string& projectPath,
-                                                  const std::string& platformId,
-                                                  FirmwareLogCallback onLine,
-                                                  EditorApp* editor,
+FirmwareOpResult FirmwareBuildService::StartBuild(const std::string& projectPath, const std::string& platformId,
+                                                  FirmwareLogCallback onLine, EditorApp* editor,
                                                   const BuildOptions& options)
 {
     Ctx ctx;
@@ -605,24 +676,26 @@ namespace
 // caller told it had started.
 std::string NoDeployStep(const ITargetBuilder& builder, const PlatformConfig& platform)
 {
-    return std::string("The '") + builder.GetName() + "' backend has no deploy step for platform '" +
-           platform.id + "'.";
+    return std::string("The '") + builder.GetName() + "' backend has no deploy step for platform '" + platform.id +
+           "'.";
 }
 }  // namespace
 
-FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPath,
-                                                   const std::string& platformId,
-                                                   const std::string& deployTargetId,
-                                                   FirmwareLogCallback onLine,
+FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPath, const std::string& platformId,
+                                                   const std::string& deployTargetId, FirmwareLogCallback onLine,
                                                    const BuildOptions& options)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     if (ctx.builder->IsBuilding())
+    {
         return Failure("A build or deploy is already in progress for this builder.");
+    }
 
     // Told its platform before it is asked whether it can deploy: one backend
     // serves every platform of its framework, and whether there is a deploy
@@ -630,24 +703,31 @@ FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPat
     ctx.builder->SetPlatformConfig(*ctx.platform);
     ctx.builder->SetBuildOptions(options);  // a simulated build is run, not flashed
     if (!ctx.builder->SupportsDeploy())
+    {
         return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
+    }
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
     ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
     return Started(ctx);
 }
 
-FirmwareOpResult FirmwareBuildService::StartInstallToolchainComponent(
-    const std::string& projectPath, const std::string& platformId,
-    const std::string& componentId, FirmwareLogCallback onLine)
+FirmwareOpResult FirmwareBuildService::StartInstallToolchainComponent(const std::string& projectPath,
+                                                                      const std::string& platformId,
+                                                                      const std::string& componentId,
+                                                                      FirmwareLogCallback onLine)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     FirmwareOpResult check = ValidateComponent(ctx, componentId);
     if (!check.success)
+    {
         return check;
+    }
 
     ResetToolchainStatus();
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
@@ -655,18 +735,23 @@ FirmwareOpResult FirmwareBuildService::StartInstallToolchainComponent(
     return Started(ctx);
 }
 
-FirmwareOpResult FirmwareBuildService::StartSetupToolchainComponent(
-    const std::string& projectPath, const std::string& platformId,
-    const std::string& componentId, FirmwareLogCallback onLine)
+FirmwareOpResult FirmwareBuildService::StartSetupToolchainComponent(const std::string& projectPath,
+                                                                    const std::string& platformId,
+                                                                    const std::string& componentId,
+                                                                    FirmwareLogCallback onLine)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     FirmwareOpResult check = ValidateComponent(ctx, componentId);
     if (!check.success)
+    {
         return check;
+    }
 
     ResetToolchainStatus();
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
@@ -745,41 +830,46 @@ nlohmann::json FirmwareBuildService::QueryStatus()
 bool FirmwareBuildService::CancelActive()
 {
     if (!ActiveBuilder() || !g_Active.builder->IsBuilding())
+    {
         return false;
+    }
 
     g_Active.builder->Cancel();
     return true;
 }
 
-FirmwareOpResult FirmwareBuildService::Deploy(const std::string& projectPath,
-                                              const std::string& platformId,
-                                              const std::string& deployTargetId,
-                                              FirmwareLogCallback onLine,
+FirmwareOpResult FirmwareBuildService::Deploy(const std::string& projectPath, const std::string& platformId,
+                                              const std::string& deployTargetId, FirmwareLogCallback onLine,
                                               const BuildOptions& options)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     ctx.builder->SetPlatformConfig(*ctx.platform);
     ctx.builder->SetBuildOptions(options);  // a simulated build is run, not flashed
     if (!ctx.builder->SupportsDeploy())
+    {
         return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
+    }
 
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
     ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
     return WaitForBuild(ctx.builder, ctx);
 }
 
-FirmwareOpResult FirmwareBuildService::Clean(const std::string& projectPath,
-                                             const std::string& platformId,
+FirmwareOpResult FirmwareBuildService::Clean(const std::string& projectPath, const std::string& platformId,
                                              FirmwareLogCallback onLine)
 {
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     ctx.builder->SetPlatformConfig(*ctx.platform);
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
@@ -795,18 +885,24 @@ FirmwareOpResult FirmwareBuildService::InstallToolchainComponent(const std::stri
     Ctx ctx;
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
+    {
         return Failure(err);
+    }
 
     FirmwareOpResult check = ValidateComponent(ctx, componentId);
     if (!check.success)
+    {
         return check;
+    }
 
     ResetToolchainStatus();
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
     ctx.builder->InstallToolchainComponent(componentId, MakeToolchainProgressSink(onLine));
 
     while (ctx.builder->IsToolchainBusy())
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     FirmwareOpResult r;
     r.platformId = ctx.platformId;
@@ -816,12 +912,17 @@ FirmwareOpResult FirmwareBuildService::InstallToolchainComponent(const std::stri
     // rebuilt from disk detection, so this reflects what actually landed.
     for (const auto& c : ctx.builder->GetToolchainComponents())
     {
-        if (c.id != componentId) continue;
-        r.success = (c.status == ToolchainComponentStatus::Installed ||
-                     c.status == ToolchainComponentStatus::UpdateAvailable);
+        if (c.id != componentId)
+        {
+            continue;
+        }
+        r.success =
+            (c.status == ToolchainComponentStatus::Installed || c.status == ToolchainComponentStatus::UpdateAvailable);
         if (!r.success)
-            r.error = "Component '" + componentId + "' is still reported as " +
-                      StatusName(c.status) + " after install.";
+        {
+            r.error =
+                "Component '" + componentId + "' is still reported as " + StatusName(c.status) + " after install.";
+        }
         return r;
     }
 

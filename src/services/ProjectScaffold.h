@@ -49,12 +49,12 @@ bool LoadProjectStarter(const std::string& path, ProjectStarter& out, std::strin
 /// deki.json with the current structure version, the startup scene and the
 /// active platform. Everything Project::Save would rewrite on first open is
 /// written the same way here, so a new project is not "unmigrated".
-bool WriteDekiJson(const std::string& projectPath, const std::string& projectName,
-                   const std::string& activePlatformId, std::string& err);
+bool WriteDekiJson(const std::string& projectPath, const std::string& projectName, const std::string& activePlatformId,
+                   std::string& err);
 
 /// deki-packages.json declaring `packageIds` at the newest version.
-bool WritePackageManifestFor(const std::string& projectPath,
-                             const std::vector<std::string>& packageIds, std::string& err);
+bool WritePackageManifestFor(const std::string& projectPath, const std::vector<std::string>& packageIds,
+                             std::string& err);
 
 /// .gitignore covering generated/, package clones, exported storage/ and IDE
 /// folders.
@@ -69,14 +69,12 @@ bool WriteRenderPipeline(const std::string& projectPath, std::string& err);
 /// writes its .data sidecar (GUID + kStarterFontSize baked). Returns the
 /// font's GUID, or "" when the editor's font is not available - the caller
 /// then writes the scene without the text object.
-std::string InstallStarterFont(const std::string& projectPath, const std::string& editorFontsDir,
-                               std::string& err);
+std::string InstallStarterFont(const std::string& projectPath, const std::string& editorFontsDir, std::string& err);
 
 /// assets/<kStartupScene>: Root → Camera, a gradient background, and (when
 /// `fontSourceGuid` is non-empty) a "Hello, Deki" text using that font's
 /// kStarterFontSize variant. Property keys are the components' reflected
 /// names; `DekiEditor --verify-scenes` on a new project guards them.
-bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid,
-                       std::string& err);
+bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid, std::string& err);
 
 }  // namespace DekiEditor::ProjectScaffold

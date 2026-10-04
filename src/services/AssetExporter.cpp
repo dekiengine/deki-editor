@@ -30,34 +30,36 @@ namespace DekiEditor
 {
 
 // Helper: resolve .rpipeline asset GUID into renderer name + pass type names
-static void ResolvePipelineConfig(
-    const std::string& pipelineGuid,
-    AssetPipeline* pipeline,
-    std::string& outRendererName,
-    std::vector<std::string>& outPassNames)
+static void ResolvePipelineConfig(const std::string& pipelineGuid, AssetPipeline* pipeline,
+                                  std::string& outRendererName, std::vector<std::string>& outPassNames)
 {
     outRendererName.clear();
     outPassNames.clear();
 
     if (pipelineGuid.empty() || !pipeline)
+    {
         return;
+    }
 
     // Find the render pipeline .asset file
     const AssetInfo* pipelineInfo = pipeline->GetAssetInfoByGuid(pipelineGuid);
     if (!pipelineInfo)
+    {
         return;
+    }
 
     namespace fs = std::filesystem;
     fs::path pipelinePath = fs::path(pipeline->GetProjectPath()) / pipelineInfo->path;
     if (!fs::exists(pipelinePath))
+    {
         return;
+    }
 
     // Parse the .rpipeline JSON
     std::ifstream file(pipelinePath);
     if (!file.is_open())
     {
-        DEKI_LOG_ERROR("AssetExporter: Cannot open render pipeline file '%s'",
-                       pipelinePath.string().c_str());
+        DEKI_LOG_ERROR("AssetExporter: Cannot open render pipeline file '%s'", pipelinePath.string().c_str());
         return;
     }
 
@@ -76,25 +78,29 @@ static void ResolvePipelineConfig(
                 {
                     std::string passType = passEntry.value("type", "");
                     if (!passType.empty())
+                    {
                         outPassNames.push_back(passType);
+                    }
                 }
             }
         }
     }
     catch (const nlohmann::json::parse_error& e)
     {
-        DEKI_LOG_ERROR("AssetExporter: Malformed JSON in render pipeline '%s': %s",
-                       pipelinePath.string().c_str(), e.what());
+        DEKI_LOG_ERROR("AssetExporter: Malformed JSON in render pipeline '%s': %s", pipelinePath.string().c_str(),
+                       e.what());
     }
     catch (const nlohmann::json::exception& e)
     {
-        DEKI_LOG_ERROR("AssetExporter: JSON error reading render pipeline '%s': %s",
-                       pipelinePath.string().c_str(), e.what());
+        DEKI_LOG_ERROR("AssetExporter: JSON error reading render pipeline '%s': %s", pipelinePath.string().c_str(),
+                       e.what());
     }
 }
 
 AssetExporter::AssetExporter(Project* project, AssetPipeline* pipeline, PackageLoader* packageLoader)
-    : m_Project(project), m_Pipeline(pipeline), m_PackageLoader(packageLoader)
+    : m_Project(project),
+      m_Pipeline(pipeline),
+      m_PackageLoader(packageLoader)
 {
 }
 
@@ -102,21 +108,25 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
 {
     namespace fs = std::filesystem;
     const AssetInfo* info = m_Pipeline->GetAssetInfoByGuid(guid);
-    const std::string editorCache =
-        (info && info->hasCachedVersion && !info->cachePath.empty()) ? m_Pipeline->GetAbsolutePath(info->cachePath)
-                                                                       : GetCachePath(m_Project->GetPath(), guid);
+    const std::string editorCache = (info && info->hasCachedVersion && !info->cachePath.empty())
+                                        ? m_Pipeline->GetAbsolutePath(info->cachePath)
+                                        : GetCachePath(m_Project->GetPath(), guid);
 
     // Without a target the editor cache ships as it is. With one, an asset
     // type that can encode for it always does: the editor cache may have been
     // made for an earlier active platform.
     if (!m_HasTarget || !info)
+    {
         return fs::exists(editorCache) ? editorCache : std::string();
+    }
 
     std::string ext = fs::path(info->path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
     const AssetExportEncoder* encoder = m_Pipeline->FindExportEncoder(ext);
     if (!encoder)
+    {
         return fs::exists(editorCache) ? editorCache : std::string();
+    }
 
     // This target's version, kept between exports and rebuilt when the source
     // or its settings are newer.
@@ -155,8 +165,8 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
         ctx.pipeline = m_Pipeline;
         if (!(*encoder)(ctx))
         {
-            DEKI_LOG_ERROR("  Could not store %s for target '%s'; it is left out of this export",
-                           info->path.c_str(), m_Target.platformId.c_str());
+            DEKI_LOG_ERROR("  Could not store %s for target '%s'; it is left out of this export", info->path.c_str(),
+                           m_Target.platformId.c_str());
             return std::string();
         }
         std::string err;
@@ -225,7 +235,9 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
             std::string ext = fs::path(info.path).extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             if (ext != ".scene" || info.cachePath.empty())
+            {
                 continue;
+            }
 
             std::string absolutePath = m_Pipeline->GetAbsolutePath(info.path);
             std::string absoluteCachePath = m_Pipeline->GetAbsolutePath(info.cachePath);
@@ -245,7 +257,9 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     // Step 1: Collect used assets from all scenes
     AssetUsageCollection usedAssets = CollectUsedAssets();
     for (const std::string& problem : usedAssets.problems)
+    {
         AddProblem(problem);
+    }
 
     // Step 1.5: Merge in the force-included assets. Every build ships them,
     // not only an SD card copy.
@@ -258,8 +272,8 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     // Step 1.6: What those cannot load without (a frame's sheet, ...)
     AddAssetDependencies(usedAssets);
 
-    DEKI_LOG_EDITOR("Found %zu used assets (%zu force-included), %zu font usages",
-                    usedAssets.usedGuids.size(), forceIncluded.size(), usedAssets.fontUsages.size());
+    DEKI_LOG_EDITOR("Found %zu used assets (%zu force-included), %zu font usages", usedAssets.usedGuids.size(),
+                    forceIncluded.size(), usedAssets.fontUsages.size());
 
     // Step 2: Ensure fonts are baked in cache
     // (Fonts should already be cached via FontSyncHandler, but verify)
@@ -280,9 +294,8 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     {
         std::string assetsPath = m_Project->GetAssetsPath();
         std::string packIndexPath = (storagePath / "pack_index.bin").string();
-        AssetPacker::BuildPackIndex(assetsPath, cachePath, storagePath.string(), packIndexPath,
-                                    usedAssets.fontUsages, &packedGuids,
-                                    [this](const std::string& guid) { return ExportSourceFor(guid); });
+        AssetPacker::BuildPackIndex(assetsPath, cachePath, storagePath.string(), packIndexPath, usedAssets.fontUsages,
+                                    &packedGuids, [this](const std::string& guid) { return ExportSourceFor(guid); });
     }
 
     // Step 4: Copy only used assets that aren't already in packs
@@ -292,7 +305,9 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     // (Contains ALL used assets including packed ones - runtime needs LookupPath() to work)
     std::string lookupTablePath = (storagePath / "asset_table.bin").string();
     if (!ExportAssetLookupTable(lookupTablePath, usedAssets.usedGuids))
+    {
         AddProblem("Could not write " + lookupTablePath);
+    }
 
     // Step 6: Write project settings (project_data.bin)
     WriteProjectSettings(storagePath.string());
@@ -311,8 +326,8 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
 
     if (packCount > 0)
     {
-        DEKI_LOG_INFO("Export complete: %d individual assets + %d pack files (%.1f KB packed) in %s",
-                      m_ExportedCount, packCount, packTotalBytes / 1024.0f, storagePath.string().c_str());
+        DEKI_LOG_INFO("Export complete: %d individual assets + %d pack files (%.1f KB packed) in %s", m_ExportedCount,
+                      packCount, packTotalBytes / 1024.0f, storagePath.string().c_str());
     }
     else
     {
@@ -323,8 +338,8 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     // success; the device then showed nothing where the asset should be.
     if (!m_Problems.empty())
     {
-        DEKI_LOG_ERROR("Export failed: %zu problem%s (listed above). Fix them and export again.",
-                       m_Problems.size(), m_Problems.size() == 1 ? "" : "s");
+        DEKI_LOG_ERROR("Export failed: %zu problem%s (listed above). Fix them and export again.", m_Problems.size(),
+                       m_Problems.size() == 1 ? "" : "s");
         return false;
     }
     return true;
@@ -340,7 +355,9 @@ ExportAssetType AssetExporter::DetermineAssetType(const std::string& extension, 
 {
     std::string ext = extension;
     for (char& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".gif")
     {
@@ -391,7 +408,9 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
         if (ext != ".scene")
+        {
             continue;
+        }
 
         // Load the scene from its source path
         std::string absolutePath = m_Pipeline->GetAbsolutePath(info.path);
@@ -405,7 +424,8 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
         Deki::Scene scene;
         if (!scene.LoadFromFile(absolutePath))
         {
-            collection.problems.push_back("The scene " + info.path + " could not be read, so the assets it uses are unknown");
+            collection.problems.push_back("The scene " + info.path +
+                                          " could not be read, so the assets it uses are unknown");
             continue;
         }
 
@@ -424,8 +444,12 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
             CollectAssetsFromObject(obj, collection);
         }
         for (const std::string& guid : collection.usedGuids)
+        {
             if (!before.count(guid))
+            {
                 collection.referencedFrom.emplace(guid, info.path);
+            }
+        }
     }
 
     return collection;
@@ -445,7 +469,9 @@ void AssetExporter::AddAssetDependencies(AssetUsageCollection& collection)
     auto add = [&](const std::string& guid)
     {
         if (!guid.empty() && collection.usedGuids.insert(guid).second)
+        {
             pending.push_back(guid);
+        }
     };
 
     while (!pending.empty())
@@ -454,15 +480,21 @@ void AssetExporter::AddAssetDependencies(AssetUsageCollection& collection)
         pending.pop_back();
 
         if (const SubAssetInfo* sub = m_Pipeline->GetSubAsset(guid))
+        {
             add(sub->parentGuid);
+        }
 
         const AssetInfo* info = m_Pipeline->GetAssetInfoByGuid(guid);
         if (!info)
+        {
             continue;
+        }
         std::string ext = fs::path(info->path).extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         if (ext != ".anim")
+        {
             continue;
+        }
 
         std::ifstream in(m_Pipeline->GetAbsolutePath(info->path));
         const nlohmann::json anim = nlohmann::json::parse(in, nullptr, /*allow_exceptions=*/false);
@@ -478,7 +510,9 @@ void AssetExporter::AddAssetDependencies(AssetUsageCollection& collection)
 void AssetExporter::CollectAssetsFromObject(Deki::Object* obj, AssetUsageCollection& collection)
 {
     if (!obj)
+    {
         return;
+    }
 
     // Scan all components on this object
     for (Deki::Component* comp : obj->GetComponents())
@@ -496,11 +530,15 @@ void AssetExporter::CollectAssetsFromObject(Deki::Object* obj, AssetUsageCollect
 void AssetExporter::CollectAssetsFromComponent(Deki::Component* comp, AssetUsageCollection& collection)
 {
     if (!comp)
+    {
         return;
+    }
 
     const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(comp->GetType());
     if (!meta)
+    {
         return;
+    }
 
     // Iterate through all properties using reflection
     for (int i = 0; i < meta->propertyCount; ++i)
@@ -511,8 +549,7 @@ void AssetExporter::CollectAssetsFromComponent(Deki::Component* comp, AssetUsage
         {
             // Get the AssetRefBase at the property's offset
             const Deki::AssetRefBase& assetRef =
-                *reinterpret_cast<const Deki::AssetRefBase*>(
-                    reinterpret_cast<const char*>(comp) + prop.offset);
+                *reinterpret_cast<const Deki::AssetRefBase*>(reinterpret_cast<const char*>(comp) + prop.offset);
 
             // Add the baked/compiled asset GUID
             if (!assetRef.guid.empty())
@@ -536,8 +573,7 @@ void AssetExporter::CollectAssetsFromComponent(Deki::Component* comp, AssetUsage
         {
             // Legacy Asset type (string GUID)
             const std::string& guid =
-                *reinterpret_cast<const std::string*>(
-                    reinterpret_cast<const char*>(comp) + prop.offset);
+                *reinterpret_cast<const std::string*>(reinterpret_cast<const char*>(comp) + prop.offset);
 
             if (!guid.empty())
             {
@@ -547,7 +583,8 @@ void AssetExporter::CollectAssetsFromComponent(Deki::Component* comp, AssetUsage
     }
 }
 
-void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRefBase& assetRef, AssetUsageCollection& collection)
+void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRefBase& assetRef,
+                                     AssetUsageCollection& collection)
 {
     // For fonts, we need to find the fontSize property on the same component
     // The source GUID is the TTF file, and we need the font size to bake
@@ -560,7 +597,9 @@ void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRef
 
     const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(comp->GetType());
     if (!meta)
+    {
         return;
+    }
 
     // Find the fontSize property
     int fontSize = 16;  // Default
@@ -571,8 +610,7 @@ void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRef
         {
             if (prop.type == Deki::PropertyType::Int32)
             {
-                fontSize = *reinterpret_cast<const int32_t*>(
-                    reinterpret_cast<const char*>(comp) + prop.offset);
+                fontSize = *reinterpret_cast<const int32_t*>(reinterpret_cast<const char*>(comp) + prop.offset);
             }
             break;
         }
@@ -591,7 +629,8 @@ void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRef
 // Font Baking
 // =============================================================================
 
-std::unordered_map<std::string, std::string> AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
+std::unordered_map<std::string, std::string>
+AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
 {
     namespace fs = std::filesystem;
     std::unordered_map<std::string, std::string> bakedFonts;
@@ -643,17 +682,17 @@ std::unordered_map<std::string, std::string> AssetExporter::BakeFontsForExport(c
         using WriteDfontFunc = bool (*)(const char*, const void*, const char*);
         using FreeResultFunc = void (*)(void*);
 
-        auto compileFont = m_PackageLoader ? reinterpret_cast<CompileFontFunc>(
-                                                 m_PackageLoader->GetFunction("Deki 2D Package", "DekiPlugin_CompileFont"))
+        auto compileFont = m_PackageLoader ? reinterpret_cast<CompileFontFunc>(m_PackageLoader->GetFunction(
+                                                 "Deki 2D Package", "DekiPlugin_CompileFont"))
                                            : nullptr;
-        auto getAtlas = m_PackageLoader ? reinterpret_cast<GetAtlasFunc>(
-                                              m_PackageLoader->GetFunction("Deki 2D Package", "DekiPlugin_GetCompiledFontAtlas"))
+        auto getAtlas = m_PackageLoader ? reinterpret_cast<GetAtlasFunc>(m_PackageLoader->GetFunction(
+                                              "Deki 2D Package", "DekiPlugin_GetCompiledFontAtlas"))
                                         : nullptr;
-        auto writeDfont = m_PackageLoader ? reinterpret_cast<WriteDfontFunc>(
-                                                m_PackageLoader->GetFunction("Deki 2D Package", "DekiPlugin_WriteDfont"))
+        auto writeDfont = m_PackageLoader ? reinterpret_cast<WriteDfontFunc>(m_PackageLoader->GetFunction(
+                                                "Deki 2D Package", "DekiPlugin_WriteDfont"))
                                           : nullptr;
-        auto freeResult = m_PackageLoader ? reinterpret_cast<FreeResultFunc>(
-                                                m_PackageLoader->GetFunction("Deki 2D Package", "DekiPlugin_FreeCompileResult"))
+        auto freeResult = m_PackageLoader ? reinterpret_cast<FreeResultFunc>(m_PackageLoader->GetFunction(
+                                                "Deki 2D Package", "DekiPlugin_FreeCompileResult"))
                                           : nullptr;
 
         if (!compileFont || !getAtlas || !writeDfont || !freeResult)
@@ -684,9 +723,7 @@ std::unordered_map<std::string, std::string> AssetExporter::BakeFontsForExport(c
         fs::create_directories(cachePath);
 
         // Write atlas as DTEX
-        if (!TextureImporter::WriteTexFile(atlasCachePath, atlasData,
-                                           atlasWidth, atlasHeight,
-                                           TextureFormat::ALPHA8))
+        if (!TextureImporter::WriteTexFile(atlasCachePath, atlasData, atlasWidth, atlasHeight, TextureFormat::ALPHA8))
         {
             DEKI_LOG_ERROR("  Failed to write font atlas: %s", atlasCachePath.c_str());
             freeResult(compileResult);
@@ -703,8 +740,8 @@ std::unordered_map<std::string, std::string> AssetExporter::BakeFontsForExport(c
 
         freeResult(compileResult);
 
-        DEKI_LOG_INFO("  Baked font: %s @ %d px -> %s",
-                      fontInfo.sourceGuid.c_str(), fontInfo.fontSize, fontGuid.c_str());
+        DEKI_LOG_INFO("  Baked font: %s @ %d px -> %s", fontInfo.sourceGuid.c_str(), fontInfo.fontSize,
+                      fontGuid.c_str());
 
         std::string key = fontInfo.sourceGuid + ":" + std::to_string(fontInfo.fontSize);
         bakedFonts[key] = fontGuid;
@@ -729,15 +766,17 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
     std::string projectPath = m_Project->GetPath();
     std::string cacheDir = GetCacheDirectory(projectPath);
 
-    DEKI_LOG_EDITOR("Exporting used assets as GUID-named files (%zu used, %zu in packs)...",
-                    usedGuids.size(), skipGuids.size());
+    DEKI_LOG_EDITOR("Exporting used assets as GUID-named files (%zu used, %zu in packs)...", usedGuids.size(),
+                    skipGuids.size());
 
     // First, export assets from the pipeline (textures, animations, scenes, etc.)
     // Files are named by GUID (no path structure, no extension)
     for (const auto& [path, info] : allAssets)
     {
         if (info.guid.empty())
+        {
             continue;
+        }
 
         // Skip if not in used set
         if (usedGuids.find(info.guid) == usedGuids.end())
@@ -791,11 +830,15 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         // Skip if already exported from pipeline
         const AssetInfo* assetInfo = m_Pipeline->GetAssetInfoByGuid(guid);
         if (assetInfo && assetInfo->hasCachedVersion)
+        {
             continue;
+        }
 
         // Skip if already in a pack file
         if (skipGuids.find(guid) != skipGuids.end())
+        {
             continue;
+        }
 
         // This target's version of it, or what the cache directory holds
         std::string cachePath = ExportSourceFor(guid);
@@ -813,9 +856,12 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
                 {
                     auto it = referencedFrom->find(guid);
                     if (it != referencedFrom->end())
+                    {
                         where = ", used by " + it->second;
+                    }
                 }
-                AddProblem("Missing asset " + guid + where + ". It was deleted or never imported; pick it again "
+                AddProblem("Missing asset " + guid + where +
+                           ". It was deleted or never imported; pick it again "
                            "or clear the reference.");
             }
             continue;
@@ -864,19 +910,18 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
 
     std::vector<const char*> passNamePtrs;
     for (const auto& name : passNames)
+    {
         passNamePtrs.push_back(name.c_str());
+    }
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        m_Target.assetStorage, targetFPS,
-        startupScene.empty() ? nullptr : startupScene.c_str(),
-        rendererName.empty() ? nullptr : rendererName.c_str(),
-        passNamePtrs.empty() ? nullptr : passNamePtrs.data(),
+        m_Target.assetStorage, targetFPS, startupScene.empty() ? nullptr : startupScene.c_str(),
+        rendererName.empty() ? nullptr : rendererName.c_str(), passNamePtrs.empty() ? nullptr : passNamePtrs.data(),
         static_cast<int>(passNamePtrs.size()));
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
 
-    DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)",
-                    Deki::ProjectSettings::EXPORT_FILENAME, settingsBuffer.size(),
-                    rendererName.empty() ? "(none)" : rendererName.c_str(),
+    DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)", Deki::ProjectSettings::EXPORT_FILENAME,
+                    settingsBuffer.size(), rendererName.empty() ? "(none)" : rendererName.c_str(),
                     (int)passNames.size());
 }
 
@@ -931,13 +976,13 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
 
     std::vector<const char*> passNamePtrs2;
     for (const auto& name : passNames2)
+    {
         passNamePtrs2.push_back(name.c_str());
+    }
 
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
-        m_Target.assetStorage, targetFPS,
-        startupScene.empty() ? nullptr : startupScene.c_str(),
-        rendererName2.empty() ? nullptr : rendererName2.c_str(),
-        passNamePtrs2.empty() ? nullptr : passNamePtrs2.data(),
+        m_Target.assetStorage, targetFPS, startupScene.empty() ? nullptr : startupScene.c_str(),
+        rendererName2.empty() ? nullptr : rendererName2.c_str(), passNamePtrs2.empty() ? nullptr : passNamePtrs2.data(),
         static_cast<int>(passNamePtrs2.size()));
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
     settingsFile.close();
@@ -988,8 +1033,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
                 }
                 catch (const std::exception& e)
                 {
-                    DEKI_LOG_WARNING("Boot scene could not be filtered (%s); exporting it whole",
-                                     e.what());
+                    DEKI_LOG_WARNING("Boot scene could not be filtered (%s); exporting it whole", e.what());
                     compileFrom = sourcePath;
                 }
             }
@@ -997,8 +1041,8 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
             // Compile JSON scene to MessagePack binary
             if (m_Pipeline->CompileSceneFile(compileFrom.string(), destPath.string()))
             {
-                DEKI_LOG_EDITOR("Compiled boot scene into the boot payload: %s (%zu bytes)",
-                                destPath.string().c_str(), fs::file_size(destPath));
+                DEKI_LOG_EDITOR("Compiled boot scene into the boot payload: %s (%zu bytes)", destPath.string().c_str(),
+                                fs::file_size(destPath));
                 exported = true;
                 if (!filtered.empty())
                 {
@@ -1024,9 +1068,13 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
     else
     {
         if (bootSceneAssetPath.empty())
+        {
             DEKI_LOG_INFO("No boot scene specified in platform config");
+        }
         if (!m_Pipeline)
+        {
             DEKI_LOG_WARNING("No asset pipeline available for boot scene export");
+        }
     }
 
     DEKI_LOG_EDITOR("Boot payload export complete");
@@ -1045,7 +1093,8 @@ static uint32_t FNV1aHash(const char* str)
     return hash;
 }
 
-bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const std::unordered_set<std::string>& usedGuids)
+bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath,
+                                           const std::unordered_set<std::string>& usedGuids)
 {
     namespace fs = std::filesystem;
 
@@ -1070,28 +1119,40 @@ bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const 
     for (const auto& [path, info] : allAssets)
     {
         if (info.guid.empty())
+        {
             continue;
+        }
 
         // Skip if not in used set
         if (usedGuids.find(info.guid) == usedGuids.end())
+        {
             continue;
+        }
 
         // Determine asset type from extension
         std::string ext = fs::path(info.path).extension().string();
         std::string assetType = AssetPipeline::GetAssetTypeFromExtension(ext);
         if (assetType.empty())
+        {
             continue;
+        }
 
         // Build export path (remove "project/assets/" or "assets/" prefix and extension)
         std::string exportPath = info.path;
         const std::string assetsPrefix = GetAssetsDirectoryRelative() + "/";
         if (exportPath.rfind(assetsPrefix, 0) == 0)
+        {
             exportPath = exportPath.substr(assetsPrefix.size());
+        }
         else if (exportPath.rfind("assets/", 0) == 0)
+        {
             exportPath = exportPath.substr(7);
+        }
         size_t dotPos = exportPath.rfind('.');
         if (dotPos != std::string::npos)
+        {
             exportPath = exportPath.substr(0, dotPos);
+        }
 
         // Build key: "path:type"
         std::string key = exportPath + ":" + assetType;
@@ -1102,7 +1163,8 @@ bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const 
         entry.hash = FNV1aHash(key.c_str());
         strncpy(entry.guid, info.guid.c_str(), sizeof(entry.guid) - 1);
 
-        DEKI_LOG_DEBUG("ExportAssetLookupTable: key='%s' hash=0x%08X guid=%s", key.c_str(), entry.hash, info.guid.c_str());
+        DEKI_LOG_DEBUG("ExportAssetLookupTable: key='%s' hash=0x%08X guid=%s", key.c_str(), entry.hash,
+                       info.guid.c_str());
         entries.push_back(entry);
         addedGuids.insert(info.guid);
     }
@@ -1113,12 +1175,16 @@ bool AssetExporter::ExportAssetLookupTable(const std::string& outputPath, const 
     {
         // Skip if already added from pipeline
         if (addedGuids.find(guid) != addedGuids.end())
+        {
             continue;
+        }
 
         // Check if this GUID exists in cache directory
         std::string cachePath = GetCachePath(projectPath, guid);
         if (!fs::exists(cachePath))
+        {
             continue;
+        }
 
         // Create entry with GUID as the key (for direct GUID lookup)
         LookupEntry entry;

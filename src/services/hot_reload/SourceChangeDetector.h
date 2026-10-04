@@ -57,8 +57,7 @@ void WalkSourceTree(const std::filesystem::path& root,
 /// (metadata generation runs at configure time and keys off headers).
 ///
 /// Non-zero 64-bit FNV-1a, so zero is usable as "not computed".
-uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
-                                    const std::string& cmakeListsPath);
+uint64_t ComputeConfigureInputsHash(const std::string& projectPath, const std::string& cmakeListsPath);
 
 }  // namespace SourceChangeDetector
 }  // namespace DekiEditor

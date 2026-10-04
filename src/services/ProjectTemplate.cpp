@@ -41,7 +41,9 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
 
     // Create all subdirectories
     if (!CreateDirectories(projectPath.string()))
+    {
         return false;
+    }
 
     // What the project starts with is data beside the editor, not a list in
     // this file. It used to be one: five package ids, and a desktop simulator
@@ -71,11 +73,12 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
     // Starter content: the editor's own JetBrains Mono, and a scene that shows
     // something on the first open. A missing font (a packaged editor without
     // resources/) drops the text object, not the project.
-    const std::string editorFontsDir =
-        (fs::path(EditorPaths::GetExecutableDir()) / "resources" / "fonts").string();
+    const std::string editorFontsDir = (fs::path(EditorPaths::GetExecutableDir()) / "resources" / "fonts").string();
     const std::string fontGuid = ProjectScaffold::InstallStarterFont(projectPath.string(), editorFontsDir, err);
     if (fontGuid.empty())
+    {
         DEKI_LOG_WARNING("ProjectTemplate: starter font skipped: %s", err.c_str());
+    }
     if (!ProjectScaffold::WriteStarterScene(projectPath.string(), fontGuid, err))
     {
         DEKI_LOG_ERROR("ProjectTemplate: %s", err.c_str());
@@ -89,7 +92,9 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
         if (builder)
         {
             if (!builder->GenerateBuildFiles(projectPath.string(), *platform, {}))
+            {
                 return false;
+            }
         }
 
         // Save the platform config to project's project/platforms/ directory
@@ -133,8 +138,7 @@ bool ProjectTemplate::CreateDirectories(const std::string& projectPath)
     }
 }
 
-bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,
-                                               const PlatformConfig* platform)
+bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath, const PlatformConfig* platform)
 {
     fs::path root(projectPath);
 
@@ -145,17 +149,15 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,
     }
 
     // Ensure all required directories exist
-    std::vector<fs::path> requiredDirs = {
-        fs::path(GetSourceDirectory(projectPath)),
-        fs::path(GetAssetsDirectory(projectPath)) / "sprites",
-        fs::path(GetAssetsDirectory(projectPath)) / "fonts",
-        fs::path(GetAssetsDirectory(projectPath)) / "scenes",
-        fs::path(GetAssetsDirectory(projectPath)) / "data",
-        ProjectPaths::Cache(projectPath),
-        ProjectPaths::Build(projectPath),
-        ProjectPaths::Runtime(projectPath),
-        ProjectPaths::Settings(projectPath)
-    };
+    std::vector<fs::path> requiredDirs = { fs::path(GetSourceDirectory(projectPath)),
+                                           fs::path(GetAssetsDirectory(projectPath)) / "sprites",
+                                           fs::path(GetAssetsDirectory(projectPath)) / "fonts",
+                                           fs::path(GetAssetsDirectory(projectPath)) / "scenes",
+                                           fs::path(GetAssetsDirectory(projectPath)) / "data",
+                                           ProjectPaths::Cache(projectPath),
+                                           ProjectPaths::Build(projectPath),
+                                           ProjectPaths::Runtime(projectPath),
+                                           ProjectPaths::Settings(projectPath) };
 
     for (const auto& dir : requiredDirs)
     {
@@ -179,7 +181,9 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath,
         if (builder)
         {
             if (!builder->GenerateBuildFiles(projectPath, *platform, {}))
+            {
                 return false;
+            }
         }
     }
 

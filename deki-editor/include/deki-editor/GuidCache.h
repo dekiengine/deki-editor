@@ -166,8 +166,7 @@ private:
     /// different path. Returns the GUID that `relativePath` should actually use:
     /// the same one when the previous holder is gone (a move), or a freshly
     /// minted one - persisted to the sidecar - when both files still exist.
-    std::string ResolveGuidConflict(const std::string& relativePath,
-                                    const std::string& guid);
+    std::string ResolveGuidConflict(const std::string& relativePath, const std::string& guid);
 };
 
 }  // namespace DekiEditor

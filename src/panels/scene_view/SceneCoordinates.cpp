@@ -13,8 +13,7 @@ SceneCoordinates::SceneCoordinates(EditorApp* app)
 {
 }
 
-void SceneCoordinates::SetViewport(ImVec2 canvasTopLeft, ImVec2 canvasSize,
-                                   float zoom, float panX, float panY,
+void SceneCoordinates::SetViewport(ImVec2 canvasTopLeft, ImVec2 canvasSize, float zoom, float panX, float panY,
                                    float pixelsPerMeter)
 {
     m_CanvasTopLeft = canvasTopLeft;
@@ -70,8 +69,7 @@ ImVec2 SceneCoordinates::ScreenToWorld(float screenX, float screenY) const
     return ImVec2(worldX, worldY);
 }
 
-void SceneCoordinates::GetBufferScreenBounds(int bufferWidth, int bufferHeight,
-                                             float centerWorldX, float centerWorldY,
+void SceneCoordinates::GetBufferScreenBounds(int bufferWidth, int bufferHeight, float centerWorldX, float centerWorldY,
                                              ImVec2& outTopLeft, ImVec2& outBottomRight) const
 {
     // The buffer is in framebuffer pixels; its center maps to (centerWorldX,
@@ -84,10 +82,8 @@ void SceneCoordinates::GetBufferScreenBounds(int bufferWidth, int bufferHeight,
     const float ez = GetEffectiveZoom();
 
     ImVec2 centerScreen = WorldToScreen(centerWorldX, centerWorldY);
-    outTopLeft = ImVec2(std::floor(centerScreen.x - halfW * ez),
-                        std::floor(centerScreen.y - halfH * ez));
-    outBottomRight = ImVec2(outTopLeft.x + bufferWidth * ez,
-                            outTopLeft.y + bufferHeight * ez);
+    outTopLeft = ImVec2(std::floor(centerScreen.x - halfW * ez), std::floor(centerScreen.y - halfH * ez));
+    outBottomRight = ImVec2(outTopLeft.x + bufferWidth * ez, outTopLeft.y + bufferHeight * ez);
 }
 
 float SceneCoordinates::GetEffectiveZoom() const

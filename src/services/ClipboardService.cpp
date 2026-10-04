@@ -21,13 +21,17 @@ std::optional<nlohmann::json> ClipboardService::ReadFromClipboard() const
 {
     const char* text = ImGui::GetClipboardText();
     if (!text || text[0] == '\0')
+    {
         return std::nullopt;
+    }
 
     // Clipboard usually holds arbitrary non-JSON text; parse without exceptions so a
     // failed parse returns a discarded value instead of throwing (which halts the debugger).
     nlohmann::json parsed = nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
     if (parsed.is_discarded())
+    {
         return std::nullopt;
+    }
 
     return parsed;
 }
@@ -36,15 +40,21 @@ std::optional<ClipboardService::ParsedClipboard> ClipboardService::ParseClipboar
 {
     auto jsonOpt = ReadFromClipboard();
     if (!jsonOpt.has_value())
+    {
         return std::nullopt;
+    }
 
     const auto& json = jsonOpt.value();
 
     if (!json.contains("deki_clipboard_type") || !json.contains("version"))
+    {
         return std::nullopt;
+    }
 
     if (json["version"].get<int>() != CLIPBOARD_VERSION)
+    {
         return std::nullopt;
+    }
 
     ParsedClipboard data;
     std::string typeStr = json["deki_clipboard_type"].get<std::string>();
@@ -210,9 +220,13 @@ bool ClipboardService::HasComponentOfType(const std::string& typeName) const
 {
     auto data = ParseClipboard();
     if (!data.has_value())
+    {
         return false;
+    }
     if (data->type != ClipboardContentType::Component)
+    {
         return false;
+    }
     return data->componentType == typeName;
 }
 
@@ -226,7 +240,9 @@ std::string ClipboardService::GetClipboardComponentType() const
 {
     auto data = ParseClipboard();
     if (!data.has_value())
+    {
         return "";
+    }
     return data->componentType;
 }
 
@@ -234,9 +250,13 @@ std::optional<ComponentData> ClipboardService::GetComponentData() const
 {
     auto data = ParseClipboard();
     if (!data.has_value())
+    {
         return std::nullopt;
+    }
     if (data->type != ClipboardContentType::Component)
+    {
         return std::nullopt;
+    }
 
     ComponentData cd;
     cd.typeName = data->componentType;
@@ -248,7 +268,9 @@ std::optional<ObjectData> ClipboardService::GetTransformData() const
 {
     auto data = ParseClipboard();
     if (!data.has_value() || data->type != ClipboardContentType::Transform)
+    {
         return std::nullopt;
+    }
     return data->transformData;
 }
 
@@ -262,7 +284,9 @@ std::optional<std::vector<ChildData>> ClipboardService::GetObjectsData() const
 {
     auto data = ParseClipboard();
     if (!data.has_value() || data->type != ClipboardContentType::Objects)
+    {
         return std::nullopt;
+    }
     return data->objectsData;
 }
 

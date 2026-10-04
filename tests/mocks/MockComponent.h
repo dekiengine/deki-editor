@@ -37,7 +37,12 @@ public:
     // An enum that is NOT numbered 0, 1, 2. Its whole point is that a position
     // in the name table is not the value stored in the field, which is what
     // serialising enums by index used to get wrong.
-    enum class GappedEnum : int32_t { Off = 0, Low = 10, High = 20 };
+    enum class GappedEnum : int32_t
+    {
+        Off = 0,
+        Low = 10,
+        High = 20
+    };
     GappedEnum gappedEnum = GappedEnum::Off;
 
     // Static metadata for reflection
@@ -64,8 +69,18 @@ public:
     static const Deki::ComponentTypeInfo TypeInfo;
     MockSmallEnumComponent() { SetTypeInfo(&TypeInfo); }
 
-    enum class SmallEnum : uint8_t { A = 0, B = 1, C = 2 };
-    enum class MediumEnum : uint16_t { X = 0, Y = 1, Z = 2 };
+    enum class SmallEnum : uint8_t
+    {
+        A = 0,
+        B = 1,
+        C = 2
+    };
+    enum class MediumEnum : uint16_t
+    {
+        X = 0,
+        Y = 1,
+        Z = 2
+    };
 
     float width = 0.0f;
     SmallEnum smallEnum1 = SmallEnum::A;    // 1-byte enum
@@ -105,4 +120,4 @@ public:
     static void Register();
 };
 
-} // namespace DekiEditor::Tests
+}  // namespace DekiEditor::Tests

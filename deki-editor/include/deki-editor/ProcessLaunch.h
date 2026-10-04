@@ -33,7 +33,7 @@ DEKI_EDITOR_API bool LaunchDetached(const std::string& program, const std::vecto
 /// stdout. LaunchDetached suits the helpers the editor drives on the side, and
 /// suppresses both of those.
 DEKI_EDITOR_API bool LaunchDetachedInDirectory(const std::string& program, const std::vector<std::string>& args,
-                               const std::string& workingDirectory);
+                                               const std::string& workingDirectory);
 
 /// Open a source file in the user's code editor, optionally at a line.
 /// Currently targets VS Code (`code`), matching the previous behaviour.

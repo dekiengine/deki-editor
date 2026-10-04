@@ -38,8 +38,7 @@ using InspectorUtils::BeginPropertyRow;
 // A square icon button for a property row (add / edit / delete beside a
 // dropdown): no frame at rest, the toolbar cells' faint fill on hover, dim
 // icon brightening on hover, the palette's red when it removes something.
-bool RowIconButton(const char* id, const char* icon, const char* tooltip, bool enabled = true,
-                   bool destructive = false)
+bool RowIconButton(const char* id, const char* icon, const char* tooltip, bool enabled = true, bool destructive = false)
 {
     const float size = ImGui::GetFrameHeight();
     const ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -49,14 +48,20 @@ bool RowIconButton(const char* id, const char* icon, const char* tooltip, bool e
     ImGui::EndDisabled();
     ImDrawList* dl = ImGui::GetWindowDrawList();
     if (hovered && enabled)
+    {
         dl->AddRectFilled(pos, ImVec2(pos.x + size, pos.y + size), IM_COL32(255, 255, 255, 10));
+    }
     ImVec4 col = destructive ? Palette::Red : (hovered ? Palette::Fg : Palette::Dim);
     if (!enabled)
+    {
         col = Palette::Dim2;
+    }
     const ImVec2 ts = ImGui::CalcTextSize(icon);
     dl->AddText(ImVec2(pos.x + (size - ts.x) * 0.5f, pos.y + (size - ts.y) * 0.5f), ImGui::GetColorU32(col), icon);
     if (hovered && tooltip)
+    {
         DekiEditor::Tooltip("%s", tooltip);
+    }
     return clicked && enabled;
 }
 }  // namespace
@@ -68,14 +73,17 @@ std::string JoinNames(const std::vector<std::string>& names)
 {
     std::string joined;
     for (const std::string& name : names)
+    {
         joined += (joined.empty() ? "" : ", ") + name;
+    }
     return joined;
 }
 
 }  // namespace
 
 BuildPanel::BuildPanel(EditorApp* app)
-    : m_App(app), m_PlatformEditor(app)
+    : m_App(app),
+      m_PlatformEditor(app)
 {
     // Register built-in builders (idempotent)
     BuilderRegistry::Instance().EnsureLoaded();
@@ -88,23 +96,25 @@ BuildPanel::BuildPanel(EditorApp* app)
     }
 
     // Set up platform editor callback
-    m_PlatformEditor.SetOnPlatformSaved([this](const PlatformConfig& config, bool isNew)
-                                        {
-        // Get project platforms directory
-        auto* project = m_App->GetProject();
-        if (project)
+    m_PlatformEditor.SetOnPlatformSaved(
+        [this](const PlatformConfig& config, bool isNew)
         {
-            std::string platformsDir = GetPlatformsDirectory(project->GetPath());
-            PlatformRegistry::Instance().SavePlatformToFile(config, platformsDir);
+            // Get project platforms directory
+            auto* project = m_App->GetProject();
+            if (project)
+            {
+                std::string platformsDir = GetPlatformsDirectory(project->GetPath());
+                PlatformRegistry::Instance().SavePlatformToFile(config, platformsDir);
 
-            // Select the new/edited platform
-            m_SelectedPlatform = config.id;
-            project->SetActivePlatformId(config.id);
-            project->Save();
-            m_App->ApplyEditorTarget();
+                // Select the new/edited platform
+                m_SelectedPlatform = config.id;
+                project->SetActivePlatformId(config.id);
+                project->Save();
+                m_App->ApplyEditorTarget();
 
-            RegenerateBuildFiles(config);
-        } });
+                RegenerateBuildFiles(config);
+            }
+        });
 }
 
 void BuildPanel::RegenerateBuildFiles(const PlatformConfig& config)
@@ -112,7 +122,9 @@ void BuildPanel::RegenerateBuildFiles(const PlatformConfig& config)
     auto* project = m_App ? m_App->GetProject() : nullptr;
     ITargetBuilder* builder = GetActiveBuilder();
     if (!project || !builder)
+    {
         return;
+    }
 
     std::vector<std::string> packageDefines;
     if (auto* pkgPanel = m_App->GetPackageManagerPanel())
@@ -131,7 +143,9 @@ BuildPanel::~BuildPanel()
 void BuildPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(500, 400);
 
@@ -321,7 +335,9 @@ void BuildPanel::Draw()
                 {
                     m_OriginNotice = "Restored from " + m_Origin.packageId + ".";
                     if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_OriginFor))
+                    {
                         RegenerateBuildFiles(*config);
+                    }
                 }
             }
             ImGui::CloseCurrentPopup();
@@ -348,7 +364,9 @@ void BuildPanel::DrawToolbar()
     // step gets no button.
     ITargetBuilder* const activeBuilder = GetActiveBuilder();
     if (activeBuilder != m_DeployTargetsOwner)
+    {
         RefreshDeployTargets();
+    }
 
     // Simulating changes what deploy is (run in the simulator, not flash a
     // port), so the builder is told before its verb and targets are read.
@@ -377,7 +395,9 @@ void BuildPanel::DrawToolbar()
     {
         const std::string verb = activeBuilder->GetDeployLabel();
         if (ui.ToolbarButton(verb.c_str(), !isBusy))
+        {
             StartDeploy();
+        }
         if (ui.ToolbarButton(("Build & " + verb).c_str(), !isBusy))
         {
             m_DeployAfterBuild = true;
@@ -386,7 +406,9 @@ void BuildPanel::DrawToolbar()
         // Offered even when nothing is listed: plugging a device in is how
         // the list stops being empty.
         if (ui.ToolbarIconButton("##refreshtargets", ICON_TI_REFRESH, "Look for devices again", !isBusy))
+        {
             RefreshDeployTargets();
+        }
     }
 
     if (ui.ToolbarIconButton("##clean", ICON_TI_ERASER, "Clean: delete this platform's build output", !isBusy))
@@ -394,19 +416,31 @@ void BuildPanel::DrawToolbar()
         if (builder && m_App->GetProject())
         {
             ActivityPanel::Log("Clean", "Cleaning build...");
-            ActivityPanel::SetCancelCallback("Clean", [builder]()
-                                             { builder->Cancel(); });
-            builder->Clean(m_App->GetProject()->GetPath(), [](const std::string& line, bool isError)
-                           {
+            ActivityPanel::SetCancelCallback("Clean", [builder]() { builder->Cancel(); });
+            builder->Clean(
+                m_App->GetProject()->GetPath(),
+                [](const std::string& line, bool isError)
+                {
                     if (isError)
+                    {
                         ActivityPanel::LogError("Clean", line);
+                    }
                     else
-                        ActivityPanel::Log("Clean", line); }, [](const BuildProgress& progress)
-                           {
+                    {
+                        ActivityPanel::Log("Clean", line);
+                    }
+                },
+                [](const BuildProgress& progress)
+                {
                     if (progress.state == BuildState::Completed)
+                    {
                         ActivityPanel::CompleteProcess("Clean");
+                    }
                     else if (progress.state == BuildState::Failed)
-                        ActivityPanel::FailProcess("Clean", progress.error); });
+                    {
+                        ActivityPanel::FailProcess("Clean", progress.error);
+                    }
+                });
         }
     }
 
@@ -420,7 +454,9 @@ void BuildPanel::DrawDeployTarget()
 {
     ITargetBuilder* const builder = GetActiveBuilder();
     if (builder == nullptr || !builder->SupportsDeploy() || m_DeployTargets.empty())
+    {
         return;
+    }
 
     std::vector<const char*> labels;
     int current = 0;
@@ -429,12 +465,16 @@ void BuildPanel::DrawDeployTarget()
         const DeployTarget& t = m_DeployTargets[i];
         labels.push_back(t.label.empty() ? t.id.c_str() : t.label.c_str());
         if (t.id == m_SelectedDeployTarget)
+        {
             current = static_cast<int>(i);
+        }
     }
     BeginPropertyRow("Deploy To");
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (SchematicCombo("##deploytarget", &current, labels.data(), static_cast<int>(labels.size())))
+    {
         m_SelectedDeployTarget = m_DeployTargets[current].id;
+    }
 }
 
 void BuildPanel::StartBuild()
@@ -460,9 +500,8 @@ void BuildPanel::StartBuild()
         return;
     }
 
-    ActivityPanel::Log("Build", "Platform: " + platform->displayName +
-                                    " (" + std::to_string(platform->screenWidth) + "x" +
-                                    std::to_string(platform->screenHeight) + ")");
+    ActivityPanel::Log("Build", "Platform: " + platform->displayName + " (" + std::to_string(platform->screenWidth) +
+                                    "x" + std::to_string(platform->screenHeight) + ")");
 
     BuildOptions options;
     options.enableLogging = m_EnableLogging;
@@ -472,15 +511,19 @@ void BuildPanel::StartBuild()
     // Toolchain check, boot payload, package defines, build files. Shared
     // with the CLI so a firmware image built from a terminal is the image this
     // button produces - see FirmwareBuildService::PrepareBuild.
-    const FirmwareOpResult prepared = FirmwareBuildService::PrepareBuild(
-        m_App->GetProject()->GetPath(), *platform, *builder, m_App, options,
-        [](const std::string& line, bool isError)
-        {
-            if (isError)
-                ActivityPanel::LogError("Build", line);
-            else
-                ActivityPanel::Log("Build", line);
-        });
+    const FirmwareOpResult prepared =
+        FirmwareBuildService::PrepareBuild(m_App->GetProject()->GetPath(), *platform, *builder, m_App, options,
+                                           [](const std::string& line, bool isError)
+                                           {
+                                               if (isError)
+                                               {
+                                                   ActivityPanel::LogError("Build", line);
+                                               }
+                                               else
+                                               {
+                                                   ActivityPanel::Log("Build", line);
+                                               }
+                                           });
 
     if (!prepared.success)
     {
@@ -491,15 +534,22 @@ void BuildPanel::StartBuild()
     }
 
     ActivityPanel::Log("Build", "Building...");
-    ActivityPanel::SetCancelCallback("Build", [builder]()
-                                     { builder->Cancel(); });
-    builder->Build(m_App->GetProject()->GetPath(), [](const std::string& line, bool isError)
-                   {
+    ActivityPanel::SetCancelCallback("Build", [builder]() { builder->Cancel(); });
+    builder->Build(
+        m_App->GetProject()->GetPath(),
+        [](const std::string& line, bool isError)
+        {
             if (isError)
+            {
                 ActivityPanel::LogError("Build", line);
+            }
             else
-                ActivityPanel::Log("Build", line); }, [this](const BuildProgress& progress)
-                   {
+            {
+                ActivityPanel::Log("Build", line);
+            }
+        },
+        [this](const BuildProgress& progress)
+        {
             m_IsBuilding = (progress.state == BuildState::Building);
             m_BuildProgress = progress.progress;
             m_BuildStatus = progress.statusText;
@@ -516,7 +566,8 @@ void BuildPanel::StartBuild()
             {
                 m_DeployAfterBuild = false;
                 ActivityPanel::FailProcess("Build", progress.error);
-            } });
+            }
+        });
 }
 
 void BuildPanel::RefreshDeployTargets()
@@ -524,14 +575,20 @@ void BuildPanel::RefreshDeployTargets()
     ITargetBuilder* builder = GetActiveBuilder();
     m_DeployTargetsOwner = builder;
     m_DeployTargets = (builder != nullptr && builder->SupportsDeploy()) ? builder->EnumerateDeployTargets()
-                                                                         : std::vector<DeployTarget>{};
+                                                                        : std::vector<DeployTarget>{};
 
     bool stillOffered = false;
     for (const DeployTarget& t : m_DeployTargets)
+    {
         if (t.id == m_SelectedDeployTarget)
+        {
             stillOffered = true;
+        }
+    }
     if (!stillOffered)
+    {
         m_SelectedDeployTarget = m_DeployTargets.empty() ? std::string() : m_DeployTargets.front().id;
+    }
 }
 
 void BuildPanel::StartDeploy()
@@ -551,22 +608,34 @@ void BuildPanel::StartDeploy()
         {
             ActivityPanel::Log(verb, m_SelectedDeployTarget.empty() ? verb + "..."
                                                                     : verb + " -> " + m_SelectedDeployTarget + "...");
-            ActivityPanel::SetCancelCallback(verb, [builder]()
-                                             { builder->Cancel(); });
-            builder->Deploy(m_App->GetProject()->GetPath(), m_SelectedDeployTarget, [verb](const std::string& line, bool isError)
-                           {
+            ActivityPanel::SetCancelCallback(verb, [builder]() { builder->Cancel(); });
+            builder->Deploy(
+                m_App->GetProject()->GetPath(), m_SelectedDeployTarget,
+                [verb](const std::string& line, bool isError)
+                {
                     if (isError)
+                    {
                         ActivityPanel::LogError(verb, line);
+                    }
                     else
-                        ActivityPanel::Log(verb, line); }, [this, verb](const BuildProgress& progress)
-                           {
+                    {
+                        ActivityPanel::Log(verb, line);
+                    }
+                },
+                [this, verb](const BuildProgress& progress)
+                {
                     m_IsUploading = (progress.state == BuildState::Deploying);
                     m_BuildProgress = progress.progress;
                     m_BuildStatus = progress.statusText;
                     if (progress.state == BuildState::Completed)
+                    {
                         ActivityPanel::CompleteProcess(verb);
+                    }
                     else if (progress.state == BuildState::Failed)
-                        ActivityPanel::FailProcess(verb, progress.error); });
+                    {
+                        ActivityPanel::FailProcess(verb, progress.error);
+                    }
+                });
         }
     }
 }
@@ -621,7 +690,9 @@ void BuildPanel::DrawPlatformSelector()
                 // own copy now, so it can be edited and its boot scene exists.
                 std::string adoptErr;
                 if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
+                {
                     ActivityPanel::LogError("Build", adoptErr);
+                }
 
                 m_App->GetProject()->SetActivePlatformId(m_SelectedPlatform);
                 m_App->GetProject()->Save();
@@ -664,7 +735,9 @@ void BuildPanel::DrawPlatformSelector()
 
     ImGui::SameLine(0.0f, gap);
     if (RowIconButton("##addplatform", ICON_TI_PLUS, "Add a platform"))
+    {
         m_PlatformEditor.ShowNew();
+    }
 
     const bool canEdit = !m_SelectedPlatform.empty() && registry.GetPlatform(m_SelectedPlatform) != nullptr;
     ImGui::SameLine(0.0f, gap);
@@ -676,10 +749,14 @@ void BuildPanel::DrawPlatformSelector()
         {
             std::string adoptErr;
             if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
+            {
                 ActivityPanel::LogError("Build", adoptErr);
+            }
         }
         if (const PlatformConfig* platform = registry.GetPlatform(m_SelectedPlatform))
+        {
             m_PlatformEditor.ShowEdit(platform);
+        }
     }
 
     ImGui::SameLine(0.0f, gap);
@@ -694,24 +771,32 @@ void BuildPanel::DrawPlatformOrigin()
 {
     auto* project = m_App ? m_App->GetProject() : nullptr;
     if (!project || m_SelectedPlatform.empty())
+    {
         return;
+    }
 
     if (m_OriginFor != m_SelectedPlatform || m_OriginRevision != ProjectPlatformsRevision())
     {
         if (m_OriginFor != m_SelectedPlatform)
+        {
             m_OriginNotice.clear();
+        }
         m_Origin = GetPlatformOrigin(project->GetPath(), m_SelectedPlatform);
         m_OriginFor = m_SelectedPlatform;
         m_OriginRevision = ProjectPlatformsRevision();
     }
 
     if (!m_Origin.fromPackage)
+    {
         return;
+    }
 
     // Where it came from, and how it stands against that package now.
     std::string source = m_Origin.packageId;
     if (!m_Origin.adoptedVersion.empty())
+    {
         source += " " + m_Origin.adoptedVersion;
+    }
     BeginPropertyRow("From Package");
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(source.c_str());
@@ -721,15 +806,19 @@ void BuildPanel::DrawPlatformOrigin()
         ImGui::SameLine();
         ImGui::TextColored(Palette::Dim, "not installed");
         if (ImGui::IsItemHovered())
+        {
             DekiEditor::Tooltip("The platform is the project's own copy and still builds.\n"
                                 "Install the package to update or restore it.");
+        }
     }
     if (m_Origin.modified)
     {
         ImGui::SameLine();
         ImGui::TextColored(Palette::Dim, "%s", m_Origin.recorded ? "modified" : "differs from the package");
         if (ImGui::IsItemHovered())
+        {
             DekiEditor::Tooltip("Changed in this project: %s", JoinNames(m_Origin.modifiedItems).c_str());
+        }
     }
     if (m_Origin.updateAvailable)
     {
@@ -739,7 +828,9 @@ void BuildPanel::DrawPlatformOrigin()
         {
             std::string tip = "Changed in the package";
             if (!m_Origin.offeredVersion.empty() && m_Origin.offeredVersion != m_Origin.adoptedVersion)
+            {
                 tip += " (" + m_Origin.offeredVersion + ")";
+            }
             DekiEditor::Tooltip("%s: %s", tip.c_str(), JoinNames(m_Origin.updatedItems).c_str());
         }
     }
@@ -763,24 +854,39 @@ void BuildPanel::DrawPlatformOrigin()
                 {
                     m_OriginNotice = "Updated from " + package + ".";
                     if (!result.taken.empty())
+                    {
                         m_OriginNotice += " Took: " + JoinNames(result.taken) + ".";
+                    }
                     if (!result.kept.empty())
-                        m_OriginNotice += " Kept yours, which the package also changed: " + JoinNames(result.kept) + ".";
+                    {
+                        m_OriginNotice +=
+                            " Kept yours, which the package also changed: " + JoinNames(result.kept) + ".";
+                    }
                     if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform))
+                    {
                         RegenerateBuildFiles(*config);
+                    }
                 }
             }
             if (ImGui::IsItemHovered())
+            {
                 DekiEditor::Tooltip("Take the package's changes and keep this project's own.");
+            }
             if (m_Origin.CanRestore())
+            {
                 ImGui::SameLine();
+            }
         }
         if (m_Origin.CanRestore())
         {
             if (ImGui::Button("Restore Defaults"))
+            {
                 m_ShowRestoreConfirm = true;
+            }
             if (ImGui::IsItemHovered())
+            {
                 DekiEditor::Tooltip("Replace this platform with the package's version.");
+            }
         }
         ImGui::PopStyleVar();
     }
@@ -833,7 +939,9 @@ void BuildPanel::DrawToolchainStatusSummary()
         if (ImGui::Button("Open Platform Manager"))
         {
             if (auto* platformMgr = m_App->GetPlatformManagerPanel())
+            {
                 platformMgr->SetOpen(true);
+            }
         }
         ImGui::PopStyleVar();
     }
@@ -865,11 +973,15 @@ void BuildPanel::DrawPlatformDetails()
     if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
     {
         for (const auto& [label, value] : describer->DescribePlatform(*platform))
+        {
             row(label.c_str(), value);
+        }
     }
 
     if (platform->screenWidth > 0 && platform->screenHeight > 0)
+    {
         row("Display", std::to_string(platform->screenWidth) + "x" + std::to_string(platform->screenHeight));
+    }
 }
 
 // Stripping: what a device build leaves out (services/FeatureResolver). The
@@ -878,7 +990,9 @@ void BuildPanel::DrawStripping()
 {
     auto* project = m_App->GetProject();
     if (!project)
+    {
         return;
+    }
     if (m_StripProject != project->GetPath())
     {
         m_Strip = BuildStripSettings::Load(project->GetPath());
@@ -904,7 +1018,9 @@ void BuildPanel::DrawStripping()
     }
 
     if (m_StripSummary.empty())
+    {
         m_StripSummary = ComputeStripPlan(project->GetPath(), project->GetActivePlatformId()).summary;
+    }
     InspectorUtils::SetNextRowTooltip("Simulator and firmware builds only.");
     BeginPropertyRow("Leaves Out");
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
@@ -913,7 +1029,9 @@ void BuildPanel::DrawStripping()
     BeginPropertyRow("");
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
     if (ImGui::Button("Recompute"))
+    {
         m_StripSummary.clear();
+    }
     ImGui::PopStyleVar();
 }
 
@@ -937,14 +1055,18 @@ ITargetBuilder* BuildPanel::GetActiveBuilder()
 {
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)
+    {
         return nullptr;
+    }
     ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
     // One backend serves every platform of its framework, and what it answers
     // (can it deploy, to what, is its toolchain in) can depend on which one.
     // Tell it which before asking - but never under a running operation,
     // which reads the platform it was started with.
     if (builder && !builder->IsBuilding())
+    {
         builder->SetPlatformConfig(*platform);
+    }
     return builder;
 }
 

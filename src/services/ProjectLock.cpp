@@ -42,7 +42,9 @@ std::string HeldMessage(const fs::path& lockFile)
     const std::string pid = ReadHolder(lockFile);
     std::string msg = "This project is already open in another Deki Editor";
     if (!pid.empty())
+    {
         msg += " (process " + pid + ")";
+    }
     return msg + ". Close it there first.";
 }
 }  // namespace
@@ -104,15 +106,19 @@ bool ProjectLock::Acquire(const fs::path& projectRoot, std::string& error)
     // No FILE_SHARE_WRITE: a second editor's open fails with a sharing
     // violation for as long as this handle lives. FILE_SHARE_READ lets it read
     // who holds the lock.
-    HANDLE h = CreateFileW(file.wstring().c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
-                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE h = CreateFileW(file.wstring().c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == INVALID_HANDLE_VALUE)
     {
         const DWORD err = GetLastError();
         if (err == ERROR_SHARING_VIOLATION || err == ERROR_LOCK_VIOLATION)
+        {
             error = HeldMessage(file);
+        }
         else
+        {
             error = "Could not create " + file.string() + " (error " + std::to_string(err) + ")";
+        }
         return false;
     }
     SetEndOfFile(h);
@@ -136,9 +142,13 @@ bool ProjectLock::Acquire(const fs::path& projectRoot, std::string& error)
         const int err = errno;
         close(fd);
         if (err == EWOULDBLOCK)
+        {
             error = HeldMessage(file);
+        }
         else
+        {
             error = "Could not lock " + file.string() + " (errno " + std::to_string(err) + ")";
+        }
         return false;
     }
     if (ftruncate(fd, 0) == 0)

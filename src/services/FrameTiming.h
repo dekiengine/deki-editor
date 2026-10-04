@@ -36,15 +36,21 @@ nlohmann::json Report();
 class Scope
 {
 public:
-    explicit Scope(const char* name) : m_Name(name), m_Active(IsCollecting())
+    explicit Scope(const char* name)
+        : m_Name(name),
+          m_Active(IsCollecting())
     {
         if (m_Active)
+        {
             m_Start = Clock::now();
+        }
     }
     ~Scope()
     {
         if (m_Active)
+        {
             Add(m_Name, m_Start);
+        }
     }
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;

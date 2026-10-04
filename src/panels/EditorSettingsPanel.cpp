@@ -47,7 +47,9 @@ void Note(const char* text)
 void EditorSettingsPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(440, 470);
     if (!ImGui::Begin("EDITOR SETTINGS###Editor Settings", &m_Open,
@@ -65,7 +67,9 @@ void EditorSettingsPanel::Draw()
         BeginPropertyRow("Reduce Motion");
         bool reduce = Motion::ReduceMotion();
         if (SchematicCheckbox("##reducemotion", &reduce))
+        {
             Motion::SetReduceMotion(reduce);
+        }
         EndPropertyContext();
         SchematicSectionEnd();
     }
@@ -77,17 +81,25 @@ void EditorSettingsPanel::Draw()
         const std::string stored = EditorSettings::GetString(kTextSmoothingKey, "auto");
         int current = 0;
         for (int i = 0; i < kSmoothingCount; ++i)
+        {
             if (stored == kSmoothing[i].value)
+            {
                 current = i;
+            }
+        }
         const char* labels[kSmoothingCount];
         for (int i = 0; i < kSmoothingCount; ++i)
+        {
             labels[i] = kSmoothing[i].label;
+        }
         InspectorUtils::SetNextRowTooltip("Automatic follows the system: subpixel when ClearType is on, in your "
                                           "screen's stripe order, greyscale otherwise.");
         BeginPropertyRow("Smoothing");
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (SchematicCombo("##textsmoothing", &current, labels, kSmoothingCount))
+        {
             EditorSettings::SetString(kTextSmoothingKey, kSmoothing[current].value);
+        }
         Note("Applies the next time the editor starts.");
         EndPropertyContext();
         SchematicSectionEnd();
@@ -102,7 +114,9 @@ void EditorSettingsPanel::Draw()
         BeginPropertyRow("Check Daily");
         bool check = UpdateCheck::IsEnabled();
         if (SchematicCheckbox("##checkdaily", &check))
+        {
             UpdateCheck::SetEnabled(check);
+        }
         EndPropertyContext();
         SchematicSectionEnd();
     }

@@ -32,14 +32,19 @@ namespace
 std::string RelativeTime(int64_t stamp)
 {
     if (stamp <= 0)
+    {
         return "never opened";
+    }
 
     using namespace std::chrono;
     const int64_t now = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
     const int64_t delta = now - stamp;
 
     char buf[64];
-    if (delta < 60) return "just now";
+    if (delta < 60)
+    {
+        return "just now";
+    }
     if (delta < 3600)
     {
         std::snprintf(buf, sizeof(buf), "%lld min ago", (long long)(delta / 60));
@@ -50,7 +55,10 @@ std::string RelativeTime(int64_t stamp)
         std::snprintf(buf, sizeof(buf), "%lld hours ago", (long long)(delta / 3600));
         return buf;
     }
-    if (delta < 172800) return "yesterday";
+    if (delta < 172800)
+    {
+        return "yesterday";
+    }
     if (delta < 2592000)
     {
         std::snprintf(buf, sizeof(buf), "%lld days ago", (long long)(delta / 86400));
@@ -67,12 +75,11 @@ std::string RelativeTime(int64_t stamp)
 bool ContainsNoCase(const std::string& haystack, const std::string& needle)
 {
     if (needle.empty())
+    {
         return true;
-    auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                          [](char a, char b)
-                          {
-                              return std::tolower((unsigned char)a) == std::tolower((unsigned char)b);
-                          });
+    }
+    auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](char a, char b)
+                          { return std::tolower((unsigned char)a) == std::tolower((unsigned char)b); });
     return it != haystack.end();
 }
 
@@ -143,13 +150,17 @@ void ProjectManagerScreen::RebuildFilter()
     for (int i = 0; i < (int)entries.size(); ++i)
     {
         if (ContainsNoCase(entries[i].name, needle) || ContainsNoCase(entries[i].path, needle))
+        {
             m_Filtered.push_back(i);
+        }
     }
 
     // A selection filtered out of view would leave Open and Remove acting on a
     // row that is not on screen.
     if (std::find(m_Filtered.begin(), m_Filtered.end(), m_Selected) == m_Filtered.end())
+    {
         m_Selected = m_Filtered.empty() ? -1 : m_Filtered.front();
+    }
 }
 
 void ProjectManagerScreen::ImportProject()
@@ -160,7 +171,9 @@ void ProjectManagerScreen::ImportProject()
                             [this](const std::string& path)
                             {
                                 if (path.empty())
+                                {
                                     return;
+                                }
 
                                 if (!ProjectRegistry::IsProjectDir(path))
                                 {
@@ -198,9 +211,10 @@ void ProjectManagerScreen::Draw()
     const float railMinH = 290.0f * S;
     const size_t entryCount = ProjectRegistry::Get().Entries().size();
     const float availBodyH = avail.y - headerH - pad * 1.4f;
-    float bodyH = entryCount == 0
-        ? 260.0f * S
-        : std::max(railMinH, (float)entryCount * rowStride + 8.0f * S + (m_Error.empty() ? 0.0f : 26.0f * S));
+    float bodyH =
+        entryCount == 0
+            ? 260.0f * S
+            : std::max(railMinH, (float)entryCount * rowStride + 8.0f * S + (m_Error.empty() ? 0.0f : 26.0f * S));
     bodyH = std::max(std::min(bodyH, availBodyH), 120.0f * S);
 
     // Sit slightly above the middle, where the eye lands first.
@@ -219,10 +233,9 @@ void ProjectManagerScreen::Draw()
 
         const size_t total = ProjectRegistry::Get().Entries().size();
         char subtitle[96];
-        std::snprintf(subtitle, sizeof(subtitle), "%zu project%s on this machine",
-                      total, total == 1 ? "" : "s");
-        TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x, origin.y + 36.0f * S),
-               ImGui::GetColorU32(kSecondary), subtitle);
+        std::snprintf(subtitle, sizeof(subtitle), "%zu project%s on this machine", total, total == 1 ? "" : "s");
+        TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x, origin.y + 36.0f * S), ImGui::GetColorU32(kSecondary),
+               subtitle);
 
         // Search field, right-aligned with the list below it.
         const float searchW = 240.0f * S;
@@ -231,8 +244,7 @@ void ProjectManagerScreen::Draw()
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f * S, 7.0f * S));
         // Deliberately not focused on arrival: with the search box active,
         // ImGui swallows the arrow keys and Enter that drive the list below.
-        ImGui::InputTextWithHint("##ProjectSearch", ICON_TI_SEARCH "  Search projects",
-                                 m_Search, sizeof(m_Search));
+        ImGui::InputTextWithHint("##ProjectSearch", ICON_TI_SEARCH "  Search projects", m_Search, sizeof(m_Search));
         ImGui::PopStyleVar();
 
         ImGui::SetCursorScreenPos(ImVec2(origin.x, origin.y + 62.0f * S));
@@ -270,14 +282,20 @@ void ProjectManagerScreen::Draw()
         const int cursor = (pos == m_Filtered.end()) ? 0 : (int)(pos - m_Filtered.begin());
 
         if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+        {
             m_Selected = m_Filtered[std::min(cursor + 1, (int)m_Filtered.size() - 1)];
+        }
         else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+        {
             m_Selected = m_Filtered[std::max(cursor - 1, 0)];
+        }
         else if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
         {
             const auto& entries = ProjectRegistry::Get().Entries();
             if (m_Selected >= 0 && m_Selected < (int)entries.size() && !entries[m_Selected].missing)
+            {
                 m_PendingOpen = entries[m_Selected].path;
+            }
         }
     }
 }
@@ -322,16 +340,19 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         const float rowW = ImGui::GetContentRegionAvail().x;
         const bool selected = (m_Selected == idx);
 
-        if (ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick,
-                              ImVec2(rowW, rowH)))
+        if (ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(rowW, rowH)))
         {
             m_Selected = idx;
             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !entry.missing)
+            {
                 m_PendingOpen = entry.path;
+            }
         }
 
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        {
             m_Selected = idx;
+        }
 
         PushContextMenuPopupStyle();
         const bool rowMenu = ImGui::BeginPopupContextItem("##rowMenu");
@@ -340,9 +361,13 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         {
             PushContextMenuItemStyle();
             if (ImGui::MenuItem("Open", nullptr, false, !entry.missing))
+            {
                 m_PendingOpen = entry.path;
+            }
             if (ImGui::MenuItem("Show in File Explorer", nullptr, false, !entry.missing))
+            {
                 RevealInFileManager(entry.path);
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Remove from List"))
             {
@@ -370,9 +395,12 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
 
             dl->AddRectFilled(rowMin, rowMax, ImGui::GetColorU32(hovered ? Palette::Line : Palette::Bg2), rounding);
             if (selected)
-                dl->AddRectFilled(rowMin, rowMax,
-                                  ImGui::GetColorU32(ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.08f)),
-                                  rounding);
+            {
+                dl->AddRectFilled(
+                    rowMin, rowMax,
+                    ImGui::GetColorU32(ImVec4(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, 0.08f)),
+                    rounding);
+            }
             dl->AddRect(ImVec2(rowMin.x + 0.5f, rowMin.y + 0.5f), ImVec2(rowMax.x - 0.5f, rowMax.y - 0.5f),
                         ImGui::GetColorU32(border), rounding, 0, selected ? 1.5f * S : 1.0f);
         }
@@ -389,8 +417,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
             const ImVec4 iconCol = entry.missing ? Palette::Red : Palette::FolderIcon;
             const ImVec2 iconSize = MeasureIn(nullptr, 20.0f, icon);
             TextAt(dl, nullptr, 20.0f,
-                   ImVec2(tileMin.x + (tile - iconSize.x) * 0.5f,
-                          tileMin.y + (tile - iconSize.y) * 0.5f),
+                   ImVec2(tileMin.x + (tile - iconSize.x) * 0.5f, tileMin.y + (tile - iconSize.y) * 0.5f),
                    ImGui::GetColorU32(iconCol), icon);
         }
 
@@ -401,8 +428,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         {
             const std::string when = RelativeTime(entry.lastOpened);
             const ImVec2 whenSize = MeasureIn(g_FontUISmall, 13.0f, when.c_str());
-            TextAt(dl, g_FontUISmall, 13.0f,
-                   ImVec2(rightEdge - whenSize.x, rowMin.y + 13.0f * S),
+            TextAt(dl, g_FontUISmall, 13.0f, ImVec2(rightEdge - whenSize.x, rowMin.y + 13.0f * S),
                    ImGui::GetColorU32(kSecondary), when.c_str());
 
             const float chipY = rowMin.y + 37.0f * S;
@@ -415,9 +441,11 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
             else
             {
                 if (!entry.platformId.empty())
+                {
                     chipsW = DrawChip(dl, ImVec2(rightEdge, chipY), ImGui::GetColorU32(kSecondary),
                                       ImGui::GetColorU32(Palette::Line3), entry.platformId.c_str(), S) +
                              6.0f * S;
+                }
 
                 // The engine the project was last saved with. Amber when it is
                 // not the engine this editor carries.
@@ -427,8 +455,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
                     const ImVec4 col = matches ? kSecondary : Palette::Amber;
                     const std::string label = "Deki " + entry.engineVersion;
                     chipsW += DrawChip(dl, ImVec2(rightEdge - chipsW, chipY), ImGui::GetColorU32(col),
-                                       ImGui::GetColorU32(matches ? Palette::Line3 : Palette::Amber),
-                                       label.c_str(), S);
+                                       ImGui::GetColorU32(matches ? Palette::Line3 : Palette::Amber), label.c_str(), S);
                 }
             }
 
@@ -439,10 +466,10 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         // on its right.
         dl->PushClipRect(ImVec2(textX, rowMin.y), ImVec2(rightEdge, rowMax.y), true);
         const ImVec4 nameCol = entry.missing ? Palette::Dim : Palette::Fg;
-        TextAt(dl, g_FontUIMed, 16.0f, ImVec2(textX, rowMin.y + 14.0f * S),
-               ImGui::GetColorU32(nameCol), entry.name.c_str());
-        TextAt(dl, g_FontMonoSmall, 12.5f, ImVec2(textX, rowMin.y + 41.0f * S),
-               ImGui::GetColorU32(kSecondary), entry.path.c_str());
+        TextAt(dl, g_FontUIMed, 16.0f, ImVec2(textX, rowMin.y + 14.0f * S), ImGui::GetColorU32(nameCol),
+               entry.name.c_str());
+        TextAt(dl, g_FontMonoSmall, 12.5f, ImVec2(textX, rowMin.y + 41.0f * S), ImGui::GetColorU32(kSecondary),
+               entry.path.c_str());
         dl->PopClipRect();
 
         // Hover affordance: a chevron on the right, so the row reads as
@@ -450,8 +477,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         if (hovered && !entry.missing)
         {
             const ImVec2 chevSize = MeasureIn(nullptr, 14.0f, ICON_TI_CHEVRON_RIGHT);
-            TextAt(dl, nullptr, 14.0f,
-                   ImVec2(rowMax.x - 14.0f * S - chevSize.x, rowMin.y + (rowH - chevSize.y) * 0.5f),
+            TextAt(dl, nullptr, 14.0f, ImVec2(rowMax.x - 14.0f * S - chevSize.x, rowMin.y + (rowH - chevSize.y) * 0.5f),
                    ImGui::GetColorU32(Palette::Dim), ICON_TI_CHEVRON_RIGHT);
         }
 
@@ -492,13 +518,17 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.66f, 0.90f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Bg);
     if (ImGui::Button(ICON_TI_PLUS "  New Project", buttonSize))
+    {
         m_App->ShowNewProjectDialog();
+    }
     ImGui::PopStyleColor(4);
 
     ImGui::Dummy(ImVec2(0.0f, 6.0f * S));
 
     if (ImGui::Button(ICON_TI_FOLDER_PLUS "  Import...", buttonSize))
+    {
         ImportProject();
+    }
 
     ImGui::Dummy(ImVec2(0.0f, 16.0f * S));
     ImGui::Separator();
@@ -506,14 +536,18 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
 
     ImGui::BeginDisabled(!canOpen);
     if (ImGui::Button("Open", buttonSize))
+    {
         m_PendingOpen = entries[m_Selected].path;
+    }
     ImGui::EndDisabled();
 
     ImGui::Dummy(ImVec2(0.0f, 6.0f * S));
 
     ImGui::BeginDisabled(!canOpen);
     if (ImGui::Button(ICON_TI_EXTERNAL_LINK "  Show in Explorer", buttonSize))
+    {
         RevealInFileManager(entries[m_Selected].path);
+    }
     ImGui::EndDisabled();
 
     ImGui::Dummy(ImVec2(0.0f, 6.0f * S));
@@ -558,14 +592,12 @@ void ProjectManagerScreen::DrawEmptyState(float width, float height)
 
     const char* title = "No projects yet";
     const ImVec2 titleSize = MeasureIn(g_FontDisplay, 20.0f, title);
-    TextAt(dl, g_FontDisplay, 20.0f,
-           ImVec2(origin.x + (blockW - titleSize.x) * 0.5f, origin.y + 52.0f * S),
+    TextAt(dl, g_FontDisplay, 20.0f, ImVec2(origin.x + (blockW - titleSize.x) * 0.5f, origin.y + 52.0f * S),
            ImGui::GetColorU32(Palette::Fg), title);
 
     const char* hint = "Create one, or import a folder that already has a deki.json.";
     const ImVec2 hintSize = MeasureIn(g_FontUISmall, 13.0f, hint);
-    TextAt(dl, g_FontUISmall, 13.0f,
-           ImVec2(origin.x + (blockW - hintSize.x) * 0.5f, origin.y + 84.0f * S),
+    TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x + (blockW - hintSize.x) * 0.5f, origin.y + 84.0f * S),
            ImGui::GetColorU32(kSecondary), hint);
 
     ImGui::Dummy(ImVec2(blockW, 116.0f * S));
@@ -578,12 +610,16 @@ void ProjectManagerScreen::DrawEmptyState(float width, float height)
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.66f, 0.90f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Bg);
     if (ImGui::Button(ICON_TI_PLUS "  New Project", ImVec2(buttonW, 34.0f * S)))
+    {
         m_App->ShowNewProjectDialog();
+    }
     ImGui::PopStyleColor(4);
 
     ImGui::SameLine(0.0f, 10.0f * S);
     if (ImGui::Button(ICON_TI_FOLDER_PLUS "  Import...", ImVec2(buttonW, 34.0f * S)))
+    {
         ImportProject();
+    }
 
     if (!m_Error.empty())
     {

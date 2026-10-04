@@ -3,14 +3,17 @@
 namespace DekiEditor
 {
 
-bool UnsavedChangesPrompt::Request(PendingSceneAction action, const std::string& path,
-                                   bool sceneIsDirty)
+bool UnsavedChangesPrompt::Request(PendingSceneAction action, const std::string& path, bool sceneIsDirty)
 {
     if (m_Suppressed)
+    {
         return false;
+    }
 
     if (!sceneIsDirty)
+    {
         return false;  // nothing to lose; the caller proceeds immediately
+    }
 
     m_DialogVisible = true;
     m_PendingAction = action;

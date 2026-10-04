@@ -34,11 +34,18 @@ protected:
     static const MockComponent* FirstMock(const Deki::Scene& scene)
     {
         const Deki::Object* root = scene.GetObjects().empty() ? nullptr : scene.GetObjects()[0];
-        if (!root || root->GetChildren().empty()) return nullptr;
+        if (!root || root->GetChildren().empty())
+        {
+            return nullptr;
+        }
         const Deki::Object* obj = root->GetChildren()[0];
         for (const Deki::Component* c : obj->GetComponents())
+        {
             if (c->GetType() == MockComponent::StaticType)
+            {
                 return static_cast<const MockComponent*>(c);
+            }
+        }
         return nullptr;
     }
 };

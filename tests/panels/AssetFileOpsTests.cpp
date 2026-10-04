@@ -34,7 +34,11 @@ protected:
         fs::create_directories(m_Root, ec);
         ASSERT_FALSE(ec);
     }
-    void TearDown() override { std::error_code ec; fs::remove_all(m_Root, ec); }
+    void TearDown() override
+    {
+        std::error_code ec;
+        fs::remove_all(m_Root, ec);
+    }
 
     // An asset plus the sidecar that gives it identity.
     std::string MakeAsset(const std::string& rel, const std::string& guid)
@@ -42,7 +46,8 @@ protected:
         fs::path p = m_Root / rel;
         fs::create_directories(p.parent_path());
         std::ofstream(p) << "pixels";
-        AssetData d; d.guid = guid;
+        AssetData d;
+        d.guid = guid;
         DekiEditor::SaveAssetData(p.string() + ".data", d);
         return p.string();
     }
@@ -69,8 +74,7 @@ TEST_F(AssetFileOpsTest, MoveTakesTheSidecarWithIt)
     EXPECT_TRUE(fs::exists(dst));
     EXPECT_FALSE(fs::exists(src));
     EXPECT_FALSE(fs::exists(src + ".data")) << "a sidecar left behind orphans itself";
-    EXPECT_EQ(GuidOf(dst), "guid-player")
-        << "identity must survive a move, or every reference to this asset breaks";
+    EXPECT_EQ(GuidOf(dst), "guid-player") << "identity must survive a move, or every reference to this asset breaks";
 }
 
 TEST_F(AssetFileOpsTest, MoveSucceedsForFilesThatHaveNoSidecar)
@@ -79,8 +83,7 @@ TEST_F(AssetFileOpsTest, MoveSucceedsForFilesThatHaveNoSidecar)
     std::ofstream(p) << "hello";
     const std::string dst = (m_Root / "moved.txt").string();
 
-    EXPECT_TRUE(Ops::MoveWithData(p.string(), dst))
-        << "not every file in the tree is an imported asset";
+    EXPECT_TRUE(Ops::MoveWithData(p.string(), dst)) << "not every file in the tree is an imported asset";
     EXPECT_TRUE(fs::exists(dst));
 }
 
@@ -187,4 +190,4 @@ TEST_F(AssetFileOpsTest, ReassignOnAMissingTreeIsANoOp)
     EXPECT_NO_THROW(Ops::ReassignGuidsInTree((m_Root / "nope").string()));
 }
 
-} // namespace
+}  // namespace

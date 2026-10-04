@@ -15,8 +15,7 @@ namespace AssetImportDrop
 // adopted wholesale) and registers/compiles the assets through `pipeline`
 // (may be null). False, with `error` set, when the destination exists or the
 // copy fails.
-bool Import(const std::string& droppedPath, const std::string& targetDir,
-            AssetPipeline* pipeline, std::string& error);
+bool Import(const std::string& droppedPath, const std::string& targetDir, AssetPipeline* pipeline, std::string& error);
 
 }  // namespace AssetImportDrop
 }  // namespace DekiEditor

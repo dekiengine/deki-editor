@@ -20,21 +20,22 @@ class EditorApp;
 struct LogEntry
 {
     std::string message;
-    std::string messageLower;   // for the text filter; lower-cased once at insert, not per frame
+    std::string messageLower;  // for the text filter; lower-cased once at insert, not per frame
     // Row height as last measured by the console draw, keyed by the wrap
     // width and the collapse count it was measured for. Off-screen rows are
     // skipped with this height instead of being formatted and measured.
     mutable float cachedRowHeight = -1.0f;
     mutable float cachedRowWidth = -1.0f;
     mutable int cachedRowCount = 0;
-    ::Deki::LogLevel level;                                 // Use engine's LogLevel
+    ::Deki::LogLevel level;                           // Use engine's LogLevel
     int count;                                        // For collapsing duplicate messages
     std::chrono::system_clock::time_point timestamp;  // When the log was created
     uint32_t objectId = 0;                            // Deki::Object ID if log came from a scene object (0 = none)
     bool pinned = false;                              // Pinned entries survive Clear() (used for compilation errors)
-    std::string sourceFile;                           // Source filename for double-click-to-open (e.g., "MyComponent.cpp")
-    int sourceLine = 0;                               // Source line number
-    std::string buildKey;                             // For pinned build errors: identifies the producer (package target, "__plugin__", or "__package_summary")
+    std::string sourceFile;  // Source filename for double-click-to-open (e.g., "MyComponent.cpp")
+    int sourceLine = 0;      // Source line number
+    std::string buildKey;    // For pinned build errors: identifies the producer (package target, "__plugin__", or
+                             // "__package_summary")
 };
 
 class ConsolePanel : public IPanel
@@ -72,8 +73,7 @@ public:
     static void LogErrorStatic(const std::string& message);
 
     // Engine log callback handler
-    static void EngineLogCallback(::Deki::LogLevel level, const std::string& message,
-                                  const char* file, int line);
+    static void EngineLogCallback(::Deki::LogLevel level, const std::string& message, const char* file, int line);
 
     int m_FocusFrames = 0;  // Number of frames to keep requesting focus (handles layout init)
 

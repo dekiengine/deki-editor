@@ -32,8 +32,7 @@ public:
     static bool Initialize(const std::string& logPath, bool verbose);
     static void Shutdown();
 
-    static void OnLog(Deki::LogLevel level, const std::string& message,
-                      const char* file, int line);
+    static void OnLog(Deki::LogLevel level, const std::string& message, const char* file, int line);
 
     static void Flush();
 

@@ -50,11 +50,13 @@ struct ChildData
  * Helper to serialize properties from a single metadata level
  */
 
-void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::ComponentMeta* meta, nlohmann::json& properties);
+void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::ComponentMeta* meta,
+                                 nlohmann::json& properties);
 
 ComponentData SerializeComponent(const Deki::Component* comp);
 
-void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta* meta, const nlohmann::json& properties);
+void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta* meta,
+                               const nlohmann::json& properties);
 
 void RestoreComponentProperties(Deki::Component* comp, const ComponentData& data);
 

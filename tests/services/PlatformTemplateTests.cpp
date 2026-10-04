@@ -179,15 +179,18 @@ namespace
 
 struct BoardProject : TempProject
 {
-    fs::path TemplateDir() const { return fs::path(GetPackagesDirectory(Path())) / "pkg-board" / "platforms" / "devkit"; }
+    fs::path TemplateDir() const
+    {
+        return fs::path(GetPackagesDirectory(Path())) / "pkg-board" / "platforms" / "devkit";
+    }
     fs::path Mine() const { return ProjectPlatform("devkit"); }
 
     // What the package ships. Legacy spelling on purpose: "pins" sits at the
     // top level, where a save moves it into frameworkOptions.
     void Ship(int width, const std::string& pins, const std::string& bootScene) const
     {
-        json j = { { "id", "devkit" },     { "displayName", "Dev Kit" }, { "framework", "demo" },
-                   { "screenWidth", width }, { "screenHeight", 240 },    { "pins", pins } };
+        json j = { { "id", "devkit" },       { "displayName", "Dev Kit" }, { "framework", "demo" },
+                   { "screenWidth", width }, { "screenHeight", 240 },      { "pins", pins } };
         Write(TemplateDir() / "devkit.json", j.dump(2));
         Write(TemplateDir() / "boot.scene", bootScene);
     }
@@ -475,8 +478,12 @@ std::string SoleComponentType(const json& object)
 const json* ChildWithId(const json& parent, uint32_t id)
 {
     for (const auto& child : parent.at("children"))
+    {
         if (child.value("id", 0u) == id)
+        {
             return &child;
+        }
+    }
     return nullptr;
 }
 }  // namespace
@@ -489,12 +496,16 @@ TEST(ShippedPlatformTemplates, EveryBootSceneTypeIdIsTheHashOfTheNameItPointsAt)
     {
         const fs::path platforms = package.path() / "platforms";
         if (!fs::is_directory(platforms, ec))
+        {
             continue;
+        }
         for (const auto& platform : fs::directory_iterator(platforms, ec))
         {
             const fs::path bootScene = platform.path() / "boot.scene";
             if (!fs::is_regular_file(bootScene, ec))
+            {
                 continue;
+            }
             SCOPED_TRACE(bootScene.string());
 
             std::ifstream f(bootScene);
@@ -515,8 +526,8 @@ TEST(ShippedPlatformTemplates, EveryBootSceneTypeIdIsTheHashOfTheNameItPointsAt)
                 ASSERT_FALSE(type.empty());
                 EXPECT_NE(type.find("::"), std::string::npos) << "'" << type << "' is a bare class name";
                 EXPECT_EQ(ref.at("typeId").get<uint32_t>(), Deki::HashString(type.c_str()))
-                    << "setupComponents entry for object " << id << " does not carry the hash of '" << type
-                    << "' (" << Deki::HashString(type.c_str()) << "); this setup step would silently never run";
+                    << "setupComponents entry for object " << id << " does not carry the hash of '" << type << "' ("
+                    << Deki::HashString(type.c_str()) << "); this setup step would silently never run";
                 ++checked;
             }
         }

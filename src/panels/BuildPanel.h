@@ -34,10 +34,8 @@ public:
 
     void Draw();
 
-
     const std::string& GetSelectedPlatform() const { return m_SelectedPlatform; }
     void SetSelectedPlatform(const std::string& platformId);
-
 
 private:
     void DrawToolbar();

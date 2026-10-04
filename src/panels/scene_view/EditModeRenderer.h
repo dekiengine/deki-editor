@@ -4,9 +4,18 @@
 #include <cstdint>
 #include <vector>
 
-namespace Deki { class Scene; }
-namespace Deki { class ICamera; }
-namespace Deki { class Object; }
+namespace Deki
+{
+class Scene;
+}
+namespace Deki
+{
+class ICamera;
+}
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {
@@ -59,8 +68,7 @@ public:
      *        up to 16x smaller. The texture is then GetTextureWidth/Height,
      *        shown 1:1.
      */
-    void RenderScene(Deki::Scene* scene, Deki::ICamera* camera,
-                     uint8_t clearR, uint8_t clearG, uint8_t clearB,
+    void RenderScene(Deki::Scene* scene, Deki::ICamera* camera, uint8_t clearR, uint8_t clearG, uint8_t clearB,
                      float displayScale = 1.0f);
 
     /**
@@ -131,13 +139,13 @@ private:
     uint32_t m_Textures[kTextureRing] = {};  // OpenGL texture IDs (only [0] unless streaming)
     int m_TexCapW[kTextureRing] = {};        // each one's storage size
     int m_TexCapH[kTextureRing] = {};
-    int m_Current = 0;                       // the one holding the latest picture
-    uint32_t m_Pbos[kTextureRing] = {};      // streaming: each texture's upload buffer
+    int m_Current = 0;                   // the one holding the latest picture
+    uint32_t m_Pbos[kTextureRing] = {};  // streaming: each texture's upload buffer
     size_t m_PboSize[kTextureRing] = {};
     bool m_Streaming = false;
     int m_Width = 0;
     int m_Height = 0;
-    int m_TexWidth = 0;   // picture size in the texture (== buffer unless shrunk)
+    int m_TexWidth = 0;  // picture size in the texture (== buffer unless shrunk)
     int m_TexHeight = 0;
     std::vector<uint16_t> m_Shrunk;  // screen-size copy for a zoomed-out upload
     std::vector<uint32_t> m_Rgba;    // streaming: RGBA8 copy when no pixel buffer maps

@@ -17,7 +17,9 @@ void CollectIds(const ::Deki::Object* obj, std::multiset<uint32_t>& ids)
 {
     ids.insert(obj->GetId());
     for (const ::Deki::Object* child : obj->GetChildren())
+    {
         CollectIds(child, ids);
+    }
 }
 }  // namespace
 

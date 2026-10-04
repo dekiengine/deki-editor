@@ -36,10 +36,7 @@ inline bool Guard(const char* context, F&& fn)
 {
     using Decayed = std::decay_t<F>;
     Decayed local = std::forward<F>(fn);
-    SafeDispatchFn trampoline = +[](void* p)
-    {
-        (*static_cast<Decayed*>(p))();
-    };
+    SafeDispatchFn trampoline = +[](void* p) { (*static_cast<Decayed*>(p))(); };
     // Every panel and custom editor is drawn through here, which makes it the
     // one place a frame's time can be split by who spent it (FrameTiming.h).
     FrameTiming::Scope timing(context);

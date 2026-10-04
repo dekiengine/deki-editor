@@ -51,49 +51,56 @@ bool GitHubPackageSource::ParseUrl(const std::string& url, PackageEntry& outInfo
 void GitHubPackageSource::FetchVersions(const PackageEntry& pkg, VersionsCallback callback)
 {
     // Run in background thread
-    std::thread([this, pkg, callback]()
+    std::thread(
+        [this, pkg, callback]()
+        {
+            std::string owner, repo;
+            if (!ParseGitHubUrl(pkg.url, owner, repo))
+            {
+                callback(false, {});
+                return;
+            }
+
+            std::vector<std::string> versions;
+
+            // First try releases
+            std::string releasesUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/releases";
+            std::string releasesJson = DekiEditor::EditorHttpUtils::FetchUrl(releasesUrl);
+
+            if (!releasesJson.empty())
+            {
+                versions = ParseReleasesJson(releasesJson);
+            }
+
+            // If no releases, try tags
+            if (versions.empty())
+            {
+                std::string tagsUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/tags";
+                std::string tagsJson = DekiEditor::EditorHttpUtils::FetchUrl(tagsUrl);
+
+                if (!tagsJson.empty())
                 {
-        std::string owner, repo;
-        if (!ParseGitHubUrl(pkg.url, owner, repo)) {
-            callback(false, {});
-            return;
-        }
-
-        std::vector<std::string> versions;
-
-        // First try releases
-        std::string releasesUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/releases";
-        std::string releasesJson = DekiEditor::EditorHttpUtils::FetchUrl(releasesUrl);
-
-        if (!releasesJson.empty()) {
-            versions = ParseReleasesJson(releasesJson);
-        }
-
-        // If no releases, try tags
-        if (versions.empty()) {
-            std::string tagsUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/tags";
-            std::string tagsJson = DekiEditor::EditorHttpUtils::FetchUrl(tagsUrl);
-
-            if (!tagsJson.empty()) {
-                versions = ParseTagsJson(tagsJson);
+                    versions = ParseTagsJson(tagsJson);
+                }
             }
-        }
 
-        // Always fetch branches and add them (prefixed with "branch:")
-        std::string branchesUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/branches";
-        std::string branchesJson = DekiEditor::EditorHttpUtils::FetchUrl(branchesUrl);
+            // Always fetch branches and add them (prefixed with "branch:")
+            std::string branchesUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/branches";
+            std::string branchesJson = DekiEditor::EditorHttpUtils::FetchUrl(branchesUrl);
 
-        if (!branchesJson.empty()) {
-            auto branches = ParseBranchesJson(branchesJson);
-            for (const auto& branch : branches) {
-                versions.push_back("branch:" + branch);
+            if (!branchesJson.empty())
+            {
+                auto branches = ParseBranchesJson(branchesJson);
+                for (const auto& branch : branches)
+                {
+                    versions.push_back("branch:" + branch);
+                }
             }
-        }
 
-        callback(!versions.empty(), versions); })
+            callback(!versions.empty(), versions);
+        })
         .detach();
 }
-
 
 std::vector<std::string> GitHubPackageSource::ParseReleasesJson(const std::string& json)
 {

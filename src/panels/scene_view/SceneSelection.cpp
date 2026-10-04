@@ -13,7 +13,8 @@ namespace DekiEditor
 {
 
 SceneSelection::SceneSelection(SceneObjectMeasurer* measurer, SceneTextureCache* textureCache)
-    : m_Measurer(measurer), m_TextureCache(textureCache)
+    : m_Measurer(measurer),
+      m_TextureCache(textureCache)
 {
 }
 
@@ -77,17 +78,21 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
     {
         const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
         if (!meta || !meta->name)
+        {
             continue;
+        }
 
         CustomEditor* editor = CustomEditorRegistry::Instance().GetEditorForComponent(meta->name, comp);
         if (!editor)
+        {
             continue;
+        }
 
         // First check component-specific hit test (e.g., SpriteCSSComponent rounded corners).
         // Guarded so a faulty editor falls through to default-hit (treat as opaque).
         bool componentHit = true;
-        Guard(meta->name, [&]
-              { componentHit = editor->HitTest(comp, unscaledX, unscaledY, displayWidth, displayHeight); });
+        Guard(meta->name,
+              [&] { componentHit = editor->HitTest(comp, unscaledX, unscaledY, displayWidth, displayHeight); });
         if (!componentHit)
         {
             return false;  // Component says it's transparent at this point
@@ -95,8 +100,7 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
 
         // Check texture alpha if component provides a texture
         std::string textureGuid;
-        Guard(meta->name, [&]
-              { textureGuid = editor->GetTextureAssetGuid(comp); });
+        Guard(meta->name, [&] { textureGuid = editor->GetTextureAssetGuid(comp); });
         if (!textureGuid.empty())
         {
             CachedTexture* tex = m_TextureCache->GetOrLoad(textureGuid);
@@ -125,9 +129,8 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
     return true;
 }
 
-std::vector<Deki::Object*> SceneSelection::ObjectsInRect(const std::vector<Deki::Object*>& objects,
-                                                         float x0, float y0, float x1, float y1,
-                                                         float pixelsPerMeter)
+std::vector<Deki::Object*> SceneSelection::ObjectsInRect(const std::vector<Deki::Object*>& objects, float x0, float y0,
+                                                         float x1, float y1, float pixelsPerMeter)
 {
     const float minX = std::min(x0, x1), maxX = std::max(x0, x1);
     const float minY = std::min(y0, y1), maxY = std::max(y0, y1);
@@ -136,10 +139,14 @@ std::vector<Deki::Object*> SceneSelection::ObjectsInRect(const std::vector<Deki:
     for (Deki::Object* obj : objects)
     {
         if (!obj->IsActive())
+        {
             continue;
+        }
         float w = 0.0f, h = 0.0f;
         if (!m_Measurer->GetDisplaySize(obj, w, h) || w <= 0.0f || h <= 0.0f)
+        {
             continue;
+        }
         // The drawn box as HitTestObject sees it (centered, scaled, rotated),
         // reduced to its world-aligned bounds.
         const float halfW = std::fabs(w * obj->GetWorldScaleX()) * 0.5f * invPPM;
@@ -150,14 +157,15 @@ std::vector<Deki::Object*> SceneSelection::ObjectsInRect(const std::vector<Deki:
         const float extY = halfW * s + halfH * c;
         const float x = obj->GetWorldX(), y = obj->GetWorldY();
         if (x - extX >= minX && x + extX <= maxX && y - extY >= minY && y + extY <= maxY)
+        {
             out.push_back(obj);
+        }
     }
     return out;
 }
 
-Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& objects,
-                                        Deki::Object* currentSelection,
-                                        float worldX, float worldY, float pixelsPerMeter)
+Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& objects, Deki::Object* currentSelection,
+                                          float worldX, float worldY, float pixelsPerMeter)
 {
     // Collect every object under the click point, outermost first (render order:
     // back-to-front). Containers/parents render behind their content, so iterating
@@ -166,7 +174,9 @@ Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& obje
     for (auto* obj : objects)
     {
         if (!obj->IsActive())
+        {
             continue;
+        }
 
         if (HitTestObject(obj, worldX, worldY, pixelsPerMeter))
         {
@@ -175,7 +185,9 @@ Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& obje
     }
 
     if (hits.empty())
+    {
         return nullptr;
+    }
 
     // If the currently-selected object is one of the hits, advance to the next
     // (drilling inward: outermost -> innermost -> wrap back to outermost).

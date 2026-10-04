@@ -58,7 +58,9 @@ void PostResult(uint64_t id, std::string path)
 {
     std::lock_guard<std::mutex> lock(g_ResultMutex);
     if (id != g_ActiveId.load())
+    {
         return;  // superseded, or already delivered
+    }
     g_ResultPath = std::move(path);
     g_HaveResult = true;
 }
@@ -69,13 +71,19 @@ void PostResult(uint64_t id, std::string path)
 std::string WithDefaultExtension(const std::string& path, const char* defaultExt)
 {
     if (path.empty() || !defaultExt || defaultExt[0] == '\0')
+    {
         return path;
+    }
     if (std::filesystem::path(path).has_extension())
+    {
         return path;
+    }
 
     std::string ext = defaultExt;
     if (ext[0] == '.')
+    {
         ext.erase(0, 1);
+    }
     return path + "." + ext;
 }
 
@@ -86,11 +94,15 @@ std::string WithDefaultExtension(const std::string& path, const char* defaultExt
 std::wstring ToWide(const char* utf8, int len)
 {
     if (!utf8 || len <= 0)
+    {
         return {};
+    }
     int n = MultiByteToWideChar(CP_UTF8, 0, utf8, len, nullptr, 0);
     std::wstring w(static_cast<size_t>(n), L'\0');
     if (n > 0)
+    {
         MultiByteToWideChar(CP_UTF8, 0, utf8, len, &w[0], n);
+    }
     return w;
 }
 
@@ -102,10 +114,14 @@ std::wstring ToWide(const char* utf8)
 std::string ToUtf8(const wchar_t* wide)
 {
     if (!wide || !wide[0])
+    {
         return {};
+    }
     int n = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
     if (n <= 1)
+    {
         return {};
+    }
     std::string s(static_cast<size_t>(n - 1), '\0');
     WideCharToMultiByte(CP_UTF8, 0, wide, -1, &s[0], n, nullptr, nullptr);
     return s;
@@ -118,9 +134,11 @@ std::string ToUtf8(const wchar_t* wide)
 HWND OwnerWindow()
 {
     if (!g_Window)
+    {
         return nullptr;
-    return static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(g_Window),
-                                                    SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+    }
+    return static_cast<HWND>(
+        SDL_GetPointerProperty(SDL_GetWindowProperties(g_Window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
 }
 
 // The Explorer-style folder picker (IFileOpenDialog with FOS_PICKFOLDERS):
@@ -135,8 +153,8 @@ std::string PickFolderWin32(const char* title, const char* defaultPath)
 
     std::string chosen;
     IFileOpenDialog* dialog = nullptr;
-    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
-                                   IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog))))
+    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_IFileOpenDialog,
+                                   reinterpret_cast<void**>(&dialog))))
     {
         DWORD options = 0;
         dialog->GetOptions(&options);
@@ -144,7 +162,9 @@ std::string PickFolderWin32(const char* title, const char* defaultPath)
 
         const std::wstring wtitle = ToWide(title);
         if (!wtitle.empty())
+        {
             dialog->SetTitle(wtitle.c_str());
+        }
 
         const std::wstring wdefault = ToWide(defaultPath);
         if (!wdefault.empty())
@@ -176,17 +196,23 @@ std::string PickFolderWin32(const char* title, const char* defaultPath)
     }
 
     if (uninit)
+    {
         CoUninitialize();
+    }
     return chosen;
 }
 
 std::wstring WideFilter(const char* filter)
 {
     if (!filter || filter[0] == '\0')
+    {
         return {};
+    }
     int len = 0;
     while (!(filter[len] == '\0' && filter[len + 1] == '\0'))
+    {
         ++len;
+    }
     return ToWide(filter, len + 2);
 }
 
@@ -218,7 +244,9 @@ void SDLCALL DialogCallback(void* userdata, const char* const* filelist, int /*f
     {
         std::lock_guard<std::mutex> lock(g_ResultMutex);
         if (id == g_ActiveId.load() && !g_PendingSaveExt.empty())
+        {
             chosen = WithDefaultExtension(chosen, g_PendingSaveExt.c_str());
+        }
     }
 
     PostResult(id, std::move(chosen));
@@ -229,7 +257,9 @@ std::vector<SDL_DialogFileFilter> BuildSdlFilters(const std::vector<DialogFilter
     std::vector<SDL_DialogFileFilter> out;
     out.reserve(parsed.size());
     for (const DialogFilter& f : parsed)
+    {
         out.push_back(SDL_DialogFileFilter{ f.name.c_str(), f.pattern.c_str() });
+    }
     return out;
 }
 
@@ -242,11 +272,15 @@ std::vector<SDL_DialogFileFilter> BuildSdlFilters(const std::vector<DialogFilter
 uint64_t BeginRequest(ResultCallback onResult, const char* defaultExt)
 {
     if (!onResult)
+    {
         return 0;
+    }
 
     std::lock_guard<std::mutex> lock(g_ResultMutex);
     if (g_ActiveId.load() != 0)
+    {
         DEKI_LOG_WARNING("A file dialog was already open; the new request supersedes it");
+    }
 
     const uint64_t id = g_NextId++;
     g_ActiveId.store(id);
@@ -268,7 +302,9 @@ void OpenFolder(const char* title, ResultCallback onResult, const char* defaultP
 {
     const uint64_t id = BeginRequest(std::move(onResult), nullptr);
     if (id == 0)
+    {
         return;
+    }
 
 #ifdef _WIN32
     PostResult(id, PickFolderWin32(title, defaultPath));
@@ -276,8 +312,8 @@ void OpenFolder(const char* title, ResultCallback onResult, const char* defaultP
     // SDL asks the desktop: the XDG portal or zenity on Linux, NSOpenPanel on
     // macOS. Neither takes a title here.
     (void)title;
-    SDL_ShowOpenFolderDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
-                             g_Window, (defaultPath && defaultPath[0]) ? defaultPath : nullptr, false);
+    SDL_ShowOpenFolderDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)), g_Window,
+                             (defaultPath && defaultPath[0]) ? defaultPath : nullptr, false);
 #endif
 }
 
@@ -285,7 +321,9 @@ void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResu
 {
     const uint64_t id = BeginRequest(std::move(onResult), nullptr);
     if (id == 0)
+    {
         return;
+    }
 
 #ifdef _WIN32
     const std::wstring wfilter = WideFilter(filter);
@@ -298,24 +336,27 @@ void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResu
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
     if (!wdefault.empty())
+    {
         ofn.lpstrInitialDir = wdefault.c_str();
+    }
 
     PostResult(id, GetOpenFileNameW(&ofn) ? ToUtf8(filename) : std::string());
 #else
     const std::vector<DialogFilter> parsed = ParseWin32Filter(filter);
     const std::vector<SDL_DialogFileFilter> sdlFilters = BuildSdlFilters(parsed);
-    SDL_ShowOpenFileDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
-                           g_Window, sdlFilters.empty() ? nullptr : sdlFilters.data(),
-                           static_cast<int>(sdlFilters.size()), defaultPath, false);
+    SDL_ShowOpenFileDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)), g_Window,
+                           sdlFilters.empty() ? nullptr : sdlFilters.data(), static_cast<int>(sdlFilters.size()),
+                           defaultPath, false);
 #endif
 }
 
-void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath,
-              ResultCallback onResult)
+void SaveFile(const char* filter, const char* defaultExt, const char* defaultPath, ResultCallback onResult)
 {
     const uint64_t id = BeginRequest(std::move(onResult), defaultExt);
     if (id == 0)
+    {
         return;
+    }
 
 #ifdef _WIN32
     const std::wstring wfilter = WideFilter(filter);
@@ -330,15 +371,17 @@ void SaveFile(const char* filter, const char* defaultExt, const char* defaultPat
     ofn.lpstrDefExt = wext.empty() ? nullptr : wext.c_str();
     ofn.Flags = OFN_OVERWRITEPROMPT;
     if (!wdefault.empty())
+    {
         ofn.lpstrInitialDir = wdefault.c_str();
+    }
 
     PostResult(id, GetSaveFileNameW(&ofn) ? ToUtf8(filename) : std::string());
 #else
     const std::vector<DialogFilter> parsed = ParseWin32Filter(filter);
     const std::vector<SDL_DialogFileFilter> sdlFilters = BuildSdlFilters(parsed);
-    SDL_ShowSaveFileDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
-                           g_Window, sdlFilters.empty() ? nullptr : sdlFilters.data(),
-                           static_cast<int>(sdlFilters.size()), defaultPath);
+    SDL_ShowSaveFileDialog(DialogCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(id)), g_Window,
+                           sdlFilters.empty() ? nullptr : sdlFilters.data(), static_cast<int>(sdlFilters.size()),
+                           defaultPath);
 #endif
 }
 
@@ -355,7 +398,9 @@ void PumpResults()
     {
         std::lock_guard<std::mutex> lock(g_ResultMutex);
         if (!g_HaveResult)
+        {
             return;
+        }
         callback = std::move(g_Callback);
         path = std::move(g_ResultPath);
         g_Callback = nullptr;
@@ -370,7 +415,9 @@ void PumpResults()
     }
 
     if (callback)
+    {
         callback(path);
+    }
 }
 
 }  // namespace FileDialogs

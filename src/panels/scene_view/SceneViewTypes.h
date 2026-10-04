@@ -48,13 +48,13 @@ struct CachedTexture
     uint8_t SampleAlpha(float u, float v) const
     {
         if (pixelData.empty() || width == 0 || height == 0)
+        {
             return 255;  // No data, assume opaque
+        }
 
         // Clamp UV to valid range
-        u = (u < 0.0f) ? 0.0f : (u > 1.0f) ? 1.0f
-                                           : u;
-        v = (v < 0.0f) ? 0.0f : (v > 1.0f) ? 1.0f
-                                           : v;
+        u = (u < 0.0f) ? 0.0f : (u > 1.0f) ? 1.0f : u;
+        v = (v < 0.0f) ? 0.0f : (v > 1.0f) ? 1.0f : v;
 
         // Convert to pixel coordinates
         uint32_t px = static_cast<uint32_t>(u * (width - 1));
@@ -63,7 +63,9 @@ struct CachedTexture
         // Get alpha from RGBA data (4 bytes per pixel, alpha is 4th byte)
         size_t idx = (py * width + px) * 4 + 3;
         if (idx < pixelData.size())
+        {
             return pixelData[idx];
+        }
 
         return 255;  // Out of bounds, assume opaque
     }

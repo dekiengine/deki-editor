@@ -7,9 +7,18 @@
 #include <string>
 #include <functional>
 
-namespace Deki { class Object; }
-namespace Deki { class Component; }
-namespace Deki { class Scene; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+class Scene;
+}
 
 namespace DekiEditor
 {
@@ -27,8 +36,7 @@ using ObjectSerializationHelper::ObjectData;
 class PasteComponentValuesCommand : public Command
 {
 public:
-    PasteComponentValuesCommand(const std::vector<Deki::Component*>& components,
-                                const ComponentData& sourceData,
+    PasteComponentValuesCommand(const std::vector<Deki::Component*>& components, const ComponentData& sourceData,
                                 std::function<void()> onChange = nullptr);
 
     std::string GetDescription() const override;
@@ -38,7 +46,12 @@ public:
     bool ReferencesAny(const DeadMemory& dead) const override
     {
         for (const auto& e : m_Entries)
-            if (CommandRefs::Has(dead, e.component)) return true;
+        {
+            if (CommandRefs::Has(dead, e.component))
+            {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -59,8 +72,7 @@ private:
 class PasteComponentAsNewCommand : public Command
 {
 public:
-    PasteComponentAsNewCommand(const std::vector<Deki::Object*>& objects,
-                               const ComponentData& sourceData,
+    PasteComponentAsNewCommand(const std::vector<Deki::Object*>& objects, const ComponentData& sourceData,
                                std::function<void(Deki::Component*)> onAdded = nullptr);
     ~PasteComponentAsNewCommand() override;
 
@@ -71,7 +83,12 @@ public:
     bool ReferencesAny(const DeadMemory& dead) const override
     {
         for (const auto& e : m_Entries)
-            if (CommandRefs::HasAny(dead, e.object, e.addedComponent)) return true;
+        {
+            if (CommandRefs::HasAny(dead, e.object, e.addedComponent))
+            {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -94,8 +111,7 @@ private:
 class PasteTransformCommand : public Command
 {
 public:
-    PasteTransformCommand(const std::vector<Deki::Object*>& objects,
-                          const ObjectData& sourceData,
+    PasteTransformCommand(const std::vector<Deki::Object*>& objects, const ObjectData& sourceData,
                           std::function<void()> onChange = nullptr);
 
     std::string GetDescription() const override;
@@ -105,7 +121,12 @@ public:
     bool ReferencesAny(const DeadMemory& dead) const override
     {
         for (const auto& e : m_Entries)
-            if (CommandRefs::Has(dead, e.object)) return true;
+        {
+            if (CommandRefs::Has(dead, e.object))
+            {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -126,8 +147,7 @@ private:
 class PasteObjectsCommand : public Command
 {
 public:
-    PasteObjectsCommand(Deki::Scene* scene, const std::vector<ChildData>& objectsData,
-                        Deki::Object* parent = nullptr,
+    PasteObjectsCommand(Deki::Scene* scene, const std::vector<ChildData>& objectsData, Deki::Object* parent = nullptr,
                         std::function<void(const std::vector<Deki::Object*>&)> onPasted = nullptr);
 
     std::string GetDescription() const override;

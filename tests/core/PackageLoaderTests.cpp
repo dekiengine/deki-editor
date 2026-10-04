@@ -20,7 +20,9 @@ class MockAssetTypeEditorForLoader : public AssetTypeEditor
 {
 public:
     MockAssetTypeEditorForLoader(const std::string& typeName = "MockAsset")
-        : m_TypeName(typeName) {}
+        : m_TypeName(typeName)
+    {
+    }
 
     const char* GetTypeName() const override { return m_TypeName.c_str(); }
     const char* GetDisplayName() const override { return "Mock"; }
@@ -28,18 +30,15 @@ public:
     const char* GetDefaultContent() const override { return "{}"; }
     int GetCompileTarget() const override { return 0; }
 
-    bool Compile(const std::string&, std::vector<uint8_t>& rgba,
-                 int& width, int& height) override
+    bool Compile(const std::string&, std::vector<uint8_t>& rgba, int& width, int& height) override
     {
-        width = 1; height = 1;
+        width = 1;
+        height = 1;
         rgba.resize(4, 0);
         return true;
     }
 
-    bool OnInspectorGUI(std::string&, const std::string&, const std::string&) override
-    {
-        return false;
-    }
+    bool OnInspectorGUI(std::string&, const std::string&, const std::string&) override { return false; }
 
 private:
     std::string m_TypeName;
@@ -52,15 +51,9 @@ private:
 class PackageLoaderTest : public ::testing::Test
 {
 protected:
-    void SetUp() override
-    {
-        m_Loader = std::make_unique<PackageLoader>();
-    }
+    void SetUp() override { m_Loader = std::make_unique<PackageLoader>(); }
 
-    void TearDown() override
-    {
-        m_Loader.reset();
-    }
+    void TearDown() override { m_Loader.reset(); }
 
     std::unique_ptr<PackageLoader> m_Loader;
 };
@@ -226,10 +219,7 @@ protected:
     }
 
     // Create a fake DLL file in the temp directory
-    void CreateFakeFile(const std::string& filename)
-    {
-        std::ofstream(m_TempDir / filename).put('\0');
-    }
+    void CreateFakeFile(const std::string& filename) { std::ofstream(m_TempDir / filename).put('\0'); }
 
     std::unique_ptr<PackageLoader> m_Loader;
     std::filesystem::path m_TempDir;
@@ -281,7 +271,7 @@ TEST_F(PackageLoaderFilterTest, AcceptsValidPackageDLLNames)
     // That's fine - we just verify it doesn't count as loaded (count = 0)
     // The important thing is it doesn't crash on invalid DLLs
     int count = m_Loader->LoadPackagesFromDirectory(m_TempDir.string(), nullptr);
-    EXPECT_EQ(count, 0); // Fake DLL can't load
+    EXPECT_EQ(count, 0);  // Fake DLL can't load
 }
 
 TEST_F(PackageLoaderFilterTest, SkipsEngineCoreDLL)
@@ -381,9 +371,8 @@ TEST(EditorRegistrySharedSingletonTest, SingletonIsSharedAcrossCallSites)
     size_t countBefore = inst1.GetTotalCount();
 
     static MockAssetTypeEditorForLoader sharedProto("SharedSingletonTest");
-    inst1.AddFactory(&sharedProto, []() -> std::unique_ptr<EditorExtension> {
-        return std::make_unique<MockAssetTypeEditorForLoader>("SharedSingletonTest");
-    });
+    inst1.AddFactory(&sharedProto, []() -> std::unique_ptr<EditorExtension>
+                     { return std::make_unique<MockAssetTypeEditorForLoader>("SharedSingletonTest"); });
 
     EXPECT_EQ(inst2.GetTotalCount(), countBefore + 1);
 }

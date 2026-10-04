@@ -57,11 +57,8 @@ public:
      * @param outputPath    Path to write the .pack binary file
      * @return true on success
      */
-    static bool BuildPack(const std::string& dpackJsonPath,
-                          const std::string& cacheDir,
-                          const std::string& outputPath,
-                          const std::set<FontUsageInfo>& fontUsages = {},
-                          const SourceResolver& resolveSource = {});
+    static bool BuildPack(const std::string& dpackJsonPath, const std::string& cacheDir, const std::string& outputPath,
+                          const std::set<FontUsageInfo>& fontUsages = {}, const SourceResolver& resolveSource = {});
 
     /**
      * @brief Build pack index file mapping GUID → pack file path
@@ -74,11 +71,8 @@ public:
      * @param outputPath    Path to write pack_index.bin
      * @return true on success
      */
-    static bool BuildPackIndex(const std::string& assetsDir,
-                               const std::string& cacheDir,
-                               const std::string& storageDir,
-                               const std::string& outputPath,
-                               const std::set<FontUsageInfo>& fontUsages = {},
+    static bool BuildPackIndex(const std::string& assetsDir, const std::string& cacheDir, const std::string& storageDir,
+                               const std::string& outputPath, const std::set<FontUsageInfo>& fontUsages = {},
                                std::unordered_set<std::string>* outPackedGuids = nullptr,
                                const SourceResolver& resolveSource = {});
 
@@ -87,10 +81,8 @@ private:
     static std::string ResolveFontAtlasGuid(const std::string& dfontCachePath);
 
     // Resolve all baked font variants + atlases for a source font GUID
-    static void ResolveFontDependencies(const std::string& sourceGuid,
-                                        const std::string& cacheDir,
-                                        const std::set<FontUsageInfo>& fontUsages,
-                                        std::vector<PackEntry>& outEntries);
+    static void ResolveFontDependencies(const std::string& sourceGuid, const std::string& cacheDir,
+                                        const std::set<FontUsageInfo>& fontUsages, std::vector<PackEntry>& outEntries);
 };
 
 }  // namespace DekiEditor

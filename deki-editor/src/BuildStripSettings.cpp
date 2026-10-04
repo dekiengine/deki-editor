@@ -16,7 +16,9 @@ std::string BuildStripSettings::Override(const std::string& packageId, const std
 {
     auto p = featureOverrides.find(packageId);
     if (p == featureOverrides.end())
+    {
         return "";
+    }
     auto f = p->second.find(featureId);
     return f == p->second.end() ? "" : f->second;
 }
@@ -31,7 +33,9 @@ void BuildStripSettings::SetOverride(const std::string& packageId, const std::st
         {
             p->second.erase(featureId);
             if (p->second.empty())
+            {
                 featureOverrides.erase(p);
+            }
         }
         return;
     }
@@ -47,10 +51,14 @@ BuildStripSettings BuildStripSettings::Load(const std::string& projectPath)
 {
     BuildStripSettings s;
     if (projectPath.empty())
+    {
         return s;
+    }
     std::ifstream in(FilePath(projectPath));
     if (!in)
+    {
         return s;
+    }
     try
     {
         nlohmann::json j;
@@ -66,14 +74,20 @@ BuildStripSettings BuildStripSettings::Load(const std::string& projectPath)
             for (const auto& pkg : j["features"].items())
             {
                 if (!pkg.value().is_object())
+                {
                     continue;
+                }
                 for (const auto& feat : pkg.value().items())
                 {
                     if (!feat.value().is_string())
+                    {
                         continue;
+                    }
                     const std::string v = feat.value().get<std::string>();
                     if (v == "on" || v == "off")
+                    {
                         s.featureOverrides[pkg.key()][feat.key()] = v;
+                    }
                 }
             }
         }
@@ -89,14 +103,20 @@ BuildStripSettings BuildStripSettings::Load(const std::string& projectPath)
 bool BuildStripSettings::Save(const std::string& projectPath) const
 {
     if (projectPath.empty())
+    {
         return false;
+    }
     nlohmann::json j;
     j["stripping"]["unusedComponents"] = stripUnusedComponents;
     j["stripping"]["unusedPackages"] = stripUnusedPackages;
     j["features"] = nlohmann::json::object();
     for (const auto& pkg : featureOverrides)
+    {
         for (const auto& feat : pkg.second)
+        {
             j["features"][pkg.first][feat.first] = feat.second;
+        }
+    }
 
     const fs::path path = FilePath(projectPath);
     std::error_code ec;

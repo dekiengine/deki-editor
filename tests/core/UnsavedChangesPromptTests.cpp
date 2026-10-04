@@ -18,7 +18,7 @@ namespace
 TEST(UnsavedChangesPrompt, CleanSceneProceedsWithoutInterrupting)
 {
     UnsavedChangesPrompt p;
-    EXPECT_FALSE(p.Request(PendingSceneAction::NewScene, "", /*dirty*/false));
+    EXPECT_FALSE(p.Request(PendingSceneAction::NewScene, "", /*dirty*/ false));
     EXPECT_FALSE(p.IsOpen());
     EXPECT_EQ(p.PendingAction(), PendingSceneAction::None);
 }
@@ -26,7 +26,7 @@ TEST(UnsavedChangesPrompt, CleanSceneProceedsWithoutInterrupting)
 TEST(UnsavedChangesPrompt, DirtySceneRaisesThePromptAndDefersTheAction)
 {
     UnsavedChangesPrompt p;
-    EXPECT_TRUE(p.Request(PendingSceneAction::OpenScene, "scenes/level2.scene", /*dirty*/true));
+    EXPECT_TRUE(p.Request(PendingSceneAction::OpenScene, "scenes/level2.scene", /*dirty*/ true));
     EXPECT_TRUE(p.IsOpen());
     EXPECT_TRUE(p.DialogVisible());
     EXPECT_EQ(p.PendingAction(), PendingSceneAction::OpenScene);
@@ -41,7 +41,7 @@ TEST(UnsavedChangesPrompt, StaysOpenWhileAnActionIsStillPending)
     UnsavedChangesPrompt p;
     ASSERT_TRUE(p.Request(PendingSceneAction::CloseProject, "", true));
 
-    p.SetDialogVisible(false);          // the modal drew and closed itself
+    p.SetDialogVisible(false);  // the modal drew and closed itself
     EXPECT_TRUE(p.IsOpen()) << "the deferred action has not run yet";
 
     std::string path;
@@ -82,7 +82,7 @@ TEST(UnsavedChangesPrompt, SuppressedRequestsDoNotReopenTheDialog)
 {
     UnsavedChangesPrompt p;
     p.SetSuppressed(true);
-    EXPECT_FALSE(p.Request(PendingSceneAction::NewScene, "", /*dirty*/true))
+    EXPECT_FALSE(p.Request(PendingSceneAction::NewScene, "", /*dirty*/ true))
         << "a dirty scene must still not re-prompt while replaying an answer";
     EXPECT_FALSE(p.IsOpen());
 
@@ -97,8 +97,7 @@ TEST(UnsavedChangesPrompt, ProgrammaticAnswerIsDeliveredExactlyOnce)
 
     p.Answer(DialogAnswer::Discard);
     EXPECT_EQ(p.TakeAnswer(), DialogAnswer::Discard);
-    EXPECT_EQ(p.TakeAnswer(), DialogAnswer::None)
-        << "an answer must not apply again on the next frame";
+    EXPECT_EQ(p.TakeAnswer(), DialogAnswer::None) << "an answer must not apply again on the next frame";
 }
 
 TEST(UnsavedChangesPrompt, LatestProgrammaticAnswerWins)
@@ -139,7 +138,7 @@ TEST(UnsavedChangesPrompt, InterruptedOpenRoundTrips)
 TEST(UnsavedChangesPrompt, QuitIsDeferredWhileDirty)
 {
     UnsavedChangesPrompt p;
-    EXPECT_TRUE(p.Request(PendingSceneAction::Quit, "", /*dirty*/true));
+    EXPECT_TRUE(p.Request(PendingSceneAction::Quit, "", /*dirty*/ true));
     EXPECT_TRUE(p.IsOpen());
 
     p.SetDialogVisible(false);  // the modal drew, was answered, and closed
@@ -151,7 +150,7 @@ TEST(UnsavedChangesPrompt, QuitIsDeferredWhileDirty)
 TEST(UnsavedChangesPrompt, QuitProceedsImmediatelyWhenClean)
 {
     UnsavedChangesPrompt p;
-    EXPECT_FALSE(p.Request(PendingSceneAction::Quit, "", /*dirty*/false));
+    EXPECT_FALSE(p.Request(PendingSceneAction::Quit, "", /*dirty*/ false));
     EXPECT_FALSE(p.IsOpen());
 }
 
@@ -166,4 +165,4 @@ TEST(UnsavedChangesPrompt, OpenProjectCarriesTheProjectPath)
     EXPECT_EQ(path, "C:/projects/other");
 }
 
-} // namespace
+}  // namespace

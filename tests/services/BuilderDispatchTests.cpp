@@ -16,9 +16,10 @@ namespace
 // dispatcher ever calls it - which it must not.
 class StubBuilder : public ITargetBuilder
 {
-   public:
+public:
     StubBuilder(const char* name, std::string framework)
-        : m_Name(name), m_Framework(std::move(framework))
+        : m_Name(name),
+          m_Framework(std::move(framework))
     {
     }
 
@@ -41,8 +42,7 @@ class StubBuilder : public ITargetBuilder
     std::string GetToolchainStatus() const override { return "stub"; }
     void InstallToolchainComponent(const std::string&, BuildProgressCallback) override {}
     std::string GetEnginePath(const std::string&) const override { return ""; }
-    bool GenerateBuildFiles(const std::string&, const PlatformConfig&,
-                            const std::vector<std::string>&) override
+    bool GenerateBuildFiles(const std::string&, const PlatformConfig&, const std::vector<std::string>&) override
     {
         return true;
     }
@@ -50,7 +50,7 @@ class StubBuilder : public ITargetBuilder
     std::string GetBootPayloadDirectory(const std::string&) const override { return ""; }
     std::string GetPlatformKey() const override { return m_Framework; }
 
-   private:
+private:
     const char* m_Name;
     std::string m_Framework;
     BuildOptions m_Options;

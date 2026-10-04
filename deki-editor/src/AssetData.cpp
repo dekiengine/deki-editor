@@ -18,11 +18,15 @@ namespace DekiEditor
 bool LoadAssetData(const std::string& path, AssetData& out)
 {
     if (!fs::exists(path))
+    {
         return false;
+    }
 
     std::ifstream file(path);
     if (!file.is_open())
+    {
         return false;
+    }
 
     try
     {
@@ -31,7 +35,9 @@ bool LoadAssetData(const std::string& path, AssetData& out)
 
         // Read GUID (required)
         if (!j.contains("guid") || !j["guid"].is_string())
+        {
             return false;
+        }
 
         out.guid = j["guid"].get<std::string>();
 
@@ -40,8 +46,11 @@ bool LoadAssetData(const std::string& path, AssetData& out)
         // ignoring settings this editor does not know.
         const int32_t fileVersion = j.value(Deki::AuthoredFormat::VersionKey, 1);
         if (fileVersion > Deki::AuthoredFormat::AssetDataVersion)
-            DEKI_LOG_WARNING("AssetData: %s is formatVersion %d, this editor writes %d; settings it does not know are kept as-is",
-                             path.c_str(), fileVersion, Deki::AuthoredFormat::AssetDataVersion);
+        {
+            DEKI_LOG_WARNING(
+                "AssetData: %s is formatVersion %d, this editor writes %d; settings it does not know are kept as-is",
+                path.c_str(), fileVersion, Deki::AuthoredFormat::AssetDataVersion);
+        }
 
         // Copy all other fields to settings
         out.settings = j;
@@ -90,7 +99,9 @@ std::string ReadAssetGuid(const std::string& assetPath)
     {
         AssetData data;
         if (LoadAssetData(dataPath, data))
+        {
             return data.guid;
+        }
     }
 
     return "";
@@ -120,7 +131,9 @@ std::string GenerateGuid()
     for (int i = 0; i < 16; ++i)
     {
         if (i == 4 || i == 6 || i == 8 || i == 10)
+        {
             out += '-';
+        }
         out += hex[bytes[i] >> 4];
         out += hex[bytes[i] & 0x0F];
     }
@@ -137,7 +150,9 @@ std::string SalvageAssetGuid(const std::string& dataPath)
 {
     std::ifstream file(dataPath, std::ios::binary);
     if (!file.is_open())
+    {
         return "";
+    }
     std::stringstream ss;
     ss << file.rdbuf();
     const std::string text = ss.str();
@@ -150,9 +165,13 @@ std::string SalvageAssetGuid(const std::string& dataPath)
     {
         const std::string guid = (*it)[1].str();
         if (found.empty())
+        {
             found = guid;
+        }
         else if (guid != found)
+        {
             return "";  // two different GUIDs: not ours to choose
+        }
     }
     return found;
 }
@@ -161,7 +180,9 @@ std::string GetOrCreateAssetGuid(const std::string& assetPath)
 {
     std::string existingGuid = ReadAssetGuid(assetPath);
     if (!existingGuid.empty())
+    {
         return existingGuid;
+    }
 
     // A sidecar that is there but does not parse is NEVER replaced: it holds
     // the asset's identity and import settings (a git merge conflict is the
@@ -187,13 +208,17 @@ std::string GetOrCreateAssetGuid(const std::string& assetPath)
 
         const std::string salvaged = SalvageAssetGuid(dataPath);
         if (!salvaged.empty())
+        {
             DEKI_LOG_ERROR("AssetData: '%s' could not be read (a merge conflict?). Kept its GUID %s; its "
                            "import settings are ignored until the file is fixed. The file was left as it is.",
                            dataPath.c_str(), salvaged.c_str());
+        }
         else
+        {
             DEKI_LOG_ERROR("AssetData: '%s' could not be read and no single GUID could be recovered from it. "
                            "The asset is skipped until the file is fixed. The file was left as it is.",
                            dataPath.c_str());
+        }
         return salvaged;
     }
 

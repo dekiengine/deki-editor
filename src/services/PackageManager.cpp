@@ -55,22 +55,34 @@ PackageManager::~PackageManager()
 void PackageManager::ForgetPackageInstallers(const std::string& package)
 {
     if (package.empty())
+    {
         return;
+    }
     for (PackageManager* pm : LiveManagers())
+    {
         for (size_t i = pm->m_Installers.size(); i-- > 0;)
+        {
             if (i < pm->m_InstallerPackages.size() && pm->m_InstallerPackages[i] == package)
             {
                 pm->m_Installers.erase(pm->m_Installers.begin() + static_cast<std::ptrdiff_t>(i));
                 pm->m_InstallerPackages.erase(pm->m_InstallerPackages.begin() + static_cast<std::ptrdiff_t>(i));
             }
+        }
+    }
 }
 
 void PackageManager::RefreshPluginInstallers()
 {
     for (PackageManager* pm : LiveManagers())
+    {
         if (pm->m_App != nullptr)
+        {
             if (DekiEditor::PackageLoader* loader = pm->m_App->GetPackageLoader())
+            {
                 DekiEditor::RegisterInstallersFromPackages(*loader, *pm);
+            }
+        }
+    }
 }
 
 void PackageManager::InitDefaultSources()
@@ -106,7 +118,9 @@ void PackageManager::InitDefaultInstallers()
     if (m_App != nullptr)
     {
         if (DekiEditor::PackageLoader* loader = m_App->GetPackageLoader())
+        {
             DekiEditor::RegisterInstallersFromPackages(*loader, *this);
+        }
     }
 }
 
@@ -133,12 +147,13 @@ void PackageManager::RegisterInstaller(std::unique_ptr<IPackageInstaller> instal
     m_InstallerPackages.emplace_back();
 }
 
-void PackageManager::RegisterPluginInstaller(IPackageInstaller* installer,
-                                             void (*destroy)(IPackageInstaller*),
+void PackageManager::RegisterPluginInstaller(IPackageInstaller* installer, void (*destroy)(IPackageInstaller*),
                                              const std::string& package)
 {
     if (installer == nullptr || destroy == nullptr)
+    {
         return;
+    }
     m_Installers.push_back(std::shared_ptr<IPackageInstaller>(installer, destroy));
     m_InstallerPackages.push_back(package);
 }
@@ -146,8 +161,12 @@ void PackageManager::RegisterPluginInstaller(IPackageInstaller* installer,
 bool PackageManager::HasInstaller(const std::string& installerId) const
 {
     for (const auto& installer : m_Installers)
+    {
         if (installer && installer->GetId() == installerId)
+        {
             return true;
+        }
+    }
     return false;
 }
 
@@ -198,22 +217,29 @@ IPackageInstaller* PackageManager::GetInstallerFor(const PackageEntry& pkg, cons
         // component to the other's manifest.
         if (pkg.installer.empty())
         {
-            whyNot = "'" + pkg.id + "' is a framework component, but the project does not record "
+            whyNot = "'" + pkg.id +
+                     "' is a framework component, but the project does not record "
                      "which framework's installer manages it";
             return nullptr;
         }
         IPackageInstaller* installer = GetInstallerById(pkg.installer);
         if (installer == nullptr)
+        {
             whyNot = "'" + pkg.id + "' is managed by the '" + pkg.installer +
                      "' installer, which no installed package provides";
+        }
         return installer;
     }
 
     IPackageInstaller* installer = GetInstallerById(kDekiInstallerId);
     if (pkg.packageType == PackageType::Unknown && (installer == nullptr || !installer->IsApplicable(projectPath)))
+    {
         installer = GetInstallerForProject(projectPath);
+    }
     if (installer == nullptr)
+    {
         whyNot = "No installer available for this project";
+    }
     return installer;
 }
 
@@ -265,24 +291,30 @@ void PackageManager::FetchVersionsForPackage(PackageEntry& pkg, VersionsCallback
     std::string pkgId = pkg.id;
 
     std::shared_ptr<MainQueue> queue = m_MainQueue;
-    source->FetchVersions(pkg, [this, queue, pkgId, callback](bool success, const std::vector<std::string>& versions)
+    source->FetchVersions(pkg,
+                          [this, queue, pkgId, callback](bool success, const std::vector<std::string>& versions)
                           {
-        // Runs on the source's fetch thread: hand the update to the main thread.
-        // Through the queue itself, not `this`, which may be gone by now.
-        std::lock_guard<std::mutex> lock(queue->mutex);
-        queue->items.push_back([this, pkgId, callback, success, versions]()
-        {
-            if (success) {
-                // Find and update the package in our list
-                for (auto& p : m_Packages) {
-                    if (p.id == pkgId) {
-                        p.availableVersions = versions;
-                        break;
-                    }
-                }
-            }
-            callback(success, versions);
-        }); });
+                              // Runs on the source's fetch thread: hand the update to the main thread.
+                              // Through the queue itself, not `this`, which may be gone by now.
+                              std::lock_guard<std::mutex> lock(queue->mutex);
+                              queue->items.push_back(
+                                  [this, pkgId, callback, success, versions]()
+                                  {
+                                      if (success)
+                                      {
+                                          // Find and update the package in our list
+                                          for (auto& p : m_Packages)
+                                          {
+                                              if (p.id == pkgId)
+                                              {
+                                                  p.availableVersions = versions;
+                                                  break;
+                                              }
+                                          }
+                                      }
+                                      callback(success, versions);
+                                  });
+                          });
 }
 
 bool PackageManager::AddPackageIfNew(const PackageEntry& pkg)
@@ -293,13 +325,21 @@ bool PackageManager::AddPackageIfNew(const PackageEntry& pkg)
         {
             // Merge registry metadata into existing package
             if (existing.requiredPackages.empty() && !pkg.requiredPackages.empty())
+            {
                 existing.requiredPackages = pkg.requiredPackages;
+            }
             if (existing.url.empty() && !pkg.url.empty())
+            {
                 existing.url = pkg.url;
+            }
             if (existing.availableVersions.empty() && !pkg.availableVersions.empty())
+            {
                 existing.availableVersions = pkg.availableVersions;
+            }
             if (existing.description.empty() && !pkg.description.empty())
+            {
                 existing.description = pkg.description;
+            }
             return false;
         }
     }
@@ -321,7 +361,9 @@ void PackageManager::DrainMainThread()
         pending.swap(m_MainQueue->items);
     }
     for (auto& fn : pending)
+    {
         fn();
+    }
 }
 
 std::vector<PackageEntry>& PackageManager::GetPackages()
@@ -352,7 +394,9 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                 {
                     lockEntries[id] = entry;
                     if (entry.is_object() && entry.contains("commit") && entry["commit"].is_string())
+                    {
                         m_LockedCommits[id] = entry["commit"].get<std::string>();
+                    }
                 }
             }
         }
@@ -375,7 +419,9 @@ void PackageManager::LoadPackages(const std::string& projectPath)
             // falls back to the id rather than becoming a clone directory.
             std::string reason;
             if (!SafeNames::IsSafeRepoSlug(pkg.name, reason))
+            {
                 pkg.name = id;
+            }
         }
         pkg.displayName = entry.value("displayName", "");
         pkg.description = entry.value("description", "");
@@ -383,7 +429,10 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         pkg.lockedVersion = pkg.installedVersion;  // survives RefreshInstalledStatus
         pkg.author = entry.value("author", "");
         pkg.license = entry.value("license", "");
-        if (pkg.url.empty()) pkg.url = entry.value("url", "");
+        if (pkg.url.empty())
+        {
+            pkg.url = entry.value("url", "");
+        }
         pkg.resolvedBy = entry.value("resolvedBy", "");
 
         DekiEditor::ReadPackageSource(entry.value("source", ""), /*emptyIsCustom*/ false, pkg);
@@ -403,16 +452,20 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         // there was one framework and its name was the type. The id is right
         // there in the spelling, so read it rather than knowing it.
         else if (typeStr.size() > kComponentSuffix.size() &&
-                 typeStr.compare(typeStr.size() - kComponentSuffix.size(), kComponentSuffix.size(),
-                                 kComponentSuffix) == 0)
+                 typeStr.compare(typeStr.size() - kComponentSuffix.size(), kComponentSuffix.size(), kComponentSuffix) ==
+                     0)
         {
             pkg.packageType = PackageType::FrameworkComponent;
             if (pkg.installer.empty())
+            {
                 pkg.installer = typeStr.substr(0, typeStr.size() - kComponentSuffix.size());
+            }
         }
         // An explicit key wins over anything inferred above.
         if (entry.contains("installer") && entry["installer"].is_string())
+        {
             pkg.installer = entry["installer"].get<std::string>();
+        }
 
         // Deliberately not read back, even from a lock that still carries it.
         // Trusting a cache nobody refreshes is how a package resolves to a
@@ -421,7 +474,9 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         if (entry.contains("requires") && entry["requires"].is_array())
         {
             for (const auto& r : entry["requires"])
+            {
                 pkg.requiredPackages.push_back(r.get<std::string>());
+            }
         }
     };
 
@@ -471,7 +526,10 @@ void PackageManager::LoadPackages(const std::string& projectPath)
             for (auto& [id, lockEntry] : lockEntries)
             {
                 std::string resolvedBy = lockEntry.value("resolvedBy", "");
-                if (resolvedBy.empty()) continue;
+                if (resolvedBy.empty())
+                {
+                    continue;
+                }
 
                 // Check if already loaded from manifest
                 bool found = false;
@@ -483,7 +541,10 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                         break;
                     }
                 }
-                if (found) continue;
+                if (found)
+                {
+                    continue;
+                }
 
                 PackageEntry pkg;
                 pkg.id = id;
@@ -495,7 +556,9 @@ void PackageManager::LoadPackages(const std::string& projectPath)
             if (j.contains("dependencies") && j["dependencies"].is_object())
             {
                 for (auto& [name, ver] : j["dependencies"].items())
+                {
                     m_VersionOverrides[name] = ver.get<std::string>();
+                }
             }
         }
         catch (const std::exception& e)
@@ -514,7 +577,6 @@ void PackageManager::SavePackages(const std::string& projectPath)
     fs::path packagesPath = fs::path(projectPath) / DekiEditor::GetPackageManifestFileName();
     fs::path lockPath = fs::path(projectPath) / DekiEditor::GetPackageLockFileName();
 
-
     auto packageTypeToString = [](PackageType t) -> std::string
     {
         switch (t)
@@ -530,9 +592,11 @@ void PackageManager::SavePackages(const std::string& projectPath)
     {
         std::string err;
         if (!DekiEditor::WritePackageManifest(std::filesystem::path(packagesPath).string(),
-                                  DekiEditor::BuildPackageManifest(m_Packages, m_VersionOverrides), err))
+                                              DekiEditor::BuildPackageManifest(m_Packages, m_VersionOverrides), err))
+        {
             DEKI_LOG_ERROR("PackageManager: failed to write %s: %s",
                            std::filesystem::path(packagesPath).string().c_str(), err.c_str());
+        }
     }
 
     // Write deki-packages-lock.json (full resolved tree)
@@ -543,7 +607,10 @@ void PackageManager::SavePackages(const std::string& projectPath)
 
         for (const auto& pkg : m_Packages)
         {
-            if (pkg.id.empty()) continue;  // same reason as the manifest above
+            if (pkg.id.empty())
+            {
+                continue;  // same reason as the manifest above
+            }
 
             // The resolved tree only: what is declared, on disk, editable, or
             // pulled in by another package. A registry refresh merges every
@@ -551,23 +618,42 @@ void PackageManager::SavePackages(const std::string& projectPath)
             // the lock used to record all of them (28 entries for a project
             // using 9), as if they were part of the project.
             if (!pkg.declaredInManifest && !pkg.isInstalled && !pkg.editable && pkg.resolvedBy.empty())
+            {
                 continue;
+            }
 
             json entry;
             entry["name"] = pkg.name;
             entry["displayName"] = pkg.displayName;
-            if (!pkg.description.empty()) entry["description"] = pkg.description;
-            if (!pkg.installedVersion.empty()) entry["installedVersion"] = pkg.installedVersion;
-            if (!pkg.author.empty()) entry["author"] = pkg.author;
-            if (!pkg.license.empty()) entry["license"] = pkg.license;
-            if (!pkg.url.empty()) entry["url"] = pkg.url;
+            if (!pkg.description.empty())
+            {
+                entry["description"] = pkg.description;
+            }
+            if (!pkg.installedVersion.empty())
+            {
+                entry["installedVersion"] = pkg.installedVersion;
+            }
+            if (!pkg.author.empty())
+            {
+                entry["author"] = pkg.author;
+            }
+            if (!pkg.license.empty())
+            {
+                entry["license"] = pkg.license;
+            }
+            if (!pkg.url.empty())
+            {
+                entry["url"] = pkg.url;
+            }
             entry["source"] = DekiEditor::PackageSourceToString(pkg);
             entry["packageType"] = packageTypeToString(pkg.packageType);
             // Only where it carries information: a Deki package's installer is
             // implied by its type, and locks for projects that have no
             // framework component stay byte-identical.
             if (pkg.packageType == PackageType::FrameworkComponent && !pkg.installer.empty())
+            {
                 entry["installer"] = pkg.installer;
+            }
 
             // availableVersions is NOT written. A lock records what is
             // installed, not what happened to be available when it was last
@@ -577,10 +663,14 @@ void PackageManager::SavePackages(const std::string& projectPath)
             // they are needed instead.
 
             if (!pkg.requiredPackages.empty())
+            {
                 entry["requires"] = pkg.requiredPackages;
+            }
 
             if (!pkg.resolvedBy.empty())
+            {
                 entry["resolvedBy"] = pkg.resolvedBy;
+            }
 
             // The commit its version is (written by the installer), so a
             // restore can tell when a tag was moved. Not for a package being
@@ -596,16 +686,22 @@ void PackageManager::SavePackages(const std::string& projectPath)
                     std::ifstream metaIn(dir / ".deki-package.json");
                     const json meta = json::parse(metaIn, nullptr, false);
                     if (meta.is_object() && meta.value("version", "") == pkg.installedVersion)
+                    {
                         commit = meta.value("commit", "");
+                    }
                 }
                 if (commit.empty() && !developing)
                 {
                     auto pinned = m_LockedCommits.find(pkg.id);
                     if (pinned != m_LockedCommits.end() && pkg.installedVersion == pkg.lockedVersion)
+                    {
                         commit = pinned->second;
+                    }
                 }
                 if (!commit.empty())
+                {
                     entry["commit"] = commit;
+                }
             }
 
             lockJson["packages"][pkg.id] = entry;
@@ -613,8 +709,10 @@ void PackageManager::SavePackages(const std::string& projectPath)
 
         std::string err;
         if (!DekiEditor::AtomicWriteFile(std::filesystem::path(lockPath).string(), lockJson.dump(2), err))
-            DEKI_LOG_ERROR("PackageManager: failed to write %s: %s",
-                           std::filesystem::path(lockPath).string().c_str(), err.c_str());
+        {
+            DEKI_LOG_ERROR("PackageManager: failed to write %s: %s", std::filesystem::path(lockPath).string().c_str(),
+                           err.c_str());
+        }
     }
 }
 
@@ -645,8 +743,8 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
         // stamped with its id, which is also what heals an entry from a lock
         // that never recorded one.
         const std::string installerId = installer->GetId();
-        const PackageType pkgType = (installerId == kDekiInstallerId) ? PackageType::DekiPackage
-                                                                      : PackageType::FrameworkComponent;
+        const PackageType pkgType =
+            (installerId == kDekiInstallerId) ? PackageType::DekiPackage : PackageType::FrameworkComponent;
 
         for (const auto& installed : installedPackages)
         {
@@ -696,26 +794,27 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
                     if (!pkg.lockedVersion.empty() && !installedVersion.empty() &&
                         pkg.lockedVersion != installedVersion && pkgType == PackageType::DekiPackage)
                     {
-                        const std::string onDisk = static_cast<DekiPackageInstaller*>(installer)
-                                                       ->RefreshCheckedOutVersion(projectPath, pkg.id);
+                        const std::string onDisk =
+                            static_cast<DekiPackageInstaller*>(installer)->RefreshCheckedOutVersion(projectPath,
+                                                                                                    pkg.id);
                         if (!onDisk.empty())
+                        {
                             installedVersion = onDisk;
+                        }
                     }
 
                     // Once per package and pair of versions: this runs on every
                     // refresh, and a project open refreshes several times.
-                    if (!pkg.lockedVersion.empty() &&
-                        !installedVersion.empty() &&
+                    if (!pkg.lockedVersion.empty() && !installedVersion.empty() &&
                         pkg.lockedVersion != installedVersion &&
-                        m_WarnedVersionMismatch.insert(pkg.id + "|" + installedVersion + "|" + pkg.lockedVersion).second)
+                        m_WarnedVersionMismatch.insert(pkg.id + "|" + installedVersion + "|" + pkg.lockedVersion)
+                            .second)
                     {
-                        DEKI_LOG_WARNING(
-                            "PackageManager: '%s' is checked out at %s but the lock pins %s. "
-                            "The lock will record %s. Run --packages-add %s --version %s to put "
-                            "it back, or commit the change deliberately.",
-                            pkg.id.c_str(), installedVersion.c_str(),
-                            pkg.lockedVersion.c_str(), installedVersion.c_str(),
-                            pkg.id.c_str(), pkg.lockedVersion.c_str());
+                        DEKI_LOG_WARNING("PackageManager: '%s' is checked out at %s but the lock pins %s. "
+                                         "The lock will record %s. Run --packages-add %s --version %s to put "
+                                         "it back, or commit the change deliberately.",
+                                         pkg.id.c_str(), installedVersion.c_str(), pkg.lockedVersion.c_str(),
+                                         installedVersion.c_str(), pkg.id.c_str(), pkg.lockedVersion.c_str());
                     }
 
                     pkg.isInstalled = true;
@@ -752,13 +851,24 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
     // regardless.
     for (auto& pkg : m_Packages)
     {
-        if (pkg.packageType != PackageType::FrameworkComponent) continue;
-        if (pkg.isInstalled) continue;
-        if (!pkg.declaredInManifest && pkg.lockedVersion.empty()) continue;
+        if (pkg.packageType != PackageType::FrameworkComponent)
+        {
+            continue;
+        }
+        if (pkg.isInstalled)
+        {
+            continue;
+        }
+        if (!pkg.declaredInManifest && pkg.lockedVersion.empty())
+        {
+            continue;
+        }
 
         pkg.isInstalled = true;
         if (pkg.installedVersion.empty())
+        {
             pkg.installedVersion = pkg.lockedVersion;
+        }
     }
 }
 
@@ -787,7 +897,9 @@ void PackageManager::ResolveDependencies(const PackageEntry& pkg)
 void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unordered_set<std::string>& visited)
 {
     if (!visited.insert(pkg.id).second)
+    {
         return;  // Cycle detected
+    }
 
     for (const auto& depId : pkg.requiredPackages)
     {
@@ -805,12 +917,17 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
                 // Install deki-2d, then deki-particles, and deki-2d silently
                 // stops being something the project asked for.
                 if (existing.resolvedBy.empty() && !existing.isInstalled)
+                {
                     existing.resolvedBy = pkg.id;
+                }
                 found = true;
                 break;
             }
         }
-        if (found) continue;
+        if (found)
+        {
+            continue;
+        }
 
         // Create a new package entry for the auto-resolved dependency
         PackageEntry dep;
@@ -835,7 +952,9 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
                     dep.name = entry.repo;
                     dep.packageType = PackageType::DekiPackage;
                     if (!entry.latest.empty())
+                    {
                         dep.availableVersions = { entry.latest };
+                    }
                     break;
                 }
             }
@@ -863,124 +982,156 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
     // it stays false for a hypothetical async installer, which fails safe.
     auto primary = std::make_shared<std::pair<bool, std::string>>(false, "installer did not report a result");
 
-    installer->Install(projectPath, pkg, version,
-                       [this, projectPath, pkgId, version, primary](bool success, const std::string& message)
-                       {
-                           *primary = { success, message };
-                           if (!success)
-                           {
-                               return;  // reported to the caller below
-                           }
+    installer->Install(
+        projectPath, pkg, version,
+        [this, projectPath, pkgId, version, primary](bool success, const std::string& message)
+        {
+            *primary = { success, message };
+            if (!success)
+            {
+                return;  // reported to the caller below
+            }
 
-                           // Find the installed package and fill requiredPackages from cloned package.json
-                           for (auto& installed : m_Packages)
-                           {
-                               if (installed.id != pkgId) continue;
+            // Find the installed package and fill requiredPackages from cloned package.json
+            for (auto& installed : m_Packages)
+            {
+                if (installed.id != pkgId)
+                {
+                    continue;
+                }
 
-                               // Installing it is asking for it: it belongs in
-                               // deki-packages.json. Without this the save that
-                               // follows an install left it out (it was not yet
-                               // declared, and not yet known to be on disk).
-                               installed.declaredInManifest = true;
+                // Installing it is asking for it: it belongs in
+                // deki-packages.json. Without this the save that
+                // follows an install left it out (it was not yet
+                // declared, and not yet known to be on disk).
+                installed.declaredInManifest = true;
 
-                               if (installed.requiredPackages.empty())
-                               {
-                                   namespace fs = std::filesystem;
-                                   std::string repoName = installed.name;
-                                   size_t slashPos = repoName.find('/');
-                                   if (slashPos != std::string::npos)
-                                       repoName = repoName.substr(slashPos + 1);
-                                   fs::path packageJson = fs::path(DekiEditor::GetPackagesDirectory(projectPath)) / repoName / "package.json";
-                                   if (fs::exists(packageJson))
-                                   {
-                                       try
-                                       {
-                                           std::ifstream f(packageJson);
-                                           nlohmann::json j;
-                                           f >> j;
-                                           if (j.contains("requires") && j["requires"].is_array())
-                                           {
-                                               for (const auto& r : j["requires"])
-                                                   installed.requiredPackages.push_back(r.get<std::string>());
-                                           }
-                                       }
-                                       catch (const std::exception& e)
-                                       {
-                                           DEKI_LOG_WARNING("PackageManager: could not parse %s (%s) - dependencies not recorded",
-                                                            packageJson.string().c_str(), e.what());
-                                       }
-                                   }
-                               }
+                if (installed.requiredPackages.empty())
+                {
+                    namespace fs = std::filesystem;
+                    std::string repoName = installed.name;
+                    size_t slashPos = repoName.find('/');
+                    if (slashPos != std::string::npos)
+                    {
+                        repoName = repoName.substr(slashPos + 1);
+                    }
+                    fs::path packageJson =
+                        fs::path(DekiEditor::GetPackagesDirectory(projectPath)) / repoName / "package.json";
+                    if (fs::exists(packageJson))
+                    {
+                        try
+                        {
+                            std::ifstream f(packageJson);
+                            nlohmann::json j;
+                            f >> j;
+                            if (j.contains("requires") && j["requires"].is_array())
+                            {
+                                for (const auto& r : j["requires"])
+                                {
+                                    installed.requiredPackages.push_back(r.get<std::string>());
+                                }
+                            }
+                        }
+                        catch (const std::exception& e)
+                        {
+                            DEKI_LOG_WARNING("PackageManager: could not parse %s (%s) - dependencies not recorded",
+                                             packageJson.string().c_str(), e.what());
+                        }
+                    }
+                }
 
-                               ResolveDependencies(installed);
-                               break;
-                           }
+                ResolveDependencies(installed);
+                break;
+            }
 
-                           // Install resolved deps that aren't on disk
-                           auto* dekiInstaller = GetInstallerById(kDekiInstallerId);
-                           if (dekiInstaller)
-                           {
-                               for (size_t i = 0; i < m_Packages.size(); ++i)
-                               {
-                                   auto& depPkg = m_Packages[i];
-                                   if (depPkg.resolvedBy.empty()) continue;
-                                   if (depPkg.isInstalled) continue;
-                                   if (depPkg.url.empty()) continue;
+            // Install resolved deps that aren't on disk
+            auto* dekiInstaller = GetInstallerById(kDekiInstallerId);
+            if (dekiInstaller)
+            {
+                for (size_t i = 0; i < m_Packages.size(); ++i)
+                {
+                    auto& depPkg = m_Packages[i];
+                    if (depPkg.resolvedBy.empty())
+                    {
+                        continue;
+                    }
+                    if (depPkg.isInstalled)
+                    {
+                        continue;
+                    }
+                    if (depPkg.url.empty())
+                    {
+                        continue;
+                    }
 
-                                   // Prefer the version the lock recorded for this dependency
-                                   // over availableVersions, which is only a cache of what the
-                                   // registry offered when the lock was last written - a lock
-                                   // pinning 1.0.1 alongside a stale ["1.0.0"] cache would
-                                   // otherwise reinstall 1.0.0. "master" is the last resort
-                                   // because every dekiengine package uses it; "main" matched
-                                   // none of them and simply failed the clone.
-                                   std::string depVersion = depPkg.lockedVersion;
-                                   if (depVersion.empty() && !depPkg.availableVersions.empty())
-                                       depVersion = depPkg.availableVersions[0];
-                                   if (depVersion.empty())
-                                       depVersion = "master";
+                    // Prefer the version the lock recorded for this dependency
+                    // over availableVersions, which is only a cache of what the
+                    // registry offered when the lock was last written - a lock
+                    // pinning 1.0.1 alongside a stale ["1.0.0"] cache would
+                    // otherwise reinstall 1.0.0. "master" is the last resort
+                    // because every dekiengine package uses it; "main" matched
+                    // none of them and simply failed the clone.
+                    std::string depVersion = depPkg.lockedVersion;
+                    if (depVersion.empty() && !depPkg.availableVersions.empty())
+                    {
+                        depVersion = depPkg.availableVersions[0];
+                    }
+                    if (depVersion.empty())
+                    {
+                        depVersion = "master";
+                    }
 
-                                   dekiInstaller->Install(projectPath, depPkg, depVersion,
-                                                          [this, i, depVersion, projectPath](bool depSuccess, const std::string&)
-                                                          {
-                                                              if (depSuccess && i < m_Packages.size())
-                                                              {
-                                                                  m_Packages[i].isInstalled = true;
-                                                                  m_Packages[i].installedVersion = depVersion;
+                    dekiInstaller->Install(
+                        projectPath, depPkg, depVersion,
+                        [this, i, depVersion, projectPath](bool depSuccess, const std::string&)
+                        {
+                            if (depSuccess && i < m_Packages.size())
+                            {
+                                m_Packages[i].isInstalled = true;
+                                m_Packages[i].installedVersion = depVersion;
 
-                                                                  // Read displayName from cloned package.json
-                                                                  namespace fs = std::filesystem;
-                                                                  std::string repoName = m_Packages[i].name;
-                                                                  size_t sp = repoName.find('/');
-                                                                  if (sp != std::string::npos) repoName = repoName.substr(sp + 1);
-                                                                  fs::path mj = fs::path(DekiEditor::GetPackagesDirectory(projectPath)) / repoName / "package.json";
-                                                                  if (fs::exists(mj))
-                                                                  {
-                                                                      try
-                                                                      {
-                                                                          std::ifstream f(mj);
-                                                                          nlohmann::json j;
-                                                                          f >> j;
-                                                                          if (j.contains("displayName"))
-                                                                              m_Packages[i].displayName = j["displayName"].get<std::string>();
-                                                                      }
-                                                                      catch (const std::exception& e)
-                                                                      {
-                                                                          DEKI_LOG_WARNING("PackageManager: could not parse %s (%s) - using fallback display name",
-                                                                                           mj.string().c_str(), e.what());
-                                                                      }
-                                                                  }
-                                                              }
-                                                          });
-                               }
-                           }
-                       });
+                                // Read displayName from cloned package.json
+                                namespace fs = std::filesystem;
+                                std::string repoName = m_Packages[i].name;
+                                size_t sp = repoName.find('/');
+                                if (sp != std::string::npos)
+                                {
+                                    repoName = repoName.substr(sp + 1);
+                                }
+                                fs::path mj =
+                                    fs::path(DekiEditor::GetPackagesDirectory(projectPath)) / repoName / "package.json";
+                                if (fs::exists(mj))
+                                {
+                                    try
+                                    {
+                                        std::ifstream f(mj);
+                                        nlohmann::json j;
+                                        f >> j;
+                                        if (j.contains("displayName"))
+                                        {
+                                            m_Packages[i].displayName = j["displayName"].get<std::string>();
+                                        }
+                                    }
+                                    catch (const std::exception& e)
+                                    {
+                                        DEKI_LOG_WARNING(
+                                            "PackageManager: could not parse %s (%s) - using fallback display name",
+                                            mj.string().c_str(), e.what());
+                                    }
+                                }
+                            }
+                        });
+                }
+            }
+        });
 
     // What is on disk now, with versions, before the caller saves the
     // manifest and lock: the lock used to be written without the new
     // package's installedVersion.
     if (primary->first)
+    {
         RefreshInstalledStatus(projectPath);
+    }
 
     // Report what actually happened. This used to be an unconditional
     // callback(true, ""), which made a failed clone (bad URL, no network, a ref
@@ -1012,11 +1163,17 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                           std::vector<std::string> orphanedIds;
                           for (const auto& p : m_Packages)
                           {
-                              if (p.resolvedBy != removedId) continue;
+                              if (p.resolvedBy != removedId)
+                              {
+                                  continue;
+                              }
                               bool neededByOther = false;
                               for (const auto& other : m_Packages)
                               {
-                                  if (other.id == removedId || other.id == p.id) continue;
+                                  if (other.id == removedId || other.id == p.id)
+                                  {
+                                      continue;
+                                  }
                                   for (const auto& req : other.requiredPackages)
                                   {
                                       if (req == p.id)
@@ -1025,14 +1182,23 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                                           break;
                                       }
                                   }
-                                  if (neededByOther) break;
+                                  if (neededByOther)
+                                  {
+                                      break;
+                                  }
                               }
-                              if (!neededByOther) orphanedIds.push_back(p.id);
+                              if (!neededByOther)
+                              {
+                                  orphanedIds.push_back(p.id);
+                              }
                           }
 
                           for (size_t i = 0; i < orphanedIds.size(); ++i)
                           {
-                              if (i) *orphansOut += ", ";
+                              if (i)
+                              {
+                                  *orphansOut += ", ";
+                              }
                               *orphansOut += orphanedIds[i];
                           }
 
@@ -1046,8 +1212,7 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                                   {
                                       if (p.id == orphanId)
                                       {
-                                          dekiInstaller->Remove(projectPath, p,
-                                                                [](bool, const std::string&) {});
+                                          dekiInstaller->Remove(projectPath, p, [](bool, const std::string&) {});
                                           break;
                                       }
                                   }
@@ -1084,23 +1249,31 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
             while (pos <= list.size())
             {
                 size_t comma = list.find(',', pos);
-                if (comma == std::string::npos) comma = list.size();
+                if (comma == std::string::npos)
+                {
+                    comma = list.size();
+                }
                 std::string id = list.substr(pos, comma - pos);
                 // entries are joined with ", "
                 while (!id.empty() && id.front() == ' ')
+                {
                     id.erase(id.begin());
+                }
                 while (!id.empty() && id.back() == ' ')
+                {
                     id.pop_back();
-                if (!id.empty()) drop.insert(id);
+                }
+                if (!id.empty())
+                {
+                    drop.insert(id);
+                }
                 pos = comma + 1;
             }
         }
 
-        m_Packages.erase(
-            std::remove_if(m_Packages.begin(), m_Packages.end(),
-                           [&drop](const PackageEntry& p)
-                           { return drop.count(p.id) != 0; }),
-            m_Packages.end());
+        m_Packages.erase(std::remove_if(m_Packages.begin(), m_Packages.end(),
+                                        [&drop](const PackageEntry& p) { return drop.count(p.id) != 0; }),
+                         m_Packages.end());
     }
 
     // Report the real outcome. This used to be an unconditional

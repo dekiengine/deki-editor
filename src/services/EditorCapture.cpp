@@ -28,11 +28,8 @@ EditorCapture& EditorCapture::Get()
     return instance;
 }
 
-void EditorCapture::RequestScreenshot(const std::string& path,
-                                      const std::string& panel,
-                                      const Region& region,
-                                      float padding,
-                                      int framesToWait)
+void EditorCapture::RequestScreenshot(const std::string& path, const std::string& panel, const Region& region,
+                                      float padding, int framesToWait)
 {
     Request req;
     req.sequence = false;
@@ -44,13 +41,8 @@ void EditorCapture::RequestScreenshot(const std::string& path,
     m_Requests.push_back(std::move(req));
 }
 
-void EditorCapture::RequestSequence(const std::string& dir,
-                                    const std::string& panel,
-                                    const Region& region,
-                                    float padding,
-                                    int frames,
-                                    int stride,
-                                    int framesToWait)
+void EditorCapture::RequestSequence(const std::string& dir, const std::string& panel, const Region& region,
+                                    float padding, int frames, int stride, int framesToWait)
 {
     Request req;
     req.sequence = true;
@@ -69,13 +61,17 @@ void EditorCapture::RequestSequence(const std::string& dir,
 void EditorCapture::RequestFocus(const std::string& panel)
 {
     if (!panel.empty())
+    {
         m_PendingFocus.push_back(panel);
+    }
 }
 
 void EditorCapture::ApplyPendingFocus()
 {
     for (const auto& name : m_PendingFocus)
+    {
         ImGui::SetWindowFocus(name.c_str());
+    }
     m_PendingFocus.clear();
 }
 
@@ -83,11 +79,17 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
 {
     std::vector<PanelInfo> out;
     ImGuiContext* ctx = ImGui::GetCurrentContext();
-    if (!ctx) return out;
+    if (!ctx)
+    {
+        return out;
+    }
 
     for (ImGuiWindow* w : ctx->Windows)
     {
-        if (!w) continue;
+        if (!w)
+        {
+            continue;
+        }
 
         // A docked panel is reparented under its dock node's host window, so it
         // carries ChildWindow - the flag alone would filter out exactly the
@@ -95,14 +97,22 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
         // top-level panel and only drop genuine scaffolding.
         const bool isDockedPanel = (w->DockId != 0) || (w->DockNode != nullptr);
         if (!isDockedPanel && (w->Flags & ImGuiWindowFlags_ChildWindow))
+        {
             continue;
+        }
         if (w->Flags & ImGuiWindowFlags_Tooltip)
+        {
             continue;
+        }
         if (w->Hidden && !w->WasActive)
+        {
             continue;
+        }
         // Dock node host windows are implementation detail, not panels.
         if (w->Name && strncmp(w->Name, "##", 2) == 0)
+        {
             continue;
+        }
 
         PanelInfo info;
         info.name = w->Name ? w->Name : "";
@@ -119,8 +129,7 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
     return out;
 }
 
-bool EditorCapture::ResolveRect(const Request& req, int fbW, int fbH,
-                                int& outX, int& outY, int& outW, int& outH) const
+bool EditorCapture::ResolveRect(const Request& req, int fbW, int fbH, int& outX, int& outY, int& outW, int& outH) const
 {
     float x = 0.0f, y = 0.0f, w = (float)fbW, h = (float)fbH;
 
@@ -128,7 +137,9 @@ bool EditorCapture::ResolveRect(const Request& req, int fbW, int fbH,
     {
         ImGuiWindow* win = ImGui::FindWindowByName(req.panel.c_str());
         if (!win || !win->WasActive)
+        {
             return false;
+        }
         x = win->Pos.x;
         y = win->Pos.y;
         w = win->Size.x;
@@ -190,18 +201,22 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
     // against it), and a 0-alpha readback would render as a fully transparent
     // PNG. Force it opaque.
     for (size_t i = 3; i < byteCount; i += 4)
+    {
         m_Pixels[i] = 255;
+    }
 
     std::error_code ec;
     fs::path target(path);
     if (target.has_parent_path())
+    {
         fs::create_directories(target.parent_path(), ec);
+    }
 
     const std::string tmp = path + ".tmp";
     if (!stbi_write_png(tmp.c_str(), w, h, 4, m_Pixels.data(), (int)stride))
     {
-        Deki::LogSystem::LogWithLevel(Deki::LogLevel::Error, __FILE__, __LINE__,
-                                    "EditorCapture: failed to write %s", tmp.c_str());
+        Deki::LogSystem::LogWithLevel(Deki::LogLevel::Error, __FILE__, __LINE__, "EditorCapture: failed to write %s",
+                                      tmp.c_str());
         return false;
     }
 
@@ -210,7 +225,7 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
     if (ec)
     {
         Deki::LogSystem::LogWithLevel(Deki::LogLevel::Error, __FILE__, __LINE__,
-                                    "EditorCapture: failed to move capture into place: %s", ec.message().c_str());
+                                      "EditorCapture: failed to move capture into place: %s", ec.message().c_str());
         return false;
     }
     return true;
@@ -219,7 +234,9 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
 void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
 {
     if (m_Requests.empty() || fbW <= 0 || fbH <= 0)
+    {
         return;
+    }
 
     // A screenshot asked for after a click shows what the click did: the
     // frames to wait start counting once the queued input has played out. A
@@ -256,9 +273,9 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
                 continue;
             }
             Deki::LogSystem::LogWithLevel(Deki::LogLevel::Warning, __FILE__, __LINE__,
-                                        "EditorCapture: panel '%s' was not drawn for %d frames, dropping request "
-                                        "(is its tab selected? see focus_panel)",
-                                        req.panel.c_str(), req.misses);
+                                          "EditorCapture: panel '%s' was not drawn for %d frames, dropping request "
+                                          "(is its tab selected? see focus_panel)",
+                                          req.panel.c_str(), req.misses);
             m_Requests.erase(m_Requests.begin() + i);
             continue;
         }

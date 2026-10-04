@@ -141,7 +141,6 @@ int CmdPackagesList(const char* projectPath);
 int CmdNewProject(const char* parentDir, const char* name);
 int CmdListPlatforms(const char* projectPath);
 int CmdToolchainStatus(const char* projectPath, const char* platformId);
-int CmdInstallToolchain(const char* projectPath, const char* platformId,
-                        const char* componentId);
+int CmdInstallToolchain(const char* projectPath, const char* platformId, const char* componentId);
 
 }  // namespace DekiEditor

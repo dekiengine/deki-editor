@@ -18,7 +18,8 @@ namespace DekiEditor
 {
 
 SDCardDeployPanel::SDCardDeployPanel(EditorApp* app)
-    : m_App(app), m_Deployer(std::make_unique<AssetDeployer>())
+    : m_App(app),
+      m_Deployer(std::make_unique<AssetDeployer>())
 {
 }
 
@@ -29,11 +30,14 @@ SDCardDeployPanel::~SDCardDeployPanel()
 void SDCardDeployPanel::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     DekiEditor::FirstUseWindowPlacement(400, 300);
 
-    if (!ImGui::Begin("SD CARD DEPLOY###SD Card Deploy", &m_Open, DekiEditor::MaximizedWindowFlags("SD CARD DEPLOY###SD Card Deploy")))
+    if (!ImGui::Begin("SD CARD DEPLOY###SD Card Deploy", &m_Open,
+                      DekiEditor::MaximizedWindowFlags("SD CARD DEPLOY###SD Card Deploy")))
     {
         ImGui::End();
         return;
@@ -70,9 +74,13 @@ void SDCardDeployPanel::Draw()
     ui.BeginToolbar();
     const bool deployClicked = ui.ToolbarButton("Deploy to SD Card", canDeploy && !isDeploying);
     if (ui.ToolbarIconButton("##refreshdrives", ICON_TI_REFRESH, "Look for removable drives again", !isDeploying))
+    {
         m_NeedsDriveRefresh = true;
+    }
     if (ui.ToolbarIconButton("##clearoutput", ICON_TI_ERASER, "Clear the output"))
+    {
         ClearOutput();
+    }
     ui.EndToolbar();
 
     // The deploy thread's progress, copied once under its lock.
@@ -110,12 +118,16 @@ void SDCardDeployPanel::Draw()
     {
         std::vector<const char*> driveItems;
         for (const auto& drive : m_RemovableDrives)
+        {
             driveItems.push_back(drive.second.c_str());
+        }
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (SchematicCombo("##SDCard", &m_SelectedDriveIndex, driveItems.data(), (int)driveItems.size()))
         {
             if (m_SelectedDriveIndex >= 0 && m_SelectedDriveIndex < (int)m_RemovableDrives.size())
+            {
                 m_SelectedDrivePath = m_RemovableDrives[m_SelectedDriveIndex].first;
+            }
         }
     }
     if (deploying && !deployStatus.empty())
@@ -140,7 +152,9 @@ void SDCardDeployPanel::Draw()
             AssetExportTarget target;
             const std::string platformId = m_App->GetProject()->GetActivePlatformId();
             if (!platformId.empty() && ExportTargetForPlatform(platformId, target))
+            {
                 exporter.SetTarget(target);
+            }
             bool exportOk = exporter.ExportToStorage();
 
             if (exportOk)
@@ -161,7 +175,8 @@ void SDCardDeployPanel::Draw()
 
                                               if (!progress.statusText.empty())
                                               {
-                                                  AddOutputLine(progress.statusText, progress.state == DeployState::Failed);
+                                                  AddOutputLine(progress.statusText,
+                                                                progress.state == DeployState::Failed);
                                               }
                                           });
             }
@@ -177,7 +192,9 @@ void SDCardDeployPanel::Draw()
     FullBleedSeparator();
     ImGui::BeginChild("DeployOutput", ImVec2(0, 0), ImGuiChildFlags_None);
     if (g_FontMonoSmall)
+    {
         ImGui::PushFont(g_FontMonoSmall, DekiEditor::Fonts::CssPx(g_FontMonoSmall, 11.5f));
+    }
 
     std::vector<OutputLine> outputLines;
     {
@@ -205,7 +222,9 @@ void SDCardDeployPanel::Draw()
     }
 
     if (g_FontMonoSmall)
+    {
         ImGui::PopFont();
+    }
     ImGui::EndChild();
 
     ImGui::End();
@@ -219,8 +238,7 @@ void SDCardDeployPanel::AddOutputLine(const std::string& line, bool isError)
     const size_t maxLines = 500;
     if (m_OutputLines.size() > maxLines)
     {
-        m_OutputLines.erase(m_OutputLines.begin(),
-                            m_OutputLines.begin() + (m_OutputLines.size() - maxLines));
+        m_OutputLines.erase(m_OutputLines.begin(), m_OutputLines.begin() + (m_OutputLines.size() - maxLines));
     }
 }
 

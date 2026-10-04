@@ -37,7 +37,10 @@ constexpr bool k64Bit = (sizeof(void*) == 8);
 
 TEST(ObjectLayout, SizeIsPinned)
 {
-    if (!k64Bit) GTEST_SKIP() << "sizes are pinned for 64-bit only";
+    if (!k64Bit)
+    {
+        GTEST_SKIP() << "sizes are pinned for 64-bit only";
+    }
     // 184 at the editor's full width; 152 at 2D, 112 headless (Object.cpp).
     EXPECT_EQ(sizeof(Deki::Object), 184u)
         << "sizeof(Deki::Object) changed. Every package DLL bakes this into its inline "
@@ -47,7 +50,10 @@ TEST(ObjectLayout, SizeIsPinned)
 
 TEST(ObjectLayout, SceneSizeIsPinned)
 {
-    if (!k64Bit) GTEST_SKIP() << "sizes are pinned for 64-bit only";
+    if (!k64Bit)
+    {
+        GTEST_SKIP() << "sizes are pinned for 64-bit only";
+    }
     EXPECT_EQ(sizeof(Deki::Scene), 120u)
         << "sizeof(Scene) changed. deki-editor.dll constructs a Scene by value in "
            "AssetPipeline::CompileSceneFile, so this must agree across the DLL boundary.";
@@ -181,10 +187,9 @@ TEST(ObjectInstancePayload, DestructionDoesNotLeakRowsToReusedAddresses)
     for (int i = 0; i < 32; ++i)
     {
         Deki::Object probe("probe");
-        ASSERT_TRUE(probe.GetSourceSceneGuid().empty())
-            << "a destroyed object left its row in the side table";
+        ASSERT_TRUE(probe.GetSourceSceneGuid().empty()) << "a destroyed object left its row in the side table";
         ASSERT_FALSE(probe.IsSceneInstance());
     }
 }
 
-} // namespace
+}  // namespace

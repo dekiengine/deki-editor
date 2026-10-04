@@ -96,8 +96,8 @@ void GuidCache::Save(const std::string& cachePath) const
         fs::create_directories(parentDir, ec);
         if (ec)
         {
-            DEKI_LOG_WARNING("GuidCache: Failed to create directory %s: %s",
-                             parentDir.string().c_str(), ec.message().c_str());
+            DEKI_LOG_WARNING("GuidCache: Failed to create directory %s: %s", parentDir.string().c_str(),
+                             ec.message().c_str());
             return;
         }
     }
@@ -148,7 +148,9 @@ std::vector<fs::path> SortedSidecars(const std::string& root)
          it.increment(ec))
     {
         if (it->is_regular_file(ec) && it->path().extension() == ".data")
+        {
             out.push_back(it->path());
+        }
     }
     std::sort(out.begin(), out.end(),
               [](const fs::path& a, const fs::path& b) { return a.generic_u8string() < b.generic_u8string(); });
@@ -193,7 +195,9 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
         // overwrite the earlier one's mapping.
         entry.guid = ResolveGuidConflict(relativePath, entry.guid);
         if (entry.guid.empty())
+        {
             continue;
+        }
 
         // Get mtime (after any sidecar rewrite above)
         entry.sidecarMtime = GetFileMtime(dataPath);
@@ -259,7 +263,9 @@ void GuidCache::Sync(const std::string& assetsRoot)
                 // tells them apart and mints a fresh GUID for the duplicate.
                 entry.guid = ResolveGuidConflict(relativePath, entry.guid);
                 if (entry.guid.empty())
+                {
                     continue;  // could not be given a stable identity; skip it
+                }
 
                 entry.sidecarMtime = GetFileMtime(dataPath);  // may have been rewritten
                 AddEntry(relativePath, entry);
@@ -281,7 +287,9 @@ void GuidCache::Sync(const std::string& assetsRoot)
 
                     newEntry.guid = ResolveGuidConflict(relativePath, newEntry.guid);
                     if (newEntry.guid.empty())
+                    {
                         continue;
+                    }
 
                     // Add new entry
                     newEntry.sidecarMtime = GetFileMtime(dataPath);
@@ -312,8 +320,7 @@ void GuidCache::Sync(const std::string& assetsRoot)
         std::error_code ec;
         const std::string assetAbs = ResolveAssetPath(path);
         auto entryIt = m_Entries.find(path);
-        if (entryIt != m_Entries.end() && path.find(':') == std::string::npos &&
-            fs::is_regular_file(assetAbs, ec))
+        if (entryIt != m_Entries.end() && path.find(':') == std::string::npos && fs::is_regular_file(assetAbs, ec))
         {
             AssetData data;
             data.guid = entryIt->second.guid;
@@ -333,7 +340,9 @@ void GuidCache::Sync(const std::string& assetsRoot)
     }
 
     if (added || updated || removed)
+    {
         DEKI_LOG_EDITOR("GuidCache: synced, %d added, %d updated, %zu removed", added, updated, removed);
+    }
 
     // Save updated cache
     if (!m_CachePath.empty())
@@ -345,29 +354,41 @@ void GuidCache::Sync(const std::string& assetsRoot)
 void GuidCache::SaveOrDefer()
 {
     if (m_CachePath.empty())
+    {
         return;
+    }
     if (m_BatchDepth > 0)
+    {
         m_SaveDue = true;
+    }
     else
+    {
         Save(m_CachePath);
+    }
 }
 
 void GuidCache::EndBatch()
 {
     if (m_BatchDepth > 0)
+    {
         --m_BatchDepth;
+    }
     if (m_BatchDepth == 0 && m_SaveDue)
     {
         m_SaveDue = false;
         if (!m_CachePath.empty())
+        {
             Save(m_CachePath);
+        }
     }
 }
 
 void GuidCache::OnFileCreated(const std::string& path)
 {
     if (m_AssetsRoot.empty())
+    {
         return;
+    }
 
     std::string normalizedPath = NormalizePath(path);
     std::string sidecarPath = GetSidecarPath((fs::path(m_AssetsRoot) / normalizedPath).string());
@@ -389,7 +410,9 @@ void GuidCache::OnFileCreated(const std::string& path)
     // with them, so a newly created file is a prime source of GUID collisions.
     entry.guid = ResolveGuidConflict(normalizedPath, entry.guid);
     if (entry.guid.empty())
+    {
         return;
+    }
 
     entry.sidecarMtime = GetFileMtime(sidecarPath);
     AddEntry(normalizedPath, entry);
@@ -402,7 +425,9 @@ void GuidCache::OnFileCreated(const std::string& path)
 void GuidCache::OnFileModified(const std::string& path)
 {
     if (m_AssetsRoot.empty())
+    {
         return;
+    }
 
     std::string normalizedPath = NormalizePath(path);
     std::string sidecarPath = GetSidecarPath((fs::path(m_AssetsRoot) / normalizedPath).string());
@@ -427,7 +452,9 @@ void GuidCache::OnFileModified(const std::string& path)
     // A sidecar replaced by a copy of another asset's claims that asset's GUID.
     entry.guid = ResolveGuidConflict(normalizedPath, entry.guid);
     if (entry.guid.empty())
+    {
         return;
+    }
 
     entry.sidecarMtime = GetFileMtime(sidecarPath);
     AddEntry(normalizedPath, entry);
@@ -482,8 +509,8 @@ void GuidCache::OnFileMoved(const std::string& oldPath, const std::string& newPa
     RemoveEntry(normalizedOldPath);
     AddEntry(normalizedNewPath, entry);
 
-    DEKI_LOG_DEBUG("GuidCache: OnFileMoved: %s -> %s (guid: %s)",
-                   normalizedOldPath.c_str(), normalizedNewPath.c_str(), entry.guid.c_str());
+    DEKI_LOG_DEBUG("GuidCache: OnFileMoved: %s -> %s (guid: %s)", normalizedOldPath.c_str(), normalizedNewPath.c_str(),
+                   entry.guid.c_str());
 
     SaveOrDefer();
 }
@@ -493,7 +520,9 @@ std::string GuidCache::GetGuid(const std::string& path) const
     std::string normalizedPath = NormalizePath(path);
     auto it = m_Entries.find(normalizedPath);
     if (it == m_Entries.end())
+    {
         return "";
+    }
 
     return it->second.guid;
 }
@@ -521,11 +550,15 @@ GuidCache::Entry GuidCache::ParseSidecar(const std::string& dataPath) const
     Entry entry;
 
     if (!fs::exists(dataPath))
+    {
         return entry;
+    }
 
     std::ifstream file(dataPath);
     if (!file.is_open())
+    {
         return entry;
+    }
 
     try
     {
@@ -548,11 +581,13 @@ int64_t GuidCache::GetFileMtime(const std::string& path) const
     try
     {
         if (!fs::exists(path))
+        {
             return 0;
+        }
 
         auto ftime = fs::last_write_time(path);
-        auto sctp = std::chrono::time_point_cast<std::chrono::seconds>(
-            ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+        auto sctp = std::chrono::time_point_cast<std::chrono::seconds>(ftime - fs::file_time_type::clock::now() +
+                                                                       std::chrono::system_clock::now());
         return sctp.time_since_epoch().count();
     }
     catch (...)
@@ -569,7 +604,9 @@ std::string GuidCache::NormalizePath(const std::string& path) const
     for (char& c : result)
     {
         if (c == '\\')
+        {
             c = '/';
+        }
     }
 
     // Remove leading slash if present
@@ -593,7 +630,9 @@ void GuidCache::AddEntry(const std::string& path, const Entry& entry)
     {
         auto old = m_GuidToPath.find(existing->second.guid);
         if (old != m_GuidToPath.end() && old->second == normalizedPath)
+        {
             m_GuidToPath.erase(old);
+        }
     }
 
     m_Entries[normalizedPath] = entry;
@@ -608,7 +647,9 @@ void GuidCache::RemoveEntry(const std::string& path)
 
     auto it = m_Entries.find(normalizedPath);
     if (it == m_Entries.end())
+    {
         return;
+    }
 
     const std::string guid = it->second.guid;
     m_Entries.erase(it);
@@ -620,7 +661,9 @@ void GuidCache::RemoveEntry(const std::string& path)
     // broken map is what gets saved.
     auto rev = m_GuidToPath.find(guid);
     if (rev == m_GuidToPath.end() || rev->second != normalizedPath)
+    {
         return;
+    }
 
     m_GuidToPath.erase(rev);
 
@@ -639,27 +682,34 @@ void GuidCache::RemoveEntry(const std::string& path)
 std::string GuidCache::ResolveAssetPath(const std::string& relativePath) const
 {
     if (m_AssetsRoot.empty())
+    {
         return relativePath;
+    }
     return (fs::path(m_AssetsRoot) / NormalizePath(relativePath)).string();
 }
 
-std::string GuidCache::ResolveGuidConflict(const std::string& relativePath,
-                                           const std::string& guid)
+std::string GuidCache::ResolveGuidConflict(const std::string& relativePath, const std::string& guid)
 {
     const std::string normalized = NormalizePath(relativePath);
 
     auto bound = m_GuidToPath.find(guid);
     if (bound == m_GuidToPath.end())
+    {
         return guid;  // nobody else holds it
+    }
 
     // Stored value may carry a ":variant" suffix; compare on the path part only.
     std::string otherPath = bound->second;
     const size_t colonPos = otherPath.find(':');
     if (colonPos != std::string::npos)
+    {
         otherPath = otherPath.substr(0, colonPos);
+    }
 
     if (otherPath == normalized)
+    {
         return guid;  // same file, nothing to resolve
+    }
 
     // The previous holder is gone: this is a move, and the GUID should follow
     // the asset. That is the case the old code assumed unconditionally.

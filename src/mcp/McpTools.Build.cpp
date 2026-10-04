@@ -43,12 +43,16 @@ std::string ResolveProjectPath(EditorApp* editor, const nlohmann::json& args)
 {
     const std::string fromArgs = args.value("project_path", std::string());
     if (!fromArgs.empty())
+    {
         return fromArgs;
+    }
 
     if (editor)
     {
         if (auto* project = editor->GetProject())
+        {
             return project->GetPath();
+        }
     }
 
     throw std::runtime_error("No project open and no project_path supplied.");
@@ -66,7 +70,9 @@ nlohmann::json OpToJson(const FirmwareOpResult& r)
     j["platformId"] = r.platformId;
     j["platformName"] = r.platformName;
     if (!r.error.empty())
+    {
         j["error"] = r.error;
+    }
     return j;
 }
 
@@ -78,303 +84,388 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
     // Discovery
     // =========================================================================
 
-    registry.Register({ "list_platforms",
-                        "List build platforms available to the project, with each platform's "
-                        "builder and whether its toolchain is installed. Also reports the "
-                        "project's active platform.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            std::string err;
-                            nlohmann::json result = FirmwareBuildService::ListPlatforms(path, err);
-                            if (!err.empty())
-                                throw std::runtime_error(err);
-                            return result;
-                        } });
+    registry.Register(
+        { "list_platforms",
+          "List build platforms available to the project, with each platform's "
+          "builder and whether its toolchain is installed. Also reports the "
+          "project's active platform.",
+          { { "type", "object" },
+            { "properties",
+              { { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              std::string err;
+              nlohmann::json result = FirmwareBuildService::ListPlatforms(path, err);
+              if (!err.empty())
+              {
+                  throw std::runtime_error(err);
+              }
+              return result;
+          } });
 
-    registry.Register({ "wait_for_operation",
-                        "Block until the running firmware operation finishes, and report how it "
-                        "went. build_firmware, deploy_build and the toolchain tools all start "
-                        "in the background and return at once, which suits a GUI polling for "
-                        "progress but leaves a script with nothing to wait on: the process exits "
-                        "and takes the work with it.",
-                        { { "type", "object" },
-                          { "properties",
-                            { { "timeout_seconds", { { "type", "integer" }, { "description", "Give up after this long (default 3600). Giving up does not cancel the operation." } } },
-                              { "quiet", { { "type", "boolean" }, { "description", "Do not print progress lines while waiting" } } } } } },
-                        [](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const int timeoutSeconds = args.value("timeout_seconds", 3600);
-                            const bool quiet = args.value("quiet", false);
+    registry.Register(
+        { "wait_for_operation",
+          "Block until the running firmware operation finishes, and report how it "
+          "went. build_firmware, deploy_build and the toolchain tools all start "
+          "in the background and return at once, which suits a GUI polling for "
+          "progress but leaves a script with nothing to wait on: the process exits "
+          "and takes the work with it.",
+          { { "type", "object" },
+            { "properties",
+              { { "timeout_seconds",
+                  { { "type", "integer" },
+                    { "description",
+                      "Give up after this long (default 3600). Giving up does not cancel the operation." } } },
+                { "quiet",
+                  { { "type", "boolean" }, { "description", "Do not print progress lines while waiting" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              const int timeoutSeconds = args.value("timeout_seconds", 3600);
+              const bool quiet = args.value("quiet", false);
 
-                            const auto started = std::chrono::steady_clock::now();
-                            std::string lastText;
-                            nlohmann::json status;
+              const auto started = std::chrono::steady_clock::now();
+              std::string lastText;
+              nlohmann::json status;
 
-                            while (true)
-                            {
-                                status = FirmwareBuildService::QueryStatus();
-                                const std::string state = status.value("state", "idle");
-                                const std::string text = status.value("statusText", "");
+              while (true)
+              {
+                  status = FirmwareBuildService::QueryStatus();
+                  const std::string state = status.value("state", "idle");
+                  const std::string text = status.value("statusText", "");
 
-                                if (!quiet && !text.empty() && text != lastText)
-                                {
-                                    // stderr: stdout carries the result, and a
-                                    // caller parsing it should not have to strip
-                                    // progress out of the middle.
-                                    fprintf(stderr, "  %s\n", text.c_str());
-                                    lastText = text;
-                                }
+                  if (!quiet && !text.empty() && text != lastText)
+                  {
+                      // stderr: stdout carries the result, and a
+                      // caller parsing it should not have to strip
+                      // progress out of the middle.
+                      fprintf(stderr, "  %s\n", text.c_str());
+                      lastText = text;
+                  }
 
-                                if (!status.value("active", false) || state == "completed" ||
-                                    state == "failed" || state == "idle")
-                                    break;
+                  if (!status.value("active", false) || state == "completed" || state == "failed" || state == "idle")
+                  {
+                      break;
+                  }
 
-                                const auto elapsed = std::chrono::steady_clock::now() - started;
-                                if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >=
-                                    timeoutSeconds)
-                                {
-                                    status["timedOut"] = true;
-                                    break;
-                                }
-                                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                            }
+                  const auto elapsed = std::chrono::steady_clock::now() - started;
+                  if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= timeoutSeconds)
+                  {
+                      status["timedOut"] = true;
+                      break;
+                  }
+                  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+              }
 
-                            if (status.value("state", "") == "failed")
-                                throw std::runtime_error("operation failed: " +
-                                                         status.value("error", "(no detail)"));
-                            return status;
-                        } });
+              if (status.value("state", "") == "failed")
+              {
+                  throw std::runtime_error("operation failed: " + status.value("error", "(no detail)"));
+              }
+              return status;
+          } });
 
-    registry.Register({ "setup_toolchain_component",
-                        "Run a toolchain component's post-install step. Downloading a component "
-                        "is not always enough to use it: an SDK archive may carry no compilers, "
-                        "and its install script fetches them. Starts in the background; poll "
-                        "build_status. Only components whose status reports canSetup have one.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "component_id" }) },
-                          { "properties",
-                            { { "component_id", { { "type", "string" }, { "description", "Component id, from toolchain_status" } } },
-                              { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } },
-                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            const std::string component = args.value("component_id", "");
-                            if (component.empty())
-                                throw std::runtime_error("setup_toolchain_component needs component_id");
+    registry.Register(
+        { "setup_toolchain_component",
+          "Run a toolchain component's post-install step. Downloading a component "
+          "is not always enough to use it: an SDK archive may carry no compilers, "
+          "and its install script fetches them. Starts in the background; poll "
+          "build_status. Only components whose status reports canSetup have one.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "component_id" }) },
+            { "properties",
+              { { "component_id", { { "type", "string" }, { "description", "Component id, from toolchain_status" } } },
+                { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id (default: the project's activePlatformId)" } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              const std::string component = args.value("component_id", "");
+              if (component.empty())
+              {
+                  throw std::runtime_error("setup_toolchain_component needs component_id");
+              }
 
-                            FirmwareOpResult r = FirmwareBuildService::StartSetupToolchainComponent(
-                                path, ArgPlatform(args), component, nullptr);
-                            if (!r.success)
-                                throw std::runtime_error(r.error);
-                            return { { "started", true }, { "component", component } };
-                        } });
+              FirmwareOpResult r =
+                  FirmwareBuildService::StartSetupToolchainComponent(path, ArgPlatform(args), component, nullptr);
+              if (!r.success)
+              {
+                  throw std::runtime_error(r.error);
+              }
+              return { { "started", true }, { "component", component } };
+          } });
 
-    registry.Register({ "create_platform",
-                        "Add a build target to the project. Copies an existing platform (its own, "
-                        "or one from an installed board pack) under a new id, so a board can be "
-                        "adapted without writing platform JSON by hand. Fields given here override "
-                        "the copy. Returns the platform as saved.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "id" }) },
-                          { "properties",
-                            { { "id", { { "type", "string" }, { "description", "Id for the new platform" } } },
-                              { "from", { { "type", "string" }, { "description", "Platform id to copy (optional; without it the platform is created bare)" } } },
-                              { "display_name", { { "type", "string" }, { "description", "Human-readable name (default: the id)" } } },
-                              { "screen_width", { { "type", "integer" } } },
-                              { "screen_height", { { "type", "integer" } } },
-                              { "family", { { "type", "string" }, { "description", "Vendor family; descriptive only, never used to choose a backend" } } },
-                              { "framework", { { "type", "string" }, { "description", "Build framework id, as claimed by an installed build backend. Any value is accepted; the backend validates it." } } },
-                              { "external_memory_size", { { "type", "integer" }, { "description", "Bytes of memory beyond the internal heap that the engine may allocate from (Deki::Memory::External), 0 for none. Grants packages the memory:external capability." } } },
-                              { "defines", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Preprocessor defines for the firmware build" } } },
-                              { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities this board offers packages, e.g. wifi, spi, sdl3" } } },
-                              { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL" } } },
-                              { "boot_scene", { { "type", "string" }, { "description", "Scene the device boots, relative to the project" } } },
-                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            if (path.empty())
-                                throw std::runtime_error("no project");
+    registry.Register(
+        { "create_platform",
+          "Add a build target to the project. Copies an existing platform (its own, "
+          "or one from an installed board pack) under a new id, so a board can be "
+          "adapted without writing platform JSON by hand. Fields given here override "
+          "the copy. Returns the platform as saved.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "id" }) },
+            { "properties",
+              { { "id", { { "type", "string" }, { "description", "Id for the new platform" } } },
+                { "from",
+                  { { "type", "string" },
+                    { "description", "Platform id to copy (optional; without it the platform is created bare)" } } },
+                { "display_name",
+                  { { "type", "string" }, { "description", "Human-readable name (default: the id)" } } },
+                { "screen_width", { { "type", "integer" } } },
+                { "screen_height", { { "type", "integer" } } },
+                { "family",
+                  { { "type", "string" },
+                    { "description", "Vendor family; descriptive only, never used to choose a backend" } } },
+                { "framework",
+                  { { "type", "string" },
+                    { "description", "Build framework id, as claimed by an installed build backend. Any value is "
+                                     "accepted; the backend validates it." } } },
+                { "external_memory_size",
+                  { { "type", "integer" },
+                    { "description",
+                      "Bytes of memory beyond the internal heap that the engine may allocate from "
+                      "(Deki::Memory::External), 0 for none. Grants packages the memory:external capability." } } },
+                { "defines",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "Preprocessor defines for the firmware build" } } },
+                { "provides",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "Capabilities this board offers packages, e.g. wifi, spi, sdl3" } } },
+                { "requires_packages",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "Packages this board always needs, e.g. its HAL" } } },
+                { "boot_scene",
+                  { { "type", "string" }, { "description", "Scene the device boots, relative to the project" } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              if (path.empty())
+              {
+                  throw std::runtime_error("no project");
+              }
 
-                            const std::string id = args.value("id", "");
-                            if (id.empty())
-                                throw std::runtime_error("create_platform needs an id");
-                            std::string why;
-                            if (!SafeNames::IsSafeName(id, why))
-                                throw std::runtime_error("'" + id + "' is not a usable platform id: " + why);
+              const std::string id = args.value("id", "");
+              if (id.empty())
+              {
+                  throw std::runtime_error("create_platform needs an id");
+              }
+              std::string why;
+              if (!SafeNames::IsSafeName(id, why))
+              {
+                  throw std::runtime_error("'" + id + "' is not a usable platform id: " + why);
+              }
 
-                            // Board packs as well as the project's own, so a
-                            // supported board can be adopted by name.
-                            auto& registryRef = PlatformRegistry::Instance();
-                            registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
-                            registryRef.LoadPlatformsFromBoardPacks();
+              // Board packs as well as the project's own, so a
+              // supported board can be adopted by name.
+              auto& registryRef = PlatformRegistry::Instance();
+              registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
+              registryRef.LoadPlatformsFromBoardPacks();
 
-                            if (registryRef.GetPlatform(id))
-                                throw std::runtime_error("a platform called '" + id + "' already exists");
+              if (registryRef.GetPlatform(id))
+              {
+                  throw std::runtime_error("a platform called '" + id + "' already exists");
+              }
 
-                            PlatformConfig config;
-                            const std::string from = args.value("from", "");
-                            if (!from.empty())
-                            {
-                                const PlatformConfig* source = registryRef.GetPlatform(from);
-                                if (!source)
-                                    throw std::runtime_error("no platform '" + from + "' to copy");
-                                config = *source;
-                            }
+              PlatformConfig config;
+              const std::string from = args.value("from", "");
+              if (!from.empty())
+              {
+                  const PlatformConfig* source = registryRef.GetPlatform(from);
+                  if (!source)
+                  {
+                      throw std::runtime_error("no platform '" + from + "' to copy");
+                  }
+                  config = *source;
+              }
 
-                            config.id = id;
-                            config.displayName = args.value("display_name", config.displayName.empty() ? id : config.displayName);
-                            if (args.contains("requires_packages") && args["requires_packages"].is_array())
-                            {
-                                config.requiresPackages.clear();
-                                for (const auto& r : args["requires_packages"])
-                                    if (r.is_string())
-                                        config.requiresPackages.push_back(r.get<std::string>());
-                            }
-                            if (args.contains("provides") && args["provides"].is_array())
-                            {
-                                config.provides.clear();
-                                for (const auto& cap : args["provides"])
-                                    if (cap.is_string())
-                                        config.provides.push_back(cap.get<std::string>());
-                            }
-                            if (args.contains("screen_width"))
-                                config.screenWidth = args["screen_width"].get<int32_t>();
-                            if (args.contains("screen_height"))
-                                config.screenHeight = args["screen_height"].get<int32_t>();
-                            // family is an enum, spelled as a string everywhere a
-                            // platform is written, so it is translated here rather
-                            // than assigned.
-                            if (args.contains("family") && args["family"].is_string())
-                            {
-                                // Any spelling: the family is descriptive and
-                                // the editor has no list of the world's targets.
-                                // A capability name must still be matchable, so
-                                // it is validated as one.
-                                const std::string family = args["family"].get<std::string>();
-                                if (!IsValidCapabilityName(family))
-                                    throw std::runtime_error("invalid family '" + family +
-                                        "'; lowercase letters, digits, '.', '-', ':' and '_' only");
-                                config.family = family;
-                            }
-                            config.framework = args.value("framework", config.framework);
-                            // Framework settings pass through untouched: the
-                            // editor does not know what any of them mean. A
-                            // chip, its flash and its clock used to have
-                            // parameters of their own here, which is one kind
-                            // of target's idea of a platform.
-                            if (args.contains("framework_options") &&
-                                args["framework_options"].is_object())
-                                config.frameworkOptions = args["framework_options"].dump();
-                            if (args.contains("external_memory_size"))
-                                config.externalMemorySize = args["external_memory_size"].get<uint32_t>();
-                            if (args.contains("defines") && args["defines"].is_array())
-                            {
-                                config.defines.clear();
-                                for (const auto& define : args["defines"])
-                                    if (define.is_string())
-                                        config.defines.push_back(define.get<std::string>());
-                            }
-                            config.bootScene = args.value("boot_scene", config.bootScene);
+              config.id = id;
+              config.displayName = args.value("display_name", config.displayName.empty() ? id : config.displayName);
+              if (args.contains("requires_packages") && args["requires_packages"].is_array())
+              {
+                  config.requiresPackages.clear();
+                  for (const auto& r : args["requires_packages"])
+                  {
+                      if (r.is_string())
+                      {
+                          config.requiresPackages.push_back(r.get<std::string>());
+                      }
+                  }
+              }
+              if (args.contains("provides") && args["provides"].is_array())
+              {
+                  config.provides.clear();
+                  for (const auto& cap : args["provides"])
+                  {
+                      if (cap.is_string())
+                      {
+                          config.provides.push_back(cap.get<std::string>());
+                      }
+                  }
+              }
+              if (args.contains("screen_width"))
+              {
+                  config.screenWidth = args["screen_width"].get<int32_t>();
+              }
+              if (args.contains("screen_height"))
+              {
+                  config.screenHeight = args["screen_height"].get<int32_t>();
+              }
+              // family is an enum, spelled as a string everywhere a
+              // platform is written, so it is translated here rather
+              // than assigned.
+              if (args.contains("family") && args["family"].is_string())
+              {
+                  // Any spelling: the family is descriptive and
+                  // the editor has no list of the world's targets.
+                  // A capability name must still be matchable, so
+                  // it is validated as one.
+                  const std::string family = args["family"].get<std::string>();
+                  if (!IsValidCapabilityName(family))
+                  {
+                      throw std::runtime_error("invalid family '" + family +
+                                               "'; lowercase letters, digits, '.', '-', ':' and '_' only");
+                  }
+                  config.family = family;
+              }
+              config.framework = args.value("framework", config.framework);
+              // Framework settings pass through untouched: the
+              // editor does not know what any of them mean. A
+              // chip, its flash and its clock used to have
+              // parameters of their own here, which is one kind
+              // of target's idea of a platform.
+              if (args.contains("framework_options") && args["framework_options"].is_object())
+              {
+                  config.frameworkOptions = args["framework_options"].dump();
+              }
+              if (args.contains("external_memory_size"))
+              {
+                  config.externalMemorySize = args["external_memory_size"].get<uint32_t>();
+              }
+              if (args.contains("defines") && args["defines"].is_array())
+              {
+                  config.defines.clear();
+                  for (const auto& define : args["defines"])
+                  {
+                      if (define.is_string())
+                      {
+                          config.defines.push_back(define.get<std::string>());
+                      }
+                  }
+              }
+              config.bootScene = args.value("boot_scene", config.bootScene);
 
-                            // Judged by the builder that owns the framework,
-                            // not here: this tool must not know what "espidf"
-                            // means. Missing builder is not fatal - a platform
-                            // for a target whose package is not installed yet
-                            // is still worth saving.
-                            BuilderRegistry::Instance().EnsureLoaded();
-                            if (auto* b = BuilderRegistry::Instance().GetBuilderForPlatform(config))
-                            {
-                                const auto problems = b->ValidatePlatform(config);
-                                if (!problems.empty())
-                                {
-                                    std::string msg = "platform is not valid for the " +
-                                                      b->GetFrameworkId() + " builder:";
-                                    for (const auto& pr : problems)
-                                        msg += "\n  " + pr;
-                                    throw std::runtime_error(msg);
-                                }
-                            }
+              // Judged by the builder that owns the framework,
+              // not here: this tool must not know what "espidf"
+              // means. Missing builder is not fatal - a platform
+              // for a target whose package is not installed yet
+              // is still worth saving.
+              BuilderRegistry::Instance().EnsureLoaded();
+              if (auto* b = BuilderRegistry::Instance().GetBuilderForPlatform(config))
+              {
+                  const auto problems = b->ValidatePlatform(config);
+                  if (!problems.empty())
+                  {
+                      std::string msg = "platform is not valid for the " + b->GetFrameworkId() + " builder:";
+                      for (const auto& pr : problems)
+                      {
+                          msg += "\n  " + pr;
+                      }
+                      throw std::runtime_error(msg);
+                  }
+              }
 
-                            // SavePlatformToFile makes the per-platform folder itself,
-                            // so it wants platforms/, not platforms/<id>.
-                            const std::string platformsDir = GetPlatformsDirectory(path);
-                            std::error_code ec;
-                            std::filesystem::create_directories(platformsDir, ec);
-                            if (!registryRef.SavePlatformToFile(config, platformsDir))
-                                throw std::runtime_error("could not write the platform under " + platformsDir);
-                            const std::string directory = platformsDir + "/" + id;
+              // SavePlatformToFile makes the per-platform folder itself,
+              // so it wants platforms/, not platforms/<id>.
+              const std::string platformsDir = GetPlatformsDirectory(path);
+              std::error_code ec;
+              std::filesystem::create_directories(platformsDir, ec);
+              if (!registryRef.SavePlatformToFile(config, platformsDir))
+              {
+                  throw std::runtime_error("could not write the platform under " + platformsDir);
+              }
+              const std::string directory = platformsDir + "/" + id;
 
-                            // A copied platform names the boot scene of the
-                            // platform it came from, which belongs to that one.
-                            // Carry the file across so the new target boots.
-                            if (!from.empty() && !config.bootScene.empty() && !args.contains("boot_scene"))
-                            {
-                                const std::filesystem::path sourceScene =
-                                    std::filesystem::path(path) / config.bootScene;
-                                const std::filesystem::path ours =
-                                    std::filesystem::path(directory) / sourceScene.filename();
-                                if (std::filesystem::exists(sourceScene, ec) &&
-                                    !std::filesystem::equivalent(sourceScene, ours, ec))
-                                {
-                                    std::filesystem::copy_file(
-                                        sourceScene, ours,
-                                        std::filesystem::copy_options::overwrite_existing, ec);
-                                    config.bootScene = GetPlatformsDirectoryRelative() + "/" + id +
-                                                       "/" + sourceScene.filename().string();
-                                    registryRef.SavePlatformToFile(config, directory);
-                                }
-                            }
+              // A copied platform names the boot scene of the
+              // platform it came from, which belongs to that one.
+              // Carry the file across so the new target boots.
+              if (!from.empty() && !config.bootScene.empty() && !args.contains("boot_scene"))
+              {
+                  const std::filesystem::path sourceScene = std::filesystem::path(path) / config.bootScene;
+                  const std::filesystem::path ours = std::filesystem::path(directory) / sourceScene.filename();
+                  if (std::filesystem::exists(sourceScene, ec) && !std::filesystem::equivalent(sourceScene, ours, ec))
+                  {
+                      std::filesystem::copy_file(sourceScene, ours, std::filesystem::copy_options::overwrite_existing,
+                                                 ec);
+                      config.bootScene =
+                          GetPlatformsDirectoryRelative() + "/" + id + "/" + sourceScene.filename().string();
+                      registryRef.SavePlatformToFile(config, directory);
+                  }
+              }
 
-                            return { { "id", config.id },
-                                     { "displayName", config.displayName },
-                                     { "framework", config.framework },
-                                     { "frameworkOptions", config.frameworkOptions },
-                                     { "screenWidth", config.screenWidth },
-                                     { "screenHeight", config.screenHeight },
-                                     { "bootScene", config.bootScene },
-                                     { "directory", directory } };
-                        } });
+              return { { "id", config.id },
+                       { "displayName", config.displayName },
+                       { "framework", config.framework },
+                       { "frameworkOptions", config.frameworkOptions },
+                       { "screenWidth", config.screenWidth },
+                       { "screenHeight", config.screenHeight },
+                       { "bootScene", config.bootScene },
+                       { "directory", directory } };
+          } });
 
-    registry.Register({ "set_active_platform",
-                        "Choose which platform the project builds for by default, the same "
-                        "setting the Build panel's target dropdown writes.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "platform_id" }) },
-                          { "properties",
-                            { { "platform_id", { { "type", "string" }, { "description", "Platform id, or \"\" to leave the project with no default" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            auto* project = editor ? editor->GetProject() : nullptr;
-                            if (!project)
-                                throw std::runtime_error("no project open");
+    registry.Register(
+        { "set_active_platform",
+          "Choose which platform the project builds for by default, the same "
+          "setting the Build panel's target dropdown writes.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "platform_id" }) },
+            { "properties",
+              { { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id, or \"\" to leave the project with no default" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              auto* project = editor ? editor->GetProject() : nullptr;
+              if (!project)
+              {
+                  throw std::runtime_error("no project open");
+              }
 
-                            const std::string id = args.value("platform_id", "");
-                            if (!id.empty())
-                            {
-                                auto& registryRef = PlatformRegistry::Instance();
-                                registryRef.LoadPlatformsFromDirectory(
-                                    GetPlatformsDirectory(project->GetPath()));
-                                registryRef.LoadPlatformsFromBoardPacks();
-                                RegisterPlatformTemplates(project->GetPath());
-                                std::string adoptErr;
-                                if (!EnsureProjectPlatform(project->GetPath(), id, adoptErr))
-                                    throw std::runtime_error(adoptErr);
-                                if (!registryRef.GetPlatform(id))
-                                    throw std::runtime_error("no platform '" + id + "' in this project, its "
-                                                             "packages or the installed board packs");
-                            }
+              const std::string id = args.value("platform_id", "");
+              if (!id.empty())
+              {
+                  auto& registryRef = PlatformRegistry::Instance();
+                  registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(project->GetPath()));
+                  registryRef.LoadPlatformsFromBoardPacks();
+                  RegisterPlatformTemplates(project->GetPath());
+                  std::string adoptErr;
+                  if (!EnsureProjectPlatform(project->GetPath(), id, adoptErr))
+                  {
+                      throw std::runtime_error(adoptErr);
+                  }
+                  if (!registryRef.GetPlatform(id))
+                  {
+                      throw std::runtime_error("no platform '" + id +
+                                               "' in this project, its "
+                                               "packages or the installed board packs");
+                  }
+              }
 
-                            project->SetActivePlatformId(id);
-                            if (!project->Save())
-                                throw std::runtime_error("could not save the project");
-                            editor->ApplyEditorTarget();
+              project->SetActivePlatformId(id);
+              if (!project->Save())
+              {
+                  throw std::runtime_error("could not save the project");
+              }
+              editor->ApplyEditorTarget();
 
-                            return { { "activePlatformId", id } };
-                        } });
+              return { { "activePlatformId", id } };
+          } });
 
     // A platform adopted from a package is the project's copy, and remembers
     // what it was copied from (build/PlatformTemplates). list_platforms reports
@@ -384,452 +475,621 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
         const std::string path = ResolveProjectPath(editor, args);
         const std::string id = ArgPlatform(args);
         if (id.empty())
+        {
             throw std::runtime_error(std::string(tool) + " needs a platform_id");
+        }
 
         const PlatformSyncResult r =
             restore ? RestorePlatformFromPackage(path, id) : UpdatePlatformFromPackage(path, id);
         if (!r.ok)
+        {
             throw std::runtime_error(r.error);
+        }
 
         return { { "platformId", id }, { "taken", r.taken }, { "kept", r.kept } };
     };
 
-    registry.Register({ "update_platform",
-                        "Bring a platform adopted from a package up to date with what the package "
-                        "offers now. Settings and files only the package changed are taken; what "
-                        "the project changed is kept. Where both changed the same thing the "
-                        "project's is kept and listed under \"kept\". list_platforms says when an "
-                        "update is available (origin.canUpdate).",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "platform_id" }) },
-                          { "properties",
-                            { { "platform_id", { { "type", "string" }, { "description", "Platform to update" } } },
-                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [syncPlatform](const nlohmann::json& args) -> nlohmann::json
-                        { return syncPlatform(args, "update_platform", false); } });
+    registry.Register(
+        { "update_platform",
+          "Bring a platform adopted from a package up to date with what the package "
+          "offers now. Settings and files only the package changed are taken; what "
+          "the project changed is kept. Where both changed the same thing the "
+          "project's is kept and listed under \"kept\". list_platforms says when an "
+          "update is available (origin.canUpdate).",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "platform_id" }) },
+            { "properties",
+              { { "platform_id", { { "type", "string" }, { "description", "Platform to update" } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [syncPlatform](const nlohmann::json& args) -> nlohmann::json
+          { return syncPlatform(args, "update_platform", false); } });
 
-    registry.Register({ "restore_platform",
-                        "Replace a platform adopted from a package with the package's version as "
-                        "it is now: its settings and its files, the boot scene included. The "
-                        "project's changes to them are lost; files only the project has are left. "
-                        "\"taken\" lists what changed.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "platform_id" }) },
-                          { "properties",
-                            { { "platform_id", { { "type", "string" }, { "description", "Platform to restore" } } },
-                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [syncPlatform](const nlohmann::json& args) -> nlohmann::json
-                        { return syncPlatform(args, "restore_platform", true); } });
+    registry.Register(
+        { "restore_platform",
+          "Replace a platform adopted from a package with the package's version as "
+          "it is now: its settings and its files, the boot scene included. The "
+          "project's changes to them are lost; files only the project has are left. "
+          "\"taken\" lists what changed.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "platform_id" }) },
+            { "properties",
+              { { "platform_id", { { "type", "string" }, { "description", "Platform to restore" } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [syncPlatform](const nlohmann::json& args) -> nlohmann::json
+          { return syncPlatform(args, "restore_platform", true); } });
 
     // The CLI equivalent of the Package Manager's "Editable (I am developing
     // this package)" checkbox. Without it, a package directory belongs to the
     // editor: PackageIntegrity stashes local edits and puts the checkout back
     // on the pinned version every time the project opens, which on the command
     // line happens on every single verb.
-    registry.Register({ "set_package_editable",
-                        "Mark a package as one this project is DEVELOPING rather than consuming. "
-                        "Editable packages are left alone; non-editable ones have local edits "
-                        "stashed and their checkout reset to the pinned version on every project "
-                        "open. Persisted as \"editable\" in deki-packages.json.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "package_id" }) },
-                          { "properties",
-                            { { "package_id", { { "type", "string" }, { "description", "Package id" } } },
-                              { "editable", { { "type", "boolean" }, { "description", "true to develop it here (default), false to hand it back to the editor" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            auto* project = editor ? editor->GetProject() : nullptr;
-                            if (!project)
-                                throw std::runtime_error("no project open");
+    registry.Register(
+        { "set_package_editable",
+          "Mark a package as one this project is DEVELOPING rather than consuming. "
+          "Editable packages are left alone; non-editable ones have local edits "
+          "stashed and their checkout reset to the pinned version on every project "
+          "open. Persisted as \"editable\" in deki-packages.json.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "package_id" }) },
+            { "properties",
+              { { "package_id", { { "type", "string" }, { "description", "Package id" } } },
+                { "editable",
+                  { { "type", "boolean" },
+                    { "description",
+                      "true to develop it here (default), false to hand it back to the editor" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              auto* project = editor ? editor->GetProject() : nullptr;
+              if (!project)
+              {
+                  throw std::runtime_error("no project open");
+              }
 
-                            const std::string id = args.value("package_id", "");
-                            if (id.empty())
-                                throw std::runtime_error("package_id is required");
-                            const bool editable = args.value("editable", true);
+              const std::string id = args.value("package_id", "");
+              if (id.empty())
+              {
+                  throw std::runtime_error("package_id is required");
+              }
+              const bool editable = args.value("editable", true);
 
-                            PackageManager manager(editor);
-                            manager.LoadPackages(project->GetPath());
+              PackageManager manager(editor);
+              manager.LoadPackages(project->GetPath());
 
-                            // Packages are named inconsistently across manifests:
-                            // some carry a bare directory name, others "owner/repo".
-                            // Accept either, plus the id and display name, rather
-                            // than making the caller guess which one this package
-                            // happens to use.
-                            PackageEntry* found = nullptr;
-                            std::vector<std::string> known;
-                            for (auto& pkg : manager.GetPackages())
-                            {
-                                known.push_back(pkg.name);
+              // Packages are named inconsistently across manifests:
+              // some carry a bare directory name, others "owner/repo".
+              // Accept either, plus the id and display name, rather
+              // than making the caller guess which one this package
+              // happens to use.
+              PackageEntry* found = nullptr;
+              std::vector<std::string> known;
+              for (auto& pkg : manager.GetPackages())
+              {
+                  known.push_back(pkg.name);
 
-                                std::string leaf = pkg.name;
-                                const auto slash = leaf.find_last_of('/');
-                                if (slash != std::string::npos) leaf = leaf.substr(slash + 1);
+                  std::string leaf = pkg.name;
+                  const auto slash = leaf.find_last_of('/');
+                  if (slash != std::string::npos)
+                  {
+                      leaf = leaf.substr(slash + 1);
+                  }
 
-                                if (pkg.name == id || pkg.id == id || leaf == id ||
-                                    pkg.displayName == id)
-                                {
-                                    found = &pkg;
-                                    break;
-                                }
-                            }
-                            if (!found)
-                            {
-                                std::string msg = "no package '" + id + "' in this project; it has:";
-                                for (const auto& k : known) msg += " " + k;
-                                throw std::runtime_error(msg);
-                            }
+                  if (pkg.name == id || pkg.id == id || leaf == id || pkg.displayName == id)
+                  {
+                      found = &pkg;
+                      break;
+                  }
+              }
+              if (!found)
+              {
+                  std::string msg = "no package '" + id + "' in this project; it has:";
+                  for (const auto& k : known)
+                  {
+                      msg += " " + k;
+                  }
+                  throw std::runtime_error(msg);
+              }
 
-                            const std::string resolvedId = found->id;
-                            found->editable = editable;
-                            manager.SavePackages(project->GetPath());
+              const std::string resolvedId = found->id;
+              found->editable = editable;
+              manager.SavePackages(project->GetPath());
 
-                            // Read it back rather than trusting the write. The
-                            // manifest keeps only some of what it is handed, so
-                            // a flag can be dropped on save; reporting success
-                            // anyway is how a caller ends up believing a package
-                            // is protected while the restore pass still stashes
-                            // its edits.
-                            PackageManager check(editor);
-                            check.LoadPackages(project->GetPath());
-                            for (const auto& pkg : check.GetPackages())
-                            {
-                                if (pkg.id != resolvedId) continue;
-                                if (pkg.editable != editable)
-                                    throw std::runtime_error(
-                                        "'" + resolvedId + "' did not keep editable=" +
-                                        (editable ? "true" : "false") + " across a reload");
-                                break;
-                            }
+              // Read it back rather than trusting the write. The
+              // manifest keeps only some of what it is handed, so
+              // a flag can be dropped on save; reporting success
+              // anyway is how a caller ends up believing a package
+              // is protected while the restore pass still stashes
+              // its edits.
+              PackageManager check(editor);
+              check.LoadPackages(project->GetPath());
+              for (const auto& pkg : check.GetPackages())
+              {
+                  if (pkg.id != resolvedId)
+                  {
+                      continue;
+                  }
+                  if (pkg.editable != editable)
+                  {
+                      throw std::runtime_error("'" + resolvedId + "' did not keep editable=" +
+                                               (editable ? "true" : "false") + " across a reload");
+                  }
+                  break;
+              }
 
-                            return { { "packageId", id }, { "editable", editable } };
-                        } });
+              return { { "packageId", id }, { "editable", editable } };
+          } });
 
     // Capabilities are how a package decides whether it can build for a target,
     // so they have to be settable without opening platform JSON by hand.
-    registry.Register({ "set_platform_provides",
-                        "Set what a platform can offer packages, as capability names "
-                        "(\"desktop-os\", \"sdl3\", \"posix-process\", \"wifi\", \"spi\"). A package "
-                        "declares what it needs in its platformRequires and builds for this target "
-                        "only when everything it needs is offered here. \"framework:<x>\" and "
-                        "\"family:<x>\" are added automatically and need not be listed.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "platform_id", "provides" }) },
-                          { "properties",
-                            { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
-                              { "provides", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "The complete capability list; replaces what was there" } } },
-                              { "requires_packages", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
-                              { "external_memory_size", { { "type", "integer" }, { "description", "Bytes of memory beyond the internal heap the engine may allocate from (Deki::Memory::External), 0 for none. Grants packages the memory:external capability. Unchanged when omitted." } } },
-                              { "display_name", { { "type", "string" }, { "description", "Human-readable name. Unchanged when omitted." } } },
-                              { "screen_width", { { "type", "integer" }, { "description", "Screen width in pixels, the size the game renders and exports assets at. Give with screen_height. Unchanged when omitted." } } },
-                              { "screen_height", { { "type", "integer" }, { "description", "Screen height in pixels. Give with screen_width. Unchanged when omitted." } } },
-                              { "framework_options", { { "type", "object" }, { "description", "Settings for the platform's build backend, merged key by key into what it already has. The editor does not interpret them; the backend validates them when it builds." } } },
-                              { "asset_storage", { { "type", "string" }, { "enum", nlohmann::json::array({ "internal", "external" }) }, { "description", "Where builds keep the assets: internal (flashed with the game) or external (an SD card; needs the external-storage capability). Unchanged when omitted." } } },
-                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            if (path.empty())
-                                throw std::runtime_error("no project");
+    registry.Register(
+        { "set_platform_provides",
+          "Set what a platform can offer packages, as capability names "
+          "(\"desktop-os\", \"sdl3\", \"posix-process\", \"wifi\", \"spi\"). A package "
+          "declares what it needs in its platformRequires and builds for this target "
+          "only when everything it needs is offered here. \"framework:<x>\" and "
+          "\"family:<x>\" are added automatically and need not be listed.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "platform_id", "provides" }) },
+            { "properties",
+              { { "platform_id", { { "type", "string" }, { "description", "Platform to change" } } },
+                { "provides",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "The complete capability list; replaces what was there" } } },
+                { "requires_packages",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description",
+                      "Packages this board always needs, e.g. its HAL. Replaces what was there when given." } } },
+                { "external_memory_size",
+                  { { "type", "integer" },
+                    { "description",
+                      "Bytes of memory beyond the internal heap the engine may allocate from (Deki::Memory::External), "
+                      "0 for none. Grants packages the memory:external capability. Unchanged when omitted." } } },
+                { "display_name",
+                  { { "type", "string" }, { "description", "Human-readable name. Unchanged when omitted." } } },
+                { "screen_width",
+                  { { "type", "integer" },
+                    { "description", "Screen width in pixels, the size the game renders and exports assets at. Give "
+                                     "with screen_height. Unchanged when omitted." } } },
+                { "screen_height",
+                  { { "type", "integer" },
+                    { "description", "Screen height in pixels. Give with screen_width. Unchanged when omitted." } } },
+                { "framework_options",
+                  { { "type", "object" },
+                    { "description",
+                      "Settings for the platform's build backend, merged key by key into what it already has. The "
+                      "editor does not interpret them; the backend validates them when it builds." } } },
+                { "asset_storage",
+                  { { "type", "string" },
+                    { "enum", nlohmann::json::array({ "internal", "external" }) },
+                    { "description", "Where builds keep the assets: internal (flashed with the game) or external (an "
+                                     "SD card; needs the external-storage capability). Unchanged when omitted." } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              if (path.empty())
+              {
+                  throw std::runtime_error("no project");
+              }
 
-                            const std::string id = args.value("platform_id", "");
-                            if (id.empty())
-                                throw std::runtime_error("set_platform_provides needs a platform_id");
+              const std::string id = args.value("platform_id", "");
+              if (id.empty())
+              {
+                  throw std::runtime_error("set_platform_provides needs a platform_id");
+              }
 
-                            auto& registryRef = PlatformRegistry::Instance();
-                            registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
-                            registryRef.LoadPlatformsFromBoardPacks();
+              auto& registryRef = PlatformRegistry::Instance();
+              registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
+              registryRef.LoadPlatformsFromBoardPacks();
 
-                            const PlatformConfig* existing = registryRef.GetPlatform(id);
-                            if (!existing)
-                                throw std::runtime_error("no platform '" + id + "' in this project");
+              const PlatformConfig* existing = registryRef.GetPlatform(id);
+              if (!existing)
+              {
+                  throw std::runtime_error("no platform '" + id + "' in this project");
+              }
 
-                            PlatformConfig config = *existing;
-                            config.provides.clear();
-                            if (args.contains("provides") && args["provides"].is_array())
-                            {
-                                for (const auto& cap : args["provides"])
-                                    if (cap.is_string())
-                                        config.provides.push_back(cap.get<std::string>());
-                            }
+              PlatformConfig config = *existing;
+              config.provides.clear();
+              if (args.contains("provides") && args["provides"].is_array())
+              {
+                  for (const auto& cap : args["provides"])
+                  {
+                      if (cap.is_string())
+                      {
+                          config.provides.push_back(cap.get<std::string>());
+                      }
+                  }
+              }
 
-                            if (args.contains("requires_packages") && args["requires_packages"].is_array())
-                            {
-                                config.requiresPackages.clear();
-                                for (const auto& r : args["requires_packages"])
-                                    if (r.is_string())
-                                        config.requiresPackages.push_back(r.get<std::string>());
-                            }
-                            // The other settings create_platform takes, so an existing
-                            // platform can be changed through the CLI instead of by
-                            // editing its JSON. create_platform only ever makes a new one.
-                            if (args.contains("external_memory_size"))
-                            {
-                                if (!args["external_memory_size"].is_number_unsigned() &&
-                                    !(args["external_memory_size"].is_number_integer() &&
-                                      args["external_memory_size"].get<long long>() >= 0))
-                                    throw std::runtime_error("external_memory_size must be a non-negative byte count");
-                                config.externalMemorySize = args["external_memory_size"].get<uint32_t>();
-                            }
-                            if (args.contains("display_name") && args["display_name"].is_string() &&
-                                !args["display_name"].get<std::string>().empty())
-                                config.displayName = args["display_name"].get<std::string>();
-                            if (args.contains("screen_width") || args.contains("screen_height"))
-                            {
-                                // Both or neither: half a resolution change leaves a
-                                // platform that matches no screen.
-                                auto dimension = [&args](const char* key) -> int32_t
-                                {
-                                    if (!args.contains(key) || !args[key].is_number_integer() ||
-                                        args[key].get<long long>() <= 0 || args[key].get<long long>() > 16384)
-                                        throw std::runtime_error(
-                                            "screen_width and screen_height are given together, as pixel counts "
-                                            "from 1 to 16384");
-                                    return args[key].get<int32_t>();
-                                };
-                                config.screenWidth = dimension("screen_width");
-                                config.screenHeight = dimension("screen_height");
-                            }
-                            if (args.contains("framework_options") && args["framework_options"].is_object())
-                            {
-                                nlohmann::json options = nlohmann::json::parse(
-                                    config.frameworkOptions.empty() ? std::string("{}") : config.frameworkOptions,
-                                    nullptr, /*allow_exceptions*/ false);
-                                if (!options.is_object())
-                                    options = nlohmann::json::object();
-                                for (auto it = args["framework_options"].begin(); it != args["framework_options"].end(); ++it)
-                                    options[it.key()] = it.value();
-                                config.frameworkOptions = options.dump();
-                            }
-                            if (args.contains("asset_storage"))
-                            {
-                                const std::string storage = args.value("asset_storage", "");
-                                if (storage != "internal" && storage != "external")
-                                    throw std::runtime_error("asset_storage is internal or external");
-                                config.assetStorage = storage;
-                            }
-                            if (config.assetStorage == "external" && config.Capabilities().count("external-storage") == 0)
-                                throw std::runtime_error("'" + id + "' keeps its assets on external storage, so it "
-                                                         "must provide \"external-storage\"");
+              if (args.contains("requires_packages") && args["requires_packages"].is_array())
+              {
+                  config.requiresPackages.clear();
+                  for (const auto& r : args["requires_packages"])
+                  {
+                      if (r.is_string())
+                      {
+                          config.requiresPackages.push_back(r.get<std::string>());
+                      }
+                  }
+              }
+              // The other settings create_platform takes, so an existing
+              // platform can be changed through the CLI instead of by
+              // editing its JSON. create_platform only ever makes a new one.
+              if (args.contains("external_memory_size"))
+              {
+                  if (!args["external_memory_size"].is_number_unsigned() &&
+                      !(args["external_memory_size"].is_number_integer() &&
+                        args["external_memory_size"].get<long long>() >= 0))
+                  {
+                      throw std::runtime_error("external_memory_size must be a non-negative byte count");
+                  }
+                  config.externalMemorySize = args["external_memory_size"].get<uint32_t>();
+              }
+              if (args.contains("display_name") && args["display_name"].is_string() &&
+                  !args["display_name"].get<std::string>().empty())
+              {
+                  config.displayName = args["display_name"].get<std::string>();
+              }
+              if (args.contains("screen_width") || args.contains("screen_height"))
+              {
+                  // Both or neither: half a resolution change leaves a
+                  // platform that matches no screen.
+                  auto dimension = [&args](const char* key) -> int32_t
+                  {
+                      if (!args.contains(key) || !args[key].is_number_integer() || args[key].get<long long>() <= 0 ||
+                          args[key].get<long long>() > 16384)
+                      {
+                          throw std::runtime_error("screen_width and screen_height are given together, as pixel counts "
+                                                   "from 1 to 16384");
+                      }
+                      return args[key].get<int32_t>();
+                  };
+                  config.screenWidth = dimension("screen_width");
+                  config.screenHeight = dimension("screen_height");
+              }
+              if (args.contains("framework_options") && args["framework_options"].is_object())
+              {
+                  nlohmann::json options = nlohmann::json::parse(
+                      config.frameworkOptions.empty() ? std::string("{}") : config.frameworkOptions, nullptr,
+                      /*allow_exceptions*/ false);
+                  if (!options.is_object())
+                  {
+                      options = nlohmann::json::object();
+                  }
+                  for (auto it = args["framework_options"].begin(); it != args["framework_options"].end(); ++it)
+                  {
+                      options[it.key()] = it.value();
+                  }
+                  config.frameworkOptions = options.dump();
+              }
+              if (args.contains("asset_storage"))
+              {
+                  const std::string storage = args.value("asset_storage", "");
+                  if (storage != "internal" && storage != "external")
+                  {
+                      throw std::runtime_error("asset_storage is internal or external");
+                  }
+                  config.assetStorage = storage;
+              }
+              if (config.assetStorage == "external" && config.Capabilities().count("external-storage") == 0)
+              {
+                  throw std::runtime_error("'" + id +
+                                           "' keeps its assets on external storage, so it "
+                                           "must provide \"external-storage\"");
+              }
 
-                            registryRef.RegisterPlatform(config);
-                            if (!registryRef.SavePlatformToFile(config, GetPlatformsDirectory(path)))
-                                throw std::runtime_error("could not write the platform file for '" + id + "'");
+              registryRef.RegisterPlatform(config);
+              if (!registryRef.SavePlatformToFile(config, GetPlatformsDirectory(path)))
+              {
+                  throw std::runtime_error("could not write the platform file for '" + id + "'");
+              }
 
-                            nlohmann::json caps = nlohmann::json::array();
-                            for (const auto& c : config.Capabilities())
-                                caps.push_back(c);
-                            return { { "platformId", id },
-                                     { "provides", config.provides },
-                                     { "requiresPackages", config.requiresPackages },
-                                     { "capabilities", caps },
-                                     { "screenWidth", config.screenWidth },
-                                     { "screenHeight", config.screenHeight },
-                                     { "assetStorage", config.assetStorage } };
-                        } });
+              nlohmann::json caps = nlohmann::json::array();
+              for (const auto& c : config.Capabilities())
+              {
+                  caps.push_back(c);
+              }
+              return { { "platformId", id },
+                       { "provides", config.provides },
+                       { "requiresPackages", config.requiresPackages },
+                       { "capabilities", caps },
+                       { "screenWidth", config.screenWidth },
+                       { "screenHeight", config.screenHeight },
+                       { "assetStorage", config.assetStorage } };
+          } });
 
     // Per-target content. "requires" is a BUILD-time key: the exporter drops
     // the object for targets that cannot satisfy it and the runtime never sees
     // it, which is why this edits the scene file rather than the loaded scene.
-    registry.Register({ "set_object_requires",
-                        "Say which platform capabilities an object needs, so it exists only on "
-                        "targets that offer them (\"wifi\", \"desktop-os\"). One project can then "
-                        "serve a desktop and a board, with an object present on one and absent "
-                        "from the other, instead of the build failing or shipping something dead. "
-                        "An empty list clears it, putting the object back on every target.",
-                        { { "type", "object" },
-                          { "required", nlohmann::json::array({ "scene_path", "object_id", "requires" }) },
-                          { "properties",
-                            { { "scene_path", { { "type", "string" }, { "description", "Scene file, relative to the project" } } },
-                              { "object_id", { { "type", "integer" }, { "description", "Object id, as shown by list_objects" } } },
-                              { "requires", { { "type", "array" }, { "items", { { "type", "string" } } }, { "description", "Capabilities the object needs; empty clears" } } },
-                              { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            namespace fs = std::filesystem;
-                            const std::string path = ResolveProjectPath(editor, args);
-                            const std::string rel = args.value("scene_path", "");
-                            if (rel.empty())
-                                throw std::runtime_error("set_object_requires needs a scene_path");
+    registry.Register(
+        { "set_object_requires",
+          "Say which platform capabilities an object needs, so it exists only on "
+          "targets that offer them (\"wifi\", \"desktop-os\"). One project can then "
+          "serve a desktop and a board, with an object present on one and absent "
+          "from the other, instead of the build failing or shipping something dead. "
+          "An empty list clears it, putting the object back on every target.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "scene_path", "object_id", "requires" }) },
+            { "properties",
+              { { "scene_path", { { "type", "string" }, { "description", "Scene file, relative to the project" } } },
+                { "object_id", { { "type", "integer" }, { "description", "Object id, as shown by list_objects" } } },
+                { "requires",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "Capabilities the object needs; empty clears" } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              namespace fs = std::filesystem;
+              const std::string path = ResolveProjectPath(editor, args);
+              const std::string rel = args.value("scene_path", "");
+              if (rel.empty())
+              {
+                  throw std::runtime_error("set_object_requires needs a scene_path");
+              }
 
-                            fs::path scenePath = fs::path(path) / rel;
-                            if (!fs::exists(scenePath))
-                                throw std::runtime_error("no scene at " + scenePath.string());
+              fs::path scenePath = fs::path(path) / rel;
+              if (!fs::exists(scenePath))
+              {
+                  throw std::runtime_error("no scene at " + scenePath.string());
+              }
 
-                            nlohmann::json scene;
-                            {
-                                std::ifstream in(scenePath);
-                                in >> scene;
-                            }
+              nlohmann::json scene;
+              {
+                  std::ifstream in(scenePath);
+                  in >> scene;
+              }
 
-                            const int64_t wantedId = args.value("object_id", (int64_t)-1);
-                            std::vector<std::string> needs;
-                            if (args.contains("requires") && args["requires"].is_array())
-                                for (const auto& n : args["requires"])
-                                    if (n.is_string())
-                                        needs.push_back(n.get<std::string>());
+              const int64_t wantedId = args.value("object_id", (int64_t)-1);
+              std::vector<std::string> needs;
+              if (args.contains("requires") && args["requires"].is_array())
+              {
+                  for (const auto& n : args["requires"])
+                  {
+                      if (n.is_string())
+                      {
+                          needs.push_back(n.get<std::string>());
+                      }
+                  }
+              }
 
-                            // Objects nest through "children", so this walks.
-                            bool found = false;
-                            std::function<void(nlohmann::json&)> visit = [&](nlohmann::json& node)
-                            {
-                                if (found) return;
-                                if (node.is_array())
-                                {
-                                    for (auto& item : node) visit(item);
-                                    return;
-                                }
-                                if (!node.is_object()) return;
-                                // Components carry an "id" as well, so an object
-                                // is the node that holds components or children.
-                                const bool isObject =
-                                    node.contains("components") || node.contains("children");
-                                if (isObject && node.contains("id") && node["id"].is_number_integer() &&
-                                    node["id"].get<int64_t>() == wantedId)
-                                {
-                                    if (needs.empty())
-                                        node.erase("requires");
-                                    else
-                                        node["requires"] = needs;
-                                    found = true;
-                                    return;
-                                }
-                                for (auto& entry : node.items()) visit(entry.value());
-                            };
-                            visit(scene);
+              // Objects nest through "children", so this walks.
+              bool found = false;
+              std::function<void(nlohmann::json&)> visit = [&](nlohmann::json& node)
+              {
+                  if (found)
+                  {
+                      return;
+                  }
+                  if (node.is_array())
+                  {
+                      for (auto& item : node)
+                      {
+                          visit(item);
+                      }
+                      return;
+                  }
+                  if (!node.is_object())
+                  {
+                      return;
+                  }
+                  // Components carry an "id" as well, so an object
+                  // is the node that holds components or children.
+                  const bool isObject = node.contains("components") || node.contains("children");
+                  if (isObject && node.contains("id") && node["id"].is_number_integer() &&
+                      node["id"].get<int64_t>() == wantedId)
+                  {
+                      if (needs.empty())
+                      {
+                          node.erase("requires");
+                      }
+                      else
+                      {
+                          node["requires"] = needs;
+                      }
+                      found = true;
+                      return;
+                  }
+                  for (auto& entry : node.items())
+                  {
+                      visit(entry.value());
+                  }
+              };
+              visit(scene);
 
-                            if (!found)
-                                throw std::runtime_error("no object with id " + std::to_string(wantedId) +
-                                                         " in " + rel);
+              if (!found)
+              {
+                  throw std::runtime_error("no object with id " + std::to_string(wantedId) + " in " + rel);
+              }
 
-                            {
-                                std::ofstream out(scenePath);
-                                out << scene.dump(2) << "\n";
-                            }
+              {
+                  std::ofstream out(scenePath);
+                  out << scene.dump(2) << "\n";
+              }
 
-                            return { { "scene", rel }, { "objectId", wantedId }, { "requires", needs } };
-                        } });
+              return { { "scene", rel }, { "objectId", wantedId }, { "requires", needs } };
+          } });
 
-    registry.Register({ "toolchain_status",
-                        "Report the toolchain components of a platform's build backend, "
-                        "including install state and versions.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            std::string err;
-                            nlohmann::json result = FirmwareBuildService::ToolchainStatus(path, ArgPlatform(args), err);
-                            if (!err.empty())
-                                throw std::runtime_error(err);
-                            return result;
-                        } });
+    registry.Register(
+        { "toolchain_status",
+          "Report the toolchain components of a platform's build backend, "
+          "including install state and versions.",
+          { { "type", "object" },
+            { "properties",
+              { { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } },
+                { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              std::string err;
+              nlohmann::json result = FirmwareBuildService::ToolchainStatus(path, ArgPlatform(args), err);
+              if (!err.empty())
+              {
+                  throw std::runtime_error(err);
+              }
+              return result;
+          } });
 
     // =========================================================================
     // Long-running operations (start-and-poll)
     // =========================================================================
 
-    registry.Register({ "build_firmware",
-                        "Start a firmware build for the project. Regenerates build files first. "
-                        "Returns as soon as the build starts - poll build_status for progress "
-                        "and the final result. Fails immediately if the toolchain is missing.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "simulate", { { "type", "boolean" }, { "description", "Build the board's firmware for its backend's simulator (QEMU for ESP32), in its own build directory; the board's boot scene is not changed" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            BuildOptions options;
-                            options.simulate = args.value("simulate", false);
-                            // The editor, so the build gets its boot payload and the
-                            // scene-scanned defines, as the CLI and the Build panel do.
-                            FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), nullptr, editor, options);
-                            if (!r.success)
-                                throw std::runtime_error(r.error);
+    registry.Register(
+        { "build_firmware",
+          "Start a firmware build for the project. Regenerates build files first. "
+          "Returns as soon as the build starts - poll build_status for progress "
+          "and the final result. Fails immediately if the toolchain is missing.",
+          { { "type", "object" },
+            { "properties",
+              { { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } },
+                { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id (default: the project's activePlatformId)" } } },
+                { "simulate",
+                  { { "type", "boolean" },
+                    { "description", "Build the board's firmware for its backend's simulator (QEMU for ESP32), in its "
+                                     "own build directory; the board's boot scene is not changed" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              BuildOptions options;
+              options.simulate = args.value("simulate", false);
+              // The editor, so the build gets its boot payload and the
+              // scene-scanned defines, as the CLI and the Build panel do.
+              FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), nullptr, editor, options);
+              if (!r.success)
+              {
+                  throw std::runtime_error(r.error);
+              }
 
-                            nlohmann::json j = OpToJson(r);
-                            j["started"] = true;
-                            j["note"] = "Build running in background - poll build_status.";
-                            return j;
-                        } });
+              nlohmann::json j = OpToJson(r);
+              j["started"] = true;
+              j["note"] = "Build running in background - poll build_status.";
+              return j;
+          } });
 
     registry.Register({ "build_status",
                         "Progress of the most recently started build, flash, or toolchain "
                         "install. state is idle|building|flashing|completed|failed; active is "
                         "true while the worker thread is running.",
                         { { "type", "object" }, { "properties", nlohmann::json::object() } },
-                        [](const nlohmann::json&) -> nlohmann::json
-                        {
-                            return FirmwareBuildService::QueryStatus();
-                        } });
+                        [](const nlohmann::json&) -> nlohmann::json { return FirmwareBuildService::QueryStatus(); } });
 
     registry.Register({ "cancel_build",
                         "Request cancellation of the in-flight build or flash. Returns "
                         "cancelled=false when nothing is running.",
                         { { "type", "object" }, { "properties", nlohmann::json::object() } },
                         [](const nlohmann::json&) -> nlohmann::json
-                        {
-                            return nlohmann::json{ { "cancelled", FirmwareBuildService::CancelActive() } };
-                        } });
+                        { return nlohmann::json{ { "cancelled", FirmwareBuildService::CancelActive() } }; } });
 
-    registry.Register({ "install_toolchain_component",
-                        "Download and install a toolchain component by id (see toolchain_status "
-                        "for valid ids). Runs the component's post-install step "
-                        "when it declares one. This downloads gigabytes and can take a long time.",
-                        { { "type", "object" }, { "properties", { { "component_id", { { "type", "string" }, { "description", "Component id, from toolchain_status" } } }, { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } }, { "required", nlohmann::json::array({ "component_id" }) } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            const std::string componentId = args["component_id"].get<std::string>();
+    registry.Register(
+        { "install_toolchain_component",
+          "Download and install a toolchain component by id (see toolchain_status "
+          "for valid ids). Runs the component's post-install step "
+          "when it declares one. This downloads gigabytes and can take a long time.",
+          { { "type", "object" },
+            { "properties",
+              { { "component_id", { { "type", "string" }, { "description", "Component id, from toolchain_status" } } },
+                { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } },
+                { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id (default: the project's activePlatformId)" } } } } },
+            { "required", nlohmann::json::array({ "component_id" }) } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              const std::string componentId = args["component_id"].get<std::string>();
 
-                            // Blocking would stall the editor's frame loop for the length of a
-                            // multi-GB download, so this starts the installer and returns.
-                            FirmwareOpResult r = FirmwareBuildService::StartInstallToolchainComponent(
-                                path, ArgPlatform(args), componentId, nullptr);
-                            if (!r.success)
-                                throw std::runtime_error(r.error);
+              // Blocking would stall the editor's frame loop for the length of a
+              // multi-GB download, so this starts the installer and returns.
+              FirmwareOpResult r =
+                  FirmwareBuildService::StartInstallToolchainComponent(path, ArgPlatform(args), componentId, nullptr);
+              if (!r.success)
+              {
+                  throw std::runtime_error(r.error);
+              }
 
-                            nlohmann::json j = OpToJson(r);
-                            j["componentId"] = componentId;
-                            j["started"] = true;
-                            j["note"] = "Install running in background - poll build_status "
-                                        "(state \"installing\").";
-                            return j;
-                        } });
+              nlohmann::json j = OpToJson(r);
+              j["componentId"] = componentId;
+              j["started"] = true;
+              j["note"] = "Install running in background - poll build_status "
+                          "(state \"installing\").";
+              return j;
+          } });
 
     // =========================================================================
     // Flash / clean
     // =========================================================================
 
-    registry.Register({ "deploy_build",
-                        "Deploy the last build the way the platform's backend defines it: flash a "
-                        "device, run the executable, install an app. Refused when the backend has "
-                        "no deploy step. Returns once it starts - poll build_status for the result.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } }, { "target", { { "type", "string" }, { "description", "What to deploy to, in the backend's own terms (a serial port for a board that is flashed); omit to let the backend choose" } } }, { "simulate", { { "type", "boolean" }, { "description", "Run the simulated build (build_firmware with simulate) in the backend's simulator" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            const std::string target = args.value("target", std::string());
-                            BuildOptions options;
-                            options.simulate = args.value("simulate", false);
-                            FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target, nullptr, options);
-                            if (!r.success)
-                                throw std::runtime_error(r.error);
+    registry.Register(
+        { "deploy_build",
+          "Deploy the last build the way the platform's backend defines it: flash a "
+          "device, run the executable, install an app. Refused when the backend has "
+          "no deploy step. Returns once it starts - poll build_status for the result.",
+          { { "type", "object" },
+            { "properties",
+              { { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } },
+                { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id (default: the project's activePlatformId)" } } },
+                { "target",
+                  { { "type", "string" },
+                    { "description", "What to deploy to, in the backend's own terms (a serial port for a board that is "
+                                     "flashed); omit to let the backend choose" } } },
+                { "simulate",
+                  { { "type", "boolean" },
+                    { "description",
+                      "Run the simulated build (build_firmware with simulate) in the backend's simulator" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              const std::string target = args.value("target", std::string());
+              BuildOptions options;
+              options.simulate = args.value("simulate", false);
+              FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target, nullptr, options);
+              if (!r.success)
+              {
+                  throw std::runtime_error(r.error);
+              }
 
-                            nlohmann::json j = OpToJson(r);
-                            j["started"] = true;
-                            j["note"] = "Deploy running in background - poll build_status.";
-                            return j;
-                        } });
+              nlohmann::json j = OpToJson(r);
+              j["started"] = true;
+              j["note"] = "Deploy running in background - poll build_status.";
+              return j;
+          } });
 
-    registry.Register({ "clean_build",
-                        "Delete the builder's build directory for the platform, forcing a full "
-                        "rebuild next time.",
-                        { { "type", "object" }, { "properties", { { "project_path", { { "type", "string" }, { "description", "Project directory (default: the open project)" } } }, { "platform_id", { { "type", "string" }, { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
-                        [editor](const nlohmann::json& args) -> nlohmann::json
-                        {
-                            const std::string path = ResolveProjectPath(editor, args);
-                            FirmwareOpResult r = FirmwareBuildService::Clean(path, ArgPlatform(args), nullptr);
-                            if (!r.success)
-                                throw std::runtime_error(r.error);
-                            return OpToJson(r);
-                        } });
+    registry.Register(
+        { "clean_build",
+          "Delete the builder's build directory for the platform, forcing a full "
+          "rebuild next time.",
+          { { "type", "object" },
+            { "properties",
+              { { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } },
+                { "platform_id",
+                  { { "type", "string" },
+                    { "description", "Platform id (default: the project's activePlatformId)" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              FirmwareOpResult r = FirmwareBuildService::Clean(path, ArgPlatform(args), nullptr);
+              if (!r.success)
+              {
+                  throw std::runtime_error(r.error);
+              }
+              return OpToJson(r);
+          } });
 }
 
 }  // namespace DekiEditor

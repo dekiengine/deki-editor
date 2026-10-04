@@ -27,11 +27,17 @@ Kind KindOf(const ImGuiWindow* root)
 {
     const ImGuiWindowFlags f = root->Flags;
     if (f & ImGuiWindowFlags_Tooltip)
+    {
         return Kind::Tooltip;
+    }
     if (f & ImGuiWindowFlags_Modal)
+    {
         return Kind::Modal;
+    }
     if (f & (ImGuiWindowFlags_Popup | ImGuiWindowFlags_ChildMenu))
+    {
         return Kind::Popup;
+    }
     return Kind::None;
 }
 
@@ -75,8 +81,12 @@ void FadeAndShift(ImDrawList* dl, float alpha, float dy)
 Open* FindOpen(std::vector<Open>& list, ImGuiID rootId)
 {
     for (Open& o : list)
+    {
         if (o.rootId == rootId)
+        {
             return &o;
+        }
+    }
     return nullptr;
 }
 
@@ -92,8 +102,12 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
 
     // A popup reopened after being shut starts from nothing again.
     for (ImGuiWindow* w : g.Windows)
+    {
         if (w->RootWindow == w && w->Appearing && KindOf(w) != Kind::None)
+        {
             Motion::Set(OpenKey(w->ID), 0.0f);
+        }
+    }
 
     // Each popup's progress, stepped once per frame. A popup drawn this frame
     // is "active and not hidden"; the frame it appears it is usually hidden
@@ -101,10 +115,14 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
     for (ImGuiWindow* w : g.Windows)
     {
         if (w->RootWindow != w || !w->Active || w->Hidden)
+        {
             continue;
+        }
         const Kind kind = KindOf(w);
         if (kind == Kind::None)
+        {
             continue;
+        }
 
         const float duration = (kind == Kind::Tooltip) ? Motion::Fast : Motion::Normal;
         const float eased = Motion::EaseOut(Motion::To(OpenKey(w->ID), 1.0f, duration));
@@ -113,9 +131,13 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
         open.kind = kind;
         open.alpha = eased;
         if (kind == Kind::Popup)
+        {
             open.dy = -(1.0f - eased) * 4.0f * dpi;  // settles down into place
+        }
         else if (kind == Kind::Modal)
+        {
             open.dy = (1.0f - eased) * 8.0f * dpi;  // rises into place
+        }
         now.push_back(open);
     }
 
@@ -124,13 +146,19 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
     for (ImGuiWindow* w : g.Windows)
     {
         if (!w->Active || w->Hidden || !w->RootWindow)
+        {
             continue;
+        }
         Open* open = FindOpen(now, w->RootWindow->ID);
         if (!open)
+        {
             continue;
+        }
         FadeAndShift(w->DrawList, open->alpha, open->dy);
         if (!still && open->kind != Kind::Tooltip)
+        {
             open->drawn.push_back(w->DrawList->CloneOutput());
+        }
     }
 
     // Popups open last frame and gone now: fade their last picture out.
@@ -142,7 +170,9 @@ void OnRenderPre(ImGuiContext* ctx, ImGuiContextHook*)
             ghost.key = 0x6E057000u + (s_NextGhostKey++);
             ghost.frozen.swap(prev.drawn);
             for (ImDrawList* l : ghost.frozen)
+            {
                 ghost.shown.push_back(l->CloneOutput());
+            }
             Motion::Set(ghost.key, 1.0f);
             s_Ghosts.push_back(std::move(ghost));
         }
@@ -184,7 +214,9 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
 void OnShutdown(ImGuiContext*, ImGuiContextHook*)
 {
     for (Open& o : s_Open)
+    {
         Free(o.drawn);
+    }
     s_Open.clear();
     for (Ghost& gh : s_Ghosts)
     {

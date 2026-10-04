@@ -64,18 +64,25 @@ std::string FirmwareBuilderBase::GetPlatformKey() const
 bool FirmwareBuilderBase::IsPackageCompatible(const std::string& metadataPath) const
 {
     if (!fs::exists(metadataPath))
+    {
         return true;  // No metadata = unknown, assume compatible
+    }
 
     try
     {
         std::ifstream f(metadataPath);
-        if (!f.is_open()) return true;
+        if (!f.is_open())
+        {
+            return true;
+        }
 
         nlohmann::json j;
         f >> j;
 
         if (!j.contains("dependencies") || !j["dependencies"].is_object())
+        {
             return true;  // No dependencies = pure code, works everywhere
+        }
 
         const auto& pd = j["dependencies"];
         std::string key = GetPlatformKey();
@@ -90,18 +97,25 @@ bool FirmwareBuilderBase::IsPackageCompatible(const std::string& metadataPath) c
 std::vector<std::string> FirmwareBuilderBase::GetPackageSupportedPlatforms(const std::string& metadataPath) const
 {
     if (!fs::exists(metadataPath))
+    {
         return {};  // No file = unknown
+    }
 
     try
     {
         std::ifstream f(metadataPath);
-        if (!f.is_open()) return {};
+        if (!f.is_open())
+        {
+            return {};
+        }
 
         nlohmann::json j;
         f >> j;
 
         if (!j.contains("dependencies") || !j["dependencies"].is_object())
+        {
             return { "all" };  // No dependencies = pure code
+        }
 
         std::vector<std::string> platforms;
         for (auto& [key, val] : j["dependencies"].items())
@@ -144,18 +158,24 @@ void FirmwareBuilderBase::SetError(const std::string& error)
 bool FirmwareBuilderBase::RunOnBuildThread(std::function<void()> work)
 {
     if (m_IsBuilding)
+    {
         return false;
+    }
 
     if (m_BuildThread.joinable())
+    {
         m_BuildThread.join();
+    }
 
     m_IsBuilding = true;
     m_CancelRequested = false;
 
-    m_BuildThread = std::thread([this, work = std::move(work)]()
-                                {
-        work();
-        m_IsBuilding = false; });
+    m_BuildThread = std::thread(
+        [this, work = std::move(work)]()
+        {
+            work();
+            m_IsBuilding = false;
+        });
 
     return true;
 }
@@ -167,7 +187,9 @@ bool FirmwareBuilderBase::RunOnBuildThread(std::function<void()> work)
 std::vector<ToolchainComponent> FirmwareBuilderBase::GetToolchainComponents() const
 {
     if (m_ToolchainMgr.IsInitialized())
+    {
         return m_ToolchainMgr.GetComponents();
+    }
     return {};
 }
 
@@ -197,49 +219,68 @@ bool FirmwareBuilderBase::IsToolchainBusy() const
 
 // Resolve a platform-keyed field from a package.json object.
 // Checks for platformKey first, then "default", then returns empty array.
-static nlohmann::json ResolvePlatformValue(const nlohmann::json& manifest,
-                                           const std::string& field,
+static nlohmann::json ResolvePlatformValue(const nlohmann::json& manifest, const std::string& field,
                                            const std::string& platformKey)
 {
     if (!manifest.contains(field) || !manifest[field].is_object())
+    {
         return nlohmann::json::array();
+    }
 
     const auto& obj = manifest[field];
     if (obj.contains(platformKey))
+    {
         return obj[platformKey];
+    }
     if (obj.contains("default"))
+    {
         return obj["default"];
+    }
     return nlohmann::json::array();
 }
 
-std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(
-    const std::string& enginePath, const std::string& projectPath,
-    const std::string& platformKey) const
+std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std::string& enginePath,
+                                                                       const std::string& projectPath,
+                                                                       const std::string& platformKey) const
 {
     std::vector<DependencyInfo> result;
 
     // 1. Load all package.json manifests from project packages
     std::map<std::string, nlohmann::json> manifests;
     fs::path packagesDir = fs::path(GetPackagesDirectory(projectPath));
-    if (!fs::exists(packagesDir)) return result;
+    if (!fs::exists(packagesDir))
+    {
+        return result;
+    }
 
     try
     {
         for (const auto& entry : fs::directory_iterator(packagesDir))
         {
-            if (!entry.is_directory()) continue;
+            if (!entry.is_directory())
+            {
+                continue;
+            }
             fs::path manifestPath = entry.path() / "package.json";
-            if (!fs::exists(manifestPath)) continue;
+            if (!fs::exists(manifestPath))
+            {
+                continue;
+            }
 
             std::ifstream file(manifestPath);
-            if (!file.is_open()) continue;
+            if (!file.is_open())
+            {
+                continue;
+            }
 
             nlohmann::json j;
             file >> j;
 
             std::string id = j.value("id", "");
             if (!id.empty())
+            {
                 manifests[id] = j;
+            }
         }
     }
     catch (const std::exception&)
@@ -250,7 +291,9 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(
     // 2. Determine enabled packages from project's packages.json
     std::set<std::string> enabledPackages;
     for (const auto& kv : manifests)
+    {
         enabledPackages.insert(kv.first);  // Default: all enabled
+    }
 
     fs::path packagesJsonPath = fs::path(projectPath) / "packages.json";
     if (fs::exists(packagesJsonPath))
@@ -286,15 +329,24 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(
         for (const auto& id : enabledPackages)
         {
             auto it = manifests.find(id);
-            if (it == manifests.end()) continue;
+            if (it == manifests.end())
+            {
+                continue;
+            }
 
             auto deps = ResolvePlatformValue(it->second, "dependencies", platformKey);
             for (const auto& dep : deps)
             {
                 // Package deps are entries with a "name" starting with "deki-"
-                if (!dep.is_object()) continue;
+                if (!dep.is_object())
+                {
+                    continue;
+                }
                 std::string name = dep.value("name", "");
-                if (name.rfind("deki-", 0) != 0) continue;
+                if (name.rfind("deki-", 0) != 0)
+                {
+                    continue;
+                }
                 if (enabledPackages.find(name) == enabledPackages.end())
                 {
                     toAdd.insert(name);
@@ -312,22 +364,34 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(
     for (const auto& id : enabledPackages)
     {
         auto it = manifests.find(id);
-        if (it == manifests.end()) continue;
+        if (it == manifests.end())
+        {
+            continue;
+        }
 
         auto deps = ResolvePlatformValue(it->second, "dependencies", platformKey);
         for (const auto& depObj : deps)
         {
-            if (!depObj.is_object()) continue;
+            if (!depObj.is_object())
+            {
+                continue;
+            }
 
             DependencyInfo dep;
             dep.name = depObj.value("name", "");
             // Skip deki-* entries (handled in step 3)
-            if (dep.name.rfind("deki-", 0) == 0) continue;
+            if (dep.name.rfind("deki-", 0) == 0)
+            {
+                continue;
+            }
             dep.version = depObj.value("version", "");
             dep.gitUrl = depObj.value("git", "");
             dep.source = dep.gitUrl.empty() ? PackageSourceType::FrameworkRegistry : PackageSourceType::GitHub;
 
-            if (dep.name.empty() || dep.version.empty()) continue;
+            if (dep.name.empty() || dep.version.empty())
+            {
+                continue;
+            }
 
             // Deduplicate: highest version wins
             bool replaced = false;

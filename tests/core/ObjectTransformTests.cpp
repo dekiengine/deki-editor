@@ -98,7 +98,7 @@ TEST(ComponentInterfaceAdaptersTests, VersionIncrementsOnRegister)
 {
     const uint32_t before = Deki::ComponentInterfaceAdapters::Version();
     Deki::ComponentInterfaceAdapters::Register(0x54455354u /* "TEST" */, 0x12345678u,
-                                         [](Deki::Component* c) -> void* { return c; });
+                                               [](Deki::Component* c) -> void* { return c; });
     EXPECT_GT(Deki::ComponentInterfaceAdapters::Version(), before);
     const uint32_t after = Deki::ComponentInterfaceAdapters::Version();
     Deki::ComponentInterfaceAdapters::Register(0x54455354u, 0x12345678u, nullptr);  // ignored

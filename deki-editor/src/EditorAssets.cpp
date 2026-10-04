@@ -24,8 +24,8 @@
 
 // Debug logging
 #ifndef DEKI_LOG_INFO
-#define DEKI_LOG_INFO(...) \
-    printf(__VA_ARGS__);   \
+#define DEKI_LOG_INFO(...)                                                                                             \
+    printf(__VA_ARGS__);                                                                                               \
     printf("\n")
 #endif
 
@@ -91,42 +91,60 @@ EditorAssets::~EditorAssets()
 uint32_t EditorAssets::LoadTexture(const std::string& guid, uint32_t* outWidth, uint32_t* outHeight)
 {
     if (guid.empty())
+    {
         return 0;
+    }
 
     // Check cache first
     auto it = m_TextureCache.find(guid);
     if (it != m_TextureCache.end())
     {
-        if (outWidth) *outWidth = it->second.width;
-        if (outHeight) *outHeight = it->second.height;
+        if (outWidth)
+        {
+            *outWidth = it->second.width;
+        }
+        if (outHeight)
+        {
+            *outHeight = it->second.height;
+        }
         return it->second.textureId;
     }
 
     if (!s_imageLoader)
+    {
         return 0;
+    }
 
     // Look up path via AssetManager
     Deki::AssetManager* assetMgr = Deki::AssetManager::Get();
     if (!assetMgr)
+    {
         return 0;
+    }
 
     std::string path = assetMgr->LookupPath(guid);
     if (path.empty())
+    {
         return 0;
+    }
 
     // Load via injected image loader
     int32_t w = 0, h = 0;
     bool hasAlpha = false;
     uint8_t* rgba = s_imageLoader(path.c_str(), w, h, hasAlpha);
     if (!rgba)
+    {
         return 0;
+    }
 
     // Upload to GPU
     uint32_t texId = UploadTextureToGPU(rgba, w, h);
     free(rgba);
 
     if (texId == 0)
+    {
         return 0;
+    }
 
     // Report the image's own size: frames and UVs are in its pixels, and a
     // texture shrunk by Max Size (the GPU copy is then smaller) records it.
@@ -140,8 +158,14 @@ uint32_t EditorAssets::LoadTexture(const std::string& guid, uint32_t* outWidth, 
     cached.height = static_cast<uint32_t>(imageH);
     m_TextureCache[guid] = cached;
 
-    if (outWidth) *outWidth = cached.width;
-    if (outHeight) *outHeight = cached.height;
+    if (outWidth)
+    {
+        *outWidth = cached.width;
+    }
+    if (outHeight)
+    {
+        *outHeight = cached.height;
+    }
 
     return texId;
 }
@@ -167,7 +191,9 @@ void EditorAssets::InvalidateTexture(const std::string& guid)
     // Its sprite settings too: this is also the call made after the .data
     // sidecar is rewritten.
     if (const std::string assetPath = AssetDatabase::GUIDToAbsolutePath(guid); !assetPath.empty())
+    {
         s_SpriteSettingsCache.erase(assetPath + ".data");
+    }
 
     auto it = m_TextureCache.find(guid);
     if (it != m_TextureCache.end())
@@ -202,76 +228,118 @@ void EditorAssets::ClearTextureCache()
 uint32_t EditorAssets::LoadFontAtlas(const std::string& bakedGuid, uint32_t* outWidth, uint32_t* outHeight)
 {
     if (bakedGuid.empty())
+    {
         return 0;
+    }
 
     // Check cache first
     auto it = m_FontAtlasCache.find(bakedGuid);
     if (it != m_FontAtlasCache.end() && it->second)
     {
-        if (outWidth) *outWidth = it->second->width;
-        if (outHeight) *outHeight = it->second->height;
+        if (outWidth)
+        {
+            *outWidth = it->second->width;
+        }
+        if (outHeight)
+        {
+            *outHeight = it->second->height;
+        }
         return it->second->textureId;
     }
 
     // Look up path via AssetManager
     Deki::AssetManager* assetMgr = Deki::AssetManager::Get();
     if (!assetMgr)
+    {
         return 0;
+    }
 
     std::string path = assetMgr->LookupPath(bakedGuid);
     if (path.empty())
+    {
         return 0;
+    }
 
     // Load font and cache by GUID
     CachedFontAtlas* cached = LoadFontAtlasInternal(path, bakedGuid);
     if (!cached)
+    {
         return 0;
+    }
 
-    if (outWidth) *outWidth = cached->width;
-    if (outHeight) *outHeight = cached->height;
+    if (outWidth)
+    {
+        *outWidth = cached->width;
+    }
+    if (outHeight)
+    {
+        *outHeight = cached->height;
+    }
     return cached->textureId;
 }
 
 uint32_t EditorAssets::LoadFontAtlasFromPath(const std::string& dfontPath, uint32_t* outWidth, uint32_t* outHeight)
 {
     if (dfontPath.empty())
+    {
         return 0;
+    }
 
     // Check cache first (use path as key)
     auto it = m_FontAtlasCache.find(dfontPath);
     if (it != m_FontAtlasCache.end() && it->second)
     {
-        if (outWidth) *outWidth = it->second->width;
-        if (outHeight) *outHeight = it->second->height;
+        if (outWidth)
+        {
+            *outWidth = it->second->width;
+        }
+        if (outHeight)
+        {
+            *outHeight = it->second->height;
+        }
         return it->second->textureId;
     }
 
     // Load font and cache by path
     CachedFontAtlas* cached = LoadFontAtlasInternal(dfontPath, dfontPath);
     if (!cached)
+    {
         return 0;
+    }
 
-    if (outWidth) *outWidth = cached->width;
-    if (outHeight) *outHeight = cached->height;
+    if (outWidth)
+    {
+        *outWidth = cached->width;
+    }
+    if (outHeight)
+    {
+        *outHeight = cached->height;
+    }
     return cached->textureId;
 }
 
 Deki2D::BitmapFont* EditorAssets::GetBitmapFont(const std::string& bakedGuid)
 {
     if (bakedGuid.empty())
+    {
         return nullptr;
+    }
 
     // Check cache
     auto it = m_FontAtlasCache.find(bakedGuid);
     if (it != m_FontAtlasCache.end() && it->second)
+    {
         return static_cast<Deki2D::BitmapFont*>(it->second->font);
+    }
 
     // Try to load it
     LoadFontAtlas(bakedGuid);
 
     it = m_FontAtlasCache.find(bakedGuid);
     if (it != m_FontAtlasCache.end() && it->second)
+    {
         return static_cast<Deki2D::BitmapFont*>(it->second->font);
+    }
 
     return nullptr;
 }
@@ -289,7 +357,9 @@ void EditorAssets::InvalidateFontAtlas(const std::string& bakedGuid)
                 glDeleteTextures(1, &texId);
             }
             if (it->second->font && s_fontDestroyer)
+            {
                 s_fontDestroyer(it->second->font);
+            }
         }
         m_FontAtlasCache.erase(it);
     }
@@ -307,7 +377,9 @@ void EditorAssets::ClearFontCache()
                 glDeleteTextures(1, &texId);
             }
             if (cached->font && s_fontDestroyer)
+            {
                 s_fontDestroyer(cached->font);
+            }
         }
     }
     m_FontAtlasCache.clear();
@@ -334,8 +406,8 @@ Deki2D::BitmapFont* EditorAssets::GetBitmapFontWithBaking(const std::string& sou
     return nullptr;
 }
 
-uint32_t EditorAssets::LoadFontAtlasWithBaking(const std::string& sourceGuid, int fontSize,
-                                               uint32_t* outWidth, uint32_t* outHeight)
+uint32_t EditorAssets::LoadFontAtlasWithBaking(const std::string& sourceGuid, int fontSize, uint32_t* outWidth,
+                                               uint32_t* outHeight)
 {
     if (m_FontAtlasCallback)
     {
@@ -344,15 +416,20 @@ uint32_t EditorAssets::LoadFontAtlasWithBaking(const std::string& sourceGuid, in
     return 0;
 }
 
-EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::string& dfontPath, const std::string& cacheKey)
+EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::string& dfontPath,
+                                                                   const std::string& cacheKey)
 {
     if (!s_fontFactory)
+    {
         return nullptr;
+    }
 
     namespace fs = std::filesystem;
 
     if (!fs::exists(dfontPath))
+    {
         return nullptr;
+    }
 
     // Delegate dfont parsing + Deki2D::BitmapFont creation to the 2d package
     uint8_t* atlasRGBA = nullptr;
@@ -360,7 +437,9 @@ EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::st
     void* font = s_fontFactory(dfontPath.c_str(), &atlasRGBA, atlasW, atlasH);
 
     if (!font)
+    {
         return nullptr;
+    }
 
     // Upload atlas to GPU
     uint32_t texId = 0;
@@ -372,7 +451,10 @@ EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::st
 
     if (texId == 0)
     {
-        if (s_fontDestroyer) s_fontDestroyer(font);
+        if (s_fontDestroyer)
+        {
+            s_fontDestroyer(font);
+        }
         return nullptr;
     }
 
@@ -392,12 +474,16 @@ EditorAssets::CachedFontAtlas* EditorAssets::LoadFontAtlasInternal(const std::st
 uint32_t EditorAssets::UploadTextureToGPU(const uint8_t* rgba, int width, int height)
 {
     if (!rgba || width <= 0 || height <= 0)
+    {
         return 0;
+    }
 
     GLuint texId = 0;
     glGenTextures(1, &texId);
     if (texId == 0)
+    {
         return 0;
+    }
 
     glBindTexture(GL_TEXTURE_2D, texId);
 
@@ -427,25 +513,35 @@ SpriteSettingsEntry ReadSpriteSettings(const std::string& dataPath)
     SpriteSettingsEntry entry;
     std::error_code ec;
     if (!std::filesystem::exists(dataPath, ec))
+    {
         return entry;
+    }
 
     std::ifstream dataFile(dataPath);
     if (!dataFile)
+    {
         return entry;
+    }
 
     try
     {
         nlohmann::json data;
         dataFile >> data;
         if (!data.contains("settings") || !data["settings"].contains("sprite"))
+        {
             return entry;
+        }
 
         const auto& sprite = data["settings"]["sprite"];
         entry.found = true;
         if (sprite.contains("frameWidth"))
+        {
             entry.frameWidth = sprite["frameWidth"].get<int>();
+        }
         if (sprite.contains("frameHeight"))
+        {
             entry.frameHeight = sprite["frameHeight"].get<int>();
+        }
     }
     catch (...)
     {
@@ -457,8 +553,14 @@ SpriteSettingsEntry ReadSpriteSettings(const std::string& dataPath)
 
 bool EditorAssets::LoadSpriteSettings(const std::string& guid, int* outFrameWidth, int* outFrameHeight)
 {
-    if (outFrameWidth) *outFrameWidth = 0;
-    if (outFrameHeight) *outFrameHeight = 0;
+    if (outFrameWidth)
+    {
+        *outFrameWidth = 0;
+    }
+    if (outFrameHeight)
+    {
+        *outFrameHeight = 0;
+    }
 
     if (guid.empty())
     {
@@ -476,13 +578,23 @@ bool EditorAssets::LoadSpriteSettings(const std::string& guid, int* outFrameWidt
     const std::string dataPath = assetPath + ".data";
     auto it = s_SpriteSettingsCache.find(dataPath);
     if (it == s_SpriteSettingsCache.end())
+    {
         it = s_SpriteSettingsCache.emplace(dataPath, ReadSpriteSettings(dataPath)).first;
+    }
 
     const SpriteSettingsEntry& entry = it->second;
     if (!entry.found)
+    {
         return false;
-    if (outFrameWidth) *outFrameWidth = entry.frameWidth;
-    if (outFrameHeight) *outFrameHeight = entry.frameHeight;
+    }
+    if (outFrameWidth)
+    {
+        *outFrameWidth = entry.frameWidth;
+    }
+    if (outFrameHeight)
+    {
+        *outFrameHeight = entry.frameHeight;
+    }
     return true;
 }
 
@@ -491,7 +603,9 @@ bool EditorAssets::LoadSpriteSettings(const std::string& guid, int* outFrameWidt
 uint32_t EditorAssets::LoadFrameTexture(const std::string& frameGuid, uint32_t* outWidth, uint32_t* outHeight)
 {
     if (frameGuid.empty())
+    {
         return 0;
+    }
 
     // Check if this is a sub-asset
     const SubAssetInfo* subAsset = AssetDatabase::GetSubAsset(frameGuid);
@@ -510,29 +624,49 @@ bool EditorAssets::GetFrameUVs(const std::string& frameGuid, float* outU0, float
     // Called for every sprite on every frame (the scene view sizes each one),
     // with plain images as well as sheet frames: nothing here may log.
     if (frameGuid.empty())
+    {
         return false;
+    }
 
     // Initialize outputs to default (full texture)
-    if (outU0) *outU0 = 0.0f;
-    if (outV0) *outV0 = 0.0f;
-    if (outU1) *outU1 = 1.0f;
-    if (outV1) *outV1 = 1.0f;
+    if (outU0)
+    {
+        *outU0 = 0.0f;
+    }
+    if (outV0)
+    {
+        *outV0 = 0.0f;
+    }
+    if (outU1)
+    {
+        *outU1 = 1.0f;
+    }
+    if (outV1)
+    {
+        *outV1 = 1.0f;
+    }
 
     // Get sub-asset info to find parent GUID
     const SubAssetInfo* subAsset = AssetDatabase::GetSubAsset(frameGuid);
     if (!subAsset)
+    {
         return false;  // a plain image, not a frame of a sheet
+    }
 
     // Get sprite frame data from TextureImporter
     const SpriteFrameData* frameData = TextureImporter::GetFrameData(frameGuid);
     if (!frameData)
+    {
         return false;
+    }
 
     // Load parent texture to get dimensions
     uint32_t parentWidth = 0, parentHeight = 0;
     uint32_t texId = LoadTexture(subAsset->parentGuid, &parentWidth, &parentHeight);
     if (texId == 0 || parentWidth == 0 || parentHeight == 0)
+    {
         return false;
+    }
 
     // Calculate UV coordinates
     float u0 = static_cast<float>(frameData->x) / static_cast<float>(parentWidth);
@@ -540,10 +674,22 @@ bool EditorAssets::GetFrameUVs(const std::string& frameGuid, float* outU0, float
     float u1 = static_cast<float>(frameData->x + frameData->width) / static_cast<float>(parentWidth);
     float v1 = static_cast<float>(frameData->y + frameData->height) / static_cast<float>(parentHeight);
 
-    if (outU0) *outU0 = u0;
-    if (outV0) *outV0 = v0;
-    if (outU1) *outU1 = u1;
-    if (outV1) *outV1 = v1;
+    if (outU0)
+    {
+        *outU0 = u0;
+    }
+    if (outV0)
+    {
+        *outV0 = v0;
+    }
+    if (outU1)
+    {
+        *outU1 = u1;
+    }
+    if (outV1)
+    {
+        *outV1 = v1;
+    }
 
     return true;
 }

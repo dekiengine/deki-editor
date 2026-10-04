@@ -18,7 +18,6 @@ namespace DekiEditor
 // Shared utility: editable string list (used by builder UIs)
 // ============================================================================
 
-
 // ============================================================================
 // Constructor / Destructor
 // ============================================================================
@@ -46,7 +45,9 @@ void PlatformEditorDialog::PopulateBuilderList()
     for (auto* builder : BuilderRegistry::Instance().GetAllBuilders())
     {
         if (builder == nullptr)
+        {
             continue;
+        }
         BuilderEntry entry;
         entry.name = builder->GetName();
         entry.frameworkId = builder->GetFrameworkId();
@@ -62,7 +63,9 @@ void PlatformEditorDialog::PopulateBuilderList()
 void PlatformEditorDialog::ApplyBuilderDefaults(int builderIndex)
 {
     if (builderIndex < 0 || builderIndex >= (int)m_AvailableBuilders.size())
+    {
         return;
+    }
 
     m_FamilyIndex = builderIndex;
 
@@ -110,7 +113,9 @@ void PlatformEditorDialog::ShowNew()
 void PlatformEditorDialog::ShowEdit(const PlatformConfig* platform)
 {
     if (!platform)
+    {
         return;
+    }
 
     m_Open = true;
     m_JustOpened = true;
@@ -146,8 +151,7 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     m_FamilyIndex = (int)m_AvailableBuilders.size() - 1;  // Default to Custom (last)
     for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
     {
-        if (!m_AvailableBuilders[i].frameworkId.empty() &&
-            m_AvailableBuilders[i].frameworkId == config->framework)
+        if (!m_AvailableBuilders[i].frameworkId.empty() && m_AvailableBuilders[i].frameworkId == config->framework)
         {
             m_FamilyIndex = i;
             break;
@@ -216,7 +220,9 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
         config.screenHeight = m_ScreenHeight;
 
         if (config.framework.empty())
+        {
             config.framework = "custom";
+        }
     }
 
     // bootScene is auto-managed by Platform Manager
@@ -224,7 +230,9 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
     {
         auto* existing = PlatformRegistry::Instance().GetPlatform(m_OriginalId);
         if (existing)
+        {
             config.bootScene = existing->bootScene;
+        }
     }
 
     return config;
@@ -241,8 +249,8 @@ bool PlatformEditorDialog::Validate(std::string& errorMessage)
     std::string id(m_Id);
     for (char c : id)
     {
-        if (c == ' ' || c == '/' || c == '\\' || c == ':' || c == '*' ||
-            c == '?' || c == '"' || c == '<' || c == '>' || c == '|')
+        if (c == ' ' || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' ||
+            c == '|')
         {
             errorMessage = "Platform ID contains invalid characters. Use lowercase letters, numbers, and underscores.";
             return false;
@@ -274,14 +282,18 @@ bool PlatformEditorDialog::Validate(std::string& errorMessage)
 void PlatformEditorDialog::Draw()
 {
     if (!m_Open)
+    {
         return;
+    }
 
     // Two steps, two dialogs: pick a framework, then edit the platform.
     // Opening the second at the same level closes the first.
-    const char* title = m_ShowFrameworkPicker ? "New Platform##framework"
-                                              : (m_IsEditing ? "Edit Platform" : "New Platform");
+    const char* title =
+        m_ShowFrameworkPicker ? "New Platform##framework" : (m_IsEditing ? "Edit Platform" : "New Platform");
     if (!ImGui::IsPopupOpen(title))
+    {
         ImGui::OpenPopup(title);
+    }
 
     if (m_ShowFrameworkPicker)
     {
@@ -311,9 +323,13 @@ void PlatformEditorDialog::Draw()
     ImGui::Spacing();
     // Builder-specific UI or native fallback
     if (m_EditorUI)
+    {
         m_EditorUI->Draw();
+    }
     else
+    {
         DrawNativeEditor();
+    }
     DrawStorageSection();
     ImGui::EndChild();
 
@@ -332,7 +348,9 @@ void PlatformEditorDialog::Draw()
         {
             PlatformConfig config = BuildConfig();
             if (m_OnPlatformSaved)
+            {
                 m_OnPlatformSaved(config, !m_IsEditing);
+            }
             m_Open = false;
             ImGui::CloseCurrentPopup();
         }
@@ -357,13 +375,17 @@ void PlatformEditorDialog::Draw()
 bool PlatformEditorDialog::DrawInline()
 {
     if (!m_Open)
+    {
         return false;
+    }
 
     if (m_ShowFrameworkPicker)
     {
         DrawFrameworkPicker();
         if (SchematicDialogButtons({ { "Cancel" } }) == 0)
+        {
             m_Open = false;
+        }
         return false;
     }
 
@@ -371,9 +393,13 @@ bool PlatformEditorDialog::DrawInline()
     ImGui::Spacing();
 
     if (m_EditorUI)
+    {
         m_EditorUI->Draw();
+    }
     else
+    {
         DrawNativeEditor();
+    }
     DrawStorageSection();
 
     ImGui::Spacing();
@@ -395,7 +421,9 @@ bool PlatformEditorDialog::DrawInline()
         {
             PlatformConfig config = BuildConfig();
             if (m_OnPlatformSaved)
+            {
                 m_OnPlatformSaved(config, !m_IsEditing);
+            }
             m_Open = false;
             saved = true;
         }
@@ -421,21 +449,28 @@ bool PlatformEditorDialog::DrawInline()
 static const char* GetFrameworkIcon(const char* builderIcon, const std::string& frameworkId)
 {
     if (builderIcon != nullptr)
+    {
         return builderIcon;
+    }
     if (frameworkId.empty())
+    {
         return ICON_TI_TOOL;  // the Custom row
-    return ICON_TI_CPU;       // a backend that did not pick one
+    }
+    return ICON_TI_CPU;  // a backend that did not pick one
 }
 
-static std::string GetFrameworkDescription(const std::string& builderDesc,
-                                           const std::string& frameworkId)
+static std::string GetFrameworkDescription(const std::string& builderDesc, const std::string& frameworkId)
 {
     if (!builderDesc.empty())
+    {
         return builderDesc;
+    }
     // Only the Custom row is the editor's own; every real framework is
     // described by the backend that provides it.
     if (frameworkId.empty())
+    {
         return "Configure a custom platform with manual settings";
+    }
     return "";
 }
 
@@ -480,7 +515,6 @@ void PlatformEditorDialog::DrawFrameworkPicker()
 
         ImGui::PopID();
     }
-
 }
 
 // ============================================================================
@@ -490,7 +524,9 @@ void PlatformEditorDialog::DrawFrameworkPicker()
 void PlatformEditorDialog::DrawBasicSection()
 {
     if (!DekiEditor::SchematicSectionBegin("Basic Info"))
+    {
         return;
+    }
     DekiEditor::BeginPropertyContext();
 
     InspectorUtils::SetNextRowTooltip("Unique identifier: lowercase letters, digits and '_' (e.g. my_board).");
@@ -511,7 +547,9 @@ void PlatformEditorDialog::DrawBasicSection()
     InspectorUtils::BeginPropertyRow("Framework");
     std::vector<const char*> frameworks;
     for (const auto& b : m_AvailableBuilders)
+    {
         frameworks.push_back(b.name.c_str());
+    }
     int framework = m_FamilyIndex;
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (!frameworks.empty() &&
@@ -543,9 +581,13 @@ void PlatformEditorDialog::DrawBasicSection()
 void PlatformEditorDialog::DrawStorageSection()
 {
     if (!m_IsEditing || m_Loaded.Capabilities().count("external-storage") == 0)
+    {
         return;
+    }
     if (!DekiEditor::SchematicSectionBegin("Storage"))
+    {
         return;
+    }
     DekiEditor::BeginPropertyContext();
     InspectorUtils::BeginPropertyRow("Assets On");
     ImGui::SetNextItemWidth(-FLT_MIN);
@@ -565,7 +607,9 @@ void PlatformEditorDialog::DrawStorageSection()
 void PlatformEditorDialog::DrawNativeEditor()
 {
     if (!DekiEditor::SchematicSectionBegin("Display"))
+    {
         return;
+    }
     DekiEditor::BeginPropertyContext();
     InspectorUtils::SetNextRowTooltip("The screen the editor previews for this platform, in pixels.");
     InspectorUtils::BeginPropertyRow("Resolution");

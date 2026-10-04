@@ -3,7 +3,10 @@
 #include "SceneViewTypes.h"
 #include <vector>
 
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {
@@ -23,15 +26,14 @@ public:
     // Handle click with cycling support. Returns the outermost (backmost)
     // object under the click point; if currentSelection is already one of the
     // hits, returns the next one inward (wrapping). nullptr if nothing is hit.
-    Deki::Object* HandleClick(const std::vector<Deki::Object*>& objects,
-                            Deki::Object* currentSelection,
-                            float worldX, float worldY, float pixelsPerMeter);
+    Deki::Object* HandleClick(const std::vector<Deki::Object*>& objects, Deki::Object* currentSelection, float worldX,
+                              float worldY, float pixelsPerMeter);
 
     // The visible objects drawn wholly inside the world rectangle (meters, any
     // corner order). Wholly, not touching: a box around some sprites would
     // otherwise also pick the background they sit on, and the camera.
-    std::vector<Deki::Object*> ObjectsInRect(const std::vector<Deki::Object*>& objects,
-                                             float x0, float y0, float x1, float y1, float pixelsPerMeter);
+    std::vector<Deki::Object*> ObjectsInRect(const std::vector<Deki::Object*>& objects, float x0, float y0, float x1,
+                                             float y1, float pixelsPerMeter);
 
 private:
     SceneObjectMeasurer* m_Measurer;

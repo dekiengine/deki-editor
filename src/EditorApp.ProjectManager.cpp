@@ -68,14 +68,18 @@ struct ScopedTimer
     const char* tag;
     std::chrono::steady_clock::time_point start;
     explicit ScopedTimer(const char* t)
-        : tag(t), start(std::chrono::steady_clock::now()) {}
+        : tag(t),
+          start(std::chrono::steady_clock::now())
+    {
+    }
     ~ScopedTimer()
     {
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::steady_clock::now() - start)
-                      .count();
+        auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
         if (ms >= 10)
+        {
             DEKI_LOG_EDITOR("[timing] %s: %lld ms", tag, static_cast<long long>(ms));
+        }
     }
 };
 }  // namespace
@@ -99,10 +103,11 @@ bool EditorApp::OpenProject(const std::string& path)
     else if (std::filesystem::exists(std::filesystem::path(path) / "deki.json") &&
              !lock.Acquire(path, m_OpenProjectError))
     {
-        DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': %s", path.c_str(),
-                       m_OpenProjectError.c_str());
+        DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': %s", path.c_str(), m_OpenProjectError.c_str());
         if (!m_Headless)
+        {
             Toast::Push(Toast::Level::Error, "Could not open project", m_OpenProjectError);
+        }
         return false;
     }
 
@@ -140,11 +145,13 @@ bool EditorApp::OpenProject(const std::string& path)
            ProjectPaths::Shadow(path), ProjectPaths::Build(path), std::filesystem::path(GetPackagesDirectory(path)) })
     {
         if (!DekiEditor::IsReparsePoint(dir))
+        {
             continue;
+        }
         m_Project.reset();
         m_ProjectLock.Release();
         m_OpenProjectError = dir.filename().string() + " is a link to another folder. The editor deletes files "
-                             "in it, so it has to be a plain folder inside the project.";
+                                                       "in it, so it has to be a plain folder inside the project.";
         DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': %s is a symlink or junction. The editor "
                        "deletes files there, which would reach the folder it points to. Make it a plain folder.",
                        path.c_str(), dir.string().c_str());
@@ -169,7 +176,9 @@ bool EditorApp::OpenProject(const std::string& path)
         for (const auto& entry : std::filesystem::directory_iterator(cacheDir, ec))
         {
             if (entry.path().filename() == "guids.json")
+            {
                 continue;  // the GUID cache does not depend on the compiled format
+            }
             std::error_code rec;
             removed += std::filesystem::remove_all(entry.path(), rec);
         }
@@ -207,28 +216,37 @@ bool EditorApp::OpenProject(const std::string& path)
                 });
 
             for (const auto& id : restored.installed)
+            {
                 DEKI_LOG_EDITOR("EditorApp: installed missing package '%s'", id.c_str());
+            }
             for (const auto& id : restored.failed)
+            {
                 DEKI_LOG_ERROR("EditorApp: failed to install package '%s'", id.c_str());
+            }
             for (const auto& id : restored.unresolvable)
+            {
                 DEKI_LOG_WARNING("EditorApp: package '%s' has no source URL and is not in the "
                                  "Deki registry - install it manually from the Package Manager",
                                  id.c_str());
+            }
 
             if (restored.DidWork())
             {
-                DEKI_LOG_EDITOR("EditorApp: restored %zu package(s) for this project",
-                                restored.installed.size());
+                DEKI_LOG_EDITOR("EditorApp: restored %zu package(s) for this project", restored.installed.size());
                 // Sources appeared after the build files were generated, so make
                 // the build below regenerate and compile rather than trust its
                 // up-to-date check.
                 if (m_HotReloadService)
+                {
                     m_HotReloadService->ForceNextBuild();
+                }
             }
         }
 
         for (const auto& mismatch : DekiEditor::FindPinMismatches(path, packageMgr))
+        {
             DEKI_LOG_WARNING("EditorApp: %s", DekiEditor::DescribePinMismatch(mismatch).c_str());
+        }
     }
 
     // Platforms, now that the packages are on disk: board packs as the baseline,
@@ -249,14 +267,20 @@ bool EditorApp::OpenProject(const std::string& path)
 
         std::string platformErr;
         if (!EnsureProjectPlatform(path, activePlatform, platformErr))
+        {
             DEKI_LOG_ERROR("EditorApp: %s", platformErr.c_str());
+        }
         else if (!activePlatform.empty() && PlatformRegistry::Instance().GetPlatform(activePlatform) == nullptr)
+        {
             DEKI_LOG_ERROR("EditorApp: the project's active platform '%s' is not defined under platforms/, "
                            "and no installed package or board pack offers it",
                            activePlatform.c_str());
+        }
 
         if (m_BuildPanel && !activePlatform.empty())
+        {
             m_BuildPanel->SetSelectedPlatform(activePlatform);
+        }
     }
 
     // Libraries this editor did not build here go before anything can load
@@ -285,18 +309,24 @@ bool EditorApp::OpenProject(const std::string& path)
         {
             DEKI_LOG_ERROR("Cannot build this project - required build tools are missing:");
             for (const auto& line : DescribeMissing(prereqs))
+            {
                 DEKI_LOG_ERROR("  %s", line.c_str());
+            }
             if (m_ConsolePanel)
             {
                 m_ConsolePanel->LogError("Cannot build this project - required build tools are missing.");
                 for (const auto& line : DescribeMissing(prereqs))
+                {
                     m_ConsolePanel->LogError(line.c_str());
+                }
             }
         }
         else
         {
             for (const auto& line : DescribeMissing(prereqs))  // optional ones only
+            {
                 DEKI_LOG_WARNING("%s", line.c_str());
+            }
 
             StartupProgress::Update("Building project...");
             ScopedTimer __t_first("OpenProject EnsureFirstBuild");
@@ -342,7 +372,9 @@ bool EditorApp::OpenProject(const std::string& path)
     m_PackageLoader->OnPackageLoading = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
+        {
             StartupProgress::Update("Loading packages...", name.c_str());
+        }
     };
     {
         ScopedTimer __t_mod_exe("OpenProject LoadPackagesFromDirectory(exeDir)");
@@ -369,9 +401,7 @@ bool EditorApp::OpenProject(const std::string& path)
         // Push it off the critical path - the open-project flow does not depend
         // on it, and a crash before it completes still produces a stack (just
         // with less symbol detail).
-        std::thread([]
-                    { CrashHandler::RefreshSymbols(); })
-            .detach();
+        std::thread([] { CrashHandler::RefreshSymbols(); }).detach();
     }
 
     // RegisterEngineEditors for exe-dir packages is skipped here on purpose -
@@ -385,10 +415,12 @@ bool EditorApp::OpenProject(const std::string& path)
         const auto declared = CMakeGen::ScanPackageManifests(path);
         std::set<std::string> ids;
         for (const auto& pkg : declared)
+        {
             ids.insert(pkg.id);
+        }
         std::string why;
-        m_ProjectTransformWidth = static_cast<int>(
-            CMakeGen::ResolveTransformWidth(declared, ids, CMakeGen::ReadProjectTags(path), &why));
+        m_ProjectTransformWidth =
+            static_cast<int>(CMakeGen::ResolveTransformWidth(declared, ids, CMakeGen::ReadProjectTags(path), &why));
         DEKI_LOG_EDITOR("Project transform: %s", why.c_str());
     }
 
@@ -440,7 +472,9 @@ bool EditorApp::OpenProject(const std::string& path)
         // also the first point where package-owned sections are known, so it is the
         // earliest a settings write can file them under the right package.
         if (m_Project->IsDirty())
+        {
             m_Project->Save();
+        }
     }
 
     // Discover tool windows AFTER all packages are loaded so that
@@ -464,7 +498,9 @@ bool EditorApp::OpenProject(const std::string& path)
     m_PluginLoader->OnPluginLoading = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
+        {
             StartupProgress::Update("Loading plugins...", name.c_str());
+        }
     };
     if (std::filesystem::exists(binPath))
     {
@@ -503,7 +539,9 @@ bool EditorApp::OpenProject(const std::string& path)
     auto registerAssetWithManager = [this](const AssetInfo& info)
     {
         if (info.guid.empty() || !info.hasCachedVersion)
+        {
             return;
+        }
 
         Deki::AssetManager::Get()->RegisterGuid(info.guid, info.guid);
 
@@ -511,10 +549,14 @@ bool EditorApp::OpenProject(const std::string& path)
         std::string exportPath = info.path;
         size_t assetsPos = exportPath.find("assets/");
         if (assetsPos != std::string::npos)
+        {
             exportPath = exportPath.substr(assetsPos + 7);
+        }
         size_t dotPos = exportPath.rfind('.');
         if (dotPos != std::string::npos)
+        {
             exportPath = exportPath.substr(0, dotPos);
+        }
 
         std::string ext = std::filesystem::path(info.path).extension().string();
         std::string assetType = AssetPipeline::GetAssetTypeFromExtension(ext);
@@ -532,7 +574,9 @@ bool EditorApp::OpenProject(const std::string& path)
             for (const auto& subAsset : *subAssets)
             {
                 if (Deki::AssetManager::Get()->LookupPath(subAsset.guid).empty())
+                {
                     Deki::AssetManager::Get()->RegisterGuid(subAsset.guid, info.guid);
+                }
             }
         }
     };
@@ -552,14 +596,18 @@ bool EditorApp::OpenProject(const std::string& path)
 
         const AssetInfo* info = m_AssetPipeline->GetAssetInfo(assetPath);
         if (info)
+        {
             registerAssetWithManager(*info);
+        }
 
         // A live asset add after startup (importing a new file, or undoing a
         // delete) can satisfy AssetRefs that previously resolved to null. Bump
         // the epoch so those refs drop their cached null and reconnect on the
         // next frame instead of staying empty.
         if (info && StartupProgress::IsComplete())
+        {
             Deki::AssetManager::Get()->AdvanceEpoch();
+        }
     };
 
     // Fired when ProcessAsset sees a path for the first time. Drives the
@@ -569,13 +617,17 @@ bool EditorApp::OpenProject(const std::string& path)
     m_AssetPipeline->OnAssetCreated = [this](const std::string& /*relativePath*/)
     {
         if (m_AssetBrowserPanel)
+        {
             m_AssetBrowserPanel->RefreshAssets();
+        }
     };
     // A whole import refreshes the browser once, not once per asset.
     m_AssetPipeline->OnImportAllFinished = [this]()
     {
         if (m_AssetBrowserPanel)
+        {
             m_AssetBrowserPanel->RefreshAssets();
+        }
     };
 
     m_AssetPipeline->OnAssetChanged = [this, registerAssetWithManager](const std::string& relativePath)
@@ -585,7 +637,9 @@ bool EditorApp::OpenProject(const std::string& path)
         // to avoid dangling pointers held by components.
         auto it = m_AssetPipeline->GetAllAssets().find(relativePath);
         if (it == m_AssetPipeline->GetAllAssets().end() || it->second.guid.empty())
+        {
             return;
+        }
 
         const std::string& guid = it->second.guid;
 
@@ -596,7 +650,9 @@ bool EditorApp::OpenProject(const std::string& path)
 
         // 1. Clear component AssetRef pointers (type-agnostic).
         if (GetSceneViewPanel())
+        {
             GetSceneViewPanel()->InvalidateAllAssets();
+        }
 
         // 2. Evict the stale runtime asset for whatever type owns this extension.
         //    Goes through AssetTypeRegistry so every package-owned type
@@ -605,13 +661,17 @@ bool EditorApp::OpenProject(const std::string& path)
         std::string ext = std::filesystem::path(it->second.path).extension().string();
         std::string typeName = AssetPipeline::GetAssetTypeFromExtension(ext);
         if (!typeName.empty())
+        {
             Deki::AssetManager::Get()->InvalidateAsset(typeName.c_str(), guid);
+        }
 
         // 3. Editor-side GPU texture caches (sprite previews etc. - harmless
         //    no-op for non-texture assets).
         EditorAssets::Get()->InvalidateTexture(guid);
         if (GetSceneViewPanel())
+        {
             GetSceneViewPanel()->InvalidateTexture(guid);
+        }
     };
 
     m_AssetPipeline->OnAssetDeleted = [this](const std::string& relativePath, const std::string& guid)
@@ -622,13 +682,17 @@ bool EditorApp::OpenProject(const std::string& path)
         // OnAssetChanged, but the asset never comes back: with the cache file
         // gone, the next AssetRef::Get() re-resolve loads null.
         if (guid.empty())
+        {
             return;
+        }
 
         // 1. Clear component AssetRef pointers (type-agnostic). On the next
         //    frame each ref re-resolves its GUID; the deleted asset resolves
         //    to null, so the component draws nothing.
         if (GetSceneViewPanel())
+        {
             GetSceneViewPanel()->InvalidateAllAssets();
+        }
 
         // 2. Evict the runtime asset for whatever type owns this extension
         //    (Sprite, Tilemap, BitmapFont, …) via AssetTypeRegistry. This also
@@ -636,7 +700,9 @@ bool EditorApp::OpenProject(const std::string& path)
         std::string ext = std::filesystem::path(relativePath).extension().string();
         std::string typeName = AssetPipeline::GetAssetTypeFromExtension(ext);
         if (!typeName.empty())
+        {
             Deki::AssetManager::Get()->InvalidateAsset(typeName.c_str(), guid);
+        }
 
         // 3. Forget the GUID entirely so the now-missing asset resolves to null
         //    (empty), exactly like a deleted reference in Unity - no ref ever
@@ -648,7 +714,9 @@ bool EditorApp::OpenProject(const std::string& path)
         // 4. Editor-side GPU texture caches (harmless no-op for non-textures).
         EditorAssets::Get()->InvalidateTexture(guid);
         if (GetSceneViewPanel())
+        {
             GetSceneViewPanel()->InvalidateTexture(guid);
+        }
     };
 
     m_AssetPipeline->Start(m_Project->GetAssetsPath(), m_Project->GetPath());
@@ -681,7 +749,9 @@ bool EditorApp::OpenProject(const std::string& path)
     {
         ScopedTimer __t_register("OpenProject AssetManager GUID registration");
         for (const auto& [assetPath, info] : m_AssetPipeline->GetAllAssets())
+        {
             registerAssetWithManager(info);
+        }
     }
 
     // Adopt a render pipeline if the project does not name one.
@@ -700,17 +770,24 @@ bool EditorApp::OpenProject(const std::string& path)
         int candidates = 0;
         for (const auto& [assetPath, info] : m_AssetPipeline->GetAllAssets())
         {
-            if (info.path.size() < 6 ||
-                info.path.compare(info.path.size() - 6, 6, ".asset") != 0)
+            if (info.path.size() < 6 || info.path.compare(info.path.size() - 6, 6, ".asset") != 0)
+            {
                 continue;
+            }
 
             try
             {
                 std::ifstream in(m_AssetPipeline->GetAbsolutePath(info.path));
-                if (!in.is_open()) continue;
+                if (!in.is_open())
+                {
+                    continue;
+                }
                 nlohmann::json j;
                 in >> j;
-                if (j.value("type", "") != "RenderPipeline") continue;
+                if (j.value("type", "") != "RenderPipeline")
+                {
+                    continue;
+                }
             }
             catch (...)
             {
@@ -725,8 +802,7 @@ bool EditorApp::OpenProject(const std::string& path)
         {
             m_Project->SetRenderPipelineGuid(onlyGuid);
             m_Project->Save();
-            DEKI_LOG_INFO("OpenProject: adopted the project's only render pipeline (%s)",
-                          onlyGuid.c_str());
+            DEKI_LOG_INFO("OpenProject: adopted the project's only render pipeline (%s)", onlyGuid.c_str());
         }
         else if (candidates > 1)
         {
@@ -760,16 +836,18 @@ bool EditorApp::OpenProject(const std::string& path)
     // resolver, which needs the asset pipeline: it lets
     // AssetManager::Load<T>("path") find the cached compiled file.
     AssetPipeline* pipeline = m_AssetPipeline.get();
-    editorFs->SetPathResolver([pipeline, cachePath](const std::string& path) -> std::string
-                              {
-        // Try as direct path with .scene extension
-        std::string lookupPath = "assets/" + path + ".scene";
-        const AssetInfo* info = pipeline->GetAssetInfo(lookupPath);
-        if (info && info->hasCachedVersion)
+    editorFs->SetPathResolver(
+        [pipeline, cachePath](const std::string& path) -> std::string
         {
-            return pipeline->GetAbsolutePath(info->cachePath);
-        }
-        return ""; });
+            // Try as direct path with .scene extension
+            std::string lookupPath = "assets/" + path + ".scene";
+            const AssetInfo* info = pipeline->GetAssetInfo(lookupPath);
+            if (info && info->hasCachedVersion)
+            {
+                return pipeline->GetAbsolutePath(info->cachePath);
+            }
+            return "";
+        });
     // Set cache directory for AssetManager
     Deki::AssetManager::Get()->SetCacheDirectory(cachePath);
 
@@ -785,13 +863,12 @@ bool EditorApp::OpenProject(const std::string& path)
     // Mark the asset browser tree dirty; the actual disk walk runs lazily on
     // the first frame the panel renders, off the critical startup path.
     if (m_AssetBrowserPanel)
+    {
         m_AssetBrowserPanel->MarkAssetsDirty();
+    }
 
     // Sync with EditorApplication singleton for engine editors
-    EditorApplication::Get().SetProjectPaths(
-        m_Project->GetPath(),
-        m_Project->GetAssetsPath(),
-        cachePath);
+    EditorApplication::Get().SetProjectPaths(m_Project->GetPath(), m_Project->GetAssetsPath(), cachePath);
 
     // Check for recovery files from a previous crash
     m_Recovery.ScanProject(path);
@@ -818,7 +895,9 @@ bool EditorApp::OpenProject(const std::string& path)
             const std::filesystem::path startup =
                 std::filesystem::path(GetAssetsDirectory(path)) / m_Project->GetStartupScene();
             if (std::filesystem::exists(startup))
+            {
                 OpenScene(startup.string());
+            }
         }
 
         // If open failed or no last scene, create a new empty one
@@ -841,7 +920,9 @@ bool EditorApp::OpenProjectShowingProgress(const std::string& path)
     StartupProgress::Begin();
     const bool opened = OpenProject(path);
     if (opened)
+    {
         FinishPendingBuilds();
+    }
     StartupProgress::Complete();
     return opened;
 }
@@ -858,7 +939,9 @@ void EditorApp::FinishPendingBuilds()
     }
     // Anything still building (a package rebuild the package check queued).
     if (m_HotReloadService)
+    {
         m_HotReloadService->WaitForBuild();
+    }
 }
 
 void EditorApp::RequestOpenProject(const std::string& path)
@@ -877,18 +960,26 @@ void EditorApp::CloseProject()
     // Scene::ClearScene with an access violation on a plausible-looking
     // address. It is reachable straight from File > Open Project.
     if (m_PlayModeState != PlayModeState::Stopped)
+    {
         Stop();
+    }
 
     // A build still running for this project would otherwise finish - and
     // reload its plugin - after the project has been torn down.
     if (m_HotReloadService)
+    {
         m_HotReloadService->CancelAndWait();
+    }
 
     ClearSelection();
     if (m_HierarchyPanel)
+    {
         m_HierarchyPanel->ClearSceneReferences();
+    }
     if (m_InspectorPanel)
+    {
         m_InspectorPanel->ClearSceneReferences();
+    }
     CustomEditorRegistry::Instance().ClearCache();
     CommandHistory::Instance().Clear();
     // The scene was saved or discarded at the unsaved-changes prompt.
@@ -920,7 +1011,9 @@ void EditorApp::CloseProject()
         // Package-owned registries hold meta/thunk pointers into the plugin DLL
         // (node types self-register from it); clear BEFORE FreeLibrary.
         if (m_PackageLoader)
+        {
             m_PackageLoader->ClearPackageRegistries();
+        }
 
         m_PluginLoader->UnloadAllPlugins();
     }
@@ -965,7 +1058,9 @@ void EditorApp::CloseProject()
     // the list: this session may have renamed or retargeted the project it
     // just closed, and the row has to show that.
     if (m_ProjectManagerScreen)
+    {
         m_ProjectManagerScreen->OnShown();
+    }
 }
 
 void EditorApp::ShowNewProjectDialog()
@@ -977,7 +1072,9 @@ void EditorApp::NewScene()
 {
     // Check for unsaved changes first
     if (CheckUnsavedChanges(PendingSceneAction::NewScene))
+    {
         return;  // Dialog will handle it
+    }
 
     // Clear cached editor instances from previous scene
     CustomEditorRegistry::Instance().ClearCache();
@@ -998,7 +1095,9 @@ bool EditorApp::OpenScene(const std::string& rawPath)
 
     // Check for unsaved changes first
     if (CheckUnsavedChanges(PendingSceneAction::OpenScene, path))
+    {
         return false;  // Dialog will handle it; nothing is open yet
+    }
 
     auto scene = std::make_unique<::Deki::Scene>();
     if (scene->LoadFromFile(path))
@@ -1008,9 +1107,13 @@ bool EditorApp::OpenScene(const std::string& rawPath)
 
         // Clear navigation stack on direct open (not via breadcrumb navigation)
         if (!m_IsNavigating)
+        {
             m_SceneNavigationStack.clear();
+        }
         else if (!m_NavigationSourcePath.empty())
+        {
             m_SceneNavigationStack.push_back(m_NavigationSourcePath);
+        }
         m_NavigationSourcePath.clear();
 
         SetCurrentScene(std::move(scene));
@@ -1038,7 +1141,9 @@ bool EditorApp::OpenScene(const std::string& rawPath)
         // ImGui, so it is GUI-only - headless there is no context to focus in.
         m_SceneViewPanel->m_Open = true;
         if (!m_Headless)
+        {
             ImGui::SetWindowFocus("SCENE VIEW###Scene View");
+        }
         return true;
     }
 
@@ -1061,7 +1166,9 @@ void EditorApp::NavigateIntoScene(const std::string& path)
 void EditorApp::NavigateBack()
 {
     if (m_SceneNavigationStack.empty())
+    {
         return;
+    }
 
     std::string path = m_SceneNavigationStack.back();
     m_SceneNavigationStack.pop_back();
@@ -1074,7 +1181,9 @@ void EditorApp::NavigateBack()
 void EditorApp::NavigateBackTo(size_t stackIndex)
 {
     if (stackIndex >= m_SceneNavigationStack.size())
+    {
         return;
+    }
 
     std::string path = m_SceneNavigationStack[stackIndex];
     m_SceneNavigationStack.resize(stackIndex);
@@ -1087,7 +1196,9 @@ void EditorApp::NavigateBackTo(size_t stackIndex)
 void EditorApp::EnsurePlatformSetup()
 {
     if (!m_CurrentScene || !m_Project)
+    {
         return;
+    }
 
     namespace fs = std::filesystem;
     std::string platformsDir = GetPlatformsDirectory(m_Project->GetPath());
@@ -1095,7 +1206,9 @@ void EditorApp::EnsurePlatformSetup()
     auto normPlatforms = fs::path(platformsDir).lexically_normal().generic_string();
 
     if (normPath.find(normPlatforms) != 0)
+    {
         return;
+    }
 
     // Find or create root "Setup" object
     Deki::Object* setupObj = nullptr;
@@ -1134,11 +1247,15 @@ void EditorApp::EnsurePlatformSetup()
     if (!hasSetupComp)
     {
         if (Deki::Internal::AddComponentByName(*setupObj, "PlatformSetupComponent"))
+        {
             modified = true;
+        }
     }
 
     if (modified)
+    {
         m_CurrentScene->SaveToFile(m_CurrentScenePath);
+    }
 }
 
 // A 2D device drops depth on load. Say so at save time, naming the objects,
@@ -1148,32 +1265,45 @@ void EditorApp::WarnIfDepthInFlatProject() const
 {
 #ifdef DEKI_TRANSFORM_3D
     if (!m_CurrentScene || ProjectDeclaresDepth())
+    {
         return;
+    }
 
     std::vector<std::string> names;
     std::set<const Deki::Object*> seen;
     std::function<void(Deki::Object*)> visit = [&](Deki::Object* o)
     {
         if (!o || !seen.insert(o).second)
+        {
             return;
-        if (o->GetZ() != 0.0f || o->GetRotationX() != 0.0f || o->GetRotationY() != 0.0f ||
-            o->GetScaleZ() != 1.0f)
+        }
+        if (o->GetZ() != 0.0f || o->GetRotationX() != 0.0f || o->GetRotationY() != 0.0f || o->GetScaleZ() != 1.0f)
         {
             names.push_back(o->GetName());
         }
         for (Deki::Object* c : o->GetChildren())
+        {
             visit(c);
+        }
     };
     for (Deki::Object* root : m_CurrentScene->GetObjects())
+    {
         visit(root);
+    }
     if (names.empty())
+    {
         return;
+    }
 
     std::string list;
     for (size_t i = 0; i < names.size() && i < 8; ++i)
+    {
         list += (i ? ", " : "") + names[i];
+    }
     if (names.size() > 8)
+    {
         list += ", ...";
+    }
     DEKI_LOG_WARNING("Scene uses depth on %zu object(s) (%s), but nothing declares transform_3d, "
                      "so a device build places them at zero depth. Add \"transform_3d\" to the "
                      "project's deki.json tags if that is not what you want.",
@@ -1195,7 +1325,11 @@ bool EditorApp::SaveScene()
         try
         {
             std::ifstream in(m_CurrentScenePath);
-            if (in) { in >> before; haveBefore = true; }
+            if (in)
+            {
+                in >> before;
+                haveBefore = true;
+            }
         }
         catch (const std::exception&)
         {
@@ -1208,7 +1342,9 @@ bool EditorApp::SaveScene()
             return false;
         }
         if (haveBefore)
+        {
             PreserveTargetRequirements(m_CurrentScenePath, before);
+        }
         CommandHistory::Instance().MarkSavePoint();
         InspectorUtils::CaptureSavedState(m_CurrentScene.get());
         m_Recovery.DiscardSessionSnapshots();  // the saved file supersedes them
@@ -1221,7 +1357,10 @@ bool EditorApp::SaveScene()
             // Normalize path separators
             for (char& c : relativePath)
             {
-                if (c == '\\') c = '/';
+                if (c == '\\')
+                {
+                    c = '/';
+                }
             }
             m_AssetPipeline->RefreshAsset(relativePath);
 
@@ -1243,7 +1382,9 @@ std::string EditorApp::ResolveProjectPath(const std::string& path) const
 
     fs::path p(path);
     if (p.is_absolute() || !m_Project)
+    {
         return p.lexically_normal().string();
+    }
 
     // A relative path means "relative to the project", not to whatever
     // directory the editor process happens to have been launched from. The GUI
@@ -1256,7 +1397,9 @@ std::string EditorApp::ResolveProjectPath(const std::string& path) const
 bool EditorApp::SaveSceneAs(const std::string& path)
 {
     if (!m_CurrentScene)
+    {
         return false;
+    }
 
     namespace fs = std::filesystem;
     const std::string resolved = ResolveProjectPath(path);
@@ -1265,7 +1408,9 @@ bool EditorApp::SaveSceneAs(const std::string& path)
     // either. Without this the write just fails.
     std::error_code ec;
     if (fs::path(resolved).has_parent_path())
+    {
         fs::create_directories(fs::path(resolved).parent_path(), ec);
+    }
 
     WarnIfDepthInFlatProject();
     if (!m_CurrentScene->SaveToFile(resolved))
@@ -1286,7 +1431,10 @@ bool EditorApp::SaveSceneAs(const std::string& path)
         // Normalize path separators
         for (char& c : relativePath)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
         m_AssetPipeline->RefreshAsset(relativePath);
     }
@@ -1296,13 +1444,17 @@ bool EditorApp::SaveSceneAs(const std::string& path)
 void EditorApp::ApplyEditorTarget(bool reimport)
 {
     if (!m_AssetPipeline || !m_Project)
+    {
         return;
+    }
     // No active platform, or one that cannot be used (said by
     // ExportTargetForPlatform): the editor stores for its own screen.
     AssetExportTarget target;
     const std::string platformId = m_Project->GetActivePlatformId();
     if (!platformId.empty() && !ExportTargetForPlatform(platformId, target))
+    {
         target = AssetExportTarget{};
+    }
 
     const AssetExportTarget current = m_AssetPipeline->GetEditorTarget();
     m_AssetPipeline->SetEditorTarget(target);
@@ -1328,7 +1480,9 @@ bool EditorApp::ExportToStorage()
     AssetExportTarget target;
     const std::string platformId = m_Project->GetActivePlatformId();
     if (!platformId.empty() && ExportTargetForPlatform(platformId, target))
+    {
         exporter.SetTarget(target);
+    }
     return exporter.ExportToStorage();
 }
 
@@ -1336,7 +1490,9 @@ void EditorApp::OnBeforePluginReload()
 {
     // Force-stop play mode before hot reload to avoid dangling references
     if (m_PlayModeState != PlayModeState::Stopped)
+    {
         Stop();
+    }
 
     // The undo history cannot outlive a reload: its steps point at the scene's
     // objects and components, which are rebuilt from JSON below, and some are
@@ -1347,7 +1503,9 @@ void EditorApp::OnBeforePluginReload()
         const bool dirty = history.IsDirty();
         history.Clear();
         if (dirty)
+        {
             history.MarkDirty();
+        }
     }
 
     // Clear any leftover persistent objects (defensive)
@@ -1360,10 +1518,14 @@ void EditorApp::OnBeforePluginReload()
     // Drop inspector pointers into plugin-DLL data (Deki::PropertyInfo*, etc.)
     // before the DLL unloads, otherwise they dangle.
     if (m_InspectorPanel)
+    {
         m_InspectorPanel->ResetTransientUiState();
+    }
 
     if (!m_CurrentScene)
+    {
         return;
+    }
 
     // Save scene path and selection (just first selected for hot reload)
     m_HotReloadScenePath = m_CurrentScenePath;
@@ -1378,11 +1540,15 @@ void EditorApp::OnBeforePluginReload()
     // must delete them while DLL is still loaded
     auto* assetMgr = Deki::AssetManager::Get();
     if (assetMgr)
+    {
         assetMgr->UnloadAll();
+    }
 
     // Invalidate editor camera (its CameraComponent vtable lives in deki-rendering.dll)
     if (m_SceneViewPanel)
+    {
         m_SceneViewPanel->InvalidateEditorCamera();
+    }
 
     // Clear scene to release all component references before DLL unload. This
     // must go through SetCurrentScene: a bare reset() left the EditorApplication
@@ -1396,7 +1562,9 @@ void EditorApp::OnBeforePluginReload()
 void EditorApp::OnAfterPluginReload()
 {
     if (m_HotReloadSceneBackup.empty())
+    {
         return;
+    }
 
     // Create new scene and load from backup
     auto restored = std::make_unique<::Deki::Scene>();
@@ -1427,7 +1595,9 @@ void EditorApp::OnAfterPluginReload()
     // The scene was rebuilt in place: the same Scene object, new components.
     // A camera the Scene View cached from before points at a freed one.
     if (m_SceneViewPanel)
+    {
         m_SceneViewPanel->InvalidateSceneCamera();
+    }
 
     DEKI_LOG_DEBUG("EditorApp: Restored scene from memory after hot reload");
 }
@@ -1447,7 +1617,9 @@ const std::vector<std::string>& EditorApp::SceneGuidsIn(const std::string& absPa
 
     auto it = m_SceneGuidRefs.find(absPath);
     if (it != m_SceneGuidRefs.end() && it->second.writeTime == writeTime)
+    {
         return it->second.guids;
+    }
 
     // Read once per write; collect every GUID-shaped token in the file.
     SceneGuidRefs refs;
@@ -1458,7 +1630,9 @@ const std::vector<std::string>& EditorApp::SceneGuidsIn(const std::string& absPa
         std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         static const std::regex kGuid("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
         for (auto m = std::sregex_iterator(content.begin(), content.end(), kGuid); m != std::sregex_iterator(); ++m)
+        {
             refs.guids.push_back(m->str());
+        }
         std::sort(refs.guids.begin(), refs.guids.end());
         refs.guids.erase(std::unique(refs.guids.begin(), refs.guids.end()), refs.guids.end());
     }
@@ -1468,10 +1642,15 @@ const std::vector<std::string>& EditorApp::SceneGuidsIn(const std::string& absPa
 void EditorApp::PropagateInstanceChanges(const std::string& changedSceneGuid)
 {
     if (!m_AssetPipeline || !m_Project || changedSceneGuid.empty())
+    {
         return;
+    }
 
     static bool s_Propagating = false;
-    if (s_Propagating) return;
+    if (s_Propagating)
+    {
+        return;
+    }
     s_Propagating = true;
 
     namespace fs = std::filesystem;
@@ -1487,20 +1666,29 @@ void EditorApp::PropagateInstanceChanges(const std::string& changedSceneGuid)
     for (const auto& [assetPath, info] : m_AssetPipeline->GetAllAssets())
     {
         if (fs::path(assetPath).extension() != ".scene")
+        {
             continue;
+        }
 
         std::string absPath = m_AssetPipeline->GetAbsolutePath(assetPath);
         if (absPath == m_CurrentScenePath)
+        {
             continue;
+        }
 
         const std::vector<std::string>& guids = SceneGuidsIn(absPath);
         if (std::find(guids.begin(), guids.end(), changedSceneGuid) == guids.end())
+        {
             continue;
+        }
 
         std::string relativePath = fs::relative(absPath, m_Project->GetPath()).string();
         for (char& c : relativePath)
         {
-            if (c == '\\') c = '/';
+            if (c == '\\')
+            {
+                c = '/';
+            }
         }
         toUpdate.push_back({ absPath, relativePath });
     }
@@ -1553,8 +1741,7 @@ bool EditorApp::CheckAssetCacheEpochChanged(const std::string& projectPath)
     if (versionChanged)
     {
         DEKI_LOG_EDITOR("[EditorApp] Asset cache epoch changed from '%s' to '%s' - triggering asset reimport",
-                        storedVersion.empty() ? "(none)" : storedVersion.c_str(),
-                        ASSET_CACHE_EPOCH);
+                        storedVersion.empty() ? "(none)" : storedVersion.c_str(), ASSET_CACHE_EPOCH);
 
         // Update version file
         std::ofstream file(versionFilePath);

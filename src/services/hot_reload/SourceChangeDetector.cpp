@@ -18,13 +18,18 @@ namespace SourceChangeDetector
 std::string PackageNameFromEventPath(const std::string& relativePath)
 {
     const size_t first = relativePath.find_first_of("/\\");
-    if (first == std::string::npos) return {};
-    if (relativePath.compare(0, first, "packages") != 0) return {};
+    if (first == std::string::npos)
+    {
+        return {};
+    }
+    if (relativePath.compare(0, first, "packages") != 0)
+    {
+        return {};
+    }
 
     const size_t second = relativePath.find_first_of("/\\", first + 1);
-    const std::string name = (second == std::string::npos)
-                                 ? relativePath.substr(first + 1)
-                                 : relativePath.substr(first + 1, second - first - 1);
+    const std::string name = (second == std::string::npos) ? relativePath.substr(first + 1)
+                                                           : relativePath.substr(first + 1, second - first - 1);
     return name;
 }
 
@@ -43,11 +48,16 @@ bool IsBuildArtifact(const std::string& relativePath)
     auto hasSegment = [&relativePath](const char* seg)
     {
         const std::string s(seg);
-        if (relativePath.rfind(s + "/", 0) == 0) return true;          // leading segment
+        if (relativePath.rfind(s + "/", 0) == 0)
+        {
+            return true;  // leading segment
+        }
         return relativePath.find("/" + s + "/") != std::string::npos;  // interior segment
     };
     if (hasSegment("generated") || hasSegment("build"))
+    {
         return true;
+    }
 
     // Git's own files. The editor's git queries on a package clone refresh its
     // index, and each one rebuilt the project. The event can name the .git
@@ -63,8 +73,7 @@ bool IsBuildArtifact(const std::string& relativePath)
         static const std::string kPkg = ".deki-package.json";
         if (relativePath == kPkg ||
             (relativePath.size() > kPkg.size() &&
-             relativePath.compare(relativePath.size() - kPkg.size() - 1,
-                                  kPkg.size() + 1, "/" + kPkg) == 0))
+             relativePath.compare(relativePath.size() - kPkg.size() - 1, kPkg.size() + 1, "/" + kPkg) == 0))
         {
             return true;
         }
@@ -72,13 +81,16 @@ bool IsBuildArtifact(const std::string& relativePath)
 
     auto dotPos = relativePath.find_last_of('.');
     if (dotPos == std::string::npos)
+    {
         return false;
+    }
     std::string ext = relativePath.substr(dotPos);
     for (char& c : ext)
+    {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
-    return ext == ".obj" || ext == ".pdb" || ext == ".lib" || ext == ".exp" ||
-           ext == ".ilk" || ext == ".tlog";
+    return ext == ".obj" || ext == ".pdb" || ext == ".lib" || ext == ".exp" || ext == ".ilk" || ext == ".tlog";
 }
 
 std::filesystem::file_time_type GetLatestSourceTime(const std::string& srcDir)
@@ -89,8 +101,8 @@ std::filesystem::file_time_type GetLatestSourceTime(const std::string& srcDir)
 
     try
     {
-        for (const auto& entry : fs::recursive_directory_iterator(
-                 srcDir, fs::directory_options::follow_directory_symlink))
+        for (const auto& entry :
+             fs::recursive_directory_iterator(srcDir, fs::directory_options::follow_directory_symlink))
         {
             if (entry.is_regular_file())
             {
@@ -118,7 +130,10 @@ void WalkSourceTree(const std::filesystem::path& root,
                     const std::function<void(const std::filesystem::directory_entry&)>& cb)
 {
     namespace fs = std::filesystem;
-    if (!fs::exists(root)) return;
+    if (!fs::exists(root))
+    {
+        return;
+    }
 
     // Step 1: Enumerate immediate children non-recursively. Any directory
     // child - whether a plain directory or a Windows junction - is treated as
@@ -130,9 +145,13 @@ void WalkSourceTree(const std::filesystem::path& root,
         // is_directory() follows reparse points on Windows, so junctions
         // report true here - that's what we want.
         if (child.is_directory(ec))
+        {
             subtreeRoots.push_back(child.path());
+        }
         else if (child.is_regular_file(ec))
+        {
             cb(child);  // files directly under root
+        }
     }
 
     // Step 2: For each subtree root, start a fresh recursive_directory_iterator.
@@ -144,13 +163,14 @@ void WalkSourceTree(const std::filesystem::path& root,
     {
         try
         {
-            for (const auto& entry : fs::recursive_directory_iterator(
-                     subRoot,
-                     fs::directory_options::follow_directory_symlink |
-                         fs::directory_options::skip_permission_denied))
+            for (const auto& entry :
+                 fs::recursive_directory_iterator(subRoot, fs::directory_options::follow_directory_symlink |
+                                                               fs::directory_options::skip_permission_denied))
             {
                 if (entry.is_regular_file(ec))
+                {
                     cb(entry);
+                }
             }
         }
         catch (const fs::filesystem_error&)
@@ -160,8 +180,7 @@ void WalkSourceTree(const std::filesystem::path& root,
     }
 }
 
-uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
-                                    const std::string& cmakeListsPath)
+uint64_t ComputeConfigureInputsHash(const std::string& projectPath, const std::string& cmakeListsPath)
 {
     namespace fs = std::filesystem;
 
@@ -179,14 +198,22 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
         }
     };
     auto mixStr = [&](const std::string& s)
-    { mix(s.data(), s.size()); mix("\0", 1); };
+    {
+        mix(s.data(), s.size());
+        mix("\0", 1);
+    };
     auto mixFileContent = [&](const fs::path& p)
     {
         std::ifstream f(p, std::ios::binary);
-        if (!f) return;
+        if (!f)
+        {
+            return;
+        }
         char buf[65536];
         while (f.read(buf, sizeof(buf)) || f.gcount() > 0)
+        {
             mix(buf, static_cast<size_t>(f.gcount()));
+        }
         mix("\0", 1);
     };
     // Size + mtime stand in for the content: an edit changes at least one of
@@ -196,9 +223,15 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
     {
         std::error_code ec;
         const std::uintmax_t size = fs::file_size(p, ec);
-        if (ec) return;
+        if (ec)
+        {
+            return;
+        }
         const auto mtime = fs::last_write_time(p, ec).time_since_epoch().count();
-        if (ec) return;
+        if (ec)
+        {
+            return;
+        }
         mix(&size, sizeof(size));
         mix(&mtime, sizeof(mtime));
     };
@@ -206,7 +239,9 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
     // 1. CMakeLists.txt content
     mixStr("cmake:");
     if (fs::exists(cmakeListsPath))
+    {
         mixFileContent(cmakeListsPath);
+    }
 
     // 2. Sorted list of package directory names (install/uninstall must reconfigure)
     mixStr("packages:");
@@ -218,12 +253,16 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
         for (const auto& entry : fs::directory_iterator(packagesPath, ec))
         {
             if (entry.is_directory(ec))
+            {
                 packageDirs.push_back(entry.path().filename().string());
+            }
         }
     }
     std::sort(packageDirs.begin(), packageDirs.end());
     for (const auto& name : packageDirs)
+    {
         mixStr(name);
+    }
 
     // 3. Every header under project/src and project/packages: path, size and
     // mtime. The reflection codegen parses headers for DEKI_EXPORT - header
@@ -232,12 +271,20 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath,
     auto mixHeaders = [&](const fs::path& root)
     {
         std::vector<fs::path> headers;
-        WalkSourceTree(root, [&](const fs::directory_entry& entry)
+        WalkSourceTree(root,
+                       [&](const fs::directory_entry& entry)
                        {
-            auto ext = entry.path().extension().string();
-            if (ext != ".h" && ext != ".hpp") return;
-            if (entry.path().string().find("generated") != std::string::npos) return;
-            headers.push_back(entry.path()); });
+                           auto ext = entry.path().extension().string();
+                           if (ext != ".h" && ext != ".hpp")
+                           {
+                               return;
+                           }
+                           if (entry.path().string().find("generated") != std::string::npos)
+                           {
+                               return;
+                           }
+                           headers.push_back(entry.path());
+                       });
         std::sort(headers.begin(), headers.end());
         for (const auto& p : headers)
         {

@@ -31,7 +31,10 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
     for (auto* comp : obj->GetComponents())
     {
         const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
-        if (!meta) continue;
+        if (!meta)
+        {
+            continue;
+        }
 
         nlohmann::json compJson;
         compJson["type"] = meta->serializedName;
@@ -42,7 +45,9 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
         {
             const auto& prop = meta->properties[i];
             if (prop.type == Deki::PropertyType::Array)
+            {
                 props[prop.name] = CaptureArray(comp, prop);
+            }
             else
             {
                 const auto& handler = GetPropertyTypeHandler(prop.type);
@@ -57,7 +62,9 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
     // Children
     nlohmann::json children = nlohmann::json::array();
     for (auto* child : obj->GetChildren())
+    {
         children.push_back(SerializeObjectForResource(child));
+    }
     j["children"] = children;
 
     return j;
@@ -99,12 +106,11 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
 
         nlohmann::json objects = nlohmann::json::array();
         for (auto* obj : scene->GetObjects())
+        {
             objects.push_back(SerializeObjectForResource(obj));
+        }
 
-        return {
-            { "path", editor->GetCurrentScenePath() },
-            { "objects", objects }
-        };
+        return { { "path", editor->GetCurrentScenePath() }, { "objects", objects } };
     }
     else if (uri == "components://registry")
     {
@@ -113,13 +119,22 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
 
         for (const auto* meta : reg.GetAllComponents())
         {
-            if (meta->isAbstract) continue;
+            if (meta->isAbstract)
+            {
+                continue;
+            }
 
             nlohmann::json comp;
             comp["name"] = meta->name;
             comp["serializedName"] = meta->serializedName;
-            if (meta->category) comp["category"] = meta->category;
-            if (meta->description) comp["description"] = meta->description;
+            if (meta->category)
+            {
+                comp["category"] = meta->category;
+            }
+            if (meta->description)
+            {
+                comp["description"] = meta->description;
+            }
 
             nlohmann::json props = nlohmann::json::array();
             for (int i = 0; i < meta->propertyCount; ++i)
@@ -133,16 +148,23 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
                     p["min"] = prop.minValue;
                     p["max"] = prop.maxValue;
                 }
-                if (prop.tooltip) p["tooltip"] = prop.tooltip;
+                if (prop.tooltip)
+                {
+                    p["tooltip"] = prop.tooltip;
+                }
                 if (prop.enumValues && prop.enumCount > 0)
                 {
                     nlohmann::json vals = nlohmann::json::array();
                     for (int e = 0; e < prop.enumCount; ++e)
+                    {
                         vals.push_back(prop.enumValues[e]);
+                    }
                     p["enumValues"] = vals;
                 }
                 if (prop.type == Deki::PropertyType::Array)
+                {
                     p["elementType"] = PropertyTypeToStr(prop.elementType);
+                }
                 props.push_back(p);
             }
             comp["properties"] = props;
@@ -155,14 +177,14 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
     {
         auto* project = editor->GetProject();
         if (!project)
+        {
             return { { "error", "No project open" } };
+        }
 
-        return {
-            { "name", project->GetName() },
-            { "path", project->GetPath() },
-            { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
-            { "startupScene", project->GetStartupScene() }
-        };
+        return { { "name", project->GetName() },
+                 { "path", project->GetPath() },
+                 { "targetFps", DekiEditor::GetCoreSettings() ? DekiEditor::GetCoreSettings()->targetFps : 60 },
+                 { "startupScene", project->GetStartupScene() } };
     }
 
     return { { "error", "Unknown resource: " + uri } };
@@ -170,18 +192,19 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
 
 nlohmann::json ListResources()
 {
-    return nlohmann::json::array({ { { "uri", "scene://current" },
-                                     { "name", "Current Scene" },
-                                     { "description", "Full hierarchy and property values of the currently open scene" },
-                                     { "mimeType", "application/json" } },
-                                   { { "uri", "components://registry" },
-                                     { "name", "Component Registry" },
-                                     { "description", "All registered component types with property schemas" },
-                                     { "mimeType", "application/json" } },
-                                   { { "uri", "project://settings" },
-                                     { "name", "Project Settings" },
-                                     { "description", "Display size, color format, and performance settings" },
-                                     { "mimeType", "application/json" } } });
+    return nlohmann::json::array(
+        { { { "uri", "scene://current" },
+            { "name", "Current Scene" },
+            { "description", "Full hierarchy and property values of the currently open scene" },
+            { "mimeType", "application/json" } },
+          { { "uri", "components://registry" },
+            { "name", "Component Registry" },
+            { "description", "All registered component types with property schemas" },
+            { "mimeType", "application/json" } },
+          { { "uri", "project://settings" },
+            { "name", "Project Settings" },
+            { "description", "Display size, color format, and performance settings" },
+            { "mimeType", "application/json" } } });
 }
 
 }  // namespace DekiEditor

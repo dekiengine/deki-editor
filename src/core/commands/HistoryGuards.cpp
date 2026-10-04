@@ -22,7 +22,9 @@ std::vector<const void*>& OwnerStack()
 void AddComponent(DeadMemory& dead, const Deki::Component* comp)
 {
     if (!comp)
+    {
         return;
+    }
     // instanceSize comes from the reflection metadata; when a component's type
     // isn't registered only the base subobject is covered, which still catches
     // a step holding the component pointer itself.
@@ -34,13 +36,21 @@ void AddComponent(DeadMemory& dead, const Deki::Component* comp)
 void AddObject(DeadMemory& dead, const Deki::Object* obj, bool recursive)
 {
     if (!obj)
+    {
         return;
+    }
     dead.Add(obj, sizeof(Deki::Object));
     for (const Deki::Component* comp : obj->GetComponents())
+    {
         AddComponent(dead, comp);
+    }
     if (recursive)
+    {
         for (const Deki::Object* child : obj->GetChildren())
+        {
             AddObject(dead, child, true);
+        }
+    }
 }
 
 void ForgetObjectTree(const Deki::Object* obj)
@@ -71,7 +81,9 @@ EditOwnerScope::EditOwnerScope(const void* owner)
 EditOwnerScope::~EditOwnerScope()
 {
     if (m_Pushed && !OwnerStack().empty())
+    {
         OwnerStack().pop_back();
+    }
 }
 
 const std::vector<const void*>& CurrentEditOwners()

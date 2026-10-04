@@ -13,7 +13,9 @@ uint32_t ProfilerPanel::GetColorForEvent(const ProfileEvent* event, int depth)
     // Hash the name for consistent colors
     uint32_t hash = 0;
     for (char c : event->name)
+    {
         hash = hash * 31 + c;
+    }
 
     // Generate color from hash with good saturation
     float hue = (hash % 360) / 360.0f;
@@ -43,7 +45,9 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     {
         // Sum children if root has no duration
         for (const auto& child : root->children)
+        {
             frameTimeUs += child->durationUs;
+        }
     }
 
     if (frameTimeUs <= 0)
@@ -60,9 +64,15 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     // Zoom controls
     ImGui::Text("Zoom:");
     ImGui::SameLine();
-    if (ImGui::Button("-")) m_FlameGraphZoom = std::max(0.5f, m_FlameGraphZoom / 1.5f);
+    if (ImGui::Button("-"))
+    {
+        m_FlameGraphZoom = std::max(0.5f, m_FlameGraphZoom / 1.5f);
+    }
     ImGui::SameLine();
-    if (ImGui::Button("+")) m_FlameGraphZoom = std::min(10.0f, m_FlameGraphZoom * 1.5f);
+    if (ImGui::Button("+"))
+    {
+        m_FlameGraphZoom = std::min(10.0f, m_FlameGraphZoom * 1.5f);
+    }
     ImGui::SameLine();
     if (ImGui::Button("Reset"))
     {
@@ -79,7 +89,8 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     double pixelsPerUs = contentWidth / frameTimeUs;
 
     // Begin scrollable region
-    if (ImGui::BeginChild("FlameGraphContent", ImVec2(-1, -1), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
+    if (ImGui::BeginChild("FlameGraphContent", ImVec2(-1, -1), ImGuiChildFlags_None,
+                          ImGuiWindowFlags_HorizontalScrollbar))
     {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -109,7 +120,10 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
         double currentStartUs = 0;
         for (const auto& child : root->children)
         {
-            if (child->isIdleTime) continue;
+            if (child->isIdleTime)
+            {
+                continue;
+            }
             stack.push_back({ child.get(), currentStartUs, 0 });
             currentStartUs += child->durationUs;
         }
@@ -123,7 +137,10 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
             double startUs = entry.startUs;
             int depth = entry.depth;
 
-            if (depth >= maxDepth) continue;
+            if (depth >= maxDepth)
+            {
+                continue;
+            }
 
             // Calculate bar position relative to base
             float x = (float)(startUs * pixelsPerUs);
@@ -131,7 +148,10 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
             float y = depth * (barHeight + spacing);
 
             // Skip very small bars
-            if (w < 1.0f) continue;
+            if (w < 1.0f)
+            {
+                continue;
+            }
 
             float x1 = basePos.x + x;
             float y1 = basePos.y + y;
@@ -145,7 +165,9 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
             // Draw bar
             drawList->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), color);
             if (w > 3.0f)
+            {
                 drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), borderColor);
+            }
 
             // Draw text if bar is wide enough
             if (w > 50)
@@ -172,7 +194,9 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
                 double childStart = startUs;
                 // Calculate proper start position for this child
                 for (int j = 0; j < i; j++)
+                {
                     childStart += event->children[j]->durationUs;
+                }
 
                 if (!child->isIdleTime && child->durationUs > 0)
                 {
@@ -199,7 +223,9 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
         {
             double childrenMs = 0;
             for (const auto& child : m_HoveredEvent->children)
+            {
                 childrenMs += child->durationUs / 1000.0;
+            }
             ImGui::Text("Self: %.3f ms", eventMs - childrenMs);
         }
 

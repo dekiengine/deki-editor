@@ -18,7 +18,9 @@ std::vector<Kind> Kinds(const TouchGestures::Output& out)
 {
     std::vector<Kind> kinds;
     for (const auto& e : out.mouse)
+    {
         kinds.push_back(e.kind);
+    }
     return kinds;
 }
 
@@ -28,8 +30,12 @@ std::vector<std::pair<int, bool>> Buttons(const TouchGestures::Output& out)
 {
     std::vector<std::pair<int, bool>> b;
     for (const auto& e : out.mouse)
+    {
         if (e.kind == Kind::Down || e.kind == Kind::Up)
+        {
             b.push_back({ e.button, e.kind == Kind::Down });
+        }
+    }
     return b;
 }
 }  // namespace
@@ -54,11 +60,13 @@ TEST(TouchGestures, TapClicksWhereTheFingerLanded)
 
     ASSERT_EQ(Buttons(out), (std::vector<std::pair<int, bool>>{ { 0, true }, { 0, false } }));
     for (const auto& e : out.mouse)
+    {
         if (e.kind == Kind::Down || e.kind == Kind::Up)
         {
             EXPECT_EQ(e.x, 100.0f);
             EXPECT_EQ(e.y, 100.0f);
         }
+    }
     // Nothing hovers once the finger is gone.
     EXPECT_EQ(out.mouse.back().kind, Kind::Leave);
     EXPECT_FALSE(t.OwnsPointer());
@@ -74,12 +82,14 @@ TEST(TouchGestures, DragPressesAtTheOriginThenFollows)
     ASSERT_EQ(Buttons(out), (std::vector<std::pair<int, bool>>{ { 0, true } }));
     // Pressed at the landing point, so the drag grabs what was touched.
     for (size_t i = 0; i < out.mouse.size(); ++i)
+    {
         if (out.mouse[i].kind == Kind::Down)
         {
             ASSERT_GT(i, 0u);
             EXPECT_EQ(out.mouse[i - 1].kind, Kind::Move);
             EXPECT_EQ(out.mouse[i - 1].x, 100.0f);
         }
+    }
     EXPECT_EQ(out.mouse.back().kind, Kind::Move);
     EXPECT_EQ(out.mouse.back().x, 130.0f);
 

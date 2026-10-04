@@ -50,14 +50,19 @@ TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
     Buffer<uint32_t> b(32, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     for (size_t i = 0; i < b.Count(); ++i)
+    {
         EXPECT_EQ(b[i], 0u) << "element " << i;
+    }
 }
 
 TEST(DekiBuffer, IndexingAndIterationSeeTheSameMemory)
 {
     Buffer<int16_t> b(4, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
-    b[0] = 10; b[1] = 20; b[2] = 30; b[3] = 40;
+    b[0] = 10;
+    b[1] = 20;
+    b[2] = 30;
+    b[3] = 40;
 
     std::vector<int16_t> seen(b.begin(), b.end());
     ASSERT_EQ(seen.size(), 4u);
@@ -73,10 +78,10 @@ TEST(DekiBuffer, MoveTransfersOwnershipAndLeavesTheSourceEmpty)
     const uint8_t* raw = a.Data();
 
     Buffer<uint8_t> b(std::move(a));
-    EXPECT_FALSE(static_cast<bool>(a));   // moved-from frees nothing
+    EXPECT_FALSE(static_cast<bool>(a));  // moved-from frees nothing
     EXPECT_EQ(a.Count(), 0u);
     ASSERT_TRUE(static_cast<bool>(b));
-    EXPECT_EQ(b.Data(), raw);             // same memory, not a copy
+    EXPECT_EQ(b.Data(), raw);  // same memory, not a copy
     EXPECT_EQ(b.Count(), 8u);
 }
 
@@ -198,11 +203,17 @@ public:
             return nullptr;
         }
         if (needsDma)
+        {
             ++dmaCalls;
+        }
         if (region == Deki::Memory::External)
+        {
             ++externalCalls;
+        }
         else
+        {
             ++internalCalls;
+        }
         return malloc(bytes);
     }
 
@@ -212,22 +223,20 @@ public:
     // Zero for a region this board does not serve: reporting free space in
     // memory that does not exist would read as "nearly full" rather than
     // "not here".
-    size_t GetAvailable(Deki::Memory::Region region) const override
-    {
-        return Serves(region) ? 256 * 1024 : 0;
-    }
+    size_t GetAvailable(Deki::Memory::Region region) const override { return Serves(region) ? 256 * 1024 : 0; }
 
     int externalCalls = 0;
     int internalCalls = 0;
     int dmaCalls = 0;
-    int refusedCalls = 0;   ///< regions this board does not serve
+    int refusedCalls = 0;  ///< regions this board does not serve
 };
 
 struct ScopedSpy
 {
-    ScopedSpy() : spy(new RegionSpyProvider())
+    ScopedSpy()
+        : spy(new RegionSpyProvider())
     {
-        Deki::Memory::SetBackend(spy);   // takes ownership
+        Deki::Memory::SetBackend(spy);  // takes ownership
         Deki::Memory::Initialize();
     }
     ~ScopedSpy()
@@ -266,7 +275,7 @@ TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
     ScopedSpy s;
     void* p = Deki::Memory::Allocate(64, Deki::Memory::External);
     ASSERT_NE(p, nullptr);
-    EXPECT_EQ(s.spy->externalCalls, 1);   // and size is irrelevant: 64 bytes
+    EXPECT_EQ(s.spy->externalCalls, 1);  // and size is irrelevant: 64 bytes
     Deki::Memory::Free(p);
 }
 
@@ -276,7 +285,7 @@ TEST(DekiMemoryPlacement, DmaAsksTheProviderForDmaMemory)
     void* p = Deki::Memory::AllocateDma(4096, Deki::Memory::Internal);
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(s.spy->dmaCalls, 1);
-    EXPECT_EQ(s.spy->externalCalls, 0);   // a peripheral must be able to reach it
+    EXPECT_EQ(s.spy->externalCalls, 0);  // a peripheral must be able to reach it
     Deki::Memory::Free(p);
 }
 
@@ -326,7 +335,10 @@ struct CapturedLog
     {
         Deki::LogSystem::SetLogCallback(
             [this](Deki::LogLevel, const std::string& message, const char*, int)
-            { text += message; text += "\n"; });
+            {
+                text += message;
+                text += "\n";
+            });
     }
     ~CapturedLog() { Deki::LogSystem::SetLogCallback(nullptr); }
 
@@ -342,8 +354,7 @@ TEST(DekiAllocContext, AContextNamesTheCallSite)
 
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
     ASSERT_NE(ctx.Name(), nullptr);
-    EXPECT_NE(strstr(ctx.Name(), "AContextNamesTheCallSite"), nullptr)
-        << "name was: " << ctx.Name();
+    EXPECT_NE(strstr(ctx.Name(), "AContextNamesTheCallSite"), nullptr) << "name was: " << ctx.Name();
     ASSERT_NE(ctx.File(), nullptr);
     EXPECT_NE(strstr(ctx.File(), "BufferTests"), nullptr) << "file was: " << ctx.File();
     EXPECT_GT(ctx.Line(), 0u);
@@ -364,12 +375,12 @@ TEST(DekiAllocContext, TwoAllocationsInOneFunctionAreToldApartByLine)
     const Deki::AllocContext second;
 
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
-    EXPECT_STREQ(first.Name(), second.Name());   // same enclosing function
+    EXPECT_STREQ(first.Name(), second.Name());  // same enclosing function
     EXPECT_STREQ(first.File(), second.File());
     EXPECT_NE(first.Line(), second.Line()) << "two allocations in one function "
                                               "must not report the same origin";
 #else
-    EXPECT_EQ(first.Line(), second.Line());      // both nothing
+    EXPECT_EQ(first.Line(), second.Line());  // both nothing
 #endif
 }
 
@@ -389,8 +400,7 @@ TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
     Deki::Memory::SetBackend(nullptr);
 
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
-    EXPECT_TRUE(log.Contains("AFailureNamesTheCallerNotTheEngineHeader"))
-        << "logged: " << log.text;
+    EXPECT_TRUE(log.Contains("AFailureNamesTheCallerNotTheEngineHeader")) << "logged: " << log.text;
 
     // Match on "at <file>:", which is the origin the AllocContext claims.
     // A bare filename test would pass on the logger's own "Memory.cpp:450 ->"
@@ -450,7 +460,7 @@ namespace TestBoard
 // constant, no engine change and no registration call. Two board packages both
 // wanting an "Rtc" cannot collide, because each is in its own namespace - which
 // a class being closed is what guarantees.
-inline constexpr Deki::Memory::Region Rtc{"rtc"};
+inline constexpr Deki::Memory::Region Rtc{ "rtc" };
 }  // namespace TestBoard
 
 TEST(DekiMemoryRegion, APackageCanDefineItsOwnRegion)
@@ -525,7 +535,7 @@ TEST(DekiMemoryRegion, DmaIsAConstraintNotAPlace)
     ASSERT_NE(b, nullptr);
 
     EXPECT_EQ(s.spy->dmaCalls, 2) << "the requirement must reach the provider "
-                                    "from both regions";
+                                     "from both regions";
     EXPECT_EQ(s.spy->internalCalls, 1);
     EXPECT_EQ(s.spy->externalCalls, 1);
 

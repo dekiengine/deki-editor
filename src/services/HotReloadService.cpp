@@ -84,9 +84,12 @@ std::filesystem::path EditorImGuiInternalHeader()
 {
     namespace fs = std::filesystem;
     std::error_code ec;
-    fs::path header = fs::weakly_canonical(
-        fs::path(DekiEditor::EditorSettings::GetDepsDir()) / "imgui-src" / "imgui_internal.h", ec);
-    if (ec) return {};
+    fs::path header =
+        fs::weakly_canonical(fs::path(DekiEditor::EditorSettings::GetDepsDir()) / "imgui-src" / "imgui_internal.h", ec);
+    if (ec)
+    {
+        return {};
+    }
     return header;
 }
 
@@ -135,7 +138,9 @@ std::vector<std::filesystem::path> EditorAbiInputs()
 #endif
     fs::path header = EditorImGuiInternalHeader();
     if (!header.empty())
+    {
         inputs.push_back(header);
+    }
     return inputs;
 }
 }  // namespace
@@ -172,7 +177,7 @@ struct HotReloadService::ActiveBuild
     };
     struct Step
     {
-        std::string phase;   // progress text while it runs
+        std::string phase;  // progress text while it runs
         std::string command;
         std::string target;  // package target (Packages kind only)
         uint32_t timeoutMs = 0;
@@ -204,7 +209,9 @@ struct HotReloadService::ActiveBuild
 };
 
 HotReloadService::HotReloadService(PluginLoader* loader, PackageLoader* packageLoader, ConsolePanel* console)
-    : m_Loader(loader), m_PackageLoader(packageLoader), m_Console(console)
+    : m_Loader(loader),
+      m_PackageLoader(packageLoader),
+      m_Console(console)
 {
 #ifdef _WIN32
     // Windows only: elsewhere the project is built with the compiler baked into
@@ -220,16 +227,14 @@ HotReloadService::HotReloadService(PluginLoader* loader, PackageLoader* packageL
     if (toolchain.needsMsvcEnv && !MsvcEnvironment::Get().Initialize())
     {
         if (m_Console)
-            m_Console->LogError(("Hot reload disabled: " +
-                                 MsvcEnvironment::Get().GetStatus())
-                                    .c_str());
+        {
+            m_Console->LogError(("Hot reload disabled: " + MsvcEnvironment::Get().GetStatus()).c_str());
+        }
     }
 
     if (!toolchain.valid && m_Console)
     {
-        m_Console->LogError(("Hot reload disabled: " + toolchain.error + " " +
-                             PluginToolchain::InstallHint())
-                                .c_str());
+        m_Console->LogError(("Hot reload disabled: " + toolchain.error + " " + PluginToolchain::InstallHint()).c_str());
     }
 #endif
 }
@@ -281,17 +286,29 @@ void HotReloadService::StartWatching(const std::string& projectPath)
         {
             for (const auto& entry : fs::directory_iterator(packagesPath, ec))
             {
-                if (ec) break;
-                if (!entry.is_directory(ec)) continue;
+                if (ec)
+                {
+                    break;
+                }
+                if (!entry.is_directory(ec))
+                {
+                    continue;
+                }
 
                 fs::path canonical = fs::canonical(entry.path(), ec);
-                if (ec) continue;
+                if (ec)
+                {
+                    continue;
+                }
 
                 // Junction points outside project/packages/ → its real
                 // target is somewhere else on disk and the junction-side
                 // watcher won't see edits made via the real path.
                 fs::path expected = canonicalPackages / entry.path().filename();
-                if (canonical == expected) continue;
+                if (canonical == expected)
+                {
+                    continue;
+                }
 
                 auto extra = std::make_unique<AssetFileWatcher>();
                 extra->Start(canonical.string(), canonical.string());
@@ -312,7 +329,8 @@ void HotReloadService::StartWatching(const std::string& projectPath)
     namespace fsx = std::filesystem;
     bool needsBuild = true;
     fsx::path projName = fsx::path(projectPath).filename();
-    fsx::path pluginDll = fsx::path(ProjectPaths::Runtime(projectPath)) / SharedLibFileName(ProjectPluginTarget(projName.string()));
+    fsx::path pluginDll =
+        fsx::path(ProjectPaths::Runtime(projectPath)) / SharedLibFileName(ProjectPluginTarget(projName.string()));
     std::error_code dllEc;
     if (fsx::exists(pluginDll, dllEc) && !dllEc)
     {
@@ -320,7 +338,8 @@ void HotReloadService::StartWatching(const std::string& projectPath)
         if (!dllEc)
         {
             const bool srcNewer = fsx::exists(srcPath) && PackageLoader::HasNewerSources(srcPath.string(), dllTime);
-            const bool packagesNewer = fsx::exists(packagesPath) && PackageLoader::HasNewerSources(packagesPath.string(), dllTime);
+            const bool packagesNewer =
+                fsx::exists(packagesPath) && PackageLoader::HasNewerSources(packagesPath.string(), dllTime);
 
             // Editor-side ImGui ABI guard. Package DLLs embed their own ImGui and
             // operate on the editor's ImGuiContext via a shared pointer; that only
@@ -340,7 +359,9 @@ void HotReloadService::StartWatching(const std::string& projectPath)
                 {
                     auto hTime = fsx::last_write_time(imguiHeader, hEc);
                     if (!hEc && hTime > dllTime)
+                    {
                         imguiNewer = true;
+                    }
                 }
             }
             if (imguiNewer)
@@ -384,15 +405,19 @@ void HotReloadService::Tick(const std::string& projectPath)
     // source folder - see the fallback below.
     auto consume = [this](AssetFileWatcher* w, bool rootIsPackagesDir)
     {
-        if (!w) return;
+        if (!w)
+        {
+            return;
+        }
         for (const auto& evt : w->DrainReadyEvents())
         {
             if (SourceChangeDetector::IsBuildArtifact(evt.relativePath))
+            {
                 continue;
+            }
             if (!m_SourcesDirty)
             {
-                DEKI_LOG_EDITOR("Watcher: '%s' set m_SourcesDirty=true",
-                                evt.relativePath.c_str());
+                DEKI_LOG_EDITOR("Watcher: '%s' set m_SourcesDirty=true", evt.relativePath.c_str());
             }
             m_SourcesDirty = true;
 
@@ -400,7 +425,9 @@ void HotReloadService::Tick(const std::string& projectPath)
             {
                 std::string name = SourceChangeDetector::PackageNameFromEventPath(evt.relativePath);
                 if (!name.empty())
+                {
                     m_DirtyPackageDirs.insert(std::move(name));
+                }
             }
             else
             {
@@ -412,17 +439,23 @@ void HotReloadService::Tick(const std::string& projectPath)
     consume(m_SrcWatcher.get(), false);
     consume(m_PackagesWatcher.get(), true);
     for (auto& w : m_PackageJunctionWatchers)
+    {
         consume(w.get(), false);
+    }
 }
 
 void HotReloadService::ProcessPendingBuild()
 {
     if (!m_PendingBuildCheck)
+    {
         return;
+    }
 
     // Stays pending while a build runs; it is picked up once that has finished.
     if (m_Active)
+    {
         return;
+    }
 
     // Wait a few frames for ImGui docking layout to fully initialize before
     // running the build. The build blocks the main thread, so if it runs on
@@ -441,12 +474,16 @@ void HotReloadService::ProcessPendingBuild()
 void HotReloadService::RunPendingBuildNow()
 {
     if (!m_PendingBuildCheck)
+    {
         return;
+    }
 
     // Synchronous form (startup, headless verbs, the MCP rebuild tool): start
     // the build and pump it here until it, and anything it chains, is done.
     if (m_Active)
+    {
         WaitForBuild();
+    }
     m_PendingBuildCheck = false;
     m_PendingBuildDelay = 0;
     CheckAndReload(m_PendingBuildPath);
@@ -456,7 +493,9 @@ void HotReloadService::RunPendingBuildNow()
 void HotReloadService::CheckAndReload(const std::string& projectPath)
 {
     if (!m_Loader)
+    {
         return;
+    }
 
     namespace fs = std::filesystem;
 
@@ -469,7 +508,9 @@ void HotReloadService::CheckAndReload(const std::string& projectPath)
     // Check if there are source files (build/ will be created by cmake if needed)
     fs::path packagesPath = fs::path(GetPackagesDirectory(projectPath));
     if (!fs::exists(srcPath) && !fs::exists(packagesPath))
+    {
         return;
+    }
 
     // One build at a time. CheckAndReloadPackages already took this flag; this
     // path did not, so a build check arriving while one was running (a window
@@ -490,7 +531,9 @@ void HotReloadService::CheckAndReload(const std::string& projectPath)
     bool forceRebuild = m_ForceBuild;
     m_ForceBuild = false;
     if (!forceRebuild && !DetectSourceChanges(projectPath))
+    {
         return;
+    }
 
     // Log and start the build. The configure/compile processes run on the
     // runner's thread; PumpBuild() advances the steps from the main loop and
@@ -498,14 +541,18 @@ void HotReloadService::CheckAndReload(const std::string& projectPath)
     // to run right here, re-entering ImGui from a pipe callback to repaint a
     // modal that swallowed every event for its whole duration.
     if (m_Console)
+    {
         m_Console->LogEditor("Source changes detected, building plugin...");
+    }
     BeginBuildStatus();
 
     auto build = std::make_unique<ActiveBuild>();
     build->kind = ActiveBuild::Kind::Plugin;
     build->projectPath = projectPath;
     if (!PrepareBuild(*build))
+    {
         build->failed = true;  // preflight failure: reported like a failed build
+    }
     StartActive(std::move(build));
 }
 
@@ -533,7 +580,9 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
     // Each new compilation replaces its own pinned errors - clear plugin's
     // previous errors before logging fresh ones (package errors are untouched).
     if (m_Console)
+    {
         m_Console->ClearBuildErrorsForPackage("__plugin__");
+    }
 
     // Log build output to Console Panel
     BuildOutputOptions reportOptions;
@@ -543,7 +592,9 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
     reportOptions.rawWhenNoErrors = !buildSuccess;
     BuildOutputSummary summary;
     if (m_Console)
+    {
         summary = ReportBuildOutput(*m_Console, b.output, "__plugin__", reportOptions);
+    }
     const int errorCount = summary.errors;
     const int warningCount = summary.warnings;
 
@@ -558,12 +609,15 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         // AssetManager-epoch bump (and the few hundred ms of unload/reload
         // work) on those reloads.
         {
-            fs::path tempDll = ProjectPaths::RuntimeBuildTemp(b.projectPath) / SharedLibFileName(ProjectPluginTarget(fs::path(b.projectPath).filename().string()));
+            fs::path tempDll = ProjectPaths::RuntimeBuildTemp(b.projectPath) /
+                               SharedLibFileName(ProjectPluginTarget(fs::path(b.projectPath).filename().string()));
             std::error_code ec;
             if (!fs::exists(tempDll, ec))
             {
                 if (m_Console)
+                {
                     m_Console->LogEditor("Plugin unchanged - skipping reload");
+                }
                 m_SourcesDirty = false;
                 return;
             }
@@ -573,7 +627,9 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         try
         {
             if (m_OnBeforeReload)
+            {
                 m_OnBeforeReload();
+            }
         }
         catch (const std::exception& e)
         {
@@ -628,7 +684,9 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         // static registrars never rerun. Their RegisterComponents exports are
         // idempotent re-registration paths - invoke them all.
         if (m_PackageLoader)
+        {
             m_PackageLoader->ReRegisterAllPackages();
+        }
         reportReloadPhase("ReRegisterAllPackages");
 
         // Restore plugin settings from the snapshot we took before unload.
@@ -646,7 +704,9 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         try
         {
             if (m_OnAfterReload)
+            {
                 m_OnAfterReload();
+            }
         }
         catch (const std::exception& e)
         {
@@ -656,7 +716,8 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
 
         if (m_Console)
         {
-            auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(ReloadClock::now() - reloadStart).count();
+            auto totalMs =
+                std::chrono::duration_cast<std::chrono::milliseconds>(ReloadClock::now() - reloadStart).count();
             char buf[160];
             snprintf(buf, sizeof(buf), "[hot-reload timing] TOTAL CheckAndReload: %lldms", (long long)totalMs);
             m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
@@ -721,10 +782,14 @@ static void LogBuildErrorsWithoutConsole(const std::string& output)
     {
         size_t end = output.find('\n', start);
         if (end == std::string::npos)
+        {
             end = output.size();
+        }
         std::string line = output.substr(start, end - start);
         if (!line.empty() && line.back() == '\r')
+        {
             line.pop_back();
+        }
         if (ClassifyBuildLine(line) == BuildLineKind::Error)
         {
             ++total;
@@ -737,27 +802,41 @@ static void LogBuildErrorsWithoutConsole(const std::string& output)
         start = end + 1;
     }
     if (total > shown)
+    {
         DEKI_LOG_ERROR("  ... and %d more error lines", total - shown);
+    }
     if (total == 0 && !output.empty())
+    {
         DEKI_LOG_ERROR("  (no compiler error line recognised; last output: %s)",
                        output.substr(output.size() > 400 ? output.size() - 400 : 0).c_str());
+    }
 }
 
 bool HotReloadService::EnsureFirstBuild(const std::string& projectPath)
 {
     namespace fs = std::filesystem;
     if (projectPath.empty())
+    {
         return false;
+    }
 
     const fs::path binDir = ProjectPaths::Runtime(projectPath);
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(binDir, ec))
     {
-        if (ec) break;
-        if (!entry.is_regular_file(ec)) continue;
+        if (ec)
+        {
+            break;
+        }
+        if (!entry.is_regular_file(ec))
+        {
+            continue;
+        }
         const std::string fn = entry.path().filename().string();
         if (IsSharedLibFile(fn) && SharedLibStem(fn).rfind("deki-", 0) == 0)
+        {
             return true;  // already built; the normal incremental paths apply
+        }
     }
 
     DEKI_LOG_EDITOR("HotReload: project has no package binaries - running the first build");
@@ -767,7 +846,9 @@ bool HotReloadService::EnsureFirstBuild(const std::string& projectPath)
     {
         DEKI_LOG_ERROR("HotReload: first build failed; the project will open with no components");
         if (m_Headless || !m_Console)
+        {
             LogBuildErrorsWithoutConsole(output);
+        }
     }
     return ok;
 }
@@ -776,7 +857,9 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
 {
     namespace fs = std::filesystem;
     if (projectPath.empty() || !m_Loader)
+    {
         return false;
+    }
 
     const fs::path bin = ProjectPaths::Runtime(projectPath);
     const fs::path srcPath = fs::path(GetSourceDirectory(projectPath));
@@ -784,7 +867,9 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
 
     std::error_code ec;
     if (!fs::exists(bin, ec) || ec)
+    {
         return false;  // nothing built yet - normal post-open path handles it
+    }
 
     // Promote before measuring staleness, and before anything is loaded. A DLL
     // left in bin/.build_temp/ is a build whose promotion never happened (the
@@ -804,9 +889,14 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     fs::file_time_type oldestOutput = fs::file_time_type::max();
     for (const auto& entry : fs::directory_iterator(bin, ec))
     {
-        if (ec) break;
+        if (ec)
+        {
+            break;
+        }
         if (!entry.is_regular_file(ec))
+        {
             continue;
+        }
         const std::string fn = entry.path().filename().string();
         // Package libraries are deki-*; the plugin library is <project>-components.
         // Compare on the decoration-stripped stem so this holds for both
@@ -814,10 +904,11 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         const std::string stem = SharedLibStem(fn);
         const bool isSharedLib = IsSharedLibFile(fn);
         const bool isPackage = isSharedLib && stem.rfind("deki-", 0) == 0;
-        const bool isPlugin = isSharedLib && stem.size() > 11 &&
-                              stem.compare(stem.size() - 11, 11, "-components") == 0;
+        const bool isPlugin = isSharedLib && stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0;
         if (!isPackage && !isPlugin)
+        {
             continue;
+        }
         const auto t = fs::last_write_time(entry.path(), ec);
         if (ec)
         {
@@ -826,10 +917,14 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         }
         anyOutput = true;
         if (t < oldestOutput)
+        {
             oldestOutput = t;
+        }
     }
     if (!anyOutput)
+    {
         return false;  // first build - handled by the normal post-open path
+    }
 
     // Reference time: the oldest output OR the last successful build, whichever
     // is later. An unchanged package DLL keeps its old mtime through every
@@ -838,7 +933,9 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     {
         const auto stampTime = fs::last_write_time(LastBuildStampPath(projectPath), ec);
         if (!ec && stampTime > oldestOutput)
+        {
             oldestOutput = stampTime;
+        }
         ec.clear();
     }
 
@@ -850,8 +947,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         stale = true;
         reason = "plugin sources changed";
     }
-    if (!stale && fs::exists(packagesPath) &&
-        PackageLoader::HasNewerSources(packagesPath.string(), oldestOutput))
+    if (!stale && fs::exists(packagesPath) && PackageLoader::HasNewerSources(packagesPath.string(), oldestOutput))
     {
         stale = true;
         reason = "package sources changed";
@@ -899,13 +995,19 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         }
     }
     if (!stale)
+    {
         return false;
+    }
 
     DEKI_LOG_EDITOR("HotReload: package binaries stale (%s) - rebuilding before load", reason);
     if (m_Console)
+    {
         m_Console->LogEditor((std::string("Rebuilding packages before load (") + reason + ")...").c_str());
+    }
     if (m_Headless || !m_Console)
+    {
         DEKI_LOG_INFO("Rebuilding packages before load (%s)...", reason);
+    }
     StartupProgress::Update("Rebuilding packages...");
 
     // m_PluginDirectory was set above; RunBuild reads it for the reload step.
@@ -939,11 +1041,14 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         {
             const std::string fn = entry.path().filename().string();
             const std::string stem = SharedLibStem(fn);
-            const bool ours = IsSharedLibFile(fn) && (stem.rfind("deki-", 0) == 0 ||
-                                                      (stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0));
+            const bool ours =
+                IsSharedLibFile(fn) && (stem.rfind("deki-", 0) == 0 ||
+                                        (stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0));
             std::error_code tEc;
             if (!ours || fs::last_write_time(entry.path(), tEc) >= buildStart || tEc)
+            {
                 continue;
+            }
             removed.push_back(entry.path().string());
         }
         for (const std::string& p : removed)
@@ -958,16 +1063,21 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
                        "this one. Fix the build errors below and build again.",
                        reason, what.c_str());
         if (m_Console)
+        {
             m_Console->LogError(("The packages could not be rebuilt for this editor, so " + what +
                                  " were not loaded. Fix the build errors and build again.")
                                     .c_str());
+        }
         if (m_Headless || !m_Console)
+        {
             LogBuildErrorsWithoutConsole(buildOutput);
+        }
     }
     else if (!ok && (m_Headless || !m_Console))
     {
         DEKI_LOG_ERROR("Rebuilding the project's packages failed (%s); it opens with the previous "
-                       "binaries, which do not have those changes:", reason);
+                       "binaries, which do not have those changes:",
+                       reason);
         LogBuildErrorsWithoutConsole(buildOutput);
     }
     // The post-open watcher path must not also rebuild for the same edits.
@@ -982,7 +1092,9 @@ bool HotReloadService::DetectSourceChanges(const std::string& projectPath)
     // attempts clear it. Save-with-identical-content is treated as a real change
     // (accepted false positive - incremental cmake resolves to a fast no-op).
     if (m_SourcesDirty)
+    {
         return true;
+    }
 
     // Bootstrap case the watcher cannot see: a freshly cloned project has never
     // been built, and nothing has changed since the editor started, so it looks
@@ -994,19 +1106,24 @@ bool HotReloadService::DetectSourceChanges(const std::string& projectPath)
 
     const fs::path binDir = ProjectPaths::Runtime(projectPath);
     if (!fs::exists(binDir, ec))
+    {
         return true;
+    }
 
     for (const auto& entry : fs::directory_iterator(binDir, ec))
     {
         if (!entry.is_regular_file())
+        {
             continue;
+        }
 
         std::string ext = entry.path().extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(),
-                       [](unsigned char c)
-                       { return static_cast<char>(std::tolower(c)); });
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (ext == ".dll" || ext == ".so" || ext == ".dylib")
+        {
             return false;  // something has been built before - trust the watcher
+        }
     }
 
     return true;  // bin/ exists but holds no binaries: still never built
@@ -1041,7 +1158,9 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     if (!BuildFileGenerator::GenerateDesktopCMakeLists(projectPath, m_Console))
     {
         if (m_Console)
+        {
             m_Console->LogError("Failed to generate CMakeLists.txt");
+        }
         return false;
     }
     reportPhase("GenerateDesktopCMakeLists");
@@ -1073,7 +1192,9 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     {
         DEKI_LOG_ERROR("HotReloadService: no usable plugin toolchain: %s", toolchain.error.c_str());
         if (m_Console)
+        {
             m_Console->LogError((toolchain.error + " " + PluginToolchain::InstallHint()).c_str());
+        }
         return false;
     }
 
@@ -1085,9 +1206,9 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         DEKI_LOG_ERROR("HotReloadService: MSVC environment unavailable: %s",
                        MsvcEnvironment::Get().GetStatus().c_str());
         if (m_Console)
-            m_Console->LogError(("MSVC toolchain unavailable - " +
-                                 MsvcEnvironment::Get().GetStatus())
-                                    .c_str());
+        {
+            m_Console->LogError(("MSVC toolchain unavailable - " + MsvcEnvironment::Get().GetStatus()).c_str());
+        }
         return false;
     }
 #endif
@@ -1107,10 +1228,11 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         std::string onPath = PluginToolchain::FindOnPath("ninja");
         if (onPath.empty())
         {
-            DEKI_LOG_ERROR("HotReloadService: ninja not found at %s or on PATH",
-                           ninjaPath.string().c_str());
+            DEKI_LOG_ERROR("HotReloadService: ninja not found at %s or on PATH", ninjaPath.string().c_str());
             if (m_Console)
+            {
                 m_Console->LogError("ninja not found - install it or reinstall the editor.");
+            }
             return false;
         }
         ninjaPath = onPath;
@@ -1129,7 +1251,9 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         fs::path bundled = fs::path(editorDir) / "ninja";
         std::error_code ec;
         if (fs::exists(bundled, ec))
+        {
             ninjaCMakePath = bundled.string();
+        }
     }
 #endif
 
@@ -1152,7 +1276,10 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     if (fs::exists(stampPath))
     {
         std::ifstream f(stampPath, std::ios::binary);
-        if (f) f.read(reinterpret_cast<char*>(&cachedConfigHash), sizeof(cachedConfigHash));
+        if (f)
+        {
+            f.read(reinterpret_cast<char*>(&cachedConfigHash), sizeof(cachedConfigHash));
+        }
     }
     reportPhase("ComputeConfigureInputsHash");
 
@@ -1169,30 +1296,46 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         {
             std::error_code ec;
             const fs::path ca = fs::weakly_canonical(fs::path(a), ec);
-            if (!ec) a = ca.generic_string();
+            if (!ec)
+            {
+                a = ca.generic_string();
+            }
             const fs::path cb = fs::weakly_canonical(fs::path(b), ec);
-            if (!ec) b = cb.generic_string();
+            if (!ec)
+            {
+                b = cb.generic_string();
+            }
 #ifdef _WIN32
             std::transform(a.begin(), a.end(), a.begin(), [](unsigned char c) { return (char)std::tolower(c); });
             std::transform(b.begin(), b.end(), b.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 #endif
-            while (!a.empty() && a.back() == '/') a.pop_back();
-            while (!b.empty() && b.back() == '/') b.pop_back();
+            while (!a.empty() && a.back() == '/')
+                a.pop_back();
+            while (!b.empty() && b.back() == '/')
+                b.pop_back();
             return a == b;
         };
         const std::string cacheDir = buildPath.string();
         const char* changed = nullptr;
         if (!samePath(ReadCMakeCacheVar(cacheDir, "DEKI_DEPS_DIR"), EditorSettings::GetDepsDir()))
+        {
             changed = "DEKI_DEPS_DIR";
+        }
         else if (!samePath(ReadCMakeCacheVar(cacheDir, "DEKI_ENGINE_PATH"), EditorSettings::GetEnginePath()))
+        {
             changed = "DEKI_ENGINE_PATH";
+        }
         else if (!samePath(ReadCMakeCacheVar(cacheDir, "DEKI_EDITOR_DIR"), EditorPaths::GetExecutableDir()))
+        {
             changed = "DEKI_EDITOR_DIR";
+        }
         // SDL3 moved from a source checkout to a prebuilt archive; a project
         // configured against the old headers would not find them any more.
         else if (!samePath(ReadCMakeCacheVar(cacheDir, "DEKI_SDL3_INCLUDE_DIR"),
                            ReadCMakeCacheVar(EditorSettings::GetBuildDir(), "DEKI_SDL3_INCLUDE_DIR")))
+        {
             changed = "DEKI_SDL3_INCLUDE_DIR";
+        }
         if (changed)
         {
             needsConfigure = true;
@@ -1204,9 +1347,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     {
         char buf[256];
         snprintf(buf, sizeof(buf), "[hot-reload timing] needsConfigure=%d (hash %llx vs cached %llx)",
-                 needsConfigure ? 1 : 0,
-                 (unsigned long long)currentConfigHash,
-                 (unsigned long long)cachedConfigHash);
+                 needsConfigure ? 1 : 0, (unsigned long long)currentConfigHash, (unsigned long long)cachedConfigHash);
         m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
     }
 
@@ -1216,7 +1357,6 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         {
             m_Console->LogEditor("Running CMake configure...");
         }
-
 
 #ifdef NDEBUG
         const char* buildType = "Release";
@@ -1234,15 +1374,14 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         // back to cl.exe, and supports a MinGW editor build - which a hardcoded
         // clang-cl lookup would reject outright on a machine without LLVM.
         if (m_Console)
+        {
             m_Console->LogEditor(("Plugin toolchain: " + toolchain.displayName).c_str());
+        }
 
-        std::string configCmd = std::string("cmake -G Ninja") +
-                                " -DCMAKE_MAKE_PROGRAM=\"" + ninjaCMakePath + "\"" +
-                                " -DCMAKE_BUILD_TYPE=" + buildType +
-                                " -DCMAKE_C_COMPILER=\"" + toolchain.cCompiler + "\"" +
-                                " -DCMAKE_CXX_COMPILER=\"" + toolchain.cxxCompiler + "\"" +
-                                EditorSettings::GetCMakeLocationArgs() +
-                                " -B \"" + buildPath.string() + "\"" +
+        std::string configCmd = std::string("cmake -G Ninja") + " -DCMAKE_MAKE_PROGRAM=\"" + ninjaCMakePath + "\"" +
+                                " -DCMAKE_BUILD_TYPE=" + buildType + " -DCMAKE_C_COMPILER=\"" + toolchain.cCompiler +
+                                "\"" + " -DCMAKE_CXX_COMPILER=\"" + toolchain.cxxCompiler + "\"" +
+                                EditorSettings::GetCMakeLocationArgs() + " -B \"" + buildPath.string() + "\"" +
                                 " -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
 #else
         // Linux/macOS: pin the project to the exact compiler this editor was
@@ -1257,16 +1396,12 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         // covers both roles instead of the project needing a system compiler
         // plus a separate g++-16.
         const std::string cxx = ProjectCxxCompiler();
-        std::string configCmd = std::string("\"") + ResolveTool("cmake") + "\" -G Ninja" +
-                                " -DCMAKE_MAKE_PROGRAM=\"" + ninjaCMakePath + "\"" +
-                                " -DCMAKE_BUILD_TYPE=" + buildType +
-                                " -DCMAKE_POSITION_INDEPENDENT_CODE=ON" +
-                                " -DCMAKE_C_COMPILER=\"" + ProjectCCompiler() + "\"" +
-                                " -DCMAKE_CXX_COMPILER=\"" + cxx + "\"" +
-                                " -DDEKI_GXX16=\"" + cxx + "\"" +
-                                EditorSettings::GetCMakeLocationArgs() +
-                                " -B \"" + buildPath.string() + "\"" +
-                                " -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
+        std::string configCmd =
+            std::string("\"") + ResolveTool("cmake") + "\" -G Ninja" + " -DCMAKE_MAKE_PROGRAM=\"" + ninjaCMakePath +
+            "\"" + " -DCMAKE_BUILD_TYPE=" + buildType + " -DCMAKE_POSITION_INDEPENDENT_CODE=ON" +
+            " -DCMAKE_C_COMPILER=\"" + ProjectCCompiler() + "\"" + " -DCMAKE_CXX_COMPILER=\"" + cxx + "\"" +
+            " -DDEKI_GXX16=\"" + cxx + "\"" + EditorSettings::GetCMakeLocationArgs() + " -B \"" + buildPath.string() +
+            "\"" + " -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
 #endif
         ActiveBuild::Step configure;
         configure.phase = "Configuring project...";
@@ -1285,7 +1420,6 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         reportPhase("configure-skipped");
     }
     b.buildPath = buildPath;
-
 
     // Scope the build to the plugin target only. Without --target, "all" is
     // built, which re-evaluates every package DLL each cycle - Ninja sometimes
@@ -1310,8 +1444,14 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         std::error_code binEc;
         for (const auto& entry : fs::directory_iterator(binDir, binEc))
         {
-            if (binEc) break;
-            if (!entry.is_regular_file(binEc)) continue;
+            if (binEc)
+            {
+                break;
+            }
+            if (!entry.is_regular_file(binEc))
+            {
+                continue;
+            }
             const std::string fn = entry.path().filename().string();
             if (IsSharedLibFile(fn) && SharedLibStem(fn).rfind("deki-", 0) == 0)
             {
@@ -1328,12 +1468,16 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     // the still-mysterious deki-audio/deki-gps relink-every-cycle problem.
     std::string buildCmd = "\"" + ResolveTool("cmake") + "\" --build \"" + buildPath.string() + "\"";
     if (!coldBuild)
+    {
         buildCmd += " --target " + pluginTarget;
+    }
     buildCmd += " --parallel -- -d explain";
 
     m_LastBuildWasCold = coldBuild;
     if (coldBuild)
+    {
         DEKI_LOG_EDITOR("HotReload: no package binaries yet - building all targets once");
+    }
 
     ActiveBuild::Step compile;
     compile.phase = "Compiling...";
@@ -1358,7 +1502,9 @@ void HotReloadService::TouchLastBuildStamp(const std::string& projectPath)
     std::filesystem::create_directories(ProjectPaths::Runtime(projectPath), ec);
     std::ofstream f(LastBuildStampPath(projectPath), std::ios::binary | std::ios::trunc);
     if (f)
+    {
         f << "ok\n";
+    }
 }
 
 // After a successful build: keep the debugger from locking package PDBs.
@@ -1379,14 +1525,23 @@ void HotReloadService::ArchivePackagePdbs(const std::string& projectPath)
     {
         for (const auto& entry : fs::directory_iterator(binDir, aec))
         {
-            if (!entry.is_regular_file()) continue;
+            if (!entry.is_regular_file())
+            {
+                continue;
+            }
             auto path = entry.path();
-            if (path.extension() != ".pdb") continue;
+            if (path.extension() != ".pdb")
+            {
+                continue;
+            }
             std::string filename = path.filename().string();
             // Only package PDBs (deki-*.pdb). Leave the plugin DLL's PDB
             // alone - its embedded path points to .build_temp and is
             // already unreachable to the debugger after the move.
-            if (filename.rfind("deki-", 0) != 0) continue;
+            if (filename.rfind("deki-", 0) != 0)
+            {
+                continue;
+            }
             std::error_code mec;
             fs::path dest = archiveDir / filename;
             fs::remove(dest, mec);
@@ -1401,12 +1556,16 @@ bool HotReloadService::RunBuild(const std::string& projectPath, std::string& out
     // continue (project open, headless verbs): the same steps, pumped here
     // until they are done.
     if (m_Active)
+    {
         WaitForBuild();
+    }
     auto build = std::make_unique<ActiveBuild>();
     build->kind = ActiveBuild::Kind::Raw;
     build->projectPath = projectPath;
     if (!PrepareBuild(*build))
+    {
         build->failed = true;
+    }
     StartActive(std::move(build));
     WaitForBuild();
     output = std::move(m_LastRawOutput);
@@ -1426,20 +1585,26 @@ void HotReloadService::SetBuildPhase(const std::string& phase)
 void HotReloadService::UpdateStatusFromLine(const std::string& line)
 {
     if (line.empty())
+    {
         return;
+    }
 
     std::string prefix;
     if (line[0] == '[')
     {
         size_t close = line.find("] ");
         if (close != std::string::npos && line.find('/', 1) < close)
+        {
             prefix = line.substr(0, close + 1) + " ";
+        }
     }
 
     std::string filename;
     size_t cppPos = line.find(".cpp");
     if (cppPos == std::string::npos)
+    {
         cppPos = line.find(".c");
+    }
     if (cppPos != std::string::npos)
     {
         size_t start = line.rfind(' ', cppPos);
@@ -1456,27 +1621,33 @@ void HotReloadService::UpdateStatusFromLine(const std::string& line)
     size_t a = line.find_first_not_of(" \t\r\n");
     size_t z = line.find_last_not_of(" \t\r\n");
     if (a != std::string::npos)
+    {
         m_CurrentFile = line.substr(a, z - a + 1);
+    }
 }
 
 void HotReloadService::StartActive(std::unique_ptr<ActiveBuild> build)
 {
     m_Active = std::move(build);
     if (m_Active->failed || !StartStep())
+    {
         FinishBuild();
+    }
 }
 
 bool HotReloadService::StartStep()
 {
     ActiveBuild& b = *m_Active;
     if (b.index >= b.steps.size())
+    {
         return false;
+    }
     ActiveBuild::Step& step = b.steps[b.index];
     SetBuildPhase(step.phase);
     b.stepStart = std::chrono::steady_clock::now();
     b.runner = std::make_unique<ProcessRunner>();
-    DEKI_LOG_EDITOR("HotReload: step %zu/%zu '%s': %s", b.index + 1, b.steps.size(),
-                    step.phase.c_str(), step.command.c_str());
+    DEKI_LOG_EDITOR("HotReload: step %zu/%zu '%s': %s", b.index + 1, b.steps.size(), step.phase.c_str(),
+                    step.command.c_str());
     if (!b.runner->Start(step.command, step.timeoutMs))
     {
         b.runner.reset();
@@ -1492,7 +1663,9 @@ bool HotReloadService::StartStep()
 void HotReloadService::PumpBuild()
 {
     if (!m_Active)
+    {
         return;
+    }
     ActiveBuild& b = *m_Active;
     if (!b.runner)
     {
@@ -1503,9 +1676,13 @@ void HotReloadService::PumpBuild()
     }
 
     for (const std::string& line : b.runner->PollLines())
+    {
         UpdateStatusFromLine(line);
+    }
     if (b.runner->IsRunning())
+    {
         return;
+    }
 
     ActiveBuild::Step& step = b.steps[b.index];
     step.output = b.runner->TakeOutput();
@@ -1518,17 +1695,16 @@ void HotReloadService::PumpBuild()
         DEKI_LOG_ERROR("HotReloadService: build step '%s' timed out", step.phase.c_str());
     }
     b.output += step.output;
-    DEKI_LOG_EDITOR("HotReload: step %zu/%zu '%s' finished, exit %d, %zu bytes of output",
-                    b.index + 1, b.steps.size(), step.phase.c_str(), step.exitCode, step.output.size());
+    DEKI_LOG_EDITOR("HotReload: step %zu/%zu '%s' finished, exit %d, %zu bytes of output", b.index + 1, b.steps.size(),
+                    step.phase.c_str(), step.exitCode, step.output.size());
 
     if (m_Console)
     {
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::steady_clock::now() - b.stepStart)
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - b.stepStart)
                       .count();
         char buf[256];
-        snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms (exit %d)",
-                 step.phase.c_str(), (long long)ms, step.exitCode);
+        snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms (exit %d)", step.phase.c_str(), (long long)ms,
+                 step.exitCode);
         m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
     }
 
@@ -1551,23 +1727,26 @@ void HotReloadService::PumpBuild()
         // "DEKI_ENGINE_PATH and DEKI_EDITOR_DIR must be supplied" - after
         // detecting the compilers twice, which took minutes. From an empty
         // build directory the same command works.
-        const bool staleCache =
-            (step.output.find("CMakeCache.txt") != std::string::npos &&
-             step.output.find("different") != std::string::npos) ||
-            step.output.find("does not match the generator used") != std::string::npos ||
-            step.output.find("require your cache to be deleted") != std::string::npos ||
-            step.output.find("DEKI_EDITOR_DIR must be supplied") != std::string::npos;
+        const bool staleCache = (step.output.find("CMakeCache.txt") != std::string::npos &&
+                                 step.output.find("different") != std::string::npos) ||
+                                step.output.find("does not match the generator used") != std::string::npos ||
+                                step.output.find("require your cache to be deleted") != std::string::npos ||
+                                step.output.find("DEKI_EDITOR_DIR must be supplied") != std::string::npos;
         if (step.isConfigure && staleCache && !b.configureRetried && !b.buildPath.empty())
         {
             DEKI_LOG_WARNING("HotReloadService: Stale CMake cache detected, cleaning build directory...");
             if (m_Console)
+            {
                 m_Console->LogEditor("Stale CMake cache - cleaning and reconfiguring...");
+            }
             std::error_code ec;
             fs::remove_all(b.buildPath, ec);
             fs::create_directories(b.buildPath, ec);
             b.configureRetried = true;
             if (StartStep())
+            {
                 return;
+            }
             b.failed = true;
             FinishBuild();
             return;
@@ -1575,7 +1754,9 @@ void HotReloadService::PumpBuild()
         if (!step.continueOnFailure)
         {
             if (step.isConfigure)
+            {
                 DEKI_LOG_ERROR("HotReloadService: CMake configure failed");
+            }
             b.failed = true;
             FinishBuild();
             return;
@@ -1586,14 +1767,18 @@ void HotReloadService::PumpBuild()
         // Persist the configure-inputs hash so the next hot reload can skip configure.
         std::ofstream f(b.stampPath, std::ios::binary | std::ios::trunc);
         if (f)
+        {
             f.write(reinterpret_cast<const char*>(&b.configHash), sizeof(b.configHash));
+        }
     }
 
     ++b.index;
     if (b.index < b.steps.size())
     {
         if (StartStep())
+        {
             return;
+        }
         b.failed = true;
     }
     FinishBuild();
@@ -1611,9 +1796,8 @@ void HotReloadService::FinishBuild()
 
     if (m_Console)
     {
-        auto total = std::chrono::duration_cast<std::chrono::milliseconds>(
-                         std::chrono::steady_clock::now() - b.start)
-                         .count();
+        auto total =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - b.start).count();
         char buf[160];
         snprintf(buf, sizeof(buf), "[hot-reload timing] build total: %lldms (%s)", (long long)total,
                  ok ? "ok" : (b.cancelled ? "cancelled" : "failed"));
@@ -1625,11 +1809,17 @@ void HotReloadService::FinishBuild()
     BuiltLibraries::RecordBuiltSince(ProjectPaths::Runtime(b.projectPath).string(), b.fileStart);
 
     if (ok && b.kind != ActiveBuild::Kind::Packages)
+    {
         ArchivePackagePdbs(b.projectPath);
+    }
     if (ok)
+    {
         TouchLastBuildStamp(b.projectPath);
+    }
     if (!b.cancelled)
+    {
         m_HasBuildErrors = !ok;  // Plugin/Packages refine this below
+    }
 
     if (!ok && !b.cancelled)
     {
@@ -1639,9 +1829,12 @@ void HotReloadService::FinishBuild()
         for (const ActiveBuild::Step& step : b.steps)
         {
             if (step.exitCode == 0 || step.output.empty())
+            {
                 continue;
+            }
             std::string tail = step.output.size() > 600 ? step.output.substr(step.output.size() - 600) : step.output;
-            DEKI_LOG_ERROR("HotReload: step '%s' failed (exit %d):\n%s", step.phase.c_str(), step.exitCode, tail.c_str());
+            DEKI_LOG_ERROR("HotReload: step '%s' failed (exit %d):\n%s", step.phase.c_str(), step.exitCode,
+                           tail.c_str());
         }
     }
 
@@ -1650,7 +1843,9 @@ void HotReloadService::FinishBuild()
     if (b.cancelled)
     {
         if (m_Console)
+        {
             m_Console->LogEditor("Build cancelled");
+        }
         if (b.kind == ActiveBuild::Kind::Raw)
         {
             m_LastRawOk = false;
@@ -1662,16 +1857,12 @@ void HotReloadService::FinishBuild()
 
     switch (b.kind)
     {
-    case ActiveBuild::Kind::Raw:
-        m_LastRawOk = ok;
-        m_LastRawOutput = std::move(b.output);
-        break;
-    case ActiveBuild::Kind::Plugin:
-        FinishPluginReload(b, ok);
-        break;
-    case ActiveBuild::Kind::Packages:
-        FinishPackageBuild(b);
-        break;
+        case ActiveBuild::Kind::Raw:
+            m_LastRawOk = ok;
+            m_LastRawOutput = std::move(b.output);
+            break;
+        case ActiveBuild::Kind::Plugin: FinishPluginReload(b, ok); break;
+        case ActiveBuild::Kind::Packages: FinishPackageBuild(b); break;
     }
 }
 
@@ -1681,7 +1872,9 @@ void HotReloadService::WaitForBuild()
     {
         PumpBuild();
         if (!m_Active)
+        {
             break;
+        }
         // Repaints the startup/blocking modal (a no-op headless, and
         // events-only when called from inside an ImGui frame).
         RenderProgressModal();
@@ -1692,17 +1885,23 @@ void HotReloadService::WaitForBuild()
 void HotReloadService::CancelBuild()
 {
     if (!m_Active)
+    {
         return;
+    }
     m_Active->cancelled = true;
     if (m_Active->runner)
+    {
         m_Active->runner->Cancel();
+    }
     SetBuildPhase("Cancelling...");
 }
 
 void HotReloadService::CancelAndWait()
 {
     if (!m_Active)
+    {
         return;
+    }
     CancelBuild();
     WaitForBuild();
 }
@@ -1710,17 +1909,20 @@ void HotReloadService::CancelAndWait()
 void HotReloadService::DrawBuildProgress()
 {
     if (!m_Active || !StartupProgress::IsComplete())
+    {
         return;
+    }
     std::string phase, currentFile;
     GetBuildStatus(phase, currentFile);
     const char* title = m_Active->kind == ActiveBuild::Kind::Packages ? "Building Packages" : "Building Plugin";
     bool cancel = false;
-    ProgressModal::DrawInFrame(title,
-                               phase.empty() ? "Starting build..." : phase.c_str(),
+    ProgressModal::DrawInFrame(title, phase.empty() ? "Starting build..." : phase.c_str(),
                                currentFile.empty() ? nullptr : currentFile.c_str(),
                                m_Active->cancelled ? nullptr : &cancel);
     if (cancel)
+    {
         CancelBuild();
+    }
 }
 
 // The reload half of a package build, on the main thread, once every step has
@@ -1757,7 +1959,9 @@ void HotReloadService::FinishPackageBuild(ActiveBuild& b)
         // Record failed timestamp so we don't retry on next focus
         std::string sourceDir = PackageLoader::ResolvePackageSourceDir(b.projectPath, SharedLibFileName(step.target));
         if (!sourceDir.empty())
+        {
             m_LastFailedPackageBuildTimes[step.target] = SourceChangeDetector::GetLatestSourceTime(sourceDir);
+        }
 
         if (m_Console)
         {
@@ -1770,11 +1974,14 @@ void HotReloadService::FinishPackageBuild(ActiveBuild& b)
 
     m_HasBuildErrors = !allBuildsOk;
     if (m_PackageLoader)
+    {
         m_PackageLoader->SetBuildErrors(!allBuildsOk);
+    }
 
     if (!allBuildsOk && m_Console)
     {
-        m_Console->LogBuildError("Package build failed. Previous version reloaded. Fix errors and save to retry.", "__package_summary");
+        m_Console->LogBuildError("Package build failed. Previous version reloaded. Fix errors and save to retry.",
+                                 "__package_summary");
         m_Console->m_Open = true;
     }
 
@@ -1783,7 +1990,9 @@ void HotReloadService::FinishPackageBuild(ActiveBuild& b)
     // because they share that directory.
     PrepareForPackageReload();
     if (m_PackageLoader)
+    {
         m_PackageLoader->UnloadAllPackages();
+    }
     ReloadPackagesAndPlugins();
 
     if (m_Console)
@@ -1823,7 +2032,9 @@ void HotReloadService::UnloadPlugins()
     // meta and thunk pointers die with FreeLibrary. Everything reloads on this
     // path, so the fresh DLLs' static registrars repopulate the wipe.
     if (m_PackageLoader)
+    {
         m_PackageLoader->ClearPackageRegistries();
+    }
 
     // Now unload plugins to release file locks
     m_Loader->UnloadAllPlugins();
@@ -1834,7 +2045,9 @@ void HotReloadService::UnloadPluginsKeepPackages()
     m_PluginPaths.clear();
     const auto& plugins = m_Loader->GetLoadedPlugins();
     for (const auto& plugin : plugins)
+    {
         m_PluginPaths.push_back(plugin.path);
+    }
 
     // Plugin DLLs only register their own components; the package-shared
     // registries (CustomEditor / CreateMenu / EditorRegistry / windows) are
@@ -1847,7 +2060,9 @@ void HotReloadService::UnloadPluginsKeepPackages()
     // PackageLoader::ReRegisterAllPackages() (their static registrars never
     // rerun without a DLL reload).
     if (m_PackageLoader)
+    {
         m_PackageLoader->ClearPackageRegistries();
+    }
 
     // OnBeforeReload + OnAfterReload destroys and recreates every component in
     // the scene. CustomEditorRegistry caches editor instances keyed by
@@ -1939,7 +2154,9 @@ void HotReloadService::ReloadPlugins()
         for (const auto& path : m_PluginPaths)
         {
             if (m_Loader->LoadPlugin(path))
+            {
                 pluginLoaded = true;
+            }
         }
     }
 
@@ -1998,7 +2215,9 @@ void HotReloadService::PrepareForPackageReload()
     try
     {
         if (m_OnBeforeReload)
+        {
             m_OnBeforeReload();
+        }
     }
     catch (const std::exception& e)
     {
@@ -2013,13 +2232,17 @@ void HotReloadService::PrepareForPackageReload()
     for (const auto& pkg : m_PackageLoader->GetLoadedPackages())
     {
         for (uint32_t typeId : pkg.registeredTypeIds)
+        {
             typeIdsToRemove.push_back(typeId);
+        }
     }
 
     {
         auto& factory = Deki::ComponentFactory::Instance();
         for (uint32_t typeId : typeIdsToRemove)
+        {
             factory.Unregister(typeId);
+        }
     }
 
     // Unload plugin DLL first to release its implicit references to package DLLs.
@@ -2044,13 +2267,17 @@ bool HotReloadService::ReloadPackagesAndPlugins()
     {
         DEKI_LOG_ERROR("HotReloadService: No packages could be loaded - skipping plugin reload");
         if (m_Console)
+        {
             m_Console->LogBuildError("CRITICAL: No packages loaded. Editor may be unstable. Restart recommended.");
+        }
 
         // Still restore scene state so editor UI doesn't break
         try
         {
             if (m_OnAfterReload)
+            {
                 m_OnAfterReload();
+            }
         }
         catch (const std::exception& e)
         {
@@ -2084,7 +2311,9 @@ bool HotReloadService::ReloadPackagesAndPlugins()
     try
     {
         if (m_OnAfterReload)
+        {
             m_OnAfterReload();
+        }
     }
     catch (const std::exception& e)
     {
@@ -2113,8 +2342,7 @@ void HotReloadService::RenderProgressModal()
     // dedicated "Building Plugin" title to make the cause explicit.
     const char* title = StartupProgress::IsComplete() ? "Building Plugin" : "Deki Editor";
 
-    ProgressModal::Show(title,
-                        phase.empty() ? "Initializing..." : phase.c_str(),
+    ProgressModal::Show(title, phase.empty() ? "Initializing..." : phase.c_str(),
                         currentFile.empty() ? nullptr : currentFile.c_str());
 }
 
@@ -2127,7 +2355,9 @@ void HotReloadService::BeginBuildStatus()
     // clock is kept so the user sees one accumulating "time since open
     // project" duration instead of it snapping back to zero mid-flow.
     if (StartupProgress::IsComplete())
+    {
         ProgressModal::Reset();
+    }
 }
 
 // =============================================================================
@@ -2152,9 +2382,13 @@ void HotReloadService::RequestPackageCheck()
 void HotReloadService::ProcessPendingPackageCheck()
 {
     if (!m_PendingPackageCheck)
+    {
         return;
+    }
     if (m_Active)
+    {
         return;  // stays pending until the running build has finished
+    }
 
     m_PendingPackageCheck = false;
     CheckAndReloadPackages();
@@ -2163,7 +2397,9 @@ void HotReloadService::ProcessPendingPackageCheck()
 void HotReloadService::CheckAndReloadPackages()
 {
     if (!m_PackageLoader || m_Active)
+    {
         return;
+    }
 
     // Phase 1: Detect which packages have source changes and need rebuilding.
     // Skipped entirely when the watcher hasn't seen any source activity since
@@ -2172,7 +2408,8 @@ void HotReloadService::CheckAndReloadPackages()
 
     // The live project (the one Tick watches); the persisted last-project
     // path is only a fallback for when nothing is being watched.
-    std::string projectPath = m_WatchedProjectPath.empty() ? EditorSettings::GetLastProjectPath() : m_WatchedProjectPath;
+    std::string projectPath =
+        m_WatchedProjectPath.empty() ? EditorSettings::GetLastProjectPath() : m_WatchedProjectPath;
     std::string buildDir = GetEditorBuildDir();
 
     if (m_SourcesDirty && !projectPath.empty() && !buildDir.empty())
@@ -2182,19 +2419,25 @@ void HotReloadService::CheckAndReloadPackages()
         {
             std::string sourceDir = PackageLoader::ResolvePackageSourceDir(projectPath, pkg.dllFilename);
             if (sourceDir.empty())
+            {
                 continue;
+            }
 
             // Only check package's own source files - engine core headers are NOT
             // tracked here because deki-engine-core is statically linked to the
             // editor exe. Engine changes require a full editor rebuild + restart.
             if (!PackageLoader::HasNewerSources(sourceDir, pkg.lastModified))
+            {
                 continue;
+            }
 
             // Derive target name from DLL filename
             std::string target = pkg.dllFilename;
             auto dotPos = target.find_last_of('.');
             if (dotPos != std::string::npos)
+            {
                 target = target.substr(0, dotPos);
+            }
 
             // Skip if we already failed building this target and sources haven't changed
             auto failIt = m_LastFailedPackageBuildTimes.find(target);
@@ -2202,7 +2445,9 @@ void HotReloadService::CheckAndReloadPackages()
             {
                 auto currentSourceTime = SourceChangeDetector::GetLatestSourceTime(sourceDir);
                 if (currentSourceTime <= failIt->second)
+                {
                     continue;  // Nothing changed since last failed attempt
+                }
             }
 
             PackageRebuildInfo info;
@@ -2217,16 +2462,15 @@ void HotReloadService::CheckAndReloadPackages()
 
     if (!packagesToRebuild.empty())
     {
-        DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 1 - rebuilding %zu package(s)",
-                        packagesToRebuild.size());
+        DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 1 - rebuilding %zu package(s)", packagesToRebuild.size());
         // Log which packages need rebuilding
         for (const auto& info : packagesToRebuild)
         {
             if (m_Console)
             {
                 char msg[256];
-                snprintf(msg, sizeof(msg), "Package '%s' source changed, rebuilding %s...",
-                         info.name.c_str(), info.target.c_str());
+                snprintf(msg, sizeof(msg), "Package '%s' source changed, rebuilding %s...", info.name.c_str(),
+                         info.target.c_str());
                 m_Console->LogEditor(msg);
             }
         }
@@ -2234,7 +2478,9 @@ void HotReloadService::CheckAndReloadPackages()
         if (m_Console)
         {
             for (const auto& info : packagesToRebuild)
+            {
                 m_Console->ClearBuildErrorsForPackage(info.target);
+            }
             m_Console->ClearBuildErrorsForPackage("__package_summary");
         }
 
@@ -2254,8 +2500,8 @@ void HotReloadService::CheckAndReloadPackages()
 
         ActiveBuild::Step configure;
         configure.phase = "Regenerating metadata...";
-        configure.command = "\"" + ResolveTool("cmake") + "\"" + EditorSettings::GetCMakeLocationArgs() +
-                            " -B \"" + buildDir + "\" -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
+        configure.command = "\"" + ResolveTool("cmake") + "\"" + EditorSettings::GetCMakeLocationArgs() + " -B \"" +
+                            buildDir + "\" -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
         configure.timeoutMs = kConfigureTimeoutMs;
         configure.isConfigure = true;
         build->steps.push_back(std::move(configure));
@@ -2266,7 +2512,8 @@ void HotReloadService::CheckAndReloadPackages()
             step.phase = "Building " + info.target + "...";
             // Ninja is single-config: the `--config Debug` and the MSBuild
             // `/p:` flag this command used to carry were noise at best.
-            step.command = "\"" + ResolveTool("cmake") + "\" --build \"" + buildDir + "\" --target " + info.target + " --parallel";
+            step.command =
+                "\"" + ResolveTool("cmake") + "\" --build \"" + buildDir + "\" --target " + info.target + " --parallel";
             step.timeoutMs = kIncrementalBuildTimeoutMs;
             step.target = info.target;
             step.continueOnFailure = true;  // report per target, like before
@@ -2279,7 +2526,9 @@ void HotReloadService::CheckAndReloadPackages()
         // Phase 2: Check for DLL-only changes (e.g., external build)
         auto changedPackages = m_PackageLoader->CheckForUpdates();
         if (changedPackages.empty())
+        {
             return;
+        }
 
         DEKI_LOG_EDITOR("CheckAndReloadPackages: Phase 2 - %zu package DLL(s) changed externally, reloading",
                         changedPackages.size());

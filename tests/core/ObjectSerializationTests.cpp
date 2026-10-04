@@ -16,10 +16,7 @@ protected:
         m_Component = new MockComponent();
     }
 
-    void TearDown() override
-    {
-        delete m_Component;
-    }
+    void TearDown() override { delete m_Component; }
 
     MockComponent* m_Component = nullptr;
 };
@@ -84,7 +81,7 @@ TEST_F(ObjectSerializationTest, SerializeComponent_AssetRefProperty_SerializesBo
 
 TEST_F(ObjectSerializationTest, SerializeComponent_ColorProperty_SerializesCorrectly)
 {
-    m_Component->colorValue = Deki::Color{255, 128, 64, 255};
+    m_Component->colorValue = Deki::Color{ 255, 128, 64, 255 };
 
     ComponentData data = SerializeComponent(m_Component);
 
@@ -161,9 +158,8 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_NamedEnum_UnknownName
 // The full loop, which is what a user actually does: set, save, load.
 TEST_F(ObjectSerializationTest, NamedEnum_RoundTripsThroughItsName)
 {
-    for (const auto expected : { MockComponent::GappedEnum::Off,
-                                 MockComponent::GappedEnum::Low,
-                                 MockComponent::GappedEnum::High })
+    for (const auto expected :
+         { MockComponent::GappedEnum::Off, MockComponent::GappedEnum::Low, MockComponent::GappedEnum::High })
     {
         m_Component->gappedEnum = expected;
         ComponentData data = SerializeComponent(m_Component);
@@ -227,10 +223,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_AssetRef_RestoresBoth
 {
     ComponentData data;
     data.typeName = Deki::TypeName<MockComponent>();
-    data.properties["assetRef"] = nlohmann::json{
-        {"guid", "restored-guid"},
-        {"source", "restored-source"}
-    };
+    data.properties["assetRef"] = nlohmann::json{ { "guid", "restored-guid" }, { "source", "restored-source" } };
 
     // Pre-set ptr to non-null to verify it gets cleared
     m_Component->assetRef.ptr = (void*)0x12345678;

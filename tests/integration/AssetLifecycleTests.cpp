@@ -39,7 +39,9 @@ AssetCacheResult LifecycleCacheHandler(const AssetCacheContext& ctx)
     // Read the source JSON so the cache reflects the asset's current value.
     std::ifstream src(ctx.absolutePath);
     if (!src.is_open())
+    {
         return AssetCacheResult::NotCached;
+    }
 
     try
     {
@@ -48,7 +50,9 @@ AssetCacheResult LifecycleCacheHandler(const AssetCacheContext& ctx)
 
         std::ofstream out(ctx.cachePath, std::ios::binary | std::ios::trunc);
         if (!out.is_open())
+        {
             return AssetCacheResult::NotCached;
+        }
         out << value;
         return AssetCacheResult::Cached;
     }
@@ -62,7 +66,9 @@ int ReadCachedValue(const std::string& cachePath)
 {
     std::ifstream f(cachePath, std::ios::binary);
     if (!f.is_open())
+    {
         return -1;
+    }
     int value = -1;
     f >> value;
     return value;
@@ -75,8 +81,7 @@ protected:
     {
         // Unique temp dir per test run to avoid cross-test contamination.
         auto stamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-        m_TempDir = fs::temp_directory_path() /
-                    (std::string("deki_lifecycle_") + std::to_string(stamp));
+        m_TempDir = fs::temp_directory_path() / (std::string("deki_lifecycle_") + std::to_string(stamp));
         fs::create_directories(m_TempDir);
         fs::create_directories(m_TempDir / "assets");
         // Layout comes from the shared definition, not a literal, so the test
@@ -90,7 +95,7 @@ protected:
             AssetTypeHandler handler;
             handler.typeName = "LifecycleAsset";
             handler.displayName = "Lifecycle Asset";
-            handler.extensions = {".lifecycle"};
+            handler.extensions = { ".lifecycle" };
             handler.defaultContent = R"({"type":"LifecycleAsset","value":0})";
             handler.compilesTo = AssetCompileTarget::Data;
             AssetTypeRegistry::Instance().Register(handler);
@@ -130,7 +135,7 @@ protected:
     std::unique_ptr<AssetPipeline> m_Pipeline;
 };
 
-} // namespace
+}  // namespace
 
 // -----------------------------------------------------------------------------
 // Create: GUID generated, cache populated, asset table contains the GUID
@@ -207,15 +212,12 @@ TEST_F(AssetLifecycleTest, Create_AssetTableContainsGuidImmediately)
     const AssetInfo* info = m_Pipeline->GetAssetInfo(rel);
     ASSERT_NE(info, nullptr);
 
-    std::string tablePath =
-        (fs::path(DekiEditor::GetCacheDirectory(m_TempDir.string())) / "asset_table.bin").string();
+    std::string tablePath = (fs::path(DekiEditor::GetCacheDirectory(m_TempDir.string())) / "asset_table.bin").string();
     ASSERT_TRUE(fs::exists(tablePath)) << "ProcessAsset must call UpdateAssetTable on creation";
 
     std::ifstream f(tablePath, std::ios::binary);
-    std::string contents((std::istreambuf_iterator<char>(f)),
-                          std::istreambuf_iterator<char>());
-    EXPECT_NE(contents.find(info->guid), std::string::npos)
-        << "asset_table.bin must contain newly-created GUID";
+    std::string contents((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(contents.find(info->guid), std::string::npos) << "asset_table.bin must contain newly-created GUID";
 }
 
 // -----------------------------------------------------------------------------
@@ -224,9 +226,10 @@ TEST_F(AssetLifecycleTest, Create_AssetTableContainsGuidImmediately)
 
 TEST_F(AssetLifecycleTest, Create_FiresOnAssetCreatedCallback)
 {
-    std::atomic<int> fires{0};
+    std::atomic<int> fires{ 0 };
     std::string capturedPath;
-    m_Pipeline->OnAssetCreated = [&](const std::string& path) {
+    m_Pipeline->OnAssetCreated = [&](const std::string& path)
+    {
         fires.fetch_add(1);
         capturedPath = path;
     };
@@ -355,7 +358,10 @@ TEST_F(AssetLifecycleTest, ConflictedSidecar_KeepsGuidAndIsNotRewritten)
     const std::string conflicted = "{\n  \"guid\": \"" + guid +
                                    "\",\n<<<<<<< HEAD\n  \"sprite\": {\"frameWidth\": 16}\n=======\n"
                                    "  \"sprite\": {\"frameWidth\": 32}\n>>>>>>> theirs\n}\n";
-    { std::ofstream f(sidecar, std::ios::binary | std::ios::trunc); f << conflicted; }
+    {
+        std::ofstream f(sidecar, std::ios::binary | std::ios::trunc);
+        f << conflicted;
+    }
 
     m_Pipeline->RefreshAsset(rel);
     const AssetInfo* after = m_Pipeline->GetAssetInfo(rel);
@@ -371,7 +377,10 @@ TEST_F(AssetLifecycleTest, ConflictOnTheGuidItself_LeavesFileAlone)
     const fs::path sidecar = m_TempDir / "assets" / "two.lifecycle.data";
     const std::string conflicted = "{\n<<<<<<< HEAD\n  \"guid\": \"aaaaaaaa-0000-0000-0000-000000000001\"\n=======\n"
                                    "  \"guid\": \"bbbbbbbb-0000-0000-0000-000000000002\"\n>>>>>>> theirs\n}\n";
-    { std::ofstream f(sidecar, std::ios::binary | std::ios::trunc); f << conflicted; }
+    {
+        std::ofstream f(sidecar, std::ios::binary | std::ios::trunc);
+        f << conflicted;
+    }
 
     EXPECT_EQ(GetOrCreateAssetGuid(asset.string()), "");
     EXPECT_EQ(ReadText(sidecar), conflicted);
@@ -381,7 +390,10 @@ TEST_F(AssetLifecycleTest, SidecarWithoutGuid_GetsOneAndKeepsItsSettings)
 {
     const fs::path asset = m_TempDir / "assets" / "hand.lifecycle";
     CreateAssetFile("hand.lifecycle", 1);
-    { std::ofstream f(m_TempDir / "assets" / "hand.lifecycle.data", std::ios::trunc); f << R"({"sprite":{"frameWidth":8}})"; }
+    {
+        std::ofstream f(m_TempDir / "assets" / "hand.lifecycle.data", std::ios::trunc);
+        f << R"({"sprite":{"frameWidth":8}})";
+    }
 
     const std::string guid = GetOrCreateAssetGuid(asset.string());
     ASSERT_FALSE(guid.empty());

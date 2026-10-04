@@ -32,7 +32,9 @@ bool StartupProgress::IsComplete()
 void StartupProgress::Update(const char* phase, const char* detail)
 {
     if (s_Complete)
+    {
         return;
+    }
 
     ProgressModal::Show("Deki Editor", phase, detail);
 }

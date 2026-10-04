@@ -61,7 +61,9 @@ inline float ToDisplay(float stored, const UnitDisplay& ud)
 inline float FromDisplay(float shown, const UnitDisplay& ud)
 {
     if (ud.multiplier == 0.0f)
+    {
         return shown;
+    }
     return (shown - ud.offset) / ud.multiplier;
 }
 
@@ -81,29 +83,24 @@ inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
     {
         case Deki::PhysicalUnit::Distance:
             // Pixels mode snaps Distance to whole pixels, so display as %.0f.
-            return pixels ? UnitDisplay{ ppm, 0.0f, "%.0f px", 1.0f }
-                          : UnitDisplay{ 1.0f, 0.0f, "%.3f m", 0.01f };
+            return pixels ? UnitDisplay{ ppm, 0.0f, "%.0f px", 1.0f } : UnitDisplay{ 1.0f, 0.0f, "%.3f m", 0.01f };
         case Deki::PhysicalUnit::Velocity:
-            return pixels ? UnitDisplay{ ppm, 0.0f, "%.1f px/s", 10.0f }
-                          : UnitDisplay{ 1.0f, 0.0f, "%.3f m/s", 0.1f };
+            return pixels ? UnitDisplay{ ppm, 0.0f, "%.1f px/s", 10.0f } : UnitDisplay{ 1.0f, 0.0f, "%.3f m/s", 0.1f };
         case Deki::PhysicalUnit::Acceleration:
             return pixels ? UnitDisplay{ ppm, 0.0f, "%.1f px/s\xc2\xb2", 10.0f }
                           : UnitDisplay{ 1.0f, 0.0f, "%.3f m/s\xc2\xb2", 0.1f };
-        case Deki::PhysicalUnit::Angle:
-            return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.2f\xc2\xb0", 1.0f };
+        case Deki::PhysicalUnit::Angle: return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.2f\xc2\xb0", 1.0f };
         case Deki::PhysicalUnit::AngularVelocity:
             // Stored rad/s, shown degrees/s - the unit every gyro datasheet and
             // every person actually uses.
             return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.1fÂ°/s", 1.0f };
         case Deki::PhysicalUnit::Temperature:
             // The only conversion with an offset: C -> F is x9/5 + 32.
-            return (Deki::EngineSettings::Global().temperatureUnit ==
-                    Deki::TemperatureUnit::Fahrenheit)
+            return (Deki::EngineSettings::Global().temperatureUnit == Deki::TemperatureUnit::Fahrenheit)
                        ? UnitDisplay{ 1.8f, 32.0f, "%.1fÂ°F", 0.5f }
                        : UnitDisplay{ 1.0f, 0.0f, "%.1fÂ°C", 0.5f };
         case Deki::PhysicalUnit::None:
-        default:
-            return UnitDisplay{ 1.0f, 0.0f, "%.3f", 0.1f };
+        default: return UnitDisplay{ 1.0f, 0.0f, "%.3f", 0.1f };
     }
 }
 
@@ -118,14 +115,14 @@ inline const char* CanonicalUnitSymbol(Deki::PhysicalUnit unit)
 {
     switch (unit)
     {
-        case Deki::PhysicalUnit::Distance:     return "m";
-        case Deki::PhysicalUnit::Velocity:     return "m/s";
+        case Deki::PhysicalUnit::Distance: return "m";
+        case Deki::PhysicalUnit::Velocity: return "m/s";
         case Deki::PhysicalUnit::Acceleration: return "m/s^2";
-        case Deki::PhysicalUnit::Angle:        return "rad";
+        case Deki::PhysicalUnit::Angle: return "rad";
         case Deki::PhysicalUnit::AngularVelocity: return "rad/s";
-        case Deki::PhysicalUnit::Temperature:     return "C";
+        case Deki::PhysicalUnit::Temperature: return "C";
         case Deki::PhysicalUnit::None:
-        default:                               return nullptr;
+        default: return nullptr;
     }
 }
 
@@ -146,7 +143,9 @@ inline bool ShouldSnapToPixel(Deki::PhysicalUnit unit)
 inline float SnapMetersToPixel(float meters)
 {
     if (!IsPixelsMode())
+    {
         return meters;
+    }
 
     // Read the setting directly rather than through PixelsPerMeter(), which
     // clamps an invalid value to 1.0. That clamp is right for a display
@@ -155,7 +154,9 @@ inline float SnapMetersToPixel(float meters)
     // broken setting means "do not snap", not "snap to something else".
     const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
     if (ppm <= 0.0f)
+    {
         return meters;
+    }
 
     return std::round(meters * ppm) / ppm;
 }

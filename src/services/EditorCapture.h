@@ -35,22 +35,14 @@ public:
 
     // Queue a single PNG. `panel` (an ImGui window name) wins over `region` when
     // set; `padding` grows the resolved rect on every side, clamped to the window.
-    void RequestScreenshot(const std::string& path,
-                           const std::string& panel,
-                           const Region& region,
-                           float padding,
+    void RequestScreenshot(const std::string& path, const std::string& panel, const Region& region, float padding,
                            int framesToWait);
 
     // Queue a PNG sequence: `frames` files written every `stride` frames as
     // frame_0000.png … in `dir`, then a `done.txt` marker holding the count.
     // Intended to be assembled into a GIF/video outside the editor.
-    void RequestSequence(const std::string& dir,
-                         const std::string& panel,
-                         const Region& region,
-                         float padding,
-                         int frames,
-                         int stride,
-                         int framesToWait);
+    void RequestSequence(const std::string& dir, const std::string& panel, const Region& region, float padding,
+                         int frames, int stride, int framesToWait);
 
     // Called once per frame, after the draw data is submitted and before swap.
     void ProcessEndOfFrame(int framebufferWidth, int framebufferHeight);
@@ -80,8 +72,12 @@ public:
     bool IsRecordingSequence() const
     {
         for (const Request& r : m_Requests)
+        {
             if (r.sequence)
+            {
                 return true;
+            }
+        }
         return false;
     }
 
@@ -114,8 +110,7 @@ private:
 
     // Resolve panel/region into a pixel rect clamped to the framebuffer.
     // Returns false when the named panel does not exist or is off-screen.
-    bool ResolveRect(const Request& req, int fbW, int fbH,
-                     int& outX, int& outY, int& outW, int& outH) const;
+    bool ResolveRect(const Request& req, int fbW, int fbH, int& outX, int& outY, int& outW, int& outH) const;
 
     bool CaptureToFile(const std::string& path, int x, int y, int w, int h, int fbH);
 

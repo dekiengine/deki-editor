@@ -88,7 +88,7 @@ TEST_F(GuidTest, GenerateDeterministicGuid_SpecialCharacters_Works)
     std::string guid1 = GenerateDeterministicGuid("path/to/file.png");
     std::string guid2 = GenerateDeterministicGuid("path\\to\\file.png");
     std::string guid3 = GenerateDeterministicGuid("file with spaces.png");
-    std::string guid4 = GenerateDeterministicGuid("unicode_\xC3\xA9\xC3\xA0.png"); // utf-8
+    std::string guid4 = GenerateDeterministicGuid("unicode_\xC3\xA9\xC3\xA0.png");  // utf-8
 
     // All should be valid GUIDs
     EXPECT_EQ(guid1.length(), 36u);
@@ -97,7 +97,7 @@ TEST_F(GuidTest, GenerateDeterministicGuid_SpecialCharacters_Works)
     EXPECT_EQ(guid4.length(), 36u);
 
     // All should be different
-    std::unordered_set<std::string> guids = {guid1, guid2, guid3, guid4};
+    std::unordered_set<std::string> guids = { guid1, guid2, guid3, guid4 };
     EXPECT_EQ(guids.size(), 4u);
 }
 
@@ -111,7 +111,7 @@ TEST_F(GuidTest, GenerateDeterministicGuid_FontSizeSeeds_UniqueResults)
     std::string guid16 = GenerateDeterministicGuid(baseGuid + ":16");
     std::string guid24 = GenerateDeterministicGuid(baseGuid + ":24");
 
-    std::unordered_set<std::string> guids = {guid12, guid14, guid16, guid24};
+    std::unordered_set<std::string> guids = { guid12, guid14, guid16, guid24 };
     EXPECT_EQ(guids.size(), 4u) << "Font size seeds should produce unique GUIDs";
 }
 
@@ -176,8 +176,7 @@ TEST_F(GuidTest, GenerateDeterministicGuid_100kSeeds_NoCollisions)
         guids.insert(GenerateDeterministicGuid(seed));
     }
 
-    EXPECT_EQ(guids.size(), static_cast<size_t>(kCount))
-        << "Hash collisions across " << kCount << " structured seeds";
+    EXPECT_EQ(guids.size(), static_cast<size_t>(kCount)) << "Hash collisions across " << kCount << " structured seeds";
 }
 
 // ============================================================================

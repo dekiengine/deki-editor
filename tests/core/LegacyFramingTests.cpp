@@ -33,7 +33,8 @@ protected:
         fs::remove_all(m_Root, ec);
         fs::create_directories(m_Root / "assets");
         fs::create_directories(m_Root / "settings");
-        Write("deki.json", { { "name", "legacy-framing" }, { "structure", DekiEditor::ProjectPaths::kStructureVersion } });
+        Write("deki.json",
+              { { "name", "legacy-framing" }, { "structure", DekiEditor::ProjectPaths::kStructureVersion } });
         Write("settings/core.json", { { "Units", { { "pixelsPerMeter", 16.0 } } } });
         m_SavedPpm = Deki::EngineSettings::Global().pixelsPerMeter;
         m_SavedLegacy = SceneView::Get().GetLegacyFraming();
@@ -47,10 +48,7 @@ protected:
         SceneView::Get().SetLegacyFraming(m_SavedLegacy);
     }
 
-    void Write(const std::string& rel, const nlohmann::json& j)
-    {
-        std::ofstream(m_Root / rel) << j.dump(2);
-    }
+    void Write(const std::string& rel, const nlohmann::json& j) { std::ofstream(m_Root / rel) << j.dump(2); }
 
     nlohmann::json Read(const std::string& rel)
     {

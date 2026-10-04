@@ -28,8 +28,7 @@ namespace
 // compare it against the latest available release.
 std::string Trim(std::string s)
 {
-    auto notSpace = [](unsigned char c)
-    { return !std::isspace(c); };
+    auto notSpace = [](unsigned char c) { return !std::isspace(c); };
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), notSpace));
     s.erase(std::find_if(s.rbegin(), s.rend(), notSpace).base(), s.end());
     return s;
@@ -40,7 +39,9 @@ std::string NormalizeVersion(std::string v)
 {
     v = Trim(std::move(v));
     if (!v.empty() && (v[0] == 'v' || v[0] == 'V'))
+    {
         v.erase(v.begin());
+    }
     return v;
 }
 
@@ -53,14 +54,15 @@ std::string ReadInstalledVersion(const std::string& toolchainsDir, const std::st
 {
     std::ifstream f(VersionMarkerPath(toolchainsDir, compId));
     if (!f.is_open())
+    {
         return {};
+    }
     std::string v;
     std::getline(f, v);
     return Trim(v);
 }
 
-void WriteInstalledVersion(const std::string& toolchainsDir, const std::string& compId,
-                           const std::string& version)
+void WriteInstalledVersion(const std::string& toolchainsDir, const std::string& compId, const std::string& version)
 {
     try
     {
@@ -71,7 +73,9 @@ void WriteInstalledVersion(const std::string& toolchainsDir, const std::string& 
     }
     std::ofstream f(VersionMarkerPath(toolchainsDir, compId), std::ios::trunc);
     if (f.is_open())
+    {
         f << version;
+    }
 }
 }  // namespace
 
@@ -80,7 +84,9 @@ ToolchainComponentManager::ToolchainComponentManager() = default;
 ToolchainComponentManager::~ToolchainComponentManager()
 {
     if (m_WorkerThread.joinable())
+    {
         m_WorkerThread.join();
+    }
 }
 
 void ToolchainComponentManager::Initialize(const BuilderDefinition& def)
@@ -132,10 +138,14 @@ bool ToolchainComponentManager::MatchesGlob(const std::string& resolvedPath) con
 
     // Remove trailing slash from parent if present
     if (!parentDir.empty() && (parentDir.back() == '/' || parentDir.back() == '\\'))
+    {
         parentDir.pop_back();
+    }
 
     if (!fs::exists(parentDir) || !fs::is_directory(parentDir))
+    {
         return false;
+    }
 
     // Scan parent directory for any entry that matches when combined with suffix
     try
@@ -146,7 +156,9 @@ bool ToolchainComponentManager::MatchesGlob(const std::string& resolvedPath) con
             // Normalize slashes
             std::replace(candidate.begin(), candidate.end(), '\\', '/');
             if (fs::exists(candidate))
+            {
                 return true;
+            }
         }
     }
     catch (const std::exception&)
@@ -159,17 +171,23 @@ bool ToolchainComponentManager::MatchesGlob(const std::string& resolvedPath) con
 bool ToolchainComponentManager::EvaluateDetection(const ComponentDef& comp) const
 {
     if (m_ToolchainsDir.empty())
+    {
         return false;
+    }
 
     for (const auto& [platform, pathPattern] : comp.detection)
     {
         // Filter by current platform
 #ifdef _WIN32
         if (platform != "windows" && platform != "any")
+        {
             continue;
+        }
 #else
         if (platform != "unix" && platform != "any")
+        {
             continue;
+        }
 #endif
 
         std::string resolved = ResolvePath(pathPattern, comp);
@@ -177,7 +195,9 @@ bool ToolchainComponentManager::EvaluateDetection(const ComponentDef& comp) cons
         // Check for directory_exists (paths ending without an extension typically)
         // or file_exists (with extension)
         if (MatchesGlob(resolved))
+        {
             return true;
+        }
     }
 
     return false;
@@ -203,8 +223,7 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
 
         // Check if installed
         bool installed = EvaluateDetection(compDef);
-        comp.status = installed ? ToolchainComponentStatus::Installed
-                                : ToolchainComponentStatus::NotInstalled;
+        comp.status = installed ? ToolchainComponentStatus::Installed : ToolchainComponentStatus::NotInstalled;
 
         // The pinned version is what an install puts down, so it is what the
         // backend was written against. An install of another version - left
@@ -212,13 +231,16 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
         // without a network check. Only "Check for Updates" could flag it
         // before, by comparing against the newest release, which is not the
         // same question.
-        const std::string installedVer = installed ? ReadInstalledVersion(m_ToolchainsDir, compDef.id)
-                                                   : std::string();
+        const std::string installedVer = installed ? ReadInstalledVersion(m_ToolchainsDir, compDef.id) : std::string();
         if (!installedVer.empty())
+        {
             comp.installedVersion = installedVer;
+        }
         if (!installedVer.empty() && !compDef.fallback.version.empty() &&
             NormalizeVersion(installedVer) != NormalizeVersion(compDef.fallback.version))
+        {
             comp.status = ToolchainComponentStatus::UpdateAvailable;
+        }
 
         // Fill version info from cache
         {
@@ -230,9 +252,13 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
                 comp.latestVersion = it->second.latestVersion;
 
                 if (installed && it->second.updateAvailable)
+                {
                     comp.status = ToolchainComponentStatus::UpdateAvailable;
+                }
                 if (!installedVer.empty())
+                {
                     comp.installedVersion = installedVer;
+                }
             }
             else
             {
@@ -254,7 +280,9 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
 void ToolchainComponentManager::InstallComponent(const std::string& componentId, BuildProgressCallback cb)
 {
     if (m_IsBusy)
+    {
         return;
+    }
 
     // Find component definition
     const ComponentDef* compDef = nullptr;
@@ -280,33 +308,41 @@ void ToolchainComponentManager::InstallComponent(const std::string& componentId,
     }
 
     if (m_WorkerThread.joinable())
+    {
         m_WorkerThread.join();
+    }
 
     m_IsBusy = true;
 
     // Copy the component def for the thread
     ComponentDef def = *compDef;
 
-    m_WorkerThread = std::thread([this, def, cb]()
-                                 {
-        if (!def.subComponents.empty())
-            DoInstallSubComponents(def, cb);
-        else
-            DoInstallComponent(def, cb);
-
-        // Auto-run setup if the component has a postInstall script and installed successfully
-        if (def.canSetup && EvaluateDetection(def))
+    m_WorkerThread = std::thread(
+        [this, def, cb]()
         {
-#ifdef _WIN32
-            bool hasPostInstall = !def.postInstall.windows.empty();
-#else
-            bool hasPostInstall = !def.postInstall.unix_.empty();
-#endif
-            if (hasPostInstall)
-                DoSetupComponent(def, nullptr);
-        }
+            if (!def.subComponents.empty())
+            {
+                DoInstallSubComponents(def, cb);
+            }
+            else
+            {
+                DoInstallComponent(def, cb);
+            }
 
-        m_IsBusy = false; });
+            // Auto-run setup if the component has a postInstall script and installed successfully
+            if (def.canSetup && EvaluateDetection(def))
+            {
+#ifdef _WIN32
+                bool hasPostInstall = !def.postInstall.windows.empty();
+#else
+                bool hasPostInstall = !def.postInstall.unix_.empty();
+#endif
+                if (hasPostInstall)
+                    DoSetupComponent(def, nullptr);
+            }
+
+            m_IsBusy = false;
+        });
 }
 
 void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, BuildProgressCallback cb)
@@ -424,15 +460,18 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
         {
             std::vector<fs::path> entries;
             for (const auto& entry : fs::directory_iterator(destDir))
+            {
                 entries.push_back(entry.path());
+            }
 
             if (entries.size() == 1 && fs::is_directory(entries[0]))
             {
                 const fs::path wrapper = entries[0];
-                status("Archive wrapped everything in '" + wrapper.filename().string() +
-                       "'; lifting its contents up");
+                status("Archive wrapped everything in '" + wrapper.filename().string() + "'; lifting its contents up");
                 for (const auto& child : fs::directory_iterator(wrapper))
+                {
                     fs::rename(child.path(), fs::path(destDir) / child.path().filename());
+                }
                 fs::remove(wrapper);
             }
         }
@@ -449,9 +488,13 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
         try
         {
             if (fs::exists(destDir))
+            {
                 fs::remove_all(destDir);
+            }
             if (fs::exists(srcPath))
+            {
                 fs::rename(srcPath, destDir);
+            }
         }
         catch (const std::exception& e)
         {
@@ -525,7 +568,9 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
             info.name = comp.displayName;
             info.installedVersion = installVersion;
             if (info.latestVersion.empty())
+            {
                 info.latestVersion = installVersion;
+            }
             info.updateAvailable = false;
         }
         status("Installed " + comp.displayName + " " + installVersion + " to: " + destDir);
@@ -542,7 +587,10 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
         p.state = extracted ? BuildState::Completed : BuildState::Failed;
         p.statusText = extracted ? (comp.displayName + " installed") : "Extraction failed";
         p.progress = 1.0f;
-        if (!extracted) p.error = "Failed to extract " + comp.displayName;
+        if (!extracted)
+        {
+            p.error = "Failed to extract " + comp.displayName;
+        }
         cb(p);
     }
 }
@@ -622,8 +670,7 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
         }
 
         // Rename extracted folder to target name
-        if (!sub.extractedName.empty() && !sub.targetName.empty() &&
-            sub.extractedName != sub.targetName)
+        if (!sub.extractedName.empty() && !sub.targetName.empty() && sub.extractedName != sub.targetName)
         {
             std::string srcPath = baseDir + "/" + sub.extractedName;
             std::string dstPath = baseDir + "/" + sub.targetName;
@@ -631,9 +678,13 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
             try
             {
                 if (fs::exists(dstPath))
+                {
                     fs::remove_all(dstPath);
+                }
                 if (fs::exists(srcPath))
+                {
                     fs::rename(srcPath, dstPath);
+                }
             }
             catch (const std::exception&)
             {
@@ -663,7 +714,9 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
 void ToolchainComponentManager::SetupComponent(const std::string& componentId, BuildProgressCallback cb)
 {
     if (m_IsBusy)
+    {
         return;
+    }
 
     // Find component definition
     const ComponentDef* compDef = nullptr;
@@ -689,16 +742,20 @@ void ToolchainComponentManager::SetupComponent(const std::string& componentId, B
     }
 
     if (m_WorkerThread.joinable())
+    {
         m_WorkerThread.join();
+    }
 
     m_IsBusy = true;
 
     ComponentDef def = *compDef;
 
-    m_WorkerThread = std::thread([this, def, cb]()
-                                 {
-        DoSetupComponent(def, cb);
-        m_IsBusy = false; });
+    m_WorkerThread = std::thread(
+        [this, def, cb]()
+        {
+            DoSetupComponent(def, cb);
+            m_IsBusy = false;
+        });
 }
 
 void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, BuildProgressCallback cb)
@@ -748,7 +805,9 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     // Find the script file extension boundary, then the space after it
     size_t extPos = resolved.find(".bat");
     if (extPos == std::string::npos)
+    {
         extPos = resolved.find(".sh");
+    }
     if (extPos != std::string::npos)
     {
         size_t endExt = resolved.find(' ', extPos);
@@ -769,7 +828,9 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
 
         std::string parentDir = m_ToolchainsDir + "/" + prefix;
         if (!parentDir.empty() && (parentDir.back() == '/' || parentDir.back() == '\\'))
+        {
             parentDir.pop_back();
+        }
 
         bool found = false;
         try
@@ -832,7 +893,9 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     std::string cmdLine = "\"" + fullCommand + "\"";
 #endif
     if (!argsPart.empty())
+    {
         cmdLine += " " + argsPart;
+    }
 
     status("Running: " + cmdLine);
     status("Working directory: " + workDir);
@@ -876,70 +939,86 @@ void ToolchainComponentManager::CheckForUpdates(std::function<void()> onComplete
 {
     if (m_IsBusy)
     {
-        if (onComplete) onComplete();
+        if (onComplete)
+        {
+            onComplete();
+        }
         return;
     }
 
     if (m_WorkerThread.joinable())
+    {
         m_WorkerThread.join();
+    }
 
     m_IsBusy = true;
 
-    m_WorkerThread = std::thread([this, onComplete]()
-                                 {
-        for (const auto& comp : m_Definition.components)
+    m_WorkerThread = std::thread(
+        [this, onComplete]()
         {
-            // 1. Determine the latest available version (+ download URL).
-            std::string latest;
-            std::string downloadUrl;
-            if (comp.versionCheck.type == "github_release" && !comp.versionCheck.repo.empty())
+            for (const auto& comp : m_Definition.components)
             {
-                std::string apiUrl = "https://api.github.com/repos/" + comp.versionCheck.repo + "/releases/latest";
-                std::string response = EditorHttpUtils::FetchUrl(apiUrl);
-                if (!response.empty())
+                // 1. Determine the latest available version (+ download URL).
+                std::string latest;
+                std::string downloadUrl;
+                if (comp.versionCheck.type == "github_release" && !comp.versionCheck.repo.empty())
                 {
-                    std::string version, dl;
-                    if (EditorHttpUtils::ParseGitHubRelease(response, comp.versionCheck.assetPattern,
-                                                            comp.versionCheck.repo, version, dl))
+                    std::string apiUrl = "https://api.github.com/repos/" + comp.versionCheck.repo + "/releases/latest";
+                    std::string response = EditorHttpUtils::FetchUrl(apiUrl);
+                    if (!response.empty())
                     {
-                        latest = version;
-                        downloadUrl = dl;
+                        std::string version, dl;
+                        if (EditorHttpUtils::ParseGitHubRelease(response, comp.versionCheck.assetPattern,
+                                                                comp.versionCheck.repo, version, dl))
+                        {
+                            latest = version;
+                            downloadUrl = dl;
+                        }
                     }
                 }
+                else if (comp.versionCheck.type == "static")
+                {
+                    latest = comp.versionCheck.version;
+                }
+
+                // 2. Compare against the version recorded when this component was
+                //    installed. An update is available only if it's installed, we know
+                //    both versions, and they differ.
+                const bool installed = EvaluateDetection(comp);
+                const std::string installedVer =
+                    installed ? ReadInstalledVersion(m_ToolchainsDir, comp.id) : std::string();
+                // Only flag an update from a real fetched version (so a failed network
+                // fetch doesn't produce a false "update available").
+                const bool update = installed && !installedVer.empty() && !latest.empty() &&
+                                    NormalizeVersion(installedVer) != NormalizeVersion(latest);
+
+                // For display, fall back to the definition's version when we couldn't
+                // fetch a latest (no version check, or the fetch failed).
+                const std::string displayLatest = !latest.empty() ? latest : comp.fallback.version;
+
+                // 3. Update the cache.
+                std::lock_guard<std::mutex> lock(m_VersionMutex);
+                auto& info = m_VersionCache[comp.id];
+                info.name = comp.displayName;
+                if (!displayLatest.empty())
+                {
+                    info.latestVersion = displayLatest;
+                }
+                if (!downloadUrl.empty())
+                {
+                    info.downloadUrl = downloadUrl;
+                }
+                info.installedVersion = installedVer;
+                info.updateAvailable = update;
+                info.checked = true;
             }
-            else if (comp.versionCheck.type == "static")
+
+            m_IsBusy = false;
+            if (onComplete)
             {
-                latest = comp.versionCheck.version;
+                onComplete();
             }
-
-            // 2. Compare against the version recorded when this component was
-            //    installed. An update is available only if it's installed, we know
-            //    both versions, and they differ.
-            const bool installed = EvaluateDetection(comp);
-            const std::string installedVer = installed ? ReadInstalledVersion(m_ToolchainsDir, comp.id)
-                                                       : std::string();
-            // Only flag an update from a real fetched version (so a failed network
-            // fetch doesn't produce a false "update available").
-            const bool update = installed && !installedVer.empty() && !latest.empty() &&
-                                NormalizeVersion(installedVer) != NormalizeVersion(latest);
-
-            // For display, fall back to the definition's version when we couldn't
-            // fetch a latest (no version check, or the fetch failed).
-            const std::string displayLatest = !latest.empty() ? latest : comp.fallback.version;
-
-            // 3. Update the cache.
-            std::lock_guard<std::mutex> lock(m_VersionMutex);
-            auto& info = m_VersionCache[comp.id];
-            info.name = comp.displayName;
-            if (!displayLatest.empty()) info.latestVersion = displayLatest;
-            if (!downloadUrl.empty())   info.downloadUrl = downloadUrl;
-            info.installedVersion = installedVer;
-            info.updateAvailable = update;
-            info.checked = true;
-        }
-
-        m_IsBusy = false;
-        if (onComplete) onComplete(); });
+        });
 }
 
 }  // namespace DekiEditor

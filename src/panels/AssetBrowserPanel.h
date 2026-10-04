@@ -13,7 +13,10 @@
 
 #include "asset_browser/VirtualFolders.h"
 
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiEditor
 {
@@ -76,7 +79,6 @@ public:
     void MarkAssetsDirty() { m_AssetsDirty = true; }
 
     void HandleFileDrop(const std::string& droppedPath);
-
 
     // App accessor (for child dialogs to access DPI scaling, etc.)
     EditorApp* GetApp() const { return m_App; }

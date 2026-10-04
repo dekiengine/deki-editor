@@ -25,8 +25,7 @@ namespace
 // process, not shell quoting - no shell is involved.
 std::string QuoteWindowsArg(const std::string& arg)
 {
-    if (!arg.empty() &&
-        arg.find_first_of(" \t\n\v\"") == std::string::npos)
+    if (!arg.empty() && arg.find_first_of(" \t\n\v\"") == std::string::npos)
     {
         return arg;
     }
@@ -74,7 +73,9 @@ std::string Trimmed(const std::string& s)
 {
     const size_t a = s.find_first_not_of(" \t\r\n");
     if (a == std::string::npos)
+    {
         return "";
+    }
     const size_t b = s.find_last_not_of(" \t\r\n");
     return s.substr(a, b - a + 1);
 }
@@ -108,7 +109,9 @@ std::string GitConfigRunsCommands(const std::string& repoDir)
 {
     std::ifstream in(GitDirOf(repoDir) / "config");
     if (!in)
+    {
         return "";
+    }
 
     std::string section;  // "filter \"lfs\"", "core", ...
     std::string found;
@@ -117,7 +120,9 @@ std::string GitConfigRunsCommands(const std::string& repoDir)
     {
         line = Trimmed(line);
         if (line.empty() || line[0] == '#' || line[0] == ';')
+        {
             continue;
+        }
         if (line[0] == '[')
         {
             const size_t close = line.find(']');
@@ -134,18 +139,30 @@ std::string GitConfigRunsCommands(const std::string& repoDir)
             // git-lfs's own filter, as `git lfs install --local` writes it.
             const bool lfs = section == "filter \"lfs\"" && value.rfind("git-lfs ", 0) == 0;
             if (!lfs)
+            {
                 why = "a filter (" + section + ")";
+            }
         }
         else if (sectionName == "core" && (key == "sshcommand" || key == "gitproxy" || key == "askpass"))
+        {
             why = "core." + key;
+        }
         else if (sectionName == "credential" && key == "helper")
+        {
             why = "a credential helper";
+        }
         else if (sectionName == "include" || sectionName == "includeif")
+        {
             why = "an include of another config file";
+        }
         else if (sectionName == "remote" && (key == "uploadpack" || key == "receivepack"))
+        {
             why = "remote." + key;
+        }
         if (!why.empty() && found.find(why) == std::string::npos)
+        {
             found += (found.empty() ? "" : ", ") + why;
+        }
     }
     return found;
 }
@@ -159,12 +176,14 @@ int RunGit(const std::vector<std::string>& args, std::string& output)
     for (size_t i = 0; i + 1 < args.size(); ++i)
     {
         if (args[i] != "-C")
+        {
             continue;
+        }
         const std::string why = GitConfigRunsCommands(args[i + 1]);
         if (!why.empty())
         {
-            output = "Not running git in " + args[i + 1] + ": its .git/config has settings that run commands (" +
-                     why + "). If you did not set them, the folder did not come from the editor; delete it and the "
+            output = "Not running git in " + args[i + 1] + ": its .git/config has settings that run commands (" + why +
+                     "). If you did not set them, the folder did not come from the editor; delete it and the "
                      "package is installed again.";
             return -1;
         }
@@ -173,8 +192,7 @@ int RunGit(const std::vector<std::string>& args, std::string& output)
 
     // Settings a repository could use to run something the moment git looks at
     // it, switched off from the command line, which outranks the repo's config.
-    static const std::string noHooks =
-        (std::filesystem::temp_directory_path() / "deki-git-no-hooks").generic_string();
+    static const std::string noHooks = (std::filesystem::temp_directory_path() / "deki-git-no-hooks").generic_string();
     std::vector<std::string> full = { "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + noHooks };
     full.insert(full.end(), args.begin(), args.end());
     return RunGitUnchecked(full, output);
@@ -184,7 +202,6 @@ namespace
 {
 int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
 {
-
 #ifdef _WIN32
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -221,9 +238,7 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
     std::vector<char> cmdBuf(cmdLine.begin(), cmdLine.end());
     cmdBuf.push_back('\0');
 
-    BOOL success = CreateProcessA(
-        NULL, cmdBuf.data(), NULL, NULL,
-        TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+    BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 
     CloseHandle(hWritePipe);
 
@@ -254,7 +269,10 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
     return exitCode;
 #else
     int pipeFds[2];
-    if (pipe(pipeFds) != 0) return -1;
+    if (pipe(pipeFds) != 0)
+    {
+        return -1;
+    }
 
     // fork + execvp rather than popen: execvp takes an argv array, so the
     // arguments never go through /bin/sh.
@@ -276,7 +294,9 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
         std::vector<char*> argv;
         argv.push_back(const_cast<char*>("git"));
         for (const auto& arg : args)
+        {
             argv.push_back(const_cast<char*>(arg.c_str()));
+        }
         argv.push_back(nullptr);
 
         execvp("git", argv.data());
@@ -288,11 +308,16 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
     char buffer[4096];
     ssize_t n;
     while ((n = read(pipeFds[0], buffer, sizeof(buffer))) > 0)
+    {
         output.append(buffer, static_cast<size_t>(n));
+    }
     close(pipeFds[0]);
 
     int status = 0;
-    if (waitpid(pid, &status, 0) < 0) return -1;
+    if (waitpid(pid, &status, 0) < 0)
+    {
+        return -1;
+    }
     return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 }

@@ -35,11 +35,11 @@ PackageEntry Pkg(const char* id, const char* buildDefine, std::vector<std::strin
 
 // A desktop, an ESP32 board, and a board from a vendor this code has never
 // heard of which nevertheless ships SDL3.
-const std::set<std::string> kDesktop{ "desktop-os", "posix-process", "filesystem",
-                                      "threads",    "sdl3",          "framework:native" };
+const std::set<std::string> kDesktop{
+    "desktop-os", "posix-process", "filesystem", "threads", "sdl3", "framework:native"
+};
 const std::set<std::string> kBoard{ "filesystem", "threads", "spi", "wifi", "framework:espidf" };
-const std::set<std::string> kThirdParty{ "filesystem", "threads", "sdl3", "gpu-gles2",
-                                         "framework:acme-sdk" };
+const std::set<std::string> kThirdParty{ "filesystem", "threads", "sdl3", "gpu-gles2", "framework:acme-sdk" };
 
 }  // namespace
 

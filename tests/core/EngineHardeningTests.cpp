@@ -39,14 +39,17 @@ namespace
 std::vector<uint8_t> MakeNestedDoc(int depth)
 {
     std::vector<uint8_t> doc;
-    doc.push_back(0x81);                       // fixmap, 1 pair
-    doc.push_back(0xa1); doc.push_back('x');   // key: fixstr "x"
+    doc.push_back(0x81);  // fixmap, 1 pair
+    doc.push_back(0xa1);
+    doc.push_back('x');  // key: fixstr "x"
     for (int i = 0; i < depth; ++i)
+    {
         doc.push_back(0x91);
-    doc.push_back(0xc0);                       // innermost nil
+    }
+    doc.push_back(0xc0);  // innermost nil
     return doc;
 }
-} // namespace
+}  // namespace
 
 TEST(MsgPackDepth, ShallowNestingStillParses)
 {
@@ -81,18 +84,26 @@ TEST(MsgPackDepth, DeeplyNestedChildObjectsAreRejected)
     // The object tree recurses through ParseObjectInternal, which allocates a
     // Deki::Object per level - so an unbounded chain burned heap as well as stack.
     std::vector<uint8_t> doc;
-    doc.push_back(0x81);                                     // scene map
-    doc.push_back(0xa7); for (char c : std::string("objects")) doc.push_back(c);
-    doc.push_back(0x91);                                     // array of 1 object
+    doc.push_back(0x81);  // scene map
+    doc.push_back(0xa7);
+    for (char c : std::string("objects"))
+    {
+        doc.push_back(c);
+    }
+    doc.push_back(0x91);  // array of 1 object
 
     const int depth = 5000;
     for (int i = 0; i < depth; ++i)
     {
-        doc.push_back(0x81);                                 // object map, 1 pair
-        doc.push_back(0xa8); for (char c : std::string("children")) doc.push_back(c);
-        doc.push_back(0x91);                                 // array of 1 child
+        doc.push_back(0x81);  // object map, 1 pair
+        doc.push_back(0xa8);
+        for (char c : std::string("children"))
+        {
+            doc.push_back(c);
+        }
+        doc.push_back(0x91);  // array of 1 child
     }
-    doc.push_back(0x80);                                     // innermost: empty object
+    doc.push_back(0x80);  // innermost: empty object
 
     Deki::Scene scene;
     Deki::SceneFormat::SceneMsgPackParser parser(doc.data(), doc.size());
@@ -103,7 +114,7 @@ TEST(MsgPackDepth, TruncatedInputFailsCleanly)
 {
     // Not a depth case, but the same "malformed input must fail, not crash"
     // contract the parser is now expected to hold to.
-    const std::vector<uint8_t> truncated = {0x81, 0xa1, 'x'};
+    const std::vector<uint8_t> truncated = { 0x81, 0xa1, 'x' };
     Deki::Scene scene;
     Deki::SceneFormat::SceneMsgPackParser parser(truncated.data(), truncated.size());
     EXPECT_FALSE(parser.ParseScene(&scene));
@@ -123,8 +134,7 @@ TEST(MsgPackDepth, EmptyInputFailsCleanly)
 namespace
 {
 /// Build a lookup table blob: uint32 count, then `count` 44-byte entries.
-std::vector<uint8_t> MakeLookupTable(uint32_t declaredCount, uint32_t realEntries,
-                                     bool terminateGuids = true)
+std::vector<uint8_t> MakeLookupTable(uint32_t declaredCount, uint32_t realEntries, bool terminateGuids = true)
 {
     std::vector<uint8_t> buf(4 + static_cast<size_t>(realEntries) * 44, 0);
     std::memcpy(buf.data(), &declaredCount, sizeof(declaredCount));
@@ -137,11 +147,13 @@ std::vector<uint8_t> MakeLookupTable(uint32_t declaredCount, uint32_t realEntrie
         // guid field is entry[4..40]; leave it zero-filled (terminated) unless
         // the test wants to prove the terminator check bites.
         if (!terminateGuids)
+        {
             std::memset(entry + 4, 'A', 37);
+        }
     }
     return buf;
 }
-} // namespace
+}  // namespace
 
 TEST(AssetLookupTableHardening, RejectsCountLargerThanTheBuffer)
 {
@@ -199,7 +211,7 @@ TEST(AssetLookupTableHardening, ValidTableStillLoadsAndResolves)
 
 TEST(AssetLookupTableHardening, RejectsTruncatedHeader)
 {
-    const uint8_t tiny[2] = {0, 0};
+    const uint8_t tiny[2] = { 0, 0 };
     EXPECT_FALSE(Deki::AssetLookupTable::Load(tiny, sizeof(tiny)));
     EXPECT_FALSE(Deki::AssetLookupTable::Load(nullptr, 0));
     Deki::AssetLookupTable::Unload();
@@ -226,8 +238,7 @@ TEST(SettingsDurability, AtomicWriteReplacesWithoutAnIntermediateEmptyState)
     ASSERT_TRUE(DekiEditor::AtomicWriteFile(target.string(), R"({"lastProjectPath":"C:/new"})", err)) << err;
 
     std::ifstream in(target);
-    const std::string contents((std::istreambuf_iterator<char>(in)),
-                               std::istreambuf_iterator<char>());
+    const std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     EXPECT_NE(contents.find("C:/new"), std::string::npos);
     // No temp file left behind to be mistaken for real settings.
     EXPECT_FALSE(fs::exists(target.string() + ".tmp"));
@@ -255,7 +266,9 @@ TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
     Deki::Scene scene;
     Deki::Object* root = scene.CreateDekiObject("Root");
     for (int i = 0; i < 64; ++i)
+    {
         root->AddChild(new Deki::Object("Obj"));
+    }
 
     auto* lm = Deki::Engine::GetInstance().GetLifecycleManager();
     ASSERT_NE(lm, nullptr);

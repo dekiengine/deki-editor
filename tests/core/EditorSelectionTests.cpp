@@ -57,7 +57,7 @@ TEST_F(EditorSelectionTest, SetSelectedObjectNull)
 
 TEST_F(EditorSelectionTest, SetSelectedObjects)
 {
-    sel.SetSelectedObjects({m_ObjA, m_ObjB});
+    sel.SetSelectedObjects({ m_ObjA, m_ObjB });
     EXPECT_EQ(sel.GetSelectionCount(), 2u);
     EXPECT_TRUE(sel.HasMultipleSelected());
     EXPECT_TRUE(sel.IsSelected(m_ObjA));
@@ -83,7 +83,7 @@ TEST_F(EditorSelectionTest, AddToSelectionIgnoresDuplicates)
 
 TEST_F(EditorSelectionTest, RemoveFromSelection)
 {
-    sel.SetSelectedObjects({m_ObjA, m_ObjB});
+    sel.SetSelectedObjects({ m_ObjA, m_ObjB });
     sel.RemoveFromSelection(m_ObjA);
     EXPECT_EQ(sel.GetSelectionCount(), 1u);
     EXPECT_FALSE(sel.IsSelected(m_ObjA));
@@ -105,7 +105,7 @@ TEST_F(EditorSelectionTest, ToggleSelectionRemoves)
 
 TEST_F(EditorSelectionTest, ClearObjectSelection)
 {
-    sel.SetSelectedObjects({m_ObjA, m_ObjB});
+    sel.SetSelectedObjects({ m_ObjA, m_ObjB });
     sel.ClearObjectSelection();
     EXPECT_EQ(sel.GetSelectionCount(), 0u);
 }
@@ -171,7 +171,7 @@ TEST_F(EditorSelectionTest, SetSelectedObjectClearsAsset)
 TEST_F(EditorSelectionTest, SetSelectedObjectsClearsAsset)
 {
     sel.SetSelectedAsset("assets/tex.png", "cache/tex.dtex", true, "g1");
-    sel.SetSelectedObjects({m_ObjA});
+    sel.SetSelectedObjects({ m_ObjA });
     EXPECT_FALSE(sel.HasAssetSelection());
     EXPECT_TRUE(sel.GetSelectedAssetCachePath().empty());
     EXPECT_FALSE(sel.GetSelectedAssetHasCached());
@@ -219,7 +219,7 @@ TEST_F(EditorSelectionTest, SetSelectedObjectClearsBakedCacheOnlyAsset)
 TEST_F(EditorSelectionTest, SetSelectedObjectsClearsBakedCacheOnlyAsset)
 {
     sel.SetSelectedAsset("", "cache/font.dtex", true, "baked-guid");
-    sel.SetSelectedObjects({m_ObjA, m_ObjB});
+    sel.SetSelectedObjects({ m_ObjA, m_ObjB });
     EXPECT_FALSE(sel.HasAssetSelection());
     EXPECT_FALSE(sel.GetSelectedAssetHasCached());
     EXPECT_TRUE(sel.GetSelectedAssetCachePath().empty());
@@ -260,10 +260,12 @@ struct ChangeRecorder
 
     void Attach(EditorSelection& s)
     {
-        s.SetOnChanged([this](Deki::Object* active)
-                       {
-            ++calls;
-            last = active; });
+        s.SetOnChanged(
+            [this](Deki::Object* active)
+            {
+                ++calls;
+                last = active;
+            });
     }
 };
 }  // namespace
@@ -315,5 +317,7 @@ TEST_F(EditorSelectionTest, NoOpMutationsDoNotReportAStaleObject)
     sel.RemoveFromSelection(m_ObjC);
     EXPECT_EQ(sel.GetSelectedObject(), m_ObjA);
     if (rec.calls > 0)
+    {
         EXPECT_EQ(rec.last, m_ObjA);
+    }
 }

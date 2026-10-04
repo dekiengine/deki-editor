@@ -10,7 +10,10 @@
 #include <windows.h>
 #endif
 
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+struct ComponentMeta;
+}
 
 namespace DekiEditor
 {
@@ -261,7 +264,7 @@ private:
 
     std::vector<PackageInfo> m_Packages;
     std::string m_PackageDirectory;
-    std::string m_ShadowDir;                      // Shadow copy destination (per-project; empty = derive from m_PackageDirectory)
+    std::string m_ShadowDir;  // Shadow copy destination (per-project; empty = derive from m_PackageDirectory)
     bool m_VendorAgnosticDiscovery = false;       // true while a project is open
     std::string m_CurrentShadowDir;               // Active shadow directory path
     std::vector<std::string> m_ShadowSourceDirs;  // All dirs feeding the shadow dir (orphan pruning)

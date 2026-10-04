@@ -29,7 +29,7 @@
 // so an empty macro suffices; the spelling keeps the intent readable and
 // mirrors DEKI_BUILDER_API.
 #ifdef _WIN32
-    #define DEKI_INSTALLER_API
+#define DEKI_INSTALLER_API
 #else
-    #define DEKI_INSTALLER_API __attribute__((visibility("default")))
+#define DEKI_INSTALLER_API __attribute__((visibility("default")))
 #endif

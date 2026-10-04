@@ -36,11 +36,15 @@ long long CurrentPid()
 bool IsAlive(long long pid)
 {
     if (pid <= 0)
+    {
         return false;
+    }
 #ifdef _WIN32
     HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
     if (!h)
+    {
         return GetLastError() == ERROR_ACCESS_DENIED;  // exists, someone else's
+    }
     DWORD code = 0;
     const bool running = GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
     CloseHandle(h);
@@ -55,22 +59,25 @@ std::string Normalized(const std::string& path)
     std::error_code ec;
     fs::path p = fs::weakly_canonical(fs::path(path), ec);
     if (ec)
+    {
         p = fs::path(path).lexically_normal();
+    }
     std::string s = p.generic_string();
     while (s.size() > 1 && s.back() == '/')
+    {
         s.pop_back();
+    }
 #ifdef _WIN32
     // Windows paths are case-insensitive: C:/Dki and c:/dki are one folder.
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 #endif
     return s;
 }
 
 // One JSON-RPC call to the editor's /message endpoint. The server answers on
 // the same request, so no event stream is needed.
-bool Rpc(const Info& session, const std::string& method, const nlohmann::json& params,
-         nlohmann::json& result, std::string& error)
+bool Rpc(const Info& session, const std::string& method, const nlohmann::json& params, nlohmann::json& result,
+         std::string& error)
 {
     httplib::Client client("127.0.0.1", session.port);
     client.set_connection_timeout(2, 0);
@@ -116,18 +123,18 @@ fs::path Directory()
 
 std::string ToJson(const Info& info)
 {
-    return nlohmann::json{ { "pid", info.pid },
-                           { "port", info.port },
-                           { "token", info.token },
-                           { "project", info.project } }
-        .dump(2);
+    return nlohmann::json{
+        { "pid", info.pid }, { "port", info.port }, { "token", info.token }, { "project", info.project }
+    }.dump(2);
 }
 
 bool FromJson(const std::string& text, Info& out)
 {
     const nlohmann::json j = nlohmann::json::parse(text, nullptr, false);
     if (!j.is_object() || !j.contains("pid") || !j.contains("port") || !j.contains("token"))
+    {
         return false;
+    }
     try
     {
         out.pid = j.at("pid").get<long long>();
@@ -193,14 +200,18 @@ std::vector<Info> FindForProject(const fs::path& dir, const std::string& project
     for (const auto& entry : fs::directory_iterator(dir, ec))
     {
         if (entry.path().extension() != ".json")
+        {
             continue;
+        }
         std::ifstream in(entry.path(), std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         in.close();
 
         Info info;
         if (!FromJson(text, info))
+        {
             continue;
+        }
         if (!IsAlive(info.pid))
         {
             std::error_code rec;
@@ -208,7 +219,9 @@ std::vector<Info> FindForProject(const fs::path& dir, const std::string& project
             continue;
         }
         if (SameProject(info.project, projectPath))
+        {
             found.push_back(info);
+        }
     }
     return found;
 }
@@ -217,23 +230,29 @@ bool ListTools(const Info& session, nlohmann::json& tools, std::string& error)
 {
     nlohmann::json result;
     if (!Rpc(session, "tools/list", nlohmann::json::object(), result, error))
+    {
         return false;
+    }
     tools = result.value("tools", nlohmann::json::array());
     return true;
 }
 
-bool CallTool(const Info& session, const std::string& name, const nlohmann::json& args,
-              nlohmann::json& result, std::string& error)
+bool CallTool(const Info& session, const std::string& name, const nlohmann::json& args, nlohmann::json& result,
+              std::string& error)
 {
     nlohmann::json reply;
     if (!Rpc(session, "tools/call", { { "name", name }, { "arguments", args } }, reply, error))
+    {
         return false;
+    }
 
     // MCP wraps the tool's answer as text content; the editor puts the tool's
     // JSON there, or "Error: ..." when it threw.
     std::string text;
     if (reply.contains("content") && reply["content"].is_array() && !reply["content"].empty())
+    {
         text = reply["content"][0].value("text", std::string());
+    }
 
     if (reply.value("isError", false))
     {
@@ -244,7 +263,9 @@ bool CallTool(const Info& session, const std::string& name, const nlohmann::json
 
     result = nlohmann::json::parse(text, nullptr, false);
     if (result.is_discarded())
+    {
         result = text;
+    }
     return true;
 }
 

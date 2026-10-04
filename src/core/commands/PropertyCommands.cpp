@@ -126,7 +126,10 @@ void ModifyComponentPropertyCommand::Execute()
         handler.apply(m_Component, m_PropertyOffset, m_NewValue);
     }
     m_Executed = true;
-    if (m_OnChange) m_OnChange();
+    if (m_OnChange)
+    {
+        m_OnChange();
+    }
     m_Component->OnPropertyChanged(m_PropertyName.c_str());
     ApplyToggleObject(m_Component, m_PropertyName.c_str());
 }
@@ -150,14 +153,20 @@ void ModifyComponentPropertyCommand::Undo()
         const auto& handler = GetPropertyTypeHandler(m_PropertyType);
         handler.apply(m_Component, m_PropertyOffset, m_OldValue);
     }
-    if (m_OnChange) m_OnChange();
+    if (m_OnChange)
+    {
+        m_OnChange();
+    }
     m_Component->OnPropertyChanged(m_PropertyName.c_str());
     ApplyToggleObject(m_Component, m_PropertyName.c_str());
 }
 
 bool ModifyComponentPropertyCommand::CanMerge(const Command* other) const
 {
-    if (!m_Executed) return false;
+    if (!m_Executed)
+    {
+        return false;
+    }
     auto* cmd = dynamic_cast<const ModifyComponentPropertyCommand*>(other);
     return cmd && cmd->m_Component == m_Component && cmd->m_PropertyOffset == m_PropertyOffset;
 }
@@ -179,7 +188,9 @@ bool ModifyComponentPropertyCommand::ReferencesAny(const DeadMemory& dead) const
 std::string ModifyMultipleComponentPropertyCommand::GetDescription() const
 {
     if (m_Entries.size() == 1)
+    {
         return "Change " + m_PropertyName;
+    }
     return "Change " + m_PropertyName + " (" + std::to_string(m_Entries.size()) + " objects)";
 }
 
@@ -192,7 +203,10 @@ void ModifyMultipleComponentPropertyCommand::Execute()
         ApplyToggleObject(entry.component, m_PropertyName.c_str());
     }
     m_Executed = true;
-    if (m_OnChange) m_OnChange();
+    if (m_OnChange)
+    {
+        m_OnChange();
+    }
 }
 
 void ModifyMultipleComponentPropertyCommand::Undo()
@@ -203,23 +217,40 @@ void ModifyMultipleComponentPropertyCommand::Undo()
         entry.component->OnPropertyChanged(m_PropertyName.c_str());
         ApplyToggleObject(entry.component, m_PropertyName.c_str());
     }
-    if (m_OnChange) m_OnChange();
+    if (m_OnChange)
+    {
+        m_OnChange();
+    }
 }
 
 bool ModifyMultipleComponentPropertyCommand::CanMerge(const Command* other) const
 {
-    if (!m_Executed) return false;
+    if (!m_Executed)
+    {
+        return false;
+    }
 
     auto* cmd = dynamic_cast<const ModifyMultipleComponentPropertyCommand*>(other);
-    if (!cmd) return false;
-    if (cmd->m_PropertyOffset != m_PropertyOffset) return false;
-    if (cmd->m_Entries.size() != m_Entries.size()) return false;
+    if (!cmd)
+    {
+        return false;
+    }
+    if (cmd->m_PropertyOffset != m_PropertyOffset)
+    {
+        return false;
+    }
+    if (cmd->m_Entries.size() != m_Entries.size())
+    {
+        return false;
+    }
 
     // Check all components match
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
         if (cmd->m_Entries[i].component != m_Entries[i].component)
+        {
             return false;
+        }
     }
 
     return true;
@@ -239,7 +270,9 @@ bool ModifyMultipleComponentPropertyCommand::ReferencesAny(const DeadMemory& dea
     for (const auto& entry : m_Entries)
     {
         if (CommandRefs::Has(dead, entry.component))
+        {
             return true;
+        }
     }
     return false;
 }
@@ -276,8 +309,7 @@ bool ModifyAssetRefCommand::ReferencesAny(const DeadMemory& dead) const
 
 Deki::AssetRefBase& ModifyAssetRefCommand::GetRef()
 {
-    return *reinterpret_cast<Deki::AssetRefBase*>(
-        reinterpret_cast<char*>(m_Component) + m_PropertyOffset);
+    return *reinterpret_cast<Deki::AssetRefBase*>(reinterpret_cast<char*>(m_Component) + m_PropertyOffset);
 }
 
 void ModifyAssetRefCommand::Apply(const std::string& guid, const std::string& source)

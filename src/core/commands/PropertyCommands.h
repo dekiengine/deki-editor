@@ -26,13 +26,21 @@ class SetPositionCommand : public Command
 public:
     // Constructor that captures current position as old value
     SetPositionCommand(Deki::Object* obj, float newX, float newY)
-        : m_Object(obj), m_OldX(obj->GetX()), m_OldY(obj->GetY()), m_NewX(newX), m_NewY(newY)
+        : m_Object(obj),
+          m_OldX(obj->GetX()),
+          m_OldY(obj->GetY()),
+          m_NewX(newX),
+          m_NewY(newY)
     {
     }
 
     // Constructor with explicit old/new values (for drag-end recording)
     SetPositionCommand(Deki::Object* obj, float oldX, float oldY, float newX, float newY)
-        : m_Object(obj), m_OldX(oldX), m_OldY(oldY), m_NewX(newX), m_NewY(newY)
+        : m_Object(obj),
+          m_OldX(oldX),
+          m_OldY(oldY),
+          m_NewX(newX),
+          m_NewY(newY)
     {
     }
 
@@ -63,7 +71,12 @@ class SetWorldPositionCommand : public Command
 public:
     SetWorldPositionCommand(Deki::Object* obj, float newWorldX, float newWorldY,
                             const std::string& description = "Move Object")
-        : m_Object(obj), m_OldWorldX(obj->GetWorldX()), m_OldWorldY(obj->GetWorldY()), m_NewWorldX(newWorldX), m_NewWorldY(newWorldY), m_Description(description)
+        : m_Object(obj),
+          m_OldWorldX(obj->GetWorldX()),
+          m_OldWorldY(obj->GetWorldY()),
+          m_NewWorldX(newWorldX),
+          m_NewWorldY(newWorldY),
+          m_Description(description)
     {
     }
 
@@ -94,7 +107,9 @@ class SetRotationCommand : public Command
 {
 public:
     SetRotationCommand(Deki::Object* obj, float oldRotation, float newRotation)
-        : m_Object(obj), m_OldRotation(oldRotation), m_NewRotation(newRotation)
+        : m_Object(obj),
+          m_OldRotation(oldRotation),
+          m_NewRotation(newRotation)
     {
     }
 
@@ -119,7 +134,11 @@ class SetScaleCommand : public Command
 {
 public:
     SetScaleCommand(Deki::Object* obj, float oldScaleX, float oldScaleY, float newScaleX, float newScaleY)
-        : m_Object(obj), m_OldScaleX(oldScaleX), m_OldScaleY(oldScaleY), m_NewScaleX(newScaleX), m_NewScaleY(newScaleY)
+        : m_Object(obj),
+          m_OldScaleX(oldScaleX),
+          m_OldScaleY(oldScaleY),
+          m_NewScaleX(newScaleX),
+          m_NewScaleY(newScaleY)
     {
     }
 
@@ -144,15 +163,27 @@ private:
 inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
 {
     const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(comp->GetType());
-    if (!meta) return;
+    if (!meta)
+    {
+        return;
+    }
 
     auto scan = [&](const Deki::PropertyInfo* props, int count)
     {
         for (int i = 0; i < count; i++)
         {
-            if (props[i].type != Deki::PropertyType::Bool) continue;
-            if (!props[i].togglesObjectOf) continue;
-            if (strcmp(props[i].name, propertyName) != 0) continue;
+            if (props[i].type != Deki::PropertyType::Bool)
+            {
+                continue;
+            }
+            if (!props[i].togglesObjectOf)
+            {
+                continue;
+            }
+            if (strcmp(props[i].name, propertyName) != 0)
+            {
+                continue;
+            }
 
             bool value = Deki::GetPropertyValue<bool>(comp, props[i]);
             const char* targetName = props[i].togglesObjectOf;
@@ -161,8 +192,12 @@ inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
             auto findRef = [&](const Deki::PropertyInfo* p, int c) -> Deki::ObjectRefBase*
             {
                 for (int j = 0; j < c; j++)
+                {
                     if (p[j].type == Deki::PropertyType::ObjectRef && strcmp(p[j].name, targetName) == 0)
+                    {
                         return reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + p[j].offset);
+                    }
+                }
                 return nullptr;
             };
 
@@ -170,17 +205,25 @@ inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
             if (!ref && meta->baseTypeId != 0)
             {
                 const Deki::ComponentMeta* baseMeta = Deki::ComponentRegistry::Instance().GetMeta(meta->baseTypeId);
-                if (baseMeta) ref = findRef(baseMeta->properties, baseMeta->propertyCount);
+                if (baseMeta)
+                {
+                    ref = findRef(baseMeta->properties, baseMeta->propertyCount);
+                }
             }
             if (ref && ref->resolved)
+            {
                 ref->resolved->SetActive(value);
+            }
         }
     };
 
     if (meta->baseTypeId != 0)
     {
         const Deki::ComponentMeta* baseMeta = Deki::ComponentRegistry::Instance().GetMeta(meta->baseTypeId);
-        if (baseMeta) scan(baseMeta->properties, baseMeta->propertyCount);
+        if (baseMeta)
+        {
+            scan(baseMeta->properties, baseMeta->propertyCount);
+        }
     }
     scan(meta->properties, meta->propertyCount);
 }
@@ -194,9 +237,16 @@ class ModifyComponentPropertyCommand : public Command
 {
 public:
     ModifyComponentPropertyCommand(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                                   const nlohmann::json& newValue,
-                                   std::function<void()> onChange = nullptr)
-        : m_Component(comp), m_PropertyOffset(prop.offset), m_PropertyType(prop.type), m_ElementType(prop.elementType), m_EnumSize(prop.enumSize), m_PropertyName(prop.name), m_NewValue(newValue), m_OnChange(onChange), m_Executed(false)
+                                   const nlohmann::json& newValue, std::function<void()> onChange = nullptr)
+        : m_Component(comp),
+          m_PropertyOffset(prop.offset),
+          m_PropertyType(prop.type),
+          m_ElementType(prop.elementType),
+          m_EnumSize(prop.enumSize),
+          m_PropertyName(prop.name),
+          m_NewValue(newValue),
+          m_OnChange(onChange),
+          m_Executed(false)
     {
         // Capture old value - use special handlers for Array and Enum.
         // Enum needs the actual storage size so we don't read adjacent fields.
@@ -232,7 +282,7 @@ private:
     size_t m_PropertyOffset;
     Deki::PropertyType m_PropertyType;
     Deki::PropertyType m_ElementType;  // For Array type: element type
-    uint8_t m_EnumSize;              // For Enum type: storage size in bytes (1, 2, or 4)
+    uint8_t m_EnumSize;                // For Enum type: storage size in bytes (1, 2, or 4)
     std::string m_PropertyName;
     nlohmann::json m_OldValue;
     nlohmann::json m_NewValue;
@@ -248,12 +298,17 @@ private:
 class ModifyMultipleComponentPropertyCommand : public Command
 {
 public:
-    ModifyMultipleComponentPropertyCommand(
-        const std::vector<Deki::Component*>& components,
-        const Deki::PropertyInfo& prop,
-        const nlohmann::json& newValue,
-        std::function<void()> onChange = nullptr)
-        : m_PropertyOffset(prop.offset), m_PropertyType(prop.type), m_ElementType(prop.elementType), m_EnumSize(prop.enumSize), m_PropertyName(prop.name), m_NewValue(newValue), m_OnChange(onChange), m_Executed(false)
+    ModifyMultipleComponentPropertyCommand(const std::vector<Deki::Component*>& components,
+                                           const Deki::PropertyInfo& prop, const nlohmann::json& newValue,
+                                           std::function<void()> onChange = nullptr)
+        : m_PropertyOffset(prop.offset),
+          m_PropertyType(prop.type),
+          m_ElementType(prop.elementType),
+          m_EnumSize(prop.enumSize),
+          m_PropertyName(prop.name),
+          m_NewValue(newValue),
+          m_OnChange(onChange),
+          m_Executed(false)
     {
         // Capture old values for each component
         for (Deki::Component* comp : components)
@@ -319,9 +374,13 @@ private:
 class ModifyAssetRefCommand : public Command
 {
 public:
-    ModifyAssetRefCommand(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                          const std::string& newGuid, const std::string& newSource)
-        : m_Component(comp), m_PropertyOffset(prop.offset), m_PropertyName(prop.name), m_NewGuid(newGuid), m_NewSource(newSource)
+    ModifyAssetRefCommand(Deki::Component* comp, const Deki::PropertyInfo& prop, const std::string& newGuid,
+                          const std::string& newSource)
+        : m_Component(comp),
+          m_PropertyOffset(prop.offset),
+          m_PropertyName(prop.name),
+          m_NewGuid(newGuid),
+          m_NewSource(newSource)
     {
         const auto& ref = GetRef();
         m_OldGuid = ref.guid;

@@ -17,9 +17,9 @@ struct PlatformConfig;
  */
 struct BoardPackPlatform
 {
-    std::string id;           // platform id
+    std::string id;  // platform id
     std::string displayName;
-    std::string family;       // vendor family, descriptive only
+    std::string family;  // vendor family, descriptive only
 };
 
 /**
@@ -122,13 +122,11 @@ public:
 
     /// Import a platform from an installed board pack into a project
     /// Copies the platform JSON to the project's platforms/ directory
-    bool ImportPlatformToProject(const std::string& packId,
-                                 const std::string& platformId,
+    bool ImportPlatformToProject(const std::string& packId, const std::string& platformId,
                                  const std::string& projectPlatformsDir);
 
     /// Import all platforms from a board pack into a project
-    bool ImportAllPlatformsToProject(const std::string& packId,
-                                     const std::string& projectPlatformsDir);
+    bool ImportAllPlatformsToProject(const std::string& packId, const std::string& projectPlatformsDir);
 
     // ========================================================================
     // Persistence

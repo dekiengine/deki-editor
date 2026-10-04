@@ -51,11 +51,12 @@ void ActivePlatformScreen(const Project* project, int& width, int& height);
 ///
 /// Inline so the rule can be tested without linking Project.cpp, which pulls
 /// in the whole editor.
-inline bool ProjectNeedsNewerEditor(const std::string& lastSavedBy,
-                                    const std::string& thisEditor)
+inline bool ProjectNeedsNewerEditor(const std::string& lastSavedBy, const std::string& thisEditor)
 {
     if (lastSavedBy.empty())
+    {
         return false;
+    }
     return DekiEditor::CompareVersions(lastSavedBy, thisEditor) > 0;
 }
 
@@ -109,7 +110,12 @@ public:
         // runtime lookup); keep the startup scene spelled the same way.
         m_StartupScene = scene;
         for (char& c : m_StartupScene)
-            if (c == '\\') c = '/';
+        {
+            if (c == '\\')
+            {
+                c = '/';
+            }
+        }
         MarkDirty();
     }
 

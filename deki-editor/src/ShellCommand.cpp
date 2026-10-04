@@ -22,21 +22,28 @@ namespace
 class LineSplitter
 {
 public:
-    explicit LineSplitter(const std::function<void(const std::string&)>& onLine) : m_OnLine(onLine) {}
+    explicit LineSplitter(const std::function<void(const std::string&)>& onLine)
+        : m_OnLine(onLine)
+    {
+    }
 
     void Feed(const char* data, size_t size)
     {
         m_Pending.append(data, size);
         size_t start = 0;
         for (size_t nl; (nl = m_Pending.find('\n', start)) != std::string::npos; start = nl + 1)
+        {
             Emit(m_Pending.substr(start, nl - start));
+        }
         m_Pending.erase(0, start);
     }
 
     void Flush()
     {
         if (!m_Pending.empty())
+        {
             Emit(m_Pending);
+        }
         m_Pending.clear();
     }
 
@@ -44,9 +51,13 @@ private:
     void Emit(std::string line)
     {
         while (!line.empty() && (line.back() == '\r' || line.back() == '\n'))
+        {
             line.pop_back();
+        }
         if (!line.empty() && m_OnLine)
+        {
             m_OnLine(line);
+        }
     }
 
     const std::function<void(const std::string&)>& m_OnLine;
@@ -62,7 +73,9 @@ bool Cancelled(const std::atomic<bool>* cancel)
 std::wstring Widen(const std::string& s)
 {
     if (s.empty())
+    {
         return {};
+    }
     const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
     std::wstring w(n, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), w.data(), n);
@@ -86,7 +99,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     sa.bInheritHandle = TRUE;
     HANDLE readPipe = nullptr, writePipe = nullptr;
     if (!CreatePipe(&readPipe, &writePipe, &sa, 0))
+    {
         return -1;
+    }
     SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
 
     // A job object, so cancelling reaches the grandchildren doing the work;
@@ -108,19 +123,23 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     si.wShowWindow = SW_HIDE;
     PROCESS_INFORMATION pi = {};
 
-    const BOOL created = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE,
-                                        CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr,
-                                        dir.empty() ? nullptr : dir.c_str(), &si, &pi);
+    const BOOL created =
+        CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr,
+                       dir.empty() ? nullptr : dir.c_str(), &si, &pi);
     CloseHandle(writePipe);  // ours; the child holds its own, so EOF comes when it exits
     if (!created)
     {
         CloseHandle(readPipe);
         if (job != nullptr)
+        {
             CloseHandle(job);
+        }
         return -1;
     }
     if (job != nullptr)
+    {
         AssignProcessToJobObject(job, pi.hProcess);
+    }
     ResumeThread(pi.hThread);
 
     LineSplitter lines(onLine);
@@ -130,12 +149,16 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     {
         DWORD available = 0;
         if (!PeekNamedPipe(readPipe, nullptr, 0, nullptr, &available, nullptr))
+        {
             break;  // every writer is gone: the whole tree has exited
+        }
         if (available > 0)
         {
             DWORD got = 0;
             if (!ReadFile(readPipe, buf, (DWORD)sizeof(buf), &got, nullptr) || got == 0)
+            {
                 break;
+            }
             lines.Feed(buf, got);
             continue;
         }
@@ -143,9 +166,13 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         {
             cancelled = true;
             if (job != nullptr)
+            {
                 TerminateJobObject(job, 1);
+            }
             else
+            {
                 TerminateProcess(pi.hProcess, 1);
+            }
             break;
         }
         Sleep(20);
@@ -159,7 +186,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     CloseHandle(pi.hThread);
     CloseHandle(readPipe);
     if (job != nullptr)
+    {
         CloseHandle(job);  // KILL_ON_JOB_CLOSE takes anything left behind with it
+    }
     return cancelled ? -1 : (int)exitCode;
 }
 
@@ -170,7 +199,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
 {
     int fds[2];
     if (pipe(fds) != 0)
+    {
         return -1;
+    }
 
     const pid_t pid = fork();
     if (pid < 0)
@@ -188,7 +219,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         close(fds[0]);
         close(fds[1]);
         if (!workingDirectory.empty() && chdir(workingDirectory.c_str()) != 0)
+        {
             _exit(127);
+        }
         execl("/bin/sh", "sh", "-c", commandLine.c_str(), (char*)nullptr);
         _exit(127);
     }
@@ -208,7 +241,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         {
             const ssize_t got = read(fds[0], buf, sizeof(buf));
             if (got <= 0)
+            {
                 break;
+            }
             lines.Feed(buf, (size_t)got);
             continue;
         }
@@ -225,7 +260,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     int status = 0;
     waitpid(pid, &status, 0);
     if (cancelled)
+    {
         return -1;
+    }
     return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
 

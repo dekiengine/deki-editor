@@ -89,8 +89,7 @@ TEST_F(RenamedComponentRef, TheNameAndIdIndexesAgree)
 
 TEST_F(RenamedComponentRef, AnIdThatNoComponentEverUsedIsNotInTheIndex)
 {
-    EXPECT_EQ(Deki::ComponentRegistry::Instance().GetMetaByFormerTypeId(
-                  Deki::HashString("NoSuchComponentAnywhere")),
+    EXPECT_EQ(Deki::ComponentRegistry::Instance().GetMetaByFormerTypeId(Deki::HashString("NoSuchComponentAnywhere")),
               nullptr);
     // Zero is "no component named", never a key.
     EXPECT_EQ(Deki::ComponentRegistry::Instance().GetMetaByFormerTypeId(0u), nullptr);

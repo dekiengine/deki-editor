@@ -27,18 +27,26 @@ protected:
     static std::string SceneWith(const char* properties, const char* type = Deki::TypeName<MockComponent>(),
                                  const char* classHint = "MockComponent")
     {
-        return std::string(R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
+        return std::string(
+                   R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
                type + R"(","class":")" + classHint + R"(","properties":)" + properties + "}]}]}]}";
     }
 
     static const MockComponent* FirstMock(const Deki::Scene& scene)
     {
         const Deki::Object* root = scene.GetObjects().empty() ? nullptr : scene.GetObjects()[0];
-        if (!root || root->GetChildren().empty()) return nullptr;
+        if (!root || root->GetChildren().empty())
+        {
+            return nullptr;
+        }
         const Deki::Object* obj = root->GetChildren()[0];
         for (const Deki::Component* c : obj->GetComponents())
+        {
             if (c->GetType() == MockComponent::StaticType)
+            {
                 return static_cast<const MockComponent*>(c);
+            }
+        }
         return nullptr;
     }
 };

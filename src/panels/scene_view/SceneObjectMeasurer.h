@@ -1,9 +1,21 @@
 #pragma once
 
-namespace Deki { class Object; }
-namespace Deki { class Scene; }
-namespace Deki { class Component; }
-namespace Deki { struct ComponentMeta; }
+namespace Deki
+{
+class Object;
+}
+namespace Deki
+{
+class Scene;
+}
+namespace Deki
+{
+class Component;
+}
+namespace Deki
+{
+struct ComponentMeta;
+}
 
 namespace DekiEditor
 {
@@ -20,8 +32,7 @@ class SceneTextureCache;
 ///
 /// Returns true only when BOTH fields were found, writing pointers into the
 /// live component through @p outWidth / @p outHeight (either may be null).
-bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta,
-                          float** outWidth, float** outHeight);
+bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta, float** outWidth, float** outHeight);
 
 class SceneObjectMeasurer
 {

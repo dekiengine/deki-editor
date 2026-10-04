@@ -68,11 +68,7 @@ void DeleteConfirmDialog::Draw()
                 // Trash inside the project: rename cannot cross volumes, so a
                 // %TEMP% on another drive would fail every move silently.
                 auto command = std::make_unique<DeleteAssetsCommand>(
-                    pathsToDelete,
-                    [this, currentPath]()
-                    {
-                        m_Browser->NavigateTo(currentPath);
-                    },
+                    pathsToDelete, [this, currentPath]() { m_Browser->NavigateTo(currentPath); },
                     m_Browser->GetProjectRoot());
                 CommandHistory::Instance().Execute(std::move(command));
             }

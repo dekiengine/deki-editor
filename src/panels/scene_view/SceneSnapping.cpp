@@ -37,9 +37,13 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
     for (const auto& t : m_ObjectTargets)
     {
         if (t.axis == SnapAxis::Vertical)
+        {
             vTargets.push_back(t.coord);
+        }
         else
+        {
             hTargets.push_back(t.coord);
+        }
     }
 
     // Object edges (world coords, Y-up)
@@ -147,7 +151,9 @@ float SceneSnapping::CalculateEdgeSnap(float edgeWorldCoord, SnapAxis axis)
     for (const auto& t : m_ObjectTargets)
     {
         if (t.axis == axis)
+        {
             targets.push_back(t.coord);
+        }
     }
 
     float bestDelta = FLT_MAX;
@@ -172,11 +178,13 @@ float SceneSnapping::CalculateEdgeSnap(float edgeWorldCoord, SnapAxis axis)
     return 0.0f;
 }
 
-void SceneSnapping::DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coords,
-                                   ImVec2 canvasTopLeft, ImVec2 canvasSize)
+void SceneSnapping::DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coords, ImVec2 canvasTopLeft,
+                                   ImVec2 canvasSize)
 {
     if (m_ActiveLines.empty())
+    {
         return;
+    }
 
     ImU32 snapColor = IM_COL32(0, 200, 255, 200);
 
@@ -189,19 +197,13 @@ void SceneSnapping::DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coord
         {
             // Vertical line at world X - convert to screen X, span full canvas height
             ImVec2 screenPos = coords->WorldToScreen(line.worldCoord, 0.0f);
-            drawList->AddLine(
-                ImVec2(screenPos.x, canvasTopLeft.y),
-                ImVec2(screenPos.x, canvasBottom),
-                snapColor, 1.0f);
+            drawList->AddLine(ImVec2(screenPos.x, canvasTopLeft.y), ImVec2(screenPos.x, canvasBottom), snapColor, 1.0f);
         }
         else
         {
             // Horizontal line at world Y - convert to screen Y, span full canvas width
             ImVec2 screenPos = coords->WorldToScreen(0.0f, line.worldCoord);
-            drawList->AddLine(
-                ImVec2(canvasTopLeft.x, screenPos.y),
-                ImVec2(canvasRight, screenPos.y),
-                snapColor, 1.0f);
+            drawList->AddLine(ImVec2(canvasTopLeft.x, screenPos.y), ImVec2(canvasRight, screenPos.y), snapColor, 1.0f);
         }
     }
 }

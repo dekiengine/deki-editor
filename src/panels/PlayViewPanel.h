@@ -24,7 +24,6 @@ public:
     ~PlayViewPanel();
     void Draw();
 
-
 private:
     EditorApp* m_App;
 

@@ -56,24 +56,36 @@ namespace
 
 Deki::ICamera* FindFirstCameraRecursive(Deki::Object* obj)
 {
-    if (!obj) return nullptr;
+    if (!obj)
+    {
+        return nullptr;
+    }
     if (Deki::ICamera* c = obj->FindInterface<Deki::ICamera>())
+    {
         return c;
+    }
     for (Deki::Object* child : obj->GetChildren())
     {
         if (Deki::ICamera* c = FindFirstCameraRecursive(child))
+        {
             return c;
+        }
     }
     return nullptr;
 }
 
 Deki::ICamera* FindFirstCameraInScene(Deki::Scene* scene)
 {
-    if (!scene) return nullptr;
+    if (!scene)
+    {
+        return nullptr;
+    }
     for (Deki::Object* obj : scene->GetObjects())
     {
         if (Deki::ICamera* c = FindFirstCameraRecursive(obj))
+        {
             return c;
+        }
     }
     return nullptr;
 }
@@ -83,7 +95,9 @@ Deki::ICamera* FindFirstCameraInScene(Deki::Scene* scene)
 void EditorApp::Play()
 {
     if (!m_CurrentScene)
+    {
         return;
+    }
 
     if (m_PlayModeState == PlayModeState::Paused)
     {
@@ -92,7 +106,9 @@ void EditorApp::Play()
     }
 
     if (m_PlayModeState == PlayModeState::Playing)
+    {
         return;
+    }
 
     // Block play mode if there are compilation errors
     if ((m_HotReloadService && m_HotReloadService->HasBuildErrors()) ||
@@ -136,7 +152,9 @@ void EditorApp::Play()
         {
             ImGuiDockNode* node = ImGui::DockBuilderGetNode(playWin->DockId);
             if (node && node->TabBar)
+            {
                 m_Play.prePlaySelectedTabId = node->TabBar->SelectedTabId;
+            }
         }
 
         ImGui::SetWindowFocus("PLAY VIEW###Play View");
@@ -162,7 +180,9 @@ void EditorApp::Pause()
 void EditorApp::Stop()
 {
     if (m_PlayModeState == PlayModeState::Stopped)
+    {
         return;
+    }
 
     // Stop profiling when exiting play mode
     if (ProfilingService::Get().IsRecording())
@@ -183,9 +203,15 @@ void EditorApp::Stop()
     // Back on the edit scene: select what was selected before Play.
     ClearSelection();
     if (m_CurrentScene)
+    {
         for (uint32_t id : m_Play.prePlaySelectedIds)
+        {
             if (Deki::Object* obj = m_CurrentScene->FindDekiObject(id))
+            {
                 AddToSelection(obj);
+            }
+        }
+    }
     m_Play.prePlaySelectedIds.clear();
 
     // Restore the previously active tab (same approach as Play uses for "Play View")
@@ -203,7 +229,9 @@ void EditorApp::Stop()
                     {
                         ImGuiWindow* tabWin = node->TabBar->Tabs[i].Window;
                         if (tabWin)
+                        {
                             ImGui::SetWindowFocus(tabWin->Name);
+                        }
                         break;
                     }
                 }
@@ -216,7 +244,9 @@ void EditorApp::Stop()
 void EditorApp::InitPlayMode()
 {
     if (!m_CurrentScene)
+    {
         return;
+    }
 
     // UNITY-STYLE: Backup scene state to memory before play
     // This captures unsaved changes and allows restore on stop
@@ -236,8 +266,7 @@ void EditorApp::InitPlayMode()
     // Idempotent per entry, so a second Play costs nothing, and a hot reload
     // that cleared and re-registered an entry lets it fire again on the next
     // Play.
-    Deki::SetupComponent::RunEditorAutoSetups(
-        Deki::SetupComponent::SetupPhase::PlayStart);
+    Deki::SetupComponent::RunEditorAutoSetups(Deki::SetupComponent::SetupPhase::PlayStart);
 
     // Save edit command history aside and start fresh for play mode
     CommandHistory::Instance().SaveAndClear();
@@ -245,12 +274,20 @@ void EditorApp::InitPlayMode()
     // The selection moves to the play copy's same objects (same ids).
     m_Play.prePlaySelectedIds.clear();
     for (Deki::Object* obj : GetSelectedObjects())
+    {
         if (obj)
+        {
             m_Play.prePlaySelectedIds.push_back(obj->GetId());
+        }
+    }
     ClearSelection();
     for (uint32_t id : m_Play.prePlaySelectedIds)
+    {
         if (Deki::Object* copy = m_Play.scene->FindDekiObject(id))
+        {
             AddToSelection(copy);
+        }
+    }
 
     // Play on the screen the Play view previews: the design size, or the
     // target picked in its toolbar. The camera decides what it shows there.
@@ -299,12 +336,16 @@ void EditorApp::InitPlayMode()
         [](const char* name)
         {
             if (ProfilingService::IsRecordingStatic())
+            {
                 ProfilingService::Get().PushEvent("behaviour", name);
+            }
         },
         []()
         {
             if (ProfilingService::IsRecordingStatic())
+            {
                 ProfilingService::Get().PopEvent(0);
+            }
         });
 
     // Load binary lookup table from cache (same as embedded runtime)
@@ -372,7 +413,9 @@ void EditorApp::ShutdownPlayMode()
 {
     // Notify packages that play mode is stopping
     if (m_PackageLoader)
+    {
         m_PackageLoader->NotifyPlayModeStop();
+    }
 
     // Exit runtime mode - components revert to editor code paths
     Deki::Engine::SetRuntimeMode(false);
@@ -398,9 +441,13 @@ void EditorApp::ShutdownPlayMode()
 
     // Clear any cached object/component references in panels
     if (m_HierarchyPanel)
+    {
         m_HierarchyPanel->ClearSceneReferences();
+    }
     if (m_InspectorPanel)
+    {
         m_InspectorPanel->ClearSceneReferences();
+    }
 
     // Don't delete the texture - it's owned by EditorDisplay
     m_Play.textureId = 0;
@@ -448,12 +495,13 @@ void EditorApp::ShutdownPlayMode()
 namespace
 {
 // Returns true on success. On failure, logs to ConsolePanel and sets the crash flag.
-bool GuardedInvoke(const char* phase, const char* sceneName,
-                   bool& crashedFlag, const std::function<void()>& fn)
+bool GuardedInvoke(const char* phase, const char* sceneName, bool& crashedFlag, const std::function<void()>& fn)
 {
     PlayModeGuard::CrashInfo info;
     if (PlayModeGuard::Invoke(phase, fn, info))
+    {
         return true;
+    }
 
     std::string msg = "[Play Mode] Crash in ";
     msg += phase ? phase : "?";
@@ -467,7 +515,9 @@ bool GuardedInvoke(const char* phase, const char* sceneName,
         // Strip trailing newline FormatAccessViolationDetails appends.
         std::string ad = info.accessDetails;
         while (!ad.empty() && (ad.back() == '\n' || ad.back() == '\r'))
+        {
             ad.pop_back();
+        }
         msg += ad;
     }
     if (!info.stackTrace.empty())
@@ -477,9 +527,13 @@ bool GuardedInvoke(const char* phase, const char* sceneName,
     }
 
     if (auto* console = ConsolePanel::GetInstance())
+    {
         console->LogError(msg);
+    }
     else
+    {
         DEKI_LOG_ERROR("%s", msg.c_str());
+    }
     crashedFlag = true;
     return false;
 }
@@ -491,7 +545,9 @@ void EditorApp::UpdatePlayMode()
     // BeginFrame/EndFrame below. Profiling here would span multiple profiler frames.
 
     if (m_PlayModeState != PlayModeState::Playing || !m_Play.scene)
+    {
         return;
+    }
 
     // If a guarded call faulted last frame, stop play mode now (out of the
     // crashing call's stack) and bail. Editor stays alive.
@@ -526,7 +582,9 @@ void EditorApp::UpdatePlayMode()
     // Calculate elapsed time since last call (accumulator pattern when capped)
     uint64_t currentTime = SDL_GetTicks();
     if (m_Play.lastFrameTime == 0)
+    {
         m_Play.lastFrameTime = currentTime;
+    }
 
     float deltaMs = static_cast<float>(currentTime - m_Play.lastFrameTime);
     m_Play.lastFrameTime = currentTime;
@@ -542,7 +600,9 @@ void EditorApp::UpdatePlayMode()
     {
         const float kMaxAccumulator = targetFrameTimeMs * 4.0f;
         if (m_Play.timeAccumulator > kMaxAccumulator)
+        {
             m_Play.timeAccumulator = targetFrameTimeMs;
+        }
     }
 
     // Sub-step loop:
@@ -572,7 +632,10 @@ void EditorApp::UpdatePlayMode()
     // rebuilt on the heap every game tick and dispatched indirectly per object).
     auto updateComponentsRecursive = [&](auto&& self, Deki::Object* obj, float deltaSeconds) -> void
     {
-        if (!obj) return;
+        if (!obj)
+        {
+            return;
+        }
 
         // Resolving the component's display name costs a registry lookup, and
         // it is only ever used as a profiler label. Hoisted behind the
@@ -610,9 +673,15 @@ void EditorApp::UpdatePlayMode()
         float loopStepDtMs;
         if (capFps)
         {
-            if (m_Play.timeAccumulator < targetFrameTimeMs) break;
+            if (m_Play.timeAccumulator < targetFrameTimeMs)
+            {
+                break;
+            }
             m_Play.timeAccumulator -= targetFrameTimeMs;
-            if (m_Play.timeAccumulator < 0.0f) m_Play.timeAccumulator = 0.0f;
+            if (m_Play.timeAccumulator < 0.0f)
+            {
+                m_Play.timeAccumulator = 0.0f;
+            }
             loopStepDtMs = targetFrameTimeMs;
         }
         else
@@ -621,18 +690,25 @@ void EditorApp::UpdatePlayMode()
             // run at least one tick so we make progress even if scheduling
             // is jittery).
             if (subStepsThisFrame > 0 && (SDL_GetTicksNS() - uncapStartNs) >= kUncappedBudgetNs)
+            {
                 break;
+            }
             const uint64_t nowNs = SDL_GetTicksNS();
             const uint64_t deltaNs = nowNs - uncapLastTickNs;
             uncapLastTickNs = nowNs;
             loopStepDtMs = static_cast<float>(deltaNs) / 1'000'000.0f;
-            if (loopStepDtMs <= 0.0f) loopStepDtMs = 0.001f;  // sub-µs ticks: floor at 1 µs
+            if (loopStepDtMs <= 0.0f)
+            {
+                loopStepDtMs = 0.001f;  // sub-µs ticks: floor at 1 µs
+            }
         }
         ++subStepsThisFrame;
 
         // Begin profiler frame (one per game tick, like Unity)
         if (profilerFrameOpen)
+        {
             ProfilingService::Get().EndFrame();
+        }
         ProfilingService::Get().BeginFrame();
         profilerFrameOpen = true;
 
@@ -663,8 +739,7 @@ void EditorApp::UpdatePlayMode()
             CrashHandler::SetPlayModeContext("InternalAwake", sceneName);
             PROFILE_SCOPE("lifecycle", "ProcessInternalAwake");
             if (!GuardedInvoke("InternalAwake", sceneName, m_Play.crashedThisFrame,
-                               [&]
-                               { m_Play.lifecycleManager->ProcessInternalAwake(activeScene); }))
+                               [&] { m_Play.lifecycleManager->ProcessInternalAwake(activeScene); }))
             {
                 ProfilingService::Get().EndFrame();
                 return;
@@ -675,8 +750,7 @@ void EditorApp::UpdatePlayMode()
             CrashHandler::SetPlayModeContext("Awake", sceneName);
             PROFILE_SCOPE("lifecycle", "ProcessAwake");
             if (!GuardedInvoke("Awake", sceneName, m_Play.crashedThisFrame,
-                               [&]
-                               { m_Play.lifecycleManager->ProcessAwake(activeScene); }))
+                               [&] { m_Play.lifecycleManager->ProcessAwake(activeScene); }))
             {
                 ProfilingService::Get().EndFrame();
                 return;
@@ -687,8 +761,7 @@ void EditorApp::UpdatePlayMode()
             CrashHandler::SetPlayModeContext("Start", sceneName);
             PROFILE_SCOPE("lifecycle", "ProcessStart");
             if (!GuardedInvoke("Start", sceneName, m_Play.crashedThisFrame,
-                               [&]
-                               { m_Play.lifecycleManager->ProcessStart(activeScene); }))
+                               [&] { m_Play.lifecycleManager->ProcessStart(activeScene); }))
             {
                 ProfilingService::Get().EndFrame();
                 return;
@@ -699,8 +772,7 @@ void EditorApp::UpdatePlayMode()
             CrashHandler::SetPlayModeContext("Update", sceneName);
             PROFILE_SCOPE("lifecycle", "ProcessUpdate");
             if (!GuardedInvoke("Update", sceneName, m_Play.crashedThisFrame,
-                               [&]
-                               { m_Play.lifecycleManager->ProcessUpdate(activeScene); }))
+                               [&] { m_Play.lifecycleManager->ProcessUpdate(activeScene); }))
             {
                 ProfilingService::Get().EndFrame();
                 return;
@@ -714,9 +786,9 @@ void EditorApp::UpdatePlayMode()
         {
             CrashHandler::SetPlayModeContext("UpdateCallbacks", sceneName);
             PROFILE_SCOPE("lifecycle", "UpdateCallbacks");
-            if (!GuardedInvoke("UpdateCallbacks", sceneName, m_Play.crashedThisFrame,
-                               [&]
-                               { Deki::Engine::GetInstance().RunUpdateCallbacks(static_cast<uint32_t>(loopStepDtMs)); }))
+            if (!GuardedInvoke(
+                    "UpdateCallbacks", sceneName, m_Play.crashedThisFrame,
+                    [&] { Deki::Engine::GetInstance().RunUpdateCallbacks(static_cast<uint32_t>(loopStepDtMs)); }))
             {
                 ProfilingService::Get().EndFrame();
                 return;
@@ -732,7 +804,9 @@ void EditorApp::UpdatePlayMode()
                                [&]
                                {
                                    for (Deki::Object* obj : activeScene->GetObjects())
+                                   {
                                        updateComponentsRecursive(updateComponentsRecursive, obj, deltaSeconds);
+                                   }
                                }))
             {
                 ProfilingService::Get().EndFrame();
@@ -757,8 +831,7 @@ void EditorApp::UpdatePlayMode()
                 CrashHandler::SetPlayModeContext("NewSceneInternalAwake", newSceneName);
                 PROFILE_SCOPE("lifecycle", "ProcessInternalAwake");
                 if (!GuardedInvoke("NewSceneInternalAwake", newSceneName, m_Play.crashedThisFrame,
-                                   [&]
-                                   { m_Play.lifecycleManager->ProcessInternalAwake(currentScene); }))
+                                   [&] { m_Play.lifecycleManager->ProcessInternalAwake(currentScene); }))
                 {
                     ProfilingService::Get().EndFrame();
                     return;
@@ -768,8 +841,7 @@ void EditorApp::UpdatePlayMode()
                 CrashHandler::SetPlayModeContext("NewSceneAwake", newSceneName);
                 PROFILE_SCOPE("lifecycle", "ProcessAwake");
                 if (!GuardedInvoke("NewSceneAwake", newSceneName, m_Play.crashedThisFrame,
-                                   [&]
-                                   { m_Play.lifecycleManager->ProcessAwake(currentScene); }))
+                                   [&] { m_Play.lifecycleManager->ProcessAwake(currentScene); }))
                 {
                     ProfilingService::Get().EndFrame();
                     return;
@@ -779,8 +851,7 @@ void EditorApp::UpdatePlayMode()
                 CrashHandler::SetPlayModeContext("NewSceneStart", newSceneName);
                 PROFILE_SCOPE("lifecycle", "ProcessStart");
                 if (!GuardedInvoke("NewSceneStart", newSceneName, m_Play.crashedThisFrame,
-                                   [&]
-                                   { m_Play.lifecycleManager->ProcessStart(currentScene); }))
+                                   [&] { m_Play.lifecycleManager->ProcessStart(currentScene); }))
                 {
                     ProfilingService::Get().EndFrame();
                     return;
@@ -801,9 +872,8 @@ void EditorApp::UpdatePlayMode()
     m_Play.fpsWindowMs += deltaMs;
     if (m_Play.fpsWindowMs >= 500.0f)
     {
-        m_Play.gameFps = (m_Play.fpsSubStepCounter > 0)
-                             ? (m_Play.fpsSubStepCounter * 1000.0f) / m_Play.fpsWindowMs
-                             : 0.0f;
+        m_Play.gameFps =
+            (m_Play.fpsSubStepCounter > 0) ? (m_Play.fpsSubStepCounter * 1000.0f) / m_Play.fpsWindowMs : 0.0f;
         m_Play.fpsSubStepCounter = 0;
         m_Play.fpsWindowMs = 0.0f;
     }
@@ -817,18 +887,20 @@ void EditorApp::UpdatePlayMode()
         Deki::Scene* renderScene = Deki::Engine::GetInstance().GetRootScene();
         const char* renderSceneName = renderScene ? renderScene->GetName().c_str() : "<unknown>";
         CrashHandler::SetPlayModeContext("Render", renderSceneName);
-        if (!GuardedInvoke("Render", renderSceneName, m_Play.crashedThisFrame,
-                           [&]
-                           { RenderPlayMode(); }))
+        if (!GuardedInvoke("Render", renderSceneName, m_Play.crashedThisFrame, [&] { RenderPlayMode(); }))
         {
             if (profilerFrameOpen)
+            {
                 ProfilingService::Get().EndFrame();
+            }
             return;
         }
         CrashHandler::ClearPlayModeContext();
     }
     if (profilerFrameOpen)
+    {
         ProfilingService::Get().EndFrame();
+    }
 }
 
 void EditorApp::RenderPlayMode()
@@ -861,11 +933,8 @@ void EditorApp::RenderPlayMode()
     // Capture frame if recording (F9 to toggle)
     if (m_FrameCaptureService && m_FrameCaptureService->IsCapturing())
     {
-        m_FrameCaptureService->CaptureFrame(
-            m_Play.renderSystem->GetFrameBuffer(),
-            m_Play.width,
-            m_Play.height,
-            m_Play.renderSystem->GetColorFormat());
+        m_FrameCaptureService->CaptureFrame(m_Play.renderSystem->GetFrameBuffer(), m_Play.width, m_Play.height,
+                                            m_Play.renderSystem->GetColorFormat());
     }
 
     // Present the frame buffer through DekiDisplayBackend (editor-only: GL texture upload)
@@ -884,21 +953,28 @@ void EditorApp::RenderPlayMode()
 void EditorApp::HandlePlayModeInput(float gameX, float gameY, bool isDown, bool isMove, bool isUp)
 {
     if (m_PlayModeState != PlayModeState::Playing)
+    {
         return;
+    }
 
     Deki::Scene* activeScene = Deki::Engine::GetInstance().GetRootScene();
     if (!activeScene)
+    {
         return;
+    }
 
     if (!m_Play.camera)
+    {
         return;
+    }
 
     float worldX, worldY;
-    m_Play.camera->ScreenToWorld(gameX, gameY,
-                                 m_Play.width, m_Play.height, worldX, worldY);
+    m_Play.camera->ScreenToWorld(gameX, gameY, m_Play.width, m_Play.height, worldX, worldY);
 
     if (auto* inputSystem = Deki::Engine::GetInstance().GetInputSystem())
+    {
         inputSystem->DispatchInput(activeScene, worldX, worldY, isDown, isMove, isUp);
+    }
 }
 
 void EditorApp::HandlePlayModeKey(uint32_t key, bool down)
@@ -906,10 +982,14 @@ void EditorApp::HandlePlayModeKey(uint32_t key, bool down)
     // Key-downs only while playing; key-ups always pass so a key held when
     // play stops or focus leaves the play view doesn't stay stuck pressed.
     if (down && m_PlayModeState != PlayModeState::Playing)
+    {
         return;
+    }
 
     if (auto* inputSystem = Deki::Engine::GetInstance().GetInputSystem())
+    {
         inputSystem->DispatchKey(key, down);
+    }
 }
 
 }  // namespace DekiEditor

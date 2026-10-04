@@ -33,11 +33,31 @@ constexpr const char* kAutomaticFormat = "Automatic";
 /// "Automatic", an empty string, or anything unknown.
 inline bool ParseTextureFormat(const std::string& name, TextureFormat& out)
 {
-    if (name == "RGB888") { out = TextureFormat::RGB888; return true; }
-    if (name == "RGBA8888") { out = TextureFormat::RGBA8888; return true; }
-    if (name == "RGB565") { out = TextureFormat::RGB565; return true; }
-    if (name == "RGB565A8") { out = TextureFormat::RGB565A8; return true; }
-    if (name == "ALPHA8") { out = TextureFormat::ALPHA8; return true; }
+    if (name == "RGB888")
+    {
+        out = TextureFormat::RGB888;
+        return true;
+    }
+    if (name == "RGBA8888")
+    {
+        out = TextureFormat::RGBA8888;
+        return true;
+    }
+    if (name == "RGB565")
+    {
+        out = TextureFormat::RGB565;
+        return true;
+    }
+    if (name == "RGB565A8")
+    {
+        out = TextureFormat::RGB565A8;
+        return true;
+    }
+    if (name == "ALPHA8")
+    {
+        out = TextureFormat::ALPHA8;
+        return true;
+    }
     return false;
 }
 
@@ -57,10 +77,26 @@ inline const char* TextureFormatName(TextureFormat f)
 /// A screen format by the name a platform file uses ("RGB565", ...).
 inline bool ParseColorFormat(const std::string& name, Deki::ColorFormat& out)
 {
-    if (name == "RGB565") { out = Deki::ColorFormat::RGB565; return true; }
-    if (name == "RGB888") { out = Deki::ColorFormat::RGB888; return true; }
-    if (name == "ARGB8888") { out = Deki::ColorFormat::ARGB8888; return true; }
-    if (name == "RGB565A8") { out = Deki::ColorFormat::RGB565A8; return true; }
+    if (name == "RGB565")
+    {
+        out = Deki::ColorFormat::RGB565;
+        return true;
+    }
+    if (name == "RGB888")
+    {
+        out = Deki::ColorFormat::RGB888;
+        return true;
+    }
+    if (name == "ARGB8888")
+    {
+        out = Deki::ColorFormat::ARGB8888;
+        return true;
+    }
+    if (name == "RGB565A8")
+    {
+        out = Deki::ColorFormat::RGB565A8;
+        return true;
+    }
     return false;
 }
 
@@ -97,9 +133,13 @@ inline TextureFormat ResolveTextureFormat(const std::string& assetFormat, const 
 {
     TextureFormat f;
     if (ParseTextureFormat(targetFormat, f))
+    {
         return f;
+    }
     if (ParseTextureFormat(assetFormat, f))
+    {
         return f;
+    }
     return AutomaticTextureFormat(screen, hasAlpha);
 }
 
