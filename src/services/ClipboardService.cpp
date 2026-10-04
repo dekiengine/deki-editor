@@ -25,8 +25,9 @@ std::optional<nlohmann::json> ClipboardService::ReadFromClipboard() const
         return std::nullopt;
     }
 
-    // Clipboard usually holds arbitrary non-JSON text; parse without exceptions so a
-    // failed parse returns a discarded value instead of throwing (which halts the debugger).
+    // The clipboard usually holds text that is not JSON. Parse without
+    // exceptions, so a failed parse returns a discarded value instead of
+    // throwing, which would stop in the debugger.
     nlohmann::json parsed = nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
     if (parsed.is_discarded())
     {

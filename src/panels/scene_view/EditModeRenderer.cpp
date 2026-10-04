@@ -78,9 +78,9 @@ struct BufferGL
     }
 } s_GL;
 
-// RGB565 to RGBA8 bytes, each channel widened by repeating its top bits (as
-// the driver did when it converted the upload, so colours are unchanged) and
-// opaque alpha.
+// RGB565 to RGBA8 bytes with opaque alpha. Each channel is widened by
+// repeating its top bits, as the driver does, so colours match the
+// non-streaming upload.
 const uint32_t* Rgb565ToRgba()
 {
     static const std::vector<uint32_t> kTable = []
@@ -116,10 +116,9 @@ bool EditModeRenderer::Initialize(int width, int height)
         return false;
     }
 
-    // Zooming changes the buffer size at nearly every step. Freeing and
-    // reallocating tens of megabytes (and a full-size GPU texture) each time
-    // made a long frame, so the memory is kept and only grows - with headroom
-    // - or shrinks when it has become far larger than needed.
+    // Zooming changes the buffer size at nearly every step, and reallocating
+    // tens of megabytes each time makes a long frame. So the memory is kept:
+    // it grows with headroom, and shrinks only when far larger than needed.
     const size_t need = static_cast<size_t>(width) * height * 2;  // RGB565
     if (need > m_Capacity || need < m_Capacity / 8)
     {
@@ -129,8 +128,8 @@ bool EditModeRenderer::Initialize(int width, int height)
     }
     m_Width = width;
     m_Height = height;
-    // Textures are made at the first upload, at the size actually uploaded
-    // (the buffer's, or a smaller screen-size copy when zoomed out).
+    // Textures are made at the first upload, at the size uploaded (the
+    // buffer's, or a smaller screen-size copy when zoomed out).
     m_Initialized = true;
 
     return true;
@@ -152,8 +151,8 @@ void EditModeRenderer::PrepareTexture(int width, int height)
         glBindTexture(GL_TEXTURE_2D, texId);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        // GL_CLAMP is not part of the 3.3 core profile the editor asks for:
-        // strict drivers (Mesa) reject it and leave the texture on GL_REPEAT.
+        // Not GL_CLAMP: it is not in the 3.3 core profile the editor asks
+        // for, and strict drivers (Mesa) reject it and leave GL_REPEAT.
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -255,7 +254,6 @@ void EditModeRenderer::ClearBuffer(uint8_t r, uint8_t g, uint8_t b)
         return;
     }
 
-    // Convert RGB to RGB565
     uint16_t rgb565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
 
     uint16_t* buffer16 = (uint16_t*)m_RenderBuffer;
@@ -269,11 +267,11 @@ void EditModeRenderer::ClearBuffer(uint8_t r, uint8_t g, uint8_t b)
 
 void* EditModeRenderer::MapUploadBuffer(size_t bytes)
 {
-    // Copying from CPU memory, the driver must be done with the pixels before
-    // glTexSubImage2D returns. Each texture in the ring has its own pixel
-    // buffer instead: written here, copied into the texture by the GPU later.
-    // It was last written three renders ago, long drawn by now, so it is
-    // mapped without waiting for the GPU to finish with it.
+    // From CPU memory, the driver must be done with the pixels before
+    // glTexSubImage2D returns. Instead each texture in the ring has its own
+    // pixel buffer, written here and copied into the texture by the GPU later.
+    // It was last written three renders ago and is long drawn, so it is
+    // mapped without waiting for the GPU.
     if (!s_GL.Load())
     {
         return nullptr;
@@ -316,11 +314,11 @@ void EditModeRenderer::PresentToGPU(float displayScale)
     }
 
     // Zoomed out, the buffer holds many pixels per screen pixel, and uploading
-    // them all (and the driver widening each to RGBA on the CPU) was nearly
-    // the whole cost of a render - drawing the scene itself is cheap. Shrink it
-    // to screen size here instead, taking for screen pixel i exactly the buffer
-    // pixel GL_NEAREST samples when the full buffer is drawn scaled:
-    // floor((i + 0.5) / displayScale). Same picture, far smaller upload.
+    // them all (with the driver widening each to RGBA on the CPU) is most of
+    // a render's cost; drawing the scene is cheap. So shrink it to screen size
+    // here, taking for screen pixel i the buffer pixel GL_NEAREST would sample
+    // from the full buffer drawn scaled: floor((i + 0.5) / displayScale). Same
+    // picture, far smaller upload.
     const bool shrink = displayScale > 0.0f && displayScale < 1.0f;
     int upW = m_Width, upH = m_Height;
     if (shrink)
@@ -330,9 +328,9 @@ void EditModeRenderer::PresentToGPU(float displayScale)
         m_ShrinkCols.resize(upW);
         m_ShrinkRows.resize(upH);
         // At whole-number ratios (4:1 at the minimum zoom) the sample point
-        // falls exactly on the edge between two texels; the GPU settles those
-        // on the lower one, and so does the small bias here, so the picture
-        // matches what was drawn before and never flips between neighbours.
+        // falls exactly between two texels. The GPU picks the lower one, and
+        // the small bias here does too, so the picture matches the GPU's and
+        // never flips between neighbours.
         constexpr float kEdgeBias = 1e-3f;
         for (int i = 0; i < upW; ++i)
         {
@@ -350,21 +348,20 @@ void EditModeRenderer::PresentToGPU(float displayScale)
     const void* pixels = nullptr;
     GLenum format, type;
     GLint alignment;
-    int sendW = upW, sendH = upH;  // what goes up: the picture, plus the repeated edge when streaming
+    int sendW = upW, sendH = upH;  // the picture, plus the repeated edge when streaming
     bool mapped = false;
     if (m_Streaming)
     {
-        // RGB565 into an RGBA8 texture is a conversion the driver may do on
-        // the CPU inside glTexSubImage2D, and to write the texture it first
-        // waits for the GPU to be done with it: uploads of a few hundred KB
-        // stalled for up to a second. The pixels go up as RGBA8 instead,
-        // converted here while they are copied anyway, so the driver only
-        // copies.
+        // The driver may convert RGB565 to an RGBA8 texture on the CPU inside
+        // glTexSubImage2D, after waiting for the GPU to finish with the
+        // texture: a few hundred KB can stall for up to a second. So the
+        // pixels go up as RGBA8, converted here during the copy, and the
+        // driver only copies.
         //
         // The texture is larger than the picture, and where the picture's
         // edge lands part-way into a screen pixel the GPU samples just past
         // it. One more column and row repeat the edge there, as clamping to
-        // the edge of an exact-size texture did.
+        // the edge of an exact-size texture would.
         sendW = upW + 1;
         sendH = upH + 1;
         const uint32_t* toRgba = Rgb565ToRgba();
@@ -434,8 +431,8 @@ void EditModeRenderer::PresentToGPU(float displayScale)
     }
 
     glBindTexture(GL_TEXTURE_2D, m_Textures[m_Current]);
-    // Unpack state is global; other GL users (e.g. ImGui glyph uploads) can leave
-    // a row stride behind, which would shear/overread this tightly packed upload.
+    // Unpack state is global, and other GL users (ImGui glyph uploads, say) can
+    // leave a row stride set, which would shear or overread this packed upload.
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sendW, sendH, format, type, pixels);
@@ -455,17 +452,15 @@ void EditModeRenderer::RenderScene(Deki::Scene* scene, Deki::ICamera* camera, ui
         return;
     }
 
-    // Clear buffer with background color
     ClearBuffer(clearR, clearG, clearB);
 
-    // Use shared render function via interface (same as play mode!)
+    // The same render path as play mode.
     auto* rs = Deki::Engine::GetInstance().GetRenderSystem();
     if (rs)
     {
         rs->RenderToBuffer(scene, camera, m_RenderBuffer, m_Width, m_Height, Deki::ColorFormat::RGB565);
     }
 
-    // Upload to GPU for ImGui display
     PresentToGPU(displayScale);
 }
 

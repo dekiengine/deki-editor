@@ -2,9 +2,8 @@
 
 #include "services/sources/DekiRegistrySource.h"
 
-// The registry index is a public contract (COMPATIBILITY.md). The parser used
-// to be regex over raw text, terminated at the first '}', so a nested object in
-// any entry made the whole registry come back empty.
+// The registry index is a public contract (COMPATIBILITY.md). A nested object
+// in any entry must not stop the parse.
 TEST(RegistrySource, IndexParsesEntriesRequiresAndMinEngine)
 {
     const std::string index = R"({

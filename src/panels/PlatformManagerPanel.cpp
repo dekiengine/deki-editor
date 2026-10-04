@@ -25,21 +25,21 @@ namespace DekiEditor
 
 namespace
 {
-// Colored text helper: keeps the call sites short while routing through the
-// EditorUI float overload (no raw ImGui types leak into the panel logic).
+// Coloured text through EditorUI's float overload, so the panel logic uses no
+// raw ImGui calls for it.
 inline void TextCol(EditorUI& ui, const ImVec4& c, const char* s)
 {
     ui.TextColored(c.x, c.y, c.z, c.w, s);
 }
-// Pack a theme color into EditorUI's RGBA word for PushStyleColor.
+// Packs a theme colour into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
     return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
                           (uint8_t)(c.w * 255.0f));
 }
-// The platform's own spelling. There was a table of five families here with
-// prettier labels; the editor has no list of the world's targets, and a family
-// it has heard of should not read differently from one it has not.
+// The family as the platform spells it. No table of nicer labels: the editor
+// has no list of all targets, and a family it knows should not read
+// differently from one it does not.
 std::string FamilyName(const std::string& family)
 {
     return family.empty() ? "Custom" : family;
@@ -51,7 +51,6 @@ PlatformManagerPanel::PlatformManagerPanel(EditorApp* app)
       m_PlatformEditor(app),
       m_PackManager(std::make_unique<BoardPackManager>())
 {
-    // Set up callback for when platform is saved
     m_PlatformEditor.SetOnPlatformSaved(
         [this](const PlatformConfig& config, bool isNew)
         {
@@ -60,13 +59,13 @@ PlatformManagerPanel::PlatformManagerPanel(EditorApp* app)
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
 
-                // Always force boot scene to standard path
+                // The boot scene always lives at the standard path
                 PlatformConfig updatedConfig = config;
                 updatedConfig.bootScene = GetPlatformsDirectoryRelative() + "/" + config.id + "/boot.scene";
 
                 PlatformRegistry::Instance().SavePlatformToFile(updatedConfig, platformsDir);
 
-                // Create boot.scene if it doesn't exist (same folder as JSON)
+                // Create boot.scene next to the JSON when it is missing
                 std::string bootPath = platformsDir + "/" + config.id + "/boot.scene";
                 if (!fs::exists(bootPath))
                 {
@@ -97,7 +96,6 @@ void PlatformManagerPanel::RefreshPlatformList()
     auto& registry = PlatformRegistry::Instance();
     m_PlatformList = registry.GetPlatformDisplayList();
 
-    // Find selected index
     for (int i = 0; i < (int)m_PlatformList.size(); i++)
     {
         if (m_PlatformList[i].first == m_SelectedPlatformId)
@@ -128,7 +126,6 @@ void PlatformManagerPanel::Draw()
         auto* project = m_App->GetProject();
         if (!project)
         {
-            // Empty state: padded, dim hint instead of a bare panel.
             ui.Spacing();
             ui.Indent(pad);
             TextCol(ui, Palette::Dim, "Open a project to manage platforms.");
@@ -136,7 +133,7 @@ void PlatformManagerPanel::Draw()
         }
         else
         {
-            // Asset-browser-style sub-nav links (accent underline on the active one).
+            // Tab links as in the Asset Browser (accent underline on the active one).
             ui.BeginTabLinks();
             if (ui.TabLink("Project Platforms", m_ActiveTab == 0))
             {
@@ -169,7 +166,6 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 {
     auto& ui = EditorUI::Get();
 
-    // Refresh list if empty
     if (m_PlatformList.empty())
     {
         RefreshPlatformList();
@@ -187,10 +183,10 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
     bool hasSelection = m_SelectedIndex >= 0 && m_SelectedIndex < (int)m_PlatformList.size();
 
-    // Console-style toolbar (full-bleed): New / Edit / Delete / Refresh as icon
-    // cells. Edit/Delete are enabled only with a selection; everything is disabled
-    // while the inline platform editor is open. The cell's own enabled flag gates
-    // clicks, so no surrounding BeginDisabled is needed.
+    // Full-width toolbar in the Console's style: New, Edit, Delete and Refresh
+    // as icon cells. Edit and Delete need a selection; all are disabled while
+    // the inline platform editor is open. Each cell's enabled flag gates its
+    // clicks, so no BeginDisabled is needed.
     ui.BeginToolbar();
     if (ui.ToolbarIconButton("##newPlatform", ICON_TI_PLUS, "New Platform", !editorActive))
     {
@@ -220,7 +216,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     const float pad = m_App->Dpi(12.0f);
     ui.Indent(pad);
 
-    // Resizable split view (left list | splitter | right details)
+    // Resizable split view: list, splitter, details
     float availW = 0.0f;
     ui.GetContentRegionAvail(&availW, nullptr);
     const float splitterWidth = m_App->Dpi(6.0f);
@@ -229,9 +225,8 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
     m_LeftPanelWidth = (std::max)(minPanelWidth, (std::min)(m_LeftPanelWidth, maxPanelWidth));
 
-    // Left panel: platform list, rendered as two-line cards (name + family/chip).
-    // Borderless child (just a scroll region) so the cards float directly in the
-    // panel instead of inside a boxed sub-window.
+    // Left: the platform list as two-line cards (name, then family and
+    // framework). A borderless child, so the cards sit directly in the panel.
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(2.0f), m_App->Dpi(2.0f));
     ui.BeginChild("PlatformList", m_LeftPanelWidth, 0.0f, false);
     {
@@ -240,7 +235,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
             const auto& [id, displayName] = m_PlatformList[i];
             bool selected = (i == m_SelectedIndex);
 
-            // Build a "Family · Framework" subtitle from the platform config.
+            // Subtitle: "Family · Framework"
             std::string subtitle;
             if (auto* p = PlatformRegistry::Instance().GetPlatform(id))
             {
@@ -257,14 +252,14 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
                 m_SelectedIndex = i;
                 m_SelectedPlatformId = id;
 
-                // If editor is open for a different platform, cancel it
+                // Selecting another platform closes the open editor
                 if (editorActive)
                 {
                     m_PlatformEditor.Cancel();
                 }
             }
 
-            // Double-click to edit
+            // Double-click edits
             if (ui.IsItemHovered() && ui.IsMouseDoubleClicked(0))
             {
                 auto* platform = PlatformRegistry::Instance().GetPlatform(id);
@@ -280,7 +275,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
     ui.SameLine();
 
-    // Splitter (themed: faint line, brighter on hover, accent while dragging)
+    // Splitter: a faint line, brighter on hover, accent while dragging
     ui.PushStyleColor(EditorUI::Col::Button, Pack(Palette::Line2));
     ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(Palette::Line3));
     ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(Palette::Accent));
@@ -305,8 +300,8 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
     ui.SameLine();
 
-    // Right panel: editor (inline) or details view. Borderless (just a scroll
-    // region); negative width leaves a matching right gutter from the window edge.
+    // Right: the inline editor or the details view, borderless. The negative
+    // width leaves a gutter at the window's right edge to match the left.
     ui.BeginChild("PlatformRight", -pad, 0.0f, false);
     {
         if (editorActive)
@@ -322,8 +317,8 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
     ui.Unindent(pad);
 
-    // Delete confirmation popup - fixed width, generous padding, dim warning copy,
-    // and a destructive (red) Delete next to a neutral Cancel.
+    // Delete confirmation: a fixed-width popup with a dim warning, and a red
+    // Delete next to a neutral Cancel.
     auto* project = m_App->GetProject();
     if (m_ShowDeleteConfirm)
     {
@@ -349,10 +344,9 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
         const float gap = m_App->Dpi(8.0f);
         const float btnW = (btnAvailW - gap) * 0.5f;
 
-        // The theme left-aligns button text (for inspector value buttons); center
-        // it for these dialog buttons. Height 0 lets ImGui size the button to the
-        // font + frame padding, so the label sits centered instead of riding the
-        // bottom edge (a fixed height shorter than that clamps the text low).
+        // The theme left-aligns button text (for inspector value buttons);
+        // centre it here. Height 0 lets ImGui size the button to the font plus
+        // frame padding; a shorter fixed height pushes the label to the bottom.
         ui.PushButtonTextAlign(0.5f, 0.5f);
 
         if (ui.Button("Cancel", btnW, 0.0f))
@@ -363,7 +357,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
 
         ui.SameLine(0.0f, gap);
 
-        // Destructive button: dark theme-red at rest, brighter on hover/press.
+        // Destructive button: dark theme red at rest, brighter on hover and press.
         const ImVec4 red = Palette::Red;
         ui.PushStyleColor(EditorUI::Col::Button, Pack(ImVec4(red.x * 0.55f, red.y * 0.55f, red.z * 0.55f, 1.0f)));
         ui.PushStyleColor(EditorUI::Col::ButtonHovered,
@@ -408,7 +402,8 @@ void PlatformManagerPanel::DrawPlatformDetails()
         return;
     }
 
-    // Migrate: always force boot scene to standard path
+    // Move a boot scene stored elsewhere to the standard path, creating the
+    // scene file when it is missing.
     std::string expectedPath = GetPlatformsDirectoryRelative() + "/" + platform->id + "/boot.scene";
     if (platform->bootScene != expectedPath)
     {
@@ -439,7 +434,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
     ui.Indent(pad);
     ui.Spacing();
 
-    // Header: name + id
+    // Header: name and id
     ui.Text(platform->displayName.c_str());
     TextCol(ui, Palette::Dim, ("ID: " + platform->id).c_str());
 
@@ -447,9 +442,9 @@ void PlatformManagerPanel::DrawPlatformDetails()
     ui.Separator();
     ui.Spacing();
 
-    // Label / value rows: the label in a dim column, the value beside it,
-    // one per line - family and framework, then whatever the backend that
-    // builds for it thinks is worth saying (a chip, a devkit model, nothing).
+    // Label and value rows, one per line, the label dim: family and framework,
+    // then whatever the platform's backend chooses to show (a chip, a devkit
+    // model, or nothing).
     const float valueX = m_App->Dpi(110.0f);
     auto row = [&](const char* label, const std::string& value)
     {
@@ -504,7 +499,6 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
     ui.Spacing();
     ui.Indent(pad);
 
-    // Toolbar
     if (m_PackManager->IsFetching())
     {
         ui.BeginDisabled();
@@ -519,7 +513,7 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
         }
     }
 
-    // Auto-scan installed on first visit
+    // Scan the installed packs on the first visit
     if (!m_HasFetchedPacks)
     {
         m_PackManager->ScanInstalledPacks();
@@ -536,12 +530,11 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
     ui.Separator();
     ui.Spacing();
 
-    // Split view: list on left, details on right
+    // Split view: list on the left, details on the right
     const float listWidth = m_App->Dpi(200.0f);
 
     auto allPacks = m_PackManager->GetAllPacks();
 
-    // Pack list
     ui.BeginChild("PackList", listWidth, 0.0f, true);
     {
         const float innerPad = m_App->Dpi(4.0f);
@@ -576,7 +569,6 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
 
     ui.SameLine();
 
-    // Details panel
     ui.BeginChild("PackDetails", -pad, 0.0f, true);
     {
         DrawPackDetails();
@@ -604,7 +596,6 @@ void PlatformManagerPanel::DrawPackDetails()
     ui.Indent(pad);
     ui.Spacing();
 
-    // Header
     ui.Text(pack.name.c_str());
     if (!pack.version.empty())
     {
@@ -636,7 +627,6 @@ void PlatformManagerPanel::DrawPackDetails()
 
         ui.Spacing();
 
-        // Import buttons
         auto* project = m_App->GetProject();
         if (project)
         {
@@ -695,7 +685,7 @@ void PlatformManagerPanel::DrawPackDetails()
             TextCol(ui, Palette::Dim, ("(" + plat.family + ")").c_str());
         }
 
-        // Per-platform import button (only if pack is installed)
+        // An Import button per platform, once the pack is installed
         if (pack.isInstalled && project)
         {
             ui.SameLine();
@@ -723,7 +713,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
 {
     auto& ui = EditorUI::Get();
 
-    // Collect the available toolchains (builders).
+    // Each builder is one toolchain.
     std::vector<ITargetBuilder*> builders;
     for (auto* b : BuilderRegistry::Instance().GetAllBuilders())
     {
@@ -733,7 +723,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
         }
     }
 
-    // Lazy version check (once): ask every builder to check for updates.
+    // On first draw, ask every builder to check for updates.
     if (!m_HasCheckedVersions)
     {
         m_HasCheckedVersions = true;
@@ -743,7 +733,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
         }
     }
 
-    // Console-style toolbar (full-bleed): rescan all toolchains.
+    // Full-width toolbar in the Console's style: rescan all toolchains.
     ui.BeginToolbar();
     if (ui.ToolbarIconButton("##rescanToolchains", ICON_TI_REFRESH, "Rescan toolchains", true))
     {
@@ -768,8 +758,8 @@ void PlatformManagerPanel::DrawToolchainsTab()
         m_SelectedBuilder = 0;
     }
 
-    // Resizable split view: toolchain list | splitter | components (mirrors the
-    // Project Platforms tab).
+    // Resizable split view, as in the Project Platforms tab: toolchain list,
+    // splitter, components.
     float availW = 0.0f;
     ui.GetContentRegionAvail(&availW, nullptr);
     const float splitterWidth = m_App->Dpi(6.0f);
@@ -777,7 +767,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
     const float maxPanelWidth = availW - minPanelWidth - splitterWidth;
     m_ToolchainLeftWidth = (std::max)(minPanelWidth, (std::min)(m_ToolchainLeftWidth, maxPanelWidth));
 
-    // Left: toolchain entry cards (name + "M / N installed" summary).
+    // Left: a card per toolchain, with its name and "M / N installed".
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(2.0f), m_App->Dpi(2.0f));
     ui.BeginChild("ToolchainList", m_ToolchainLeftWidth, 0.0f, false);
     {
@@ -813,7 +803,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
 
     ui.SameLine();
 
-    // Splitter (themed: faint line, brighter on hover, accent while dragging).
+    // Splitter: a faint line, brighter on hover, accent while dragging.
     ui.PushStyleColor(EditorUI::Col::Button, Pack(Palette::Line2));
     ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(Palette::Line3));
     ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(Palette::Accent));
@@ -838,8 +828,8 @@ void PlatformManagerPanel::DrawToolchainsTab()
 
     ui.SameLine();
 
-    // Right: the selected toolchain's components. Negative width leaves a matching
-    // right gutter so the pane doesn't touch the window edge.
+    // Right: the selected toolchain's components. The negative width leaves a
+    // gutter so the pane does not touch the window edge.
     ui.BeginChild("ToolchainDetail", -pad, 0.0f, false);
     {
         DrawBuilderToolchains(builders[m_SelectedBuilder]);
@@ -857,7 +847,6 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
     ui.Indent(pad);
     ui.Spacing();
 
-    // Header: toolchain name.
     ui.Text(builder->GetName());
     ui.Spacing();
     ui.Separator();
@@ -878,12 +867,11 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         ui.BeginDisabled();
     }
 
-    // Scope ids per builder so component ids (e.g. "python") don't collide
+    // Scope ids per builder, so component ids such as "python" do not clash
     // between builders.
     ui.PushID(static_cast<const void*>(builder));
 
-    // Each toolchain component as a card: name + colored status/version subtitle.
-    // Clicking a not-installed component installs it.
+    // A card per component: its name, and its status and version in colour.
     for (const auto& comp : components)
     {
         std::string subtitle;
@@ -892,8 +880,8 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         {
             case ToolchainComponentStatus::Installed:
                 subtitle = "Installed";
-                // Prefer the latest known version; fall back to the detected installed
-                // version (system toolchains like MSVC/CMake report only the latter).
+                // The latest known version, else the detected installed one
+                // (system toolchains such as MSVC and CMake report only that).
                 if (!comp.latestVersion.empty())
                 {
                     subtitle += "  \xc2\xb7  v" + comp.latestVersion;
@@ -941,8 +929,8 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
             ui.SetTooltip(comp.tooltip.c_str());
         }
 
-        // Clicking installs a not-installed component, or updates an outdated one
-        // (install now fetches the latest release and records its version).
+        // Clicking installs a missing component or updates an outdated one;
+        // installing fetches the latest release and records its version.
         const bool clickInstalls = comp.canInstall && (comp.status == ToolchainComponentStatus::NotInstalled ||
                                                        comp.status == ToolchainComponentStatus::UpdateAvailable);
         if (clicked && clickInstalls)
@@ -969,8 +957,8 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         }
     }
 
-    // Setup card - shown when the setup component + python are installed.
-    // Clicking runs (or re-runs) the setup.
+    // Setup card, shown once the setup component and Python are installed.
+    // Clicking runs the setup, or runs it again.
     for (const auto& comp : components)
     {
         if (!comp.canSetup)
@@ -985,7 +973,6 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
             continue;
         }
 
-        // Check that Python is also installed
         bool pythonInstalled = false;
         for (const auto& other : components)
         {
@@ -1036,7 +1023,6 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
 
     ui.Spacing();
 
-    // Check for updates button
     if (ui.Button(("Check for Updates##" + std::string(builder->GetName())).c_str()))
     {
         builder->CheckForToolchainUpdates();
@@ -1047,7 +1033,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
 
 void PlatformManagerPanel::RefreshToolchains()
 {
-    // Each builder re-checks its own components on next GetToolchainComponents() call
+    // Each builder re-checks its components on the next GetToolchainComponents() call
     m_HasCheckedVersions = false;
     auto allBuilders = BuilderRegistry::Instance().GetAllBuilders();
     for (auto* b : allBuilders)

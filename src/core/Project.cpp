@@ -42,10 +42,9 @@ void ApplySettingsToGlobalCache()
 
 namespace
 {
-// Per-property JSON round-trip for settings types. Settings declare a
-// constrained property set (bool / int / float / enum / string), so this
-// is intentionally narrower than Scene::SavePropertyToJson - no arrays,
-// no asset/object refs, no colors. Adding more types here is mechanical.
+// Reads and writes one settings property as JSON. Settings use only bool,
+// integer, float, enum and string properties, so this handles fewer types than
+// Scene::SavePropertyToJson (no arrays, asset or object refs, or colours).
 
 void SaveSettingProperty(const Deki::Component* comp, const Deki::PropertyInfo& prop, nlohmann::json& out)
 {
@@ -69,8 +68,8 @@ void SaveSettingProperty(const Deki::Component* comp, const Deki::PropertyInfo& 
             }
             break;
         default:
-            // Settings shouldn't use other types yet. Silently skip; the field
-            // keeps its compiled default on next load.
+            // Other types are skipped; the field keeps its compiled default on
+            // the next load.
             break;
     }
 }
@@ -163,11 +162,9 @@ namespace
 {
 // Where a settings section is stored.
 //
-// Package-owned sections get a folder per package so uninstalling one takes its
-// settings with it. Engine-core sections share core.json - they are few, small
-// and always present, so a file each would be noise. The framebuffer is the
-// exception: it is the device contract also written to project_data.bin and the
-// one most likely to be edited per-platform, so it stays addressable on its own.
+// Package-owned sections get a folder per package, so uninstalling one takes
+// its settings with it. Engine-core sections share core.json: they are few,
+// small and always present.
 std::filesystem::path SectionFilePath(const std::string& root, const std::string& section)
 {
     std::string lower = section;
@@ -218,10 +215,9 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
     std::vector<std::string> written;
     namespace fs = std::filesystem;
 
-    // Group by destination file, then merge into whatever is already there. The
-    // read-then-merge keeps sections belonging to packages that are not currently
-    // loaded - the same guarantee the single packageSettings block used to give,
-    // and stronger here, since an absent package's file is never even opened.
+    // Group by destination file, then merge into what is already there. This
+    // keeps sections of packages that are not loaded; an absent package's file
+    // is never even opened.
     std::map<fs::path, nlohmann::json> byFile;
     std::set<fs::path> unreadable;  // there but not JSON: never written over
 
@@ -278,11 +274,11 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
 
 namespace
 {
-// The old Framebuffer section, where a project kept how much world it showed
-// before cameras framed it themselves: settings/framebuffer.json, or for a
-// project older than the settings/ folder, deki.json's packageSettings.
-// Nothing writes it any more; it stays on disk because scenes migrate as they
-// load, which can be long after the project was first opened.
+// The old Framebuffer section, which held how much of the world a project
+// showed before cameras framed it themselves: settings/framebuffer.json, or
+// deki.json's packageSettings in older projects. Nothing writes it. It stays on
+// disk because scenes migrate their cameras when they load, which can be long
+// after the project was first opened.
 //
 //   0.16  targetWidth/targetHeight: the render size, pixels
 //   0.18  designWidth/designHeight: the design area, meters; pixelPerfect
@@ -348,8 +344,8 @@ void ActivePlatformScreen(const Project* project, int& width, int& height)
 
 void Project::LoadLegacyFraming(const nlohmann::json& legacyFramebuffer)
 {
-    // The old Framebuffer section, for scenes whose cameras migrate from it:
-    // its height in meters and its Pixel Perfect.
+    // From the old Framebuffer section, for scenes whose cameras migrate from
+    // it: its height in meters and its Pixel Perfect flag.
     const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
     SceneView::LegacyFraming legacy;
     if (const float h = LegacyNumber(legacyFramebuffer, "designHeight"); h > 0.0f)
@@ -372,23 +368,20 @@ bool Project::Load(const std::string& path)
 {
     namespace fs = std::filesystem;
 
-    // Path can be either a directory or deki.json file
+    // Path can be either the project directory or its deki.json.
     fs::path projectPath = path;
 
     if (fs::is_regular_file(projectPath))
     {
-        // It's a file, get parent directory
         projectPath = projectPath.parent_path();
     }
 
-    // Look for deki.json
     fs::path dekiJsonPath = projectPath / "deki.json";
     if (!fs::exists(dekiJsonPath))
     {
         return false;
     }
 
-    // Read deki.json
     std::ifstream file(dekiJsonPath);
     if (!file.is_open())
     {
@@ -401,38 +394,21 @@ bool Project::Load(const std::string& path)
         file >> json;
 
         m_Name = json.value("name", "Unnamed Project");
-        // Store absolute: a project opened by a relative path otherwise propagates
-        // that relative root into every derived path, and package loading rejects
-        // relative paths outright.
+        // Stored absolute: every derived path is built from it, and package
+        // loading rejects relative paths.
         m_Path = NormalizeProjectRoot(projectPath.string());
         projectPath = m_Path;
 
-        // Migrate before validating. The check below asks whether the project has
-        // an assets/ directory, which is a question about the *current* layout -
-        // ask it of an unmigrated project and it says no, Load bails, and the
-        // migration that would have fixed it never runs. The project simply stops
-        // opening.
+        // Refuse a project last saved by a newer editor: its scenes may use a
+        // format this build does not understand, and the next save would
+        // rewrite them in the older format, losing what the newer editor
+        // stored. Older projects are always fine; the migrations below handle
+        // them.
         //
-        // Gated on the structure version so it runs once, and so a project can
-        // always say which layout it is on rather than each migration inferring it
-        // from the shape of the directory.
-        // Which editor last wrote this project. Refuse a project from a NEWER
-        // one: its scenes may use a format this build does not understand, and
-        // opening it would quietly rewrite them back into the older shape on
-        // the next save, losing whatever the newer editor stored.
-        //
-        // Older is always fine, which is the whole point of the migrations
-        // above and of the name and enum tables.
-        //
-        // The check reads "lastSavedBy" rather than the older "engineVersion",
-        // which cannot be trusted: before 0.16.0 that one was stamped once at
-        // scaffold time and never updated, so it recorded whatever created the
-        // project rather than what last wrote it, and the scaffold had a
-        // fallback that wrote the literal "1.0.0". Since 1.0.0 compares above
-        // 0.16.0, honouring it would lock every project made before this one
-        // out of the editor, and no threshold can tell a stale 1.0.0 from a
-        // real one. "lastSavedBy" is written only by editors that maintain it,
-        // so its absence means "older", which is always allowed.
+        // Reads "lastSavedBy", never "engineVersion": that one was set once
+        // when the project was created and can hold a literal "1.0.0" that
+        // outranks every real version. A missing "lastSavedBy" means an older
+        // editor, which is allowed.
         const std::string wroteWith = json.value("lastSavedBy", "");
         if (ProjectNeedsNewerEditor(wroteWith, DEKI_ENGINE_VERSION))
         {
@@ -444,6 +420,12 @@ bool Project::Load(const std::string& path)
             return false;
         }
 
+        // Migrate before the assets/ check below: that check is about the
+        // current layout, so on an unmigrated project it fails and the
+        // migration that would fix it never runs.
+        //
+        // Gated on the structure version, so it runs once and the project
+        // always records which layout it is on.
         m_StructureVersion = json.value("structure", "v1");
         const bool migrated = (m_StructureVersion != ProjectPaths::kStructureVersion);
         if (migrated)
@@ -466,9 +448,8 @@ bool Project::Load(const std::string& path)
                 DEKI_LOG_ERROR("Project: %s", flattenSummary.c_str());
             }
 
-            // Only record the new version once the project actually reached it.
-            // Advancing regardless would mark a project migrated that is not, and
-            // the gate would then stop it ever being retried.
+            // Record the new version only once the project has reached it.
+            // Otherwise a failed migration would never be retried.
             std::string pkgSummary;
             if (ProjectPaths::MigrateModulesToPackages(m_Path, pkgSummary))
             {
@@ -499,10 +480,9 @@ bool Project::Load(const std::string& path)
         m_BuildPath = ProjectPaths::Build(m_Path).string();
         m_CachePath = ProjectPaths::Cache(m_Path).string();
 
-        // Legacy source: settings used to live in a single "packageSettings" object
-        // here. Read it first so an unmigrated project still loads, then let the
-        // settings/ files overlay it below. The next Save writes the files and drops
-        // this block, so the migration completes without a separate pass.
+        // Older projects keep settings in a "packageSettings" object in
+        // deki.json. Read it first, then let the settings/ files overlay it.
+        // The next Save writes the files and drops this block.
         nlohmann::json legacyFramebuffer;
         if (json.contains("packageSettings") && json["packageSettings"].is_object())
         {
@@ -512,11 +492,10 @@ bool Project::Load(const std::string& path)
                 std::string section = it.key();
                 const nlohmann::json& sectionJson = it.value();
 
-                // "Display" was split: the framebuffer contract (width/height/format)
-                // kept its fields under the new "Framebuffer" name, while frame pacing
-                // moved to "Core". Without the alias, an existing project's resolution
-                // and colour format would silently fall back to defaults on first open
-                // after the rename.
+                // "Display" is now two sections: the framebuffer fields
+                // (width, height, format) under "Framebuffer", and frame pacing
+                // under "Core". Without this alias an older project's
+                // resolution and colour format would fall back to defaults.
                 if (section == "Display")
                 {
                     if (Deki::Component* core = Deki::SettingsRegistry::Instance().GetByName("Core"))
@@ -541,7 +520,7 @@ bool Project::Load(const std::string& path)
                 Deki::Component* inst = Deki::SettingsRegistry::Instance().GetByName(section.c_str());
                 if (inst == nullptr)
                 {
-                    continue;  // unknown package; leave alone
+                    continue;  // package not loaded; left as it is
                 }
                 const Deki::ComponentMeta* compMeta = Deki::ComponentRegistry::Instance().GetMeta(inst->GetType());
                 if (compMeta == nullptr)
@@ -555,26 +534,23 @@ bool Project::Load(const std::string& path)
             }
         }
 
-        // Current source of truth. Applied after the legacy block so a project that
-        // has both takes the files.
+        // The settings/ files win: applied after the legacy block, so a project
+        // with both takes the files.
         LoadSettingsFiles(m_Path);
         ApplySettingsToGlobalCache();  // the old framing converts at the art density
 
         const nlohmann::json framebufferFile = ReadLegacyFramebuffer(m_Path);
         LoadLegacyFraming(framebufferFile.is_object() ? framebufferFile : legacyFramebuffer);
 
-        // Load startup scene. Older files stored it with backslashes, which the
-        // runtime's asset lookup (keyed by the forward-slash asset path) never
-        // matched: the device built fine and then failed to load its scene.
+        // Through SetStartupScene, which turns backslashes into forward
+        // slashes: the runtime's asset lookup only matches forward slashes, and
+        // older files may hold backslashes.
         SetStartupScene(json.value("startupScene", ""));
 
-        // Load render pipeline
         m_RenderPipelineGuid = json.value("renderPipelineGuid", "");
 
-        // Load active platform
         m_ActivePlatformId = json.value("activePlatformId", "");
 
-        // Load force-include GUIDs for asset deployment
         m_ForceIncludeGuids.clear();
         if (json.contains("forceIncludeGuids") && json["forceIncludeGuids"].is_array())
         {
@@ -584,10 +560,9 @@ bool Project::Load(const std::string& path)
             }
         }
 
-        // A freshly loaded project is clean - except when this load migrated it.
-        // Marking dirty earlier would not survive: this assignment runs at the end
-        // of the same function and silently cleared it, so the migration never got
-        // written and re-ran on every open.
+        // A freshly loaded project is clean, unless this load migrated it, so
+        // the migration gets saved. Must stay the last assignment: setters above
+        // call MarkDirty.
         m_IsDirty = migrated;
         return true;
     }
@@ -608,7 +583,7 @@ bool Project::Save()
 
     fs::path dekiJsonPath = fs::path(m_Path) / "deki.json";
 
-    // Read existing file to preserve other settings
+    // Start from the existing file so keys this class does not own are kept.
     nlohmann::json json;
     {
         std::ifstream file(dekiJsonPath);
@@ -620,61 +595,49 @@ bool Project::Save()
             }
             catch (const std::exception& e)
             {
-                // A malformed deki.json leaves every field at its default, which
-                // reads downstream as "an empty project" rather than "a broken file".
+                // Warned because a malformed deki.json leaves every field at
+                // its default, which otherwise looks like an empty project.
                 DEKI_LOG_WARNING("Project: could not parse %s (%s); using defaults", dekiJsonPath.string().c_str(),
                                  e.what());
             }
         }
     }
 
-    // Settings live under settings/, not in deki.json. packageSettings was keyed by
-    // section name, so it grew with every package a project installed and any two
-    // people editing unrelated settings collided in one file. A package's sections
-    // now live in its own folder and go away when it is uninstalled.
+    // Settings live under settings/, not in deki.json.
     //
-    // Only the sections actually written are dropped from the legacy block below.
-    // A section whose package is not currently loaded is not in the registry, so it
-    // cannot be written - erasing the whole block regardless would delete it. That
-    // is not hypothetical: it is how this project's "Rendering" settings were lost
-    // on a run where the packages had failed to load.
+    // Only the sections written are dropped from the legacy block below. A
+    // section whose package is not loaded is not in the registry and cannot be
+    // written, so erasing the whole block would lose it.
     const std::vector<std::string> writtenSections = SaveSettingsFiles(m_Path);
 
-    // Record the layout version so the migration above runs exactly once.
-    // Which editor wrote this, rewritten every save. Load refuses a project
-    // from a newer one. "engineVersion" used to carry this, but it was stamped
-    // once when the project was created and never touched again, so every
-    // project claimed the version that scaffolded it, forever. It is kept
-    // up to date here too because the ESP-IDF toolchain and the doc generator
-    // still read it, but the gate on load uses "lastSavedBy" alone.
+    // Which editor wrote this, updated on every save; Load refuses a project
+    // from a newer one. "engineVersion" is kept up to date too because the
+    // ESP-IDF toolchain and the doc generator read it, but Load checks
+    // "lastSavedBy" alone.
     json["lastSavedBy"] = DEKI_ENGINE_VERSION;
     json["engineVersion"] = DEKI_ENGINE_VERSION;
 
+    // The layout version, so Load runs each migration once.
     json["structure"] = m_StructureVersion.empty() ? std::string(ProjectPaths::kStructureVersion) : m_StructureVersion;
 
-    // Update startup scene
     json["startupScene"] = m_StartupScene;
 
-    // Update render pipeline
     json["renderPipelineGuid"] = m_RenderPipelineGuid;
 
-    // Update active platform
     json["activePlatformId"] = m_ActivePlatformId;
 
-    // Update force-include GUIDs
     json["forceIncludeGuids"] = nlohmann::json::array();
     for (const auto& guid : m_ForceIncludeGuids)
     {
         json["forceIncludeGuids"].push_back(guid);
     }
 
-    // Where assets are kept is the target's (PlatformConfig::assetStorage);
-    // the per-asset flash list this used to hold was never read by a build.
+    // Obsolete: where assets are kept is set per target
+    // (PlatformConfig::assetStorage), and no build read this list.
     json.erase("flashGuids");
 
-    // Settings now live in settings/; drop the copies that used to sit here so the
-    // two cannot disagree. Written out by SaveSettingsFiles above first, so this
-    // never loses anything.
+    // Old copies of settings that now live in settings/, dropped so the two
+    // cannot disagree. SaveSettingsFiles above has already written them.
     json.erase("displaySettings");
     json.erase("profilingSettings");
     json.erase("unitSettings");
@@ -682,8 +645,8 @@ bool Project::Save()
     if (json.contains("packageSettings") && json["packageSettings"].is_object())
     {
         nlohmann::json& legacy = json["packageSettings"];
-        // "Framebuffer" (once "Display") is never written any more and stays:
-        // scenes that have not loaded since still migrate their cameras from it.
+        // "Framebuffer" (or "Display") is never written, so it stays: scenes
+        // that have not loaded since still migrate their cameras from it.
         for (const std::string& section : writtenSections)
         {
             legacy.erase(section);
@@ -694,11 +657,11 @@ bool Project::Save()
             json.erase("packageSettings");
         }
     }
-    // Only ever written, never read by anything - dropped rather than migrated.
+    // Nothing reads it, so it is dropped rather than migrated.
     json.erase("assetSettings");
 
-    // Write back atomically: a crash mid-write used to leave a truncated
-    // deki.json, the one file the editor needs to open the project at all.
+    // Atomic, so a crash mid-write cannot leave a truncated deki.json, the one
+    // file the editor needs to open the project.
     const std::string outPath = std::filesystem::path(dekiJsonPath).string();
     std::string err;
     if (!AtomicWriteFile(outPath, json.dump(2), err))

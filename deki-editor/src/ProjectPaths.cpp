@@ -15,10 +15,9 @@ namespace DekiEditor
 namespace ProjectPaths
 {
 
-// Thin wrappers over the public, package-visible definitions in
-// <deki-editor/Paths.h>. Kept as one definition on purpose: when the layout was
-// stated in two places, the project root grew a second cache/ directory the
-// moment one of them was updated and the other was not.
+// Thin wrappers over the public definitions in <deki-editor/Paths.h>, which
+// packages also see. The layout must be defined in one place only: two copies
+// drift apart, and the project root then grows a second cache/ directory.
 
 fs::path Generated(const std::string& projectRoot)
 {
@@ -69,10 +68,10 @@ bool MigrateModulesToPackages(const std::string& projectRoot, std::string& outSu
 {
     const fs::path root(projectRoot);
     const std::pair<fs::path, fs::path> renames[] = {
-        // Left-hand names are historical and must stay literal: they are what the
-        // migration reads FROM. A blanket rename moved them too, which turned this
-        // into packages -> packages and quietly stopped migrating anything.
-        // "modules" and "deki-modules*.json" are the legacy (pre-0.9) names this migrates from.
+        // The left-hand names are the old (pre-0.9) "modules" and
+        // "deki-modules*.json" names this migrates from. They must stay literal:
+        // a project-wide rename of "modules" would turn this into
+        // packages -> packages and silently stop the migration.
         { root / "modules", fs::path(GetPackagesDirectory(projectRoot)) },
         { root / "deki-modules.json", fs::path(GetPackageManifestFile(projectRoot)) },
         { root / "deki-modules-lock.json", fs::path(GetPackageLockFile(projectRoot)) },
@@ -149,11 +148,10 @@ bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& ou
         fs::rename(from, to, moveEc);
         if (moveEc)
         {
-            // Put back what already moved. A rename here fails for reasons that
-            // have nothing to do with the project - a watcher or an indexer
-            // holding a directory is enough - and stopping halfway would leave
-            // the user's source split across two layouts, with the version
-            // already advanced so nothing would ever retry it.
+            // Put back what already moved. A rename can fail for reasons outside
+            // the project (a watcher or an indexer holding a directory), and
+            // stopping halfway would leave the user's source split across two
+            // layouts, with the version already advanced so nothing retries it.
             for (auto it = done.rbegin(); it != done.rend(); ++it)
             {
                 std::error_code backEc;
@@ -274,8 +272,8 @@ bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSu
         moved += from.filename().string();
     }
 
-    // The shadow dir used to live inside the cache; it is a sibling now so that
-    // the copy destination is never nested inside a copy source.
+    // Moves an old shadow dir out of the cache. It must be the cache's sibling,
+    // so the copy destination is never nested inside a copy source.
     const fs::path shadowInCache = Cache(projectRoot) / "packages";
     if (fs::exists(shadowInCache, ec) && !fs::exists(Shadow(projectRoot), ec))
     {

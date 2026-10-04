@@ -1,11 +1,10 @@
-// EditorCli - argument parsing and verb dispatch.
+// EditorCli: argument parsing and verb dispatch.
 //
-// The dispatch here has exactly two shapes. A verb either runs against a
-// booted editor (RunCommand), which is the default and is what makes a CLI run
-// equivalent to opening the project in the GUI, or it reads the project
-// directory and nothing else (RunLightCommand). IsLightCommand is the whole
-// list of the second kind; there is no third kind, and no verb bootstraps
-// engine state of its own any more.
+// A verb runs in one of two ways. By default it runs against a booted editor
+// (RunCommand), so a CLI run is the same as opening the project in the GUI.
+// Otherwise it reads the project directory and nothing else
+// (RunLightCommand); IsLightCommand lists those. No verb sets up engine state
+// of its own.
 
 #include "EditorCli.h"
 #include "EditorHeadless.h"
@@ -115,8 +114,9 @@ void PrintUsage(const char* program)
 
 bool ParseArgs(int argc, char* argv[], CliOptions& o)
 {
-    // Options that consume the following token. Guard against a missing value so
-    // "--platform" at the end doesn't swallow the project path or read past argv.
+    // Options that take the next token as their value. A missing value is an
+    // error, so "--platform" at the end neither swallows the project path nor
+    // reads past argv.
     auto takeValue = [&](int& i, const char* flag) -> const char*
     {
         if (i + 1 >= argc || argv[i + 1][0] == '-')
@@ -277,17 +277,18 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         }
         else
         {
-            // A mistyped verb used to be ignored, and the editor opened its
-            // window instead of running the command: a script waited forever.
+            // An unknown option must be an error: otherwise the editor opens
+            // its window instead of running the command, and a script waits
+            // forever.
             printf("Error: unknown option %s\n", argv[i]);
             o.badArgs = true;
         }
     }
 
-    // The verbs that read the project directory and nothing else run without
-    // booting, so they cannot share a line with one that boots: the other
-    // verbs used to be dropped without a word. --new-project's path is the
-    // parent directory, not a project, so it stands alone too.
+    // The verbs that only read the project directory run without booting, so
+    // they cannot share a command line with one that boots; that is an error
+    // rather than a silently dropped verb. --new-project's path is the parent
+    // directory, not a project, so it stands alone too.
     CliOptions booting = o;
     booting.newProjectName = nullptr;
     booting.packagesList = false;
@@ -332,13 +333,11 @@ bool IsLightCommand(const CliOptions& o)
     // left to report.
     //
     // --list-platforms reads platform files: the project's and the board
-    // packs'. A project open changes neither.
+    // packs'. Opening the project changes neither.
     //
-    // --toolchain-status and --install-toolchain used to be here too, on the
-    // reasoning that a toolchain describes the machine. It describes a build
-    // BACKEND, and backends arrive from the project's packages now - so without
-    // the open there is nobody to ask, and both verbs answered "No build
-    // backends are registered at all" for every project.
+    // --toolchain-status and --install-toolchain must boot: a toolchain belongs
+    // to a build backend, and backends come from the project's packages, so
+    // without opening the project there is no backend to ask.
     return o.packagesList || o.listPlatforms;
 }
 
@@ -364,12 +363,11 @@ int RunLightCommand(const CliOptions& o)
 
 int RunCommand(const CliOptions& o, EditorApp& editor)
 {
-    // Every verb on the line runs, in this order, stopping at the first one
-    // that fails. This was an if-chain that returned from the first verb it
-    // matched: `--export --verify-scenes` verified, exported nothing and
-    // exited 0, and `--clean --build-firmware` only cleaned.
+    // Every verb on the command line runs, in this order, stopping at the
+    // first one that fails. So `--export --verify-scenes` does both, and
+    // `--clean --build-firmware` cleans and then builds.
     //
-    // The order is the one the work depends on: package changes, then the
+    // The order follows what the work depends on: package changes, then the
     // code build, then checks that read the built project, then what ships.
     int rc = 0;
     auto run = [&rc](bool wanted, const auto& verb)
@@ -411,9 +409,9 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
 void AttachParentConsole()
 {
 #ifdef _WIN32
-    // Redirect only what has nowhere to go. A caller that redirected stdout to
-    // a file or a pipe already handed us a valid handle, and reopening CONOUT$
-    // over it would throw their output on the screen instead.
+    // Redirect only what has nowhere to go. A caller that sent stdout to a file
+    // or a pipe already gave us a valid handle, and reopening CONOUT$ over it
+    // would put their output on the screen instead.
     auto orphaned = [](DWORD which)
     {
         HANDLE h = GetStdHandle(which);
@@ -444,9 +442,9 @@ void AttachParentConsole()
         freopen_s(&f, "CONOUT$", "w", stderr);
     }
 
-    // Line-buffered would still hold output across a crash inside a package
-    // DLL's static initialiser, which is exactly when the last line printed is
-    // the diagnostic. Unbuffered costs nothing at CLI output volumes.
+    // Unbuffered, not line-buffered: a crash inside a package DLL's static
+    // initialiser would lose buffered output, and then the last line printed
+    // is the diagnostic. It costs nothing at CLI output volumes.
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 #endif

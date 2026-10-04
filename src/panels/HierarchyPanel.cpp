@@ -53,8 +53,7 @@ void HierarchyPanel::Draw()
     }
 
     // The panel itself never scrolls: the breadcrumb and search stay put and
-    // the tree below scrolls in its own region (it used to take the search
-    // field away with it).
+    // the tree below scrolls in its own region.
     ImGui::Begin("HIERARCHY###Hierarchy", &isOpen,
                  DekiEditor::MaximizedWindowFlags("HIERARCHY###Hierarchy") | ImGuiWindowFlags_NoScrollbar |
                      ImGuiWindowFlags_NoScrollWithMouse);
@@ -74,15 +73,14 @@ void HierarchyPanel::Draw()
     const float breadcrumbIndent = m_App->Dpi(16.0f);
 
     // 12 CSS px Inter for the breadcrumb row. CssPx applies Inter's REAL_DIM
-    // ratio so the visual size matches CSS semantics (the requested ImGui
-    // font size will be ~14.5 to render an em-square that looks like 12px).
+    // ratio so the size matches CSS: the ImGui font size comes out near 14.5
+    // for an em-square that looks 12px.
     ImGui::PushFont(g_FontUI, Fonts::CssPx(g_FontUI, 12.0f));
 
-    // Header band: the breadcrumb text is vertically centered between the
-    // panel's top edge (the tab bar separator above) and the 1px divider
-    // below. Equal padding top and bottom - explicit cursor positioning is
-    // used instead of stacked Dummy() items so ImGui's per-item ItemSpacing
-    // can't make the two gaps uneven.
+    // Header band: the breadcrumb text is centred vertically between the
+    // panel's top edge (the tab bar separator) and the 1px divider below,
+    // with equal padding. The cursor is placed explicitly, not with stacked
+    // Dummy() items, so ImGui's ItemSpacing cannot make the gaps uneven.
     const float headerPadY = m_App->Dpi(8.0f);
     const float textH = ImGui::GetTextLineHeight();
     const ImVec2 headerStart = ImGui::GetCursorScreenPos();
@@ -126,9 +124,7 @@ void HierarchyPanel::Draw()
     }
     else
     {
-        // Just the scene name in foreground (dirty asterisk if unsaved).
-        // The earlier "scene /" prefix and right-aligned "live" indicator
-        // were dropped at the user's request - only the name is shown now.
+        // Just the scene name, with an asterisk if unsaved.
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Fg);
         std::string displayName = sceneName + (isDirty ? " *" : "");
         ImGui::TextUnformatted(displayName.c_str());
@@ -146,34 +142,29 @@ void HierarchyPanel::Draw()
         dl->AddRectFilled(ImVec2(winLeft, y), ImVec2(winRight, y + 1.0f), ImGui::GetColorU32(ImGuiCol_Border));
     }
 
-    // Position the layout cursor just below the breadcrumb divider - this is
-    // the top of the search band.
+    // Cursor just below the breadcrumb divider: the top of the search band.
     ImGui::SetCursorScreenPos(ImVec2(headerStart.x, ImFloor(headerEndY) + 1.0f));
 
-    // Search band - the search row is vertically centered between the
-    // breadcrumb divider above and the tree separator below. Equal padding
-    // top and bottom, positioned explicitly (same approach as the header
-    // band) so ItemSpacing can't skew the two gaps. The magnifier icon is
-    // rendered ~2 CSS-px larger than the input text and shifted so its
-    // vertical center lines up with the input text's center.
+    // Search band: the search row is centred vertically between the
+    // breadcrumb divider and the tree separator, placed explicitly like the
+    // header band. The magnifier is about 2 CSS px larger than the input
+    // text, with its centre on the text's centre.
     {
         const float searchInset = m_App->Dpi(12.0f);
         const float inputSize = Fonts::CssPx(g_FontUI, 12.0f);
         const float iconSize = Fonts::CssPx(g_FontUI, 14.0f);
         const float searchPadY = m_App->Dpi(6.0f);
 
-        // Tighter frame padding for the search input so the row isn't as tall
-        // as the theme default (~10px). Pushed before measuring GetFrameHeight
-        // so the band height reflects the reduced frame.
+        // Less vertical frame padding than the theme's (~10px), for a shorter
+        // row. Pushed before GetFrameHeight is measured so the band uses it.
         const ImVec2 themePad = ImGui::GetStyle().FramePadding;
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(themePad.x, m_App->Dpi(4.0f)));
         const float framePadY = ImGui::GetStyle().FramePadding.y;
 
-        // Measure the *rendered* (DPI-scaled) sizes with each font pushed.
-        // Cursor coords are physical pixels, so the vertical math must use the
-        // scaled line/frame heights - using the base CssPx sizes here is what
-        // previously threw the centering off (they're ~half the rendered size
-        // at 200% DPI).
+        // Measure the rendered (DPI-scaled) sizes with each font pushed.
+        // Cursor coordinates are physical pixels, so the centring must use the
+        // scaled heights; the base CssPx sizes are about half of them at 200%
+        // DPI.
         ImGui::PushFont(g_FontUI, inputSize);
         const float inputLineH = ImGui::GetTextLineHeight();
         const float inputFrameH = ImGui::GetFrameHeight();
@@ -238,43 +229,43 @@ void HierarchyPanel::Draw()
     // Auto-scroll while dragging items near the top/bottom edge of the panel.
     AutoScrollOnDrag();
 
-    // Build visible flattened list during draw (for arrow key navigation)
+    // The visible rows are listed again during this draw, for arrow keys;
+    // last frame's list is kept for Shift+click ranges.
     m_VisibleLastFrame.swap(m_FlattenedObjects);
     m_FlattenedObjects.clear();
     m_CollapsedByArrow = nullptr;
     m_ArrowKeyHandled = false;
 
-    // Remove the vertical gap between tree rows so selection/hover highlights
-    // form a continuous list (no 4px unhighlighted strip between rows). Scoped
-    // to the whole tree + persistent section below, then popped.
+    // No vertical gap between tree rows, so selection and hover highlights
+    // form one continuous strip. Covers the tree and the Persistent section
+    // below, then popped.
     const ImVec2 themeItemSp = ImGui::GetStyle().ItemSpacing;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(themeItemSp.x, 0.0f));
 
-    // Object tree - only show root objects (children are drawn recursively)
-    // Make a copy since deletion may modify the list
+    // Root objects only; children are drawn recursively. A copy, since
+    // deleting an object changes the list.
     auto objects = scene->GetObjects();
     for (Deki::Object* obj : objects)
     {
-        // Skip objects that have a parent (they'll be drawn as children)
+        // Drawn under its parent
         if (obj->GetParent() != nullptr)
         {
             continue;
         }
         if (DrawObjectNode(obj))
         {
-            // Object was deleted - stop iterating to avoid invalid access
+            // An object was deleted: the list is no longer valid
             break;
         }
     }
 
-    // Persistent section - show persistent objects that survive scene changes
+    // Persistent section: objects that survive scene changes
     const auto& persistentObjects = Deki::Engine::GetInstance().GetSceneSystem().GetPersistentObjects();
     if (!persistentObjects.empty())
     {
         ImGui::Separator();
 
-        // Draw header with a distinct style
-        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Amber);  // Yellow-ish
+        ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Amber);
         bool persistentOpen =
             ImGui::TreeNodeEx("Persistent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
         ImGui::PopStyleColor();
@@ -287,7 +278,7 @@ void HierarchyPanel::Draw()
                 {
                     continue;
                 }
-                DrawObjectNode(obj, true);  // Pass flag to indicate read-only
+                DrawObjectNode(obj, true);  // read-only
             }
             ImGui::TreePop();
         }
@@ -296,10 +287,8 @@ void HierarchyPanel::Draw()
     ImGui::PopStyleVar();  // ItemSpacing (tree row gap)
 
     // Keyboard edits apply only while this panel has focus and no text field
-    // is being typed into. Without the guard, Ctrl+D/C/V fired from the
-    // hierarchy search box, the Inspector rename field and the Console filter
-    // (Ctrl+V pasted objects AND text), and Delete removed the selected object
-    // while editing the search text in this very window.
+    // takes typing. Otherwise Ctrl+D/C/V and Delete act on objects while the
+    // user types in the search box or another panel's field.
     const bool keysActive = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
                             !ImGui::GetIO().WantTextInput && !m_RenamingObject;
 
@@ -310,13 +299,13 @@ void HierarchyPanel::Draw()
         m_App->DuplicateObjects(m_App->GetSelectedObjects());
     }
 
-    // Ctrl+C to copy selected objects
+    // Ctrl+C copies the selection.
     if (keysActive && selected && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
     {
         ClipboardService::Instance().CopyObjects(m_App->GetSelectedObjects());
     }
 
-    // Ctrl+V to paste objects
+    // Ctrl+V pastes beside the selected object.
     if (keysActive && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V))
     {
         auto& clipboard = ClipboardService::Instance();
@@ -339,8 +328,8 @@ void HierarchyPanel::Draw()
         }
     }
 
-    // Up/Down arrow keys to navigate objects (macOS-style)
-    // Uses m_FlattenedObjects built during DrawObjectNode() - only includes visible (not collapsed) items
+    // Up/Down move the selection through the visible rows, as on macOS. Uses
+    // m_FlattenedObjects, built in DrawObjectNode(), which skips collapsed items.
     if (ImGui::IsWindowFocused() && !m_RenamingObject &&
         (ImGui::IsKeyPressed(ImGuiKey_UpArrow) || ImGui::IsKeyPressed(ImGuiKey_DownArrow)))
     {
@@ -373,7 +362,7 @@ void HierarchyPanel::Draw()
         m_App->DeleteObjects(m_App->GetSelectedObjects());
     }
 
-    // A search that matched nothing said nothing; say so.
+    // Say so when a search matches nothing.
     if (m_SearchBuf[0] != '\0' && m_FlattenedObjects.empty())
     {
         DekiEditor::EmptyStateText("No objects match the search.");
@@ -386,10 +375,10 @@ void HierarchyPanel::Draw()
         ImGui::Dummy(ImVec2(-1, availSpace.y));
     }
 
-    // Drop target for empty space - use custom rect so Dummy doesn't eat clicks
+    // Drop target for empty space, on a custom rect so the Dummy does not take the drop
     {
         // InnerRect is what is on screen. ContentRegionRect moves with the
-        // scroll, so once the list was scrolled, drops on it were ignored.
+        // scroll and would miss drops once the list is scrolled.
         ImRect windowRect = ImGui::GetCurrentWindow()->InnerRect;
         if (ImGui::BeginDragDropTargetCustom(windowRect, ImGui::GetCurrentWindow()->ID))
         {
@@ -537,7 +526,7 @@ void HierarchyPanel::Draw()
     ImGui::EndChild();  // ##hierarchy_tree
     ImGui::End();
 
-    // Process deferred navigation (after draw loop to avoid destroying scene mid-iteration)
+    // Navigate now that drawing is done: it destroys the scene the draw loop walks.
     if (!m_PendingNavigatePath.empty())
     {
         std::string path = std::move(m_PendingNavigatePath);
@@ -547,8 +536,7 @@ void HierarchyPanel::Draw()
 }
 
 // Case-insensitive "haystack contains needle" with no allocation: the search
-// runs over every descendant of every node, every frame the box is non-empty,
-// and used to lower-case a copy of each name (and of the needle, per node).
+// runs over every descendant of every node, every frame the box has text.
 static bool ContainsIgnoreCase(const char* haystack, const std::string& needleLower)
 {
     if (needleLower.empty())
@@ -635,20 +623,20 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     // with selection and hover, so "selected" there means "highlight showing".
     const bool isSelected = m_App->IsSelected(obj);
 
-    // Auto-expand if any selected object is a descendant of this node
-    // Skip if this node was just collapsed via Left arrow key
+    // Auto-expand when the selected object is below this node, unless the
+    // Left arrow just collapsed it.
     Deki::Object* primarySelected = m_App->GetSelectedObject();
     if (primarySelected && primarySelected != obj && primarySelected->IsDescendantOf(obj) && obj != m_CollapsedByArrow)
     {
         ImGui::SetNextItemOpen(true);
     }
 
-    // Check if we're renaming this object
+    // A rename field in place of the row
     if (m_RenamingObject == obj)
     {
         ImGui::PushID(obj);
 
-        // Draw tree node indent space
+        // Empty node, for the indent
         ImGui::TreeNodeEx("##renaming", flags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 
         ImGui::SameLine();
@@ -665,7 +653,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         if (ImGui::InputText("##rename", m_RenameBuffer, sizeof(m_RenameBuffer),
                              ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll))
         {
-            // Enter pressed - apply rename via command for undo support
+            // Enter: rename through a command so it can be undone
             if (std::string(m_RenameBuffer) != obj->GetName())
             {
                 CommandHistory::Instance().Execute(std::make_unique<RenameObjectCommand>(obj, m_RenameBuffer));
@@ -700,34 +688,33 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     }
 
     bool wasOpen = ImGui::GetStateStorage()->GetInt(ImGui::GetCurrentWindow()->GetID(NodeKey(obj)), 0) != 0;
-    // Push extra vertical FramePadding so tree-node rows are taller. Total row
-    // height = font line height + 2 * FramePadding.y. The Inter 13px default
-    // font has a ~15.7 logical-px line height (REAL_DIM), so padding.y ~= 6
-    // gives ~28px rows. Requires the _FramePadding flag set above.
+    // Extra vertical FramePadding for taller rows: row height = line height +
+    // 2 * FramePadding.y. Inter 13px has a ~15.7 logical-px line height
+    // (REAL_DIM), so padding.y 6 gives ~28px rows. Needs the _FramePadding
+    // flag set above.
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 6.0f * m_App->Dpi(1.0f)));
-    // Empty label + transparent text hides ImGui's filled triangle; we draw a
-    // Tabler chevron + the name ourselves (capturing the current text color so
-    // instance/child tinting is preserved). See DrawTreeNodeChevronLabel.
+    // Empty label + transparent text hides ImGui's filled triangle; a Tabler
+    // chevron and the name are drawn here instead, in the current text colour
+    // so instance and child tints stay. See DrawTreeNodeChevronLabel.
     ImU32 lblCol = ImGui::GetColorU32(ImGuiCol_Text);
 
-    // An object that will not run reads as disabled: the name is faded rather
-    // than recolored, so a scene instance stays blue and an instance child
-    // stays gray while both still say "inactive". IsActiveInHierarchy, not
-    // IsActive, because a live object under a disabled parent is just as
-    // switched off - and looking active while its parent is not is exactly the
-    // thing that sends you hunting for why nothing happens.
+    // An object that will not run looks disabled: its name is faded, not
+    // recoloured, so an instance stays blue and an instance child stays grey
+    // while both read as inactive. IsActiveInHierarchy, not IsActive: an
+    // active object under a disabled parent does not run either, and showing
+    // it as active hides why nothing happens.
     if (!obj->IsActiveInHierarchy())
     {
         ImVec4 faded = ImGui::ColorConvertU32ToFloat4(lblCol);
         faded.w *= 0.45f;
         lblCol = ImGui::ColorConvertFloat4ToU32(faded);
     }
-    // Cyan selection/hover background (the global Header is transparent, so a
-    // selected row would otherwise show only the accent left border). It
-    // fades: selection and hover each ease in and out per row, and the row is
-    // drawn with the blend of the two. Hover is last frame's, since this
-    // frame's is only known once the row is submitted - so a row entered by
-    // the mouse starts from nothing and fades up instead of flashing on.
+    // Cyan selection and hover background (the global Header colour is
+    // transparent, so a selected row would otherwise show only the left accent
+    // border). Selection and hover each fade in and out per row, and the row
+    // is drawn with their blend. Hover is last frame's, since this frame's is
+    // known only after the row is submitted, so a newly hovered row fades up
+    // instead of flashing on.
     const ImVec4 acc = DekiEditor::Palette::Accent;
     const ImGuiID rowId = ImGui::GetID(NodeKey(obj));
     float selT = 0.0f;
@@ -750,9 +737,8 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf), obj->GetName().c_str(), lblCol);
     ImGui::PopStyleVar();
 
-    // Mockup-style 2px accent left border on the selected row (line 98 of
-    // the React mockup). Overlay on the window draw list so it sits on top of
-    // the row's bg highlight.
+    // 2px accent border on the left of the selected row, drawn over the row's
+    // highlight.
     if (selT > 0.0f)
     {
         const ImVec2 rmin = ImGui::GetItemRectMin();
@@ -776,7 +762,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         ImGui::PopStyleColor();
     }
 
-    // Double-click on instance root → open source scene (deferred to avoid destroying scene mid-draw)
+    // Double-click on an instance root opens its source scene, after drawing: it destroys the scene
     if (isInstance && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
     {
         std::string sourcePath =
@@ -792,11 +778,10 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         StartRenaming(obj);
     }
 
-    // Enter/F2 to rename selected object (not for read-only or protected
-    // objects). Only when this panel actually has focus and nothing anywhere is
-    // taking typed input: the shortcut used to fire on any Enter, so committing
-    // a rename in the Inspector - or in any other text field, with the object
-    // still selected - immediately opened a second rename here.
+    // Enter/F2 renames the selected object (not read-only or protected ones),
+    // only while this panel has focus and no field takes typing. Otherwise
+    // committing a rename in the Inspector, or any text field, would open a
+    // second rename here.
     if (!readOnly && !IsProtectedObject(obj) && m_App->GetSelectedObject() == obj &&
         ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::GetIO().WantTextInput &&
         (ImGui::IsKeyPressed(ImGuiKey_F2) || ImGui::IsKeyPressed(ImGuiKey_Enter)))
@@ -930,10 +915,9 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             }
             if (ImGui::MenuItem("Create Child", nullptr, false, !isInstance))
             {
-                // Must go through the command system: the old raw `new Deki::Object` +
-                // AddChild bypassed the undo stack (and scene registration), so the
-                // next Ctrl+Z undid an OLDER create command and deleted the wrong
-                // object.
+                // Must go through the command system, which puts it on the undo
+                // stack and registers it with the scene. Otherwise the next Ctrl+Z
+                // undoes an older create and deletes the wrong object.
                 CommandHistory::Instance().Execute(std::make_unique<CreateObjectCommand>(
                     m_App->GetCurrentScene(), "Child", [this](Deki::Object* created)
                     { m_App->SetSelectedObject(created); }, obj, [this]() { m_App->ClearSelection(); }));
@@ -1050,7 +1034,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         float mouseY = ImGui::GetIO().MousePos.y;
         float relativeY = mouseY - itemMin.y;
 
-        // Divide item into thirds: top = above, middle = as child, bottom = below
+        // Top quarter: above. Bottom quarter: below. Middle half: as a child.
         enum class DropPos
         {
             Above,
@@ -1168,7 +1152,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         {
             if (DrawObjectNode(child, childReadOnly))
             {
-                // Object was deleted - stop iterating to avoid invalid access
+                // An object was deleted: the list is no longer valid
                 DekiEditor::SchematicTreeBodyEnd();
                 if (open)
                 {
@@ -1187,9 +1171,9 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     return false;
 }
 
-// A tree row's identity: the object's id, not its address. Play runs on a copy
-// of the scene and Stop switches back, so addresses change while ids do not;
-// keyed by address, every expanded object collapsed on Play and on Stop.
+// A tree row's identity is the object's id, not its address: Play runs on a
+// copy of the scene and Stop switches back, so addresses change while ids
+// stay. Keyed by address, expanded objects would collapse on Play and Stop.
 const void* HierarchyPanel::NodeKey(const Deki::Object* obj)
 {
     return reinterpret_cast<const void*>(static_cast<uintptr_t>(obj->GetId()) + 1u);
@@ -1369,8 +1353,8 @@ int HierarchyPanel::FindObjectIndex(Deki::Object* obj) const
 
 void HierarchyPanel::SelectRange(Deki::Object* from, Deki::Object* to)
 {
-    // The rows the user can see, not the whole tree: rebuilding the full list
-    // here selected every child of a collapsed object between the two rows.
+    // The rows the user can see, not the whole tree, so children of a
+    // collapsed object between the two rows stay unselected.
     auto indexOf = [this](Deki::Object* o) -> int
     {
         const auto it = std::find(m_VisibleLastFrame.begin(), m_VisibleLastFrame.end(), o);

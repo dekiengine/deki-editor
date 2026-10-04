@@ -9,7 +9,7 @@
 #include <windows.h>
 #else
 #include <cstdio>
-// fork/execvp/waitpid - used instead of popen so git arguments never reach a shell.
+// fork/execvp/waitpid, instead of popen, so git arguments never reach a shell.
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
@@ -20,9 +20,9 @@ namespace DekiEditor
 #ifdef _WIN32
 namespace
 {
-// Quote one argument per the rules CommandLineToArgvW parses, so the child sees
-// exactly the string we intended. This is argument encoding for a single
-// process, not shell quoting - no shell is involved.
+// Quotes one argument by the rules CommandLineToArgvW parses, so the child
+// gets exactly this string. This encodes arguments for one process; no shell
+// is involved.
 std::string QuoteWindowsArg(const std::string& arg)
 {
     if (!arg.empty() && arg.find_first_of(" \t\n\v\"") == std::string::npos)
@@ -171,8 +171,8 @@ int RunGit(const std::vector<std::string>& args, std::string& output)
 {
     output.clear();
 
-    // The repository this runs in, if any: the "-C <dir>" every call in the
-    // editor that touches an existing checkout passes.
+    // The repository this runs in, if any: every editor call on an existing
+    // checkout passes "-C <dir>".
     for (size_t i = 0; i + 1 < args.size(); ++i)
     {
         if (args[i] != "-C")
@@ -190,8 +190,8 @@ int RunGit(const std::vector<std::string>& args, std::string& output)
         break;
     }
 
-    // Settings a repository could use to run something the moment git looks at
-    // it, switched off from the command line, which outranks the repo's config.
+    // Turn off the settings a repository could use to run something as soon as
+    // git looks at it. The command line outranks the repository's config.
     static const std::string kNoHooks = (std::filesystem::temp_directory_path() / "deki-git-no-hooks").generic_string();
     std::vector<std::string> full = { "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + kNoHooks };
     full.insert(full.end(), args.begin(), args.end());

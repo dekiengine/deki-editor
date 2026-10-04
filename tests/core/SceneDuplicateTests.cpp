@@ -7,9 +7,9 @@
 #include <deki/Scene.h>
 
 // Scene::DuplicateObject clones through the scene JSON, which carries ids.
-// Every duplicate used to keep its original's id (and each object under it
-// its original's), so a scene built by duplicating - Ctrl+D, or the CLI's
-// duplicate_object - saved many objects under one id.
+// The duplicate and every object under it must get new ids, or a scene built
+// by duplicating (Ctrl+D, or the CLI's duplicate_object) saves many objects
+// under one id.
 
 namespace
 {

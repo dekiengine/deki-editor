@@ -12,18 +12,13 @@
 namespace DekiEditor
 {
 
-/**
- * Command for creating a Deki::Object in the scene.
- *
- * Undo detaches the object and keeps it alive rather than destroying it - the
- * same ownership model DeleteObjectCommand uses, and for the same reason.
- * Destroying on undo and re-creating on redo handed back a *different* object
- * with a different id, which (a) left every other command still holding the old
- * pointer dangling, so the next redo wrote through freed memory, and (b) broke
- * ObjectRef properties and instance overrides that pointed at the original.
- * The object is only deleted when this command is destroyed while still undone,
- * at which point nothing can redo it back into the scene.
- */
+/// Creates a Deki::Object in the scene.
+///
+/// Undo detaches the object and keeps it alive, like DeleteObjectCommand.
+/// Redo must hand back the same object: a re-created one has a new pointer
+/// and id, which leaves other commands holding a dangling pointer and breaks
+/// ObjectRef properties and instance overrides that point at it. The object
+/// is deleted only when this command is destroyed while still undone.
 class CreateObjectCommand : public Command
 {
 public:
@@ -71,9 +66,7 @@ private:
     bool m_IsDetached = false;
 };
 
-/**
- * Command for renaming a Deki::Object
- */
+/// Renames a Deki::Object.
 class RenameObjectCommand : public Command
 {
 public:
@@ -98,11 +91,8 @@ private:
     std::string m_NewName;
 };
 
-/**
- * Command for reparenting a Deki::Object (changing its parent)
- * Supports both parenting to another object and unparenting (setting parent to nullptr)
- * Also manages the scene's root object list appropriately
- */
+/// Changes a Deki::Object's parent. A null new parent moves it under the
+/// scene root. Keeps the scene's root object list in step.
 class ReparentObjectCommand : public Command
 {
 public:
@@ -131,11 +121,8 @@ private:
     std::string m_ObjectName;
 };
 
-/**
- * Command for moving multiple objects to a new parent/position atomically.
- * Handles reparenting + reordering in a single undo step.
- * Objects maintain their relative order at the insertion point.
- */
+/// Moves several objects to a new parent and position as one undo step.
+/// They keep their relative order at the insertion point.
 class MoveObjectsCommand : public Command
 {
 public:
@@ -146,7 +133,7 @@ public:
           m_TargetParent(targetParent),
           m_TargetIndex(targetIndex)
     {
-        // Capture original parent + index for each object
+        // Original parent and index of each object, for Undo.
         m_OldStates.reserve(m_Objects.size());
         for (Deki::Object* obj : m_Objects)
         {

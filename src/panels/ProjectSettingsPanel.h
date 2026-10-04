@@ -25,11 +25,9 @@ private:
     void DrawStartupSceneSection(Project* project);
     void DrawRenderPipelineSection(Project* project);
 
-    // The startup-scene and render-pipeline pickers list files from the assets
-    // tree. Both sections used to walk the whole tree on every frame they were
-    // open, and the pipeline one opened and JSON-parsed every .asset file on
-    // each of those frames. The lists are rebuilt when the pipeline's asset
-    // count changes or every couple of seconds, whichever comes first.
+    // Lists the scenes and render pipelines in the assets tree for the two
+    // pickers. Walking the tree and parsing every .asset is slow, so the lists
+    // are rebuilt only when the asset count changes or every two seconds.
     void RefreshScans(Project* project);
     std::vector<std::string> m_SceneFiles;
     std::vector<std::string> m_PipelineFiles;

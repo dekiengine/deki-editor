@@ -65,10 +65,8 @@ void VirtualFolders::Load(const std::string& projectRoot)
     }
     catch (const std::exception& e)
     {
-        // These folders are a view over the scripts, not the scripts
-        // themselves, so a corrupt file costs the user their grouping and
-        // nothing more. Say so rather than silently presenting an empty set as
-        // though they had never made any.
+        // A broken file loses only the grouping, not the scripts. Warn, so
+        // the empty set is not taken for one the user never made.
         DEKI_LOG_WARNING("VirtualFolders: could not parse %s (%s) - script grouping reset", filePath.string().c_str(),
                          e.what());
         m_Assignments.clear();
@@ -139,8 +137,7 @@ void VirtualFolders::Rename(const std::string& oldName, const std::string& newNa
     *it = newName;
     std::sort(m_Names.begin(), m_Names.end());
 
-    // Carry the scripts across. Missing this is how a rename used to look like
-    // a delete: the folder reappeared under the new name, empty.
+    // Move the scripts across, or the renamed folder shows up empty.
     for (auto& [script, folder] : m_Assignments)
     {
         if (folder == oldName)

@@ -140,8 +140,7 @@ TEST_F(ObjectSerializationTest, RestoreComponentProperties_NamedEnum_StillReadsA
 }
 
 // A name the enum no longer declares leaves the field alone rather than
-// guessing at a neighbour, which is the behaviour that made storing positions
-// worth replacing in the first place.
+// guessing at a neighbour.
 TEST_F(ObjectSerializationTest, RestoreComponentProperties_NamedEnum_UnknownNameKeepsTheDefault)
 {
     m_Component->gappedEnum = MockComponent::GappedEnum::Low;

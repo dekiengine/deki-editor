@@ -248,9 +248,7 @@ void NodeCanvas::Draw(const char* id, float width, float height, const NodeCanva
                 maxY = std::fmax(maxY, nodes[i].y + NodeHeight(nodes[i]));
             }
             // Fit it all, with a margin: zoom out as far as the content needs
-            // (down to the wheel's 25 %), never in past 100 %. Always 100 %
-            // centred the content and left a wide graph spilling off both
-            // sides, which also made "Frame all" look like it did nothing.
+            // (down to the wheel's 25 %), but never in past 100 %.
             const float margin = 40.0f * dpi;
             const float contentW = (maxX - minX) * dpi;
             const float contentH = (maxY - minY) * dpi;
@@ -274,10 +272,10 @@ void NodeCanvas::Draw(const char* id, float width, float height, const NodeCanva
     }
 
     // Reserve the region and capture input over it (left/middle/right).
-    // Allow-overlap so anything drawn on top of the canvas LATER in the frame
-    // (the live preview overlay and its transport buttons) wins the hit test:
-    // this surface spans the whole canvas, so without it it claims the hovered
-    // id first and every control above it is dead to the mouse.
+    // Allow overlap, so anything drawn on the canvas later in the frame (the
+    // live preview overlay and its transport buttons) wins the hit test;
+    // otherwise this surface, which spans the whole canvas, takes the hover
+    // first.
     ui.SetNextItemAllowOverlap();
     ui.InvisibleButton(id, width, height, true, true, true);
     const bool hovered = ui.IsItemHovered();
@@ -364,9 +362,8 @@ void NodeCanvas::Draw(const char* id, float width, float height, const NodeCanva
                            n.title);
         }
 
-        // "Contains a graph" affordance: two nested squares at the header's
-        // right edge, the flat-graphics version of a stack of cards. Says
-        // there is an inside without saying what kind of inside.
+        // "Contains a graph" mark: two nested squares at the header's right
+        // edge, like a stack of cards.
         if (n.hasSubgraph)
         {
             const float box = 9.0f * s;

@@ -27,7 +27,7 @@ namespace DekiEditor
 
 class EditorApp;
 
-// Callback type for drawing a component's properties (supports capturing lambdas)
+// Draws one component's properties.
 using DrawComponentCallback = std::function<void(Deki::Component* comp, const Deki::ComponentMeta* meta)>;
 
 class ComponentManager
@@ -35,28 +35,25 @@ class ComponentManager
 public:
     ComponentManager(EditorApp* app);
 
-    // Draw the list of components on an object
-    // Returns true if a component was removed (caller may need to refresh)
+    /// Draws the object's components. Returns true if one was removed, so the
+    /// caller can refresh.
     bool DrawComponentList(Deki::Object* obj, DrawComponentCallback drawComponent);
 
-    // Draw the "Add Component" popup menu
+    /// Draws the "Add Component" picker popup.
     void DrawAddComponentMenu(Deki::Object* obj);
 
-    // Where the picker should hang from: the Add Component button's rect and
-    // the bottom of the work area it lives on, in screen coordinates. Recorded
-    // by the panel that draws the button, because the popup itself has no way
-    // to know where it was invoked from and ImGui's own placement has nothing
-    // to go on before the popup has ever been sized.
+    /// Where the picker hangs from: the Add Component button's rect and the
+    /// work area it is on, in screen coordinates. The panel that draws the
+    /// button records it, since the popup cannot know where it was opened
+    /// from, and ImGui cannot place a popup it has never sized.
     struct AddPopupAnchor
     {
         float x = 0.0f;
         float top = 0.0f;
         float bottom = 0.0f;
-        // The work area the button lives on, all four edges: the picker is
-        // wider than the panel that opens it, so it has to be clamped
-        // horizontally as well as vertically. A popup that spills past the
-        // viewport becomes its own OS window, which is how it ends up on
-        // another monitor or off the desktop entirely.
+        // The work area's four edges. The picker is wider than the panel
+        // that opens it, so it is clamped both ways: a popup that spills past
+        // the viewport becomes its own OS window and can land off the desktop.
         float workTop = 0.0f;
         float workBottom = 0.0f;
         float workLeft = 0.0f;
@@ -65,10 +62,11 @@ public:
     };
     void SetAddPopupAnchor(const AddPopupAnchor& anchor) { m_AddPopupAnchor = anchor; }
 
-    // Check if a component is from a package or project plugin (has editable source)
+    /// True if the component comes from a package or project plugin, so its
+    /// source can be edited.
     static bool IsEditableComponent(EditorApp* app, uint32_t typeId);
 
-    // Open the source file for a package/project component in VS Code
+    /// Opens a package or project component's source file in VS Code.
     static void OpenComponentSourceFile(EditorApp* app, const Deki::ComponentMeta* meta);
 
 private:
@@ -79,26 +77,24 @@ private:
     EditorApp* m_App;
     bool m_PopupJustOpened = true;
 
-    // What the shared picker lists, rebuilt each frame the popup is open: the
-    // metas in the order the items are handed over (so a chosen index maps
-    // straight back), the items themselves, and storage for the "only one
-    // allowed" lines, since PickerItem holds pointers rather than strings.
-    // Query, level and highlight live inside the picker.
+    // What the picker lists, rebuilt each frame the popup is open: the metas
+    // in item order (so a chosen index maps straight back), the items, and the
+    // "only one allowed" strings, since PickerItem holds pointers. Query,
+    // level and highlight live inside the picker.
     std::vector<const Deki::ComponentMeta*> m_AddCompMetas;
     std::vector<DekiEditor::PickerItem> m_AddCompItems;
     std::deque<std::string> m_AddCompTips;
 
     AddPopupAnchor m_AddPopupAnchor;
 
-    // Property filter: a component with a match is forced open, because a hit
-    // hidden under a collapsed header reads as no hit at all. ImGui writes a
-    // forced-open state straight into its own storage, so the state each
-    // component had BEFORE the filter is remembered and put back when the
-    // filter clears - searching must not quietly rearrange the inspector.
+    // Property filter: a component with a match is forced open, since a hit
+    // under a collapsed header looks like no hit. ImGui stores the forced
+    // state as its own, so each component's state from before the filter is
+    // kept here and put back when the filter clears.
     //
-    // Captured lazily: a component is left alone for the one frame it takes to
-    // read its real state, and forced from the next. Keyed by type + slot so
-    // two components of the same type on one object stay distinct.
+    // A component is left alone for the one frame it takes to read its real
+    // state, and forced from the next. Keyed by type and slot, so two
+    // components of one type on an object stay apart.
     struct PreFilterState
     {
         unsigned int headerId = 0;

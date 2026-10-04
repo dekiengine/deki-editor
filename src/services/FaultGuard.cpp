@@ -59,19 +59,19 @@ namespace
 
 bool IsRecoverableFault(DWORD code)
 {
-    // Severity "error" only. This deliberately excludes C++ exceptions
-    // (0xE06D7363), breakpoints, and the guard-page notification the OS uses to
-    // grow a thread stack (0x8xxxxxxx) - swallowing any of those would break
-    // normal execution rather than contain a crash.
+    // Severity "error" only. This leaves out C++ exceptions (0xE06D7363),
+    // breakpoints, and the guard-page notification the OS uses to grow a thread
+    // stack (0x8xxxxxxx): catching any of those would break normal execution
+    // rather than contain a crash.
     if ((code & 0xF0000000u) != 0xC0000000u)
     {
         return false;
     }
 
-    // Stack overflow consumes the thread's guard page. Resuming without
-    // resetting it leaves the thread unable to fault again, so this one is left
-    // to the normal (fatal) path rather than pretended away. MSVC's
-    // EXCEPTION_EXECUTE_HANDLER would catch it; the difference is intentional.
+    // A stack overflow uses up the thread's guard page. Resuming without
+    // resetting it leaves the thread unable to fault again, so this one takes
+    // the normal, fatal path. MSVC's EXCEPTION_EXECUTE_HANDLER would catch it;
+    // the difference is on purpose.
     if (code == EXCEPTION_STACK_OVERFLOW)
     {
         return false;
@@ -122,8 +122,7 @@ LONG CALLBACK FaultHandler(EXCEPTION_POINTERS* info)
 void FaultGuardInstallHandler()
 {
     // Function-local static: initialised once, thread-safely. If registration
-    // fails there is nothing useful to do but run unprotected, which is the
-    // behaviour this replaced.
+    // fails there is nothing useful to do but run unprotected.
     static const bool kInstalled = (AddVectoredExceptionHandler(1 /* call first */, &FaultHandler) != nullptr);
     (void)kInstalled;
 }
@@ -199,9 +198,9 @@ void FaultHandler(int sig, siginfo_t* info, void* /*ucontext*/)
     RunTraceHook(g, info);
 
     // siglongjmp, not longjmp: it restores the signal mask saved by sigsetjmp.
-    // Without that the signal stays blocked on this thread - it was blocked on
-    // entry to the handler - and the next fault would never be delivered, so a
-    // second bad package would take the editor down after all.
+    // Otherwise the signal, blocked on entry to the handler, stays blocked on
+    // this thread, the next fault is never delivered, and a second bad package
+    // takes the editor down.
     siglongjmp(g->jb, 1);
 }
 

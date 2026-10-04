@@ -18,8 +18,8 @@ namespace DekiEditor
 namespace
 {
 
-// Trailing newline and CR from git's stdout; every comparison below is on a
-// single line of output.
+// Strips the trailing newline and CR from git's stdout; every comparison
+// below is on a single line of output.
 std::string Trim(const std::string& s)
 {
     size_t b = s.find_first_not_of(" \t\r\n");
@@ -70,9 +70,8 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
 
     std::error_code ec;
 
-    // A junction here would mean every command below runs inside whatever repo
-    // it points at - which is how the sibling package repos previously got left
-    // on a detached tag. Refuse before any git runs, not after.
+    // Through a junction every command below would run inside whatever repo
+    // it points at and leave it on a detached tag. Refuse before any git runs.
     if (IsReparsePoint(packageDir))
     {
         result.action = PackageIntegrityResult::Action::Skipped;
@@ -90,18 +89,13 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
     const std::string dirArg = packageDir.string();
     std::string out;
 
-    // The presence of a .git entry is not proof this directory IS a repository.
-    // A half-deleted clone can leave an empty one behind, and git then walks UP
-    // looking for a real repository - so every command below, `stash push -u`
-    // included, lands on whatever encloses the package.
+    // A .git entry does not prove this directory IS a repository. A
+    // half-deleted clone can leave an empty one behind, and git then walks UP
+    // to the enclosing repository, so every command below, `stash push -u`
+    // included, would land there. The docs build puts a project inside the
+    // editor checkout, so that enclosing repo can be deki-editor itself.
     //
-    // That is not hypothetical. The docs build puts a project inside the editor
-    // checkout, so its package clones sit under deki-editor's own worktree, and
-    // one restore stashed the editor's uncommitted source as "deki auto-restore:
-    // deki-2d". The work was recoverable, but only because stash keeps it.
-    //
-    // So ask git what the root actually is, and refuse unless it is this
-    // directory. Nothing below runs otherwise.
+    // So ask git for the root and go on only if it is this directory.
     if (RunGit({ "-C", dirArg, "rev-parse", "--show-toplevel" }, out) != 0)
     {
         result.action = PackageIntegrityResult::Action::Skipped;
@@ -122,9 +116,10 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
 
     // ---- 1. Local modifications -------------------------------------------
     //
-    // .gitignore in every package repo covers generated/ and .deki-package.json,
-    // both of which the BUILD writes into the package tree, so an untouched
-    // package reports nothing here. Anything that does show up is a real edit.
+    // Every package repo's .gitignore covers generated/ and
+    // .deki-package.json, which the BUILD writes into the package tree, so an
+    // untouched package reports nothing here. Anything that shows up is a real
+    // edit.
     if (RunGit({ "-C", dirArg, "status", "--porcelain" }, out) != 0)
     {
         result.action = PackageIntegrityResult::Action::Failed;
@@ -134,17 +129,15 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
 
     if (!Trim(out).empty())
     {
-        // Stash rather than `checkout -- .`: the tree ends up identical either
-        // way, but the work stays recoverable. -u takes untracked files too and
-        // still leaves ignored ones (generated/) in place, which is exactly the
-        // split we want.
+        // Stash rather than `checkout -- .`: the tree ends up the same, but the
+        // work stays recoverable. -u takes untracked files too and leaves
+        // ignored ones (generated/) in place.
         const std::string message = "deki auto-restore: " + packageName + " " + TimestampUtc();
 
         if (RunGit({ "-C", dirArg, "stash", "push", "-u", "-m", message }, out) != 0)
         {
-            // Abort rather than continue to the checkout below: a failed stash
-            // means the edits are still in the tree, and moving HEAD now is the
-            // one path that could actually lose them.
+            // Stop before the checkout below: after a failed stash the edits
+            // are still in the tree, and moving HEAD now could lose them.
             result.action = PackageIntegrityResult::Action::Failed;
             result.detail =
                 "could not stash local changes in '" + packageName + "', leaving it untouched: " + Trim(out);
@@ -178,8 +171,8 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
     std::string pinSha;
     if (RunGit({ "-C", dirArg, "rev-parse", pinnedRef + "^{commit}" }, pinSha) != 0)
     {
-        // The pinned tag is not present locally - a fetch would be needed, and
-        // that is the installer's job, not a focus-gain check's.
+        // The pinned tag is not present locally. Fetching it is the
+        // installer's job, not a focus-gain check's.
         return result;
     }
 
@@ -188,8 +181,7 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
         return result;
     }
 
-    // Non-destructive even with local commits: they stay reachable on whatever
-    // branch carried them.
+    // Safe even with local commits: they stay reachable on their branch.
     if (RunGit({ "-C", dirArg, "checkout", pinnedRef }, out) != 0)
     {
         result.action = PackageIntegrityResult::Action::Failed;

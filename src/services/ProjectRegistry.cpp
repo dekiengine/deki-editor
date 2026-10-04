@@ -26,7 +26,7 @@ std::string RegistryFilePath()
 // One spelling per project directory, so the same project picked through a
 // trailing slash, a deki.json file path, or a differently-cased drive letter
 // does not end up in the list twice. Falls back to a lexical cleanup when the
-// path is gone - Refresh() must still be able to match a missing entry.
+// path is gone: Refresh() must still match a missing entry.
 std::string NormalizePath(const std::string& path)
 {
     fs::path p = path;
@@ -54,8 +54,8 @@ std::string NormalizePath(const std::string& path)
 bool SamePath(const std::string& a, const std::string& b)
 {
 #ifdef _WIN32
-    // Windows paths are case-insensitive; comparing them byte-wise is how the
-    // same project opened from a shell and from the picker becomes two rows.
+    // Windows paths are case-insensitive; compared byte by byte, the same
+    // project opened from a shell and from the picker would be two rows.
     return a.size() == b.size() &&
            std::equal(a.begin(), a.end(), b.begin(),
                       [](char x, char y) { return std::tolower((unsigned char)x) == std::tolower((unsigned char)y); });
@@ -92,8 +92,8 @@ void ProjectRegistry::ReadMetadata(ProjectEntry& entry)
     if (!fs::exists(dekiJson, ec))
     {
         entry.missing = true;
-        // Keep the last known name - a row reading "MyGame (missing)" is more
-        // use than one reading only a path the user has to parse.
+        // Keep the last known name: "MyGame (missing)" says more than a bare
+        // path.
         if (entry.name.empty())
         {
             entry.name = fs::path(entry.path).filename().string();
@@ -174,7 +174,7 @@ void ProjectRegistry::Load()
     }
     catch (...)
     {
-        // A corrupt list is not worth failing startup over - the user re-imports.
+        // A corrupt list is not worth failing startup over; the user re-imports.
         m_Entries.clear();
     }
 

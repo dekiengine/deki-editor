@@ -54,7 +54,7 @@ TEST(TextureFormatResolve, NamesRoundTrip)
     EXPECT_FALSE(ParseTextureFormat(kAutomaticFormat, unused));
 }
 
-// RGB888 used to fall through to "unsupported" and write nothing.
+// RGB888 is written as 3 bytes a pixel, not refused as unsupported.
 TEST(TextureFormatResolve, WriteTexFileStoresRgb888)
 {
     const std::vector<uint8_t> rgba = { 10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255 };

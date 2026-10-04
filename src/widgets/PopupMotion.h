@@ -6,7 +6,7 @@ namespace DekiEditor
 {
 
 // Popups, menus, dropdowns, modals and tooltips fade and slide in when they
-// open and fade out when they close - every one in the editor and in package
+// open and fade out when they close: every one in the editor and in package
 // windows, with no change at their call sites.
 //
 // ImGui creates and destroys popups in a single frame, so this works on what
@@ -19,7 +19,7 @@ namespace DekiEditor
 // Follows Motion's durations and turns off with Reduce Motion.
 namespace PopupMotion
 {
-// Hook into `ctx`. Call once, after the context is created.
+/// Hooks into `ctx`. Call once, after the context is created.
 void Install(ImGuiContext* ctx);
 }  // namespace PopupMotion
 

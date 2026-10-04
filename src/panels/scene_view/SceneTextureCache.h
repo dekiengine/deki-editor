@@ -15,17 +15,17 @@ public:
     SceneTextureCache(EditorApp* app);
     ~SceneTextureCache();
 
-    // Get or load a texture by asset reference (GUID or path)
+    /// The texture for an asset reference (GUID or path), loaded if needed.
     CachedTexture* GetOrLoad(const std::string& assetRef);
 
-    // Invalidate a specific texture from cache (call when asset is recompiled)
+    /// Drops one texture. Call it when the asset is recompiled.
     void Invalidate(const std::string& assetRef);
 
-    // Clean up all cached textures
+    /// Frees every cached texture.
     void Cleanup();
 
-    // Byte budget for the CPU-side pixel copies (the GPU textures are freed with
-    // them). Least-recently-used entries are evicted when a load exceeds it.
+    /// Byte budget for the CPU-side pixel copies (the GPU textures are freed
+    /// with them). Least recently used entries go when a load exceeds it.
     void SetByteBudget(size_t bytes) { m_ByteBudget = bytes; }
     size_t GetByteBudget() const { return m_ByteBudget; }
     size_t GetTotalBytes() const { return m_TotalBytes; }

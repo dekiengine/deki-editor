@@ -64,8 +64,8 @@ void RunFrames(Deki::LifecycleManager* lm, Deki::Scene& scene, int frames)
 
 }  // namespace
 
-// The update gate: DeclaresUpdate() was never consulted, so every started
-// behaviour paid a virtual call per frame whether or not it had anything to run.
+// The update gate: a started behaviour whose class does not declare Update()
+// costs no virtual call per frame.
 TEST(HeadlessRuntime, UpdateIsSkippedForBehavioursThatDoNotDeclareIt)
 {
     Deki::Scene scene;

@@ -51,7 +51,6 @@ std::string ResolveTool(const std::string& name)
 
 std::string ProjectCxxCompiler()
 {
-    // Bundled first - the whole point is not needing a system compiler.
     for (const char* name : { "g++", "g++-16" })
     {
         const std::string bundled = BundledPath(name);
@@ -60,9 +59,9 @@ std::string ProjectCxxCompiler()
             return bundled;
         }
     }
-    // Otherwise the compiler this editor was built with. Packages are dlopen'd
-    // into this process, so anything else risks two standard libraries meeting
-    // across that boundary.
+    // Otherwise the compiler this editor was built with. Packages are loaded
+    // into this process, and another compiler could bring a second standard
+    // library across that boundary.
     return DEKI_EDITOR_CXX_COMPILER;
 }
 

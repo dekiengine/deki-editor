@@ -8,13 +8,9 @@
 
 namespace fs = std::filesystem;
 
-/**
- * DekiPackageInstaller
- *
- * Installs Deki engine packages from GitHub into project/packages/{name}/.
- * Package sources are compiled into the game's DLL by HotReloadService.
- * Each package must have a package.cmake descriptor at its root.
- */
+/// Installs Deki packages from GitHub into project/packages/{name}/ as git
+/// clones. HotReloadService compiles their sources into the game's DLL. A
+/// package has a package.json or package.cmake at its root.
 class DekiPackageInstaller : public IPackageInstaller
 {
 public:
@@ -30,78 +26,70 @@ public:
                  PackageCallback callback) override;
     void Remove(const std::string& projectPath, const PackageEntry& pkg, PackageCallback callback) override;
 
-    // Core dependency management (not used for desktop packages)
+    // Desktop packages have no core dependencies; these return nothing.
     std::vector<CoreDependency> GetCoreDependencies() const override;
     void EnsureCoreDependencies(const std::string& projectPath) override;
     bool IsCoreDependency(const std::string& name) const override;
 
     // Reject values git would read as options, or that are not plausible
-    // repository references. Returns false and fills `reason` on rejection.
+    // repository references. Return false and fill `reason` on rejection.
     //
-    // Public because these decide whether registry-supplied content is allowed
-    // to reach a process spawn - that rule belongs in one place, is worth
-    // testing directly, and other install paths should be able to reuse it.
+    // Public because they decide whether registry content may reach a process
+    // spawn: the rule lives in one place, is tested directly, and other
+    // install paths can reuse it.
     static bool IsSafeGitRef(const std::string& ref, std::string& reason);
     static bool IsSafeGitUrl(const std::string& url, std::string& reason);
 
-    // The directory a package is cloned into is named after the package. A
-    // registry `repo` of "x/.." would put it at the project root, which
-    // Install() then deletes before cloning; the name is validated before it
-    // becomes a path (services/SafeNames.h), and the resulting path is checked
-    // to lie under packages/ before anything is removed or handed to git.
+    // A package is cloned into a directory named after it. A registry `repo` of
+    // "x/.." would put that at the project root, which Install() deletes before
+    // cloning. So the name is validated before it becomes a path
+    // (services/SafeNames.h), and the path is checked to lie under packages/
+    // before anything is removed or handed to git.
     static bool IsSafeName(const std::string& name, std::string& reason);
 
-    // True if this editor's engine is new enough for the package cloned into
-    // `packageDir`, per its package.json "minEngine". Fills `reason` and returns
-    // false when it is not. A package with no manifest, an unreadable or
-    // malformed one, or no minEngine field is accepted: the field is newer than
-    // the packages that predate it.
+    // True if this editor's engine fits the package cloned into `packageDir`,
+    // per its package.json "minEngine". Otherwise fills `reason` and returns
+    // false. A package with no manifest, an unreadable or malformed one, or no
+    // minEngine is accepted, so packages from before the field still install.
     //
-    // Public for the same reason as the two above: it decides whether a package
-    // is allowed to install at all, so it is worth testing directly rather than
-    // through a network clone.
+    // Public so it can be tested directly rather than through a network clone.
     static bool EngineSatisfiesPackage(const fs::path& packageDir, std::string& reason);
 
-    // Extract repo name from package info (e.g., "owner/repo" -> "repo").
-    // This IS the directory name under packages/, so anything that needs to
-    // locate a package on disk needs it - public and static so the integrity
-    // check does not carry a second copy of the rule.
+    // The repo name of a package ("owner/repo" -> "repo"). It is the directory
+    // name under packages/, so anything locating a package on disk needs it;
+    // public and static so the integrity check shares this rule.
     static std::string GetRepoName(const PackageEntry& pkg);
 
     // The release the git checkout of package `id` is on: the nearest tag
-    // behind HEAD. Rewrites the version in its .deki-package.json when that
-    // differs, since the stamp is written at install and a `git pull` in the
-    // checkout leaves it behind. Empty when there is no checkout or no tag.
+    // behind HEAD. Updates the version in its .deki-package.json when it
+    // differs, since that is written at install and a `git pull` leaves it
+    // behind. Empty when there is no checkout or no tag.
     std::string RefreshCheckedOutVersion(const std::string& projectPath, const std::string& id);
 
 private:
-    // Get the packages directory for a project
     fs::path GetPackagesDir(const std::string& projectPath) const;
 
-    // Parse PACKAGE_DISPLAY_NAME from a package.cmake file
+    // PACKAGE_DISPLAY_NAME from a package.cmake.
     std::string ParseDisplayName(const fs::path& packageCmakePath) const;
 
-    // Read a single set(<varName> ...) value out of a package.cmake.
+    // One set(<varName> ...) value from a package.cmake.
     std::string ParsePackageVar(const fs::path& packageCmakePath, const char* varName) const;
 
-    // Parse PACKAGE_PLATFORM_DEPS from a package.cmake file
-    // Returns map of platform -> dependencies (framework id -> [{name, version, gitUrl}])
+    // PACKAGE_PLATFORM_DEPS from a package.cmake, as
+    // platform -> [{name, version, gitUrl}].
     std::map<std::string, std::vector<DependencyInfo>> ParsePlatformDeps(const fs::path& packageCmakePath) const;
 
-    // Run git silently with an explicit argument vector, return exit code.
-    //
-    // Takes arguments rather than a command line on purpose: the previous
-    // string form was handed to `cmd.exe /c`, so a quote or `&` in a registry
-    // URL or version tag ended the quoting and ran whatever followed. Arguments
-    // never pass through a shell here, and no caller has to think about quoting.
+    // Runs git silently and returns its exit code. Takes an argument vector,
+    // never a command line, so nothing passes through a shell: a quote or `&`
+    // in a registry URL or version tag cannot run anything.
     int RunGit(const std::vector<std::string>& args, std::string& output) const;
 
-    // True when the clone at dirArg holds commits no remote ref contains, i.e.
-    // work that exists only here. Both Install (for editable packages) and
-    // Remove refuse rather than move HEAD past it.
+    // True when the clone at dirArg has commits no remote ref contains, i.e.
+    // work that exists only here. Install (for editable packages) and Remove
+    // refuse rather than move HEAD past it.
     bool HasUnpushedCommits(const std::string& dirArg) const;
 
-    // Add a path to a clone's .git/info/exclude. Local-only, so it never shows
-    // up as a modification to the package repo's tracked .gitignore.
+    // Adds a path to a clone's .git/info/exclude. Local only, so the package
+    // repo's tracked .gitignore does not change.
     void ExcludeFromGitLocally(const fs::path& repoDir, const std::string& entry) const;
 };

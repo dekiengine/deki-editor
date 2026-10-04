@@ -20,7 +20,6 @@ ToolHost::ToolHost(EditorApp* app)
 
 ToolHost::~ToolHost()
 {
-    // Close all windows
     for (auto& instance : m_Windows)
     {
         if (instance.window && instance.window->IsOpen())
@@ -36,7 +35,7 @@ void ToolHost::ClearWindows()
     {
         if (instance.window && instance.window->IsOpen())
         {
-            // Windows (app-side or package-side) can persist state across the
+            // Windows (from the app or a package) can keep state across the
             // reload as plain JSON; DiscoverTools() restores it on the
             // recreated instance.
             std::string json;
@@ -53,10 +52,9 @@ void ToolHost::ClearWindows()
 
 void ToolHost::DiscoverTools()
 {
-    // Share ImGui context with engine DLL (required for windows that use ImGui)
+    // Share the ImGui context with the engine DLL, for windows that use ImGui.
     Deki::SetImGuiContext(ImGui::GetCurrentContext());
 
-    // Discover EditorWindow
     m_Windows.clear();
     int windowCount = GetRegisteredWindowCount();
     for (int i = 0; i < windowCount; i++)
@@ -73,7 +71,7 @@ void ToolHost::DiscoverTools()
             instance.window.reset(meta->createFunc());
             instance.menuPath = meta->menuPath ? meta->menuPath : meta->title;
             instance.title = meta->title ? meta->title : "";
-            instance.createFunc = meta->createFunc;  // Store factory for recreation
+            instance.createFunc = meta->createFunc;  // to recreate it later
             m_Windows.push_back(std::move(instance));
         }
     }
@@ -99,7 +97,6 @@ void ToolHost::DiscoverTools()
 
 void ToolHost::DrawToolsMenu()
 {
-    // Draw windows
     for (auto& instance : m_Windows)
     {
         if (!instance.window)
@@ -115,7 +112,7 @@ void ToolHost::DrawToolsMenu()
             if (!instance.window->IsOpen())
             {
                 instance.window->SetOpen(true);
-                instance.window->OnOpen();  // New EditorWindow uses singleton, no context needed
+                instance.window->OnOpen();  // EditorWindow uses the singleton; no context needed
             }
         }
     }
@@ -123,7 +120,6 @@ void ToolHost::DrawToolsMenu()
 
 void ToolHost::Update(float deltaTime)
 {
-    // Update windows
     for (auto& instance : m_Windows)
     {
         if (!instance.window)
@@ -141,18 +137,17 @@ void ToolHost::Update(float deltaTime)
                 title = "tool";
             }
 
-            // Each call guarded independently: a buggy OnUpdate shouldn't
-            // skip OnGUI for other windows, and a bad OnGUI shouldn't
-            // poison the rest of ToolHost::Update.
+            // Each call guarded on its own: a buggy OnUpdate must not skip
+            // OnGUI for other windows, and a bad OnGUI must not break the
+            // rest of ToolHost::Update.
             Guard(title, [&] { instance.window->OnUpdate(deltaTime); });
             Guard(title, [&] { instance.window->OnGUI(); });
 
-            // Check if window was closed
             if (!instance.window->IsOpen() && instance.wasOpenLastFrame)
             {
                 Guard(title, [&] { instance.window->OnClose(); });
 
-                // Recreate window to reset all state automatically
+                // Recreate the window, which resets all its state.
                 if (instance.createFunc)
                 {
                     instance.window.reset(instance.createFunc());
@@ -166,7 +161,6 @@ void ToolHost::Update(float deltaTime)
 
 void ToolHost::OpenTool(const char* name)
 {
-    // Check windows
     for (auto& instance : m_Windows)
     {
         if (instance.window && std::strcmp(instance.window->GetTitle(), name) == 0)
@@ -202,11 +196,10 @@ bool ToolHost::OpenToolForFile(const char* filePath, const char* cachePath, cons
         }
     }
 
-    // Get file extension
     std::filesystem::path path(filePath);
     std::string ext = path.extension().string();
 
-    // For .asset files, read JSON "type" field and dispatch via CanOpenAssetType
+    // .asset files: read the JSON "type" field and dispatch through CanOpenAssetType.
     if (ext == ".asset")
     {
         try
@@ -236,7 +229,7 @@ bool ToolHost::OpenToolForFile(const char* filePath, const char* cachePath, cons
         }
     }
 
-    // Check EditorWindow by extension
+    // Otherwise match by extension.
     for (auto& instance : m_Windows)
     {
         if (instance.window && instance.window->CanOpenFile(ext.c_str()))

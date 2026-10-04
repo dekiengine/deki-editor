@@ -1,8 +1,8 @@
 // LiveSession: how the command line finds and drives a running editor.
 //
-// The session files are pinned (what an editor writes, what the finder keeps
-// and what it throws away), and the client is run against a stand-in for the
-// editor's /message endpoint, which answers the way McpServer does.
+// Covers the session files (what an editor writes, what the finder keeps and
+// what it throws away) and runs the client against a stand-in for the
+// editor's /message endpoint that answers the way McpServer does.
 
 #include <gtest/gtest.h>
 

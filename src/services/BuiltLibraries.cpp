@@ -163,7 +163,7 @@ std::vector<std::string> RemoveUnknown(const std::string& runtimeDir)
                 auto it = j.find(Key(entry.path()));
                 if (it != j.end() && it->is_string() && it->get<std::string>() == Identity(entry.path()))
                 {
-                    continue;  // built here, as built
+                    continue;  // built here and unchanged
                 }
             }
             doomed.push_back(entry.path());

@@ -9,8 +9,8 @@ namespace SettingsOwnership
 {
 namespace
 {
-// Package load happens on the main thread today, but hot reload has moved work off
-// it before; a mutex here is cheap next to a LoadLibrary.
+// Packages load on the main thread, but hot reload may move that work off it.
+// A mutex is cheap next to a LoadLibrary.
 std::mutex& Lock()
 {
     static std::mutex s_M;

@@ -2,8 +2,8 @@
 
 // deki-packages.json: the project's declared packages (user intent only).
 //
-// Two writers need it - the Package Manager when it saves, and the project
-// scaffold when it creates a project - so the JSON shape lives here once.
+// Two writers need it, the Package Manager when it saves and the project
+// scaffold when it creates a project, so the JSON shape lives here once.
 
 #include <map>
 #include <string>
@@ -31,10 +31,9 @@ nlohmann::json BuildPackageManifestForIds(const std::vector<std::string>& packag
 /// How PackageEntry::source is spelled in the manifest and the lock.
 ///
 /// "github" and "custom" are the editor's own. Anything else is the id of the
-/// installer whose framework registry the package comes from - so the file
-/// names the installer and the editor needs no table of frameworks. "espidf",
-/// which is what these files have always said for an ESP-IDF registry
-/// component, is simply that installer's id.
+/// installer whose framework registry the package comes from, so the file
+/// names the installer and the editor needs no table of frameworks ("espidf"
+/// is the ESP-IDF installer's id).
 ///
 /// An empty spelling means Custom in the manifest (where the key is omitted
 /// for registry packages) and "leave it alone" in the lock.

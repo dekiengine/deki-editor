@@ -28,10 +28,9 @@ void SceneToolbar::CycleTool()
 
 void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool& needsCentering)
 {
-    // Console-style strip: fixed-height flat cells separated by 1px dividers,
-    // enabled cells show their icon in the accent color (plus a subtle
-    // white-fade fill), hover a fainter fill, and a 1px hairline closes the
-    // bottom edge. Mirrors ConsolePanel's toolbar chrome.
+    // A strip like ConsolePanel's toolbar: flat fixed-height cells between 1px
+    // dividers. An enabled cell shows its icon in the accent colour on a faint
+    // fill, hover a fainter fill, and a 1px line closes the bottom edge.
     const float dpi = m_App->Dpi(1.0f);
     const float rowH = 34.0f * dpi;
     const ImVec2 rowMin = ImGui::GetCursorScreenPos();
@@ -96,10 +95,9 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         }
     };
 
-    // Leading divider at strip start.
     drawDivider(cursorX);
 
-    // Tool selection.
+    // Tools.
     iconBtn("select", ICON_TI_POINTER, "Select (Q)", m_CurrentTool == SceneTool::Select,
             [&] { m_CurrentTool = SceneTool::Select; });
     iconBtn("move", ICON_TI_ARROWS_MOVE, "Move (W)", m_CurrentTool == SceneTool::Move,
@@ -107,7 +105,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
     iconBtn("rect", ICON_TI_FRAME, "Rect (R)", m_CurrentTool == SceneTool::Rect,
             [&] { m_CurrentTool = SceneTool::Rect; });
 
-    // Anchor edge toggle (only visible when Rect tool is active).
+    // Anchor edge toggle, only with the Rect tool.
     if (m_CurrentTool == SceneTool::Rect)
     {
         iconBtn("anchor", ICON_TI_ANCHOR,
@@ -116,11 +114,10 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
                 m_RectAnchorEdge, [&] { m_RectAnchorEdge = !m_RectAnchorEdge; });
     }
 
-    // Grid toggle.
     iconBtn("grid", ICON_TI_GRID_DOTS, "Toggle Grid", m_ShowGrid, [&] { m_ShowGrid = !m_ShowGrid; });
 
-    // Grid size - borderless transparent numeric cell that fills the row
-    // height, like the console's search input.
+    // Grid size: a borderless numeric cell the row's height, like the
+    // console's search input.
     {
         const float cellW = 64.0f * dpi;
         const float framePadY = std::max(0.0f, (rowH - ImGui::GetFontSize()) * 0.5f);
@@ -143,13 +140,12 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         drawDivider(cursorX);
     }
 
-    // Outlines toggle.
     iconBtn("outlines", ICON_TI_SCAN, "Toggle Outlines", m_ShowOutlines, [&] { m_ShowOutlines = !m_ShowOutlines; });
 
-    // Gizmos toggle (device frame, camera rect, selection bounds).
+    // Gizmos: device frame, camera rect, selection bounds.
     iconBtn("gizmos", ICON_TI_VECTOR, "Toggle Gizmos", m_ShowGizmos, [&] { m_ShowGizmos = !m_ShowGizmos; });
 
-    // 1:1 zoom reset (action, never "active").
+    // Zoom reset to 1:1, an action that is never shown active.
     iconBtn("fitview", ICON_TI_MAXIMIZE, "Reset zoom 1:1", false,
             [&]
             {
@@ -159,7 +155,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
 
     m_CellsRightX = cursorX;
 
-    // Reserve the row in layout flow and close the bottom edge with a hairline.
+    // Take the row's space in the layout and draw the bottom line.
     ImGui::SetCursorScreenPos(ImVec2(rowMin.x, rowMax.y));
     dl->AddLine(ImVec2(rowMin.x, rowMax.y), ImVec2(rowMax.x, rowMax.y), colLine, 1.0f);
 }

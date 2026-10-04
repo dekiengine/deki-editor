@@ -43,7 +43,6 @@ void SDCardDeployPanel::Draw()
         return;
     }
 
-    // Refresh drives if needed
     if (m_NeedsDriveRefresh)
     {
         m_RemovableDrives = AssetDeployer::GetRemovableDrives();

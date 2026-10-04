@@ -1,4 +1,4 @@
-// Scene saves that used to lose or invent data without a word.
+// Scene saves must not lose or invent data silently.
 
 #include <gtest/gtest.h>
 
@@ -14,7 +14,7 @@ using DekiEditor::Tests::MockComponent;
 
 // An instance whose source scene cannot be loaded at save time (a merge
 // conflict in the prefab, saved by a newer editor, missing for a moment)
-// keeps the overrides it was loaded with. The save used to write none.
+// keeps the overrides it was loaded with.
 TEST(SceneDataLoss, InstanceOverridesSurviveASaveWithoutTheirSource)
 {
     auto previous = Deki::Scene::s_GuidToPathResolver;
@@ -41,8 +41,8 @@ TEST(SceneDataLoss, InstanceOverridesSurviveASaveWithoutTheirSource)
 }
 
 // Property keys a component's type no longer has are carried to the next save
-// of THAT component. They were kept by address and never forgotten, so a
-// component later allocated at the same address wrote them as its own.
+// of THAT component only: a component later allocated at the same address
+// must not write them as its own.
 TEST(SceneDataLoss, UnknownKeysDoNotPassToTheNextComponentAtThatAddress)
 {
     MockComponent::Register();

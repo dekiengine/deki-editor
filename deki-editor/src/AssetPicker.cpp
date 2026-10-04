@@ -50,9 +50,9 @@ enum class IconKind
     Unknown
 };
 
-// Classification is driven by AssetTypeRegistry::GetCategoryForExtension so
-// the package that owns the file extension is the single source of truth. The
-// editor does not carry per-extension lists. See CLAUDE.md (project).
+// The package that owns a file extension decides its category, through
+// AssetTypeRegistry::GetCategoryForExtension. The editor keeps no
+// per-extension lists.
 IconKind ClassifyByExtension(const std::string& path)
 {
     std::string ext;
@@ -189,7 +189,6 @@ AssetPicker::AssetPicker()
 bool AssetPicker::Open(const std::string& popupId, const std::string& currentValue, AssetFilterType filter,
                        std::string& outSelectedPath)
 {
-    // Refresh if filter changed or first time
     if (filter != m_CurrentFilter || m_NeedsRefresh)
     {
         m_CurrentFilter = filter;
@@ -197,7 +196,8 @@ bool AssetPicker::Open(const std::string& popupId, const std::string& currentVal
         m_NeedsRefresh = false;
     }
 
-    // Find current selection (match by GUID or relativePath for backwards compat)
+    // Find the current selection by GUID, or by relative path for older
+    // references that store a path.
     m_SelectedIndex = -1;
     for (size_t i = 0; i < m_Assets.size(); ++i)
     {
@@ -364,14 +364,12 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             ImGui::PopID();
         }
 
-        // Search filter
         std::string searchLower = m_SearchBuffer;
         for (char& c : searchLower)
         {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
 
-        // Asset entries
         auto* pipeline = AssetPipeline::Instance();
         for (size_t i = 0; i < m_Assets.size(); ++i)
         {
@@ -485,7 +483,8 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
                 // Double-click to select and close
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
                 {
-                    // Return GUID for asset references (like Unity)
+                    // Asset references store the GUID; the path is used only
+                    // when the asset has none.
                     outSelectedPath = asset.guid.empty() ? asset.relativePath : asset.guid;
                     selected = true;
                     ImGui::CloseCurrentPopup();
@@ -521,12 +520,11 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
         {
             if (!m_SelectedSubAsset.empty())
             {
-                // Return SubAsset GUID
                 outSelectedPath = m_SelectedSubAsset;
             }
             else if (m_SelectedIndex >= 0 && m_SelectedIndex < static_cast<int>(m_Assets.size()))
             {
-                // Return GUID for asset references (like Unity)
+                // Asset references store the GUID (see above).
                 const auto& asset = m_Assets[m_SelectedIndex];
                 outSelectedPath = asset.guid.empty() ? asset.relativePath : asset.guid;
             }
@@ -571,7 +569,6 @@ void AssetPicker::RefreshAssets(AssetFilterType filter)
     auto extensions = GetExtensionsForFilter(filter);
     ScanDirectory(assetsPath, assetsPath, extensions, pipeline);
 
-    // Sort by name
     auto comparator = [](const AssetPickerEntry& a, const AssetPickerEntry& b)
     { return a.displayName < b.displayName; };
     std::sort(m_Assets.begin(), m_Assets.end(), comparator);
@@ -619,7 +616,7 @@ std::vector<std::string> AssetPicker::GetExtensionsForFilter(AssetFilterType fil
         return forFilter(filter);
     }
 
-    // "All" = every asset family except scripts, as before.
+    // "All" is every asset family except scripts.
     std::vector<std::string> all;
     for (AssetFilterType f : { AssetFilterType::Textures, AssetFilterType::Audio, AssetFilterType::Scenes,
                                AssetFilterType::Fonts, AssetFilterType::Animations })

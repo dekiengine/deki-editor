@@ -23,7 +23,6 @@ static void ParseComponent(const json& j, ComponentDef& comp)
     comp.sha256 = j.value("sha256", "");
     comp.tooltip = j.value("tooltip", "");
 
-    // Version check
     if (j.contains("versionCheck"))
     {
         const auto& vc = j["versionCheck"];
@@ -33,7 +32,6 @@ static void ParseComponent(const json& j, ComponentDef& comp)
         comp.versionCheck.version = vc.value("version", "");
     }
 
-    // Fallback
     if (j.contains("fallback"))
     {
         const auto& fb = j["fallback"];
@@ -47,7 +45,7 @@ static void ParseComponent(const json& j, ComponentDef& comp)
         }
     }
 
-    // Detection - map of platform -> path pattern
+    // Detection: map of platform -> path pattern.
     if (j.contains("detection") && j["detection"].is_object())
     {
         for (auto& [key, val] : j["detection"].items())
@@ -56,7 +54,6 @@ static void ParseComponent(const json& j, ComponentDef& comp)
         }
     }
 
-    // Post-install
     if (j.contains("postInstall"))
     {
         const auto& pi = j["postInstall"];
@@ -64,7 +61,6 @@ static void ParseComponent(const json& j, ComponentDef& comp)
         comp.postInstall.unixLike = pi.value("unix", "");
     }
 
-    // Sub-components
     if (j.contains("subComponents") && j["subComponents"].is_array())
     {
         for (const auto& sc : j["subComponents"])

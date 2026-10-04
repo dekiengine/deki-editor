@@ -21,8 +21,8 @@ protected:
         m_TempDir = fs::temp_directory_path() / "deki_asset_type_test";
         fs::create_directories(m_TempDir);
 
-        // Note: AssetTypeRegistry is a singleton, tests may affect each other
-        // In production, you'd want isolation, but for now we test additive behavior
+        // AssetTypeRegistry is a singleton, so tests may affect each other;
+        // they test additive behaviour.
     }
 
     void TearDown() override
@@ -443,9 +443,9 @@ TEST_F(AssetTypeRegistryTest, DefaultContent_IsValidJson_ForAllRegisteredTypes)
     }
 }
 
-// Clear runs on every project switch and package reload. It once dropped the
-// editor's own Scene type with the packages' ones, and .scene files fell out of
-// the asset pipeline until a restart.
+// Clear runs on every project switch and package reload. It must keep the
+// editor's own Scene type, or .scene files drop out of the asset pipeline
+// until a restart.
 TEST_F(AssetTypeRegistryTest, Clear_KeepsBuiltInTypes)
 {
     auto& registry = AssetTypeRegistry::Instance();

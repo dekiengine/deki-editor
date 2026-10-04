@@ -10,22 +10,20 @@
 namespace DekiEditor
 {
 
-// What format an asset type compiles to
+/// What an asset type compiles to.
 enum class AssetCompileTarget
 {
-    Texture,  // Compiles to DTEX texture (e.g., ProceduralSprite)
-    Audio,    // Compiles to audio format
-    Data,     // Compiles to generic binary data (MessagePack, etc.)
-    None,     // No compilation needed (pass-through)
+    Texture,  // a DTEX texture (e.g. ProceduralSprite)
+    Audio,
+    Data,  // generic binary data (MessagePack, etc.)
+    None,  // passed through as is
 };
 
-// Broad asset family used by the editor to pick icons, group browser entries,
-// and build file-dialog filters. Packages declare the category for each
-// extension they own (via RegisterCategory or AssetTypeHandler::category),
-// so the editor never carries a hardcoded `.png == texture` list. See
-// CLAUDE.md (project): extensions and asset type names must live in the
-// owning package behind a registry, never hardcoded in deki-engine or
-// deki-editor.
+/// The broad family of an asset, used by the editor for icons, browser
+/// grouping and file-dialog filters. Each package declares the category of
+/// the extensions it owns (RegisterCategory or AssetTypeHandler::category).
+/// Extensions and asset type names belong to the owning package behind a
+/// registry, never hardcoded in deki-engine or deki-editor.
 enum class AssetCategory
 {
     Unknown,
@@ -45,19 +43,19 @@ struct DEKI_EDITOR_API AssetTypeHandler
     std::string typeName;                 // "ProceduralSprite", "Animation", "Scene"
     std::string displayName;              // "Procedural Sprite"
     std::vector<std::string> extensions;  // {".asset"}, {".anim"}, {".scene"}
-    std::string defaultContent;           // Default JSON template
+    std::string defaultContent;           // JSON template for a new asset
     AssetCompileTarget compilesTo = AssetCompileTarget::Texture;
-    AssetCategory category = AssetCategory::Unknown;  // populates extension->category map at Register time
+    AssetCategory category = AssetCategory::Unknown;  // added to the extension->category map by Register
 
-    // Compile to RGBA buffer (for Texture target)
+    // Compiles to an RGBA buffer, for the Texture target.
     std::function<bool(const nlohmann::json& data, std::vector<uint8_t>& rgba, int& width, int& height)> compile;
 
-    // Compile to file (for Data target - Animation, Scene, etc.)
-    // Takes source JSON and output cache path
+    // Compiles the source JSON to a cache file, for the Data target
+    // (Animation, Scene, etc.).
     std::function<bool(const nlohmann::json& data, const std::string& cachePath)> compileToFile;
 
-    // Inspector GUI handler: draws editor UI for this asset type
-    // Returns true if data was modified (needs save)
+    // Draws the Inspector UI for this asset type. Returns true when the data
+    // changed and needs saving.
     std::function<bool(nlohmann::json& data, const std::string& assetPath, const std::string& assetGuid)> inspectorGUI;
 };
 
@@ -75,10 +73,9 @@ public:
     bool CompileAsset(const nlohmann::json& data, std::vector<uint8_t>& rgba, int& width, int& height);
     bool CompileAssetToFile(const nlohmann::json& data, const std::string& cachePath);
 
-    // Category-only registration: for extensions that have no AssetTypeHandler
-    // (e.g. .png is handled by deki-2d's ImageCacheHandler, not a type entry).
-    // Packages call this so the editor's UI classification (icons, filters)
-    // has a single source of truth.
+    /// Sets the category of an extension that has no AssetTypeHandler (e.g.
+    /// .png, handled by deki-2d's ImageCacheHandler). Packages call this so
+    /// the editor's icons and filters come from one place.
     void RegisterCategory(const std::string& extension, AssetCategory category);
     AssetCategory GetCategoryForExtension(const std::string& extension) const;
     std::vector<std::string> GetExtensionsForCategory(AssetCategory category) const;
@@ -87,17 +84,17 @@ public:
     /// (Scene, Asset).
     ///
     /// Required before FreeLibrary on any package DLL: AssetTypeHandler holds
-    /// std::functions built by package code, and a std::function carries a
-    /// pointer to its manager inside the DLL that created it - which runs on
-    /// destruction as well as on copy. Handlers also capture the raw
-    /// AssetTypeEditor* prototypes owned by AssetTypeEditorRegistry.
+    /// std::functions built by package code, and a std::function points at
+    /// its manager inside the DLL that created it, which runs on destruction
+    /// as well as on copy. Handlers also capture the raw AssetTypeEditor*
+    /// prototypes owned by AssetTypeEditorRegistry.
     void Clear();
 
 private:
     AssetTypeRegistry();
-    // The editor's own types. Registered here rather than by the editor at
-    // startup, so a Clear (every project switch and package reload) cannot
-    // lose them: it once did, and .scene files dropped out of the pipeline.
+    // The editor's own types. Must be registered here, not by the editor at
+    // startup: Clear runs on every project switch and package reload, and
+    // .scene files drop out of the pipeline otherwise.
     void RegisterBuiltInTypes();
     std::vector<AssetTypeHandler> m_Types;
     std::unordered_map<std::string, AssetCategory> m_ExtensionCategory;  // ext (lowercase) -> category

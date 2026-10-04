@@ -17,9 +17,9 @@ class Object;
 namespace DekiEditor
 {
 
-// Named imports rather than `using namespace`: a wholesale import in a header
-// is open-ended, so anything later added to ObjectSerializationHelper would
-// silently appear in every DekiEditor TU that includes this.
+// Named imports, not `using namespace`: a whole-namespace import in a header
+// would bring anything later added to ObjectSerializationHelper into every
+// file that includes this.
 using ObjectSerializationHelper::ChildData;
 using ObjectSerializationHelper::ComponentData;
 using ObjectSerializationHelper::ObjectData;
@@ -37,19 +37,16 @@ class ClipboardService
 public:
     static ClipboardService& Instance();
 
-    // Copy operations
     void CopyComponent(const Deki::Component* comp);
     void CopyTransform(const Deki::Object* obj);
     void CopyObjects(const std::vector<Deki::Object*>& objects);
 
-    // Query operations
     bool HasComponent() const;
     bool HasComponentOfType(const std::string& typeName) const;
     bool HasTransform() const;
     bool HasObjects() const;
     std::string GetClipboardComponentType() const;
 
-    // Retrieve operations
     std::optional<ComponentData> GetComponentData() const;
     std::optional<ObjectData> GetTransformData() const;
     std::optional<std::vector<ChildData>> GetObjectsData() const;

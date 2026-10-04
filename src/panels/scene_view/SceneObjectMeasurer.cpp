@@ -53,7 +53,7 @@ bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta
         }
     };
 
-    // Base class first, then derived - derived can override.
+    // Base class first, then derived, so derived can override.
     searchProperties(baseMeta);
     searchProperties(meta);
 
@@ -84,7 +84,7 @@ bool SceneObjectMeasurer::GetDisplaySize(Deki::Object* obj, float& outWidth, flo
     outWidth = 0.0f;
     outHeight = 0.0f;
 
-    // Try to get size from component editors first
+    // Ask the component editors first.
     const auto& components = obj->GetComponents();
     for (Deki::Component* comp : components)
     {
@@ -101,8 +101,7 @@ bool SceneObjectMeasurer::GetDisplaySize(Deki::Object* obj, float& outWidth, flo
             continue;
         }
 
-        // Call simplified GetDisplaySize - editors use EditorAssets directly.
-        // Guarded so a faulty editor falls through to the next component.
+        // Guarded, so a faulty editor falls through to the next component.
         bool gotSize = false;
         Guard(meta->name, [&] { gotSize = editor->GetDisplaySize(comp, outWidth, outHeight); });
         if (gotSize)
@@ -146,9 +145,8 @@ void SceneObjectMeasurer::UpdateEditors(Deki::Scene* scene)
             }
         }
 
-        // Copy the children list before recursing: a CustomEditor's OnEditorUpdate
-        // (called for any descendant) may mutate the live children vector and
-        // trigger a reallocation, invalidating range-for's cached begin/end.
+        // A copy of the children: a CustomEditor's OnEditorUpdate may change
+        // the live list, which would invalidate the loop's iterators.
         auto children = obj->GetChildren();
         for (Deki::Object* child : children)
         {

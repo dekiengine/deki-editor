@@ -21,21 +21,19 @@ namespace
 // See the wait_for() call in Start() for why this is minutes rather than seconds.
 constexpr int kRequestTimeoutSeconds = 900;
 
-// Loopback only. The MCP surface is the whole editor - install_package clones and
-// rebuild compiles, so reaching it is equivalent to running code on this machine.
-// Binding every interface put that behind nothing more than being on the same
-// network. Clients that genuinely need remote access should forward the port
-// deliberately (SSH, etc.) rather than have the editor publish it by default.
+// Loopback only. MCP reaches the whole editor (install_package clones and
+// rebuild compiles), so reaching it means running code on this machine; on
+// every interface, anyone on the same network could. A client that needs
+// remote access should forward the port on purpose (SSH, etc.).
 constexpr const char* kBindAddress = "127.0.0.1";
 
 // 256 bits of CSPRNG output, hex encoded.
 //
-// DEKI_MCP_TOKEN overrides it. A per-session token cannot be written into a
-// client configuration that outlives the session, so a developer who wants a
-// stable one sets the env var for both the editor and the client instead
-// (SETUP.md section 8). Anything shorter than 16
-// characters is refused rather than silently accepted - a weak fixed token on a
-// surface that can execute code is worse than the rotating one it replaces.
+// DEKI_MCP_TOKEN overrides it. A per-session token cannot go into a client
+// configuration that outlives the session, so a developer who wants a stable
+// one sets the variable for both the editor and the client (SETUP.md section
+// 8). Anything shorter than 16 characters is refused: a weak fixed token on a
+// surface that can run code is worse than the per-session one.
 std::string GenerateSessionToken()
 {
     if (const char* fromEnv = std::getenv("DEKI_MCP_TOKEN"))
@@ -115,10 +113,10 @@ bool McpServer::Authorize(const httplib::Request& req, httplib::Response& res) c
         }
     }
 
-    // A browser can be made to POST to localhost by any page the user visits, so
-    // reject anything carrying an Origin outright - a legitimate MCP client is
-    // not a web page and never sends one. This is what stops a visited site from
-    // driving the editor even while the user has the server running.
+    // Any page the user visits can make the browser POST to localhost, so
+    // anything carrying an Origin is rejected: a real MCP client is not a web
+    // page and never sends one. This stops a visited site from driving the
+    // editor while the server is running.
     if (req.has_header("Origin"))
     {
         res.status = 403;
@@ -165,13 +163,13 @@ bool McpServer::Start(int port)
     m_Token = GenerateSessionToken();
     m_HttpServer = std::make_unique<httplib::Server>();
 
-    // httplib defaults to a 5s socket timeout, which would drop the connection
-    // out from under a long tool call (package install, rebuild) before the
-    // handler ever gets to write a response.
+    // httplib's default 5s socket timeout would drop the connection during a
+    // long tool call (package install, rebuild) before the handler can write
+    // a response.
     m_HttpServer->set_read_timeout(kRequestTimeoutSeconds, 0);
     m_HttpServer->set_write_timeout(kRequestTimeoutSeconds, 0);
 
-    // POST /message - receive JSON-RPC requests from MCP client
+    // POST /message: JSON-RPC requests from the MCP client.
     m_HttpServer->Post(
         "/message",
         [this](const httplib::Request& req, httplib::Response& res)
@@ -185,10 +183,10 @@ bool McpServer::Start(int port)
             {
                 auto msg = nlohmann::json::parse(req.body);
 
-                // Check if this is a notification (no id field) - process directly
+                // A notification (no id) gets no response, but is still queued
+                // for the main thread.
                 if (!msg.contains("id"))
                 {
-                    // Notifications don't need responses. Queue for main thread processing anyway.
                     PendingRequest pending;
                     pending.message = std::move(msg);
                     m_IncomingRequests.Push(std::move(pending));
@@ -196,7 +194,7 @@ bool McpServer::Start(int port)
                     return;
                 }
 
-                // Create promise/future pair for synchronous response
+                // The main thread fulfils the promise with the response.
                 auto promise = std::make_shared<std::promise<std::string>>();
                 auto future = promise->get_future();
 
@@ -205,16 +203,14 @@ bool McpServer::Start(int port)
                 pending.responsePromise = promise;
                 m_IncomingRequests.Push(std::move(pending));
 
-                // Wait for the main thread to process. Handlers run inline on the
-                // main thread, and some of them are genuinely long: a package install
-                // is a git clone, `rebuild` is a full CMake build. Those would trip
-                // a short timeout even though the work completes fine, so the cap
-                // here is a liveness backstop, not a latency budget. Clients that
-                // want to bail sooner should use their own request timeout.
+                // Wait for the main thread. Handlers run there, and some take long:
+                // a package install is a git clone, `rebuild` is a full CMake build.
+                // So the cap here only guards against a hang; clients that want to
+                // give up sooner should use their own request timeout.
                 //
-                // Waited in short steps so a server that is stopping lets go at
-                // once: Stop() joins this thread, and a request that arrived as the
-                // editor was closing used to hold the quit for the full 15 minutes.
+                // Waited in short steps so a stopping server lets go at once:
+                // Stop() joins this thread, and a request that arrived as the
+                // editor was closing would otherwise hold the quit for 15 minutes.
                 const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(kRequestTimeoutSeconds);
                 std::future_status status = std::future_status::timeout;
                 while (m_Running.load() && std::chrono::steady_clock::now() < deadline)
@@ -235,7 +231,7 @@ bool McpServer::Start(int port)
                     std::string responseStr = future.get();
                     res.set_content(responseStr, "application/json");
 
-                    // Also push to SSE stream, if one is listening
+                    // Also push to the SSE stream, if one is listening.
                     if (m_SseClients.load() > 0)
                     {
                         SseResponse sseResp;
@@ -257,7 +253,7 @@ bool McpServer::Start(int port)
             }
         });
 
-    // GET /sse - Server-Sent Events stream for MCP client
+    // GET /sse: Server-Sent Events stream for the MCP client.
     m_HttpServer->Get("/sse",
                       [this](const httplib::Request& req, httplib::Response& res)
                       {
@@ -270,8 +266,8 @@ bool McpServer::Start(int port)
                           res.set_header("Cache-Control", "no-cache");
                           res.set_header("Connection", "keep-alive");
                           // No Access-Control-Allow-Origin: browsers are not clients of this
-                          // server, and advertising a wildcard invited exactly the cross-origin
-                          // access Authorize() now rejects.
+                          // server, and a wildcard would invite the cross-origin access
+                          // Authorize() rejects.
 
                           res.set_content_provider(
                               "text/event-stream",
@@ -287,11 +283,10 @@ bool McpServer::Start(int port)
                                       }
                                       ~Listening() { --n; }
                                   } listening(m_SseClients);
-                                  // Send endpoint event first
+                                  // The endpoint event comes first.
                                   std::string endpointEvent = "event: endpoint\ndata: /message\n\n";
                                   sink.write(endpointEvent.c_str(), endpointEvent.size());
 
-                                  // Keep streaming SSE events
                                   while (m_Running.load())
                                   {
                                       SseResponse resp;
@@ -305,7 +300,7 @@ bool McpServer::Start(int port)
                                       }
                                       else
                                       {
-                                          // Send keepalive comment every second of inactivity
+                                          // A keepalive comment after each idle second.
                                           std::string keepalive = ": keepalive\n\n";
                                           if (!sink.write(keepalive.c_str(), keepalive.size()))
                                           {
@@ -319,10 +314,10 @@ bool McpServer::Start(int port)
                           );
                       });
 
-    // Bind here, on the caller's thread: listen() on the server thread used to
-    // fail silently when the port was taken, leaving a server that reported
-    // itself running and never answered. Every windowed editor starts one, so
-    // they take any free port unless one is asked for.
+    // Bind here, on the caller's thread: listen() on the server thread fails
+    // silently when the port is taken, leaving a server that says it is running
+    // and never answers. Every windowed editor starts one, so they take any
+    // free port unless one is asked for.
     if (port == 0)
     {
         m_Port = m_HttpServer->bind_to_any_port(kBindAddress);
@@ -393,11 +388,11 @@ void McpServer::ServerThread()
 void McpServer::ProcessMessages()
 {
     PendingRequest req;
-    // Process up to 10 messages per frame to avoid blocking UI
+    // At most 10 messages per frame, so the UI keeps running.
     int processed = 0;
-    // Count check FIRST: with TryPop first, the 11th message was popped and
-    // then dropped on the loop exit, its promise never set - the client waited
-    // out the full request timeout.
+    // The count must be checked before TryPop: otherwise the 11th message is
+    // popped and dropped on loop exit, its promise never set, and the client
+    // waits out the full request timeout.
     while (processed < 10 && m_IncomingRequests.TryPop(req))
     {
         auto response = HandleMessage(req.message);

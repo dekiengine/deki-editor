@@ -18,41 +18,39 @@ struct ProjectEntry
     bool missing = false;       // deki.json is gone from disk (set by Refresh)
 };
 
-/**
- * @brief The list of projects the project manager screen offers.
- *
- * Persisted to projects.json next to settings.json, deliberately NOT inside
- * EditorSettings: that file is a flat bag of scalars and this is a growing
- * ordered list with its own per-entry metadata. Kept sorted most-recently-
- * opened first, which is the order the screen renders and never has to sort.
- */
+/// The list of projects the project manager screen offers.
+///
+/// Saved to projects.json next to settings.json, NOT inside EditorSettings:
+/// that file is a flat set of scalars, and this is a growing ordered list
+/// with per-entry metadata. Kept with the most recently opened first, the
+/// order the screen draws, so it never sorts.
 class ProjectRegistry
 {
 public:
     static ProjectRegistry& Get();
 
-    // Most-recently-opened first.
+    /// Most recently opened first.
     const std::vector<ProjectEntry>& Entries() const { return m_Entries; }
 
-    // Record a project as opened now: adds it when unknown, re-reads its
-    // name/platform from deki.json, moves it to the front, saves. This is the
-    // only way an entry is created - the manager screen's Import and the new
-    // project dialog both reach it through EditorApp::OpenProject.
+    /// Records a project as opened now: adds it when unknown, re-reads its
+    /// name and platform from deki.json, moves it to the front and saves.
+    /// The manager screen's Import and the new project dialog both reach it
+    /// through EditorApp::OpenProject.
     void Touch(const std::string& path);
 
-    // Add without opening (Import picks a folder, then opens it - this exists
-    // for callers that want the entry to survive a failed open).
+    /// Adds without opening, for callers that want the entry to survive a
+    /// failed open.
     void Add(const std::string& path);
 
-    // By value on purpose: call sites pass the path of the very entry this
-    // erases, so a reference would dangle the moment the vector shrinks.
+    /// By value on purpose: callers pass the path of the very entry this
+    /// erases, so a reference would dangle once the vector shrinks.
     void Remove(std::string path);
 
-    // Re-read every entry's metadata from disk and update the missing flags.
-    // Cheap enough to call when the screen is shown; not called per frame.
+    /// Re-reads every entry's metadata from disk and updates the missing
+    /// flags. Cheap enough for when the screen is shown, not per frame.
     void Refresh();
 
-    // A directory is a project if it holds a deki.json.
+    /// A directory is a project if it holds a deki.json.
     static bool IsProjectDir(const std::string& path);
 
 private:
@@ -66,8 +64,8 @@ private:
 
     std::vector<ProjectEntry> m_Entries;
 
-    // Upper bound on remembered projects. The list is a convenience, not an
-    // archive - past this the oldest entry falls off the back.
+    // Most projects remembered. The list is a convenience, not an archive:
+    // past this the oldest entry drops off the back.
     static constexpr size_t kMaxEntries = 64;
 };
 

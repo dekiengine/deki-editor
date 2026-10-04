@@ -28,9 +28,9 @@ bool ParseLatestRelease(const std::string& json, LatestRelease& out)
         return false;
     }
 
-    // The page the Help menu opens with SDL_OpenURL. Anything but our own
-    // releases page (file://, a custom scheme, another host) is a reason to
-    // distrust the whole response.
+    // The Help menu opens this with SDL_OpenURL, so anything but our own
+    // releases page (file://, a custom scheme, another host) rejects the
+    // whole response.
     const std::string htmlUrl = j.value("html_url", "");
     if (htmlUrl.rfind("https://github.com/dekiengine/deki-editor/", 0) != 0)
     {

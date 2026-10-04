@@ -179,10 +179,9 @@ int main(int argc, char* argv[])
         // Exit without unwinding, and without ShutdownPlatform. Package DLLs
         // handed engine-side registries function pointers into their own code
         // at load time and nothing unregisters them, so any teardown here
-        // risks running through code those registries still point at - the
-        // crash-at-exit --verify-scenes used to have. Everything the command
-        // produced is already flushed to disk, and the process is a moment
-        // from gone, so there is nothing to reclaim.
+        // risks running through code those registries still point at.
+        // Everything the command produced is already flushed to disk, and the
+        // process is a moment from gone, so there is nothing to reclaim.
 #ifdef _WIN32
         ExitProcess((UINT)rc);
 #else
@@ -337,6 +336,12 @@ int main(int argc, char* argv[])
         {
             float statusBarHeight = DekiEditor::ActivityPanel::GetStatusBarHeight();
             ImGuiID dockspaceId = ImGui::GetID("EditorDockSpace");
+            // A restored panel's tab is put back in its old slot here, BEFORE the
+            // layout below: the tab already exists (the dock request was processed
+            // in NewFrame) but the strip has not been drawn yet, so it comes back
+            // in the right order on its very first frame instead of snapping.
+            DekiEditor::BeginPanelMaximizeFrame();
+
             // NoWindowMenuButton hides the small dropdown arrow on every dock
             // node. That arrow opens the dock context menu whose "Hide tab bar"
             // entry is a one-way trap (no UI to undo). With it gone, the menu is
@@ -346,12 +351,6 @@ int main(int argc, char* argv[])
             // that closes the currently visible tab). Per-tab close buttons on
             // the tab strip itself remain visible - those come from each
             // window's p_open and are unaffected by this flag.
-            // A restored panel's tab is put back in its old slot here, BEFORE the
-            // layout below: the tab already exists (the dock request was processed
-            // in NewFrame) but the strip has not been drawn yet, so it comes back
-            // in the right order on its very first frame instead of snapping.
-            DekiEditor::BeginPanelMaximizeFrame();
-
             ImGui::DockSpace(dockspaceId, ImVec2(0.0f, -statusBarHeight),
                              ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
 
@@ -434,12 +433,14 @@ int main(int argc, char* argv[])
     // ShutdownPlatform destroys the ImGui context, and ExitProcess still runs
     // every DLL's static destructors. Those in deki-editor.dll free ImGui
     // containers (EditorTheme's section stack), and ImGui::MemFree reads the
-    // context it was given: a destroyed one crashed every exit after a project
-    // had been open, which a debugger shows as a session that never ends.
-    // Not before the shutdown on Linux: there the exe and libdeki-editor.so
-    // share ImGui's symbols, the backend shutdown's ImGui calls land in the
-    // .so's copy, and a released context made every quit a null-pointer crash.
-    // _exit below runs no static destructors, so there is nothing to protect.
+    // context it was given, so on Windows the context is released first: a
+    // destroyed one crashes every exit after a project has been open, which a
+    // debugger shows as a session that never ends.
+    // On Linux it is released after the shutdown: the exe and
+    // libdeki-editor.so share ImGui's symbols, the backend shutdown's ImGui
+    // calls land in the .so's copy, and a released context makes quitting a
+    // null-pointer crash. _exit below runs no static destructors, so there is
+    // nothing to protect.
 #ifdef _WIN32
     editor.ReleaseImGuiContext();
 #endif

@@ -159,14 +159,14 @@ void TextureInspector::DrawPreview()
         int srcHeight = static_cast<int>(fHeight);
         int availWidthInt = static_cast<int>(availWidth);
 
-        // Bound the preview by the available width AND a maximum height, so
-        // small sources (e.g. a 64x64 procedural sprite) don't integer-upscale
-        // to fill the whole panel
+        // Bounded by the available width and a maximum height, so a small
+        // source (a 64x64 procedural sprite, say) does not scale up to fill
+        // the whole panel.
         float maxHeight = m_App->Dpi(Metrics::kPreviewMaxHeight);
         int maxHeightInt = static_cast<int>(maxHeight);
 
-        // Scale up using integer multiples within both bounds (pixel-perfect)
-        // Scale down proportionally if larger than either bound
+        // Scale up by whole multiples within both bounds, so pixels stay
+        // sharp; scale down proportionally when larger than either.
         int displayWidth, displayHeight;
         if (srcWidth <= availWidthInt && srcHeight <= maxHeightInt)
         {
@@ -227,9 +227,8 @@ void TextureInspector::DrawPreview()
 
 void TextureInspector::BeginScrollRegion()
 {
-    // Start the scroll child at the panel's left edge (cancel the inspector
-    // body indent) so the section headers full-bleed like the component
-    // windows; the indent is re-applied inside for the content.
+    // The scroll child starts at the panel's left edge so section headers
+    // span the full width, as for components; the content is indented inside.
     ImGui::SetCursorPosX(0.0f);
     ImGui::BeginChild("TextureInspectorScroll", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
     ImGui::Indent(m_App->Dpi(Metrics::kInspectorIndent));
@@ -249,10 +248,8 @@ void TextureInspector::DrawSettings()
 
     namespace fs = std::filesystem;
 
-    // Load format from .data sidecar when asset selection changes.
-    // When the sidecar lacks an explicit format, fall back to the format
-    // that was actually baked into the .tex cache (the auto-default in
-    // ImageCacheHandler picks RGB565 vs RGB565A8 based on alpha content).
+    // Load the settings from the .data sidecar when the selection changes.
+    // With no format there, it is Automatic.
     if (assetPath != m_LastFormatAssetPath)
     {
         m_LastFormatAssetPath = assetPath;
@@ -319,7 +316,7 @@ void TextureInspector::DrawSettings()
         }
     }
 
-    // Helper: read existing .data, apply mutate, write back, reimport.
+    // Reads the .data sidecar, applies `mutate`, writes it back and reimports.
     auto writeTextureSettings = [&](auto mutate)
     {
         std::string dataPath = assetPath + ".data";
@@ -340,8 +337,8 @@ void TextureInspector::DrawSettings()
         }
         mutate(dataJson["settings"]["texture"]);
         {
-            // Closed before the reimport below reads it: an open stream had
-            // not written anything yet, so the import saw an empty sidecar.
+            // Closed before the reimport below reads it: an open stream may
+            // not have written anything yet.
             std::ofstream outFile(dataPath);
             if (outFile.is_open())
             {
@@ -354,13 +351,13 @@ void TextureInspector::DrawSettings()
         InvalidatePreview();
     };
 
-    // Every section in the asset inspector opens the way a component does in the
-    // object inspector: a full-bleed hairline, then the band hanging off it.
+    // Each section opens like a component in the object inspector: a
+    // full-width line, then the band below it.
     DekiEditor::FullBleedSeparator();
     if (DekiEditor::SchematicSectionBegin("Settings"))
     {
-        // Chroma key (1-bit transparency). Most useful with RGB565 to avoid
-        // paying for an alpha plane when only on/off transparency is needed.
+        // Chroma key (1-bit transparency). Most useful with RGB565, to avoid
+        // an alpha plane when on/off transparency is enough.
         if (hasCached)
         {
             InspectorUtils::BeginPropertyRow("Chroma Key");
@@ -394,7 +391,6 @@ void TextureInspector::DrawSettings()
             }
         }
 
-        // Open in Spritesheet Editor button
         if (hasCached && !cachePath.empty() && m_PreviewTextureId != 0)
         {
             if (DekiEditor::SchematicAddButton(ICON_TI_LAYOUT_GRID "  Open in Spritesheet Editor"))
@@ -415,13 +411,12 @@ void TextureInspector::DrawSettings()
     }
 }
 
-// One Targets section, a stack of cards: Default first, holding what every
-// target uses, then one per target, each overriding any of those values for
-// itself. A card folds to its header, which with its summary line says what
-// it stores without opening it. A value that
-// follows Default is dimmed and says what that gives the target; a target
-// with an override has a dot. Each property is a row, so another one (a
-// compression setting, say) is another row, not a narrower control.
+// The Targets section, a stack of cards: Default first, holding what every
+// target uses, then one per target, each able to override those values. A
+// folded card shows its header and a summary line of what it stores. A value
+// that follows Default is dimmed and says what that gives the target; a
+// target with an override has a dot. Each property is a row, so a new one (a
+// compression setting, say) is a new row, not a narrower control.
 void TextureInspector::DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write)
 {
     const std::vector<const PlatformConfig*> targets = ProjectPlatforms(m_App->GetProject()->GetPath());
@@ -850,8 +845,8 @@ void TextureInspector::UpdatePreviewTexture(const std::string& cachePath)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Unpack state is global; other GL users (e.g. ImGui glyph uploads) can leave
-    // a row stride behind, which would shear/overread this tightly packed upload.
+    // Unpack state is global, and other GL users (ImGui glyph uploads, say) can
+    // leave a row stride set, which would shear or overread this packed upload.
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 

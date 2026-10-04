@@ -2,44 +2,39 @@
 
 #include <cstdint>
 #include <string>
-// Tool windows draw with ImGui; pull it in here so EditorWindow sources don't
-// each need their own #include "imgui.h" (deki-editor links imgui PUBLIC).
+// Included here so EditorWindow sources need not include imgui.h themselves
+// (deki-editor links imgui PUBLIC).
 #include "imgui.h"
 
 #include <deki-editor/EditorExport.h>
 namespace DekiEditor
 {
 
-/**
- * @brief Base class for standalone editor windows
- *
- * Replaces IEditorTool. Use EditorApplication::Get() for project info.
- *
- * Usage:
- * @code
- * class SpritesheetEditorWindow : public EditorWindow
- * {
- * public:
- *     const char* GetTitle() override { return "Spritesheet Editor"; }
- *     const char* GetMenuPath() override { return "2D/Spritesheet Editor"; }
- *
- *     void OnOpen() override
- *     {
- *         auto& app = EditorApplication::Get();
- *         m_ProjectPath = app.GetProjectPath();
- *     }
- *
- *     void OnGUI() override
- *     {
- *         ImGui::Begin(GetTitle(), &m_IsOpen);
- *         // ... draw UI
- *         ImGui::End();
- *     }
- * };
- *
- * REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
- * @endcode
- */
+/// Base class for standalone editor windows. Use EditorApplication::Get()
+/// for project info.
+///
+/// Usage:
+///   class SpritesheetEditorWindow : public EditorWindow
+///   {
+///   public:
+///       const char* GetTitle() override { return "Spritesheet Editor"; }
+///       const char* GetMenuPath() override { return "2D/Spritesheet Editor"; }
+///
+///       void OnOpen() override
+///       {
+///           auto& app = EditorApplication::Get();
+///           m_ProjectPath = app.GetProjectPath();
+///       }
+///
+///       void OnGUI() override
+///       {
+///           ImGui::Begin(GetTitle(), &m_IsOpen);
+///           // ... draw UI
+///           ImGui::End();
+///       }
+///   };
+///
+///   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
 class DEKI_EDITOR_API EditorWindow
 {
 public:
@@ -49,105 +44,72 @@ public:
     // Metadata
     // =========================================================================
 
-    /**
-     * @brief Get the window title
-     * @return Human-readable window title
-     */
+    /// The window title.
     virtual const char* GetTitle() = 0;
 
-    /**
-     * @brief Get the menu path for the Tools menu
-     * @return Menu path (e.g., "2D/Spritesheet Editor") or nullptr
-     */
+    /// Where the window sits in the Tools menu (e.g. "2D/Spritesheet Editor"),
+    /// or nullptr.
     virtual const char* GetMenuPath() { return nullptr; }
 
-    /**
-     * @brief Get optional keyboard shortcut
-     * @return Shortcut string (e.g., "Ctrl+Shift+S") or nullptr
-     */
+    /// A keyboard shortcut (e.g. "Ctrl+Shift+S"), or nullptr.
     virtual const char* GetShortcut() { return nullptr; }
 
     // =========================================================================
     // Lifecycle
     // =========================================================================
 
-    /**
-     * @brief Called when the window is first opened
-     *
-     * Use EditorApplication::Get() to access project paths:
-     * @code
-     * void OnOpen() override
-     * {
-     *     auto& app = EditorApplication::Get();
-     *     m_ProjectPath = app.GetProjectPath();
-     *     m_AssetsPath = app.GetAssetsPath();
-     * }
-     * @endcode
-     */
+    /// Called when the window is first opened. EditorApplication::Get() gives
+    /// the project paths:
+    ///   void OnOpen() override
+    ///   {
+    ///       auto& app = EditorApplication::Get();
+    ///       m_ProjectPath = app.GetProjectPath();
+    ///       m_AssetsPath = app.GetAssetsPath();
+    ///   }
     virtual void OnOpen() {}
 
-    /**
-     * @brief Called when the window is closed
-     */
     virtual void OnClose() {}
 
-    /**
-     * @brief Called each frame to draw the window UI
-     *
-     * Use ImGui directly. Call ImGui::Begin() with &m_IsOpen.
-     */
+    /// Draws the window each frame, with ImGui directly. Call ImGui::Begin()
+    /// with &m_IsOpen.
     virtual void OnGUI() = 0;
 
-    /**
-     * @brief Called each frame for non-UI updates
-     * @param deltaTime Time since last frame in seconds
-     */
+    /// Called each frame for work other than drawing. `deltaTime` is in seconds.
     virtual void OnUpdate(float deltaTime) {}
 
     // =========================================================================
     // File Handling
     // =========================================================================
 
-    /**
-     * @brief Check if this window can open a file type
-     * @param extension File extension (e.g., ".png", ".anim")
-     * @return True if window can handle this file type
-     */
+    /// Whether this window opens files with this extension (e.g. ".png", ".anim").
     virtual bool CanOpenFile(const char* extension) { return false; }
 
-    /**
-     * @brief Check if this window can open a .asset file by its type field
-     * @param assetType The "type" value from the .asset JSON (e.g., "iconexport")
-     * @return True if window can handle this asset type
-     */
+    /// Whether this window opens .asset files whose JSON "type" is
+    /// `assetType` (e.g. "iconexport").
     virtual bool CanOpenAssetType(const char* assetType) { return false; }
 
-    /**
-     * @brief Open a file in this window
-     * @param filePath Full path to the file
-     * @param cachePath Full path to the cached file
-     */
+    /// Opens a file, given the full paths of the file and of its cached version.
     virtual void OpenFile(const char* filePath, const char* cachePath) {}
 
     // =========================================================================
     // Hot-reload session
     //
-    // ToolHost destroys every window instance before plugin/package DLLs unload
-    // (their vtables die with FreeLibrary). A window that wants to come back
-    // where the user left it serializes its state to plain JSON here; the
-    // instance recreated by the next DiscoverTools() gets it back.
+    // ToolHost destroys every window before plugin/package DLLs unload (their
+    // vtables go with FreeLibrary). A window that wants to come back where the
+    // user left it saves its state as plain JSON here; the instance the next
+    // DiscoverTools() creates gets it back.
     //
-    // Part of the cross-DLL EditorWindow ABI on purpose: package windows survive
-    // reload exactly like app ones (the old app-internal IWindowSession did it
-    // via dynamic_cast, which does not cross a DLL boundary reliably).
-    // These are the LAST virtuals of this class - append below them only, never
+    // Part of the cross-DLL EditorWindow ABI so package windows survive a
+    // reload like app ones; a separate interface found by dynamic_cast does
+    // not work reliably across a DLL boundary.
+    // These are the LAST virtuals of this class: append below them only, never
     // in the middle, or every already-built package DLL gets a shifted vtable.
     // =========================================================================
 
-    /** @brief Serialize window state to JSON. Return false to skip persistence. */
+    /// Saves the window's state as JSON. Return false to save nothing.
     virtual bool SaveSession(std::string& /*outJson*/) { return false; }
 
-    /** @brief Rebuild state from SaveSession's JSON (after DLLs reloaded). */
+    /// Restores state from SaveSession's JSON, after the DLLs reloaded.
     virtual void RestoreSession(const std::string& /*json*/) {}
 
     // =========================================================================
@@ -184,12 +146,8 @@ DEKI_EDITOR_API void TrimRegisteredWindows(int keepCount);
 // Registration Macro
 // ============================================================================
 
-/**
- * @brief Register an editor window
- *
- * Usage:
- *   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
- */
+/// Registers an editor window:
+///   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
 #define REGISTER_EDITOR_WINDOW(WindowClass, WindowTitle, MenuPath)                                                     \
     namespace                                                                                                          \
     {                                                                                                                  \

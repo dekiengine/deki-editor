@@ -1,8 +1,7 @@
 // PlayModeGuard: a fault inside game code during play mode is reported, not
-// fatal. This used to hold only for MSVC builds (SEH); MinGW, which is the
-// supported Windows toolchain, and Linux ran the game unguarded. The guard now
-// rests on FaultGuard on every non-MSVC platform, so these tests are the same
-// on Windows and Linux.
+// fatal. MSVC builds use SEH; every other toolchain (MinGW, which is the
+// supported Windows one, and Linux) uses FaultGuard, so these tests are the
+// same on Windows and Linux.
 
 #include <gtest/gtest.h>
 
@@ -74,8 +73,8 @@ TEST(PlayModeGuard, CppExceptionsAreReportedByWhat)
 
 TEST(PlayModeGuard, TheThreadKeepsWorkingAfterAFault)
 {
-    // The second fault is the one that used to be lost when the signal stayed
-    // blocked, and the normal call proves the guard was popped cleanly.
+    // The second fault is only caught if the signal is unblocked after the
+    // first, and the normal call shows the guard was popped cleanly.
     PlayModeGuard::CrashInfo info;
     EXPECT_FALSE(PlayModeGuard::Invoke("Update", [] { NullRead(); }, info));
     EXPECT_FALSE(PlayModeGuard::Invoke("Update", [] { NullWrite(); }, info));

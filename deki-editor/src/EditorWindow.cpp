@@ -36,12 +36,13 @@ void RegisterEditorWindow(const EditorWindowMeta& meta)
 {
     auto& registry = GetWindowRegistry();
 
-    // Check for duplicate by title (prevent accumulation on DLL reload)
+    // Skip a title that is already registered, so DLL reloads do not add it
+    // again.
     for (const auto& existing : registry)
     {
         if (existing.title && meta.title && std::strcmp(existing.title, meta.title) == 0)
         {
-            return;  // Already registered
+            return;
         }
     }
 

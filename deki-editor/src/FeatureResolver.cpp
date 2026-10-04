@@ -167,10 +167,10 @@ std::vector<std::string> DeviceIncludeLines(const std::string& text)
     return out;
 }
 
-// Does any source of `pkgDir` that is NOT itself excluded include
-// "<Stem>.h" for one of `offStems`, outside an editor-only or feature-guarded
-// block? Returns the stems that are included and by whom. This is what keeps
-// roller's dependency on clip alive without the descriptor having to say so.
+// Finds sources of `pkgDir`, not themselves excluded, that include
+// "<Stem>.h" for one of `offStems` outside an editor-only or feature-guarded
+// block. Returns the stems included and by whom. This keeps roller's
+// dependency on clip without the descriptor declaring it.
 std::map<std::string, std::string> IncludedByKeptSources(const fs::path& pkgDir, const std::set<std::string>& offStems)
 {
     std::map<std::string, std::string> included;
@@ -277,15 +277,13 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
             }
             else
             {
-                // A package naming its OWN component is not evidence that the
-                // game needs it - AnimationComponent.cpp obviously mentions
-                // AnimationComponent, and counting that would keep every
-                // feature alive forever. What counts is a scene, the project's
-                // own code, or ANOTHER package: deki-fsm calling
-                // Deki2D::AnimationComponent::Play() genuinely needs deki-2d's
-                // animation feature, and stripping it broke the link.
-                // Intra-package dependencies are handled separately, by the
-                // include inspection that marks a feature Kept.
+                // A package naming its own component does not show the game
+                // needs it (AnimationComponent.cpp mentions
+                // AnimationComponent), or every feature would stay. What counts
+                // is a scene, the project's code, or another package: deki-fsm
+                // calling Deki2D::AnimationComponent::Play() needs deki-2d's
+                // animation feature. Dependencies inside a package are found by
+                // the include check that marks a feature Kept.
                 const std::string ownPrefix = GetPackagesDirectoryRelative() + "/" + pkg.id + "/";
 
                 std::vector<std::string> where;
@@ -373,10 +371,10 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
     }
 
     // ---- packages ----
-    // A package goes only when asked, only when it had component features to
-    // judge by and nothing outside it names one (a feature kept by the
-    // package's own sources is no reason for the whole package to stay), and
-    // only when no kept package requires it.
+    // A package is stripped only when asked, only when it has component
+    // features to judge by and nothing outside it names one (a feature kept by
+    // the package's own sources does not keep the package), and only when no
+    // kept package requires it.
     for (const auto& pkg : allPackages)
     {
         bool hasComponentFeatures = false;
@@ -627,11 +625,9 @@ std::vector<TargetContentConflict> FindTargetContentConflicts(const std::string&
         }
     }
 
-    // Scoped to this target, and with the objects it will not carry already
-    // dropped: an object excluded by its own "requires" is not this target's
-    // content and must not be reported against it. Likewise only the packages
-    // this target can actually build are scanned - an ineligible package's
-    // sources are not its content either.
+    // Scoped to this target, without the objects it will not carry: an object
+    // excluded by its own "requires" is not this target's content. Likewise
+    // only the packages this target can build are scanned.
     std::vector<std::string> eligibleIds;
     for (const auto& pkg : all)
     {
@@ -682,10 +678,10 @@ StripPlan ComputeStripPlan(const std::string& projectPath, const std::string& ta
             }
         }
     }
-    // What the target offers, so objects a scene marks as needing something it
-    // has not got stop keeping their components alive. Resolved from whatever
-    // platforms are registered; an unknown target simply offers nothing, which
-    // keeps every object, the same as having no target at all.
+    // What the target offers, so objects that need something it lacks do not
+    // keep their components. Resolved from the registered platforms; an
+    // unknown target offers nothing, which keeps every object, as with no
+    // target at all.
     std::set<std::string> targetCapabilities;
     if (!targetPlatformId.empty())
     {

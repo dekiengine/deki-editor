@@ -44,22 +44,22 @@ std::string EditorPlayModeFileSystem::ResolvePath(const char* path)
 
     std::string pathStr(path);
 
-    // Virtual S:/ mount must be checked before the is_absolute() branch - on
-    // Windows, "S:/..." is parsed as drive-absolute, which would skip the
-    // resolver and fopen would fail with "no such drive".
+    // The virtual S:/ mount must be checked before is_absolute(): on Windows
+    // "S:/..." counts as an absolute drive path, and fopen would then fail
+    // with "no such drive".
     if (pathStr.length() >= 3 && pathStr.compare(0, 3, "S:/") == 0)
     {
         return m_StorageBasePath + pathStr.substr(3);
     }
 
-    // Absolute paths used directly
+    // Absolute paths are used as they are.
     fs::path fsPath(pathStr);
     if (fsPath.is_absolute())
     {
         return pathStr;
     }
 
-    // Asset-relative paths resolved through the pipeline
+    // Asset-relative paths go through the asset pipeline's resolver.
     if (m_PathResolver)
     {
         return m_PathResolver(pathStr);
@@ -164,7 +164,6 @@ long EditorPlayModeFileSystem::GetFileSize(FileHandle handle)
 
     long size = ftell(file);
 
-    // Restore original position
     fseek(file, currentPos, SEEK_SET);
 
     return size;

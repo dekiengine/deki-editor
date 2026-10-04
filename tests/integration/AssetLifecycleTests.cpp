@@ -32,8 +32,8 @@ namespace
 {
 
 // In-test cache handler for ".lifecycle" assets. Writes a tiny deterministic
-// payload to ctx.cachePath so we can assert cache regeneration by reading the
-// payload back.
+// payload to ctx.cachePath, so a test can read it back to check the cache was
+// rebuilt.
 AssetCacheResult LifecycleCacheHandler(const AssetCacheContext& ctx)
 {
     // Read the source JSON so the cache reflects the asset's current value.
@@ -85,7 +85,7 @@ protected:
         fs::create_directories(m_TempDir);
         fs::create_directories(m_TempDir / "assets");
         // Layout comes from the shared definition, not a literal, so the test
-        // tracks the real cache location instead of pinning an old one.
+        // follows the real cache location.
         fs::create_directories(DekiEditor::GetCacheDirectory(m_TempDir.string()));
 
         // Register the in-test asset type if it isn't already known to the
@@ -157,8 +157,8 @@ TEST_F(AssetLifecycleTest, Create_GuidGeneratedAndCached)
 }
 
 // -----------------------------------------------------------------------------
-// Bug 1 regression: modifying the source within the same filesystem-mtime tick
-// must still regenerate the cache because RefreshAsset is force-rebuild.
+// Modifying the source within the same filesystem-mtime tick still rebuilds
+// the cache, because RefreshAsset always rebuilds.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, Modify_SameSecondMtime_CacheRegenerates)
@@ -171,8 +171,8 @@ TEST_F(AssetLifecycleTest, Modify_SameSecondMtime_CacheRegenerates)
     std::string absCache = m_Pipeline->GetAbsolutePath(infoBefore->cachePath);
     EXPECT_EQ(ReadCachedValue(absCache), 1);
 
-    // Rewrite source in the same wall-clock second. Without the force-rebuild
-    // path this would leave the old cache intact because mtime can be equal.
+    // Rewrite the source in the same wall-clock second. The mtime can be
+    // equal, so only a forced rebuild replaces the old cache.
     CreateAssetFile("box.lifecycle", 2);
     m_Pipeline->RefreshAsset(rel);
 
@@ -180,8 +180,8 @@ TEST_F(AssetLifecycleTest, Modify_SameSecondMtime_CacheRegenerates)
 }
 
 // -----------------------------------------------------------------------------
-// Bug 2 regression: a newly-created asset's GUID is resolvable by
-// GetAssetInfoByGuid immediately, without a restart or full reimport.
+// A newly created asset's GUID resolves through GetAssetInfoByGuid at once,
+// without a restart or full reimport.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, Create_GuidCacheResolvesPathRoundTrip)
@@ -200,8 +200,9 @@ TEST_F(AssetLifecycleTest, Create_GuidCacheResolvesPathRoundTrip)
 }
 
 // -----------------------------------------------------------------------------
-// AssetTable on disk reflects the new GUID immediately (PlayMode/Export read
-// this file at runtime, so a missing entry is the root cause of Bug 2).
+// The asset table on disk holds the new GUID at once. Play mode and export
+// read this file at runtime, so a missing entry means the asset cannot be
+// found.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, Create_AssetTableContainsGuidImmediately)
@@ -307,7 +308,7 @@ TEST_F(AssetLifecycleTest, BulkCreate_NoGuidCollisions_AllResolvable)
 
 // -----------------------------------------------------------------------------
 // Missing sidecar: the .data file is written back with the GUID the asset had,
-// so references to it keep resolving. A fresh GUID broke every one of them.
+// so references to it keep resolving. A fresh GUID would break every one.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, MissingSidecar_AssetExists_GuidRestored)
@@ -405,8 +406,7 @@ TEST_F(AssetLifecycleTest, SidecarWithoutGuid_GetsOneAndKeepsItsSettings)
 
 // -----------------------------------------------------------------------------
 // Copying an asset together with its .data: the copy gets its own GUID before
-// its cache is built. It used to compile into the ORIGINAL's cache file, and
-// the original showed the copy's content, even after a restart.
+// its cache is built, so it never compiles into the ORIGINAL's cache file.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, CopyWithSidecar_DoesNotOverwriteOriginalCache)
@@ -438,8 +438,8 @@ TEST_F(AssetLifecycleTest, CopyWithSidecar_DoesNotOverwriteOriginalCache)
 
 // -----------------------------------------------------------------------------
 // Renaming an asset outside the editor while it runs: the watcher reports an
-// add and a delete. The GUID follows the file and the cache stays; the delete
-// used to remove both, and references broke until a restart.
+// add and a delete. The GUID follows the file and the cache stays, so
+// references keep working.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, RenameOnDisk_KeepsGuidAndCache)
@@ -474,8 +474,8 @@ TEST_F(AssetLifecycleTest, RenameOnDisk_KeepsGuidAndCache)
 
 // -----------------------------------------------------------------------------
 // A source restored from a backup (or unzipped) with an OLDER time than its
-// cache is still a change: the cache is rebuilt. "Is the source newer?" kept
-// the old cache, and it shipped.
+// cache is still a change: the cache is rebuilt. Checking only "is the source
+// newer?" would keep the old cache and ship it.
 // -----------------------------------------------------------------------------
 
 TEST_F(AssetLifecycleTest, SourceRestoredWithAnOlderTime_CacheRebuilt)

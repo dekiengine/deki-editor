@@ -27,13 +27,12 @@ public:
 private:
     EditorApp* m_App;
 
-    // Camera-viewport renderer for stopped-state preview
+    // Renders the camera's view for the preview shown while stopped
     std::unique_ptr<EditModeRenderer> m_PreviewRenderer;
 
     // What the preview was last rendered from. It is a full software render of
-    // the scene (tens of ms), so it runs only when one of these moves or an
-    // edit is in progress, as the Scene view does - never just because a frame
-    // went by.
+    // the scene (tens of ms), so it runs only when one of these changes or an
+    // edit is in progress, as in the Scene view; not on every frame.
     bool m_PreviewStale = true;
     const void* m_PreviewScene = nullptr;
     const void* m_PreviewCamera = nullptr;
@@ -41,15 +40,17 @@ private:
     uint64_t m_PreviewAssetEpoch = 0;
     uint8_t m_PreviewClear[3] = {};
 
-    // Canvas position (set during draw)
+    // Canvas position, set during Draw
     ImVec2 m_CanvasTopLeft;
     ImVec2 m_CanvasSize;
 
-    // Play mode drag tracking (forward input even when mouse leaves canvas)
+    // Play mode drag tracking: input keeps going to the game when the mouse
+    // leaves the canvas mid-drag.
     bool m_PlayModeDragging = false;
     bool m_WasHoveringInBounds = false;
 
-    // Touch input mode: only dispatch move events during active press (like embedded touchscreens)
+    // Touch input: move events go out only while pressed, as on an embedded
+    // touchscreen.
     bool m_TouchInputMode = true;
 
     // Last key state forwarded to the game (one slot per entry of the
@@ -61,8 +62,8 @@ private:
     // id whose screen is used. Pushed to SceneView every frame.
     std::string m_PreviewId = "free";
 
-    // Screen sizes of your own, added from the picker: kept per user for every
-    // project in EditorSettings, like Unity's custom Game view sizes.
+    // Screen sizes the user added from the picker. Stored per user, for every
+    // project, in EditorSettings, like Unity's custom Game view sizes.
     struct UserScreen
     {
         std::string name;  // optional; the size is shown either way

@@ -21,12 +21,10 @@ namespace DekiEditor
 bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::string& projectName,
                                     const PlatformConfig* platform)
 {
-    // Create project root directory
     fs::path projectPath = fs::path(parentPath) / projectName;
 
     if (fs::exists(projectPath))
     {
-        // Project folder already exists
         return false;
     }
 
@@ -39,16 +37,13 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
         return false;
     }
 
-    // Create all subdirectories
     if (!CreateDirectories(projectPath.string()))
     {
         return false;
     }
 
     // What the project starts with is data beside the editor, not a list in
-    // this file. It used to be one: five package ids, and a desktop simulator
-    // platform whose config and boot scene were written from the editor's own
-    // source.
+    // this file.
     std::string err;
     ProjectScaffold::ProjectStarter starter;
     if (!ProjectScaffold::LoadProjectStarter(ProjectScaffold::DefaultStarterPath(), starter, err))
@@ -85,7 +80,6 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
         return false;
     }
 
-    // Generate build files using the appropriate builder
     if (platform)
     {
         ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
@@ -97,7 +91,7 @@ bool ProjectTemplate::CreateProject(const std::string& parentPath, const std::st
             }
         }
 
-        // Save the platform config to project's project/platforms/ directory
+        // Save the platform config to the project's platforms/ directory.
         std::string platformsDir = GetPlatformsDirectory(projectPath.string());
         PlatformRegistry::Instance().SavePlatformToFile(*platform, platformsDir);
     }
@@ -111,8 +105,7 @@ bool ProjectTemplate::CreateDirectories(const std::string& projectPath)
 
     try
     {
-        // Authored content, top level. A "project/" folder inside a project was
-        // a segment that said nothing.
+        // Authored content, at the top level.
         const fs::path assets = GetAssetsDirectory(projectPath);
         fs::create_directories(GetSourceDirectory(projectPath));
         fs::create_directories(assets / "sprites");
@@ -142,13 +135,11 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath, c
 {
     fs::path root(projectPath);
 
-    // Check if this is actually a Deki project
     if (!fs::exists(root / "deki.json"))
     {
-        return false;  // Not a Deki project, don't modify
+        return false;  // not a Deki project; leave it alone
     }
 
-    // Ensure all required directories exist
     std::vector<fs::path> requiredDirs = { fs::path(GetSourceDirectory(projectPath)),
                                            fs::path(GetAssetsDirectory(projectPath)) / "sprites",
                                            fs::path(GetAssetsDirectory(projectPath)) / "fonts",
@@ -174,7 +165,6 @@ bool ProjectTemplate::ValidateAndRepairProject(const std::string& projectPath, c
         }
     }
 
-    // Generate build files using the appropriate builder
     if (platform)
     {
         ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);

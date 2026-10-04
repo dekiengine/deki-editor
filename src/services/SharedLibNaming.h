@@ -10,10 +10,9 @@
 //                               macOS:   libdeki-2d.dylib
 //
 // Anything that turns a CMake target name into a filename, or a filename back
-// into a target name, has to agree on those rules - so they live here rather
-// than being open-coded at each call site. Before this existed the loaders
-// tested `filename.rfind("deki-") == 0` and `extension() == ".dll"`, which
-// rejects every package on ELF/Mach-O because of the "lib" prefix.
+// into a target name, must agree on those rules, so they live here and not at
+// each call site. A plain `rfind("deki-") == 0` or `extension() == ".dll"`
+// test rejects every package on ELF/Mach-O because of the "lib" prefix.
 
 #include <algorithm>
 #include <string>
@@ -33,14 +32,13 @@ inline constexpr const char* kSharedLibExt = ".so";
 // Prefix CMake puts in front of a SHARED/PACKAGE library.
 //
 // This follows the *toolchain*, not the OS: only the MSVC ABI leaves a shared
-// library undecorated. GNU toolchains add "lib" everywhere they run, so a
-// MinGW build on Windows produces libdeki-2d.dll, not deki-2d.dll. Keying this
-// on _WIN32 alone made every package built by MinGW fail the "deki-*" name test
-// and the editor silently loaded none of them.
+// library undecorated. GNU toolchains add "lib" everywhere, so a MinGW build
+// on Windows produces libdeki-2d.dll, not deki-2d.dll. Keyed on _WIN32 alone,
+// every MinGW-built package would fail the "deki-*" name test.
 //
-// Compile-time detection is the right granularity because the editor only ever
-// loads packages built with its own compiler - that ABI match is a hard
-// requirement (see DEKI_EDITOR_CXX_COMPILER in CMakeLists.txt).
+// Deciding at compile time is right because the editor only loads packages
+// built with its own compiler; that ABI match is a hard requirement (see
+// DEKI_EDITOR_CXX_COMPILER in CMakeLists.txt).
 #if defined(_WIN32) && !defined(__MINGW32__)
 inline constexpr const char* kSharedLibPrefix = "";
 #else
@@ -50,8 +48,8 @@ inline constexpr const char* kSharedLibPrefix = "lib";
 /// The CMake target of a project's own code, which is also its library's
 /// name: "<folder>-components". CMake allows only letters, digits and _.+- in
 /// a target name, so anything else in the folder name (a space, a non-ASCII
-/// letter) becomes '_'. "My Game ü" used to stop every build with "target
-/// name is reserved or not valid".
+/// letter) becomes '_'; otherwise "My Game ü" would stop every build with
+/// "target name is reserved or not valid".
 inline std::string ProjectPluginTarget(const std::string& projectFolderName)
 {
     std::string name;
@@ -87,7 +85,7 @@ inline std::string SharedLibStem(const std::string& filename)
     std::transform(stem.begin(), stem.end(), stem.begin(), ::tolower);
 
     // Strip the prefix only on toolchains that add one. Under the MSVC ABI
-    // nothing is prefixed, so a DLL genuinely named "libfoo.dll" keeps its name.
+    // nothing is prefixed, so a DLL really named "libfoo.dll" keeps its name.
     if (*kSharedLibPrefix != '\0' && stem.rfind(kSharedLibPrefix, 0) == 0)
     {
         stem = stem.substr(std::char_traits<char>::length(kSharedLibPrefix));

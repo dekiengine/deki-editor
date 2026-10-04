@@ -1,7 +1,7 @@
 // Projects under folders with non-ASCII letters (C:\Users\José\..., CJK
-// names). The editor passes paths around as UTF-8 std::strings, and MinGW's
-// streams used to open them through the ANSI code page: scenes and .data
-// files did not load, and a "missing" sidecar got a new GUID.
+// names). The editor passes paths around as UTF-8 std::strings. A stream that
+// opens them through the ANSI code page fails: scenes and .data files do not
+// load, and a "missing" sidecar gets a new GUID.
 
 #include <gtest/gtest.h>
 #include <deki-editor/AssetData.h>

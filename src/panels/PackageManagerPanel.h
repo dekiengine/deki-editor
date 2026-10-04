@@ -28,11 +28,11 @@ struct PackageDetails
     std::map<std::string, std::vector<DependencyInfo>> dependencies;
 };
 
-// Custom registry entry (user-added via UI)
+// A registry the user added in the panel.
 struct CustomRegistryInfo
 {
-    std::string name;  // Display name (derived from URL)
-    std::string url;   // Base URL (serves index.json)
+    std::string name;  // display name, taken from the URL
+    std::string url;   // base URL; serves index.json
 };
 
 class PackageManagerPanel : public IPanel
@@ -40,38 +40,37 @@ class PackageManagerPanel : public IPanel
 public:
     const char* Id() const override { return "PackageManager"; }
 
-    // Put a newly-editable package on a branch: installs check out the pinned
-    // TAG, and committing on a detached HEAD loses work.
+    /// Puts a newly editable package on a branch. Installs check out the
+    /// pinned tag, and commits made on a detached HEAD get lost.
     void OnMarkedEditable(const PackageEntry& pkg);
     PackageManagerPanel(EditorApp* app);
     ~PackageManagerPanel();
 
     void Draw();
 
-    // Scan all scenes to detect which packages/features are used
+    /// Scans all scenes to find which packages and features the project uses.
     void ScanProjectForPackageUsage();
 
-    // Get the set of build defines needed for the current project
-    // Returns defines like DEKI_PACKAGE_2D, DEKI_FEATURE_SPRITES, etc.
+    /// The build defines the project needs for a target, such as
+    /// DEKI_PACKAGE_2D or DEKI_FEATURE_SPRITES.
     std::vector<std::string> GetRequiredBuildDefines(const std::string& targetPlatformId = "") const;
 
     // ── Headless entry points (MCP automation) ───────────────────────────────
-    // These drive the same PackageManager the UI does, so an automated install is
-    // indistinguishable from clicking Install in the panel.
+    // These drive the same PackageManager the UI does, so an automated install
+    // behaves exactly like clicking Install in the panel.
 
-    // Fetch the registry index and merge it into the package list, blocking up
-    // to `timeoutSeconds`. Returns the merged list (installed + available).
-    // Returns false on timeout or an unreachable registry; the package list
-    // still holds whatever was already known.
+    /// Fetches the registry index and merges it into the package list, waiting
+    /// up to `timeoutSeconds`. Returns false on timeout or when the registry
+    /// cannot be reached; the list then keeps what was already known.
     bool RefreshPackagesBlocking(int timeoutSeconds = 30);
 
-    // Current package list (installed status refreshed against the project).
+    /// The package list, with installed status checked against the project.
     const std::vector<PackageEntry>& GetPackages();
 
-    // Install one package by registry id (e.g. "deki-2d") plus its dependencies.
-    // `version` empty = the registry's latest. Regenerates CMakeLists.txt and
-    // queues a rebuild, exactly as OnInstallClicked does. Blocking: the
-    // installer's git clone runs inline.
+    /// Installs one package by registry id (e.g. "deki-2d") and its
+    /// dependencies. An empty `version` means the registry's latest.
+    /// Regenerates CMakeLists.txt and queues a rebuild, as OnInstallClicked
+    /// does. Blocks while the installer's git clone runs.
     bool InstallPackageById(const std::string& id, const std::string& version, std::string& outMessage);
 
 private:
@@ -91,37 +90,36 @@ private:
     EditorApp* m_App;
     std::unique_ptr<PackageManager> m_PackageManager;
 
-    // UI State
     PackageEntry* m_SelectedPackage = nullptr;
 
     // The stripper's last plan (services/FeatureResolver), recomputed when the
     // build asks for defines or the details view finds it stale. Mutable
-    // because GetRequiredBuildDefines() is const to its callers.
+    // because GetRequiredBuildDefines() is const.
     mutable StripPlan m_StripPlan;
     mutable bool m_StripPlanValid = false;
-    // Which target the cached plan was computed for. A plan is only valid for
-    // the platform that produced it, so switching targets has to recompute.
+    // The target the cached plan was made for. A plan holds only for that
+    // target, so switching targets recomputes it.
     mutable std::string m_StripPlanPlatform;
     BuildStripSettings m_StripSettings;
     std::string m_StripSettingsProject;
     void DrawFeatures(const PackageEntry& pkg);
     char m_SearchFilter[256] = "";
     char m_AddPackageUrl[512] = "";
-    char m_VersionInput[128] = "";    // Manual version/branch input
-    int m_FilterMode = 0;             // 0=All, 1=Installed, 2=Available
+    char m_VersionInput[128] = "";    // version or branch typed by hand
+    int m_FilterMode = 0;             // 0 = All, 1 = Installed, 2 = Available
     int m_VersionMode = 0;            // 0 = version, 1 = branch
-    float m_LeftPanelWidth = 280.0f;  // resizable splitter width for the list pane
+    float m_LeftPanelWidth = 280.0f;  // splitter width of the list pane
     bool m_NeedsRefresh = true;
     bool m_ShowAddPopup = false;
     std::string m_StatusMessage;
 
-    // Cached package details for selected package
+    // Details of the selected package.
     PackageDetails m_PackageDetails;
 
-    bool m_UsageScanned = false;  // True after ScanProjectForPackageUsage()
+    bool m_UsageScanned = false;  // set by ScanProjectForPackageUsage()
 
     // Registry update checking
-    std::map<std::string, std::string> m_LatestVersions;  // package ID -> latest version from registry
+    std::map<std::string, std::string> m_LatestVersions;  // package id -> registry's latest version
     bool m_RegistryFetching = false;
 
     void FetchRegistryIndex(bool forceRefresh = false);

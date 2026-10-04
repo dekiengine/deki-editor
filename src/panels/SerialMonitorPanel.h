@@ -57,7 +57,7 @@ private:
     // Port enumeration
     std::vector<std::string> EnumeratePorts();
 
-    // Add output line (thread-safe)
+    // Adds an output line. Safe from any thread.
     void AddOutputLine(const std::string& text, bool isError = false);
 
     // ANSI escape code parsing
@@ -93,10 +93,10 @@ private:
     std::vector<std::string> m_AvailablePorts;
     int m_SelectedPortIndex = 0;
 
-    // Partial line buffer (for lines that don't end in newline)
+    // Text received after the last newline.
     std::string m_PartialLine;  // the reader thread's alone
-    // Clear asks the reader to drop its partial line; clearing it from the UI
-    // thread raced the reader appending to it.
+    // Clear sets this and the reader drops its partial line, since only the
+    // reader may touch m_PartialLine.
     std::atomic<bool> m_DropPartialLine{ false };
 
     // Platform-specific handle

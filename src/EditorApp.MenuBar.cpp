@@ -1,5 +1,5 @@
-// EditorApp Menu Bar Implementation
-// Extracted from EditorApp.cpp - DrawMenuBar
+// The editor's menu bar (EditorApp::DrawMenuBar), the toolbar below it and
+// the window control buttons.
 
 #include "EditorApp.h"
 #include "services/UpdateCheck.h"
@@ -44,9 +44,8 @@ void FocusPanelTab(const char* idName)
     }
     ImGui::FocusWindow(window);
     // Select the tab and scroll the dock tab bar to it. Assigning NextSelectedTabId
-    // drives the scroll-into-view animation; this mirrors ImGui's own dock code and
-    // is the dock-node-safe path (the public TabBarQueueFocus(name) overload asserts
-    // on dock-node tab bars).
+    // drives the scroll-into-view animation, as ImGui's own dock code does; the
+    // public TabBarQueueFocus(name) overload asserts on dock-node tab bars.
     if (ImGuiDockNode* node = window->DockNode)
     {
         if (ImGuiTabBar* tabBar = node->TabBar)
@@ -68,10 +67,10 @@ void EditorApp::DrawMenuBar()
     s_BarMenuOpenLastFrame = s_BarMenuOpenThisFrame;
     s_BarMenuOpenThisFrame = 0;
 
-    // Re-push the same FramePadding used at the parent window's Begin() time
-    // so BeginMenuBar's internal AlignTextToFramePadding offsets text by
-    // (barH - fontH)/2 - i.e. vertically centered. main.cpp's push has been
-    // popped by now, leaving FramePadding at the theme default.
+    // Push the FramePadding the parent window had at Begin() again, so
+    // BeginMenuBar's AlignTextToFramePadding offsets text by (barH - fontH)/2,
+    // centring it vertically. main.cpp's push has been popped by now, leaving
+    // the theme default.
     const float menuBarHeightBaked = ImGui::GetCurrentWindow()->MenuBarHeight;
     const float fontHBaked = ImGui::GetFontSize();
     const float menuPadY = (menuBarHeightBaked - fontHBaked) * 0.5f;
@@ -92,21 +91,19 @@ void EditorApp::DrawMenuBar()
 
     if (ImGui::BeginMenuBar())
     {
-        // Geometry expressed in multiples of GetFontSize() per ImGui FAQ.
-        // GetFontSize() already includes FontScaleMain * FontScaleDpi, so
-        // values scale automatically with monitor DPI changes.
-        // Bar bounds come from the window's MenuBarRect - the height baked
-        // into the window at Begin() time. We use MenuBarRect directly
-        // because it's the authoritative bar rectangle for hit-testing.
+        // Sizes are multiples of GetFontSize(), as the ImGui FAQ advises; it
+        // already includes FontScaleMain * FontScaleDpi, so they follow
+        // monitor DPI. The bar bounds come from the window's MenuBarRect, the
+        // height fixed at Begin() and the rectangle hit testing uses.
         const ImRect barRect = ImGui::GetCurrentWindow()->MenuBarRect();
         const float barTopY = barRect.Min.y;
         const float barBottomY = barRect.Max.y;
         const float menuBarHeight = barRect.GetHeight();
 
-        // Crisp 1px bottom hairline for the menu bar. ImGui's auto border is
-        // suppressed via PushStyleVar(FrameBorderSize, 0) at main.cpp:Begin
-        // so we can draw a hard pixel row here, matching the global toolbar
-        // below (which also uses AddRectFilled rather than the AA AddLineH).
+        // Crisp 1px bottom hairline for the menu bar. main.cpp's Begin turns
+        // ImGui's own border off (PushStyleVar(FrameBorderSize, 0)) so a hard
+        // pixel row can be drawn here, like the global toolbar below (both use
+        // AddRectFilled, not the anti-aliased AddLineH).
         {
             ImDrawList* barDl = ImGui::GetWindowDrawList();
             const float barBottomPx = ImFloor(barRect.Max.y);
@@ -114,43 +111,39 @@ void EditorApp::DrawMenuBar()
                                  ImGui::GetColorU32(ImGuiCol_Border));
         }
 
-        // --- Title block: "D DEKI/EDITOR" in Space Grotesk ---
-        // Mirrors the reference deki_editor.cpp:
-        //     PushFont(g_fontTitle); TextCol(ACCENT,"D"); SameLine();
-        //     TextCol(TEXT,"DEKI/EDITOR"); PopFont(); Dummy(20,0);
-        // Mapped to our loaded fonts: g_FontDisplay (Space Grotesk Medium 20px).
+        // --- Title block: "D DEKI/EDITOR" in Space Grotesk (g_FontDisplay) ---
         {
             ImFont* titleFont = g_FontDisplay ? g_FontDisplay : ImGui::GetFont();
-            // PushFont size is a base size - ImGui multiplies by FontScaleMain
-            // * FontScaleDpi at draw time, so no manual *dpi here.
+            // PushFont takes a base size: ImGui multiplies it by FontScaleMain
+            // * FontScaleDpi at draw time, so no *dpi here.
             ImGui::PushFont(titleFont, 16.0f);
             ImGui::AlignTextToFramePadding();
             ImGui::TextColored(Palette::Accent, "D");
             ImGui::SameLine();
             ImGui::TextColored(Palette::Fg, "DEKI/EDITOR");
             ImGui::PopFont();
-            // 20px gap after the title block - ~1.5 font heights.
+            // A gap of 1.5 font heights after the title block.
             ImGui::Dummy(ImVec2(ImGui::GetFontSize() * 1.5f, 0.0f));
             ImGui::SameLine();
-            // Publish the X where File/Edit/... start so the Win32 hit test
-            // can exclude this strip from the HTCAPTION drag region. Coordinate
-            // is relative to the window's left edge.
+            // Publish the X where File/Edit/... start, so the Win32 hit test
+            // can leave this strip out of the HTCAPTION drag region. Relative
+            // to the window's left edge.
             g_MenuItemsStartX = ImGui::GetCursorScreenPos().x - ImGui::GetWindowPos().x;
         }
 
         // --- Full-bar-height menu items ---
-        // ImGui's BeginMenu draws hover/active backgrounds at the small
-        // text-rect size. To make File/Edit/... read as full-bar-height
-        // entries, we hide the default backgrounds and stamp our own.
-        // (Bar bounds barTopY/barBottomY are computed above from MenuBarRect.)
+        // ImGui's BeginMenu draws hover and active backgrounds at the small
+        // text-rect size. To make File/Edit/... full-bar-height entries, the
+        // default backgrounds are hidden and our own drawn (barTopY/barBottomY
+        // come from MenuBarRect above).
         ImDrawList* menuDl = ImGui::GetWindowDrawList();
 
-        // Open a top-level bar menu (File/Edit/...) with ITS bar button's own
-        // background suppressed - we stamp a full-bar-height background in
-        // DrawMenuItemBg instead. The transparency is scoped to just the
-        // BeginMenu call (the bar button). Doing it globally would also zero the
-        // dropdown's hover highlight, because the popup's MenuItem/Selectable
-        // entries draw their hover with the same ImGuiCol_HeaderHovered.
+        // Opens a top-level bar menu (File/Edit/...) with ITS bar button's own
+        // background hidden; DrawMenuItemBg draws a full-bar-height one
+        // instead. The transparency covers only the BeginMenu call (the bar
+        // button): globally it would also hide the dropdown's hover highlight,
+        // since the popup's MenuItem/Selectable entries draw it with the same
+        // ImGuiCol_HeaderHovered.
         auto beginBarMenu = [menuFont](const char* label)
         {
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
@@ -160,14 +153,14 @@ void EditorApp::DrawMenuBar()
             ImGui::PopStyleColor(3);
             if (open)
             {
-                // Inside the open dropdown, widen ItemSpacing.x to exactly twice
+                // Inside the open dropdown, set ItemSpacing.x to exactly twice
                 // the popup's WindowPadding.x. A Selectable extends its hover box
                 // by ItemSpacing.x/2 on each side (imgui_widgets.cpp ~7397), so
-                // the highlight bleeds precisely to both window edges while the
-                // label keeps its WindowPadding.x left inset - full-width hover,
-                // padded text. ItemSpacing.y sets the (taller) row height. The
-                // push lives between Begin/EndBarMenu, so the menu bar's own item
-                // spacing is left untouched. Paired pop is in EndBarMenu().
+                // the highlight reaches both window edges while the label keeps
+                // its WindowPadding.x left inset: full-width hover, padded text.
+                // ItemSpacing.y sets the (taller) row height. The push lives
+                // between Begin/EndBarMenu, so the menu bar's own spacing is
+                // untouched; EndBarMenu() pops it.
                 const float wpx = ImGui::GetStyle().WindowPadding.x;
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(wpx * 2.0f, menuFont * 0.7f));
             }
@@ -181,9 +174,9 @@ void EditorApp::DrawMenuBar()
             ImGui::EndMenu();
         };
 
-        // After each BeginMenu, draw a full-height background covering the
-        // entry's full column. Also hijacks hover-state and clicks so the
-        // entire vertical strip is interactive - not just the text rect.
+        // After each BeginMenu, draws a full-height background over the
+        // entry's whole column, and takes over hover and clicks so the whole
+        // vertical strip responds, not just the text rect.
         auto drawMenuItemBg = [&](bool isOpen, const char* popupId)
         {
             ImVec2 rMin = ImGui::GetItemRectMin();
@@ -197,22 +190,22 @@ void EditorApp::DrawMenuBar()
             {
                 // Force hover state for visual feedback / nav hints.
                 g.HoveredId = id;
-                // Menu-bar switching: ImGui's BeginMenu only triggers a popup
-                // switch when the cursor is over the small text rect. Extend
-                // that to the full column - if any menu in this bar is open
-                // and we're hovered, swap to us. OpenPopup at the same stack
-                // level auto-closes the previous popup.
+                // Menu-bar switching: ImGui's BeginMenu switches popups only
+                // when the cursor is over the small text rect. Extend that to
+                // the whole column: if any menu in this bar is open and this
+                // column is hovered, switch to it. OpenPopup at the same stack
+                // level closes the previous popup.
                 if (!isOpen && g.OpenPopupStack.Size > 0)
                 {
                     ImGui::OpenPopup(id);
                 }
             }
-            // Click anywhere in the column opens the menu (covers dead area
-            // above/below the text rect when no menu is currently open), and
-            // a click on the menu that was already open closes it. By now
-            // ImGui has usually closed it itself (a click outside a popup, or
-            // on its own header), and opening it here again was what kept the
-            // menu from ever closing that way.
+            // A click anywhere in the column opens the menu (covering the dead
+            // area above and below the text rect when no menu is open), and a
+            // click on the menu that was already open closes it. By now ImGui
+            // has usually closed it itself (a click outside a popup, or on its
+            // own header); opening it again here would keep it from ever
+            // closing that way.
             const bool wasOpen = s_BarMenuOpenLastFrame == id;
             if (inColumn && ImGui::IsMouseClicked(0))
             {
@@ -258,11 +251,11 @@ void EditorApp::DrawMenuBar()
             }
             // Closing a project IS returning to the project manager, so this
             // is one item named for where it lands you. Like Open Project
-            // above, it is user-initiated with a scene possibly dirty, so ask
+            // above, the user starts it with a scene possibly dirty, so ask
             // before the close discards it. (OpenProject's internal
-            // CloseProject deliberately stays unguarded: it runs mid-open, and
-            // a dialog there would strand the editor between two projects -
-            // which is why the dialog is asked BEFORE OpenProject is called.)
+            // CloseProject stays unguarded on purpose: it runs mid-open, and a
+            // dialog there would strand the editor between two projects, so
+            // the question comes BEFORE OpenProject is called.)
             if (ImGui::MenuItem("Quit to Project Manager", nullptr, false, m_Project != nullptr))
             {
                 if (!CheckUnsavedChanges(PendingSceneAction::CloseProject))
@@ -272,14 +265,14 @@ void EditorApp::DrawMenuBar()
             }
             ImGui::Separator();
 
-            // Save current scene (Ctrl+S)
+            // Save the current scene (Ctrl+S)
             if (ImGui::MenuItem("Save Scene", "Ctrl+S", false,
                                 m_CurrentScene != nullptr && !m_CurrentScenePath.empty()))
             {
                 SaveScene();
             }
-            // Save As - explicit destination picker; also the only way to save
-            // an untitled or freshly-recovered scene from a path-less state.
+            // Save As: pick a destination. Also the only way to save an
+            // untitled or just-recovered scene, which has no path.
             if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S", false, m_CurrentScene != nullptr))
             {
                 SaveSceneAsDialog();
@@ -289,8 +282,8 @@ void EditorApp::DrawMenuBar()
             if (ImGui::MenuItem("Exit", "Alt+F4"))
             {
                 // Same path as the window close button (main.cpp treats
-                // SDL_EVENT_QUIT and WINDOW_CLOSE_REQUESTED identically), so
-                // Exit and the titlebar X cannot diverge on shutdown handling.
+                // SDL_EVENT_QUIT and WINDOW_CLOSE_REQUESTED alike), so Exit and
+                // the titlebar X shut down the same way.
                 SDL_Event quit{};
                 quit.type = SDL_EVENT_QUIT;
                 SDL_PushEvent(&quit);
@@ -317,9 +310,8 @@ void EditorApp::DrawMenuBar()
                 }
                 // No Delete entry here on purpose: deletion lives in the Hierarchy
                 // panel (Del key and context menu), which guards protected objects
-                // and instance children. A second entry on this menu would have to
-                // restate those guards, and the one that used to sit here did not -
-                // it was enabled on any selection and did nothing when clicked.
+                // and instance children. A second entry here would have to repeat
+                // those guards.
                 ImGui::Separator();
                 {
                     bool hasSelection = GetSelectedObject() != nullptr;
@@ -359,9 +351,9 @@ void EditorApp::DrawMenuBar()
                 }
 
                 // Maintenance: delete generated state to recover from a bad build or
-                // stale assets. Disabled while play mode or a build holds those files -
-                // removing a mapped DLL fails partway and leaves a worse mess than it
-                // started with, so the guard is here rather than in the error path.
+                // stale assets. Disabled while play mode or a build holds those files:
+                // removing a mapped DLL fails partway and leaves a worse mess, so the
+                // guard is here, not in the error path.
                 {
                     const bool busy = IsPlaying() || (GetHotReloadService() && GetHotReloadService()->IsBuilding());
                     const bool canRun = m_Project != nullptr && !busy;
@@ -398,7 +390,7 @@ void EditorApp::DrawMenuBar()
             drawMenuItemBg(toolsOpen, "Tools###Tools");
             if (toolsOpen)
             {
-                // Draw menu items for all discovered tools
+                // A menu item for every discovered tool
                 if (m_Project)
                 {
                     m_ToolHost->DrawToolsMenu();
@@ -416,11 +408,10 @@ void EditorApp::DrawMenuBar()
             drawMenuItemBg(buildOpen, "Build###Build");
             if (buildOpen)
             {
-                // No "Build"/"Upload" entries here. They existed as permanently
-                // disabled items advertising Ctrl+B / Ctrl+U, which do nothing -
-                // an advertised shortcut that never fires is worse than no entry.
-                // Build Panel below is the working route. Restore them together
-                // with an implementation, not before.
+                // No "Build"/"Upload" entries: Ctrl+B / Ctrl+U do nothing, and an
+                // advertised shortcut that never fires is worse than no entry.
+                // Build Panel below is the way to build. Add them only together
+                // with an implementation.
                 if (ImGui::MenuItem("Build Panel"))
                 {
                     m_BuildPanel->SetOpen(true);
@@ -457,9 +448,9 @@ void EditorApp::DrawMenuBar()
             drawMenuItemBg(viewOpen, "View###View");
             if (viewOpen)
             {
-                // Helper: open the panel and focus its (possibly docked) tab. Plain
-                // press-to-open - no checkmark, no toggle-off. Clicking always brings
-                // the window up, even if it was already open (just re-focuses it).
+                // Opens the panel and focuses its (possibly docked) tab. Plain
+                // press-to-open, with no checkmark and no toggle-off: a click always
+                // brings the window up, focusing it if it was already open.
                 auto panelMenuItem = [](const char* label, bool& openFlag, const char* windowName)
                 {
                     if (ImGui::MenuItem(label))
@@ -526,10 +517,10 @@ void EditorApp::DrawMenuBar()
                 ImGui::Separator();
                 if (ImGui::MenuItem("Restore Layout"))
                 {
-                    // Exactly the six panels of the default layout, and nothing
-                    // else: anything left open would come back as a stray tab in
-                    // whichever node it last sat in, which is the opposite of
-                    // restoring a known arrangement.
+                    // Exactly the six panels of the default layout, nothing else:
+                    // anything left open would come back as a stray tab in
+                    // whichever node it last sat in, which defeats restoring a
+                    // known arrangement.
                     m_HierarchyPanel->isOpen = true;
                     m_AssetBrowserPanel->isOpen = true;
                     m_SceneViewPanel->isOpen = true;
@@ -567,8 +558,8 @@ void EditorApp::DrawMenuBar()
                     RequestRestoreLayout();
                 }
 #ifndef NDEBUG
-                // ImGui's own debug windows. Debug builds only - these are
-                // developer tools for working on the editor, not features of it.
+                // ImGui's own debug windows, in Debug builds only: tools for
+                // working on the editor, not features of it.
                 ImGui::Separator();
                 if (ImGui::MenuItem("ImGui Demo"))
                 {
@@ -621,8 +612,8 @@ void EditorApp::DrawMenuBar()
             }
         }
 
-        // (Transport buttons moved to DrawGlobalToolbar, rendered in a
-        // separate 36px bar below the menu bar.)
+        // The transport buttons are in DrawGlobalToolbar, a separate 36px bar
+        // below the menu bar.
 
         // --- Window control buttons (Chromium style) ---
         if (m_Window)
@@ -638,26 +629,24 @@ void EditorApp::DrawMenuBar()
 
 void EditorApp::DrawGlobalToolbar()
 {
-    // Schematic global toolbar: ~36px tall bar below the menu bar, panel bg,
-    // 1px hairline bottom border. Transport (RUN / PAUSE / STOP) sits on the
-    // far left; future chips (mode, target) live on the right side.
-    // Sized in font-relative units (~2.77 font heights ≈ 36px at base font 13).
+    // Schematic global toolbar: a ~36px bar below the menu bar with a hairline
+    // bottom border. Transport (RUN / PAUSE / STOP) sits on the far left.
+    // Sized in font heights (~2.77 font heights ≈ 36px at base font 13).
     const float toolbarH = ImGui::GetFontSize() * 2.77f;
 
     const ImVec2 startPos = ImGui::GetCursorScreenPos();
     const float availW = ImGui::GetContentRegionAvail().x;
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    // Background: Bg2 (slightly lighter than the menu bar's Panel) so the
-    // seam between the two stacked bars reads as a real boundary instead of
-    // one continuous block. Matches the HTML mockup's D.panel / D.bg2 split.
+    // Background Bg2, slightly lighter than the menu bar's Panel, so the seam
+    // between the two stacked bars reads as a boundary, not one block.
     const ImU32 colLine2 = ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Line2);
     dl->AddRectFilled(startPos, ImVec2(startPos.x + availW, startPos.y + toolbarH),
                       ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Bg2));
-    // Bottom border only - the menu bar above already draws its own bottom
-    // border, so a top one here would double up. A 2px (DPI-scaled) AddRectFilled
-    // on a floored y row gives a crisp hard line that matches the thicker dock
-    // separators (AddLineH at the same thickness would AA-bleed).
+    // Bottom border only: the menu bar above draws its own bottom border, so a
+    // top one here would double it. A 2px (DPI-scaled) AddRectFilled on a
+    // floored y row gives a crisp line that matches the thicker dock separators
+    // (AddLineH at the same thickness would blur from anti-aliasing).
     const float bottomY = ImFloor(startPos.y + toolbarH);
     dl->AddRectFilled(ImVec2(startPos.x, bottomY - Dpi(2.0f)), ImVec2(startPos.x + availW, bottomY), colLine2);
 
@@ -680,7 +669,7 @@ void EditorApp::DrawGlobalToolbar()
     const float padX = ImGui::GetFontSize() * 1.25f;
     const float iconGap = ImGui::GetFontSize() * 0.6f;
 
-    // Cursor for placing transport buttons starts at toolbar left edge.
+    // The transport buttons start at the toolbar's left edge.
     float cursorX = startPos.x;
 
     auto drawTransportBtn = [&](const char* id, const char* iconGlyph, const char* label, bool active, bool disabled,
@@ -763,16 +752,16 @@ void EditorApp::DrawGlobalToolbar()
                      /*active*/ false, /*disabled*/ isStopped, /*tintBg*/ false, "Stop (Ctrl+Shift+P)",
                      [&] { Stop(); });
 
-    // Restore cursor to the row directly below the toolbar so the next
-    // sibling widget (the DockSpace) renders below.
+    // Put the cursor on the row just below the toolbar, so the next widget
+    // (the DockSpace) is drawn below it.
     ImGui::SetCursorScreenPos(ImVec2(startPos.x, startPos.y + toolbarH));
 }
 
 void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
 {
-    // Chromium-style minimize / maximize / close. We draw the hover
-    // backgrounds and icons ourselves rather than using ImGui buttons, so the
-    // borderless window's non-client area and these agree pixel for pixel.
+    // Chromium-style minimize / maximize / close. The hover backgrounds and
+    // icons are drawn here, not with ImGui buttons, so the borderless window's
+    // non-client area and these agree pixel for pixel.
     const float barHeight = barMax.y - barMin.y;
 
     // Chrome window-control buttons: ~3.5 font heights wide each (45px
@@ -787,15 +776,15 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
     bool isMaximized = (SDL_GetWindowFlags(m_Window) & SDL_WINDOW_MAXIMIZED) != 0;
     const char* maxIcon = isMaximized ? ICON_TI_COPY : ICON_TI_SQUARE;
 
-    // Push the current font at a base size of 14px for the window-control
-    // icons. ImGui 1.92 multiplies this by FontScaleMain * FontScaleDpi
-    // at draw time, so we get DPI-correct icons without any *dpi math.
-    // PushFont(NULL, size) keeps the current font and overrides the size.
+    // The current font at a base size of 14px for the window-control icons.
+    // ImGui 1.92 multiplies it by FontScaleMain * FontScaleDpi at draw time,
+    // so the icons follow DPI with no *dpi math. PushFont(NULL, size) keeps
+    // the current font and changes only the size.
     ImGui::PushFont(nullptr, 14.0f);
     ImFont* scaledFont = ImGui::GetFont();
     float scaledFontSize = ImGui::GetFontSize();
 
-    // Detect hover directly from mouse position (more reliable than WM_NCMOUSEMOVE)
+    // Hover from the mouse position (more reliable than WM_NCMOUSEMOVE)
     ImVec2 mousePos = ImGui::GetIO().MousePos;
 
     struct
@@ -818,7 +807,7 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
         bool hovered =
             (mousePos.x >= btnMin.x && mousePos.x < btnMax.x && mousePos.y >= btnMin.y && mousePos.y < btnMax.y);
 
-        // Handle click directly (more reliable than WM_NCLBUTTONUP)
+        // Clicks handled here (more reliable than WM_NCLBUTTONUP)
         if (hovered && ImGui::IsMouseClicked(0))
         {
             if (buttons[i].btnId == 1)
@@ -856,7 +845,7 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
             dl->AddRectFilled(btnMin, btnMax, Motion::WithAlpha(hoverColor, hoverT));
         }
 
-        // Draw icon centered
+        // Icon, centred
         ImVec2 iconSize = ImGui::CalcTextSize(buttons[i].icon);
         float iconX = btnMin.x + (buttonW - iconSize.x) * 0.5f;
         float iconY = btnMin.y + (barHeight - iconSize.y) * 0.5f;
@@ -868,7 +857,7 @@ void EditorApp::DrawWindowControls(const ImVec2& barMin, const ImVec2& barMax)
 
     ImGui::PopFont();
 
-    // Update globals for WndProc hit testing
+    // The globals WndProc hit testing reads
     g_MenuBarHeight = barHeight;
     g_ControlsStartX = controlsStartX;
     g_ControlButtonW = buttonW;

@@ -78,10 +78,9 @@ DeleteAssetsCommand::DeleteAssetsCommand(const std::vector<std::string>& paths, 
     fs::path trashRoot =
         projectRoot.empty() ? fs::temp_directory_path(ec) / "deki_editor_backup" : TrashRoot(projectRoot);
 
-    // Timestamp keeps concurrent delete commands from sharing a directory. The
-    // directory itself is created by Execute: constructing the command (which
-    // the confirm dialog does before the user has answered) must not touch the
-    // project.
+    // The timestamp gives each delete command its own directory. Execute
+    // creates it: the confirm dialog builds the command before the user has
+    // answered, so the constructor must not touch the project.
     auto now = std::chrono::system_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     m_BackupDir = trashRoot / ("delete_" + std::to_string(ms));
@@ -90,9 +89,9 @@ DeleteAssetsCommand::DeleteAssetsCommand(const std::vector<std::string>& paths, 
 DeleteAssetsCommand::~DeleteAssetsCommand()
 {
     // The deleted files stay in the trash when the command leaves the undo
-    // history (opening another scene clears it): deleting them here made a
-    // mistaken delete permanent a few clicks later. SweepStaleTrash removes
-    // them after kTrashDays. An undone delete leaves the folder empty.
+    // history (opening another scene clears it), so a mistaken delete can
+    // still be taken back by hand. SweepStaleTrash removes them after
+    // kTrashDays. Only the empty folder an undone delete leaves goes here.
     std::error_code ec;
     if (fs::is_directory(m_BackupDir, ec) && fs::is_empty(m_BackupDir, ec))
     {
@@ -102,8 +101,8 @@ DeleteAssetsCommand::~DeleteAssetsCommand()
 
 fs::path DeleteAssetsCommand::TrashRoot(const std::string& projectRoot)
 {
-    // Under generated/, which projects keep out of version control: the old
-    // <project>/.trash was not in the scaffold's .gitignore and got committed.
+    // Under generated/, which projects keep out of version control, so the
+    // trash is never committed.
     return fs::path(projectRoot) / "generated" / "trash";
 }
 
@@ -123,9 +122,8 @@ void DeleteAssetsCommand::SweepStaleTrash(const std::string& projectRoot)
         return;
     }
 
-    // Only deletes older than kTrashDays go. The whole trash used to be
-    // emptied on every open, so a delete followed by a crash (or just closing
-    // the editor) could not be taken back by any means.
+    // Only deletes older than kTrashDays go, so a delete followed by a crash
+    // or a close can still be taken back by hand.
     // Aged by the time in the folder's name (delete_<ms since epoch>): a
     // folder's own modification time moves when an undo takes files back out.
     const auto nowMs =
@@ -191,8 +189,8 @@ void DeleteAssetsCommand::Execute()
         return;
     }
 
-    // Index prefix guarantees a unique backup name even when several
-    // selected paths share a filename.
+    // The index prefix keeps backup names unique when several selected paths
+    // share a filename.
     size_t slot = 0;
     for (const auto& path : m_OriginalPaths)
     {
@@ -211,8 +209,8 @@ void DeleteAssetsCommand::Execute()
         fs::rename(src, backupPath, ec);
         if (ec)
         {
-            // Do not record a move that did not happen - Undo would then try
-            // to restore a file that is still in place.
+            // Record only moves that happened, or Undo would try to restore a
+            // file that is still in place.
             m_HadFailures = true;
             continue;
         }
@@ -247,8 +245,8 @@ void DeleteAssetsCommand::Execute()
 
 void DeleteAssetsCommand::Undo()
 {
-    // Reverse order so a directory is restored before anything that lived
-    // inside it is put back.
+    // Reverse order, so a directory comes back before anything that lived
+    // inside it.
     for (auto it = m_Moves.rbegin(); it != m_Moves.rend(); ++it)
     {
         fs::path src(it->backup);
@@ -299,7 +297,6 @@ ModifyAssetCommand::ModifyAssetCommand(const std::string& assetPath, const std::
       m_OnApply(std::move(onApply)),
       m_Executed(false)
 {
-    // Extract asset type for description
     m_AssetType = newData.value("type", "Asset");
 }
 
@@ -340,9 +337,8 @@ void ModifyAssetCommand::Merge(const Command* other)
 
 void ModifyAssetCommand::ApplyData(const nlohmann::json& data)
 {
-    // Atomic: this overwrites a user-authored .asset file. Streaming into it
-    // truncates first, so an interrupted write left the asset destroyed -
-    // the same failure the scene save had.
+    // Atomic: this overwrites a user-authored .asset file, and a plain
+    // stream truncates first, so an interrupted write would destroy it.
     std::string err;
     if (!AtomicWriteFile(m_AssetPath, data.dump(2), err))
     {
@@ -350,7 +346,7 @@ void ModifyAssetCommand::ApplyData(const nlohmann::json& data)
         return;  // no callback: nothing changed on disk
     }
 
-    // Call the apply callback (triggers rebuild and texture invalidation)
+    // The callback rebuilds and invalidates textures.
     if (m_OnApply)
     {
         m_OnApply();

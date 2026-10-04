@@ -70,15 +70,14 @@ std::vector<std::pair<std::string, std::string>> PlatformRegistry::GetPlatformDi
     return list;
 }
 
-// The family when a platform did not name one. Only reached by JSON with no
-// "family" and no legacy "type"; a capability of "family:custom" then says
-// plainly that the platform declined to categorise itself.
+// The family when a platform names none; its capability "family:custom" then
+// says the platform did not categorise itself.
 static const char* const kDefaultFamily = "custom";
 
 // ---- frameworkOptions accessors -------------------------------------------
-// The editor never interprets these; it only carries them. Every lookup is
-// total: a missing key, a malformed blob or a wrong type gives the fallback,
-// so a builder reads its settings without guarding each one.
+// The editor only carries these and never interprets them. A missing key, a
+// malformed blob or a wrong type gives the fallback, so a builder reads its
+// settings without checking each one.
 
 static json ParseOptions(const std::string& text)
 {
@@ -160,9 +159,8 @@ void PlatformConfig::SetOptionList(const std::string& key, const std::vector<std
 std::set<std::string> PlatformConfig::Capabilities() const
 {
     std::set<std::string> caps(provides.begin(), provides.end());
-    // Derived, so the distinctions that already exist need no authoring: a
-    // package tied to one toolchain requires "framework:espidf" and every
-    // ESP-IDF board satisfies it without listing anything.
+    // Derived, so nobody has to list them: a package tied to one toolchain
+    // requires "framework:espidf", and every ESP-IDF board provides it.
     if (!framework.empty())
     {
         caps.insert("framework:" + framework);
@@ -170,21 +168,18 @@ std::set<std::string> PlatformConfig::Capabilities() const
     caps.insert("family:" + (family.empty() ? std::string(kDefaultFamily) : family));
 
     // Memory regions are capabilities named after the region, so a package
-    // that allocates from Deki::Memory::Region("rtc") requires "memory:rtc" and the two
-    // agree by construction rather than by someone keeping two lists in step.
+    // that allocates from Deki::Memory::Region("rtc") requires "memory:rtc",
+    // and the two names always agree.
     //
     // The prefix matches framework: and family: above, and keeps a region from
-    // colliding with an unrelated capability that happens to share a word.
+    // colliding with an unrelated capability that shares a word.
     //
-    // Every platform has a heap, so memory:internal is universal. memory:external
-    // comes from externalMemorySize, the same field a backend reads to switch
-    // that memory on in its build - one source of truth, because when it was
-    // two they drifted: a target created by copying a board without external
-    // memory and then given some had the memory, booted with it detected, and
-    // still failed to satisfy a package that asked for it.
+    // Every platform has a heap, so memory:internal is universal.
+    // memory:external comes from externalMemorySize, the same field a backend
+    // reads to switch that memory on in its build, so the two cannot disagree.
     //
-    // Regions beyond these two are a board's own business and it lists them in
-    // `provides` ("memory:rtc"), because only that board knows it has them.
+    // Other regions belong to a board, which lists them in `provides`
+    // ("memory:rtc"), because only that board knows it has them.
     caps.insert("memory:internal");
     if (externalMemorySize > 0)
     {
@@ -194,9 +189,9 @@ std::set<std::string> PlatformConfig::Capabilities() const
     return caps;
 }
 
-// A capability is matched by exact string, so the only names that work are the
-// ones everybody spells the same way. Deliberately narrow: lowercase only,
-// because "WiFi" silently matching nothing is the failure this prevents.
+// A capability is matched by exact string, so names must be spelled the same
+// way everywhere. Lowercase only, so "WiFi" is refused instead of quietly
+// matching nothing.
 bool IsValidCapabilityName(const std::string& name)
 {
     if (name.empty() || name.size() > 64)
@@ -237,37 +232,28 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     config.displayName = j.value("displayName", config.id);
     std::erase_if(config.displayName, [](unsigned char c) { return c < 0x20 || c == 0x7F; });
 
-    // Any spelling is accepted: the editor does not have a list of the world's
-    // targets. (A pre-0.10 "type" key used to be translated here through a
-    // table of three chip names; no platform file has carried one since.)
+    // Any spelling is accepted: the editor has no list of the world's targets.
     config.family = j.value("family", kDefaultFamily);
     if (config.family.empty())
     {
         config.family = kDefaultFamily;
     }
 
-    // No default, and no guess. The framework is what chooses a build backend;
-    // a platform that does not say resolves to no backend, and the build says
-    // so by name. It used to default to one framework, and then to be inferred
-    // from that framework's settings - the editor recognising a target by its
-    // keys is the same knowledge by another route.
+    // No default and no guess. The framework chooses the build backend; a
+    // platform that names none gets no backend, and the build says so. Do not
+    // infer it from the settings: that would make the editor know each
+    // framework's keys.
     config.framework = j.value("framework", "");
 
-    // Framework settings. The nested "frameworkOptions" object is the shape we
-    // write. Platform files from before it existed keep those settings at the
-    // top level, and they are read into the same place so nothing needs
-    // migrating by hand. One-way: SavePlatformToFile only writes the nested
-    // form.
+    // Framework settings live in the nested "frameworkOptions" object. Older
+    // platform files keep them at the top level; those are read into the same
+    // place, and SavePlatformToFile writes only the nested form.
     //
-    // WHICH top-level keys are framework settings is decided without naming
-    // any: every key this loader does not own is the framework's. It used to
-    // be a list of nine of one framework's setting names, which meant the
-    // editor knew them, and that any other framework's older files lost theirs.
+    // Every top-level key this loader does not own is a framework setting, so
+    // the editor needs no list of any framework's setting names.
     //
-    // Their VALUES are not judged here either. The owning backend says so
-    // through ITargetBuilder::ValidatePlatform and the build refuses. A bad
-    // value used to be silently cleared, which turned a typo into a confusing
-    // failure much further downstream.
+    // Their values are not checked here: the owning backend checks them in
+    // ITargetBuilder::ValidatePlatform, and the build refuses a bad one.
     {
         static const std::set<std::string> kOwnKeys = {
             "id",        "displayName", "family",       "framework",        "frameworkOptions", "externalMemorySize",
@@ -323,10 +309,9 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
             {
                 std::string name = cap.get<std::string>();
                 // Capabilities are matched by exact string against what a
-                // package requires, so a name that cannot match anything is
-                // worth saying out loud at load rather than leaving as a
-                // package mysteriously refused on a board that has the
-                // hardware. "WiFi" and "wifi " are the two that bite.
+                // package requires, so a name that can match nothing is
+                // reported at load ("WiFi", "wifi " are the usual ones),
+                // instead of a package being refused later with no reason.
                 if (!IsValidCapabilityName(name))
                 {
                     DEKI_LOG_WARNING("Platform '%s': capability '%s' is not a valid name "
@@ -349,10 +334,9 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
             }
             const std::string d = def.get<std::string>();
 
-            // Which packages and features a build has is the resolver's answer
-            // (FeatureResolver, ResolveActivePackages): a platform asserting
-            // one here says a package is present without anything having put
-            // it in the build, and the two are then free to disagree. A board
+            // The resolver (FeatureResolver, ResolveActivePackages) decides
+            // which packages and features a build has. A platform defining one
+            // here would claim a package that nothing put in the build. A board
             // that needs a package says so in requiresPackages.
             if (d.rfind("DEKI_PACKAGE_", 0) == 0 || d.rfind("DEKI_FEATURE_", 0) == 0)
             {
@@ -407,15 +391,15 @@ bool PlatformFromJson(const std::string& text, PlatformConfig& config)
 
 std::string PlatformToJson(const PlatformConfig& config)
 {
-    // Only non-default values, to keep files clean
+    // Only non-default values, to keep files short.
     json j;
     j["id"] = config.id;
     j["displayName"] = config.displayName;
 
     j["family"] = config.family.empty() ? kDefaultFamily : config.family;
 
-    // Written back as one nested object, never as the legacy top-level
-    // keys: the editor does not know what any of them mean.
+    // Written as one nested object, never as top-level keys: the editor does
+    // not know what any of them mean.
     if (!config.frameworkOptions.empty())
     {
         json options = json::parse(config.frameworkOptions, nullptr, false);
@@ -528,7 +512,7 @@ bool PlatformRegistry::LoadPlatformsFromDirectory(const std::string& path)
 
 bool PlatformRegistry::LoadPlatformsFromBoardPacks()
 {
-    // Get board packs directory: ~/.deki-editor/board-packs/
+    // The board packs directory (~/.deki-editor/board-packs/).
     std::string boardPacksDir = DekiEditor::EditorPaths::GetBoardPacksDir();
 
     if (boardPacksDir.empty() || !fs::exists(boardPacksDir))
@@ -600,13 +584,12 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
 {
     try
     {
-        // Ensure platform subdirectory exists: <dir>/<id>/
+        // <dir>/<id>/
         fs::path platformDir = fs::path(directory) / config.id;
         fs::create_directories(platformDir);
 
-        // Write to file: <dir>/<id>/<id>.json, in one step. A plain stream
-        // left a cut-off platform file on a crash, and a failed write still
-        // reported success.
+        // <dir>/<id>/<id>.json, written in one step, so a crash cannot leave a
+        // cut-off file and a failed write is reported.
         fs::path filePath = platformDir / (config.id + ".json");
         std::string err;
         if (!AtomicWriteFile(filePath.string(), PlatformToJson(config), err))
@@ -615,7 +598,7 @@ bool PlatformRegistry::SavePlatformToFile(const PlatformConfig& config, const st
             return false;
         }
 
-        // Also register in memory
+        // Register it in memory too.
         RegisterPlatform(config);
         NoteProjectPlatformsChanged();
 
@@ -631,11 +614,10 @@ bool PlatformRegistry::DeletePlatform(const std::string& id, const std::string& 
 {
     try
     {
-        // Remove from registry
         UnregisterPlatform(id);
         NoteProjectPlatformsChanged();
 
-        // Delete entire platform subdirectory: <dir>/<id>/
+        // Delete the whole platform directory, <dir>/<id>/.
         fs::path platformDir = fs::path(directory) / id;
         if (fs::exists(platformDir))
         {

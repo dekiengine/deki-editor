@@ -1,20 +1,20 @@
-// SafeDispatch.cpp - per-frame exception barrier.
+// SafeDispatch.cpp: a per-frame exception barrier.
 //
-// Catches both C++ exceptions and hardware faults, by two mechanisms:
+// Catches both C++ exceptions and hardware faults, in two ways:
 //
 //   MSVC        __try/__except. MUST be compiled with /EHa. __try/__except
 //               cannot live in a function that owns C++ objects with
-//               destructors, so the C++ catch path is delegated to a helper.
+//               destructors, so the C++ catch path is in a helper.
 //   Everything  The same helper for C++ exceptions, plus a guard from
 //   else        FaultGuard.h for hardware faults (vectored exception handler on
 //               Windows/MinGW, sigaction + siglongjmp on POSIX).
 //
-// When a dispatched call faults mid-frame inside an open Begin/BeginChild
-// (or any PushID/PushStyleVar/etc.), the unmatched ImGui state would
-// otherwise poison the rest of the frame and trip "Must call EndChild()
-// and not End()!" on the next outer End(). To prevent that, we snapshot
-// the ImGui state before each call and roll it back on failure via
-// ErrorRecoveryTryToRecoverState (the API ImGui itself uses in EndFrame).
+// When a dispatched call faults inside an open Begin/BeginChild (or any
+// PushID/PushStyleVar/etc.), the unmatched ImGui state would spoil the rest
+// of the frame and trip "Must call EndChild() and not End()!" on the next
+// outer End(). So the ImGui state is saved before each call and rolled back
+// on failure with ErrorRecoveryTryToRecoverState, the API ImGui itself uses
+// in EndFrame.
 
 #include "SafeDispatch.h"
 #include "FaultGuard.h"
@@ -66,10 +66,9 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
         return true;
     }
 
-    // Snapshot ImGui state so we can unwind orphaned Begin/BeginChild/Push*
-    // if the dispatched call faults. Only valid when inside an ImGui frame
-    // with a current window (panel Draws always are; tool/dialog code may
-    // not be, hence the guard).
+    // Save the ImGui state so orphaned Begin/BeginChild/Push* can be unwound
+    // if the call faults. Only valid inside an ImGui frame with a current
+    // window: panel Draws always are, tool and dialog code may not be.
     ImGuiErrorRecoveryState saved;
     const bool canRecover = (ImGui::GetCurrentContext() != nullptr) && (GImGui->CurrentWindow != nullptr);
     if (canRecover)
@@ -113,14 +112,13 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
 
 #else  // !_MSC_VER - MinGW and POSIX.
 
-// No __try/__except here, so hardware faults are contained via FaultGuard.h.
-// Without it this path caught only C++ exceptions, so a null deref in a panel's
-// Draw killed the editor - and a Draw is exactly where that is most likely
-// during development.
+// No __try/__except here, so FaultGuard.h contains hardware faults; without
+// it a null dereference in a panel's Draw, the likeliest place during
+// development, would kill the editor.
 //
-// The ImGui state save/restore is unchanged and still matters here: a fault
-// midway through a Draw leaves Begin/BeginChild/Push* unbalanced, and recovering
-// the state is what keeps the rest of the frame renderable.
+// The ImGui state save and restore matter here too: a fault midway through a
+// Draw leaves Begin/BeginChild/Push* unbalanced, and recovering the state
+// keeps the rest of the frame drawable.
 
 bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
 {
@@ -136,10 +134,10 @@ bool SafeDispatch(const char* context, SafeDispatchFn fn, void* userdata)
         ImGui::ErrorRecoveryStoreState(&saved);
     }
 
-    // Read after recovery, so they go in volatile storage: on the POSIX path
-    // recovery is a siglongjmp, which restores only callee-saved registers, and
-    // anything parked in a caller-saved one would be indeterminate (-Wclobbered).
-    // `saved` needs no such treatment - its address escapes, so it lives in memory.
+    // Read after recovery, so they live in volatile storage: on the POSIX
+    // path recovery is a siglongjmp, which restores only callee-saved
+    // registers, and a value in a caller-saved one would be indeterminate
+    // (-Wclobbered). `saved` is fine: its address escapes, so it lives in memory.
     const char* volatile safeContext = context;
     const volatile bool safeCanRecover = canRecover;
 

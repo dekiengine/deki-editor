@@ -39,8 +39,8 @@ void SceneView::BeginObject(const SceneViewContext& ctx)
 }
 
 // ============================================================================
-// Gizmo Drawing (wraps the internal ImDrawList; packages call these instead of
-// touching ImGui). All no-op when no draw list is active.
+// Gizmo Drawing. Packages call these instead of ImGui; they draw into the
+// current ImDrawList and do nothing when there is none.
 // ============================================================================
 
 void SceneView::DrawLine(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness)

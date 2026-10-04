@@ -35,21 +35,22 @@ class PropertyEditorFactory
 public:
     PropertyEditorFactory(EditorApp* app, AssetPropertyEditor* assetEditor);
 
-    // Draw property editor based on type
+    /// Draws the editor row for one property, by its type.
     void DrawProperty(Deki::Component* comp, const Deki::PropertyInfo& prop);
 
-    // Multi-edit: Draw property editor for multiple components
-    // Shows "-" for mixed values, edits all components at once
+    /// Draws one property for several components at once. Mixed values show
+    /// "-", and an edit changes all of them.
     void DrawPropertyMulti(const std::vector<Deki::Component*>& components, const Deki::PropertyInfo& prop);
-    // Types with no multi-edit path: first component's value, disabled.
+    /// For types without multi-edit: the first component's value, disabled.
     void DrawReadOnlyMulti(const std::vector<Deki::Component*>& components, const Deki::PropertyInfo& prop);
 
-    // Call once per frame after all properties are drawn to render the ObjectRef picker popup
+    /// Draws the ObjectRef picker popup. Call once per frame, after all
+    /// properties are drawn.
     void DrawPendingPopups();
 
-    // Drop any cached pointers into plugin-DLL data (Deki::PropertyInfo*, Deki::Component*).
-    // Must be called BEFORE the plugin DLL unloads during hot reload, otherwise the
-    // ObjectRef picker pointer becomes dangling.
+    /// Drops cached pointers into plugin DLL data (PropertyInfo, Component).
+    /// Call it before a plugin DLL unloads for hot reload, or the ObjectRef
+    /// picker keeps dangling pointers.
     void ResetTransientState();
 
 private:
@@ -81,7 +82,7 @@ private:
     std::unordered_map<RowKey, RowState, RowKeyHash> m_RowStates;
     AssetPropertyEditor* m_AssetEditor;  // Not owned
 
-    // Unified ObjectRef picker popup state
+    // ObjectRef picker popup state, shared by plain and array properties.
     const Deki::PropertyInfo* m_ObjectRefPickerProp = nullptr;
     int m_ObjectRefPickerIndex = -1;  // -1 = non-array property, >=0 = array element index
     Deki::Component* m_ObjectRefPickerComp = nullptr;
@@ -109,7 +110,7 @@ private:
     void DrawObjectRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const char* displayName);
     void DrawArrayProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const char* displayName);
 
-    // Helper to show tooltip if property has one
+    // Shows the property's tooltip, if it has one.
     void ShowTooltip(const Deki::PropertyInfo& prop);
 };
 

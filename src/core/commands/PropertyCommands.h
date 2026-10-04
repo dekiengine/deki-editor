@@ -17,14 +17,12 @@
 namespace DekiEditor
 {
 
-/**
- * Command for setting object position (X and Y together)
- * Calls SetLocalPosition() to properly update world transforms and children
- */
+/// Sets an object's local position (X and Y together) through
+/// SetLocalPosition(), which also updates world transforms and children.
 class SetPositionCommand : public Command
 {
 public:
-    // Constructor that captures current position as old value
+    // Takes the current position as the old value.
     SetPositionCommand(Deki::Object* obj, float newX, float newY)
         : m_Object(obj),
           m_OldX(obj->GetX()),
@@ -34,7 +32,7 @@ public:
     {
     }
 
-    // Constructor with explicit old/new values (for drag-end recording)
+    // Explicit old and new values, for recording a finished drag.
     SetPositionCommand(Deki::Object* obj, float oldX, float oldY, float newX, float newY)
         : m_Object(obj),
           m_OldX(oldX),
@@ -62,10 +60,8 @@ private:
     float m_NewX, m_NewY;
 };
 
-/**
- * Command for setting object world position (X and Y together)
- * Calls SetWorldPosition() to properly convert to local and update transforms
- */
+/// Sets an object's world position (X and Y together) through
+/// SetWorldPosition(), which converts it to local and updates transforms.
 class SetWorldPositionCommand : public Command
 {
 public:
@@ -99,10 +95,8 @@ private:
     std::string m_Description;
 };
 
-/**
- * Command for setting object rotation
- * Accepts explicit old/new values for drag-end undo recording
- */
+/// Sets an object's rotation. Takes explicit old and new values, for
+/// recording a finished drag.
 class SetRotationCommand : public Command
 {
 public:
@@ -126,10 +120,8 @@ private:
     float m_OldRotation, m_NewRotation;
 };
 
-/**
- * Command for setting object scale
- * Accepts explicit old/new values for drag-end undo recording
- */
+/// Sets an object's scale. Takes explicit old and new values, for recording
+/// a finished drag.
 class SetScaleCommand : public Command
 {
 public:
@@ -156,10 +148,9 @@ private:
     float m_NewScaleX, m_NewScaleY;
 };
 
-/**
- * When a Bool property with DEKI_TOGGLE_OBJECT is changed, auto-set the
- * referenced ObjectRef's object active state to match the bool value.
- */
+/// Call after `propertyName` changes. When it is a Bool property with
+/// DEKI_TOGGLE_OBJECT, sets the object its ObjectRef points at active or
+/// inactive to match.
 inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
 {
     const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(comp->GetType());
@@ -188,7 +179,7 @@ inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
             bool value = Deki::GetPropertyValue<bool>(comp, props[i]);
             const char* targetName = props[i].togglesObjectOf;
 
-            // Find the ObjectRef property by name
+            // The ObjectRef property named by DEKI_TOGGLE_OBJECT.
             auto findRef = [&](const Deki::PropertyInfo* p, int c) -> Deki::ObjectRefBase*
             {
                 for (int j = 0; j < c; j++)
@@ -228,11 +219,8 @@ inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
     scan(meta->properties, meta->propertyCount);
 }
 
-/**
- * Command for modifying a component property using reflection.
- * Uses PropertyTypeHandlers for type-specific capture/apply operations,
- * eliminating the need for large switch statements.
- */
+/// Sets a component property through reflection. The PropertyTypeHandlers
+/// capture and apply the value for each type.
 class ModifyComponentPropertyCommand : public Command
 {
 public:
@@ -248,8 +236,8 @@ public:
           m_OnChange(onChange),
           m_Executed(false)
     {
-        // Capture old value - use special handlers for Array and Enum.
-        // Enum needs the actual storage size so we don't read adjacent fields.
+        // Array and Enum have their own capture functions. Enum reads only its
+        // real storage size, so it does not read the fields next to it.
         if (prop.type == Deki::PropertyType::Array)
         {
             m_OldValue = CaptureArray(comp, prop);
@@ -281,8 +269,8 @@ private:
     Deki::Component* m_Component;
     size_t m_PropertyOffset;
     Deki::PropertyType m_PropertyType;
-    Deki::PropertyType m_ElementType;  // For Array type: element type
-    uint8_t m_EnumSize;                // For Enum type: storage size in bytes (1, 2, or 4)
+    Deki::PropertyType m_ElementType;  // Array only: the element type
+    uint8_t m_EnumSize;                // Enum only: storage size in bytes (1, 2 or 4)
     std::string m_PropertyName;
     nlohmann::json m_OldValue;
     nlohmann::json m_NewValue;
@@ -290,11 +278,8 @@ private:
     bool m_Executed;
 };
 
-/**
- * Command for modifying the same property across multiple components.
- * All changes are applied/reverted atomically for a single undo step.
- * Used for multi-selection editing in the inspector.
- */
+/// Sets the same property on several components as one undo step. Used when
+/// the inspector edits a multi-selection.
 class ModifyMultipleComponentPropertyCommand : public Command
 {
 public:
@@ -310,7 +295,7 @@ public:
           m_OnChange(onChange),
           m_Executed(false)
     {
-        // Capture old values for each component
+        // Each component's old value.
         for (Deki::Component* comp : components)
         {
             ComponentEntry entry;
@@ -366,11 +351,9 @@ private:
     bool m_Executed;
 };
 
-/**
- * Command for setting an AssetRefBase property (guid + source pair).
- * The runtime fields (ptr, loadAttempted) are reset on every apply so the
- * asset is re-resolved on the next access.
- */
+/// Sets an AssetRefBase property (its guid and source). Every apply resets the
+/// runtime fields (ptr, loadAttempted), so the asset is resolved again on the
+/// next access.
 class ModifyAssetRefCommand : public Command
 {
 public:

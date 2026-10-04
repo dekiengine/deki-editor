@@ -15,28 +15,25 @@ public:
     FrameCaptureService() = default;
     ~FrameCaptureService() = default;
 
-    // Start capturing frames to the specified output directory
-    // Creates the directory if it doesn't exist
+    /// Starts saving frames to `outputDir`, creating it when missing.
     void StartCapture(const std::string& outputDir);
 
-    // Stop capturing and log the total frame count
+    /// Stops capturing and logs how many frames were saved.
     void StopCapture();
 
-    // Check if currently capturing
     bool IsCapturing() const { return m_IsCapturing; }
 
-    // Get the number of frames captured so far
+    /// Number of frames saved so far.
     int GetFrameCount() const { return m_FrameNumber; }
 
-    // Capture a single frame from RGB565 data
-    // Converts to RGBA and writes as PNG
+    /// Saves one frame as a PNG, converting it from `format` to RGBA.
     void CaptureFrame(const uint8_t* framebuffer, int width, int height, Deki::ColorFormat format);
 
 private:
     bool m_IsCapturing = false;
     std::string m_OutputDir;
     int m_FrameNumber = 0;
-    std::vector<uint8_t> m_RgbaBuffer;  // Reusable buffer for RGB565 -> RGBA conversion
+    std::vector<uint8_t> m_RgbaBuffer;  // Reused for the conversion to RGBA
 };
 
 }  // namespace DekiEditor

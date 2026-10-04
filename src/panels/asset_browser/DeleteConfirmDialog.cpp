@@ -47,7 +47,6 @@ void DeleteConfirmDialog::Draw()
         const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
         if (button == 1)
         {
-            // Collect paths to delete
             std::vector<std::string> pathsToDelete;
             for (int selIdx : selectedIndices)
             {
@@ -63,10 +62,10 @@ void DeleteConfirmDialog::Draw()
 
             if (!pathsToDelete.empty())
             {
-                // Use command system for undo support
+                // Through the command history, so it can be undone.
                 std::string currentPath = m_Browser->GetCurrentPath();
-                // Trash inside the project: rename cannot cross volumes, so a
-                // %TEMP% on another drive would fail every move silently.
+                // The trash is inside the project: rename cannot cross
+                // volumes, so a %TEMP% on another drive would fail every move.
                 auto command = std::make_unique<DeleteAssetsCommand>(
                     pathsToDelete, [this, currentPath]() { m_Browser->NavigateTo(currentPath); },
                     m_Browser->GetProjectRoot());

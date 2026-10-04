@@ -1,15 +1,11 @@
 #pragma once
 
-/**
- * @file EditorNaming.h
- * @brief Reflected-identifier to human-label conversion, shared by every
- *        inspector-like surface (the app's Inspector panel, package tool
- *        windows, asset inspectors).
- *
- * Lives in deki-editor.dll because package DLLs draw reflected properties too
- * (node-graph node inspectors, custom editors) and must produce labels
- * identical to the app's - one nicifier, not a copy per tool.
- */
+// Turns reflected identifiers into human labels for every inspector-like
+// surface (the Inspector panel, package tool windows, asset inspectors).
+//
+// Lives in deki-editor.dll because package DLLs draw reflected properties too
+// (node-graph node inspectors, custom editors) and their labels must match
+// the app's: one nicifier, not a copy per tool.
 
 #include <string>
 
@@ -24,18 +20,18 @@ namespace DekiEditor
 
 namespace EditorNaming
 {
-// Convert camelCase/PascalCase/snake_case to "Title Case"
-// e.g., "topColor" -> "Top Color", "scroll_speed" -> "Scroll Speed",
-// "dirt-a" -> "Dirt A"
+/// Turns camelCase, PascalCase, snake_case or kebab-case into "Title Case":
+/// "topColor" -> "Top Color", "scroll_speed" -> "Scroll Speed",
+/// "dirt-a" -> "Dirt A".
 DEKI_EDITOR_API std::string NicifyName(const char* name);
 
-// Get display name for a property (uses displayName if set, otherwise nicifies name).
-// Cached per Deki::PropertyInfo: the inspector asks for every visible property
-// every frame, and the answer is a pure function of a static table entry.
+/// The label for a property: its displayName if set, else its nicified name.
+/// Cached per Deki::PropertyInfo, since the Inspector asks for every visible
+/// property every frame and the answer depends only on a static table entry.
 DEKI_EDITOR_API const std::string& GetDisplayName(const Deki::PropertyInfo& prop);
 
-// Forget cached display names. Call when package DLLs unload: their property
-// tables (the cache keys) go away with them and an address can be reused.
+/// Forgets cached display names. Call when package DLLs unload: their
+/// property tables (the cache keys) go with them, and an address can be reused.
 DEKI_EDITOR_API void ClearDisplayNameCache();
 }  // namespace EditorNaming
 

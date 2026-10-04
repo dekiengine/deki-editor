@@ -1,23 +1,19 @@
 #pragma once
 
-// Platform templates: the platforms a PACKAGE offers a project.
+// Platform templates: the platforms a package offers a project.
 //
 // A target is more than a build backend. It needs a platform description
 // (what the board or machine provides, which packages it always needs) and
-// usually a boot scene that brings its display and input up. Both name the
+// usually a boot scene that starts its display and input. Both name the
 // target's own components, so both belong with the package that ships those
 // components:
 //
 //     <package>/platforms/<platform id>/<platform id>.json
 //     <package>/platforms/<platform id>/boot.scene          (and anything else)
 //
-// The editor used to carry one of these in its own source: a hardcoded
-// "native_simulator" config and a boot scene naming SDL3 display and input
-// setup components, written into every new project. That made the desktop
-// simulator the one target the editor knew by name, and gave any other target
-// no way to offer the same thing. The editor knows none now. A project gets a
-// platform by ADOPTING a template - a plain copy into <project>/platforms/, so
-// from then on it is the project's own file to edit, exactly as before.
+// The editor knows no platform by name. A project gets a platform by adopting
+// a template: a plain copy into <project>/platforms/, which from then on is
+// the project's own file to edit.
 
 #include <deki-editor/EditorExport.h>
 
@@ -43,30 +39,29 @@ enum class AdoptPlatformResult
     AlreadyDefined,  // <project>/platforms/<id>/<id>.json exists; nothing touched
     Adopted,         // copied from a template
     NoTemplate,      // the project does not define it and no installed package offers it
-    Ambiguous,       // two packages offer it; choosing would be a guess
+    Ambiguous,       // two packages offer it; picking one would be a guess
     Failed           // the copy itself failed
 };
 
-/// Make `platformId` the project's own, from a template if it has to be.
+/// Makes `platformId` the project's own, copying a template if needed.
 /// `detail` names the package adopted from, the packages in conflict, or the
 /// error. Never overwrites a platform the project already defines.
 DEKI_EDITOR_API AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const std::string& platformId,
                                                           std::string& detail);
 
-/// What every user of a platform calls first - opening a project on it,
-/// switching to it, building for it: adopt it if it is only on offer, and load
-/// the adopted copy into PlatformRegistry. A template's boot scene path is
-/// relative to the PROJECT, so a platform that was chosen but never copied in
-/// would build without one.
+/// Call first whenever a platform is used (opening a project on it, switching
+/// to it, building for it): adopts it if it is only on offer, and loads the
+/// adopted copy into PlatformRegistry. A template's boot scene path is
+/// relative to the project, so a platform chosen but never copied in would
+/// build without one.
 ///
-/// False, with the reason, only when adopting was needed and could not be
-/// done. A platform nobody offers is not this function's error: it may come
-/// from a board pack, and if it comes from nowhere the caller's own lookup
-/// says so.
+/// False, with the reason, only when adopting was needed and failed. A
+/// platform nobody offers is not an error here: it may come from a board pack,
+/// and if it comes from nowhere the caller's own lookup reports it.
 DEKI_EDITOR_API bool EnsureProjectPlatform(const std::string& projectPath, const std::string& platformId,
                                            std::string& err);
 
-/// Register, in PlatformRegistry, every template the project has NOT adopted,
+/// Registers in PlatformRegistry every template the project has not adopted,
 /// so a package's platforms can be seen and chosen before they are copied in.
 /// Call before loading the project's own platforms, which override these.
 DEKI_EDITOR_API void RegisterPlatformTemplates(const std::string& projectPath);
@@ -74,16 +69,15 @@ DEKI_EDITOR_API void RegisterPlatformTemplates(const std::string& projectPath);
 // ---------------------------------------------------------------------------
 // Where an adopted platform came from.
 //
-// Adopting is a copy, and a bare copy forgets its source: the package fixes a
-// pin and the project never hears of it, and a project that edited its copy
-// has no way back. So an adoption also writes
+// Adopting is a copy, and a bare copy forgets its source: the project would
+// never hear of a fix in the package, and a project that edited its copy
+// would have no way back. So an adoption also writes
 //
 //     <project>/platforms/<platform id>/origin.json
 //
-// naming the package and holding the template AS ADOPTED: the platform JSON in
-// full, a hash for every other file. With those three things known - what was
-// adopted, what the project has now, what the package offers now - the rest
-// follows:
+// naming the package and holding the template as adopted: the platform JSON in
+// full, a hash for every other file. Knowing what was adopted, what the
+// project has now and what the package offers now gives:
 //
 //   modified          the project's copy differs from what was adopted
 //   update available  the package offers something other than what was adopted
@@ -93,7 +87,7 @@ DEKI_EDITOR_API void RegisterPlatformTemplates(const std::string& projectPath);
 //   Restore           the package's template as it is now, over the project's
 //
 // Platform JSON is compared setting by setting in the form PlatformToJson
-// writes, so a copy the editor merely re-saved is not "modified". Other files
+// writes, so a copy the editor only re-saved is not "modified". Other files
 // (the boot scene) are compared whole.
 // ---------------------------------------------------------------------------
 
@@ -106,9 +100,9 @@ struct DEKI_EDITOR_API PlatformOriginStatus
     bool packageInstalled = false;  // the package is installed and still offers this platform
     std::string offeredVersion;
 
-    // Without a record (a platform adopted before records existed, and changed
-    // since) "modified" means "differs from what the package offers" and an
-    // update cannot be told from an edit: only Restore is possible.
+    // Without a record (an older adoption), "modified" means "differs from
+    // what the package offers", and an update cannot be told from an edit, so
+    // only Restore is possible.
     bool modified = false;
     bool updateAvailable = false;
     std::vector<std::string> modifiedItems;  // setting names and file names
@@ -118,7 +112,8 @@ struct DEKI_EDITOR_API PlatformOriginStatus
     bool CanRestore() const { return packageInstalled && (modified || updateAvailable); }
 };
 
-/// Reads files only; nothing is written and the registry is not touched.
+/// Where `platformId` came from and how it differs. Only reads files; the
+/// registry is not touched.
 DEKI_EDITOR_API PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath, const std::string& platformId);
 
 struct DEKI_EDITOR_API PlatformSyncResult
@@ -140,10 +135,10 @@ DEKI_EDITOR_API PlatformSyncResult RestorePlatformFromPackage(const std::string&
 DEKI_EDITOR_API unsigned ProjectPlatformsRevision();
 DEKI_EDITOR_API void NoteProjectPlatformsChanged();
 
-/// Rebuild PlatformRegistry for the project from scratch: board packs, then
-/// what its installed packages offer, then its own. For when the set of
-/// installed packages changes under an open project, so a package's boards
-/// appear when it is installed and go when it is removed.
+/// Rebuilds PlatformRegistry for the project from scratch: board packs, then
+/// what its installed packages offer, then its own. For when the installed
+/// packages change under an open project, so a package's boards appear when
+/// it is installed and go when it is removed.
 DEKI_EDITOR_API void ReloadProjectPlatforms(const std::string& projectPath);
 
 }  // namespace DekiEditor

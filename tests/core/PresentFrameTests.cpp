@@ -1,10 +1,7 @@
-/**
- * @file PresentFrameTests.cpp
- * @brief Deki::Engine::PresentFrame routes the render system's changed
- *        rectangles to a display that can present partial frames, falls back
- *        to a whole-frame present otherwise, and the runtime package-setting
- *        reader finds values in a v5 project_data.bin without the settings registry.
- */
+// Deki::Engine::PresentFrame sends the render system's changed rectangles to a
+// display that can present partial frames and presents the whole frame
+// otherwise. Also: the runtime package-setting reader finds values in a v5
+// project_data.bin without the settings registry.
 
 #include <gtest/gtest.h>
 #include <cstdint>
@@ -193,8 +190,9 @@ TEST(PresentFrame, SettingADisplayMarksEverythingDirty)
 TEST(PresentFrame, SettingADisplaySizesTheFramebufferWithoutInitialize)
 {
     // The editor hosts the engine without Engine::Initialize, and play mode
-    // sets a display of the Play view's screen. Sizing only after Initialize
-    // left the framebuffer at its old size, so play refused every other screen.
+    // sets a display of the Play view's screen. The framebuffer must be sized
+    // when the display is set, not only in Initialize, or play refuses every
+    // other screen size.
     FakeRenderSystem rs;
     FakeDisplay d;
     EngineSwap swap(rs, d);

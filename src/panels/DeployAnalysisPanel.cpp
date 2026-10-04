@@ -46,7 +46,7 @@ void DeployAnalysisPanel::Draw()
         return;
     }
 
-    // Invalidate scan if project changed
+    // A different project needs a new scan.
     void* currentProject = static_cast<void*>(m_App->GetProject());
     if (currentProject != m_LastProject)
     {
@@ -56,18 +56,18 @@ void DeployAnalysisPanel::Draw()
         m_SelectedIndex = -1;
     }
 
-    // Auto-scan on first open (or after project change)
+    // Scan on first open and after a project change.
     bool hasProject = m_App->GetProject() != nullptr;
     if (!m_HasScannedAssets && hasProject)
     {
         ScanAssets();
     }
 
-    // Console-style toolbar strip: a flat Rescan cell (refresh icon) with 1px
-    // dividers and a bottom hairline, matching ConsolePanel's toolbar chrome.
-    // Disabled (dimmed, non-clickable) until a project is open.
+    // Toolbar strip styled like the Console's: a flat Rescan button between
+    // 1px dividers, with a hairline below. Dimmed and inactive until a
+    // project is open.
     {
-        // Pack a theme ImVec4 into EditorUI's RGBA word for the Draw* calls.
+        // A theme ImVec4 as the RGBA word EditorUI's Draw* calls take.
         auto pack = [](const ImVec4& c)
         {
             return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
@@ -90,10 +90,9 @@ void DeployAnalysisPanel::Draw()
         float cursorX = rowMinX;
         auto drawDivider = [&](float x) { ui.DrawLine(x, rowMinY, x, rowMaxY, colLine, 1.0f); };
 
-        // Leading divider at strip start.
         drawDivider(cursorX);
 
-        // Rescan cell.
+        // Rescan button.
         {
             const char* icon = ICON_TI_REFRESH;
             float iconW = 0.0f, iconH = 0.0f;
@@ -130,30 +129,27 @@ void DeployAnalysisPanel::Draw()
             }
         }
 
-        // Reserve the row in layout flow and close the bottom edge with a hairline.
+        // Reserve the row in the layout and draw the hairline below it.
         ui.SetCursorScreenPos(rowMinX, rowMaxY);
         ui.DrawLine(rowMinX, rowMaxY, rowMaxX, rowMaxY, colLine, 1.0f);
     }
 
     ui.Spacing();
 
-    // Asset table (all content drawn through EditorUI; status colors come from
-    // the theme Palette instead of hardcoded RGBA).
+    // Asset table, drawn through EditorUI with the theme's colours.
     if (m_HasScannedAssets)
     {
         const float pad = m_App->Dpi(12.0f);  // content side gutter
 
-        // Indent the whole content block so nothing sits flush against the edges.
+        // Indent everything so nothing touches the edges.
         ui.Indent(pad);
 
-        // Section label above the table (dim, secondary).
         char header[64];
         std::snprintf(header, sizeof(header), "Assets (%d total)", (int)m_AssetEntries.size());
         ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, header);
         ui.Spacing();
 
-        // Available region; reserve space below for the summary and leave a
-        // matching right gutter for the table.
+        // Leave room below for the summary, and the same gutter on the right.
         float availW = 0.0f, availH = 0.0f;
         ui.GetContentRegionAvail(&availW, &availH);
         const float reserveHeight = ui.GetFrameHeightWithSpacing() * 3.0f;
@@ -164,8 +160,7 @@ void DeployAnalysisPanel::Draw()
         }
         const float tableWidth = availW - pad;  // right gutter
 
-        // Roomier rows for legibility (extra cell padding -> taller rows, breathing
-        // room between columns).
+        // Extra cell padding, for taller rows and more space between columns.
         ui.PushStyleVar(EditorUI::StyleVar::CellPadding, m_App->Dpi(8.0f), m_App->Dpi(5.0f));
         if (ui.BeginTable("AssetTable", 5,
                           EditorUI::TableResizable | EditorUI::TableBordersInnerV | EditorUI::TableRowBg |
@@ -186,13 +181,13 @@ void DeployAnalysisPanel::Draw()
 
                 bool isSelected = (m_SelectedIndex == (int)i);
 
-                // Column 0: Asset path (selectable spanning all columns)
+                // Asset path; the selectable spans all columns.
                 ui.TableNextColumn();
                 if (ui.Selectable(entry.displayPath.c_str(), isSelected, /*spanAllColumns*/ true))
                 {
                     m_SelectedIndex = (int)i;
 
-                    // Select in editor so inspector shows this asset
+                    // Select it in the editor so the Inspector shows it.
                     auto* pipeline = m_App->GetAssetPipeline();
                     if (pipeline)
                     {
@@ -201,7 +196,8 @@ void DeployAnalysisPanel::Draw()
                         std::string absCachePath = pipeline->GetAbsolutePath(entry.cachePath);
                         m_App->SetSelectedAsset(absPath, absCachePath, entry.hasCached, entry.guid);
 
-                        // Reveal and highlight in Asset Browser (skip for baked cache-only entries)
+                        // Show it in the Asset Browser. Baked entries exist only in
+                        // the cache, so they have nothing to show.
                         if (!isBaked)
                         {
                             auto* browser = m_App->GetAssetBrowserPanel();
@@ -213,11 +209,11 @@ void DeployAnalysisPanel::Draw()
                     }
                 }
 
-                // Column 1: Size
+                // Size
                 ui.TableNextColumn();
                 ui.Text(FormatFileSize(entry.cacheSize).c_str());
 
-                // Column 2: Status badge (theme palette)
+                // Status
                 ui.TableNextColumn();
                 if (entry.isUsed)
                 {
@@ -232,7 +228,7 @@ void DeployAnalysisPanel::Draw()
                     ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, "Unused");
                 }
 
-                // Column 3: Pack
+                // Pack
                 ui.TableNextColumn();
                 if (!entry.packName.empty())
                 {
@@ -251,7 +247,7 @@ void DeployAnalysisPanel::Draw()
         ui.Spacing();
         uintmax_t totalDeploySize = m_TotalUsedSize + m_TotalForceIncludedSize;
 
-        // Count packed assets
+        // Packed assets that deploy.
         int packedCount = 0;
         for (const auto& entry : m_AssetEntries)
         {
@@ -277,7 +273,7 @@ void DeployAnalysisPanel::Draw()
     }
     else
     {
-        // Empty state: a padded, dim hint instead of a bare panel.
+        // Nothing scanned: a dim hint.
         const float pad = m_App->Dpi(12.0f);
         ui.Spacing();
         ui.Indent(pad);
@@ -302,12 +298,12 @@ void DeployAnalysisPanel::ScanAssets()
         return;
     }
 
-    // Collect which GUIDs are used by scenes
+    // GUIDs the scenes use.
     AssetExporter exporter(project, pipeline);
     AssetUsageCollection usage = exporter.CollectUsedAssets();
 
-    // Add baked font variant + atlas GUIDs to the used set
-    // (CollectUsedAssets only adds the assetRef.guid; the deterministic atlas GUID is missing)
+    // CollectUsedAssets adds a font's own GUID only. Add the GUIDs of its baked
+    // variants and atlases too; they are derived from the font GUID and size.
     for (const auto& fu : usage.fontUsages)
     {
         std::string seed = fu.sourceGuid + ":" + std::to_string(fu.fontSize);
@@ -315,10 +311,9 @@ void DeployAnalysisPanel::ScanAssets()
         usage.usedGuids.insert(GenerateDeterministicGuid(seed + ":atlas"));
     }
 
-    // Load the force-include set from the project
     const auto& forceGuids = project->GetForceIncludeGuids();
 
-    // Build GUID→pack name map from .dpack files
+    // GUID -> pack name, from the .dpack files.
     std::unordered_map<std::string, std::string> guidToPackName;
     {
         std::string assetsPath = project->GetAssetsPath();
@@ -353,11 +348,10 @@ void DeployAnalysisPanel::ScanAssets()
                             std::string guid = asset["guid"].get<std::string>();
                             guidToPackName[guid] = packDisplayName;
 
-                            // For fonts: also mark all baked variants + atlases
+                            // A packed font packs its baked variants and atlases too.
                             std::string type = asset.value("type", "");
                             if (type == "BitmapFont" || type == "Font")
                             {
-                                // Resolve baked variants from font usages
                                 for (const auto& fu : usage.fontUsages)
                                 {
                                     if (fu.sourceGuid != guid)
@@ -384,7 +378,6 @@ void DeployAnalysisPanel::ScanAssets()
         }
     }
 
-    // Iterate all assets from the pipeline
     const auto& allAssets = pipeline->GetAllAssets();
 
     for (const auto& [path, info] : allAssets)
@@ -404,9 +397,8 @@ void DeployAnalysisPanel::ScanAssets()
         entry.cachePath = info.cachePath;
         entry.hasCached = info.hasCachedVersion;
 
-        // Strip the assets folder prefix for display. Its length, not a fixed
-        // count: the prefix was "project/assets/" (15) once, and cutting 15 off
-        // "assets/..." ate the first letters of every name.
+        // Drop the assets folder prefix for display. Cut by the prefix's real
+        // length, never a fixed count, or the first letters of names go missing.
         entry.displayPath = info.path;
         const std::string assetsPrefix = GetAssetsDirectoryRelative() + "/";
         if (entry.displayPath.rfind(assetsPrefix, 0) == 0)
@@ -414,7 +406,6 @@ void DeployAnalysisPanel::ScanAssets()
             entry.displayPath = entry.displayPath.substr(assetsPrefix.size());
         }
 
-        // Get cache file size
         std::string absoluteCachePath = pipeline->GetAbsolutePath(info.cachePath);
         try
         {
@@ -437,7 +428,8 @@ void DeployAnalysisPanel::ScanAssets()
         m_AssetEntries.push_back(entry);
     }
 
-    // Add baked font variants + atlases (cache-only, not in pipeline)
+    // Baked font variants and atlases exist only in the cache, not in the
+    // pipeline, so add them here.
     {
         std::unordered_set<std::string> existingGuids;
         for (const auto& e : m_AssetEntries)
@@ -494,7 +486,7 @@ void DeployAnalysisPanel::ScanAssets()
         }
     }
 
-    // Sort: used first, then alphabetical within each group
+    // Used first, then by name.
     std::sort(m_AssetEntries.begin(), m_AssetEntries.end(),
               [](const AssetEntry& a, const AssetEntry& b)
               {

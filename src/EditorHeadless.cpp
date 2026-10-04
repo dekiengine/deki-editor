@@ -1,17 +1,13 @@
 // EditorHeadless - the CLI verbs.
 //
-// Every command below that needs engine state receives a booted EditorApp
-// rather than building its own. That is the whole design: EditorBoot runs the
-// same startup the GUI runs, so by the time a command executes the project is
-// in exactly the state a person double-clicking the editor would find it in.
+// Every command that needs engine state receives a booted EditorApp instead
+// of building its own. EditorBoot runs the same startup the GUI runs, so when
+// a command executes, the project is in exactly the state a person opening
+// the editor would find it in.
 //
-// What this file used to be was the opposite - each verb bootstrapping the
-// slice of startup it thought it needed, with its own PackageManager, its own
-// PackageLoader, its own cmake invocation. Those slices diverged from
-// EditorApp::OpenProject in ways nothing reported: --verify-scenes read a
-// plugin nothing had promoted and had to warn about it, --packages-restore
-// stopped before the build the editor performs, and firmware built from here
-// carried no boot payload at all. None of that bootstrap survives.
+// Keep it that way: a verb that boots its own slice of startup (its own
+// PackageManager, PackageLoader or cmake run) drifts from
+// EditorApp::OpenProject without anything noticing.
 
 #include <deki-editor/TextureFormatResolve.h>
 #include <deki-editor/SceneView.h>
@@ -87,8 +83,8 @@ std::string Str(const char* s)
 }
 
 /// The project the booted editor has open. Null only if the open failed, which
-/// EditorBoot already reported and the CLI already turned into a non-zero exit
-/// - so this is a guard against a bug, not a user-facing error path.
+/// EditorBoot already reported as a non-zero exit, so this only guards
+/// against a bug.
 Project* ProjectOf(EditorApp& editor, const char* verb)
 {
     Project* project = editor.GetProject();
@@ -99,9 +95,9 @@ Project* ProjectOf(EditorApp& editor, const char* verb)
     return project;
 }
 
-// True when the project's packages and plugin built. When they did not, a
-// scene's components from them are unknown: exporting went on regardless and
-// shipped scenes with those components missing, reporting success.
+// True when the project's packages and plugin built. When they did not, the
+// components they define are unknown, and an export would ship scenes with
+// those components missing.
 bool CodeBuilt(EditorApp& editor, const char* verb)
 {
     HotReloadService* hr = editor.GetHotReloadService();
@@ -151,12 +147,9 @@ void PrintMissingTypes(const std::set<std::string>& types)
     }
 }
 
-// Everything package-restore related lives in PackageRestore.{h,cpp} so the
-// editor's project-open path and this CLI share one implementation. Only the
-// helpers still used by the add/remove verbs live here.
+// Package restore lives in PackageRestore.{h,cpp}, shared by project open and
+// this CLI. Only the helpers the add/remove verbs use live here.
 
-// Pick the version to install for a package. See PackageRestore.cpp for why
-// there is no hardcoded fallback branch name.
 // Shared between the waiting verb and a fetch thread that may outlive the
 // wait (the sources detach their threads), so neither side holds a dangling
 // reference.
@@ -168,9 +161,9 @@ struct VersionFetch
 };
 
 // Wait for a version fetch, pumping the package manager's main-thread queue
-// meanwhile: FetchVersionsForPackage posts its result there, and the GUI
-// drains it once per frame. Nothing drained it here, so every fetch used to
-// wait the full timeout and report "no version information".
+// meanwhile: FetchVersionsForPackage posts its result there. The GUI drains
+// it once per frame; here nothing else does, and without this every fetch
+// would wait out the timeout.
 bool WaitForVersions(PackageManager& mgr, const std::shared_ptr<VersionFetch>& state, std::vector<std::string>& out)
 {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
@@ -193,12 +186,14 @@ bool WaitForVersions(PackageManager& mgr, const std::shared_ptr<VersionFetch>& s
     }
 }
 
+// Picks the version to install for a package. See PackageRestore.cpp for why
+// there is no fallback branch name.
 std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
 {
-    // A registry package updates to the registry's explicit `latest`, never to the
-    // highest number ever listed: the version line was renumbered once (2.0.0 became
-    // 0.10.0, below the older 1.2.0) and the lock's cached availableVersions can be
-    // stale. `latest` is the registry's statement of what a project should be on.
+    // A registry package updates to the registry's `latest`, never to the
+    // highest number listed: the versions were renumbered once (2.0.0 became
+    // 0.10.0, below the older 1.2.0), and the lock's cached availableVersions
+    // can be stale.
     if (pkg.id.rfind("deki-", 0) == 0)
     {
         if (DekiRegistrySource* registry = mgr.GetRegistrySource())
@@ -221,11 +216,10 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
 
     std::vector<std::string> versions;
 
-    // A registry package (id "deki-...") is published by the registry, whose
-    // per-package document lists its versions. The package's own URL points at
-    // GitHub, and that source asks the GitHub API for releases, tags and
-    // branches: three rate-limited requests per package that come back empty
-    // long before a project's package list is done. Ask the registry first.
+    // Ask the registry first for a registry package (id "deki-..."): its
+    // per-package document lists the versions. The GitHub source would spend
+    // three rate-limited API requests per package (releases, tags, branches),
+    // and the limit runs out long before a project's package list is done.
     if (pkg.id.rfind("deki-", 0) == 0)
     {
         if (IPackageSource* registry = mgr.GetSourceForUrl(pkg.id))
@@ -269,8 +263,8 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
     return "";
 }
 
-// The routing itself is PackageManager::GetInstallerFor; this adds the reason
-// to the output, which is otherwise a bare "no applicable installer".
+// PackageManager::GetInstallerFor, plus printing the reason when no installer
+// applies.
 IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg, const std::string& projectPath)
 {
     std::string whyNot;
@@ -282,10 +276,9 @@ IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg, co
     return installer;
 }
 
-/// Rebuild after the package set changed, exactly as PackageManagerPanel does
-/// (ForceNextBuild + RequestBuildCheck), then run the check it queued. The
-/// panel can leave it queued because the frame loop picks it up; there is no
-/// frame loop here, so it is driven to completion instead.
+/// Rebuilds after the package set changed, as PackageManagerPanel does
+/// (ForceNextBuild + RequestBuildCheck). The panel leaves the build queued
+/// for the frame loop; there is no frame loop here, so it runs now.
 void RebuildAfterPackageChange(EditorApp& editor, const std::string& projectPath)
 {
     HotReloadService* hr = editor.GetHotReloadService();
@@ -299,8 +292,8 @@ void RebuildAfterPackageChange(EditorApp& editor, const std::string& projectPath
     hr->RunPendingBuildNow();
 }
 
-/// One line of package state, shared by --packages-list and the report
-/// --packages-restore prints after the open has already restored.
+/// Prints one line per package, for --packages-list and for the report
+/// --packages-restore prints. Returns how many are missing.
 int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
 {
     auto& pkgs = mgr.GetPackages();
@@ -320,11 +313,10 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     printf("%-40s %-12s %s\n", "PACKAGE", "STATE", "VERSION");
     for (const auto& p : pkgs)
     {
-        // "installed" would overstate a framework component: nothing of it lives
-        // in the project. It is a line in the firmware build's dependency
-        // manifest, fetched by ESP-IDF at build time. Reporting it as declared
-        // says what is actually true, and it is never counted as missing -
-        // there is no per-project install step it could be missing from.
+        // A framework component is "declared", not "installed": nothing of it
+        // lives in the project. It is a line in the firmware build's
+        // dependency manifest, fetched by ESP-IDF at build time. It is never
+        // counted as missing, since there is no install step to miss.
         const bool frameworkComponent = (p.packageType == PackageType::FrameworkComponent);
         if (frameworkComponent)
         {
@@ -397,9 +389,8 @@ int CmdBuildAssets(EditorApp& editor)
         return 1;
     }
 
-    // ImportAllAssets already ran, as part of opening the project - the same
-    // call, on the same pipeline, that the GUI makes. Compiling again here
-    // would only repeat it.
+    // ImportAllAssets already ran while opening the project, as in the GUI,
+    // so this only reports.
     size_t total = 0, cached = 0;
     for (const auto& [assetPath, info] : pipeline->GetAllAssets())
     {
@@ -475,10 +466,9 @@ int CmdBuildCode(EditorApp& editor)
     }
 
     // Generating build files, configuring, compiling the packages and the
-    // plugin, and promoting the built DLLs all happened during the open -
-    // EnsureFirstBuild, BuildPackagesIfStale and the pending build EditorBoot
-    // drove to completion. There is nothing left for this verb to do but say
-    // how it went.
+    // plugin, and promoting the built DLLs all happened during the open
+    // (EnsureFirstBuild, BuildPackagesIfStale and the pending build EditorBoot
+    // ran). This verb only reports how it went.
     if (hr->HasBuildErrors())
     {
         printf("Build failed. See the errors above.\n");
@@ -524,7 +514,7 @@ int CmdNewProject(const char* parentDir, const char* name)
 
 int CmdPackagesList(const char* projectPath)
 {
-    // A path that is not a project listed "No packages declared" and exited 0.
+    // A path that is not a project is an error, not an empty package list.
     std::error_code ec;
     if (!fs::is_directory(Str(projectPath), ec))
     {
@@ -555,10 +545,9 @@ int CmdPackagesRestore(EditorApp& editor)
 
     const std::string path = project->GetPath();
 
-    // The restore ran during the open: the same RestoreMissingPackages call,
-    // with the same manager and installers, that EditorApp::OpenProject makes
-    // before it builds anything. Unlike the old standalone verb, the build that
-    // has to follow a restore has therefore already happened too.
+    // The restore ran during the open (EditorApp::OpenProject calls
+    // RestoreMissingPackages before it builds), so the build that follows a
+    // restore has already happened too. This verb reports the result.
     PackageManager mgr(&editor);
     mgr.LoadPackages(path);
 
@@ -573,9 +562,9 @@ int CmdPackagesRestore(EditorApp& editor)
         return 1;
     }
 
-    // Restoring installs what is missing; it does not switch an installed
-    // package to another version. That is a version the manifest did not ask
-    // for, so the restore has not produced what it declares.
+    // Restoring installs what is missing but leaves an installed package at
+    // its version. One that differs from its pin is not what the manifest
+    // asks for, so the restore fails.
     const std::vector<PinMismatch> mismatches = FindPinMismatches(path, mgr);
     if (!mismatches.empty())
     {
@@ -613,12 +602,11 @@ int CmdPackagesAdd(EditorApp& editor, const char* url, const char* version)
         return 1;
     }
 
-    // A registry id ("deki-fsm") parses into an entry that carries only the id -
-    // the repo it maps to lives in the registry index. Fill that in before
-    // storing, so the manifest records a usable URL and the version lookup has
-    // something to work with. Adding by bare id is also what keeps the canonical
-    // "deki-fsm" identity instead of a second "github:dekiengine/deki-fsm"
-    // entry pointing at the same directory.
+    // A registry id ("deki-fsm") parses into an entry with only the id; its
+    // repo is in the registry index. Fill that in before storing, so the
+    // manifest records a usable URL and the version lookup can work. The
+    // entry keeps the id "deki-fsm" rather than becoming a second
+    // "github:dekiengine/deki-fsm" entry for the same directory.
     TryFillFromRegistry(mgr, pkg);
 
     mgr.AddPackageIfNew(pkg);
@@ -661,9 +649,9 @@ int CmdPackagesAdd(EditorApp& editor, const char* url, const char* version)
 
     printf("Installed %s @ %s\n", pkg.id.c_str(), ver.c_str());
 
-    // New sources on disk mean the generated build files and the compiled
-    // libraries are both out of date. The panel queues this rebuild; here it
-    // runs, so the command does not return leaving the project mid-change.
+    // New sources make the generated build files and the compiled libraries
+    // out of date. Rebuild before returning, so the command does not leave
+    // the project half changed.
     printf("Rebuilding with the new package...\n");
     RebuildAfterPackageChange(editor, projectPath);
 
@@ -748,8 +736,8 @@ int CmdPackagesRemove(EditorApp& editor, const char* id)
         return 1;
     }
 
-    // message carries the comma-separated ids of dependencies that were only
-    // present for this package and have been removed with it.
+    // message lists, comma-separated, the dependencies that only this package
+    // needed and that were removed with it.
     if (!message.empty())
     {
         printf("Also removed orphaned dependencies: %s\n", message.c_str());
@@ -829,10 +817,8 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
     for (PackageEntry pkg : targets)
     {
         TryFillFromRegistry(mgr, pkg);
-        // The lock file caches the version list a package had when it was
-        // installed; an update has to ask the source again, or a registry
-        // that published a newer tag since is never seen ("already at 1.1.0"
-        // while 1.2.0 exists).
+        // The lock file caches the version list from install time. Ask the
+        // source again, or a newer tag published since is never seen.
         pkg.availableVersions.clear();
         const std::string version = ChooseVersion(mgr, pkg);
         if (version.empty())
@@ -904,9 +890,9 @@ int CmdFirmwareBuild(EditorApp& editor, const char* platformId, bool simulate)
 
     printf("Building firmware for: %s\n", project->GetPath().c_str());
 
-    // Passing the editor is what gives this build the boot payload and the
+    // Passing the editor gives this build the boot payload and the
     // scene-scanned package defines the Build panel produces. Without it the
-    // image would flash with no assets - see FirmwareBuildService::PrepareBuild.
+    // image has no assets; see FirmwareBuildService::PrepareBuild.
     BuildOptions options;
     options.simulate = simulate;
     auto r = FirmwareBuildService::Build(project->GetPath(), Str(platformId), EchoLine, &editor, options);
@@ -991,21 +977,17 @@ int CmdInstallToolchain(const char* projectPath, const char* platformId, const c
 int CmdVerifyScenes(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--verify-scenes");
-    // Against the previous binaries a check says nothing about the code as it
-    // is now; it reported OK, and a CI gate passed a project that no longer
-    // compiled.
+    // A check against the previous binaries says nothing about the code as it
+    // is now, so a failed build fails the verify.
     if (!project || !CodeBuilt(editor, "Verify"))
     {
         return 1;
     }
 
-    // No loader bootstrap here any more. The packages and the project's own
-    // plugin were loaded by the project open, from the same directories and in
-    // the same order the GUI loads them, after a build that promoted the DLLs
-    // out of .build_temp. That promotion is why this verb no longer has to warn
-    // that it might be reading stale game code: it used to skip the build and
-    // read whatever happened to be lying in runtime/, which is how it once
-    // resolved 47 of 69 components and reported the rest as unrecognised.
+    // The project open loaded the packages and the project's plugin, from the
+    // same directories and in the same order as the GUI, after a build that
+    // promoted the DLLs out of .build_temp. So the components checked here
+    // are the current code's.
 
     const std::string assetsDir = project->GetAssetsPath();
     std::error_code ec;
@@ -1059,8 +1041,8 @@ int CmdVerifyScenes(EditorApp& editor)
                totalComponents);
         return 1;
     }
-    // A component no package provides is left out of the game. It was a
-    // warning, and the verb exited 0.
+    // A component no package provides is left out of the game, so it fails
+    // the verify.
     bool failed = unreadable > 0;
     if (missingComponents > 0)
     {
@@ -1140,9 +1122,9 @@ Deki::ICamera* FindCameraInSubtree(Deki::Object* obj)
 }
 
 // The renderer a project's pipeline names, which is how the engine picks one
-// (Deki::ProjectSettings). The engine's public headers only forward-declare
-// DekiRenderer - it lives in the rendering package - so the name is read from
-// the pipeline asset rather than asked of the renderer itself.
+// (Deki::ProjectSettings). The engine's headers only forward-declare
+// DekiRenderer (it lives in the rendering package), so the name is read from
+// the pipeline asset.
 std::string RendererNameOf(Project* project, AssetPipeline* pipeline)
 {
     if (!project || !pipeline)
@@ -1298,11 +1280,10 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     }
 
     // DEKI_RENDER_MODE: "buffer" (default) renders through RenderToBuffer with
-    // an explicit clear, the scene view's path. "system" drives the engine's
+    // an explicit clear, as the scene view does. "system" drives the engine's
     // render system (camera lookup, clear, present rectangles) as a device
-    // does, and "tracked" does the same with dirty-rect tracking forced on
-    // in the Rendering settings: partial clears and present rectangles on
-    // real scenes. All three must produce the same hash per scene.
+    // does. "tracked" does the same with dirty-rect tracking forced on in the
+    // Rendering settings. All three must produce the same hash per scene.
     std::string mode = "buffer";
     if (const char* env = std::getenv("DEKI_RENDER_MODE"))
     {
@@ -1311,9 +1292,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     const bool useSystem = (mode == "system" || mode == "tracked");
     if (mode == "tracked")
     {
-        // Flip RenderingProjectSettings::dirtyTileTracking on the registry
-        // instance through its reflected metadata (this file must not depend
-        // on the rendering package's headers).
+        // Sets RenderingProjectSettings::dirtyTileTracking through its
+        // reflected metadata, because this file must not depend on the
+        // rendering package's headers.
         bool flipped = false;
         for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
         {
@@ -1344,12 +1325,12 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         fs::create_directories(outDir, ec);
     }
 
-    // DEKI_RENDER_TICK_MS: run the scene the way play mode does - lifecycle
-    // (Awake, Start, Update) and component updates before every frame - on a
-    // clock that advances by exactly this many milliseconds per frame, so a
-    // behaviour-driven scene produces the same frames on every machine. With
-    // DEKI_RENDER_OUT every frame is written as <scene>_<n>.ppm; the printed
-    // hash is the last frame's. Unset (the default) the scene stays static.
+    // DEKI_RENDER_TICK_MS: run the scene as play mode does (Awake, Start,
+    // Update and component updates before every frame) on a clock that
+    // advances exactly this many milliseconds per frame, so a scene driven by
+    // behaviours gives the same frames on every machine. With DEKI_RENDER_OUT
+    // every frame is written as <scene>_<n>.ppm; the printed hash is the last
+    // frame's. Unset, the scene stays static.
     float tickMs = 0.0f;
     if (const char* env = std::getenv("DEKI_RENDER_TICK_MS"))
     {
@@ -1376,10 +1357,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     }
     float clockMs = 0.0f;
 
-    // The screen of --platform, else of the active platform. --platform was
-    // ignored here, so a render for a 1280x720 target came out at the
-    // 320x240 fallback. DEKI_RENDER_SIZE=WxH renders a screen of another size
-    // instead, to see what the camera shows there.
+    // The screen of --platform, else of the active platform.
+    // DEKI_RENDER_SIZE=WxH renders a screen of another size instead, to see
+    // what the camera shows there.
     int32_t width = 0, height = 0;
     DekiEditor::ActivePlatformScreen(editor.GetProject(), width, height);
     if (platformId && *platformId)
@@ -1414,8 +1394,8 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         printf("Error: the screen size is empty (%dx%d px)\n", width, height);
         return 1;
     }
-    // DEKI_RENDER_FORMAT picks the framebuffer format; RGB565 when unset, which
-    // is what every recorded hash was made in.
+    // DEKI_RENDER_FORMAT picks the framebuffer format. The default, RGB565, is
+    // the format every recorded hash was made in.
     Deki::ColorFormat format = Deki::ColorFormat::RGB565;
     if (const char* env = std::getenv("DEKI_RENDER_FORMAT"))
     {
@@ -1442,15 +1422,13 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     }
     std::sort(scenePaths.begin(), scenePaths.end());
 
-    // What produced these pixels, so a recorded hash can be compared against
-    // the same thing that made it.
+    // What produced these pixels, so a recorded hash is compared only with
+    // output of the same setup.
     //
-    // An exact hash is a property of one renderer. Two backends drawing the
-    // same scene correctly still differ: fill rules at pixel edges, sub-pixel
-    // precision, filtering and blend rounding are all allowed to. So a golden
-    // is keyed by this line rather than being a single number the project is
-    // expected to produce forever, and a second backend records its own
-    // instead of forcing this one's check to be loosened to accommodate it.
+    // An exact hash belongs to one renderer: two backends that both draw a
+    // scene correctly may still differ in edge fill rules, sub-pixel
+    // precision, filtering and blend rounding. So a golden hash is keyed by
+    // this line, and a second backend records its own.
     printf("config: renderer=%s mode=%s size=%dx%d format=%s frames=%d\n",
            RendererNameOf(project, editor.GetAssetPipeline()).c_str(), mode.c_str(), width, height,
            DekiEditor::ColorFormatName(format), frames);
@@ -1592,9 +1570,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         printf("Error: no scene rendered\n");
         return 1;
     }
-    // The other scenes' hashes are printed above either way. These used to
-    // pass with exit 0: a scene that did not load, and components drawn as
-    // nothing because no package provides them.
+    // The other scenes' hashes are printed above either way. A scene that did
+    // not load, or components no package provides (drawn as nothing), fail
+    // the run.
     if (unreadable > 0)
     {
         printf("Error: %d scene(s) could not be loaded (listed above).\n", unreadable);
@@ -1759,9 +1737,10 @@ nlohmann::json MetaToJson(const Deki::ComponentMeta& meta, const nlohmann::json&
     return j;
 }
 
-/// package.cmake's PACKAGE_TARGET for every directory under <project>/packages,
-/// keyed by target: the loaded DLL is lib<target>.dll, and the target need not
-/// equal the package id (deki-esp32-integration builds deki-esp32-hal).
+/// Maps each package's build target (PACKAGE_TARGET in package.cmake) to its
+/// directory under <project>/packages. The loaded DLL is lib<target>.dll, and
+/// the target need not equal the package id (deki-esp32-integration builds
+/// deki-esp32-hal).
 std::unordered_map<std::string, std::string> PackageIdsByTarget(const std::string& projectPath)
 {
     std::unordered_map<std::string, std::string> byTarget;
@@ -1822,9 +1801,8 @@ void SortByName(nlohmann::json& arr)
 // Scripting
 // ===========================================================================
 //
-// These run the registry the MCP server exposes. Building it here rather than
-// keeping a second, CLI-only set of operations is the point: a tool gained by
-// one interface is gained by both, and they cannot drift.
+// These run the same tool registry the MCP server exposes, so a tool added to
+// one interface is in both and they cannot drift.
 
 namespace
 {
@@ -1875,7 +1853,6 @@ ToolCall LiveToolCall(const LiveSession::Info& session)
     { return LiveSession::CallTool(session, name, args, result, error); };
 }
 
-/// Run one tool, printing what it returned.
 bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::json& args, std::string& outError)
 {
     nlohmann::json result;
@@ -1959,9 +1936,8 @@ int RunScriptWith(const ToolCall& call, const char* scriptPath)
         std::string error;
         if (!RunOneTool(call, name, args, error))
         {
-            // Stopping here rather than carrying on: a later step almost
-            // always depends on what this one was to produce, and a cascade of
-            // failures hides which one actually broke.
+            // Stop at the first failure: later steps almost always depend on
+            // this one, and a cascade of failures hides which one broke.
             printf("Error: step %d (%s) failed: %s\n", stepNumber, name.c_str(), error.c_str());
             return 1;
         }
@@ -2002,9 +1978,9 @@ bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
     {
         return false;
     }
-    // Only a line of tool verbs runs in the live editor; anything else on it
-    // (an export, a build) would be dropped there. Such a line boots, and the
-    // project lock says the editor has it open.
+    // Only a command line of tool verbs runs in the live editor, which would
+    // drop anything else (an export, a build). A line with other verbs boots
+    // here instead, and the project lock reports that the editor has it open.
     CliOptions rest = cli;
     rest.listTools = false;
     rest.toolName = nullptr;
@@ -2043,9 +2019,9 @@ bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
     return true;
 }
 
-// The project's own targets, which is what "every target" means: the registry
-// also holds built-ins and whatever board packs are installed, and building
-// those would be building someone else's hardware.
+// The project's own targets, which is what "every target" means. The registry
+// also holds built-in platforms and those of installed board packages, which
+// are not this project's hardware.
 static std::vector<std::string> ProjectOwnPlatforms(const std::string& projectPath)
 {
     std::vector<std::string> ids;
@@ -2066,13 +2042,12 @@ static std::vector<std::string> ProjectOwnPlatforms(const std::string& projectPa
     return ids;
 }
 
-// Build every target the project declares, not just one.
+// Builds every target the project declares, not just one.
 //
-// Nothing else does this, and that is why a desktop package sat inside a
-// firmware configuration undetected until the first time anyone built it: the
-// desktop build runs constantly and catches its own direction, while the other
-// direction had no build to catch it. Per-target stripping, capabilities and
-// per-target content are all only as correct as the last run of this.
+// The desktop build runs all the time, but a firmware target is built only
+// on request, so a mistake such as a desktop-only package in a firmware
+// configuration shows up only here. Per-target stripping, capabilities and
+// content are only as correct as the last run of this.
 int CmdBuildAllTargets(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--build-all-targets");
@@ -2088,7 +2063,7 @@ int CmdBuildAllTargets(EditorApp& editor)
         return 0;
     }
 
-    // Cheap first: a conflict is answerable without spending a build on it.
+    // Check content conflicts first: they need no build to find.
     int blocked = 0;
     for (const auto& t : targets)
     {
@@ -2115,9 +2090,9 @@ int CmdBuildAllTargets(EditorApp& editor)
     {
         printf("=== %s ===\n", t.c_str());
         fflush(stdout);
-        // The editor is passed, not omitted: the asset export needs it, and
-        // that is where the per-target boot scene and screen geometry are
-        // decided. Without it each target would be built from the same assets.
+        // The asset export needs the editor: it decides each target's boot
+        // scene and screen geometry. Without it every target would get the
+        // same assets.
         const FirmwareOpResult r = FirmwareBuildService::Build(project->GetPath(), t, nullptr, &editor);
         if (r.success)
         {
@@ -2135,9 +2110,9 @@ int CmdBuildAllTargets(EditorApp& editor)
     return failed == 0 ? 0 : 1;
 }
 
-// Which packages build for which of the project's targets, and why not where
-// not. The question a person actually has when one project serves a desktop and
-// a board, and the thing a link error answers far too late.
+// Prints which packages build for which of the project's targets, and why not
+// where they do not, so a project serving a desktop and a board learns it
+// before a link error.
 int CmdPlatformCompat(EditorApp& editor)
 {
     Project* project = ProjectOf(editor, "--platform-compat");
@@ -2195,7 +2170,8 @@ int CmdPlatformCompat(EditorApp& editor)
         printf("\n");
     }
 
-    // The exclusions above are normal. This is the part that is not.
+    // A package left out of a target is normal. A target whose content needs
+    // a package it leaves out is not.
     int problems = 0;
     for (const auto& t : targets)
     {
@@ -2227,15 +2203,15 @@ int CmdStripPlan(EditorApp& editor, const char* platformId)
         return 1;
     }
 
-    // A plan is per target: another platform's boot scene says nothing about
-    // this one. Defaults to the active platform; "all" asks for the pooled view.
+    // A plan is per target, since another platform's boot scene says nothing
+    // about this one. Defaults to the active platform; "all" pools them.
     std::string target = platformId ? platformId : project->GetActivePlatformId();
     if (target == "all")
     {
         target.clear();
     }
-    // A mistyped platform used to print a plan for a platform with no boot
-    // scene and no capabilities, and exit 0; export and build refuse it.
+    // An unknown platform is an error, as in export and build; otherwise a
+    // typo would print a plan for a platform with no boot scene.
     if (!target.empty() && !PlatformRegistry::Instance().GetPlatform(target))
     {
         printf("Error: no platform '%s' in this project (--list-platforms shows them)\n", target.c_str());

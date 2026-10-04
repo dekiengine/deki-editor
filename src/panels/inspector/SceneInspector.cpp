@@ -49,12 +49,12 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
     int bufW = 0, bufH = 0;
     DekiEditor::ActivePlatformScreen(m_App ? m_App->GetProject() : nullptr, bufW, bufH);
 
-    // Render preview if asset changed
+    // Render again only when the asset changed.
     if (assetPath != m_PreviewScenePath)
     {
         m_PreviewScenePath = assetPath;
 
-        // Ensure camera exists (rendering package must be loaded)
+        // The preview camera needs the rendering package loaded.
         if (!m_Camera)
         {
             if (!Deki::ComponentRegistry::Instance().GetMetaByClassName("CameraComponent"))
@@ -70,7 +70,6 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
             }
         }
 
-        // Initialize/resize renderer
         if (!m_Renderer)
         {
             m_Renderer = std::make_unique<EditModeRenderer>();
@@ -81,15 +80,15 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
             m_Renderer->Initialize(bufW, bufH);
         }
 
-        // Load scene temporarily and render
+        // Load a temporary copy of the scene and render it.
         Deki::Scene scene;
         if (scene.LoadFromFile(assetPath))
         {
-            // Resolve AssetRefs so sprite frame data gets populated
+            // Resolve AssetRefs so sprite frame data is filled in.
             Deki::LifecycleManager lifecycle;
             lifecycle.ProcessInternalAwake(&scene);
 
-            // Use camera from the scene if available, else our preview camera
+            // The scene's own camera if it has one, else the preview camera.
             Deki::ICamera* cam = nullptr;
             std::function<Deki::ICamera*(Deki::Object*)> findCamera = [&](Deki::Object* obj) -> Deki::ICamera*
             {
@@ -137,19 +136,18 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
         }
     }
 
-    // Display preview
     if (m_Renderer && m_Renderer->GetTextureId() != 0)
     {
-        // The panel has no window padding, so the region runs to its right
-        // edge: keep the same inset on the right as the indent on the left,
-        // or the preview touched (and with a scrollbar, ran under) the edge.
+        // The panel has no window padding, so keep the same inset on the right
+        // as on the left; otherwise the preview touches the edge, or runs
+        // under a scrollbar.
         const float inset = ImGui::GetCursorScreenPos().x - ImGui::GetWindowPos().x;
         float availWidth = std::max(1.0f, ImGui::GetContentRegionAvail().x - inset);
         float fullAspect = static_cast<float>(bufH) / static_cast<float>(bufW);
         float displayWidth = availWidth;
         float displayHeight = displayWidth * fullAspect * 0.7f;
 
-        // Crop UVs to show center portion (not stretched)
+        // Show the middle 70% of the render, cropped rather than stretched.
         float uvCrop = (1.0f - 0.7f) * 0.5f;
 
         float cursorX = (availWidth - displayWidth) / 2.0f;

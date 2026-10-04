@@ -23,9 +23,9 @@ namespace DekiEditor
 
 namespace
 {
-// Installed-version tracking. We record the version a component was installed at
+// Installed-version tracking. The version a component was installed at is kept
 // in a small marker file under <toolchains>/.versions/<id>, so update checks can
-// compare it against the latest available release.
+// compare it with the latest release.
 std::string Trim(std::string s)
 {
     auto notSpace = [](unsigned char c) { return !std::isspace(c); };
@@ -108,7 +108,6 @@ std::string ToolchainComponentManager::ResolvePath(const std::string& tmpl, cons
 {
     std::string result = tmpl;
 
-    // Replace {installPath} with the component's install path
     std::string placeholder = "{installPath}";
     size_t pos = result.find(placeholder);
     if (pos != std::string::npos)
@@ -121,11 +120,10 @@ std::string ToolchainComponentManager::ResolvePath(const std::string& tmpl, cons
 
 bool ToolchainComponentManager::MatchesGlob(const std::string& resolvedPath) const
 {
-    // Check if path contains a * wildcard
     size_t starPos = resolvedPath.find('*');
     if (starPos == std::string::npos)
     {
-        // No wildcard, direct check
+        // No wildcard: check the path itself.
         std::string fullPath = m_ToolchainsDir + "/" + resolvedPath;
         return fs::exists(fullPath);
     }
@@ -136,7 +134,6 @@ bool ToolchainComponentManager::MatchesGlob(const std::string& resolvedPath) con
 
     std::string parentDir = m_ToolchainsDir + "/" + prefix;
 
-    // Remove trailing slash from parent if present
     if (!parentDir.empty() && (parentDir.back() == '/' || parentDir.back() == '\\'))
     {
         parentDir.pop_back();
@@ -153,7 +150,6 @@ bool ToolchainComponentManager::MatchesGlob(const std::string& resolvedPath) con
         for (const auto& entry : fs::directory_iterator(parentDir))
         {
             std::string candidate = entry.path().string() + suffix;
-            // Normalize slashes
             std::replace(candidate.begin(), candidate.end(), '\\', '/');
             if (fs::exists(candidate))
             {
@@ -192,8 +188,6 @@ bool ToolchainComponentManager::EvaluateDetection(const ComponentDef& comp) cons
 
         std::string resolved = ResolvePath(pathPattern, comp);
 
-        // Check for directory_exists (paths ending without an extension typically)
-        // or file_exists (with extension)
         if (MatchesGlob(resolved))
         {
             return true;
@@ -221,16 +215,14 @@ std::vector<ToolchainComponent> ToolchainComponentManager::GetComponents() const
         comp.setupDone = compDef.canSetup ? EditorSettings::GetBool("setup." + compDef.id, false) : false;
         comp.tooltip = compDef.tooltip;
 
-        // Check if installed
         bool installed = EvaluateDetection(compDef);
         comp.status = installed ? ToolchainComponentStatus::Installed : ToolchainComponentStatus::NotInstalled;
 
         // The pinned version is what an install puts down, so it is what the
-        // backend was written against. An install of another version - left
-        // behind when a package moved its pin - is out of date, and says so
-        // without a network check. Only "Check for Updates" could flag it
-        // before, by comparing against the newest release, which is not the
-        // same question.
+        // backend was written against. An install of another version (left
+        // behind when a package moved its pin) is out of date, and is shown so
+        // without a network check. "Check for Updates" answers a different
+        // question: whether a newer release exists.
         const std::string installedVer = installed ? ReadInstalledVersion(m_ToolchainsDir, compDef.id) : std::string();
         if (!installedVer.empty())
         {
@@ -284,7 +276,6 @@ void ToolchainComponentManager::InstallComponent(const std::string& componentId,
         return;
     }
 
-    // Find component definition
     const ComponentDef* compDef = nullptr;
     for (const auto& c : m_Definition.components)
     {
@@ -314,7 +305,6 @@ void ToolchainComponentManager::InstallComponent(const std::string& componentId,
 
     m_IsBusy = true;
 
-    // Copy the component def for the thread
     ComponentDef def = *compDef;
 
     m_WorkerThread = std::thread(
@@ -362,11 +352,10 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     };
 
     // Always the pinned archive from the builder definition, whose SHA-256 is
-    // pinned beside it. The release fetched by CheckForUpdates is shown as
-    // "newer available" in the UI and nothing more: a URL chosen by a
-    // response from the network has no hash to verify against, and what is
-    // downloaded here is executed as a build toolchain. Newer toolchain
-    // versions arrive with editor releases that move the pin.
+    // pinned beside it. The release CheckForUpdates finds is only shown as
+    // "newer available" in the UI: a URL picked by a network response has no
+    // hash to verify, and what is downloaded here runs as a build toolchain.
+    // Newer toolchain versions come with editor releases that move the pin.
     const std::string url = comp.fallback.url;
     const std::string installVersion = comp.fallback.version;
 
@@ -391,8 +380,8 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     status("URL: " + url);
     status("Saving to: " + zipPath);
 
-    // Download and verify. The archive becomes a compiler the build runs, so a
-    // download nobody checked trusts both the transport and the mirror. A
+    // Download and verify. The archive becomes a compiler the build runs, so
+    // an unchecked download would trust both the transport and the mirror. A
     // mismatch deletes the file and fails the install rather than warning.
     bool downloaded = EditorHttpUtils::DownloadFileVerified(url, zipPath, comp.sha256, nullptr, status);
     if (!downloaded)
@@ -409,7 +398,6 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
         return;
     }
 
-    // Extract
     std::string extractDir = destDir;
     if (!comp.extractedName.empty())
     {
@@ -437,7 +425,6 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     status("Extracting " + comp.displayName + " to " + extractDir + "...");
     bool extracted = EditorHttpUtils::ExtractZip(zipPath, extractDir, status);
 
-    // Clean up zip
     try
     {
         fs::remove(zipPath);
@@ -447,13 +434,13 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     }
     status("Cleaned up temporary archive");
 
-    // Rename extracted folder to target path if needed
+    // Move the extracted folder to the target path if needed.
     // An archive that wraps everything in one directory leaves the real root a
-    // level below where the component says it is, and the failure surfaces much
-    // later as a missing tool. `extractedName` handles that when it is declared,
-    // but it has to name the folder, which for ESP-IDF carries the version, so a
-    // version bump silently breaks it. Hoisting a lone directory needs nothing
-    // declared and cannot go stale.
+    // level below where the component says it is, and the failure shows up much
+    // later as a missing tool. `extractedName` handles that when declared, but
+    // it must name the folder, which for ESP-IDF includes the version, so a
+    // version bump breaks it. Moving a lone directory up needs nothing declared
+    // and cannot go stale.
     if (extracted && comp.extractedName.empty())
     {
         try
@@ -501,9 +488,9 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
             status("Rename warning: " + std::string(e.what()));
         }
     }
-    // Auto-flatten: if extractedName is empty and destDir contains exactly one subfolder
-    // (common with zips that have a root folder), move its contents up.
-    // Skip if detection uses a wildcard - that means it expects the nested structure.
+    // Flatten: if extractedName is empty and destDir holds exactly one
+    // subfolder (common with zips that have a root folder), move its contents
+    // up. Not when detection uses a wildcard, which expects the nesting.
     else if (extracted && comp.extractedName.empty())
     {
         bool detectionUsesGlob = false;
@@ -556,11 +543,11 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
 
     if (extracted)
     {
-        // Record the installed version so "Check for Updates" can compare it to the
-        // latest release and flag outdated components.
+        // Record the installed version so "Check for Updates" can compare it with
+        // the latest release and flag outdated components.
         WriteInstalledVersion(m_ToolchainsDir, comp.id, installVersion);
-        // These files are new; whatever setup ran was for the ones they
-        // replaced. (The post-install step runs right after this anyway.)
+        // These files are new; any earlier setup was for the ones they replaced.
+        // The post-install step runs right after this.
         EditorSettings::SetBool("setup." + comp.id, false);
         {
             std::lock_guard<std::mutex> lock(m_VersionMutex);
@@ -718,7 +705,6 @@ void ToolchainComponentManager::SetupComponent(const std::string& componentId, B
         return;
     }
 
-    // Find component definition
     const ComponentDef* compDef = nullptr;
     for (const auto& c : m_Definition.components)
     {
@@ -794,7 +780,6 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
         return;
     }
 
-    // Replace {installPath}
     std::string resolved = ResolvePath(postInstallTemplate, comp);
 
     // Split into command path and arguments at the first space after the file extension
@@ -880,14 +865,12 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
 
     // set "MSYSTEM=" && call "script.bat" args
     //
-    // MSYSTEM cleared for the child. It is inherited from every MSYS2 or Git
-    // Bash session - the shell this editor's own compiler lives in - and a
+    // MSYSTEM must be cleared for the child. It is inherited from any MSYS2 or
+    // Git Bash session (the shell this editor's own compiler lives in), and a
     // batch script may take it to mean it is not running under cmd.exe. The
-    // ESP-IDF installer does exactly that: `if defined MSYSTEM goto :__end`,
-    // which EXITS 0 having installed nothing, so setup reported "complete" and
-    // left a new SDK with no compilers. The child is cmd.exe; only the
-    // inherited variable said otherwise. (The ESP32 backend clears it the same
-    // way for export.bat.)
+    // ESP-IDF installer does: `if defined MSYSTEM goto :__end` exits 0 having
+    // installed nothing, leaving a new SDK with no compilers. The ESP32 backend
+    // clears it the same way for export.bat.
     std::string cmdLine = "set \"MSYSTEM=\" && call \"" + fullCommand + "\"";
 #else
     std::string cmdLine = "\"" + fullCommand + "\"";
@@ -981,19 +964,19 @@ void ToolchainComponentManager::CheckForUpdates(std::function<void()> onComplete
                     latest = comp.versionCheck.version;
                 }
 
-                // 2. Compare against the version recorded when this component was
-                //    installed. An update is available only if it's installed, we know
-                //    both versions, and they differ.
+                // 2. Compare with the version recorded when this component was
+                //    installed. An update is available only if it is installed,
+                //    both versions are known, and they differ.
                 const bool installed = EvaluateDetection(comp);
                 const std::string installedVer =
                     installed ? ReadInstalledVersion(m_ToolchainsDir, comp.id) : std::string();
-                // Only flag an update from a real fetched version (so a failed network
-                // fetch doesn't produce a false "update available").
+                // Only a version actually fetched can flag an update, so a failed
+                // fetch does not show a false "update available".
                 const bool update = installed && !installedVer.empty() && !latest.empty() &&
                                     NormalizeVersion(installedVer) != NormalizeVersion(latest);
 
-                // For display, fall back to the definition's version when we couldn't
-                // fetch a latest (no version check, or the fetch failed).
+                // For display, the definition's version when no latest could be
+                // fetched (no version check, or the fetch failed).
                 const std::string displayLatest = !latest.empty() ? latest : comp.fallback.version;
 
                 // 3. Update the cache.

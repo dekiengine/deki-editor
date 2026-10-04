@@ -31,21 +31,20 @@ namespace
 
 SDL_Window* g_Window = nullptr;
 
-// One dialog at a time, identified rather than merely flagged. A bare
-// boolean could never be cleared if the platform's dialog helper died without
-// answering -- kill the helper on Linux and SDL never calls back, which used
-// to leave the editor unable to open any dialog again until restart. With an
-// id, a newer request supersedes the older one, so the next attempt always
-// works, and a late answer from a superseded request is dropped instead of
-// being handed to a call site that has moved on.
+// One dialog at a time, tracked by id rather than a flag. The platform's
+// dialog helper can die without answering (kill it on Linux and SDL never
+// calls back), and a flag would then never clear. With an id, a newer request
+// replaces the older one, so the next attempt always works, and a late answer
+// to a replaced request is dropped instead of reaching a call site that has
+// moved on.
 //
 // 0 means nothing is in flight.
 std::atomic<uint64_t> g_ActiveId{ 0 };
 uint64_t g_NextId = 1;
 
-// A finished dialog parks its answer here. On Linux the SDL callback runs on
-// whichever thread pumps SDL events -- the main thread today, but the mutex
-// costs nothing and removes the assumption.
+// A finished dialog leaves its answer here. On Linux the SDL callback runs on
+// whichever thread pumps SDL events. That is the main thread, but the mutex
+// costs nothing and does not depend on it.
 std::mutex g_ResultMutex;
 ResultCallback g_Callback;
 std::string g_ResultPath;
@@ -89,8 +88,8 @@ std::string WithDefaultExtension(const std::string& path, const char* defaultExt
 
 #ifdef _WIN32
 
-// The wide (UTF-16) shell APIs are used so non-ASCII paths round-trip; the
-// ANSI ones mangled anything outside the system code page.
+// Uses the wide (UTF-16) shell APIs so non-ASCII paths survive; the ANSI ones
+// mangle anything outside the system code page.
 std::wstring ToWide(const char* utf8, int len)
 {
     if (!utf8 || len <= 0)
@@ -127,8 +126,6 @@ std::string ToUtf8(const wchar_t* wide)
     return s;
 }
 
-// A filter is a run of NUL-separated strings ended by a double NUL; the whole
-// run, both terminators included, is converted so the embedded NULs survive.
 // The dialog's owner, so it is modal to the editor and opens over it rather
 // than wherever the shell last put one.
 HWND OwnerWindow()
@@ -202,6 +199,8 @@ std::string PickFolderWin32(const char* title, const char* defaultPath)
     return chosen;
 }
 
+// A filter is a run of NUL-separated strings ended by a double NUL; the whole
+// run, both terminators included, is converted so the embedded NULs survive.
 std::wstring WideFilter(const char* filter)
 {
     if (!filter || filter[0] == '\0')
@@ -221,8 +220,8 @@ std::wstring WideFilter(const char* filter)
 // SDL hands back a null-terminated list of paths, or null on error. We only
 // ever ask for one, so the first entry is the answer.
 //
-// userdata is the request id, not a pointer: passing one into g_PendingSaveExt
-// would have left SDL holding a buffer that a later request rewrites.
+// userdata is the request id, not a pointer: a pointer into g_PendingSaveExt
+// would leave SDL holding a buffer that a later request rewrites.
 void SDLCALL DialogCallback(void* userdata, const char* const* filelist, int /*filter*/)
 {
     const uint64_t id = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(userdata));
@@ -265,10 +264,10 @@ std::vector<SDL_DialogFileFilter> BuildSdlFilters(const std::vector<DialogFilter
 
 #endif
 
-// Shared front half of every request: take an id, remember the handler, and
-// mark it in flight. Returns 0 only for a missing handler; a request made
-// while another is outstanding supersedes it rather than being refused, which
-// is what makes a dialog whose helper died recoverable.
+// The start of every request: takes an id, keeps the handler, and marks it in
+// flight. Returns 0 only for a missing handler. A request made while another
+// is outstanding replaces it rather than being refused, so a dialog whose
+// helper died does not block later ones.
 uint64_t BeginRequest(ResultCallback onResult, const char* defaultExt)
 {
     if (!onResult)
@@ -407,10 +406,10 @@ void PumpResults()
         g_ResultPath.clear();
         g_HaveResult = false;
 
-        // Retired under the same lock that took the answer, so a late callback
-        // for this id cannot post a second result into the slot we just
-        // emptied. Cleared before the handler runs, too, so a handler that
-        // opens another dialog (Save As after a failed write) starts clean.
+        // Cleared under the same lock that took the answer, so a late callback
+        // for this id cannot post a second result into the emptied slot. And
+        // before the handler runs, so a handler that opens another dialog
+        // (Save As after a failed write) starts clean.
         g_ActiveId.store(0);
     }
 

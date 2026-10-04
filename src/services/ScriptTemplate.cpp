@@ -15,7 +15,7 @@ bool CreateBehaviourScript(const std::string& directory, const std::string& name
     const std::string headerPath = (fs::path(directory) / (name + ".h")).string();
     const std::string sourcePath = (fs::path(directory) / (name + ".cpp")).string();
 
-    // Never overwrite
+    // Never overwrite.
     std::error_code ec;
     if (fs::exists(headerPath, ec) || fs::exists(sourcePath, ec))
     {

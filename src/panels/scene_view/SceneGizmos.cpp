@@ -23,12 +23,11 @@
 namespace DekiEditor
 {
 
-// Helper to find width/height properties via reflection for generic resize support.
-// Returns true if the component has both float width and height properties.
-// Resolve the first resizable component's size in world meters. When a field is
-// 0 (= "native size", e.g. a Sprite using its texture dimensions), fall back to
-// the custom editor's display size (which is in pixels) converted to meters so
-// the handles still wrap the rendered bounds.
+// The size, in world meters, of the object's first component with float width
+// and height properties. Returns false when there is none. A field that is 0
+// means "native size" (a Sprite using its texture's size, say); then the
+// custom editor's display size in pixels is converted to meters, so the
+// handles still wrap what is drawn.
 static bool GetResizeSizeMeters(Deki::Object* obj, float ppm, float& outWidthMeters, float& outHeightMeters)
 {
     auto& registry = Deki::ComponentRegistry::Instance();
@@ -151,7 +150,6 @@ void SceneGizmos::DrawComponentOutlines(ImDrawList* drawList, Deki::Scene* scene
 void SceneGizmos::DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, Deki::ICamera* camera, int bufferWidth,
                                       int bufferHeight, ImVec2 bufferCanvasTopLeft)
 {
-    // Get display size for this object
     float displayW = 0, displayH = 0;
     if (!m_Measurer->GetDisplaySize(obj, displayW, displayH))
     {
@@ -165,14 +163,13 @@ void SceneGizmos::DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, D
 
     float zoom = m_Coords->GetEffectiveZoom();
 
-    // Round display dimensions to nearest integer - they represent pixel dimensions
-    // but GetDisplaySize computes them via UV math ((u1-u0)*texWidth) which can
-    // produce values like 31.9999 due to float precision, causing a 1px error
+    // Rounded: these are pixel sizes, but GetDisplaySize computes them with UV
+    // math ((u1-u0)*texWidth), which can give 31.9999 and a 1px error.
     int intDisplayW = static_cast<int>(std::round(displayW));
     int intDisplayH = static_cast<int>(std::round(displayH));
 
-    // Scaled dimensions in buffer space (before editor zoom)
-    // Use rounded integer base dimensions to match engine's exact integer math
+    // Scaled size in buffer pixels, before the editor zoom, from the rounded
+    // size so it matches the engine's integer math.
     int scaledW = static_cast<int>(intDisplayW * obj->GetWorldScaleX());
     int scaledH = static_cast<int>(intDisplayH * obj->GetWorldScaleY());
 
@@ -180,20 +177,18 @@ void SceneGizmos::DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, D
 
     if (std::abs(obj->GetWorldRotation()) < 0.01f)
     {
-        // Non-rotated: use ICamera::WorldToScreen (same as QuadBlit)
-        // This is the EXACT same code path the engine uses for rendering
+        // Not rotated: ICamera::WorldToScreen, the same path QuadBlit uses to
+        // render.
         float fBufferX, fBufferY;
         camera->WorldToScreen(obj->GetWorldX(), obj->GetWorldY(), bufferWidth, bufferHeight, fBufferX, fBufferY);
         int32_t bufferX = static_cast<int32_t>(std::floor(fBufferX));
         int32_t bufferY = static_cast<int32_t>(std::floor(fBufferY));
 
-        // Apply QuadBlit's pivot math: destX = screenX - floor(destWidth * pivotX)
+        // QuadBlit's pivot math: destX = screenX - floor(destWidth * pivotX).
         int destX = bufferX - static_cast<int>(std::floor(scaledW * 0.5f));
         int destY = bufferY - static_cast<int>(std::floor(scaledH * 0.5f));
 
-        // Transform from buffer coordinates to canvas coordinates
-        // Buffer pixel (0,0) is at bufferCanvasTopLeft on the canvas
-        // Buffer pixel (x,y) is at bufferCanvasTopLeft + (x,y) * zoom
+        // Buffer pixel (x,y) is at bufferCanvasTopLeft + (x,y) * zoom on the canvas.
         float canvasDestX = bufferCanvasTopLeft.x + destX * zoom;
         float canvasDestY = bufferCanvasTopLeft.y + destY * zoom;
         float canvasW = scaledW * zoom;
@@ -204,12 +199,12 @@ void SceneGizmos::DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, D
     }
     else
     {
-        // Rotated: use editor's WorldToScreen for simplicity (rotation is complex)
+        // Rotated: the editor's WorldToScreen, which is close enough here.
         ImVec2 center = m_Coords->WorldToScreen(obj->GetWorldX(), obj->GetWorldY());
-        float scaledHalfW = displayW * obj->GetWorldScaleX() * 0.5f * zoom;  // zoom is effectiveZoom (includes DPI)
+        float scaledHalfW = displayW * obj->GetWorldScaleX() * 0.5f * zoom;  // zoom includes DPI
         float scaledHalfH = displayH * obj->GetWorldScaleY() * 0.5f * zoom;
 
-        // world rotation is in radians (engine convention).
+        // World rotation is in radians.
         float rotRad = obj->GetWorldRotation();
         float cosR = std::cos(rotRad);
         float sinR = std::sin(rotRad);
@@ -225,9 +220,9 @@ void SceneGizmos::DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, D
         p3 = getSpriteCorner(+scaledHalfW, +scaledHalfH);
     }
 
-    // Draw selection rectangle (same style as SpritesheetEditorWindow frame rects).
-    // Selection uses the theme accent; a clip region keeps its own warning-red so
-    // the two stay tellable apart at a glance.
+    // The selection rectangle, styled like SpritesheetEditorWindow's frame
+    // rects. It uses the theme accent; a clip region is red, so the two are
+    // easy to tell apart.
     bool isClip = obj->FindInterface<Deki::IClipProvider>() != nullptr;
     ImU32 boundsColor = isClip ? ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Red)
                                : ImGui::ColorConvertFloat4ToU32(DekiEditor::Palette::Accent);
@@ -241,7 +236,7 @@ void SceneGizmos::UpdateTranslateHover(Deki::Object* obj, ImVec2 mousePos)
 
     m_HoveredAxis = GizmoAxis::None;
 
-    // Check XY square first (priority) - Y axis points up (negative screen Y)
+    // The XY square first. Y points up, which is negative screen Y.
     float squareSize = 24.0f;
     ImVec2 sqMin(center.x + 8, center.y - squareSize - 8);
     ImVec2 sqMax(center.x + squareSize + 8, center.y - 8);
@@ -249,14 +244,14 @@ void SceneGizmos::UpdateTranslateHover(Deki::Object* obj, ImVec2 mousePos)
     {
         m_HoveredAxis = GizmoAxis::XY;
     }
-    // Check X axis (right)
+    // X axis (right).
     else if (mousePos.x >= center.x && mousePos.x <= center.x + SceneViewConstants::kGizmoLength + 13 &&
              mousePos.y >= center.y - SceneViewConstants::kGizmoHitThickness &&
              mousePos.y <= center.y + SceneViewConstants::kGizmoHitThickness)
     {
         m_HoveredAxis = GizmoAxis::X;
     }
-    // Check Y axis (up in screen coordinates = negative Y)
+    // Y axis (up).
     else if (mousePos.x >= center.x - SceneViewConstants::kGizmoHitThickness &&
              mousePos.x <= center.x + SceneViewConstants::kGizmoHitThickness && mousePos.y <= center.y &&
              mousePos.y >= center.y - SceneViewConstants::kGizmoLength - 13)
@@ -269,7 +264,6 @@ void SceneGizmos::DrawTranslateGizmo(ImDrawList* drawList, Deki::Object* obj)
 {
     ImVec2 center = m_Coords->WorldToScreen(obj->GetWorldX(), obj->GetWorldY());
 
-    // Gizmo colors
     ImU32 xColor = (m_HoveredAxis == GizmoAxis::X || m_DraggingAxis == GizmoAxis::X) ? IM_COL32(255, 100, 100, 255)
                                                                                      : IM_COL32(255, 50, 50, 255);
     ImU32 yColor = (m_HoveredAxis == GizmoAxis::Y || m_DraggingAxis == GizmoAxis::Y) ? IM_COL32(100, 255, 100, 255)
@@ -288,7 +282,7 @@ void SceneGizmos::DrawTranslateGizmo(ImDrawList* drawList, Deki::Object* obj)
                                 ImVec2(xEnd.x - arrowSize * 0.5f, xEnd.y - arrowSize * 0.5f),
                                 ImVec2(xEnd.x - arrowSize * 0.5f, xEnd.y + arrowSize * 0.5f), xColor);
 
-    // Y axis (up, green) - green arrow points up in screen space
+    // Y axis (up, green)
     ImVec2 yEnd(center.x, center.y - SceneViewConstants::kGizmoLength);
     drawList->AddLine(center, yEnd, yColor, SceneViewConstants::kGizmoThickness);
     // Y arrow head (pointing up)
@@ -296,7 +290,7 @@ void SceneGizmos::DrawTranslateGizmo(ImDrawList* drawList, Deki::Object* obj)
                                 ImVec2(yEnd.x - arrowSize * 0.5f, yEnd.y + arrowSize * 0.5f),
                                 ImVec2(yEnd.x + arrowSize * 0.5f, yEnd.y + arrowSize * 0.5f), yColor);
 
-    // XY square (for free movement) - in upper-right quadrant
+    // XY square for free movement, in the upper-right quadrant
     ImVec2 sqMin(center.x + 8, center.y - squareSize - 8);
     ImVec2 sqMax(center.x + squareSize + 8, center.y - 8);
     drawList->AddRectFilled(sqMin, sqMax, xyColor);
@@ -305,7 +299,6 @@ void SceneGizmos::DrawTranslateGizmo(ImDrawList* drawList, Deki::Object* obj)
 
 void SceneGizmos::UpdateResizeHover(Deki::Object* obj)
 {
-    // Don't update hover while dragging
     if (m_DraggingEdge != ResizeEdge::None)
     {
         return;
@@ -313,8 +306,7 @@ void SceneGizmos::UpdateResizeHover(Deki::Object* obj)
 
     const float ppm = m_Coords->GetPixelsPerMeter();
 
-    // Find a resizable component's size (world meters), then convert to screen
-    // pixels for hit testing: screen px = meters * ppm.
+    // The resizable size in world meters; pixels = meters * ppm.
     float widthMeters = 0.0f, heightMeters = 0.0f;
     if (!GetResizeSizeMeters(obj, ppm, widthMeters, heightMeters))
     {
@@ -334,11 +326,9 @@ void SceneGizmos::UpdateResizeHover(Deki::Object* obj)
     ImVec2 center = m_Coords->WorldToScreen(obj->GetWorldX(), obj->GetWorldY());
     float zoom = m_Coords->GetEffectiveZoom();
 
-    // Calculate screen-space half dimensions
     float halfW = displayW * obj->GetWorldScaleX() * 0.5f * zoom;
     float halfH = displayH * obj->GetWorldScaleY() * 0.5f * zoom;
 
-    // Edge midpoints
     ImVec2 topMid(center.x, center.y - halfH);
     ImVec2 bottomMid(center.x, center.y + halfH);
     ImVec2 leftMid(center.x - halfW, center.y);
@@ -394,7 +384,6 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
         return false;
     }
 
-    // Find the resizable component
     Deki::Component* resizableComp = nullptr;
     float* resizableWidthPtr = nullptr;
     float* resizableHeightPtr = nullptr;
@@ -429,27 +418,25 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
 
     if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
     {
-        // Screen-pixel delta of the dragged edge, converted to a change in the
-        // component's local size in world meters: screen = meters * ppm * scale * zoom.
+        // The dragged edge's screen delta as a change in the component's size
+        // in meters: screen = meters * ppm * scale * zoom.
         const float denomX = ppm * scaleX * zoom;
         const float denomY = ppm * scaleY * zoom;
         float deltaX = (denomX != 0.0f) ? (mousePos.x - m_ResizeStartX) / denomX : 0.0f;
         float deltaY = (denomY != 0.0f) ? (mousePos.y - m_ResizeStartY) / denomY : 0.0f;
 
-        // Moving a single anchored edge shifts the center by half the size
-        // change, in world meters: worldOffset = sizeDeltaMeters * scale * 0.5.
+        // Moving one edge with the other anchored shifts the centre by half
+        // the size change: worldOffset = sizeDeltaMeters * scale * 0.5.
         const float worldPerWidth = scaleX * 0.5f;
         const float worldPerHeight = scaleY * 0.5f;
 
-        // Minimum size ~1px so the rect never collapses to zero/negative.
+        // At least about 1px, so the rect never reaches zero or below.
         const float minSize = (ppm > 0.0f) ? (1.0f / ppm) : 0.01f;
 
-        // Shift: temporarily resize symmetrically from the center (both edges
-        // move). The dragged edge still tracks the mouse exactly, which means
-        // the size delta is doubled (the opposite edge moves outward by the
-        // same amount the dragged edge does). Symmetric mode locks the center
-        // to the drag's start position, so toggling Shift mid-drag snaps the
-        // object back to where the resize began rather than the drifted spot.
+        // Shift resizes from the centre: both edges move. The dragged edge
+        // still follows the mouse, so the size change doubles. The centre stays
+        // at the drag's start position, so pressing Shift mid-drag puts the
+        // object back where the resize began.
         const bool symmetric = ImGui::GetIO().KeyShift;
         const float deltaScale = symmetric ? 2.0f : 1.0f;
         const bool anchorOpposite = anchorEdge && !symmetric;
@@ -510,10 +497,9 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             default: break;
         }
 
-        // Snap the dragged edge to device bounds when Ctrl is held. Snapping
-        // works in world meters; the current edge position and the returned
-        // snap delta are world meters, so convert the snap back to a local-size
-        // delta via 1/scale.
+        // Ctrl snaps the dragged edge to the device bounds. Snapping works in
+        // world meters, so the snap delta becomes a size change through
+        // 1/scale.
         if (ImGui::GetIO().KeyCtrl && m_Snapping)
         {
             m_Snapping->ClearSnapLines();
@@ -554,7 +540,7 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
                 }
                 case ResizeEdge::Bottom:
                 {
-                    // Bottom edge in world = objY - halfH (Y-up)
+                    // Bottom edge = objY - halfH (Y up)
                     float edgeY = newWorldY - halfWorldH;
                     float snap = m_Snapping->CalculateEdgeSnap(edgeY, SnapAxis::Horizontal);
                     if (snap != 0.0f)
@@ -569,7 +555,7 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
                 }
                 case ResizeEdge::Top:
                 {
-                    // Top edge in world = objY + halfH (Y-up)
+                    // Top edge = objY + halfH (Y up)
                     float edgeY = newWorldY + halfWorldH;
                     float snap = m_Snapping->CalculateEdgeSnap(edgeY, SnapAxis::Horizontal);
                     if (snap != 0.0f)
@@ -593,11 +579,11 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
         newWorldX = SnapMetersToPixel(newWorldX);
         newWorldY = SnapMetersToPixel(newWorldY);
         obj->SetWorldPosition(newWorldX, newWorldY);
-        return true;  // Still dragging
+        return true;  // still dragging
     }
     else
     {
-        // Mouse released - create undo command if size or position changed
+        // Released: one undo command if size or position changed.
         bool sizeChanged = (*resizableWidthPtr != m_ResizeStartWidth || *resizableHeightPtr != m_ResizeStartHeight);
         bool posChanged = (obj->GetWorldX() != m_ResizeStartObjX || obj->GetWorldY() != m_ResizeStartObjY);
 
@@ -608,15 +594,15 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             float finalObjX = obj->GetWorldX();
             float finalObjY = obj->GetWorldY();
 
-            // Restore the stored values before executing the command, so its
-            // undo returns to them (0 for a self-sizing component, not the
-            // measured size the drag started from).
+            // Restore the stored values before the command runs, so undo
+            // returns to them (0 for a self-sizing component, not the measured
+            // size the drag started from).
             *resizableWidthPtr = m_ResizeRestoreWidth;
             *resizableHeightPtr = m_ResizeRestoreHeight;
             obj->SetWorldPosition(m_ResizeStartObjX, m_ResizeStartObjY);
 
-            // One undo step for the whole drag: size and the position that
-            // keeps the opposite edge put used to be two.
+            // One undo step for the whole drag: the size and the position that
+            // keeps the opposite edge in place.
             std::vector<std::unique_ptr<Command>> steps;
             if (sizeChanged)
             {
@@ -641,7 +627,7 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             m_Snapping->ClearSnapLines();
         }
         m_DraggingEdge = ResizeEdge::None;
-        return false;  // Done dragging
+        return false;
     }
 }
 
@@ -649,8 +635,7 @@ void SceneGizmos::DrawResizeGizmo(ImDrawList* drawList, Deki::Object* obj, bool 
 {
     const float ppm = m_Coords->GetPixelsPerMeter();
 
-    // Resolve the resizable component's size (world meters) and convert to
-    // screen pixels for the handle geometry: screen px = meters * ppm.
+    // The resizable size in world meters; pixels = meters * ppm.
     float widthMeters = 0.0f, heightMeters = 0.0f;
     if (!GetResizeSizeMeters(obj, ppm, widthMeters, heightMeters))
     {
@@ -668,17 +653,15 @@ void SceneGizmos::DrawResizeGizmo(ImDrawList* drawList, Deki::Object* obj, bool 
     ImVec2 center = m_Coords->WorldToScreen(obj->GetWorldX(), obj->GetWorldY());
     float zoom = m_Coords->GetEffectiveZoom();
 
-    // Calculate screen-space half dimensions
     float halfW = displayW * obj->GetWorldScaleX() * 0.5f * zoom;
     float halfH = displayH * obj->GetWorldScaleY() * 0.5f * zoom;
 
-    // Edge midpoints (without rotation for simplicity)
+    // Edge midpoints, ignoring rotation.
     ImVec2 topMid(center.x, center.y - halfH);
     ImVec2 bottomMid(center.x, center.y + halfH);
     ImVec2 leftMid(center.x - halfW, center.y);
     ImVec2 rightMid(center.x + halfW, center.y);
 
-    // Colors for handles
     ImU32 defaultColor = IM_COL32(255, 255, 255, 200);
     ImU32 hoverColor = IM_COL32(100, 200, 255, 255);
     ImU32 dragColor = IM_COL32(255, 200, 100, 255);
@@ -698,13 +681,12 @@ void SceneGizmos::DrawResizeGizmo(ImDrawList* drawList, Deki::Object* obj, bool 
 
     float hs = SceneViewConstants::kResizeHandleSize * 0.5f;
 
-    // Draw bounding rect connecting the edges
     ImU32 lineColor = ImGui::ColorConvertFloat4ToU32(ImVec4(
         DekiEditor::Palette::Accent.x, DekiEditor::Palette::Accent.y, DekiEditor::Palette::Accent.z, 200.0f / 255.0f));
     drawList->AddRect(ImVec2(center.x - halfW, center.y - halfH), ImVec2(center.x + halfW, center.y + halfH), lineColor,
                       0.0f, 0, 1.0f);
 
-    // Draw edge handles as small rectangles
+    // Small square handles at the edge midpoints.
     // Top edge
     drawList->AddRectFilled(ImVec2(topMid.x - hs, topMid.y - hs), ImVec2(topMid.x + hs, topMid.y + hs),
                             getHandleColor(ResizeEdge::Top));
@@ -729,7 +711,6 @@ void SceneGizmos::DrawResizeGizmo(ImDrawList* drawList, Deki::Object* obj, bool 
     drawList->AddRect(ImVec2(rightMid.x - hs, rightMid.y - hs), ImVec2(rightMid.x + hs, rightMid.y + hs),
                       IM_COL32(0, 0, 0, 200), 0.0f, 0, 1.0f);
 
-    // Handle resize dragging
     HandleResizeDrag(obj, anchorEdge);
 }
 

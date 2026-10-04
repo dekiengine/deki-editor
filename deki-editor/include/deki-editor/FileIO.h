@@ -1,13 +1,9 @@
 #pragma once
 
-// Scoped file I/O helpers for the asset pipeline.
-//
-// Use these from AssetPipeline.cpp, GuidCache.cpp, AssetData.cpp, and
-// AssetExporter.cpp. The broader codebase still uses std::ifstream /
-// std::ofstream directly - refactoring all 50+ call sites is out of scope.
-// The intent of this header is to give the asset-pipeline path a single
-// place to add atomic-write semantics, structured error reporting, and
-// future locking, without spreading those across every site.
+// File I/O helpers for the asset pipeline (AssetPipeline.cpp, GuidCache.cpp,
+// AssetData.cpp, AssetExporter.cpp): one place for atomic writes, error
+// reporting and any future locking. The rest of the editor uses
+// std::ifstream / std::ofstream directly.
 
 #include <fstream>
 #include <string>
@@ -30,8 +26,8 @@
 namespace DekiEditor
 {
 
-// Read an entire file into `out`. Returns false on I/O failure; `err` is
-// filled with a human-readable reason (errno-derived where available).
+/// Reads a whole file into `out`. Returns false on I/O failure, with a
+/// readable reason in `err`.
 inline bool ReadFileToString(const std::string& path, std::string& out, std::string& err)
 {
     std::ifstream f(path, std::ios::binary);
@@ -61,27 +57,19 @@ inline bool ReadFileToString(const std::string& path, std::string& out, std::str
     return true;
 }
 
-// Atomically replace `path` with `content`. Writes to a sibling `.tmp`
-// file and renames it over the destination, so a crash mid-write cannot
-// leave a partially-written file. Returns false on failure; `err`
-// describes the failing step.
-//
-// On failure the destination is left exactly as it was. The previous version
-// fell back to remove-then-rename when the first rename failed, which deleted
-// the target *before* knowing the retry would succeed - so a lock or a full
-// disk at that moment destroyed the old file and never wrote the new one.
-// Rename a finished temp file over `target` in one step. On failure the
-// target is untouched and the temp file is kept. `durable` also waits for the
-// rename to reach the disk (Windows): what the user wrote; a cache, which can
-// be rebuilt, skips that wait.
+/// Renames a finished temp file over `target` in one step. On failure the
+/// target is untouched and the temp file is kept. `durable` also waits for
+/// the rename to reach the disk (Windows): use it for what the user wrote; a
+/// cache, which can be rebuilt, skips the wait.
 inline bool ReplaceFileWith(const std::filesystem::path& tmp, const std::filesystem::path& target, std::string& err,
                             bool durable = true)
 {
     namespace fs = std::filesystem;
 #ifdef _WIN32
-    // MoveFileExW replaces an existing destination in one step, so there is no
-    // window where the target is gone. MOVEFILE_WRITE_THROUGH additionally waits
-    // for the change to reach disk before returning.
+    // MoveFileExW replaces an existing destination in one step, so the target
+    // is never missing. MOVEFILE_WRITE_THROUGH also waits for the change to
+    // reach the disk. Never fall back to remove-then-rename: a lock or a full
+    // disk at that moment loses both the old file and the new one.
     const std::wstring wTmp = tmp.wstring();
     const std::wstring wTarget = target.wstring();
     if (::MoveFileExW(wTmp.c_str(), wTarget.c_str(),
@@ -104,6 +92,10 @@ inline bool ReplaceFileWith(const std::filesystem::path& tmp, const std::filesys
 #endif
 }
 
+/// Replaces `path` with `content` atomically: writes a sibling `.tmp` file
+/// and renames it over the destination, so a crash mid-write cannot leave a
+/// partial file. On failure the destination is left exactly as it was, and
+/// `err` names the step that failed.
 inline bool AtomicWriteFile(const std::string& path, std::string_view content, std::string& err, bool durable = true)
 {
     namespace fs = std::filesystem;
@@ -120,9 +112,8 @@ inline bool AtomicWriteFile(const std::string& path, std::string_view content, s
         }
         f.write(content.data(), static_cast<std::streamsize>(content.size()));
 
-        // Flush and check before the rename. std::ofstream buffers, so testing
-        // the stream while data is still pending reports success for a write
-        // that never reached the disk.
+        // Flush before checking: std::ofstream buffers, and a check with data
+        // still pending reports success for a write that never happened.
         f.flush();
         if (!f.good())
         {
@@ -132,12 +123,12 @@ inline bool AtomicWriteFile(const std::string& path, std::string_view content, s
             fs::remove(tmp, rmEc);
             return false;
         }
-        // RAII close before rename: some platforms refuse rename over an
-        // open handle, even on the same process.
+        // Closed here, before the rename: some platforms refuse to rename an
+        // open file, even from the same process.
     }
 
-    // On failure the .tmp is kept: it holds the good content, and the
-    // destination still holds the previous version. Losing neither is the point.
+    // On failure the .tmp is kept: it holds the new content, and the
+    // destination still holds the previous version, so neither is lost.
     return ReplaceFileWith(tmp, target, err, durable);
 }
 

@@ -10,21 +10,16 @@
 namespace DekiEditor
 {
 
-/**
- * ProcessRunner
- *
- * Runs one shell command with its stdout/stderr captured, on a worker thread,
- * so the main loop keeps rendering while a build runs. The main thread polls
- * for progress lines (PollLines), asks whether it is still running, and reads
- * the exit code and full output once it has finished. Cancel() kills the
- * whole process tree (a Windows job object / a POSIX process group), which is
- * what makes the progress window's Cancel button work against cmake + ninja +
- * the compilers they spawn.
- *
- * On Windows the captured MSVC environment (MsvcEnvironment) is injected, as
- * the build code always did, so cl.exe/ninja find their SDK without the
- * editor having been started from a developer prompt.
- */
+/// Runs one shell command on a worker thread with its stdout and stderr
+/// captured, so the main loop keeps rendering while a build runs. The main
+/// thread polls for progress lines (PollLines), asks whether it is still
+/// running, and reads the exit code and full output once it has finished.
+/// Cancel() kills the whole process tree (a Windows job object, a POSIX
+/// process group), so the progress window's Cancel button stops cmake, ninja
+/// and the compilers they spawn.
+///
+/// On Windows the captured MSVC environment (MsvcEnvironment) is passed in,
+/// so cl.exe and ninja find their SDK without a developer prompt.
 class ProcessRunner
 {
 public:
@@ -33,28 +28,28 @@ public:
     ProcessRunner(const ProcessRunner&) = delete;
     ProcessRunner& operator=(const ProcessRunner&) = delete;
 
-    // Starts `command` through the shell. timeoutMs == 0 means no timeout.
-    // Returns false if the process could not be created.
+    /// Starts `command` through the shell. timeoutMs == 0 means no timeout.
+    /// Returns false if the process could not be created.
     bool Start(const std::string& command, uint32_t timeoutMs = 0);
 
     bool IsRunning() const { return m_Running.load(); }
 
-    // Valid once IsRunning() is false. -1 when the exit code is unknown.
+    /// Valid once IsRunning() is false. -1 when the exit code is unknown.
     int ExitCode() const { return m_ExitCode.load(); }
     bool TimedOut() const { return m_TimedOut.load(); }
     bool WasCancelled() const { return m_Cancel.load(); }
 
-    // Asks the worker to kill the process tree. Returns immediately; the
-    // process is gone within a poll interval (~50 ms).
+    /// Asks the worker to kill the process tree. Returns at once; the process
+    /// is gone within a poll interval (~50 ms).
     void Cancel() { m_Cancel = true; }
 
-    // Complete output lines produced since the previous call.
+    /// Complete output lines written since the previous call.
     std::vector<std::string> PollLines();
 
-    // Everything the process wrote (stdout + stderr), so far or in total.
+    /// Everything the process wrote (stdout + stderr), so far or in total.
     std::string TakeOutput();
 
-    // Blocks until the process has finished.
+    /// Blocks until the process has finished.
     void Wait();
 
 private:

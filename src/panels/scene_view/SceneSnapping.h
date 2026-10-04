@@ -10,20 +10,20 @@ class SceneCoordinates;
 
 enum class SnapAxis
 {
-    Vertical,   // Snap line is a vertical line (snapping X)
-    Horizontal  // Snap line is a horizontal line (snapping Y)
+    Vertical,   // a vertical line, snapping X
+    Horizontal  // a horizontal line, snapping Y
 };
 
 struct SnapLine
 {
-    float worldCoord;  // World coordinate of the snap line
+    float worldCoord;  // world coordinate of the line
     SnapAxis axis;
 };
 
 struct SnapTarget
 {
-    float coord;    // World coordinate of the snap target
-    SnapAxis axis;  // Which axis this target belongs to
+    float coord;  // world coordinate of the target
+    SnapAxis axis;
 };
 
 class SceneSnapping
@@ -32,19 +32,19 @@ public:
     SceneSnapping();
 
     void SetDeviceBounds(float width, float height);
-    // Threshold in the same unit as the targets passed in (world meters in the
-    // current callers). Edges within this distance of a target snap.
+    /// Edges within this distance of a target snap. Same unit as the targets
+    /// (world meters for the current callers).
     void SetSnapThreshold(float threshold);
     void SetObjectTargets(const std::vector<SnapTarget>& targets);
 
-    // Compute snapped position in-place. objW/objH = display size of the dragged object.
+    /// Snaps the position in place. `objW`/`objH` are the dragged object's size.
     void CalculateSnap(float& x, float& y, float objW, float objH);
 
-    // Snap a single edge during resize. Adjusts the edge's world coordinate.
-    // Returns the snap delta that was applied (0 if no snap).
+    /// Snaps one edge during a resize. Returns how far the edge should move
+    /// (0 when it does not snap).
     float CalculateEdgeSnap(float edgeWorldCoord, SnapAxis axis);
 
-    // Draw guide lines for active snaps
+    /// Draws guide lines for the snaps in effect.
     void DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coords, ImVec2 canvasTopLeft, ImVec2 canvasSize);
 
     void ClearSnapLines();

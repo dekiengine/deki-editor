@@ -17,23 +17,20 @@ public:
     TextureInspector(EditorApp* app);
     ~TextureInspector();
 
-    // Granular draw methods for orchestrated layout
-    void DrawPreview();        // Anchored texture preview (always visible)
-    void BeginScrollRegion();  // Opens scrollable child region
+    // The asset inspector calls these in order to lay out the panel.
+    void DrawPreview();        // the texture preview, fixed above the scrolling part
+    void BeginScrollRegion();  // opens the scrolling region
     void DrawSettings();       // Settings (chroma key, spritesheet button) and Targets
-    // The Targets section: a Default card with the settings every target
-    // uses, then one card per target that can override them. `write` edits the
-    // image's settings.texture and reimports it.
+    /// The Targets section: a Default card with the settings every target
+    /// uses, then one card per target that can override them. `write` edits
+    /// the image's settings.texture and reimports it.
     void DrawTargets(const std::function<void(const std::function<void(nlohmann::json&)>&)>& write);
-    void EndScrollRegion();  // Closes scrollable child region
+    void EndScrollRegion();  // closes the scrolling region
 
-    // Draw a compact cache status bar at the bottom of any inspector
-    // Shows: cached status, file size, small thumbnail
-
-    // Invalidate preview (call when asset is recompiled)
+    /// Drops the preview. Call it when the asset is recompiled.
     void InvalidatePreview() { m_PreviewTexturePath.clear(); }
 
-    // Check if a file is a supported texture format
+    /// True if the file is an image format the importer reads.
     static bool IsTextureFile(const std::string& path);
 
 private:
@@ -55,10 +52,9 @@ private:
     bool m_DefaultOpen = true;                       // the Default card unfolded
     std::map<std::string, bool> m_TargetOpen;        // platform id -> card unfolded (first seen: open if overridden)
     bool m_SourceHasAlpha = false;                   // from the cached header, for showing what Automatic gives
-    std::string m_LastFormatAssetPath;               // Detect asset selection changes
+    std::string m_LastFormatAssetPath;               // to notice a new selection
 
-    // Chroma key state (loaded from / written to .data sidecar's
-    // settings.texture.chroma_key block)
+    // Chroma key, kept in the .data sidecar's settings.texture.chroma_key.
     bool m_ChromaKeyEnabled = false;
     float m_ChromaKeyColor[3] = { 1.0f, 0.0f, 1.0f };  // magenta default
 

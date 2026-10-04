@@ -34,13 +34,11 @@ void AssetDeployer::DeployToDrive(const std::string& projectPath, const std::str
     m_CancelRequested = false;
     m_IsDeploying = true;
 
-    // Wait for previous thread to finish
     if (m_DeployThread.joinable())
     {
         m_DeployThread.join();
     }
 
-    // Launch deployment thread for direct drive copy
     m_DeployThread = std::thread(
         [this, projectPath, drivePath, progressCallback]()
         {
@@ -53,7 +51,6 @@ void AssetDeployer::DeployToDrive(const std::string& projectPath, const std::str
                 }
             };
 
-            // Verify drive exists
             if (!fs::exists(drivePath))
             {
                 SetError("Drive not found: " + drivePath);
@@ -65,7 +62,6 @@ void AssetDeployer::DeployToDrive(const std::string& projectPath, const std::str
             SetProgress(DeployState::CopyingAssets, "Deploying to " + drivePath, 0.1f);
             notifyProgress();
 
-            // Copy assets from storage/ folder
             std::string storagePath = projectPath + "/storage";
             if (!fs::exists(storagePath))
             {
@@ -83,7 +79,6 @@ void AssetDeployer::DeployToDrive(const std::string& projectPath, const std::str
                 return;
             }
 
-            // Done!
             SetProgress(DeployState::Completed, "Assets deployed successfully to " + drivePath, 1.0f);
             notifyProgress();
             m_IsDeploying = false;
@@ -95,7 +90,6 @@ std::vector<std::pair<std::string, std::string>> AssetDeployer::GetRemovableDriv
     std::vector<std::pair<std::string, std::string>> drives;
 
 #ifdef _WIN32
-    // Get all logical drives
     char driveStrings[256];
     DWORD len = GetLogicalDriveStringsA(sizeof(driveStrings), driveStrings);
     if (len > 0)
@@ -103,11 +97,9 @@ std::vector<std::pair<std::string, std::string>> AssetDeployer::GetRemovableDriv
         char* drive = driveStrings;
         while (*drive)
         {
-            // Check if it's a removable drive
             UINT driveType = GetDriveTypeA(drive);
             if (driveType == DRIVE_REMOVABLE)
             {
-                // Get volume label
                 char volumeName[MAX_PATH] = { 0 };
                 char fileSystem[MAX_PATH] = { 0 };
                 std::string label;
@@ -141,14 +133,12 @@ std::vector<std::pair<std::string, std::string>> AssetDeployer::GetRemovableDriv
         }
     }
 #else
-    // Linux/macOS - check common mount points
+    // Linux and macOS: look in the usual mount points.
 #ifdef __APPLE__
-    // macOS: check /Volumes
     if (fs::exists("/Volumes"))
     {
         for (const auto& entry : fs::directory_iterator("/Volumes"))
         {
-            // Skip the main Macintosh HD
             std::string name = entry.path().filename().string();
             if (name != "Macintosh HD" && fs::is_directory(entry))
             {
@@ -258,10 +248,8 @@ bool AssetDeployer::CopyAssets(const std::string& sourcePath, const std::string&
                 fs::path relativePath = fs::relative(entry.path(), sourcePath);
                 fs::path destFilePath = fs::path(destPath) / relativePath;
 
-                // Create directories if needed
                 fs::create_directories(destFilePath.parent_path());
 
-                // Copy file
                 fs::copy_file(entry.path(), destFilePath, fs::copy_options::overwrite_existing);
 
                 copiedFiles++;

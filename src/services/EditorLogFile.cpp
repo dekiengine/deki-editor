@@ -36,9 +36,8 @@ const char* LevelTag(Deki::LogLevel level)
     return "?";
 }
 
-// Levels included by default. Debug is appended when verbose mode is on.
-// Internal stays gated by DEKI_LOG_INTERNAL_ENABLED (already off in non-internal
-// builds because LogWithLevel never fires for it).
+// The levels written. Debug is added in verbose mode. Internal follows
+// DEKI_LOG_INTERNAL_ENABLED: without it, LogWithLevel never sends Internal.
 bool ShouldWrite(Deki::LogLevel level)
 {
     switch (level)
@@ -164,8 +163,8 @@ void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message, cons
         }
     }
 
-    // Engine LogWithLevel prepends "<file>:<line> -> " to the message; strip
-    // that so the file sink's own "file:line |" prefix doesn't duplicate it.
+    // The engine's LogWithLevel puts "<file>:<line> -> " before the message;
+    // strip it, since this file's own "file:line |" prefix says the same.
     const char* body = message.c_str();
     const size_t arrowPos = message.find(" -> ");
     if (arrowPos != std::string::npos)
@@ -179,19 +178,18 @@ void EditorLogFile::OnLog(Deki::LogLevel level, const std::string& message, cons
         g_Bytes += static_cast<size_t>(n);
     }
 
-    // Every line used to be fflushed: an asset import writes several lines per
-    // asset, which made a 2000-asset import perform over ten thousand
-    // synchronous disk flushes. Warnings and errors still flush immediately
-    // (they are what a crash log needs); the rest is flushed by the periodic
-    // Flush() from the editor loop and at shutdown.
+    // Only warnings and errors are flushed at once, since a crash log needs
+    // them. Flushing every line is too slow: an asset import writes several
+    // lines per asset. The rest is flushed by the editor loop's periodic
+    // Flush() and at shutdown.
     if (level == Deki::LogLevel::Warning || level == Deki::LogLevel::Error)
     {
         std::fflush(g_File);
     }
 
     // Size rotation. The line that crossed the limit stays in the previous
-    // generation; the new file opens with a marker saying why it exists, so a
-    // reader landing in it knows to look at -prev.log for what came before.
+    // file; the new file starts with a marker saying why it exists, so a
+    // reader knows to look in -prev.log for what came before.
     if (g_Bytes >= g_RotationLimit)
     {
         std::fclose(g_File);

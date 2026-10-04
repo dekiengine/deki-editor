@@ -20,8 +20,8 @@ TEST(VersionCompare, MissingTrailingSegmentsAreZero)
     EXPECT_EQ(CompareVersions("1", "1.0.0"), 0);
 }
 
-// The gate that motivated this: an engine at 1.1.0 must satisfy a package
-// asking for 1.1.0 or older, and fail one asking for 1.2.0.
+// The engine gate: an engine at 1.1.0 must satisfy a package asking for 1.1.0
+// or older, and fail one asking for 1.2.0.
 TEST(VersionCompare, EngineGateDirection)
 {
     EXPECT_GE(CompareVersions("1.1.0", "1.1.0"), 0);

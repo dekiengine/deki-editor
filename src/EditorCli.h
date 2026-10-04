@@ -70,9 +70,8 @@ bool HasCommand(const CliOptions& o);
 /// Everything else boots the editor, because everything else depends on state
 /// the editor produces (restored packages, generated build files, a compiled
 /// and promoted plugin, imported assets). These few do not, and booting for
-/// them would turn a sub-second command into a multi-minute one - so the fast
-/// lane exists, but as this explicit list rather than as an accident of which
-/// verb happened to be written first.
+/// them would turn a sub-second command into a multi-minute one. The list is
+/// explicit: a verb is light only when it is added here.
 bool IsLightCommand(const CliOptions& o);
 
 /// Run a verb from `IsLightCommand`. Precondition: IsLightCommand(o).

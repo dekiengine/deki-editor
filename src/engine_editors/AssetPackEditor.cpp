@@ -13,12 +13,8 @@
 
 using namespace DekiEditor;
 
-/**
- * @brief Editor for .dpack (Asset Pack) files
- *
- * Allows users to create and manage packs of assets that are
- * bundled into a single .pack binary for fast SD card loading.
- */
+// Editor for .dpack (Asset Pack) files: lists of assets bundled into one
+// .pack binary, for fast loading from an SD card.
 class AssetPackEditor : public AssetTypeEditor
 {
 public:
@@ -34,11 +30,11 @@ public:
 })";
     }
 
-    int GetCompileTarget() const override { return 3; }  // None - packing is handled by AssetPacker
+    int GetCompileTarget() const override { return 3; }  // None: AssetPacker does the packing
 
     bool Compile(const std::string& jsonData, std::vector<uint8_t>& rgba, int& width, int& height) override
     {
-        return false;  // Not a texture target
+        return false;  // not a texture target
     }
 
     bool OnInspectorGUI(std::string& jsonData, const std::string& assetPath, const std::string& assetGuid) override
@@ -64,10 +60,9 @@ public:
 
         auto& assets = data["assets"];
 
-        // Header
         ImGui::Text("Assets in pack: %d", (int)assets.size());
 
-        // Calculate total size estimate
+        // Estimated total size.
         ImGui::SameLine();
         ImGui::TextDisabled("(exported as single .pack file)");
 
@@ -75,7 +70,6 @@ public:
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Asset list
         int removeIndex = -1;
         for (size_t i = 0; i < assets.size(); i++)
         {
@@ -85,12 +79,12 @@ public:
 
             ImGui::PushID(static_cast<int>(i));
 
-            // Resolve display name from GUID
+            // The display name, from the GUID.
             std::string displayName;
             std::string assetPath2 = AssetDatabase::GUIDToAssetPath(guid);
             if (!assetPath2.empty())
             {
-                // Extract filename without extension
+                // The file name without extension.
                 size_t lastSlash = assetPath2.find_last_of("/\\");
                 size_t dotPos = assetPath2.find_last_of('.');
                 if (lastSlash != std::string::npos && dotPos != std::string::npos && dotPos > lastSlash)
@@ -113,7 +107,6 @@ public:
 
             ImGui::Text("  %s  [%s]", displayName.c_str(), type.c_str());
 
-            // Remove button
             ImGui::SameLine(ImGui::GetContentRegionAvail().x - 20);
             if (ImGui::SmallButton("X"))
             {
@@ -123,7 +116,6 @@ public:
             ImGui::PopID();
         }
 
-        // Remove entry if requested
         if (removeIndex >= 0)
         {
             assets.erase(assets.begin() + removeIndex);
@@ -134,28 +126,25 @@ public:
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Drag-drop zone to add assets
+        // Drop zone for adding assets.
         ImGui::Text("Drag assets here to add to pack:");
 
-        // Large drop target area
         ImVec2 dropSize(ImGui::GetContentRegionAvail().x, 60);
         ImVec2 cursorPos = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##DropZone", dropSize);
 
-        // Draw drop zone border
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         ImU32 borderColor = ImGui::IsItemHovered() ? IM_COL32(100, 180, 255, 200) : IM_COL32(128, 128, 128, 128);
         drawList->AddRect(cursorPos, ImVec2(cursorPos.x + dropSize.x, cursorPos.y + dropSize.y), borderColor, 4.0f, 0,
                           2.0f);
 
-        // Center text in drop zone
         const char* dropText = "Drop Asset Here";
         ImVec2 textSize = ImGui::CalcTextSize(dropText);
         drawList->AddText(
             ImVec2(cursorPos.x + (dropSize.x - textSize.x) * 0.5f, cursorPos.y + (dropSize.y - textSize.y) * 0.5f),
             IM_COL32(128, 128, 128, 200), dropText);
 
-        // Helper: try to add an asset by GUID+path to the pack
+        // Adds an asset (GUID and path) to the pack.
         auto tryAddAsset = [&](const std::string& guid, const std::string& path)
         {
             if (guid.empty())
@@ -163,7 +152,7 @@ public:
                 return;
             }
 
-            // Check duplicate
+            // Skip duplicates.
             for (const auto& existing : assets)
             {
                 if (existing.value("guid", "") == guid)
@@ -172,7 +161,7 @@ public:
                 }
             }
 
-            // Determine type from path extension
+            // The type, from the path's extension.
             std::string assetType = "Unknown";
             size_t dotPos = path.find_last_of('.');
             if (dotPos != std::string::npos)
@@ -194,7 +183,7 @@ public:
 
         if (ImGui::BeginDragDropTarget())
         {
-            // Multi-asset drop (from multi-selection drag)
+            // Several assets (a drag of a multi-selection).
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MULTI"))
             {
                 std::string multiData(static_cast<const char*>(payload->Data));
@@ -215,7 +204,7 @@ public:
                     std::string guid = line.substr(0, tabPos);
                     std::string path = line.substr(tabPos + 1);
 
-                    // Resolve GUID from path if empty
+                    // No GUID: look it up from the path.
                     if (guid.empty())
                     {
                         guid = AssetDatabase::AssetPathToGUID(path);
@@ -224,14 +213,14 @@ public:
                     tryAddAsset(guid, path);
                 }
             }
-            // Single asset drop (ASSET_PATH)
+            // One asset (ASSET_PATH).
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH"))
             {
                 std::string droppedPath(static_cast<const char*>(payload->Data));
                 std::string guid = AssetDatabase::AssetPathToGUID(droppedPath);
                 tryAddAsset(guid, droppedPath);
             }
-            // Sub-asset drop (ASSET_GUID)
+            // A sub-asset (ASSET_GUID).
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_GUID"))
             {
                 std::string guid(static_cast<const char*>(payload->Data));

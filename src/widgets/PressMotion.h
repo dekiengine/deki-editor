@@ -17,7 +17,7 @@ namespace DekiEditor
 // Follows Motion's durations and turns off with Reduce Motion.
 namespace PressMotion
 {
-// Hook into `ctx`. Call once, after the context is created.
+/// Hooks into `ctx`. Call once, after the context is created.
 void Install(ImGuiContext* ctx);
 }  // namespace PressMotion
 

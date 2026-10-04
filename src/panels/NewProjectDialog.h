@@ -10,50 +10,30 @@ namespace DekiEditor
 class EditorApp;
 struct PlatformConfig;
 
-/**
- * @brief Dialog for creating new Deki projects
- *
- * Provides UI for:
- * - Project name input
- * - Location folder selection
- * - Target platform selection (from PlatformRegistry)
- * - Create / Cancel actions
- */
+/// The New Project dialog: project name, location folder and target platform
+/// (from PlatformRegistry), then Create or Cancel.
 class NewProjectDialog
 {
 public:
     NewProjectDialog(EditorApp* app);
     ~NewProjectDialog() = default;
 
-    /**
-     * @brief Show the dialog
-     */
+    /// Opens the dialog with the name reset and the platform list refreshed.
     void Show();
 
-    /**
-     * @brief Draw the dialog (call each frame)
-     */
+    /// Draws the dialog while it is open. Call once per frame.
     void Draw();
 
-    /**
-     * @brief Check if dialog is open
-     */
     bool IsOpen() const { return m_Open; }
 
-    /**
-     * @brief Set callback for when project is created
-     */
+    /// Called with the new project's folder after it is created.
     void SetOnProjectCreated(std::function<void(const std::string&)> callback) { m_OnProjectCreated = callback; }
 
 private:
-    /**
-     * @brief Validate current inputs
-     */
+    // Fills `errorMessage` and returns false when the inputs cannot make a
+    // project. Creates a missing location folder.
     bool ValidateInputs(std::string& errorMessage);
 
-    /**
-     * @brief Create the project
-     */
     bool CreateProject();
 
     EditorApp* m_App;
@@ -68,11 +48,9 @@ private:
     // Platform options (id, displayName) from PlatformRegistry
     std::vector<std::pair<std::string, std::string>> m_Platforms;
 
-    // Error display
     std::string m_ErrorMessage;
     bool m_ShowError = false;
 
-    // Callback
     std::function<void(const std::string&)> m_OnProjectCreated;
 };
 

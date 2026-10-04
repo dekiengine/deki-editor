@@ -49,27 +49,25 @@ public:
 
     void Draw();
 
-    // Clear any cached references to scene objects (call before scene reload)
+    /// Drops cached pointers to scene objects. Call before a scene reload.
     void ClearSceneReferences();
-    // Scene objects about to be freed: let go of any the pin holds.
+    /// Scene objects about to be freed: lets go of any the lock holds.
     void OnObjectsDestroyed(const std::vector<Deki::Object*>& dying);
 
-    // Drop transient UI state that holds raw pointers into plugin-DLL data
-    // (Deki::PropertyInfo*, Deki::Component*). Must be called BEFORE the plugin
-    // DLL unloads during hot reload, otherwise those pointers dangle.
+    /// Drops UI state that holds raw pointers into plugin DLL data
+    /// (Deki::PropertyInfo*, Deki::Component*). Call BEFORE the plugin DLL
+    /// unloads for hot reload, or those pointers dangle.
     void ResetTransientUiState();
 
-    // Invalidate preview texture (call when asset is recompiled)
+    /// Drops the preview texture. Call when the asset is recompiled.
     void InvalidatePreview();
 
     bool locked = false;  // When true, inspector stays on current selection
 
-    // Live-edit tracking. Set true between IsItemActivated and
-    // IsItemDeactivatedAfterEdit while the user is dragging or typing into
-    // a transform field or any deferred property widget. SceneView reads
-    // IsAnyLiveEditing() to force a buffer re-render each frame during the
-    // edit - without this, the scene view stays frozen on the pre-edit
-    // value until the field commits, and only gizmos follow the live value.
+    /// True between IsItemActivated and IsItemDeactivatedAfterEdit while the
+    /// user drags or types into a transform field or a deferred property
+    /// widget. SceneView reads IsAnyLiveEditing() to re-render every frame of
+    /// the edit, so the scene follows the live value, not only the gizmos.
     bool IsLiveEditing() const { return m_LiveEditCount > 0; }
     void BeginLiveEdit()
     {
@@ -88,10 +86,10 @@ public:
         }
     }
 
-    // Global counter for edits made without an InspectorPanel pointer to hand.
-    // Both the instance Begin/End and the Global* statics increment this, so a
-    // single SceneView check covers transform fields AND reflection-based
-    // widgets.
+    /// Live edits across the editor, including ones made without an
+    /// InspectorPanel pointer to hand. Both the instance Begin/End and the
+    /// Global* statics count here, so one SceneView check covers transform
+    /// fields and reflection-based widgets.
     static bool IsAnyLiveEditing() { return s_GlobalLiveEditCount > 0; }
     static void GlobalBeginLiveEdit() { ++s_GlobalLiveEditCount; }
     static void GlobalEndLiveEdit()
@@ -106,26 +104,26 @@ private:
     int m_LiveEditCount = 0;
     static int s_GlobalLiveEditCount;
 
-    // Locked state: cached selection from when lock was enabled
     // Inspector-wide property filter (published to InspectorUtils each frame,
     // where the row and component drawing read it).
     char m_PropertyFilter[64] = {};
 
-    // Inline rename on the header heading (the object name IS the field, the
-    // way a node's title is in the graph editor). Null unless a rename is open.
+    // Inline rename in the header: the object name is the field, as a node's
+    // title is in the graph editor. Null unless a rename is open.
     Deki::Object* m_RenamingObject = nullptr;
     bool m_RenameFocusPending = false;
     char m_RenameBuffer[256] = {};
     std::string m_RenameOldName;
 
-    // Transform's expansion while a filter is active - same deal as the
-    // components' (see ComponentManager): forced open so a match is visible,
-    // with the pre-filter state recorded on the first frame and restored when
+    // Transform's expansion while a filter is active, handled as for
+    // components (see ComponentManager): forced open so a match shows, with
+    // the state before the filter saved on the first frame and restored when
     // the filter clears.
     unsigned int m_TransformHeaderId = 0;
     bool m_TransformPreFilterOpen = true;
     bool m_TransformStateKnown = false;
 
+    // Locked state: the selection cached when the lock was turned on
     std::string m_LockedAssetPath;
     std::string m_LockedAssetCachePath;
     std::string m_LockedAssetGuid;
@@ -153,16 +151,16 @@ private:
     float m_DragStartScaleX = 0.0f;
     float m_DragStartScaleY = 0.0f;
 
-    // Cache for the "has any overrides?" check used to gate the Apply button
-    // on scene-instance objects. CollectOverrides loads the source file and
-    // walks the component tree, so we only recompute when the inspected object
-    // changes or a new command is executed.
+    // Caches whether the inspected scene instance has overrides, which
+    // enables the Apply button. CollectOverrides loads the source file and
+    // walks the component tree, so it reruns only when the inspected object
+    // changes or a new command runs.
     Deki::Object* m_OverrideCacheObj = nullptr;
     size_t m_OverrideCacheUndoCount = 0;
     bool m_OverrideCacheHasOverrides = false;
 
-    // Pending Apply confirmation - populated when the user clicks Apply,
-    // drained when the modal is confirmed or cancelled.
+    // Apply confirmation: filled when the user clicks Apply, emptied when the
+    // modal is confirmed or cancelled.
     struct ApplyPopupEntry
     {
         std::string path;       // object path relative to instance root ("" = root)

@@ -1,10 +1,8 @@
 // Platform templates: a package offers a platform (its config and boot scene),
 // and a project adopts it by copying it in.
 //
-// The editor used to hold one of these in its own source - the desktop
-// simulator's config and a boot scene naming SDL3 components - which made that
-// the one target it knew by name. None of the tests below names a real target
-// except the last, which checks the templates the packages actually ship.
+// The editor knows no target by name. None of the tests below names a real
+// target except the last, which checks the templates the packages ship.
 
 #include <gtest/gtest.h>
 
@@ -185,8 +183,8 @@ struct BoardProject : TempProject
     }
     fs::path Mine() const { return ProjectPlatform("devkit"); }
 
-    // What the package ships. Legacy spelling on purpose: "pins" sits at the
-    // top level, where a save moves it into frameworkOptions.
+    // What the package ships. Older spelling on purpose: "pins" sits at the
+    // top level, and a save moves it into frameworkOptions.
     void Ship(int width, const std::string& pins, const std::string& bootScene) const
     {
         json j = { { "id", "devkit" },       { "displayName", "Dev Kit" }, { "framework", "demo" },
@@ -412,7 +410,8 @@ TEST(PlatformOrigin, WithThePackageGoneThePlatformStaysAndSaysWhy)
     EXPECT_NE(r.error.find("pkg-board"), std::string::npos);
 }
 
-// Platforms adopted before origins were recorded - every existing project's.
+// A platform adopted with no origin record, as in projects made before
+// origins were recorded.
 TEST(PlatformOrigin, AnUnrecordedCopyThatIsStillThePackagesGetsItsRecord)
 {
     BoardProject p;
@@ -458,11 +457,10 @@ TEST(PlatformOrigin, AnUnrecordedCopyThatDiffersCanOnlyBeRestored)
 //
 // A boot scene's PlatformSetupComponent refers to its setup components by
 // {id, typeId}, where typeId is the hash of the component's qualified class
-// name. It is a literal in a data file, so no rename updates it, and an
-// ObjectRef whose typeId matches no live component resolves to null: the setup
-// step silently never runs and the target comes up with no display. This
-// check used to cover the one boot scene the editor carried; it covers every
-// package's now.
+// name. It is a literal in a data file, so no rename updates it. An ObjectRef
+// whose typeId matches no live component resolves to null: the setup step
+// silently never runs and the target comes up with no display. This checks
+// every package's boot scenes.
 // ---------------------------------------------------------------------------
 
 #ifdef DEKI_TEST_PACKAGES_DIR

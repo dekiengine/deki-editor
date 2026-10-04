@@ -8,7 +8,6 @@
 #include <set>
 #include <deki-editor/AssetPipeline.h>  // AssetExportTarget
 
-// Forward declarations
 namespace Deki
 {
 class Object;
@@ -33,7 +32,7 @@ class Project;
 class AssetPipeline;
 class PackageLoader;
 
-// Asset types for determining output extension
+/// Kind of an exported asset, which decides its output extension.
 enum class ExportAssetType : uint8_t
 {
     Texture = 0,
@@ -43,16 +42,12 @@ enum class ExportAssetType : uint8_t
     Audio = 4
 };
 
-/**
- * @brief Information about a font usage (TTF source + size)
- *
- * Used to track which fonts need to be pre-baked at which sizes
- * based on TextComponent references in scenes.
- */
+/// A font used at one size: its TTF source and the size. The export bakes
+/// each one found in the scenes' TextComponents.
 struct FontUsageInfo
 {
     std::string sourceGuid;  // TTF asset GUID (from AssetRef.source)
-    int fontSize;            // Font size in pixels
+    int fontSize;            // In pixels
 
     bool operator<(const FontUsageInfo& other) const
     {
@@ -69,159 +64,119 @@ struct FontUsageInfo
     }
 };
 
-/**
- * @brief Collection of all assets used by scenes
- *
- * Populated by scanning all scene files for asset references.
- */
+/// The assets the project's scenes use, found by scanning every scene file.
 struct AssetUsageCollection
 {
-    std::unordered_set<std::string> usedGuids;  // All used asset GUIDs (textures, fonts, animations, etc.)
-    std::set<FontUsageInfo> fontUsages;         // Fonts with specific sizes for baking
+    std::unordered_set<std::string> usedGuids;  // Every used asset GUID (textures, fonts, animations, ...)
+    std::set<FontUsageInfo> fontUsages;         // Fonts and the sizes to bake them at
     // The scene that first referenced each GUID, to say where a missing one is used.
     std::unordered_map<std::string, std::string> referencedFrom;
-    // Scenes that could not be read. Their assets are unknown, so an export
-    // that went on would ship a build missing them.
+    // Scenes that could not be read. Their assets are unknown, so the export
+    // must stop rather than ship a build missing them.
     std::vector<std::string> problems;
 };
 
-/**
- * AssetExporter
- *
- * Handles exporting project assets to the runtime storage/ directory.
- * Assets are exported with their original path structure:
- * - assets/Demo.scene -> storage/Demo.scene
- * - assets/textures/player.png -> storage/textures/player.tex
- * - storage/project_data.bin (project settings for runtime)
- */
+/// Exports the project's assets for the runtime. Each used asset is written
+/// under its GUID, with no folders and no extension, next to
+/// project_data.bin (the project settings the runtime reads).
 class AssetExporter
 {
 public:
     AssetExporter(Project* project, AssetPipeline* pipeline, PackageLoader* packageLoader = nullptr);
 
-    // Export what the scenes use, plus the project's force-included assets,
-    // to <project>/storage (for copying to an SD card). Returns true on success
+    /// Exports what the scenes use, plus the project's force-included assets,
+    /// to <project>/storage, for copying to an SD card. Returns true on success.
     bool ExportToStorage();
 
-    // The same, into outDir: a build's asset folder (Storage::AssetRoot on
-    // the target). outDir is cleared first.
+    /// The same, into `outDir`: a build's asset folder (Storage::AssetRoot on
+    /// the target). `outDir` is cleared first.
     bool ExportAssets(const std::string& outDir);
 
-    // Export what a target needs before it can load anything else: the
-    // compiled project settings (project_data.bin) and the boot scene.
-    // payloadDir: where the build backend wants it
-    // (ITargetBuilder::GetBootPayloadDirectory); cleared first.
-    // bootSceneAssetPath: relative asset path for boot scene (e.g., "boot.scene"), empty to skip
+    /// Exports what a target needs before it can load anything else: the
+    /// compiled project settings (project_data.bin) and the boot scene.
+    /// `payloadDir` is where the build backend wants them
+    /// (ITargetBuilder::GetBootPayloadDirectory) and is cleared first.
+    /// `bootSceneAssetPath` is the boot scene's asset path (such as
+    /// "boot.scene"); empty skips it.
     bool ExportBootPayload(const std::string& payloadDir, const std::string& bootSceneAssetPath);
 
-    // What the target platform offers, so a scene's objects that ask for
-    // something it has not got are left out of this target's build
-    // (services/SceneTargetFilter). Empty keeps every object, which is what an
-    // export with no target in mind should do.
+    /// What the target platform offers. Scene objects that need something it
+    /// lacks are left out of this target's build (services/SceneTargetFilter).
+    /// Empty keeps every object, which is right for an export with no target.
     void SetTargetCapabilities(const std::set<std::string>& caps) { m_TargetCapabilities = caps; }
 
-    // The target this export is for. Assets are stored as that target wants
-    // them: an image set to Automatic follows its screen format, and per-asset
-    // and per-target overrides apply (TextureFormatResolve.h). Without one the
-    // editor cache ships as it is, which is the editor's own target.
+    /// The target this export is for. Assets are stored as that target wants
+    /// them: an image set to Automatic follows its screen format, and per-asset
+    /// and per-target overrides apply (TextureFormatResolve.h). Without one the
+    /// editor cache ships as it is, which suits the editor's own target.
     void SetTarget(const AssetExportTarget& target)
     {
         m_Target = target;
         m_HasTarget = true;
     }
 
-    // Get the last export statistics
+    /// Number of assets the last export wrote.
     int GetExportedAssetCount() const { return m_ExportedCount; }
 
-    // Why the last ExportAssets / ExportBootPayload returned false: one line
-    // per problem (a scene that does not load, a referenced asset that is not
-    // in the project, ...). Each was logged as an error too.
+    /// Why the last ExportAssets / ExportBootPayload returned false: one line
+    /// per problem (a scene that does not load, a referenced asset that is not
+    /// in the project, ...). Each was logged as an error too.
     const std::vector<std::string>& GetProblems() const { return m_Problems; }
 
-    /**
-     * @brief Export binary asset lookup table for embedded runtime
-     *
-     * Creates a sorted binary table for O(log n) lookup of "path:type" -> GUID.
-     *
-     * Format:
-     * - [4 bytes] entry count (uint32_t)
-     * - [N entries, each 40 bytes, sorted by hash]:
-     *   - [4 bytes] FNV-1a hash of "path:type" (uint32_t)
-     *   - [36 bytes] GUID string (null-terminated)
-     *
-     * @param outputPath Path to output file (e.g., "storage/asset_table.bin")
-     * @param usedGuids Set of GUIDs to include in the table
-     * @return true on success
-     */
+    /// Writes the binary asset lookup table to `outputPath` (such as
+    /// "storage/asset_table.bin") for the GUIDs in `usedGuids`. It is sorted
+    /// by hash for O(log n) lookup of "path:type" -> GUID; assets only in the
+    /// cache (baked fonts) are keyed by their GUID. Returns true on success.
+    ///
+    /// Format:
+    /// - [4 bytes] entry count (uint32_t)
+    /// - [N entries, each 44 bytes, sorted by hash]:
+    ///   - [4 bytes] FNV-1a hash of "path:type" (uint32_t)
+    ///   - [37 bytes] GUID string (null-terminated)
+    ///   - [3 bytes] padding
     bool ExportAssetLookupTable(const std::string& outputPath, const std::unordered_set<std::string>& usedGuids);
 
-    /**
-     * @brief Collect all used assets from all scenes in the project
-     * @return Collection of used asset GUIDs and font usages
-     */
+    /// Collects the asset GUIDs and font sizes every scene in the project uses.
     AssetUsageCollection CollectUsedAssets();
 
 private:
-    // Determine asset type from file extension
     ExportAssetType DetermineAssetType(const std::string& extension, std::string& outDestExtension);
 
-    /**
-     * @brief Recursively scan a Deki::Object and its children for asset references
-     * @param obj The object to scan
-     * @param collection Output collection to add found assets to
-     */
+    // Adds the asset references of an object and its children to `collection`.
     void CollectAssetsFromObject(Deki::Object* obj, AssetUsageCollection& collection);
 
-    /**
-     * @brief Add what the collected assets cannot be loaded without: the
-     *        sheet a sprite frame is cut from, the sheet an animation plays.
-     *        Repeats until nothing new is added.
-     */
+    // Adds what the collected assets cannot load without: the sheet a sprite
+    // frame is cut from, the sheet an animation plays. Repeats until nothing
+    // new is added.
     void AddAssetDependencies(AssetUsageCollection& collection);
 
-    /**
-     * @brief Scan a component's properties for asset references using reflection
-     * @param comp The component to scan
-     * @param collection Output collection to add found assets to
-     */
+    // Adds the asset references in a component's reflected properties.
     void CollectAssetsFromComponent(Deki::Component* comp, AssetUsageCollection& collection);
 
-    /**
-     * @brief Extract font usage info from a font AssetRef on a component
-     * @param comp The component (typically TextComponent)
-     * @param assetRef The font AssetRef
-     * @param collection Output collection to add font usage to
-     */
+    // Adds the font and size a font AssetRef on a component (usually a
+    // TextComponent) uses.
     void CollectFontUsage(Deki::Component* comp, const Deki::AssetRefBase& assetRef, AssetUsageCollection& collection);
 
     // =========================================================================
     // Font baking
     // =========================================================================
 
-    /**
-     * @brief Pre-bake fonts at required sizes for export
-     * @param fontUsages Set of fonts + sizes to bake
-     * @return Map of FontUsageInfo -> baked font GUID
-     */
+    // Bakes each font at the sizes the scenes use. Returns a map from
+    // "<sourceGuid>:<size>" to the baked font's GUID, and from
+    // "<sourceGuid>:<size>:atlas" to its atlas's GUID.
     std::unordered_map<std::string, std::string> BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages);
 
     // =========================================================================
     // Export stages
     // =========================================================================
 
-    /**
-     * @brief Copy only used assets to storage output directory
-     *
-     * Files are exported with GUID as filename (no path structure, no extension).
-     *
-     * @param storagePath Path to storage directory
-     * @param usedGuids Set of GUIDs to export
-     */
+    // Copies the used assets to `storagePath`, each named by its GUID (no
+    // folders, no extension). Assets in `skipGuids` are left out.
     void CopyUsedAssetsToOutput(const std::string& storagePath, const std::unordered_set<std::string>& usedGuids,
                                 const std::unordered_set<std::string>& skipGuids = {},
                                 const std::unordered_map<std::string, std::string>* referencedFrom = nullptr);
 
-    // Log a reason the export failed and remember it (GetProblems).
+    // Logs a reason the export failed and keeps it for GetProblems().
     void AddProblem(const std::string& problem);
 
     void WriteProjectSettings(const std::string& storagePath);

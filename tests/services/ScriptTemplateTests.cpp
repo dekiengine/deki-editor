@@ -1,7 +1,6 @@
 // The Create Script template must produce a class the reflection codegen
 // recognises as-is: no macro inside the class, no generated include, the
-// metadata markers above it. (The 0.10 template wrote a three-argument
-// DEKI_COMPONENT that never compiled.)
+// metadata markers above it.
 
 #include <gtest/gtest.h>
 

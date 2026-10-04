@@ -6,7 +6,7 @@
 namespace DekiEditor
 {
 
-// Helper to format bytes as human-readable string
+// Writes `bytes` as B, KB or MB.
 static void FormatBytes(uint32_t bytes, char* buffer, size_t bufferSize)
 {
     if (bytes >= 1024 * 1024)
@@ -34,24 +34,22 @@ void ProfilerPanel::DrawMemoryView()
         return;
     }
 
-    // Get current frame for stats display
+    // The selected frame, or the latest when none is selected
     int frameIdx =
         m_SelectedFrame >= 0 && m_SelectedFrame < (int)history.size() ? m_SelectedFrame : (int)history.size() - 1;
 
     const auto& currentFrame = history[frameIdx];
     const auto& memStats = currentFrame.memoryStats;
 
-    // Current stats section
     ImGui::Text("Memory Stats (Frame #%llu)", currentFrame.frameNumber);
     ImGui::Separator();
 
-    // Format values
     char totalBuf[32], externalBuf[32], internalBuf[32];
     FormatBytes(memStats.totalAllocated, totalBuf, sizeof(totalBuf));
     FormatBytes(memStats.externalAllocated, externalBuf, sizeof(externalBuf));
     FormatBytes(memStats.internalRamAllocated, internalBuf, sizeof(internalBuf));
 
-    // Stats display with color coding
+    // Each value in its own colour, matching the timeline below
     ImGui::Columns(2, "MemoryColumns", false);
     ImGui::SetColumnWidth(0, 200);
 
@@ -95,28 +93,26 @@ void ProfilerPanel::DrawMemoryView()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    // Find max memory for scaling
+    // The graph's top is the peak total plus 10% headroom.
     uint32_t maxMemory = 0;
     for (const auto& frame : history)
     {
         maxMemory = std::max(maxMemory, frame.memoryStats.totalAllocated);
     }
 
-    // Add some headroom for the graph
     if (maxMemory > 0)
     {
         maxMemory = (uint32_t)(maxMemory * 1.1f);
     }
     else
     {
-        maxMemory = 1024;  // Default 1KB if no data
+        maxMemory = 1024;  // 1 KB when nothing is allocated
     }
 
-    // Background
     drawList->AddRectFilled(graphPos, ImVec2(graphPos.x + availWidth, graphPos.y + graphHeight),
                             IM_COL32(30, 30, 30, 255));
 
-    // Draw memory lines
+    // One bar per frame, at most 100 frames
     size_t numFrames = std::min(history.size(), size_t(100));
     float barWidth = availWidth / numFrames;
 
@@ -125,13 +121,13 @@ void ProfilerPanel::DrawMemoryView()
         const auto& frame = history[i];
         float x = graphPos.x + i * barWidth;
 
-        // Total memory bar (blue)
+        // Total memory, blue
         float totalHeight = (float)frame.memoryStats.totalAllocated / maxMemory * graphHeight;
         drawList->AddRectFilled(ImVec2(x, graphPos.y + graphHeight - totalHeight),
                                 ImVec2(x + barWidth - 1, graphPos.y + graphHeight),
                                 (int)i == m_SelectedFrame ? IM_COL32(100, 150, 255, 255) : IM_COL32(60, 120, 200, 200));
 
-        // External-region portion (green overlay)
+        // The external-memory part, a green overlay
         if (frame.memoryStats.externalAllocated > 0)
         {
             float externalHeight = (float)frame.memoryStats.externalAllocated / maxMemory * graphHeight;
@@ -140,7 +136,7 @@ void ProfilerPanel::DrawMemoryView()
         }
     }
 
-    // Scale lines
+    // Scale lines at each quarter
     for (int i = 1; i <= 4; i++)
     {
         float y = graphPos.y + graphHeight * (1.0f - i / 4.0f);
@@ -151,7 +147,7 @@ void ProfilerPanel::DrawMemoryView()
         drawList->AddText(ImVec2(graphPos.x + 5, y + 2), IM_COL32(150, 150, 150, 255), label);
     }
 
-    // Click detection - click to select and pause recording
+    // Clicking a frame selects it and stops recording, so it can be inspected
     ImGui::InvisibleButton("MemoryTimeline", ImVec2(availWidth, graphHeight));
     if (ImGui::IsItemClicked())
     {
@@ -160,11 +156,10 @@ void ProfilerPanel::DrawMemoryView()
         if (clickedFrame >= 0 && clickedFrame < (int)history.size() && m_SelectedFrame != clickedFrame)
         {
             m_SelectedFrame = clickedFrame;
-            profiler.StopRecording();  // Pause recording when inspecting
+            profiler.StopRecording();
         }
     }
 
-    // Hover tooltip
     if (ImGui::IsItemHovered())
     {
         float mouseX = ImGui::GetMousePos().x - graphPos.x;

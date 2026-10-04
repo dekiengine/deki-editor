@@ -34,8 +34,7 @@ struct TempBuildDir
 }  // namespace
 
 // The generated project CMake gets the editor's FetchContent directory from
-// here; before this, it assumed <editor>/build/_deps and broke every package
-// build whenever the editor was configured anywhere else.
+// here, so package builds work wherever the editor's build folder is.
 TEST(CMakeCacheReader, ReadsTheValueAfterTheType)
 {
     TempBuildDir t;

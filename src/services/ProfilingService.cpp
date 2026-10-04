@@ -17,16 +17,13 @@
 namespace DekiEditor
 {
 
-// Static initialization flag
 bool ProfilingService::s_Initialized = false;
 
-// Static recording flag - checked before accessing singleton to avoid crashes during DLL loading
+// Checked before touching the singleton, to avoid crashes while a DLL loads.
 bool ProfilingService::s_IsRecording = false;
 
-// Static deep profile flag - when true, /Gh /GH hooks will record events
 bool ProfilingService::s_DeepProfileEnabled = false;
 
-// Singleton implementation
 ProfilingService& ProfilingService::Get()
 {
     static ProfilingService s_Instance;
@@ -44,7 +41,7 @@ ProfilingService::~ProfilingService()
 
 void ProfilingService::Initialize()
 {
-    // Initialize symbol resolution for deep profiling
+    // Symbol resolution for deep profiling
 #ifdef _WIN32
     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
     if (SymInitialize(GetCurrentProcess(), NULL, TRUE))
@@ -53,7 +50,7 @@ void ProfilingService::Initialize()
     }
 #endif
 
-    // Mark as initialized - safe to use profiling hooks now
+    // The profiling hooks are safe to use from here on.
     s_Initialized = true;
 }
 
@@ -61,7 +58,6 @@ void ProfilingService::Shutdown()
 {
     m_IsRecording = false;
 
-    // Cleanup symbol resolution
 #ifdef _WIN32
     if (m_SymbolsInitialized)
     {
@@ -71,7 +67,7 @@ void ProfilingService::Shutdown()
 #endif
 }
 
-// Helper to recursively sum idle time from event tree
+// Total idle time in an event tree.
 static double SumIdleTimeMs(const ProfileEvent* event)
 {
     if (!event)
@@ -102,7 +98,6 @@ void ProfilingService::BeginFrame()
 
     m_FrameStartTime = std::chrono::high_resolution_clock::now();
 
-    // Create root event for this frame
     {
         std::lock_guard<std::mutex> lock(m_EventMutex);
         uint64_t startTimeUs =
@@ -124,7 +119,6 @@ void ProfilingService::EndFrame()
     auto frameEnd = std::chrono::high_resolution_clock::now();
     double frameTimeMs = std::chrono::duration<double, std::milli>(frameEnd - m_FrameStartTime).count();
 
-    // Finalize root event
     {
         std::lock_guard<std::mutex> lock(m_EventMutex);
         if (m_CurrentFrameRoot)
@@ -135,14 +129,12 @@ void ProfilingService::EndFrame()
         }
     }
 
-    // Create frame data and add to history
     FrameData frameData;
     frameData.frameNumber = m_FrameCounter++;
     frameData.totalTimeMs = frameTimeMs;
-    frameData.idleTimeMs = SumIdleTimeMs(m_CurrentFrameRoot.get());  // Calculate before moving
+    frameData.idleTimeMs = SumIdleTimeMs(m_CurrentFrameRoot.get());  // before the move below
     frameData.rootEvent = std::move(m_CurrentFrameRoot);
 
-    // Sample memory stats
     if (Deki::Memory::IsInitialized())
     {
         Deki::MemoryStats stats = Deki::Memory::GetStats();
@@ -158,10 +150,8 @@ void ProfilingService::EndFrame()
     {
         std::lock_guard<std::mutex> lock(m_FrameHistoryMutex);
 
-        // Add to circular buffer
         m_FrameHistory.push_back(std::move(frameData));
 
-        // Maintain max size
         if (m_FrameHistory.size() > kMaxFrameHistory)
         {
             m_FrameHistory.pop_front();
@@ -176,7 +166,6 @@ void ProfilingService::PushEvent(const char* category, const char* name)
         return;
     }
 
-    // Build call tree for our custom UI
     std::lock_guard<std::mutex> lock(m_EventMutex);
 
     auto now = std::chrono::high_resolution_clock::now();
@@ -184,7 +173,6 @@ void ProfilingService::PushEvent(const char* category, const char* name)
 
     auto event = std::make_unique<ProfileEvent>(category, name, startTimeUs);
 
-    // Add as child of current top of stack
     if (!m_EventStack.empty())
     {
         ProfileEvent* parent = m_EventStack.back();
@@ -201,16 +189,14 @@ void ProfilingService::PushEventIdle(const char* category, const char* name)
         return;
     }
 
-    // Build call tree for our custom UI - marked as idle time
     std::lock_guard<std::mutex> lock(m_EventMutex);
 
     auto now = std::chrono::high_resolution_clock::now();
     uint64_t startTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
 
     auto event = std::make_unique<ProfileEvent>(category, name, startTimeUs);
-    event->isIdleTime = true;  // Mark as idle time (vsync, sleep, etc.)
+    event->isIdleTime = true;
 
-    // Add as child of current top of stack
     if (!m_EventStack.empty())
     {
         ProfileEvent* parent = m_EventStack.back();
@@ -227,15 +213,13 @@ void ProfilingService::PopEvent(uint64_t durationUs)
         return;
     }
 
-    // Update call tree
     std::lock_guard<std::mutex> lock(m_EventMutex);
 
-    if (m_EventStack.size() > 1)  // Don't pop root
+    if (m_EventStack.size() > 1)  // never pop the root
     {
         ProfileEvent* event = m_EventStack.back();
         m_EventStack.pop_back();
 
-        // Calculate duration
         auto now = std::chrono::high_resolution_clock::now();
         uint64_t endTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
         event->durationUs = endTimeUs - event->startTimeUs;
@@ -254,16 +238,13 @@ const FrameData* ProfilingService::GetFrame(size_t index) const
     return nullptr;
 }
 
-// ScopedTrace implementation - only does our custom tracking
-// Tracy tracking is handled by the PROFILE_SCOPE macro
 ScopedTrace::ScopedTrace(const char* category, const char* name)
     : m_Category(category),
       m_Active(ProfilingService::IsRecordingStatic())
 {
-    // Cheap when the profiler is off. PushEvent already early-outs on
-    // !m_IsRecording, but the timestamps did not: every PROFILE_SCOPE cost two
-    // QueryPerformanceCounter reads whether or not anyone was recording, and
-    // play mode puts one of these around every component update every frame.
+    // Free when the profiler is off: skip the timestamps too. Play mode puts
+    // one of these around every component update every frame, and two
+    // QueryPerformanceCounter reads each add up.
     if (!m_Active)
     {
         return;
@@ -289,7 +270,6 @@ ScopedTrace::~ScopedTrace()
     ProfilingService::Get().PopEvent(durationUs);
 }
 
-// ScopedTraceIdle implementation - for idle time events (vsync, sleep, etc.)
 ScopedTraceIdle::ScopedTraceIdle(const char* category, const char* name)
     : m_Active(ProfilingService::IsRecordingStatic())
 {
@@ -318,7 +298,6 @@ const char* ProfilingService::ResolveFunctionName(void* address)
         return nullptr;
     }
 
-    // Check cache first
     {
         std::lock_guard<std::mutex> lock(m_SymbolMutex);
         for (auto& entry : m_SymbolCache)
@@ -330,7 +309,7 @@ const char* ProfilingService::ResolveFunctionName(void* address)
         }
     }
 
-    // Resolve symbol using DbgHelp
+    // Not cached: ask DbgHelp.
     char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
     PSYMBOL_INFO symbol = (PSYMBOL_INFO)buffer;
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
@@ -348,19 +327,17 @@ const char* ProfilingService::ResolveFunctionName(void* address)
     return nullptr;
 }
 
-// Check if profiling is safe to use
 bool ProfilingService::IsInitialized()
 {
     return s_Initialized;
 }
 
-// Static callbacks for deep profiling (/Gh /GH hooks)
 void ProfilingService::OnProfileEnter(void* returnAddress)
 {
-    // CRITICAL: Check static flags BEFORE accessing singleton
-    // This prevents crashes during DLL loading (DllMain holds loader lock)
-    // s_IsRecording is false by default, so plugin loading won't trigger singleton access
-    // s_DeepProfileEnabled must also be true for /Gh /GH hooks to record events
+    // CRITICAL: check the static flags BEFORE touching the singleton, or a
+    // hook that fires while a DLL loads (DllMain holds the loader lock)
+    // crashes. s_IsRecording is false by default, so plugin loading never
+    // reaches the singleton.
     if (!s_Initialized || !s_IsRecording || !s_DeepProfileEnabled)
     {
         return;
@@ -368,15 +345,13 @@ void ProfilingService::OnProfileEnter(void* returnAddress)
 
     auto& profiler = ProfilingService::Get();
 
-    // Resolve function name and push to profiler
     const char* name = profiler.ResolveFunctionName(returnAddress);
     profiler.PushEvent("deep", name ? name : "Unknown");
 }
 
 void ProfilingService::OnProfileExit()
 {
-    // CRITICAL: Check static flags BEFORE accessing singleton
-    // This prevents crashes during DLL loading (DllMain holds loader lock)
+    // CRITICAL: check the static flags BEFORE touching the singleton (see OnProfileEnter).
     if (!s_Initialized || !s_IsRecording || !s_DeepProfileEnabled)
     {
         return;

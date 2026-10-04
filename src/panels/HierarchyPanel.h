@@ -28,7 +28,7 @@ public:
 
     void Draw();
 
-    // Clear any cached references to scene objects (call before scene reload)
+    /// Drops cached pointers to scene objects. Call before a scene reload.
     void ClearSceneReferences()
     {
         StopRenaming();
@@ -37,17 +37,17 @@ public:
         m_PendingClickObject = nullptr;
     }
 
-    // Drop any cached pointers to objects that are about to be destroyed.
-    // Wired to Scene::SetOnObjectsAboutToBeDestroyed via EditorApp.
+    /// Drops cached pointers to objects that are about to be destroyed.
+    /// EditorApp wires it to Scene::SetOnObjectsAboutToBeDestroyed.
     void OnObjectsDestroyed(const std::vector<Deki::Object*>& dying);
 
 private:
-    // Returns true if an object was deleted (signals caller to break iteration)
-    // readOnly=true disables editing (for Persistent objects)
+    // Returns true if an object was deleted, so the caller stops iterating.
+    // readOnly disables editing (for Persistent objects).
     bool DrawObjectNode(Deki::Object* obj, bool readOnly = false);
     // Inside a drag-drop target: .scene assets dragged from the Asset Browser
     // become instances under `parent` (nullptr: the scene root) at `index`
-    // (SIZE_MAX: the end). The scene being edited is refused - it cannot
+    // (SIZE_MAX: the end). The scene being edited is refused, since it cannot
     // contain itself.
     void AcceptSceneAssetDrop(Deki::Object* parent, size_t index);
     static const void* NodeKey(const Deki::Object* obj);
@@ -55,7 +55,7 @@ private:
     void StartRenaming(Deki::Object* obj);
     void StopRenaming();
 
-    // Protection: boot scene "Setup" object cannot be deleted
+    // True for the boot scene's "Setup" object, which cannot be deleted.
     bool IsProtectedObject(Deki::Object* obj) const;
 
     // Range selection helpers
@@ -72,37 +72,37 @@ private:
 
     // Flattened object list for arrow key navigation and Shift+click range selection
     std::vector<Deki::Object*> m_FlattenedObjects;
-    // The rows drawn last frame, in order: the visible ones only (collapsed
-    // children and search misses are not rows). A Shift+click range is taken
-    // from these; this frame's list is still being built when the click lands.
+    // The visible rows drawn last frame, in order (collapsed children and
+    // search misses are not rows). A Shift+click range is taken from these,
+    // since this frame's list is still being built when the click lands.
     std::vector<Deki::Object*> m_VisibleLastFrame;
 
     // Which row the mouse is over, for the rows' hover fade (DrawObjectNode).
     DekiEditor::Motion::RowHover m_RowHover;
 
     // Arrow key navigation state
-    Deki::Object* m_CollapsedByArrow = nullptr;  // Suppress auto-expand for node collapsed via Left arrow
-    bool m_ArrowKeyHandled = false;              // Prevent multiple nodes handling same key press
-    Deki::Object* m_ScrollToObject = nullptr;    // Sync ImGui nav focus after arrow key navigation
+    Deki::Object* m_CollapsedByArrow = nullptr;  // Not auto-expanded: the Left arrow collapsed it
+    bool m_ArrowKeyHandled = false;              // One node handles each key press
+    Deki::Object* m_ScrollToObject = nullptr;    // Moves ImGui nav focus here after arrow navigation
 
-    // Multi-object drag state (snapshot of selected objects at drag start)
+    // Selected objects as they were when the drag started
     std::vector<Deki::Object*> m_DraggedObjects;
 
-    // Deferred click: when clicking an already-selected object in multi-selection,
-    // defer single-selection to mouse-up so drag can capture the full selection
+    // Clicking an object already in a multi-selection selects only it on
+    // mouse-up, so a drag that starts there still takes the whole selection.
     Deki::Object* m_PendingClickObject = nullptr;
 
     // Link to Scene state
     std::unique_ptr<AssetPicker> m_AssetPicker;
     Deki::Object* m_LinkTargetObject = nullptr;  // Object being linked to a scene
-    bool m_OpenLinkPicker = false;               // Deferred open (can't open modal from context menu)
+    bool m_OpenLinkPicker = false;               // Opened next frame: a modal cannot open from the context menu
 
-    // Deferred navigation (can't navigate during draw loop - destroys scene mid-iteration)
+    // Navigation waits until drawing ends: it destroys the scene being iterated.
     std::string m_PendingNavigatePath;
 
-    // Tree search filter text (entered in the search bar under the breadcrumb).
-    // Lowercased compare against object names in DrawObjectNode; ancestors of
-    // matches stay visible so the user keeps context.
+    // Search bar text (under the breadcrumb). DrawObjectNode matches it,
+    // lowercased, against object names; ancestors of matches stay visible
+    // for context.
     char m_SearchBuf[128] = "";
     std::string m_SearchLowerSource;  // m_SearchBuf as of the last lower-casing
     std::string m_SearchLower;

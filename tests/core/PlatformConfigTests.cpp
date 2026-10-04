@@ -53,12 +53,10 @@ const PlatformConfig* Load(const PlatformDir& d, const std::string& id)
 
 TEST(PlatformConfig, FrameworkSettingsAreCarriedNotJudged)
 {
-    // The loader used to know that a platform has a display bus, check that it
-    // was an identifier and clear it if not; and before that, to hold one
-    // framework's chip allowlist. Both are that framework's settings. They are
-    // carried through untouched, and the backend that owns them refuses the
-    // build and says why (ITargetBuilder::ValidatePlatform) - clearing a value
-    // here turned a typo into a confusing failure much further downstream.
+    // A display bus or a chip allowlist is a framework's setting. The loader
+    // carries it through untouched, and the backend that owns it refuses the
+    // build and says why (ITargetBuilder::ValidatePlatform). Clearing a value
+    // here would turn a typo into a confusing failure much further downstream.
     PlatformDir d;
     d.Write("pc_bad", R"({
         "id": "pc_bad", "displayName": "bad", "family": "espressif", "framework": "espidf",
@@ -74,9 +72,9 @@ TEST(PlatformConfig, FrameworkSettingsAreCarriedNotJudged)
 TEST(PlatformConfig, AMicrocontrollersDescriptionIsItsBackendsBusiness)
 {
     // mcuChip, flashSize, cpuFreqHz, displayDriver, displayBus, pins,
-    // requiredLibraries, uploadBaudRate... were fields of the platform type, so
-    // a console platform inherited a flash size and an upload baud rate. Files
-    // that carry them at the top level still load: they are the framework's.
+    // requiredLibraries, uploadBaudRate... belong to the framework, not the
+    // platform type, so a console platform has no flash size or upload baud
+    // rate. Files that carry them at the top level still load.
     PlatformDir d;
     d.Write("pc_mcu", R"({
         "id": "pc_mcu", "displayName": "mcu", "family": "somevendor", "framework": "somevendor-sdk",
@@ -245,9 +243,8 @@ TEST(PlatformConfig, AnUnknownFrameworksOptionsSurviveUntouched)
 TEST(PlatformConfig, TopLevelKeysTheEditorDoesNotOwnBelongToTheFramework)
 {
     // Which top-level keys are framework settings is decided without naming
-    // any of them. It used to be a list of nine of one framework's keys, so a
-    // file for any other framework that kept its settings at the top level
-    // lost them on load.
+    // any of them, so a file for any framework that keeps its settings at the
+    // top level keeps them on load.
     PlatformDir d;
     d.Write("pc_flat", R"({
         "id": "pc_flat", "displayName": "flat", "family": "someconsole",

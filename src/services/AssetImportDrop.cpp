@@ -16,7 +16,7 @@ namespace AssetImportDrop
 namespace
 {
 // Which dropped files get a .data sidecar (GUID) and a cache entry: the
-// package-owned texture/animation/scene categories, plus BDF fonts.
+// texture, animation and scene categories packages own, plus BDF fonts.
 bool NeedsGuid(const std::string& extension)
 {
     const AssetCategory category = AssetTypeRegistry::Instance().GetCategoryForExtension(extension);
@@ -39,7 +39,7 @@ void RegisterAsset(const std::filesystem::path& path, AssetPipeline* pipeline)
         return;
     }
     GetOrCreateAssetGuid(path.string());
-    // Compile to the cache (the pipeline wants a project-relative path)
+    // Compile it to the cache. The pipeline takes a project-relative path.
     if (pipeline)
     {
         pipeline->RefreshAsset(pipeline->MakeProjectRelative(path.string()));
@@ -71,7 +71,7 @@ bool Import(const std::string& droppedPath, const std::string& targetDir, AssetP
         if (fs::is_directory(sourcePath))
         {
             fs::copy(sourcePath, destPath, fs::copy_options::recursive);
-            // Re-mint every sidecar GUID before anything adopts them.
+            // New GUIDs for every sidecar before anything registers them.
             AssetFileOps::ReassignGuidsInTree(destPath.string());
             for (const auto& entry : fs::recursive_directory_iterator(destPath))
             {

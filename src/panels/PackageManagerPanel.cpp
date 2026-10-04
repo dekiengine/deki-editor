@@ -31,13 +31,12 @@ namespace DekiEditor
 
 namespace
 {
-// Colored text through the EditorUI float overload (keeps raw ImGui out of the
-// panel logic; mirrors the Platform Manager helper).
+// Coloured text through EditorUI's float overload, as in the Platform Manager.
 inline void TextCol(EditorUI& ui, const ImVec4& c, const char* s)
 {
     ui.TextColored(c.x, c.y, c.z, c.w, s);
 }
-// Pack a theme color into EditorUI's RGBA word for PushStyleColor.
+// Packs a theme colour into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
     return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
@@ -55,9 +54,9 @@ PackageManagerPanel::~PackageManagerPanel() = default;
 
 void PackageManagerPanel::Draw()
 {
-    // Results of background fetches land here, on the main thread, before
-    // anything below walks the package list. Drained even while closed so a
-    // fetch started from an open panel still completes.
+    // Results of background fetches are applied here, on the main thread,
+    // before anything below walks the package list. Drained even while closed,
+    // so a fetch started from an open panel still completes.
     m_PackageManager->DrainMainThread();
 
     if (!isOpen)
@@ -68,19 +67,18 @@ void PackageManagerPanel::Draw()
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(m_App->Dpi(820.0f), m_App->Dpi(520.0f), /*firstUseEver*/ true);
 
-    // No main-window scrollbar: the split's child panes fill the window, so a
-    // phantom main scrollbar would otherwise inset the right pane (its child
-    // scrollbar then sat a scrollbar-width in from the real window edge).
+    // No main-window scrollbar: the split's child panes fill the window, and
+    // a main scrollbar would push the right pane's own scrollbar in from the
+    // window edge.
     if (ui.Begin("PACKAGE MANAGER###Package Manager", &isOpen, EditorUI::WinNoScrollbar))
     {
-        // Refresh on first open or when requested.
         if (m_NeedsRefresh)
         {
             RefreshPackages();
             m_NeedsRefresh = false;
         }
 
-        // Auto-fetch registry index on first open (uses cache).
+        // Fetch the registry index on first open (from the cache when it can).
         if (!m_RegistryFetchedOnce && !m_RegistryFetching)
         {
             m_RegistryFetchedOnce = true;
@@ -95,7 +93,6 @@ void PackageManagerPanel::Draw()
 
         if (!m_App->GetProject())
         {
-            // Empty state: padded dim hint instead of a bare panel.
             ui.Spacing();
             ui.Indent(pad);
             TextCol(ui, Palette::Dim, "Open a project to manage packages.");
@@ -103,19 +100,17 @@ void PackageManagerPanel::Draw()
         }
         else
         {
-            // Full-bleed action toolbar (Add Package / Add Registry / Refresh).
             DrawToolbar();
 
-            // Search bar + filter dropdown share one row: the Asset-Browser-style
-            // borderless magnifier input on the left, the dropdown in a reserved
-            // slot on the right, with a full-width hairline beneath both.
+            // Search and filter share one row: the Asset Browser's borderless
+            // search field on the left, the filter dropdown in a slot it reserves
+            // on the right, and a full-width hairline under both.
             float slotX = 0.0f, slotY = 0.0f, slotW = 0.0f, slotH = 0.0f;
             DekiEditor::SearchField("##search", m_SearchFilter, sizeof(m_SearchFilter), m_App->Dpi(140.0f),
                                     /*bottomBorder*/ true, &slotX, &slotY, &slotW, &slotH);
 
-            // Fill the reserved slot with a flat, toolbar-styled dropdown (same
-            // height/edges as the action toolbar's cells). Restore the cursor to
-            // the band below so the rest of the panel flows from there.
+            // Fill the slot with a flat dropdown styled like the toolbar's cells,
+            // then put the cursor back below the row for the rest of the panel.
             float belowX = 0.0f, belowY = 0.0f;
             ui.GetCursorScreenPos(&belowX, &belowY);
             ui.SetCursorScreenPos(slotX, slotY);
@@ -127,16 +122,16 @@ void PackageManagerPanel::Draw()
             ui.Spacing();
             ui.Indent(pad);
 
-            // Status feedback (install/remove results), aligned with the gutter.
+            // The result of the last install or remove.
             if (!m_StatusMessage.empty())
             {
                 TextCol(ui, Palette::Dim, m_StatusMessage.c_str());
                 ui.Spacing();
             }
 
-            // Resizable split: package list | thin splitter | details. No gaps
-            // around the splitter so each pane (and its scrollbar) sits flush
-            // against the separator.
+            // Resizable split: package list, thin splitter, details. No gaps
+            // around the splitter, so each pane and its scrollbar sit flush
+            // against it.
             float availW = 0.0f;
             ui.GetContentRegionAvail(&availW, nullptr);
             const float splitterWidth = m_App->Dpi(7.0f);  // invisible drag hit area
@@ -144,14 +139,14 @@ void PackageManagerPanel::Draw()
             const float maxPanelWidth = availW - minPanelWidth - splitterWidth;
             m_LeftPanelWidth = (std::max)(minPanelWidth, (std::min)(m_LeftPanelWidth, maxPanelWidth));
 
-            // Transparent scrollbar track flush at the pane edges (the dark track
-            // read as wasted space). Width comes from the global theme so it
-            // matches every other panel. Covers both child panes below.
+            // Transparent scrollbar track for both panes below; a dark track
+            // looks like wasted space. The width comes from the theme, as in
+            // every other panel.
             ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, IM_COL32(0, 0, 0, 0));
 
-            // Left: borderless scroll region of package cards (no boxed sub-window).
-            // No horizontal window padding so the cards reach the pane edges and the
-            // scrollbar sits flush.
+            // Left: a borderless scroll region of package cards. No horizontal
+            // padding, so the cards reach the pane edges and the scrollbar sits
+            // flush.
             ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, 0.0f, m_App->Dpi(2.0f));
             ui.BeginChild("PackageList", m_LeftPanelWidth, 0.0f, false);
             DrawPackageList();
@@ -160,8 +155,8 @@ void PackageManagerPanel::Draw()
 
             ui.SameLine(0.0f, 0.0f);
 
-            // Splitter: an invisible drag hit area with a full-height guide line
-            // (faint, brighter on hover, accent while dragging).
+            // Splitter: an invisible drag area with a full-height line (faint,
+            // brighter on hover, accent while dragging).
             float splitterHeight = 0.0f;
             ui.GetContentRegionAvail(nullptr, &splitterHeight);
             float spX = 0.0f, spY = 0.0f;
@@ -183,9 +178,9 @@ void PackageManagerPanel::Draw()
                     m_LeftPanelWidth = (std::max)(minPanelWidth, (std::min)(m_LeftPanelWidth, maxPanelWidth));
                 }
             }
-            // Line flush against the list pane's right edge (so the list scrollbar
-            // sits right against the separator, no gap); the rest of the hit area
-            // extends into the details pane's left margin for an easy drag target.
+            // The line sits on the list pane's right edge, so the list scrollbar
+            // touches it; the rest of the drag area reaches into the details
+            // pane's left margin, which makes it easy to grab.
             const float spLineX = (float)(int)spX;
             const uint32_t spCol = spActive    ? Pack(Palette::Accent)
                                    : spHovered ? Pack(Palette::Line3)
@@ -194,9 +189,9 @@ void PackageManagerPanel::Draw()
 
             ui.SameLine(0.0f, 0.0f);
 
-            // Right: borderless details pane. Fills to the window's right edge so
-            // its scrollbar sits flush against it (no right gutter); the content
-            // inside keeps its own left indent.
+            // Right: a borderless details pane that fills to the window's right
+            // edge, so its scrollbar sits against it; the content inside keeps
+            // its own left indent.
             ui.BeginChild("PackageDetails", 0.0f, 0.0f, false);
             DrawPackageDetails();
             ui.EndChild();
@@ -205,7 +200,6 @@ void PackageManagerPanel::Draw()
 
             ui.Unindent(pad);
 
-            // Popups.
             DrawAddPackagePopup();
             DrawAddRegistryPopup();
         }
@@ -217,9 +211,8 @@ void PackageManagerPanel::DrawToolbar()
 {
     auto& ui = EditorUI::Get();
 
-    // Console-style full-bleed toolbar: icon cells with 1px dividers and a bottom
-    // hairline. Refresh also fetches the registry index for update checking and is
-    // disabled (its own enabled flag gates the click) while a fetch is in flight.
+    // Full-width toolbar in the Console's style. Refresh also fetches the
+    // registry index to check for updates, and is disabled while a fetch runs.
     ui.BeginToolbar();
     if (ui.ToolbarIconButton("##addPackage", ICON_TI_PLUS, "Add Package", true))
     {
@@ -251,7 +244,6 @@ void PackageManagerPanel::DrawPackageList()
         installer = m_PackageManager->GetInstallerForProject(project->GetPath());
     }
 
-    // Does a package belong to the named registry?
     auto isFromRegistry = [this](const PackageEntry& pkg, const std::string& registryName) -> bool
     {
         if (registryName == "Deki")
@@ -261,7 +253,7 @@ void PackageManagerPanel::DrawPackageList()
         return pkg.registrySource == registryName;
     };
 
-    // Search filter + filter-mode test.
+    // True when the search text or the filter dropdown hides the package.
     auto shouldSkip = [&](const PackageEntry& pkg) -> bool
     {
         if (m_SearchFilter[0] != '\0')
@@ -289,7 +281,7 @@ void PackageManagerPanel::DrawPackageList()
         return false;
     };
 
-    // Group header: a small bold dim label with a little space above.
+    // Group header: a small, bold, dim label with a little space above.
     auto groupHeader = [&](const char* label)
     {
         ui.Spacing();
@@ -298,14 +290,13 @@ void PackageManagerPanel::DrawPackageList()
         ui.PopFont();
     };
 
-    // Per-frame running id for the cards. Package ids aren't guaranteed unique
-    // (installed packages can have an empty id), so keying SelectableCard on a
-    // sequence number avoids ImGui id collisions regardless of the data.
+    // A running number per card, used as its ImGui id. Package ids are not
+    // always unique (an installed package can have an empty id).
     int cardSeq = 0;
 
-    // Draw one package as a status card. Title = display name; the subtitle and
-    // its color encode install state (green installed / amber update / accent core
-    // / dim repo name when available).
+    // One package as a card: the display name, and a subtitle whose colour
+    // shows install state (green installed, amber update, accent core
+    // dependency, dim repo name when not installed).
     auto drawCard = [&](PackageEntry& pkg)
     {
         const bool isCoreDep = installer && installer->IsCoreDependency(pkg.name);
@@ -341,7 +332,7 @@ void PackageManagerPanel::DrawPackageList()
         }
         else
         {
-            subtitle = pkg.name;  // repo (owner/name), dim
+            subtitle = pkg.name;  // repo as owner/name, dim
         }
 
         std::string id = "##mod_" + std::to_string(cardSeq++);
@@ -386,8 +377,8 @@ void PackageManagerPanel::DrawPackageList()
         }
     };
 
-    // Emit a group (header + cards) only when it has at least one visible package,
-    // so empty registries don't leave dangling headers.
+    // A group (header and cards) is drawn only when it has a visible package,
+    // so an empty registry leaves no bare header.
     auto drawGroup = [&](const char* label, auto matches)
     {
         bool any = false;
@@ -424,10 +415,10 @@ void PackageManagerPanel::DrawPackageList()
         }
     };
 
-    // Built-in Deki registry, then each custom registry, then manually-added.
-    // Custom-registry packages are DekiPackages too, so exclude any with a
-    // registrySource here - they belong to (and are drawn once in) their own
-    // registry group below, not the built-in one.
+    // The built-in Deki registry, then each custom registry, then packages
+    // added by hand. Custom-registry packages are DekiPackages too, so ones
+    // with a registrySource are left out here: they are drawn once, in their
+    // own registry's group.
     drawGroup("Deki Registry",
               [&](const PackageEntry& pkg) { return isFromRegistry(pkg, "Deki") && pkg.registrySource.empty(); });
 
@@ -471,7 +462,7 @@ void PackageManagerPanel::DrawPackageDetails()
 
     auto& pkg = *m_SelectedPackage;
 
-    // Is this a core / auto-managed dependency?
+    // A core dependency is managed automatically.
     bool isCoreDep = false;
     if (auto* project = m_App->GetProject())
     {
@@ -481,13 +472,13 @@ void PackageManagerPanel::DrawPackageDetails()
         }
     }
 
-    // Header: display name (bold) + repo id (dim).
+    // Header: display name in bold, repo id dim.
     ui.PushBoldFont();
     ui.Text(pkg.displayName.c_str());
     ui.PopFont();
     TextCol(ui, Palette::Dim, pkg.name.c_str());
 
-    // Dependency-of info.
+    // The installed packages that depend on this one.
     {
         std::vector<std::string> parentNames;
         for (const auto& p : m_PackageManager->GetPackages())
@@ -520,10 +511,9 @@ void PackageManagerPanel::DrawPackageDetails()
         }
     }
 
-    // Required packages.
+    // Required packages, on one line, by the names the list shows.
     if (!pkg.requiredPackages.empty())
     {
-        // One line: what it needs, by the names the list shows.
         std::string needs;
         for (const auto& dep : pkg.requiredPackages)
         {
@@ -546,9 +536,9 @@ void PackageManagerPanel::DrawPackageDetails()
 
     DrawFeatures(pkg);
 
-    // Framework / builder - only when the package relies on the active platform's
-    // framework (declares deps under that framework key, or is one of that
-    // framework's own components). Otherwise the labels describe the project,
+    // Framework and builder, shown only when the package relies on the active
+    // platform's framework (it declares dependencies under that framework's
+    // key, or is one of its components). Otherwise they describe the project,
     // not the package.
     auto* project = m_App->GetProject();
     const PlatformConfig* config =
@@ -594,27 +584,25 @@ void PackageManagerPanel::DrawPackageDetails()
     ui.Separator();
     ui.Spacing();
 
-    // Before the description, not after: it changes whether you want to read
-    // the rest. The registry carries the flag; the package's own README says
-    // what specifically is unsettled.
+    // Before the description: it decides whether the rest is worth reading.
+    // The registry carries the flag; the package's README says what is
+    // unsettled.
     if (pkg.experimental)
     {
         TextCol(ui, Palette::Amber, "Experimental - its API and formats can change without a migration path.");
         ui.Spacing();
     }
 
-    // Ahead of the Install button, not after it. The installer makes the same
-    // comparison, but only once the package has been cloned, so the whole
-    // download used to happen and be thrown away again with no warning that it
-    // was going to be. The registry already told us which engine the package
-    // needs, so say it here.
+    // Shown before the Install button. The installer makes the same check,
+    // but only after cloning the package; the registry already says which
+    // engine the package needs, so warn before the download.
     if (const std::string problem = PackageCompatibilityProblem(pkg); !problem.empty())
     {
         TextCol(ui, Palette::Red, ("Not compatible. " + problem + ".").c_str());
         ui.Spacing();
     }
 
-    // Description + metadata.
+    // Description and metadata.
     if (!pkg.description.empty())
     {
         ui.TextWrapped(pkg.description.c_str());
@@ -676,9 +664,9 @@ void PackageManagerPanel::DrawPackageDetails()
 
                 for (const auto& [platform, deps] : m_PackageDetails.dependencies)
                 {
-                    // The backend claiming this framework names it; a key no
+                    // The backend that claims this framework names it. A key no
                     // loaded backend claims ("default", or a framework whose
-                    // package is not installed) displays as itself.
+                    // package is not installed) is shown as is.
                     std::string platformLabel = platform;
                     if (ITargetBuilder* named = BuilderRegistry::Instance().GetBuilder(platform))
                     {
@@ -715,9 +703,8 @@ void PackageManagerPanel::DrawPackageDetails()
     ui.Separator();
     ui.Spacing();
 
-    // Install source (hidden for core deps): Version vs Branch as a styled
-    // dropdown (matching the inspector's enum fields) instead of oversized radio
-    // buttons, then the value input below.
+    // Install source, hidden for core dependencies: a Version or Branch
+    // dropdown styled like the inspector's enum fields, then the value below.
     if (!isCoreDep)
     {
         TextCol(ui, Palette::Dim, "Install from");
@@ -734,7 +721,7 @@ void PackageManagerPanel::DrawPackageDetails()
         ui.Spacing();
     }
 
-    // Action buttons (centered labels; primary = accent, destructive = red).
+    // Action buttons with centred labels: accent for primary, red for destructive.
     const float btnW = m_App->Dpi(110.0f);
     ui.PushButtonTextAlign(0.5f, 0.5f);
 
@@ -743,10 +730,10 @@ void PackageManagerPanel::DrawPackageDetails()
         TextCol(ui, Palette::Dim, ("Installed version: " + pkg.installedVersion).c_str());
         ui.Spacing();
 
-        // Editable: this project is DEVELOPING the package, not just consuming
-        // it. Off (the default) means the editor owns the directory - local
-        // edits are stashed and the checkout is put back on the pinned version
-        // when the window regains focus.
+        // Editable: this project develops the package, not just uses it. Off
+        // (the default) means the editor owns the directory: local edits are
+        // stashed and the checkout goes back to the pinned version when the
+        // window regains focus.
         {
             bool editable = pkg.editable;
             if (ui.Checkbox("Editable (I am developing this package)", &editable))
@@ -836,7 +823,7 @@ void PackageManagerPanel::DrawAddPackagePopup()
         ui.OpenPopup("Add Package");
     }
 
-    // Center over the viewport; fixed width, auto height, generous padding.
+    // Centred over the viewport; fixed width, automatic height.
     float vx = 0.0f, vy = 0.0f, vw = 0.0f, vh = 0.0f;
     ui.GetMainViewportRect(&vx, &vy, &vw, &vh);
     ui.SetNextWindowPos(vx + vw * 0.5f, vy + vh * 0.5f, 0.5f, 0.5f);
@@ -875,7 +862,7 @@ void PackageManagerPanel::DrawAddPackagePopup()
         if (ui.Button("Add", btnW, 0.0f))
         {
             OnAddPackageConfirmed();
-            if (!m_ShowAddPopup)  // confirmed (cleared on success)
+            if (!m_ShowAddPopup)  // cleared on success
             {
                 ui.CloseCurrentPopup();
             }
@@ -922,10 +909,10 @@ void PackageManagerPanel::OnMarkedEditable(const PackageEntry& pkg)
         return;
     }
 
-    // An installed package is checked out AT ITS TAG, so HEAD is detached. That
-    // is right for a consumer and wrong the moment you start editing: commits
-    // would land on no branch and be easy to lose. Put it on the default branch
-    // now, while the tree is known to match the tag.
+    // An installed package is checked out at its tag, so HEAD is detached.
+    // That suits a user of the package, but commits made there land on no
+    // branch and are easy to lose. Put it on the default branch now, while the
+    // tree still matches the tag.
     std::string out;
     if (DekiEditor::RunGit({ "-C", dir.string(), "symbolic-ref", "-q", "HEAD" }, out) == 0)
     {
@@ -949,7 +936,7 @@ void PackageManagerPanel::OnPackageSelected(PackageEntry* pkg)
     m_VersionMode = 0;
     m_VersionInput[0] = '\0';
 
-    // Pre-fill with installed version or latest available version
+    // Pre-fill with the installed version, else the latest available one
     if (pkg && pkg->isInstalled && !pkg->installedVersion.empty())
     {
         strncpy(m_VersionInput, pkg->installedVersion.c_str(), sizeof(m_VersionInput) - 1);
@@ -961,7 +948,7 @@ void PackageManagerPanel::OnPackageSelected(PackageEntry* pkg)
         m_VersionInput[sizeof(m_VersionInput) - 1] = '\0';
     }
 
-    // Load package details for installed Deki Packages
+    // Details exist only for installed Deki packages
     if (pkg && pkg->isInstalled && pkg->packageType == PackageType::DekiPackage)
     {
         LoadPackageDetails(*pkg);
@@ -984,7 +971,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         return;
     }
 
-    // Find the package directory by matching .deki-package.json id/name
+    // Find the package directory by the id or name in its .deki-package.json
     fs::path packageDir;
     try
     {
@@ -1023,7 +1010,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                 }
             }
 
-            // Fallback: match by directory name vs repo name
+            // Otherwise, a directory named after the repo
             std::string dirName = entry.path().filename().string();
             size_t slashPos = pkg.name.find('/');
             std::string repoName = (slashPos != std::string::npos) ? pkg.name.substr(slashPos + 1) : pkg.name;
@@ -1044,7 +1031,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         return;
     }
 
-    // Count .cpp source files in package directory (excluding editor/ and generated/)
+    // Count the package's .cpp files, leaving out editor/, generated/ and tests/
     try
     {
         for (auto& cppEntry : fs::recursive_directory_iterator(packageDir))
@@ -1077,7 +1064,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
     {
     }
 
-    // Parse package.cmake for link deps
+    // Link dependencies: the PACKAGE_LINK_DEPS list in package.cmake
     fs::path packageCmake = packageDir / "package.cmake";
     if (fs::exists(packageCmake))
     {
@@ -1087,11 +1074,10 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
 
         while (std::getline(file, line))
         {
-            // Parse PACKAGE_LINK_DEPS
             if (!inLinkDeps && line.find("set(PACKAGE_LINK_DEPS") != std::string::npos)
             {
                 inLinkDeps = true;
-                // Extract from this line
+                // Tokens on the set( line itself
                 size_t start = line.find("PACKAGE_LINK_DEPS") + 16;
                 std::string rest = line.substr(start);
                 std::istringstream iss(rest);
@@ -1146,7 +1132,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         }
     }
 
-    // Parse .deki-package.json dependencies (all platforms)
+    // Dependencies per framework from .deki-package.json, by a simple text scan
     fs::path metaPath = packageDir / ".deki-package.json";
     if (fs::exists(metaPath))
     {
@@ -1156,11 +1142,10 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         size_t pdPos = content.find("\"dependencies\"");
         if (pdPos != std::string::npos)
         {
-            // Find the outer object { ... } for dependencies
+            // The "dependencies" object, up to its matching closing brace
             size_t outerStart = content.find('{', pdPos);
             if (outerStart != std::string::npos)
             {
-                // Find matching closing brace (simple nesting)
                 int depth = 1;
                 size_t outerEnd = outerStart + 1;
                 while (outerEnd < content.size() && depth > 0)
@@ -1181,7 +1166,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
 
                 std::string pdContent = content.substr(outerStart, outerEnd - outerStart + 1);
 
-                // Find each platform key (quoted string before ':' and '[')
+                // Each framework key: a quoted string followed by an array
                 size_t searchPos = 0;
                 while (true)
                 {
@@ -1199,7 +1184,6 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
                     std::string platform = pdContent.substr(keyStart + 1, keyEnd - keyStart - 1);
                     searchPos = keyEnd + 1;
 
-                    // Find the array for this platform
                     size_t arrStart = pdContent.find('[', searchPos);
                     if (arrStart == std::string::npos)
                     {
@@ -1214,7 +1198,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
 
                     std::string arrContent = pdContent.substr(arrStart, arrEnd - arrStart + 1);
 
-                    // Parse dep objects within the array
+                    // Each dependency object in the array
                     size_t objSearch = 0;
                     while (true)
                     {
@@ -1274,9 +1258,9 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         }
     }
 
-    // Fall back to source package.json for framework keys not yet covered by
-    // .deki-package.json (the latter is generated at build time, so a freshly
-    // installed but unbuilt package would otherwise look framework-agnostic).
+    // Framework keys missing from .deki-package.json come from the source
+    // package.json. .deki-package.json is generated at build time, so a package
+    // installed but not yet built would otherwise show no framework.
     fs::path pkgJsonPath = packageDir / "package.json";
     if (fs::exists(pkgJsonPath))
     {
@@ -1290,7 +1274,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
             {
                 for (auto& [platform, deps] : mj["dependencies"].items())
                 {
-                    // .deki-package.json wins on overlapping framework keys
+                    // .deki-package.json wins where both have the key
                     if (m_PackageDetails.dependencies.count(platform))
                     {
                         continue;
@@ -1325,7 +1309,7 @@ void PackageManagerPanel::LoadPackageDetails(const PackageEntry& pkg)
         }
         catch (const nlohmann::json::exception&)
         {
-            // Malformed package.json - silently skip the fallback
+            // A malformed package.json adds nothing
         }
     }
 
@@ -1354,7 +1338,7 @@ void PackageManagerPanel::OnInstallClicked()
         return;
     }
 
-    // Get the version string, adding "branch:" prefix if in branch mode
+    // In branch mode the version carries a "branch:" prefix
     std::string version;
     if (m_VersionMode == 1)
     {
@@ -1375,7 +1359,6 @@ void PackageManagerPanel::OnInstallClicked()
                                                       m_StatusMessage = "Installed successfully";
                                                       m_NeedsRefresh = true;
 
-                                                      // Save package list
                                                       if (auto* proj = m_App->GetProject())
                                                       {
                                                           m_PackageManager->SavePackages(proj->GetPath());
@@ -1383,8 +1366,8 @@ void PackageManagerPanel::OnInstallClicked()
                                                           // The package may offer boards: list them now
                                                           DekiEditor::ReloadProjectPlatforms(proj->GetPath());
 
-                                                          // For Deki packages, force CMakeLists.txt regeneration and
-                                                          // trigger rebuild
+                                                          // A Deki package: delete CMakeLists.txt so it is
+                                                          // regenerated, and rebuild
                                                           if (dekiPackage)
                                                           {
                                                               namespace fs = std::filesystem;
@@ -1393,8 +1376,8 @@ void PackageManagerPanel::OnInstallClicked()
                                                               std::error_code ec;
                                                               fs::remove(cmakePath, ec);
 
-                                                              // Trigger plugin rebuild (force to bypass timestamp
-                                                              // detection)
+                                                              // Forced, since the file timestamps may not show a
+                                                              // change
                                                               if (auto* hotReload = m_App->GetHotReloadService())
                                                               {
                                                                   hotReload->ForceNextBuild();
@@ -1440,7 +1423,7 @@ void PackageManagerPanel::OnRemoveClicked()
                                                 m_StatusMessage = "Removed successfully";
                                                 m_NeedsRefresh = true;
 
-                                                // Save and trigger rebuild
+                                                // Save, then regenerate CMakeLists.txt and rebuild
                                                 if (auto* proj = m_App->GetProject())
                                                 {
                                                     m_PackageManager->SavePackages(proj->GetPath());
@@ -1481,7 +1464,6 @@ void PackageManagerPanel::OnAddPackageConfirmed()
         m_ShowAddPopup = false;
         m_SelectedPackage = nullptr;
 
-        // Resolve package dependencies
         for (auto& pkg : m_PackageManager->GetPackages())
         {
             if (pkg.id == info.id)
@@ -1491,7 +1473,6 @@ void PackageManagerPanel::OnAddPackageConfirmed()
             }
         }
 
-        // Save packages
         if (auto* proj = m_App->GetProject())
         {
             m_PackageManager->SavePackages(proj->GetPath());
@@ -1535,7 +1516,7 @@ void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
         [this](bool success, const std::vector<RegistryPackageEntry>& packages)
         {
             // May run on the registry's fetch thread; the package list and the
-            // panel's own state are main-thread only.
+            // panel's state may only be touched on the main thread.
             m_PackageManager->PostToMainThread(
                 [this, success, packages]()
                 {
@@ -1546,7 +1527,7 @@ void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
                         {
                             m_LatestVersions[entry.id] = entry.latest;
 
-                            // Add registry packages as available packages
+                            // Each registry package is listed as available
                             PackageEntry pkg;
                             pkg.id = entry.id;
                             pkg.name = entry.id;
@@ -1606,8 +1587,8 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
     }
 
     // FetchIndex answers inline on a cache hit and on a detached thread
-    // otherwise, so hand the result over a shared promise rather than capturing
-    // locals that may already be gone by the time it fires.
+    // otherwise, so the result comes back through a shared promise: captured
+    // locals may be gone by the time it fires.
     auto promise = std::make_shared<std::promise<std::vector<RegistryPackageEntry>>>();
     auto future = promise->get_future();
     registry->FetchIndex([promise](bool ok, const std::vector<RegistryPackageEntry>& mods)
@@ -1715,16 +1696,16 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
         return false;
     }
 
-    // Install() does not flip isInstalled on the entry itself - the panel picks
-    // that up on its next refresh. Automation saves immediately, so re-scan
-    // first or the package just installed is written out as "not wanted".
+    // Install() does not set isInstalled on the entry; the panel picks that up
+    // on its next refresh. Automation saves at once, so re-scan first, or the
+    // package just installed is saved as not wanted.
     m_PackageManager->RefreshInstalledStatus(projectPath);
     m_PackageManager->SavePackages(projectPath);
     m_NeedsRefresh = true;
     DekiEditor::ReloadProjectPlatforms(projectPath);
 
-    // Deki packages change the generated build graph, so drop the stale
-    // CMakeLists.txt and force a rebuild that bypasses timestamp detection.
+    // A Deki package changes the generated build, so delete CMakeLists.txt to
+    // have it regenerated, and force a rebuild regardless of file timestamps.
     if (installer->GetId() == PackageManager::kDekiInstallerId)
     {
         std::error_code ec;
@@ -1743,11 +1724,11 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(const std::string& targetPlatformId) const
 {
     // The stripper decides what a device build defines (services/FeatureResolver).
-    // The plan is kept so the details view can show each feature's fate.
+    // The plan is kept so the details view can show what happens to each feature.
     //
-    // The target matters here and not only in the headless fallback: this is the
-    // path a build actually takes when an editor is present, so leaving it out
-    // would let another platform's boot scene decide what this one compiles.
+    // The target must be passed here too, not only in the headless path: builds
+    // from the editor go through here, and without it another platform's boot
+    // scene would decide what this one compiles.
     auto* project = m_App->GetProject();
     if (!project)
     {
@@ -1760,9 +1741,9 @@ std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(const std:
 }
 
 // The selected package's features and what a device build does with each.
-// A required feature is shown, not offered; the rest take Auto (the scan
-// decides), On (pinned, for a component a script creates in a way the scan
-// cannot see) or Off.
+// A required feature is shown with no choice; the rest take Auto (the scan
+// decides), On (pinned, for a component a script creates where the scan
+// cannot see it) or Off.
 void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
 {
     auto* project = m_App->GetProject();
@@ -1770,8 +1751,8 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
     {
         return;
     }
-    // The details view shows what the ACTIVE target would do, so a plan computed
-    // for another one is stale even when the project has not changed.
+    // The details view shows what the active target would do, so a plan made
+    // for another target is stale even when the project has not changed.
     const std::string& activePlatform = project->GetActivePlatformId();
     if (!m_StripPlanValid || m_StripSettingsProject != project->GetPath() || m_StripPlanPlatform != activePlatform)
     {
@@ -1834,7 +1815,7 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
         }
 
         // Packages this feature needs that installing its package does not
-        // bring (the board or project that uses the feature does).
+        // bring in; the board or project that uses the feature brings them.
         for (const auto& dep : d->requiredPackages)
         {
             bool installed = false;
@@ -1922,7 +1903,7 @@ void PackageManagerPanel::DrawAddRegistryPopup()
             std::string url = m_AddRegistryUrl;
             if (!url.empty())
             {
-                // Derive a display name from the URL (strip protocol + trailing slash).
+                // Display name: the URL without its scheme or trailing slashes.
                 std::string name = url;
                 if (name.find("https://") == 0)
                 {
@@ -1987,7 +1968,7 @@ void PackageManagerPanel::FetchCustomRegistry(const CustomRegistryInfo& registry
     std::thread(
         [this, url, name]()
         {
-            // Only the download happens here; the package list is main-thread only.
+            // Only the download happens here; the package list is main thread only.
             std::string indexUrl = url + "/index.json";
             std::string json = DekiEditor::EditorHttpUtils::FetchUrl(indexUrl);
 
@@ -2069,7 +2050,7 @@ void PackageManagerPanel::SaveCustomRegistries(const std::string& projectPath)
     fs::path path = fs::path(projectPath) / "deki.json";
 
     nlohmann::json j;
-    // Read existing content
+    // Keep the rest of deki.json
     if (fs::exists(path))
     {
         try
@@ -2085,7 +2066,6 @@ void PackageManagerPanel::SaveCustomRegistries(const std::string& projectPath)
         }
     }
 
-    // Write registries array
     nlohmann::json regs = nlohmann::json::array();
     for (const auto& reg : m_CustomRegistries)
     {

@@ -13,25 +13,25 @@ namespace DekiEditor
 class EditorApp;
 struct ProfileEvent;
 
-// View modes for the profiler
 enum class ProfilerViewMode
 {
-    Hierarchy,   // Tree view of call hierarchy
-    Flat,        // Aggregated flat list sorted by time
-    FlameGraph,  // Visual flame graph
-    Memory       // Memory allocation timeline
+    Hierarchy,  // tree of the call hierarchy
+    Flat,       // flat list of totals, sorted by time
+    FlameGraph,
+    Memory  // memory allocation timeline
 };
 
-// Display buffer frame data - snapshot for stacked bar rendering
+// One frame's numbers, copied for drawing the stacked timeline bars.
 struct DisplayFrameData
 {
     uint64_t frameNumber;
     double activeTimeMs;
     double totalTimeMs;
-    std::map<std::string, double> categoryTimeMs;  // For stacked bars
+    std::map<std::string, double> categoryTimeMs;  // one stacked segment each
 };
 
-// Unity-style profiler panel with timeline and hierarchical breakdown
+// Unity-style profiler panel: a frame timeline and a breakdown of the
+// selected frame.
 class ProfilerPanel : public IPanel
 {
 public:
@@ -41,9 +41,7 @@ public:
 
     void Draw();
 
-    // UI state
-
-    // Callbacks from EditorApp
+    // Called by EditorApp
     void OnPlayModePaused();
     void OnPlayModeResumed();
 
@@ -56,14 +54,13 @@ private:
     void DrawMemoryView();
     void RefreshDisplayBuffer();
 
-    // Flame graph helpers
+    // Flame graph
     uint32_t GetColorForEvent(const ProfileEvent* event, int depth);
 
     EditorApp* m_App;
     bool m_IsPaused = false;
-    int m_SelectedFrame = -1;  // -1 = no selection, shows latest frame
+    int m_SelectedFrame = -1;  // -1 = none; shows the latest frame
 
-    // View settings
     ProfilerViewMode m_ViewMode = ProfilerViewMode::Hierarchy;
     std::string m_SearchFilter;
 
@@ -72,11 +69,11 @@ private:
     float m_FlameGraphScrollX = 0.0f;
     const ProfileEvent* m_HoveredEvent = nullptr;
 
-    // 1 Hz UI refresh batching
+    // The displayed data refreshes once a second, in one batch
     std::chrono::steady_clock::time_point m_LastRefreshTime;
     static constexpr float kRefreshIntervalSeconds = 1.0f;
     std::vector<DisplayFrameData> m_DisplayBuffer;
-    uint64_t m_CurrentFrameNumber = 0;  // Cached frame number, only updates with batch
+    uint64_t m_CurrentFrameNumber = 0;  // updates only with each batch
 };
 
 }  // namespace DekiEditor

@@ -46,7 +46,7 @@
 #include "services/PackageIntegrity.h"
 #include <deki-editor/Paths.h>
 #include "services/installers/DekiPackageInstaller.h"
-// Extracted services
+// Services
 #include "services/FileDialogs.h"
 #include "core/Commands.h"
 #include "core/commands/HistoryGuards.h"
@@ -71,34 +71,29 @@ namespace
 
 /// Where crash recovery for a project is kept: ~/.deki-editor/Recovery/<key>.
 ///
-/// Not inside the project. It is editor state, not part of the game, and it
-/// showed up as an untracked Recovery/ folder in every git status - one stray
-/// `git add .` from being committed into someone's repo.
+/// Not inside the project: it is editor state, and there it would show up in
+/// git status, one `git add .` away from being committed.
 ///
-/// Not the OS temp directory either, tempting as that is for scratch state:
-/// /tmp is cleared on boot on most Linux distributions, and Windows' Storage
-/// Sense and Disk Cleanup both empty %TEMP%. A crash is often followed by a
-/// reboot, which is precisely when the recovery still has to be there.
-/// ~/.deki-editor is where the editor already keeps per-user state (toolchains,
-/// board packs, builders), and it survives both.
+/// Not the OS temp folder either: Linux clears /tmp on boot and Windows
+/// cleanup tools empty %TEMP%, and a crash is often followed by a reboot.
+/// ~/.deki-editor already holds the editor's per-user state and survives both.
 ///
 }  // namespace
 
 EditorApp::EditorApp()
 {
-    // EditorSelection owns selection; EditorApplication is the facade package
-    // DLLs read. Mirror one into the other here, once, instead of at each
-    // mutator - three of them used to forget, leaving GetActiveObject() stale.
+    // EditorSelection owns the selection; EditorApplication is what package
+    // DLLs read. Mirror one into the other here, once, rather than in each
+    // function that changes the selection, where it is easy to forget.
     m_Selection.SetOnChanged([](Deki::Object* active) { EditorApplication::Get().SetActiveObject(active); });
 
-    // Open the persistent Editor.log first so any logging from the constructor
-    // path (package builds, panel init) is captured to disk in addition to the
-    // Console panel's in-memory ring buffer.
+    // Open Editor.log first, so logging from the rest of the constructor
+    // (package builds, panel setup) reaches disk as well as the Console panel.
     EditorLogFile::Initialize(EditorSettings::GetSettingsDir() + "/Editor.log",
                               EditorSettings::GetBool("editorLog.verbose", false));
 
-    // Create console panel and register log callback FIRST so that all startup
-    // errors (including package builds) are captured in the Console panel.
+    // The console panel and log callback come first, so every startup error
+    // (package builds included) reaches the Console panel.
     m_ConsolePanel = std::make_unique<ConsolePanel>(this);
     Deki::LogSystem::SetLogCallback(
         [](Deki::LogLevel level, const std::string& message, const char* file, int line)
@@ -107,11 +102,10 @@ EditorApp::EditorApp()
             ConsolePanel::EngineLogCallback(level, message, file, line);
         });
 
-    // Create plugin loader (loads plugins when project is opened)
+    // Loads plugins when a project opens.
     m_PluginLoader = std::make_unique<PluginLoader>();
 
-    // Build stale engine package DLLs (ensures they exist in exe dir).
-    // Actual loading is deferred to OpenProject for per-project isolation.
+    // Packages load in OpenProject, so each project gets its own set.
     StartupProgress::Update("Building packages...");
     m_PackageLoader = std::make_unique<PackageLoader>();
     m_PackageLoader->onPackageUnloading = [](const std::string& package)
@@ -130,16 +124,15 @@ EditorApp::EditorApp()
 #else
         exeDir = fs::current_path().string();
 #endif
-        // Snapshot engine-core components before any packages load.
-        // ClearNonEngineComponents() uses this to safely remove all package/plugin
-        // entries during hot reload without leaving stale pointers.
+        // Record the engine-core components before any package loads.
+        // ClearNonEngineComponents() uses this on hot reload to remove every
+        // package and plugin entry without leaving stale pointers.
         Deki::ComponentRegistry::Instance().FreezeEngineComponents();
     }
 
-    // Create frame capture service for recording play mode output
+    // Records play mode output.
     m_FrameCaptureService = std::make_unique<FrameCaptureService>();
 
-    // Create panels
     StartupProgress::Update("Creating panels...");
     m_HierarchyPanel = std::make_unique<HierarchyPanel>(this);
     m_InspectorPanel = std::make_unique<InspectorPanel>(this);
@@ -148,10 +141,8 @@ EditorApp::EditorApp()
     m_ProjectSettingsPanel = std::make_unique<ProjectSettingsPanel>(this);
     m_EditorSettingsPanel = std::make_unique<EditorSettingsPanel>(this);
 
-    // Construct ToolHost and wire the per-tool progress callback. The actual
-    // DiscoverTools() walk is deferred to OpenProject - bin/ packages may
-    // register additional windows and that path always rebuilds the list
-    // anyway, so doing it here just duplicates work.
+    // DiscoverTools() runs in OpenProject, not here: packages there may add
+    // windows, and that path rebuilds the list anyway.
     m_ToolHost = std::make_unique<ToolHost>(this);
     m_ToolHost->onToolDiscovered = [](const std::string& name)
     {
@@ -161,70 +152,58 @@ EditorApp::EditorApp()
         }
     };
 
-    // Create hot reload handler for plugin rebuilds and package reloads
+    // Plugin rebuilds and package reloads.
     StartupProgress::Update("Setting up hot reload...");
     m_HotReloadService =
         std::make_unique<HotReloadService>(m_PluginLoader.get(), m_PackageLoader.get(), m_ConsolePanel.get());
 
-    // Set up hot reload callbacks to preserve component state
+    // These keep component state across a reload.
     m_HotReloadService->SetReloadCallbacks([this]() { OnBeforePluginReload(); }, [this]() { OnAfterPluginReload(); });
 
-    // Initialize platform registry with built-in platforms and board packs
     StartupProgress::Update("Registering platforms...");
     StartupProgress::Update("Loading board packs...");
     PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
 
-    // Create build panel
     StartupProgress::Update("Creating panels...");
     m_BuildPanel = std::make_unique<BuildPanel>(this);
 
-    // Create new project dialog
     m_NewProjectDialog = std::make_unique<NewProjectDialog>(this);
     m_NewProjectDialog->SetOnProjectCreated(
         [this](const std::string& projectPath)
         {
-            // Open the newly created project - after asking about a dirty scene,
-            // as Open Project does: this opened straight away and the open scene's
-            // edits were lost. (Cancel leaves the new project on disk, unopened.)
+            // Open the new project, first asking about unsaved scene edits as
+            // Open Project does. Cancel leaves the new project on disk, unopened.
             if (!CheckUnsavedChanges(PendingSceneAction::OpenProject, projectPath))
             {
                 RequestOpenProject(projectPath);
             }
         });
 
-    // Create the project manager screen. It is what the editor shows until a
-    // project is open, which on a normal launch is the very first frame.
+    // The project manager screen shows until a project is open, which on a
+    // normal launch includes the very first frame.
     m_ProjectManagerScreen = std::make_unique<ProjectManagerScreen>(this);
     m_ProjectManagerScreen->OnShown();
 
-    // Create package manager panel
     m_PackageManagerPanel = std::make_unique<PackageManagerPanel>(this);
 
-    // Create platform manager panel
     m_PlatformManagerPanel = std::make_unique<PlatformManagerPanel>(this);
 
-    // Create profiler panel
     m_ProfilerPanel = std::make_unique<ProfilerPanel>(this);
 
-    // Create frame capture panel
     m_FrameCapturePanel = std::make_unique<FrameCapturePanel>(this);
 
-    // Create serial monitor panel
     m_SerialMonitorPanel = std::make_unique<SerialMonitorPanel>(this);
 
-    // Create SD card deploy panel
     m_SDCardDeployPanel = std::make_unique<SDCardDeployPanel>(this);
 
-    // Create deploy analysis panel
     m_DeployAnalysisPanel = std::make_unique<DeployAnalysisPanel>(this);
 
-    // Create activity panel
     m_ActivityPanel = std::make_unique<ActivityPanel>(this);
 
-    // The build machinery reports progress through a sink rather than calling
-    // the panel directly, so it can move into deki-editor.dll and be linked by
-    // a third-party builder. The GUI's sink is the panel; a headless run
-    // installs its own, or none.
+    // The build code reports progress through a sink rather than calling the
+    // panel, so it can live in deki-editor.dll and be linked by a third-party
+    // builder. The GUI's sink is the panel; a headless run sets its own, or
+    // none.
     static struct PanelActivitySink : IBuildActivitySink
     {
         void Log(const std::string& process, const std::string& message) override
@@ -239,7 +218,6 @@ EditorApp::EditorApp()
     } s_PanelSink;
     SetBuildActivitySink(&s_PanelSink);
 
-    // Create play view panel
     m_PlayViewPanel = std::make_unique<PlayViewPanel>(this);
 
     m_Panels = { m_HierarchyPanel.get(),    m_InspectorPanel.get(),       m_SceneViewPanel.get(),
@@ -249,7 +227,7 @@ EditorApp::EditorApp()
                  m_SDCardDeployPanel.get(), m_DeployAnalysisPanel.get(),  m_ActivityPanel.get(),
                  m_PlayViewPanel.get(),     m_EditorSettingsPanel.get() };
 
-    // Restore panel open states from settings
+    // Which panels are open, from settings.
     StartupProgress::Update("Restoring layout...");
     for (IPanel* panel : m_Panels)
     {
@@ -257,12 +235,12 @@ EditorApp::EditorApp()
                                                   : panel->OpenByDefault();
     }
 
-    // Load focused window name for tab restoration on startup
+    // The window that had focus last session, for RestoreTabFocus().
     m_FocusRestoreWindow = EditorSettings::GetFocusedWindow();
 
-    // Register crash recovery callback to save current scene + flush log.
-    // Flush always runs (even when no scene is open) so the log file captures
-    // everything up to the crash before the dialog blocks the main thread.
+    // On a crash: flush the log and save the current scene. The flush runs
+    // even with no scene open, so the log holds everything up to the crash
+    // before the crash dialog blocks the main thread.
     CrashHandler::SetPreCrashCallback(
         [this]()
         {
@@ -274,7 +252,7 @@ EditorApp::EditorApp()
 void EditorApp::SetHeadless(bool headless)
 {
     m_Headless = headless;
-    // Created before the boot says whether this run has a window.
+    // The service exists before the boot knows whether this run has a window.
     if (m_HotReloadService)
     {
         m_HotReloadService->SetHeadless(headless);
@@ -286,25 +264,23 @@ EditorApp::~EditorApp()
     CrashHandler::SetPreCrashCallback(nullptr);
     StopMcpServer();
 
-    // Explicitly, while the editor's statics are still alive. The registry is
-    // a function-local static destroyed after main returns, and unloading a
-    // builder plugin then would run its detach against dead statics. It also
+    // Shut down here, while the editor's statics are alive. The registry is a
+    // function-local static destroyed after main returns, when unloading a
+    // builder plugin would run its detach against dead statics. This also
     // cancels any build still running in a plugin's code before that module
-    // is freed. Same discipline as PluginLoader::UnloadAllPlugins.
+    // is freed, as PluginLoader::UnloadAllPlugins does.
     BuilderRegistry::Instance().Shutdown();
     SetBuildActivitySink(nullptr);
 
-    // Unregister the log callback before tearing down the file sink so a
-    // late-firing log doesn't touch a closed FILE*. ConsolePanel is destroyed
-    // along with this EditorApp, so the prior callback's reference to it
-    // would also dangle.
+    // Remove the log callback before closing the log file, so a late log
+    // does not touch a closed FILE*. The callback also refers to the
+    // ConsolePanel, which dies with this EditorApp.
     Deki::LogSystem::SetLogCallback(nullptr);
     EditorLogFile::Shutdown();
 }
 
 void EditorApp::SaveLayout()
 {
-    // Save panel open states to settings.json
     for (IPanel* panel : m_Panels)
     {
         if (panel->PersistOpenState())
@@ -313,17 +289,16 @@ void EditorApp::SaveLayout()
         }
     }
 
-    // Save focused window name for tab restoration on next launch
+    // The focused window, so the next launch can select its tab again.
     ImGuiContext* ctx = ImGui::GetCurrentContext();
     if (ctx && ctx->NavWindow)
     {
         EditorSettings::SetFocusedWindow(ctx->NavWindow->Name);
     }
 
-    // Save imgui.ini (docking layout, selected tabs, window positions)
+    // imgui.ini holds the docking layout, selected tabs and window positions.
     ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
 
-    // Save project settings if dirty
     if (m_Project && m_Project->IsDirty())
     {
         m_Project->Save();
@@ -335,9 +310,9 @@ void EditorApp::SaveLayout()
 
 void EditorApp::RestoreTabFocus()
 {
-    // Restore dock tab selection from last session.
-    // DockNodeUpdateTabBar() overrides SelectedTabId with NavWindow's tab every frame,
-    // so we set NavWindow to our target window to make that work in our favor.
+    // Select last session's dock tab again. DockNodeUpdateTabBar() sets
+    // SelectedTabId to NavWindow's tab every frame, so set NavWindow to the
+    // target window and let it do the work.
     if (m_FocusRestoreWindow.empty())
     {
         return;
@@ -371,9 +346,9 @@ void EditorApp::Update()
 {
     DEKI_PROFILE_SCOPE_N("EditorApp::Update");
 
-    // No project: the window belongs to the project manager screen, and none
-    // of the work below has anything to act on. Everything the screen needs is
-    // drawn here - its title bar, itself, and the new-project wizard it opens.
+    // No project: the window belongs to the project manager screen, and the
+    // work below has nothing to act on. Draw what the screen needs: its title
+    // bar, itself, and the new-project wizard it opens.
     if (IsProjectManagerMode())
     {
         DrawProjectManagerMenuBar();
@@ -381,9 +356,8 @@ void EditorApp::Update()
         DekiEditor::Guard("ProjectManagerScreen", [&] { m_ProjectManagerScreen->Draw(); });
         DekiEditor::Guard("NewProjectDialog", [&] { m_NewProjectDialog->Draw(); });
 
-        // Opening is deferred out of the screen's draw: OpenProject loads
-        // package DLLs and imports assets, which has no business running from
-        // the middle of a widget tree.
+        // Opened here, not in the screen's draw: OpenProject loads package
+        // DLLs and imports assets, which must not run inside a widget tree.
         const std::string requested = m_ProjectManagerScreen->ConsumePendingOpen();
         if (!requested.empty())
         {
@@ -396,27 +370,24 @@ void EditorApp::Update()
         return;
     }
 
-    // Drive HotReloadService's per-project lifecycle (start/stop file watchers
-    // when the active project changes) and drain pending source-watcher events
-    // into m_SourcesDirty.
+    // HotReloadService starts and stops its file watchers when the project
+    // changes, and drains source-watcher events into m_SourcesDirty.
     if (m_HotReloadService)
     {
         m_HotReloadService->Tick(m_Project ? m_Project->GetPath() : std::string{});
     }
 
-    // Drain the asset file watcher. This used to happen only on window focus,
-    // so an asset edited in another tool showed up after an alt-tab and back,
-    // and the pending event map grew until then. A drain with nothing pending
+    // Drain the asset file watcher every frame, so an asset edited in another
+    // tool shows up without refocusing the window. With nothing pending this
     // is a mutex and an empty check.
     if (m_AssetPipeline)
     {
         m_AssetPipeline->Tick();
     }
 
-    // Handle keyboard shortcuts
     HandleKeyboardShortcuts();
 
-    // Periodic flush of the editor log file (see EditorLogFile::OnLog).
+    // Flush the editor log file twice a second (see EditorLogFile::OnLog).
     {
         static float s_LogFlushTimer = 0.0f;
         s_LogFlushTimer += ImGui::GetIO().DeltaTime;
@@ -430,13 +401,12 @@ void EditorApp::Update()
     // Periodic crash-recovery snapshot of unsaved work.
     TickAutosave(ImGui::GetIO().DeltaTime);
 
-    // Update play mode if active
     if (m_PlayModeState == PlayModeState::Playing)
     {
         UpdatePlayMode();
     }
 
-    // Update custom editors every frame (e.g., ScrollComponent layout sync)
+    // Custom editors update every frame (ScrollComponent syncs its layout).
     if (m_PlayModeState != PlayModeState::Playing && m_SceneViewPanel)
     {
         m_SceneViewPanel->UpdateCustomEditors();
@@ -444,7 +414,7 @@ void EditorApp::Update()
 
     DrawMenuBar();
 
-    // Draw panels - each guarded so a crash in one doesn't take the rest down.
+    // Each panel is guarded, so a crash in one leaves the others drawing.
     for (IPanel* panel : m_Panels)
     {
         DekiEditor::Guard(panel->Id(), [&] { panel->Draw(); });
@@ -458,7 +428,6 @@ void EditorApp::Update()
                           }
                       });
 
-    // Draw modal dialogs
     DrawUnsavedChangesDialog();
     DrawMaintenanceConfirm();
     if (m_HotReloadService)
@@ -467,10 +436,10 @@ void EditorApp::Update()
     }
     DrawRecoveryDialog();
 
-    // Toasts last: they anchor to the same bottom-right corner as the build
-    // progress card and stack above it, so that card must already be drawn.
-    // The daily release check: started on the first frame of a windowed
-    // session, delivered as a toast when its thread reports back.
+    // Toasts last: they stack above the build progress card in the
+    // bottom-right corner, so that card must already be drawn.
+    // The daily release check starts on the first frame of a windowed
+    // session and shows a toast when its thread reports back.
     if (!m_Headless)
     {
         DekiEditor::Guard("UpdateCheck",
@@ -483,10 +452,10 @@ void EditorApp::Update()
 
     DekiEditor::Guard("Toast", [] { DekiEditor::Toast::DrawInFrame(); });
 
-    // Update all open tools (from engine/plugins)
+    // Open tools, from the engine and plugins.
     m_ToolHost->Update(ImGui::GetIO().DeltaTime);
 
-    // Check if a package-DLL editor asked us to dispatch a tool window
+    // A package DLL's editor may ask for a tool window.
     {
         std::string toolFile, toolCache, toolTitle;
         if (EditorApplication::Get().PopOpenToolRequest(toolFile, toolCache, &toolTitle))
@@ -495,8 +464,8 @@ void EditorApp::Update()
         }
     }
 
-    // Check if a package-DLL editor asked us to switch the scene-view tool
-    // (e.g. ClipComponent's "Edit Rect" button activating the Rect resize tool).
+    // A package DLL's editor may switch the scene view tool (ClipComponent's
+    // "Edit Rect" button picks the Rect tool).
     {
         SceneEditTool reqTool;
         if (EditorApplication::Get().PopSceneToolRequest(reqTool) && m_SceneViewPanel)
@@ -512,9 +481,8 @@ void EditorApp::Update()
         }
     }
 
-    // A tool just modified files and asked us to surface the changes. Drain
-    // the watcher (asset Tick is otherwise focus-driven) and rebuild the asset
-    // browser tree.
+    // A tool changed files and asked for them to show. Drain the watcher now
+    // and rebuild the asset browser tree.
     if (EditorApplication::Get().PopAssetRefreshRequest())
     {
         if (m_AssetPipeline)
@@ -524,19 +492,19 @@ void EditorApp::Update()
         m_AssetBrowserPanel->RefreshAssets();
     }
 
-    // Check if any tool requested full asset invalidation (e.g., font re-bake)
+    // A tool asked to drop every loaded asset (after a font re-bake, say).
     if (EditorApplication::Get().PopAssetInvalidationRequest())
     {
-        // 1. Clear component AssetRef pointers (TextComponent, SpriteComponent, etc.)
+        // Components' AssetRef pointers (TextComponent, SpriteComponent, ...).
         if (GetSceneViewPanel())
         {
             GetSceneViewPanel()->InvalidateAllAssets();
         }
 
-        // 2. Clear engine font cache (old BitmapFont* from stale .dfont files)
+        // The engine's fonts, loaded from now-stale .dfont files.
         Deki::AssetManager::Get()->ClearCache("BitmapFont");
 
-        // 3. Clear editor GPU font atlas cache
+        // The editor's GPU font atlases.
         EditorAssets::Get()->ClearFontCache();
     }
 
@@ -605,18 +573,18 @@ void EditorApp::HandleKeyboardShortcuts()
 {
     ImGuiIO& io = ImGui::GetIO();
 
-    // Don't process shortcuts when typing in a text field
+    // No shortcuts while typing in a text field.
     if (io.WantTextInput)
     {
         return;
     }
 
-    // Ctrl+Z - Undo
+    // Ctrl+Z: undo
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
     {
         if (io.KeyShift)
         {
-            // Ctrl+Shift+Z - Redo (alternative to Ctrl+Y)
+            // Ctrl+Shift+Z: redo, like Ctrl+Y
             CommandHistory::Instance().Redo();
         }
         else
@@ -625,14 +593,13 @@ void EditorApp::HandleKeyboardShortcuts()
         }
     }
 
-    // Ctrl+Y - Redo
+    // Ctrl+Y: redo
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
     {
         CommandHistory::Instance().Redo();
     }
 
-    // File shortcuts, exactly the ones the File menu advertises. They were
-    // printed next to the menu items for a long time without being bound.
+    // File shortcuts: exactly the ones the File menu shows. Keep the two in step.
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S))
     {
         if (io.KeyShift)
@@ -657,13 +624,12 @@ void EditorApp::HandleKeyboardShortcuts()
         ShowNewProjectDialog();
     }
 
-    // Ctrl+Shift+P - Stop
-    // (Check Shift combo first so Ctrl+P without Shift can be handled separately)
+    // Ctrl+Shift+P: stop
     if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_P) && !IsStopped())
     {
         Stop();
     }
-    // Ctrl+P - Play/Pause toggle
+    // Ctrl+P: play / pause
     else if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_P) && GetCurrentScene())
     {
         if (IsPlaying())
@@ -672,14 +638,13 @@ void EditorApp::HandleKeyboardShortcuts()
         }
         else
         {
-            Play();  // Works for both stopped and paused states
+            Play();  // starts when stopped, resumes when paused
         }
     }
 }
 
-// Scene accessor - returns the active container's scene
-// During play: returns the isolated play copy (same one the runtime uses)
-// When stopped: returns the edit scene
+// The scene in use: during play, the play copy the runtime runs; when
+// stopped, the edit scene.
 Deki::Scene* EditorApp::GetCurrentScene()
 {
     if (m_PlayModeState != PlayModeState::Stopped)
@@ -691,21 +656,20 @@ Deki::Scene* EditorApp::GetCurrentScene()
         }
     }
 
-    // The editor always has a scene to edit - there is no usable "no scene"
-    // state. On the first access with no project open (m_CurrentScene still
-    // null), install a fresh empty scene and wire it up exactly like New Scene.
-    // This makes the invariant real so the rest of the editor never null-checks.
+    // The editor always has a scene to edit, so the rest of the editor never
+    // checks for null. With none yet (no project open), set up an empty scene
+    // exactly as New Scene does.
     if (!m_CurrentScene)
     {
         EnsureScene(m_CurrentScene);
-        // EnsureScene assigned m_CurrentScene directly; re-seat it through the
-        // one owner so the facade and callbacks follow.
+        // EnsureScene assigned m_CurrentScene directly; pass it through
+        // SetCurrentScene so the facade and callbacks follow.
         SetCurrentScene(std::move(m_CurrentScene));
     }
     return m_CurrentScene.get();
 }
 
-// Selection implementation
+// Selection
 Deki::Object* EditorApp::GetSelectedObject()
 {
     return m_Selection.GetSelectedObject();
@@ -745,15 +709,15 @@ void EditorApp::SetCurrentScene(std::unique_ptr<::Deki::Scene> scene)
 {
     m_CurrentScene = std::move(scene);
     // The scene view keys its cached camera on the scene's address, and a new
-    // scene can be allocated where the old one was (a project switch did this):
-    // the cache then served the old scene's freed camera.
+    // scene can land at the old one's address, so the cache would serve the
+    // old scene's freed camera.
     if (m_SceneViewPanel)
     {
         m_SceneViewPanel->InvalidateSceneCamera();
         m_SceneViewPanel->InvalidateFlatObjects();
     }
-    // Panels holding objects of the old scene (the Inspector's pin, the
-    // Hierarchy's rename/drag state) let go of them.
+    // Panels let go of the old scene's objects (the Inspector's pin, the
+    // Hierarchy's rename and drag state).
     if (m_InspectorPanel)
     {
         m_InspectorPanel->ClearSceneReferences();
@@ -802,10 +766,10 @@ void EditorApp::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
 
     // Drop undo/redo entries that point into the memory about to be freed.
     //
-    // Commands address their targets by raw pointer - objects, components, and
-    // (via the EditorUI field helpers) interior addresses like &obj->x. Without
-    // this, a command left on either stack after its target dies writes through
-    // a dangling pointer the next time it is undone or redone.
+    // Commands hold raw pointers to their targets: objects, components, and
+    // (through the EditorUI field helpers) addresses inside them like &obj->x.
+    // A command left behind would write through a dangling pointer on its next
+    // undo or redo.
     {
         // `dying` already lists the whole subtree; components die with their
         // object.
@@ -817,8 +781,7 @@ void EditorApp::OnObjectsDestroyed(const std::vector<Deki::Object*>& dying)
         CommandHistory::Instance().DiscardCommandsReferencing(dead);
     }
 
-    // Trimming the selection reseats the EditorApplication facade through
-    // EditorSelection's change callback.
+    // EditorSelection's change callback updates the EditorApplication facade.
     m_Selection.RemoveObjects(dying);
 
     if (m_HierarchyPanel)
@@ -833,16 +796,15 @@ void EditorApp::SetSelectedAsset(const std::string& path, const std::string& cac
     m_Selection.SetSelectedAsset(path, cachePath, hasCached, guid);
     EditorApplication::Get().SetSelectedAssetPath(path);
 
-    // Auto-compile asset if not cached
+    // Compile the asset if it has no cached version yet.
     if (!hasCached && m_AssetPipeline && !path.empty())
     {
         m_AssetPipeline->RefreshAsset(path);
 
-        // Update cached state after refresh
         auto* info = m_AssetPipeline->GetAssetInfo(path);
         if (info)
         {
-            // Update cache state directly via SetSelectedAsset to keep fields consistent
+            // Through SetSelectedAsset, so all the selection's fields stay in step.
             m_Selection.SetSelectedAsset(path, info->cachePath, info->hasCachedVersion, guid);
         }
     }
@@ -858,7 +820,7 @@ void EditorApp::HandleFileDrop(const std::string& path)
 
 void EditorApp::OnWindowFocusGained()
 {
-    // Always check for package DLL changes (even without a project open)
+    // Check for package DLL changes, even with no project open.
     if (m_HotReloadService)
     {
         m_HotReloadService->RequestPackageCheck();
@@ -869,18 +831,16 @@ void EditorApp::OnWindowFocusGained()
         return;
     }
 
-    // Request build check - will be processed next frame when window is visible
-    // This ensures the progress bar is visible during compilation
+    // The build check runs next frame, once the window is visible, so its
+    // progress bar shows during compilation.
     if (m_HotReloadService)
     {
         m_HotReloadService->RequestBuildCheck(m_Project->GetPath());
     }
 
-    // The asset watcher is drained every frame in Update(); nothing is
-    // pending only because focus was lost. The whole-tree browser rescan that
-    // used to run here (a sidecar read and an exists() per asset, and it wiped
-    // the asset selection) is gone: discovered, changed and deleted assets
-    // reach the browser through the pipeline callbacks.
+    // No asset rescan here: Update() drains the asset watcher every frame,
+    // and new, changed and deleted assets reach the browser through the
+    // pipeline callbacks.
 }
 
 void EditorApp::ReportIncompatiblePackages()
@@ -890,19 +850,18 @@ void EditorApp::ReportIncompatiblePackages()
         return;
     }
 
-    // The installer checks this when a package is ADDED, which misses the
-    // common case entirely: cloning a project whose packages are committed, or
-    // restoring them from the lock, puts packages on disk without ever going
-    // through an install. Reporting here means a mismatch arrives once, naming
-    // the package and both versions, instead of surfacing later as a compile
-    // error inside a project build with nothing pointing at the cause.
+    // The installer checks this when a package is added, but cloning a project
+    // with committed packages, or restoring them from the lock, puts packages
+    // on disk without an install. Checking here reports a mismatch once, naming
+    // the package and both versions, instead of as a later compile error with
+    // nothing pointing at the cause.
     //
-    // Deliberately not part of RunPackageIntegrityCheck: that one is about git
-    // state, needs the hot-reload service, and returns early without it, so
-    // headless verbs would never have run this.
+    // Not part of RunPackageIntegrityCheck: that one is about git state and
+    // returns early without the hot-reload service, so headless runs would
+    // skip it.
     //
-    // Editable packages are checked too - a working tree from an older
-    // generation does not build either - and nothing here changes disk.
+    // Editable packages are checked too, since an older working tree does not
+    // build either. Nothing here changes the disk.
     const std::string projectPath = m_Project->GetPath();
     PackageManager mgr(this);
     mgr.LoadPackages(projectPath);  // also refreshes installed status
@@ -947,22 +906,21 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
         return;
     }
 
-    // Always drain, even when sweeping: leaving entries behind would make the
-    // next focus re-check packages this pass already handled.
+    // Always drain, even when sweeping: entries left behind would make the
+    // next focus check packages this pass already handled.
     bool allSuspect = false;
     const std::vector<std::string> dirty = m_HotReloadService->TakeDirtyPackageDirs(allSuspect);
     const bool checkEverything = sweepAll || allSuspect;
 
-    // Bail before any file IO. This is the every-alt-tab case.
+    // Return before any file IO: this is what every alt-tab hits.
     if (!checkEverything && dirty.empty())
     {
         return;
     }
 
-    // Its own manager rather than the Package Manager panel's: the panel loads
-    // lazily when it first draws, so in a headless run (and before the panel is
-    // ever opened) its list is empty and every package would be skipped. The
-    // headless verbs read the manifest the same way.
+    // Its own manager, not the Package Manager panel's: the panel loads its
+    // list when it first draws, so headless (or before the panel opens) the
+    // list is empty and every package would be skipped.
     const std::string projectPath = m_Project->GetPath();
     PackageManager mgr(this);
     mgr.LoadPackages(projectPath);  // also refreshes installed status
@@ -976,8 +934,7 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
             continue;
         }
 
-        // The developer's own package. Hands off entirely - no status check,
-        // no checkout, nothing to report.
+        // The developer's own package: left alone entirely.
         if (pkg.editable)
         {
             continue;
@@ -994,8 +951,8 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
             continue;
         }
 
-        // The lock is the committed pin; installedVersion is re-derived from
-        // .deki-package.json on disk and so follows whatever is checked out.
+        // The lock is the committed pin; installedVersion comes from
+        // .deki-package.json on disk, so it follows whatever is checked out.
         const std::string pinned = !pkg.lockedVersion.empty() ? pkg.lockedVersion : pkg.installedVersion;
 
         const DekiEditor::PackageIntegrityResult result =
@@ -1020,8 +977,8 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
             continue;
         }
 
-        // One sentence covering both halves: a single pass can stash edits and
-        // move HEAD back, and the user needs to hear about both.
+        // One sentence for both: a single pass can stash edits and move HEAD
+        // back, and the user needs to hear about both.
         std::string message = "'" + dirName + "' is not marked editable, so it was restored";
         if (!result.restoredRef.empty())
         {
@@ -1038,18 +995,16 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
 
         DekiEditor::Toast::Push(DekiEditor::Toast::Level::Warning, "Package restored", message, 12.0f);
 
-        // The toast is what gets seen; the Console line is what can be scrolled
-        // back to. Deliberately NOT LogBuildError - pinned entries are the
-        // compiler's channel and feed the "Build failed" pill.
+        // The toast gets seen; the Console line can be scrolled back to. Not
+        // LogBuildError: pinned entries belong to the compiler and feed the
+        // "Build failed" pill.
         if (m_ConsolePanel)
         {
             m_ConsolePanel->LogWarning(message);
         }
 
-        // Headless has neither surface, and every CLI verb opens the project,
-        // so on the command line this pass could revert an edit and say nothing
-        // at all. Silently undoing someone's work is the worst thing this
-        // function can do, so it always reaches a channel that exists.
+        // Headless has neither, and every CLI verb opens the project. This
+        // pass must never undo someone's work silently, so it always logs.
         if (!m_ConsolePanel)
         {
             DEKI_LOG_WARNING("%s", message.c_str());
@@ -1059,7 +1014,7 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
 
 void EditorApp::ProcessDeferredTasks()
 {
-    // Hand a finished file dialog its answer first, outside the ImGui frame:
+    // Give a finished file dialog its answer first, outside the ImGui frame:
     // the handlers open projects and write scenes.
     FileDialogs::PumpResults();
 
@@ -1072,31 +1027,30 @@ void EditorApp::ProcessDeferredTasks()
         OpenProjectShowingProgress(path);
     }
 
-    // Advance a running build first: a finished step may need the reload tail,
+    // Advance a running build first: a finished step may need the reload,
     // which has to run here, outside the ImGui frame, like the checks below.
     if (m_HotReloadService)
     {
         m_HotReloadService->PumpBuild();
     }
 
-    // Restore non-editable packages BEFORE the reload check below: a restore
-    // rewrites files, and the mtimes it produces are what that check compares
-    // against. Running it second would rebuild from the edits we just reverted.
+    // Restore non-editable packages before the reload check below: a restore
+    // rewrites files, and that check compares their modification times.
+    // Run second, it would rebuild from the edits just reverted.
     RunPackageIntegrityCheck(false);
 
-    // Process pending package reload check (per-package granular reload)
+    // Reloads only the packages that changed.
     if (m_HotReloadService && m_HotReloadService->HasPendingPackageCheck())
     {
         m_HotReloadService->ProcessPendingPackageCheck();
     }
 
-    // Process pending build check after window is fully visible
+    // Runs once the window is fully visible.
     if (m_HotReloadService && m_HotReloadService->HasPendingBuild())
     {
         m_HotReloadService->ProcessPendingBuild();
     }
 
-    // Process MCP server messages
     if (m_McpServer)
     {
         m_McpServer->ProcessMessages();
@@ -1160,17 +1114,16 @@ std::string EditorApp::GetMcpSseUrl() const
 namespace
 {
 
-/// Pack a theme colour into EditorUI's RGBA word for PushStyleColor.
-/// Same helper the panels keep locally (see PackageManagerPanel's Pack).
+/// Packs a theme colour into EditorUI's RGBA word for PushStyleColor, like
+/// PackageManagerPanel's Pack.
 inline uint32_t PackColor(const ImVec4& c)
 {
     return EditorUI::Rgba(static_cast<uint8_t>(c.x * 255.0f), static_cast<uint8_t>(c.y * 255.0f),
                           static_cast<uint8_t>(c.z * 255.0f), static_cast<uint8_t>(c.w * 255.0f));
 }
 
-/// "2026-08-16 14:32  (2 hours ago)" - absolute so it can be matched against
-/// what the user remembers doing, relative because that is what actually tells
-/// them whether it is worth taking.
+/// "2026-08-16 14:32  (2 hours ago)". The date matches what the user
+/// remembers doing; the age tells them whether it is worth restoring.
 std::string FormatRecoveryTime(std::time_t when)
 {
     if (when <= 0)
@@ -1190,8 +1143,7 @@ std::string FormatRecoveryTime(std::time_t when)
     const std::time_t now = std::time(nullptr);
     const long long secs = static_cast<long long>(now - when);
 
-    // Singular where it applies: "1 days ago" is the kind of thing that makes a
-    // dialog look unfinished.
+    // Singular for 1: "1 day ago", not "1 days ago".
     auto ago = [](long long n, const char* unit)
     { return std::to_string(n) + " " + unit + (n == 1 ? "" : "s") + " ago"; };
 
@@ -1251,14 +1203,12 @@ void EditorApp::DrawRecoveryDialog()
             m_Recovery.SetSelectedIndex(0);
         }
 
-        // SelectableCard is the list row used everywhere else (package list,
-        // platform list): title, dim subtitle, and a left accent bar on the
-        // selected one. Hand-rolling this was what made the selection invisible.
+        // SelectableCard is the list row used elsewhere (package list, platform
+        // list): title, dim subtitle, and an accent bar on the selected one.
         //
-        // Height mirrors DrawSelectableCard's own layout (padY*2 + title + gap +
-        // subtitle) rather than a guessed constant - guessing it clipped the last
-        // card. Using the title height for the subtitle too rounds up slightly,
-        // which is the safe direction.
+        // The height follows DrawSelectableCard's layout (padY*2 + title + gap +
+        // subtitle); a guessed constant clips the last card. Using the title
+        // height for the subtitle rounds up slightly, the safe direction.
         const float cardDpi = ImGui::GetStyle().FontScaleDpi;
         const float cardH = 6.0f * cardDpi * 2.0f + ImGui::GetTextLineHeight() + 2.0f * cardDpi +
                             ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.y;
@@ -1270,9 +1220,8 @@ void EditorApp::DrawRecoveryDialog()
             {
                 const auto& rec = m_Recovery.Entries()[i];
 
-                // One line, because a card takes a single subtitle: when it was
-                // saved and what is in it, which together decide whether it is
-                // worth keeping.
+                // A card takes one subtitle line: when it was saved and what is
+                // in it, which together decide whether it is worth keeping.
                 char subtitle[192];
                 if (rec.objectCount < 0)
                 {
@@ -1286,9 +1235,8 @@ void EditorApp::DrawRecoveryDialog()
                              static_cast<unsigned long long>(rec.fileSize));
                 }
 
-                // An unreadable scene is flagged amber rather than left to read
-                // like the others - it may still restore, but it is the one entry
-                // worth hesitating over.
+                // An unreadable scene shows in amber: it may still restore, but
+                // it is the one entry worth hesitating over.
                 const uint32_t subCol = (rec.objectCount < 0) ? PackColor(Palette::Amber) : 0u;
 
                 if (ui.SelectableCard(rec.recoveryPath.c_str(), rec.displayName.c_str(), subtitle,
@@ -1297,9 +1245,8 @@ void EditorApp::DrawRecoveryDialog()
                     m_Recovery.SetSelectedIndex(i);
                 }
 
-                // Double-click to look inside before committing. The card
-                // reports what and how much; this answers whether it is the
-                // work you were actually doing.
+                // Double-click to look inside before restoring, to check it is
+                // the work you were doing.
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                 {
                     m_Recovery.SetSelectedIndex(i);
@@ -1316,8 +1263,8 @@ void EditorApp::DrawRecoveryDialog()
         }
         DrawRecoveryPreview();
 
-        // Where it lands. Restoring rebinds to the original asset, so the next
-        // Ctrl+S overwrites that file rather than the backup.
+        // Where it lands. A restored scene saves to the original asset, so the
+        // next Ctrl+S overwrites that file rather than the backup.
         ui.Spacing();
         if (!m_Recovery.Entries().empty())
         {
@@ -1329,15 +1276,12 @@ void EditorApp::DrawRecoveryDialog()
             }
             else
             {
-                // Project-relative: the absolute path is mostly the project
-                // directory repeated back, and at this dialog width it wrapped
-                // across two lines and broke mid-word.
+                // Project-relative: the absolute path mostly repeats the
+                // project folder and wraps mid-word at this dialog width.
                 //
-                // Compared case- and separator-insensitively. A plain prefix
-                // match silently never fired: the project path arrives as the
-                // editor was launched with it ("c:/...") while the sidecar
-                // recorded the scene's own ("C:\..."), so the two never
-                // matched and every path stayed absolute.
+                // Compared ignoring case and separators: the project path comes
+                // as the editor was launched ("c:/...") while the sidecar
+                // records the scene's own ("C:\...").
                 auto normalized = [](std::string s)
                 {
                     for (char& c : s)
@@ -1401,8 +1345,8 @@ void EditorApp::DrawRecoveryPreview()
         {
             if (m_Recovery.Preview().empty())
             {
-                // Distinct from "no objects": the file could not be read at all,
-                // which is worth saying plainly before someone restores it.
+                // Not "no objects": the file could not be read at all, which is
+                // worth saying plainly before someone restores it.
                 ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Amber));
                 ui.TextWrapped("Could not read this scene. Restoring may still work, "
                                "but there is nothing to preview.");
@@ -1410,9 +1354,8 @@ void EditorApp::DrawRecoveryPreview()
             }
             else
             {
-                // Plain indented text rather than tree nodes: this is a preview
-                // of a file, not something to interact with, and a recovered
-                // hierarchy is usually shallow enough to read at a glance.
+                // Plain indented text, not tree nodes: a preview is for reading,
+                // and a recovered hierarchy is usually shallow.
                 std::function<void(const std::vector<SceneOutlineNode>&, int)> draw =
                     [&](const std::vector<SceneOutlineNode>& nodes, int depth)
                 {
@@ -1421,12 +1364,9 @@ void EditorApp::DrawRecoveryPreview()
                         const std::string indent(static_cast<size_t>(depth) * 2, ' ');
                         ui.Text((indent + node.name).c_str());
 
-                        // One component per line rather than a comma-joined
-                        // run. Joined, an object with three or four of them
-                        // overruns the popup: clipped it loses the tail
-                        // entirely, and wrapped it splits mid-word
-                        // ("AnimationCompon / ent"). A short line each stays
-                        // inside the width whatever the class is called.
+                        // One component per line: joined with commas, three or
+                        // four overrun the popup and get clipped or split
+                        // mid-word.
                         ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
                         for (const auto& c : node.components)
                         {
@@ -1464,34 +1404,32 @@ bool EditorApp::WriteRecoverySnapshot()
         return false;
     }
 
-    // Reported here rather than inside EditorRecovery: the crash dialog lives in
-    // the editor executable, and depending on it from a core unit would put SDL
-    // and ImGui on the test binary's link line.
+    // Reported here, not in EditorRecovery: the crash dialog lives in the
+    // editor executable, and calling it from a core unit would make the test
+    // binary link SDL and ImGui.
     CrashHandler::SetRecoveryMessage("Scene recovered to: " + written);
     return true;
 }
 
 void EditorApp::TickAutosave(float deltaSeconds)
 {
-    // Periodic recovery snapshot.
+    // Recovery snapshot on a timer.
     //
-    // The crash handler already writes one, but it only runs for faults the
-    // handler catches. A hard kill, an OOM abort, a driver reset or power loss
-    // skips it entirely and everything since the last Ctrl+S is gone. This
-    // writes the same recovery file on a timer, so the existing recovery dialog
-    // can offer it back with no further work.
+    // The crash handler writes one too, but only for faults it catches. A
+    // hard kill, an out-of-memory abort, a driver reset or power loss skips
+    // it, losing everything since the last Ctrl+S. This writes the same
+    // recovery file on a timer, so the recovery dialog can offer it back.
     //
-    // Not a save: it never touches m_CurrentScenePath and never marks the
-    // history clean, so the user's own save remains the thing that publishes
-    // their work.
+    // Not a save: it never touches m_CurrentScenePath or marks the history
+    // clean, so only the user's own save writes their work.
     //
-    // The eligibility verdict is computed here because EditorApp owns the state
-    // it depends on; EditorRecovery owns only the clock.
+    // Whether a snapshot is due is decided here because EditorApp owns that
+    // state; EditorRecovery owns only the clock.
     const bool ready = m_Project &&
                        m_CurrentScene
-                       // Play mode edits a throwaway copy and the edit-mode history
-                       // is stashed aside, so a snapshot there would capture state
-                       // the user never authored.
+                       // Play mode edits a throwaway copy with the edit history
+                       // set aside, so a snapshot there would hold state the
+                       // user never made.
                        && m_PlayModeState == PlayModeState::Stopped && CommandHistory::Instance().IsDirty();
 
     if (!m_Recovery.TickAutosaveTimer(deltaSeconds, ready))
@@ -1514,10 +1452,10 @@ void EditorApp::RestoreSelectedRecovery()
     // Copy: the vector is edited below.
     const RecoveryEntry rec = m_Recovery.Entries()[m_Recovery.SelectedIndex()];
 
-    // Deliberately not OpenScene(): that would bind m_CurrentScenePath to the
-    // recovery file, so a subsequent Save would overwrite the backup instead of
-    // the user's original asset. Load the recovered content and rebind to the
-    // original path; the next Ctrl+S then writes to the right place.
+    // Not OpenScene(): that would set m_CurrentScenePath to the recovery file,
+    // so Save would overwrite the backup instead of the original asset. Load
+    // the recovered content and point at the original path, so the next Ctrl+S
+    // writes to the right place.
     auto scene = std::make_unique<::Deki::Scene>();
     if (!scene->LoadFromFile(rec.recoveryPath))
     {
@@ -1527,19 +1465,16 @@ void EditorApp::RestoreSelectedRecovery()
 
     CustomEditorRegistry::Instance().ClearCache();
     SetCurrentScene(std::move(scene));
-    m_CurrentScenePath = rec.originalPath;  // empty if untitled - Save routes to Save-As
+    m_CurrentScenePath = rec.originalPath;  // empty if untitled: Save goes to Save As
     ClearSelection();
     CommandHistory::Instance().Clear();
-    // Recovered content differs from whatever is on disk - mark dirty so the
-    // user is prompted to save before quit.
+    // The recovered content differs from what is on disk: mark it dirty so
+    // the user is asked to save before quitting.
     CommandHistory::Instance().MarkDirty();
 
-    // Consume only what was restored. This used to delete the whole Recovery
-    // folder, so with two crashed scenes the second was destroyed without ever
-    // being offered.
-    // ConsumeEntry deletes this entry's files, drops it from the list, and
-    // removes the directory only once nothing is left - so a second crashed
-    // scene is still offered rather than destroyed alongside the first.
+    // Remove only what was restored. ConsumeEntry deletes this entry's files,
+    // drops it from the list, and removes the folder only once nothing is
+    // left, so a second crashed scene is still offered.
     m_Recovery.ConsumeEntry(m_Recovery.SelectedIndex());
 
     // Anything left is still unresolved, so keep offering it.
@@ -1556,8 +1491,7 @@ void EditorApp::DrawRecoveryDiscardConfirm()
 
     if (BeginSchematicModal("Discard recovered scenes?", 380.0f))
     {
-        // Deleting someone's only copy of unsaved work deserves a confirmation,
-        // and a count so it is clear how much is going.
+        // This deletes the only copy of unsaved work: confirm, with a count.
         char msg[192];
         snprintf(msg, sizeof(msg), "Permanently delete %zu recovered scene%s?", m_Recovery.Entries().size(),
                  m_Recovery.Entries().size() == 1 ? "" : "s");
@@ -1657,8 +1591,8 @@ void EditorApp::DrawUnsavedChangesDialog()
         m_UnsavedPrompt.SetDialogVisible(false);
     }
 
-    // Open going in and closed coming out: Escape dismissed it, which is a
-    // Cancel - the pending action (a quit, a scene switch) must not hang on.
+    // Open before and closed after: Escape dismissed it. That is a Cancel, so
+    // the pending action (a quit, a scene switch) must not stay waiting.
     const bool wasOpen = ImGui::IsPopupOpen("Unsaved Changes");
     const bool open = BeginSchematicModal("Unsaved Changes", 420.0f);
     if (!open && wasOpen)
@@ -1668,16 +1602,16 @@ void EditorApp::DrawUnsavedChangesDialog()
     }
     if (open)
     {
-        // A programmatic answer behaves exactly like the matching button. It is
-        // consumed here rather than where it was set because CloseCurrentPopup
-        // is only valid inside the popup's draw scope.
+        // An answer given from code acts exactly like the matching button. It
+        // is taken here, not where it was set, because CloseCurrentPopup only
+        // works inside the popup's draw scope.
         const DialogAnswer answer = m_UnsavedPrompt.TakeAnswer();
 
         if (answer == DialogAnswer::Save)
         {
-            // No path yet means Save would need a file dialog, which a headless
-            // caller cannot answer. Treat it as an error rather than silently
-            // discarding: cancel, and leave the scene untouched.
+            // With no path, Save needs a file dialog, which a headless caller
+            // cannot answer. Treat it as an error, not a discard: cancel and
+            // leave the scene untouched.
             if (m_CurrentScenePath.empty())
             {
                 DEKI_LOG_ERROR("AnswerUnsavedChangesDialog(Save): scene has no path - "
@@ -1688,10 +1622,9 @@ void EditorApp::DrawUnsavedChangesDialog()
                 EndSchematicModal();
                 return;
             }
-            // Only discard the current scene once the save actually landed.
-            // ExecutePendingAction replaces m_CurrentScene outright, so running
-            // it after a failed write throws the work away - the exact outcome
-            // the user chose "Save" to avoid.
+            // Move on only once the save succeeded. ExecutePendingAction
+            // replaces m_CurrentScene, so after a failed write it would throw
+            // away the work the user chose "Save" to keep.
             if (!SaveScene())
             {
                 DEKI_LOG_ERROR("AnswerUnsavedChangesDialog(Save): write failed - "
@@ -1723,8 +1656,8 @@ void EditorApp::DrawUnsavedChangesDialog()
             return;
         }
 
-        // A Save As raised by this prompt finished on an earlier frame. Now
-        // that we are inside the popup again, it can be closed for real.
+        // A Save As started by this prompt finished on an earlier frame. Back
+        // inside the popup, it can now close.
         if (m_UnsavedPromptSaved)
         {
             m_UnsavedPromptSaved = false;
@@ -1737,7 +1670,7 @@ void EditorApp::DrawUnsavedChangesDialog()
         ImGui::TextWrapped("Save the changes to the current scene?");
         ImGui::TextColored(Palette::Dim, "Not saved, they are lost.");
 
-        // While the file dialog is up, the prompt stays on screen but inert:
+        // While the file dialog is up, the prompt stays on screen but disabled:
         // a second click would stack another dialog behind the first.
         const bool ready = !FileDialogs::IsPending();
         const int button = SchematicDialogButtons({ { "Cancel", DialogButton::Normal, ready },
@@ -1745,17 +1678,16 @@ void EditorApp::DrawUnsavedChangesDialog()
                                                     { "Save", DialogButton::Primary, ready } });
         if (button == 2)
         {
-            // If no path, use Save As dialog
+            // No path yet: ask for one.
             if (m_CurrentScenePath.empty())
             {
                 std::string defaultPath = m_Project ? m_Project->GetAssetsPath() : "";
                 FileDialogs::SaveFile("Scene Files (*.scene)\0*.scene\0", "scene", defaultPath.c_str(),
                                       [this](const std::string& path)
                                       {
-                                          // A failed write must not fall through to
-                                          // ExecutePendingAction, which discards the scene. Saying
-                                          // nothing leaves the popup open so the user can pick
-                                          // another location.
+                                          // A failed write must not reach
+                                          // ExecutePendingAction, which discards the scene. The
+                                          // popup stays open so the user can pick another place.
                                           if (!path.empty() && SaveSceneAs(path))
                                           {
                                               m_UnsavedPromptSaved = true;
@@ -1910,10 +1842,10 @@ bool EditorApp::DeleteObjects(const std::vector<Deki::Object*>& objects)
         return DeleteObject(targets[0]);
     }
 
-    // Each delete records its index before any of them runs, and undo puts
-    // them back in reverse order. Deleting from the last sibling up makes that
-    // reverse order first-to-last, so every index is right again when its
-    // object returns; in selection order, undo could reorder the siblings.
+    // Each delete records its index, and undo puts them back in reverse
+    // order. Deleting from the last sibling up makes undo restore first to
+    // last, so every index is right when its object returns; in selection
+    // order, undo could reorder the siblings.
     auto indexOf = [scene](Deki::Object* obj)
     {
         Deki::Object* parent = obj->GetParent();
@@ -1979,34 +1911,29 @@ void EditorApp::DuplicateObjects(const std::vector<Deki::Object*>& objects)
 
 bool EditorApp::CheckUnsavedChanges(PendingSceneAction action, const std::string& path)
 {
-    // The prompt owns the suppression flag and the pending slot; EditorApp owns
-    // the verdict, because it is what knows whether a scene is open and dirty.
+    // The prompt owns the suppression flag and the pending action; EditorApp
+    // decides whether to ask, since it knows whether a scene is open and dirty.
     const bool dirty = m_CurrentScene && CommandHistory::Instance().IsDirty();
     return m_UnsavedPrompt.Request(action, path, dirty);
 }
 
 void EditorApp::ExecutePendingAction()
 {
-    // Delegate to the real NewScene/OpenScene rather than re-implementing
-    // them.
+    // Call the real NewScene/OpenScene; never copy them here, since a copy
+    // drifts from what they do (Root object, inspector baseline, platform
+    // setup, lastScene, load errors).
     //
-    // The duplicated versions that used to live here drifted: the new-scene
-    // path never created the "Root" object NewScene creates, neither path
-    // captured the inspector's saved-state baseline or ran EnsurePlatformSetup,
-    // the open path never recorded lastScene, and a failed load was silent -
-    // leaving the previous scene open after the user chose to discard it.
-    //
-    // m_SuppressUnsavedCheck stands in for "the dirty check already happened":
+    // Suppressing the unsaved check means "the dirty check already happened":
     // the user just answered the dialog, so asking again would loop.
-    // TakePending clears the slot up front, so a re-entrant call (a failed open
-    // that surfaces an error dialog) cannot see a stale pending action.
+    // TakePending clears the pending action first, so a re-entrant call (a
+    // failed open that shows an error dialog) cannot see a stale one.
     std::string path;
     const PendingSceneAction action = m_UnsavedPrompt.TakePending(path);
 
-    // A pending source path means NavigateIntoScene started this and was
-    // interrupted by the dialog. OpenScene only pushes the breadcrumb while
-    // m_IsNavigating is set, and NavigateIntoScene has long since reset it, so
-    // restore it here or the trail is lost exactly when a dialog appeared.
+    // A pending source path means NavigateIntoScene started this and the
+    // dialog interrupted it. OpenScene pushes the breadcrumb only while
+    // m_IsNavigating is set, which NavigateIntoScene has already reset, so set
+    // it again here or the trail is lost whenever a dialog appeared.
     const bool resumingNavigation = !m_NavigationSourcePath.empty();
 
     m_UnsavedPrompt.SetSuppressed(true);
@@ -2018,18 +1945,18 @@ void EditorApp::ExecutePendingAction()
         case PendingSceneAction::OpenScene:
             if (!OpenScene(path))
             {
-                // The scene the user asked for could not be loaded, and their
-                // current one has already been dealt with. Leaving them with a
-                // broken half-state is worse than an empty scene.
+                // The requested scene did not load and the current one is
+                // already saved or discarded. An empty scene beats a broken
+                // half-state.
                 DEKI_LOG_ERROR("ExecutePendingAction: failed to open '%s'; creating a new scene", path.c_str());
                 NewScene();
             }
             break;
 
         case PendingSceneAction::CloseProject:
-            // The unsaved scene has been saved or discarded by now, so the close
-            // the dialog interrupted can go ahead. m_SuppressUnsavedCheck is still
-            // set, so nothing re-asks.
+            // The unsaved scene is saved or discarded by now, so the close the
+            // dialog interrupted can go ahead. The check is still suppressed,
+            // so nothing asks again.
             CloseProject();
             break;
 

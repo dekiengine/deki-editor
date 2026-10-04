@@ -35,7 +35,6 @@ const int SerialMonitorPanel::kBaudRateCount = 8;
 SerialMonitorPanel::SerialMonitorPanel(EditorApp* app)
     : m_App(app)
 {
-    // Enumerate available ports on startup
     m_AvailablePorts = EnumeratePorts();
     if (!m_AvailablePorts.empty())
     {
@@ -175,7 +174,7 @@ void SerialMonitorPanel::DrawToolbar()
 
 void SerialMonitorPanel::DrawOutput()
 {
-    // Calculate available height for output (leave room for input area)
+    // Leave room for the input area below.
     float inputHeight = ImGui::GetFrameHeightWithSpacing() * 2;
     float availHeight = ImGui::GetContentRegionAvail().y - inputHeight;
 
@@ -190,7 +189,6 @@ void SerialMonitorPanel::DrawOutput()
     int lineIndex = 0;
     for (const auto& line : m_OutputLines)
     {
-        // Filter by text
         if (!filterStr.empty())
         {
             std::string textLower = line.text;
@@ -203,7 +201,6 @@ void SerialMonitorPanel::DrawOutput()
 
         ImGui::PushID(lineIndex);
 
-        // Format timestamp
         std::string displayText;
         if (m_ShowTimestamps)
         {
@@ -244,7 +241,7 @@ void SerialMonitorPanel::DrawOutput()
         }
         else
         {
-            // Render timestamp prefix in default color if present
+            // Timestamp in the default colour.
             if (m_ShowTimestamps)
             {
                 ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
@@ -258,7 +255,6 @@ void SerialMonitorPanel::DrawOutput()
                 ImGui::PopStyleColor();
             }
 
-            // Render each ANSI segment with its color
             for (size_t s = 0; s < line.segments.size(); ++s)
             {
                 const auto& seg = line.segments[s];
@@ -272,7 +268,6 @@ void SerialMonitorPanel::DrawOutput()
             }
         }
 
-        // Right-click context menu
         PushContextMenuPopupStyle();
         if (ImGui::BeginPopupContextItem("line_ctx"))
         {
@@ -299,7 +294,7 @@ void SerialMonitorPanel::DrawOutput()
         lineIndex++;
     }
 
-    // Auto-scroll to bottom
+    // Stay at the bottom while already scrolled there.
     if (m_AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
     {
         ImGui::SetScrollHereY(1.0f);
@@ -352,7 +347,7 @@ bool SerialMonitorPanel::Connect()
     }
 
 #ifdef _WIN32
-    // Format port name for Windows
+    // Windows needs the \\.\ prefix for ports above COM9.
     std::string portName = m_SelectedPort;
     if (portName.find("\\\\.\\") != 0)
     {
@@ -367,7 +362,6 @@ bool SerialMonitorPanel::Connect()
         return false;
     }
 
-    // Configure serial port
     DCB dcb = { 0 };
     dcb.DCBlength = sizeof(dcb);
     if (!GetCommState(m_SerialHandle, &dcb))
@@ -393,7 +387,7 @@ bool SerialMonitorPanel::Connect()
         return false;
     }
 
-    // Set timeouts for non-blocking reads
+    // Timeouts so reads return quickly instead of blocking.
     COMMTIMEOUTS timeouts = { 0 };
     timeouts.ReadIntervalTimeout = 50;
     timeouts.ReadTotalTimeoutConstant = 50;
@@ -402,7 +396,6 @@ bool SerialMonitorPanel::Connect()
     timeouts.WriteTotalTimeoutMultiplier = 10;
     SetCommTimeouts(m_SerialHandle, &timeouts);
 
-    // Clear buffers
     PurgeComm(m_SerialHandle, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
 #else
@@ -423,7 +416,6 @@ bool SerialMonitorPanel::Connect()
         return false;
     }
 
-    // Set baud rate
     speed_t baudRate;
     switch (kBaudRates[m_BaudRateIndex])
     {
@@ -464,7 +456,6 @@ bool SerialMonitorPanel::Connect()
     m_IsConnected = true;
     m_Running = true;
 
-    // Start read thread
     m_ReadThread = std::thread(&SerialMonitorPanel::ReadThreadFunc, this);
 
     AddOutputLine("Connected to " + m_SelectedPort + " at " + std::to_string(kBaudRates[m_BaudRateIndex]) + " baud");
@@ -479,7 +470,6 @@ void SerialMonitorPanel::Disconnect()
         return;
     }
 
-    // Stop read thread
     m_Running = false;
     if (m_ReadThread.joinable())
     {
@@ -548,10 +538,9 @@ void SerialMonitorPanel::ReadThreadFunc()
         {
             buffer[bytesRead] = '\0';
 
-            // Process received data
             std::string data(buffer, bytesRead);
 
-            // Handle partial lines and complete lines
+            // Complete lines go out; the rest waits in m_PartialLine.
             for (char c : data)
             {
                 if (c == '\n' || c == '\r')
@@ -596,7 +585,6 @@ void SerialMonitorPanel::ReadThreadFunc()
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    // Flush any remaining partial line
     if (!m_PartialLine.empty())
     {
         AddOutputLine(m_PartialLine);
@@ -630,17 +618,16 @@ std::vector<AnsiSegment> SerialMonitorPanel::ParseAnsi(const std::string& text)
     size_t i = 0;
     while (i < text.size())
     {
-        // Check for ESC character (0x1B)
+        // ESC [ starts a CSI sequence.
         if (text[i] == '\x1b' && i + 1 < text.size() && text[i + 1] == '[')
         {
-            // Flush current text
             if (!current.empty())
             {
                 segments.push_back({ current, currentColor });
                 current.clear();
             }
 
-            // Parse CSI sequence: ESC [ (params) m
+            // ESC [ (params) m
             i += 2;  // skip ESC [
             std::string paramStr;
             while (i < text.size() && text[i] != 'm' && text[i] >= 0x20 && text[i] <= 0x3F)
@@ -653,7 +640,7 @@ std::vector<AnsiSegment> SerialMonitorPanel::ParseAnsi(const std::string& text)
             {
                 i++;  // skip 'm'
 
-                // Parse semicolon-separated codes
+                // Semicolon-separated codes.
                 std::istringstream ss(paramStr);
                 std::string token;
                 while (std::getline(ss, token, ';'))
@@ -669,7 +656,7 @@ std::vector<AnsiSegment> SerialMonitorPanel::ParseAnsi(const std::string& text)
                         {
                             currentColor = AnsiCodeToColor(code);
                         }
-                        // Ignore bold (1), dim (2), etc. - just use color
+                        // Bold (1), dim (2) and the rest are ignored; only colour is used.
                     }
                 }
             }
@@ -686,7 +673,7 @@ std::vector<AnsiSegment> SerialMonitorPanel::ParseAnsi(const std::string& text)
         segments.push_back({ current, currentColor });
     }
 
-    // If no segments, add the whole text as default
+    // No escape codes: the whole text is one default-colour segment.
     if (segments.empty())
     {
         segments.push_back({ text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f) });
@@ -702,7 +689,7 @@ void SerialMonitorPanel::AddOutputLine(const std::string& text, bool isError)
     SerialOutputLine line;
     line.segments = ParseAnsi(text);
 
-    // Store plain text for filtering
+    // Plain text, for the filter.
     line.text.clear();
     for (const auto& seg : line.segments)
     {
@@ -714,7 +701,7 @@ void SerialMonitorPanel::AddOutputLine(const std::string& text, bool isError)
 
     m_OutputLines.push_back(line);
 
-    // Limit buffer size
+    // Keep at most maxLines; the oldest go first.
     const size_t maxLines = 10000;
     if (m_OutputLines.size() > maxLines)
     {

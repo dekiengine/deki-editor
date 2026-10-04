@@ -15,17 +15,14 @@
 namespace DekiEditor
 {
 
-// Named imports rather than `using namespace`: a wholesale import in a header
-// is open-ended, so anything later added to ObjectSerializationHelper would
-// silently appear in every DekiEditor TU that includes this.
+// Named imports rather than `using namespace`, so things later added to
+// ObjectSerializationHelper do not leak into every file that includes this.
 using ObjectSerializationHelper::ComponentData;
 using ObjectSerializationHelper::RestoreComponentProperties;
 using ObjectSerializationHelper::SerializeComponent;
 
-/**
- * Command for deleting a Deki::Object
- * Keeps the object alive in memory (detached) so undo preserves all runtime state
- */
+/// Deletes a Deki::Object. The object stays alive, detached from the scene,
+/// so undo puts back the same object with all its runtime state.
 class DeleteObjectCommand : public Command
 {
 public:
@@ -37,7 +34,7 @@ public:
           m_OnDeleted(onDeleted),
           m_OnRestored(onRestored)
     {
-        // Record position for re-insertion
+        // Where it sat, for Undo.
         Deki::Object* parent = obj->GetParent();
         m_ParentId = parent ? parent->GetId() : 0;
         m_OriginalIndex = parent ? parent->GetChildIndex(obj) : scene->GetObjectIndex(obj);
@@ -45,7 +42,7 @@ public:
 
     ~DeleteObjectCommand()
     {
-        // If object is still detached (not in the scene), we own it
+        // Still detached means not in the scene, so this command owns it.
         if (m_IsDetached && m_Object)
         {
             delete m_Object;
@@ -71,9 +68,7 @@ private:
     std::function<void(Deki::Object*)> m_OnRestored;
 };
 
-/**
- * Command for toggling a Deki::Object's active flag.
- */
+/// Sets a Deki::Object's active flag.
 class SetActiveCommand : public Command
 {
 public:
@@ -97,9 +92,7 @@ private:
     bool m_New;
 };
 
-/**
- * Command for adding a component to a Deki::Object
- */
+/// Adds a component to a Deki::Object.
 class AddComponentCommand : public Command
 {
 public:
@@ -133,10 +126,8 @@ private:
     int m_Index = -1;
 };
 
-/**
- * Command for removing a component from a Deki::Object
- * Serializes component properties for undo support
- */
+/// Removes a component from a Deki::Object. The component stays alive,
+/// detached, so undo puts back the same instance.
 class RemoveComponentCommand : public Command
 {
 public:
@@ -168,11 +159,9 @@ private:
     std::function<void()> m_OnRemoved;
 };
 
-/**
- * Command for duplicating a Deki::Object in the scene
- * Uses the engine's DuplicateObject (JSON round-trip) for full state fidelity.
- * Undo/redo detaches/reattaches the clone to preserve runtime state.
- */
+/// Duplicates a Deki::Object in the scene with the engine's DuplicateObject,
+/// a JSON round-trip that copies its full state. Undo detaches the copy and
+/// redo reattaches it, so its runtime state survives.
 class DuplicateObjectCommand : public Command
 {
 public:
@@ -190,7 +179,7 @@ public:
 
     ~DuplicateObjectCommand()
     {
-        // If clone is detached (undone), we own it
+        // A detached (undone) copy is owned by this command.
         if (m_IsDetached && m_DuplicatedObject)
         {
             delete m_DuplicatedObject;

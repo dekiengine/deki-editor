@@ -1,6 +1,6 @@
 // The transform width a project compiles is the widest tag across its active
-// packages and the project itself. Nothing declared means no transform, which
-// is the point: a project with nothing to draw pays for nothing.
+// packages and the project itself. Nothing declared means no transform, so a
+// project with nothing to draw pays for nothing.
 
 #include <gtest/gtest.h>
 

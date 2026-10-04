@@ -17,7 +17,7 @@ class Sprite;
 struct SDL_Window;
 
 #include "core/Project.h"
-#include <deki/Scene.h>  // Engine's Scene class
+#include <deki/Scene.h>
 #include "panels/IPanel.h"
 #include "panels/HierarchyPanel.h"
 #include "panels/InspectorPanel.h"
@@ -72,7 +72,7 @@ class ICamera;
 namespace DekiEditor
 {
 
-class McpServer;  // Forward declaration
+class McpServer;
 
 class EditorApp
 {
@@ -80,11 +80,9 @@ public:
     /// Asset-cache epoch. Bump when a change makes previously imported assets
     /// stale, to force a reimport on next open; leave alone otherwise.
     ///
-    /// This is NOT the editor's release version - that lives in
-    /// `project(DekiEditor VERSION ...)` in CMakeLists.txt, and the two are
-    /// free to differ. It was named EDITOR_VERSION and stored in
-    /// settings/editor_version.txt, which made it look like the release
-    /// version and made the disagreement with CMake look like a bug.
+    /// This is not the editor's release version, which is
+    /// `project(DekiEditor VERSION ...)` in CMakeLists.txt; the two are free
+    /// to differ.
     static constexpr const char* kAssetCacheEpoch = "1.1.0";
 
     EditorApp();
@@ -94,10 +92,9 @@ public:
     void DrawStatusBar();
     void SaveLayout();
 
-    /// Open a project. Returns false (and logs why) if the .dproj could not be
-    /// loaded - it used to return void and bail silently, so pointing the editor
-    /// at a corrupt deki.json did visibly nothing at all - or if another editor
-    /// has it open, in which case the current project stays open.
+    /// Opens a project. Returns false, and logs why, if the project could not
+    /// be loaded or another editor has it open; the current project then stays
+    /// open.
     bool OpenProject(const std::string& path);
     void CloseProject();
     // Why the last OpenProject returned false, in words for the user; empty
@@ -116,11 +113,10 @@ public:
 
     void NewScene();
 
-    /// Quit, routed through the unsaved-changes prompt like every other action
-    /// that discards the scene. main.cpp used to drop out of its loop on the
-    /// raw SDL event, so the close button, Alt+F4 and File > Exit all threw
-    /// away unsaved edits with no question asked. When nothing is dirty this
-    /// sets the flag immediately; otherwise the prompt sets it on Save/Discard.
+    /// Quits, through the unsaved-changes prompt like every other action that
+    /// discards the scene, so the close button, Alt+F4 and File > Exit never
+    /// lose edits silently. When nothing is dirty this sets the flag at once;
+    /// otherwise the prompt sets it on Save or Discard.
     void RequestQuit();
     bool ConsumeQuitRequest()
     {
@@ -141,19 +137,18 @@ public:
     void OpenProjectDialog();
     void SaveSceneAsDialog();
 
-    /// Delete `obj` through the command system, with selection follow-up.
+    /// Deletes `obj` through the command system and updates the selection.
     /// Refuses protected objects (scene root, boot-scene Setup, instance
-    /// children). This is the one rule; the Hierarchy and Scene View delete
-    /// keys both call it - they used to implement it separately and the Scene
-    /// View's copy applied no protection at all.
+    /// children). This is the one rule: the Hierarchy and Scene View delete
+    /// keys both call it.
     bool DeleteObject(Deki::Object* obj);
     bool IsProtectedObject(Deki::Object* obj);
     /// Every object in `objects` the rules allow, as one undo step. An object
     /// whose ancestor is also listed goes with that ancestor. Restores the
     /// whole selection on undo. False when nothing could be deleted.
     bool DeleteObjects(const std::vector<Deki::Object*>& objects);
-    /// Duplicate each of `objects` beside itself (a linked instance stays
-    /// linked), as one undo step, and select the copies.
+    /// Duplicates each of `objects` beside itself (a linked instance stays
+    /// linked), as one undo step, and selects the copies.
     void DuplicateObjects(const std::vector<Deki::Object*>& objects);
     /// What a context-menu action on `clicked` applies to: the whole selection
     /// when `clicked` is part of a multi-selection, otherwise just `clicked`.
@@ -163,17 +158,16 @@ public:
     void NavigateBack();
     void NavigateBackTo(size_t stackIndex);
 
-    // Scene file operations. These report whether the file was actually read
-    // or written - callers used to have no way to tell a successful save from a
-    // path that went nowhere, which is how a scripted save could report success
-    // while writing nothing.
+    // Scene file operations. They return whether the file was actually read
+    // or written, so a caller (a script, say) can tell a real save from one
+    // that wrote nothing.
     //
     // A relative path is resolved against the project root (see
     // ResolveProjectPath), not the process working directory.
     //
-    // OpenScene returns false when the load failed AND when the open was
-    // deferred behind the unsaved-changes dialog - in both cases the requested
-    // scene is not what is open when it returns.
+    // OpenScene returns false when the load failed and also when the open was
+    // deferred behind the unsaved-changes dialog: either way, the requested
+    // scene is not open when it returns.
     bool OpenScene(const std::string& path);
     bool SaveScene();
     bool SaveSceneAs(const std::string& path);
@@ -187,8 +181,8 @@ public:
     std::string ResolveProjectPath(const std::string& path) const;
     void EnsurePlatformSetup();
 
-    // Export all assets from cache/ to storage/ for runtime, stored as the
-    // active platform wants them
+    // Exports all assets from cache/ to storage/ for the runtime, stored as
+    // the active platform wants them.
     bool ExportToStorage();
 
     // Point the asset cache at the project's active platform: images set to
@@ -196,7 +190,7 @@ public:
     // active platform changes; with `reimport`, re-imports what that changed.
     void ApplyEditorTarget(bool reimport = true);
 
-    // Propagate changes to all scenes that contain instances of the given scene
+    // Updates every scene that contains instances of the given scene.
     void PropagateInstanceChanges(const std::string& changedSceneGuid);
 
     // Window (set by EditorBoot for the custom title bar; null when headless)
@@ -204,22 +198,21 @@ public:
     SDL_Window* GetWindow() const { return m_Window; }
 
     // Headless: started from the CLI, with no window, no GL context and no
-    // ImGui context. The project still opens in full - this flag guards only
-    // the few steps that exist for a UI that is not there. Every such site is
-    // an explicit, commented decision; anything not marked runs identically in
-    // both modes, which is what makes a CLI run and a GUI run comparable.
+    // ImGui context. The project still opens in full; this flag only skips the
+    // few steps that serve a UI. Each such site is marked with a comment;
+    // everything else runs the same in both modes, so a CLI run and a GUI run
+    // are comparable.
     void SetHeadless(bool headless);
     bool IsHeadless() const { return m_Headless; }
 
-    // DPI scale (set from main.cpp, used by SceneView for screen-space conversions)
+    // DPI scale, set from main.cpp and used by SceneView for screen-space conversions.
     void SetDpiScale(float scale) { m_DpiScale = scale; }
     float GetDpiScale() const { return m_DpiScale; }
-    // Logical pixels → physical pixels at current ImGui DPI. Reads
-    // GetWindowDpiScale() so per-monitor DPI changes are picked up live
-    // (the m_DpiScale field captured at startup would not update).
+    // Logical pixels to physical pixels at the current ImGui DPI. Reads
+    // GetWindowDpiScale(), so per-monitor DPI changes apply at once, which
+    // m_DpiScale (captured at startup) would not.
     float Dpi(float logicalPixels) const { return logicalPixels * ImGui::GetWindowDpiScale(); }
 
-    // Accessors
     Project* GetProject() { return m_Project.get(); }
 
     // The transform width the project's packages and deki.json declare, which
@@ -242,9 +235,9 @@ public:
     const std::vector<IPanel*>& GetPanels() const { return m_Panels; }
     PackageManagerPanel* GetPackageManagerPanel() { return m_PackageManagerPanel.get(); }
 
-    // Put packages that are NOT marked editable back the way the project pinned
-    // them, stashing any local edits first, and toast whatever changed. Called
-    // on window focus (scoped to packages the watchers saw change) and on
+    // Puts packages not marked editable back the way the project pinned them,
+    // stashing any local edits first, and shows a toast for whatever changed.
+    // Called on window focus (for the packages the watchers saw change) and on
     // project open (sweepAll, since the watchers were not running).
     void ReportIncompatiblePackages();
     void RunPackageIntegrityCheck(bool sweepAll);
@@ -253,11 +246,11 @@ public:
     FrameCaptureService* GetFrameCaptureService() { return m_FrameCaptureService.get(); }
     HotReloadService* GetHotReloadService() { return m_HotReloadService.get(); }
 
-    // Selection - Multi-selection API
+    // Selection (multi-selection)
     const std::vector<Deki::Object*>& GetSelectedObjects() const { return m_Selection.GetSelectedObjects(); }
-    Deki::Object* GetSelectedObject();  // Returns first selected or nullptr (backward compat)
+    Deki::Object* GetSelectedObject();  // the first selected, or nullptr
     bool IsSelected(Deki::Object* obj) const { return m_Selection.IsSelected(obj); }
-    void SetSelectedObject(Deki::Object* obj);  // Clear and set single
+    void SetSelectedObject(Deki::Object* obj);  // replaces the selection with `obj`
     void SetSelectedObjects(const std::vector<Deki::Object*>& objects);
     void AddToSelection(Deki::Object* obj);
     void RemoveFromSelection(Deki::Object* obj);
@@ -266,9 +259,9 @@ public:
     bool HasMultipleSelected() const { return m_Selection.HasMultipleSelected(); }
     size_t GetSelectionCount() const { return m_Selection.GetSelectionCount(); }
 
-    // Called by Scene when objects are about to be destroyed. Drops the
-    // doomed objects from selection and from HierarchyPanel caches before
-    // their pointers go invalid.
+    // Called by Scene when objects are about to be destroyed. Removes them
+    // from the selection and from HierarchyPanel's caches before their
+    // pointers go invalid.
     void OnObjectsDestroyed(const std::vector<Deki::Object*>& dying);
 
     // Asset selection (from asset browser)
@@ -310,23 +303,23 @@ public:
     // File drop handling
     void HandleFileDrop(const std::string& path);
 
-    // Window focus handling (for hot reload)
+    // Window focus, for hot reload
     void OnWindowFocusGained();
 
-    // Restore dock tab focus (call from main loop BEFORE DockSpace)
+    // Restores dock tab focus. Call from the main loop before DockSpace.
     void RestoreTabFocus();
 
-    // Process deferred tasks (call from main loop after window is visible)
+    // Runs deferred tasks. Call from the main loop once the window is visible.
     void ProcessDeferredTasks();
 
-    // 36px global toolbar (RUN/PAUSE/STOP transport on the left, plus future
-    // mode/target chips). Render this BEFORE ImGui::DockSpace so it claims
-    // a strip of vertical space above the docked panels.
+    // 36px global toolbar, with the run/pause/stop transport on the left.
+    // Draw it before ImGui::DockSpace so it claims a strip of vertical space
+    // above the docked panels.
     void DrawGlobalToolbar();
 
     // No project open means the project manager screen is up instead of the
     // editor. main.cpp asks before it builds the toolbar, dockspace and status
-    // bar - none of which that screen wants behind it.
+    // bar, none of which that screen wants behind it.
     bool IsProjectManagerMode() const { return m_Project == nullptr; }
 
     // Opens the new-project wizard. Reachable from File > New Project and from
@@ -348,21 +341,19 @@ private:
 
     void HandleKeyboardShortcuts();
 
-    // Wire Scene notifications (object destruction) to editor-side cache cleanup.
-    // Call after every assignment to m_CurrentScene.
+    // Connects Scene notifications (object destruction) to editor-side cache
+    // cleanup. Call after every assignment to m_CurrentScene.
     void RegisterSceneCallbacks(::Deki::Scene* scene);
 
     // The one way to install (or clear, with nullptr) the edited scene.
     //
     // Owning m_CurrentScene, publishing it to the EditorApplication facade and
-    // registering its callbacks are three steps that must happen together. They
-    // were open-coded at six sites and two of them skipped a step: the
-    // hot-reload path reset the scene without clearing the facade and rebuilt it
-    // without re-publishing, so EditorApplication::GetActiveScene() - public API
-    // for package DLLs - held a freed pointer from the first reload onward.
+    // registering its callbacks must happen together. Skipping a step leaves
+    // EditorApplication::GetActiveScene(), public API for package DLLs,
+    // holding a freed pointer. Always go through this function.
     void SetCurrentScene(std::unique_ptr<::Deki::Scene> scene);
 
-    // Check if editor version changed and return true if reimport is needed
+    // True when the asset-cache epoch changed, so assets must be reimported.
     bool CheckAssetCacheEpochChanged(const std::string& projectPath);
 
     SDL_Window* m_Window = nullptr;
@@ -431,9 +422,9 @@ private:
     bool m_RestoreLayoutRequested = false;
 
 public:
-    /** @brief Ask for the default dock layout to be rebuilt on the next frame. */
+    /// Asks for the default dock layout to be rebuilt on the next frame.
     void RequestRestoreLayout() { m_RestoreLayoutRequested = true; }
-    /** @brief True once per request, for the frame loop to act on. */
+    /// True once per request, for the frame loop to act on.
     bool ConsumeRestoreLayoutRequest()
     {
         const bool r = m_RestoreLayoutRequested;
@@ -457,14 +448,12 @@ private:
     void UpdatePlayMode();
     void RenderPlayMode();
 
-    // Hot reload: serialize the scene before a plugin swap and restore it after.
-    // Declared here with the rest of hot reload rather than among the play-mode
-    // helpers, where they used to sit despite being implemented in
-    // EditorApp.ProjectManager.cpp and having nothing to do with play mode.
+    // Hot reload: serialize the scene before a plugin swap and restore it
+    // after. Implemented in EditorApp.ProjectManager.cpp.
     void OnBeforePluginReload();
     void OnAfterPluginReload();
 
-    // Scene backup during hot reload (JSON string in memory)
+    // The scene, as JSON in memory, during a hot reload.
     std::string m_HotReloadSceneBackup;
     std::string m_HotReloadScenePath;
     uint32_t m_HotReloadSelectedObjectId = 0;
@@ -472,11 +461,10 @@ private:
     // Edit > Maintenance. The menu only records the request; the confirmation
     // modal (drawn from Update, outside the menu's draw scope) runs it. These
     // actions delete generated state that can cost a full rebuild to restore,
-    // so they no longer run on a single click.
+    // so they never run on a single click.
     std::optional<MaintenanceAction> m_PendingMaintenance;
     void DrawMaintenanceConfirm();
 
-    // Unsaved changes dialog
     void DrawUnsavedChangesDialog();
     bool CheckUnsavedChanges(PendingSceneAction action, const std::string& path = "");
     void ExecutePendingAction();
@@ -514,22 +502,23 @@ private:
     void DrawRecoveryDialog();
     void DrawRecoveryDiscardConfirm();
     void DrawRecoveryPreview();
-    /// Load the selected recovery, rebind it to its original path, and consume
-    /// only that entry - the others stay on disk and are offered again.
+    /// Loads the selected recovery, rebinds it to its original path, and
+    /// removes only that entry; the others stay on disk and are offered again.
     void RestoreSelectedRecovery();
-    /// Write the current scene to the recovery directory. Used by the crash
-    /// handler and the autosave timer alike, so a hard kill (which never reaches
-    /// the crash handler) still leaves something to recover.
+    /// Writes the current scene to the recovery directory. Used by both the
+    /// crash handler and the autosave timer, so a hard kill (which never
+    /// reaches the crash handler) still leaves something to recover.
     bool WriteRecoverySnapshot();
-    /// Advance the autosave timer and snapshot when it expires. Once per frame.
+    /// Advances the autosave timer and takes a snapshot when it expires. Call
+    /// once per frame.
     void TickAutosave(float deltaSeconds);
 
     // MCP server
     std::unique_ptr<McpServer> m_McpServer;
 
     // For PropagateInstanceChanges: the GUIDs each scene file mentions, keyed
-    // by absolute path and validated by the file's write time. Every save used
-    // to read every scene in the project in full to search for one GUID.
+    // by absolute path and checked against the file's write time, so a save
+    // need not read every scene in the project.
     struct SceneGuidRefs
     {
         std::filesystem::file_time_type writeTime;
@@ -550,9 +539,9 @@ public:
     // destroyed: those DLLs' static destructors free through it at exit.
     void ReleaseImGuiContext();
     bool IsMcpServerRunning() const;
-    // Loopback SSE endpoint including the session token, or "" when not running.
-    // This is what an MCP client must be pointed at - the token changes on every
-    // Start(), so it cannot be baked into a config file.
+    // Loopback SSE endpoint with the session token, or "" when not running.
+    // Point an MCP client at this; the token changes on every Start(), so it
+    // cannot go in a config file.
     std::string GetMcpSseUrl() const;
 
 private:

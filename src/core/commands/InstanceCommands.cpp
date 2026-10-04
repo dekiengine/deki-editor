@@ -27,8 +27,8 @@ void CreateInstanceCommand::Execute()
 
     m_InstanceObject->SetSourceSceneGuid(m_SourceSceneGuid);
 
-    // Single-root invariant: a null parent means "inside the scene root", not "as a sibling of root".
-    // If no root exists yet, the new object becomes the root.
+    // Single root: a null parent means "inside the scene root", not "beside it".
+    // With no root yet, the new object becomes the root.
     Deki::Object* resolvedParent = m_Parent;
     if (!resolvedParent)
     {
@@ -84,7 +84,7 @@ std::string UnlinkInstanceCommand::GetDescription() const
 
 void UnlinkInstanceCommand::Execute()
 {
-    // Clear instance markers on root and all children
+    // Clear the instance markers on the root and all children.
     m_InstanceObject->SetSourceSceneGuid("");
     m_InstanceObject->SetInstanceOverridesJson("");
     ClearInstanceFlags(m_InstanceObject);
@@ -97,7 +97,6 @@ void UnlinkInstanceCommand::Execute()
 
 void UnlinkInstanceCommand::Undo()
 {
-    // Restore instance state
     m_InstanceObject->SetSourceSceneGuid(m_SavedGuid);
     m_InstanceObject->SetInstanceOverridesJson(m_SavedOverrides);
     SetInstanceFlags(m_InstanceObject);
@@ -133,10 +132,10 @@ std::string LinkInstanceCommand::GetDescription() const
 
 void LinkInstanceCommand::Execute()
 {
-    // Set the source GUID so CollectOverrides can diff against source
+    // CollectOverrides diffs against the source this GUID names.
     m_Object->SetSourceSceneGuid(m_SourceSceneGuid);
 
-    // Collect overrides by comparing current children vs source scene
+    // Overrides are what the current children change from the source scene.
     nlohmann::json overrides = nlohmann::json::array();
     m_Scene->CollectOverrides(m_Object, m_Object, overrides);
 
@@ -149,8 +148,8 @@ void LinkInstanceCommand::Execute()
         m_Object->SetInstanceOverridesJson("");
     }
 
-    // Delete existing children (will be replaced by expanded source). Through
-    // the scene, which tells the editor first: selection and undo history held
+    // Delete the current children; the expanded source replaces them. Through
+    // the scene, which tells the editor first: selection and undo history hold
     // pointers into them.
     auto children = m_Object->GetChildren();  // copy
     for (auto* child : children)
@@ -158,8 +157,8 @@ void LinkInstanceCommand::Execute()
         m_Scene->DestroyDekiObject(child);
     }
 
-    // Clear existing components (ExpandInstance will re-add from source;
-    // without this, Redo would duplicate them)
+    // Clear the components: ExpandInstance re-adds them from the source, and
+    // Redo would duplicate them otherwise.
     auto comps = m_Object->GetComponents();  // copy
     for (auto* comp : comps)
     {
@@ -167,7 +166,7 @@ void LinkInstanceCommand::Execute()
         m_Object->RemoveComponent(comp);
     }
 
-    // Expand from source scene with overrides applied
+    // Expand from the source scene with the overrides applied.
     std::string savedName = m_Object->GetName();
     m_Scene->ExpandInstance(m_Object);
     m_Object->SetName(savedName);
@@ -180,10 +179,9 @@ void LinkInstanceCommand::Execute()
 
 void LinkInstanceCommand::Undo()
 {
-    // Collapse expanded instance children
     m_Scene->CollapseInstance(m_Object);
 
-    // Remove components added by ExpandInstance, restore originals
+    // Swap the components ExpandInstance added for the originals.
     auto comps = m_Object->GetComponents();  // copy
     for (auto* comp : comps)
     {
@@ -192,14 +190,13 @@ void LinkInstanceCommand::Undo()
     }
     RestoreComponents(m_Object, m_SavedComponents);
 
-    // Restore previous instance state (or clear if wasn't linked before)
+    // Empty when the object was not linked before.
     m_Object->SetSourceSceneGuid(m_PreviousGuid);
     m_Object->SetInstanceOverridesJson(m_PreviousOverrides);
 
-    // Restore original children
     CreateChildrenRecursive(m_Object, m_SavedChildren);
 
-    // Restore instance flags if was previously linked
+    // Mark the children as instance parts again if it was linked before.
     if (!m_PreviousGuid.empty())
     {
         for (auto* child : m_Object->GetChildren())
@@ -224,7 +221,7 @@ void LinkInstanceCommand::Undo()
 
 void LinkInstanceCommand::Redo()
 {
-    // Re-save state before re-executing (undo restored them)
+    // Snapshot again: Undo rebuilt the children and components.
     m_SavedComponents = SerializeComponents(m_Object);
     m_SavedChildren = SerializeChildren(m_Object);
     Execute();
@@ -293,8 +290,8 @@ void ApplyInstanceToSceneCommand::Execute()
         return;
     }
 
-    // Propagate to unopened scene files (each one's LoadFromFile expands
-    // against the new source; SaveToFile recomputes its overrides fresh).
+    // Update scene files that are not open: LoadFromFile expands each against
+    // the new source, and SaveToFile recomputes its overrides.
     m_SavedOtherScenes.clear();
     for (const auto& path : m_OtherScenePaths)
     {
@@ -317,10 +314,10 @@ void ApplyInstanceToSceneCommand::Execute()
         otherScene.SaveToFile(path);
     }
 
-    // Refresh sibling instances of this same scene in the current scene
-    // so they render against the new source. The applied instance itself
-    // is left alone - its in-memory render is already correct, and
-    // touching it would discard any uncommitted live edits.
+    // Re-expand other instances of the same scene in the current scene so
+    // they show the new source. The applied instance stays as it is: it
+    // already shows the right result, and re-expanding it would discard
+    // uncommitted live edits.
     std::vector<Deki::Object*> siblings;
     CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance, siblings);
     for (auto* inst : siblings)
@@ -338,7 +335,7 @@ void ApplyInstanceToSceneCommand::Undo()
         return;
     }
 
-    // Roll back any scene files we rewrote.
+    // Roll back the other scene files Execute rewrote.
     for (const auto& [path, content] : m_SavedOtherScenes)
     {
         WriteStringToFile(path, content);
@@ -351,8 +348,8 @@ void ApplyInstanceToSceneCommand::Undo()
         m_Instance->SetInstanceOverridesJson(m_SavedInstanceOverrides);
     }
 
-    // Re-expand siblings against the rolled-back source. The applied
-    // instance wasn't re-expanded in Execute, so no need to touch it here.
+    // Re-expand the other instances against the rolled-back source. The
+    // applied instance was not re-expanded in Execute, so it stays as it is.
     std::vector<Deki::Object*> siblings;
     CollectInstancesByGuid(m_Scene, m_SourceGuid, /*exclude*/ m_Instance, siblings);
     for (auto* inst : siblings)

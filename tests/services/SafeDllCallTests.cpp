@@ -179,7 +179,7 @@ static const char* NullReturningStringFunc()
 
 TEST(SafeDllCall, NullStringFromValidFuncReturnsNull)
 {
-    // This tests that a valid function returning nullptr is NOT treated as a crash
+    // A valid function returning nullptr is not a crash.
     const char* result = SafeCallGetString(NullReturningStringFunc, "test::NullReturningStringFunc");
     EXPECT_EQ(result, nullptr);
 }
@@ -197,8 +197,8 @@ TEST(SafeDllCall, FailingInitReturnsErrorCode)
 
 #else
 
-// On non-Windows, the inline wrappers just call through directly.
-// We only test that valid calls work (crash tests would kill the process).
+// On non-Windows the inline wrappers call straight through, and a crash test
+// would kill the process.
 TEST(SafeDllCall, NonWindowsValidCallWorks)
 {
     EXPECT_TRUE(true);  // Placeholder

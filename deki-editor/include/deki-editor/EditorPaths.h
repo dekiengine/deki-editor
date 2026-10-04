@@ -6,30 +6,26 @@
 namespace DekiEditor
 {
 
-/**
- * EditorPaths
- *
- * Centralized path utilities for the Deki Editor.
- */
+/// Where the editor keeps its files.
 class DEKI_EDITOR_API EditorPaths
 {
 public:
-    // User home directory (forward slashes, no trailing slash)
+    /// The user's home folder (forward slashes, no trailing slash).
     static std::string GetUserHomeDir();
 
-    // Editor data directory: ~/.deki-editor
+    /// ~/.deki-editor
     static std::string GetEditorDataDir();
 
-    // Toolchains directory: ~/.deki-editor/toolchains
+    /// ~/.deki-editor/toolchains
     static std::string GetToolchainsDir();
 
-    // Board packs directory: ~/.deki-editor/board-packs
+    /// ~/.deki-editor/board-packs
     static std::string GetBoardPacksDir();
 
-    // Custom builders directory: ~/.deki-editor/builders
+    /// ~/.deki-editor/builders, for custom builders.
     static std::string GetBuildersDir();
 
-    // Editor executable directory (where DekiEditor.exe lives, forward slashes)
+    /// The folder of the editor executable (DekiEditor.exe), forward slashes.
     static std::string GetExecutableDir();
 };
 

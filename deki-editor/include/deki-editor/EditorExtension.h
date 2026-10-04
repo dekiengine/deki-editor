@@ -8,7 +8,6 @@
 #include <memory>
 
 #include <deki-editor/EditorExport.h>
-// Forward declarations - engine types
 namespace Deki
 {
 class Component;
@@ -19,7 +18,6 @@ class Object;
 }
 class BitmapFont;
 
-// Forward declaration for ImGui
 struct ImDrawList;
 
 namespace DekiEditor
@@ -31,7 +29,7 @@ namespace DekiEditor
 
 enum class EditorType
 {
-    CustomEditor,  // Unified component editor
+    CustomEditor,  // component editor (CustomEditor.h)
     AssetTypeEditor,
     CliTool  // A command-line / MCP tool a package adds (CliTool.h)
 };
@@ -59,11 +57,11 @@ public:
     EditorType GetEditorType() const override { return EditorType::AssetTypeEditor; }
     const char* GetName() const override { return GetTypeName(); }
 
-    // Identity - required for every subclass.
+    // Every subclass must give these.
     virtual const char* GetTypeName() const = 0;
     virtual const char* GetDisplayName() const = 0;
 
-    // Subclasses override either GetExtension() (single) or GetExtensions() (multiple).
+    // Override GetExtension() for one extension or GetExtensions() for several.
     // Native types like Sprite own many extensions; custom JSON types usually own one.
     virtual const char* GetExtension() const { return nullptr; }
     virtual std::vector<std::string> GetExtensions() const
@@ -72,29 +70,29 @@ public:
         return single ? std::vector<std::string>{ single } : std::vector<std::string>{};
     }
 
-    // Default JSON content for asset creation. Empty for native types.
+    // JSON content of a new asset. Empty for native types.
     virtual const char* GetDefaultContent() const { return ""; }
 
-    // Compile target: 0=Texture, 1=Audio, 2=Data. Native pass-through types return Data.
+    // 0=Texture, 1=Audio, 2=Data. Native pass-through types return Data.
     virtual int GetCompileTarget() const { return 2; }
 
-    // NOTE: do not add new virtuals here. AssetTypeEditor is the cross-DLL
-    // interface between deki-editor.dll and package DLLs, so adding a virtual
-    // shifts the vtable and crashes every already-built package. Packages that
-    // need to register asset categories should call
-    // AssetTypeRegistry::RegisterCategory from a static initializer.
+    // Do not add virtuals here. AssetTypeEditor is the cross-DLL interface
+    // between deki-editor.dll and package DLLs, so a new virtual shifts the
+    // vtable and crashes every already-built package. To register asset
+    // categories, packages call AssetTypeRegistry::RegisterCategory from a
+    // static initializer.
 
-    // Compile to RGBA buffer (Texture target). Default no-op for native types.
+    // Compiles to an RGBA buffer (Texture target). Does nothing by default.
     virtual bool Compile(const std::string& /*jsonData*/, std::vector<uint8_t>& /*rgba*/, int& /*width*/,
                          int& /*height*/)
     {
         return false;
     }
 
-    // Compile to binary file (Data target). Default no-op.
+    // Compiles to a binary file (Data target). Does nothing by default.
     virtual bool CompileToFile(const std::string& /*jsonData*/, const std::string& /*cachePath*/) { return false; }
 
-    // Custom inspector UI. Default no-op - native types let the generic inspector handle them.
+    // Custom Inspector UI. Does nothing by default; native types use the generic Inspector.
     virtual bool OnInspectorGUI(std::string& /*jsonData*/, const std::string& /*assetPath*/,
                                 const std::string& /*assetGuid*/)
     {
@@ -114,16 +112,14 @@ public:
     EditorType GetEditorType() const override { return EditorType::AssetTypeEditor; }
     const char* GetName() const override { return "FileInspector"; }
 
-    // Return list of supported extensions (lowercase, with dot)
-    // e.g., {".ttf", ".otf"}
+    // The supported extensions, lowercase with dot, e.g. {".ttf", ".otf"}.
     virtual const char** GetExtensions() const = 0;
     virtual int GetExtensionCount() const = 0;
 
-    // Draw the inspector UI for this file type
     virtual void OnInspectorGUI(const std::string& assetPath, const std::string& assetGuid) = 0;
 
-    // Override the generic cache status bar for this file type.
-    // Return true from OverridesCacheStatus() to use IsCached() instead of the default.
+    // Return true from OverridesCacheStatus() to have the cache status bar
+    // use IsCached() instead of the generic check.
     virtual bool OverridesCacheStatus() const { return false; }
     virtual bool IsCached(const std::string& assetGuid) const
     {
@@ -136,7 +132,6 @@ public:
 // Custom Editor Registry (editor-side)
 // ============================================================================
 
-// Forward declaration (CustomEditor is defined in CustomEditor.h)
 class CustomEditor;
 
 class DEKI_EDITOR_API CustomEditorRegistry
@@ -144,21 +139,21 @@ class DEKI_EDITOR_API CustomEditorRegistry
 public:
     static CustomEditorRegistry& Instance();
 
-    // Non-copyable (unique_ptr members)
+    // Holds unique_ptrs.
     CustomEditorRegistry(const CustomEditorRegistry&) = delete;
     CustomEditorRegistry& operator=(const CustomEditorRegistry&) = delete;
 
-    // Factory function type
     using FactoryFunc = std::function<std::unique_ptr<CustomEditor>()>;
 
-    // Register a factory function for creating editors (called from engine DLL)
+    // Registers the factory that makes editors for a component type. Called
+    // from the engine DLL.
     void RegisterFactory(const std::string& componentName, FactoryFunc factory);
 
-    // Legacy: Register a singleton editor (for backward compatibility)
+    // Registers one editor instance shared by every component of its type.
     void Register(CustomEditor* editor);
 
-    // Get or create a cached editor instance for a specific component
-    // Each component pointer gets its own editor instance with fresh state
+    // The editor for one component, created on first use. Each component
+    // gets its own instance, so editor state is per component.
     CustomEditor* GetEditorForComponent(const std::string& componentName, Deki::Component* comp)
     {
         return GetEditorForComponent(componentName.c_str(), comp);
@@ -167,25 +162,25 @@ public:
     // cached-editor check needs no std::string at all.
     CustomEditor* GetEditorForComponent(const char* componentName, Deki::Component* comp);
 
-    // Clear all cached editor instances (call when scene closes or DLL reloads)
+    // Drops every cached editor instance. Call when a scene closes or a DLL reloads.
     void ClearCache();
 
-    // Clear cached instance for a specific component (call when component is deleted)
+    // Drops the cached editor of one component. Call when the component is deleted.
     void ClearCacheForComponent(Deki::Component* comp);
 
-    // Clear everything (factories and cache) - for DLL hot-reload
+    // Drops factories and cached editors, for DLL hot reload.
     void Clear();
 
 private:
     CustomEditorRegistry() = default;
 
-    // Factory functions keyed by component name
+    // Keyed by component name.
     std::unordered_map<std::string, FactoryFunc> m_Factories;
 
-    // Cached editor instances keyed by component pointer
+    // Keyed by component pointer.
     std::unordered_map<Deki::Component*, std::unique_ptr<CustomEditor>> m_Cache;
 
-    // Legacy: singleton editors (for backward compatibility)
+    // Shared editors from Register(), keyed by component name.
     std::unordered_map<std::string, CustomEditor*> m_Editors;
 };
 
@@ -231,18 +226,14 @@ private:
 // Create Menu Registry (hierarchy right-click "Create Object" menu)
 // ============================================================================
 
-/**
- * @brief Entry for the hierarchy "Create Object" context menu.
- *
- * Packages register entries here to appear in the right-click menu.
- * Each entry creates a new Deki::Object with the specified component attached.
- */
+/// An item in the hierarchy's right-click "Create Object" menu, registered by
+/// a package. It creates a new Deki::Object with the named component.
 struct CreateMenuEntry
 {
-    std::string category;       // Submenu category (e.g., "2D", "UI", "Core")
-    std::string displayName;    // Menu item label (e.g., "Sprite", "Text")
-    std::string objectName;     // Name for the created Deki::Object (e.g., "Sprite")
-    std::string componentName;  // Component class name to add (e.g., "SpriteComponent")
+    std::string category;       // submenu, e.g. "2D", "UI", "Core"
+    std::string displayName;    // menu label, e.g. "Sprite", "Text"
+    std::string objectName;     // name of the new Deki::Object, e.g. "Sprite"
+    std::string componentName;  // component class to add, e.g. "SpriteComponent"
 };
 
 class DEKI_EDITOR_API CreateMenuRegistry
@@ -261,18 +252,10 @@ private:
     std::vector<CreateMenuEntry> m_Entries;
 };
 
-/**
- * @brief Auto-register a component in the hierarchy "Create Object" menu.
- *
- * Usage in a package's editor .cpp file:
- *   REGISTER_CREATE_MENU_ITEM(SpriteComponent, "2D", "Sprite", "Sprite", "SpriteComponent")
- *
- * @param Id         Unique identifier for the registrar (no quotes)
- * @param Category   Submenu category string (e.g., "2D", "UI")
- * @param Display    Menu item display name string
- * @param ObjName    Name for the created Deki::Object string
- * @param CompName   Component class name string to add
- */
+/// Adds a component to the hierarchy's "Create Object" menu at static init.
+/// `Id` is a unique identifier (no quotes); the other arguments are the
+/// strings of CreateMenuEntry, in order. In a package's editor .cpp file:
+///   REGISTER_CREATE_MENU_ITEM(SpriteComponent, "2D", "Sprite", "Sprite", "SpriteComponent")
 #define REGISTER_CREATE_MENU_ITEM(Id, Category, Display, ObjName, CompName)                                            \
     static struct CreateMenu##Id##Registrar                                                                            \
     {                                                                                                                  \

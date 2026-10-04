@@ -25,9 +25,9 @@ void AddComponent(DeadMemory& dead, const Deki::Component* comp)
     {
         return;
     }
-    // instanceSize comes from the reflection metadata; when a component's type
-    // isn't registered only the base subobject is covered, which still catches
-    // a step holding the component pointer itself.
+    // instanceSize comes from the reflection metadata. For an unregistered
+    // type only the base subobject is covered, which still catches a step
+    // holding the component pointer itself.
     const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(comp->GetType());
     const size_t size = (meta && meta->instanceSize > 0) ? meta->instanceSize : sizeof(Deki::Component);
     dead.Add(comp, size);

@@ -11,9 +11,9 @@ namespace DekiEditor
 {
 namespace DrawListFx
 {
-// Multiply every vertex's alpha by `alpha`, scale positions about `center` by
-// `scale`, then move them down by `dy`. Clip rectangles follow the geometry so
-// nothing is cut at the edge.
+/// Multiplies every vertex's alpha by `alpha`, scales positions about `center`
+/// by `scale`, then moves them down by `dy`. Clip rectangles follow the
+/// geometry so nothing is cut at the edge.
 inline void Transform(ImDrawList* dl, float alpha, const ImVec2& center, float scale, float dy)
 {
     const bool fade = alpha < 1.0f;
@@ -48,12 +48,12 @@ inline void Transform(ImDrawList* dl, float alpha, const ImVec2& center, float s
     }
 }
 
-// Draw a copy made with CloneOutput on top of this frame. CloneOutput copies
-// the buffers but not the write cursors, and AddDrawList asserts that they sit
-// at the end of the buffers (its PrimReserve sanity check). A copy is finished
-// drawing, so that is where they belong. The vertex cursor counts from the last
-// command's vertex offset, as ImGui keeps it (it must stay under 64K with
-// 16-bit indices).
+/// Draws a copy made with CloneOutput on top of this frame.
+// CloneOutput copies the buffers but not the write cursors, and AddDrawList
+// asserts that they sit at the end of the buffers (its PrimReserve check). A
+// copy is finished drawing, so that is where they belong. The vertex cursor
+// counts from the last command's vertex offset, as ImGui keeps it (it must
+// stay under 64K with 16-bit indices).
 inline void Append(ImDrawData* dd, ImDrawList* copy)
 {
     if (!dd || copy->CmdBuffer.Size == 0 || copy->IdxBuffer.Size == 0)

@@ -22,7 +22,7 @@ void DeleteObjectCommand::Execute()
         return;
     }
 
-    // Detach from scene without deleting
+    // Detach from the scene and keep it, so undo puts back the same object.
     if (m_Object->GetParent())
     {
         m_Object->RemoveFromParent();
@@ -113,7 +113,7 @@ AddComponentCommand::~AddComponentCommand()
 
 void AddComponentCommand::Execute()
 {
-    // Redo puts back the SAME instance the undo took off: edits recorded on it
+    // Redo puts back the same instance the undo took off: edits recorded on it
     // after it was added still point at it.
     if (m_Component && m_Detached)
     {
@@ -136,8 +136,8 @@ void AddComponentCommand::Execute()
 
 void AddComponentCommand::Undo()
 {
-    // Take it off, keep it: deleting it here and creating a new one on redo
-    // left every later edit of it writing into freed memory.
+    // Take it off and keep it. Must not delete it: later edits of it in the
+    // history would write into freed memory on redo.
     if (!m_Component || m_Detached)
     {
         return;
@@ -173,9 +173,9 @@ RemoveComponentCommand::~RemoveComponentCommand()
 
 void RemoveComponentCommand::Execute()
 {
-    // Take it off and keep it, so undo puts back the SAME instance: edits made
-    // to it before it was removed point at it. (Undo used to create a new
-    // component, and undoing one of those edits then wrote into freed memory.)
+    // Take it off and keep it, so undo puts back the same instance: edits made
+    // to it before it was removed point at it, and would write into freed
+    // memory if undo made a new component.
     if (!m_Component || m_Detached)
     {
         return;
@@ -264,20 +264,21 @@ void DuplicateObjectCommand::Execute()
 {
     if (!m_DuplicatedObject)
     {
-        // First time: clone via engine's JSON round-trip
+        // First run: clone through the engine's JSON round-trip.
         m_DuplicatedObject = m_Scene->DuplicateObject(m_Source);
         if (!m_DuplicatedObject)
         {
             return;
         }
-        // A copy named like its original was indistinguishable in the
-        // Hierarchy; number it the way other editors do.
+        // Number the copy, the way other editors do, so it can be told apart
+        // from the original in the Hierarchy.
         m_DuplicatedObject->SetName(NextDuplicateName(m_Source ? m_Source->GetParent() : nullptr,
                                                       m_Source ? m_Source->GetName() : m_DuplicatedObject->GetName()));
     }
 
-    // Single-root invariant: a null parent means "inside the scene root", not "as a sibling of root".
-    // Resolved each (re)execute so a redo after the root has changed identity still lands inside.
+    // Single root: a null parent means "inside the scene root", not "beside it".
+    // Resolved on every (re)execute, so a redo after the root was replaced
+    // still lands inside it.
     Deki::Object* resolvedParent = m_Parent;
     if (!resolvedParent)
     {
@@ -294,8 +295,8 @@ void DuplicateObjectCommand::Execute()
 
     if (resolvedParent)
     {
-        // Right after the original when they share a parent, as a copy is
-        // expected to appear; otherwise at the end.
+        // Right after the original when they share a parent, otherwise at the
+        // end.
         int sourceIndex =
             (m_Source && m_Source->GetParent() == resolvedParent) ? resolvedParent->GetChildIndex(m_Source) : -1;
         if (sourceIndex >= 0)
@@ -310,7 +311,7 @@ void DuplicateObjectCommand::Execute()
     }
     else
     {
-        // No existing root: the duplicate becomes the root
+        // No root yet: the duplicate becomes the root.
         m_Scene->AddObject(m_DuplicatedObject);
     }
 

@@ -20,11 +20,10 @@ SceneSelection::SceneSelection(SceneObjectMeasurer* measurer, SceneTextureCache*
 
 bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY, float pixelsPerMeter)
 {
-    // Get actual display dimensions
     float displayWidth, displayHeight;
     if (!m_Measurer->GetDisplaySize(obj, displayWidth, displayHeight))
     {
-        return false;  // Non-visual objects can only be selected via hierarchy panel
+        return false;  // objects with no visible size are selected in the Hierarchy
     }
 
     if (displayWidth <= 0 || displayHeight <= 0)
@@ -32,45 +31,42 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
         return false;
     }
 
-    // GetDisplaySize returns framebuffer pixels, but the click point and object
-    // transforms are in world meters (meters-internal). Convert the pixel extent
-    // to meters via 1/PPM so the bounds check is unit-consistent (matches the
-    // gizmo and snap math). Without this the box is off by a factor of PPM and
-    // nearly every object registers a hit.
+    // GetDisplaySize returns framebuffer pixels, but the click point and the
+    // transforms are in world meters, so the size is converted with 1/PPM, as
+    // in the gizmo and snap math.
     const float ppm = (pixelsPerMeter > 0.0f) ? pixelsPerMeter : 1.0f;
     const float invPPM = 1.0f / ppm;
 
-    // Use world transforms for hierarchy support (in meters)
+    // World transforms, so parents count (meters).
     float halfW = displayWidth * obj->GetWorldScaleX() * 0.5f * invPPM;
     float halfH = displayHeight * obj->GetWorldScaleY() * 0.5f * invPPM;
 
-    // Transform click point into object's local space (accounting for world rotation).
-    // world rotation is in radians (engine convention); negate for the inverse rotation.
+    // The click point in the object's local space. World rotation is in
+    // radians; negated for the inverse rotation.
     float rotRad = -obj->GetWorldRotation();
     float cosR = std::cos(rotRad);
     float sinR = std::sin(rotRad);
 
-    // Translate to object center (use world position)
     float localX = worldX - obj->GetWorldX();
     float localY = worldY - obj->GetWorldY();
 
-    // Apply inverse rotation (transpose): swap sign of sin terms
+    // Inverse rotation (the transpose): the sin terms change sign.
     float rotatedX = localX * cosR + localY * sinR;
     float rotatedY = -localX * sinR + localY * cosR;
 
-    // First check bounding box (scaled)
+    // The scaled bounding box first.
     if (rotatedX < -halfW || rotatedX > halfW || rotatedY < -halfH || rotatedY > halfH)
     {
         return false;
     }
 
-    // Check component editors for pixel-precise hit testing
+    // Then the component editors, for a pixel-precise test.
     const auto& components = obj->GetComponents();
     auto& registry = Deki::ComponentRegistry::Instance();
 
-    // Component HitTest and texture-alpha sampling work in unscaled framebuffer
-    // pixels (same units as displayWidth/displayHeight). rotatedX/Y are world
-    // meters, so convert: meters * PPM / scale -> unscaled local pixels.
+    // Component HitTest and texture alpha work in unscaled framebuffer pixels,
+    // like displayWidth/Height. rotatedX/Y are meters: pixels = meters * PPM /
+    // scale.
     float unscaledX = rotatedX * ppm / obj->GetWorldScaleX();
     float unscaledY = rotatedY * ppm / obj->GetWorldScaleY();
 
@@ -88,17 +84,17 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
             continue;
         }
 
-        // First check component-specific hit test (e.g., SpriteCSSComponent rounded corners).
-        // Guarded so a faulty editor falls through to default-hit (treat as opaque).
+        // The component's own hit test first (SpriteCSSComponent's rounded
+        // corners, say). Guarded, so a faulty editor counts as opaque.
         bool componentHit = true;
         Guard(meta->name,
               [&] { componentHit = editor->HitTest(comp, unscaledX, unscaledY, displayWidth, displayHeight); });
         if (!componentHit)
         {
-            return false;  // Component says it's transparent at this point
+            return false;  // transparent at this point
         }
 
-        // Check texture alpha if component provides a texture
+        // Then the texture's alpha, if the component has a texture.
         std::string textureGuid;
         Guard(meta->name, [&] { textureGuid = editor->GetTextureAssetGuid(comp); });
         if (!textureGuid.empty())
@@ -106,26 +102,23 @@ bool SceneSelection::HitTestObject(Deki::Object* obj, float worldX, float worldY
             CachedTexture* tex = m_TextureCache->GetOrLoad(textureGuid);
             if (tex && !tex->pixelData.empty())
             {
-                // Convert local coords to UV (0-1 range)
-                // U: left (-halfW) = 0, right (+halfW) = 1
+                // Local position to UV: left edge U=0, right edge U=1.
                 float u = (unscaledX + displayWidth * 0.5f) / displayWidth;
-                // V: world Y-up means top (+halfH) = texture V=0, bottom (-halfH) = V=1
+                // World Y points up, so the top edge is V=0 and the bottom V=1.
                 float v = (displayHeight * 0.5f - unscaledY) / displayHeight;
 
-                // Sample alpha - if transparent, don't hit
                 uint8_t alpha = tex->SampleAlpha(u, v);
-                if (alpha < 32)  // Threshold for "transparent enough"
+                if (alpha < 32)  // transparent enough to click through
                 {
                     return false;
                 }
             }
         }
 
-        // Found a visible component at this point
         return true;
     }
 
-    // No component editor found - use bounding box (assume opaque)
+    // No component editor: the bounding box decides, as if opaque.
     return true;
 }
 
@@ -167,9 +160,9 @@ std::vector<Deki::Object*> SceneSelection::ObjectsInRect(const std::vector<Deki:
 Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& objects, Deki::Object* currentSelection,
                                           float worldX, float worldY, float pixelsPerMeter)
 {
-    // Collect every object under the click point, outermost first (render order:
-    // back-to-front). Containers/parents render behind their content, so iterating
-    // forward yields the outermost object first and drills inward on repeated clicks.
+    // Every object under the point, outermost first. The list is in render
+    // order, back to front, and parents draw behind their content, so repeated
+    // clicks drill inward.
     std::vector<Deki::Object*> hits;
     for (auto* obj : objects)
     {
@@ -189,8 +182,8 @@ Deki::Object* SceneSelection::HandleClick(const std::vector<Deki::Object*>& obje
         return nullptr;
     }
 
-    // If the currently-selected object is one of the hits, advance to the next
-    // (drilling inward: outermost -> innermost -> wrap back to outermost).
+    // If the selected object is one of the hits, take the next one inward,
+    // wrapping back to the outermost.
     if (currentSelection)
     {
         auto it = std::find(hits.begin(), hits.end(), currentSelection);

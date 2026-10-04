@@ -18,8 +18,8 @@ BuildLineKind ClassifyBuildLine(const std::string& line)
     {
         return BuildLineKind::Error;
     }
-    // The linker's own complaints carry no "error": only its closing
-    // "ld returned 1" did, which names nothing.
+    // The linker's own messages do not say "error"; only its closing
+    // "ld returned 1" does, and that names nothing.
     if (has("undefined reference to") || has("multiple definition of") || has("cannot find -l"))
     {
         return BuildLineKind::Error;
@@ -28,7 +28,7 @@ BuildLineKind ClassifyBuildLine(const std::string& line)
     {
         return BuildLineKind::Warning;
     }
-    // Noisy MSBuild/ninja progress lines
+    // MSBuild/ninja progress lines
     if (has("->") || has("Building") || has("Compiling") || has("Microsoft (R)") || has("Copyright (C)"))
     {
         return BuildLineKind::Progress;
@@ -89,8 +89,8 @@ BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& o
 
     if (options.rawWhenNoErrors && summary.errors == 0)
     {
-        // Nothing matched the error patterns (the command could not run at
-        // all, say): the raw output is the only explanation there is.
+        // Nothing matched the error patterns (say the command could not run
+        // at all), so the raw output is the only explanation.
         std::istringstream raw(output);
         int shown = 0;
         while (std::getline(raw, line) && shown < 12)

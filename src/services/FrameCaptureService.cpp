@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <cstdio>
 
-// stb_image_write for PNG output
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
@@ -21,7 +20,6 @@ void FrameCaptureService::StartCapture(const std::string& outputDir)
         return;
     }
 
-    // Create output directory if it doesn't exist
     std::filesystem::create_directories(outputDir);
 
     m_OutputDir = outputDir;
@@ -52,16 +50,14 @@ void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, in
         return;
     }
 
-    // Ensure RGBA buffer is large enough
     size_t rgbaSize = width * height * 4;
     if (m_RgbaBuffer.size() < rgbaSize)
     {
         m_RgbaBuffer.resize(rgbaSize);
     }
 
-    // To RGBA, from whichever format the framebuffer is in. RGB565 and
-    // RGB565A8 carry the colour as a little-endian 565 word; ARGB8888 is a
-    // 0xAARRGGBB word, so B, G, R, A in memory.
+    // To RGBA. RGB565 and RGB565A8 hold the colour as a little-endian 565
+    // word; ARGB8888 is a 0xAARRGGBB word, so B, G, R, A in memory.
     const size_t bpp = Deki::FrameBufferBytes(format, 1, 1);
     uint8_t* dst = m_RgbaBuffer.data();
     for (int i = 0; i < width * height; i++)
@@ -93,11 +89,9 @@ void FrameCaptureService::CaptureFrame(const uint8_t* framebuffer, int width, in
         dst[i * 4 + 3] = 255;
     }
 
-    // Generate filename: frame_00000.png
     char filename[256];
     snprintf(filename, sizeof(filename), "%s/frame_%05d.png", m_OutputDir.c_str(), m_FrameNumber);
 
-    // Write PNG
     int stride = width * 4;
     if (stbi_write_png(filename, width, height, 4, m_RgbaBuffer.data(), stride))
     {

@@ -44,7 +44,7 @@ void AssetTypeInspector::Draw()
     fs::path path(assetPath);
     std::string ext = path.extension().string();
 
-    // Get GUID for this asset from pipeline (parent asset GUID)
+    // The pipeline's GUID for the file (the parent, for a sub-asset).
     std::string pipelineGuid;
     auto* pipeline = m_App->GetAssetPipeline();
     if (pipeline)
@@ -56,11 +56,11 @@ void AssetTypeInspector::Draw()
         }
     }
 
-    // Selected GUID may differ from pipeline GUID for sub-assets
+    // For a sub-asset the selected GUID differs from the pipeline's.
     std::string selectedGuid = m_App->GetSelectedAssetGuid();
     std::string assetGuid = pipelineGuid.empty() ? selectedGuid : pipelineGuid;
 
-    // Sub-asset with preview (e.g., font atlas) - skip editable properties
+    // A sub-asset with a preview (a font atlas, say) has no editable properties.
     bool isSubAssetWithPreview = false;
     if (pipeline && !selectedGuid.empty() && m_App->GetSelectedAssetHasCached())
     {
@@ -71,14 +71,15 @@ void AssetTypeInspector::Draw()
         }
     }
 
-    // Baked cache-only asset (e.g., font atlas from deploy analysis) - no source path
+    // An asset that exists only in the cache (a font atlas baked for deploy, say)
+    // has no source path.
     bool isBakedCacheAsset = assetPath.empty() && m_App->GetSelectedAssetHasCached();
 
-    // Typed JSON asset whose handler compiles to a texture (e.g. ProceduralSprite) -
-    // gets the anchored preview of its baked DTEX cache like a raster image
+    // A JSON asset that compiles to a texture (ProceduralSprite, say) gets the
+    // preview of its baked DTEX, like an image.
     bool isCompiledTextureAsset = (ext == ".asset" || ext == ".dpack") && CompilesToTexture(assetPath);
 
-    // Texture inspector with anchored preview + scrollable sections
+    // Textures: a fixed preview above scrolling sections.
     if (TextureInspector::IsTextureFile(assetPath) || isBakedCacheAsset || isCompiledTextureAsset)
     {
         m_TextureInspector->DrawPreview();
@@ -86,20 +87,19 @@ void AssetTypeInspector::Draw()
 
         if (!isSubAssetWithPreview && !isBakedCacheAsset)
         {
-            // Handle .asset and .dpack files with type-specific editors
             if (ext == ".asset" || ext == ".dpack")
             {
                 DrawAssetTypeEditor(assetPath, assetGuid);
             }
-            // Check file inspector registry for native file types (e.g., .ttf, .otf)
+            // Other file types (.ttf, .otf and such) may have a registered inspector.
             else if (auto* fileInspector = FileInspectorRegistry::Instance().GetInspector(ext))
             {
                 fileInspector->OnInspectorGUI(assetPath, assetGuid);
             }
         }
 
-        // Format/chroma-key sidecar settings only apply to imported images;
-        // the procedural compile path bakes RGB565A8 and ignores the sidecar
+        // Format and chroma-key settings apply only to imported images; a
+        // compiled texture is always baked as RGB565A8.
         if (!isCompiledTextureAsset)
         {
             m_TextureInspector->DrawSettings();
@@ -144,8 +144,8 @@ bool AssetTypeInspector::CompilesToTexture(const std::string& assetPath)
         return m_CompilesToTexture;
     }
 
-    // Only cache definitive answers; unreadable/broken files retry next frame
-    // (the type editor shows the parse error, and the file may be mid-write)
+    // Only a sure answer is cached. An unreadable file is tried again next
+    // frame, since it may be mid-write; the type editor shows the parse error.
     m_CompileTargetPath.clear();
     m_CompilesToTexture = false;
 
@@ -176,7 +176,6 @@ bool AssetTypeInspector::CompilesToTexture(const std::string& assetPath)
 
 void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const std::string& assetGuid)
 {
-    // Read the JSON file
     std::ifstream file(assetPath);
     if (!file.is_open())
     {
@@ -196,7 +195,6 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
     }
     file.close();
 
-    // Get the type field
     if (!jsonData.contains("type") || !jsonData["type"].is_string())
     {
         ImGui::TextDisabled("Asset has no 'type' field");
@@ -205,7 +203,6 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
 
     std::string typeName = jsonData["type"].get<std::string>();
 
-    // Look up the editor
     auto* editor = AssetTypeEditorRegistry::Instance().GetEditor(typeName);
     if (!editor)
     {
@@ -213,19 +210,20 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
         return;
     }
 
-    // The asset's type heads its own section, exactly as a component type heads
-    // one in the object inspector: separator boundary, band, rows underneath.
+    // The asset's type heads a section, as a component type does in the
+    // object inspector.
     DekiEditor::FullBleedSeparator();
     if (!DekiEditor::SchematicSectionBegin(editor->GetDisplayName()))
     {
         return;
     }
 
-    // Call the editor - it uses ImGui directly
+    // The editor draws with ImGui and edits the JSON text.
     std::string jsonStr = jsonData.dump(2);
     bool modified = editor->OnInspectorGUI(jsonStr, assetPath, assetGuid);
 
-    // Apply changes through command system (undo support + cache invalidation)
+    // Changes go through the command history, so they can be undone and the
+    // caches are refreshed.
     if (modified)
     {
         nlohmann::json newData = nlohmann::json::parse(jsonStr);
@@ -234,27 +232,25 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
             assetPath, assetGuid, jsonData, newData,
             [this, assetGuid]()
             {
-                // Recompile DTEX cache from updated JSON
+                // Recompile the DTEX cache from the new JSON.
                 AssetDatabase::ImportAsset(AssetDatabase::GUIDToAssetPath(assetGuid));
 
-                // Clear component AssetRef pointers (prevents dangling pointers)
+                // Components drop their AssetRef pointers, which would dangle.
                 if (m_App->GetSceneViewPanel())
                 {
                     m_App->GetSceneViewPanel()->InvalidateAllAssets();
                 }
 
-                // Evict stale sprite from engine cache
                 Deki::AssetManager::Get()->InvalidateAsset("Sprite", assetGuid);
 
-                // Invalidate GPU texture caches
                 EditorAssets::Get()->InvalidateTexture(assetGuid);
                 if (m_App->GetSceneViewPanel())
                 {
                     m_App->GetSceneViewPanel()->InvalidateTexture(assetGuid);
                 }
 
-                // Refresh the anchored inspector preview - the cache path is
-                // unchanged, so it would otherwise keep the stale GL texture
+                // The cache path is the same, so the preview must be told to
+                // drop its old GL texture.
                 m_TextureInspector->InvalidatePreview();
             });
 
@@ -296,7 +292,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
         }
     }
 
-    // Scenes are always deployed - treat them as always included
+    // Scenes always ship.
     const std::string& assetPath = m_App->GetSelectedAssetPath();
     bool isScene = assetPath.size() >= 7 && assetPath.compare(assetPath.size() - 7, 7, ".scene") == 0;
 
@@ -304,9 +300,9 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
     Project* proj = m_App->GetProject();
     bool isForceIncluded = proj && proj->IsForceIncluded(assetGuid);
 
-    // One row: is it in the builds. Scenes always are, and so is anything a
-    // scene uses (ticked and locked, saying why); anything else ships only
-    // when ticked here (force include).
+    // One row: does it ship. Scenes always do, and so does anything a scene
+    // uses (ticked and locked, saying why). Anything else ships only when
+    // ticked here.
     InspectorUtils::SetNextRowTooltip(isScene  ? "Every scene ships"
                                       : isUsed ? "A scene uses it, so it ships"
                                                : "Ship it even though no scene uses it");

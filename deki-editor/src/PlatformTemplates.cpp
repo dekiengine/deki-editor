@@ -37,9 +37,8 @@ std::string ReadText(const fs::path& file)
     return std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 }
 
-// "" for a file that is not there. CR bytes are skipped: a project kept in git
-// with autocrlf comes back with other line endings than the package's
-// checkout, and that is not an edit.
+// "" for a missing file. CR bytes are skipped: git with autocrlf can give the
+// project other line endings than the package's checkout, which is not an edit.
 std::string HashFile(const fs::path& file)
 {
     std::ifstream f(file, std::ios::binary);
@@ -390,7 +389,7 @@ bool FindOffer(const std::string& projectPath, const std::string& platformId, co
 }
 
 // A platform adopted before origins were recorded, and not changed since, is
-// provably the package's: say so, and it can be updated like any other.
+// still the package's: record that, so it can be updated like any other.
 void RecordOriginIfPristine(const std::string& projectPath, const std::string& platformId)
 {
     const fs::path directory = fs::path(GetPlatformsDirectory(projectPath)) / platformId;
@@ -480,7 +479,7 @@ AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const 
     }
 
     // What was adopted, so the copy can later be compared with it. A file the
-    // project already had differs from it and will read as modified: it is.
+    // project already had differs from it and so reads as modified, which it is.
     OriginRecord record;
     record.package = offers.front().packageId;
     record.version = InstalledPackageVersion(projectPath, record.package);

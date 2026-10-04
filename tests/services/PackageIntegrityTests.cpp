@@ -98,9 +98,9 @@ public:
     const fs::path& Path() const { return m_Path; }
 
 private:
-    // Each construction gets its own directory. A repo stranded by a previous
-    // run must never be re-inited over and have its history inherited - that
-    // makes these tests pass or fail depending on what ran before them.
+    // Each construction gets its own directory, so a repo left by an earlier
+    // run is never re-inited with its history kept. That would make these
+    // tests depend on what ran before them.
     static std::string UniqueDirName(const char* name)
     {
         static std::atomic<unsigned> s_Counter{ 0 };
@@ -166,8 +166,8 @@ TEST(PackageIntegrity, BuildOutputIsNotAModification)
     EXPECT_TRUE(fs::exists(repo.Path() / ".deki-package.json"));
 }
 
-// The headline behaviour: edits to a non-editable package are reverted, and the
-// work is recoverable rather than destroyed.
+// Edits to a non-editable package are reverted, and the work can be
+// recovered from the stash.
 TEST(PackageIntegrity, ModificationsAreStashedNotDiscarded)
 {
     REQUIRE_GIT();
@@ -282,9 +282,9 @@ TEST(PackageIntegrity, UnsafePinIsRefused)
     EXPECT_FALSE(r.detail.empty());
 }
 
-// A real directory is not a reparse point. The Windows branch of this is what
-// stands between an auto-restore and a junctioned sibling repo - std::filesystem
-// ::is_symlink cannot see a junction, which is the bug this replaces.
+// A real directory is not a reparse point. On Windows this check keeps an
+// auto-restore out of a junctioned sibling repo: std::filesystem::is_symlink
+// cannot see a junction.
 TEST(PackageIntegrity, PlainDirectoryIsNotAReparsePoint)
 {
     const fs::path dir = fs::temp_directory_path() / "deki_integrity_plaindir";
@@ -297,14 +297,14 @@ TEST(PackageIntegrity, PlainDirectoryIsNotAReparsePoint)
     fs::remove_all(dir, ec);
 }
 
-// A directory INSIDE another repository, carrying a .git that is not a usable
+// A directory INSIDE another repository, with a .git that is not a usable
 // repository of its own. git walks up from there and finds the enclosing one,
-// so every command - `stash push -u` included - would land on a repository this
+// so every command, `stash push -u` included, would act on a repository this
 // function was never pointed at.
 //
-// This is what happened: the docs build puts a project inside the editor
-// checkout, so its package clones live under deki-editor's own worktree, and a
-// restore stashed the editor's uncommitted source under the name of a package.
+// The docs build puts a project inside the editor checkout, so its package
+// clones sit under deki-editor's own worktree; a restore there must not stash
+// the editor's uncommitted source.
 TEST(PackageIntegrity, APathInsideAnotherRepositoryIsSkipped)
 {
     REQUIRE_GIT();

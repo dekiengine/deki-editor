@@ -10,11 +10,10 @@ class AssetPipeline;
 namespace AssetImportDrop
 {
 
-// Copies a file or folder dropped from the OS into `targetDir`, re-mints the
-// GUID sidecars it carries (a sidecar from another project would otherwise be
-// adopted wholesale) and registers/compiles the assets through `pipeline`
-// (may be null). False, with `error` set, when the destination exists or the
-// copy fails.
+/// Copies a file or folder dropped from the OS into `targetDir`, gives its GUID
+/// sidecars new GUIDs (they may come from another project) and registers and
+/// compiles the assets through `pipeline`, which may be null. Returns false,
+/// with `error` set, when the destination exists or the copy fails.
 bool Import(const std::string& droppedPath, const std::string& targetDir, AssetPipeline* pipeline, std::string& error);
 
 }  // namespace AssetImportDrop

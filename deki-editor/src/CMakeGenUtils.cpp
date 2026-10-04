@@ -19,10 +19,9 @@ namespace CMakeGen
 // Package manifest scanning
 // ============================================================================
 
-// Scan a single packages directory for package.json manifests
 // "tags" from a manifest or descriptor: an array of strings. Anything else,
-// or its absence, is no tags. Unknown tags are kept rather than rejected, so
-// the vocabulary can grow without every reader changing.
+// or no "tags" at all, means no tags. Unknown tags are kept, so new tags
+// need no change in every reader.
 static std::vector<std::string> TagsFrom(const nlohmann::json& j)
 {
     std::vector<std::string> tags;
@@ -39,6 +38,7 @@ static std::vector<std::string> TagsFrom(const nlohmann::json& j)
     return tags;
 }
 
+// Scans one packages directory for package.json manifests.
 static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntry>& allPackages)
 {
     if (!fs::exists(packagesDir))
@@ -71,8 +71,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
             info.tags = TagsFrom(j);
 
             // "platformRequires": what the package needs from a platform.
-            // Absent means it builds anywhere, so existing manifests keep their
-            // behaviour.
+            // Absent means it builds anywhere.
             if (j.contains("platformRequires") && j["platformRequires"].is_array())
             {
                 for (const auto& p : j["platformRequires"])
@@ -82,11 +81,10 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                         continue;
                     }
                     std::string need = p.get<std::string>();
-                    // Both sides of the match are checked the same way. A
-                    // platform's "provides" is validated when it loads; a
-                    // requirement that cannot match any valid name would
-                    // otherwise surface as a package quietly excluded from
-                    // every target, with nothing saying why.
+                    // Checked the same way as a platform's "provides" (which
+                    // is checked when it loads). A requirement no valid name
+                    // can match would leave the package out of every target
+                    // with no message saying why.
                     if (!IsValidCapabilityName(need))
                     {
                         DEKI_LOG_WARNING("Package '%s': platformRequires '%s' is not a valid "
@@ -150,7 +148,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 }
             }
 
-            // Collect dependencies from all platform dependency lists
+            // Dependencies from every platform's dependency list.
             if (j.contains("dependencies"))
             {
                 for (auto& [platform, deps] : j["dependencies"].items())
@@ -185,8 +183,8 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                         }
                         else
                         {
-                            // Whatever the framework. Kept as written, for the
-                            // backend claiming `platform` to interpret.
+                            // Any framework. Kept as written; the backend that
+                            // claims `platform` interprets it.
                             FrameworkDependency fd;
                             fd.name = name;
                             if (dep.is_object())
@@ -199,7 +197,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 }
             }
 
-            // Parse package.cmake for PACKAGE_FILE_PREFIX and PACKAGE_SOURCES
+            // Settings from package.cmake.
             fs::path cmakePath = entry.path() / "package.cmake";
             if (fs::exists(cmakePath))
             {
@@ -250,7 +248,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                     }
                 }
 
-                // Extract PACKAGE_ENTRY filename for exclusion
+                // PACKAGE_ENTRY: the entry file, which is left out of the sources.
                 std::string entryFile;
                 {
                     std::string marker = "set(PACKAGE_ENTRY";
@@ -268,12 +266,11 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                     }
                 }
 
-                // Auto-discover source stems from *.cpp files in package directory
+                // Source stems, from the *.cpp files in the package directory.
                 {
-                    // Folders are skipped whole rather than file by file: every
-                    // project open scans each package, and a package clone's
-                    // .git alone is thousands of files (each used to get an
-                    // fs::relative, itself several filesystem calls).
+                    // Skip whole folders, not file by file: every project open
+                    // scans each package, and a clone's .git alone holds
+                    // thousands of files.
                     fs::recursive_directory_iterator it(entry.path());
                     for (; it != fs::recursive_directory_iterator(); ++it)
                     {
@@ -335,9 +332,9 @@ std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath)
 
 std::vector<std::string> MissingCapabilities(const PackageEntry& pkg, const std::set<std::string>& platformCapabilities)
 {
-    // No requirements means it builds anywhere. No capability set means no
-    // target is in hand (the editor's own build, which loads everything), so
-    // nothing is judged.
+    // No requirements means it builds anywhere. No capability set means there
+    // is no target (the editor's own build, which loads everything), so every
+    // package passes.
     if (pkg.platformRequires.empty() || platformCapabilities.empty())
     {
         return {};
@@ -412,11 +409,10 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
         }
     }
 
-    // Resolve transitive deki:* dependencies (fixed-point loop).
-    // The platform filter applies to dependency edges too, because dekiDeps
-    // absorbs names from every key of "dependencies" regardless of platform: a
-    // desktop-only dependency would otherwise be dragged into a firmware build
-    // by a package that is itself perfectly buildable there.
+    // Resolve transitive deki:* dependencies (loop until nothing changes).
+    // The platform filter applies to dependencies too: dekiDeps holds names
+    // from every platform's "dependencies" list, so without the filter a
+    // desktop-only dependency would be pulled into a firmware build.
     std::map<std::string, const PackageEntry*> byId;
     for (const auto& pkg : allPackages)
     {
@@ -536,9 +532,9 @@ void EmitActivePackageSources(std::ostream& out, const std::vector<PackageEntry>
         {
             continue;
         }
-        // The directory name is a real on-disk name (SafeNames-validated at
-        // install), but as a CMake variable suffix it still gets identifier
-        // characters only, the way string(MAKE_C_IDENTIFIER) would spell it.
+        // The directory name was checked by SafeNames at install, but as a
+        // CMake variable suffix it is reduced to identifier characters, as
+        // string(MAKE_C_IDENTIFIER) would.
         const std::string var = "DEKI_PKG_SOURCES_" + CMakeIdentifier(pkg.dirName);
         out << "file(GLOB_RECURSE " << var << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.cpp\""
             << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.c\")\n";
@@ -575,7 +571,7 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
                               const std::vector<PackageEntry>& allPackages,
                               const std::set<std::string>& activePackageIds)
 {
-    // Build gen file stem -> package id mapping
+    // Generated file stem -> package id.
     std::map<std::string, std::string> genStemToPackageId;
     for (const auto& pkg : allPackages)
     {
@@ -589,7 +585,7 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
         }
     }
 
-    // Scan generated/ directory and selectively include gen files
+    // Add the generated files of the core and of active packages.
     out << "\n# Generated files (core + active packages only)\n";
     fs::path genDir = fs::path(enginePath) / "include" / "deki" / "generated";
     if (fs::exists(genDir))
@@ -603,28 +599,25 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
                 continue;
             }
 
-            // Skip ComponentFactory.gen.cpp (static initializers, not needed on firmware)
+            // ComponentFactory.gen.cpp holds static initializers, not needed on firmware.
             if (filename == "ComponentFactory.gen.cpp")
             {
                 continue;
             }
-            // CoreRegistration.gen.cpp was skipped here as "redundant with
-            // AllComponentRegistration". It is the opposite: AllComponentRegistration
-            // only forward-declares DekiCoreRegisterComponents() and calls it from
-            // DekiRegisterAllComponents, while the definition - and the core
-            // components' factory entries - live here. Leaving it out cost an
-            // "undefined reference to DekiCoreRegisterComponents()" at link.
+            // CoreRegistration.gen.cpp must stay in: it defines
+            // DekiCoreRegisterComponents() and the core components' factory
+            // entries, which AllComponentRegistration only declares and calls.
+            // Its static registrar runs once (a `done` flag), so it costs
+            // nothing next to the explicit call.
             //
-            // It went unnoticed because a firmware build had never reached the
-            // link step before. Its static registrar is idempotent (a `done`
-            // flag), so it costs nothing next to the explicit call.
-            // Skip AllPackageInit.gen.cpp (deki_package_init.gen.cpp provides init/shutdown)
+            // AllPackageInit.gen.cpp is left out: deki_package_init.gen.cpp
+            // provides init and shutdown.
             if (filename == "AllPackageInit.gen.cpp")
             {
                 continue;
             }
 
-            // Always include AllComponentRegistration (provides DekiRegisterAllComponents)
+            // Always in: it provides DekiRegisterAllComponents.
             if (filename == "AllComponentRegistration.gen.cpp")
             {
                 out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/" << filename
@@ -637,10 +630,10 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
             auto it = genStemToPackageId.find(stem);
             if (it != genStemToPackageId.end())
             {
-                // Belongs to a package - only include if package is active
+                // A package's file: only when the package is active.
                 if (activePackageIds.count(it->second) > 0)
                 {
-                    // Skip per-package Registration files (not called by Deki::Engine)
+                    // Per-package Registration files: Deki::Engine does not call them.
                     if (stem.size() >= 12 && stem.compare(stem.size() - 12, 12, "Registration") == 0)
                     {
                         continue;
@@ -651,7 +644,7 @@ void EmitGeneratedFileSources(std::ostream& out, const std::string& enginePath,
             }
             else
             {
-                // Core gen file (not tied to any package) - always include
+                // A core file, not tied to a package: always in.
                 out << "list(APPEND DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/include/deki/generated/" << filename
                     << "\")\n";
             }
@@ -681,16 +674,15 @@ void EmitPlatformDefines(std::ostream& out, const std::string& targetName, const
     out << "# Platform defines (" << config.displayName << ")\n";
     out << "target_compile_definitions(" << targetName << " PRIVATE\n";
 
-    // Platform defines from PlatformConfig
     for (const auto& define : config.defines)
     {
         out << "    " << define << "\n";
     }
 
-    // No screen size or colour format: a device renders at whatever its
-    // display reports.
+    // There is no screen size or colour format define: a device renders at
+    // whatever its display reports.
 
-    // Package feature defines (skip any in skipDefines)
+    // Package feature defines, minus skipDefines.
     std::set<std::string> skipSet(skipDefines.begin(), skipDefines.end());
     out << "    DEKI_PACKAGE_FEATURES_CONFIGURED\n";
     for (const auto& define : packageDefines)
@@ -768,7 +760,7 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
     }
     cpp << "\n";
 
-    // Declare extern registration functions (using PACKAGE_PREFIX from package.cmake)
+    // Registration functions, named by PACKAGE_PREFIX from package.cmake.
     for (const auto& pkg : allPackages)
     {
         if (activePackageIds.count(pkg.id) == 0)
@@ -782,8 +774,9 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         cpp << "extern void " << pkg.packagePrefix << "RegisterComponents();\n";
     }
 
-    // Collect packages with system init. Declared up front so DekiRegisterProjectPackages()
-    // can call them inline when the engine core already provides DekiInitPackageSystems().
+    // Packages with a system init. Collected up front so
+    // DekiRegisterProjectPackages() can call them itself when the engine core
+    // already provides DekiInitPackageSystems().
     std::vector<const PackageEntry*> initPackages;
     for (const auto& pkg : allPackages)
     {
@@ -798,7 +791,6 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         initPackages.push_back(&pkg);
     }
 
-    // Declare init/shutdown externs
     for (const auto* pkg : initPackages)
     {
         cpp << "extern void " << pkg->packagePrefix << "InitSystem();\n";
@@ -820,9 +812,10 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         cpp << "    " << pkg.packagePrefix << "RegisterComponents();\n";
     }
 
-    // Static desktop simulator: the engine core defines (an empty) DekiInitPackageSystems(),
-    // so this file must not redefine it (link collision). Bootstrap package systems here
-    // instead, after component registration. Same order as DekiInitPackageSystems() below.
+    // Static desktop simulator: the engine core defines an empty
+    // DekiInitPackageSystems(), so this file must not define it again (link
+    // error). Start the package systems here instead, after component
+    // registration, in the same order as DekiInitPackageSystems() below.
     if (engineDefinesSystemInit && !initPackages.empty())
     {
         cpp << "\n    // Package systems (engine core owns the DekiInitPackageSystems() symbol)\n";
@@ -832,7 +825,7 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         }
     }
 
-    // Project components (generated PluginRegistration.gen.cpp)
+    // Project components (the generated PluginRegistration.gen.cpp).
     if (hasProjectSources)
     {
         cpp << "\n    PluginRegisterComponents();\n";
@@ -840,11 +833,11 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
 
     cpp << "}\n";
 
-    // Firmware builds: the engine excludes the empty stub, so define the system
-    // init/shutdown entry points here (called by Deki::Engine::Initialize/Shutdown).
+    // Firmware builds: the engine leaves out the empty stub, so define the
+    // system init and shutdown entry points here (Deki::Engine::Initialize
+    // and Shutdown call them).
     if (!engineDefinesSystemInit)
     {
-        // DekiInitPackageSystems
         cpp << "\nextern \"C\" void DekiInitPackageSystems(void)\n";
         cpp << "{\n";
         for (const auto* pkg : initPackages)
@@ -853,7 +846,7 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         }
         cpp << "}\n";
 
-        // DekiShutdownPackageSystems (reverse order)
+        // Shutdown runs in reverse order.
         cpp << "\nextern \"C\" void DekiShutdownPackageSystems(void)\n";
         cpp << "{\n";
         for (auto it = initPackages.rbegin(); it != initPackages.rend(); ++it)

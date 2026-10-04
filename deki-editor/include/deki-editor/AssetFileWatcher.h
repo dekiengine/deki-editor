@@ -11,33 +11,28 @@
 namespace DekiEditor
 {
 
-/**
- * @brief OS-level file watcher that feeds AssetPipeline::Tick().
- *
- * Wraps an efsw::FileWatcher (ReadDirectoryChangesW / inotify / FSEvents) running
- * on its own worker thread. The listener pushes raw events into a thread-safe
- * map keyed by project-relative path. AssetPipeline::Tick() calls
- * DrainReadyEvents() once per frame to receive coalesced, debounced events on
- * the main thread - required because downstream onAssetChanged subscribers
- * touch GPU resources.
- *
- * Coalescing rules per path (when a new event arrives for a path already pending):
- *   pending=Added,    new=Modified  -> keep Added
- *   pending=Added,    new=Deleted   -> drop entry (created+deleted before drain)
- *   pending=Modified, new=Modified  -> keep Modified, refresh timestamp
- *   pending=Modified, new=Deleted   -> switch to Deleted
- *   pending=Deleted,  new=Added     -> switch to Modified (replaced)
- *   pending=Deleted,  new=Modified  -> switch to Modified
- *   pending=Deleted,  new=Deleted   -> keep Deleted
- *
- * Renames arrive from efsw as a Moved action with both old and new filenames.
- * The watcher emits two pending entries: Deleted(oldPath) + Added(newPath).
- *
- * Debounce: an entry is only returned by DrainReadyEvents() once it has been
- * quiet for >= kDebounceMs (default 100ms). This collapses the typical
- * write-temp / delete-original / rename-temp atomic-save sequence into one
- * dispatched event per logical change.
- */
+/// OS file watcher that feeds AssetPipeline::Tick().
+///
+/// Wraps an efsw::FileWatcher (ReadDirectoryChangesW / inotify / FSEvents)
+/// on its own worker thread. Raw events go into a thread-safe map keyed by
+/// project-relative path. AssetPipeline::Tick() calls DrainReadyEvents() once
+/// per frame to take the merged, debounced events on the main thread, which
+/// is required because onAssetChanged subscribers touch GPU resources.
+///
+/// When a new event arrives for a path that already has one pending:
+///   pending=Added,    new=Modified  -> keep Added
+///   pending=Added,    new=Deleted   -> drop entry (created+deleted before drain)
+///   pending=Modified, new=Modified  -> keep Modified, refresh timestamp
+///   pending=Modified, new=Deleted   -> switch to Deleted
+///   pending=Deleted,  new=Added     -> switch to Modified (replaced)
+///   pending=Deleted,  new=Modified  -> switch to Modified
+///   pending=Deleted,  new=Deleted   -> keep Deleted
+///
+/// A rename (efsw's Moved action) becomes Deleted(oldPath) + Added(newPath).
+///
+/// An entry is returned only once it has been quiet for kDebounceMs. This
+/// turns the usual atomic save (write temp, delete original, rename temp)
+/// into one event per change.
 class DEKI_EDITOR_API AssetFileWatcher
 {
 public:
@@ -60,34 +55,22 @@ public:
     AssetFileWatcher(const AssetFileWatcher&) = delete;
     AssetFileWatcher& operator=(const AssetFileWatcher&) = delete;
 
-    /**
-     * @brief Start watching a directory recursively.
-     * @param watchPath Absolute path to the directory to watch (recursive).
-     *                  Typically project/assets, but the class is generic - also
-     *                  used by HotReloadService for project/src and project/packages.
-     * @param projectPath Absolute path to the project root, used to compute
-     *                    project-relative paths for emitted events.
-     */
+    /// Starts watching `watchPath` (absolute) and everything under it.
+    /// Usually project/assets; HotReloadService also uses it for project/src
+    /// and project/packages. Event paths are made relative to `projectPath`.
     void Start(const std::string& watchPath, const std::string& projectPath);
 
-    /**
-     * @brief Stop the watcher thread and clear pending events.
-     */
+    /// Stops the watcher thread and clears pending events.
     void Stop();
 
-    /**
-     * @brief Drain coalesced events that have been quiet for >= kDebounceMs.
-     *
-     * Must be called on the main thread. Entries still inside the debounce
-     * window remain pending and may be returned by a subsequent call.
-     */
+    /// Returns the events that have been quiet for kDebounceMs. Main thread
+    /// only. Newer entries stay pending for a later call.
     std::vector<Event> DrainReadyEvents();
 
     static constexpr int kDebounceMs = 100;
 
 private:
-    // Listener implementation lives in the .cpp file so this header doesn't
-    // pull in efsw publicly. Pimpl-style.
+    // Lives in the .cpp so this header does not pull in efsw.
     struct Impl;
     std::unique_ptr<Impl> m_Impl;
 };

@@ -37,7 +37,6 @@ void CreateAssetDialog::Draw()
 
     if (BeginSchematicModal("Create New Asset", 440.0f))
     {
-        // Get the display name for the asset type
         const AssetTypeHandler* handler = AssetTypeRegistry::Instance().GetHandler(m_CreateAssetType);
         if (handler)
         {
@@ -51,9 +50,8 @@ void CreateAssetDialog::Draw()
         ImGui::Spacing();
         ImGui::TextColored(Palette::Dim, "Name");
 
-        // Focus request must precede the item: the after-item form
-        // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
-        // frame, leaving the input inactive so typing goes nowhere.
+        // Focus is requested before the item: SetKeyboardFocusHere(-1) after
+        // it does not take on a modal's first frame, and typing goes nowhere.
         if (ImGui::IsWindowAppearing())
         {
             ImGui::SetKeyboardFocusHere();
@@ -100,11 +98,10 @@ void CreateAssetDialog::Draw()
         {
             namespace fs = std::filesystem;
 
-            // Build filename with extension
             std::string filename = m_NewAssetName;
             if (!filename.empty() && handler && !handler->extensions.empty())
             {
-                // Add extension if not already present
+                // Add the extension unless the name has one.
                 if (filename.find('.') == std::string::npos)
                 {
                     filename += handler->extensions[0];
@@ -115,24 +112,21 @@ void CreateAssetDialog::Draw()
 
             if (fs::exists(newAssetPath))
             {
-                // Say so and stay open instead of closing as if it had worked.
+                // Say so and stay open.
                 m_Error = "'" + filename + "' already exists here.";
             }
             else
             {
-                // Create the asset using the registry
                 if (AssetTypeRegistry::Instance().CreateAsset(m_CreateAssetType, newAssetPath.string()))
                 {
                     DEKI_LOG_EDITOR("Created %s asset %s", m_CreateAssetType.c_str(), newAssetPath.string().c_str());
 
-                    // Refresh the asset in the pipeline to generate GUID and cache
+                    // The pipeline gives the asset its GUID and cache entry.
                     if (m_App && m_App->GetAssetPipeline() && m_App->GetProject())
                     {
-                        // Convert absolute path to project-relative path
                         fs::path projectPath = m_App->GetProject()->GetPath();
                         std::string relativePath = fs::relative(newAssetPath, projectPath).string();
 
-                        // Normalize path separators
                         for (char& c : relativePath)
                         {
                             if (c == '\\')
@@ -142,8 +136,8 @@ void CreateAssetDialog::Draw()
                         }
 
                         m_App->GetAssetPipeline()->RefreshAsset(relativePath);
-                        // RefreshAsset -> ProcessAsset fires onAssetCreated, which
-                        // refreshes the browser asset list. No manual NavigateTo needed.
+                        // RefreshAsset fires onAssetCreated, which refreshes the
+                        // browser's list.
                     }
                     else
                     {

@@ -30,7 +30,8 @@ struct TempRepo
     void Config(const char* text) const { std::ofstream(dir / ".git" / "config") << text; }
 };
 // Git makes its object files read-only, which remove_all cannot delete on
-// Windows: a leftover repository (and its marker) made the hook test fail.
+// Windows, so they are made writable first. A leftover repository (and its
+// marker) would make the hook test fail.
 void RemoveRepo(const fs::path& dir)
 {
     std::error_code ec;

@@ -37,16 +37,15 @@ using json = nlohmann::json;
 namespace DekiEditor
 {
 
-// Helper to generate deterministic variant GUID (uses shared FNV-1a implementation)
+// The GUID of a font size variant, derived from the font's (shared FNV-1a hash).
 static std::string GenerateVariantGuid(const std::string& fontGuid, int fontSize)
 {
     std::string seed = fontGuid + ":" + std::to_string(fontSize);
-    // Force deep copy to avoid cross-DLL heap issues
-    // DekiEditor::GenerateDeterministicGuid returns std::string from deki-editor.dll's heap
+    // Deep copy: the returned string lives on deki-editor.dll's heap.
     return std::string(DekiEditor::GenerateDeterministicGuid(seed).c_str());
 }
 
-// Helper to read available font sizes from .data file
+// The font sizes listed in the font's .data file.
 static std::vector<int> GetFontSizesFromData(const std::string& fontPath)
 {
     std::vector<int> sizes;
@@ -97,24 +96,21 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
         return "(None)";
     }
 
-    // Check if this looks like a GUID (contains dashes and is long enough)
+    // A GUID has dashes and is at least 32 characters.
     bool isGuid = (guid.find('-') != std::string::npos && guid.length() >= 32);
 
     if (isGuid)
     {
-        // Look up asset info from pipeline
         auto* pipeline = m_App->GetAssetPipeline();
         if (pipeline)
         {
-            // Check if this is a SubAsset (sprite frame)
+            // A sub-asset (sprite frame) shows its parent's name.
             const SubAssetInfo* subAsset = pipeline->GetSubAsset(guid);
             if (subAsset)
             {
-                // Get parent asset info for display
                 const AssetInfo* parentInfo = pipeline->GetAssetInfoByGuid(subAsset->parentGuid);
                 if (parentInfo)
                 {
-                    // Extract filename from path
                     size_t lastSlash = parentInfo->path.find_last_of("/\\");
                     std::string parentName =
                         (lastSlash != std::string::npos) ? parentInfo->path.substr(lastSlash + 1) : parentInfo->path;
@@ -131,14 +127,12 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
             const AssetInfo* info = pipeline->GetAssetInfoByGuid(guid);
             if (info)
             {
-                // Extract filename from path
                 namespace fs = std::filesystem;
                 std::string filename = fs::path(info->path).filename().string();
                 std::string ext = fs::path(info->path).extension().string();
 
-                // Icon chosen from the package-declared AssetCategory so the
-                // owning package is the single source of truth for what icon
-                // represents its file type.
+                // The icon follows the AssetCategory the owning package
+                // declares for the file type.
                 const char* icon = ICON_TI_FILE " ";
                 switch (AssetTypeRegistry::Instance().GetCategoryForExtension(ext))
                 {
@@ -153,8 +147,7 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
             }
             else
             {
-                // GUID no longer resolves (asset deleted) - show a plain
-                // "Missing" like Unity, no GUID.
+                // The asset is gone: show "Missing", like Unity.
                 return "Missing";
             }
         }
@@ -165,7 +158,7 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
     }
     else
     {
-        // Legacy path - show filename
+        // Not a GUID but a path: show its file name.
         size_t lastSlash = guid.find_last_of("/\\");
         if (lastSlash != std::string::npos)
         {
@@ -270,14 +263,12 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
     int32_t* heightPtr = nullptr;
     FindDimensionPointers(comp, &widthPtr, &heightPtr);
 
-    // Always update width/height from the new asset dimensions
     if (widthPtr && heightPtr)
     {
-        // Check if this is a SubAsset (sprite frame)
+        // A sub-asset (sprite frame) has its frame's size.
         const SubAssetInfo* subAsset = pipeline->GetSubAsset(selectedGuid);
         if (subAsset)
         {
-            // Get frame dimensions from frame data registry
             const SpriteFrameData* frameData = TextureImporter::GetFrameData(selectedGuid);
             if (frameData)
             {
@@ -291,7 +282,7 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
         const AssetInfo* assetInfo = pipeline->GetAssetInfoByGuid(selectedGuid);
         if (project && assetInfo)
         {
-            // First check for spritesheet frame dimensions in .data file
+            // A spritesheet's frame size, from its .data file.
             std::string dataPath = DekiEditor::GetAssetDataPath(assetInfo->path);
             DekiEditor::AssetData assetData;
             bool usedFrameSize = false;
@@ -312,7 +303,7 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
                 }
             }
 
-            // If not a spritesheet, use full texture dimensions
+            // Otherwise the whole texture.
             if (!usedFrameSize)
             {
                 // The image's size, which a texture shrunk by Max Size records.
@@ -353,17 +344,14 @@ void AssetPropertyEditor::RevealAssetInBrowser(const std::string& guid)
 bool AssetPropertyEditor::DrawAssetProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                             const char* displayName)
 {
-    // Asset properties - show asset reference with picker
-    // Value is stored as GUID (like Unity)
+    // The value is the asset's GUID, as in Unity.
     std::string& assetRef = *reinterpret_cast<std::string*>(reinterpret_cast<char*>(comp) + prop.offset);
 
     std::string displayText = ResolveGuidToDisplayName(assetRef);
 
-    // Label in the standard property-row column (so the field lines up with
-    // the other rows), then the asset name + picker icon as one combined field.
+    // The label in the usual column, then the asset name and picker as one field.
     InspectorUtils::BeginPropertyRow(displayName);
-    // Inherit the right gutter set by BeginPropertyRow (SetNextItemWidth) so the
-    // combined name+picker field ends in line with every other value control.
+    // The width BeginPropertyRow set, so the field ends in line with the others.
     float fieldWidth = ImGui::CalcItemWidth();
 
     float pickerBtnWidth = ImGui::GetFrameHeight();
@@ -376,7 +364,7 @@ bool AssetPropertyEditor::DrawAssetProperty(Deki::Component* comp, const Deki::P
 
     std::string popupId = std::string("AssetPicker##") + prop.name;
 
-    // Left: asset name button (double-click to reveal in Asset Browser)
+    // Left: the asset name; double-click reveals it in the Asset Browser.
     std::string nameBtnId = displayText + "##name_" + prop.name;
     ImGui::Button(nameBtnId.c_str(), ImVec2(nameFieldWidth, 0));
 
@@ -393,7 +381,7 @@ bool AssetPropertyEditor::DrawAssetProperty(Deki::Component* comp, const Deki::P
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
 
-    // Right: picker button, flush against the name field (one combined control)
+    // Right: the picker button, flush against the name.
     ImGui::SameLine(0, 0);
     std::string pickerBtnId = std::string(ICON_TI_CHEVRON_DOWN "##picker_") + prop.name;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
@@ -424,22 +412,19 @@ bool AssetPropertyEditor::DrawAssetProperty(Deki::Component* comp, const Deki::P
 bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                                const char* displayName)
 {
-    // AssetRef properties - uses AssetRefBase struct with guid and source fields
-    // For derived assets (like fonts), source holds the original asset GUID
-    // and guid holds the baked/compiled asset GUID
+    // For derived assets (fonts), `source` holds the original asset's GUID and
+    // `guid` the baked asset's. Otherwise only `guid` is set.
     Deki::AssetRefBase& assetRefBase =
         *reinterpret_cast<Deki::AssetRefBase*>(reinterpret_cast<char*>(comp) + prop.offset);
 
-    // Use source for display if available (e.g., TTF font), otherwise guid
+    // Show the source (a TTF font, say) when there is one.
     const std::string& displayGuid = assetRefBase.source.empty() ? assetRefBase.guid : assetRefBase.source;
 
     std::string displayText = ResolveGuidToDisplayName(displayGuid);
 
-    // Label in the standard property-row column (so the field lines up with
-    // the other rows), then the asset name + picker icon as one combined field.
+    // The label in the usual column, then the asset name and picker as one field.
     InspectorUtils::BeginPropertyRow(displayName);
-    // Inherit the right gutter set by BeginPropertyRow (SetNextItemWidth) so the
-    // combined name+picker field ends in line with every other value control.
+    // The width BeginPropertyRow set, so the field ends in line with the others.
     float fieldWidth = ImGui::CalcItemWidth();
 
     float pickerBtnWidth = ImGui::GetFrameHeight();
@@ -452,7 +437,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
 
     std::string popupId = std::string("AssetPicker##") + prop.name;
 
-    // Left: asset name button (double-click to reveal in Asset Browser)
+    // Left: the asset name; double-click reveals it in the Asset Browser.
     std::string nameBtnId = displayText + "##refname_" + prop.name;
     ImGui::Button(nameBtnId.c_str(), ImVec2(nameFieldWidth, 0));
 
@@ -461,13 +446,12 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
         RevealAssetInBrowser(displayGuid);
     }
 
-    // Drag-drop target for assets from Asset Browser (must be right after the button)
+    // Drop target for assets from the Asset Browser; must follow the button.
     if (ImGui::BeginDragDropTarget())
     {
-        // Helper: build and execute the undoable drop command. Pre-computes any
-        // auto-populated width/height by snapshotting the component's current values,
-        // applying the auto-populate, capturing the new values, then restoring -
-        // so all changes are applied through commands and a single Undo reverts them.
+        // Runs the drop as commands that one Undo reverts. The width and height
+        // it would set are found by applying them, recording the result and
+        // restoring the old values, so the commands make the real change.
         auto applyDrop =
             [&](const std::string& newGuid, const std::string& newSource, const std::string& dimGuid, bool autoPopulate)
         {
@@ -515,11 +499,11 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
             auto* pipeline = m_App->GetAssetPipeline();
             if (pipeline)
             {
-                // droppedPath is project-relative (e.g., "assets/textures/player.png")
+                // droppedPath is project-relative ("assets/textures/player.png").
                 const AssetInfo* info = pipeline->GetAssetInfo(droppedPath);
                 if (info && !info->guid.empty())
                 {
-                    // Check if this is a source asset (TTF/OTF font) that needs baking
+                    // A TTF/OTF font is a source asset that gets baked.
                     std::string ext = std::filesystem::path(droppedPath).extension().string();
                     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                     bool isSourceAsset = (ext == ".ttf" || ext == ".otf");
@@ -538,8 +522,8 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
             }
         }
 
-        // Accept ASSET_GUID for sub-assets (sprite frames) and direct GUID drops
-        // Skip if already handled via ASSET_PATH to prevent overwriting
+        // ASSET_GUID carries sub-assets (sprite frames) and plain GUIDs. Skipped
+        // when ASSET_PATH already handled the drop.
         if (!handled)
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_GUID"))
@@ -548,13 +532,12 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
                 auto* pipeline = m_App->GetAssetPipeline();
                 if (pipeline)
                 {
-                    // Check if it's a valid asset or sub-asset (sprite frame)
                     const AssetInfo* info = pipeline->GetAssetInfoByGuid(droppedGuid);
                     const SubAssetInfo* subAsset = pipeline->GetSubAsset(droppedGuid);
 
                     if (subAsset)
                     {
-                        // SubAsset (sprite frame): parent GUID loads the texture, frame GUID locates the frame
+                        // Sprite frame: the parent GUID loads the texture, the frame GUID finds the frame.
                         applyDrop(subAsset->parentGuid, droppedGuid, droppedGuid, true);
                     }
                     else if (info)
@@ -570,7 +553,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
 
     if (ImGui::IsItemHovered() && !displayGuid.empty())
     {
-        // Show both GUIDs in tooltip for debugging
+        // Both GUIDs, for debugging.
         if (assetRefBase.source.empty())
         {
             DekiEditor::Tooltip("GUID: %s\nDouble-click to reveal in Asset Browser", assetRefBase.guid.c_str());
@@ -585,7 +568,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
 
-    // Right: picker button, flush against the name field (one combined control)
+    // Right: the picker button, flush against the name.
     ImGui::SameLine(0, 0);
     std::string pickerBtnId = std::string(ICON_TI_CHEVRON_DOWN "##refpicker_") + prop.name;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
@@ -606,7 +589,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
     {
         if (m_ActiveComponent == comp && m_ActivePropertyName == prop.name)
         {
-            // Check if this is a source asset (TTF/OTF font) that needs baking
+            // A TTF/OTF font is a source asset that gets baked.
             bool isSourceAsset = false;
             auto* pipeline = m_App->GetAssetPipeline();
             if (pipeline)
@@ -622,29 +605,27 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
 
             if (isSourceAsset)
             {
-                // For source assets, store in source field
-                // The component editor will compute the baked guid
+                // A source asset goes in `source`; the component editor works
+                // out the baked guid.
                 assetRefBase.source = selectedGuid;
-                assetRefBase.guid.clear();  // Will be computed by component editor
+                assetRefBase.guid.clear();
             }
             else
             {
-                // Check if this is a subasset (sprite frame)
                 const SubAssetInfo* subAsset = pipeline ? pipeline->GetSubAsset(selectedGuid) : nullptr;
                 if (subAsset)
                 {
-                    // SubAsset (sprite frame): store parent GUID for loading, frame GUID for coordinate lookup
+                    // Sprite frame: the parent GUID loads the texture, the frame GUID finds the frame.
                     assetRefBase.guid = subAsset->parentGuid;
                     assetRefBase.source = selectedGuid;
                 }
                 else
                 {
-                    // For direct assets (sprites, etc.), store in guid field
                     assetRefBase.guid = selectedGuid;
                     assetRefBase.source.clear();
                 }
 
-                // Auto-set width/height from asset dimensions if they are 0
+                // Width and height from the asset's size.
                 AutoPopulateDimensions(comp, selectedGuid);
             }
             assetRefBase.ptr = nullptr;

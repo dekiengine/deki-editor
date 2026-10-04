@@ -10,35 +10,24 @@
 namespace DekiEditorInternal
 {
 
-/**
- * @brief Editor factory info for runtime creation
- */
+/// How to make one kind of editor extension.
 struct EditorFactoryInfo
 {
-    // Factory function that creates a new instance
     std::function<std::unique_ptr<DekiEditor::EditorExtension>()> factory;
 
-    // Static instance for metadata queries (type, name)
+    // Static instance, asked for metadata (type, name).
     DekiEditor::EditorExtension* prototype;
 };
 
-/**
- * @brief Internal registry for auto-registered editor extensions.
- *
- * This registry collects editor factories at DLL load time via static initializers.
- * The engine exports functions to iterate this list, and the editor can create
- * fresh instances per-component to avoid stale state issues.
- */
+/// Collects the editor factories that static initializers register when a
+/// DLL loads. The engine exports functions to walk this list, and the editor
+/// creates a fresh instance per component so no state goes stale.
 class DEKI_EDITOR_API EditorRegistry
 {
 public:
     static EditorRegistry& Instance();
 
-    /**
-     * @brief Add an editor factory (preferred method)
-     * @param prototype Static instance for metadata queries
-     * @param factory Function that creates new instances
-     */
+    /// Adds a factory, with a static `prototype` used for metadata.
     void AddFactory(DekiEditor::EditorExtension* prototype,
                     std::function<std::unique_ptr<DekiEditor::EditorExtension>()> factory)
     {
@@ -51,37 +40,25 @@ public:
         }
     }
 
-    /**
-     * @brief Get all factory infos
-     */
     const std::vector<EditorFactoryInfo>& GetAllFactories() const { return m_Factories; }
 
-    /**
-     * @brief Get total count of registered factories
-     */
     size_t GetTotalCount() const { return m_Factories.size(); }
 
-    /**
-     * @brief Clear all factories (must be called before package DLLs are unloaded)
-     */
+    /// Removes every factory. Must be called before package DLLs unload.
     void Clear() { m_Factories.clear(); }
 
-    /**
-     * @brief Drop every factory registered after the first `count`, keeping the
-     *        earlier ones untouched.
-     *
-     * Entries are appended in DLL load order, so a count taken before a DLL was
-     * loaded marks exactly where that DLL's registrations begin. Trimming back
-     * to it removes one DLL's entries without disturbing the packages loaded
-     * before it, which a blunt Clear() would also destroy (their static
-     * registrars never rerun without a DLL reload).
-     *
-     * MUST run while the owning DLL is still loaded. A std::function carries a
-     * pointer to manager code inside the DLL that created it, and that code
-     * runs on COPY and on DESTRUCTION alike - so after FreeLibrary even
-     * discarding the entry faults, and there is no way to recover. This is the
-     * only safe order: trim, then unload.
-     */
+    /// Removes every factory after the first `count`.
+    ///
+    /// Entries are added in DLL load order, so a count taken before a DLL
+    /// loaded marks where its registrations begin. Trimming to it removes that
+    /// DLL's entries and keeps those of packages loaded earlier, which Clear()
+    /// would lose for good (their static registrars do not run again without
+    /// a DLL reload).
+    ///
+    /// MUST run while the owning DLL is still loaded. A std::function points
+    /// at manager code inside the DLL that created it, and that code runs on
+    /// COPY and on DESTRUCTION alike, so after FreeLibrary even discarding the
+    /// entry faults. Always trim, then unload.
     void TrimTo(size_t count)
     {
         if (count < m_Factories.size())
@@ -95,12 +72,8 @@ private:
     std::vector<EditorFactoryInfo> m_Factories;
 };
 
-/**
- * @brief Auto-registration helper template (factory-based).
- *
- * Creates a static prototype instance for metadata and registers a factory
- * function that creates new instances on demand.
- */
+/// Registers editor class T at static init: a static prototype for metadata,
+/// and a factory that makes new instances on demand.
 template <typename T>
 struct EditorRegistrar
 {
@@ -112,16 +85,10 @@ struct EditorRegistrar
     }
 };
 
-/**
- * @brief Macro for auto-registering editor extensions.
- *
- * Use this at the end of your editor class definition:
- *   REGISTER_EDITOR(MyComponentEditor)
- *   REGISTER_EDITOR(MyAssetTypeEditor)
- *
- * Works for both CustomEditor and AssetTypeEditor subclasses.
- * Now uses factory pattern to create fresh instances per-component.
- */
+/// Registers an editor extension (CustomEditor, AssetTypeEditor, ...). Put
+/// it after the class definition:
+///   REGISTER_EDITOR(MyComponentEditor)
+///   REGISTER_EDITOR(MyAssetTypeEditor)
 #define REGISTER_EDITOR(EditorClass) static DekiEditorInternal::EditorRegistrar<EditorClass> s_##EditorClass##Registrar;
 
 }  // namespace DekiEditorInternal

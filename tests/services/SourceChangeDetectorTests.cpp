@@ -1,10 +1,7 @@
 // Build-artifact filtering and configure-input hashing.
 //
-// Extracted from HotReloadService, which was 2446 lines covering watching,
-// detection, hashing, process spawning, DLL swapping and its own ImGui modal.
-// These functions decide when the editor rebuilds, and getting them wrong shows
-// up as either "my change did nothing" or a rebuild loop that never settles -
-// both previously untestable.
+// These functions decide when the editor rebuilds. Getting them wrong shows
+// up as either "my change did nothing" or a rebuild loop that never settles.
 
 #include <gtest/gtest.h>
 
@@ -23,8 +20,8 @@ namespace
 
 // --- build-artifact filtering ---------------------------------------------
 //
-// This is the filter that stops a build's own output from marking sources
-// dirty. A false negative here is an infinite rebuild loop.
+// This filter stops a build's own output from marking sources dirty. A false
+// negative here is an infinite rebuild loop.
 
 TEST(IsBuildArtifact, IgnoresCMakeGeneratedMetadata)
 {
@@ -197,7 +194,7 @@ TEST_F(ConfigureHashTest, ChangesWhenAHeaderChanges)
 // The packages watcher is rooted at <project>/packages but reports paths
 // relative to <project>, so every event begins with the literal "packages".
 // Getting this wrong makes the focus-gain integrity check silently match no
-// package at all - which is exactly what happened before this was extracted.
+// package at all.
 TEST(PackageNameFromEventPath, NamesThePackageDirectory)
 {
     using DekiEditor::SourceChangeDetector::PackageNameFromEventPath;

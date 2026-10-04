@@ -47,16 +47,22 @@ public:
     ActivityPanel(EditorApp* app);
 
     void Draw();
+    /// Draws the status bar along the bottom of the current (main) window.
     void DrawStatusBar();
+    /// Removes every process that is no longer running.
     void Clear();
 
     static ActivityPanel* GetInstance() { return s_Instance; }
+    /// Adds a line to the running process named `process`, starting a new
+    /// process when none of that name is running. Safe from any thread.
     static void Log(const std::string& process, const std::string& message);
     static void LogError(const std::string& process, const std::string& message);
     static void CompleteProcess(const std::string& process);
     static void FailProcess(const std::string& process, const std::string& error);
     static void CancelProcess(const std::string& process);
+    /// True when a process of this name was cancelled. Long tasks poll it.
     static bool IsCancelled(const std::string& process);
+    /// Sets what the running process's cancel button calls.
     static void SetCancelCallback(const std::string& process, std::function<void()> callback);
     static float GetStatusBarHeight();
 

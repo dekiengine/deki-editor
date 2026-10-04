@@ -2,13 +2,10 @@
 
 // What a brand-new project is made of, as plain file writers.
 //
-// ProjectTemplate::CreateProject used to write a deki.json with no packages,
-// no platform and no scene: the editor opened an empty project that rendered
-// nothing until the user found the Package Manager and knew which four
-// packages to add by name. The writers here produce a project that opens to
-// a camera, a gradient and a line of text, with the desktop packages declared
-// so the first open restores and builds them. They take paths and strings
-// only, so they are testable without booting the editor.
+// The writers here produce a project that opens to a camera, a gradient and
+// a line of text, with the desktop packages declared so the first open
+// restores and builds them. They take only paths and strings, so they can be
+// tested without booting the editor.
 
 #include <string>
 #include <vector>
@@ -26,12 +23,11 @@ inline constexpr const char* kStarterFontFile = "JetBrainsMono-Regular.ttf";
 inline constexpr int kStarterFontSize = 16;
 
 /// What a new project starts with: the registry packages it declares and the
-/// platform it is aimed at. Read from a data file beside the editor
-/// (resources/starter.json), because which packages and which target a new
-/// project gets is the distribution's choice, not something for the editor's
-/// code to name. The platform is not written by the scaffold: it is adopted on
-/// first open from whichever of those packages offers a template for it
-/// (deki-editor/build/PlatformTemplates.h).
+/// platform it targets. Read from a data file beside the editor
+/// (resources/starter.json), because the starting packages and target are the
+/// distribution's choice, not the editor code's. The scaffold does not write
+/// the platform: first open adopts it from whichever of those packages offers
+/// a template for it (deki-editor/build/PlatformTemplates.h).
 struct ProjectStarter
 {
     std::vector<std::string> packageIds;
@@ -41,9 +37,9 @@ struct ProjectStarter
 /// <editor directory>/resources/starter.json
 std::string DefaultStarterPath();
 
-/// Read a starter file. Refuses, with the reason, a file that is missing,
-/// does not parse, declares no packages, or names anything that is not a plain
-/// name. There is no built-in starter to fall back to.
+/// Reads a starter file. Refuses, with the reason, a file that is missing,
+/// does not parse, declares no packages, or names anything that is not a
+/// plain name. There is no built-in starter to fall back to.
 bool LoadProjectStarter(const std::string& path, ProjectStarter& out, std::string& err);
 
 /// deki.json with the current structure version, the startup scene and the
@@ -67,7 +63,7 @@ bool WriteRenderPipeline(const std::string& projectPath, std::string& err);
 
 /// Copies kStarterFontFile from `editorFontsDir` into assets/fonts/ and
 /// writes its .data sidecar (GUID + kStarterFontSize baked). Returns the
-/// font's GUID, or "" when the editor's font is not available - the caller
+/// font's GUID, or "" when the editor's font is not available; the caller
 /// then writes the scene without the text object.
 std::string InstallStarterFont(const std::string& projectPath, const std::string& editorFontsDir, std::string& err);
 

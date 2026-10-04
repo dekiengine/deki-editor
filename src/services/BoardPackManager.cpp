@@ -15,7 +15,7 @@ namespace DekiEditor
 
 BoardPackManager::BoardPackManager()
 {
-    // No default sources - user adds sources via Boards Manager
+    // No default sources: the user adds them in the Boards Manager.
 }
 
 BoardPackManager::~BoardPackManager()
@@ -50,7 +50,6 @@ std::string BoardPackManager::GetBoardPacksDir() const
 
 void BoardPackManager::AddSource(const std::string& name, const std::string& url)
 {
-    // Check for duplicate
     for (const auto& src : m_Sources)
     {
         if (src.url == url)
@@ -194,7 +193,6 @@ void BoardPackManager::InstallPack(const std::string& packId, BoardPackInstallCa
 
     m_IsInstalling = true;
 
-    // Find pack info
     BoardPackInfo packInfo;
     {
         std::lock_guard<std::mutex> lock(m_PacksMutex);
@@ -230,7 +228,6 @@ void BoardPackManager::InstallPack(const std::string& packId, BoardPackInstallCa
 
             if (success)
             {
-                // Update pack state
                 std::lock_guard<std::mutex> lock(m_PacksMutex);
                 for (auto& pack : m_Packs)
                 {
@@ -279,7 +276,6 @@ bool BoardPackManager::UninstallPack(const std::string& packId)
         return false;
     }
 
-    // Update state
     {
         std::lock_guard<std::mutex> lock(m_PacksMutex);
         for (auto& pack : m_Packs)
@@ -570,8 +566,8 @@ bool BoardPackManager::ParsePackJson(const std::string& packDir, BoardPackInfo& 
 
     if (!fs::exists(packJsonPath))
     {
-        // No pack.json - try to infer from directory contents
-        // Scan for platform JSON files
+        // No pack.json: describe the pack from the platform JSON files in
+        // its directory.
         outPack.id = fs::path(packDir).filename().string();
         outPack.name = outPack.id;
         outPack.version = "local";
@@ -679,7 +675,6 @@ bool BoardPackManager::DoInstallPack(const std::string& url, const std::string& 
         return false;
     }
 
-    // Write to file
     {
         std::ofstream file(zipPath, std::ios::binary);
         if (!file.is_open())
@@ -697,7 +692,6 @@ bool BoardPackManager::DoInstallPack(const std::string& url, const std::string& 
 
     bool extracted = EditorHttpUtils::ExtractZip(zipPath, packDir);
 
-    // Clean up zip
     try
     {
         fs::remove(zipPath);

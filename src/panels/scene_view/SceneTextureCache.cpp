@@ -37,8 +37,8 @@ void SceneTextureCache::Cleanup()
 
 void SceneTextureCache::EvictToBudget(const std::string& keep)
 {
-    // The cache used to grow without bound: one full RGBA copy per texture ever
-    // shown in the scene view, for the whole session.
+    // Evict the least recently used entries, never `keep`, until within
+    // budget. Each entry holds a full RGBA copy.
     while (m_TotalBytes > m_ByteBudget && m_Cache.size() > 1)
     {
         auto victim = m_Cache.end();
@@ -89,7 +89,7 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
         return nullptr;
     }
 
-    // Check cache first (keyed by the asset reference - could be GUID or path)
+    // Keyed by the asset reference, a GUID or a path.
     auto it = m_Cache.find(assetRef);
     if (it != m_Cache.end())
     {
@@ -97,7 +97,6 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
         return it->second.textureId != 0 ? &it->second : nullptr;
     }
 
-    // Need to load the texture
     auto* project = m_App->GetProject();
     if (!project)
     {
@@ -106,12 +105,11 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
 
     std::string cachePath;
 
-    // Check if this looks like a GUID (contains dashes like "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+    // A GUID has dashes and at least 32 characters.
     bool isGuid = (assetRef.find('-') != std::string::npos && assetRef.length() >= 32);
 
     if (isGuid)
     {
-        // Look up asset by GUID via AssetPipeline
         auto* pipeline = m_App->GetAssetPipeline();
         if (pipeline)
         {
@@ -122,7 +120,7 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
             }
         }
 
-        // Fallback: try direct cache path lookup
+        // Else try the cache path for the GUID directly.
         if (cachePath.empty())
         {
             cachePath = GetCachePath(project->GetPath(), assetRef);
@@ -130,11 +128,10 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
     }
     else
     {
-        // Treat as asset path - build full path and get GUID
+        // An asset path: read the GUID from its sidecar.
         std::string assetsPath = project->GetAssetsPath();
         std::string fullAssetPath = assetsPath + "/" + assetRef;
 
-        // Normalize path separators
         for (char& c : fullAssetPath)
         {
             if (c == '\\')
@@ -143,7 +140,6 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
             }
         }
 
-        // Get asset GUID and find cached TEX
         std::string guid = ReadAssetGuid(fullAssetPath);
         if (!guid.empty())
         {
@@ -153,12 +149,12 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
 
     if (cachePath.empty() || !std::filesystem::exists(cachePath))
     {
-        // No cached TEX, mark as failed
+        // No cached TEX: remember the failure.
         m_Cache[assetRef] = CachedTexture{};
         return nullptr;
     }
 
-    // Use injected image loader to load and convert the texture
+    // The image loader the editor provides decodes the texture.
     auto imageLoader = DekiEditor::EditorAssets::GetImageLoader();
     if (!imageLoader)
     {
@@ -175,19 +171,18 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
         return nullptr;
     }
 
-    // Create OpenGL texture
     GLuint textureId;
     glGenTextures(1, &textureId);
     glBindTexture(GL_TEXTURE_2D, textureId);
 
-    // Use GL_NEAREST for both filters for pixel-perfect rendering (no interpolation)
+    // GL_NEAREST both ways, so pixels stay sharp.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Unpack state is global; other GL users (e.g. ImGui glyph uploads) can leave
-    // a row stride behind, which would shear/overread this tightly packed upload.
+    // Unpack state is global, and other GL users (ImGui glyph uploads, say) can
+    // leave a row stride set, which would shear or overread this packed upload.
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
@@ -195,18 +190,17 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Store in cache
     CachedTexture cached;
     cached.textureId = textureId;
     cached.width = static_cast<uint32_t>(texWidth);
     cached.height = static_cast<uint32_t>(texHeight);
     cached.spritePath = assetRef;
 
-    // Keep pixel data for alpha hit testing
+    // Pixels kept for alpha hit testing.
     size_t dataSize = static_cast<size_t>(texWidth) * texHeight * 4;
     cached.pixelData.assign(rgbaData, rgbaData + dataSize);
 
-    // Clean up the RGBA data (engine allocated with new[])
+    // The engine allocated the RGBA data with new[].
     delete[] rgbaData;
 
     cached.lastUse = ++m_UseCounter;

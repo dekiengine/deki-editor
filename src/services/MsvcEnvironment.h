@@ -7,29 +7,29 @@
 namespace DekiEditor
 {
 
-// Captures and caches the MSVC toolchain environment (PATH/INCLUDE/LIB/LIBPATH/etc.)
-// so hot-reload subprocesses can invoke cl.exe + Ninja without being launched from
-// a Developer Command Prompt. No-op on non-Windows platforms.
+/// Captures and caches the MSVC toolchain environment (PATH, INCLUDE, LIB,
+/// LIBPATH and the rest) so hot-reload subprocesses can run cl.exe and Ninja
+/// without a Developer Command Prompt. Does nothing on other platforms.
 class MsvcEnvironment
 {
 public:
     static MsvcEnvironment& Get();
 
-    // One-shot initialization. Safe to call multiple times - subsequent calls are
-    // no-ops. Returns true if the MSVC environment was captured successfully.
-    // On non-Windows, returns true immediately without doing anything.
+    /// Captures the environment once; later calls return the first result.
+    /// Returns true if the MSVC environment was captured. On other platforms
+    /// it returns true at once.
     bool Initialize();
 
-    // True when a usable environment has been captured.
+    /// True when a usable environment has been captured.
     bool IsAvailable() const { return m_Available; }
 
-    // Human-readable diagnostic (e.g., "VS not found via vswhere").
+    /// Human-readable status, e.g. "VS not found via vswhere".
     const std::string& GetStatus() const { return m_Status; }
 
 #ifdef _WIN32
-    // Build a Windows environment block (double-NUL-terminated KEY=VAL list) from
-    // the current process environment merged with the captured MSVC vars. The
-    // caller owns the buffer. Returns empty vector if !IsAvailable().
+    /// Builds a Windows environment block (a double-NUL-terminated KEY=VAL
+    /// list): the current process environment with the captured MSVC vars on
+    /// top. Empty when !IsAvailable().
     std::vector<char> BuildEnvironmentBlock() const;
 #endif
 
@@ -37,13 +37,12 @@ private:
     MsvcEnvironment() = default;
 
 #ifdef _WIN32
-    // Locate vswhere.exe in its canonical install path.
+    // Finds vswhere.exe in its standard install path.
     std::string FindVswhere() const;
-    // Query vswhere for the latest VS install with C++ tooling. Returns empty on failure.
+    // Asks vswhere for the latest VS install with C++ tools. Empty on failure.
     std::string FindLatestVsInstall(const std::string& vswherePath) const;
-    // Derive vcvarsall.bat path from a VS install directory.
     std::string DeriveVcvarsallPath(const std::string& vsInstallPath) const;
-    // Spawn `cmd /c "call <vcvars> x64 && set"`, parse the SET output.
+    // Runs `cmd /c "call <vcvars> x64 && set"` and parses the SET output.
     bool CaptureEnvironment(const std::string& vcvarsallPath);
 #endif
 

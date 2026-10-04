@@ -18,10 +18,10 @@ public:
     void FetchVersions(const PackageEntry& pkg, VersionsCallback callback) override;
 
 private:
-    // Parse GitHub URL to extract owner and repo
+    // Owner and repo from a GitHub URL
     bool ParseGitHubUrl(const std::string& url, std::string& owner, std::string& repo) const;
 
-    // Parse GitHub API responses
+    // GitHub API responses
     std::vector<std::string> ParseReleasesJson(const std::string& json);
     std::vector<std::string> ParseTagsJson(const std::string& json);
     std::vector<std::string> ParseBranchesJson(const std::string& json);

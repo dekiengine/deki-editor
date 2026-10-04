@@ -23,7 +23,7 @@ namespace DekiEditor
 class EditorApp;
 class McpToolRegistry;
 
-// Thread-safe queue for passing messages between HTTP thread and main thread
+// Thread-safe queue for messages between the HTTP thread and the main thread.
 template <typename T>
 class ThreadSafeQueue
 {
@@ -47,7 +47,7 @@ public:
         return true;
     }
 
-    // Blocking pop with timeout (returns false if timed out)
+    // Waits up to `timeoutMs` for an item. False when none arrived.
     bool WaitPop(T& item, int timeoutMs)
     {
         std::unique_lock<std::mutex> lock(m_Mutex);
@@ -66,8 +66,7 @@ private:
     std::condition_variable m_Condition;
 };
 
-// Pending SSE response: pairs a response JSON string with its request ID
-// so the SSE stream can route responses back to the correct client session
+// A response waiting to be sent on the SSE stream.
 struct SseResponse
 {
     std::string jsonStr;
@@ -79,22 +78,21 @@ public:
     McpServer(EditorApp* editor);
     ~McpServer();
 
-    // Binds before returning, so a port already in use is a false here rather
-    // than a server that never answers. Port 0 takes any free one; GetPort()
-    // says which.
+    /// Binds before returning, so a port already in use returns false rather
+    /// than giving a server that never answers. Port 0 takes any free port;
+    /// GetPort() says which.
     bool Start(int port = 0);
     void Stop();
     bool IsRunning() const { return m_Running.load(); }
     int GetPort() const { return m_Port; }
 
-    // Per-session bearer token, minted on Start(). Clients must send it as
-    // `Authorization: Bearer <token>` (or `?token=` on the SSE stream).
-    // Surfaced so the Activity panel and the startup banner can show the URL a
-    // client needs.
+    /// Bearer token for this session, made by Start(). Clients must send it as
+    /// `Authorization: Bearer <token>` (or `?token=` on the SSE stream). The
+    /// Activity panel and the startup banner use it to show a client's URL.
     const std::string& GetToken() const { return m_Token; }
     std::string GetSseUrl() const;
 
-    // Called from main thread each frame to process queued requests
+    /// Handles the queued requests. Called from the main thread each frame.
     void ProcessMessages();
 
 private:
@@ -104,7 +102,7 @@ private:
     // cross-origin browser request. Writes a 401/403 into `res` when it fails.
     bool Authorize(const httplib::Request& req, httplib::Response& res) const;
 
-    // JSON-RPC dispatch
+    // JSON-RPC
     nlohmann::json HandleMessage(const nlohmann::json& msg);
     nlohmann::json HandleInitialize(const nlohmann::json& params);
     nlohmann::json HandleToolsList();
@@ -112,7 +110,6 @@ private:
     nlohmann::json HandleResourcesList();
     nlohmann::json HandleResourcesRead(const nlohmann::json& params);
 
-    // JSON-RPC helpers
     static nlohmann::json MakeResponse(const nlohmann::json& id, const nlohmann::json& result);
     static nlohmann::json MakeError(const nlohmann::json& id, int code, const std::string& message);
 
@@ -124,20 +121,20 @@ private:
     std::unique_ptr<httplib::Server> m_HttpServer;
     std::thread m_ServerThread;
 
-    // Request queue: HTTP thread pushes, main thread pops
+    // The HTTP thread pushes requests, the main thread pops them.
     struct PendingRequest
     {
         nlohmann::json message;
-        // Promise to deliver the response back to the HTTP handler
+        // Delivers the response back to the HTTP handler.
         std::shared_ptr<std::promise<std::string>> responsePromise;
     };
     ThreadSafeQueue<PendingRequest> m_IncomingRequests;
 
-    // SSE response queue: main thread pushes, SSE stream sends
+    // The main thread pushes responses, the SSE stream sends them.
     ThreadSafeQueue<SseResponse> m_SseResponses;
-    // Open /sse streams. Responses are queued for them only while one is
-    // open: the CLI talks to a live editor with plain POSTs, and every reply
-    // used to be kept for a stream that never connected, for the whole session.
+    // Open /sse streams. Responses are queued only while one is open: the CLI
+    // talks to a live editor with plain POSTs, and its replies must not pile
+    // up for a stream that never connects.
     std::atomic<int> m_SseClients{ 0 };
 
     std::unique_ptr<McpToolRegistry> m_ToolRegistry;

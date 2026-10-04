@@ -7,23 +7,20 @@
 namespace DekiEditor
 {
 
-// Persistent Editor.log file sink (Unity-style).
-//
-// Initialize(path, verbose) opens the log fresh, after rotating any existing
-// file to <stem>-prev.log beside it; the editor passes
-// <%APPDATA%/DekiEditor>/Editor.log and the "editorLog.verbose" preference.
-// OnLog() is the callback to chain into Deki::LogSystem::SetLogCallback.
-// Flush() forces the buffer to disk before a crash dialog. Shutdown() closes
-// the file at clean exit.
-//
-// The file also rotates mid-session once it passes kRotationLimitBytes, so a
-// long session (a day of hot reloads, a verbose import) cannot grow it without
-// bound. One previous generation is kept, the same file the startup rotation
-// writes.
-//
-// Default level filter: Editor, Info, Warning, Error.
-// Debug is included when `verbose` is true.
-// Internal is gated by the existing DEKI_LOG_INTERNAL_ENABLED compile flag.
+/// Writes the editor log to Editor.log, like Unity's.
+///
+/// Initialize(path, verbose) moves any existing file to <stem>-prev.log beside
+/// it and starts a new one; the editor passes <%APPDATA%/DekiEditor>/Editor.log
+/// and the "editorLog.verbose" preference. OnLog() is the callback to chain
+/// into Deki::LogSystem::SetLogCallback. Flush() writes the buffer to disk
+/// before a crash dialog. Shutdown() closes the file at a clean exit.
+///
+/// The file also rotates mid-session once it passes kRotationLimitBytes, so a
+/// long session cannot grow it without bound. One previous file is kept, the
+/// same one the startup rotation writes.
+///
+/// Levels written: Editor, Info, Warning, Error, plus Debug when `verbose` is
+/// true. Internal follows the DEKI_LOG_INTERNAL_ENABLED compile flag.
 class EditorLogFile
 {
 public:
@@ -36,7 +33,8 @@ public:
 
     static void Flush();
 
-    // Keep Debug lines too (the "editorLog.verbose" preference), from now on.
+    /// Whether to keep Debug lines from now on (the "editorLog.verbose"
+    /// preference).
     static void SetVerbose(bool verbose);
 
     static std::string GetLogPath();
@@ -45,7 +43,7 @@ public:
     /// Initialize): "<stem>-prev.log" beside it. Empty before Initialize.
     static std::string GetPreviousLogPath();
 
-    /// Tests only: rotate after this many bytes instead of kRotationLimitBytes.
+    /// For tests: rotates after this many bytes instead of kRotationLimitBytes.
     static void SetRotationLimitForTests(size_t bytes);
 };
 

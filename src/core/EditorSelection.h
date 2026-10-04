@@ -13,19 +13,14 @@ class Object;
 namespace DekiEditor
 {
 
-// Manages object and asset selection state.
-// Invariant: selecting an object clears all asset selection fields,
-//            and selecting an asset clears object selection.
+// Object and asset selection.
+// Invariant: selecting an object clears the asset selection, and selecting an
+// asset clears the object selection.
 //
-// This is the ONLY owner of selection. Anything that needs to observe it -
-// notably EditorApplication, the facade package DLLs read through - registers
-// via SetOnChanged rather than being updated at each call site. It was the
-// latter, and three of the eight mutators forgot: Add/Remove/ToggleSelection
-// left EditorApplication::GetActiveObject() pointing at the previously selected
-// object, so a Ctrl+click in the Hierarchy (ToggleSelection) desynced every
-// package CustomEditor, and the stale pointer dangled once that object was
-// deleted. SetSelectedAsset and RemoveObjects clear objects too and were
-// likewise missed.
+// This is the only owner of selection. Anything that observes it, such as
+// EditorApplication (which package DLLs read through), registers with
+// SetOnChanged. Every mutator must call NotifyChanged; updating observers at
+// each call site instead leaves them holding stale, possibly deleted, objects.
 class EditorSelection
 {
 public:
@@ -44,8 +39,8 @@ public:
     void ToggleSelection(Deki::Object* obj);
     void ClearObjectSelection();
 
-    // Invoked after any change to the selection, with the new active object
-    // (first selected, or nullptr). Set once at startup.
+    /// Called after any change to the selection, with the new active object
+    /// (the first selected, or nullptr). Set once at startup.
     void SetOnChanged(std::function<void(Deki::Object*)> cb) { m_OnChanged = std::move(cb); }
 
     // Asset selection

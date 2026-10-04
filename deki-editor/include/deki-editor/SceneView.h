@@ -4,7 +4,6 @@
 
 #include <deki-editor/EditorExport.h>
 #include <deki/Engine.h>  // Deki::ColorFormat
-// Forward declarations
 namespace Deki
 {
 class Object;
@@ -14,10 +13,7 @@ struct ImDrawList;
 namespace DekiEditor
 {
 
-/**
- * @brief Context for rendering an object in the scene view
- * Consolidates all parameters needed for BeginObject()
- */
+/// Everything BeginObject() needs to set up an object's gizmo context.
 struct SceneViewContext
 {
     Deki::Object* object = nullptr;
@@ -29,112 +25,91 @@ struct SceneViewContext
     float scaleX = 1.0f;
     float scaleY = 1.0f;
     float rotation = 0.0f;
-    float zoom = 1.0f;            // Editor wheel zoom * dpi (no PPM)
+    float zoom = 1.0f;            // Editor wheel zoom * dpi, without pixels-per-meter
     float pixelsPerMeter = 1.0f;  // Project pixels-per-meter (camera world scale)
     float displayWidth = 0.0f;
     float displayHeight = 0.0f;
     bool isSelected = false;
-    // Note: Engine is always pixel-perfect (no toggle)
 };
 
-/**
- * @brief Singleton providing current render context for scene view
- *
- * Unity-like static access for gizmo implementations:
- *   auto& view = SceneView::Get();
- *   float halfW = sprite->width * view.GetScaleX() * view.GetZoom() * 0.5f;
- *
- * The SceneViewPanel calls BeginObject/EndObject to set up context
- * for gizmo rendering. Visual content is rendered via DekiRenderSystem.
- */
+/// The scene view's current render context, for gizmo code to read:
+///
+///   auto& view = SceneView::Get();
+///   float halfW = sprite->width * view.GetScaleX() * view.GetZoom() * 0.5f;
+///
+/// SceneViewPanel calls BeginObject/EndObject around each object's gizmos.
+/// The scene itself is drawn by DekiRenderSystem.
 class DEKI_EDITOR_API SceneView
 {
 public:
-    /**
-     * @brief Get singleton instance
-     */
     static SceneView& Get();
 
     // =========================================================================
-    // Current Object State (valid between BeginObject/EndObject)
+    // Current object state, valid between BeginObject and EndObject
     // =========================================================================
 
-    /** @brief Screen X position of object center */
+    /// Screen position of the object's centre.
     float GetScreenX() const { return m_ScreenX; }
-
-    /** @brief Screen Y position of object center */
     float GetScreenY() const { return m_ScreenY; }
 
-    /** @brief World X position */
     float GetWorldX() const { return m_WorldX; }
-
-    /** @brief World Y position */
     float GetWorldY() const { return m_WorldY; }
 
-    /** @brief World scale X */
+    /// World scale.
     float GetScaleX() const { return m_ScaleX; }
-
-    /** @brief World scale Y */
     float GetScaleY() const { return m_ScaleY; }
 
-    /** @brief Rotation in radians (engine convention). */
+    /// Rotation in radians, engine convention.
     float GetRotation() const { return m_Rotation; }
 
-    /** @brief View zoom level (editor wheel zoom * dpi only - no PPM) */
+    /// View zoom: editor wheel zoom * dpi, without pixels-per-meter.
     float GetZoom() const { return m_Zoom; }
 
-    /** @brief Pixels per meter of the scene view: the project's art density */
+    /// Pixels per meter of the scene view: the project's art density.
     float GetPixelsPerMeter() const { return m_PixelsPerMeter; }
 
-    /**
-     * @brief World meters to screen pixels (= zoom * pixelsPerMeter).
-     *
-     * Use this for any gizmo dimension that originates in world units
-     * (e.g. the camera's visible area, or an emission shape's radius).
-     * For fixed-screen-size accents (crosshairs, handle dots) use GetZoom().
-     */
+    /// World meters to screen pixels (zoom * pixelsPerMeter). Use it for any
+    /// gizmo size given in world units (the camera's visible area, an emission
+    /// shape's radius). For accents of fixed screen size (crosshairs, handle
+    /// dots) use GetZoom().
     float GetWorldToScreenScale() const { return m_Zoom * m_PixelsPerMeter; }
 
-    /** @brief Display width (for current component) */
+    /// Display size for the current component.
     float GetDisplayWidth() const { return m_DisplayWidth; }
-
-    /** @brief Display height (for current component) */
     float GetDisplayHeight() const { return m_DisplayHeight; }
 
-    /** @brief Whether current object is selected */
     bool IsCurrentObjectSelected() const { return m_IsSelected; }
 
-    /** @brief Get current object being rendered */
     Deki::Object* GetCurrentObject() const { return m_CurrentObject; }
 
     // =========================================================================
-    // Preview screen (set by the editor each frame)
+    // Preview screen, set by the editor each frame
     // =========================================================================
 
-    /** @brief Width in pixels of the screen the Play view previews: the
-     *  resolution or aspect ratio picked in its toolbar, at the panel's size
-     *  for an aspect ratio. Play mode runs at it, and gizmos use it to show
-     *  what that screen sees. 320 until the Play view has set it. */
+    /// Width in pixels of the screen the Play view previews: the resolution
+    /// picked in its toolbar, or for an aspect ratio, the panel's size at that
+    /// ratio. Play mode runs at it, and gizmos use it to show what that screen
+    /// sees. 320 until the Play view has set it.
     int GetPreviewWidth() const { return m_PreviewWidth > 0 ? m_PreviewWidth : 320; }
 
-    /** @brief Height in pixels of the previewed screen (see GetPreviewWidth). */
+    /// Height in pixels of the previewed screen (see GetPreviewWidth).
     int GetPreviewHeight() const { return m_PreviewHeight > 0 ? m_PreviewHeight : 240; }
 
-    /** @brief Pixel format of the previewed screen; play mode renders in it. */
+    /// Pixel format of the previewed screen; play mode renders in it.
     Deki::ColorFormat GetPreviewFormat() const { return m_PreviewFormat; }
     void SetPreviewFormat(Deki::ColorFormat format) { m_PreviewFormat = format; }
 
-    /** @brief Preview a screen of this size (the Play view does, every frame). */
+    /// Previews a screen of this size. The Play view calls it every frame.
     void SetPreviewSize(int width, int height)
     {
         m_PreviewWidth = width;
         m_PreviewHeight = height;
     }
 
-    /** @brief What a project saved before cameras framed the world had instead
-     *  (settings/framebuffer.json): the design area's height in meters and the
-     *  project's Pixel Perfect. Set when a project opens, for the scene
-     *  migration that turns a camera's zoom into its ortho height. */
+    /// Framing settings from projects saved before cameras framed the world
+    /// (settings/framebuffer.json): the design area's height in meters and the
+    /// project's Pixel Perfect. Set when a project opens, for the scene
+    /// migration that turns a camera's zoom into its ortho height.
     struct LegacyFraming
     {
         float designHeight = 15.0f;
@@ -144,18 +119,14 @@ public:
     void SetLegacyFraming(const LegacyFraming& framing) { m_LegacyFraming = framing; }
 
     // =========================================================================
-    // Drawing Context
-    // =========================================================================
-
-    // =========================================================================
-    // Gizmo Drawing (screen-space pixels)
+    // Gizmo drawing, in screen pixels
     //
     // These wrap the internal draw list so package gizmos never touch ImGui.
-    // Color is packed RGBA via Rgba(). All are safe no-ops when no draw list is
-    // active (outside BeginObject/EndObject).
+    // Colours are packed with Rgba(). Outside BeginObject/EndObject there is no
+    // draw list and they do nothing.
     // =========================================================================
 
-    /** @brief Pack an RGBA color (components 0-255) for the Draw* methods. */
+    /// Packs an RGBA colour (components 0-255) for the Draw* methods.
     static uint32_t Rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
         return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(g) << 8) |
@@ -169,29 +140,21 @@ public:
     void DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba);
 
     // =========================================================================
-    // Internal - Called by SceneObjectRenderer
+    // Internal: called by SceneObjectRenderer
     // =========================================================================
 
-    /**
-     * @brief Begin rendering an object (called by SceneObjectRenderer)
-     * @param ctx Context containing all render parameters
-     */
+    /// Sets the context for one object's gizmos, from `ctx`.
     void BeginObject(const SceneViewContext& ctx);
 
-    /**
-     * @brief End rendering an object
-     */
     void EndObject();
 
 private:
     SceneView() = default;
     ~SceneView() = default;
 
-    // Prevent copying
     SceneView(const SceneView&) = delete;
     SceneView& operator=(const SceneView&) = delete;
 
-    // Current state
     Deki::Object* m_CurrentObject = nullptr;
     ImDrawList* m_DrawList = nullptr;
 

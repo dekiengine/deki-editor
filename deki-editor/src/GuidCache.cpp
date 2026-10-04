@@ -8,7 +8,6 @@
 #include <system_error>
 #include <nlohmann/json.hpp>
 
-// Engine logging
 #include <deki/LogSystem.h>
 
 namespace fs = std::filesystem;
@@ -48,7 +47,6 @@ bool GuidCache::Load(const std::string& cachePath)
     {
         json j = json::parse(file);
 
-        // Check version
         int version = j.value("version", 0);
         if (version != kCacheVersion)
         {
@@ -56,10 +54,8 @@ bool GuidCache::Load(const std::string& cachePath)
             return false;
         }
 
-        // Clear existing data
         Clear();
 
-        // Load entries
         if (j.contains("entries") && j["entries"].is_object())
         {
             for (auto& [path, entryJson] : j["entries"].items())
@@ -87,7 +83,6 @@ bool GuidCache::Load(const std::string& cachePath)
 
 void GuidCache::Save(const std::string& cachePath) const
 {
-    // Create parent directory if needed
     fs::path filePath(cachePath);
     fs::path parentDir = filePath.parent_path();
     if (!parentDir.empty() && !fs::exists(parentDir))
@@ -102,7 +97,6 @@ void GuidCache::Save(const std::string& cachePath) const
         }
     }
 
-    // Build JSON
     json j;
     j["version"] = kCacheVersion;
 
@@ -116,10 +110,9 @@ void GuidCache::Save(const std::string& cachePath) const
     }
     j["entries"] = entries;
 
-    // Write to file atomically. The guid cache is critical state: a torn
-    // write would lose the GUID->path map and break every asset reference
-    // in the project. AtomicWriteFile uses write-temp-then-rename so a
-    // crash mid-write leaves the previous good cache untouched.
+    // Written atomically (temp file, then rename): a torn write would lose the
+    // GUID -> path map and break every asset reference in the project, while
+    // a crash mid-write leaves the previous cache intact.
     std::string jsonStr = j.dump(2);
 
     std::string err;
@@ -136,10 +129,9 @@ namespace
 {
 // Every .data file under `root`, sorted by path. When two sidecars carry one
 // GUID (a folder copied with them), the first one seen keeps it and the other
-// gets a new one. Directory order differs between machines (NTFS vs ext4), so
-// a fresh clone on Windows and on Linux used to re-GUID DIFFERENT files, and
-// the same scene resolved to different assets. Sorted, the alphabetically
-// first path keeps the GUID everywhere.
+// gets a new one. Directory order differs between file systems (NTFS, ext4),
+// so sorting makes the alphabetically first path keep the GUID on every
+// machine, and a scene resolves to the same assets everywhere.
 std::vector<fs::path> SortedSidecars(const std::string& root)
 {
     std::vector<fs::path> out;
@@ -170,19 +162,15 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
         return;
     }
 
-    // Recursively scan for .data files
     int count = 0;
     for (const fs::path& sidecar : SortedSidecars(assetsRoot))
     {
-        // Get asset path (remove .data extension)
         std::string dataPath = sidecar.string();
-        std::string assetAbsPath = dataPath.substr(0, dataPath.length() - 5);  // Remove ".data"
+        std::string assetAbsPath = dataPath.substr(0, dataPath.length() - 5);  // without ".data"
 
-        // Convert to relative path
         std::string relativePath = fs::relative(assetAbsPath, assetsRoot).string();
         relativePath = NormalizePath(relativePath);
 
-        // Parse sidecar file
         Entry entry = ParseSidecar(dataPath);
         if (entry.guid.empty())
         {
@@ -190,8 +178,8 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
             continue;
         }
 
-        // A full rebuild sees every asset, so two sidecars carrying the same
-        // GUID show up here as well - resolve rather than let the later one
+        // A full rebuild sees every asset, so two sidecars with the same GUID
+        // show up here too; resolve them instead of letting the later one
         // overwrite the earlier one's mapping.
         entry.guid = ResolveGuidConflict(relativePath, entry.guid);
         if (entry.guid.empty())
@@ -199,7 +187,7 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
             continue;
         }
 
-        // Get mtime (after any sidecar rewrite above)
+        // After any sidecar rewrite above.
         entry.sidecarMtime = GetFileMtime(dataPath);
 
         AddEntry(relativePath, entry);
@@ -208,7 +196,6 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
 
     DEKI_LOG_EDITOR("GuidCache: Rebuilt cache with %d entries from %s", count, assetsRoot.c_str());
 
-    // Save the rebuilt cache
     if (!m_CachePath.empty())
     {
         Save(m_CachePath);
@@ -219,7 +206,7 @@ void GuidCache::Sync(const std::string& assetsRoot)
 {
     m_AssetsRoot = assetsRoot;
 
-    // If no cache loaded, do a full rebuild
+    // No cache loaded: do a full rebuild.
     if (m_Entries.empty() && !m_CachePath.empty())
     {
         if (!Load(m_CachePath))
@@ -235,11 +222,10 @@ void GuidCache::Sync(const std::string& assetsRoot)
         return;
     }
 
-    // Track which paths we've seen on disk
+    // Paths seen on disk.
     std::unordered_map<std::string, bool> seenPaths;
     int added = 0, updated = 0;
 
-    // Scan for .data files
     for (const fs::path& sidecar : SortedSidecars(assetsRoot))
     {
         std::string dataPath = sidecar.string();
@@ -254,13 +240,13 @@ void GuidCache::Sync(const std::string& assetsRoot)
         auto it = m_Entries.find(relativePath);
         if (it == m_Entries.end())
         {
-            // New file
+            // A new file.
             Entry entry = ParseSidecar(dataPath);
             if (!entry.guid.empty())
             {
-                // A GUID already bound elsewhere is either a move (old file gone)
-                // or a genuine duplicate (both files present). ResolveGuidConflict
-                // tells them apart and mints a fresh GUID for the duplicate.
+                // A GUID already bound elsewhere is either a move (old file
+                // gone) or a duplicate (both files present). ResolveGuidConflict
+                // tells them apart and gives the duplicate a new GUID.
                 entry.guid = ResolveGuidConflict(relativePath, entry.guid);
                 if (entry.guid.empty())
                 {
@@ -275,14 +261,13 @@ void GuidCache::Sync(const std::string& assetsRoot)
         }
         else
         {
-            // Existing entry - check if mtime changed
+            // A known file: re-parse it when its sidecar changed.
             if (currentMtime != it->second.sidecarMtime)
             {
-                // File modified - re-parse
                 Entry newEntry = ParseSidecar(dataPath);
                 if (!newEntry.guid.empty())
                 {
-                    // Remove old entry (clears old guid mappings)
+                    // Also clears the old GUID mappings.
                     RemoveEntry(relativePath);
 
                     newEntry.guid = ResolveGuidConflict(relativePath, newEntry.guid);
@@ -291,7 +276,6 @@ void GuidCache::Sync(const std::string& assetsRoot)
                         continue;
                     }
 
-                    // Add new entry
                     newEntry.sidecarMtime = GetFileMtime(dataPath);
                     AddEntry(relativePath, newEntry);
                     ++updated;
@@ -301,7 +285,7 @@ void GuidCache::Sync(const std::string& assetsRoot)
         }
     }
 
-    // Remove entries for deleted files
+    // Remove the entries of deleted files.
     std::vector<std::string> toRemove;
     for (const auto& [path, entry] : m_Entries)
     {
@@ -316,7 +300,7 @@ void GuidCache::Sync(const std::string& assetsRoot)
     {
         // The sidecar is gone but the asset is still here (deleted by hand, or
         // the asset copied in without it): write it back with the GUID it had,
-        // so references keep resolving. Minting a new one broke them all.
+        // so references keep resolving. A new GUID would break them all.
         std::error_code ec;
         const std::string assetAbs = ResolveAssetPath(path);
         auto entryIt = m_Entries.find(path);
@@ -344,7 +328,6 @@ void GuidCache::Sync(const std::string& assetsRoot)
         DEKI_LOG_EDITOR("GuidCache: synced, %d added, %d updated, %zu removed", added, updated, removed);
     }
 
-    // Save updated cache
     if (!m_CachePath.empty())
     {
         Save(m_CachePath);
@@ -406,8 +389,8 @@ void GuidCache::OnFileCreated(const std::string& path)
         return;
     }
 
-    // Files arriving via copy/paste or a folder drop bring the source's sidecar
-    // with them, so a newly created file is a prime source of GUID collisions.
+    // Files arriving by copy/paste or a folder drop bring the source's sidecar
+    // with them, so a new file often collides on GUID.
     entry.guid = ResolveGuidConflict(normalizedPath, entry.guid);
     if (entry.guid.empty())
     {
@@ -438,10 +421,9 @@ void GuidCache::OnFileModified(const std::string& path)
         return;
     }
 
-    // Remove old entry first (clears old guid mappings)
+    // Remove the old entry first, which clears its GUID mappings.
     RemoveEntry(normalizedPath);
 
-    // Parse new entry
     Entry entry = ParseSidecar(sidecarPath);
     if (entry.guid.empty())
     {
@@ -471,7 +453,7 @@ void GuidCache::OnFileDeleted(const std::string& path)
     auto it = m_Entries.find(normalizedPath);
     if (it == m_Entries.end())
     {
-        return;  // Not tracked
+        return;  // not tracked
     }
 
     DEKI_LOG_DEBUG("GuidCache: OnFileDeleted: %s", normalizedPath.c_str());
@@ -488,14 +470,14 @@ void GuidCache::OnFileMoved(const std::string& oldPath, const std::string& newPa
     auto it = m_Entries.find(normalizedOldPath);
     if (it == m_Entries.end())
     {
-        // Old path not tracked - treat as new file
+        // The old path is not tracked: treat it as a new file.
         OnFileCreated(newPath);
         return;
     }
 
     Entry entry = it->second;
 
-    // Get new mtime if sidecar exists at new location
+    // The sidecar's time at the new location, if it is there.
     if (!m_AssetsRoot.empty())
     {
         std::string newSidecarPath = GetSidecarPath((fs::path(m_AssetsRoot) / normalizedNewPath).string());
@@ -505,7 +487,6 @@ void GuidCache::OnFileMoved(const std::string& oldPath, const std::string& newPa
         }
     }
 
-    // Remove old entry and add new
     RemoveEntry(normalizedOldPath);
     AddEntry(normalizedNewPath, entry);
 
@@ -600,7 +581,6 @@ std::string GuidCache::NormalizePath(const std::string& path) const
 {
     std::string result = path;
 
-    // Convert backslashes to forward slashes
     for (char& c : result)
     {
         if (c == '\\')
@@ -609,7 +589,6 @@ std::string GuidCache::NormalizePath(const std::string& path) const
         }
     }
 
-    // Remove leading slash if present
     if (!result.empty() && result[0] == '/')
     {
         result = result.substr(1);
@@ -622,9 +601,8 @@ void GuidCache::AddEntry(const std::string& path, const Entry& entry)
 {
     std::string normalizedPath = NormalizePath(path);
 
-    // Replacing an existing entry retires its old GUID mapping first, otherwise
-    // a path whose sidecar changed GUID leaves the previous GUID pointing here
-    // forever.
+    // Replacing an entry removes its old GUID mapping first; otherwise a path
+    // whose sidecar changed GUID leaves the old GUID pointing here.
     auto existing = m_Entries.find(normalizedPath);
     if (existing != m_Entries.end() && existing->second.guid != entry.guid)
     {
@@ -637,7 +615,6 @@ void GuidCache::AddEntry(const std::string& path, const Entry& entry)
 
     m_Entries[normalizedPath] = entry;
 
-    // Map guid -> path
     m_GuidToPath[entry.guid] = normalizedPath;
 }
 
@@ -654,11 +631,9 @@ void GuidCache::RemoveEntry(const std::string& path)
     const std::string guid = it->second.guid;
     m_Entries.erase(it);
 
-    // Only retire the reverse mapping if it actually names the path being
-    // removed. Erasing it unconditionally broke GUID->path lookup for a
-    // *different* asset whenever two paths shared a GUID: the survivor's
-    // references then resolved to nothing, and the damage persisted because the
-    // broken map is what gets saved.
+    // Remove the GUID -> path mapping only if it names the path being removed.
+    // When two paths share a GUID, it may name the other one, whose
+    // references must keep resolving.
     auto rev = m_GuidToPath.find(guid);
     if (rev == m_GuidToPath.end() || rev->second != normalizedPath)
     {
@@ -667,8 +642,8 @@ void GuidCache::RemoveEntry(const std::string& path)
 
     m_GuidToPath.erase(rev);
 
-    // If another tracked path still holds this GUID, hand the mapping to it
-    // rather than leaving the GUID unresolvable.
+    // If another tracked path still holds this GUID, give the mapping to it so
+    // the GUID still resolves.
     for (const auto& [otherPath, otherEntry] : m_Entries)
     {
         if (otherEntry.guid == guid)
@@ -698,7 +673,7 @@ std::string GuidCache::ResolveGuidConflict(const std::string& relativePath, cons
         return guid;  // nobody else holds it
     }
 
-    // Stored value may carry a ":variant" suffix; compare on the path part only.
+    // The stored value may carry a ":variant" suffix; compare the path only.
     std::string otherPath = bound->second;
     const size_t colonPos = otherPath.find(':');
     if (colonPos != std::string::npos)
@@ -711,8 +686,8 @@ std::string GuidCache::ResolveGuidConflict(const std::string& relativePath, cons
         return guid;  // same file, nothing to resolve
     }
 
-    // The previous holder is gone: this is a move, and the GUID should follow
-    // the asset. That is the case the old code assumed unconditionally.
+    // The previous holder is gone: this is a move, and the GUID follows the
+    // asset.
     std::error_code ec;
     if (!fs::exists(ResolveAssetPath(otherPath), ec))
     {
@@ -720,12 +695,11 @@ std::string GuidCache::ResolveGuidConflict(const std::string& relativePath, cons
         return guid;
     }
 
-    // Both files exist, so two live assets claim one GUID - a copied folder
-    // still carrying its .data sidecars is the usual cause. Treating that as a
-    // move silently repointed every reference from the original to the copy,
-    // and which one won depended on directory iteration order. Mint a fresh
-    // GUID for the newcomer instead and persist it, so the original keeps its
-    // identity and existing scenes keep resolving to it.
+    // Both files exist, so two live assets claim one GUID; a copied folder
+    // with its .data sidecars is the usual cause. Treating that as a move
+    // would point every reference at the copy. Give the newcomer a new GUID
+    // and save it, so the original keeps its identity and scenes keep
+    // resolving to it.
     AssetData data;
     const std::string sidecarPath = GetSidecarPath(ResolveAssetPath(normalized));
     if (!LoadAssetData(sidecarPath, data))
@@ -743,9 +717,9 @@ std::string GuidCache::ResolveGuidConflict(const std::string& relativePath, cons
 
     if (!SaveAssetData(sidecarPath, data))
     {
-        // Without a persisted sidecar the new GUID would not survive a restart,
-        // so keep the in-memory map honest by leaving this path untracked
-        // rather than inventing an identity that only exists this session.
+        // A new GUID that cannot be saved would not survive a restart, so the
+        // path stays untracked instead of getting an identity for this session
+        // only.
         DEKI_LOG_ERROR("GuidCache: '%s' duplicates the GUID of '%s' but its sidecar "
                        "could not be rewritten; leaving it untracked",
                        normalized.c_str(), otherPath.c_str());

@@ -32,8 +32,7 @@ std::string EditorRecovery::RecoveryDirFor(const std::string& projectPath)
     }
 
     // Normalised before hashing so the same project always lands in the same
-    // folder however it was typed - "C:\Foo" and "c:/foo/" are one project.
-    // Skipping this is what silently broke the dialog's relative paths.
+    // folder however it was typed: "C:\Foo" and "c:/foo/" are one project.
     std::string norm = projectPath;
     for (char& c : norm)
     {
@@ -62,8 +61,8 @@ std::string EditorRecovery::RecoveryDirFor(const std::string& projectPath)
     }
 
     // FNV-1a, not std::hash: std::hash may change with the compiler or its
-    // library, and then an updated editor could not find the recovery a
-    // crash of the old one left (LegacyRecoveryDirFor still looks there).
+    // library, and then an updated editor could not find a recovery the old
+    // one left. LegacyRecoveryDirFor covers the std::hash folders.
     uint64_t h = 1469598103934665603ull;
     for (unsigned char c : norm)
     {
@@ -98,7 +97,7 @@ std::string EditorRecovery::LegacyRecoveryDirFor(const std::string& projectPath)
     }
     char hash[17];
     std::snprintf(hash, sizeof(hash), "%016llx", static_cast<unsigned long long>(std::hash<std::string>{}(norm)));
-    // Same folder name, the old hash.
+    // Same folder name, std::hash instead of FNV-1a.
     return current.substr(0, current.size() - 16) + hash;
 }
 
@@ -126,7 +125,7 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
     const std::string legacy = LegacyRecoveryDirFor(projectPath);
     if (!legacy.empty() && legacy != dirs[0])
     {
-        dirs.push_back(legacy);  // left by an editor from before the stable hash
+        dirs.push_back(legacy);  // written by older editors that used std::hash
     }
 
     for (const std::string& recoveryDir : dirs)
@@ -153,9 +152,8 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
             rec.recoveryPath = entry.path().string();
             rec.displayName = entry.path().filename().string();
 
-            // Read sidecar metadata to recover the original asset path (the
-            // recovery filename collapses to just <name>.scene, so on its own it
-            // cannot tell us where the user's source file lives).
+            // The sidecar holds the original scene path; the snapshot's file
+            // name alone cannot say where the user's file lives.
             fs::path metaPath = entry.path();
             metaPath += ".meta.json";
             if (fs::exists(metaPath))
@@ -173,16 +171,15 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
                 }
                 catch (const std::exception& e)
                 {
-                    // Recovery-only mode: the entry is still offered, but Save will
-                    // have to prompt for a location.
+                    // The entry is still offered, but Save will ask for a
+                    // location.
                     DEKI_LOG_WARNING("Recovery: sidecar '%s' unreadable (%s); original path unknown",
                                      metaPath.string().c_str(), e.what());
                 }
             }
 
-            // No savedAt means either an unreadable sidecar or a recovery written
-            // before the field existed. The file's own mtime is the crash time in
-            // both cases, since nothing rewrites these afterwards.
+            // No savedAt (unreadable or older sidecar): use the file's mtime.
+            // Nothing rewrites these files, so it is the crash time.
             if (rec.savedAt == 0)
             {
                 std::error_code ec;
@@ -202,9 +199,9 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
                 rec.fileSize = 0;
             }
 
-            // Object count is what actually answers "is this worth recovering".
-            // Parsed here rather than in the crash handler, where the priority is
-            // getting the file written at all.
+            // The object count tells the user whether this is worth recovering.
+            // Counted here, not in the crash handler, which must only get the
+            // file written.
             try
             {
                 std::ifstream pf(entry.path());
@@ -245,8 +242,8 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
     {
         m_ProjectPath = projectPath;
         m_DialogRequested = true;
-        // Worth a line in the log: the files no longer live in the project, so
-        // "where did my recovery go" is now a fair question to have to answer.
+        // Logged because the files live outside the project, so users may
+        // need to find them.
         DEKI_LOG_EDITOR("Recovery: %zu scene(s) pending in %s", m_Files.size(), dirs[0].c_str());
     }
 }
@@ -289,8 +286,8 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
         fs::create_directories(recoveryDir);
 
         // Named by the scene's path inside the project ("scenes~main.scene"),
-        // not its file name alone: two scenes called main.scene overwrote each
-        // other's snapshot, and the dialog offered the wrong one back.
+        // not its file name alone, so two scenes called main.scene do not
+        // overwrite each other's snapshot.
         std::string filename = "recovered.scene";
         if (!scenePath.empty())
         {
@@ -314,16 +311,14 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
             return false;
         }
 
-        // Sidecar metadata: original absolute path so the recovery dialog can
-        // rebind the scene to its source location on accept. Without this the
-        // path collapsed to just `filename` and Save would overwrite the
-        // recovery copy instead of the user's actual asset.
+        // The sidecar records the original absolute path, so a restored scene
+        // saves to the user's asset, not to the recovery copy.
         nlohmann::json meta;
         meta["originalPath"] = scenePath;
-        // When the snapshot was taken, so the dialog can say how old this is.
-        // Deliberately just a time() call - this also runs inside the crash
-        // handler, where anything expensive risks losing the recovery it is
-        // trying to describe. Size and object count are derived at read time.
+        // When the snapshot was taken, so the dialog can say how old it is.
+        // Only a time() call: this also runs inside the crash handler, where
+        // anything expensive risks losing the snapshot. Size and object count
+        // are worked out when the entry is read.
         meta["savedAt"] = static_cast<long long>(std::time(nullptr));
         fs::path metaPath = recoveryDir / (filename + ".meta.json");
         std::string err;
@@ -343,9 +338,9 @@ bool EditorRecovery::WriteSnapshot(Deki::Scene* scene, const std::string& sceneP
     }
     catch (...)
     {
-        // Best-effort and intentionally silent: this runs inside the crash
-        // handler, where logging may itself be unsafe. Failure must not prevent
-        // the crash dialog, nor interrupt an ordinary editing frame.
+        // Best effort and silent: this runs inside the crash handler, where
+        // logging may be unsafe. A failure must not stop the crash dialog or
+        // interrupt an ordinary editing frame.
         return false;
     }
 }
@@ -386,8 +381,8 @@ void EditorRecovery::BuildPreview(const RecoveryEntry& entry)
     }
     catch (const std::exception&)
     {
-        // Truncated or otherwise unparseable - the popup says so rather than
-        // showing an empty tree that reads like "this scene has nothing in it".
+        // Unreadable: the popup says so, rather than showing an empty tree
+        // that looks like an empty scene.
         m_Preview.clear();
     }
 }

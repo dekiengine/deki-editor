@@ -37,10 +37,10 @@ namespace DekiEditor
 
 using InspectorUtils::BeginPropertyRow;
 
-// ImGui's GL backend binds a GL_LINEAR sampler object that overrides the texture's
-// own GL_NEAREST params, blurring the play view when the project resolution doesn't
-// land on integer screen pixels. Wrap each AddImage with this pair so the texture's
-// nearest-neighbor filtering takes effect (same trick used in SceneViewPanel).
+// ImGui's GL backend binds a GL_LINEAR sampler object that overrides the
+// texture's own GL_NEAREST setting, which blurs the play view when the game's
+// pixels do not land on whole screen pixels. Unbinding the sampler around the
+// AddImage lets the texture's nearest filtering apply (as in SceneViewPanel).
 static void AddImageNearest(ImDrawList* drawList, ImTextureID texId, const ImVec2& p1, const ImVec2& p2)
 {
     drawList->AddCallback(
@@ -59,9 +59,8 @@ static void AddImageNearest(ImDrawList* drawList, ImTextureID texId, const ImVec
     drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
 }
 
-// Where a w x h game image goes in the canvas: 1:1 at the display's DPI,
-// centred, and scaled down to fit when the panel is smaller. `scale` is canvas
-// pixels per game pixel, which input mapping divides by.
+// Where a w x h game image goes in the canvas. `scale` is canvas pixels per
+// game pixel, which input mapping divides by.
 struct FittedRect
 {
     ImVec2 p1, p2;
@@ -69,8 +68,9 @@ struct FittedRect
     float scale = 1.0f;       // canvas pixels per game pixel
 };
 
-// The picture one game pixel per screen pixel, centred in the canvas. It is
-// never resized to fit: a screen bigger than the panel is cropped.
+// Places the picture at one game pixel per screen pixel (at the window's DPI),
+// centred in the canvas. It is never scaled to fit: a screen bigger than the
+// panel is cropped.
 static FittedRect PlaceInCanvas(int w, int h, const ImVec2& canvasTopLeft, const ImVec2& avail)
 {
     FittedRect r;
@@ -119,10 +119,10 @@ void PlayViewPanel::Draw()
                                       DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") |
                                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    // Forward keyboard state to the game while playing and the play view is
-    // focused (InputKeys.h codes, same as the desktop simulator's keyboard).
-    // Runs on every draw - including stopped/unfocused - so releases always
-    // flow and no key sticks pressed inside the game's injected keyboard.
+    // Forward keyboard state to the game while playing with the play view
+    // focused (InputKeys.h codes, as the desktop simulator's keyboard uses).
+    // Runs on every draw, even when stopped or unfocused, so releases always
+    // reach the game and no key sticks down.
     {
         const bool acceptKeys = m_App->IsPlaying() && ImGui::IsWindowFocused();
         int slot = 0;
@@ -152,9 +152,9 @@ void PlayViewPanel::Draw()
     }
 
     // A hidden tab (another tab selected in its dock) or a collapsed window
-    // draws nothing. Drawing anyway rendered the whole scene every frame behind
-    // the Scene view and held the editor near 40 fps. The key releases above
-    // still go through, so no game key sticks down.
+    // draws nothing: drawing would render the whole scene every frame behind
+    // the Scene view, which costs the editor a lot of frame rate. The key
+    // releases above still go through, so no game key sticks down.
     if (!visible)
     {
         m_PreviewStale = true;  // the scene may change while hidden
@@ -162,10 +162,9 @@ void PlayViewPanel::Draw()
         return;
     }
 
-    // Console-style toolbar strip: a flat simulate-touch cell (hand-finger,
-    // accent when on / dim when off) on the left with 1px dividers, a
-    // right-aligned mono fps readout, and a bottom hairline. Mirrors
-    // ConsolePanel's toolbar chrome.
+    // Toolbar strip in ConsolePanel's style: the simulate-touch cell and the
+    // pickers on the left with 1px dividers, an fps readout on the right, and
+    // a hairline along the bottom.
     {
         const float dpi = m_App->Dpi(1.0f);
         const float rowH = 34.0f * dpi;
@@ -182,10 +181,9 @@ void PlayViewPanel::Draw()
         float cursorX = rowMin.x;
         auto drawDivider = [&](float x) { dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f); };
 
-        // Leading divider at strip start.
         drawDivider(cursorX);
 
-        // Simulate-touch cell - hand-finger, accent while enabled, dim when off.
+        // Simulate-touch cell: a hand icon, accent when on, dim when off.
         {
             const bool on = m_TouchInputMode;
             const char* icon = ICON_TI_HAND_FINGER;
@@ -223,8 +221,9 @@ void PlayViewPanel::Draw()
         DrawFormatPicker(cursorX, rowMin, rowH, dpi);
         drawDivider(cursorX);
 
-        // Right-aligned mono fps readout (editor + game). Game fps is sampled
-        // per game tick in EditorApp::UpdatePlayMode and stays at 0 outside play.
+        // Right-aligned fps readout for the editor and the game. Game fps is
+        // sampled per game tick in EditorApp::UpdatePlayMode and is 0 outside
+        // play.
         {
             const float editorFps = ImGui::GetIO().Framerate;
             const float gameFps = m_App->GetGameFPS();
@@ -256,7 +255,7 @@ void PlayViewPanel::Draw()
             }
         }
 
-        // Reserve the row in layout flow and close the bottom edge with a hairline.
+        // Move the layout cursor below the row and draw the bottom hairline.
         ImGui::SetCursorScreenPos(ImVec2(rowMin.x, rowMax.y));
         dl->AddLine(ImVec2(rowMin.x, rowMax.y), ImVec2(rowMax.x, rowMax.y), colLine, 1.0f);
     }
@@ -268,7 +267,7 @@ void PlayViewPanel::Draw()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    // Check if render pipeline is configured
+    // Without a render pipeline, show a message in the screen's outline.
     auto* project = m_App->GetProject();
     if (project && project->GetRenderPipelineGuid().empty())
     {
@@ -281,10 +280,8 @@ void PlayViewPanel::Draw()
             const ImVec2 p1 = fit.p1, p2 = fit.p2;
             const float texScreenW = p2.x - p1.x, texScreenH = p2.y - p1.y;
 
-            // Draw viewport border
             drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
 
-            // Center text inside viewport
             const char* msg = "No render pipeline configured";
             ImVec2 textSize = ImGui::CalcTextSize(msg);
             float tx = p1.x + (texScreenW - textSize.x) * 0.5f;
@@ -297,7 +294,7 @@ void PlayViewPanel::Draw()
         return;
     }
 
-    // Stopped state - render camera viewport preview
+    // Stopped: show what the scene's camera sees.
     if (m_App->IsStopped())
     {
         auto* scene = m_App->GetCurrentScene();
@@ -307,7 +304,7 @@ void PlayViewPanel::Draw()
             const int vpW = SceneView::Get().GetPreviewWidth();
             const int vpH = SceneView::Get().GetPreviewHeight();
 
-            // Find scene camera via ICamera interface (search recursively)
+            // The first object in the scene tree with an ICamera
             Deki::ICamera* cam = nullptr;
             std::function<Deki::ICamera*(Deki::Object*)> findCamera = [&](Deki::Object* obj) -> Deki::ICamera*
             {
@@ -337,7 +334,7 @@ void PlayViewPanel::Draw()
 
             if (cam && vpW > 0 && vpH > 0)
             {
-                // Initialize/resize preview renderer to project display dimensions
+                // Size the renderer to the previewed screen
                 if (!m_PreviewRenderer->IsInitialized() || m_PreviewRenderer->GetWidth() != vpW ||
                     m_PreviewRenderer->GetHeight() != vpH)
                 {
@@ -345,7 +342,7 @@ void PlayViewPanel::Draw()
                     m_PreviewStale = true;
                 }
 
-                // Render using scene camera, only when what it shows moved.
+                // Render through the scene camera, only when what it shows changed.
                 uint8_t clearR, clearG, clearB;
                 cam->GetClearColor(clearR, clearG, clearB);
                 const uint64_t generation = CommandHistory::Instance().GetGeneration();
@@ -375,7 +372,6 @@ void PlayViewPanel::Draw()
                     const FittedRect fit = PlaceInCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
                     AddGameImage(drawList, (ImTextureID)(intptr_t)texId, fit);
 
-                    // Resolution info
                     char resInfo[64];
                     snprintf(resInfo, sizeof(resInfo), "%dx%d", vpW, vpH);
                     drawList->AddText(ImVec2(m_CanvasTopLeft.x + 10, m_CanvasTopLeft.y + 10),
@@ -392,7 +388,7 @@ void PlayViewPanel::Draw()
     // Play and pause edit a copy of the scene; render fresh after Stop.
     m_PreviewStale = true;
 
-    // Loading state - show edit-mode preview until first play frame is ready
+    // Until the first play frame is ready, keep showing the stopped preview.
     if (!m_App->IsPlayModeReady())
     {
         uint32_t previewTex = m_PreviewRenderer->GetTextureId();
@@ -408,7 +404,7 @@ void PlayViewPanel::Draw()
         return;
     }
 
-    // Playing or paused - render the play mode texture
+    // Playing or paused: show the game's frame.
     uint32_t playTexId = m_App->GetPlayModeTextureId();
     int playW = m_App->GetPlayModeWidth();
     int playH = m_App->GetPlayModeHeight();
@@ -419,21 +415,18 @@ void PlayViewPanel::Draw()
         const ImVec2 p1 = fit.p1, p2 = fit.p2;
         const float dpiScale = fit.scale;  // canvas pixels per game pixel
 
-        // Draw play mode texture
         AddGameImage(drawList, (ImTextureID)(intptr_t)playTexId, fit);
 
-        // Status indicator
         const char* status = m_App->IsPlaying() ? "PLAYING" : "PAUSED";
         ImU32 statusColor = m_App->IsPlaying() ? IM_COL32(0, 255, 0, 200) : IM_COL32(255, 255, 0, 200);
         drawList->AddText(ImVec2(m_CanvasTopLeft.x + 10, m_CanvasTopLeft.y + 10), statusColor, status);
 
-        // Resolution info
         char resInfo[64];
         snprintf(resInfo, sizeof(resInfo), "%dx%d", playW, playH);
         drawList->AddText(ImVec2(m_CanvasTopLeft.x + 10, m_CanvasTopLeft.y + 25), IM_COL32(200, 200, 200, 200),
                           resInfo);
 
-        // REC indicator when capturing frames (F9 to toggle)
+        // REC indicator while capturing frames (F9 toggles it)
         auto* captureService = m_App->GetFrameCaptureService();
         if (captureService && captureService->IsCapturing())
         {
@@ -453,17 +446,17 @@ void PlayViewPanel::Draw()
         // it lands, not the editor's tap-or-hold-or-scroll.
         DekiEditor::TouchInput::Get().AddDirectRegion(p1, p2);
 
-        // Handle play mode input (mouse/touch forwarded to game)
+        // Forward mouse and touch input to the game
         {
             bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
             ImGuiIO& io = ImGui::GetIO();
             ImVec2 mousePos = io.MousePos;
 
-            // Convert screen position to game coordinates
+            // Screen position to game pixels
             float gameX = (mousePos.x - p1.x) / dpiScale;
             float gameY = (mousePos.y - p1.y) / dpiScale;
 
-            // Check if mouse is within the actual texture bounds
+            // Inside the game image itself, not just the canvas
             bool inBounds =
                 hovered && mousePos.x >= p1.x && mousePos.x < p2.x && mousePos.y >= p1.y && mousePos.y < p2.y;
 
@@ -483,11 +476,12 @@ void PlayViewPanel::Draw()
             }
             else if (!m_TouchInputMode && inBounds && hasDelta && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
             {
-                // Hover move: mouse moving over play view without clicking
+                // Hover: the mouse moves over the game with no button down
                 m_App->HandlePlayModeInput(gameX, gameY, false, true, false);
             }
 
-            // When mouse leaves bounds during hover (not dragging), clear hover state
+            // The mouse left the game while hovering (not dragging): send a move
+            // far off screen so the game clears its hover state.
             if (!m_TouchInputMode && !inBounds && m_WasHoveringInBounds && !m_PlayModeDragging)
             {
                 m_App->HandlePlayModeInput(-9999, -9999, false, true, false);
@@ -518,8 +512,8 @@ namespace
 // previews the largest screen of that shape that fits the panel; a resolution
 // is exactly that many pixels.
 //
-// Ids, as remembered per project: "free" (Free Aspect: the panel), "aspect:W:H",
-// "res:WxH", or a platform id (its screen).
+// Ids, as stored per project: "free" (Free Aspect: the panel's size),
+// "aspect:W:H", "res:WxH", or a platform id (that platform's screen).
 constexpr const char* kFreeAspect = "free";
 
 struct BuiltInAspect
@@ -577,7 +571,7 @@ void PlayViewPanel::LoadUserScreens()
     }
     catch (...)
     {
-        // A hand-edited list that does not parse is simply empty.
+        // A hand-edited list that does not parse counts as empty.
     }
 }
 
@@ -619,8 +613,8 @@ std::string PlayViewPanel::ScreenLabel(const std::string& id) const
 
 void PlayViewPanel::SelectPreview(const std::string& id)
 {
-    // Anything unknown - including "", the design size of earlier builds - is
-    // Free Aspect.
+    // Anything unknown is Free Aspect. That includes "", which older settings
+    // files store.
     int w = 0, h = 0;
     m_PreviewId = kFreeAspect;
     if (ParseAspect(id, w, h) || ParseResolution(id, w, h) ||
@@ -653,7 +647,8 @@ void PlayViewPanel::LoadPreview(const std::string& projectPath)
     std::string id = EditorSettings::GetString("playView.screen:" + projectPath);
     if (id == "custom")
     {
-        // The custom size of earlier builds is a resolution like any other.
+        // Older settings store "custom" plus a separate size: read it as a
+        // resolution.
         int w = 0, h = 0;
         if (sscanf(EditorSettings::GetString("playView.customSize:" + projectPath).c_str(), "%dx%d", &w, &h) == 2)
         {
@@ -703,9 +698,9 @@ void PlayViewPanel::ApplyPreviewSize()
         SelectPreview(kFreeAspect);
     }
 
-    // Free Aspect and the aspect ratios follow the panel: last frame's canvas,
-    // since this runs before the window is laid out. Play runs at the size it
-    // started with, so the size holds still while it runs.
+    // Free Aspect and the aspect ratios follow the panel, using last frame's
+    // canvas since this runs before the window is laid out. Play keeps the
+    // size it started with until it stops.
     if (!m_App->IsStopped())
     {
         return;
@@ -733,15 +728,15 @@ void PlayViewPanel::ApplyPreviewSize()
     SceneView::Get().SetPreviewSize(std::max(w, 1), std::max(h, 1));
 }
 
-// The screen picker: the toolbar dropdown every panel uses, with the list
-// Unity's Game view has - Free Aspect, aspect ratios, every known platform's
-// screen, your own sizes, and Add... for more. Your own sizes are yours across
-// projects; right-click one to remove it. Play mode runs at the previewed size,
-// so the choice is locked while it runs.
+// The screen picker: the standard toolbar dropdown, with the list Unity's
+// Game view has: Free Aspect, aspect ratios, every known platform's screen,
+// the user's own sizes, and Add... for more. The user's sizes apply to every
+// project; right-click one to remove it. Play runs at the previewed size, so
+// the choice is locked while it runs.
 void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
 {
     (void)dpi;
-    // The entry's name and the size it previews at; once when they are the same.
+    // The entry's name and the size it previews at, shown once when they match.
     const std::string label = ScreenLabel(m_PreviewId);
     char size[32];
     snprintf(size, sizeof(size), "%dx%d", SceneView::Get().GetPreviewWidth(), SceneView::Get().GetPreviewHeight());
@@ -853,8 +848,8 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
     DrawAddScreenDialog();
 }
 
-// Add a screen size of your own: an aspect ratio or a resolution, with an
-// optional name. Kept for every project, like Unity's custom Game view sizes.
+// Adds a screen size of the user's own: an aspect ratio or a resolution, with
+// an optional name. Kept for every project, like Unity's custom Game view sizes.
 void PlayViewPanel::DrawAddScreenDialog()
 {
     if (m_OpenAddScreen)
@@ -905,9 +900,9 @@ void PlayViewPanel::DrawAddScreenDialog()
     EndSchematicModal();
 }
 
-// The previewed screen's pixel format, next to its size, in the same toolbar
-// dropdown. Picking a size selects that screen's format; this changes it. Play
-// renders in it, so it is locked while playing.
+// The previewed screen's pixel format, in a toolbar dropdown next to its size.
+// Picking a size selects that screen's format; this overrides it. Play renders
+// in it, so it is locked while playing.
 void PlayViewPanel::DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
 {
     (void)dpi;

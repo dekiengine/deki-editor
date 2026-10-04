@@ -7,15 +7,14 @@
 namespace DekiEditor
 {
 
-// Tools available in the scene view toolbar
+// The Scene view toolbar's tools.
 enum class SceneTool
 {
-    Select,  // Select and move objects (default)
-    Move,    // Move tool (translate gizmo)
-    Rect,    // Rect tool (resize gizmo)
+    Select,  // select and drag objects (default)
+    Move,    // translate gizmo
+    Rect,    // resize gizmo
 };
 
-// Gizmo axis for translate gizmo
 enum class GizmoAxis
 {
     None,
@@ -24,7 +23,6 @@ enum class GizmoAxis
     XY
 };
 
-// Resize edge for resize gizmo
 enum class ResizeEdge
 {
     None,
@@ -34,54 +32,50 @@ enum class ResizeEdge
     Left
 };
 
-// Cached texture info for rendering sprites in scene view
+// A texture cached for the Scene view.
 struct CachedTexture
 {
     uint32_t textureId = 0;
     uint32_t width = 0;
     uint32_t height = 0;
-    std::string spritePath;          // The relative sprite path this was loaded for
-    std::vector<uint8_t> pixelData;  // RGBA pixel data for alpha hit testing
+    std::string spritePath;          // the relative sprite path it was loaded for
+    std::vector<uint8_t> pixelData;  // RGBA, for alpha hit testing
     uint64_t lastUse = 0;            // SceneTextureCache LRU stamp
 
-    // Sample alpha at UV coordinates (0-1 range), returns 0-255
+    // Alpha (0-255) at UV coordinates (0-1).
     uint8_t SampleAlpha(float u, float v) const
     {
         if (pixelData.empty() || width == 0 || height == 0)
         {
-            return 255;  // No data, assume opaque
+            return 255;  // no data: opaque
         }
 
-        // Clamp UV to valid range
         u = (u < 0.0f) ? 0.0f : (u > 1.0f) ? 1.0f : u;
         v = (v < 0.0f) ? 0.0f : (v > 1.0f) ? 1.0f : v;
 
-        // Convert to pixel coordinates
         uint32_t px = static_cast<uint32_t>(u * (width - 1));
         uint32_t py = static_cast<uint32_t>(v * (height - 1));
 
-        // Get alpha from RGBA data (4 bytes per pixel, alpha is 4th byte)
+        // 4 bytes per pixel, alpha last.
         size_t idx = (py * width + px) * 4 + 3;
         if (idx < pixelData.size())
         {
             return pixelData[idx];
         }
 
-        return 255;  // Out of bounds, assume opaque
+        return 255;  // out of bounds: opaque
     }
 };
 
-// Scene view constants
 namespace SceneViewConstants
 {
-// The scene rectangle: a fixed size whose centre is the world origin, the
-// anchor the pan offset is measured from. Fixed so the scene view does not move
-// when the previewed screen changes; the screen itself is drawn around the
-// origin at its own size.
+// The scene rectangle: a fixed size centred on the world origin, which the
+// pan offset is measured from. Fixed so the view does not move when the
+// previewed screen changes; the screen is drawn around the origin at its own
+// size.
 constexpr int kAnchorWidth = 320;
 constexpr int kAnchorHeight = 240;
 
-// Zoom limits
 constexpr float kMinZoom = 0.25f;
 constexpr float kMaxZoom = 4.0f;
 

@@ -23,13 +23,13 @@ struct AssetPickerEntry
     std::string displayNameLower;  // for the search filter; lower-cased once at load
     std::string relativePath;
     std::string fullPath;
-    std::string guid;  // Asset GUID for editor serialization
+    std::string guid;  // what the editor serializes
 
-    // SubAsset support
-    bool isSubAsset = false;    // True if this is a frame SubAsset
-    std::string parentGuid;     // Parent asset GUID (for SubAssets)
-    int subAssetIndex = -1;     // Frame index (for SubAssets)
-    bool isExpandable = false;  // True if this asset has SubAssets (spritesheets)
+    // Sub-assets (spritesheet frames)
+    bool isSubAsset = false;    // a frame of a spritesheet
+    std::string parentGuid;     // sub-assets only
+    int subAssetIndex = -1;     // frame index, sub-assets only
+    bool isExpandable = false;  // has sub-assets (a spritesheet)
 };
 
 }  // namespace DekiEditor

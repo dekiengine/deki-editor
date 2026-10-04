@@ -119,10 +119,9 @@ bool WriteDekiJson(const std::string& projectPath, const std::string& projectNam
     j["version"] = "1.0";
     j["engine"] = "deki";
     // Both carry the same thing. Project::Save rewrites them on every save;
-    // the load gate reads lastSavedBy (see Project::Load). There is no fallback
-    // for a missing DEKI_ENGINE_VERSION on purpose: it is always defined, and
-    // the one that used to stand here wrote a literal "1.0.0" that then
-    // outranked every real version.
+    // the load check reads lastSavedBy (see Project::Load). No fallback for a
+    // missing DEKI_ENGINE_VERSION on purpose: it is always defined, and a
+    // literal fallback version would outrank every real one.
     j["lastSavedBy"] = DEKI_ENGINE_VERSION;
     j["engineVersion"] = DEKI_ENGINE_VERSION;
     j["structure"] = ProjectPaths::kStructureVersion;
@@ -147,11 +146,8 @@ bool WritePackageManifestFor(const std::string& projectPath, const std::vector<s
 
 bool WriteGitIgnore(const std::string& projectPath, std::string& err)
 {
-    // One ignored folder for editor state instead of an inventory of them. A
-    // previous version listed twelve entries and two were wrong - one named a
-    // directory nothing creates, another hid a tracked file - because nothing
-    // forced the list to track reality. With all generated state under
-    // generated/, there is no list to drift.
+    // One ignored folder for editor state, not a list of them: with all
+    // generated state under generated/, there is no list to go out of date.
     const std::string text = "# Everything the Deki Editor generates. Safe to delete; recreated on open/build.\n"
                              "generated/\n"
                              "\n"
@@ -173,17 +169,13 @@ bool WriteGitIgnore(const std::string& projectPath, std::string& err)
 
 bool WriteRenderPipeline(const std::string& projectPath, std::string& err)
 {
-    // No passes. This used to write a "clip2d" entry, with a comment saying a
-    // pipeline needs it or the project renders black - which was true once and
-    // is not now: clipping became a builtin of Standard2DRenderer, which
-    // pushes and pops a clip rect around any object exposing IClipProvider,
-    // and nothing registers a pass by that name. So every new project logged
-    // "No pass registered for 'clip2d'" on its first run while rendering
-    // perfectly, which is how a user learns to ignore warnings.
+    // No passes. Clipping is built into Standard2DRenderer, which pushes and
+    // pops a clip rect around any object exposing IClipProvider; no "clip2d"
+    // pass exists, and naming one logs a warning on every first run.
     //
     // Passes are opt-in extras (the tilemap pass, deki-3d's mesh pass), and
-    // most attach themselves. deki-rendering still recognises a clip2d entry
-    // from an older project without complaining; see IsBuiltinPassName there.
+    // most attach themselves. deki-rendering still accepts a clip2d entry
+    // from an older project quietly; see IsBuiltinPassName there.
     json j;
     j[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kAssetVersion;
     j["type"] = "RenderPipeline";
@@ -229,8 +221,8 @@ std::string InstallStarterFont(const std::string& projectPath, const std::string
 
 bool WriteStarterScene(const std::string& projectPath, const std::string& fontSourceGuid, std::string& err)
 {
-    // The camera shows 15 m top to bottom, so on the default 320x240 design
-    // size it is 20 x 15 m at 16 px/m and the gradient fills it.
+    // The camera shows 15 m top to bottom, so on a 320x240 screen it is
+    // 20 x 15 m at 16 px/m and the gradient fills it.
     json children = json::array();
 
     children.push_back(Object(2, "Camera",

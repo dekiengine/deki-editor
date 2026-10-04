@@ -1,15 +1,12 @@
-// EditorBoot - the editor's one startup path, shared by the GUI and the CLI.
+// EditorBoot: the editor's one startup path, shared by the GUI and the CLI.
 //
-// Before this existed, every CLI verb bootstrapped whatever slice of startup it
-// happened to need: its own PackageManager, its own PackageLoader, its own
-// cmake invocation. Each slice drifted from what EditorApp::OpenProject
-// actually does, and the drift was invisible - a verb did not fail, it just
-// operated on a project in a state the editor never leaves it in.
-// --verify-scenes ended up shipping a staleness warning purely to describe one
-// of those gaps.
+// CLI verbs must not set up their own slice of startup (their own
+// PackageManager, PackageLoader or cmake run): such a slice drifts from what
+// EditorApp::OpenProject does, and the verb then works on a project in a
+// state the editor never leaves it in, without failing.
 //
-// So there is one boot. BootOptions::headless decides whether a window is
-// created; it does not decide what the editor does with the project.
+// BootOptions::headless decides whether a window is created; it does not
+// change what the editor does with the project.
 
 #include "EditorBoot.h"
 
@@ -50,19 +47,19 @@
 #pragma comment(lib, "dwmapi.lib")
 #endif
 
-// Custom title bar state (updated each frame by EditorMenuBar)
+// Custom title bar state, updated each frame by EditorMenuBar.
 float g_MenuBarHeight = 30.0f;
 bool g_HoveringWindowControls = false;
-float g_ControlsStartX = 0.0f;             // X where window control buttons begin
-float g_ControlButtonW = 0.0f;             // Width of each button
-float g_MenuItemsStartX = 0.0f;            // X where File/Edit/... begin; right of this is NEVER drag region
+float g_ControlsStartX = 0.0f;             // x where the window control buttons begin
+float g_ControlButtonW = 0.0f;             // width of each button
+float g_MenuItemsStartX = 0.0f;            // x where File/Edit/... begin; right of it is never a drag region
 int g_NCHoverButton = 0;                   // 0=none, 1=min, 2=max, 3=close (set by WndProc)
-static bool g_CloseButtonPressed = false;  // Track close button press for mouse-up handling
+static bool g_CloseButtonPressed = false;  // a close press, handled on mouse-up
 
 #ifdef _WIN32
 static WNDPROC g_OriginalWndProc = nullptr;
 
-// Which button region is the cursor in? 0=none, 1=min, 2=max, 3=close
+// The button region under the cursor: 0=none, 1=min, 2=max, 3=close.
 static int GetTitleBarButton(HWND hwnd, int x, int y)
 {
     if (y >= (int)g_MenuBarHeight || g_ControlButtonW <= 0.0f)
@@ -96,8 +93,8 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     {
         case WM_NCCALCSIZE:
         {
-            // Remove the title bar - client area fills entire window.
-            // When maximized, clamp to the work area so we don't overlap the taskbar.
+            // No title bar: the client area fills the window. When maximized,
+            // clamp to the work area so the window does not cover the taskbar.
             if (wParam == TRUE)
             {
                 NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
@@ -105,8 +102,8 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 MONITORINFO mi = { sizeof(mi) };
                 GetMonitorInfo(monitor, &mi);
 
-                // If the proposed rect extends beyond the work area, clamp it.
-                // This handles maximize (where Windows overshoots to hide borders).
+                // Clamp a rect that extends past the work area. Maximize does
+                // this: Windows overshoots to hide the borders.
                 if (params->rgrc[0].top < mi.rcWork.top)
                 {
                     params->rgrc[0].top = mi.rcWork.top;
@@ -130,7 +127,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
         case WM_GETMINMAXINFO:
         {
-            // Constrain maximized window to the monitor's work area (excludes taskbar).
+            // A maximized window fills the monitor's work area (without the taskbar).
             HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             MONITORINFO mi = { sizeof(mi) };
             GetMonitorInfo(monitor, &mi);
@@ -165,8 +162,8 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 h = clientRc.bottom;
             }
 
-            // Caption buttons FIRST - they take priority over resize borders
-            // so the close button reaches the top-right corner (Chromium behavior).
+            // Caption buttons first: they win over the resize borders, so the
+            // close button reaches the top-right corner (as in Chromium).
             int btn = GetTitleBarButton(hwnd, x, y);
             if (btn == 1)
             {
@@ -183,7 +180,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
             const int border = 6;
 
-            // Resize borders (not when maximized)
+            // Resize borders (not when maximized).
             if (!IsZoomed(hwnd))
             {
                 if (y < border)
@@ -220,12 +217,11 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 }
             }
 
-            // Title bar drag - only the "D DEKI/EDITOR" block on the left side of
-            // the menu bar. The menu-items strip (File/Edit/...) and everything to
-            // the right of it always reports HTCLIENT so ImGui receives mouse
-            // moves and clicks - required for hover-based features like the item
-            // picker, which would otherwise be starved of WM_MOUSEMOVE events
-            // (HTCAPTION regions get WM_NCMOUSEMOVE instead).
+            // Title bar drag: only the "D DEKI/EDITOR" block on the left of the
+            // menu bar. The menu items (File/Edit/...) and everything right of
+            // them report HTCLIENT, so ImGui gets mouse moves and clicks there.
+            // Hover features like the item picker need that: HTCAPTION regions
+            // get WM_NCMOUSEMOVE instead of WM_MOUSEMOVE.
             if (y < (int)g_MenuBarHeight && g_MenuItemsStartX > 0.0f && x < (int)g_MenuItemsStartX)
             {
                 ImGuiContext* ctx = ImGui::GetCurrentContext();
@@ -241,10 +237,9 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
         case WM_NCLBUTTONDOWN:
         {
-            // Handle caption button actions directly on mouse-down.
-            // We can't defer to NCLBUTTONUP because returning 0 here prevents
-            // DefWindowProc from setting up NC mouse tracking, so NCLBUTTONUP
-            // never arrives.
+            // Caption buttons act on mouse-down. Returning 0 here stops
+            // DefWindowProc from setting up non-client mouse tracking, so
+            // NCLBUTTONUP never arrives.
             if (wParam == HTMINBUTTON)
             {
                 ShowWindow(hwnd, SW_MINIMIZE);
@@ -301,10 +296,9 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
         case WM_NCMOUSELEAVE: g_NCHoverButton = 0; return 0;
         case WM_NCACTIVATE:
-            // Prevent Windows from painting the default activation border
-            // on our custom-framed borderless window. Returning TRUE tells
-            // Windows we handled the activation; passing -1 as lParam skips
-            // the non-client repaint.
+            // Keep Windows from painting its activation border on this
+            // borderless window. Returning TRUE says the activation was
+            // handled; -1 as lParam skips the non-client repaint.
             return TRUE;
     }
     return CallWindowProc(g_OriginalWndProc, hwnd, msg, wParam, lParam);
@@ -317,15 +311,15 @@ namespace DekiEditor
 namespace
 {
 
-/// Window, GL context, ImGui context, theme and fonts. GUI only - a headless
-/// boot never calls this, which is the whole point: no display is required.
+/// Window, GL context, ImGui context, theme and fonts. GUI only: a headless
+/// boot never calls this, so it needs no display.
 bool BootDisplay(BootContext& ctx)
 {
     // The editor reads touches itself (TouchInput); SDL's emulation would
     // press the left button the instant a finger lands.
     DekiEditor::TouchInput::DisableSdlTouchMouse();
 
-    // Initialize SDL (SDL3 is always DPI-aware)
+    // SDL3 is always DPI-aware.
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         printf("Error: SDL_Init(): %s\n", SDL_GetError());
@@ -339,7 +333,6 @@ bool BootDisplay(BootContext& ctx)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
-    // Create window with graphics context
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
@@ -349,8 +342,8 @@ bool BootDisplay(BootContext& ctx)
 #ifdef _WIN32
     // Started minimized (`start /min`, a shortcut set to "Run: Minimized",
     // Start-Process -WindowStyle Minimized): come up minimized and inactive,
-    // restoring to maximized when clicked. Otherwise the maximize below took
-    // the foreground from whatever the user was doing - a game included.
+    // and restore to maximized when clicked, so the maximize below does not
+    // take the foreground from whatever the user is doing.
     bool startInBackground = false;
     {
         STARTUPINFOW si{};
@@ -366,9 +359,8 @@ bool BootDisplay(BootContext& ctx)
     if (startInBackground)
     {
         // Hidden until GL and ImGui are set up (below), then shown minimized.
-        // Created minimized, the window had no size when its GL context was
-        // made, ImGui's GL backend failed to load, and the first frame
-        // asserted.
+        // Do not create it minimized: it would have no size when its GL
+        // context is made, and ImGui's GL backend would fail to load.
         SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
@@ -384,7 +376,8 @@ bool BootDisplay(BootContext& ctx)
     DekiEditor::TouchInput::Get().SetWindow(ctx.window);
 
 #ifdef _WIN32
-    // Custom title bar: subclass WndProc for native window controls (snap layouts, etc.)
+    // Custom title bar: subclass WndProc to keep the native window controls
+    // (snap layouts, etc.).
     {
         HWND hwnd =
             (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
@@ -392,21 +385,21 @@ bool BootDisplay(BootContext& ctx)
         {
             g_OriginalWndProc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)CustomWndProc);
 
-            // Keep thick frame for resize + snap, remove caption for title bar
+            // Keep the thick frame for resizing and snapping; drop the caption.
             LONG style = GetWindowLong(hwnd, GWL_STYLE);
             style |= WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
             SetWindowLong(hwnd, GWL_STYLE, style);
 
-            // DWM shadow on borderless window
+            // DWM shadow on the borderless window.
             MARGINS margins = { 1, 1, 1, 1 };
             DwmExtendFrameIntoClientArea(hwnd, &margins);
 
             SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
                          SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
-            // Maximize now that our WndProc handles WM_NCCALCSIZE/WM_GETMINMAXINFO.
-            // Started in the background, the window is shown later, once GL
-            // is up: SW_MAXIMIZE would activate it.
+            // Maximize now that the WndProc handles WM_NCCALCSIZE and
+            // WM_GETMINMAXINFO. Started in the background, the window is shown
+            // later, once GL is up: SW_MAXIMIZE would activate it.
             if (!startInBackground)
             {
                 ShowWindow(hwnd, SW_MAXIMIZE);
@@ -414,7 +407,7 @@ bool BootDisplay(BootContext& ctx)
         }
     }
 #else
-    // Non-Windows: use SDL3 hit test for borderless window drag/resize
+    // Elsewhere: SDL3's hit test drags and resizes the borderless window.
     SDL_SetWindowHitTest(
         ctx.window,
         [](SDL_Window* win, const SDL_Point* area, void*) -> SDL_HitTestResult
@@ -478,17 +471,16 @@ bool BootDisplay(BootContext& ctx)
 
     ctx.glContext = SDL_GL_CreateContext(ctx.window);
     SDL_GL_MakeCurrent(ctx.window, ctx.glContext);
-    SDL_GL_SetSwapInterval(1);  // Enable vsync for smooth frame pacing
+    SDL_GL_SetSwapInterval(1);  // vsync
 
-    // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
     // deki-editor.dll links its own copy of ImGui, so its GImGui stays null
-    // until we hand it the exe's context. EditorTheme, EditorUI and every other
-    // shared helper lives in that DLL, so this has to happen before the first
-    // call into it (SetupEditorTheme below), not later at ToolHost init.
-    // Allocators first: they must be in place before the DLL allocates anything.
+    // until it gets the exe's context. EditorTheme, EditorUI and the other
+    // shared helpers live in that DLL, so this must happen before the first
+    // call into it (SetupEditorTheme below). Allocators first: they must be in
+    // place before the DLL allocates anything.
     {
         ImGuiMemAllocFunc allocFn = nullptr;
         ImGuiMemFreeFunc freeFn = nullptr;
@@ -510,29 +502,26 @@ bool BootDisplay(BootContext& ctx)
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename = DekiEditor::EditorSettings::GetImGuiIniPath();
 
-    // ImGui 1.92+ font auto-DPI. With this, fonts are loaded at base sizes
-    // (no `px * dpiScale` baking) and ImGui scales them via style.FontScaleDpi
-    // which the backend updates as monitor DPI changes. Sizes/padding still
-    // need style.ScaleAllSizes() at setup - FAQ note: "scales fonts but NOT
-    // sizes/padding for now." See FAQ "How should I handle DPI in my application?".
+    // ImGui 1.92+ font auto-DPI: fonts are loaded at base sizes and ImGui
+    // scales them by style.FontScaleDpi, which the backend updates when the
+    // monitor DPI changes. Sizes and padding still need style.ScaleAllSizes()
+    // at setup (ImGui FAQ, "How should I handle DPI in my application?").
     io.ConfigDpiScaleFonts = true;
 
     // FreeType font loader is enabled at build time (IMGUI_ENABLE_FREETYPE in
     // CMakeLists.txt). Hinting is chosen per font where the fonts are loaded:
     // LightHinting for the proportional fonts, full autohinting for the mono.
 
-    // Without this, ImGui's ErrorRecoveryTryToRecoverState fires IM_ASSERT
-    // when SafeDispatch unwinds a panel that faulted mid-BeginChild. With a
-    // debugger that's a pause; without one (or in release) it aborts the
-    // process. The recovery itself (the EndChild/End calls that follow the
-    // assert) still runs - we just don't want the assert to be fatal. The
-    // error is still surfaced via the callback wired below.
+    // Otherwise ImGui's ErrorRecoveryTryToRecoverState asserts when
+    // SafeDispatch unwinds a panel that faulted inside BeginChild, which
+    // aborts the process without a debugger. The recovery (the EndChild/End
+    // calls after the assert) still runs, and the error is reported through
+    // the callback set below.
     io.ConfigErrorRecoveryEnableAssert = false;
 
-    // Route ImGui's recovery messages ("Missing EndChild()" etc.) into the
-    // editor log so the Console panel shows what was recovered, even when
-    // no debugger is attached. Set via internal API because g.ErrorCallback
-    // is on ImGuiContext, not ImGuiIO.
+    // ImGui's recovery messages ("Missing EndChild()" etc.) go to the editor
+    // log, so the Console panel shows what was recovered. Set through the
+    // internal API because g.ErrorCallback is on ImGuiContext, not ImGuiIO.
     {
         auto* ctx = ImGui::GetCurrentContext();
         ctx->ErrorCallback = [](ImGuiContext*, void*, const char* msg)
@@ -541,14 +530,12 @@ bool BootDisplay(BootContext& ctx)
     }
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Multi-viewport (optional)
 
-    // Determine DPI scale using SDL_GetWindowDisplayScale
     ctx.dpiScale = SDL_GetWindowDisplayScale(ctx.window);
     if (ctx.dpiScale <= 0.0f)
     {
         ctx.dpiScale = 1.0f;
     }
 
-    // Setup Dear ImGui style - Godot 4.6 Modern theme
     DekiEditor::SetupEditorTheme(ctx.dpiScale);
 
     // Text antialiasing follows the system, like every other Windows app:
@@ -586,7 +573,6 @@ bool BootDisplay(BootContext& ctx)
                                              : lcdMode == 2 ? "subpixel BGR"
                                                             : "greyscale");
 
-    // Setup Platform/Renderer backends
     ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
     ImGui_ImplOpenGL3_Init(glslVersion);
 
@@ -609,14 +595,15 @@ bool BootDisplay(BootContext& ctx)
     }
 #endif
 
-    // We handle DPI manually (fonts at 16*dpiScale, ScaleAllSizes(dpiScale)).
-    // Disable ImGui 1.92's per-viewport FramebufferScale font scaling to prevent double DPI.
+    // DPI is handled by style.FontScaleDpi and ScaleAllSizes(dpiScale). Turn
+    // off ImGui 1.92's per-viewport FramebufferScale font scaling, or DPI
+    // would apply twice.
     ImGui::GetPlatformIO().Platform_GetWindowFramebufferScale = nullptr;
 
-    // Schematic theme fonts: Inter (UI body / tabs / labels) + JetBrains Mono
-    // (values / code / wordmark) + Space Grotesk Medium (display headings + logo).
-    // Tabler Icons merged into the body sizes. No fallback by design: if any TTF
-    // is missing, abort with a clear error.
+    // Theme fonts: Inter (UI body, tabs, labels), JetBrains Mono (values,
+    // code, wordmark) and Space Grotesk Medium (display headings, logo), with
+    // Tabler Icons merged into the body sizes. There is no fallback: if a TTF
+    // is missing, startup stops with a clear error.
     {
         const char* basePath = SDL_GetBasePath();
         std::string fontDir = (std::filesystem::path(basePath ? basePath : ".") / "resources" / "fonts").string();
@@ -646,30 +633,26 @@ bool BootDisplay(BootContext& ctx)
 
         ImFontConfig baseCfg;
         baseCfg.PixelSnapH = true;
-        // LightHinting: FreeType snaps glyphs only on Y, leaving horizontal
-        // spacing unsnapped. This is the same algorithm Microsoft's ClearType
-        // uses, which is why Inter looks fuller in Chrome than under FreeType's
-        // default native hinter. Closes most of the perceived "size" gap with
-        // the browser without changing the logical font size.
+        // LightHinting: FreeType snaps glyphs only on Y and leaves horizontal
+        // spacing alone, as ClearType does. Inter then looks as full as in
+        // Chrome, without changing the logical font size.
         baseCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
 
-        // Tabler codepoint range capped at 0xFFFF so we stay within ImWchar (uint16).
-        // Icons in our target mockup (player-play, folder, search, etc.) are all
-        // in the 0xEA02 - 0xF34F range.
+        // The Tabler range is capped at 0xFFFF to fit ImWchar (uint16). The
+        // icons the editor uses (player-play, folder, search...) are all in
+        // 0xEA02 - 0xF34F.
         static const ImWchar kIconRanges[] = { ICON_MIN_TI, 0xFFFF, 0 };
 
-        // The text fonts (Inter, JetBrains Mono, …) carry a handful of stray
-        // Private-Use-Area glyph mappings that overlap the Tabler icon range -
-        // e.g. Inter maps U+EE94 to a Greek-accent glyph. In MergeMode the base
-        // font wins, which silently shadows those icons (this is why hand-finger
-        // rendered blank while hand-finger-off was fine). Exclude the icon range
-        // from every text font so the merged Tabler font owns it.
+        // The text fonts (Inter, JetBrains Mono, ...) map a few Private Use
+        // Area codepoints that overlap the Tabler range (Inter maps U+EE94 to
+        // a Greek accent). In MergeMode the base font wins and hides those
+        // icons, so every text font excludes the icon range.
         baseCfg.GlyphExcludeRanges = kIconRanges;
 
         // With greyscale text, JetBrains Mono gets the autohinter in normal
-        // mode, which snaps stems on X as well: under LightHinting its stems
-        // straddled two pixels and read soft. Subpixel text has three times
-        // the horizontal resolution, so it keeps LightHinting like DirectWrite.
+        // mode, which snaps stems on X too; under LightHinting its stems
+        // straddle two pixels and look soft. Subpixel text has three times the
+        // horizontal resolution, so it keeps LightHinting, like DirectWrite.
         ImFontConfig monoCfg = baseCfg;
         if (ImGuiFreeType::DekiGetLcdMode() == 0)
         {
@@ -687,11 +670,11 @@ bool BootDisplay(BootContext& ctx)
             io.Fonts->AddFontFromFileTTF(iconsPath.c_str(), size, &iconCfg, kIconRanges);
         };
 
-        // Load fonts at BASE sizes (logical pixels). ImGui 1.92's
-        // ConfigDpiScaleFonts scales them at draw time via style.FontScaleDpi.
-        // loadAndRegister: adds the font via ImGui and registers its TTF with
-        // Fonts::RegisterTtf so Fonts::CssPx can later convert CSS sizes for
-        // it. Use this instead of the raw AddFontFromFileTTF path.
+        // Fonts load at base sizes (logical pixels); ImGui 1.92's
+        // ConfigDpiScaleFonts scales them at draw time by style.FontScaleDpi.
+        // loadAndRegister adds the font to ImGui and registers its TTF with
+        // Fonts::RegisterTtf, so Fonts::CssPx can convert CSS sizes for it.
+        // Use it instead of AddFontFromFileTTF.
         auto loadAndRegister = [&](const std::string& path, float px) -> ImFont*
         {
             const bool mono = (path == monoReg || path == monoMed);
@@ -700,8 +683,8 @@ bool BootDisplay(BootContext& ctx)
             return f;
         };
 
-        // Default body font is Inter Regular 13px with icons merged.
-        // Loaded FIRST so io.FontDefault points to it.
+        // The default body font, Inter Regular 13px with icons merged. Loaded
+        // first, so io.FontDefault points to it.
         DekiEditor::g_FontUI = loadAndRegister(interReg, 13.0f);
         mergeIcons(13.0f);
         io.FontDefault = DekiEditor::g_FontUI;
@@ -711,8 +694,7 @@ bool BootDisplay(BootContext& ctx)
         mergeIcons(11.5f);
 
         // Inter Medium 12.5px - inspector property labels, outlined action
-        // buttons. Icons merged: a label like ICON_TI_PLUS "  Add Component"
-        // rendered its glyph as nothing at all without them.
+        // buttons. Icons merged, for labels like ICON_TI_PLUS "  Add Component".
         DekiEditor::g_FontUIMed = loadAndRegister(interMed, 12.5f);
         mergeIcons(12.5f);
 
@@ -740,8 +722,8 @@ bool BootDisplay(BootContext& ctx)
     }
 
     // Now that g_FontUI is registered with its ratio, set the CSS-equivalent
-    // FontSizeBase. This is the size the default font renders at when no
-    // PushFont is active; Fonts::CssPx applies Inter's REAL_DIM correction.
+    // FontSizeBase: the size of the default font when no PushFont is active.
+    // Fonts::CssPx applies Inter's REAL_DIM correction.
     ImGui::GetStyle().FontSizeBase = DekiEditor::Fonts::CssPx(DekiEditor::g_FontUI, 13.0f);
 
     return true;
@@ -762,10 +744,10 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     }
     else
     {
-        // SDL still comes up headless: the editor installs an SDL-backed time
-        // provider (Deki::Time) while opening a project, and ProgressModal pumps
-        // SDL events. Video is the part a CLI run must not require - a build
-        // machine has no display and SDL_INIT_VIDEO fails outright there.
+        // SDL still starts headless: the editor installs an SDL-backed time
+        // provider (Deki::Time) while opening a project, and ProgressModal
+        // pumps SDL events. Video is left out: a build machine has no display,
+        // and SDL_INIT_VIDEO fails there.
         if (!SDL_Init(SDL_INIT_EVENTS))
         {
             printf("Error: SDL_Init(): %s\n", SDL_GetError());
@@ -773,16 +755,15 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
         }
 
         // No ImGui context is created, and nothing below needs one. The two
-        // places the open path hands one over take null: PackageLoader skips
+        // places the open path passes one on accept null: PackageLoader skips
         // its cross-DLL context hand-off, and ProgressModal returns before
-        // touching ImGui because no window is set. Anything that actually draws
-        // only runs from the interactive loop, which a headless boot never
-        // enters.
+        // touching ImGui because no window is set. Drawing happens only in the
+        // interactive loop, which a headless boot never enters.
     }
 
-    // Same call either way. With a null window ProgressModal::Show returns
-    // immediately, so every StartupProgress::Update on the open path is a
-    // no-op headless rather than a check at each of its ~10 call sites.
+    // The same call either way. With a null window ProgressModal::Show
+    // returns at once, so each StartupProgress::Update on the open path does
+    // nothing headless, with no check at its ~10 call sites.
     StartupProgress::SetWindow(ctx.window);
     StartupProgress::Update("Initializing...");
 
@@ -792,7 +773,7 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
 
     ProfilingService::Get().Initialize();
 
-    // Deep profiling callbacks (for plugin /Gh /GH instrumentation)
+    // Deep profiling callbacks (for plugin /Gh /GH instrumentation).
     ProfilingSetCallbacks(&ProfilingService::OnProfileEnter, &ProfilingService::OnProfileExit);
 
     return true;
@@ -804,9 +785,9 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     editor.SetDpiScale(ctx.dpiScale);
     editor.SetWindow(ctx.window);
 
-    // With no path the GUI comes up on the project manager screen rather than
-    // reopening whatever was last open. A headless boot always has one - the
-    // CLI rejects a verb without a project path before it gets here.
+    // With no path the GUI opens on the project manager screen instead of
+    // reopening the last project. A headless boot always has a path: the CLI
+    // rejects a verb without one before this point.
     bool opened = true;
     if (opts.projectPath)
     {
@@ -820,9 +801,9 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
         }
     }
 
-    // Bring the MCP server up at startup instead of requiring the Activity
-    // panel toggle, so external tooling can attach to a freshly launched
-    // editor (SSE on http://localhost:3000/sse; SETUP.md section 8).
+    // Start the MCP server at startup, without the Activity panel toggle, so
+    // external tools can attach to a freshly launched editor (SSE on
+    // http://localhost:3000/sse; SETUP.md section 8).
     if (opts.startMcp)
     {
         // The URL carries a per-session token; the server binds loopback only
@@ -851,9 +832,9 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
 
     // OpenProject defers a package check and a build check to
     // EditorApp::ProcessDeferredTasks, which only the interactive loop calls.
-    // Headless there is no loop, so run the package half here in the order the
-    // loop would - this is the same work the GUI does on its first frames, not
-    // an extra step. The build half is driven below for both modes.
+    // Headless there is no loop, so run the package check here, in the order
+    // the loop would: the same work the GUI does on its first frames. The
+    // build check runs below for both modes.
     if (ctx.headless)
     {
         if (auto* hr = editor.GetHotReloadService(); hr && hr->HasPendingPackageCheck())
@@ -862,19 +843,19 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
         }
     }
 
-    // Drive the deferred plugin build to completion while the startup modal is
-    // still visible. Otherwise the editor renders for ~3 frames between asset
-    // import and the build modal, which the user perceives as a flash.
+    // Finish the deferred plugin build while the startup modal is still up;
+    // otherwise the editor renders ~3 frames between asset import and the
+    // build modal, which looks like a flash.
     //
-    // Headless this is not cosmetic but required: it is the step that produces
-    // and promotes the plugin DLL a CLI verb is about to read.
+    // Headless this is required: it produces and promotes the plugin DLL a
+    // CLI verb is about to read.
     //
-    // Anything still building (a package rebuild the package check queued)
-    // finishes under the startup modal too. Headless there is no frame loop
-    // to pump it, and the verbs read the built libraries next.
+    // Anything else still building (a package rebuild the package check
+    // queued) finishes here too: headless there is no frame loop to drive it,
+    // and the verbs read the built libraries next.
     editor.FinishPendingBuilds();
 
-    // Startup complete - stop showing progress screen
+    // Startup is done: hide the progress screen.
     StartupProgress::Complete();
 
     return opened;

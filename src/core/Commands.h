@@ -1,9 +1,7 @@
 #pragma once
 
-/**
- * Umbrella include for all command types
- * Commands are organized into focused files under commands/
- */
+// Includes every command type. Each kind of command has its own file under
+// commands/.
 
 #include "commands/ModifyFieldCommand.h"
 #include "commands/ModifyValueCommand.h"

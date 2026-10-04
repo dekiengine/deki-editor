@@ -27,7 +27,7 @@ class CreateAssetDialog;
 class DeleteConfirmDialog;
 class RenameDialog;
 
-// Browser modes for the asset browser tabs
+// The asset browser's tabs.
 enum class BrowserMode
 {
     Assets,  // project/assets/ - textures, scenes, animations, etc.
@@ -39,21 +39,21 @@ struct AssetEntry
     std::string name;
     std::string path;
     std::string relativePath;
-    std::string guid;       // Asset GUID from .data sidecar file
-    std::string cachePath;  // Path to cached .tex file
+    std::string guid;       // from the .data sidecar file
+    std::string cachePath;  // the cached .tex file
     bool isDirectory;
-    bool hasCachedVersion;  // True if .tex exists in cache
+    bool hasCachedVersion;  // the .tex exists in the cache
 
-    // Sub-asset support (e.g., spritesheet frames, font variants)
-    bool isExpandable = false;  // Has sub-assets (spritesheet frames)
-    bool isExpanded = false;    // Currently showing sub-assets
-    bool isSubAsset = false;    // This is a sub-asset
-    std::string parentGuid;     // Parent asset GUID (for sub-assets)
-    int subAssetIndex = -1;     // Sub-asset index (for sub-assets)
-    int subAssetDepth = 0;      // Nesting depth (0=direct child, 1=grandchild)
+    // Sub-assets, such as spritesheet frames or font variants.
+    bool isExpandable = false;  // has sub-assets
+    bool isExpanded = false;    // sub-assets are shown
+    bool isSubAsset = false;
+    std::string parentGuid;  // sub-assets only
+    int subAssetIndex = -1;  // sub-assets only
+    int subAssetDepth = 0;   // 0 = direct child, 1 = grandchild
 };
 
-// Tree node for folder hierarchy
+// One folder in the asset tree.
 struct FolderNode
 {
     std::string name;
@@ -73,20 +73,21 @@ public:
     void Draw();
     void RefreshAssets();
 
-    // Mark the asset tree as stale so the next Draw rebuilds it. Used at
-    // project open to push the asset tree walk off the critical startup path
-    // and run it lazily on the first frame the panel actually renders.
+    /// Marks the asset tree stale so the next Draw rebuilds it. Project open
+    /// uses this so the disk walk runs on the panel's first drawn frame, not
+    /// during startup.
     void MarkAssetsDirty() { m_AssetsDirty = true; }
 
     void HandleFileDrop(const std::string& droppedPath);
 
-    // App accessor (for child dialogs to access DPI scaling, etc.)
+    // For child dialogs (DPI scaling and so on).
     EditorApp* GetApp() const { return m_App; }
 
-    // Public accessors for dialog classes
+    // For the dialog classes.
     const std::string& GetCurrentPath() const { return m_CurrentPath; }
-    /// Project root. Delete commands need it so their trash directory lands on
-    /// the same volume as the assets - std::filesystem::rename cannot cross one.
+    /// Project root. Delete commands put their trash directory under it so it
+    /// is on the same volume as the assets: std::filesystem::rename cannot
+    /// cross volumes.
     const std::string& GetProjectRoot() const { return m_ProjectRoot; }
     const std::string& GetHoveredFolderPath() const { return m_HoveredFolderPath; }
     const std::vector<AssetEntry>& GetEntries() const { return m_Entries; }
@@ -96,7 +97,7 @@ public:
     void RevealAsset(const std::string& absolutePath);
     void RenameAssetWithData(const std::string& oldPath, const std::string& newName);
 
-    // Dialog accessors for triggering from context menus
+    // For opening the dialogs from context menus.
     CreateFolderDialog* GetCreateFolderDialog() { return m_CreateFolderDialog.get(); }
     CreateAssetDialog* GetCreateAssetDialog() { return m_CreateAssetDialog.get(); }
     DeleteConfirmDialog* GetDeleteConfirmDialog() { return m_DeleteConfirmDialog.get(); }
@@ -104,7 +105,7 @@ public:
 
 private:
     void DrawModeTabs();
-    // Hierarchy-style search bar (dim magnifier + borderless transparent input).
+    // Search bar styled like the Hierarchy's: dim magnifier, borderless input.
     void DrawHierarchyStyleSearch(const char* id, char* buf, size_t bufSize);
     void DrawAssetTree();
     void DrawFolderNode(FolderNode& node, int& flatIndex);
@@ -112,22 +113,22 @@ private:
     void BuildFolderTree();
     void BuildFolderTreeRecursive(FolderNode& node, const std::filesystem::path& dirPath);
 
-    // Scripts flat view with filter and virtual folders
+    // Scripts tab: a flat, filtered list grouped by virtual folders.
     void DrawScriptsList();
     void BuildScriptFlatList();
 
-    // Virtual folder tree for the Scripts view. Rebuilt (and sorted at every
-    // level) when the folder list changes; it used to be rebuilt every frame.
+    // Virtual folder tree for the Scripts tab. Rebuilt, and sorted at every
+    // level, only when the folder list changes.
     struct VFNode
     {
-        std::string displayName;  // leaf name for display
-        std::string fullPath;     // full path like "A/B/C"
+        std::string displayName;  // last part of the path
+        std::string fullPath;     // like "A/B/C"
         std::vector<VFNode> children;
     };
     std::vector<VFNode> m_VFTree;
     std::vector<std::string> m_VFTreeNames;  // the folder names m_VFTree was built from
-    /// Assign a script and persist immediately - the panel has no other save
-    /// point, so a grouping change must survive a crash before the next open.
+    /// Puts a script in a virtual folder and saves at once: the panel has no
+    /// other save point, and the change must survive a crash.
     void MoveScriptToFolder(const std::string& relativePath, const std::string& folder);
     void DrawAssetDetails();
     void DrawContextMenu();
@@ -138,120 +139,111 @@ private:
     bool IsSourceFile(const std::string& extension);
     bool IsHeaderFile(const std::string& extension);
 
-    // Helper to move asset with its .data sidecar file
-
-    // Queue a file/folder move to run after the current frame's tree draw. Drop
-    // targets fire mid-iteration; moving now would rebuild the tree under the
-    // live iterator (see RunDeferredActions / BuildFolderTree guard).
+    // Queues a file or folder move to run after this frame's tree draw. Drop
+    // targets fire mid-iteration, and moving at once would rebuild the tree
+    // under the live iterator.
     void DeferMove(std::string srcPath, std::string destPath);
 
-    // Run and clear actions queued from within the tree/list draw. Called once
-    // in Draw() after EndChild, so every queued mutation happens past the
-    // iteration. Actions may enqueue more; those run next frame.
+    // Runs and clears the actions queued during the tree/list draw. Draw()
+    // calls it once after EndChild, past the iteration. Actions queued by
+    // these actions run next frame.
     void RunDeferredActions();
 
-    // Helper to duplicate an asset (file or folder) with its .data sidecar
+    // Duplicates a file or folder with its .data sidecar. The copy gets a new
+    // GUID: two files with one identity make every reference to either ambiguous.
     void DuplicateAsset(const std::string& srcPath);
 
-    // A copied asset must never inherit the source's GUID - two files claiming
-    // one identity make every reference to either of them ambiguous.
-
-    // Save a hierarchy object as a new .scene file in the given folder
+    // Saves a hierarchy object as a new .scene file in the folder.
     void SaveObjectAsScene(Deki::Object* obj, const std::string& folderPath);
 
-    // Create a new C++ script file
     void CreateScript(const std::string& directory, const std::string& name);
 
     EditorApp* m_App;
 
-    // Browser mode (Assets or Scripts tab)
     BrowserMode m_BrowserMode = BrowserMode::Assets;
 
     std::string m_CurrentPath;
-    std::string m_RootPath;     // Current root (assets or src based on mode)
-    std::string m_ProjectRoot;  // project/ - used for computing relative paths
+    std::string m_RootPath;     // assets/ or src/, by tab
+    std::string m_ProjectRoot;  // project/, for relative paths
     std::string m_AssetsRoot;   // project/assets/
     std::string m_SrcRoot;      // project/src/
     std::vector<AssetEntry> m_Entries;
     AssetEntry* m_SelectedAsset = nullptr;
     int m_SelectedIndex = -1;
-    int m_LastClickedIndex = -1;      // For shift-selection range
-    int m_DeferredSingleSelect = -1;  // Deferred single-select for multi-drag support
+    int m_LastClickedIndex = -1;      // anchor for shift-click ranges
+    int m_DeferredSingleSelect = -1;  // single-select applied on release, so a multi-selection can be dragged
     std::set<int> m_SelectedIndices;
-    std::string m_CachedMultiDragPayload;  // Built at end of tree draw when m_Entries is complete
-    // Path of the selected asset when the tree was last rebuilt; the selection
-    // is restored on the next draw once m_Entries exists again. Rebuilds used
-    // to drop the selection (and with it the Inspector) on any asset event.
+    std::string m_CachedMultiDragPayload;  // built at the end of the tree draw, once m_Entries is complete
+    // Path of the selected asset when the tree was last rebuilt. The next draw
+    // selects it again once m_Entries exists, so a rebuild keeps the selection
+    // and the Inspector.
     std::string m_ReselectPath;
 
-    // Track hovered folder for external drops
+    // Hovered folder, the target for drops from outside the editor.
     std::string m_HoveredFolderPath;
 
     // Which row the mouse is over, for the rows' hover fade.
     DekiEditor::Motion::RowHover m_RowHover;
 
-    // Track expanded spritesheets (by GUID)
+    // Expanded spritesheets, by GUID.
     std::set<std::string> m_ExpandedAssets;
 
     // Tree view
     FolderNode m_RootNode;
     std::set<std::string> m_ExpandedFolders;
-    std::string m_PendingRevealPath;  // absolute path to select on next draw
+    std::string m_PendingRevealPath;  // absolute path to select on the next draw
     bool m_PendingTreeRebuild = false;
-    // True only while DrawAssetTree/DrawScriptsList is iterating the node/entry
-    // vectors. The Build* mutators check this and defer the rebuild (which would
-    // free those vectors) to the post-draw pending-rebuild step. This is the hard
-    // backstop: even if an action forgets to defer, the tree can't be rebuilt
-    // mid-iteration.
+    // True only while DrawAssetTree/DrawScriptsList iterate the node and entry
+    // vectors. The Build* functions check it and put off the rebuild, which
+    // frees those vectors, until after the draw. This is the backstop for an
+    // action that forgets to defer itself.
     bool m_DrawingAssetView = false;
 
-    // Actions queued from within the tree/list draw (moves, duplicates, save-as-
-    // scene). RunDeferredActions() runs them once, after EndChild, so no draw
-    // code mutates the model mid-frame. This is the primary layer; m_DrawingAssetView
-    // is the backstop behind it.
+    // Actions queued during the tree/list draw (moves, duplicates, save as
+    // scene). RunDeferredActions() runs them after EndChild, so no draw code
+    // changes the model mid-frame. m_DrawingAssetView is the backstop.
     std::vector<std::function<void()>> m_DeferredActions;
 
-    // Set by MarkAssetsDirty (e.g. at project open). Cleared by Draw after the
-    // first RefreshAssets call, so the disk walk only runs when the panel is
-    // actually about to render.
+    // Set by MarkAssetsDirty. Draw clears it after calling RefreshAssets, so
+    // the disk walk runs only when the panel is about to draw.
     bool m_AssetsDirty = false;
 
     // Script creation
     bool m_ShowCreateScriptPopup = false;
     char m_NewScriptName[256] = "";
 
-    // Scripts flat view with filter and virtual folders
+    // Scripts tab list.
     struct ScriptEntry
     {
-        std::string name;          // filename only
-        std::string path;          // absolute path
-        std::string relativePath;  // relative to src/ (forward slashes, used as display path)
+        std::string name;          // file name only
+        std::string path;          // absolute
+        std::string relativePath;  // relative to src/, forward slashes; shown to the user
     };
     std::vector<ScriptEntry> m_ScriptFlatList;
     char m_ScriptFilter[256] = "";
 
-    // Assets-mode search filter. m_AssetFilterLower is the lowercased needle,
-    // recomputed each frame in DrawAssetTree and read while drawing nodes.
+    // Assets tab search filter. DrawAssetTree lowercases it into
+    // m_AssetFilterLower each frame for the node draw to match against.
     char m_AssetFilter[256] = "";
     std::string m_AssetFilterLower;
 
-    // Virtual folders: maps script relativePath -> virtual folder name ("" = root)
-    // Scripts-tab grouping. Persisted to script_folders.json; see
+    // Scripts tab grouping: script relativePath -> virtual folder name
+    // ("" = root). Saved to script_folders.json; see
     // asset_browser/VirtualFolders.h.
     VirtualFolders m_VirtualFolders;
     char m_NewVirtualFolderName[256] = "";
-    bool m_InlineCreatingFolder = false;     // showing inline input for new folder
-    bool m_InlineRenamingFolder = false;     // showing inline input for rename
-    bool m_InlineFolderFocusSet = false;     // track if we set focus on the input
+    bool m_InlineCreatingFolder = false;     // inline input for a new folder is shown
+    bool m_InlineRenamingFolder = false;     // inline input for a rename is shown
+    bool m_InlineFolderFocusSet = false;     // the input has been given focus
     std::string m_RenamingVirtualFolder;     // folder being renamed
-    std::string m_InlineCreateParentFolder;  // parent path for subfolder creation ("" = root)
+    std::string m_InlineCreateParentFolder;  // parent of the new folder ("" = root)
 
     // Folder delete/rename
     std::string m_PendingDeleteFolderPath;
     std::string m_PendingRenameFolderPath;
     char m_RenameFolderBuffer[256] = "";
 
-    // Link-to-scene prompt after drag-drop save
+    // After an object is dragged in and saved as a scene, offers to link it.
     bool m_ShowLinkPrompt = false;
     Deki::Object* m_PendingLinkObject = nullptr;
     std::string m_PendingLinkSceneGuid;

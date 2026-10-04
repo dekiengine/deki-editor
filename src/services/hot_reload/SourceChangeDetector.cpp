@@ -35,16 +35,11 @@ std::string PackageNameFromEventPath(const std::string& relativePath)
 
 bool IsBuildArtifact(const std::string& relativePath)
 {
-    // Filter watcher events that come from our own build output. CMake emits
-    // metadata into <package>/generated/, MSVC drops intermediates with these
-    // extensions, and the editor's build/ tree is full of churn. None of these
-    // should mark sources as dirty.
-    //
-    // Match on path SEGMENTS, not on "/generated/" substrings: the junction
-    // watchers in StartWatching are rooted at the package repo itself, so their
-    // relative paths start at the repo root ("generated/Foo.gen.cpp") with no
-    // leading slash. A substring check misses those, and every build's codegen
-    // then re-marks sources dirty - the editor rebuilds on each alt-tab forever.
+    // Match whole path segments, not a "/generated/" substring: the junction
+    // watchers in StartWatching are rooted at the package repo, so their paths
+    // start with "generated/Foo.gen.cpp" and no leading slash. Missing those
+    // makes every build's codegen mark sources dirty again, and the editor
+    // rebuilds on every alt-tab.
     auto hasSegment = [&relativePath](const char* seg)
     {
         const std::string s(seg);
@@ -59,8 +54,8 @@ bool IsBuildArtifact(const std::string& relativePath)
         return true;
     }
 
-    // Git's own files. The editor's git queries on a package clone refresh its
-    // index, and each one rebuilt the project. The event can name the .git
+    // Git's own files: the editor's git queries on a package clone refresh its
+    // index, which must not trigger a rebuild. The event can name the .git
     // directory itself, with nothing after it.
     if (hasSegment(".git") || relativePath == ".git" ||
         (relativePath.size() > 5 && relativePath.compare(relativePath.size() - 5, 5, "/.git") == 0))
@@ -135,15 +130,14 @@ void WalkSourceTree(const std::filesystem::path& root,
         return;
     }
 
-    // Step 1: Enumerate immediate children non-recursively. Any directory
-    // child - whether a plain directory or a Windows junction - is treated as
-    // a subtree root in Step 2.
+    // Step 1: list the immediate children. Every child directory, plain or a
+    // Windows junction, becomes a subtree root for step 2.
     std::vector<fs::path> subtreeRoots;
     std::error_code ec;
     for (const auto& child : fs::directory_iterator(root, ec))
     {
         // is_directory() follows reparse points on Windows, so junctions
-        // report true here - that's what we want.
+        // count as directories here.
         if (child.is_directory(ec))
         {
             subtreeRoots.push_back(child.path());
@@ -154,11 +148,10 @@ void WalkSourceTree(const std::filesystem::path& root,
         }
     }
 
-    // Step 2: For each subtree root, start a fresh recursive_directory_iterator.
-    // Starting iteration AT a junction path works because the junction is
-    // resolved by CreateFileW at open time; the iterator then walks the
-    // target's contents but reports paths prefixed by the junction-side root,
-    // keeping map keys stable across calls.
+    // Step 2: a new recursive_directory_iterator per subtree root. Starting at
+    // a junction works because CreateFileW resolves it on open. The iterator
+    // walks the target but reports paths under the junction side, so map keys
+    // stay stable across calls.
     for (const auto& subRoot : subtreeRoots)
     {
         try
@@ -175,7 +168,7 @@ void WalkSourceTree(const std::filesystem::path& root,
         }
         catch (const fs::filesystem_error&)
         {
-            // Partial walks are fine - next tick retries.
+            // A partial walk is fine; the next tick retries.
         }
     }
 }
@@ -216,9 +209,9 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath, const std::s
         }
         mix("\0", 1);
     };
-    // Size + mtime stand in for the content: an edit changes at least one of
-    // them, and reading every header on every build check (on the main
-    // thread, on every window focus) was the cost this hash is meant to save.
+    // Size and mtime stand in for the content: an edit changes at least one,
+    // and reading every header on every build check (main thread, every window
+    // focus) costs what this hash is meant to save.
     auto mixFileStat = [&](const fs::path& p)
     {
         std::error_code ec;
@@ -265,9 +258,9 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath, const std::s
     }
 
     // 3. Every header under project/src and project/packages: path, size and
-    // mtime. The reflection codegen parses headers for DEKI_EXPORT - header
-    // edits must trigger reconfigure; .cpp edits (compile-only) must not.
-    // Uses WalkSourceTree so junctioned package trees are included.
+    // mtime. The reflection codegen reads headers for DEKI_EXPORT, so header
+    // edits must reconfigure; .cpp edits only compile. WalkSourceTree includes
+    // junctioned package trees.
     auto mixHeaders = [&](const fs::path& root)
     {
         std::vector<fs::path> headers;
@@ -297,7 +290,7 @@ uint64_t ComputeConfigureInputsHash(const std::string& projectPath, const std::s
     mixStr("package-headers:");
     mixHeaders(packagesPath);
 
-    // Never return 0 - 0 is our "no stamp on disk" sentinel.
+    // Never 0: 0 means "no stamp on disk".
     return h == 0 ? 1 : h;
 }
 

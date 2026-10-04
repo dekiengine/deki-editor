@@ -12,7 +12,7 @@
 namespace DekiEditor
 {
 
-// Function pointer types for property capture and apply operations
+// Read a property's value at `offset` into JSON, and write JSON back into it.
 using CaptureFunc = nlohmann::json (*)(const Deki::Component* comp, size_t offset);
 using ApplyFunc = void (*)(Deki::Component* comp, size_t offset, const nlohmann::json& value);
 
@@ -106,10 +106,9 @@ inline nlohmann::json CaptureEnum(const Deki::Component* comp, size_t offset)
     return *reinterpret_cast<const int*>(reinterpret_cast<const char*>(comp) + offset);
 }
 
-// Size-aware enum capture. Use this instead of CaptureEnum when you have the
-// property's enumSize (e.g. from Deki::PropertyInfo.enumSize). The size-agnostic
-// CaptureEnum reads 4 bytes regardless of the enum's underlying type, which
-// pulls in adjacent fields when the enum is uint8_t- or uint16_t-backed.
+// Reads only `enumSize` bytes (Deki::PropertyInfo::enumSize). Use it over
+// CaptureEnum whenever the size is known: CaptureEnum always reads 4 bytes,
+// which takes in the next fields when the enum is uint8_t- or uint16_t-backed.
 inline nlohmann::json CaptureEnumSized(const Deki::Component* comp, size_t offset, uint8_t enumSize)
 {
     const char* base = reinterpret_cast<const char*>(comp) + offset;
@@ -278,9 +277,8 @@ inline void ApplyEnum(Deki::Component* comp, size_t offset, const nlohmann::json
     }
 }
 
-// Size-aware enum apply. Writes only enumSize bytes at the offset, so a
-// uint8_t-backed enum doesn't clobber the next 3 bytes of the struct (which
-// is how the editor used to zero out width/height when changing dither_mode).
+// Writes only `enumSize` bytes, so a uint8_t-backed enum does not overwrite
+// the 3 bytes after it in the struct.
 inline void ApplyEnumSized(Deki::Component* comp, size_t offset, const nlohmann::json& value, uint8_t enumSize)
 {
     if (!value.is_number_integer())
@@ -313,7 +311,7 @@ inline void ApplyObjectRef(Deki::Component* comp, size_t offset, const nlohmann:
     ref.resolved = nullptr;
 }
 
-// Array capture - dispatches based on element type from property info
+// Reads an array property, by the element type in the property info.
 inline nlohmann::json CaptureArray(const Deki::Component* comp, const Deki::PropertyInfo& prop)
 {
     const void* ptr = reinterpret_cast<const char*>(comp) + prop.offset;
@@ -360,7 +358,7 @@ inline nlohmann::json CaptureArray(const Deki::Component* comp, const Deki::Prop
     }
 }
 
-// Array apply - dispatches based on element type from property info
+// Writes an array property, by the element type in the property info.
 inline void ApplyArray(Deki::Component* comp, const Deki::PropertyInfo& prop, const nlohmann::json& value)
 {
     if (!value.is_array())
@@ -452,10 +450,9 @@ inline void ApplyNoop(Deki::Component*, size_t, const nlohmann::json&)
 {
 }
 
-// Get handler for a property type. One case per enumerator, by name: the
-// positional table this replaces paired a type with another type's handlers
-// the moment Deki::PropertyType was reordered, with nothing but a comment to
-// keep the two in step.
+// The handler for a property type. One case per enumerator, by name, so
+// reordering Deki::PropertyType cannot pair a type with another type's
+// handlers. Must not become a table indexed by the enum value.
 inline const PropertyTypeHandler& GetPropertyTypeHandler(Deki::PropertyType type)
 {
     static const PropertyTypeHandler kInt8 = { CaptureInt8, ApplyInt8 };

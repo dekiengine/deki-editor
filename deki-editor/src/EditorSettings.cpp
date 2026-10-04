@@ -31,14 +31,11 @@ static std::string s_ImGuiIniPath;
 std::string EditorSettings::GetSettingsDir()
 {
 #ifdef _WIN32
-    // The WIDE call, and a wide std::filesystem::path all the way to the end.
-    //
-    // SHGetFolderPathA returns the ANSI-code-page spelling of the path, so on
-    // an account whose name does not fit that code page - anything Cyrillic,
-    // Greek, Chinese, Japanese - it comes back mangled or fails outright, and
-    // the editor then has nowhere to keep its settings, layout or log. Building
-    // the path as wchar_t avoids the conversion entirely; .string() at the end
-    // is UTF-8 out of std::filesystem.
+    // The wide call, and a wide std::filesystem::path all the way to the end.
+    // SHGetFolderPathA returns the path in the ANSI code page, so a user name
+    // outside it (Cyrillic, Greek, Chinese, Japanese...) comes back mangled or
+    // fails, and the editor has nowhere to keep its settings, layout or log.
+    // .string() at the end gives UTF-8.
     PWSTR roaming = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &roaming)))
     {
@@ -52,9 +49,8 @@ std::string EditorSettings::GetSettingsDir()
         return settingsDir.string();
     }
 #endif
-    // Elsewhere: the editor data directory (~/.deki-editor), where EditorPaths
-    // also puts toolchains and board packs. This used to return ".", so
-    // settings, layout and the log landed in whatever the current directory was.
+    // Elsewhere: the editor data directory, where EditorPaths also puts
+    // toolchains and board packs.
     std::string dataDir = EditorPaths::GetEditorDataDir();
     if (dataDir.empty())
     {
@@ -189,11 +185,10 @@ void EditorSettings::Save()
     }
     data["stringPreferences"] = stringPrefs;
 
-    // Atomic: Save() runs on a lot of ordinary actions (panel toggles, project
-    // and scene changes), so a crash lands in the middle of one often enough
-    // to matter. Streaming straight into the file truncated it first, and a
-    // torn settings.json is discarded on the next launch - losing the last
-    // project, the last scene per project, and the whole panel layout.
+    // Atomic: Save() runs on many ordinary actions (panel toggles, project and
+    // scene changes), so a crash can land in the middle of one. A torn
+    // settings.json is discarded on the next launch, losing the last project,
+    // the last scene per project and the whole panel layout.
     std::string err;
     if (!AtomicWriteFile(settingsPath, data.dump(2), err))
     {
@@ -215,10 +210,10 @@ void EditorSettings::SetLastProjectPath(const std::string& path)
 
 std::string EditorSettings::GetEnginePath()
 {
-    // Resolve from submodule at <editor-root>/deki-engine. Multi-config (VS) puts the
-    // exe under build/bin/<Config>/; single-config (Ninja/Make) puts it under build/bin/.
-    // Walk up the right number of levels for the layout (mirrors HotReloadService /
-    // BuildFileGenerator), so engine-path resolution works under either generator.
+    // The engine is at <editor-root>/deki-engine. Multi-config generators (VS)
+    // put the exe under build/bin/<Config>/, single-config ones (Ninja, Make)
+    // under build/bin/; walk up the right number of levels for either, as
+    // HotReloadService and BuildFileGenerator do.
     fs::path exeDir = fs::path(EditorPaths::GetExecutableDir());
     std::string lastSeg = exeDir.filename().string();
     const bool multiConfig =
@@ -270,8 +265,8 @@ std::string EditorSettings::GetCMakeLocationArgs()
 
     // Where the editor's own configure put SDL3's headers and link library
     // (a prebuilt archive on Windows, a source build elsewhere); generated
-    // package builds compile against the same ones. Absent from an older
-    // cache, the generated file falls back to the source layout.
+    // package builds compile against the same ones. When the cache does not
+    // have them, the generated file uses the source layout.
     const std::string buildDir = GetBuildDir();
     const std::string sdl3Include = ReadCMakeCacheVar(buildDir, "DEKI_SDL3_INCLUDE_DIR");
     const std::string sdl3Lib = ReadCMakeCacheVar(buildDir, "DEKI_SDL3_LIB_DIR");
@@ -363,7 +358,7 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
 {
     std::vector<PackageDepInfo> result;
 
-    // Helper: scan a packages directory for platform dependencies
+    // Scans a packages directory for platform dependencies.
     auto scanDir = [&](const fs::path& packagesDir)
     {
         if (!fs::exists(packagesDir))
@@ -408,9 +403,10 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
 
                 for (const auto& dep : deps)
                 {
-                    // dependencies.<platform> mixes bare strings (ESP-IDF component names,
-                    // consumed as REQUIRES via ScanPackageManifests) with {name,git,...}
-                    // objects. This parser only wants the object package-deps; skip the rest.
+                    // dependencies.<platform> mixes bare strings (ESP-IDF
+                    // component names, used as REQUIRES by ScanPackageManifests)
+                    // with {name, git, ...} objects. Only the objects are
+                    // package dependencies.
                     if (!dep.is_object())
                     {
                         continue;
@@ -420,7 +416,6 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
                     {
                         continue;
                     }
-                    // Skip duplicates
                     bool exists = false;
                     for (const auto& r : result)
                     {
@@ -460,7 +455,7 @@ EditorSettings::GetPlatformDependencies(const std::string& platformKey,
         }
     };
 
-    // Scan project-installed packages (standalone DLLs)
+    // Packages installed in the project (standalone DLLs).
     std::string projectPath = GetLastProjectPath();
     if (!projectPath.empty())
     {

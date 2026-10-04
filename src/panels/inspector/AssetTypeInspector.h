@@ -17,10 +17,10 @@ public:
     AssetTypeInspector(EditorApp* app, TextureInspector* textureInspector);
     ~AssetTypeInspector();
 
-    // Draw the asset inspector based on selected asset type
+    /// Draws the inspector for the selected asset, by its type.
     void Draw();
 
-    // Reset cached usage data (call when project changes)
+    /// Forgets which assets scenes use. Call it when the project changes.
     void InvalidateUsageCache() { m_HasScannedUsage = false; }
 
 private:
@@ -28,18 +28,18 @@ private:
     TextureInspector* m_TextureInspector;  // Not owned
     std::unique_ptr<SceneInspector> m_SceneInspector;
 
-    // Draw the JSON-based asset type editor
+    // The editor registered for a JSON asset's type.
     void DrawAssetTypeEditor(const std::string& assetPath, const std::string& assetGuid);
 
-    // Draw deploy properties at bottom of inspector
+    // The deploy rows at the bottom of the inspector.
     void DrawDeployProperties(const std::string& assetGuid);
 
-    // True if the typed JSON asset's registered handler compiles to a texture
-    // (e.g. ProceduralSprite). Cached per path - the type field of an asset
-    // doesn't change while it is selected.
+    // True if the JSON asset's type compiles to a texture (ProceduralSprite,
+    // say). Cached per path, since an asset's type does not change while it is
+    // selected.
     bool CompilesToTexture(const std::string& assetPath);
 
-    // Asset usage cache (for deploy properties)
+    // Assets scenes use, for the deploy rows.
     std::unordered_set<std::string> m_UsedGuids;
     bool m_HasScannedUsage = false;
 

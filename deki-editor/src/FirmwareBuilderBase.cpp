@@ -65,7 +65,7 @@ bool FirmwareBuilderBase::IsPackageCompatible(const std::string& metadataPath) c
 {
     if (!fs::exists(metadataPath))
     {
-        return true;  // No metadata = unknown, assume compatible
+        return true;  // no metadata: unknown, so assume compatible
     }
 
     try
@@ -81,7 +81,7 @@ bool FirmwareBuilderBase::IsPackageCompatible(const std::string& metadataPath) c
 
         if (!j.contains("dependencies") || !j["dependencies"].is_object())
         {
-            return true;  // No dependencies = pure code, works everywhere
+            return true;  // no dependencies: pure code, works everywhere
         }
 
         const auto& pd = j["dependencies"];
@@ -98,7 +98,7 @@ std::vector<std::string> FirmwareBuilderBase::GetPackageSupportedPlatforms(const
 {
     if (!fs::exists(metadataPath))
     {
-        return {};  // No file = unknown
+        return {};  // no file: unknown
     }
 
     try
@@ -114,7 +114,7 @@ std::vector<std::string> FirmwareBuilderBase::GetPackageSupportedPlatforms(const
 
         if (!j.contains("dependencies") || !j["dependencies"].is_object())
         {
-            return { "all" };  // No dependencies = pure code
+            return { "all" };  // no dependencies: pure code
         }
 
         std::vector<std::string> platforms;
@@ -217,8 +217,8 @@ bool FirmwareBuilderBase::IsToolchainBusy() const
 // Package dep resolution
 // ============================================================================
 
-// Resolve a platform-keyed field from a package.json object.
-// Checks for platformKey first, then "default", then returns empty array.
+// Reads a platform-keyed field from a package.json object: platformKey first,
+// then "default", else an empty array.
 static nlohmann::json ResolvePlatformValue(const nlohmann::json& manifest, const std::string& field,
                                            const std::string& platformKey)
 {
@@ -245,7 +245,7 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
 {
     std::vector<DependencyInfo> result;
 
-    // 1. Load all package.json manifests from project packages
+    // 1. Load the package.json of every project package.
     std::map<std::string, nlohmann::json> manifests;
     fs::path packagesDir = fs::path(GetPackagesDirectory(projectPath));
     if (!fs::exists(packagesDir))
@@ -288,11 +288,11 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
         return result;
     }
 
-    // 2. Determine enabled packages from project's packages.json
+    // 2. Enabled packages, from the project's packages.json.
     std::set<std::string> enabledPackages;
     for (const auto& kv : manifests)
     {
-        enabledPackages.insert(kv.first);  // Default: all enabled
+        enabledPackages.insert(kv.first);  // all enabled by default
     }
 
     fs::path packagesJsonPath = fs::path(projectPath) / "packages.json";
@@ -320,7 +320,8 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
         }
     }
 
-    // 3. Resolve deki-* package deps transitively (fixed-point loop)
+    // 3. Resolve deki-* package dependencies transitively (loop until nothing
+    //    changes).
     bool changed = true;
     while (changed)
     {
@@ -337,7 +338,7 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
             auto deps = ResolvePlatformValue(it->second, "dependencies", platformKey);
             for (const auto& dep : deps)
             {
-                // Package deps are entries with a "name" starting with "deki-"
+                // Package dependencies are entries whose "name" starts with "deki-".
                 if (!dep.is_object())
                 {
                     continue;
@@ -360,7 +361,8 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
         }
     }
 
-    // 4. Collect external dependencies (skip deki-* entries), deduplicate (highest version wins)
+    // 4. External dependencies (not deki-*), without duplicates: the highest
+    //    version wins.
     for (const auto& id : enabledPackages)
     {
         auto it = manifests.find(id);
@@ -379,7 +381,7 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
 
             DependencyInfo dep;
             dep.name = depObj.value("name", "");
-            // Skip deki-* entries (handled in step 3)
+            // deki-* entries were handled in step 3.
             if (dep.name.rfind("deki-", 0) == 0)
             {
                 continue;
@@ -393,7 +395,6 @@ std::vector<DependencyInfo> FirmwareBuilderBase::ReadEnginePackageDeps(const std
                 continue;
             }
 
-            // Deduplicate: highest version wins
             bool replaced = false;
             for (auto& existing : result)
             {

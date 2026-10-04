@@ -11,65 +11,46 @@ namespace DekiEditor
 
 class EditorApp;
 
-/**
- * @brief Hosts and manages editor windows from engine packages
- *
- * The ToolHost discovers windows registered by engine packages.
- * Windows use ImGui directly for rendering.
- */
+/// Hosts the editor windows that engine packages register. The windows draw
+/// with ImGui directly.
 class ToolHost
 {
 public:
     ToolHost(EditorApp* app);
     ~ToolHost();
 
-    /**
-     * @brief Discover tools and windows from loaded engine/plugins
-     */
+    /// Finds the tools and windows registered by the loaded engine and plugins.
     void DiscoverTools();
 
-    /**
-     * @brief Draw menu items for all discovered tools/windows
-     */
+    /// Draws a menu item for every discovered tool or window.
     void DrawToolsMenu();
 
-    /**
-     * @brief Update and draw all open tools/windows
-     */
+    /// Updates and draws every open tool or window.
     void Update(float deltaTime);
 
-    /**
-     * @brief Destroy all window instances while their DLLs are still loaded.
-     * Must be called before package DLLs are unloaded during hot reload.
-     * Open windows are asked to serialize themselves first
-     * (EditorWindow::SaveSession) and are restored by the next DiscoverTools().
-     */
+    /// Destroys every window instance while its DLL is still loaded. Must be
+    /// called before package DLLs are unloaded during hot reload. Open
+    /// windows save themselves first (EditorWindow::SaveSession), and the
+    /// next DiscoverTools() restores them.
     void ClearWindows();
 
-    /**
-     * @brief Drop any sessions saved by ClearWindows (project close: the next
-     * DiscoverTools belongs to a different project).
-     */
+    /// Drops the sessions ClearWindows saved. For project close: the next
+    /// DiscoverTools belongs to a different project.
     void ClearPendingSessions() { m_PendingSessions.clear(); }
 
-    /**
-     * @brief Open a specific tool/window by name
-     */
+    /// Opens a tool or window by name.
     void OpenTool(const char* name);
 
-    /**
-     * @brief Open a tool/window for a specific file
-     * @return true if a tool was found that can handle the file
-     */
-    // `toolTitle` opens that window (by GetTitle()) for the file; null or
-    // empty lets the file's type choose.
+    /// Opens a tool or window for a file. Returns true if a tool can handle
+    /// it. `toolTitle` opens that window (by GetTitle()); null or empty lets
+    /// the file's type choose.
     bool OpenToolForFile(const char* filePath, const char* cachePath = nullptr, const char* toolTitle = nullptr);
 
     int GetWindowCount() const { return static_cast<int>(m_Windows.size()); }
     EditorWindow* GetWindow(int index) const;
 
-    // Fired during DiscoverTools for each registered window. Used by the
-    // startup progress modal to surface which tool is currently being created.
+    // Fired during DiscoverTools for each registered window. The startup
+    // progress modal uses it to show which tool is being created.
     std::function<void(const std::string& toolTitle)> onToolDiscovered;
 
 private:
@@ -78,7 +59,7 @@ private:
         std::unique_ptr<EditorWindow> window;
         std::string menuPath;
         std::string title;
-        EditorWindow* (*createFunc)() = nullptr;  // Factory to recreate window
+        EditorWindow* (*createFunc)() = nullptr;  // Recreates the window
         bool wasOpenLastFrame = false;
     };
 

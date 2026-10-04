@@ -7,54 +7,53 @@
 namespace DekiEditor
 {
 
-// Screenshot / frame-sequence capture of the editor's own window.
-//
-// Distinct from FrameCaptureService, which captures the *game* render buffer in
-// play mode. This one reads the editor's OpenGL backbuffer, so it sees the real
-// ImGui chrome - panels, tabs, gizmos - exactly as a user sees them.
-//
-// Requests are queued (usually from the MCP tool thread's main-thread pump,
-// which runs mid-frame) and serviced by ProcessEndOfFrame(), called after
-// ImGui_ImplOpenGL3_RenderDrawData() and before SDL_GL_SwapWindow(). Queuing is
-// what makes the timing correct: a capture asked for during frame N lands at the
-// end of frame N + framesToWait, so edits made in the same MCP batch are visible.
-//
-// Files are written to a .tmp sibling and renamed into place, so a client
-// polling for the path never observes a half-written PNG.
+/// Screenshots and frame sequences of the editor's own window.
+///
+/// FrameCaptureService captures the game's render buffer in play mode; this
+/// reads the editor's OpenGL backbuffer, so it shows the ImGui panels, tabs and
+/// gizmos exactly as a user sees them.
+///
+/// Requests are queued (usually from the MCP main-thread pump, which runs
+/// mid-frame) and handled by ProcessEndOfFrame(), called after
+/// ImGui_ImplOpenGL3_RenderDrawData() and before SDL_GL_SwapWindow(). Queuing
+/// gets the timing right: a capture asked for during frame N happens at the end
+/// of frame N + framesToWait, so edits made in the same MCP batch are visible.
+///
+/// Files are written to a .tmp file beside the target and renamed into place,
+/// so a client polling for the path never sees a half-written PNG.
 class EditorCapture
 {
 public:
     static EditorCapture& Get();
 
-    // Rect in ImGui/framebuffer pixels. An empty (w or h <= 0) rect means
-    // "whole window". Resolved at capture time, not at request time.
+    /// Rect in ImGui (framebuffer) pixels. An empty rect (w or h <= 0) means
+    /// the whole window. Resolved at capture time, not at request time.
     struct Region
     {
         float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
     };
 
-    // Queue a single PNG. `panel` (an ImGui window name) wins over `region` when
-    // set; `padding` grows the resolved rect on every side, clamped to the window.
+    /// Queues one PNG. `panel` (an ImGui window name), when set, wins over
+    /// `region`; `padding` grows the rect on every side, clamped to the window.
     void RequestScreenshot(const std::string& path, const std::string& panel, const Region& region, float padding,
                            int framesToWait);
 
-    // Queue a PNG sequence: `frames` files written every `stride` frames as
-    // frame_0000.png … in `dir`, then a `done.txt` marker holding the count.
-    // Intended to be assembled into a GIF/video outside the editor.
+    /// Queues a PNG sequence: `frames` files, one every `stride` frames, as
+    /// frame_0000.png … in `dir`, then a `done.txt` marker holding the count.
+    /// Meant to be made into a GIF or video outside the editor.
     void RequestSequence(const std::string& dir, const std::string& panel, const Region& region, float padding,
                          int frames, int stride, int framesToWait);
 
-    // Called once per frame, after the draw data is submitted and before swap.
+    /// Called once per frame, after the draw data is submitted and before swap.
     void ProcessEndOfFrame(int framebufferWidth, int framebufferHeight);
 
-    // Bring a docked panel's tab to the front. MCP handlers run before
-    // ImGui::NewFrame(), so the request is queued and applied by
-    // ApplyPendingFocus() at the top of the next frame instead of poking
-    // ImGui's focus state from outside a frame scope.
+    /// Brings a docked panel's tab to the front. MCP handlers run before
+    /// ImGui::NewFrame(), so the request is queued and ApplyPendingFocus()
+    /// applies it at the top of the next frame, inside a frame scope.
     void RequestFocus(const std::string& panel);
     void ApplyPendingFocus();
 
-    // Names + rects of currently-live ImGui windows, for picking a `panel`.
+    /// Names and rects of the open ImGui windows, for picking a `panel`.
     struct PanelInfo
     {
         std::string name;
@@ -66,9 +65,9 @@ public:
 
     bool HasPendingWork() const { return !m_Requests.empty(); }
 
-    // A frame sequence is being recorded. The main loop then steps the UI at
-    // a fixed 1/60 s per frame, so each captured frame is one sixtieth of a
-    // second of animation however long writing it takes.
+    /// True while a frame sequence is being recorded. The main loop then steps
+    /// the UI by a fixed 1/60 s per frame, so each captured frame is 1/60 s of
+    /// animation however long writing it takes.
     bool IsRecordingSequence() const
     {
         for (const Request& r : m_Requests)
@@ -92,23 +91,23 @@ private:
         Region region;
         float padding = 0.0f;
         int framesToWait = 0;
-        // Sequence bookkeeping.
+        // Sequence state.
         int framesRemaining = 0;
         int stride = 1;
         int strideCounter = 0;
         int frameIndex = 0;
-        // Consecutive frames where the target rect could not be resolved -
-        // usually a docked panel whose tab is not currently selected. Transient,
-        // so wait it out rather than abandoning the request.
+        // Frames in a row where the target rect could not be found, usually a
+        // docked panel whose tab is not selected. That passes, so the request
+        // waits instead of failing.
         int misses = 0;
     };
 
-    // How long to tolerate an unresolvable target before giving up. At 60 fps
-    // this is a couple of seconds: long enough to ride out a tab switch, short
-    // enough that a genuinely wrong panel name still fails rather than hangs.
+    // How many frames to wait for a missing target before giving up. At 60 fps
+    // a couple of seconds: long enough for a tab switch, short enough that a
+    // wrong panel name fails rather than hangs.
     static constexpr int kMaxResolveMisses = 150;
 
-    // Resolve panel/region into a pixel rect clamped to the framebuffer.
+    // Turns the panel or region into a pixel rect clamped to the framebuffer.
     // Returns false when the named panel does not exist or is off-screen.
     bool ResolveRect(const Request& req, int fbW, int fbH, int& outX, int& outY, int& outW, int& outH) const;
 

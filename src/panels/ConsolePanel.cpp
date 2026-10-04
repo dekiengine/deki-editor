@@ -34,7 +34,7 @@ ConsolePanel::ConsolePanel(EditorApp* app)
 {
     s_Instance = this;
 
-    // Load persisted filter states
+    // Filter states saved in the editor settings.
     m_ShowEditor = EditorSettings::GetBool("console.showEditor", false);
     m_ShowDebug = EditorSettings::GetBool("console.showDebug", false);
     m_ShowInfo = EditorSettings::GetBool("console.showInfo", true);
@@ -128,11 +128,10 @@ void ConsolePanel::Draw()
         focusFrames--;
     }
 
-    // NoScrollWithMouse/NoScrollbar: the window itself never scrolls - the log
-    // lives in its own child (which scrolls independently). This frees the mouse
-    // wheel for the toolbar's horizontal scroll when the cursor is over the
-    // toolbar, instead of ImGui scrolling the whole window (which dragged the
-    // log along with it).
+    // The window itself never scrolls; the log scrolls in its own child. That
+    // leaves the mouse wheel over the toolbar free for the toolbar's
+    // horizontal scroll, instead of scrolling the whole window and the log
+    // with it.
     if (!ImGui::Begin("CONSOLE###Console", &isOpen,
                       DekiEditor::MaximizedWindowFlags("CONSOLE###Console") | ImGuiWindowFlags_NoScrollbar |
                           ImGuiWindowFlags_NoScrollWithMouse))
@@ -141,11 +140,10 @@ void ConsolePanel::Draw()
         return;
     }
 
-    // Toolbar - schematic style: dim ALL CAPS labels with accent check marks.
-    // Mockup-style segmented filter row (mockup line 502-541):
-    //   [ICO][ICO][ICO]  [Editor][Debug][Info][Warnings ▪][Errors ▪]   [search Filter…]
-    // All cells share a 1px Line2 left divider; no internal padding gaps;
-    // active chips/buttons get a subtle white-fade bg.
+    // Toolbar: one row of cells.
+    //   [ICO][ICO][ICO][Info][Warnings][Errors]  [search Filter…][more]
+    // Cells are split by 1px dividers with no gaps; active cells get a faint
+    // light background.
     {
         const float dpi = m_App->Dpi(1.0f);
         const float rowH = 34.0f * dpi;
@@ -272,27 +270,23 @@ void ConsolePanel::Draw()
             }
         };
 
-        // The whole toolbar is one horizontal strip: icon buttons + level chips
-        // + the search bar. The search bar stretches to fill the row width left
-        // of the right edge, down to a 150px minimum. Until it's forced below
-        // that minimum, everything fits and nothing scrolls; once the window is
-        // too narrow to give the search bar 150px, the strip overflows and
-        // scrolls horizontally (mouse wheel, like dock tabs).
+        // The toolbar is one strip: icon buttons, level chips, search bar. The
+        // search bar stretches to fill the row, down to 150px. Below that the
+        // strip overflows and scrolls sideways with the mouse wheel, like dock
+        // tabs.
         const float padR = 8.0f * dpi;
         const float gapFilter = 4.0f * dpi;  // gap between the chips and the search bar
         const float minFilterW = 150.0f * dpi;
         const float trackW = rowMax.x - rowMin.x;
 
-        // Draw the strip offset by m_ToolbarScroll, clipped to the row so cells
-        // scrolled out of view are neither drawn nor clickable.
+        // The strip is offset by m_ToolbarScroll and clipped to the row, so
+        // cells scrolled out of view are neither drawn nor clickable.
         const float stripStartX = rowMin.x - m_ToolbarScroll;
         cursorX = stripStartX;
         ImGui::PushClipRect(ImVec2(rowMin.x, rowMin.y), ImVec2(rowMax.x, rowMax.y), true);
 
-        // Leading divider at strip start.
         drawDivider(cursorX);
 
-        // Action icon buttons.
         iconBtn("##clear", ICON_TI_ERASER, "Clear", false, [&] { Clear(); });
         iconBtn("##fold", ICON_TI_FOLD, "Collapse repeats", m_Collapse,
                 [&]
@@ -321,11 +315,9 @@ void ConsolePanel::Draw()
         chip("##warnings", "Warnings", dotAmber, &m_ShowWarnings, "console.showWarnings", false);
         chip("##errors", "Errors", dotRed, &m_ShowErrors, "console.showErrors", true);
 
-        // Search bar: starts right after the chips and stretches to the row's
-        // right edge (minus padding), down to a 150px minimum. When it stretches
-        // (>= 150px of room) the strip exactly fills the row, so nothing scrolls;
-        // when the window is too narrow for 150px it's clamped to 150px and the
-        // strip overflows, enabling horizontal scroll.
+        // The search bar starts after the chips and stretches to the right
+        // edge, but is never narrower than 150px. With room to spare the strip
+        // fills the row exactly; without, it overflows and scrolls.
         const float chipsW = cursorX - stripStartX;  // unscrolled
         // The menu cell at the right end, as wide as the other icon cells.
         const float moreW = ImGui::CalcTextSize(ICON_TI_DOTS_VERTICAL).x + 22.0f * dpi;
@@ -337,10 +329,9 @@ void ConsolePanel::Draw()
         cursorX += moreW;
         const float contentW = cursorX - stripStartX;
 
-        // Search bar - borderless and full toolbar height, like the hierarchy
-        // search: a dim magnifier + a transparent input, no box. The input frame
-        // is padded to fill the whole row so its height/hit-area match the
-        // toolbar, with the text kept vertically centered.
+        // Search bar like the Hierarchy's: a dim magnifier and a borderless,
+        // transparent input. The input is padded to the full row height, so it
+        // is as tall as the toolbar, with the text centred.
         ImFont* mf = g_FontUISmall ? g_FontUISmall : ImGui::GetFont();
         const float mfSize = Fonts::CssPx(mf, 14.0f) * dpi;
         const ImVec2 magSz = mf->CalcTextSizeA(mfSize, FLT_MAX, 0.0f, ICON_TI_SEARCH);
@@ -388,8 +379,8 @@ void ConsolePanel::Draw()
         }
         ImGui::PopStyleVar();  // WindowPadding
 
-        // Wheel over the toolbar scrolls the strip horizontally (vertical or
-        // horizontal wheel), clamped to the overflow - like dock-tab scrolling.
+        // Either wheel over the toolbar scrolls the strip sideways, as far as
+        // it overflows.
         const float maxScroll = std::max(0.0f, contentW - trackW);
         ImGuiIO& io = ImGui::GetIO();
         const ImVec2 mp = io.MousePos;
@@ -398,25 +389,22 @@ void ConsolePanel::Draw()
         {
             const float wheel = (io.MouseWheelH != 0.0f) ? io.MouseWheelH : io.MouseWheel;
             m_ToolbarScroll -= wheel * 40.0f * dpi;
-            io.MouseWheel = 0.0f;  // consume so the panel/log doesn't also scroll
+            io.MouseWheel = 0.0f;  // used up, so the log does not scroll too
             io.MouseWheelH = 0.0f;
         }
         m_ToolbarScroll = std::max(0.0f, std::min(m_ToolbarScroll, maxScroll));
 
-        // Reserve the row in layout flow.
+        // Reserve the row in the layout.
         ImGui::SetCursorScreenPos(ImVec2(rowMin.x, rowMax.y));
-        // 1px bottom hairline (full row, drawn after the strip clip is popped).
+        // Hairline under the full row, drawn after the strip's clip is popped.
         dl->AddLine(ImVec2(rowMin.x, rowMax.y), ImVec2(rowMax.x, rowMax.y), colLine, 1.0f);
     }
-    // The toolbar already draws its own 1px bottom hairline above; the log
-    // child starts immediately under it (no gap / extra separator).
-
-    // Log entries with colors (no horizontal scrollbar since we wrap text)
+    // The log starts right under the toolbar's hairline. Text wraps, so there
+    // is no horizontal scrollbar.
     ImGui::BeginChild("LogEntries", ImVec2(0, 0), false);
 
-    // Zero the vertical item spacing so consecutive entry rows sit flush - each
-    // row reserves its own InvisibleButton and the default ItemSpacing.y would
-    // otherwise leave an unpainted gap between the zebra/severity backgrounds.
+    // No vertical item spacing, so rows sit flush with no gap between their
+    // backgrounds.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
 
     std::lock_guard<std::mutex> lock(m_Mutex);
@@ -425,9 +413,8 @@ void ConsolePanel::Draw()
     std::transform(filterStr.begin(), filterStr.end(), filterStr.begin(), ::tolower);
 
     // Everything that does not depend on the entry is computed once per frame.
-    // All sizes are logical px scaled by the window DPI - the custom draw
-    // here bypasses ImGui's auto-DPI font scaling, so without this the log
-    // text renders at 1x while the rest of the UI scales up (tiny text).
+    // Sizes are logical px times the window DPI: this custom draw bypasses
+    // ImGui's DPI font scaling, and the text would be tiny otherwise.
     const float dpi = m_App->Dpi(1.0f);
     const float gap = 12.0f * dpi;
     const float rowPadX = 16.0f * dpi;
@@ -437,16 +424,16 @@ void ConsolePanel::Draw()
     ImFont* badgeFont = g_FontUIBold ? g_FontUIBold : ImGui::GetFont();
     ImFont* monoFont = g_FontMonoSmall ? g_FontMonoSmall : ImGui::GetFont();
 
-    // Sizes are CSS px (matching the mockup). Convert per-font via CssPx:
-    // ImGui's FreeType sizes glyphs by REAL_DIM (max extent) while CSS uses
-    // the em-square, so a raw 12.5 renders ~1.3x smaller than a browser's
-    // 12.5px. Then × dpi, since explicit AddText sizes bypass FontScaleDpi.
+    // Sizes are CSS px, converted per font with CssPx: ImGui's FreeType sizes
+    // glyphs by their largest extent while CSS uses the em square, so a raw
+    // 12.5 is about 1.3x smaller than a browser's 12.5px. Then times dpi,
+    // since sizes passed to AddText bypass FontScaleDpi.
     const float badgeSize = Fonts::CssPx(badgeFont, 11.0f) * dpi;
     const float monoSize = Fonts::CssPx(monoFont, 11.5f) * dpi;
     const float bodySize = Fonts::CssPx(monoFont, 12.5f) * dpi;
 
-    // Severity color + uppercase badge label (mockup line 549-553), and each
-    // badge's width, measured once here rather than once per row.
+    // Each severity's colour, badge label and badge width, measured once here
+    // instead of once per row.
     struct Severity
     {
         ImVec4 color;
@@ -465,9 +452,8 @@ void ConsolePanel::Draw()
     // time and message line up down the list whatever the severity.
     const float badgeW = std::max({ sevEditor.width, sevDebug.width, sevWarn.width, sevError.width, sevInfo.width });
 
-    // Rows outside this band are advanced past with their cached height and
-    // never formatted, measured or drawn. The console used to do all of that
-    // for every one of its (up to) 1000 entries every frame.
+    // Rows outside this band are skipped using their cached height and are
+    // never formatted, measured or drawn. There can be 1000 entries.
     const float viewTop = ImGui::GetWindowPos().y - 64.0f;
     const float viewBottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 64.0f;
 
@@ -500,7 +486,7 @@ void ConsolePanel::Draw()
         const float bodyW = std::max(40.0f, origin.x + availWidth - bodyX - rowPadX);
         const int shownCount = (m_Collapse && entry.count > 1) ? entry.count : 1;
 
-        // Build the message body. Collapse-count prefix stays attached.
+        // The message, with the repeat count in front when collapsed.
         auto buildBody = [&](std::string& out)
         {
             if (shownCount > 1)
@@ -515,8 +501,8 @@ void ConsolePanel::Draw()
             }
         };
 
-        // Row height: from the cache when it was measured at this wrap width
-        // and collapse count, else measured now (once per entry per width).
+        // Row height: cached when measured at this wrap width and collapse
+        // count, otherwise measured now.
         std::string body;
         ImVec2 bodySize2;
         if (entry.cachedRowHeight >= 0.0f && entry.cachedRowWidth == bodyW && entry.cachedRowCount == shownCount)
@@ -546,7 +532,7 @@ void ConsolePanel::Draw()
             buildBody(body);
         }
 
-        // Format timestamp HH:MM:SS - mono dim.
+        // Timestamp HH:MM:SS.
         auto timeTVal = std::chrono::system_clock::to_time_t(entry.timestamp);
         std::tm tmVal;
 #ifdef _WIN32
@@ -557,9 +543,8 @@ void ConsolePanel::Draw()
         char timeBuf[16];
         snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", tmVal.tm_hour, tmVal.tm_min, tmVal.tm_sec);
 
-        // Zebra striping: every other visible row gets the slightly-lighter
-        // alt-row background (Palette::Bg2). entryIndex counts only displayed
-        // rows, so the pattern is colored / plain / colored / plain.
+        // Every other shown row gets the lighter Palette::Bg2 background.
+        // entryIndex counts only shown rows, so the stripes alternate evenly.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         if (entryIndex % 2 == 0)
         {
@@ -567,7 +552,7 @@ void ConsolePanel::Draw()
                               ImGui::ColorConvertFloat4ToU32(Palette::Bg2));
         }
 
-        // Row bg + left border per severity (layered on top of the zebra fill).
+        // Background and left border by severity, over the stripe.
         if (entry.level == ::Deki::LogLevel::Error)
         {
             const ImU32 errBg = IM_COL32(232, 90, 80, 18);
@@ -581,16 +566,15 @@ void ConsolePanel::Draw()
             dl->AddRectFilled(origin, ImVec2(origin.x + 3.0f * dpi, origin.y + rowHeight), warnLine);
         }
 
-        // Selection highlight (translucent accent), on top of zebra/severity.
+        // Selection highlight on top.
         const bool isSelected = m_SelectedRows.count(vecIndex) > 0;
         if (isSelected)
         {
             dl->AddRectFilled(origin, ImVec2(origin.x + availWidth, origin.y + rowHeight), IM_COL32(59, 195, 255, 45));
         }
 
-        // Cell positions.
         const float badgeX = origin.x + rowPadX;
-        const float badgeY = origin.y + rowPadY + 2.0f * dpi;  // small top inset per mockup
+        const float badgeY = origin.y + rowPadY + 2.0f * dpi;  // small top inset
         const float timeX = badgeX + badgeW + gap;
         const float timeY = origin.y + rowPadY + (bodySize - monoSize) * 0.5f;
         const float bodyY = origin.y + rowPadY;
@@ -604,21 +588,20 @@ void ConsolePanel::Draw()
         dl->AddText(monoFont, bodySize, ImVec2(bodyX, bodyY), sevU32, body.c_str(), nullptr, bodyW);
         dl->PopClipRect();
 
-        // Reserve the row space + add an invisible button so hit-testing for
-        // double-click / context-menu still works on the message area.
+        // An invisible button over the row takes the clicks, double-clicks and
+        // the context menu.
         ImGui::SetCursorScreenPos(origin);
         ImGui::InvisibleButton("##logrow", ImVec2(availWidth, rowHeight));
 
-        // Double-click to open source file in VS Code
+        // Double-click opens the source file in the code editor.
         bool handledDoubleClick = false;
         if (entry.sourceLine > 0 && !entry.sourceFile.empty() && ImGui::IsItemHovered() &&
             ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
-            // Use full path directly if it exists, otherwise search by filename
+            // The full path if it exists, else search by file name.
             std::string fullPath = entry.sourceFile;
             if (!std::filesystem::exists(fullPath))
             {
-                // Extract filename and search for it
                 std::string filename = std::filesystem::path(fullPath).filename().string();
                 fullPath = FindSourceFile(filename);
             }
@@ -629,8 +612,8 @@ void ConsolePanel::Draw()
             }
         }
 
-        // Single click: row selection (Ctrl toggles, Shift selects the visible
-        // range from the anchor) plus the existing scene-object select.
+        // Click selects the row (Ctrl toggles, Shift selects the shown range
+        // from the anchor) and the scene object that logged it.
         if (!handledDoubleClick && ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             ImGuiIO& io = ImGui::GetIO();
@@ -680,7 +663,7 @@ void ConsolePanel::Draw()
             }
         }
 
-        // Show tooltip for entries with associated objects or source info
+        // Tooltip for entries with an object or a source location.
         if (ImGui::IsItemHovered())
         {
             bool hasObject = false;
@@ -717,15 +700,15 @@ void ConsolePanel::Draw()
             }
         }
 
-        // Right-click context menu for copying (use unique ID per entry)
+        // Copy menu, with an ID per entry.
         char popupId[32];
         snprintf(popupId, sizeof(popupId), "log_ctx_%d", vecIndex);
         PushContextMenuPopupStyle();
         if (ImGui::BeginPopupContextItem(popupId))
         {
             PushContextMenuItemStyle();
-            // "Copy" copies the whole selection when right-clicking a selected
-            // row, otherwise just this entry's message.
+            // On a row of a multi-selection it copies the selection, otherwise
+            // just this entry's message.
             const bool copySelection = isSelected && m_SelectedRows.size() > 1;
             if (ImGui::MenuItem(copySelection ? "Copy selected" : "Copy"))
             {
@@ -767,9 +750,9 @@ void ConsolePanel::Draw()
         entryIndex++;
     }
 
-    // Ctrl+C copies the selected entries (sorted ascending, one formatted line
-    // each). Gated on the log child being focused (clicking a row focuses it) so
-    // it doesn't hijack Ctrl+C while the search box is being edited.
+    // Ctrl+C copies the selected entries in order, one line each. Only while
+    // the log has focus (clicking a row gives it), so Ctrl+C still works in
+    // the search box.
     if (!m_SelectedRows.empty() && ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl &&
         ImGui::IsKeyPressed(ImGuiKey_C, false))
     {
@@ -787,7 +770,7 @@ void ConsolePanel::Draw()
         }
     }
 
-    // Auto-scroll to bottom
+    // Stay at the bottom while already there.
     if (m_AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
     {
         ImGui::SetScrollHereY(1.0f);
@@ -876,7 +859,7 @@ void ConsolePanel::AddEntry(const std::string& message, ::Deki::LogLevel level, 
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
 
-    // Check if we should collapse with previous entry
+    // A repeat of the last entry only raises its count.
     if (m_Collapse && !m_Entries.empty())
     {
         auto& last = m_Entries.back();
@@ -899,15 +882,15 @@ void ConsolePanel::AddEntry(const std::string& message, ::Deki::LogLevel level, 
     entry.sourceLine = sourceLine;
     m_Entries.push_back(std::move(entry));
 
-    // Limit entries to prevent memory growth
+    // Keep at most 1000 entries.
     const size_t maxEntries = 1000;
     if (m_Entries.size() > maxEntries)
     {
         const int removed = (int)(m_Entries.size() - maxEntries);
         m_Entries.erase(m_Entries.begin(), m_Entries.begin() + removed);
 
-        // The front trim shifts every index down by `removed`; keep the row
-        // selection pointing at the same entries (dropping any that fell off).
+        // Trimming the front shifts every index down by `removed`. Shift the
+        // selection with it, dropping rows that were removed.
         if (!m_SelectedRows.empty())
         {
             std::set<int> shifted;
@@ -995,7 +978,7 @@ void ConsolePanel::EngineLogCallback(::Deki::LogLevel level, const std::string& 
     {
         uint32_t objectId = Deki::LogSystem::GetLogContextObjectId();
 
-        // Strip the "filename:line -> " prefix from the display message
+        // Drop the "filename:line -> " prefix from the shown message.
         std::string displayMessage = message;
         size_t arrowPos = message.find(" -> ");
         if (arrowPos != std::string::npos)
@@ -1003,7 +986,7 @@ void ConsolePanel::EngineLogCallback(::Deki::LogLevel level, const std::string& 
             displayMessage = message.substr(arrowPos + 4);
         }
 
-        // Use the full file path directly from __FILE__
+        // The full path from __FILE__.
         std::string sourceFile = file ? file : "";
         s_Instance->AddEntry(displayMessage, level, objectId, sourceFile, line);
     }
@@ -1043,7 +1026,7 @@ std::string ConsolePanel::FindSourceFile(const std::string& filename) const
         return "";
     };
 
-    // Search package source directories first
+    // Package sources first, then the project's.
     auto* packageLoader = m_App->GetPackageLoader();
     if (packageLoader)
     {
@@ -1059,7 +1042,6 @@ std::string ConsolePanel::FindSourceFile(const std::string& filename) const
         }
     }
 
-    // Search project source directory
     auto* project = m_App->GetProject();
     if (project)
     {
@@ -1075,8 +1057,8 @@ std::string ConsolePanel::FindSourceFile(const std::string& filename) const
 
 void ConsolePanel::OpenInVSCode(const std::string& filePath, int line)
 {
-    // Argument vector, not a command string: a source path can contain a quote
-    // on POSIX, and the old system() form let that run as a shell command.
+    // The path goes as an argument, never into a shell command string: a
+    // quote in a POSIX path would run as a command.
     OpenInCodeEditor(filePath, line);
 }
 

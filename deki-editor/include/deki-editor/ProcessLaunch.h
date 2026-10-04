@@ -2,18 +2,16 @@
 
 #include <deki-editor/EditorExport.h>
 
-// Spawning external programs without a shell.
+// Starting external programs without a shell.
 //
-// The editor launches a few things on the user's behalf - the code editor, the
-// file manager, an image viewer. Each call site used to build a command string
-// by hand and pass it to system() or ShellExecuteA, so any quote or shell
-// metacharacter in a path escaped the quoting. The values involved are project
-// paths, asset filenames and the user's home directory: all attacker-influenced
-// the moment someone opens a shared project.
+// The editor launches a few things for the user: the code editor, the file
+// manager, an image viewer. Their arguments are project paths, asset filenames
+// and the home directory, which a shared project can control, so they must
+// never pass through a shell where a quote or metacharacter could escape.
 //
 // These helpers take an argument vector. On Windows the arguments are encoded
-// for CommandLineToArgvW and handed to CreateProcessW with no cmd.exe in the
-// chain; on POSIX they go to execvp, which never involves /bin/sh.
+// for CommandLineToArgvW and passed to CreateProcessW with no cmd.exe; on
+// POSIX they go to execvp, which never uses /bin/sh.
 
 #include <string>
 #include <vector>
@@ -21,25 +19,23 @@
 namespace DekiEditor
 {
 
-/// Launch `program` with `args`, detached, without a console window.
+/// Launches `program` with `args`, detached, without a console window.
 /// Returns false if the process could not be started (e.g. program not found).
-/// Does not wait for it and does not report its exit status.
+/// Returns at once; the exit status is never reported.
 DEKI_EDITOR_API bool LaunchDetached(const std::string& program, const std::vector<std::string>& args);
 
-/// Launch `program` from `workingDirectory`, detached, keeping its console.
-///
-/// For running something the user is meant to watch -- the built game, which
-/// finds its assets relative to its own directory and writes its log to
-/// stdout. LaunchDetached suits the helpers the editor drives on the side, and
-/// suppresses both of those.
+/// Launches `program` from `workingDirectory`, detached, keeping its console.
+/// For something the user watches, like the built game, which finds its assets
+/// relative to its own directory and logs to stdout. LaunchDetached is for
+/// helpers and gives neither.
 DEKI_EDITOR_API bool LaunchDetachedInDirectory(const std::string& program, const std::vector<std::string>& args,
                                                const std::string& workingDirectory);
 
-/// Open a source file in the user's code editor, optionally at a line.
-/// Currently targets VS Code (`code`), matching the previous behaviour.
+/// Opens a source file in the user's code editor, at `line` when it is not -1.
+/// The editor is VS Code (`code`).
 DEKI_EDITOR_API bool OpenInCodeEditor(const std::string& filePath, int line = -1);
 
-/// Reveal a file or directory in the platform's file manager.
+/// Shows a file or directory in the platform's file manager.
 DEKI_EDITOR_API bool RevealInFileManager(const std::string& path);
 
 }  // namespace DekiEditor

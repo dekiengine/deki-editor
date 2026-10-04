@@ -9,9 +9,9 @@
 using namespace DekiEditor;
 
 // The editor built with GCC/Clang (Itanium ABI) builds packages with that same
-// family; only an MSVC-ABI editor needs clang-cl. The probe used to demand
-// clang-cl on every Windows machine, which skipped the first build on the
-// supported MinGW setup and left every component unresolved.
+// family; only an MSVC-ABI editor needs clang-cl. Asking for clang-cl on the
+// supported MinGW setup would skip the first build and leave every component
+// unresolved.
 TEST(Prerequisites, HostAbiFollowsTheCompiler)
 {
 #if defined(_MSC_VER)

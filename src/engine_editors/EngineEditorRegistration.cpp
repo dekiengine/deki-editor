@@ -1,20 +1,14 @@
-/**
- * @file EngineEditorRegistration.cpp
- * @brief Generic export functions for all auto-registered editor extensions
- *
- * This file exports generic functions that iterate over the EditorRegistry.
- * The registry is populated at DLL load time via static initializers in
- * individual editor files (using REGISTER_EDITOR macro).
- *
- * Factory-based API (preferred):
- *   - DekiEngineGetEditorFactoryCount() - number of factory-registered editors
- *   - DekiEngineGetEditorPrototype(index) - get prototype for metadata
- *   - DekiEngineCreateEditor(index) - create new instance from factory
- *
- * Legacy API (for backward compatibility):
- *   - DekiEngineGetEditorCount() - returns factory count
- *   - DekiEngineGetEditor(index) - returns prototype (not a fresh instance)
- */
+// Exported functions over the EditorRegistry, which static initializers in
+// each editor file (the REGISTER_EDITOR macro) fill when the DLL loads.
+//
+// Factory API (preferred):
+//   - DekiEngineGetEditorFactoryCount() - number of factory-registered editors
+//   - DekiEngineGetEditorPrototype(index) - the prototype, for metadata
+//   - DekiEngineCreateEditor(index) - a new instance from the factory
+//
+// Older API, kept for existing callers:
+//   - DekiEngineGetEditorCount() - the factory count
+//   - DekiEngineGetEditor(index) - the prototype (not a new instance)
 
 #ifdef DEKI_EDITOR
 
@@ -30,7 +24,6 @@
 #define DEKI_ENGINE_EDITOR_EXPORT __attribute__((visibility("default")))
 #endif
 
-// Forward declaration of EditorExtension base class
 namespace DekiEditor
 {
 class EditorExtension;
@@ -39,21 +32,17 @@ class EditorExtension;
 extern "C"
 {
     // ============================================================================
-    // Factory-based API (new)
+    // Factory API
     // ============================================================================
 
-    /**
-     * @brief Get the number of editor factories registered by the engine
-     */
+    /// The number of editor factories the engine registered.
     DEKI_ENGINE_EDITOR_EXPORT int DekiEngineGetEditorFactoryCount()
     {
         return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
     }
 
-    /**
-     * @brief Get a prototype editor by index (for metadata queries)
-     * @note This returns a shared prototype, not a fresh instance
-     */
+    /// The shared prototype editor at `index` (not a new instance), for
+    /// metadata queries.
     DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineGetEditorPrototype(int index)
     {
         const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();
@@ -64,11 +53,7 @@ extern "C"
         return factories[index].prototype;
     }
 
-    /**
-     * @brief Create a new editor instance from factory
-     * @param index Factory index
-     * @return Raw pointer to new instance (caller takes ownership)
-     */
+    /// Creates a new editor from the factory at `index`. The caller owns it.
     DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineCreateEditor(int index)
     {
         const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();
@@ -77,27 +62,22 @@ extern "C"
             return nullptr;
         }
         auto instance = factories[index].factory();
-        return instance.release();  // Transfer ownership to caller
+        return instance.release();  // the caller owns it
     }
 
     // ============================================================================
-    // Legacy API (backward compatibility)
+    // Older API, kept for existing callers
     // ============================================================================
 
-    /**
-     * @brief Get the number of editor extensions registered by the engine
-     * @note Now returns factory count (new editors use factories)
-     */
+    /// The number of editor extensions the engine registered: the factory
+    /// count.
     DEKI_ENGINE_EDITOR_EXPORT int DekiEngineGetEditorCount()
     {
         return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
     }
 
-    /**
-     * @brief Get an editor extension by index
-     * @note Returns prototype (not a fresh instance)
-     * @deprecated Use DekiEngineCreateEditor for fresh instances
-     */
+    /// The editor extension at `index`: the shared prototype, not a new
+    /// instance. Deprecated; use DekiEngineCreateEditor for a new instance.
     DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineGetEditor(int index)
     {
         const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();

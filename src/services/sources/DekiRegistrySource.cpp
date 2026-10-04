@@ -22,8 +22,8 @@ std::vector<std::string> DekiRegistrySource::BaseUrls()
         }
         if (!u.empty())
         {
-            // An explicit override is a decision, not a hint - don't second-guess
-            // it by falling back to the defaults behind the user's back.
+            // An explicit override is used alone, with no fallback to the
+            // defaults behind the user's back.
             urls.push_back(u);
             return urls;
         }
@@ -34,7 +34,7 @@ std::vector<std::string> DekiRegistrySource::BaseUrls()
     return urls;
 }
 
-// Fetch `path` (e.g. "/index.json") from the first base URL that answers.
+// Fetches `path` (e.g. "/index.json") from the first base URL that answers.
 static std::string FetchFromAnyBase(const std::string& path)
 {
     const auto bases = DekiRegistrySource::BaseUrls();
@@ -56,14 +56,14 @@ static std::string FetchFromAnyBase(const std::string& path)
 
 bool DekiRegistrySource::CanHandle(const std::string& url) const
 {
-    // Handles deki- prefixed package IDs (e.g., "deki-2d"), or a URL pointing at
+    // Package ids starting with "deki-" (e.g. "deki-2d"), or a URL pointing at
     // the registry repo itself.
     return url.find("deki-") == 0 || url.find("dekiengine/registry") != std::string::npos;
 }
 
 bool DekiRegistrySource::ParseUrl(const std::string& url, PackageEntry& outInfo)
 {
-    // For registry packages, the URL is the package ID itself (e.g., "deki-2d")
+    // For registry packages, the URL is the package id itself (e.g. "deki-2d")
     if (url.find("deki-") == 0)
     {
         outInfo.id = url;
@@ -98,7 +98,7 @@ void DekiRegistrySource::FetchVersions(const PackageEntry& pkg, VersionsCallback
 
 void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
 {
-    // Check cache TTL (skip if force refresh)
+    // A cached index younger than the TTL answers at once
     if (!forceRefresh)
     {
         std::vector<RegistryPackageEntry> cached;
@@ -123,9 +123,8 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
         {
             std::string json = FetchFromAnyBase("/index.json");
 
-            // No fallback: kRegistryBaseURL now points at the registry repo itself,
-            // so the old "fall back to raw GitHub" branch would just refetch the same
-            // URL. Failure here means the repo or the network is unreachable.
+            // FetchFromAnyBase already tried every base URL, so an empty
+            // result means the registry or the network is unreachable.
             if (json.empty())
             {
                 callback(false, {});
@@ -147,10 +146,7 @@ void DekiRegistrySource::FetchIndex(IndexCallback callback, bool forceRefresh)
 
 std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::string& json)
 {
-    // This used to be regex over the raw text with `find('}')` as the entry
-    // terminator, so any nested object inside a package entry cut the entry
-    // short and the registry resolved to zero packages. It is a JSON document;
-    // parse it as one.
+    // Parsed as real JSON, so a nested object inside a package entry is fine.
     std::vector<RegistryPackageEntry> entries;
     nlohmann::json doc;
     try
@@ -200,9 +196,9 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
         entry.experimental = pkg.value("experimental", false);
         {
             // The id names a directory in every project that installs the
-            // package and the repo names the clone target; a registry entry
-            // that fails the allowlist is dropped here, before either can
-            // become a path (SafeNames.h).
+            // package, and the repo names the clone target. An entry that
+            // fails the allowlist (SafeNames.h) is dropped before either can
+            // become a path.
             std::string reason;
             if (!SafeNames::IsSafeName(entry.id, reason))
             {
@@ -265,7 +261,7 @@ std::vector<std::string> DekiRegistrySource::ParsePackageVersionsJson(const std:
 
 std::string DekiRegistrySource::RepoNameForPackage(const std::string& id) const
 {
-    // Look up repo name from cached index (e.g., "deki-2d" -> "deki-2d" from "dekiengine/deki-2d")
+    // The repo part of the cached entry's "owner/repo" ("dekiengine/deki-2d" -> "deki-2d")
     std::lock_guard<std::mutex> lock(m_Cache->mutex);
     for (const auto& entry : m_Cache->index)
     {
@@ -280,6 +276,6 @@ std::string DekiRegistrySource::RepoNameForPackage(const std::string& id) const
         }
     }
 
-    // Fallback: use the ID directly as repo name
+    // Not in the index: the id is the repo name
     return id;
 }

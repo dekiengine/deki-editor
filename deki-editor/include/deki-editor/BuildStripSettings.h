@@ -2,11 +2,10 @@
 
 #include <deki-editor/EditorExport.h>
 
-// What a project has said about stripping its device builds.
-//
-// Lives in settings/build.json beside the engine's own settings files. Two
-// switches say whether unused things go, and per-feature overrides pin a
-// feature on (for something the scan cannot see) or force it off.
+// A project's choices for stripping its device builds, kept in
+// settings/build.json beside the engine's own settings files. Two switches
+// say whether unused things go; per-feature overrides pin a feature on (for
+// something the scan cannot see) or force it off.
 
 #include <filesystem>
 #include <map>
@@ -17,12 +16,11 @@ namespace DekiEditor
 
 struct DEKI_EDITOR_API BuildStripSettings
 {
-    // Leave out a feature none of whose components any scene or source names.
+    // Leave out a feature when no scene or source names any of its components.
     bool stripUnusedComponents = true;
-    // Leave out a package none of whose components any scene or source names
-    // and that no kept package requires. Packages with no component features
-    // (drivers, protocols) are never touched by this; they have nothing to
-    // scan for.
+    // Leave out a package when no scene or source names any of its components
+    // and no kept package requires it. Packages without component features
+    // (drivers, protocols) are always kept: there is nothing to scan for.
     bool stripUnusedPackages = true;
 
     // package id -> feature id -> "on" | "off". Absent means automatic.

@@ -22,10 +22,9 @@ namespace DekiEditor
 NewProjectDialog::NewProjectDialog(EditorApp* app)
     : m_App(app)
 {
-    // Get available platforms from registry
     m_Platforms = PlatformRegistry::Instance().GetPlatformDisplayList();
 
-    // Set default location to user's Documents folder
+    // Default location: the user's Documents folder, or $HOME elsewhere.
 #ifdef _WIN32
     char path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, path)))
@@ -48,10 +47,9 @@ void NewProjectDialog::Show()
     m_ErrorMessage.clear();
     m_ShowError = false;
 
-    // Reset project name
     strcpy(m_ProjectName, "MyGame");
 
-    // Refresh platform list from registry (may have changed since construction)
+    // Packages may have added platforms since the dialog was made.
     m_Platforms = PlatformRegistry::Instance().GetPlatformDisplayList();
     m_SelectedPlatformIndex = 0;
 }
@@ -171,14 +169,13 @@ void NewProjectDialog::Draw()
 
 bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
 {
-    // Check project name
     if (strlen(m_ProjectName) == 0)
     {
         errorMessage = "Project name cannot be empty.";
         return false;
     }
 
-    // Check for invalid characters in project name
+    // Characters Windows does not allow in a folder name.
     std::string name(m_ProjectName);
     for (char c : name)
     {
@@ -189,7 +186,6 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
         }
     }
 
-    // Check location
     if (strlen(m_Location) == 0)
     {
         errorMessage = "Location cannot be empty.";
@@ -198,8 +194,8 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
 
     if (!fs::exists(m_Location))
     {
-        // Make it, as a file manager's "new folder here" would; only a
-        // location that cannot be made is an error.
+        // Create a missing location; only one that cannot be created is an
+        // error.
         std::error_code ec;
         fs::create_directories(m_Location, ec);
         if (ec)
@@ -209,7 +205,6 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
         }
     }
 
-    // Check if project folder already exists
     fs::path projectPath = fs::path(m_Location) / m_ProjectName;
     if (fs::exists(projectPath))
     {
@@ -222,21 +217,18 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
 
 bool NewProjectDialog::CreateProject()
 {
-    // Validate inputs
     if (!ValidateInputs(m_ErrorMessage))
     {
         m_ShowError = true;
         return false;
     }
 
-    // Get selected platform config
     const PlatformConfig* platform = nullptr;
     if (m_SelectedPlatformIndex < (int)m_Platforms.size())
     {
         platform = PlatformRegistry::Instance().GetPlatform(m_Platforms[m_SelectedPlatformIndex].first);
     }
 
-    // Create the project
     if (!ProjectTemplate::CreateProject(m_Location, m_ProjectName, platform))
     {
         m_ErrorMessage = "Failed to create project. Check folder permissions.";
@@ -244,10 +236,8 @@ bool NewProjectDialog::CreateProject()
         return false;
     }
 
-    // Get full project path
     fs::path projectPath = fs::path(m_Location) / m_ProjectName;
 
-    // Call callback if set
     if (m_OnProjectCreated)
     {
         m_OnProjectCreated(projectPath.string());

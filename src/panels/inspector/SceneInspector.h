@@ -24,10 +24,10 @@ public:
     SceneInspector(EditorApp* app);
     ~SceneInspector();
 
-    // Draw the scene preview image
+    /// Draws a preview image of the scene file.
     void DrawPreview(const std::string& assetPath);
 
-    // Invalidate cached preview (call when scene changes)
+    /// Drops the cached preview. Call it when the scene changes.
     void InvalidatePreview() { m_PreviewScenePath.clear(); }
 
 private:

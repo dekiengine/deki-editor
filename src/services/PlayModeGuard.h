@@ -19,6 +19,8 @@ struct CrashInfo
     std::string stackTrace;     // multi-line, symbolized (package!fn (file:line))
 };
 
+/// Runs `fn`, catching hardware faults and C++ exceptions. Returns false and
+/// fills `outInfo` when it crashed; `phase` names the step for the report.
 bool Invoke(const char* phase, const std::function<void()>& fn, CrashInfo& outInfo);
 }  // namespace PlayModeGuard
 

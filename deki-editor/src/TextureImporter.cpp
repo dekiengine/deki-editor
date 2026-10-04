@@ -12,7 +12,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// Engine logging
 #include <deki/LogSystem.h>
 
 namespace fs = std::filesystem;
@@ -35,9 +34,9 @@ std::unordered_map<std::string, FrameBorders>& FrameNineSlices()
 }  // namespace
 
 // =========================================================================
-// Public image decode helpers (used by deki-2d's image cache handler and any
-// editor code that needs to read raw pixel data from a source image).
-// stb_image is the single owner of image decoding for the editor.
+// Public image decode helpers, for deki-2d's image cache handler and any
+// editor code that reads raw pixels from a source image. All of the editor's
+// image decoding goes through stb_image here.
 // =========================================================================
 
 bool DecodeImageFile(const std::string& absolutePath, DecodedImage& out)
@@ -56,7 +55,6 @@ bool DecodeImageFile(const std::string& absolutePath, DecodedImage& out)
     return true;
 }
 
-// IAssetImporter implementation
 ImportResult TextureImporter::Import(const std::string& sourcePath, const std::string& cachePath)
 {
     return ImportWithFormat(sourcePath, cachePath, TextureFormat::RGB565A8);
@@ -65,7 +63,6 @@ ImportResult TextureImporter::Import(const std::string& sourcePath, const std::s
 ImportResult TextureImporter::ImportWithFormat(const std::string& sourcePath, const std::string& cachePath,
                                                TextureFormat format)
 {
-    // Load source image with stb_image
     int width, height, channels;
     unsigned char* data = stbi_load(sourcePath.c_str(), &width, &height, &channels, 4);
 
@@ -74,7 +71,6 @@ ImportResult TextureImporter::ImportWithFormat(const std::string& sourcePath, co
         return { false, "Failed to load image: " + std::string(stbi_failure_reason()), "" };
     }
 
-    // Write DTEX file
     bool success = WriteTexFile(cachePath, data, static_cast<uint32_t>(width), static_cast<uint32_t>(height), format);
     stbi_image_free(data);
 
@@ -86,7 +82,6 @@ ImportResult TextureImporter::ImportWithFormat(const std::string& sourcePath, co
     return { true, "", cachePath };
 }
 
-// Static utility functions
 bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
 {
     // Header is magic + 7 uint32 fields.
@@ -105,14 +100,12 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
     }
     file.seekg(0, std::ios::beg);
 
-    // Read magic
     file.read(outData.header.magic, 4);
     if (std::string(outData.header.magic, 4) != "2DTX")
     {
         return false;
     }
 
-    // Read header fields
     file.read(reinterpret_cast<char*>(&outData.header.version), sizeof(uint32_t));
     file.read(reinterpret_cast<char*>(&outData.header.width), sizeof(uint32_t));
     file.read(reinterpret_cast<char*>(&outData.header.height), sizeof(uint32_t));
@@ -126,11 +119,10 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
         return false;
     }
 
-    // dataSize is a raw uint32 straight out of the file, so it can claim up to
-    // 4 GiB. Passing it to resize() unchecked turned any corrupt or crafted
-    // .dtex into an uncaught std::bad_alloc that killed the editor - reachable
-    // just by opening a project with a damaged cache. Bound it by what the file
-    // actually contains before allocating anything.
+    // dataSize is a raw uint32 from the file, so it can claim up to 4 GiB.
+    // Passed to resize() unchecked, a corrupt or crafted .dtex would throw an
+    // uncaught std::bad_alloc and kill the editor when a project with a
+    // damaged cache opens. Bound it by what the file holds before allocating.
     const std::streamoff available = fileSize - kHeaderBytes;
     if (static_cast<std::streamoff>(outData.header.dataSize) > available)
     {
@@ -140,11 +132,11 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
         return false;
     }
 
-    // Cross-check against the declared dimensions: a header whose dataSize does
-    // not match width * height * bytesPerPixel is inconsistent regardless of
-    // file length, and the callers index pixelData using the dimensions.
-    // Deki targets small embedded displays; nothing legitimate here approaches
-    // this, and it keeps width * height inside 64 bits with room to spare.
+    // Check against the declared dimensions: a header whose dataSize does not
+    // match width * height * bytesPerPixel is broken whatever the file length,
+    // and callers index pixelData by the dimensions. Deki targets small
+    // embedded displays, so no real texture comes near this limit, and it
+    // keeps width * height well inside 64 bits.
     constexpr uint32_t kMaxTextureDimension = 32768;
     if (outData.header.width == 0 || outData.header.height == 0 || outData.header.width > kMaxTextureDimension ||
         outData.header.height > kMaxTextureDimension)
@@ -168,7 +160,6 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
         return false;
     }
 
-    // Read pixel data
     outData.pixelData.resize(outData.header.dataSize);
     file.read(reinterpret_cast<char*>(outData.pixelData.data()), outData.header.dataSize);
 
@@ -180,7 +171,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                                    const std::vector<SubAssetInfo>* frameSubAssets, const ChromaKeySettings* chromaKey,
                                    uint32_t sourceWidth, uint32_t sourceHeight)
 {
-    // Create cache directory if it doesn't exist
     fs::path filePath(path);
     fs::path parentDir = filePath.parent_path();
     if (!parentDir.empty() && !fs::exists(parentDir))
@@ -189,8 +179,8 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     }
 
     // Written beside the cache and renamed into place when complete: a crash
-    // mid-write used to leave a cut-off .dtex newer than its source, which
-    // then counted as up to date for good and was exported to devices.
+    // mid-write would otherwise leave a cut-off .dtex newer than its source,
+    // which would count as up to date for good and be exported to devices.
     const std::string tmpPath = path + ".tmp";
     std::ofstream file(tmpPath, std::ios::binary | std::ios::trunc);
     if (!file.is_open())
@@ -198,7 +188,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         return false;
     }
 
-    // Check for transparency and alpha
     bool hasTransparency = false;
     bool hasAlpha = false;
     size_t pixelCount = width * height;
@@ -216,7 +205,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         }
     }
 
-    // Convert RGBA to target format
     std::vector<uint8_t> pixelData;
 
     switch (format)
@@ -232,10 +220,9 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                 uint8_t b = rgbaData[i * 4 + 2];
                 uint8_t a = rgbaData[i * 4 + 3];
 
-                // Convert to RGB565
                 uint16_t rgb565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
 
-                // Store little-endian
+                // Little-endian.
                 pixelData[i * 3 + 0] = rgb565 & 0xFF;
                 pixelData[i * 3 + 1] = (rgb565 >> 8) & 0xFF;
                 pixelData[i * 3 + 2] = a;
@@ -355,11 +342,11 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                 startCol = 0;
                 endCol = 0;
             }
-            // A key pixel strictly inside [startCol, endCol) breaks the span
-            // contract: the blit copies the span verbatim, so the hole (the
-            // notch of a heart, the gap between two legs) came out as the key
-            // colour. Such a row is recorded as (-1, -1) and the blit compares
-            // every pixel of it instead.
+            // A key pixel strictly inside [startCol, endCol) breaks the span:
+            // the blit copies the span as it is, so the hole (the notch of a
+            // heart, the gap between two legs) would show as the key colour.
+            // Such a row is recorded as (-1, -1) and the blit compares every
+            // pixel of it instead.
             for (int32_t x = startCol + 1; x + 1 < endCol; ++x)
             {
                 if (isKeyAt(static_cast<uint32_t>(x), y))
@@ -374,7 +361,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         }
     }
 
-    // Calculate metadata size
     uint32_t metadataSize = 0;
     bool hasSpriteMetadata = spriteSettings && spriteSettings->HasData();
     bool hasFrameList = frameSubAssets && !frameSubAssets->empty();
@@ -411,7 +397,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
 
     // Frames with their own 9-slice borders, by index in the frame list.
     // Written after the entries as a u16 count, then u16 index, left, right,
-    // top, bottom each; a loader that predates them stops at the entries.
+    // top, bottom each; an older loader stops reading after the entries.
     std::vector<std::array<uint16_t, 5>> frameBorders;
     if (hasFrameList)
     {
@@ -446,7 +432,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         numChunks++;
     }
 
-    // Build header
     TexHeader header;
     memcpy(header.magic, "2DTX", 4);
     header.version = 1;
@@ -469,7 +454,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
         header.flags |= static_cast<uint32_t>(TexFlags::AllOpaque);
     }
 
-    // Write header
     file.write(header.magic, 4);
     file.write(reinterpret_cast<const char*>(&header.version), sizeof(uint32_t));
     file.write(reinterpret_cast<const char*>(&header.width), sizeof(uint32_t));
@@ -479,7 +463,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     file.write(reinterpret_cast<const char*>(&header.metadataSize), sizeof(uint32_t));
     file.write(reinterpret_cast<const char*>(&header.flags), sizeof(uint32_t));
 
-    // Write pixel data
     file.write(reinterpret_cast<const char*>(pixelData.data()), pixelData.size());
 
     // Write metadata chunks
@@ -520,7 +503,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
 
             for (const auto& subAsset : *frameSubAssets)
             {
-                // Get frame data from registry
                 const SpriteFrameData* frameData = GetFrameData(subAsset.guid);
                 if (frameData)
                 {
@@ -531,7 +513,6 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                     memcpy(guidBuffer, guid.c_str(), copyLen);
                     file.write(guidBuffer, 36);
 
-                    // Write coordinates
                     int32_t x = frameData->x;
                     int32_t y = frameData->y;
                     int32_t w = frameData->width;
@@ -543,7 +524,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
                 }
                 else
                 {
-                    // Frame data not found - write zeros
+                    // No frame data: write zeros.
                     char zeros[52] = { 0 };
                     file.write(zeros, 52);
                 }
@@ -702,7 +683,7 @@ std::vector<uint8_t> TextureImporter::ConvertToRGBA(const TexData& data)
                 g = static_cast<uint8_t>(((rgb565 >> 5) & 0x3F) << 2);
                 b = static_cast<uint8_t>((rgb565 & 0x1F) << 3);
 
-                // Fill low bits for better accuracy
+                // Fill the low bits so white stays full white.
                 r |= (r >> 5);
                 g |= (g >> 6);
                 b |= (b >> 5);
@@ -755,10 +736,8 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
         return frames;
     }
 
-    // Create visited bitmap (false = unvisited)
     std::vector<bool> visited(width * height, false);
 
-    // Helper to check if pixel is opaque (alpha above threshold)
     auto isOpaque = [&](int x, int y) -> bool
     {
         if (x < 0 || x >= (int)width || y < 0 || y >= (int)height)
@@ -769,7 +748,7 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
         return rgbaData[idx + 3] > alphaThreshold;
     };
 
-    // Flood-fill to find connected opaque region and calculate bounding box
+    // Flood-fills a connected opaque region and returns its bounding box.
     auto floodFill = [&](int startX, int startY, int& minX, int& minY, int& maxX, int& maxY)
     {
         std::vector<std::pair<int, int>> stack;
@@ -787,7 +766,6 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
             int x = pos.first;
             int y = pos.second;
 
-            // Skip if out of bounds or already visited
             if (x < 0 || x >= (int)width || y < 0 || y >= (int)height)
             {
                 continue;
@@ -799,16 +777,13 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
                 continue;
             }
 
-            // Skip transparent pixels
             if (!isOpaque(x, y))
             {
                 continue;
             }
 
-            // Mark as visited
             visited[idx] = true;
 
-            // Update bounding box
             if (x < minX)
             {
                 minX = x;
@@ -834,20 +809,18 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
         }
     };
 
-    // Scan texture for opaque regions
     for (uint32_t y = 0; y < height; ++y)
     {
         for (uint32_t x = 0; x < width; ++x)
         {
             int idx = y * width + x;
 
-            // Skip if already visited or transparent
             if (visited[idx] || !isOpaque(x, y))
             {
                 continue;
             }
 
-            // Found new opaque region - flood fill to find bounding box
+            // A new opaque region.
             int minX, minY, maxX, maxY;
             floodFill(x, y, minX, minY, maxX, maxY);
 
@@ -855,7 +828,7 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
             int frameWidth = maxX - minX + 1;
             int frameHeight = maxY - minY + 1;
 
-            // Only add if meets minimum size requirements
+            // Only regions of at least the minimum size.
             if (frameWidth >= minWidth && frameHeight >= minHeight)
             {
                 AtlasFrame frame;
@@ -871,7 +844,7 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
     return frames;
 }
 
-// Static sprite frame data registry
+// Sprite frame data by frame GUID.
 std::unordered_map<std::string, SpriteFrameData> TextureImporter::s_FrameDataRegistry;
 
 const SpriteFrameData* TextureImporter::GetFrameData(const std::string& frameGuid)
@@ -916,7 +889,6 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
         return false;
     }
 
-    // Read and validate header
     TexHeader header;
     file.read(header.magic, 4);
     if (std::string(header.magic, 4) != "2DTX")
@@ -938,10 +910,8 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
         return false;
     }
 
-    // Skip pixel data to reach metadata
     file.seekg(header.dataSize, std::ios::cur);
 
-    // Read number of chunks
     uint32_t numChunks = 0;
     file.read(reinterpret_cast<char*>(&numChunks), sizeof(uint32_t));
     if (!file.good() || numChunks == 0)
@@ -967,7 +937,6 @@ bool TextureImporter::HasFrameListChunk(const std::string& texPath)
             return true;
         }
 
-        // Skip to next chunk
         file.seekg(chunkSize, std::ios::cur);
     }
 

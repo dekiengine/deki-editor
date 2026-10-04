@@ -10,14 +10,14 @@ namespace DekiEditor
 
 uint32_t ProfilerPanel::GetColorForEvent(const ProfileEvent* event, int depth)
 {
-    // Hash the name for consistent colors
+    // The hue comes from a hash of the name, so an event keeps its colour
+    // across frames.
     uint32_t hash = 0;
     for (char c : event->name)
     {
         hash = hash * 31 + c;
     }
 
-    // Generate color from hash with good saturation
     float hue = (hash % 360) / 360.0f;
     float sat = 0.6f + (depth % 3) * 0.1f;
     float val = 0.9f - depth * 0.05f;
@@ -39,11 +39,11 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
 
     m_HoveredEvent = nullptr;
 
-    // Calculate total frame time for scaling
+    // Total frame time, which sets the horizontal scale. When the root has no
+    // duration, its children's durations are summed.
     double frameTimeUs = root->durationUs;
     if (frameTimeUs <= 0)
     {
-        // Sum children if root has no duration
         for (const auto& child : root->children)
         {
             frameTimeUs += child->durationUs;
@@ -84,30 +84,27 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     ImGui::SameLine();
     ImGui::TextDisabled("| Frame: %.2f ms", frameTimeUs / 1000.0);
 
-    // Calculate content size
     float contentWidth = availWidth * m_FlameGraphZoom;
     double pixelsPerUs = contentWidth / frameTimeUs;
 
-    // Begin scrollable region
     if (ImGui::BeginChild("FlameGraphContent", ImVec2(-1, -1), ImGuiChildFlags_None,
                           ImGuiWindowFlags_HorizontalScrollbar))
     {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        // Get base position BEFORE adding any content
+        // Read before any content is added; bars are placed relative to it.
         ImVec2 basePos = ImGui::GetCursorScreenPos();
 
-        // Calculate max depth for sizing
+        // Deeper levels are not drawn.
         int maxDepth = 15;
         float totalHeight = maxDepth * (barHeight + spacing);
 
-        // Reserve space for flame graph (invisible)
+        // Reserves the graph's area so the child window scrolls over it.
         ImGui::InvisibleButton("FlameGraphArea", ImVec2(contentWidth, totalHeight));
 
-        // Check for mouse position
         ImVec2 mousePos = ImGui::GetMousePos();
 
-        // Draw bars using a stack-based approach
+        // Walk the event tree with an explicit stack.
         struct StackEntry
         {
             const ProfileEvent* event;
@@ -116,7 +113,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
         };
         std::vector<StackEntry> stack;
 
-        // Start with root's children
+        // The root's children form the bottom row; idle time is left out.
         double currentStartUs = 0;
         for (const auto& child : root->children)
         {
@@ -142,12 +139,11 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
                 continue;
             }
 
-            // Calculate bar position relative to base
             float x = (float)(startUs * pixelsPerUs);
             float w = (float)(event->durationUs * pixelsPerUs);
             float y = depth * (barHeight + spacing);
 
-            // Skip very small bars
+            // Bars under a pixel wide are skipped, with their children.
             if (w < 1.0f)
             {
                 continue;
@@ -158,18 +154,16 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
             float x2 = x1 + w;
             float y2 = y1 + barHeight;
 
-            // Get color based on event name
             uint32_t color = GetColorForEvent(event, depth);
             uint32_t borderColor = IM_COL32(40, 40, 40, 255);
 
-            // Draw bar
             drawList->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), color);
             if (w > 3.0f)
             {
                 drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), borderColor);
             }
 
-            // Draw text if bar is wide enough
+            // The name only fits on wider bars.
             if (w > 50)
             {
                 float textY = y1 + (barHeight - fontSize) * 0.5f;
@@ -178,21 +172,20 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
                 ImGui::PopClipRect();
             }
 
-            // Hover detection
+            // Hovered: outline the bar and remember it for the tooltip.
             if (mousePos.x >= x1 && mousePos.x < x2 && mousePos.y >= y1 && mousePos.y < y2)
             {
                 m_HoveredEvent = event;
-                // Highlight hovered bar
                 drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(255, 255, 255, 200), 0, 0, 2.0f);
             }
 
-            // Add children to stack (in reverse order so they're processed left-to-right)
+            // Children are pushed in reverse so they pop left to right. Each
+            // starts where the siblings before it end.
             double childStartUs = startUs;
             for (int i = (int)event->children.size() - 1; i >= 0; i--)
             {
                 const auto& child = event->children[i];
                 double childStart = startUs;
-                // Calculate proper start position for this child
                 for (int j = 0; j < i; j++)
                 {
                     childStart += event->children[j]->durationUs;
@@ -207,7 +200,6 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     }
     ImGui::EndChild();
 
-    // Show tooltip for hovered event
     if (m_HoveredEvent)
     {
         ImGui::BeginTooltip();

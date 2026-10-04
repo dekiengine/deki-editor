@@ -86,9 +86,8 @@ TEST(ComponentUsageScan, SourcesCountOnlyWholeIdentifiersOfKnownTypes)
 TEST(ComponentUsageScan, AnotherPackageNamingAComponentCountsAsUsage)
 {
     // deki-fsm calls Deki2D::AnimationComponent::Play(). Scanning only the
-    // project's own src/ missed that, stripped deki-2d's animation feature,
-    // and the native build failed at link with an undefined reference that
-    // pointed nowhere near stripping.
+    // project's src/ would strip deki-2d's animation feature and the build
+    // would fail at link with an undefined reference.
     TempProject p;
     fs::create_directories(p.root / "packages" / "deki-fsm");
     std::ofstream(p.root / "packages" / "deki-fsm" / "FsmActions.cpp")
@@ -101,9 +100,9 @@ TEST(ComponentUsageScan, AnotherPackageNamingAComponentCountsAsUsage)
 
 TEST(ComponentUsageScan, OnlyTheNamedPackagesAreScanned)
 {
-    // A package the target cannot build is not its content. Counting
-    // deki-sdl3-integration's own sources against an ESP32 target reported a
-    // capability conflict for a package that was never going to be built.
+    // A package the target does not build is not part of it. Counting
+    // deki-sdl3-integration's sources against an ESP32 target would report a
+    // capability conflict for a package that is never built.
     TempProject p;
     fs::create_directories(p.root / "packages" / "deki-sdl3-integration");
     std::ofstream(p.root / "packages" / "deki-sdl3-integration" / "SDL3DisplaySetup.cpp")
@@ -135,10 +134,10 @@ TEST(ComponentUsageScan, AnUnreadableSceneCountsForNothing)
     EXPECT_TRUE(u.byType.empty());
 }
 
-// A package that is a link to a checkout elsewhere (how a package is
-// developed) is still reported under packages/<id>/: its own sources are not
-// evidence that a game uses it. Through the link they came out as
-// "../elsewhere/...", so every feature looked used and nothing was stripped.
+// A package that links to a checkout elsewhere (how a package is developed)
+// is still reported under packages/<id>/, so its own sources are not taken
+// as evidence that a game uses it. Paths like "../elsewhere/..." would make
+// every feature look used and nothing would be stripped.
 TEST(ComponentUsageScan, LinkedPackageSourcesKeepTheirPackagesPath)
 {
     TempProject p;

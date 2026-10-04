@@ -48,9 +48,9 @@ struct TempProject
 
 }  // namespace
 
-// A new project used to be written at structure "v2" with no platform and no
-// scene, so it ran the layout migrations on its very first open and rendered
-// nothing. The scaffold writes what Project::Save would.
+// The scaffold writes what Project::Save would: the current structure, a
+// platform and a scene. Otherwise a new project runs the layout migrations on
+// its first open and renders nothing.
 TEST(ProjectScaffold, DekiJsonIsCurrentAndComplete)
 {
     TempProject t;
@@ -86,8 +86,8 @@ TEST(ProjectScaffold, ManifestDeclaresTheStarterPackagesAtNewest)
 }
 
 // What a new project starts with is a data file, so the editor's code names no
-// package and no platform. These pin the reader; the last one pins the file
-// the editor actually ships.
+// package and no platform. These test the reader; the last one tests the file
+// the editor ships.
 TEST(ProjectStarter, ReadsPackagesAndThePlatform)
 {
     TempProject t;
@@ -146,10 +146,9 @@ TEST(ProjectScaffold, GitIgnoreCoversGeneratedPackagesAndStorage)
 
 TEST(ProjectScaffold, RenderPipelineNamesTheRendererAndNoPasses)
 {
-    // It used to write a "clip2d" pass. Nothing registers one - clipping is a
-    // builtin of Standard2DRenderer - so every new project logged "No pass
-    // registered for 'clip2d'" on its first run while rendering correctly.
     // Passes are opt-in extras, and the ones that exist attach themselves.
+    // Clipping is built into Standard2DRenderer, so a "clip2d" pass here would
+    // only log "No pass registered" on the first run.
     TempProject t;
     std::string err;
     ASSERT_TRUE(ProjectScaffold::WriteRenderPipeline(t.Path(), err)) << err;

@@ -29,7 +29,7 @@ using json = nlohmann::json;
 
 namespace
 {
-// Every PackageManager alive, so an unloading package can take its installers
+// Every live PackageManager, so an unloading package can take its installers
 // back from all of them: one is built wherever it is needed, and some live as
 // long as a panel.
 std::set<PackageManager*>& LiveManagers()
@@ -107,14 +107,13 @@ void PackageManager::InitDefaultInstallers()
 {
     m_Installers.push_back(std::make_unique<DekiPackageInstaller>());
     m_InstallerPackages.emplace_back();
-    // No ESP-IDF installer here any more: it arrives from
-    // deki-esp32-integration, the same way a build backend does.
-    // DekiPackageInstaller stays because a Deki package is what this editor
-    // fundamentally manages.
+    // Every other installer comes from a package (the ESP-IDF one from
+    // deki-esp32-integration), the same way a build backend does.
+    // DekiPackageInstaller is built in because Deki packages are what this
+    // editor manages.
     //
-    // Per instance, not once per project open: a PackageManager is
-    // constructed ad hoc wherever one is needed, and each must see the same
-    // installers.
+    // Per instance, not once per project open: a PackageManager is built
+    // wherever one is needed, and each must see the same installers.
     if (m_App != nullptr)
     {
         if (DekiEditor::PackageLoader* loader = m_App->GetPackageLoader())
@@ -213,7 +212,7 @@ IPackageInstaller* PackageManager::GetInstallerFor(const PackageEntry& pkg, cons
     if (pkg.packageType == PackageType::FrameworkComponent)
     {
         // No guessing. With one framework installed "the other installer"
-        // would be right by luck, and with two it would hand one framework's
+        // would be right by luck; with two it would hand one framework's
         // component to the other's manifest.
         if (pkg.installer.empty())
         {
@@ -256,22 +255,21 @@ bool PackageManager::AddPackageFromUrl(const std::string& url, PackageEntry& out
         return false;
     }
 
-    // Check if package already exists
     for (auto& pkg : m_Packages)
     {
         if (pkg.id == outInfo.id)
         {
-            // Adding by URL something already known - typically a package that was
-            // only present as another's dependency. That is the user asking for it
-            // directly, so promote it to a declaration rather than leaving it
-            // implicit and losing it when the package that required it goes away.
+            // Adding by URL a package already known, usually one present only
+            // as another's dependency. The user is asking for it directly, so
+            // declare it; otherwise it would go away with the package that
+            // required it.
             pkg.declaredInManifest = true;
             outInfo = pkg;  // Return existing package
             return true;
         }
     }
 
-    // Adding by URL is a user action, so it is intent by definition.
+    // Adding by URL is a user action, so the package is declared.
     outInfo.declaredInManifest = true;
     m_Packages.push_back(outInfo);
 
@@ -287,22 +285,21 @@ void PackageManager::FetchVersionsForPackage(PackageEntry& pkg, VersionsCallback
         return;
     }
 
-    // Capture package ID by value since the callback runs asynchronously
+    // Copy the package ID: the callback runs asynchronously.
     std::string pkgId = pkg.id;
 
     std::shared_ptr<MainQueue> queue = m_MainQueue;
     source->FetchVersions(pkg,
                           [this, queue, pkgId, callback](bool success, const std::vector<std::string>& versions)
                           {
-                              // Runs on the source's fetch thread: hand the update to the main thread.
-                              // Through the queue itself, not `this`, which may be gone by now.
+                              // Runs on the source's fetch thread: hand the update to the main
+                              // thread through the queue itself, not `this`, which may be gone.
                               std::lock_guard<std::mutex> lock(queue->mutex);
                               queue->items.push_back(
                                   [this, pkgId, callback, success, versions]()
                                   {
                                       if (success)
                                       {
-                                          // Find and update the package in our list
                                           for (auto& p : m_Packages)
                                           {
                                               if (p.id == pkgId)
@@ -323,7 +320,7 @@ bool PackageManager::AddPackageIfNew(const PackageEntry& pkg)
     {
         if (existing.id == pkg.id)
         {
-            // Merge registry metadata into existing package
+            // Merge registry metadata into the existing package.
             if (existing.requiredPackages.empty() && !pkg.requiredPackages.empty())
             {
                 existing.requiredPackages = pkg.requiredPackages;
@@ -380,7 +377,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
     fs::path packagesPath = fs::path(projectPath) / DekiEditor::GetPackageManifestFileName();
     fs::path lockPath = fs::path(projectPath) / DekiEditor::GetPackageLockFileName();
 
-    // Load lock file first (has full metadata)
+    // The lock file first: it has the full metadata.
     std::map<std::string, json> lockEntries;
     if (fs::exists(lockPath))
     {
@@ -402,15 +399,13 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         }
         catch (const std::exception& e)
         {
-            // Silence here used to lose every version pin in the project with no
-            // sign anything was wrong; the packages then resolved to whatever
-            // the registry served that day.
+            // Must be logged: without the lock every version pin is lost and
+            // packages resolve to whatever the registry serves that day.
             DEKI_LOG_WARNING("PackageManager: could not parse lock file %s (%s) - version pins ignored",
                              lockPath.string().c_str(), e.what());
         }
     }
 
-    // Helper to populate PackageEntry from a lock file JSON entry
     auto populateFromLockEntry = [](PackageEntry& pkg, const json& entry, const std::string& id)
     {
         pkg.name = entry.value("name", id);
@@ -448,9 +443,8 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         {
             pkg.packageType = PackageType::FrameworkComponent;
         }
-        // Older locks spelled the type "<installer id>_component", from when
-        // there was one framework and its name was the type. The id is right
-        // there in the spelling, so read it rather than knowing it.
+        // Older locks spell the type "<installer id>_component". The id is in
+        // the spelling, so read it from there.
         else if (typeStr.size() > kComponentSuffix.size() &&
                  typeStr.compare(typeStr.size() - kComponentSuffix.size(), kComponentSuffix.size(), kComponentSuffix) ==
                      0)
@@ -467,10 +461,10 @@ void PackageManager::LoadPackages(const std::string& projectPath)
             pkg.installer = entry["installer"].get<std::string>();
         }
 
-        // Deliberately not read back, even from a lock that still carries it.
-        // Trusting a cache nobody refreshes is how a package resolves to a
-        // version that no longer exists anywhere; the entry is dropped the next
-        // time the lock is written.
+        // availableVersions is not read back, even from a lock that still has
+        // it: a cache nobody refreshes resolves packages to versions that no
+        // longer exist. The entry is dropped the next time the lock is
+        // written.
         if (entry.contains("requires") && entry["requires"].is_array())
         {
             for (const auto& r : entry["requires"])
@@ -480,7 +474,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         }
     };
 
-    // Load manifest (user intent)
+    // The manifest: what the user asked for.
     if (fs::exists(packagesPath))
     {
         try
@@ -496,18 +490,17 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                     pkg.id = id;
                     pkg.name = id;
                     // Read from the manifest, so this is the project's own
-                    // dependency. Set before the lock merge below, which may also
-                    // mark it resolvedBy - being both is normal and must not cost
-                    // it the declaration.
+                    // dependency. Set before the lock merge below, which may
+                    // also mark it resolvedBy; being both is normal and must
+                    // keep the declaration.
                     pkg.declaredInManifest = true;
 
                     DekiEditor::ReadPackageSource(pkgJson.value("source", ""), /*emptyIsCustom*/ true, pkg);
                     pkg.url = pkgJson.value("url", "");
-                    // Developer intent, so it belongs in the manifest (committed)
-                    // rather than the lock (generated).
+                    // Developer intent, so it lives in the manifest (committed),
+                    // not the lock (generated).
                     pkg.editable = pkgJson.value("editable", false);
 
-                    // Merge metadata from lock file
                     auto lockIt = lockEntries.find(id);
                     if (lockIt != lockEntries.end())
                     {
@@ -522,7 +515,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                 }
             }
 
-            // Also load auto-resolved packages from the lock file that aren't in the manifest
+            // Also load auto-resolved packages from the lock file that are not in the manifest.
             for (auto& [id, lockEntry] : lockEntries)
             {
                 std::string resolvedBy = lockEntry.value("resolvedBy", "");
@@ -531,7 +524,6 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                     continue;
                 }
 
-                // Check if already loaded from manifest
                 bool found = false;
                 for (const auto& p : m_Packages)
                 {
@@ -552,7 +544,7 @@ void PackageManager::LoadPackages(const std::string& projectPath)
                 m_Packages.push_back(pkg);
             }
 
-            // Load dependency version pins
+            // Dependency version pins
             if (j.contains("dependencies") && j["dependencies"].is_object())
             {
                 for (auto& [name, ver] : j["dependencies"].items())
@@ -568,7 +560,6 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         }
     }
 
-    // Merge installed status
     RefreshInstalledStatus(projectPath);
 }
 
@@ -587,8 +578,8 @@ void PackageManager::SavePackages(const std::string& projectPath)
         }
     };
 
-    // Write deki-packages.json (manifest -- user intent only). The shape is
-    // shared with the project scaffold in PackageManifest.
+    // deki-packages.json: the manifest, user intent only. The project
+    // scaffold writes the same shape through PackageManifest.
     {
         std::string err;
         if (!DekiEditor::WritePackageManifest(std::filesystem::path(packagesPath).string(),
@@ -599,7 +590,7 @@ void PackageManager::SavePackages(const std::string& projectPath)
         }
     }
 
-    // Write deki-packages-lock.json (full resolved tree)
+    // deki-packages-lock.json: the full resolved tree.
     {
         json lockJson;
         lockJson["lockVersion"] = 1;
@@ -614,9 +605,8 @@ void PackageManager::SavePackages(const std::string& projectPath)
 
             // The resolved tree only: what is declared, on disk, editable, or
             // pulled in by another package. A registry refresh merges every
-            // available package into m_Packages for the panel to offer, and
-            // the lock used to record all of them (28 entries for a project
-            // using 9), as if they were part of the project.
+            // available package into m_Packages for the panel to offer; those
+            // are not part of the project.
             if (!pkg.declaredInManifest && !pkg.isInstalled && !pkg.editable && pkg.resolvedBy.empty())
             {
                 continue;
@@ -647,20 +637,18 @@ void PackageManager::SavePackages(const std::string& projectPath)
             }
             entry["source"] = DekiEditor::PackageSourceToString(pkg);
             entry["packageType"] = packageTypeToString(pkg.packageType);
-            // Only where it carries information: a Deki package's installer is
-            // implied by its type, and locks for projects that have no
-            // framework component stay byte-identical.
+            // Only where it carries information: a Deki package's installer
+            // follows from its type, and locks of projects without framework
+            // components stay byte-identical.
             if (pkg.packageType == PackageType::FrameworkComponent && !pkg.installer.empty())
             {
                 entry["installer"] = pkg.installer;
             }
 
             // availableVersions is NOT written. A lock records what is
-            // installed, not what happened to be available when it was last
-            // written, and a cache nobody refreshes goes stale silently:
-            // deki-demo's lock still listed 1.0.0 and 1.1.0 long after those
-            // tags were deleted from every remote. Versions are fetched when
-            // they are needed instead.
+            // installed, not what was available when it was written, and a
+            // cache nobody refreshes goes stale unnoticed (listing tags long
+            // deleted from every remote). Versions are fetched when needed.
 
             if (!pkg.requiredPackages.empty())
             {
@@ -672,10 +660,10 @@ void PackageManager::SavePackages(const std::string& projectPath)
                 entry["resolvedBy"] = pkg.resolvedBy;
             }
 
-            // The commit its version is (written by the installer), so a
-            // restore can tell when a tag was moved. Not for a package being
-            // developed (editable, or a link to a checkout): its commit is
-            // whatever the developer is on.
+            // The commit of its version (written by the installer), so a
+            // restore can tell when a tag was moved. Left out for a package
+            // being developed (editable, or a link to a checkout): its commit
+            // is whatever the developer is on.
             {
                 std::string commit;
                 const fs::path dir = fs::path(projectPath) / DekiEditor::GetPackagesDirectoryRelative() / pkg.id;
@@ -724,14 +712,13 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
         return;
     }
 
-    // Clear installed status
     for (auto& pkg : m_Packages)
     {
         pkg.isInstalled = false;
         pkg.installedVersion.clear();
     }
 
-    // Query all applicable installers and merge their installed packages
+    // Merge in what every applicable installer reports as installed.
     for (auto* installer : installers)
     {
         installer->EnsureCoreDependencies(projectPath);
@@ -740,7 +727,7 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
 
         // The editor's own installer manages Deki packages; every other
         // installer is some framework's component manager. What it reports is
-        // stamped with its id, which is also what heals an entry from a lock
+        // stamped with its id, which also fills it in for an entry from a lock
         // that never recorded one.
         const std::string installerId = installer->GetId();
         const PackageType pkgType =
@@ -751,13 +738,12 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
             bool found = false;
             for (auto& pkg : m_Packages)
             {
-                // Match by multiple criteria:
-                // 1. Exact name match
-                // 2. For GitHub packages: "owner/repo" matches installed "repo"
-                // 3. ID match
+                // A match is any of:
+                // 1. the exact name
+                // 2. for GitHub packages, "owner/repo" against an installed "repo"
+                // 3. the ID
                 bool nameMatch = (pkg.name == installed.name);
 
-                // Check if pkg.name is "owner/repo" format and installed.name is just "repo"
                 if (!nameMatch && pkg.source == PackageSourceType::GitHub)
                 {
                     size_t slashPos = pkg.name.find('/');
@@ -768,7 +754,6 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
                     }
                 }
 
-                // Also check ID match for GitHub packages
                 if (!nameMatch && installed.source == PackageSourceType::GitHub && !installed.id.empty())
                 {
                     nameMatch = (pkg.id == installed.id);
@@ -776,15 +761,12 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
 
                 if (nameMatch)
                 {
-                    // The lock pinned one version and a different one is checked
-                    // out. Say so: installedVersion is what gets written back to
-                    // the lock, so staying quiet here means simply opening a
-                    // project silently rewrites a committed file to match
-                    // whatever happens to be on this machine - and the next
-                    // person gets that version. It is not corrected
-                    // automatically, because the checkout may be one the
-                    // developer is editing on purpose and clobbering it would be
-                    // worse than the mismatch.
+                    // The lock pins one version and another is checked out. Say
+                    // so: installedVersion is written back to the lock, so just
+                    // opening the project rewrites a committed file to match
+                    // this machine, and the next person gets that version. It
+                    // is not corrected automatically: the developer may be
+                    // editing that checkout on purpose.
                     //
                     // The installed version comes from the stamp the installer
                     // wrote at install time, which a `git pull` in the checkout
@@ -826,7 +808,7 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
                 }
             }
 
-            // If installed package not in our list, add it
+            // An installed package missing from the list is added.
             if (!found)
             {
                 PackageEntry newPkg = installed;
@@ -841,14 +823,8 @@ void PackageManager::RefreshInstalledStatus(const std::string& projectPath)
     // an installer whether they are on disk is the wrong question. The
     // framework's own component manager fetches them into the build tree
     // during a build, and the backend regenerates its dependency manifest from
-    // ours every time it builds. The durable record is therefore the manifest
-    // and lock, not anything under build/.
-    //
-    // Deriving their state from build/ meant a clean build -- or any wipe of a
-    // gitignored directory -- reported a perfectly well declared component as
-    // "missing" until the next restore happened to rewrite the framework's
-    // file. Nothing was ever actually wrong: the build would have pulled it
-    // regardless.
+    // ours on every build. The durable record is the manifest and lock, not
+    // anything under build/, which a clean build wipes.
     for (auto& pkg : m_Packages)
     {
         if (pkg.packageType != PackageType::FrameworkComponent)
@@ -898,24 +874,22 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
 {
     if (!visited.insert(pkg.id).second)
     {
-        return;  // Cycle detected
+        return;  // cycle
     }
 
     for (const auto& depId : pkg.requiredPackages)
     {
-        // Check if already in our list - if so, mark as resolved
+        // Already in the list: mark it resolved.
         bool found = false;
         for (auto& existing : m_Packages)
         {
             if (existing.id == depId)
             {
-                // Never demote a package the user installed on purpose. Marking
-                // an installed entry as auto-resolved drops it out of
+                // Never demote a package the user installed on purpose.
+                // Marking an installed entry auto-resolved drops it from
                 // deki-packages.json (which skips resolved deps) and makes
-                // RemoveWithOrphans treat it as an orphan - so uninstalling the
-                // package that happens to depend on it would delete it too.
-                // Install deki-2d, then deki-particles, and deki-2d silently
-                // stops being something the project asked for.
+                // RemoveWithOrphans treat it as an orphan, so uninstalling a
+                // package that depends on it would delete it too.
                 if (existing.resolvedBy.empty() && !existing.isInstalled)
                 {
                     existing.resolvedBy = pkg.id;
@@ -929,7 +903,6 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
             continue;
         }
 
-        // Create a new package entry for the auto-resolved dependency
         PackageEntry dep;
         dep.id = depId;
         dep.name = depId;
@@ -937,7 +910,7 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
         dep.source = PackageSourceType::Custom;
         dep.resolvedBy = pkg.id;
 
-        // Try to fill metadata from registry cache
+        // Fill in metadata from the registry cache, if it has the package.
         auto* registry = GetRegistrySource();
         if (registry)
         {
@@ -962,7 +935,6 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
 
         m_Packages.push_back(dep);
 
-        // Recurse for transitive deps
         if (!dep.requiredPackages.empty())
         {
             ResolveDependenciesImpl(dep, visited);
@@ -976,10 +948,10 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
 {
     std::string pkgId = pkg.id;
 
-    // Outcome of the primary install, captured so it can be reported to the
-    // caller. The installers in use call their callback inline (see
-    // DekiPackageInstaller::Install), so this is set before Install() returns;
-    // it stays false for a hypothetical async installer, which fails safe.
+    // Outcome of the primary install, reported to the caller. The installers
+    // in use call their callback inline (see DekiPackageInstaller::Install),
+    // so this is set before Install() returns; for an async installer it
+    // stays false, which is the safe answer.
     auto primary = std::make_shared<std::pair<bool, std::string>>(false, "installer did not report a result");
 
     installer->Install(
@@ -992,7 +964,7 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                 return;  // reported to the caller below
             }
 
-            // Find the installed package and fill requiredPackages from cloned package.json
+            // Fill the installed package's requiredPackages from its cloned package.json.
             for (auto& installed : m_Packages)
             {
                 if (installed.id != pkgId)
@@ -1001,9 +973,9 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                 }
 
                 // Installing it is asking for it: it belongs in
-                // deki-packages.json. Without this the save that
-                // follows an install left it out (it was not yet
-                // declared, and not yet known to be on disk).
+                // deki-packages.json. Without this the save after an
+                // install leaves it out (not declared yet, and not yet
+                // known to be on disk).
                 installed.declaredInManifest = true;
 
                 if (installed.requiredPackages.empty())
@@ -1044,7 +1016,7 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                 break;
             }
 
-            // Install resolved deps that aren't on disk
+            // Install the resolved deps that are not on disk.
             auto* dekiInstaller = GetInstallerById(kDekiInstallerId);
             if (dekiInstaller)
             {
@@ -1065,12 +1037,10 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                     }
 
                     // Prefer the version the lock recorded for this dependency
-                    // over availableVersions, which is only a cache of what the
-                    // registry offered when the lock was last written - a lock
-                    // pinning 1.0.1 alongside a stale ["1.0.0"] cache would
-                    // otherwise reinstall 1.0.0. "master" is the last resort
-                    // because every dekiengine package uses it; "main" matched
-                    // none of them and simply failed the clone.
+                    // over availableVersions, which only caches what the
+                    // registry offered when the lock was written. "master" is
+                    // the last resort because every dekiengine package uses
+                    // that branch name.
                     std::string depVersion = depPkg.lockedVersion;
                     if (depVersion.empty() && !depPkg.availableVersions.empty())
                     {
@@ -1090,7 +1060,7 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                                 m_Packages[i].isInstalled = true;
                                 m_Packages[i].installedVersion = depVersion;
 
-                                // Read displayName from cloned package.json
+                                // displayName from the cloned package.json
                                 namespace fs = std::filesystem;
                                 std::string repoName = m_Packages[i].name;
                                 size_t sp = repoName.find('/');
@@ -1125,17 +1095,15 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
             }
         });
 
-    // What is on disk now, with versions, before the caller saves the
-    // manifest and lock: the lock used to be written without the new
-    // package's installedVersion.
+    // Read what is on disk now, with versions, before the caller saves the
+    // manifest and lock, so the lock gets the new package's installedVersion.
     if (primary->first)
     {
         RefreshInstalledStatus(projectPath);
     }
 
-    // Report what actually happened. This used to be an unconditional
-    // callback(true, ""), which made a failed clone (bad URL, no network, a ref
-    // that doesn't exist) surface in the UI as "Installed successfully".
+    // Report what actually happened, so a failed clone (bad URL, no network,
+    // a missing ref) does not show as "Installed successfully".
     callback(primary->first, primary->second);
 }
 
@@ -1144,10 +1112,10 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
 {
     std::string removedId = pkg.id;
 
-    // See InstallWithDependencies: the installers answer inline, so this is set
-    // before Remove() returns, and stays false for a hypothetical async one.
+    // See InstallWithDependencies: the installers answer inline, so this is
+    // set before Remove() returns, and stays false for an async one.
     auto primary = std::make_shared<std::pair<bool, std::string>>(false, "installer did not report a result");
-    // Orphan ids, surfaced to the caller as documented in the header.
+    // Orphan ids, passed to the caller as the header describes.
     auto orphansOut = std::make_shared<std::string>();
 
     installer->Remove(projectPath, pkg,
@@ -1159,7 +1127,6 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                               return;  // reported to the caller below
                           }
 
-                          // Collect orphaned deps
                           std::vector<std::string> orphanedIds;
                           for (const auto& p : m_Packages)
                           {
@@ -1202,7 +1169,6 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                               *orphansOut += orphanedIds[i];
                           }
 
-                          // Remove orphaned deps from disk
                           auto* dekiInstaller = GetInstallerById(kDekiInstallerId);
                           if (dekiInstaller)
                           {
@@ -1219,7 +1185,6 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                               }
                           }
 
-                          // Clear resolvedBy on orphaned deps
                           for (auto& p : m_Packages)
                           {
                               for (const auto& id : orphanedIds)
@@ -1234,10 +1199,9 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                           }
                       });
 
-    // Drop the removed package (and anything orphaned with it) from the package
-    // list. Without this the entries survive into the next SavePackages, so a
-    // "removed" package stayed declared in deki-packages.json and the lock, and
-    // the very next restore reinstalled it.
+    // Drop the removed package, and anything orphaned with it, from the
+    // package list. Otherwise the next SavePackages keeps it declared in
+    // deki-packages.json and the lock, and the next restore reinstalls it.
     if (primary->first)
     {
         std::unordered_set<std::string> drop;
@@ -1276,8 +1240,6 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
                          m_Packages.end());
     }
 
-    // Report the real outcome. This used to be an unconditional
-    // callback(true, ""), so a failed removal read as success - and the orphan
-    // list the header promises was never actually passed to anyone.
+    // Report the real outcome, with the orphan list on success.
     callback(primary->first, primary->first ? *orphansOut : primary->second);
 }

@@ -18,6 +18,7 @@ namespace DekiEditor
 // Off with Reduce Motion.
 namespace ScrollMotion
 {
+/// Hooks into `ctx`. Call once, after the context is created.
 void Install(ImGuiContext* ctx);
 }  // namespace ScrollMotion
 

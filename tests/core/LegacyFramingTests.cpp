@@ -1,8 +1,8 @@
-// Cameras frame the world themselves now. A project saved before that kept its
-// framing in the Framebuffer section instead, and a scene's camera migrates
-// from what it said when the scene loads (SceneView::GetLegacyFraming). These
-// check that opening a project reads that section in both of its old shapes,
-// and that nothing rewrites or removes it.
+// Cameras frame the world themselves. Older projects keep their framing in the
+// Framebuffer section instead, and a scene's camera migrates from it when the
+// scene loads (SceneView::GetLegacyFraming). These check that opening a
+// project reads that section in both of its old shapes, and that nothing
+// rewrites or removes it.
 
 #include <gtest/gtest.h>
 
@@ -105,8 +105,8 @@ TEST_F(LegacyFramingTest, SavingLeavesTheOldSectionForScenesNotYetLoaded)
 }
 
 // A settings file that does not parse (a merge conflict) is never written
-// over: its sections load as defaults and saving leaves the file alone. It
-// was reset to defaults on the next save, losing what the conflict held.
+// over: its sections load as defaults and saving leaves the file alone, so
+// what the conflict holds is not lost.
 TEST(ProjectSettingsFiles, AConflictedFileIsNotWrittenOver)
 {
     namespace fs = std::filesystem;

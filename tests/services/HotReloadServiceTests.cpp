@@ -87,7 +87,7 @@ TEST_F(HotReloadUtilityTest, HasNewerSources_IgnoresNonSourceFiles)
 
 TEST_F(HotReloadUtilityTest, HasNewerSources_SkipsGitGeneratedAndBuildFolders)
 {
-    // Not sources, and walking them made every project open slow: a package
+    // Not sources, and walking them would slow every project open: a package
     // clone's .git alone is thousands of files.
     auto refTime = std::filesystem::file_time_type::clock::now() - std::chrono::seconds(5);
     CreateSourceFileInSubdir(".git/objects", "a.h");
@@ -125,7 +125,7 @@ TEST_F(HotReloadUtilityTest, ResolvePackageSourceDir_FindsDekiPrefixedDir)
     auto packageDir = std::filesystem::path(DekiEditor::GetPackagesDirectory(m_TempDir.string())) / "deki-2d";
     std::filesystem::create_directories(packageDir);
 
-    // First arg is project path (repurposed from enginePath)
+    // The first argument is the project path.
     std::string result = PackageLoader::ResolvePackageSourceDir(m_TempDir.string(), "deki-2d.dll");
     EXPECT_FALSE(result.empty());
     EXPECT_NE(result.find("deki-2d"), std::string::npos);

@@ -3,9 +3,8 @@
 namespace DekiEditor
 {
 
-// Base of every dockable editor panel. EditorApp draws the panels, restores
-// and saves their open state through this interface instead of one
-// hand-written line per panel (it used to poke each of them by name).
+// Base of every dockable editor panel. EditorApp draws the panels and
+// restores and saves their open state through this interface.
 class IPanel
 {
 public:
@@ -25,8 +24,7 @@ public:
     bool IsOpen() const { return isOpen; }
     void SetOpen(bool open) { isOpen = open; }
 
-    // Public, as it always was on the panels: the Window menu and the layout
-    // reset write it directly.
+    // Public: the Window menu and the layout reset write it directly.
     bool isOpen = false;
 };
 

@@ -2,15 +2,11 @@
 
 // Everything that converts a stored value into something a person reads.
 //
-// Stored values are SI and never anything else - metres, radians, seconds; see
-// docs/units.md. Display is the only place a conversion happens, and this is
-// the only place a display conversion is written. It used to be three: the
-// inspector's multiplier table, the pixel-snapping helpers, and a separate
-// switch in the headless JSON writer, so adding a unit meant finding all three
-// and one of them had already drifted to a different opinion about Angle.
+// Stored values are always SI: metres, radians, seconds (see docs/units.md).
+// Conversion happens only for display, and every display conversion is written
+// here, so the inspector, pixel snapping and the headless JSON writer agree.
 //
-// If you add a PhysicalUnit, everything that needs teaching about it is in this
-// file.
+// A new PhysicalUnit needs changes in this file only.
 
 #include <cmath>
 
@@ -35,7 +31,7 @@ inline float PixelsPerMeter()
     return ppm > 0.0f ? ppm : 1.0f;
 }
 
-/// How the inspector renders one physical quantity.
+/// How the inspector shows one physical quantity.
 struct UnitDisplay
 {
     float multiplier;    ///< stored -> display, applied before the offset
@@ -50,14 +46,11 @@ inline float ToDisplay(float stored, const UnitDisplay& ud)
     return stored * ud.multiplier + ud.offset;
 }
 
-/**
- * @brief What the inspector shows -> the stored (SI) value
- *
- * The exact inverse of ToDisplay, and deliberately written next to it. While
- * every conversion was a bare multiply, a caller could invert it inline and be
- * right. With an offset in play, an open-coded `shown / multiplier` is wrong by
- * 32 degrees and still looks reasonable.
- */
+/// What the inspector shows -> the stored (SI) value.
+///
+/// The exact inverse of ToDisplay. Use it instead of writing
+/// `shown / multiplier` inline: that ignores the offset and is wrong by 32
+/// degrees for Fahrenheit while still looking reasonable.
 inline float FromDisplay(float shown, const UnitDisplay& ud)
 {
     if (ud.multiplier == 0.0f)
@@ -67,13 +60,11 @@ inline float FromDisplay(float shown, const UnitDisplay& ud)
     return (shown - ud.offset) / ud.multiplier;
 }
 
-/**
- * @brief How to show a value of `unit`, given the project's current mode
- *
- * Pixels mode scales the distance family by pixelsPerMeter; Meters mode shows
- * them unchanged. Angle is always degrees whichever mode is set, because
- * nobody reads radians - storage stays radians regardless.
- */
+/// How to show a value of `unit` in the project's current mode.
+///
+/// Pixels mode scales distance, velocity and acceleration by pixelsPerMeter;
+/// Meters mode shows them unchanged. Angles always show in degrees, though
+/// they are stored in radians.
 inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
 {
     const bool pixels = IsPixelsMode();
@@ -91,8 +82,8 @@ inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
                           : UnitDisplay{ 1.0f, 0.0f, "%.3f m/s\xc2\xb2", 0.1f };
         case Deki::PhysicalUnit::Angle: return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.2f\xc2\xb0", 1.0f };
         case Deki::PhysicalUnit::AngularVelocity:
-            // Stored rad/s, shown degrees/s - the unit every gyro datasheet and
-            // every person actually uses.
+            // Stored rad/s, shown degrees/s, the unit gyro datasheets and
+            // people use.
             return UnitDisplay{ Deki::Math::kRadToDeg, 0.0f, "%.1fÂ°/s", 1.0f };
         case Deki::PhysicalUnit::Temperature:
             // The only conversion with an offset: C -> F is x9/5 + 32.
@@ -104,13 +95,11 @@ inline UnitDisplay GetUnitDisplay(Deki::PhysicalUnit unit)
     }
 }
 
-/**
- * @brief The SI symbol a value of `unit` is STORED in, or nullptr
- *
- * Not affected by the project's display mode: this is what the number in the
- * scene file means, which is what a machine-readable dump wants. The inspector
- * wants GetUnitDisplay instead.
- */
+/// The SI symbol a value of `unit` is stored in, or nullptr.
+///
+/// Ignores the project's display mode: it says what the number in the scene
+/// file means, which is what a machine-readable dump needs. The inspector uses
+/// GetUnitDisplay instead.
 inline const char* CanonicalUnitSymbol(Deki::PhysicalUnit unit)
 {
     switch (unit)
@@ -126,20 +115,16 @@ inline const char* CanonicalUnitSymbol(Deki::PhysicalUnit unit)
     }
 }
 
-/// Whether an edited value of `unit` should land on a whole pixel. Only
-/// distances, and only when the user is working in pixels - snapping a
-/// velocity or an angle would be meaningless.
+/// Whether an edited value of `unit` should land on a whole pixel: only
+/// distances, and only in Pixels mode.
 inline bool ShouldSnapToPixel(Deki::PhysicalUnit unit)
 {
     return unit == Deki::PhysicalUnit::Distance && IsPixelsMode();
 }
 
-/**
- * @brief Round a metres value to the nearest whole pixel in Pixels mode
- *
- * A no-op in Meters mode. Apply it to values the user places interactively so
- * what they see as an integer pixel position round-trips to exactly that.
- */
+/// Rounds a metres value to the nearest whole pixel in Pixels mode; returns it
+/// unchanged in Meters mode. Apply it to values the user places by hand, so a
+/// whole pixel position they see is stored as exactly that.
 inline float SnapMetersToPixel(float meters)
 {
     if (!IsPixelsMode())
@@ -147,11 +132,9 @@ inline float SnapMetersToPixel(float meters)
         return meters;
     }
 
-    // Read the setting directly rather than through PixelsPerMeter(), which
-    // clamps an invalid value to 1.0. That clamp is right for a display
-    // multiplier - showing metres beats showing zeroes - and wrong here: it
-    // would round to whole METRES and flatten every value in the project. A
-    // broken setting means "do not snap", not "snap to something else".
+    // Read the setting directly, not through PixelsPerMeter(), which turns an
+    // invalid value into 1.0. Here that would round to whole metres and
+    // flatten every value. An invalid setting means "do not snap".
     const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
     if (ppm <= 0.0f)
     {

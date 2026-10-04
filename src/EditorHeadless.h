@@ -13,14 +13,13 @@ struct CliOptions;
 // Each of these is handed the same EditorApp the GUI holds: project open,
 // declared packages restored, build files generated, packages and the plugin
 // compiled and promoted, package and plugin DLLs loaded, assets imported.
-// EditorBoot did all of that, identically to a GUI start, before any of these
-// is called.
+// EditorBoot does all of that, exactly as a GUI start does, before any of
+// these is called.
 //
 // So they do only the verb's own work. Where the verb's work IS part of
-// opening a project - restoring packages, building code - the command reports
-// on what the open already did rather than doing a second, differently-written
-// version of it. That is the point: there is no longer a headless spelling of
-// these operations that can drift from the editor's.
+// opening a project (restoring packages, building code), the command reports
+// on what the open already did instead of doing it a second way. There is no
+// separate headless version of these operations to drift from the editor's.
 
 /// Report on the assets the project open imported into cache/.
 int CmdBuildAssets(EditorApp& editor);
@@ -53,12 +52,12 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll);
 /// Reflected member names are the scene-file format (reflection_codegen emits
 /// each C++ identifier as a Deki::HashString key), so renaming one silently
 /// changes the on-disk key and the property reverts to its default with no
-/// error anywhere. This is the check that makes such a rename verifiable.
+/// error anywhere. This check catches such a rename.
 ///
-/// It is only meaningful with the project's components registered, which is
-/// why it runs on a booted editor: a component with no metadata cannot have an
-/// unrecognised key, so a scan without them would pass having examined
-/// nothing. It still refuses to report success in that case.
+/// It needs the project's components registered, so it runs on a booted
+/// editor: a component with no metadata cannot have an unrecognised key, and
+/// a scan without them would pass having examined nothing. It refuses to
+/// report success in that case.
 ///
 /// Returns 0 when the project's code built, every scene loaded, every component
 /// resolved to a type and every key is recognised; 1 otherwise.
@@ -72,7 +71,7 @@ int CmdVerifyScenes(EditorApp& editor);
 /// per scene. With DEKI_RENDER_OUT=<dir> each last frame is also written as a
 /// binary .ppm.
 ///
-/// This is the pixel gate for renderer work on real project content: run it
+/// This is the pixel check for renderer work on real project content: run it
 /// before and after a change and diff the hashes. Scenes with no camera are
 /// reported and skipped. Returns 0 when at least one scene rendered and every
 /// scene loaded with all its components known; the hashes print either way.
@@ -86,7 +85,7 @@ int CmdVerifyScenes(EditorApp& editor);
 int CmdRenderScenes(EditorApp& editor, const char* platformId);
 
 /// List every scriptable tool with its JSON schema. Same registry the MCP
-/// server serves, so the two can never drift apart.
+/// server serves, so the two cannot drift apart.
 int CmdListTools(EditorApp& editor);
 
 /// Run one tool and print its result as JSON. `argsJson` may be null, which
@@ -114,8 +113,8 @@ int CmdPlatformCompat(EditorApp& editor);
 int CmdBuildAllTargets(EditorApp& editor);
 
 /// Write the reflection metadata of everything the project open loaded -
-/// each package's components (name, GUID, category, description, every
-/// property with type, tooltip, range, enum values, default value) and
+/// each package's components (name, qualified type, category, description,
+/// every property with type, tooltip, range, enum values, default value) and
 /// project-settings sections - as one JSON file. Components are attributed to
 /// the package DLL that registered them; engine-core ones go under "engine";
 /// the project's own only with `includeProject`. The docs build reads this.
@@ -131,8 +130,8 @@ int CmdClean(EditorApp& editor, const char* platformId);
 // Commands that read the project directory and nothing else
 // ===========================================================================
 //
-// These deliberately do not boot. See EditorCli.h / IsLightCommand for why
-// each one qualifies - it is a short, closed list, not a default.
+// These deliberately do not boot. See IsLightCommand in EditorCli.h for why
+// each one qualifies: it is a short, closed list, not a default.
 
 int CmdPackagesList(const char* projectPath);
 

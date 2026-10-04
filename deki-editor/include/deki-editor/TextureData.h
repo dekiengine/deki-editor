@@ -8,7 +8,7 @@
 namespace DekiEditor
 {
 
-// TEX flag bits (mirrors C++ TEX_FLAG_* #defines)
+// TEX flag bits. Must match the engine's TEX_FLAG_* defines.
 enum class TexFlags : uint32_t
 {
     None = 0,
@@ -18,7 +18,7 @@ enum class TexFlags : uint32_t
     AllOpaque = 0x08
 };
 
-// Texture format enum values (from deki-engine)
+// Texture format values. Must match deki-engine's.
 enum class TextureFormat : uint32_t
 {
     RGB888 = 0,
@@ -28,7 +28,7 @@ enum class TextureFormat : uint32_t
     ALPHA8 = 4
 };
 
-// TEX file header structure
+// TEX file header.
 struct DEKI_EDITOR_API TexHeader
 {
     char magic[4];  // "DTEX" (kept for compatibility)
@@ -41,7 +41,7 @@ struct DEKI_EDITOR_API TexHeader
     uint32_t flags;
 };
 
-// TEX file data
+// A loaded TEX file.
 struct DEKI_EDITOR_API TexData
 {
     TexHeader header;

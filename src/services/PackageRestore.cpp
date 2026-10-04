@@ -26,12 +26,9 @@ namespace DekiEditor
 namespace
 {
 
-// Wait up to 30 s for `done`, in 50 ms slices, repainting the startup modal
-// between them so the window keeps pumping events. A single wait_for used to
-// freeze the editor for the whole wait.
 // What a background fetch reports into. Shared with the fetch thread, so a
-// reply that arrives after the wait gave up writes into this rather than into
-// the stack frame of a function that has returned.
+// reply that arrives after the wait gave up writes here, not into the stack
+// frame of a function that has returned.
 struct FetchWait
 {
     std::mutex m;
@@ -41,10 +38,11 @@ struct FetchWait
     std::vector<std::string> versions;
 };
 
+// Waits up to 30 s for `done`, in 50 ms slices, repainting the startup modal
+// between them so the window keeps pumping events and does not freeze.
 // `drain` runs between slices: a result that comes back through the package
-// manager's main-thread queue only arrives when that queue is drained, and
-// nothing else drains it on this path (the version lookup always waited the
-// full 30 s and found nothing).
+// manager's main-thread queue arrives only when that queue is drained, and
+// nothing else drains it on this path.
 bool WaitBounded(FetchWait& w, const char* detail, const std::function<void()>& drain = {})
 {
     std::unique_lock<std::mutex> lock(w.m);
@@ -66,13 +64,12 @@ bool WaitBounded(FetchWait& w, const char* detail, const std::function<void()>& 
     return w.done;
 }
 
-// Pick the version to install for a package.
+// Picks the version to install for a package.
 //
-// Preference order matches what the panel shows the user by default: the
-// newest concrete version the lock/registry knows about, otherwise whatever
-// the source reports (releases, then tags, then branches). There is no safe
-// hardcoded fallback - "main" is wrong for every dekiengine package, which all
-// use "master" - so when nothing is known we ask the source rather than guess.
+// Same order as the panel's default: the newest concrete version the lock or
+// registry knows, otherwise what the source reports (releases, then tags,
+// then branches). No branch name is safe to hardcode, so when nothing is
+// known the source is asked.
 std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
 {
     if (!pkg.availableVersions.empty())
@@ -80,7 +77,7 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
         return HighestVersion(pkg.availableVersions);
     }
 
-    // FetchVersions answers on a detached thread; block until it reports.
+    // FetchVersions answers on a detached thread; block until it does.
     auto wait = std::make_shared<FetchWait>();
     mgr.FetchVersionsForPackage(pkg,
                                 [wait](bool ok, const std::vector<std::string>& v)
@@ -96,7 +93,7 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
                                     wait->cv.notify_one();
                                 });
 
-    // Bounded: a hung network call must not wedge the CLI forever.
+    // With a time limit: a hung network call must not hang the CLI.
     WaitBounded(*wait, "Fetching package versions...", [&mgr] { mgr.DrainMainThread(); });
     std::vector<std::string> versions;
     {
@@ -112,8 +109,8 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
     return "";
 }
 
-// Versions pinned in deki-packages.json, keyed by package id. "*" means "any",
-// and is returned as-is for the caller to treat as unpinned.
+// Versions pinned in deki-packages.json, keyed by package id. "*" means
+// "any" and is returned as is, for the caller to treat as unpinned.
 std::map<std::string, std::string> ReadManifestVersions(const std::string& projectPath)
 {
     std::map<std::string, std::string> out;
@@ -149,14 +146,11 @@ std::map<std::string, std::string> ReadManifestVersions(const std::string& proje
 
 }  // namespace
 
-// Populate the registry index cache, blocking until it answers.
-//
 // PackageManager::ResolveDependenciesImpl fills an auto-resolved dependency's
-// URL from DekiRegistrySource::GetCachedIndex() - the *cached* index. In the
-// GUI that cache is warmed as a side effect of the Package Manager panel opening
-// and listing packages. Nothing warms it headlessly, so without this every
-// dependency resolved from a package's `requires` gets an empty URL and can
-// never be installed.
+// URL from DekiRegistrySource::GetCachedIndex(), the *cached* index. In the
+// GUI the Package Manager panel fills that cache when it lists packages.
+// Headless, nothing else does, and every dependency from a package's
+// `requires` would get an empty URL and could not be installed.
 bool WarmRegistryIndex(PackageManager& mgr)
 {
     auto* registry = mgr.GetRegistrySource();
@@ -186,15 +180,10 @@ bool WarmRegistryIndex(PackageManager& mgr)
     return wait->ok;
 }
 
-// Fill in a package's source URL from the registry index when the project
-// didn't record one.
-//
-// LoadPackages takes `url` straight from deki-packages.json / the lock file, and
-// a manifest may legitimately list a package by bare id ("deki-audio") with no
-// URL - that is the whole point of a registry. PackageManager only consults the
-// index for auto-resolved *dependencies*, so a URL-less manifest entry would
-// otherwise be unusable even though the registry knows exactly where it lives.
-// Returns true if a URL was filled in.
+// LoadPackages takes `url` straight from deki-packages.json or the lock file,
+// and a manifest may list a package by bare id ("deki-audio") with no URL.
+// PackageManager consults the index only for auto-resolved *dependencies*, so
+// without this a manifest entry without a URL could not be installed.
 bool TryFillFromRegistry(PackageManager& mgr, PackageEntry& pkg)
 {
     if (!pkg.url.empty())
@@ -255,15 +244,12 @@ IPackageInstaller* InstallerFor(PackageManager& mgr, const PackageEntry& pkg, co
     return installer;
 }
 
-// After installing anything, drop the generated CMakeLists so the next build
-// regenerates it with the new package set.
+// After installing anything, delete the generated CMakeLists so the next
+// build regenerates it with the new package set.
 //
-// This is the fallback for a caller with no HotReloadService - deleting the
-// file achieves the same "regenerate from scratch" result as
-// HotReloadService::ForceNextBuild(). Both the panel and the CLI have a
-// service now (a CLI run boots the editor), so they use ForceNextBuild; this
-// remains for RestoreMissingPackages, which is called during OpenProject
-// before the hot-reload service has a project to build.
+// Same effect as HotReloadService::ForceNextBuild(), for a caller without that
+// service: RestoreMissingPackages runs during OpenProject, before the
+// hot-reload service has a project to build.
 void InvalidateGeneratedBuildFiles(const std::string& projectPath)
 {
     std::error_code ec;
@@ -331,30 +317,30 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, Pack
 {
     PackageRestoreResult result;
 
-    // Dependency resolution reads package URLs out of the registry index cache,
-    // so it has to be fetched before anything is installed.
+    // Dependency resolution reads package URLs from the registry index cache,
+    // so fetch it before installing anything.
     WarmRegistryIndex(mgr);
 
     // Versions pinned in the manifest. LoadPackages reads `source` and `url`
-    // from deki-packages.json but not `version`, so read it here: a restore must
-    // reproduce the pinned version, not silently take the newest tag.
+    // from deki-packages.json but not `version`, so read it here: a restore
+    // must reproduce the pinned version, not take the newest tag.
     const std::map<std::string, std::string> pinned = ReadManifestVersions(projectPath);
 
-    // Track by id, not by pass - a package is re-examined on every sweep, so
-    // per-pass bookkeeping would record the same skip many times over.
+    // Track by id, not by pass: every sweep looks at each package again, and
+    // per-pass records would repeat the same skip.
     std::set<std::string> seen;
 
     // Installing a package appends its newly resolved dependencies to the
     // package list, so keep sweeping until a full pass installs nothing new.
-    // Bounded to rule out a dependency cycle spinning forever.
+    // The pass limit stops a dependency cycle from spinning forever.
     for (size_t pass = 0; pass < 64; ++pass)
     {
         bool progressed = false;
 
         for (size_t i = 0; i < mgr.GetPackages().size(); ++i)
         {
-            // Copy: InstallWithDependencies can append to (and reallocate) the
-            // package vector, invalidating any reference held across the call.
+            // A copy: InstallWithDependencies can append to (and reallocate)
+            // the package vector, invalidating a reference held across the call.
             PackageEntry pkg = mgr.GetPackages()[i];
 
             if (pkg.isInstalled || pkg.id.empty())
@@ -366,8 +352,8 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, Pack
                 continue;  // already reported; don't retry every sweep
             }
 
-            // A manifest entry may name a package by bare id and leave the URL to
-            // the registry, so look it up before giving up on it.
+            // A manifest entry may name a package by bare id and leave the URL
+            // to the registry, so look it up there.
             if (pkg.url.empty() && !TryFillFromRegistry(mgr, pkg))
             {
                 result.unresolvable.push_back(pkg.id);
@@ -384,16 +370,13 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, Pack
             }
 
             // Version precedence, strongest first:
-            //   1. the manifest's pin      - explicit user intent
-            //   2. the lock's recorded version - the resolution this project
-            //      recorded; reproducing it is the whole point of a lock file
-            //   3. ask the source          - genuinely unpinned
+            //   1. the manifest's pin            - explicit user intent
+            //   2. the lock's recorded version   - what the lock file exists
+            //      to reproduce
+            //   3. ask the source                - truly unpinned
             //
-            // Note what is NOT in that list: availableVersions. It is a cache of
-            // what the registry offered when the lock was last written, not a
-            // pin. Treating its first entry as the version to install meant a
-            // lock that pinned 1.0.1 still installed 1.0.0 whenever the cached
-            // list predated the newer release.
+            // availableVersions is NOT in the list: it caches what the
+            // registry offered when the lock was written, and is not a pin.
             std::string version;
             auto pinIt = pinned.find(pkg.id);
             if (pinIt != pinned.end() && pinIt->second != "*" && !pinIt->second.empty())

@@ -7,20 +7,15 @@ namespace DekiEditor
 
 class ConsolePanel;
 
-/**
- * BuildFileGenerator
- *
- * Generates CMake and C++ files needed for desktop DLL builds.
- * Extracted from HotReloadService - these are pure code generation
- * functions with no dependency on hot reload state.
- */
+/// Writes the CMake and C++ files a desktop plugin DLL build needs. Pure code
+/// generation, independent of hot reload state.
 class BuildFileGenerator
 {
 public:
-    // Generate a CMakeLists.txt for desktop plugin builds
+    /// Writes the CMakeLists.txt for the project's desktop plugin build.
     static bool GenerateDesktopCMakeLists(const std::string& projectPath, ConsolePanel* console);
 
-    // Generate PluginExports.cpp with required DLL exports
+    /// Writes PluginExports.cpp with the functions the plugin DLL must export.
     static bool GeneratePluginExports(const std::string& projectPath, ConsolePanel* console);
 };
 

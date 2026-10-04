@@ -8,10 +8,10 @@ namespace DekiEditor
 
 class EditorApp;
 
-// Handle MCP resource reads
+/// Returns the contents of the MCP resource at `uri`.
 nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor);
 
-// List all available MCP resources
+/// Lists every MCP resource the editor offers.
 nlohmann::json ListResources();
 
 }  // namespace DekiEditor

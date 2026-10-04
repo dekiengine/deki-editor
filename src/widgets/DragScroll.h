@@ -6,12 +6,10 @@
 namespace DekiEditor
 {
 
-// While a drag-drop is active and the mouse is near the top/bottom edge of the
-// current window's vertical scroll region, advance scroll automatically.
-// Speed scales linearly from 0 at the edge boundary to maxSpeed at the very
-// edge, frame-rate-independent via DeltaTime. Call once per frame inside the
-// scroll container (the window or BeginChild that owns the scroll). Shared by
-// the Hierarchy and the Asset Browser, which used to carry one copy each.
+/// While a drag-drop is active and the mouse is near the top or bottom edge of
+/// the current window, scrolls it. Speed goes linearly from 0 at `edgePx` in
+/// to `maxSpeed` (pixels per second) at the very edge, scaled by DeltaTime.
+/// Call once per frame inside the window or BeginChild that owns the scroll.
 inline void AutoScrollOnDrag(float edgePx = 32.0f, float maxSpeed = 1200.0f)
 {
     if (!ImGui::IsDragDropActive())

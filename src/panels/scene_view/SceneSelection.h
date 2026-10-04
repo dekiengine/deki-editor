@@ -19,19 +19,19 @@ class SceneSelection
 public:
     SceneSelection(SceneObjectMeasurer* measurer, SceneTextureCache* textureCache);
 
-    // Hit test a single object at world coordinates (meters). pixelsPerMeter
-    // converts the object's framebuffer-pixel display size into world meters.
+    /// True if the object is hit at a world point (meters). `pixelsPerMeter`
+    /// converts the object's drawn size in pixels to meters.
     bool HitTestObject(Deki::Object* obj, float worldX, float worldY, float pixelsPerMeter);
 
-    // Handle click with cycling support. Returns the outermost (backmost)
-    // object under the click point; if currentSelection is already one of the
-    // hits, returns the next one inward (wrapping). nullptr if nothing is hit.
+    /// The object a click picks: the outermost (backmost) one under the point,
+    /// or, when `currentSelection` is one of the hits, the next one inward,
+    /// wrapping around. nullptr if nothing is hit.
     Deki::Object* HandleClick(const std::vector<Deki::Object*>& objects, Deki::Object* currentSelection, float worldX,
                               float worldY, float pixelsPerMeter);
 
-    // The visible objects drawn wholly inside the world rectangle (meters, any
-    // corner order). Wholly, not touching: a box around some sprites would
-    // otherwise also pick the background they sit on, and the camera.
+    /// The visible objects drawn wholly inside the world rectangle (meters,
+    /// corners in any order). Wholly, not touching, so a box around some
+    /// sprites does not also pick the background they sit on, or the camera.
     std::vector<Deki::Object*> ObjectsInRect(const std::vector<Deki::Object*>& objects, float x0, float y0, float x1,
                                              float y1, float pixelsPerMeter);
 

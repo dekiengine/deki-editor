@@ -9,8 +9,8 @@ namespace
 {
 
 // "*.scene" -> "scene", "*.*" -> "*", "*.png;*.jpg" -> "png;jpg". Anything
-// that is not a "*.ext" glob is passed through, so an already-bare extension
-// list survives unchanged.
+// that is not a "*.ext" glob passes through, so a list of bare extensions
+// stays as it is.
 std::string ToBareExtensions(const std::string& spec)
 {
     std::string out;
@@ -67,16 +67,16 @@ std::vector<DialogFilter> ParseWin32Filter(const char* filter)
         return filters;
     }
 
-    // Walk the NUL-separated run. The terminator is a NUL immediately after
-    // the NUL that ended the previous string, so an empty string ends it.
+    // Walk the NUL-separated strings. The list ends with a second NUL right
+    // after the one that ended the last string, so an empty string ends it.
     const char* cursor = filter;
     while (*cursor != '\0')
     {
         std::string name(cursor);
         cursor += name.size() + 1;
 
-        // A name with no spec behind it is malformed; drop it rather than
-        // reading past the terminator looking for one.
+        // A name with no spec after it is malformed; drop it rather than read
+        // past the end looking for one.
         if (*cursor == '\0')
         {
             break;

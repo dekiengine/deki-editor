@@ -17,12 +17,10 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath, const 
 {
     namespace fs = std::filesystem;
 
-    // Detect a stale CMakeCache from a prior toolchain (MSBuild, or Ninja+gcc
-    // from the editor being launched without vcvars). Reading CMAKE_GENERATOR
-    // and CMAKE_CXX_COMPILER from CMakeCache.txt tells us if the existing cache
-    // matches the toolchain we now want (Ninja + cl.exe). If not, wipe the
-    // build dir - otherwise we'd run Ninja against old build files that still
-    // invoke g++/ld and get the confusing "collect2.exe: ld returned 1" error.
+    // CMAKE_GENERATOR and CMAKE_CXX_COMPILER in CMakeCache.txt tell whether
+    // the cache matches the toolchain we now use. If not, wipe the build dir;
+    // otherwise Ninja runs old build files that still call g++/ld and fails
+    // with a bare "collect2.exe: ld returned 1".
     auto readCacheVar = [&](const std::string& key) -> std::string
     {
         std::ifstream f(cmakeCachePath);
@@ -42,10 +40,9 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath, const 
                 continue;
             }
 
-            // Strip trailing CR / whitespace. std::getline drops the LF but
-            // leaves CR on Windows-style line endings, which would otherwise
-            // make the strict equality check below false-trigger and wipe the
-            // entire build dir on every reload.
+            // Strip trailing CR and whitespace. std::getline leaves the CR of
+            // a CRLF line, which would fail the exact comparison below and
+            // wipe the build dir on every reload.
             std::string val = line.substr(eq + 1);
             while (!val.empty() && (val.back() == '\r' || val.back() == ' ' || val.back() == '\t'))
             {
@@ -66,15 +63,14 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath, const 
 
         bool wrongGenerator = !cacheGen.empty() && cacheGen != "Ninja";
         // A cache written by a different compiler (a manual cmake run, or an
-        // editor build that used another toolchain) must be wiped rather than
-        // reused - mixing ABIs in one build dir produces link errors that look
-        // nothing like a toolchain mismatch.
+        // editor build with another toolchain) must be wiped, not reused:
+        // mixed ABIs in one build dir give link errors that do not point to
+        // the toolchain.
         //
-        // Compare against the compiler *this* branch actually configures below,
-        // not a hardcoded name: on Windows that is whatever PluginToolchain
-        // selected (clang-cl, cl, or MinGW g++), and on Linux/macOS it is the
-        // compiler baked into the editor. Testing for one fixed name would wipe
-        // the build dir on every reload for anyone using the other.
+        // Compare with the compiler this build configures, not a fixed name:
+        // on Windows whatever PluginToolchain selected (clang-cl, cl, or MinGW
+        // g++), on Linux/macOS the compiler baked into the editor. A fixed name
+        // would wipe the build dir on every reload for anyone using another.
         auto compilerMarker = [](const std::string& path)
         {
             std::string stem = fs::path(path).stem().string();
@@ -92,8 +88,8 @@ void WipeBuildDirIfStaleToolchain(const std::filesystem::path& buildPath, const 
 
         if (wrongGenerator || wrongCompiler)
         {
-            // Dump raw values + first-16-byte hex so a hidden control char or
-            // BOM is immediately visible the next time this triggers.
+            // Log the raw values and their first 16 bytes in hex, so a hidden
+            // control character or BOM shows.
             auto hexDump = [](const std::string& s)
             {
                 std::string out;

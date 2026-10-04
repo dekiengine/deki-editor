@@ -10,13 +10,9 @@ namespace DekiEditor
 class Project;
 class AssetPipeline;
 
-/**
- * @brief Filesystem implementation for editor play mode
- *
- * This filesystem works with absolute paths and also resolves
- * relative paths (like font atlas references) correctly.
- * It uses standard C file operations and works with the asset pipeline.
- */
+/// The filesystem for editor play mode. It takes absolute paths and also
+/// resolves relative ones (such as font atlas references) through the asset
+/// pipeline, using standard C file operations.
 class EditorPlayModeFileSystem : public Deki::IFileSystem
 {
 public:
@@ -36,29 +32,19 @@ public:
     bool FileExists(const char* path) override;
     bool ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize) override;
 
-    /**
-     * @brief Path resolver callback type
-     *
-     * Takes an asset-relative path (e.g., "scenes/Demo") and returns the
-     * absolute path to the compiled/cached version of that asset.
-     */
+    /// Takes an asset-relative path (such as "scenes/Demo") and returns the
+    /// absolute path to the compiled, cached version of that asset.
     using PathResolverCallback = std::function<std::string(const std::string&)>;
 
-    /**
-     * @brief Set the path resolver for asset-relative paths
-     * @param resolver Callback that resolves asset paths to absolute cache paths
-     */
+    /// Sets the callback that resolves asset-relative paths to absolute cache
+    /// paths.
     void SetPathResolver(PathResolverCallback resolver) { m_PathResolver = resolver; }
 
-    /**
-     * @brief Set the directory that the virtual "S:/" mount maps to.
-     *
-     * Must be set before any S:/ path is opened - UserData and other runtime
-     * state writes through this mount. In playmode the SD card doesn't exist,
-     * so EditorProjectManager points this at %APPDATA%/DekiEditor/<project>/
-     * to keep runtime files out of the project tree (storage/ is for compiled
-     * build artifacts only).
-     */
+    /// Sets the directory that the virtual "S:/" mount maps to. Must be set
+    /// before any S:/ path is opened: UserData and other runtime state write
+    /// through this mount. Play mode has no SD card, so EditorProjectManager
+    /// points this at %APPDATA%/DekiEditor/<project>/ to keep runtime files
+    /// out of the project tree (storage/ holds compiled build output only).
     void SetStorageBasePath(const std::string& path) { m_StorageBasePath = path; }
 
 private:

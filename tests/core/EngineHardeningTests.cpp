@@ -1,5 +1,4 @@
-// Regressions for the second-pass audit (engine-side parsing, plus the
-// editor-side settings write).
+// Hardening of engine-side parsing, plus the editor-side settings write.
 //
 // The parser tests matter most: SceneMsgPackParser is the device-side loader
 // for .scene caches read off SD/SPIFFS, so its input is untrusted by default -
@@ -34,8 +33,7 @@ namespace
 {
 /// A scene-shaped document whose single value is `depth` nested fixarrays.
 /// A fixarray header is one byte (0x91 = "array of 1"), so this costs one input
-/// byte per nesting level - which is what made unbounded recursion so cheap to
-/// trigger.
+/// byte per nesting level: deep nesting is cheap to send.
 std::vector<uint8_t> MakeNestedDoc(int depth)
 {
     std::vector<uint8_t> doc;
@@ -53,7 +51,7 @@ std::vector<uint8_t> MakeNestedDoc(int depth)
 
 TEST(MsgPackDepth, ShallowNestingStillParses)
 {
-    // Well below the cap - must not be rejected by the new limit.
+    // Well below the cap - must not be rejected by the depth limit.
     auto doc = MakeNestedDoc(8);
     Deki::Scene scene;
     Deki::SceneFormat::SceneMsgPackParser parser(doc.data(), doc.size());
@@ -62,9 +60,9 @@ TEST(MsgPackDepth, ShallowNestingStillParses)
 
 TEST(MsgPackDepth, DeepNestingIsRejectedRatherThanCrashing)
 {
-    // Before the depth cap this exhausted the stack and killed the process
-    // (0xC00000FD). ~20 KB was enough on a 1 MB desktop stack; on an ESP32
-    // task stack it took only a couple of hundred bytes.
+    // Without a depth cap this exhausts the stack and kills the process
+    // (0xC00000FD). ~20 KB is enough on a 1 MB desktop stack; on an ESP32
+    // task stack a couple of hundred bytes is.
     auto doc = MakeNestedDoc(60000);
     Deki::Scene scene;
     Deki::SceneFormat::SceneMsgPackParser parser(doc.data(), doc.size());
@@ -82,7 +80,7 @@ TEST(MsgPackDepth, NestingJustPastTheCapIsRejected)
 TEST(MsgPackDepth, DeeplyNestedChildObjectsAreRejected)
 {
     // The object tree recurses through ParseObjectInternal, which allocates a
-    // Deki::Object per level - so an unbounded chain burned heap as well as stack.
+    // Deki::Object per level - so an unbounded chain burns heap as well as stack.
     std::vector<uint8_t> doc;
     doc.push_back(0x81);  // scene map
     doc.push_back(0xa7);
@@ -113,7 +111,7 @@ TEST(MsgPackDepth, DeeplyNestedChildObjectsAreRejected)
 TEST(MsgPackDepth, TruncatedInputFailsCleanly)
 {
     // Not a depth case, but the same "malformed input must fail, not crash"
-    // contract the parser is now expected to hold to.
+    // contract the parser holds to.
     const std::vector<uint8_t> truncated = { 0x81, 0xa1, 'x' };
     Deki::Scene scene;
     Deki::SceneFormat::SceneMsgPackParser parser(truncated.data(), truncated.size());
@@ -168,8 +166,8 @@ TEST(AssetLookupTableHardening, RejectsCountLargerThanTheBuffer)
 TEST(AssetLookupTableHardening, RejectsCountThatWouldOverflow32BitArithmetic)
 {
     // 4 + count * 44 wraps to a small value in 32-bit size_t, which is what
-    // ESP32 builds use. Computed in 64-bit now, so this is refused on
-    // every platform rather than only on desktop.
+    // ESP32 builds use. It is computed in 64-bit, so this is refused on every
+    // platform.
     const uint32_t overflowing = 0xFFFFFFFFu / 44u + 2u;
     auto buf = MakeLookupTable(overflowing, /*real*/ 1);
     EXPECT_FALSE(Deki::AssetLookupTable::Load(buf.data(), buf.size()));
@@ -247,19 +245,15 @@ TEST(SettingsDurability, AtomicWriteReplacesWithoutAnIntermediateEmptyState)
 }
 
 // ============================================================================
-// PERF-3 - lifecycle phases must not allocate every frame
+// Lifecycle phases must not allocate every frame
 // ============================================================================
 
 // Measuring allocations directly needs a counter inside deki-engine-core: on
 // Windows each DLL resolves its own operator new, so an override here never
-// sees the engine's. Rather than ship that instrumentation, this pins the
-// property that makes the steady state allocation-free - the scratch buffers
-// keep their capacity across frames, so repeated phases reuse storage instead
-// of building a fresh vector each time.
-//
-// Measured with a temporary in-DLL counter before and after the fix:
-//     1 behaviour  : 4 allocs/frame  ->  0
-//   200 behaviours : 12 allocs/frame, ~8.9 KB churn  ->  0
+// sees the engine's. So this pins the property that makes the steady state
+// allocation-free: the scratch buffers keep their capacity across frames, so
+// repeated phases reuse storage instead of building a fresh vector each time
+// (which costs 12 allocations, ~8.9 KB, a frame with 200 behaviours).
 
 TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
 {
@@ -274,8 +268,7 @@ TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
     ASSERT_NE(lm, nullptr);
 
     // Two identical frames. The second must not need to grow anything the
-    // first already sized - that is what a fresh local vector per phase
-    // could not provide.
+    // first already sized.
     for (int frame = 0; frame < 2; ++frame)
     {
         lm->ProcessInternalAwake(&scene);
@@ -293,8 +286,8 @@ TEST(LifecycleAllocations, RepeatedFramesReuseScratchCapacity)
 }
 
 // A texture header from a corrupt file: 65536 x 65536 one-byte pixels is
-// 2^32 bytes, which wrapped to 0 in 32-bit arithmetic and so "matched" a
-// dataSize of 0. The check is done in 64 bits now.
+// 2^32 bytes, which wraps to 0 in 32-bit arithmetic and would "match" a
+// dataSize of 0. The check is done in 64 bits.
 TEST(EngineHardening, TextureSizeThatWrapsIn32BitsIsRejected)
 {
     Deki::Texture2D::Header h{};

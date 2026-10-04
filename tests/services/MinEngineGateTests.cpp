@@ -55,7 +55,7 @@ TEST(MinEngineGate, RefusesAPackageNeedingANewerEngine)
     DekiPackageInstaller installer;
     std::string reason;
     EXPECT_FALSE(installer.EngineSatisfiesPackage(dir.Path(), reason));
-    // The message has to name both versions; that is the whole point of the gate.
+    // The message names both versions.
     EXPECT_NE(reason.find("99.0.0"), std::string::npos);
     EXPECT_NE(reason.find(DEKI_ENGINE_VERSION), std::string::npos);
 }
@@ -69,8 +69,8 @@ TEST(MinEngineGate, AcceptsAPackageBuiltForThisEngine)
     EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(same.Path(), reason)) << reason;
 }
 
-// Packages published before the field existed must keep installing, and a
-// broken manifest is the loader's problem to report, not this gate's.
+// Packages without the field keep installing, and a broken manifest is the
+// loader's to report, not this gate's.
 TEST(MinEngineGate, AcceptsManifestsThatCannotAnswer)
 {
     DekiPackageInstaller installer;
@@ -97,8 +97,8 @@ TEST(MinEngineGate, AcceptsManifestsThatCannotAnswer)
 }
 
 // The other direction. Releases are in lockstep, so a package's minEngine is
-// also the engine generation it was built against, and one older than this
-// engine can still build is refused here rather than failing to compile later.
+// also the engine generation it was built against. One older than this engine
+// can build is refused here instead of failing to compile later.
 TEST(MinEngineGate, RefusesAPackageBuiltForAnOlderEngine)
 {
     PackageDir dir("older");
@@ -133,10 +133,9 @@ TEST(MinEngineGate, ThisEnginesOwnPackagesPassBothBounds)
     EXPECT_TRUE(DekiPackageInstaller::EngineSatisfiesPackage(dir.Path(), reason)) << reason;
 }
 
-// The package list answers the same question the installer does, but from the
-// registry rather than a downloaded manifest. If the two ever disagree the list
-// tells people a package is fine and the install then refuses it, so they are
-// checked against each other here.
+// The package list answers the same question as the installer, but from the
+// registry instead of a downloaded manifest. They must agree, or the list
+// shows a package as fine that the install then refuses.
 TEST(MinEngineGate, TheListAgreesWithTheInstaller)
 {
     struct Case

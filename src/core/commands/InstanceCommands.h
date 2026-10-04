@@ -19,9 +19,8 @@
 namespace DekiEditor
 {
 
-// Named imports rather than `using namespace`: a wholesale import in a header
-// is open-ended, so anything later added to ObjectSerializationHelper would
-// silently appear in every DekiEditor TU that includes this.
+// Named imports rather than `using namespace`, so things later added to
+// ObjectSerializationHelper do not leak into every file that includes this.
 using ObjectSerializationHelper::ChildData;
 using ObjectSerializationHelper::ComponentData;
 using ObjectSerializationHelper::CreateChildrenRecursive;
@@ -29,10 +28,8 @@ using ObjectSerializationHelper::RestoreComponents;
 using ObjectSerializationHelper::SerializeChildren;
 using ObjectSerializationHelper::SerializeComponents;
 
-/**
- * Command for creating a linked scene instance
- * Creates a Deki::Object with a source scene GUID, then expands it
- */
+/// Creates a linked scene instance: a Deki::Object with a source scene GUID,
+/// expanded from that scene.
 class CreateInstanceCommand : public Command
 {
 public:
@@ -71,10 +68,8 @@ private:
     Deki::Object* m_InstanceObject;
 };
 
-/**
- * Command for unlinking a scene instance (converting to regular objects)
- * Clears the source GUID and instance markers, making objects editable
- */
+/// Unlinks a scene instance into regular objects. Clears the source GUID and
+/// the instance markers, so the objects become editable.
 class UnlinkInstanceCommand : public Command
 {
 public:
@@ -105,10 +100,8 @@ private:
     std::function<void()> m_OnUnlinked;
 };
 
-/**
- * Validates that an object's hierarchy matches a source scene's structure.
- * Checks child count and component types at each level recursively.
- */
+/// True when an object's hierarchy matches the structure of the scene
+/// `sceneGuid`: the same child count and component types at every level.
 inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGuid)
 {
     if (!Deki::Scene::s_GuidToPathResolver)
@@ -130,11 +123,9 @@ inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGu
 
     auto& registry = Deki::ComponentRegistry::Instance();
 
-    // Recursive comparison: same child count and same component types
     std::function<bool(const Deki::Object*, const Deki::Object*)> compareNodes = [&](const Deki::Object* a,
                                                                                      const Deki::Object* b) -> bool
     {
-        // Compare component types
         const auto& aComps = a->GetComponents();
         const auto& bComps = b->GetComponents();
         if (aComps.size() != bComps.size())
@@ -150,7 +141,6 @@ inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGu
             }
         }
 
-        // Compare children count
         const auto& aChildren = a->GetChildren();
         const auto& bChildren = b->GetChildren();
         if (aChildren.size() != bChildren.size())
@@ -169,8 +159,8 @@ inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGu
         return true;
     };
 
-    // Compare obj's children against source scene objects
-    // Single-root: compare against root's children (ExpandInstance skips root wrapper)
+    // A single-root source compares by its root's children, because
+    // ExpandInstance skips the root wrapper.
     const auto& objChildren = obj->GetChildren();
     const auto& sourceRoots = sourceScene.GetObjects();
 
@@ -193,10 +183,9 @@ inline bool ValidateHierarchyMatch(Deki::Object* obj, const std::string& sceneGu
     return true;
 }
 
-/**
- * Command for linking an existing object tree to a scene (reverse of Unlink).
- * Computes overrides from differences, then replaces children with expanded instance.
- */
+/// Links an existing object tree to a scene, the reverse of Unlink. Records
+/// the differences as overrides, then replaces the children with the
+/// expanded instance.
 class LinkInstanceCommand : public Command
 {
 public:
@@ -208,7 +197,7 @@ public:
           m_OnLinked(onLinked),
           m_OnUndone(onUndone)
     {
-        // Save previous instance state for undo (supports re-link)
+        // The previous instance state, for Undo; the object may already be linked.
         m_PreviousGuid = obj->GetSourceSceneGuid();
         m_PreviousOverrides = obj->GetInstanceOverridesJson();
         m_SavedChildren = SerializeChildren(obj);
@@ -257,17 +246,16 @@ inline std::string ReadFileToString(const std::string& path)
 }
 
 // In one step (temp file + rename): applying to a prefab rewrites another
-// scene, and a crash halfway left it cut off. The stream was also checked
-// before it was flushed, so a full disk still reported success.
+// scene, and a crash halfway must not leave it cut off.
 inline bool WriteStringToFile(const std::string& path, const std::string& content)
 {
     std::string err;
     return DekiEditor::AtomicWriteFile(path, content, err);
 }
 
-// Collect all DekiObjects in the scene (roots + descendants) whose
-// SourceSceneGuid matches `guid`, excluding `exclude`. Caller gets raw
-// pointers - safe for the duration of a single command invocation.
+// Collects every object in the scene (roots and descendants) whose
+// SourceSceneGuid is `guid`, except `exclude`. The raw pointers are valid
+// only during one command call.
 inline void CollectInstancesByGuid(Deki::Scene* scene, const std::string& guid, Deki::Object* exclude,
                                    std::vector<Deki::Object*>& out)
 {
@@ -298,10 +286,10 @@ inline void CollectInstancesByGuid(Deki::Scene* scene, const std::string& guid, 
     }
 }
 
-// Build a fresh in-memory Scene whose single root holds a deep clone of
-// `instanceObj`'s components and children. The clone intentionally strips
-// instance metadata (SourceSceneGuid / overrides) so the written file is a
-// plain source scene, not another instance.
+// Builds an in-memory Scene whose single root holds a deep copy of
+// `instanceObj`'s components and children. The copy leaves out the instance
+// data (SourceSceneGuid, overrides), so the written file is a plain source
+// scene, not another instance.
 inline bool BuildSourceSceneFromInstance(const Deki::Object* instanceObj, Deki::Scene& outScene)
 {
     using namespace ObjectSerializationHelper;
@@ -317,10 +305,10 @@ inline bool BuildSourceSceneFromInstance(const Deki::Object* instanceObj, Deki::
     return true;
 }
 
-// Collapse + re-expand an instance, preserving its stored overrides JSON.
-// CollapseInstance only removes children; ExpandInstance re-adds the source
-// root's components via AddComponent, so we must clear them first or they
-// duplicate on every re-expand.
+// Collapses and re-expands an instance, keeping its stored overrides JSON.
+// CollapseInstance removes only the children, and ExpandInstance re-adds the
+// source root's components, so the components are cleared first or they
+// would duplicate on every re-expand.
 inline void ReexpandInstance(Deki::Scene* scene, Deki::Object* inst)
 {
     if (!scene || !inst || !inst->IsSceneInstance())
@@ -339,25 +327,22 @@ inline void ReexpandInstance(Deki::Scene* scene, Deki::Object* inst)
 
 }  // namespace InstanceCommandsDetail
 
-/**
- * Command for pushing a subset of a scene-instance's overrides back to the
- * source asset on disk, per-property.
- *
- * Given a `selectedOverrides` JSON array (a subset of what `CollectOverrides`
- * would emit), Execute:
- *   - Loads the source `.scene`, applies ONLY the selected overrides to the
- *     source root via `Scene::ApplyOverrides`, and saves.
- *   - Leaves the live instance untouched: its in-memory render is already
- *     correct, and on next save its overrides are recomputed against the
- *     new source, so selected-and-matching fields drop out automatically.
- *   - Re-expands sibling instances in the current scene so they pick up the
- *     new source.
- *   - Loads+saves every other `.scene` file on disk that references the
- *     source GUID, so unopened scenes don't carry stale override JSON.
- *
- * Undo restores the source file, the other-scene snapshots, AND the
- * instance's stored `InstanceOverridesJson`, then re-expands siblings.
- */
+/// Writes some of a scene instance's overrides back to the source scene on
+/// disk, property by property.
+///
+/// `selectedOverrides` is a JSON array, a subset of what `CollectOverrides`
+/// emits. Execute:
+///   - Loads the source `.scene`, applies only the selected overrides to its
+///     root with `Scene::ApplyOverrides`, and saves it.
+///   - Leaves the live instance as it is: it already shows the right result,
+///     and its overrides are recomputed against the new source on the next
+///     save, so the applied fields drop out.
+///   - Re-expands the other instances of that scene in the current scene.
+///   - Loads and saves every other `.scene` file that references the source
+///     GUID, so scenes that are not open get fresh override JSON.
+///
+/// Undo restores the source file, the other scene files and the instance's
+/// stored `InstanceOverridesJson`, then re-expands the other instances.
 class ApplyInstanceToSceneCommand : public Command
 {
 public:
@@ -393,11 +378,9 @@ private:
     std::vector<std::pair<std::string, std::string>> m_SavedOtherScenes;
 };
 
-/**
- * Command for reverting a scene instance back to its source - drops all
- * local overrides and re-expands from the source file on disk. Undo
- * restores the previously stored override JSON and re-expands.
- */
+/// Reverts a scene instance to its source: drops all its overrides and
+/// re-expands it from the source file. Undo restores the stored override
+/// JSON and re-expands.
 class RevertInstanceOverridesCommand : public Command
 {
 public:

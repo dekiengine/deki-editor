@@ -18,7 +18,7 @@ std::string SaveObjectAsScene(Deki::Object* obj, const std::string& folderPath)
         return "";
     }
 
-    // Unique target path
+    // Pick a file name not already taken.
     const std::string baseName = obj->GetName();
     fs::path targetPath = fs::path(folderPath) / (baseName + ".scene");
     int suffix = 1;
@@ -28,14 +28,14 @@ std::string SaveObjectAsScene(Deki::Object* obj, const std::string& folderPath)
         suffix++;
     }
 
-    // Temporarily strip instance markers so the object serialises as a
-    // standalone scene (otherwise only the instance link is saved).
+    // Clear the instance markers for the write, so the object is saved as
+    // real data rather than only as a link to its source scene.
     const std::string savedGuid = obj->GetSourceSceneGuid();
     const std::string savedOverrides = obj->GetInstanceOverridesJson();
     obj->SetSourceSceneGuid("");
     obj->SetInstanceOverridesJson("");
 
-    // Save/restore the owner scene so the source object is not corrupted.
+    // Adding the object to tempScene changes its owner scene, so restore it.
     Deki::Scene* originalOwner = obj->GetOwnerScene();
     Deki::Scene tempScene;
     tempScene.AddObject(obj);

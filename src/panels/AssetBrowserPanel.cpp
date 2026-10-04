@@ -40,15 +40,15 @@ namespace DekiEditor
 
 namespace
 {
-// Progress of the Assets <-> Scripts switch: set to 0 by the tab, eased to 1
-// by the content it slides in. One fixed key, as the two live in different
-// ID scopes (the panel and its content child).
+// Progress of the Assets <-> Scripts switch: the tab sets it to 0 and the
+// content eases it to 1. It is one fixed key because the two live in
+// different ID scopes (the panel and its content child).
 const ImGuiID kModeSlideKey = ImHashStr("AssetBrowser.ModeSlide");
 
-// RAII: hold a bool at true for the scope, restore its prior value on exit
-// (including exceptions). Used to mark "asset view is mid-iteration" so a draw
-// path that throws - caught upstream by SafeDispatch - can't leave the flag
-// stuck true, which would freeze all future tree rebuilds.
+// Holds a bool at true for the scope and restores it on exit, exceptions
+// included. It marks "asset view is mid-iteration": a draw that throws (caught
+// by SafeDispatch) must not leave the flag true, or the tree never rebuilds
+// again.
 struct ScopedTrue
 {
     bool& flag;
@@ -64,10 +64,10 @@ struct ScopedTrue
     ScopedTrue& operator=(const ScopedTrue&) = delete;
 };
 
-// Repaint the folder glyph baked into a TreeNodeEx label with the palette
-// folder tint. Call immediately after the TreeNodeEx so GetItemRect* refer to
-// the node just drawn. Draws the same glyph at the same position the tree node
-// placed its label, so layout and hit-testing are untouched - it only recolors.
+// Redraws the folder glyph of a TreeNodeEx label in the folder colour. Call it
+// right after the TreeNodeEx, so GetItemRect* refer to that node. It draws the
+// same glyph in the same place, so it only recolours; layout and clicks are
+// unchanged.
 void TintTreeNodeFolderIcon()
 {
     ImVec2 mn = ImGui::GetItemRectMin();
@@ -77,17 +77,16 @@ void TintTreeNodeFolderIcon()
     ImGui::GetWindowDrawList()->AddText(ImVec2(iconX, iconY), ImGui::GetColorU32(Palette::FolderIcon), ICON_TI_FOLDER);
 }
 
-// Context-menu styling helpers (PushContextMenuPopupStyle /
-// PushContextMenuItemStyle) now live in EditorTheme so every panel shares one
-// look. The callsites below are unchanged - they resolve to the shared versions.
+// PushContextMenuPopupStyle and PushContextMenuItemStyle come from
+// EditorTheme, so every panel's context menus look the same.
 
-// Open the OS file explorer at the given path. For files, the parent folder is
-// opened with the file selected. For folders, the folder itself is opened.
+// Opens the OS file explorer at the path. A file is shown selected in its
+// folder; a folder is opened.
 void RevealInFileExplorer(const std::string& absolutePath)
 {
-    // Delegates to the shared argv-based launcher. The per-platform system()
-    // calls this replaced pasted an asset path into a shell command line, so a
-    // quote in a filename ran as a command.
+    // Goes through the shared launcher, which passes the path as an argument.
+    // Never paste it into a shell command: a quote in a file name would run as
+    // a command.
     DekiEditor::RevealInFileManager(absolutePath);
 }
 }  // namespace
@@ -113,7 +112,7 @@ void AssetBrowserPanel::Draw()
     ImGui::Begin("ASSET BROWSER###Asset Browser", &isOpen,
                  DekiEditor::MaximizedWindowFlags("ASSET BROWSER###Asset Browser"));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
-    m_RowHover.BeginFrame();  // rows fade their hover from last frame's
+    m_RowHover.BeginFrame();  // rows fade their hover from last frame's state
 
     auto* project = m_App->GetProject();
     if (!project)
@@ -124,27 +123,26 @@ void AssetBrowserPanel::Draw()
         return;
     }
 
-    // Ensure we have the root paths set
+    // Set the root paths on the first draw.
     if (m_AssetsRoot.empty())
     {
         m_ProjectRoot = project->GetPath();
         m_AssetsRoot = project->GetAssetsPath();
         m_SrcRoot = project->GetSrcPath();
-        m_RootPath = m_AssetsRoot;  // Default to assets
+        m_RootPath = m_AssetsRoot;
         m_CurrentPath = m_RootPath;
         BuildFolderTree();
     }
 
-    // Lazy refresh: project open marks the tree dirty rather than walking the
-    // asset tree on the critical startup path. The walk happens here, on the
-    // first frame the panel actually draws.
+    // Project open marks the tree dirty instead of walking the disk during
+    // startup. The walk happens here, on the first frame the panel draws.
     if (m_AssetsDirty)
     {
         m_AssetsDirty = false;
         RefreshAssets();
     }
 
-    // Draw mode tabs (Assets / Scripts) - OUTSIDE scroll region
+    // Assets / Scripts tabs, outside the scroll region.
     DrawModeTabs();
 
     // Search bar (outside the scroll region), styled like the Hierarchy search.
@@ -159,31 +157,30 @@ void AssetBrowserPanel::Draw()
 
     ImGui::Separator();
 
-    // Scrollable content area as a child window
+    // Scrollable content.
     ImGui::BeginChild("AssetBrowserContent", ImVec2(0, 0), ImGuiChildFlags_None,
                       ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
-    // Auto-scroll while dragging items near the top/bottom edge.
+    // Scroll while an item is dragged near the top or bottom edge.
     AutoScrollOnDrag();
 
-    // Taller rows (matching the Hierarchy panel's ~28px) + no vertical gap
-    // between entries so selection/hover highlights form a continuous list.
-    // FramePadding.x uses the theme value (same left inset as the Hierarchy
-    // tree); FramePadding.y is DPI-scaled (the old raw 6px was tiny at high
-    // DPI). ItemSpacing.y is zeroed only for the tree, not the tabs.
+    // Rows as tall as the Hierarchy's (about 28px) with no gap between them,
+    // so selection and hover highlights form one continuous list.
+    // FramePadding.x is the theme's (same left inset as the Hierarchy);
+    // FramePadding.y scales with DPI. ItemSpacing.y is zero for the tree only,
+    // not the tabs.
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 6.0f * m_App->Dpi(1.0f)));
     const ImVec2 abItemSp = ImGui::GetStyle().ItemSpacing;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(abItemSp.x, 0.0f));
-    // Mark the iteration window so any asset mutation triggered from inside the
-    // tree/list (drop targets, context menus) defers its rebuild - the Build*
-    // mutators check this flag. RAII so a throwing draw (caught by SafeDispatch)
-    // can't leave it stuck true.
+    // While this flag is set, an asset change made from inside the tree or
+    // list (drop targets, context menus) puts off its rebuild; the Build*
+    // functions check it.
     {
         ScopedTrue drawing(m_DrawingAssetView);
-        // Switching between Assets and Scripts slides the new list in from the
-        // side of its tab (Scripts from the right, Assets from the left) while
-        // it fades in, clipped by this child. Only the picture moves; the
-        // rows are where they belong the whole time.
+        // Switching between Assets and Scripts slides the new list in from its
+        // tab's side (Scripts from the right, Assets from the left) as it fades
+        // in, clipped by this child. Only the drawn vertices move; the rows'
+        // hit areas stay in place.
         ImDrawList* contentDl = ImGui::GetWindowDrawList();
         const int contentStart = contentDl->VtxBuffer.Size;
         const bool scripts = m_BrowserMode == BrowserMode::Scripts;
@@ -213,7 +210,8 @@ void AssetBrowserPanel::Draw()
     }
     ImGui::PopStyleVar(2);
 
-    // Window-level drop target for hierarchy objects into current folder
+    // Dropping a hierarchy object on empty space saves it as a scene in the
+    // current folder.
     if (m_BrowserMode != BrowserMode::Scripts)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -236,10 +234,10 @@ void AssetBrowserPanel::Draw()
         }
     }
 
-    // Drop target on child window background: remove script from virtual folder
+    // Dropping a script on empty space takes it out of its virtual folder.
     if (m_BrowserMode == BrowserMode::Scripts)
     {
-        // Use window-level drop target (covers all empty space in the child)
+        // The target covers the whole child, so all empty space accepts it.
         if (ImGui::BeginDragDropTargetCustom(ImGui::GetCurrentWindow()->ContentRegionRect,
                                              ImGui::GetID("##scripts_child_drop")))
         {
@@ -252,17 +250,16 @@ void AssetBrowserPanel::Draw()
         }
     }
 
-    // Context menu must be inside child window so right-click on empty space works
+    // Inside the child window, so right-clicking empty space opens it.
     DrawContextMenu();
 
-    ImGui::EndChild();  // End scrollable content area
+    ImGui::EndChild();
 
-    // Run actions queued from within the tree/list draw (moves, duplicates,
-    // save-as-scene). Past the iteration now, so their pipeline side effects
-    // can safely rebuild the tree.
+    // Run the actions queued during the tree/list draw. The iteration is over,
+    // so their side effects may rebuild the tree.
     RunDeferredActions();
 
-    // Deferred rebuild - must happen after tree iteration is complete
+    // A rebuild put off during the draw.
     if (m_PendingTreeRebuild)
     {
         m_PendingTreeRebuild = false;
@@ -278,7 +275,7 @@ void AssetBrowserPanel::Draw()
     m_DeleteConfirmDialog->Draw();
     m_RenameDialog->Draw();
 
-    // Folder delete confirmation popup
+    // Folder delete confirmation.
     if (!m_PendingDeleteFolderPath.empty())
     {
         ImGui::OpenPopup("Delete Folder?");
@@ -296,8 +293,8 @@ void AssetBrowserPanel::Draw()
             {
                 std::string folderPath = m_PendingDeleteFolderPath;
                 m_PendingDeleteFolderPath.clear();
-                // Trash inside the project: rename cannot cross volumes, so a
-                // %TEMP% on another drive would fail every move silently.
+                // Trash goes inside the project: rename cannot cross volumes,
+                // so a %TEMP% on another drive would fail every move silently.
                 auto command = std::make_unique<DeleteAssetsCommand>(
                     std::vector<std::string>{ folderPath }, [this]() { BuildFolderTree(); }, m_ProjectRoot);
                 CommandHistory::Instance().Execute(std::move(command));
@@ -313,7 +310,7 @@ void AssetBrowserPanel::Draw()
         }
     }
 
-    // Folder rename popup
+    // Folder rename.
     if (!m_PendingRenameFolderPath.empty())
     {
         ImGui::OpenPopup("Rename Folder");
@@ -326,9 +323,9 @@ void AssetBrowserPanel::Draw()
         ImGui::Spacing();
         ImGui::TextColored(Palette::Dim, "New name");
 
-        // Focus request must precede the item: the after-item form
-        // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
-        // frame, leaving the input inactive so typing goes nowhere.
+        // Request focus before the input. Asking after it
+        // (SetKeyboardFocusHere(-1)) does nothing on a modal's first frame, and
+        // typing then goes nowhere.
         if (ImGui::IsWindowAppearing())
         {
             ImGui::SetKeyboardFocusHere();
@@ -382,7 +379,7 @@ void AssetBrowserPanel::Draw()
         EndSchematicModal();
     }
 
-    // Link to Scene prompt after drag-drop save
+    // After a dragged-in object is saved as a scene, offer to link it.
     if (m_ShowLinkPrompt)
     {
         ImGui::OpenPopup("Link to Scene?");
@@ -418,7 +415,7 @@ void AssetBrowserPanel::Draw()
         EndSchematicModal();
     }
 
-    // Script creation popup
+    // Create Script.
     if (m_ShowCreateScriptPopup)
     {
         ImGui::OpenPopup("Create Script");
@@ -431,9 +428,9 @@ void AssetBrowserPanel::Draw()
         ImGui::Spacing();
         ImGui::TextColored(Palette::Dim, "Script name");
 
-        // Focus request must precede the item: the after-item form
-        // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
-        // frame, leaving the input inactive so typing goes nowhere.
+        // Request focus before the input. Asking after it
+        // (SetKeyboardFocusHere(-1)) does nothing on a modal's first frame, and
+        // typing then goes nowhere.
         if (ImGui::IsWindowAppearing())
         {
             ImGui::SetKeyboardFocusHere();
@@ -471,7 +468,7 @@ void AssetBrowserPanel::Draw()
 
         if (ImGui::Button("Create", ImVec2(btnW, 0)) || (enterPressed && canCreate))
         {
-            // In Scripts mode, always create in src root
+            // The Scripts tab always creates in the src root.
             std::string scriptDir = (m_BrowserMode == BrowserMode::Scripts) ? m_SrcRoot : m_CurrentPath;
             CreateScript(scriptDir, m_NewScriptName);
             m_NewScriptName[0] = '\0';
@@ -504,9 +501,9 @@ void AssetBrowserPanel::DrawModeTabs()
 {
     namespace fs = std::filesystem;
 
-    // Mockup-style sub-nav row: NOT a tab bar - two text links with a 2px
-    // accent bottom underline on the active one, dim hover on the inactive,
-    // plus a right-aligned mono item count. See React mockup line 444-464.
+    // A row of two text links, not an ImGui tab bar: the active one has a 2px
+    // accent underline, the inactive one brightens on hover, and an item count
+    // sits on the right.
     const float dpi = m_App->Dpi(1.0f);
     const float rowH = 34.0f * dpi;
     const float padX = 14.0f * dpi;
@@ -579,9 +576,9 @@ void AssetBrowserPanel::DrawModeTabs()
         dl->AddRectFilled(ImVec2(rowMin.x + x0, rowMax.y - 2.0f), ImVec2(rowMin.x + x1, rowMax.y), colAccent);
     }
 
-    // Right-aligned item count in mono dim2: the files in the current folder.
-    // None at all is left unsaid - beside a tree of folders, "0 items" read as
-    // an empty project.
+    // Count of the files in the current folder, on the right. With none it
+    // shows nothing: beside a tree of folders, "0 items" reads as an empty
+    // project.
     if (!m_Entries.empty())
     {
         char buf[32];
@@ -603,7 +600,7 @@ void AssetBrowserPanel::DrawModeTabs()
     // 1px hairline along the bar's bottom edge.
     dl->AddLine(ImVec2(rowMin.x, rowMax.y), ImVec2(rowMax.x, rowMax.y), colLine, 1.0f);
 
-    // Reserve the row in layout flow so the tree renders below it.
+    // Reserve the row in the layout so the tree goes below it.
     ImGui::SetCursorScreenPos(ImVec2(rowMin.x, rowMax.y));
 }
 
@@ -628,7 +625,6 @@ void AssetBrowserPanel::RefreshAssets()
     m_AssetsRoot = project->GetAssetsPath();
     m_SrcRoot = project->GetSrcPath();
 
-    // Set root based on current mode
     if (m_BrowserMode == BrowserMode::Scripts)
     {
         m_RootPath = m_SrcRoot;
@@ -655,7 +651,7 @@ void AssetBrowserPanel::RefreshAssets()
 
 void AssetBrowserPanel::NavigateTo(const std::string& path)
 {
-    // NavigateTo now just rebuilds the tree (used by dialogs after creating content)
+    // Dialogs call this after creating something; it rebuilds the tree.
     m_CurrentPath = path;
     BuildFolderTree();
 }
@@ -664,19 +660,19 @@ void AssetBrowserPanel::RevealAsset(const std::string& absolutePath)
 {
     namespace fs = std::filesystem;
 
-    // Normalize the path to match what the tree uses (native separators)
+    // Normalize to match the tree's paths (native separators).
     fs::path normalized = fs::weakly_canonical(fs::path(absolutePath));
     fs::path assetDir = normalized.parent_path();
     fs::path root = fs::weakly_canonical(fs::path(m_RootPath));
 
-    // Expand all parent folders from root to the asset's directory
+    // Expand every folder from the root down to the asset's directory.
     for (fs::path p = assetDir; p != root && p.has_parent_path() && p != p.parent_path(); p = p.parent_path())
     {
         m_ExpandedFolders.insert(p.string());
     }
     m_ExpandedFolders.insert(m_RootPath);
 
-    // Queue this path for selection on next draw (store normalized)
+    // The next draw selects it.
     m_PendingRevealPath = normalized.string();
 }
 
@@ -684,10 +680,9 @@ void AssetBrowserPanel::BuildFolderTree()
 {
     namespace fs = std::filesystem;
 
-    // Reentrancy guard: this frees m_RootNode's vectors. If called while
-    // DrawAssetTree is iterating them (an in-tree action's pipeline side effect
-    // fired onAssetCreated -> RefreshAssets -> here), defer to the post-draw
-    // rebuild in Draw() instead of reallocating under the live iterator.
+    // This frees m_RootNode's vectors. When DrawAssetTree is iterating them
+    // (an action in the tree set off onAssetCreated -> RefreshAssets -> here),
+    // leave the rebuild to Draw(), after the iteration.
     if (m_DrawingAssetView)
     {
         m_PendingTreeRebuild = true;
@@ -711,14 +706,12 @@ void AssetBrowserPanel::BuildFolderTree()
         return;
     }
 
-    // Initialize root node
     m_RootNode.name = (m_BrowserMode == BrowserMode::Scripts) ? "src" : "assets";
     m_RootNode.path = m_RootPath;
 
-    // Recursively build the tree
     BuildFolderTreeRecursive(m_RootNode, fs::path(m_RootPath));
 
-    // Expand root folder by default
+    // The root folder starts expanded.
     m_ExpandedFolders.insert(m_RootPath);
 }
 
@@ -738,7 +731,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
     {
         std::string name = entry.path().filename().string();
 
-        // Skip hidden files
+        // Skip hidden files.
         if (name[0] == '.')
         {
             continue;
@@ -746,7 +739,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
 
         if (entry.is_directory())
         {
-            // In Scripts mode, hide generated folder
+            // The Scripts tab hides the generated folder.
             if (m_BrowserMode == BrowserMode::Scripts && name == "generated")
             {
                 continue;
@@ -762,13 +755,13 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
         {
             std::string ext = entry.path().extension().string();
 
-            // Skip metadata files
+            // Skip metadata files.
             if (ext == ".dekiguid" || ext == ".data")
             {
                 continue;
             }
 
-            // In Scripts mode, hide PluginExports.cpp
+            // The Scripts tab hides PluginExports.cpp.
             if (m_BrowserMode == BrowserMode::Scripts && name == "PluginExports.cpp")
             {
                 continue;
@@ -778,7 +771,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
             asset.name = name;
             asset.path = entry.path().string();
             asset.relativePath = fs::relative(entry.path(), m_ProjectRoot).string();
-            // Normalize slashes
+            // Forward slashes.
             for (char& c : asset.relativePath)
             {
                 if (c == '\\')
@@ -788,7 +781,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
             }
             asset.isDirectory = false;
 
-            // Populate GUID and cache info for texture files
+            // GUID and cache state.
             if (IsTextureFile(ext))
             {
                 asset.guid = ReadAssetGuid(asset.path);
@@ -802,7 +795,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
                     }
                 }
 
-                // Check for spritesheet frames
+                // Spritesheet frames make it expandable.
                 auto* pipeline = m_App->GetAssetPipeline();
                 if (pipeline && !asset.guid.empty())
                 {
@@ -829,10 +822,9 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
             }
             else if (ext == ".ttf" || ext == ".otf")
             {
-                // Font files have their GUID in a .data sidecar file
                 asset.guid = ReadAssetGuid(asset.path);
 
-                // Check for baked font variant sub-assets
+                // Baked font variants are its sub-assets.
                 auto* pipeline = m_App->GetAssetPipeline();
                 if (pipeline && !asset.guid.empty())
                 {
@@ -841,7 +833,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
                     {
                         asset.isExpandable = true;
                         asset.isExpanded = m_ExpandedAssets.count(asset.guid) > 0;
-                        asset.hasCachedVersion = true;  // Variants baked = cached
+                        asset.hasCachedVersion = true;  // baked variants count as cached
                     }
                 }
             }
@@ -857,7 +849,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
                     {
                         asset.isExpandable = true;
                         asset.isExpanded = m_ExpandedAssets.count(asset.guid) > 0;
-                        asset.hasCachedVersion = true;  // Variants baked = cached
+                        asset.hasCachedVersion = true;  // baked variants count as cached
                     }
                 }
             }
@@ -879,7 +871,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
         }
     }
 
-    // Sort alphabetically
+    // Sort by name.
     std::sort(subfolders.begin(), subfolders.end(),
               [](const FolderNode& a, const FolderNode& b) { return a.name < b.name; });
     std::sort(files.begin(), files.end(), [](const AssetEntry& a, const AssetEntry& b) { return a.name < b.name; });
@@ -890,8 +882,8 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
 
 void AssetBrowserPanel::DrawHierarchyStyleSearch(const char* id, char* buf, size_t bufSize)
 {
-    // Shared with the Package Manager and any other panel that wants the same
-    // borderless magnifier search - see DekiEditor::SearchField (EditorTheme).
+    // The shared search field from EditorTheme, also used by the Package
+    // Manager.
     DekiEditor::SearchField(id, buf, bufSize);
 }
 
@@ -907,7 +899,7 @@ static bool AssetNameMatches(const std::string& name, const std::string& needleL
     return n.find(needleLower) != std::string::npos;
 }
 
-// True if the folder has any matching file in its subtree (recursive).
+// True if any file under the folder, at any depth, matches.
 static bool FolderHasMatchingFile(const FolderNode& node, const std::string& needleLower)
 {
     for (const auto& f : node.files)
@@ -929,7 +921,7 @@ static bool FolderHasMatchingFile(const FolderNode& node, const std::string& nee
 
 void AssetBrowserPanel::DrawAssetTree()
 {
-    // Lowercase the active filter once per frame; node drawing reads it.
+    // Lowercase the filter once per frame for the node draw.
     m_AssetFilterLower.clear();
     if (m_AssetFilter[0])
     {
@@ -940,10 +932,9 @@ void AssetBrowserPanel::DrawAssetTree()
 
     m_HoveredFolderPath.clear();
 
-    // Selection is kept as row numbers into m_Entries, and the rows are rebuilt
-    // every frame: a search or an opened folder shifts them, and the highlight
-    // used to land on whatever asset now sat in the selected row. Note what was
-    // selected, and carry it over once the new rows exist.
+    // The selection is kept as row numbers into m_Entries, and the rows are
+    // rebuilt every frame. A search or an opened folder shifts them, so note
+    // which assets were selected and select them again in the new rows.
     auto keyOf = [](const AssetEntry& e) { return e.guid + "|" + e.path; };
     std::vector<std::string> selectedKeys;
     std::string primaryKey, anchorKey;
@@ -965,7 +956,7 @@ void AssetBrowserPanel::DrawAssetTree()
     const std::set<int> indicesBefore = m_SelectedIndices;
     const int primaryBefore = m_SelectedIndex;
 
-    m_Entries.clear();  // Rebuild flat entries for selection tracking
+    m_Entries.clear();  // the flat row list, rebuilt by the draw for selection
     int flatIndex = 0;
     DrawFolderNode(m_RootNode, flatIndex);
     if (!m_AssetFilterLower.empty() && m_Entries.empty())
@@ -1017,8 +1008,8 @@ void AssetBrowserPanel::DrawAssetTree()
         m_ReselectPath.clear();
     }
 
-    // Cache multi-drag payload now that m_Entries is fully populated.
-    // Can't build this inside DrawFileNode because m_Entries is only partial mid-traversal.
+    // Build the multi-drag payload here, once m_Entries is complete. Inside
+    // DrawFileNode the list is still partial.
     m_CachedMultiDragPayload.clear();
     if (m_SelectedIndices.size() > 1)
     {
@@ -1032,7 +1023,7 @@ void AssetBrowserPanel::DrawAssetTree()
         }
     }
 
-    // Keyboard navigation (macOS-style)
+    // Keyboard navigation.
     if (ImGui::IsWindowFocused() && !m_InlineRenamingFolder && !m_Entries.empty())
     {
         namespace fs = std::filesystem;
@@ -1051,7 +1042,7 @@ void AssetBrowserPanel::DrawAssetTree()
             }
         }
 
-        // Enter (or F2, as elsewhere) to rename selected asset
+        // Enter, or F2 as elsewhere, renames the selected asset.
         if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_F2)) && m_SelectedIndices.size() == 1)
         {
             int idx = *m_SelectedIndices.begin();
@@ -1062,7 +1053,7 @@ void AssetBrowserPanel::DrawAssetTree()
             }
         }
 
-        // Up/Down arrow keys to navigate
+        // Up and Down move the selection.
         if (ImGui::IsKeyPressed(ImGuiKey_UpArrow) && m_SelectedIndex > 0)
         {
             int newIdx = m_SelectedIndex - 1;
@@ -1103,7 +1094,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
 {
     namespace fs = std::filesystem;
 
-    // Asset search: hide non-root folders that have no matching descendant.
+    // While searching, hide folders (other than the root) with no match inside.
     const bool filtering = !m_AssetFilterLower.empty();
     if (filtering && node.path != m_RootPath && !FolderHasMatchingFile(node, m_AssetFilterLower))
     {
@@ -1119,8 +1110,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         flags |= ImGuiTreeNodeFlags_Leaf;
     }
 
-    // Check if this folder is expanded. While filtering, force matching
-    // folders open so results show without manual expansion.
+    // While searching, matching folders are forced open so the results show.
     bool isExpanded = m_ExpandedFolders.count(node.path) > 0;
     if (isExpanded || filtering)
     {
@@ -1130,7 +1120,8 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     ImGui::PushID(node.path.c_str());
 
     const ImU32 folderLblCol = ImGui::GetColorU32(ImGuiCol_Text);
-    // Cyan hover background (global Header is transparent), fading in and out.
+    // Cyan hover background, fading in and out. The theme's Header colour is
+    // transparent.
     const ImVec4 acc = DekiEditor::Palette::Accent;
     const ImGuiID folderRowId = ImGui::GetID("##folder");
     const float folderAlpha =
@@ -1152,8 +1143,8 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     DrawTreeNodeChevronLabel(open, !(flags & ImGuiTreeNodeFlags_Leaf), folderLabel.c_str(), folderLblCol);
     TintTreeNodeFolderIcon();
 
-    // Track expansion state (but not while filtering force-opened the folder,
-    // so the user's manual expansion state is preserved when the filter clears).
+    // Remember the user's expand state, but not while a search forces folders
+    // open, so clearing the search brings the old state back.
     if (!filtering && open != isExpanded)
     {
         if (open)
@@ -1166,13 +1157,13 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         }
     }
 
-    // Track hovered folder for external drops
+    // Hovered folder, the target for drops from outside the editor.
     if (ImGui::IsItemHovered())
     {
         m_HoveredFolderPath = node.path;
     }
 
-    // Drag source for folders (root folder cannot be moved)
+    // Folders can be dragged, except the root.
     if (node.path != m_RootPath && ImGui::BeginDragDropSource())
     {
         ImGui::SetDragDropPayload("FOLDER_PATH", node.path.c_str(), node.path.size() + 1);
@@ -1182,17 +1173,16 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         ImGui::EndDragDropSource();
     }
 
-    // Drop target for folders
     if (ImGui::BeginDragDropTarget())
     {
-        // All mutations below are queued, not performed now: this drop target
-        // fires while DrawFolderNode is iterating the tree, so moving/saving here
-        // would rebuild it under the live iterator. RunDeferredActions runs them
-        // after EndChild. The payload is only valid this frame, so its bytes are
-        // copied into owned strings that the queued lambdas capture.
+        // Every change below is queued, not done now: this fires while
+        // DrawFolderNode iterates the tree, and a move here would rebuild it
+        // under the live iterator. RunDeferredActions runs them after EndChild.
+        // The payload lives only this frame, so the queued lambdas capture
+        // copies.
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MULTI"))
         {
-            // Multi-asset drop: parse all paths and queue each move.
+            // Several assets: one "guid\tpath" line each.
             std::string multiData(static_cast<const char*>(payload->Data));
             std::istringstream stream(multiData);
             std::string line;
@@ -1265,7 +1255,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         ImGui::EndDragDropTarget();
     }
 
-    // Context menu for folder. Styled to match the top menu bar's dropdowns.
+    // Folder context menu, styled like the menu bar's dropdowns.
     PushContextMenuPopupStyle();
     if (ImGui::BeginPopupContextItem())
     {
@@ -1286,14 +1276,15 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
         }
         else
         {
-            // Creatable asset types grouped under a "Create..." submenu.
+            // Asset types that can be created, under a "Create..." submenu.
             const auto& creatableTypes = AssetTypeRegistry::Instance().GetTypes();
             if (!creatableTypes.empty() && ImGui::BeginMenu("Create..."))
             {
                 for (const auto& type : creatableTypes)
                 {
                     // Images, fonts and the like are imported, not created: a
-                    // type with no starting content made an empty, broken file.
+                    // type with no starting content would make an empty, broken
+                    // file.
                     if (type.defaultContent.empty())
                     {
                         continue;
@@ -1314,7 +1305,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             RevealInFileExplorer(node.path);
         }
 
-        // Rename / Delete folder (not allowed on root)
+        // Rename and Delete, except on the root.
         if (node.path != m_RootPath)
         {
             ImGui::Separator();
@@ -1336,35 +1327,32 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     }
     ImGui::PopStyleVar();  // context menu WindowPadding
 
-    // Subfolders and files as an animated body. The id scope is popped AFTER
-    // the subtree now (it used to be popped here, which pushed the children
-    // into a different id scope than the one the tree node opened) so that a
-    // folder's children keep one identity whether it is open, closing or open
-    // again.
+    // Subfolders and files, in an animated body. The ID scope is popped after
+    // the subtree, so a folder's children keep one identity whether it is
+    // open, closing or open again.
     const bool drawChildren = DekiEditor::SchematicTreeBodyBegin(open, nodeId);
     if (drawChildren)
     {
-        // Draw subfolders first
+        // Subfolders first, then files.
         for (auto& subfolder : node.subfolders)
         {
             DrawFolderNode(subfolder, flatIndex);
         }
 
-        // Draw files
         for (auto& file : node.files)
         {
-            // Asset search: only show files whose name matches the filter.
+            // While searching, only files whose name matches.
             if (filtering && !AssetNameMatches(file.name, m_AssetFilterLower))
             {
                 continue;
             }
 
-            // Add to flat entries for selection tracking
             m_Entries.push_back(file);
             DrawFileNode(file, flatIndex);
             flatIndex++;
 
-            // Handle expanded spritesheet frames (check live state, not cached)
+            // Sub-assets of an expanded file. Reads the live expand state, not
+            // the copy in the entry.
             if (file.isExpandable && m_ExpandedAssets.count(file.guid) > 0)
             {
                 auto* pipeline = m_App->GetAssetPipeline();
@@ -1386,12 +1374,11 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
                             frameEntry.parentGuid = subAsset.parentGuid;
                             frameEntry.subAssetIndex = subAsset.subAssetIndex;
 
-                            // Use sub-asset metadata for display
                             frameEntry.subAssetDepth = subAsset.depth;
 
                             if (!subAsset.cachePath.empty())
                             {
-                                // Sub-asset has its own cache file
+                                // The sub-asset has its own cache file.
                                 frameEntry.cachePath = subAsset.cachePath;
                                 frameEntry.hasCachedVersion = fs::exists(subAsset.cachePath);
                             }
@@ -1422,8 +1409,8 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 {
     namespace fs = std::filesystem;
 
-    // All files indent by arrowIndent so icons align with folder text.
-    // Expandable files draw their arrow in the space to the left.
+    // Files indent by arrowIndent so their icons line up with folder names.
+    // Expandable files draw their arrow in that space.
     float arrowIndent = ImGui::GetTreeNodeToLabelSpacing();
     ImGui::Indent(arrowIndent);
 
@@ -1433,7 +1420,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         ImGui::PushID(entry.subAssetIndex);
     }
 
-    // Icon prefix based on file type
+    // Icon by file type.
     std::string icon;
     std::string ext = fs::path(entry.path).extension().string();
 
@@ -1478,7 +1465,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
     float arrowOffset = 0.0f;
     if (entry.isExpandable)
     {
-        // Un-indent so the selectable covers the arrow area too
+        // Un-indent so the selectable covers the arrow too.
         float arrowSpace = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.x;
         ImGui::Unindent(arrowSpace);
         arrowOffset = arrowSpace;
@@ -1488,9 +1475,8 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         ImGui::Indent(ImGui::GetStyle().IndentSpacing * (1 + entry.subAssetDepth));
     }
 
-    // Handle pending reveal selection. The filename is compared first so the
-    // filesystem call runs for one candidate row, not for every row drawn
-    // while a reveal is pending.
+    // Select a pending reveal. The file name is compared first, so the
+    // filesystem call runs only for a likely row, not for every row.
     if (!m_PendingRevealPath.empty() && fs::path(entry.path).filename() == fs::path(m_PendingRevealPath).filename() &&
         fs::weakly_canonical(fs::path(entry.path)) == fs::path(m_PendingRevealPath))
     {
@@ -1508,8 +1494,8 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
     float rowHeight = ImGui::GetFrameHeight();
     ImVec2 selectablePos = ImGui::GetCursorScreenPos();
-    // Cyan selection/hover background (global Header is transparent), fading
-    // in and out with selection and hover.
+    // Cyan selection and hover background, fading in and out. The theme's
+    // Header colour is transparent.
     const ImVec4 acc = DekiEditor::Palette::Accent;
     const ImGuiID fileRowId = ImGui::GetID("##file");
     const float fileAlpha =
@@ -1551,9 +1537,8 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         }
         else if (isSelected && m_SelectedIndices.size() > 1)
         {
-            // Clicked on an already-selected item in a multi-selection:
-            // Defer deselect to allow drag-drop to work.
-            // The selection collapses to single on release (handled below).
+            // A click on an item of a multi-selection keeps the selection, so
+            // it can be dragged. It shrinks to this item on release (below).
             m_DeferredSingleSelect = flatIndex;
         }
         else
@@ -1567,7 +1552,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         m_SelectedAsset = &m_Entries[flatIndex];
         m_App->SetSelectedAsset(entry.path, entry.cachePath, entry.hasCachedVersion, entry.guid);
 
-        // Double-click to open files (not on the arrow area)
+        // Double-click opens the file, except on the arrow.
         bool clickInArrow = drawExpandArrow && ImGui::GetIO().MousePos.x < selectablePos.x + arrowOffset;
         if (ImGui::IsMouseDoubleClicked(0) && !clickInArrow)
         {
@@ -1593,32 +1578,31 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             }
             else
             {
-                // Try opening with any registered EditorWindow that handles this extension
+                // Any registered EditorWindow for this extension.
                 m_App->GetToolHost()->OpenToolForFile(entry.path.c_str());
             }
         }
     }
 
-    // Draw icon and text centered vertically, plus expand arrow if needed
+    // Icon and name, centred vertically, and the expand arrow if any.
     {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         ImU32 textCol = ImGui::GetColorU32(ImGuiCol_Text);
         float centerY = selectablePos.y + rowHeight * 0.5f;
 
-        // Expand arrow for spritesheets - centered in the row
         if (drawExpandArrow)
         {
             bool expanded = m_ExpandedAssets.count(entry.guid) > 0;
             float arrowSize = ImGui::GetFontSize();
             float arrowX = selectablePos.x;
-            // Tabler chevron (matches folders, hierarchy and inspector headers).
+            // Same chevron as folders, the Hierarchy and Inspector headers.
             const char* chev = expanded ? ICON_TI_CHEVRON_DOWN : ICON_TI_CHEVRON_RIGHT;
             ImFont* chevFont = g_FontUI ? g_FontUI : ImGui::GetFont();
             const ImVec2 chevSz = chevFont->CalcTextSizeA(arrowSize, FLT_MAX, 0.0f, chev);
             dl->AddText(chevFont, arrowSize, ImVec2(arrowX + (arrowSize - chevSz.x) * 0.5f, centerY - chevSz.y * 0.5f),
                         IM_COL32(165, 166, 164, 255), chev);
 
-            // Click on arrow region toggles expand
+            // Clicking the arrow expands or collapses.
             ImVec2 mousePos = ImGui::GetIO().MousePos;
             if (ImGui::IsMouseClicked(0) && mousePos.x >= arrowX && mousePos.x < arrowX + arrowSize &&
                 mousePos.y >= selectablePos.y && mousePos.y < selectablePos.y + rowHeight)
@@ -1634,13 +1618,12 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             }
         }
 
-        // Icon - center vertically, offset past arrow if expandable
+        // Icon, after the arrow if there is one.
         float contentX = selectablePos.x + arrowOffset;
         ImVec2 iconSize = ImGui::CalcTextSize(icon.c_str());
         float iconY = centerY - iconSize.y * 0.5f;
         dl->AddText(ImVec2(contentX, iconY), textCol, icon.c_str());
 
-        // Text - center vertically in the row
         float textX = contentX + iconSize.x;
         float textY = centerY - ImGui::GetFontSize() * 0.5f;
         dl->AddText(ImVec2(textX, textY), textCol, entry.name.c_str());
@@ -1648,19 +1631,19 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
     if (entry.isExpandable)
     {
-        ImGui::Indent(arrowOffset);  // Restore indent we removed for the arrow
+        ImGui::Indent(arrowOffset);  // undo the un-indent for the arrow
     }
     else if (entry.isSubAsset)
     {
         ImGui::Unindent(ImGui::GetStyle().IndentSpacing * (1 + entry.subAssetDepth));
     }
 
-    // Context menu for files. Styled to match the top menu bar's dropdowns.
+    // File context menu, styled like the menu bar's dropdowns.
     PushContextMenuPopupStyle();
     if (!entry.isSubAsset && ImGui::BeginPopupContextItem())
     {
         PushContextMenuItemStyle();
-        // If right-clicked item is not in selection, select only this item
+        // Right-clicking outside the selection selects only this item.
         if (m_SelectedIndices.count(flatIndex) == 0)
         {
             m_SelectedIndices.clear();
@@ -1671,7 +1654,6 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             m_App->SetSelectedAsset(entry.path, entry.cachePath, entry.hasCachedVersion, entry.guid);
         }
 
-        // Spritesheet editor option
         if (IsTextureFile(ext) && entry.hasCachedVersion)
         {
             if (ImGui::MenuItem("Edit Spritesheet..."))
@@ -1681,7 +1663,6 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             ImGui::Separator();
         }
 
-        // Rename
         if (m_SelectedIndices.size() == 1)
         {
             if (ImGui::MenuItem("Rename", "Enter"))
@@ -1691,7 +1672,6 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             }
         }
 
-        // Duplicate (single file/folder only)
         if (m_SelectedIndices.size() == 1)
         {
             if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
@@ -1710,7 +1690,6 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
         ImGui::Separator();
 
-        // Delete
         if (m_SelectedIndices.size() > 1)
         {
             char menuLabel[64];
@@ -1733,7 +1712,7 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
     }
     ImGui::PopStyleVar();  // context menu WindowPadding
 
-    // Handle deferred single-select: if mouse released without dragging, collapse to single
+    // Released without dragging: the selection shrinks to this item.
     if (m_DeferredSingleSelect == flatIndex && ImGui::IsItemDeactivated() && !ImGui::IsDragDropActive())
     {
         m_SelectedIndices.clear();
@@ -1745,21 +1724,19 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         m_DeferredSingleSelect = -1;
     }
 
-    // Drag source
     if (!entry.isSubAsset && ImGui::BeginDragDropSource())
     {
-        m_DeferredSingleSelect = -1;  // Cancel deferred select - dragging started
+        m_DeferredSingleSelect = -1;  // dragging started, keep the selection
 
         if (m_SelectedIndices.size() > 1 && m_SelectedIndices.count(flatIndex) > 0 && !m_CachedMultiDragPayload.empty())
         {
-            // Multi-selection drag: use cached payload built after full tree draw
+            // The payload was built after the last full tree draw.
             ImGui::SetDragDropPayload("ASSET_MULTI", m_CachedMultiDragPayload.c_str(),
                                       m_CachedMultiDragPayload.size() + 1);
             ImGui::Text("Drag %zu items", m_SelectedIndices.size());
         }
         else
         {
-            // Single item drag
             if (!entry.guid.empty())
             {
                 ImGui::SetDragDropPayload("ASSET_GUID", entry.guid.c_str(), entry.guid.size() + 1);
@@ -1788,8 +1765,8 @@ void AssetBrowserPanel::BuildScriptFlatList()
 {
     namespace fs = std::filesystem;
 
-    // Reentrancy guard: this frees the vectors DrawScriptsList iterates. Defer
-    // if called mid-draw (see BuildFolderTree for the full rationale).
+    // This frees the vectors DrawScriptsList iterates, so mid-draw the
+    // rebuild waits (as in BuildFolderTree).
     if (m_DrawingAssetView)
     {
         m_PendingTreeRebuild = true;
@@ -1808,13 +1785,13 @@ void AssetBrowserPanel::BuildScriptFlatList()
         return;
     }
 
-    // Load virtual folder assignments if not yet loaded
+    // Load the virtual folders once.
     if (m_VirtualFolders.Names().empty() && m_VirtualFolders.Assignments().empty() && !m_VirtualFolders.Dirty())
     {
         m_VirtualFolders.Load(m_ProjectRoot);
     }
 
-    // Recursively collect all source/header files
+    // Every source and header file under src/.
     for (const auto& entry : fs::recursive_directory_iterator(m_SrcRoot))
     {
         if (!entry.is_regular_file())
@@ -1824,13 +1801,13 @@ void AssetBrowserPanel::BuildScriptFlatList()
 
         std::string name = entry.path().filename().string();
 
-        // Skip hidden files
+        // Skip hidden files.
         if (name[0] == '.')
         {
             continue;
         }
 
-        // Skip generated folder
+        // Skip the generated folder.
         std::string relToSrc = fs::relative(entry.path(), m_SrcRoot).string();
         for (char& c : relToSrc)
         {
@@ -1844,7 +1821,6 @@ void AssetBrowserPanel::BuildScriptFlatList()
             continue;
         }
 
-        // Skip PluginExports.cpp
         if (name == "PluginExports.cpp")
         {
             continue;
@@ -1863,11 +1839,10 @@ void AssetBrowserPanel::BuildScriptFlatList()
         m_ScriptFlatList.push_back(std::move(script));
     }
 
-    // Sort by name
     std::sort(m_ScriptFlatList.begin(), m_ScriptFlatList.end(),
               [](const ScriptEntry& a, const ScriptEntry& b) { return a.name < b.name; });
 
-    // Clean up assignments for files that no longer exist
+    // Forget folder assignments of files that are gone.
     m_VirtualFolders.PruneMissing(
         [this](const std::string& rel)
         {
@@ -1896,7 +1871,7 @@ void AssetBrowserPanel::DrawScriptsList()
     m_HoveredFolderPath.clear();
     m_Entries.clear();
 
-    // Convert filter to lowercase for case-insensitive matching
+    // Lowercase the filter; matching ignores case.
     std::string filterLower;
     if (m_ScriptFilter[0] != '\0')
     {
@@ -1907,7 +1882,7 @@ void AssetBrowserPanel::DrawScriptsList()
         }
     }
 
-    // Helper lambda to check if a script passes the filter
+    // Matches the file name or its path.
     auto passesFilter = [&](const ScriptEntry& script) -> bool
     {
         if (filterLower.empty())
@@ -1927,7 +1902,6 @@ void AssetBrowserPanel::DrawScriptsList()
         return nameLower.find(filterLower) != std::string::npos || relLower.find(filterLower) != std::string::npos;
     };
 
-    // Helper to get the virtual folder for a script
     auto getVirtualFolder = [&](const ScriptEntry& script) -> std::string
     {
         auto it = m_VirtualFolders.Assignments().find(script.relativePath);
@@ -1938,7 +1912,6 @@ void AssetBrowserPanel::DrawScriptsList()
         return "";
     };
 
-    // Helper lambda to draw a single script entry
     int flatIndex = 0;
     auto drawScript = [&](const ScriptEntry& script)
     {
@@ -1951,7 +1924,7 @@ void AssetBrowserPanel::DrawScriptsList()
         m_Entries.push_back(entry);
         DrawFileNode(m_Entries.back(), flatIndex);
 
-        // Drag source for moving to virtual folders
+        // Drag a script onto a virtual folder to move it there.
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
         {
             ImGui::SetDragDropPayload("SCRIPT_VFOLDER", script.relativePath.c_str(), script.relativePath.size() + 1);
@@ -1959,12 +1932,12 @@ void AssetBrowserPanel::DrawScriptsList()
             ImGui::EndDragDropSource();
         }
 
-        // Context menu: move to virtual folder. Styled like the top menu bar.
+        // Script context menu, styled like the menu bar's dropdowns.
         PushContextMenuPopupStyle();
         if (ImGui::BeginPopupContextItem(("##scriptctx_" + script.relativePath).c_str()))
         {
             PushContextMenuItemStyle();
-            // If right-clicked item is not in selection, select only this item
+            // Right-clicking outside the selection selects only this item.
             if (m_SelectedIndices.count(flatIndex) == 0)
             {
                 m_SelectedIndices.clear();
@@ -2012,7 +1985,6 @@ void AssetBrowserPanel::DrawScriptsList()
                 ImGui::EndMenu();
             }
 
-            // Rename (single selection)
             if (m_SelectedIndices.size() == 1)
             {
                 std::string ext = fs::path(script.path).extension().string();
@@ -2033,7 +2005,6 @@ void AssetBrowserPanel::DrawScriptsList()
 
             ImGui::Separator();
 
-            // Delete
             if (ImGui::MenuItem("Delete", "Del"))
             {
                 m_DeleteConfirmDialog->Open();
@@ -2047,7 +2018,7 @@ void AssetBrowserPanel::DrawScriptsList()
         flatIndex++;
     };
 
-    // When filtering, show flat list (skip folder grouping)
+    // While searching, a flat list without folders.
     if (!filterLower.empty())
     {
         for (const auto& script : m_ScriptFlatList)
@@ -2060,9 +2031,8 @@ void AssetBrowserPanel::DrawScriptsList()
     }
     else
     {
-        // Virtual folder tree from path-based names: only top-level folders
-        // are direct children of root; "A/B" is a child of "A". Built when the
-        // folder list changes, not every frame.
+        // Folder names are paths: "A/B" is a child of "A". The tree is
+        // rebuilt only when the folder list changes.
         const std::vector<std::string>& folderNames = m_VirtualFolders.Names();
         if (m_VFTreeNames != folderNames)
         {
@@ -2085,7 +2055,6 @@ void AssetBrowserPanel::DrawScriptsList()
 
             for (const auto& folderName : folderNames)
             {
-                // Split path by '/'
                 std::vector<VFNode>* currentLevel = &m_VFTree;
                 std::string pathSoFar;
                 size_t start = 0;
@@ -2102,7 +2071,7 @@ void AssetBrowserPanel::DrawScriptsList()
                 }
             }
 
-            // Sort nodes at each level recursively
+            // Sort every level.
             auto sortNodes = [](auto&& self, std::vector<VFNode>& nodes) -> void
             {
                 std::sort(nodes.begin(), nodes.end(),
@@ -2116,10 +2085,10 @@ void AssetBrowserPanel::DrawScriptsList()
         }
         std::vector<VFNode>& rootNodes = m_VFTree;
 
-        // Deferred delete
+        // Deleted after the draw.
         std::string folderToDelete;
 
-        // Helper to draw inline create input
+        // Inline input for a new folder under parentPath.
         auto drawInlineCreate = [&](const std::string& parentPath)
         {
             if (!m_InlineCreatingFolder || m_InlineCreateParentFolder != parentPath)
@@ -2161,12 +2130,11 @@ void AssetBrowserPanel::DrawScriptsList()
             ImGui::Unindent(arrowIndent);
         };
 
-        // Recursive draw function
         std::function<void(const VFNode&)> drawVFolderNode = [&](const VFNode& node)
         {
             const std::string& folderName = node.fullPath;
 
-            // If this folder is being renamed inline, show input instead
+            // A folder being renamed shows an input instead.
             if (m_InlineRenamingFolder && m_RenamingVirtualFolder == folderName)
             {
                 float arrowIndent = ImGui::GetTreeNodeToLabelSpacing();
@@ -2188,7 +2156,7 @@ void AssetBrowserPanel::DrawScriptsList()
 
                 if (enterPressed && strlen(m_NewVirtualFolderName) > 0)
                 {
-                    // Reconstruct full path: replace the leaf name
+                    // Replace the last part of the path.
                     size_t lastSlash = folderName.rfind('/');
                     std::string newFullPath = (lastSlash == std::string::npos)
                                                   ? std::string(m_NewVirtualFolderName)
@@ -2208,7 +2176,7 @@ void AssetBrowserPanel::DrawScriptsList()
                 return;
             }
 
-            // Count scripts directly in this folder
+            // Scripts directly in this folder.
             int scriptCount = 0;
             for (const auto& script : m_ScriptFlatList)
             {
@@ -2259,7 +2227,8 @@ void AssetBrowserPanel::DrawScriptsList()
                 m_VirtualFolders.SetExpanded(folderName, open);
             }
 
-            // Drop target: move scripts into this virtual folder
+            // Dropping a script moves it here, with the rest of the selection
+            // when it is part of one.
             if (ImGui::BeginDragDropTarget())
             {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCRIPT_VFOLDER"))
@@ -2305,7 +2274,7 @@ void AssetBrowserPanel::DrawScriptsList()
                 ImGui::EndDragDropTarget();
             }
 
-            // Context menu for virtual folder. Styled like the top menu bar.
+            // Virtual folder context menu, styled like the menu bar's dropdowns.
             PushContextMenuPopupStyle();
             if (ImGui::BeginPopupContextItem())
             {
@@ -2316,13 +2285,13 @@ void AssetBrowserPanel::DrawScriptsList()
                     m_InlineCreateParentFolder = folderName;
                     m_InlineCreatingFolder = true;
                     m_InlineFolderFocusSet = false;
-                    // Auto-expand so the inline input is visible
+                    // Expand so the inline input shows.
                     m_VirtualFolders.SetExpanded(folderName, true);
                 }
                 if (ImGui::MenuItem("Rename Virtual Folder"))
                 {
                     m_RenamingVirtualFolder = folderName;
-                    // Show only the leaf name in the input
+                    // The input holds only the last part of the path.
                     size_t lastSlash = node.displayName.rfind('/');
                     std::string leafName =
                         (lastSlash == std::string::npos) ? node.displayName : node.displayName.substr(lastSlash + 1);
@@ -2343,16 +2312,13 @@ void AssetBrowserPanel::DrawScriptsList()
             const bool drawChildren = DekiEditor::SchematicTreeBodyBegin(open, nodeId);
             if (drawChildren)
             {
-                // Draw child folders
                 for (const auto& child : node.children)
                 {
                     drawVFolderNode(child);
                 }
 
-                // Draw inline create if creating inside this folder
                 drawInlineCreate(folderName);
 
-                // Draw scripts assigned to this folder
                 for (const auto& script : m_ScriptFlatList)
                 {
                     if (getVirtualFolder(script) == folderName)
@@ -2369,22 +2335,20 @@ void AssetBrowserPanel::DrawScriptsList()
             ImGui::PopID();
         };
 
-        // Draw root-level virtual folder nodes
         for (const auto& node : rootNodes)
         {
             drawVFolderNode(node);
         }
 
-        // Deferred delete (safe after iteration)
+        // Delete now that the iteration is over.
         if (!folderToDelete.empty())
         {
             m_VirtualFolders.Remove(folderToDelete);
         }
 
-        // Inline folder creation at root level
         drawInlineCreate("");
 
-        // Draw scripts at root (no virtual folder assigned)
+        // Scripts in no virtual folder.
         for (const auto& script : m_ScriptFlatList)
         {
             if (getVirtualFolder(script).empty())
@@ -2394,7 +2358,7 @@ void AssetBrowserPanel::DrawScriptsList()
         }
     }
 
-    // Fill remaining space so the child window is scrollable and right-clickable
+    // Fill the remaining space so all of the child scrolls and takes right-clicks.
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
         if (avail.y > 0)
@@ -2426,20 +2390,16 @@ void AssetBrowserPanel::DrawAssetDetails()
     ImGui::Text("Asset Details");
     ImGui::Separator();
 
-    // Name
     ImGui::TextWrapped("Name: %s", asset.name.c_str());
 
-    // Path
     ImGui::TextWrapped("Path: %s", asset.relativePath.c_str());
 
-    // Extension
     namespace fs = std::filesystem;
     std::string ext = fs::path(asset.path).extension().string();
     ImGui::Text("Type: %s", ext.c_str());
 
     ImGui::Separator();
 
-    // GUID info
     if (!asset.guid.empty())
     {
         ImGui::Text("GUID:");
@@ -2452,7 +2412,7 @@ void AssetBrowserPanel::DrawAssetDetails()
 
     ImGui::Separator();
 
-    // DTEX cache info
+    // Texture cache state.
     if (IsTextureFile(ext))
     {
         ImGui::Text("Cache Status:");
@@ -2461,7 +2421,6 @@ void AssetBrowserPanel::DrawAssetDetails()
         {
             ImGui::TextColored(DekiEditor::Palette::Green, "TEX cached");
 
-            // Read and display TEX info
             TexData texData;
             if (TextureImporter::ReadTexFile(asset.cachePath, texData))
             {
@@ -2499,7 +2458,7 @@ void AssetBrowserPanel::DrawAssetDetails()
         }
     }
 
-    // Font cache info (BDF, TTF, OTF)
+    // Font cache state.
     if (ext == ".bdf" || ext == ".ttf" || ext == ".otf")
     {
         ImGui::Text("Cache Status:");
@@ -2527,8 +2486,7 @@ void AssetBrowserPanel::DrawAssetDetails()
 
 void AssetBrowserPanel::DrawContextMenu()
 {
-    // Context menu for empty space in asset browser. Styled to match the top
-    // menu bar's dropdowns (WindowPadding inset + taller, full-width-hover rows).
+    // Context menu for empty space, styled like the menu bar's dropdowns.
     PushContextMenuPopupStyle();
     if (ImGui::BeginPopupContextWindow("AssetBrowserContextMenu",
                                        ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
@@ -2556,9 +2514,9 @@ void AssetBrowserPanel::DrawContextMenu()
                 m_CreateFolderDialog->Open();
             }
 
-            // Creatable asset types from the registry, grouped under a single
-            // "Create..." submenu (Assets mode only). The labels drop the
-            // "Create " prefix since the submenu already conveys the verb.
+            // Asset types from the registry that can be created, under one
+            // "Create..." submenu. The labels leave out "Create ", as the
+            // submenu already says it.
             const auto& creatableTypes = AssetTypeRegistry::Instance().GetTypes();
             if (!creatableTypes.empty() && ImGui::BeginMenu("Create..."))
             {
@@ -2591,9 +2549,9 @@ void AssetBrowserPanel::DrawContextMenu()
 
 bool AssetBrowserPanel::IsTextureFile(const std::string& extension)
 {
-    // Package-owned categories drive these checks. Adding a new texture format
-    // is now a package change (one call to RegisterCategory / AssetTypeEditor
-    // override) and does not require touching the asset browser.
+    // Packages register the categories, so a new texture format needs only a
+    // package change (RegisterCategory or an AssetTypeEditor override), not
+    // the asset browser.
     return AssetTypeRegistry::Instance().GetCategoryForExtension(extension) == AssetCategory::Texture;
 }
 
@@ -2625,19 +2583,17 @@ void AssetBrowserPanel::HandleFileDrop(const std::string& droppedPath)
         return;
     }
 
-    // Use hovered folder if available, otherwise use current directory
+    // Into the hovered folder, or else the current one.
     const std::string targetDir = m_HoveredFolderPath.empty() ? m_CurrentPath : m_HoveredFolderPath;
 
     std::string error;
     if (!AssetImportDrop::Import(droppedPath, targetDir, m_App ? m_App->GetAssetPipeline() : nullptr, error))
     {
-        // Not silently: a drop that produces nothing and says nothing reads
-        // as a broken editor.
+        // Say so: a drop that does nothing silently looks like a broken editor.
         DEKI_LOG_ERROR("Import skipped: %s", error.c_str());
         return;
     }
 
-    // Refresh to show the new file
     NavigateTo(m_CurrentPath);
 }
 
@@ -2646,9 +2602,9 @@ void AssetBrowserPanel::DeferMove(std::string srcPath, std::string destPath)
     m_DeferredActions.push_back(
         [this, src = std::move(srcPath), dest = std::move(destPath)]()
         {
-            // Skip if something already occupies the destination (e.g. two
-            // dropped files share a name - the first move wins). Checked at run
-            // time, not enqueue time, so the order is respected.
+            // Skip if the destination is taken (two dropped files with one
+            // name: the first wins). Checked when the move runs, not when it is
+            // queued, so the order holds.
             if (!std::filesystem::exists(dest))
             {
                 AssetFileOps::MoveWithData(src, dest, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);
@@ -2664,8 +2620,8 @@ void AssetBrowserPanel::RunDeferredActions()
         return;
     }
 
-    // Move out first: an action may enqueue more (those run next frame), and we
-    // must not iterate a vector an action could reallocate.
+    // Move the list out first: an action may queue more (they run next frame),
+    // which would reallocate the vector being iterated.
     std::vector<std::function<void()>> actions = std::move(m_DeferredActions);
     m_DeferredActions.clear();
     for (auto& action : actions)
@@ -2689,7 +2645,7 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
     std::string ext = src.extension().string();
     bool isDir = fs::is_directory(src);
 
-    // Find unique name: name_1, name_2, etc.
+    // First free name of name_1, name_2, ...
     fs::path destPath;
     for (int i = 1; i < 1000; ++i)
     {
@@ -2719,12 +2675,10 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
         return;
     }
 
-    // Give every copied sidecar a fresh GUID (import settings are preserved).
-    //
-    // For a directory this walks the whole copied tree: fs::copy clones the
-    // .data files verbatim, so without this every asset inside the duplicate
-    // carries the original's GUID. The cache then cannot tell the two apart and
-    // scene references silently resolve to whichever one it saw last.
+    // Give every copied sidecar a new GUID; import settings are kept. For a
+    // directory this walks the whole copy: fs::copy copies the .data files as
+    // they are, and with two assets on one GUID the cache cannot tell them
+    // apart, so scene references resolve to whichever it saw last.
     if (isDir)
     {
         AssetFileOps::ReassignGuidsInTree(destPath.string());
@@ -2734,7 +2688,7 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
         AssetFileOps::ReassignGuidForCopy(srcPath, destPath.string());
     }
 
-    // Register with asset pipeline
+    // Tell the asset pipeline.
     if (m_App && m_App->GetAssetPipeline())
     {
         std::string newRelPath = fs::relative(destPath, m_ProjectRoot).string();
@@ -2748,7 +2702,7 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
         m_App->GetAssetPipeline()->RefreshAsset(newRelPath);
     }
 
-    // Rebuild tree and reveal the new file
+    // Rebuild the tree and select the copy.
     m_PendingRevealPath = destPath.string();
     m_PendingTreeRebuild = true;
 }
@@ -2800,7 +2754,7 @@ void AssetBrowserPanel::SaveObjectAsScene(Deki::Object* obj, const std::string& 
         return;
     }
 
-    // Normalize path separators (Windows backslashes → forward slashes)
+    // Forward slashes.
     std::string relativePath = fs::relative(targetPath, m_ProjectRoot).string();
     for (char& c : relativePath)
     {
@@ -2814,7 +2768,7 @@ void AssetBrowserPanel::SaveObjectAsScene(Deki::Object* obj, const std::string& 
     {
         pipeline->RefreshAsset(relativePath);
 
-        // Get the GUID of the newly created scene for link prompt
+        // The new scene's GUID, for the link prompt.
         const AssetInfo* newAssetInfo = pipeline->GetAssetInfo(relativePath);
         if (newAssetInfo && !newAssetInfo->guid.empty())
         {

@@ -33,7 +33,7 @@ bool LoadAssetData(const std::string& path, AssetData& out)
         nlohmann::json j;
         file >> j;
 
-        // Read GUID (required)
+        // The GUID is required.
         if (!j.contains("guid") || !j["guid"].is_string())
         {
             return false;
@@ -52,9 +52,9 @@ bool LoadAssetData(const std::string& path, AssetData& out)
                 path.c_str(), fileVersion, Deki::AuthoredFormat::kAssetDataVersion);
         }
 
-        // Copy all other fields to settings
+        // Every other field is a setting.
         out.settings = j;
-        out.settings.erase("guid");  // Don't duplicate guid in settings
+        out.settings.erase("guid");
         out.settings.erase(Deki::AuthoredFormat::kVersionKey);
 
         return true;
@@ -69,14 +69,12 @@ bool SaveAssetData(const std::string& path, const AssetData& data)
 {
     try
     {
-        // Start with settings, then add guid at top level
         nlohmann::json j = data.settings;
         j["guid"] = data.guid;
         j[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kAssetDataVersion;
 
-        // .data sidecars carry the asset's GUID. A half-written sidecar
-        // would orphan the asset on the next pipeline restart, so write
-        // atomically (temp+rename) instead of streaming directly.
+        // The sidecar carries the asset's GUID, and a half-written one would
+        // orphan the asset, so write it atomically (temp file, then rename).
         std::string err;
         return AtomicWriteFile(path, j.dump(2), err);
     }
@@ -109,9 +107,9 @@ std::string ReadAssetGuid(const std::string& assetPath)
 
 std::string GenerateGuid()
 {
-    // 122 random bits straight from the OS source. A mt19937 seeded with one
-    // random_device value per call could only ever produce 2^32 different
-    // GUIDs: about a 1% chance of two assets colliding at 10,000 assets.
+    // 122 random bits straight from the OS source. Do not switch to an
+    // mt19937 seeded once per call: that gives only 2^32 different GUIDs,
+    // about a 1% chance of a collision at 10,000 assets.
     std::random_device rd;
     uint8_t bytes[16];
     for (int i = 0; i < 16; i += 4)
@@ -142,7 +140,6 @@ std::string GenerateGuid()
 
 std::string GenerateDeterministicGuid(const std::string& seed)
 {
-    // Use engine's shared implementation
     return Deki::GenerateDeterministicGuid(seed);
 }
 
@@ -157,8 +154,8 @@ std::string SalvageAssetGuid(const std::string& dataPath)
     ss << file.rdbuf();
     const std::string text = ss.str();
 
-    // Every "guid": "<value>" in the text; a merge conflict on other keys
-    // carries the one GUID through untouched.
+    // Finds every "guid": "<value>" in the text. A merge conflict on other
+    // keys still has a single GUID, which is returned.
     static const std::regex kGuid("\"guid\"\\s*:\\s*\"([0-9A-Fa-f-]{8,64})\"");
     std::string found;
     for (std::sregex_iterator it(text.begin(), text.end(), kGuid), end; it != end; ++it)
@@ -184,10 +181,10 @@ std::string GetOrCreateAssetGuid(const std::string& assetPath)
         return existingGuid;
     }
 
-    // A sidecar that is there but does not parse is NEVER replaced: it holds
-    // the asset's identity and import settings (a git merge conflict is the
-    // usual cause, and the user resolves it). Writing a fresh one here used to
-    // give the asset a new GUID and break every reference to it.
+    // A sidecar that exists but does not parse is never replaced: it holds the
+    // asset's identity and import settings, and a new one would give the
+    // asset a new GUID and break every reference to it. The usual cause is a
+    // git merge conflict, which the user resolves.
     const std::string dataPath = GetAssetDataPath(assetPath);
     AssetData data;
     std::error_code ec;
@@ -222,10 +219,8 @@ std::string GetOrCreateAssetGuid(const std::string& assetPath)
         return salvaged;
     }
 
-    // Generate new GUID
     std::string newGuid = GenerateGuid();
 
-    // Write to .data file
     data.guid = newGuid;
     SaveAssetData(dataPath, data);
 

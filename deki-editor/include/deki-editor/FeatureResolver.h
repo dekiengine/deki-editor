@@ -5,18 +5,18 @@
 // Which package features a device build compiles, and what it leaves out.
 //
 // The inputs are the package descriptors (each feature's build define and the
-// component types it provides), what the project's scenes and sources
-// actually use, and the project's stripping settings. The output is a plan:
-// one decision per feature and per package, with the reason, plus the compile
-// definitions to emit and the component sources and headers to exclude.
+// component types it provides), what the project's scenes and sources use,
+// and the project's stripping settings. The output is a plan: one decision
+// per feature and per package, with the reason, plus the compile definitions
+// to emit and the component sources and headers to exclude.
 //
 // A feature stays in when it is required, pinned, used, or included by a
-// kept feature's sources; the last is learned by reading the package's own
-// files rather than trusting a descriptor to have listed it. Every package
-// is strippable at the level the project chose; the scan reads the platform
-// boot scenes as well as the project's, so the setup components a platform
-// names there (SDL3DisplaySetup) count as used. The editor's own builds never
-// strip anything: it has to open every scene.
+// kept feature's sources; the last is found by reading the package's own
+// files, not trusted to the descriptor. Every package can be stripped at the
+// level the project chose. The scan reads the platform boot scenes as well
+// as the project's, so the setup components a platform names there
+// (SDL3DisplaySetup) count as used. The editor's own builds never strip
+// anything: it has to open every scene.
 
 #include <deki-editor/BuildStripSettings.h>
 #include <deki-editor/ComponentUsageScan.h>
@@ -81,9 +81,9 @@ struct DEKI_EDITOR_API StripPlan
     // One line for the build log.
     std::string summary;
 
-    // A feature that is on but needs a package the project does not have: its
-    // code compiles out, so the part is silently missing. One line each, for
-    // the build to say.
+    // Features that are on but need a package the project does not have:
+    // their code compiles out, so the part is silently missing. One line
+    // each, for the build to print.
     std::vector<std::string> warnings;
 
     bool AnythingStripped() const;
@@ -105,8 +105,8 @@ DEKI_EDITOR_API StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEn
                                            const std::string& packagesDir);
 
 // A component this target's own content uses, from a package this target
-// cannot have. The one case that genuinely is a mistake rather than a normal
-// exclusion, and the one worth refusing a build over.
+// cannot have. Unlike a normal exclusion this is a real mistake, worth
+// refusing a build over.
 struct DEKI_EDITOR_API TargetContentConflict
 {
     std::string componentType;         // e.g. "SDL3DisplaySetup"
@@ -126,10 +126,9 @@ DEKI_EDITOR_API std::vector<TargetContentConflict> FindTargetContentConflicts(co
 
 // The whole thing for a project: descriptors, scan, settings.
 //
-// `targetPlatformId` is the platform being built. It scopes which boot scenes
+// `targetPlatformId` is the platform being built. It limits which boot scenes
 // count as evidence, so a package used only by another target's boot scene is
-// not kept alive here. Empty pools every platform, for callers with no target
-// in hand.
+// not kept here. Empty pools every platform, for callers with no target.
 //
 // `extraSceneDirs` adds scenes outside the project to the evidence (a
 // simulated build's boot scene; see ScanComponentUsage).

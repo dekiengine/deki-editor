@@ -1,10 +1,8 @@
 // Unit display conversion (src/core/Units.h).
 //
 // Stored values are SI and never anything else; these pin the one place that
-// turns them into something a person reads. They exist because the conversions
-// used to live in three files and nothing checked any of them - a swapped
-// multiplier would have reached a release and been noticed by someone squinting
-// at the inspector.
+// turns them into something a person reads, so a swapped multiplier fails
+// here rather than in a release.
 
 #include <gtest/gtest.h>
 
@@ -138,8 +136,7 @@ TEST(Units, SnappingIsANoOpInMetersModeAndOnABrokenSetting)
 
 TEST(Units, OnlyDistancesSnap)
 {
-    // Rounding a velocity or an angle to a whole pixel is meaningless; this
-    // rule used to be written inline in one caller and applied nowhere else.
+    // Rounding a velocity or an angle to a whole pixel is meaningless.
     ScopedUnitMode mode(Deki::UnitMode::Pixels, 16.0f);
 
     EXPECT_TRUE(ShouldSnapToPixel(Deki::PhysicalUnit::Distance));

@@ -1,4 +1,4 @@
-// EditorTheme - Schematic / datasheet aesthetic.
+// EditorTheme: the schematic / datasheet look.
 // Near-black backgrounds, square 1px hairline borders, steel-blue accent.
 
 #include <deki-editor/EditorTheme.h>
@@ -27,8 +27,8 @@ static std::unordered_map<ImFont*, float> s_FontMonoAdvance;
 // ---------------------------------------------------------------------------
 // Widget animation: the shared Motion helpers (deki-editor/Motion.h) hold the
 // per-widget values and honour Reduce motion. A widget seen for the first time
-// SNAPS to its target: a panel that has just been opened should show its
-// state, not animate every foldout in it from shut.
+// snaps to its target: a panel that has just opened shows its state instead
+// of animating every foldout in it from shut.
 // ---------------------------------------------------------------------------
 namespace
 {
@@ -37,8 +37,8 @@ void PruneSectionHeights();
 
 float AnimateTo(ImGuiID id, float target, float seconds)
 {
-    // The section-height table outlives frames too; sweep it on the same
-    // rhythm Motion sweeps its own.
+    // The section-height table outlives frames too; sweep it as often as
+    // Motion sweeps its own.
     if ((ImGui::GetFrameCount() & 255) == 0)
     {
         PruneSectionHeights();
@@ -46,17 +46,15 @@ float AnimateTo(ImGuiID id, float target, float seconds)
     return Motion::To(id, target, seconds);
 }
 
-// Ease in-out, so the motion starts and lands softly instead of stopping dead.
+// Ease in-out, so the motion starts and stops softly.
 float Smooth(float t)
 {
     return Motion::Smooth(t);
 }
 
-// Rotate everything a draw call appended since `vtxStart` around its own
-// center. ImGui cannot draw rotated text, so the glyph is emitted normally
-// and its vertices are spun afterwards - the icon stays the icon, at any
-// angle, instead of being redrawn as hand-built strokes that would not
-// match the ones next to it.
+// Rotates everything appended since `vtxStart` around its own center. ImGui
+// cannot draw rotated text, so the glyph is drawn normally and its vertices
+// are turned afterwards; the icon stays the same glyph at any angle.
 void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
 {
     if (rad == 0.0f || dl->VtxBuffer.Size <= vtxStart)
@@ -72,11 +70,9 @@ void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
     }
     const ImVec2 center((lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f);
 
-    // (No ImVec2 operators in this TU - IMGUI_DEFINE_MATH_OPERATORS is not
-    // set - so the rotation is written out by hand.)
-    // ImRotate takes COSINE first, then sine. Passing them the other way
-    // round rotates by (90° - angle), which turns the icon backwards: fully
-    // open it landed exactly where it started.
+    // IMGUI_DEFINE_MATH_OPERATORS is not set in this file, so the rotation is
+    // written out by hand. ImRotate takes the cosine first, then the sine;
+    // swapped, it rotates by (90° - angle) and turns the icon backwards.
     const float s = ImSin(rad), c = ImCos(rad);
     const ImVec2 rc = ImRotate(center, c, s);
     const float offX = rc.x - center.x;
@@ -88,12 +84,10 @@ void RotateVerticesFrom(ImDrawList* dl, int vtxStart, float rad)
     }
 }
 
-// Nudge everything appended since `vtxStart` so its bounding box starts on
-// whole pixels. A glyph landing on a half pixel samples between texels and
-// comes out soft and thick - which is the whole difference between a
-// chevron that looks drawn and one that looks smeared. Only worth doing
-// when the icon is at rest; snapping every frame of the turn would make it
-// jitter by half a pixel as it goes.
+// Moves everything appended since `vtxStart` so its bounding box starts on
+// whole pixels. A glyph on a half pixel samples between texels and comes out
+// soft and thick. Only for an icon at rest: snapping every frame of a turn
+// makes it jitter by half a pixel.
 void SnapVerticesFrom(ImDrawList* dl, int vtxStart)
 {
     if (dl->VtxBuffer.Size <= vtxStart)
@@ -123,11 +117,10 @@ void SnapVerticesFrom(ImDrawList* dl, int vtxStart)
 // A chevron that turns instead of being swapped for a different glyph.
 // `openT` 0 = closed (as authored), 1 = fully turned by `sweepRad`.
 //
-// `center` is the middle of the zone the icon lives in, not a pen position:
-// the glyph is centered on it by its own metrics, so the icon does not
-// wander as it turns. The one glyph is used at every angle - swapping in
-// chevron-down at the end would land it wherever THAT glyph's ink sits,
-// which is not where the turning one arrives.
+// `center` is the middle of the icon's zone, not a pen position: the glyph is
+// centered on it by its own metrics, so it does not wander as it turns. The
+// same glyph is used at every angle; swapping in chevron-down at the end
+// would jump, since that glyph's ink sits elsewhere.
 void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center, ImU32 col, const char* glyph,
                         float openT, float sweepRad)
 {
@@ -147,14 +140,12 @@ void DrawTurningChevron(ImDrawList* dl, ImFont* font, float size, ImVec2 center,
 
 // ---- animated section bodies -------------------------------------------
 //
-// The body is clipped to an animated fraction of its own full height, and
-// the layout below is pulled up to the clipped height. Deliberately NOT a
-// child window, which would have been less code: a child is its own ImGui
-// id scope and its own storage, so every nested foldout inside a section
-// would read as shut for the length of the animation and every id inside
-// would change identity mid-interaction. Clipping in place keeps the body
-// exactly the widgets it already was - ItemAdd treats anything outside the
-// clip as culled, so the hidden part stops being hoverable too.
+// The body is clipped to an animated fraction of its full height, and the
+// layout below is pulled up to the clipped height. Not a child window: a
+// child has its own id scope and storage, so nested foldouts would read as
+// shut during the animation and every id inside would change. Clipping in
+// place keeps the same widgets, and ItemAdd treats anything outside the clip
+// as culled, so the hidden part is not hoverable either.
 struct SectionScope
 {
     ImGuiID id = 0;
@@ -195,23 +186,21 @@ ImGuiID SectionBodyKey(ImGuiID headerId)
     return headerId ^ 0x5EC7B0D1u;
 }
 
-// One description of a section band's title type, so the drawn label and
-// the field that edits it cannot drift apart.
+// The one definition of a section band's title type, shared by the drawn
+// label and the field that edits it.
 //
-// This band names a THING, so it is typeset like the object name in the
-// Inspector header: display face, heading size, accent. The uppercase
-// letter-spaced treatment belongs to the foldouts, which name sections -
-// and could never be matched by a field, since nobody types in caps.
+// This band names a thing, so it is set like the object name in the
+// Inspector header: display face, heading size, accent. Uppercase
+// letter-spaced type is for foldouts, which name sections.
 ImFont* BandTitleFont()
 {
     return g_FontDisplay ? g_FontDisplay : ImGui::GetFont();
 }
 
 // Two sizes for one type, because the two ImGui entry points disagree about
-// what a size is: PushFont takes a BASE size and multiplies it by
-// FontScaleDpi at draw time, while ImDrawList::AddText takes the final
-// pixel size. Feeding one to the other is why the field came out a whole
-// DPI factor larger than the label it replaced.
+// what a size is: PushFont takes a base size and multiplies it by
+// FontScaleDpi at draw time, while ImDrawList::AddText takes the final pixel
+// size. Passing one where the other belongs is off by the DPI factor.
 float BandTitleFontSizeBase()
 {
     return Fonts::CssPx(BandTitleFont(), 16.0f);
@@ -233,14 +222,12 @@ ImU32 BandTitleColor()
 // The air between a band and the first row under it. Part of the body, not
 // of the band, so it disappears when the section does.
 //
-// A cursor advance, NOT an item: an item here would become the window's
-// last one, and a caller that hangs something off the band by reading the
-// previous item's rect - the `EDIT ->` link on a component header does
-// exactly that - would measure this spacer instead and drop its control a
-// band lower. The body's height is measured from the cursor either way, so
-// the gap is still counted. SchematicSectionEnd closes the body with a zero
-// item so a section whose body is empty still cannot end a window on a
-// bare cursor write.
+// A cursor advance, not an item: an item here would become the window's last
+// one, and a caller that places something on the band from the previous
+// item's rect (the `EDIT ->` link on a component header) would measure this
+// spacer instead. The body's height is measured from the cursor, so the gap
+// still counts. SchematicSectionEnd closes the body with a zero-size item, so
+// an empty body cannot end a window on a bare cursor write.
 void SectionBodyGap()
 {
     const float gap = ImGui::GetStyle().ItemSpacing.y;
@@ -252,10 +239,9 @@ void SectionBodyGap()
     ImGui::SetCursorScreenPos(ImVec2(cur.x, cur.y + gap));
 }
 
-// Measured heights outlive the frame like the animations do, and a big
-// project's asset tree has plenty of nodes, so any not measured for a few
-// seconds (a closed panel, a node scrolled away) are dropped. Called from
-// AnimateTo.
+// Measured heights outlive the frame, like the animations, and a big asset
+// tree has many nodes, so heights not measured for a few seconds (a closed
+// panel, a node scrolled away) are dropped. Called from AnimateTo.
 void PruneSectionHeights()
 {
     if (s_SectionHeights.size() <= 512)
@@ -302,8 +288,8 @@ void Tooltip(const char* fmt, ...)
         return;
     }
 
-    // The theme zeroes WindowPadding for panels, and a tooltip window bakes the
-    // current padding when it begins: without this its text touched the edge.
+    // The theme zeroes WindowPadding for panels, and a tooltip window takes
+    // the current padding when it begins, so give it one here.
     const float pad = ImGui::GetFontSize();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(pad * 0.6f, pad * 0.4f));
     va_list args;
@@ -355,30 +341,25 @@ bool SchematicSectionBegin(const char* label, ImGuiTreeNodeFlags flags, ImGuiID*
     auto measured = s_SectionHeights.find(id);
     if (t >= 1.0f)
     {
-        // At rest: submitted exactly as it always was, and measured on the way
-        // out. That measurement is what every later open or close animates
-        // against.
+        // At rest: submitted unclipped, and measured on the way out. Every
+        // later open or close animates against that measurement.
         sc.clipped = false;
         SectionBodyGap();
         s_SectionStack.push_back(sc);
         return true;
     }
 
-    // Opening for the very first time, with no height on record yet: submit the
-    // body clipped to nothing. Clipping culls drawing and hit-testing but does
-    // NOT change layout, so the cursor still travels the body's full height and
-    // End can measure it - the section is invisible for the one frame it takes
-    // to learn its own size, and animates properly from the next. The
-    // alternative was to show it at full height and then animate it from a
-    // fifth of that, which is why the first click used to just snap open.
+    // Opening for the first time, with no height on record: submit the body
+    // clipped to nothing. Clipping culls drawing and hit-testing but not
+    // layout, so End can still measure the full height. The section is
+    // invisible for that one frame and animates from the next.
     sc.clipped = true;
     sc.visibleH = (measured == s_SectionHeights.end()) ? 0.0f : ImMax(0.0f, measured->second.height * Smooth(t));
     sc.savedMaxY = w->DC.CursorMaxPos.y;
-    // Clip from the top of the BAND, not the top of the body: whatever a caller
-    // draws on the band right after the header (the `EDIT ->` link) is drawn
-    // after this point and would otherwise be clipped away for the length of
-    // the animation. The band itself is already painted, so including its row
-    // costs nothing.
+    // Clip from the top of the band, not of the body: whatever a caller draws
+    // on the band right after the header (the `EDIT ->` link) comes after this
+    // point and must not be clipped during the animation. The band is already
+    // painted, so including its row costs nothing.
     const float clipTop = ImMin(ImGui::GetItemRectMin().y, sc.startY);
     ImGui::PushClipRect(ImVec2(w->ClipRect.Min.x, clipTop), ImVec2(w->ClipRect.Max.x, sc.startY + sc.visibleH), true);
     SectionBodyGap();
@@ -408,9 +389,9 @@ bool SchematicTreeBodyBegin(bool open, ImGuiID nodeId)
     }
     sc.active = true;
 
-    // Closing: ImGui pushed nothing this frame because as far as it is
-    // concerned the node is shut. Push the same indent and the same id it would
-    // have, so the children that are still being drawn sit where they sat.
+    // Closing: ImGui pushed nothing this frame because to it the node is shut.
+    // Push the indent and id it would have pushed, so the children still being
+    // drawn stay where they were.
     if (!open)
     {
         ImGui::TreePushOverrideID(nodeId);
@@ -478,10 +459,10 @@ void SchematicSectionEnd()
         return;
     }
 
-    // The body was submitted whole either way - a clip hides items, it does not
-    // shorten the layout - so this is the full height whatever the state, and
-    // recording it every frame keeps the animation honest when the content
-    // itself changes size.
+    // The body was submitted whole either way (a clip hides items, it does not
+    // shorten the layout), so this is the full height in every state.
+    // Recording it every frame keeps the animation right when the content
+    // changes size.
     const float h = ImGui::GetCursorScreenPos().y - sc.startY;
     if (h > 0.0f)
     {
@@ -501,18 +482,17 @@ void SchematicSectionEnd()
 
     ImGui::PopClipRect();
 
-    // Pull the layout up to the visible height. Closing with a zero item rather
-    // than a bare cursor write: a section that ends a window would otherwise
-    // leave the cursor "set" and trip ImGui's check at End().
+    // Pull the layout up to the visible height. Closed with a zero-size item,
+    // not a bare cursor write, which would trip ImGui's check at End() when
+    // the section ends a window.
     ImGui::SetCursorScreenPos(ImVec2(sc.startX, sc.startY + sc.visibleH));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 0.0f));
     ImGui::PopStyleVar();
 
-    // The body extended the window's content height to its FULL size on its way
-    // past; the window only contains the visible part right now, and a
-    // scrollbar that grows and shrinks by the body's height every time one
-    // section is toggled is worse than no animation at all.
+    // The body extended the window's content height to its full size, but
+    // only the visible part counts; otherwise the scrollbar would jump by the
+    // body's height every time a section is toggled.
     w->DC.CursorMaxPos.y = ImMax(sc.savedMaxY, sc.startY + sc.visibleH);
 }
 
@@ -532,11 +512,10 @@ void RegisterTtf(ImFont* font, const char* ttfPath)
     FT_Face face = nullptr;
     if (FT_New_Face(lib, ttfPath, 0, &face) == 0)
     {
-        // ratio = (ascender + |descender|) / unitsPerEm
-        // This is exactly the factor FT_SIZE_REQUEST_TYPE_REAL_DIM divides
-        // by when interpreting our requested pixel_size. Multiplying CSS
-        // px by this ratio gives the pixel_size we need to ask FreeType
-        // for so the rendered em-square matches CSS semantics.
+        // ratio = (ascender + |descender|) / unitsPerEm: the factor
+        // FT_SIZE_REQUEST_TYPE_REAL_DIM divides the requested pixel_size by.
+        // CSS px times this ratio is the pixel_size to ask FreeType for, so
+        // the em-square matches CSS.
         const float upm = (float)face->units_per_EM;
         const float ascDesc = (float)(face->ascender - face->descender);
         if (upm > 0.0f)
@@ -603,12 +582,11 @@ bool BeginSchematicModal(const char* title, float cssWidth)
         ImGui::PopStyleVar();
         return false;
     }
-    // Escape closes it, like every other dialog: a modal with no close flag
-    // ignored the key. Reported as closed (false) right away, which is where
-    // the dialogs clear their own open flag; a dialog that reopens itself
-    // while that flag is set would otherwise come straight back. A text field
-    // that has the focus when it opens (New Project's name) does not hold it
-    // open.
+    // Escape closes it, like every other dialog, even a modal with no close
+    // flag. It is reported as closed (false) at once, which is where dialogs
+    // clear their own open flag, so a dialog that reopens itself while the
+    // flag is set does not come straight back. A focused text field (New
+    // Project's name) does not keep it open.
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
     {
         ImGui::CloseCurrentPopup();
@@ -709,23 +687,21 @@ ImFont* g_FontLogo = nullptr;
 
 void SetupEditorTheme(float dpiScale)
 {
-    // dpiScale is only used for the one-shot style.ScaleAllSizes() call below.
-    // All draw-time custom-widget code reads ImGui::GetFontSize() / FontScaleDpi
-    // directly per the ImGui 1.92 FAQ "express dimensions as multiples of
-    // reference values" guidance.
+    // dpiScale is used only for the style.ScaleAllSizes() call below. Custom
+    // widgets read ImGui::GetFontSize() / FontScaleDpi at draw time, as the
+    // ImGui 1.92 FAQ advises ("express dimensions as multiples of reference
+    // values").
     ImGui::StyleColorsDark();
 
     ImGuiStyle& style = ImGui::GetStyle();
 
-    // Corner rounding. Windows, docked children and tabs stay square: rounding a
-    // docked window breaks the shared dock seams, and the tab bar draws its own
-    // square active-tab underline (DrawPanelTabUnderline) that would poke past
-    // rounded tab corners. Everything else the user actually clicks into (frames
-    // = buttons / input fields / drag fields / combos, popups, scrollbars and
-    // grabs) gets a small radius so the widgets read a touch softer without
-    // losing the schematic feel. Value is in logical px; ScaleAllSizes() below
-    // multiplies it by dpiScale. Draw-time custom widgets read it back off
-    // g.Style.FrameRounding (already DPI-scaled) so they stay in sync.
+    // Corner rounding. Windows, docked children and tabs stay square: rounding
+    // a docked window breaks the shared dock seams, and the tab bar's square
+    // active-tab underline (DrawPanelTabUnderline) would poke past rounded
+    // corners. Everything the user clicks into (buttons, input fields, drag
+    // fields, combos, popups, scrollbars, grabs) gets a small radius. Logical
+    // px; ScaleAllSizes() below multiplies it by dpiScale, and custom widgets
+    // read the scaled value from g.Style.FrameRounding.
     const float kFrameRounding = 3.0f;
     style.WindowRounding = 0.0f;
     style.ChildRounding = 0.0f;
@@ -738,15 +714,12 @@ void SetupEditorTheme(float dpiScale)
     // 1px hairlines on frames and popups; tab borders are off because
     // panels draw their own active-tab underline.
     //
-    // Docked panels deliberately have NO window border (WindowBorderSize = 0).
-    // The single line you see between two docked panels is ImGui's own dock
-    // separator: SplitterBehavior() fills the DockingSeparatorSize-wide gap with
-    // ImGuiCol_Separator, which the docking code sets to ImGuiCol_Border. If we
-    // also let each panel stroke its own 1px outer border, the seam doubled up
-    // (border + separator + border). With the border off and the separator
-    // pinned to 1px below, every shared seam is a single crisp hairline.
-    // (DrawDockSeams() then only re-adds borders for standalone floating
-    // windows, e.g. dialogs, which would otherwise lose theirs.)
+    // Docked panels have no window border (WindowBorderSize = 0). The line
+    // between two docked panels is ImGui's dock separator: SplitterBehavior()
+    // fills the gap with ImGuiCol_Separator, which the docking code sets to
+    // ImGuiCol_Border. A panel border as well would triple the seam (border +
+    // separator + border); without it every shared seam is one hairline.
+    // DrawDockSeams() adds borders back for floating windows such as dialogs.
     style.WindowBorderSize = 0.0f;
     style.ChildBorderSize = 1.0f;
     style.FrameBorderSize = 1.0f;
@@ -759,42 +732,37 @@ void SetupEditorTheme(float dpiScale)
     style.DockingSeparatorSize = 2.0f;
 
     style.WindowPadding = ImVec2(0, 0);  // panels manage their own padding
-    // FramePadding.y of 10 puts dock tab bar height at ~font(13) + 20 = 33px,
-    // close to the mockup's 34px target. Side effect: every framed widget
-    // (buttons, drag fields) also gets taller, which suits the mockup's
-    // spacious feel.
-    // FramePadding.x = 14: side padding on tabs (left of label, right of X).
-    // Tab RequestedWidth formula uses this 2x, so each tab gets ~12 more
-    // logical px versus FramePadding.x=8. Other framed widgets (buttons,
-    // drag fields) also gain a few px on each side.
+    // FramePadding.y of 10 makes the dock tab bar ~font(13) + 20 = 33px tall,
+    // close to the mockup's 34px; framed widgets (buttons, drag fields) get
+    // taller too, which suits the mockup's spacing.
+    // FramePadding.x = 14 is the side padding on tabs (left of the label,
+    // right of the X); the tab width counts it twice. Other framed widgets
+    // gain a few px on each side as well.
     style.FramePadding = ImVec2(14, 10);
     style.ItemSpacing = ImVec2(8, 4);
     style.ItemInnerSpacing = ImVec2(4, 4);
     style.ScrollbarSize = 8.0f;  // uniform thin scrollbars across all panels
     style.GrabMinSize = 8.0f;
 
-    // Left-align text inside buttons / selectables / tables so asset
-    // pickers, header buttons, and list rows read as left-aligned values
-    // (matches the schematic mockup; ImGui's default is centered).
+    // Left-aligned text in buttons, selectables and tables, so asset pickers,
+    // header buttons and list rows read as values (as in the mockup; ImGui's
+    // default is centered).
     style.ButtonTextAlign = ImVec2(0.0f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.5f);
 
-    // FontSizeBase is the default size used by PushFont(NULL, ...) and is
-    // multiplied by FontScaleMain × FontScaleDpi at draw time. A sensible
-    // fallback (CSS 13 × Inter's typical ratio) - main.cpp overrides this
-    // to the precise value via Fonts::CssPx(g_FontUI, 13) once fonts load.
+    // FontSizeBase is the default size for PushFont(NULL, ...), multiplied by
+    // FontScaleMain × FontScaleDpi at draw time. This is a fallback; main.cpp
+    // sets the exact value with Fonts::CssPx(g_FontUI, 13) once fonts load.
     style.FontSizeBase = 13.0f;
     style.FontScaleMain = 1.0f;
-    // Initial FontScaleDpi - io.ConfigDpiScaleFonts only AUTO-OVERWRITES this
-    // on monitor-DPI-change events, not at startup. Without this line, fonts
-    // would render at 1.0× even on a 2.0× display until the user dragged the
-    // window between monitors. All ImGui's official examples do the same.
+    // The initial FontScaleDpi. io.ConfigDpiScaleFonts only updates it when
+    // the monitor DPI changes, not at startup, so without this fonts render
+    // at 1.0× on a 2.0× display. ImGui's own examples do the same.
     style.FontScaleDpi = dpiScale;
 
-    // ScaleAllSizes is still required in 1.92 - ImGui's auto-DPI handles fonts
-    // but explicitly NOT sizes/padding. Calling here scales the style fields
-    // we just set above by dpiScale, so frame padding / item spacing / etc.
-    // match the font scale at startup.
+    // ScaleAllSizes is still needed in 1.92: ImGui's auto-DPI scales fonts but
+    // not sizes and padding. This scales the style fields set above by
+    // dpiScale, so padding and spacing match the font scale.
     style.ScaleAllSizes(dpiScale);
 
     ImVec4* colors = style.Colors;
@@ -863,18 +831,17 @@ void SetupEditorTheme(float dpiScale)
     colors[ImGuiCol_ResizeGripHovered] = Palette::AccentDim;
     colors[ImGuiCol_ResizeGripActive] = accent;
 
-    // Tabs (panel headers) - active draws with Bg, inactive with Panel.
-    // Active tab gets a visual underline drawn per-panel.
+    // Tabs (panel headers): the active one uses Bg, inactive ones Panel. The
+    // active tab's underline is drawn per panel.
     colors[ImGuiCol_Tab] = panel;
     colors[ImGuiCol_TabHovered] = bg;
     colors[ImGuiCol_TabActive] = bg;
     colors[ImGuiCol_TabUnfocused] = panel;
     colors[ImGuiCol_TabUnfocusedActive] = bg;
-    // ImGui draws a 2px "overline" along the TOP of the selected dock tab
-    // (ImGuiTabBarFlags_DrawSelectedOverline, hardcoded on for dock nodes).
-    // We already paint our own accent underline at the bottom in RestyleTabRow,
-    // and the native overline overdraws the top of the close-(X) button. Make
-    // both overline colors fully transparent so the native code draws nothing.
+    // ImGui draws a 2px overline along the top of the selected dock tab
+    // (ImGuiTabBarFlags_DrawSelectedOverline, always on for dock nodes). It
+    // covers the top of the close (X) button, and RestyleTabRow already draws
+    // an accent underline, so both overline colors are transparent.
     colors[ImGuiCol_TabSelectedOverline] = ImVec4(0, 0, 0, 0);
     colors[ImGuiCol_TabDimmedSelectedOverline] = ImVec4(0, 0, 0, 0);
 
@@ -902,9 +869,9 @@ void SetupEditorTheme(float dpiScale)
 // Schematic chrome helpers
 // ----------------------------------------------------------------------------
 
-// Draw `text` with `letterSpacing` extra pixels between glyphs at the given
-// font size. Walks UTF-8 codepoints; uses CalcTextSizeA for per-char advance
-// (kerning ignored - fine for short uppercase labels). Returns total width.
+// Draws `text` with `letterSpacing` extra pixels between glyphs at the given
+// font size. Walks UTF-8 codepoints and uses CalcTextSizeA for each advance
+// (no kerning, fine for short uppercase labels). Returns the total width.
 static float DrawSpacedText(ImDrawList* dl, ImFont* font, float fontSize, ImVec2 pos, ImU32 col, const char* text,
                             float letterSpacing)
 {
@@ -932,8 +899,8 @@ static float DrawSpacedText(ImDrawList* dl, ImFont* font, float fontSize, ImVec2
     return x - pos.x;
 }
 
-// Convert ASCII text to uppercase in `out` (size cap inside). Non-ASCII bytes
-// pass through unchanged (Tabler icons sit in PUA range so they're unaffected).
+// Uppercases ASCII text into `out` (size capped). Other bytes pass through
+// unchanged, so Tabler icons (in the Private Use Area) are kept.
 static void Upper(const char* in, char* out, size_t outCap)
 {
     size_t i = 0;
@@ -950,16 +917,15 @@ static void Upper(const char* in, char* out, size_t outCap)
     out[i] = 0;
 }
 
-// Repaint one tab's label area with the tab background, then redraw the label
-// in g_FontUIBold uppercased + letter-spaced. Used for every tab; also draws a
-// 2px accent underline on the visible tab and a 1px hairline along the bar
-// bottom (matching the mockup's tab row chrome).
+// Repaints each tab's label area with the tab background, then redraws the
+// label in g_FontUIBold, uppercased and letter-spaced. Also draws a 2px
+// accent underline on the visible tab and a 1px hairline along the bar's
+// bottom, as in the mockup.
 //
-// `leftEdgeX` / `rightEdgeX` are the visual edges of the dock column - the
-// bar's own BarRect is inset on both sides by WindowBorderSize +
-// FramePadding.x, so the accent underline and hairline would otherwise leave
-// gaps before the column separators. For standalone (non-dock) bars, pass
-// BarRect.Min.x / Max.x.
+// `leftEdgeX` / `rightEdgeX` are the visual edges of the dock column. The
+// bar's BarRect is inset on both sides by WindowBorderSize + FramePadding.x,
+// which would leave gaps before the column separators. For standalone
+// (non-dock) bars, pass BarRect.Min.x / Max.x.
 static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, float rightEdgeX)
 {
     if (!bar || bar->Tabs.Size == 0 || !g_FontUIBold)
@@ -976,25 +942,24 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
 
     const float barY0 = bar->BarRect.Min.y;
     const float barY1 = bar->BarRect.Max.y;
-    // Tab labels: ImGui's text-rendering metrics make Inter at the mockup's
-    // raw 11px read smaller than the browser equivalent - bump to ~12.5px for
-    // visual parity. Letter-spacing stays at the mockup's ~0.08em.
-    // Expressed as ratios of GetFontSize() so DPI scaling is automatic.
+    // Tab labels: Inter at the mockup's 11px reads smaller in ImGui than in a
+    // browser, so ~12.5px is used instead. Letter spacing stays at the
+    // mockup's ~0.08em. Both are ratios of GetFontSize(), so DPI scaling is
+    // automatic.
     const float bodyFont = ImGui::GetFontSize();  // = FontSizeBase * FontScaleDpi
     const float fontSize = ImFloor(bodyFont * (12.5f / 13.0f));
     const float letterSpacing = bodyFont * (1.0f / 13.0f);
 
-    // Mirror ImGui's own tab-position math (imgui_widgets.cpp:10761):
+    // The same tab positions ImGui computes in imgui_widgets.cpp:
     //   central section: BarRect.Min.x + (Offset - ScrollingAnim)
     //   leading/trailing: BarRect.Min.x + Offset
-    // and clip central tabs to ScrollingRectMinX..ScrollingRectMaxX so that
-    // tabs scrolled past the leading section don't overdraw it.
+    // Central tabs are clipped to ScrollingRectMinX..ScrollingRectMaxX, so a
+    // tab scrolled past the leading section does not draw over it.
     const float scroll = bar->ScrollingAnim;
-    // Close button strip reserved on the right edge of every dock tab -
-    // FramePadding.x + ItemInnerSpacing.x + FontSize, matching what
-    // TabItemCalcSize adds when has_close_button_or_unsaved_marker is true.
-    // We trim our background overdraw by this much so the native close (X)
-    // glyph ImGui drew underneath stays visible.
+    // The close button strip on the right of every dock tab:
+    // FramePadding.x + ItemInnerSpacing.x + FontSize, as TabItemCalcSize adds
+    // when has_close_button_or_unsaved_marker is true. The background repaint
+    // stops short of it, so ImGui's close (X) glyph stays visible.
     const ImGuiStyle& style = ImGui::GetStyle();
     const float closeStripW = style.FramePadding.x + style.ItemInnerSpacing.x + ImGui::GetFontSize();
     for (int t = 0; t < bar->Tabs.Size; ++t)
@@ -1006,23 +971,21 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         const float x1 = x0 + tab->Width;
         const bool active = (tab->ID == bar->VisibleTabId);
 
-        // Push central-section clip rect so scrolled-out tabs don't bleed
-        // into the leading/trailing buttons or beyond the bar.
+        // Clip central tabs, so a scrolled-out tab does not spill onto the
+        // leading/trailing buttons or past the bar.
         const bool wantClip = isCentral && (x0 < bar->ScrollingRectMinX || x1 > bar->ScrollingRectMaxX);
         if (wantClip)
         {
             dl->PushClipRect(ImVec2(bar->ScrollingRectMinX, barY0), ImVec2(bar->ScrollingRectMaxX, barY1), true);
         }
 
-        // Wipe the native label area so the default-font text is hidden.
-        // Reserve the close-button strip on the right so the native (X) glyph
-        // stays visible - ImGui drew it earlier in this frame and our fill
-        // would otherwise paint over it.
+        // Cover ImGui's own label, but not the close-button strip on the
+        // right: ImGui drew the (X) earlier this frame.
         const float labelAreaRight = ImMax(x0, x1 - closeStripW);
         dl->AddRectFilled(ImVec2(x0, barY0), ImVec2(labelAreaRight, barY1), active ? colBgAct : colBgInact);
 
-        // Resolve the panel display name from the tab name (strip the ###ID
-        // suffix so e.g. "Hierarchy###Hierarchy" renders just "HIERARCHY").
+        // The panel's display name is the tab name without the ###ID suffix
+        // ("Hierarchy###Hierarchy" shows as "HIERARCHY").
         const char* rawName = ImGui::TabBarGetTabName(bar, tab);
         if (!rawName)
         {
@@ -1046,10 +1009,9 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         char upper[64];
         Upper(visible, upper, sizeof(upper));
 
-        // Compute label width with our font + letter-spacing.
-        // Tabs use ImGuiTabBarFlags_FittingPolicyScroll (patched in imgui.cpp),
-        // so the tab keeps its natural size and the bar scrolls when full -
-        // no need to shrink labels or clip to fit.
+        // Label width with this font and letter spacing. Tabs use
+        // ImGuiTabBarFlags_FittingPolicyScroll (patched in imgui.cpp), so a tab
+        // keeps its natural size and the bar scrolls when full.
         ImFont* font = g_FontUIBold;
         int chars = 0;
         for (const char* s = upper; *s;)
@@ -1069,27 +1031,22 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
             labelW += letterSpacing * (chars - 1);
         }
 
-        // Request a tab width that fits our drawn label exactly the way
-        // TabItemCalcSize would - but using OUR measured label width instead
-        // of ImGui's (default-font) measurement. With this width plus the
-        // label positioned at tabStartX + FramePadding.x (mirroring the X's
-        // right inset), the LABEL + X group lands symmetrically in the tab.
-        // (1-frame visual lag the first time a tab is shown.)
+        // Ask for the width TabItemCalcSize would compute, but from this
+        // label's measured width instead of the default font's. With the
+        // label placed at x0 + FramePadding.x (the X's inset, mirrored), the
+        // label and X sit symmetrically in the tab. A new tab lags one frame.
         tab->RequestedWidth = labelW + 2.0f * style.FramePadding.x + style.ItemInnerSpacing.x + ImGui::GetFontSize();
 
-        // Position the label so the (LABEL + X) group is centered in the
-        // natural tab [x0, x1]. Mirror the X's right inset on the left -
-        // labelX = x0 + FramePadding.x. We use x0 (not tabStartX) on
-        // purpose: the leftmost-tab extension to leftEdgeX is a *visual*
-        // fix for the dock-column gap, but the label should sit at the
-        // same offset across every tab so they all look identical.
+        // Center the label + X group in the tab [x0, x1] by mirroring the X's
+        // right inset on the left. x0, not tabStartX: the leftmost tab's
+        // extension to leftEdgeX only fills the dock-column gap, and every
+        // label should sit at the same offset.
         const float labelX = x0 + style.FramePadding.x;
         const float labelY = barY0 + ImFloor((barY1 - barY0 - fontSize) * 0.5f);
 
         DrawSpacedText(dl, font, fontSize, ImVec2(labelX, labelY), active ? colFg : colDim, upper, letterSpacing);
 
-        // 2px accent bottom underline for the active tab - spans the full
-        // tab width (label + X + surrounding padding).
+        // 2px accent underline under the active tab, across its full width.
         if (active)
         {
             dl->AddRectFilled(ImVec2(x0, barY1 - 2.0f), ImVec2(x1, barY1), colAccent);
@@ -1101,23 +1058,20 @@ static void RestyleTabRow(ImGuiTabBar* bar, ImDrawList* dl, float leftEdgeX, flo
         }
     }
 
-    // 1px hairline along the bar's bottom edge - extend to the dock node's
-    // true edges on both sides so it meets the column separators with no gap.
+    // 1px hairline along the bar's bottom, out to the dock node's real edges
+    // so it meets the column separators.
     dl->AddLine(ImVec2(leftEdgeX, barY1), ImVec2(rightEdgeX, barY1), colLine, 1.0f);
 }
 
-// The seam line between two docked panels is drawn by ImGui itself: its dock
-// splitter fills the (now 1px) separator gap with ImGuiCol_Border. With
-// WindowBorderSize = 0 the panels no longer stroke their own borders alongside
-// it, so each seam is a single hairline - nothing to draw here for docked
-// panels.
+// ImGui draws the seam between two docked panels itself: its dock splitter
+// fills the 1px separator gap with ImGuiCol_Border, and with
+// WindowBorderSize = 0 the panels draw no border beside it.
 //
-// What IS still needed: WindowBorderSize = 0 also dropped the frame around
-// standalone *floating* windows (dialogs, undocked tool windows). Re-draw it on
-// each such window's own draw list so the border sits on top of its content,
-// exactly as ImGui used to. Docked tabs are skipped (their edges are the dock
-// separators); child, popup and tooltip windows keep their own *BorderSize and
-// are untouched.
+// WindowBorderSize = 0 also removes the frame around floating windows
+// (dialogs, undocked tool windows), so this draws it on each such window's
+// own draw list, on top of its content. Docked tabs are skipped (their edges
+// are the dock separators); child, popup and tooltip windows have their own
+// *BorderSize.
 //
 // Call once per frame after all panels have rendered, right before
 // ImGui::Render() (alongside DrawAllTabTopAccents).
@@ -1154,16 +1108,13 @@ void DrawAllTabTopAccents()
 {
     ImGuiContext& g = *GImGui;
 
-    // Draw onto each tab bar's owning window's draw list - NOT the foreground
-    // draw list. The foreground layer renders above all windows including
-    // tooltips and popups, which makes our accent stripes paint over them.
-    // Using the host/owner window's draw list places the accent at the same
-    // z-layer as the panel chrome, so later windows (tooltips, popups, modal
-    // dialogs) render correctly above.
+    // Draw on each tab bar's own window's draw list, not the foreground list,
+    // which is above every window including tooltips and popups. This keeps
+    // the accent at the panel's layer, below later windows.
 
-    // 1) Dock-node tab bars (one per docked panel group). The bar is drawn by
-    //    ImGui onto node->HostWindow->DrawList during DockNodeUpdateTabBar, so
-    //    that's the right surface to stamp our accent on.
+    // 1) Dock-node tab bars (one per docked panel group). ImGui draws the bar
+    //    onto node->HostWindow->DrawList in DockNodeUpdateTabBar, so the
+    //    accent goes there too.
     ImGuiDockNode* lastNode = nullptr;
     for (int i = 0; i < g.Windows.Size; ++i)
     {
@@ -1173,27 +1124,26 @@ void DrawAllTabTopAccents()
             continue;
         }
         lastNode = w->DockNode;
-        // Only a host drawn this frame. A dock node outlives its windows: on
-        // the project manager screen no panel is drawn, and after a minute
-        // ImGui frees the idle host's draw list buffers, so stamping onto it
-        // wrote through a freed pointer (crash after ~60 s on that screen).
+        // Only a host drawn this frame. A dock node outlives its windows, and
+        // ImGui frees an idle host's draw list buffers after about a minute
+        // (e.g. on the project manager screen, where no panel is drawn), so
+        // drawing onto it would write through a freed pointer.
         ImGuiWindow* host = w->DockNode->HostWindow;
         if (host && w->DockNode->TabBar && host->Active && !host->Hidden && host->LastFrameActive == g.FrameCount)
         {
-            // Column edges = the dock node's true bounds (Pos.x..Pos.x+Size.x).
-            // The bar's own BarRect is inset on both sides by border +
-            // framepadding and would leave visible gaps before the dock
-            // separators on either side.
+            // Column edges are the dock node's bounds (Pos.x..Pos.x+Size.x).
+            // The bar's BarRect is inset by border + frame padding and would
+            // leave gaps before the dock separators.
             const float leftEdgeX = w->DockNode->Pos.x;
             const float rightEdgeX = w->DockNode->Pos.x + w->DockNode->Size.x;
             RestyleTabRow(w->DockNode->TabBar, w->DockNode->HostWindow->DrawList, leftEdgeX, rightEdgeX);
         }
     }
 
-    // 2) Standalone tab bars created via BeginTabBar (e.g. Asset Browser's
-    //    Assets/Scripts sub-tabs). These live in the global pool with no back
-    //    pointer to the owning window - find it by hit-testing the bar rect
-    //    against active windows and picking the innermost match.
+    // 2) Standalone tab bars from BeginTabBar (e.g. the Asset Browser's
+    //    Assets/Scripts sub-tabs). They have no pointer to their window, so
+    //    find it by hit-testing the bar rect against active windows and
+    //    taking the innermost match.
     for (int i = 0; i < g.TabBars.GetMapSize(); ++i)
     {
         ImGuiTabBar* bar = g.TabBars.TryGetMapData(i);
@@ -1216,7 +1166,7 @@ void DrawAllTabTopAccents()
             {
                 continue;
             }
-            // Skip tooltip / popup / menu layers - we want the underlying panel.
+            // Skip tooltips, popups and menus: the bar belongs to a panel.
             if (w->Flags & (ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_Popup))
             {
                 continue;
@@ -1280,9 +1230,8 @@ bool SchematicCheckbox(const char* label, bool* v, const ImVec4& fillColor)
     ImDrawList* dl = window->DrawList;
     const ImU32 borderCol = ImGui::ColorConvertFloat4ToU32(hovered ? Palette::Line3 : Palette::Line2);
 
-    // Outer box (1px border, fully transparent fill - matches mockup where the
-    // box sits flush on the panel background). Rounded to the same radius as the
-    // themed frames, clamped so it never exceeds half the box size.
+    // Outer box: 1px border, transparent fill (as in the mockup). Rounded like
+    // the themed frames, at most half the box size.
     const ImVec2 bMin = boxPos;
     const ImVec2 bMax(boxPos.x + box, boxPos.y + box);
     const float boxRounding = ImMin(style.FrameRounding, box * 0.5f);
@@ -1331,15 +1280,14 @@ void EndPropertyContext()
 
 bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
 {
-    // Styled like a dock tab (uppercase letter-spaced SemiBold label, tab-
-    // colored background, bottom hairline) but NOT movable and WITHOUT the
-    // accent underline. Still a real CollapsingHeader so the arrow + click-to-
-    // collapse behavior is preserved.
+    // Styled like a dock tab (uppercase letter-spaced SemiBold label, tab
+    // background, bottom hairline), but not movable and with no accent
+    // underline. Still a real CollapsingHeader, so clicking folds it.
     ImGuiWindow* w = ImGui::GetCurrentWindow();
 
-    // Split the label into its visible text and any "###ID" tail. We draw the
-    // visible text ourselves (letter-spaced), so CollapsingHeader gets an
-    // id-only string: same ImGui id (state preserved), no built-in label text.
+    // Split the label into its visible text and any "###ID" tail. The visible
+    // text is drawn here (letter-spaced), so CollapsingHeader gets only the
+    // id: the same ImGui id, so its state is kept, and no label text.
     const char* hash = ImStrchrRange(label, label + strlen(label), '#');
     const bool hasId = hash && hash[1] == '#' && hash[2] == '#';
     const size_t visLen = hasId ? (size_t)(hash - label) : strlen(label);
@@ -1366,15 +1314,13 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         ImFormatString(idStr, sizeof(idStr), "###%s", visUpper);  // id == hash(visUpper)
     }
 
-    // Full-bleed the header band to the panel's real side edges (the dock
-    // separators), reaching past the scrollbar on the right.
+    // The header band runs to the panel's real side edges (the dock
+    // separators), past the scrollbar on the right.
     //
-    // The chevron + label sit one step OUTSIDE the content-left, so the rows
-    // under the band read as nested inside it rather than as a stack of
-    // unrelated lines starting on the same edge. Clamped to a margin from the
-    // panel edge, so a header drawn at no indent at all still has air to its
-    // left, and relative (not absolute) so a band nested deeper in the layout
-    // keeps showing its depth.
+    // The chevron and label sit one step left of the content, so the rows
+    // under the band read as nested inside it. At least a margin from the
+    // panel edge, so a header at no indent still has space to its left, and
+    // relative, so a band nested deeper still shows its depth.
     const float textBaseX = w ? w->DC.CursorPos.x : 0.0f;
     float labelBaseX = textBaseX;
     float savedWorkMinX = 0.0f, savedWorkMaxX = 0.0f;
@@ -1391,15 +1337,15 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         w->DC.CursorPos.x = bandLeft;
         w->WorkRect.Min.x = bandLeft;
         w->WorkRect.Max.x = bandRight;
-        // Widen the clip so the band paints under the scrollbar all the way to
-        // the separator instead of being cut off at the content edge.
+        // Widen the clip so the band paints under the scrollbar, out to the
+        // separator.
         ImGui::PushClipRect(ImVec2(bandLeft, w->ClipRect.Min.y), ImVec2(bandRight, w->ClipRect.Max.y), false);
         pushedBandClip = true;
     }
 
-    // Tab background, subtle white-fade hover/active (no accent). Text is made
-    // transparent so ImGui's built-in filled-triangle arrow is hidden: we draw
-    // a thin Tabler chevron ourselves below.
+    // Tab background, with a subtle white hover/active (no accent). The text
+    // color is transparent, which hides ImGui's filled-triangle arrow; a thin
+    // Tabler chevron is drawn below instead.
     ImGui::PushStyleColor(ImGuiCol_Header, Palette::Bg);
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.04f));
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(1.0f, 1.0f, 1.0f, 0.06f));
@@ -1414,17 +1360,16 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     // No 1px frame box around the band (the theme's FrameBorderSize is 1).
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-    // No row gap charged after the band. The gap belongs to the BODY (see
-    // SchematicSectionBegin, which emits it), so a collapsed section sits flush
-    // on the hairline under it instead of leaving a row of air with nothing in
-    // it - and so that gap slides away with the body rather than outliving it.
+    // No row gap after the band. The gap belongs to the body (see
+    // SchematicSectionBegin, which adds it), so a collapsed section sits flush
+    // on the hairline under it, and the gap slides away with the body.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     const bool open = ImGui::CollapsingHeader(idStr, flags);
     ImGui::PopStyleVar();
-    // Chevron zone from the theme token, NOT from GetTreeNodeToLabelSpacing():
-    // ImGui's own arrow and label are hidden here (transparent text), so nothing
-    // depends on its geometry, and the token is the one column every band and
-    // every row in every panel aligns to. See Metrics::kSectionLabelIndent.
+    // The chevron zone comes from the theme token, not from
+    // GetTreeNodeToLabelSpacing(): ImGui's own arrow and label are hidden
+    // here, and the token is the column every band and row in every panel
+    // aligns to. See Metrics::kSectionLabelIndent.
     const float labelSpacing = Metrics::kSectionLabelIndent * dpi;
 
     ImGui::PopStyleVar(2);
@@ -1435,8 +1380,8 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         ImGui::PopClipRect();
     }
 
-    // Restore the work rect; keep CursorPosPrevLine at the un-bled right edge so
-    // a trailing SameLine (the `EDIT ->` link) still positions as before.
+    // Restore the work rect, and keep CursorPosPrevLine at the content's right
+    // edge, so a trailing SameLine (the `EDIT ->` link) lands where expected.
     if (w)
     {
         w->WorkRect.Min.x = savedWorkMinX;
@@ -1455,11 +1400,9 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
         const ImU32 gray =
             ImGui::ColorConvertFloat4ToU32(ImVec4(165.0f / 255.0f, 166.0f / 255.0f, 164.0f / 255.0f, 1.0f));
 
-        // Thin Tabler chevron in place of ImGui's filled triangle, centered in
-        // the arrow zone before the label. It TURNS from right to down over the
-        // open/close instead of the glyph being swapped: the quarter turn is
-        // what tells you the section you just clicked is the one that moved,
-        // which matters most when several are open at once.
+        // A thin Tabler chevron instead of ImGui's filled triangle, centered in
+        // the arrow zone before the label. It turns from right to down as the
+        // section opens, which shows which section moved when several are open.
         ImFont* ico = g_FontUI ? g_FontUI : ImGui::GetFont();
         const float icoSize = ImGui::GetFontSize();
         if (!(flags & ImGuiTreeNodeFlags_Leaf))  // a leaf band does not fold
@@ -1489,15 +1432,13 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
         return false;
     }
 
-    // Label split like SchematicCollapsingHeader's: the visible text is drawn by
-    // hand and any "###id" tail only identifies the row, so a band whose text
-    // changes keeps one identity.
+    // The label is split like SchematicCollapsingHeader's: the visible text is
+    // drawn by hand and any "###id" tail only identifies the row, so a band
+    // whose text changes keeps one identity.
     //
-    // Drawn VERBATIM though - no uppercasing, no extra tracking. This band
-    // titles a thing by its name rather than naming a section, and a name is
-    // not a label to shout: "myState" is not "MYSTATE". It also lets the inline
-    // rename field (SchematicBandTitleField) look exactly like the title it
-    // replaces, so starting a rename does not restyle the header.
+    // Drawn as written, with no uppercasing or extra tracking: this band shows
+    // a thing's name ("myState" is not "MYSTATE"). It also lets the inline
+    // rename field (SchematicBandTitleField) look exactly like the title.
     const char* hash = ImStrchrRange(label, label + strlen(label), '#');
     const bool hasId = hash && hash[1] == '#' && hash[2] == '#';
     const size_t visLen = hasId ? (size_t)(hash - label) : strlen(label);
@@ -1516,44 +1457,36 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     const float bandH = 37.0f * dpi;  // same height as the header
     const ImVec2 pos = w->DC.CursorPos;
 
-    // Full-bleed to the panel's side edges, past the scrollbar, exactly like
-    // the collapsing header. The clip is widened (not intersected) for the same
-    // reason it is there: the band paints outside the content rect.
+    // Out to the panel's side edges, past the scrollbar, like the collapsing
+    // header. The clip is widened, not intersected, because the band paints
+    // outside the content rect.
     ImDrawList* dl = w->DrawList;
     const float bandLeft = w->Pos.x;
     const float bandRight = w->Pos.x + w->Size.x - w->ScrollbarSizes.x;
 
-    // Label one step outside the content-left, floored at a margin from the
-    // panel edge - the same offset the collapsing header uses, so the two kinds
-    // of band line up with each other and the rows nest under both.
+    // The label sits one step left of the content, at least a margin from the
+    // panel edge: the same offset as the collapsing header, so both kinds of
+    // band line up and the rows nest under both.
     const float labelBaseX =
         ImMax(bandLeft + Metrics::kSectionHeaderMargin * dpi, pos.x - Metrics::kSectionHeaderOutdent * dpi);
 
-    // The row is a button, not a Dummy: a band that titles something renameable
-    // is clicked, and this way the caller gets the click without reaching for
-    // the item rect afterwards. It spans the whole band (from the panel edge,
-    // like the collapsing header's frame does) so clicking the outdented label
-    // counts; the cursor's x is put back underneath for the content that
-    // follows.
+    // The row is a button, so the caller gets the click on a band that titles
+    // something renameable. It spans the whole band (from the panel edge, like
+    // the collapsing header's frame), so a click on the outdented label counts.
     ImGui::SetCursorScreenPos(ImVec2(bandLeft, pos.y));
     const float rowW = ImMax(1.0f, w->WorkRect.Max.x - bandLeft);
-    // The row claims the whole band, so anything a caller then places ON the
-    // band - the node graph's inline rename field - would be submitted second
-    // and never get the hover, since the first item to claim it in a frame
-    // keeps it. Allowing overlap hands hover and clicks to whatever is drawn on
-    // top, which is how a click inside that field can move its caret instead of
-    // being swallowed by the row underneath. The collapsing header does the
-    // same thing through ImGuiTreeNodeFlags_AllowOverlap.
+    // The row covers the whole band, and the first item to claim hover in a
+    // frame keeps it. Allowing overlap passes hover and clicks to whatever is
+    // drawn on top (the node graph's inline rename field), so a click there
+    // moves its caret. The collapsing header does the same with
+    // ImGuiTreeNodeFlags_AllowOverlap.
     ImGui::SetNextItemAllowOverlap();
     const bool clicked = ImGui::InvisibleButton(hasId ? hash : label, ImVec2(rowW, bandH));
     const bool hovered = ImGui::IsItemHovered();
-    // Nothing is submitted after the button on purpose. ItemSize already put the
-    // cursor's x back at the indent for the content that follows, so no restore
-    // is needed, and closing with a zero-size Dummy (as this used to) made THAT
-    // the window's last item: a caller reading GetItemRect to place a control on
-    // the band - the inline rename field does exactly this - measured the dummy
-    // sitting on the band's bottom edge and dropped its field half a band lower,
-    // over the row underneath. The button IS the band's item; leave it that way.
+    // Nothing may be submitted after the button: it must stay the window's
+    // last item, because callers place controls on the band from GetItemRect
+    // (the inline rename field). ItemSize already put the cursor's x back at
+    // the indent.
 
     ImGui::PushClipRect(ImVec2(bandLeft, w->ClipRect.Min.y), ImVec2(bandRight, w->ClipRect.Max.y), false);
     dl->AddRectFilled(ImVec2(bandLeft, pos.y), ImVec2(bandRight, pos.y + bandH),
@@ -1569,11 +1502,9 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     }
     ImGui::PopClipRect();
 
-    // No chevron is drawn, but the label still starts on the shared column:
-    // a title that sits further left than the rows it names reads as a separate
-    // line above them rather than as their heading. The token is the same one
-    // the collapsing header and every property row use, so a chevron-less band,
-    // a foldout and their content all line up.
+    // No chevron is drawn, but the label still starts on the shared column,
+    // so it reads as the heading of the rows under it. The token is the one
+    // the collapsing header and every property row use, so they all line up.
     const float labelTextX = labelBaseX + Metrics::kSectionLabelIndent * dpi;
 
     const float fontSize = BandTitleFontSize();
@@ -1596,11 +1527,9 @@ bool SchematicBandTitleField(const char* id, char* buf, int bufSize, float x, fl
         return false;
     }
 
-    // Everything that makes an ImGui field LOOK like a field is turned off:
-    // no frame background, no border, no padding. What is left is text in the
-    // band's own type, on the band's own line, at the same x the label sits at
-    // - so entering a rename does not restyle the header, and the caret is the
-    // only thing that says it is editable now.
+    // No frame background, border or padding: the field is text in the band's
+    // own type, on the band's line, at the label's x. Starting a rename does
+    // not restyle the header; only the caret shows it is editable.
     ImFont* font = BandTitleFont();
 
     ImGui::PushFont(font, BandTitleFontSizeBase());
@@ -1609,10 +1538,8 @@ bool SchematicBandTitleField(const char* id, char* buf, int bufSize, float x, fl
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-    // The last box on the field: ImGui outlines whatever holds keyboard focus,
-    // and the field is focused the moment it appears (that is the point of the
-    // rename). In accent, 2px, around a control that is otherwise invisible, it
-    // WAS the field's border as far as the eye is concerned.
+    // ImGui outlines whatever holds keyboard focus, and the field is focused
+    // as soon as it appears. Hide that outline, which would look like a border.
     ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, BandTitleColorVec());
 
@@ -1637,11 +1564,10 @@ void SchematicSubHeader(const char* label)
         return;
     }
 
-    // One rung below the section band in the same ladder: same uppercase
-    // letter-spaced treatment, smaller and dimmer, with a short rule beside it
-    // instead of a full-width one. A group inside a component is a subdivision
-    // of that component, and reading as bold body text made it look like a
-    // property that had lost its field.
+    // One step below the section band: the same uppercase letter-spaced type,
+    // smaller and dimmer, with a short rule beside it instead of a full-width
+    // one. A group is a subdivision of its component; in bold body text it
+    // would look like a property with no field.
     const float dpi = ImGui::GetStyle().FontScaleDpi;
     const float rowH = 24.0f * dpi;
     const ImVec2 pos = w->DC.CursorPos;
@@ -1681,11 +1607,9 @@ bool SchematicAddButton(const char* label, float width)
         return false;
     }
 
-    // An "add" is an invitation, not a command: an outlined, centered box that
-    // sits quietly (transparent fill, hairline border, dim label) and only
-    // commits to the accent when the pointer is on it. A solid full-width
-    // button in the same weight as the fields above it reads as one more
-    // control to fill in, and at the bottom of a list that is exactly wrong.
+    // An outlined, centered box that stays quiet (transparent fill, hairline
+    // border, dim label) and turns accent only under the pointer. A solid
+    // full-width button would read as one more field to fill in.
     const float dpi = ImGui::GetStyle().FontScaleDpi;
     const float boxH = 32.0f * dpi;
     const float avail = ImGui::GetContentRegionAvail().x;
@@ -1785,9 +1709,9 @@ void FullBleedSeparator()
         return;
     }
 
-    // Stretch the cursor + work rect to the window's real side edges (the dock
-    // seams) so the line spans full width, then widen the clip so it paints
-    // under the scrollbar all the way to the right seam.
+    // Stretch the cursor and work rect to the window's real side edges (the
+    // dock seams), and widen the clip so the line paints under the scrollbar
+    // to the right seam.
     const float savedWorkMaxX = w->WorkRect.Max.x;
     const float left = w->Pos.x;
     const float right = w->Pos.x + w->Size.x - w->ScrollbarSizes.x;  // stop at the scrollbar
@@ -1795,12 +1719,10 @@ void FullBleedSeparator()
     w->WorkRect.Max.x = right;
     ImGui::PushClipRect(ImVec2(left, w->ClipRect.Min.y), ImVec2(right, w->ClipRect.Max.y), false);
 
-    // The line costs exactly its own pixel: no ItemSpacing charged above or
-    // below it. A separator is a BOUNDARY, and the band or content on either
-    // side owns whatever air it needs - charged spacing put a gap between the
-    // hairline and the section header hanging off it, and the gap grew with
-    // whatever row spacing the panel happened to be using (the property context
-    // uses 12, so the boundary opened to 24). Tight here, deliberate there.
+    // The line takes exactly its own pixel, with no ItemSpacing above or
+    // below. A separator is a boundary; the band or content on either side
+    // adds whatever space it needs. Otherwise the gap would grow with each
+    // panel's row spacing.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Separator();
     ImGui::PopStyleVar();
@@ -1811,9 +1733,8 @@ void FullBleedSeparator()
 
 bool PanelToolbar(bool* pinnedExt)
 {
-    // The toolbar exists solely to host the Pin (lock-to-selection) control,
-    // which only the Inspector wires up. Panels that don't pin pass no flag and
-    // get no toolbar - no Pin button, no kebab, no reserved strip.
+    // The toolbar holds the Pin (lock-to-selection) control, which only the
+    // Inspector uses. A panel that passes no flag gets no toolbar at all.
     if (!pinnedExt)
     {
         return false;
@@ -1849,8 +1770,8 @@ bool PanelToolbar(bool* pinnedExt)
     const float padX = 10.0f * dpi;      // side padding inside each button
     const float gapIcoLbl = 6.0f * dpi;  // gap between icon and its label
 
-    // PIN button (left). Accent when pinned, dim otherwise; filled pin glyph
-    // signals the active state.
+    // Pin button (left): accent and a filled pin glyph when pinned, dim
+    // otherwise.
     {
         const char* ico = *pinned ? ICON_TI_PIN_FILLED : ICON_TI_PIN;
         const ImVec2 icoSz = iconFont->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, ico);
@@ -1919,12 +1840,11 @@ bool PanelToolbar(bool* pinnedExt)
     // Bottom hairline, seam to seam.
     dl->AddLine(ImVec2(left, top + barH), ImVec2(right, top + barH), colLine, 1.0f);
 
-    // Content flows BELOW that hairline, not onto it: one window is one draw
-    // list, so the first thing the panel draws would otherwise paint over the
-    // bar's edge (a log row's background, a hovered row's fill) and the
-    // boundary would vanish exactly when there is content near the top.
-    // Reserved as an item rather than a bare cursor move, so a panel that draws
-    // nothing under its bar does not trip ImGui's "submit an item" check.
+    // Content starts below that hairline, not on it: one window is one draw
+    // list, so the panel's first row (a log row's background, a hovered row's
+    // fill) would paint over the bar's edge. Reserved as an item, not a bare
+    // cursor move, so a panel that draws nothing under its bar does not trip
+    // ImGui's "submit an item" check.
     ImGui::SetCursorScreenPos(ImVec2(left, top + barH));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 1.0f));
@@ -1935,9 +1855,9 @@ bool PanelToolbar(bool* pinnedExt)
 void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, bool bottomBorder, float* outSlotX,
                  float* outSlotY, float* outSlotW, float* outSlotH, const char* hint)
 {
-    // A dim magnifier + a borderless transparent input (no box), vertically
-    // centered, hinting "Search". Sizing mirrors EditorApp::Dpi() via the
-    // window's DPI scale so the band matches the rest of the panel chrome.
+    // A dim magnifier and a borderless transparent input, vertically centered,
+    // hinting "Search". Sized by the window's DPI scale, as EditorApp::Dpi()
+    // does, so the band matches the rest of the panel.
     const float dpi = ImGui::GetWindowDpiScale();
     const float searchInset = 12.0f * dpi;
     const float inputSize = Fonts::CssPx(g_FontUI, 12.0f);
@@ -1945,7 +1865,7 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     const float searchPadY = 6.0f * dpi;
     const float slotGap = 8.0f * dpi;  // gap between the input and a reserved slot
 
-    // Tighter frame padding so the input isn't as tall as the theme default.
+    // Tighter frame padding, so the input is shorter than the theme default.
     const ImVec2 themePad = ImGui::GetStyle().FramePadding;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(themePad.x, 4.0f * dpi));
     const float framePadY = ImGui::GetStyle().FramePadding.y;
@@ -1966,16 +1886,16 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     const float winRight = winLeft + ImGui::GetWindowSize().x;
     const float iconLeftX = bandStart.x + searchInset;
 
-    // The band is just the search input's height plus a little top/bottom pad,
-    // unchanged whether or not a slot is reserved. A reserved control fills the
-    // whole band (reported via the out-params), flat against the hairline.
+    // The band is the search input's height plus a little padding, with or
+    // without a reserved slot. A reserved control fills the whole band
+    // (reported through the out-params), flat against the hairline.
     const float rowTop = bandStart.y + searchPadY;
     const float bandBottom = rowTop + inputFrameH + searchPadY;
     const float inputY = rowTop;
 
-    // Right edge of the input. With a reserved slot, the slot sits flush against
-    // the window's right edge (no right gutter) and the input stops a gap short of
-    // it; otherwise the input keeps the symmetric searchInset gutter.
+    // Right edge of the input. A reserved slot sits flush against the window's
+    // right edge and the input stops a gap short of it; otherwise the input
+    // keeps the symmetric searchInset gutter.
     float inputRight = winRight - searchInset;
     if (rightReserve > 0.0f)
     {
@@ -1991,9 +1911,9 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     ImGui::PopStyleColor();
     ImGui::PopFont();
 
-    // With text in the field, the input stops short of a clear button sitting
-    // where the text ends. Measured whether or not it is drawn: the input must
-    // not change width the moment you type, or the caret jumps under the cursor.
+    // With text in the field, the input stops short of a clear button.
+    // Measured whether or not it is drawn: the input must not change width as
+    // you type, or the caret jumps.
     float clearAdvance = 0.0f;
     {
         ImGui::PushFont(g_FontUI, iconSize);
@@ -2002,7 +1922,7 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     }
     const float clearWidth = clearAdvance + slotGap;
 
-    // Borderless transparent input beginning after the icon + 8px gap.
+    // The input starts after the icon and an 8px gap.
     const float inputLeftX = iconLeftX + iconAdvance + 8.0f;
     ImGui::SetCursorScreenPos(ImVec2(inputLeftX, inputY));
     ImGui::PushFont(g_FontUI, inputSize);
@@ -2013,16 +1933,15 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     ImGui::PushStyleColor(ImGuiCol_TextDisabled, Palette::Dim2);
     ImGui::SetNextItemWidth((inputRight - clearWidth) - inputLeftX);
     ImGui::InputTextWithHint(id, hint ? hint : "Search", buf, bufSize);
-    // Escape empties the field rather than only dropping focus. In a popup ImGui
-    // takes Escape to close, so this is checked while the input is active - and
-    // an emptied field is the same state as a closed popup would leave anyway.
+    // Escape empties the field as well as dropping focus. In a popup ImGui
+    // uses Escape to close, so this is checked while the input is active.
     const bool inputActive = ImGui::IsItemActive();
     ImGui::PopStyleColor(4);
     ImGui::PopStyleVar();
     ImGui::PopFont();
 
-    // Read AFTER the input: InputText writes into the buffer, and asking first
-    // would hold the button back a frame behind the character you just typed.
+    // Read after the input: InputText writes into the buffer, and reading
+    // first would leave the button a frame behind.
     const bool hasText = buf && buf[0] != '\0';
 
     if (hasText && inputActive && ImGui::IsKeyPressed(ImGuiKey_Escape))
@@ -2048,7 +1967,7 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
                 ? Palette::Fg
                 : Palette::Dim2);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-        // Scoped by the field's own id, so two search fields in one window do not
+        // Scoped by the field's id, so two search fields in one window do not
         // share a button.
         ImGui::PushID(id);
         if (ImGui::Button(ICON_TI_X "##clear"))
@@ -2063,8 +1982,8 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
 
     ImGui::PopStyleVar();  // FramePadding
 
-    // Report the reserved slot (flush right, spanning the full band height) so the
-    // caller can fill it with a toolbar-style control sitting flush to the hairline.
+    // Report the reserved slot (flush right, full band height), so the caller
+    // can fill it with a toolbar-style control flush to the hairline.
     if (outSlotX)
     {
         *outSlotX = winRight - rightReserve;
@@ -2082,9 +2001,9 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
         *outSlotH = bandBottom - bandStart.y;
     }
 
-    // Full-width hairline beneath the row (matches the panel toolbar's bottom
-    // border above it), floored to a crisp 1px row. It sits a clear searchPadY
-    // below the row content so a slotted control's own border doesn't touch it.
+    // Full-width hairline under the row, like the panel toolbar's bottom
+    // border, on a whole pixel. It sits searchPadY below the row content, so a
+    // slotted control's border does not touch it.
     if (bottomBorder)
     {
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -2093,25 +2012,25 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
                           ImGui::ColorConvertFloat4ToU32(Palette::Line2));
     }
 
-    // Reserve the band so the content below lays out correctly, closing with a
-    // zero item: a bare cursor move as a window's last act is what ImGui's
-    // "submit an item e.g. Dummy()" check complains about.
+    // Reserve the band for the layout below, closing with a zero-size item:
+    // ImGui's "submit an item e.g. Dummy()" check rejects a bare cursor move
+    // as a window's last act.
     ImGui::SetCursorScreenPos(ImVec2(bandStart.x, bandBottom));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0.0f, 0.0f));
     ImGui::PopStyleVar();
 }
 
-// Draw the formatted value left-aligned (mono) inside an explicit rect on a
-// given draw list. Shared core: OverlayLeftAlignedValue uses the current item's
-// rect; the schematic combo uses the box rect it captured before BeginCombo
-// (the open popup changes the last-item rect, so GetItemRect* can't be trusted).
+// Draws the formatted value left-aligned (mono) inside a rect on a draw list.
+// OverlayLeftAlignedValue passes the current item's rect; the schematic combo
+// passes the box rect it captured before BeginCombo, since an open popup
+// changes the last-item rect.
 static void DrawLeftAlignedValue(ImDrawList* dl, const ImVec2& itemMin, const ImVec2& itemMax, const char* formatted,
                                  float xOffset = 0.0f)
 {
     ImFont* font = g_FontMono ? g_FontMono : ImGui::GetFont();
-    // Mono value font at 12.5 CSS px. CssPx applies the mono em-ratio and we
-    // multiply by the DPI scale, since this hand-rolled AddText bypasses both.
+    // Mono value font at 12.5 CSS px. CssPx applies the mono em-ratio, and the
+    // DPI scale is applied by hand because AddText skips both.
     const float fontSize = Fonts::CssPx(font, 12.5f) * ImGui::GetStyle().FontScaleDpi;
     const ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, formatted);
     const float padX = ImGui::GetStyle().FramePadding.x;
@@ -2122,11 +2041,10 @@ static void DrawLeftAlignedValue(ImDrawList* dl, const ImVec2& itemMin, const Im
     dl->PopClipRect();
 }
 
-// Render the formatted value as left-aligned text inside the just-drawn drag
-// widget's frame. Skipped while the widget is in keyboard-edit (TempInput)
-// mode so ImGui's native text editor remains usable. Uses g_FontMono so
-// numeric values match the mockup's mono value-cell typography.
-// `xOffset` lets callers reserve room on the left (e.g. for an axis stamp).
+// Draws the formatted value left-aligned inside the drag widget just drawn,
+// in g_FontMono as in the mockup. Skipped while the widget is in keyboard
+// edit (TempInput) mode, so ImGui's text editor shows. `xOffset` reserves room
+// on the left (e.g. for an axis stamp).
 static void OverlayLeftAlignedValue(const char* formatted, float xOffset = 0.0f)
 {
     const ImGuiID id = ImGui::GetItemID();
@@ -2139,8 +2057,8 @@ static void OverlayLeftAlignedValue(const char* formatted, float xOffset = 0.0f)
                          xOffset);
 }
 
-// Paint a colored axis stamp on the left edge of the just-drawn drag frame.
-// Returns the stamp width so the caller can offset the value overlay past it.
+// Paints a colored axis stamp on the left edge of the drag frame just drawn.
+// Returns the stamp width, so the caller can offset the value past it.
 static float OverlayAxisStamp(const char* axisLabel, const ImVec4& axisColor)
 {
     const ImGuiID id = ImGui::GetItemID();
@@ -2152,7 +2070,7 @@ static float OverlayAxisStamp(const char* axisLabel, const ImVec4& axisColor)
     const bool active = ImGui::TempInputIsActive(id);
     if (active)
     {
-        return stampW;  // skip overlay paint during text edit; reserve width anyway
+        return stampW;  // not painted during text edit, but the width is kept
     }
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -2168,8 +2086,8 @@ static float OverlayAxisStamp(const char* axisLabel, const ImVec4& axisColor)
 
 bool SchematicDragFloat(const char* id, float* v, float vSpeed, float vMin, float vMax, const char* format)
 {
-    // Empty format suppresses ImGui's centered value text without disabling
-    // the widget; edit mode (TempInput) still uses the real format via
+    // An empty format hides ImGui's centered value text but keeps the widget
+    // working; edit mode (TempInput) still uses the real format through
     // ImGui's internal fallback.
     bool changed = ImGui::DragFloat(id, v, vSpeed, vMin, vMax, "");
     if (format && format[0])
@@ -2194,7 +2112,8 @@ bool SchematicDragInt(const char* id, int* v, float vSpeed, int vMin, int vMax, 
 }
 
 // Axis labels and colors for multi-component drags (X / Y / Z).
-// Reds / greens / blues are oklch-derived to match the mockup's TwoColD axis stamps.
+// The red, green and blue come from oklch, to match the mockup's TwoColD
+// axis stamps.
 static const char* const kAxisLabels[3] = { "X", "Y", "Z" };
 static const ImVec4 kAxisColors[3] = {
     ImVec4(0.91f, 0.42f, 0.31f, 1.0f),  // X - red oklch(0.72 0.2 25)
@@ -2205,7 +2124,7 @@ static const ImVec4 kAxisColors[3] = {
 template <int N>
 static bool SchematicDragFloatN(const char* id, float v[N], float vSpeed, float vMin, float vMax, const char* format)
 {
-    // Split available row width across N components with inner spacing.
+    // Split the row width across the N components, with spacing between.
     const float total = ImGui::CalcItemWidth();
     const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
     const float compW = ImMax(1.0f, (total - spacing * (N - 1)) / float(N));
@@ -2223,7 +2142,6 @@ static bool SchematicDragFloatN(const char* id, float v[N], float vSpeed, float 
         char compId[8];
         ImFormatString(compId, IM_ARRAYSIZE(compId), "##c%d", i);
 
-        // Draw the drag with no value text (empty format).
         if (ImGui::DragFloat(compId, &v[i], vSpeed, vMin, vMax, ""))
         {
             changed = true;
@@ -2271,16 +2189,16 @@ bool SchematicDragFloatAxis(const char* id, float* v, int axis, float vSpeed, fl
 // Shared implementation for the 3- and 4-channel color editors. `N` is 3 or 4.
 static bool SchematicColorEditN(const char* id, float* col, int n)
 {
-    // Layout: N channel cells + a swatch on the right (square = frame
-    // height). Each channel is a 1px bordered cell with a 3px vertical
-    // color stripe on the left and a SchematicDragInt (0-255) filling the
-    // rest. Click the swatch to open the full ImGui color picker.
+    // Layout: N channel cells and a square swatch on the right (frame height).
+    // Each channel is a 1px bordered cell with a 3px color stripe on the left
+    // and a SchematicDragInt (0-255) in the rest. The swatch opens ImGui's
+    // full color picker.
     const float totalW = ImGui::CalcItemWidth();
     const float frameH = ImGui::GetFrameHeight();
     const float swatchW = frameH;  // square swatch matches row height
     const float dpi = ImGui::GetStyle().FontScaleDpi;
-    // Tight gaps and cell padding: at the Inspector's default width four
-    // cells with the theme's full padding showed "25" for 255.
+    // Tight gaps and cell padding: at the Inspector's default width, four
+    // cells with the theme's padding cut "255" to "25".
     const float gap = 3.0f * dpi;
     const float channelsW = totalW - swatchW - gap;
     const float channelW = ImMax(20.0f * dpi, (channelsW - gap * (float)(n - 1)) / (float)n);
@@ -2310,10 +2228,9 @@ static bool SchematicColorEditN(const char* id, float* col, int n)
         const ImVec2 cellMax(cellPos.x + channelW, cellPos.y + cellH);
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
-        // 3px colored stripe on the left
         dl->AddRectFilled(cellPos, ImVec2(cellPos.x + stripeW, cellMax.y), channelStripeCols[ch]);
 
-        // Drag widget for the 0-255 value, offset past the stripe
+        // The 0-255 value, past the stripe.
         ImGui::PushID(ch);
         ImGui::SetCursorScreenPos(ImVec2(cellPos.x + stripeW, cellPos.y));
         ImGui::SetNextItemWidth(channelW - stripeW);
@@ -2328,7 +2245,7 @@ static bool SchematicColorEditN(const char* id, float* col, int n)
         ImGui::PopID();
     }
 
-    // Combined color swatch on the right, click to open the full picker
+    // The color swatch on the right; a click opens the full picker.
     ImGui::SameLine(0.0f, gap);
     const ImVec2 swatchPos = ImGui::GetCursorScreenPos();
     const float swatchH = ImGui::GetFrameHeight();
@@ -2349,10 +2266,9 @@ static bool SchematicColorEditN(const char* id, float* col, int n)
     dl->AddRect(swatchPos, swatchMax, ImGui::ColorConvertFloat4ToU32(swatchHovered ? Palette::Line3 : Palette::Line2),
                 swatchRounding);
 
-    // A fixed picker width, and the popup placed under the swatch but pulled
-    // left so it ends inside the editor window: the Inspector sits at the
-    // right edge, and the picker (sized from the popup's own first frame) ran
-    // off it with its alpha bar cut.
+    // A fixed picker width, and the popup under the swatch but pulled left so
+    // it ends inside the editor window: the Inspector sits at the right edge,
+    // and the picker would otherwise run off it.
     const float pickerDpi = ImGui::GetStyle().FontScaleDpi;
     const float pickerW = 240.0f * pickerDpi;
     {
@@ -2405,18 +2321,16 @@ bool SchematicBeginCombo(const char* id, const char* preview)
 
     const float dpi = ImGui::GetStyle().FontScaleDpi;
 
-    // Capture the combo box rect from the cursor BEFORE BeginCombo. Once the
-    // popup opens, ImGui's last-item rect points at the popup window (below the
-    // box), so the preview/chevron would jump down if anchored via GetItemRect*.
-    // We anchor them to this captured box and draw on the parent window's draw
-    // list (w->DrawList), so they stay put whether the dropdown is open or shut.
+    // Take the combo box rect from the cursor before BeginCombo: once the
+    // popup opens, ImGui's last-item rect is the popup window. The preview and
+    // chevron are anchored to this box and drawn on the parent window's draw
+    // list, so they stay put whether the dropdown is open or shut.
     const ImVec2 boxMin = ImGui::GetCursorScreenPos();
     const ImVec2 boxMax(boxMin.x + ImGui::CalcItemWidth(), boxMin.y + ImGui::GetFrameHeight());
 
-    // The global theme zeroes WindowPadding (panels manage their own), which left
-    // the dropdown popup's options flush against the edges and stacked tightly,
-    // reading as cramped/small. Give the popup a real inset. It's read at the
-    // popup's Begin() inside BeginCombo, so we pop immediately after.
+    // The theme zeroes WindowPadding (panels manage their own); give the
+    // dropdown popup a real inset. It is read at the popup's Begin() inside
+    // BeginCombo, so it is popped right after.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f * dpi, 6.0f * dpi));
 
     // The list's own fade in and out is the editor-wide popup motion (the main
@@ -2432,27 +2346,27 @@ bool SchematicBeginCombo(const char* id, const char* preview)
     // would leak onto whatever window or child opens after this one.
     if (popupOpen)
     {
-        // Every row, up to most of the window, rather than ImGui's eight: a
+        // Show every row, up to most of the window, instead of ImGui's eight: a
         // list that opens scrolled to its selection hides its first entries.
         // ImGui still widens it to the box.
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f),
                                             ImVec2(FLT_MAX, ImGui::GetMainViewport()->WorkSize.y * 0.6f));
     }
 
-    // Empty preview + no native arrow: we draw the preview value (left-aligned
-    // mono, like the drag fields) and a chevron ourselves so the dropdown reads
-    // the same as the rest of the inspector.
+    // Empty preview and no native arrow: the preview value (left-aligned
+    // mono, like the drag fields) and the chevron are drawn here, to match
+    // the rest of the Inspector.
     const bool open = ImGui::BeginCombo(id, "", ImGuiComboFlags_NoArrowButton);
     ImGui::PopStyleVar();  // WindowPadding (popup already baked it)
 
     if (open)
     {
         // Taller, padded option rows with a full-width hover highlight. A
-        // Selectable's box extends by ItemSpacing.x/2 each side; ImGui forces the
-        // combo popup's WindowPadding.x to FramePadding.x, so ItemSpacing.x set to
-        // twice that makes the highlight bleed exactly to both window edges while
-        // the label keeps its inset (same trick as the menu dropdowns). Popped in
-        // SchematicEndCombo.
+        // Selectable's box extends by ItemSpacing.x/2 on each side, and ImGui
+        // sets the combo popup's WindowPadding.x to FramePadding.x, so
+        // ItemSpacing.x of twice that takes the highlight exactly to both
+        // window edges while the label keeps its inset (as in the menu
+        // dropdowns). Popped in SchematicEndCombo.
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2.0f * ImGui::GetStyle().FramePadding.x, 8.0f * dpi));
     }
 
@@ -2462,9 +2376,8 @@ bool SchematicBeginCombo(const char* id, const char* preview)
         DrawLeftAlignedValue(w->DrawList, boxMin, ImVec2(ImMax(boxMin.x, boxMax.x - chevronW), boxMax.y), preview);
     }
 
-    // Right-aligned chevron, matching the section-header chevron - and turning
-    // like it: down when the list is shut, flipped up while it is open, so the
-    // box itself says whether the popup below belongs to it.
+    // Right-aligned chevron, like the section header's and turning like it:
+    // down when the list is shut, up while it is open.
     {
         ImFont* ico = g_FontUI ? g_FontUI : ImGui::GetFont();
         const float icoSize = ImGui::GetFontSize();
@@ -2485,11 +2398,11 @@ void SchematicEndCombo()
     ImGui::EndCombo();
 }
 
-// Flat, toolbar-styled box: a transparent frame with a subtle white hover (the
-// same alphas the toolbar cells use), no border, squared. FramePadding.y is set
-// so the box is exactly `height` tall - matching the toolbar strip - while the
-// schematic preview value + chevron center within it. The styles stay pushed
-// while the list is open and are popped by SchematicEndToolbarCombo.
+// A flat, toolbar-styled box: transparent frame, subtle white hover (the same
+// alphas as the toolbar cells), no border, square. FramePadding.y makes the
+// box exactly `height` tall, like the toolbar strip, with the preview value
+// and chevron centered. The styles stay pushed while the list is open and
+// are popped by SchematicEndToolbarCombo.
 static void PushToolbarComboStyle(float height)
 {
     const float fontH = ImGui::GetFontSize();
@@ -2607,9 +2520,9 @@ bool SchematicCombo(const char* id, int* currentIndex, const char* const items[]
         for (int i = 0; i < count; ++i)
         {
             const bool selected = (i == *currentIndex);
-            // SpanAvailWidth so the option's hover/selected highlight fills the
-            // whole row width (combined with the full-bleed ItemSpacing pushed in
-            // SchematicBeginCombo, it bleeds to both popup edges).
+            // SpanAvailWidth, so the hover/selected highlight fills the row
+            // (with the ItemSpacing pushed in SchematicBeginCombo, it reaches
+            // both popup edges).
             if (ImGui::Selectable(items[i] ? items[i] : "", selected, ImGuiSelectableFlags_SpanAvailWidth) &&
                 *currentIndex != i)
             {
@@ -2640,11 +2553,10 @@ bool SchematicCombo(const char* id, int* currentIndex, const char* itemsSeparate
 
 bool SchematicActionLink(const char* label)
 {
-    // Right-aligned accent link with a 1px underline, anchored to the right
-    // edge of the header band it follows (call immediately after the header).
-    // Only the text before the "##id" marker is drawn; the full string is the
-    // button id. The hit box spans the band height so vertical layout below it
-    // advances exactly as it would without the link.
+    // A right-aligned accent link with a 1px underline, on the right edge of
+    // the header band just before it (call it right after the header). Only
+    // the text before "##id" is drawn; the full string is the button id. The
+    // hit box spans the band height, so the layout below does not move.
     ImGuiWindow* w = ImGui::GetCurrentWindow();
     if (!w || w->SkipItems)
     {

@@ -38,9 +38,8 @@ void CreateFolderDialog::Draw()
         ImGui::Spacing();
         ImGui::TextColored(Palette::Dim, "Folder name");
 
-        // Focus request must precede the item: the after-item form
-        // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
-        // frame, leaving the input inactive so typing goes nowhere.
+        // Focus is requested before the item: SetKeyboardFocusHere(-1) after
+        // it does not take on a modal's first frame, and typing goes nowhere.
         if (ImGui::IsWindowAppearing())
         {
             ImGui::SetKeyboardFocusHere();
@@ -90,8 +89,7 @@ void CreateFolderDialog::Draw()
 
             if (fs::exists(newFolderPath))
             {
-                // Say so and stay open. This used to close silently, which
-                // looked like success and produced nothing.
+                // Say so and stay open, rather than close as if it worked.
                 m_Error = "A file or folder named '" + std::string(m_NewFolderName) + "' already exists here.";
             }
             else

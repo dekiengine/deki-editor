@@ -12,8 +12,8 @@ namespace DekiEditor
 namespace
 {
 
-// Resolved per action rather than stored, so these follow the project path
-// helpers instead of drifting into a second definition of the layout.
+// Worked out per action, not stored, so these follow the project path
+// helpers and never become a second definition of the layout.
 std::vector<fs::path> TargetsFor(MaintenanceAction action, const fs::path& root)
 {
     const fs::path shadow = fs::path(PackageLoader::ShadowDirForProject(root.string()));
@@ -25,9 +25,9 @@ std::vector<fs::path> TargetsFor(MaintenanceAction action, const fs::path& root)
         case MaintenanceAction::ResetPackageCopies: return { shadow };
         case MaintenanceAction::ClearAssetCache: return { cache };
         case MaintenanceAction::CleanBuild: return { build };
-        // Shadow first: it is the cheapest to lose and the most likely to be
-        // holding a mapped DLL, so if anything is going to fail it fails before
-        // the expensive directories have been removed.
+        // Shadow first: it is the cheapest to lose and the most likely to hold
+        // a mapped DLL, so a failure comes before the expensive directories
+        // are removed.
         case MaintenanceAction::FullClean: return { shadow, cache, build };
     }
     return {};
@@ -104,9 +104,9 @@ MaintenanceResult ProjectMaintenance::Run(MaintenanceAction action, const std::s
         fs::remove_all(target, rmEc);
         if (rmEc)
         {
-            // Typically a DLL still mapped by this process or another editor
-            // instance. Report it rather than leaving a half-deleted directory
-            // looking like a success.
+            // Usually a DLL still mapped by this process or another editor
+            // instance. Report it, so a half-deleted directory does not look
+            // like a success.
             if (!failures.empty())
             {
                 failures += "; ";

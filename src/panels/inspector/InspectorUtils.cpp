@@ -26,7 +26,6 @@ bool ComponentIsOrDerivesFrom(Deki::Component* comp, const char* targetTypeName)
     auto& registry = Deki::ComponentRegistry::Instance();
     uint32_t typeId = comp->GetType();
 
-    // Walk up the inheritance chain
     while (typeId != 0)
     {
         const Deki::ComponentMeta* meta = registry.GetMeta(typeId);
@@ -48,7 +47,6 @@ bool ComponentIsOrDerivesFrom(Deki::Component* comp, const char* targetTypeName)
 
 bool EvaluateVisibility(Deki::Component* comp, const Deki::PropertyInfo& prop, const Deki::ComponentMeta* meta)
 {
-    // If no visibility condition, always visible
     if (prop.visibilityProperty == nullptr)
     {
         return true;
@@ -65,7 +63,7 @@ bool EvaluateVisibility(Deki::Component* comp, const Deki::PropertyInfo& prop, c
         const Deki::PropertyInfo& ctrlProp = meta->properties[j];
         if (ctrlProp.name && strcmp(ctrlProp.name, prop.visibilityProperty) == 0)
         {
-            // Read the controlling property value based on its size
+            // The controlling property's value, read by its size.
             int ctrlValue = 0;
             void* ctrlPtr = reinterpret_cast<char*>(comp) + ctrlProp.offset;
 
@@ -88,22 +86,21 @@ bool EvaluateVisibility(Deki::Component* comp, const Deki::PropertyInfo& prop, c
                 ctrlValue = *reinterpret_cast<bool*>(ctrlPtr) ? 1 : 0;
             }
 
-            // Check visibility condition
             if (prop.visibilityMask != 0)
             {
-                // Bitmask mode: visible when bit is set for the current value
+                // Mask: visible when the bit for the current value is set.
                 if (ctrlValue >= 0 && ctrlValue < 32)
                 {
                     return (prop.visibilityMask & (1u << ctrlValue)) != 0;
                 }
                 return false;
             }
-            // Threshold mode: visible when value >= minValue
+            // Threshold: visible when the value is at least the minimum.
             return (ctrlValue >= prop.visibilityMinValue);
         }
     }
 
-    // Controlling property not found, default to visible
+    // No controlling property found: visible.
     return true;
 }
 
@@ -132,8 +129,8 @@ struct SavedKeyHash
 };
 std::unordered_map<SavedKey, nlohmann::json, SavedKeyHash> g_SavedState;
 
-// Same capture the undo system uses, so "unsaved" means exactly what "this
-// edit changed something" means, arrays and sized enums included.
+// The same capture the undo system uses, so "unsaved" means what "this edit
+// changed something" means, arrays and sized enums included.
 nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
 {
     if (prop.type == Deki::PropertyType::Array)
@@ -147,8 +144,8 @@ nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInf
     return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
 }
 
-// The component's position among its object's components - the half of the key
-// that a pointer would otherwise have to provide.
+// The object's id and the component's index among its components, which
+// key the saved state instead of a pointer.
 bool FindComponentIndex(const Deki::Component* comp, uint32_t* outObjectId, uint32_t* outIndex)
 {
     const Deki::Object* owner = comp ? comp->GetOwner() : nullptr;
@@ -210,8 +207,7 @@ void CaptureSavedState(::Deki::Scene* scene)
             {
                 continue;
             }
-            // Own properties and every inherited one, matching what the
-            // inspector draws.
+            // Own and inherited properties, as the Inspector draws them.
             const Deki::ComponentMeta* walk = registry.GetMeta(comp->GetType());
             while (walk)
             {
@@ -247,8 +243,8 @@ bool ComponentNameMatchesFilter(const Deki::ComponentMeta* meta)
     {
         return false;
     }
-    // Both spellings, as the Add Component picker matches them: the label you
-    // read on the header, and the type name you would have written in code.
+    // Both names, as the Add Component picker matches them: the header label
+    // and the type name used in code.
     return TextMatchesFilter(meta->GetDisplayName()) || TextMatchesFilter(meta->name);
 }
 
@@ -267,8 +263,7 @@ bool ComponentHasFilterMatch(const Deki::ComponentMeta* meta)
         return true;
     }
 
-    // Own properties, then inherited ones: a filter that hides a component
-    // because the match lives on its base class would be worse than no filter.
+    // Own properties, then inherited ones, so a match on a base class counts.
     auto& registry = Deki::ComponentRegistry::Instance();
     const Deki::ComponentMeta* walk = meta;
     while (walk)

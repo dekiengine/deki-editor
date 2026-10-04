@@ -46,8 +46,8 @@ protected:
 
 // ============================================================================
 // 1. Enum Size-Aware Serialization
-//    Validates the fix for heap corruption caused by 4-byte enum read/write
-//    on 1-byte and 2-byte enum fields.
+//    1-byte and 2-byte enum fields are read and written at their own size;
+//    a 4-byte read/write would corrupt the heap.
 // ============================================================================
 
 TEST_F(SceneInstanceTest, SmallEnumSerialize_OneByte_ReadsOnlyOneByte)
@@ -78,7 +78,7 @@ TEST_F(SceneInstanceTest, SmallEnumSerialize_TwoByte_ReadsOnlyTwoBytes)
 TEST_F(SceneInstanceTest, SmallEnumRestore_OneByte_WritesOnlyOneByte)
 {
     // Verifies that restoring a 1-byte enum writes exactly 1 byte,
-    // preventing overflow into adjacent fields (the original crash cause).
+    // preventing overflow into adjacent fields.
     MockSmallEnumComponent comp;
     comp.trailingPointer = nullptr;
 
@@ -307,8 +307,8 @@ TEST_F(SceneInstanceTest, SerializeChildren_CapturesHierarchyStructure)
 
 TEST_F(SceneInstanceTest, CreateChildrenRecursive_RestoresObjectIds)
 {
-    // Verifies that recreated children get their original IDs back.
-    // This is the fix for ObjectRef becoming invalid after undo.
+    // Verifies that recreated children get their original IDs back, so
+    // ObjectRefs stay valid after undo.
     Deki::Scene scene;
     Deki::Object* root = scene.CreateDekiObject("Root");
 
@@ -850,7 +850,6 @@ TEST_F(SceneInstanceTest, SmallEnumSerialize_AdjacentFields_NoOverwrite)
 {
     // Stress test: set all fields on MockSmallEnumComponent, serialize,
     // then restore onto a fresh component. Verify no field corruption.
-    // This directly tests the scenario that caused the TextComponent crash.
     MockSmallEnumComponent original;
     original.width = 320.0f;
     original.smallEnum1 = MockSmallEnumComponent::SmallEnum::C;

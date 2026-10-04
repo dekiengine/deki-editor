@@ -11,7 +11,7 @@
 namespace DekiEditor
 {
 
-// Helper: recursively serialize object for resource
+// An object and its children as JSON.
 static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
 {
     nlohmann::json j;
@@ -19,14 +19,14 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
     j["name"] = obj->GetName();
     j["x"] = obj->GetX();
     j["y"] = obj->GetY();
-    // Public MCP surface reports rotation in degrees (storage is radians).
+    // MCP reports rotation in degrees; it is stored in radians.
     j["rotation"] = obj->GetLocalRotation() * Deki::Math::kRadToDeg;
     j["scaleX"] = obj->GetScaleX();
     j["scaleY"] = obj->GetScaleY();
 
     auto& registry = Deki::ComponentRegistry::Instance();
 
-    // Components with property values
+    // Components with their property values
     nlohmann::json comps = nlohmann::json::array();
     for (auto* comp : obj->GetComponents())
     {
@@ -59,7 +59,6 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
     }
     j["components"] = comps;
 
-    // Children
     nlohmann::json children = nlohmann::json::array();
     for (auto* child : obj->GetChildren())
     {

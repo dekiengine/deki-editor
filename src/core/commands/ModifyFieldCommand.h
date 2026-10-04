@@ -8,10 +8,8 @@
 namespace DekiEditor
 {
 
-/**
- * Templated command for modifying a single field of any type
- * Consolidates ModifyFloatCommand, ModifyIntCommand, ModifyBoolCommand, ModifyStringCommand
- */
+/// Sets one field of any type, with undo. Consecutive edits of the same
+/// field merge into one step.
 template <typename T>
 class ModifyFieldCommand : public Command
 {
@@ -69,7 +67,7 @@ public:
 
     bool ReferencesAny(const DeadMemory& dead) const override
     {
-        // m_Target points *into* an object or component (e.g. &obj->x), which is
+        // m_Target points into an object or component (e.g. &obj->x), which is
         // why DeadMemory tracks ranges rather than base pointers.
         return CommandRefs::Has(dead, m_Target);
     }
@@ -83,10 +81,7 @@ private:
     bool m_Executed;
 };
 
-/**
- * Generic templated command for modifying a pair of fields of any type
- * Useful for resize operations (width/height), position (x/y), etc.
- */
+/// Sets a pair of fields of any type together, such as width/height or x/y.
 template <typename T>
 class ModifyFieldPairCommand : public Command
 {

@@ -5,9 +5,9 @@
 // every hot reload. A PlayStart setup waits for the user to press Play.
 //
 // The distinction exists because deki-gps geolocates by asking a third party
-// where the machine is. Registered as EditorLoad, merely opening a project sent
-// that request, which nobody had asked for. Registered as PlayStart, it happens
-// when the user asks for the game to run.
+// where the machine is. As EditorLoad, merely opening a project would send
+// that request, which nobody asked for. As PlayStart, it happens when the
+// user asks for the game to run.
 //
 // These tests pin the registry's behaviour: a phase fires only its own entries,
 // each entry fires once, and a hot reload (clear then re-register) lets an entry

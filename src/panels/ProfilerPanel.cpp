@@ -21,7 +21,6 @@
 namespace DekiEditor
 {
 
-// Case-insensitive string search
 static bool ContainsIgnoreCase(const std::string& str, const std::string& search)
 {
     if (search.empty())
@@ -33,7 +32,7 @@ static bool ContainsIgnoreCase(const std::string& str, const std::string& search
     return it != str.end();
 }
 
-// Check if event or any children match the search filter
+// True when the event or any of its descendants matches the search filter.
 static bool EventMatchesFilter(const ProfileEvent* event, const std::string& filter)
 {
     if (filter.empty())
@@ -54,16 +53,16 @@ static bool EventMatchesFilter(const ProfileEvent* event, const std::string& fil
     return false;
 }
 
-// Category colors for stacked bar chart - consistent across frames
+// A fixed colour per category for the stacked timeline bars.
 static ImU32 GetCategoryColor(const std::string& category)
 {
     static const std::map<std::string, ImU32> kCategoryColors = {
-        { "rendering", IM_COL32(65, 150, 220, 255) },   // Blue
-        { "lifecycle", IM_COL32(100, 200, 100, 255) },  // Green
-        { "components", IM_COL32(220, 160, 50, 255) },  // Orange
-        { "playmode", IM_COL32(200, 100, 200, 255) },   // Purple
-        { "editor", IM_COL32(150, 150, 150, 255) },     // Gray
-        { "deep", IM_COL32(200, 200, 100, 255) },       // Yellow
+        { "rendering", IM_COL32(65, 150, 220, 255) },   // blue
+        { "lifecycle", IM_COL32(100, 200, 100, 255) },  // green
+        { "components", IM_COL32(220, 160, 50, 255) },  // orange
+        { "playmode", IM_COL32(200, 100, 200, 255) },   // purple
+        { "editor", IM_COL32(150, 150, 150, 255) },     // grey
+        { "deep", IM_COL32(200, 200, 100, 255) },       // yellow
     };
 
     auto it = kCategoryColors.find(category);
@@ -71,10 +70,11 @@ static ImU32 GetCategoryColor(const std::string& category)
     {
         return it->second;
     }
-    return IM_COL32(100, 100, 100, 255);  // Default gray
+    return IM_COL32(100, 100, 100, 255);  // unknown category: dark grey
 }
 
-// Recursively aggregate category times from event tree
+// Adds each event's self time (its time minus its children's) to its
+// category's total, for the whole tree. Idle time is left out.
 static void AggregateCategoryTimes(const ProfileEvent* event, std::map<std::string, double>& categoryTimes)
 {
     if (!event || event->isIdleTime)
@@ -104,7 +104,7 @@ static void AggregateCategoryTimes(const ProfileEvent* event, std::map<std::stri
     }
 }
 
-// Aggregated stats for flat view
+// One row of the flat view: all events with the same name, summed.
 struct AggregatedEvent
 {
     std::string name;
@@ -113,7 +113,7 @@ struct AggregatedEvent
     int calls = 0;
 };
 
-// Recursively collect all events for flat view aggregation
+// Sums every event in the tree into `aggregated`, keyed by name.
 static void CollectAllEvents(const ProfileEvent* event, std::map<std::string, AggregatedEvent>& aggregated)
 {
     if (!event || event->name.empty())
@@ -141,13 +141,12 @@ static void CollectAllEvents(const ProfileEvent* event, std::map<std::string, Ag
     }
 }
 
-// Helper to get total ms for an event
 static double GetEventTotalMs(const ProfileEvent* event)
 {
     return event->durationUs / 1000.0;
 }
 
-// Helper to get self ms for an event
+// The event's time minus its children's, never below zero.
 static double GetEventSelfMs(const ProfileEvent* event)
 {
     double eventMs = event->durationUs / 1000.0;
@@ -160,18 +159,18 @@ static double GetEventSelfMs(const ProfileEvent* event)
     return selfMs > 0.0 ? selfMs : 0.0;
 }
 
-// Helper to get percent for an event
+// The event's share of the frame's active time, in percent.
 static float GetEventPercent(const ProfileEvent* event, double frameActiveMs)
 {
     double eventMs = event->durationUs / 1000.0;
     return frameActiveMs > 0 ? (float)(eventMs / frameActiveMs * 100.0) : 0.0f;
 }
 
-// Sort column/direction for hierarchy view
-static int s_HierarchySortColumn = 1;          // Default: Total (ms)
-static bool s_HierarchySortAscending = false;  // Default: descending
+// The hierarchy view's sort column and direction
+static int s_HierarchySortColumn = 1;          // starts on Total (ms)
+static bool s_HierarchySortAscending = false;  // starts descending
 
-// Compare two events based on current sort settings
+// Orders two events by the hierarchy view's current sort settings.
 static bool CompareEvents(const ProfileEvent* a, const ProfileEvent* b, double frameActiveMs)
 {
     switch (s_HierarchySortColumn)
@@ -217,7 +216,8 @@ static void PercentCell(float percent)
     RightAlignedCell(buf);
 }
 
-// Recursive helper to draw profile event tree (table row per event)
+// Draws the event and its open descendants, one table row each. Returns false
+// when the event was skipped (no name, or filtered out).
 static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const std::string& searchFilter)
 {
     if (!event || event->name.empty())
@@ -225,7 +225,6 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const
         return false;
     }
 
-    // Check if this event or children match filter
     if (!searchFilter.empty() && !EventMatchesFilter(event, searchFilter))
     {
         return false;
@@ -235,7 +234,7 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const
     float percent = frameActiveMs > 0 ? (float)(eventMs / frameActiveMs * 100.0) : 0.0f;
     bool hasChildren = !event->children.empty();
 
-    // Calculate self time (total - children)
+    // Self time: total minus children
     double childrenMs = 0.0;
     for (const auto& child : event->children)
     {
@@ -259,7 +258,7 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const
 
     ImGui::TableNextRow();
 
-    // Name column (with tree node)
+    // Name column, holding the tree node
     ImGui::TableNextColumn();
     ImGui::PushID(event);
     bool open = ImGui::TreeNodeEx("##event", flags, "%s", event->name.c_str());
@@ -292,7 +291,7 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const
 
     if (hasChildren && open)
     {
-        // Sort children by current sort column
+        // Children in the current sort order
         std::vector<const ProfileEvent*> sortedChildren;
         for (const auto& child : event->children)
         {
@@ -326,7 +325,7 @@ void ProfilerPanel::RefreshDisplayBuffer()
     size_t numFrames = std::min(history.size(), size_t(100));
     m_DisplayBuffer.reserve(numFrames);
 
-    // Copy the LAST 100 frames (most recent), not the first 100
+    // The most recent 100 frames
     size_t startIdx = history.size() > 100 ? history.size() - 100 : 0;
     for (size_t i = startIdx; i < history.size(); i++)
     {
@@ -344,7 +343,6 @@ void ProfilerPanel::RefreshDisplayBuffer()
         m_DisplayBuffer.push_back(std::move(displayFrame));
     }
 
-    // Update cached current frame number (only changes with batch refresh)
     if (!m_DisplayBuffer.empty())
     {
         m_CurrentFrameNumber = m_DisplayBuffer.back().frameNumber;
@@ -372,7 +370,7 @@ void ProfilerPanel::Draw()
         }
         const float frameBudgetMs = 1000.0f / targetFps;
 
-        // 1 Hz refresh batching - refresh display buffer once per second
+        // The display buffer refreshes once a second
         auto now = std::chrono::steady_clock::now();
         float elapsed = std::chrono::duration<float>(now - m_LastRefreshTime).count();
         if (elapsed >= kRefreshIntervalSeconds || m_DisplayBuffer.empty())
@@ -441,7 +439,7 @@ void ProfilerPanel::Draw()
                 ImGui::Unindent(pad);
                 ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
 
-                // View switch: the Asset Browser's tab links
+                // View switch, in the Asset Browser's tab-link style
                 auto& ui = EditorUI::Get();
                 ui.BeginTabLinks();
                 if (ui.TabLink("Hierarchy", m_ViewMode == ProfilerViewMode::Hierarchy))
@@ -478,7 +476,6 @@ void ProfilerPanel::Draw()
                     ImGui::Dummy(ImVec2(0.0f, m_App->Dpi(6.0f)));
                 }
 
-                // Content area
                 if (ImGui::BeginChild("ProfilerContent", ImVec2(-1, -1), ImGuiChildFlags_None))
                 {
                     if (m_ViewMode == ProfilerViewMode::Memory)
@@ -605,7 +602,7 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
         dl->AddText(ImVec2(chartMin.x - w - m_App->Dpi(8.0f), std::max(origin.y, y - halfLine)), dim, label);
     }
 
-    // Which bar the mouse is over
+    // The bar under the mouse, -1 for none
     const ImVec2 mouse = ImGui::GetMousePos();
     int hovered = -1;
     if (ImGui::IsWindowHovered() && mouse.x >= chartMin.x && mouse.x < chartMax.x && mouse.y >= chartMin.y &&
@@ -663,7 +660,7 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
         }
     }
 
-    // Click selects (and pauses recording, so the frame stays put)
+    // A click selects a frame and stops recording, so the frame stays put
     ImGui::InvisibleButton("FrameTimeline", ImVec2(fullWidth, chartH));
     if (ImGui::IsItemClicked() && hovered >= 0 && hovered != m_SelectedFrame)
     {
@@ -715,7 +712,6 @@ void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTim
         ImGui::TableSetupColumn("%", ImGuiTableColumnFlags_WidthFixed, m_App->Dpi(60.0f));
         ImGui::TableHeadersRow();
 
-        // Read sort specs
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs())
         {
             if (sortSpecs->SpecsCount > 0)
@@ -726,7 +722,7 @@ void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTim
             sortSpecs->SpecsDirty = false;
         }
 
-        // Sort root-level children
+        // Top-level events, idle time left out, in sort order
         std::vector<const ProfileEvent*> sortedChildren;
         for (const auto& child : root->children)
         {
@@ -750,9 +746,8 @@ void ProfilerPanel::DrawHierarchyView(const ProfileEvent* root, double activeTim
 
 void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
 {
-    // Aggregating the whole event tree into a map, copying it into a vector
-    // and sorting it happened every frame. It is redone only when the capture
-    // (root), the filter or the sort order changed.
+    // Aggregating the whole tree and sorting it is costly, so it is redone
+    // only when the capture (root), the filter or the sort order changes.
     static const ProfileEvent* s_FlatRoot = nullptr;
     static std::string s_FlatFilter;
     static std::vector<AggregatedEvent> s_Sorted;
@@ -779,7 +774,6 @@ void ProfilerPanel::DrawFlatView(const ProfileEvent* root, double activeTimeMs)
         rebuilt = true;
     }
 
-    // Draw table
     if (ImGui::BeginTable("FlatView", 4,
                           ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV |
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX))
@@ -851,7 +845,7 @@ void ProfilerPanel::OnPlayModePaused()
 void ProfilerPanel::OnPlayModeResumed()
 {
     m_IsPaused = false;
-    m_SelectedFrame = -1;  // Clear selection to follow latest frame
+    m_SelectedFrame = -1;  // follow the latest frame again
 }
 
 }  // namespace DekiEditor

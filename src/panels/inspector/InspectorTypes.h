@@ -30,8 +30,7 @@ namespace DekiEditor
 class EditorApp;
 class AssetPicker;
 
-// Undo tracking state for property editing
-// Stores the value when editing started
+// For undo: the property being edited and its value when the edit started.
 struct PropertyEditState
 {
     Deki::Component* component = nullptr;

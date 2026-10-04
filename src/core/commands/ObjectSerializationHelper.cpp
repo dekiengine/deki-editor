@@ -48,9 +48,9 @@ void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::Compon
                     case 2: enumValue = static_cast<int32_t>(*reinterpret_cast<uint16_t*>(ptr)); break;
                     default: enumValue = *reinterpret_cast<int32_t*>(ptr); break;
                 }
-                // By NAME, matching the scene writer, so an enum has one
-                // spelling in JSON wherever it appears. This shape also reaches
-                // the clipboard, where it can be pasted into another session.
+                // By name, like the scene writer, so an enum has one spelling
+                // in JSON everywhere. This also reaches the clipboard, which
+                // can be pasted into another session.
                 if (const char* enumName = Deki::EnumNameForValue(prop, enumValue))
                 {
                     properties[prop.name] = enumName;
@@ -68,10 +68,7 @@ void SerializePropertiesFromMeta(const Deki::Component* comp, const Deki::Compon
     }
 }
 
-/**
- * Serialize a component's properties to JSON (including inherited properties)
- */
-
+// Includes the properties inherited from base classes.
 ComponentData SerializeComponent(const Deki::Component* comp)
 {
     ComponentData cd;
@@ -82,13 +79,12 @@ ComponentData SerializeComponent(const Deki::Component* comp)
     {
         cd.typeName = meta->serializedName;
 
-        // Serialize properties from this component and all base classes
+        // This class first, then each base class.
         const Deki::ComponentMeta* currentMeta = meta;
         while (currentMeta)
         {
             SerializePropertiesFromMeta(comp, currentMeta, cd.properties);
 
-            // Move to base class
             if (currentMeta->baseTypeId != 0)
             {
                 currentMeta = registry.GetMeta(currentMeta->baseTypeId);
@@ -103,10 +99,7 @@ ComponentData SerializeComponent(const Deki::Component* comp)
     return cd;
 }
 
-/**
- * Helper to restore properties from a single metadata level
- */
-
+// Restores the properties declared at one level of the class hierarchy.
 void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta* meta, const nlohmann::json& properties)
 {
     for (int i = 0; i < meta->propertyCount; ++i)
@@ -153,7 +146,7 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
                         {
                             assetRef.source = value["source"].get<std::string>();
                         }
-                        assetRef.ptr = nullptr;  // Will be loaded on demand
+                        assetRef.ptr = nullptr;  // loaded on demand
                     }
                     break;
                 case Deki::PropertyType::Color:
@@ -164,8 +157,8 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
                     break;
                 case Deki::PropertyType::Enum:
                 {
-                    // Accepts the name written now and the bare number written
-                    // before it, so older clipboard and undo payloads still apply.
+                    // Accepts a name or a bare number: older clipboard and undo
+                    // payloads hold numbers.
                     bool haveValue = false;
                     int32_t v = 0;
                     if (value.is_string())
@@ -203,10 +196,7 @@ void RestorePropertiesFromMeta(Deki::Component* comp, const Deki::ComponentMeta*
     }
 }
 
-/**
- * Restore component properties from serialized data (including inherited properties)
- */
-
+// Restores inherited properties too.
 void RestoreComponentProperties(Deki::Component* comp, const ComponentData& data)
 {
     auto& registry = Deki::ComponentRegistry::Instance();
@@ -214,13 +204,12 @@ void RestoreComponentProperties(Deki::Component* comp, const ComponentData& data
 
     if (meta)
     {
-        // Restore properties from this component and all base classes
+        // This class first, then each base class.
         const Deki::ComponentMeta* currentMeta = meta;
         while (currentMeta)
         {
             RestorePropertiesFromMeta(comp, currentMeta, data.properties);
 
-            // Move to base class
             if (currentMeta->baseTypeId != 0)
             {
                 currentMeta = registry.GetMeta(currentMeta->baseTypeId);
@@ -233,10 +222,7 @@ void RestoreComponentProperties(Deki::Component* comp, const ComponentData& data
     }
 }
 
-/**
- * Serialize object transform data
- */
-
+// The name, transform, active flag, id and place under the parent.
 ObjectData SerializeObjectData(const Deki::Object* obj)
 {
     ObjectData data;
@@ -249,7 +235,7 @@ ObjectData SerializeObjectData(const Deki::Object* obj)
     data.active = obj->IsActive();
     data.objectId = obj->GetId();
 
-    // Store parent info and index for restoration
+    // Parent and index, so the object can be put back where it was.
     Deki::Object* parent = obj->GetParent();
     if (parent)
     {
@@ -265,10 +251,7 @@ ObjectData SerializeObjectData(const Deki::Object* obj)
     return data;
 }
 
-/**
- * Apply object transform data
- */
-
+// Applies the transform and active flag only.
 void ApplyObjectData(Deki::Object* obj, const ObjectData& data)
 {
     obj->SetLocalPosition(data.x, data.y);
@@ -276,10 +259,6 @@ void ApplyObjectData(Deki::Object* obj, const ObjectData& data)
     obj->SetScale(data.scaleX, data.scaleY);
     obj->SetActive(data.active);
 }
-
-/**
- * Serialize all components of an object
- */
 
 std::vector<ComponentData> SerializeComponents(const Deki::Object* obj)
 {
@@ -291,10 +270,7 @@ std::vector<ComponentData> SerializeComponents(const Deki::Object* obj)
     return components;
 }
 
-/**
- * Restore components to an object from serialized data
- */
-
+// Adds each component to `obj`; the components it already has stay.
 void RestoreComponents(Deki::Object* obj, const std::vector<ComponentData>& components)
 {
     for (const auto& cd : components)
@@ -306,10 +282,6 @@ void RestoreComponents(Deki::Object* obj, const std::vector<ComponentData>& comp
         }
     }
 }
-
-/**
- * Recursively serialize a child object and all its descendants
- */
 
 ChildData SerializeChildRecursive(const Deki::Object* obj)
 {
@@ -325,10 +297,6 @@ ChildData SerializeChildRecursive(const Deki::Object* obj)
     return data;
 }
 
-/**
- * Serialize all children of an object
- */
-
 std::vector<ChildData> SerializeChildren(const Deki::Object* obj)
 {
     std::vector<ChildData> children;
@@ -339,10 +307,6 @@ std::vector<ChildData> SerializeChildren(const Deki::Object* obj)
     return children;
 }
 
-/**
- * Recursively create children from serialized data
- */
-
 void CreateChildrenRecursive(Deki::Object* parent, const std::vector<ChildData>& children)
 {
     for (const auto& childData : children)
@@ -352,8 +316,8 @@ void CreateChildrenRecursive(Deki::Object* parent, const std::vector<ChildData>&
         {
             child->SetId(childData.objectData.objectId);
         }
-        parent->AddChild(child);                       // Set parent FIRST so ApplyObjectData knows the parent
-        ApplyObjectData(child, childData.objectData);  // Now SetLocalPosition updates world transform correctly
+        parent->AddChild(child);                       // first, so the local position is relative to it
+        ApplyObjectData(child, childData.objectData);  // the world transform now comes out right
         RestoreComponents(child, childData.components);
         CreateChildrenRecursive(child, childData.children);
     }

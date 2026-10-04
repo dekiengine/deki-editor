@@ -5,30 +5,25 @@ struct SDL_Window;
 namespace DekiEditor
 {
 
-/**
- * StartupProgress
- *
- * Wrapper around ProgressModal for editor startup progress.
- * Tracks startup state and provides a simple API for initialization phases.
- */
+/// Startup progress on top of ProgressModal: tracks whether startup is done
+/// and offers a small API for the startup phases.
 class StartupProgress
 {
 public:
-    // Set the SDL window for rendering (must be called after ImGui setup)
+    /// Sets the SDL window to draw into. Call after ImGui setup.
     static void SetWindow(SDL_Window* window);
 
-    // Update and render the progress screen
-    // phase: Current operation (e.g., "Loading project...")
-    // detail: Optional detail text (e.g., file being loaded)
+    /// Updates and draws the progress screen. `phase` is the current
+    /// operation (e.g. "Loading project..."), `detail` optional extra text
+    /// (e.g. the file being loaded).
     static void Update(const char* phase, const char* detail = nullptr);
 
-    // Show progress again for a new long operation (opening another project
-    // from the project list): Update draws until the next Complete().
+    /// Shows progress again for a new long operation (opening another
+    /// project from the project list): Update draws until the next Complete().
     static void Begin();
-    // Mark startup as complete (stops showing progress on subsequent Update calls)
+    /// Marks startup complete; later Update calls draw nothing.
     static void Complete();
 
-    // Check if startup is complete
     static bool IsComplete();
 
 private:

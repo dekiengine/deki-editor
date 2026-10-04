@@ -36,10 +36,10 @@ std::string PackageSourceToString(const PackageEntry& pkg)
             {
                 return pkg.installer;
             }
-            // Nothing sets this source without also knowing the installer, so
-            // this is a bug upstream. Say so; "custom" at least keeps the file
-            // loadable, where an empty key would read back differently in the
-            // manifest and the lock.
+            // Nothing sets this source without knowing the installer, so this
+            // is a bug upstream. Say so; "custom" keeps the file loadable,
+            // where an empty key would read back differently in the manifest
+            // and the lock.
             DEKI_LOG_ERROR("PackageManager: '%s' comes from a framework registry but no installer is "
                            "recorded for it; written as \"custom\"",
                            pkg.id.c_str());
@@ -60,9 +60,9 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
     for (const auto& pkg : packages)
     {
         // An entry with no id would be written keyed on "", which nothing can
-        // ever match or install again. Producers are expected to always supply
-        // one (see DekiPackageInstaller::GetInstalledPackages); this is the
-        // backstop so a gap anywhere else cannot corrupt the manifest.
+        // match or install again. Producers always supply one (see
+        // DekiPackageInstaller::GetInstalledPackages); this check keeps a gap
+        // anywhere else from corrupting the manifest.
         if (pkg.id.empty())
         {
             continue;
@@ -77,35 +77,27 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
             }
         }
 
-        // Two things belong in the manifest, and only these two:
+        // Three kinds of entry belong in the manifest, and only these:
         //
-        //   declared - the project names it in deki-packages.json. It stays,
-        //     full stop, even when another package also requires it. Keying
-        //     this off resolvedBy instead used to delete the declaration: a
-        //     project declaring 25 packages was rewritten down to 13 the first
-        //     time it opened, losing exactly the ones some other package
-        //     happened to require.
+        //   declared - the project names it in deki-packages.json. It stays
+        //     even when another package also requires it. Must not depend on
+        //     resolvedBy, or opening a project deletes the declarations of
+        //     every package some other package requires.
         //
         //   adopted - installed on disk with nothing else pulling it in, i.e.
         //     someone cloned it into project/packages/ by hand. Recording it
-        //     is what makes that stick across a fresh checkout.
+        //     makes that stick across a fresh checkout.
         //
-        // Everything else is excluded, and the important exclusion is the
-        // registry catalogue: a refresh merges every available package into
-        // the list so the panel can show it. Those are offers, not intent -
-        // writing them would make the next open restore the whole registry.
-        // They are neither declared nor installed, so they fall out here.
-        //   developing - marked editable. That is a statement of intent in its
-        //     own right, and it has to survive a reload or it means nothing.
-        //     A package pulled in by another (resolvedBy set) is neither
-        //     declared nor adopted, so without this its editable flag was
-        //     dropped on every save while the caller was told it had been set
-        //     - and the package stayed exposed to the restore pass that stashes
-        //     local edits and resets the checkout.
+        //   developing - marked editable, which is intent in its own right
+        //     and must survive a reload. A package pulled in by another
+        //     (resolvedBy set) is neither declared nor adopted, so without
+        //     this its editable flag would be dropped on save and the restore
+        //     pass would stash its local edits and reset the checkout.
         //
-        //     This only ever ADDS entries, so it cannot bring back the bug
-        //     described above, where inclusion keyed off resolvedBy and deleted
-        //     declarations.
+        // Everything else is left out, above all the registry catalogue: a
+        // refresh merges every available package into the list so the panel
+        // can show it. Those are offers, not intent; writing them would make
+        // the next open restore the whole registry.
         const bool declared = pkg.declaredInManifest;
         const bool adopted = pkg.isInstalled && pkg.resolvedBy.empty();
         const bool developing = pkg.editable;
@@ -117,7 +109,7 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
         json entry;
         entry["version"] = pkg.installedVersion.empty() ? "*" : pkg.installedVersion;
 
-        // Only include source/url for non-registry packages
+        // source and url only for non-registry packages
         if (pkg.source == PackageSourceType::GitHub || pkg.source == PackageSourceType::FrameworkRegistry)
         {
             entry["source"] = PackageSourceToString(pkg);
@@ -127,8 +119,8 @@ nlohmann::json BuildPackageManifest(const std::vector<PackageEntry>& packages,
             }
         }
 
-        // Written only when true: a manifest that never used the flag stays
-        // byte-identical, so opening a project cannot dirty it.
+        // Written only when true, so a manifest that never used the flag stays
+        // byte-identical and opening a project cannot dirty it.
         if (pkg.editable)
         {
             entry["editable"] = true;

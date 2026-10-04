@@ -7,82 +7,49 @@
 namespace DekiEditor
 {
 
-/**
- * @brief Asset data stored in .data sidecar files
- *
- * Editor-only. Contains GUID + type-specific import settings as JSON.
- *
- * Format example:
- * {
- *   "guid": "abc-123-xyz",
- *   "sprite": { "frameWidth": 55, "frameHeight": 48 },
- *   "audio": { "volume": 0.8, "loop": true }
- * }
- *
- * For a game build, settings are baked into compiled asset headers.
- */
+/// What an asset's .data sidecar file holds: its GUID and its import
+/// settings as JSON, keyed by type name. Editor only; a game build bakes the
+/// settings into the compiled asset headers.
+///
+/// Example:
+///   {
+///     "guid": "abc-123-xyz",
+///     "sprite": { "frameWidth": 55, "frameHeight": 48 },
+///     "audio": { "volume": 0.8, "loop": true }
+///   }
 struct DEKI_EDITOR_API AssetData
 {
     std::string guid;
-    nlohmann::json settings;  // Type-specific settings, keyed by type name
+    nlohmann::json settings;  // keyed by type name
 };
 
-/**
- * @brief Load asset data from a .data file
- * @param path Path to the .data file
- * @param out Output asset data
- * @return true on success, false if file doesn't exist or is invalid
- */
+/// Reads the .data file at `path` into `out`. Returns false when the file is
+/// missing or invalid.
 DEKI_EDITOR_API bool LoadAssetData(const std::string& path, AssetData& out);
 
-/**
- * @brief Save asset data to a .data file
- * @param path Path to the .data file
- * @param data Asset data to save
- * @return true on success
- */
+/// Writes `data` to the .data file at `path`. Returns true on success.
 DEKI_EDITOR_API bool SaveAssetData(const std::string& path, const AssetData& data);
 
-/**
- * @brief Get the .data file path for an asset
- * @param assetPath Path to the asset (e.g., "foo.png")
- * @return Path with .data appended (e.g., "foo.png.data")
- */
+/// The sidecar path for an asset: "foo.png" gives "foo.png.data".
 DEKI_EDITOR_API std::string GetAssetDataPath(const std::string& assetPath);
 
-/**
- * @brief Read asset GUID from .data sidecar file
- * @param assetPath Path to the asset file
- * @return GUID string, or empty string if not found
- */
+/// The GUID from the asset's .data sidecar, or "" when there is none.
 DEKI_EDITOR_API std::string ReadAssetGuid(const std::string& assetPath);
 
-/**
- * @brief Get or create asset GUID (creates .data file if needed)
- * @param assetPath Path to the asset file
- * @return GUID string
- */
+/// The asset's GUID, creating the .data sidecar with a new GUID if needed.
 DEKI_EDITOR_API std::string GetOrCreateAssetGuid(const std::string& assetPath);
 
-/**
- * The GUID written in a sidecar that does not parse as JSON (a git merge
- * conflict, a torn write), read from its raw text. Returns "" when the text
- * holds no GUID or more than one distinct GUID (a conflict on the GUID itself
- * cannot be settled here).
- */
+/// Reads the GUID from the raw text of a sidecar that does not parse as JSON
+/// (a git merge conflict, a torn write). Returns "" when the text holds no
+/// GUID or more than one distinct GUID: a conflict on the GUID itself cannot
+/// be settled here.
 DEKI_EDITOR_API std::string SalvageAssetGuid(const std::string& dataPath);
 
-/**
- * @brief Generate a deterministic GUID from a seed string (for derived assets like font sizes)
- * @param seed Seed string for GUID generation
- * @return Deterministic GUID string
- */
+/// A GUID that is always the same for the same `seed`. Used for derived
+/// assets such as font sizes.
 DEKI_EDITOR_API std::string GenerateDeterministicGuid(const std::string& seed);
 
-/**
- * @brief Generate a random GUID
- * @return Random GUID string
- */
+/// A new random GUID.
 DEKI_EDITOR_API std::string GenerateGuid();
 
 }  // namespace DekiEditor

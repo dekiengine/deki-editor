@@ -26,7 +26,7 @@ std::string NicifyName(const char* name)
         char c = name[i];
 
         // Separators (underscores, and the dashes and spaces of file names)
-        // become one space, and the next letter is capitalized
+        // become one space, and the next letter is capitalized.
         if (c == '_' || c == '-' || c == ' ')
         {
             if (!result.empty() && result.back() != ' ')
@@ -37,12 +37,12 @@ std::string NicifyName(const char* name)
             continue;
         }
 
-        // Insert space before uppercase letters (but not consecutive ones)
+        // A space before an uppercase letter that follows a lowercase one.
         if (std::isupper(c) && i > 0 && std::islower(name[i - 1]))
         {
             result += ' ';
         }
-        // Insert space before numbers following letters
+        // A space before a digit that follows a letter.
         else if (std::isdigit(c) && i > 0 && std::isalpha(name[i - 1]))
         {
             result += ' ';

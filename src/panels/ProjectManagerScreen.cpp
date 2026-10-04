@@ -26,9 +26,8 @@ namespace DekiEditor
 namespace
 {
 
-// The last-opened stamp, in the words a person would use. Deliberately coarse
-// past a day - the list is sorted by recency, so the exact hour of a project
-// touched last month tells the reader nothing.
+// The last-opened stamp in plain words. Coarse past a day: the list is sorted
+// by recency, so the exact hour of last month's project adds nothing.
 std::string RelativeTime(int64_t stamp)
 {
     if (stamp <= 0)
@@ -83,9 +82,9 @@ bool ContainsNoCase(const std::string& haystack, const std::string& needle)
     return it != haystack.end();
 }
 
-// Draw text in one of the theme fonts at a CSS-px size. PushFont is what
-// applies FontScaleDpi, and GetFontSize() reads back the physical size that
-// AddText wants - the same dance the menu bar's window controls do.
+// Draws text in one of the theme fonts at a CSS-px size. PushFont applies
+// FontScaleDpi, and GetFontSize() reads back the physical size AddText wants,
+// as the menu bar's window controls do.
 void TextAt(ImDrawList* dl, ImFont* font, float cssPx, ImVec2 pos, ImU32 col, const char* text)
 {
     ImGui::PushFont(font ? font : ImGui::GetFont(), cssPx);
@@ -105,8 +104,8 @@ ImVec2 MeasureIn(ImFont* font, float cssPx, const char* text)
 // for chrome in dense panels and is too faint for text a person reads here.
 constexpr ImVec4 kSecondary = ImVec4(0.72f, 0.71f, 0.69f, 1.0f);  // #b8b5b0
 
-// A small filled label - the platform id, the engine version, or the
-// MISSING marker. Right-aligned to rightEdge; returns the width it took.
+// A small filled label: the platform id, the engine version, or the MISSING
+// marker. Right-aligned to rightEdge; returns the width it took.
 float DrawChip(ImDrawList* dl, ImVec2 rightEdge, ImU32 fg, ImU32 border, const char* text, float s)
 {
     const ImVec2 textSize = MeasureIn(g_FontUISmall, 12.0f, text);
@@ -130,8 +129,8 @@ void ProjectManagerScreen::OnShown()
     m_Error.clear();
     m_PendingOpen.clear();
 
-    // Preselect the most recent project so Enter alone reopens what the user
-    // was last in - the common case for a screen passed through every launch.
+    // Select the most recent project, so Enter alone reopens what the user
+    // was last in: the common case on every launch.
     m_Selected = ProjectRegistry::Get().Entries().empty() ? -1 : 0;
 }
 
@@ -155,8 +154,8 @@ void ProjectManagerScreen::RebuildFilter()
         }
     }
 
-    // A selection filtered out of view would leave Open and Remove acting on a
-    // row that is not on screen.
+    // Keep the selection on a visible row, so Open and Remove never act on a
+    // row the search hides.
     if (std::find(m_Filtered.begin(), m_Filtered.end(), m_Selected) == m_Filtered.end())
     {
         m_Selected = m_Filtered.empty() ? -1 : m_Filtered.front();
@@ -165,8 +164,8 @@ void ProjectManagerScreen::RebuildFilter()
 
 void ProjectManagerScreen::ImportProject()
 {
-    // The result lands on a later frame, so everything it touches is member
-    // state the next draw reads.
+    // The result arrives on a later frame, so it only sets member state that
+    // the next draw reads.
     FileDialogs::OpenFolder("Select a Deki project folder",
                             [this](const std::string& path)
                             {
@@ -199,13 +198,13 @@ void ProjectManagerScreen::Draw()
     const ImVec2 avail = ImGui::GetContentRegionAvail();
     const ImVec2 start = ImGui::GetCursorPos();
 
-    // One centred column, capped in width: on a large monitor a full-width list
-    // puts the name and the date a metre apart and leaves the middle empty.
+    // One centred column with a capped width: on a large monitor a full-width
+    // list puts the name and the date far apart with nothing between.
     const float contentW = std::min(avail.x - pad * 2.0f, 960.0f * s);
 
-    // The body is as tall as the projects need, not the window. Sized from the
-    // whole list rather than the filtered one, so typing in the search box does
-    // not make the column jump.
+    // The body is as tall as the projects need, not the window. It is sized
+    // from the whole list, not the filtered one, so typing a search does not
+    // make the column jump.
     const float headerH = 81.0f * s;
     const float rowStride = 82.0f * s;  // card height + gap, see DrawProjectList
     const float railMinH = 290.0f * s;
@@ -237,13 +236,13 @@ void ProjectManagerScreen::Draw()
         TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x, origin.y + 36.0f * s), ImGui::GetColorU32(kSecondary),
                subtitle);
 
-        // Search field, right-aligned with the list below it.
+        // Search field, right-aligned with the list below.
         const float searchW = 240.0f * s;
         ImGui::SetCursorScreenPos(ImVec2(origin.x + contentW - searchW, origin.y + 6.0f * s));
         ImGui::SetNextItemWidth(searchW);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f * s, 7.0f * s));
-        // Deliberately not focused on arrival: with the search box active,
-        // ImGui swallows the arrow keys and Enter that drive the list below.
+        // Not focused on arrival: while the search box is active, ImGui takes
+        // the arrow keys and Enter that drive the list below.
         ImGui::InputTextWithHint("##ProjectSearch", ICON_TI_SEARCH "  Search projects", m_Search, sizeof(m_Search));
         ImGui::PopStyleVar();
 
@@ -275,7 +274,7 @@ void ProjectManagerScreen::Draw()
 
     ImGui::EndGroup();
 
-    // --- Keyboard: the screen is a list, so it should behave like one ---
+    // --- Keyboard: arrows move the selection, Enter opens it ---
     if (!ImGui::IsAnyItemActive() && !m_Filtered.empty())
     {
         auto pos = std::find(m_Filtered.begin(), m_Filtered.end(), m_Selected);
@@ -305,8 +304,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
     const float s = ImGui::GetStyle().FontScaleDpi;
     const auto& entries = ProjectRegistry::Get().Entries();
 
-    // Room for the error line, when there is one, so the list does not resize
-    // under the cursor as it appears and clears.
+    // Room for the error line, when there is one.
     const float errorH = m_Error.empty() ? 0.0f : 26.0f * s;
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Palette::Bg);
@@ -324,8 +322,8 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
     const float rounding = 6.0f * s;
 
     // Each project is a card with its own fill and outline, so rows read as
-    // separate items rather than one striped block. The Selectable only
-    // provides the hit box; the card draws every state itself.
+    // separate items. The Selectable only provides the hit box; the card
+    // draws every state itself.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f * s));
     ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
@@ -371,8 +369,8 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
             ImGui::Separator();
             if (ImGui::MenuItem("Remove from List"))
             {
-                // Removing invalidates idx and the entries reference for the
-                // rest of this frame, so the row loop is left immediately.
+                // Removing invalidates idx and the entries reference, so the
+                // row loop ends here.
                 ProjectRegistry::Get().Remove(entry.path);
                 m_Selected = -1;
                 ImGui::PopStyleVar();  // ItemSpacing
@@ -423,7 +421,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
 
         const float textX = rowMin.x + 72.0f * s;
 
-        // Right column first - the name and path clip against what it leaves.
+        // Right column first: the name and path clip against what it leaves.
         float rightEdge = rowMax.x - 34.0f * s;  // room for the hover chevron
         {
             const std::string when = RelativeTime(entry.lastOpened);
@@ -462,8 +460,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
             rightEdge -= std::max({ whenSize.x, chipsW, 90.0f * s }) + 16.0f * s;
         }
 
-        // Name and path, clipped so a deep path can never run into the column
-        // on its right.
+        // Name and path, clipped so a long path stops before the right column.
         dl->PushClipRect(ImVec2(textX, rowMin.y), ImVec2(rightEdge, rowMax.y), true);
         const ImVec4 nameCol = entry.missing ? Palette::Dim : Palette::Fg;
         TextAt(dl, g_FontUIMed, 16.0f, ImVec2(textX, rowMin.y + 14.0f * s), ImGui::GetColorU32(nameCol),
@@ -472,8 +469,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
                entry.path.c_str());
         dl->PopClipRect();
 
-        // Hover affordance: a chevron on the right, so the row reads as
-        // something you can enter.
+        // On hover, a chevron on the right shows the row can be opened.
         if (hovered && !entry.missing)
         {
             const ImVec2 chevSize = MeasureIn(nullptr, 14.0f, ICON_TI_CHEVRON_RIGHT);
@@ -511,8 +507,8 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
 
     const ImVec2 buttonSize(-FLT_MIN, 34.0f * s);
 
-    // Primary action, filled in the accent - the one thing on this screen a
-    // first-time user has to be able to find.
+    // The primary action, filled in the accent colour: a first-time user must
+    // find it.
     ImGui::PushStyleColor(ImGuiCol_Button, Palette::Accent);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.36f, 0.82f, 1.0f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.66f, 0.90f, 1.0f));
@@ -560,8 +556,8 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     }
     ImGui::EndDisabled();
 
-    // Removing only forgets the entry; say so, because the button carries a
-    // trash can.
+    // Removing only forgets the entry. Say so, since the button shows a trash
+    // can.
     ImGui::Dummy(ImVec2(0.0f, 8.0f * s));
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
     ImGui::PushFont(g_FontUISmall, 12.0f);

@@ -6,17 +6,16 @@ namespace DekiEditor
 class McpToolRegistry;
 class EditorApp;
 
-// Register all MCP tools with the registry
+/// Registers every MCP tool with `registry`.
 void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor);
 
-// Firmware build / flash / toolchain tools (McpTools.Build.cpp).
-// Called by RegisterAllTools; separate translation unit to keep McpTools.cpp
-// focused on scene and asset editing.
+/// Registers the firmware build, flash and toolchain tools (McpTools.Build.cpp).
+/// Called by RegisterAllTools.
 void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor);
 
-// Editor-shell tools (McpTools.Editor.cpp): project create/open, package manager,
-// plugin rebuild, and screenshot / frame-sequence capture of the editor window.
-// Also called by RegisterAllTools.
+/// Registers the editor-shell tools (McpTools.Editor.cpp): project create and
+/// open, package manager, plugin rebuild, and screenshots and frame sequences
+/// of the editor window. Called by RegisterAllTools.
 void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor);
 
 }  // namespace DekiEditor

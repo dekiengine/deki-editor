@@ -11,10 +11,8 @@
 namespace DekiEditor::Tests
 {
 
-/**
- * Mock component for testing serialization without full engine.
- * Has properties of each type that ObjectSerializationHelper handles.
- */
+/// Test component for serialization without the full engine, with a property
+/// of each type ObjectSerializationHelper handles.
 class MockComponent : public Deki::Component
 {
 public:
@@ -24,7 +22,7 @@ public:
     static const Deki::ComponentTypeInfo kTypeInfo;
     MockComponent() { SetTypeInfo(&kTypeInfo); }
 
-    // Test properties covering all serialization types
+    // One property per serialized type.
     int32_t intValue = 0;
     float floatValue = 0.0f;
     bool boolValue = false;
@@ -32,11 +30,10 @@ public:
     Deki::AssetRefBase assetRef;
     Deki::Color colorValue;
     int enumValue = 0;
-    int32_t renamedValue = 0;  // serialised as "renamedValue", formerly "legacyValue" (DEKI_RENAMED_FROM)
+    int32_t renamedValue = 0;  // saved as "renamedValue"; "legacyValue" still loads (DEKI_RENAMED_FROM)
 
-    // An enum that is NOT numbered 0, 1, 2. Its whole point is that a position
-    // in the name table is not the value stored in the field, which is what
-    // serialising enums by index used to get wrong.
+    // An enum not numbered 0, 1, 2, so a position in the name table differs
+    // from the value stored in the field. Enums must be saved by value.
     enum class GappedEnum : int32_t
     {
         Off = 0,
@@ -45,21 +42,19 @@ public:
     };
     GappedEnum gappedEnum = GappedEnum::Off;
 
-    // Static metadata for reflection
+    // Reflection metadata.
     static const Deki::PropertyInfo kProperties[];
     static const int kPropertyCount;
     static const Deki::ComponentMeta kComponentMeta;
 
-    // Register with ComponentRegistry for tests
+    // Adds or removes it in the ComponentRegistry.
     static void Register();
     static void Unregister();
 };
 
-/**
- * Mock component with 1-byte enum fields to test enumSize-aware serialization.
- * Reproduces the TextComponent layout where small enums adjacent to pointers
- * caused heap corruption when serialized as 4-byte ints.
- */
+/// Test component with 1- and 2-byte enum fields, for serialization that
+/// respects enumSize. Copies TextComponent's layout, where small enums sit next
+/// to a pointer that writing them as 4-byte ints would overwrite.
 class MockSmallEnumComponent : public Deki::Component
 {
 public:
@@ -84,9 +79,9 @@ public:
 
     float width = 0.0f;
     SmallEnum smallEnum1 = SmallEnum::A;    // 1-byte enum
-    SmallEnum smallEnum2 = SmallEnum::A;    // 1-byte enum adjacent
+    SmallEnum smallEnum2 = SmallEnum::A;    // 1-byte enum, next to it
     MediumEnum mediumEnum = MediumEnum::X;  // 2-byte enum
-    uint8_t* trailingPointer = nullptr;     // Pointer right after enums (corruption canary)
+    uint8_t* trailingPointer = nullptr;     // right after the enums; must stay null
 
     static bool DeserializeImpl(Deki::Component* self, Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
 
@@ -97,10 +92,8 @@ public:
     static void Register();
 };
 
-/**
- * Mock component with ObjectRef fields to test object reference serialization
- * and ID preservation across undo/redo.
- */
+/// Test component with an ObjectRef field, for object reference serialization
+/// and ids kept across undo and redo.
 class MockRefComponent : public Deki::Component
 {
 public:

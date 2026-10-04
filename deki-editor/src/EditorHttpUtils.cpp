@@ -13,8 +13,8 @@
 #include <filesystem>
 
 #ifdef _WIN32
-// The helpers below call MultiByteToWideChar, so windows.h has to be visible
-// here as well as at the WinHTTP block further down (the include is guarded).
+// The helpers below call MultiByteToWideChar, so windows.h is needed here as
+// well as at the WinHTTP block further down (the include is guarded).
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -27,10 +27,9 @@ namespace
 // ---------------------------------------------------------------------------
 // SHA-256 (FIPS 180-4).
 //
-// Written out here rather than pulled in: the editor has no crypto dependency,
-// and adding OpenSSL (or splitting between BCrypt and CommonCrypto) to hash a
-// downloaded archive is a lot of surface for one function. This is only used to
-// compare a download against a pinned digest, never for secrets.
+// Written out here because the editor has no crypto dependency, and OpenSSL
+// (or BCrypt plus CommonCrypto) is a lot to add for one function. Used only
+// to compare a download against a pinned digest, never for secrets.
 // ---------------------------------------------------------------------------
 class Sha256
 {
@@ -80,7 +79,7 @@ public:
     }
 
 private:
-    // Update without touching m_BitLen - used by the padding step, whose bytes
+    // Update without touching m_BitLen. Used by the padding step, whose bytes
     // must not count toward the message length.
     void Update2(const uint8_t* data, size_t len)
     {
@@ -179,8 +178,8 @@ std::string ToLowerAscii(std::string s)
 }
 
 #ifdef _WIN32
-/// Escape a value for use inside a PowerShell single-quoted string, where the
-/// only special character is the apostrophe and it is escaped by doubling.
+/// Escapes a value for a PowerShell single-quoted string, where the only
+/// special character is the apostrophe, escaped by doubling it.
 std::string PowerShellSingleQuote(const std::string& value)
 {
     std::string out;
@@ -196,9 +195,9 @@ std::string PowerShellSingleQuote(const std::string& value)
     return out;
 }
 
-/// Encode a script for `powershell -EncodedCommand`: UTF-16LE, then base64.
-/// The result is base64 alphabet only, so it cannot carry a metacharacter
-/// through the process command line.
+/// Encodes a script for `powershell -EncodedCommand`: UTF-16LE, then base64.
+/// The result uses only the base64 alphabet, so it carries no metacharacter
+/// on the process command line.
 std::string EncodeCommandUtf16Base64(const std::string& utf8Script)
 {
     // UTF-8 -> UTF-16LE
@@ -234,8 +233,8 @@ std::string EncodeCommandUtf16Base64(const std::string& utf8Script)
 #endif
 
 #ifndef _WIN32
-// Spawn a process from an argument vector. Nothing goes through /bin/sh, so a
-// quote or semicolon in a path is just a character in a filename.
+// Spawns a process from an argument vector. Nothing goes through /bin/sh, so
+// a quote or semicolon in a path is just a character in a filename.
 int RunProcess(const std::vector<std::string>& args)
 {
     if (args.empty())
@@ -271,7 +270,7 @@ int RunProcess(const std::vector<std::string>& args)
 }
 
 // Same, capturing the child's stdout. Used for `curl` fetches and `unzip -Z1`
-// listings, which used to go through popen() and therefore /bin/sh.
+// listings.
 int RunProcessCapture(const std::vector<std::string>& args, std::string& out)
 {
     out.clear();
@@ -366,10 +365,10 @@ std::string QuoteWindowsArgument(const std::string& arg)
     return out;
 }
 
-// Run an argument vector without a window, capture stdout, kill it after
-// `timeoutMs`. Returns the exit code, or -1 when it could not start or timed
-// out. No shell is involved: the command line is assembled with
-// QuoteWindowsArgument and read back by the child's C runtime.
+// Runs an argument vector without a window, captures stdout, and kills it
+// after `timeoutMs`. Returns the exit code, or -1 when it could not start or
+// timed out. No shell is involved: the command line is built with
+// QuoteWindowsArgument and parsed back by the child's C runtime.
 int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& out, DWORD timeoutMs)
 {
     out.clear();
@@ -420,7 +419,8 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
         return -1;
     }
 
-    // Drain the pipe while waiting, or a chatty child blocks on a full pipe.
+    // Drain the pipe while waiting, or a child that prints a lot blocks on a
+    // full pipe.
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
     bool timedOut = false;
     char buffer[4096];
@@ -479,7 +479,7 @@ std::string WindowsSystemTool(const char* exe)
 #include <winhttp.h>
 #pragma comment(lib, "winhttp.lib")
 
-// Helper to convert wide string to narrow string (UTF-8)
+// Wide string to UTF-8.
 static std::string WideToNarrow(const std::wstring& wide)
 {
     if (wide.empty())
@@ -527,9 +527,9 @@ bool EditorHttpUtils::IsAllowedUrl(const std::string& url, std::string& reason)
         reason = "URL is longer than 2048 characters";
         return false;
     }
-    // https only, at hop 0 as well as on redirects: everything fetched here is
-    // either parsed as an index of what to install next or executed as a
-    // toolchain, so a plain-http first hop hands substitution rights to the path.
+    // https only, on the first request as well as on redirects: everything
+    // fetched here is either an index of what to install next or a toolchain
+    // that gets executed, so plain http would let anyone on the path replace it.
     if (url.rfind("https://", 0) != 0)
     {
         reason = "URL must start with https://";
@@ -537,9 +537,8 @@ bool EditorHttpUtils::IsAllowedUrl(const std::string& url, std::string& reason)
     }
     for (unsigned char c : url)
     {
-        // Nothing here reaches a shell any more; the metacharacters are refused
-        // anyway so the intent stays explicit and a future caller cannot
-        // reintroduce the problem.
+        // Nothing here reaches a shell, but shell metacharacters are refused
+        // anyway, so a future caller that uses one stays safe.
         if (c < 0x21 || c > 0x7e || c == '"' || c == '\'' || c == '`' || c == '\\' || c == '|' || c == '<' ||
             c == '>' || c == '^' || c == '$' || c == '(' || c == ')' || c == '{' || c == '}' || c == ';')
         {
@@ -563,10 +562,8 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
 #ifdef _WIN32
     std::string result;
 
-    // Convert URL to wide string
     std::wstring wUrl(url.begin(), url.end());
 
-    // Parse URL
     URL_COMPONENTS urlComp;
     ZeroMemory(&urlComp, sizeof(urlComp));
     urlComp.dwStructSize = sizeof(urlComp);
@@ -591,8 +588,8 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
     {
         return "";
     }
-    // The same bounds curl gets below: 5 s to connect, 30 s per send and
-    // receive. WinHttp's defaults let a null-routed host hang a fetch thread
+    // The same limits curl gets below: 5 s to connect, 30 s per send and
+    // receive. With WinHttp's defaults a null-routed host hangs a fetch thread
     // well past the 30 s every caller waits.
     WinHttpSetTimeouts(hSession, 5000, 5000, 30000, 30000);
 
@@ -614,7 +611,7 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
         return "";
     }
 
-    // GitHub API requires User-Agent header
+    // The GitHub API requires a User-Agent header.
     WinHttpAddRequestHeaders(hRequest, L"User-Agent: DekiEditor/1.0", -1, WINHTTP_ADDREQ_FLAG_ADD);
 
     if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
@@ -633,10 +630,8 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
         return "";
     }
 
-    // Treat a non-2xx as failure rather than returning the error body. Callers
-    // test the result for emptiness to decide whether to fall back to a mirror,
-    // and a 404's HTML page is not empty - so without this check a dead endpoint
-    // silently wins over a working fallback and parses to nothing.
+    // A non-2xx status returns "", not the error body: callers fall back to a
+    // mirror when the result is empty, and a 404 page is not.
     {
         DWORD statusCode = 0;
         DWORD statusSize = sizeof(statusCode);
@@ -651,9 +646,8 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
         }
     }
 
-    // Read response. Appended by length: `result += buffer` stopped at the
-    // first zero byte, so every binary download (a board pack's zip) arrived
-    // cut off on Windows.
+    // Appended by length, not as a C string: binary downloads (a board pack's
+    // zip) contain zero bytes.
     char buffer[4096];
     DWORD bytesRead = 0;
     while (WinHttpReadData(hRequest, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0)
@@ -669,21 +663,17 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
 #else
     // Linux/macOS: use curl.
     //
-    // -f so HTTP errors fail with no body, matching the Windows status check
-    // above: callers see "" and can fall back to a mirror, rather than handing an
-    // error page to a JSON parser.
+    // -f so HTTP errors return no body, as on Windows above: callers see ""
+    // and fall back to a mirror.
     //
-    // -L because the registry's addresses redirect between each other - while a
-    // Pages custom domain is configured, the github.io URL 301s to it.
+    // -L because the registry's addresses redirect to each other (with a
+    // Pages custom domain, the github.io URL redirects to it).
     //
-    // Bounded, because "unreachable" does not always mean "refused". When a host
-    // is null-routed rather than rejecting - as happens to Cloudflare IP ranges
-    // during the ISP-level blocks used against football piracy - the connect
-    // simply hangs. Without a cap the caller waits out curl's ~2 minute default,
-    // which is long enough that a registry fallback times out before it is ever
-    // tried, and long enough to look like the editor has frozen.
-    // An argument vector, not a shell string: the URL used to be interpolated
-    // into a popen() command line, where `$(...)` in a registry id ran.
+    // Time limits, because a null-routed host (e.g. Cloudflare ranges during
+    // ISP-level blocks) does not refuse, it hangs. curl's ~2 minute default
+    // would outlast the registry fallback and look like a frozen editor.
+    //
+    // An argument vector, not a shell string, so nothing in the URL can run.
     // --proto '=https' --proto-redir '=https' keep every hop on TLS.
     std::string result;
     const int rc = RunProcessCapture({ "curl", "-sfL", "--connect-timeout", "5", "--max-time", "30", "--proto",
@@ -730,9 +720,9 @@ bool EditorHttpUtils::DownloadFileVerified(const std::string& url, const std::st
 {
     if (expectedSha256.empty() && !allowUnpinned)
     {
-        // An unpinned component is a gap in the chain that makes every other
-        // pin decorative. The built-in toolchain definitions carry a hash for
-        // every archive; only a user-added source may opt out, loudly.
+        // One unpinned component makes every other pin worthless. The built-in
+        // toolchain definitions have a hash for every archive; only a source
+        // the user added may go without, with a warning.
         if (status)
         {
             status("Refusing to download " + url + ": no SHA-256 is pinned for it");
@@ -774,7 +764,7 @@ bool EditorHttpUtils::DownloadFileVerified(const std::string& url, const std::st
     if (actual != ToLowerAscii(expectedSha256))
     {
         // The file is about to be extracted and executed as a build toolchain,
-        // so a mismatch is not something to warn about and continue past.
+        // so a mismatch is an error, not a warning.
         if (status)
         {
             status("SHA-256 mismatch for " + url + "\n  expected " + ToLowerAscii(expectedSha256) + "\n  actual   " +
@@ -795,11 +785,9 @@ bool EditorHttpUtils::DownloadFileVerified(const std::string& url, const std::st
 bool EditorHttpUtils::ParseGitHubRelease(const std::string& json, const std::string& assetPattern,
                                          const std::string& repo, std::string& outVersion, std::string& outDownloadUrl)
 {
-    // A real JSON parse (this used to be substring scanning that took the
-    // first quoted string after "browser_download_url" wherever it sat), and
-    // the asset must live under the repository that was asked about: a
-    // release body can name any URL, and what it names gets executed as a
-    // toolchain.
+    // A real JSON parse, and the asset must live under the repository that
+    // was asked about: a release body can name any URL, and what it names
+    // gets executed as a toolchain.
     const nlohmann::json j = nlohmann::json::parse(json, nullptr, false);
     if (!j.is_object())
     {
@@ -955,11 +943,8 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         }
     }
 
-    // Redirects are followed with a loop and a hop budget. The previous version
-    // recursed into DownloadFile for every hop with no cap, so a server pointing
-    // Location: at itself walked the stack until the process died - each frame
-    // carries an 8 KB read buffer plus two 4 KB wide-char arrays, so roughly
-    // sixty hops was enough.
+    // Redirects are followed in a loop with a hop limit, so a server that
+    // redirects to itself cannot loop forever or exhaust the stack.
     std::string currentUrl = url;
     bool startedSecure = false;
 
@@ -967,10 +952,8 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
     {
         std::string host;
 
-        // Convert URL to wide string
         std::wstring wUrl(currentUrl.begin(), currentUrl.end());
 
-        // Parse URL using WinHTTP's URL_COMPONENTS (wide string version)
         URL_COMPONENTS urlComp;
         ZeroMemory(&urlComp, sizeof(urlComp));
         urlComp.dwStructSize = sizeof(urlComp);
@@ -999,9 +982,9 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         }
         else if (startedSecure && !isSecure)
         {
-            // Refusing the downgrade is the whole point: the payload is a
-            // toolchain the build will execute, so allowing a redirect to drop
-            // TLS hands substitution rights to anyone on the path.
+            // Never downgrade: the payload is a toolchain the build executes,
+            // and a redirect that drops TLS would let anyone on the path
+            // replace it.
             if (status)
             {
                 status("Refusing redirect from HTTPS to plain HTTP: " + currentUrl);
@@ -1015,7 +998,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             status("Connecting to " + host + "...");
         }
 
-        // Open session
         HINTERNET hSession = WinHttpOpen(L"DekiEditor/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
                                          WINHTTP_NO_PROXY_BYPASS, 0);
 
@@ -1028,7 +1010,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Connect
         HINTERNET hConnect = WinHttpConnect(hSession, hostName, urlComp.nPort, 0);
 
         if (!hConnect)
@@ -1041,7 +1022,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Open request
         DWORD flags = isSecure ? WINHTTP_FLAG_SECURE : 0;
         HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlPath, NULL, WINHTTP_NO_REFERER,
                                                 WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
@@ -1057,7 +1037,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Send request
         if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
         {
             if (status)
@@ -1070,8 +1049,8 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Closes the three handles for this hop. Declared here so both the
-        // redirect path and the error paths use exactly one cleanup.
+        // Closes the three handles for this hop, for both the redirect path
+        // and the error paths.
         auto closeAll = [&]
         {
             WinHttpCloseHandle(hRequest);
@@ -1098,7 +1077,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return true;
         };
 
-        // Receive response
         if (!WinHttpReceiveResponse(hRequest, NULL))
         {
             DWORD statusCode = 0;
@@ -1120,13 +1098,11 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Check status code
         DWORD statusCode = 0;
         DWORD statusCodeSize = sizeof(statusCode);
         WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
                             WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize, WINHTTP_NO_HEADER_INDEX);
 
-        // Handle redirect
         if (statusCode >= 300 && statusCode < 400 && takeRedirect(statusCode))
         {
             closeAll();
@@ -1143,7 +1119,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Get content length
         DWORD contentLength = 0;
         DWORD contentLengthSize = sizeof(contentLength);
         WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
@@ -1161,7 +1136,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             }
         }
 
-        // Ensure parent directory exists
         try
         {
             std::filesystem::create_directories(std::filesystem::path(localPath).parent_path());
@@ -1170,7 +1144,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         { /* best effort: the write that follows reports its own failure */
         }
 
-        // Open output file
         std::ofstream outFile(localPath, std::ios::binary);
         if (!outFile.is_open())
         {
@@ -1182,7 +1155,6 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return false;
         }
 
-        // Read data
         char buffer[8192];
         DWORD bytesRead = 0;
         DWORD totalRead = 0;
@@ -1197,8 +1169,8 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
                     status("Download cancelled");
                 }
                 outFile.close();
-                // Don't leave a truncated file behind for a caller to mistake
-                // for a complete download.
+                // Remove the truncated file, so no caller mistakes it for a
+                // complete download.
                 std::error_code ec;
                 std::filesystem::remove(localPath, ec);
                 closeAll();
@@ -1245,8 +1217,8 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
     // Two layers against zip-slip. The listing check refuses any entry with a
     // ".." segment, an absolute path or a drive letter before anything is
     // written; then bsdtar (tar.exe, in every Windows since 1803) extracts,
-    // and it refuses such entries on its own. PowerShell's Expand-Archive,
-    // used before, has no such protection in the version Windows ships.
+    // and it refuses such entries too. Do not use PowerShell's
+    // Expand-Archive: the version Windows ships has no such protection.
     {
         std::string reason;
         if (!ZipEntriesAreSafe(zipPath, reason))
@@ -1308,9 +1280,8 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         status("Downloading with curl: " + url);
     }
 
-    // --proto '=https' --proto-redir '=https' keep both the initial request and
-    // every redirect on TLS, matching the Windows path's refusal to downgrade.
-    // --max-redirs bounds the hop count the same way.
+    // --proto '=https' --proto-redir '=https' keep the first request and every
+    // redirect on TLS, as on Windows. --max-redirs limits the hops the same way.
     std::vector<std::string> args = { "curl",
                                       "-fL",
                                       "--proto",
@@ -1353,10 +1324,9 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
             return false;
         }
     }
-    // Argument vector, not a shell string: a quote in either path used to end
-    // the quoting and hand the rest to /bin/sh. unzip strips "../" itself as
-    // well; the listing check above is what refuses instead of silently
-    // rewriting.
+    // An argument vector, not a shell string, so a quote in either path is
+    // just a character. unzip also strips "../" itself, but the listing check
+    // above refuses such an archive instead of quietly rewriting it.
     bool ok = RunProcess({ "unzip", "-o", "--", zipPath, "-d", destDir }) == 0;
     if (status)
     {

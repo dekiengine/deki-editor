@@ -39,8 +39,8 @@ int64_t NowEpoch()
 }
 
 // The worker: fetch, parse, compare, hand over. Everything it touches is
-// under g_Mutex or thread-local; the toast is left to Poll() on the main
-// thread because ImGui state is not for a worker to touch.
+// under g_Mutex or local. Poll() shows the toast on the main thread, because
+// a worker must not touch ImGui state.
 void Run(bool manual)
 {
     const std::string body = EditorHttpUtils::FetchUrl(UpdateCheck::kLatestReleaseUrl);

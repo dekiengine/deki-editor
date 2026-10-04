@@ -12,20 +12,19 @@
 namespace DekiEditor
 {
 
-/**
- * Generic undoable edit produced by the EditorUI *Field helpers.
- *
- * Two modes:
- *  - Pointer mode: `target` is non-null. Execute/Undo/Redo memcpy the new/old
- *    bytes into it (works for any trivially-copyable value: int8/16/32, unsigned,
- *    float, float[2/3/4], etc.).
- *  - Value mode: `target` is null. Nothing is memcpy'd; the value lives wherever
- *    the caller keeps it, and `onUndo(old)` / `onRedo(new)` apply it. The old/new
- *    byte snapshots are still stored so the callbacks receive the value.
- *
- * `onUndo` / `onRedo` (optional) fire after the bytes are restored/reapplied,
- * receiving a pointer to the value's bytes (old on undo, new on redo).
- */
+/// The undoable edit the EditorUI *Field helpers produce.
+///
+/// Two modes:
+///  - Pointer mode: `target` is non-null. Execute/Undo/Redo memcpy the new or
+///    old bytes into it. Works for any trivially copyable value (int8/16/32,
+///    unsigned, float, float[2/3/4], ...).
+///  - Value mode: `target` is null. The value lives wherever the caller keeps
+///    it, and `onUndo(old)` / `onRedo(new)` apply it. The old and new bytes are
+///    still stored so the callbacks receive the value.
+///
+/// The optional `onUndo` / `onRedo` run after the bytes are restored or
+/// reapplied, and get a pointer to the value's bytes (old on undo, new on
+/// redo).
 class ModifyValueCommand : public Command
 {
 public:
@@ -94,10 +93,10 @@ public:
 
     bool ReferencesAny(const DeadMemory& dead) const override
     {
-        // Pointer mode aims into component/object storage. Value mode has a null
-        // target and applies through callbacks that capture the object or
-        // component; the owners recorded when the edit was made stand in for
-        // those (HistoryGuards::EditOwnerScope).
+        // Pointer mode points into object or component storage. Value mode
+        // applies through callbacks that capture the object or component, so
+        // the owners recorded when the edit was made stand in for them
+        // (HistoryGuards::EditOwnerScope).
         if (CommandRefs::Has(dead, m_Target))
         {
             return true;

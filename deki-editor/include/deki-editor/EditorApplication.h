@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include <deki-editor/EditorExport.h>
-// Forward declarations - engine types
 namespace Deki
 {
 class Object;
@@ -17,13 +16,11 @@ class Scene;
 namespace DekiEditor
 {
 
-/**
- * @brief Scene-view editing tool, requestable from package-DLL editors.
- *
- * Mirrors the internal SceneTool enum but lives in the public deki-editor
- * header so CustomEditors (which live in package DLLs) can ask the main editor
- * to switch tools without depending on editor-private headers.
- */
+/// Scene-view editing tool that package-DLL editors can ask for.
+///
+/// Mirrors the internal SceneTool enum, but lives in this public header so
+/// CustomEditors in package DLLs can switch tools without editor-private
+/// headers.
 enum class SceneEditTool
 {
     Select,
@@ -31,104 +28,68 @@ enum class SceneEditTool
     Rect,
 };
 
-/**
- * @brief Main editor application singleton (facade)
- *
- * Provides Unity-like static access for EditorWindow and CustomEditor implementations:
- *   auto& app = EditorApplication::Get();
- *   const char* projectPath = app.GetProjectPath();
- *   Deki::Object* selected = app.GetActiveObject();
- *
- * The main editor (EditorApp) populates this facade via SetProjectPaths() and SetActiveObject().
- * Engine editors only need to call the getters.
- */
+/// The editor's state as seen by EditorWindow and CustomEditor code, like
+/// Unity's static editor access:
+///   auto& app = EditorApplication::Get();
+///   const char* projectPath = app.GetProjectPath();
+///   Deki::Object* selected = app.GetActiveObject();
+///
+/// The main editor (EditorApp) fills it through SetProjectPaths() and
+/// SetActiveObject(); other editors only read it.
 class DEKI_EDITOR_API EditorApplication
 {
 public:
-    /**
-     * @brief Get singleton instance
-     */
     static EditorApplication& Get();
 
     // =========================================================================
     // Project Paths (read-only for engine editors)
     // =========================================================================
 
-    /**
-     * @brief Get project root directory path
-     * @return Path string, or empty if no project is open
-     */
+    /// The project root, or "" when no project is open.
     const std::string& GetProjectPath() const { return m_ProjectPath; }
 
-    /**
-     * @brief Get assets directory path
-     * @return Path string, or empty if no project is open
-     */
+    /// The assets folder, or "" when no project is open.
     const std::string& GetAssetsPath() const { return m_AssetsPath; }
 
-    /**
-     * @brief Get cache directory path
-     * @return Path string, or empty if no project is open
-     */
+    /// The cache folder, or "" when no project is open.
     const std::string& GetCachePath() const { return m_CachePath; }
 
-    /**
-     * @brief Check if a project is currently open
-     */
     bool HasProject() const { return !m_ProjectPath.empty(); }
 
     // =========================================================================
     // Time
     // =========================================================================
 
-    /**
-     * @brief Get delta time since last frame
-     */
+    /// Time since the last frame.
     float GetDeltaTime() const { return m_DeltaTime; }
 
     // =========================================================================
     // Selection (read-only for engine editors)
     // =========================================================================
 
-    /**
-     * @brief Get currently selected object
-     * @return Selected object or nullptr
-     */
+    /// The selected object, or nullptr.
     Deki::Object* GetActiveObject() const { return m_ActiveObject; }
 
-    /**
-     * @brief Get currently active scene
-     * @return Active scene or nullptr
-     */
+    /// The active scene, or nullptr.
     Deki::Scene* GetActiveScene() const { return m_ActiveScene; }
 
     // =========================================================================
     // Internal - Called by main editor (EditorApp)
     // =========================================================================
 
-    /**
-     * @brief Set project paths (called when project is opened)
-     */
+    /// Called when a project opens.
     void SetProjectPaths(const std::string& projectPath, const std::string& assetsPath, const std::string& cachePath);
 
-    /**
-     * @brief Clear project paths (called when project is closed)
-     */
+    /// Called when a project closes.
     void ClearProjectPaths();
 
-    /**
-     * @brief Set active object (called when selection changes)
-     */
+    /// Called when the selection changes.
     void SetActiveObject(Deki::Object* obj) { m_ActiveObject = obj; }
 
-    /**
-     * @brief Set active scene (called when scene changes)
-     */
+    /// Called when the scene changes.
     void SetActiveScene(Deki::Scene* scene) { m_ActiveScene = scene; }
 
-    /**
-     * @brief Set delta time (called each frame)
-     */
+    /// Called each frame.
     void SetDeltaTime(float dt) { m_DeltaTime = dt; }
 
     // =========================================================================
@@ -157,7 +118,7 @@ public:
 
     // =========================================================================
     // Open Tool Request (lets package-DLL editors ask the main editor's ToolHost
-    // to dispatch an EditorWindow for a given file)
+    // to open an EditorWindow for a file)
     // =========================================================================
 
     // `toolTitle` names the window to open (its GetTitle()); empty lets the
@@ -191,7 +152,7 @@ public:
 
     // =========================================================================
     // Scene Tool Request (lets package-DLL editors switch the scene-view tool,
-    // e.g. ClipComponent's "Edit Rect" button activating the Rect resize tool)
+    // e.g. ClipComponent's "Edit Rect" button selecting the Rect resize tool)
     // =========================================================================
 
     void RequestSceneTool(SceneEditTool tool)
@@ -215,42 +176,36 @@ private:
     EditorApplication() = default;
     ~EditorApplication() = default;
 
-    // Prevent copying
     EditorApplication(const EditorApplication&) = delete;
     EditorApplication& operator=(const EditorApplication&) = delete;
 
-    // Project state
     std::string m_ProjectPath;
     std::string m_AssetsPath;
     std::string m_CachePath;
 
-    // Selection state
     Deki::Object* m_ActiveObject = nullptr;
     Deki::Scene* m_ActiveScene = nullptr;
 
-    // Time
     float m_DeltaTime = 0.0f;
 
-    // Asset refresh
     bool m_AssetRefreshRequested = false;
 
-    // Asset invalidation (font re-bake, etc.)
+    // Font re-bake, etc.
     bool m_AssetInvalidationRequested = false;
 
-    // Open-tool request (set by package-DLL editors, drained by EditorApp)
+    // Set by package-DLL editors, taken by EditorApp.
     bool m_OpenToolRequested = false;
     std::string m_OpenToolFilePath;
     std::string m_OpenToolCachePath;
 
-    // Scene-tool request (set by package-DLL editors, drained by EditorApp)
+    // Set by package-DLL editors, taken by EditorApp.
     bool m_SceneToolRequested = false;
     SceneEditTool m_RequestedSceneTool = SceneEditTool::Select;
 
-    // Open-tool request: the window asked for by title, if any (see RequestOpenTool).
+    // The window asked for by title, if any (see RequestOpenTool).
     std::string m_OpenToolTitle;
 
-    // The asset selected in the Asset Browser, project-relative (see
-    // GetSelectedAssetPath).
+    // See GetSelectedAssetPath.
     std::string m_SelectedAssetPath;
 
 public:

@@ -2,9 +2,9 @@
 
 // Widgets a build backend's settings UI needs.
 //
-// In the SDK rather than beside the platform dialog because the backends that
-// draw with it now live in packages: ESP-IDF's and native's settings panels
-// both edit string lists, and neither can reach into the editor executable.
+// In the SDK because the backends that draw with them live in packages
+// (ESP-IDF's and native's settings panels both edit string lists) and cannot
+// reach into the editor executable.
 
 #include <deki-editor/EditorExport.h>
 

@@ -11,37 +11,30 @@
 namespace DekiEditor
 {
 
-/**
- * @brief Registry that manages available firmware builders
- *
- * Holds the backends that packages and plugins contribute, and can load
- * builder DLL plugins from ~/.deki-editor/builders/.
- *
- * BuildPanel queries this registry to get the right builder
- * for the user's selected platform.
- */
+/// The available firmware builders: the backends packages and plugins
+/// contribute, plus builder DLL plugins loaded from ~/.deki-editor/builders/.
+/// BuildPanel asks it for the builder of the selected platform.
 class DEKI_EDITOR_API BuilderRegistry
 {
 public:
     static BuilderRegistry& Instance();
 
-    /// Register a built-in builder (takes ownership)
+    /// Registers a built-in builder and takes ownership of it.
     void RegisterBuilder(std::unique_ptr<ITargetBuilder> builder);
 
-    /// Register a builder created by a loaded package module, with that
-    /// module's destroy function. Its vtable and operator delete live over
-    /// there, so the registry must never `delete` it.
+    /// Registers a builder created by a loaded package module, with that
+    /// module's destroy function. Its vtable and operator delete live in that
+    /// module, so the registry never `delete`s it.
     void RegisterPluginBuilder(ITargetBuilder* builder, void (*destroy)(ITargetBuilder*),
                                const std::string& package = {});
 
-    /// Destroy and forget every builder `package` registered. Called before
-    /// that package's library is unloaded: the builder's code and vtable live
-    /// there, and a builder left behind is called into after it is gone.
+    /// Destroys and forgets every builder `package` registered. Call it before
+    /// that package's library is unloaded, since the builders' code and
+    /// vtables live there.
     void RemovePackageBuilders(const std::string& package);
 
-    /// The builder claiming a framework id.
-    /// nullptr when nobody does; see BuilderDispatch.h for why there is no
-    /// fallback.
+    /// The builder claiming a framework id, or nullptr. See BuilderDispatch.h
+    /// for why there is no fallback.
     ITargetBuilder* GetBuilder(const std::string& frameworkId);
 
     /// The builder for a platform, chosen by its `framework`.
@@ -50,41 +43,37 @@ public:
     /// Message for when GetBuilderForPlatform returned nullptr.
     std::string DescribeMissingBuilder(const PlatformConfig& config) const;
 
-    /// Get all registered builders
     std::vector<ITargetBuilder*> GetAllBuilders() const;
 
-    /// Query all builders for a package's supported platforms from metadata.
-    /// Each builder reads dependencies from the file and reports if it's compatible.
+    /// The platforms a package supports, according to its metadata file. Each
+    /// builder reads the dependencies there and reports whether it is
+    /// compatible.
     std::vector<std::string> GetSupportedPlatforms(const std::string& metadataPath) const;
 
-    /// Built-ins plus one scan for builder plugins. Idempotent, and lazy
-    /// rather than at editor start: FirmwareBuildService is reached by the
-    /// headless CLI and the MCP server, neither of which goes through the
-    /// editor's boot path, and those are exactly the routes a CI build takes.
+    /// Registers the built-ins and scans once for builder plugins. Safe to call
+    /// repeatedly. Lazy rather than at editor start because the headless CLI
+    /// and the MCP server (the routes a CI build takes) reach
+    /// FirmwareBuildService without the editor's boot path.
     void EnsureLoaded();
 
-    /// Scan for builder plugins. EnsureLoaded() is the normal entry point.
+    /// Scans for builder plugins. EnsureLoaded() is the normal entry point.
     void LoadBuilderPlugins();
 
-    /// Who supplies the builders that ship with the editor.
-    ///
-    /// The registry used to construct ESPIDFBuilder and NativeBuilder itself,
-    /// which meant this generic machinery named two concrete backends - and
-    /// would have made deki-editor.dll depend on the executable once it moved
-    /// there. The owner of those builders installs a provider instead, and the
-    /// registry knows nothing about what it will be handed.
+    /// Who supplies the builders that ship with the editor. Their owner
+    /// installs a provider, so the registry names no concrete backend and
+    /// deki-editor.dll does not depend on the executable.
     using BuiltInProvider = void (*)(BuilderRegistry&);
     void SetBuiltInProvider(BuiltInProvider provider);
 
-    /// Destroy builders and unload plugin modules, in that order.
+    /// Destroys builders, then unloads plugin modules.
     ///
-    /// Must be called explicitly before the process exits, the way
-    /// PluginLoader::UnloadAllPlugins is: Instance() is a function-local
-    /// static destroyed after main returns, and unloading a module then runs
-    /// its detach against already-destroyed editor statics.
+    /// Call it before the process exits, like PluginLoader::UnloadAllPlugins:
+    /// Instance() is a function-local static destroyed after main returns, and
+    /// unloading a module then would run its detach against editor statics
+    /// that are already gone.
     void Shutdown();
 
-    /// Load one plugin module; false when it was refused.
+    /// Loads one plugin module; false when it was refused.
     bool LoadOneBuilderPlugin(const std::string& path);
 
 private:
@@ -92,9 +81,9 @@ private:
     ~BuilderRegistry();
 
     // A plugin-created builder must be destroyed by the plugin that made it:
-    // its vtable and its operator delete both live in that module, so `delete`
-    // from the editor is undefined. Built-ins carry a null destroy and are
-    // deleted normally.
+    // its vtable and operator delete live in that module, so `delete` from the
+    // editor is undefined. Built-ins have a null destroy and are deleted
+    // normally.
     struct LoadedBuilder
     {
         ITargetBuilder* builder = nullptr;
@@ -109,7 +98,7 @@ private:
     bool m_PluginsLoaded = false;
     bool m_ShutDown = false;
 
-    // DLL handles for cleanup (void* = HMODULE on Windows, void* from dlopen on Unix)
+    // Module handles for cleanup: HMODULE on Windows, dlopen's handle on Unix
     std::vector<void*> m_PluginHandles;
 };
 

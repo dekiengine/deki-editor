@@ -199,7 +199,6 @@ TEST_F(EditorSelectionTest, ToggleSelectionClearsAsset)
 
 TEST_F(EditorSelectionTest, SetSelectedObjectClearsBakedCacheOnlyAsset)
 {
-    // This is the exact scenario from the bug:
     // 1. Select a baked-cache-only asset (empty path, hasCached=true, non-empty cachePath)
     m_Sel.SetSelectedAsset("", "cache/font_atlas.dtex", true, "baked-guid");
     EXPECT_TRUE(m_Sel.HasAssetSelection());
@@ -246,10 +245,10 @@ TEST_F(EditorSelectionTest, ToggleSelectionClearsBakedCacheOnlyAsset)
 // ---- Change notification ----
 //
 // EditorApp mirrors selection into the EditorApplication facade (the one package
-// CustomEditors read) through this callback. It used to be mirrored at each call
-// site instead, and Add/Remove/ToggleSelection all forgot - so a Ctrl+click in
-// the Hierarchy left GetActiveObject() naming the previously selected object,
-// which then dangled once that object was deleted. Every mutator must notify.
+// CustomEditors read) through this callback. Every mutator must notify,
+// Add/Remove/ToggleSelection included: otherwise a Ctrl+click in the Hierarchy
+// leaves GetActiveObject() naming the previously selected object, which
+// dangles once that object is deleted.
 
 namespace
 {

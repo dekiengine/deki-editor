@@ -1,4 +1,4 @@
-// The Phase 9 rename gate.
+// The rename gate.
 //
 // Reflected member names ARE the scene-file format. reflection_codegen emits
 // each C++ identifier as a Deki::HashString key with no opt-in gate, so renaming

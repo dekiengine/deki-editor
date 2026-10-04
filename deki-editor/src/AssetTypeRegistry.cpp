@@ -33,11 +33,10 @@ void AssetTypeRegistry::RegisterBuiltInTypes()
     sceneHandler.category = AssetCategory::Scene;
     Register(sceneHandler);
 
-    // .asset: the generic JSON envelope for procedural / custom asset types.
-    // Packages that own a specific asset shape (e.g. ProceduralSprite) layer
-    // their own AssetTypeEditor on top via REGISTER_EDITOR; this makes the
-    // bare ".asset" extension resolve to the "Asset" type for AssetPipeline
-    // lookups.
+    // .asset: the generic JSON envelope for procedural and custom asset types.
+    // Packages that own a specific shape (e.g. ProceduralSprite) add their own
+    // AssetTypeEditor via REGISTER_EDITOR. This entry makes a bare ".asset"
+    // resolve to the "Asset" type in AssetPipeline lookups.
     AssetTypeHandler assetHandler;
     assetHandler.typeName = "Asset";
     assetHandler.displayName = "Asset";
@@ -52,13 +51,11 @@ void AssetTypeRegistry::RegisterBuiltInTypes()
 
 void AssetTypeRegistry::Register(const AssetTypeHandler& handler)
 {
-    // Replace an existing entry with the same type name (last registration
-    // wins, like AssetTypeEditorRegistry). Re-registration is the hot-reload
-    // path: RegisterEngineEditors runs again after package DLLs reload, and the
-    // fresh handler's callbacks capture the reloaded package's prototype.
-    // Skipping here would keep callbacks bound to the unloaded DLL, so every
-    // .asset compile after a hot reload would go through a dangling pointer
-    // (observed as caches deleted by RefreshAsset and never re-baked).
+    // The last registration of a type name wins, as in AssetTypeEditorRegistry.
+    // This is the hot-reload path: RegisterEngineEditors runs again after
+    // package DLLs reload, and the new handler's callbacks point into the
+    // reloaded package. Keeping the old entry would leave callbacks pointing
+    // into the unloaded DLL, and every .asset compile would crash or fail.
     bool replaced = false;
     for (auto& existing : m_Types)
     {
@@ -74,9 +71,8 @@ void AssetTypeRegistry::Register(const AssetTypeHandler& handler)
         m_Types.push_back(handler);
     }
 
-    // Mirror the handler's declared category into the extension map so
-    // GetCategoryForExtension can resolve types registered through the
-    // handler path without callers having to call RegisterCategory too.
+    // Copy the handler's category into the extension map, so
+    // GetCategoryForExtension knows it without a separate RegisterCategory.
     if (handler.category != AssetCategory::Unknown)
     {
         for (const std::string& ext : handler.extensions)
@@ -111,7 +107,6 @@ const AssetTypeHandler* AssetTypeRegistry::GetHandler(const std::string& typeNam
 const AssetTypeHandler* AssetTypeRegistry::GetHandlerForExtension(const std::string& extension) const
 {
     std::string ext = extension;
-    // Normalize to lowercase
     for (auto& c : ext)
     {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));

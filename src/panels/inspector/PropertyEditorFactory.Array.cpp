@@ -1,5 +1,5 @@
-// PropertyEditorFactory Array Property Implementation
-// Extracted from PropertyEditorFactory.cpp - DrawArrayProperty and DrawObjectRefArrayPicker
+// PropertyEditorFactory: array properties (DrawArrayProperty and
+// DrawObjectRefArrayPicker).
 
 #include "PropertyEditorFactory.h"
 #include <deki-editor/EditorTheme.h>
@@ -66,7 +66,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         }
     }
 
-    // Undo for size drag
+    // Undo for the size drag.
     static nlohmann::json s_OldSizeValue;
     if (ImGui::IsItemActivated())
     {
@@ -155,17 +155,16 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
 
         bool isDragSource = (s_DragSourceIndex == static_cast<int>(i));
 
-        // Save original positions before any drag offset
+        // Positions before any drag offset.
         float originalCardMinY = cardMin.y;
         float originalCardMaxY = cardMax.y;
 
-        // Float the dragged card to follow the mouse vertically (clamped to array bounds)
+        // The dragged card follows the mouse vertically, within the array.
         if (isDragSource)
         {
             float mouseY = ImGui::GetMousePos().y;
             float floatingY = mouseY - s_DragGrabOffsetY;
 
-            // Clamp to array bounds
             int n = static_cast<int>(currentValue.size());
             float minY = arrayTopY;
             float maxY = arrayTopY + (n - 1) * (cardHeight + cardSpacing);
@@ -180,16 +179,15 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
 
             float dragOffsetY = floatingY - cardMin.y;
 
-            // Draw ghost placeholder at original position
+            // A faint placeholder where the card was.
             drawList->ChannelsSetCurrent(0);
             drawList->AddRectFilled(cardMin, cardMax, IM_COL32(35, 37, 40, 40), rounding);
             drawList->AddRect(cardMin, cardMax, IM_COL32(55, 58, 62, 30), rounding, 0, 1.0f);
 
-            // Offset card to follow mouse
             cardMin.y += dragOffsetY;
             cardMax.y += dragOffsetY;
 
-            // Render floating card on top channel
+            // The floating card draws on the top channel.
             drawList->ChannelsSetCurrent(1);
         }
         else
@@ -197,13 +195,11 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             drawList->ChannelsSetCurrent(0);
         }
 
-        // Card background
         bool cardHovered = ImGui::IsMouseHoveringRect(cardMin, cardMax);
         bool showHover = (s_DragSourceIndex < 0) && cardHovered;
         ImU32 bgColor = isDragSource ? IM_COL32(48, 52, 58, 240) : (showHover ? cardHoverColor : cardColor);
         ImU32 borderCol = isDragSource ? IM_COL32(86, 158, 255, 180) : cardBorderColor;
 
-        // Shadow under floating card
         if (isDragSource)
         {
             drawList->AddRectFilled(ImVec2(cardMin.x + 4, cardMin.y + 4), ImVec2(cardMax.x + 4, cardMax.y + 4),
@@ -224,13 +220,12 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         ImGui::InvisibleButton("##drag", ImVec2(handleWidth, cardHeight));
         bool handleHovered = ImGui::IsItemHovered();
 
-        // Grab cursor on handle hover
         if (handleHovered && s_DragSourceIndex < 0)
         {
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         }
 
-        // Draw three horizontal lines as drag grip
+        // Three horizontal lines as the grip.
         {
             float cx = handleX + handleWidth * 0.5f;
             float cy = cardMin.y + cardHeight * 0.5f;
@@ -243,7 +238,6 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             }
         }
 
-        // Start drag on handle
         if (s_DragSourceIndex < 0 && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2.0f))
         {
             s_DragSourceIndex = static_cast<int>(i);
@@ -362,7 +356,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
                     }
                 }
                 btnLabel += "##objref" + std::to_string(i);
-                // FrameBg-colored like the other reference fields (not a plain button)
+                // FrameBg colours, like the other reference fields.
                 ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_FrameBgHovered]);
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyle().Colors[ImGuiCol_FrameBgActive]);
@@ -384,7 +378,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             ApplyArray(comp, prop, newValue);
         }
 
-        // Undo command on edit finish
+        // Undo command when the edit finishes.
         static nlohmann::json s_OldArrayValue;
         if (ImGui::IsItemActivated())
         {
@@ -423,7 +417,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             drawList->AddLine(ImVec2(cx + half, cy - half), ImVec2(cx - half, cy + half), xColor, 2.0f);
         }
 
-        // Advance cursor past the original card position (not the dragged offset)
+        // Past the card's original position, not the dragged one.
         ImGui::SetCursorScreenPos(ImVec2(cardStart.x, originalCardMaxY + cardSpacing));
 
         ImGui::PopID();
@@ -439,7 +433,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         float floatingCenterY = floatingY + cardHeight * 0.5f;
         int n = static_cast<int>(currentValue.size());
 
-        // Swap up if floating card center passes above adjacent card center
+        // Swap when the floating card's centre passes a neighbour's centre.
         if (s_DragSourceIndex > 0)
         {
             float aboveCenter = arrayTopY + (s_DragSourceIndex - 1) * (cardHeight + cardSpacing) + cardHeight * 0.5f;
@@ -451,7 +445,6 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
                 s_DragSourceIndex--;
             }
         }
-        // Swap down if floating card center passes below adjacent card center
         if (s_DragSourceIndex < n - 1)
         {
             float belowCenter = arrayTopY + (s_DragSourceIndex + 1) * (cardHeight + cardSpacing) + cardHeight * 0.5f;
@@ -464,7 +457,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             }
         }
 
-        // End drag on mouse release - commit undo command
+        // On release, the reorder becomes one undo command.
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
             nlohmann::json finalArray = CaptureArray(comp, prop);
@@ -478,7 +471,6 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         }
     }
 
-    // Handle removal
     if (indexToRemove >= 0)
     {
         nlohmann::json newValue = currentValue;

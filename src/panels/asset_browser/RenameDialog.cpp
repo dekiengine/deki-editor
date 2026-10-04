@@ -19,7 +19,7 @@ void RenameDialog::Open(int index, const std::string& currentName, bool isDirect
     m_ShouldOpen = true;
     m_RenameIndex = index;
 
-    // Copy current name (without extension for files) to buffer
+    // The current name, without a file's extension.
     namespace fs = std::filesystem;
     if (isDirectory)
     {
@@ -60,9 +60,8 @@ void RenameDialog::Draw()
         ImGui::Spacing();
         ImGui::TextColored(Palette::Dim, "New name");
 
-        // Focus request must precede the item: the after-item form
-        // (SetKeyboardFocusHere(-1)) doesn't take on a modal's appearing
-        // frame, leaving the input inactive so typing goes nowhere.
+        // Focus is requested before the item: SetKeyboardFocusHere(-1) after
+        // it does not take on a modal's first frame, and typing goes nowhere.
         if (ImGui::IsWindowAppearing())
         {
             ImGui::SetKeyboardFocusHere();

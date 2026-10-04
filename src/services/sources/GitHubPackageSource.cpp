@@ -14,7 +14,7 @@ bool GitHubPackageSource::CanHandle(const std::string& url) const
 
 bool GitHubPackageSource::ParseGitHubUrl(const std::string& url, std::string& owner, std::string& repo) const
 {
-    // Match patterns:
+    // Matches:
     // https://github.com/owner/repo
     // https://github.com/owner/repo.git
     // github.com/owner/repo
@@ -40,7 +40,7 @@ bool GitHubPackageSource::ParseUrl(const std::string& url, PackageEntry& outInfo
 
     outInfo.id = "github:" + owner + "/" + repo;
     outInfo.name = owner + "/" + repo;
-    outInfo.displayName = repo;  // Will be updated with proper name from API
+    outInfo.displayName = repo;  // replaced by the name from the API later
     outInfo.url = "https://github.com/" + owner + "/" + repo;
     outInfo.source = PackageSourceType::GitHub;
     outInfo.isInstalled = false;
@@ -50,7 +50,6 @@ bool GitHubPackageSource::ParseUrl(const std::string& url, PackageEntry& outInfo
 
 void GitHubPackageSource::FetchVersions(const PackageEntry& pkg, VersionsCallback callback)
 {
-    // Run in background thread
     std::thread(
         [this, pkg, callback]()
         {
@@ -63,7 +62,7 @@ void GitHubPackageSource::FetchVersions(const PackageEntry& pkg, VersionsCallbac
 
             std::vector<std::string> versions;
 
-            // First try releases
+            // Releases first, then tags when there are none
             std::string releasesUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/releases";
             std::string releasesJson = DekiEditor::EditorHttpUtils::FetchUrl(releasesUrl);
 
@@ -72,7 +71,6 @@ void GitHubPackageSource::FetchVersions(const PackageEntry& pkg, VersionsCallbac
                 versions = ParseReleasesJson(releasesJson);
             }
 
-            // If no releases, try tags
             if (versions.empty())
             {
                 std::string tagsUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/tags";
@@ -84,7 +82,7 @@ void GitHubPackageSource::FetchVersions(const PackageEntry& pkg, VersionsCallbac
                 }
             }
 
-            // Always fetch branches and add them (prefixed with "branch:")
+            // Branches are always added, prefixed with "branch:"
             std::string branchesUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/branches";
             std::string branchesJson = DekiEditor::EditorHttpUtils::FetchUrl(branchesUrl);
 
@@ -106,8 +104,7 @@ std::vector<std::string> GitHubPackageSource::ParseReleasesJson(const std::strin
 {
     std::vector<std::string> versions;
 
-    // Simple JSON parsing for tag_name fields
-    // Format: [...{"tag_name": "v7.0.0", ...}, ...]
+    // Every "tag_name" value, by regex: [...{"tag_name": "v7.0.0", ...}, ...]
     std::regex pattern("\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
     std::sregex_iterator iter(json.begin(), json.end(), pattern);
     std::sregex_iterator end;
@@ -115,7 +112,6 @@ std::vector<std::string> GitHubPackageSource::ParseReleasesJson(const std::strin
     while (iter != end)
     {
         std::string version = (*iter)[1].str();
-        // Remove 'v' prefix if present
         if (!version.empty() && version[0] == 'v')
         {
             version = version.substr(1);
@@ -131,8 +127,7 @@ std::vector<std::string> GitHubPackageSource::ParseTagsJson(const std::string& j
 {
     std::vector<std::string> versions;
 
-    // Simple JSON parsing for name fields in tags
-    // Format: [...{"name": "v7.0.0", ...}, ...]
+    // Every "name" value, by regex: [...{"name": "v7.0.0", ...}, ...]
     std::regex pattern("\"name\"\\s*:\\s*\"([^\"]+)\"");
     std::sregex_iterator iter(json.begin(), json.end(), pattern);
     std::sregex_iterator end;
@@ -140,7 +135,6 @@ std::vector<std::string> GitHubPackageSource::ParseTagsJson(const std::string& j
     while (iter != end)
     {
         std::string version = (*iter)[1].str();
-        // Remove 'v' prefix if present
         if (!version.empty() && version[0] == 'v')
         {
             version = version.substr(1);
@@ -156,8 +150,7 @@ std::vector<std::string> GitHubPackageSource::ParseBranchesJson(const std::strin
 {
     std::vector<std::string> branches;
 
-    // Simple JSON parsing for name fields in branches
-    // Format: [...{"name": "main", ...}, ...]
+    // Every "name" value, by regex: [...{"name": "main", ...}, ...]
     std::regex pattern("\"name\"\\s*:\\s*\"([^\"]+)\"");
     std::sregex_iterator iter(json.begin(), json.end(), pattern);
     std::sregex_iterator end;
@@ -173,7 +166,6 @@ std::vector<std::string> GitHubPackageSource::ParseBranchesJson(const std::strin
 
 void GitHubPackageSource::ParseRepoMetadata(const std::string& json, PackageEntry& pkg)
 {
-    // Parse description
     std::regex descPattern("\"description\"\\s*:\\s*\"([^\"]*)\"");
     std::smatch descMatch;
     if (std::regex_search(json, descMatch, descPattern))
@@ -181,7 +173,6 @@ void GitHubPackageSource::ParseRepoMetadata(const std::string& json, PackageEntr
         pkg.description = descMatch[1].str();
     }
 
-    // Parse name (display name)
     std::regex namePattern("\"name\"\\s*:\\s*\"([^\"]+)\"");
     std::smatch nameMatch;
     if (std::regex_search(json, nameMatch, namePattern))
@@ -189,7 +180,6 @@ void GitHubPackageSource::ParseRepoMetadata(const std::string& json, PackageEntr
         pkg.displayName = nameMatch[1].str();
     }
 
-    // Parse license
     std::regex licensePattern("\"license\"\\s*:\\s*\\{[^}]*\"name\"\\s*:\\s*\"([^\"]+)\"");
     std::smatch licenseMatch;
     if (std::regex_search(json, licenseMatch, licensePattern))
@@ -197,7 +187,7 @@ void GitHubPackageSource::ParseRepoMetadata(const std::string& json, PackageEntr
         pkg.license = licenseMatch[1].str();
     }
 
-    // Parse owner for author
+    // The owner's login is the author
     std::regex ownerPattern("\"owner\"\\s*:\\s*\\{[^}]*\"login\"\\s*:\\s*\"([^\"]+)\"");
     std::smatch ownerMatch;
     if (std::regex_search(json, ownerMatch, ownerPattern))

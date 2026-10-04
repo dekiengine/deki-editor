@@ -15,8 +15,8 @@
 
 namespace
 {
-// package.cmake is only there when the package compiles something; a data-only
-// package (a board pack shipping platforms/<id>/) is package.json alone.
+// package.cmake exists only when the package compiles something; a data-only
+// package (a board pack shipping platforms/<id>/) has just package.json.
 bool IsPackageDirectory(const fs::path& dir)
 {
     std::error_code ec;
@@ -34,7 +34,6 @@ fs::path DekiPackageInstaller::GetPackagesDir(const std::string& projectPath) co
 
 std::string DekiPackageInstaller::GetRepoName(const PackageEntry& pkg)
 {
-    // Extract repo name from "owner/repo" format
     std::string name = pkg.name;
     size_t slashPos = name.find('/');
     if (slashPos != std::string::npos)
@@ -60,22 +59,20 @@ std::string DekiPackageInstaller::ParsePackageVar(const fs::path& packageCmakePa
     std::string line;
     while (std::getline(file, line))
     {
-        // Look for: set(VAR "Value") or set(VAR Value)
+        // set(VAR "Value") or set(VAR Value)
         size_t pos = line.find(varName);
         if (pos == std::string::npos)
         {
             continue;
         }
 
-        // Find the value after the variable name
         pos += strlen(varName);
-        // Skip whitespace
         while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
         {
             pos++;
         }
 
-        // Extract value (remove quotes and closing paren)
+        // The value, without quotes or the closing paren
         std::string value;
         bool inQuotes = false;
         for (; pos < line.size(); pos++)
@@ -120,7 +117,7 @@ DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
 
     while (std::getline(file, line))
     {
-        // Look for: set(PACKAGE_PLATFORM_DEPS
+        // set(PACKAGE_PLATFORM_DEPS
         if (!inPlatformDeps)
         {
             if (line.find("PACKAGE_PLATFORM_DEPS") != std::string::npos)
@@ -130,13 +127,12 @@ DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
             continue;
         }
 
-        // Check for closing paren
         if (line.find(')') != std::string::npos)
         {
             break;
         }
 
-        // Extract quoted entry: "platform:name;version" or "platform:name;version;git_url"
+        // Quoted entry: "platform:name;version" or "platform:name;version;git_url"
         size_t quoteStart = line.find('"');
         if (quoteStart == std::string::npos)
         {
@@ -154,7 +150,6 @@ DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
             continue;
         }
 
-        // Split on ':' to get platform prefix
         size_t colonPos = entry.find(':');
         if (colonPos == std::string::npos)
         {
@@ -164,7 +159,7 @@ DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
         std::string platform = entry.substr(0, colonPos);
         std::string rest = entry.substr(colonPos + 1);
 
-        // Split rest on ';' to get name, version, optional gitUrl
+        // name;version, then an optional ;gitUrl
         DependencyInfo dep;
         size_t semi1 = rest.find(';');
         if (semi1 == std::string::npos)
@@ -196,7 +191,7 @@ DekiPackageInstaller::ParsePlatformDeps(const fs::path& packageCmakePath) const
 
 bool DekiPackageInstaller::IsApplicable(const std::string& projectPath) const
 {
-    // Applicable for desktop/editor projects that have a project/src/ directory
+    // Applies to projects with a project/src/ directory
     return fs::exists(fs::path(DekiEditor::GetSourceDirectory(projectPath)));
 }
 
@@ -210,7 +205,6 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
         return packages;
     }
 
-    // Scan for package descriptors in each subdirectory
     try
     {
         for (const auto& entry : fs::directory_iterator(packagesDir))
@@ -239,14 +233,14 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
             pkg.isInstalled = true;
             pkg.source = PackageSourceType::GitHub;
 
-            // Try to read version from .deki-package.json
+            // Version, id, url and name from .deki-package.json, when present
             fs::path metaPath = entry.path() / ".deki-package.json";
             if (fs::exists(metaPath))
             {
                 std::ifstream metaFile(metaPath);
                 std::string content((std::istreambuf_iterator<char>(metaFile)), std::istreambuf_iterator<char>());
 
-                // Simple JSON field extraction (find "key": "value" patterns)
+                // Finds a "key": "value" pair by text search
                 auto extractField = [&content](const std::string& key) -> std::string
                 {
                     std::string needle = "\"" + key + "\"";
@@ -255,13 +249,11 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
                     {
                         return "";
                     }
-                    // Skip past key and colon
                     pos = content.find(':', pos + needle.size());
                     if (pos == std::string::npos)
                     {
                         return "";
                     }
-                    // Find opening quote of value
                     pos = content.find('"', pos + 1);
                     if (pos == std::string::npos)
                     {
@@ -286,19 +278,17 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
                 }
             }
 
-            // Extract owner/repo for ID from URL if not already set
+            // No id: derive "github:owner/repo" from the URL
             if (pkg.id.empty() && !pkg.url.empty())
             {
                 size_t ghPos = pkg.url.find("github.com/");
                 if (ghPos != std::string::npos)
                 {
                     std::string ownerRepo = pkg.url.substr(ghPos + 11);
-                    // Remove trailing .git
                     if (ownerRepo.size() > 4 && ownerRepo.substr(ownerRepo.size() - 4) == ".git")
                     {
                         ownerRepo = ownerRepo.substr(0, ownerRepo.size() - 4);
                     }
-                    // Remove trailing slash
                     if (!ownerRepo.empty() && ownerRepo.back() == '/')
                     {
                         ownerRepo.pop_back();
@@ -308,17 +298,12 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
             }
 
             // Last resort: the directory name. Install() clones each package into
-            // a directory named after its repo, so the folder name IS the
-            // canonical registry id ("deki-wifi") - this is a recovery, not a
-            // guess.
+            // a directory named after its repo, so the folder name is the
+            // registry id ("deki-wifi").
             //
-            // Everything above depends on .deki-package.json, which only exists
-            // for packages this installer wrote. A directory that has package.cmake
-            // but no metadata - a hand-cloned package, a checkout predating that
-            // file, or one where it was deleted - otherwise yielded an entry with
-            // an empty id, and SavePackages then wrote it to the manifest and lock
-            // keyed on "". That entry can never match a real package again, so it
-            // shows up forever as declared-but-never-installable.
+            // Needed for a package without .deki-package.json (cloned by hand,
+            // or the file was deleted). An empty id would be saved to the
+            // manifest and lock under "", and could never match a real package.
             if (pkg.id.empty())
             {
                 pkg.id = dirName;
@@ -329,7 +314,7 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
     }
     catch (const fs::filesystem_error&)
     {
-        // Ignore scan errors
+        // Return what was found before the error
     }
 
     return packages;
@@ -341,12 +326,12 @@ void DekiPackageInstaller::ExcludeFromGitLocally(const fs::path& repoDir, const 
     const fs::path infoDir = repoDir / ".git" / "info";
     if (!fs::exists(infoDir) && !fs::create_directories(infoDir, ec))
     {
-        return;  // worktree or unusual layout - skip silently, this is a nicety
+        return;  // worktree or unusual layout; this is optional, so skip it
     }
 
     const fs::path excludePath = infoDir / "exclude";
 
-    // Don't append twice across reinstalls.
+    // Append once, across reinstalls.
     {
         std::ifstream in(excludePath);
         std::string line;
@@ -377,8 +362,8 @@ bool DekiPackageInstaller::IsSafeGitRef(const std::string& ref, std::string& rea
         reason = "empty version/branch";
         return false;
     }
-    // A leading dash makes git read the value as an option. `--upload-pack=...`
-    // is the well-known way to turn a clone into arbitrary command execution.
+    // A leading dash makes git read the value as an option, and
+    // `--upload-pack=...` turns a clone into arbitrary command execution.
     if (ref.front() == '-')
     {
         reason = "version/branch may not start with '-'";
@@ -394,7 +379,7 @@ bool DekiPackageInstaller::IsSafeGitRef(const std::string& ref, std::string& rea
             return false;
         }
     }
-    // Git refuses these anyway; rejecting up front keeps the error legible.
+    // Git refuses these anyway; rejecting them here gives a clearer error.
     if (ref.find("..") != std::string::npos)
     {
         reason = "version/branch may not contain '..'";
@@ -415,17 +400,16 @@ bool DekiPackageInstaller::IsSafeGitUrl(const std::string& url, std::string& rea
         reason = "repository URL may not start with '-'";
         return false;
     }
-    // https only. git:// and http:// are unauthenticated, and ssh:// or a scp-style
-    // `host:path` would pull in the user's agent and key material for a URL that
-    // arrived over the network from a registry.
+    // https only. git:// and http:// are unauthenticated, and ssh:// or a
+    // scp-style `host:path` would use the user's agent and keys for a URL that
+    // came over the network from a registry.
     if (url.rfind("https://", 0) != 0)
     {
         reason = "repository URL must start with https://";
         return false;
     }
-    // No control characters, whitespace, or quoting metacharacters. Nothing here
-    // reaches a shell any more, but a URL containing them is malformed regardless
-    // and rejecting it keeps the intent explicit.
+    // No control characters, whitespace or shell metacharacters. Nothing here
+    // reaches a shell, but a URL containing them is malformed anyway.
     for (unsigned char c : url)
     {
         if (c < 0x21 || c == '"' || c == '\'' || c == '`' || c == '\\' || c == '|' || c == '&' || c == ';' ||
@@ -494,7 +478,6 @@ std::string DekiPackageInstaller::RefreshCheckedOutVersion(const std::string& pr
 
 bool DekiPackageInstaller::HasUnpushedCommits(const std::string& dirArg) const
 {
-    // Commits on any local ref that no remote ref contains.
     std::string out;
     RunGit({ "-C", dirArg, "log", "--all", "--not", "--remotes", "--oneline" }, out);
     return !out.empty();
@@ -507,7 +490,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     fs::path packagesDir = GetPackagesDir(projectPath);
     fs::path packageDir = packagesDir / repoName;
 
-    // The name came from a registry, a lock file or a manifest: none of them
+    // The name comes from a registry, a lock file or a manifest, none of which
     // is trusted to choose where on disk this install lands.
     {
         std::string reason;
@@ -523,23 +506,21 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         }
     }
 
-    // Create packages directory if it doesn't exist
     std::error_code ec;
     fs::create_directories(packagesDir, ec);
 
-    // Never overwrite developer junctions/symlinks.
+    // Never overwrite a developer's junction or symlink.
     //
-    // IsReparsePoint, not fs::is_symlink: a Windows directory junction carries
-    // IO_REPARSE_TAG_MOUNT_POINT, so is_symlink() reports false for it and this
-    // guard silently passed. That is how installs reached through a project's
-    // junctions into the sibling package repos and left them on a detached tag.
+    // Must be IsReparsePoint, not fs::is_symlink: a Windows directory junction
+    // is IO_REPARSE_TAG_MOUNT_POINT, so is_symlink() is false for it, and the
+    // install would check out a tag in the package repo behind the junction.
     if (fs::exists(packageDir) && DekiEditor::IsReparsePoint(packageDir))
     {
         callback(true, "Package directory is a junction/symlink, skipping install");
         return;
     }
 
-    // Handle "branch:" prefix
+    // Drop a "branch:" prefix
     std::string gitRef = version;
     if (gitRef.rfind("branch:", 0) == 0)
     {
@@ -553,8 +534,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     }
 
     // Validate before anything is spawned. These values come from a registry
-    // index.json fetched over the network, from a user-added custom registry, or
-    // from a URL typed into the Package Manager - none of which is trusted input.
+    // index.json fetched over the network, a user-added custom registry, or a
+    // URL typed into the Package Manager, none of which is trusted.
     {
         std::string reason;
         if (!IsSafeGitUrl(gitUrl, reason))
@@ -575,9 +556,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
 
     if (isExistingClone)
     {
-        // An installed package is a real working clone, so a version change must
-        // not silently discard edits that only exist here. Refuse while the tree
-        // is dirty and let the developer commit, stash or push first.
+        // An installed package is a working clone, so a version change must not
+        // discard edits that exist only here. Refuse while the tree is dirty.
         std::string status;
         RunGit({ "-C", dirArg, "status", "--porcelain" }, status);
         if (!status.empty())
@@ -589,12 +569,10 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
             return;
         }
 
-        // A package marked editable is one the project is DEVELOPING, and it
-        // normally sits on a branch rather than the pinned tag. The checkout
-        // below would move HEAD off that branch; the commits stay reachable,
-        // but silently rewinding someone's working branch during a routine
-        // --packages-update is not a thing to do without asking. Remove() has
-        // refused on unpushed work for the same reason; this is the other half.
+        // An editable package is one the project is developing, usually on a
+        // branch rather than the pinned tag. The checkout below would move HEAD
+        // off that branch, which a routine --packages-update must not do while
+        // it holds unpushed work. Remove() refuses on unpushed work too.
         if (pkg.editable && HasUnpushedCommits(dirArg))
         {
             callback(false, "'" + repoName +
@@ -605,20 +583,18 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
             return;
         }
 
-        // Fetch + checkout rather than delete + re-clone: local branches, stashes
-        // and history survive a version switch. --force lets a tag that was
-        // moved upstream (a re-cut release) replace the stale local one; git
-        // otherwise refuses to clobber an existing tag and the checkout below
-        // would silently land on the old commit.
+        // Fetch and checkout rather than delete and re-clone, so local branches,
+        // stashes and history survive a version switch. --force lets a tag moved
+        // upstream (a re-cut release) replace the local one; without it git
+        // keeps the old tag and the checkout lands on the old commit.
         if (RunGit({ "-C", dirArg, "fetch", "--tags", "--force", "--prune", "origin" }, output) != 0)
         {
             callback(false, "git fetch failed for '" + repoName + "': " + output);
             return;
         }
-        // No "--" here: in checkout that separator introduces *paths*, so
-        // `checkout -- <ref>` would try to restore a file by that name instead
-        // of switching branch. IsSafeGitRef above is what rules out a ref that
-        // git would read as an option.
+        // No "--" here: in checkout it introduces paths, so `checkout -- <ref>`
+        // would restore a file by that name instead of switching. IsSafeGitRef
+        // above rules out a ref git would read as an option.
         if (RunGit({ "-C", dirArg, "checkout", gitRef }, output) != 0)
         {
             callback(false, "git checkout " + gitRef + " failed for '" + repoName + "': " + output);
@@ -627,8 +603,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     }
     else
     {
-        // Not a clone: either a first install, or a legacy snapshot install from
-        // when .git was stripped. Either way there is no history worth keeping.
+        // Not a clone: a first install, or a snapshot install without .git.
+        // Either way there is no history to keep.
         if (fs::exists(packageDir))
         {
             fs::remove_all(packageDir, ec);
@@ -640,9 +616,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         }
 
         // Full clone, not --depth 1: the working copy is meant to be edited and
-        // pushed with ordinary git tooling, and a shallow detached checkout makes
-        // branching, diffing against history and pushing awkward. These package
-        // repos are source-only and small, so the history costs very little.
+        // pushed with ordinary git tools, which a shallow clone makes awkward.
+        // Package repos are small and source-only, so history costs little.
         if (RunGit({ "clone", "--branch", gitRef, "--", gitUrl, dirArg }, output) != 0)
         {
             fs::remove_all(packageDir, ec);  // clean up partial clone
@@ -651,11 +626,11 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         }
     }
 
-    // The commit this version is. The lock records it, and restoring the same
-    // version must land on the same commit: a tag can be moved (a re-cut
-    // release, or a compromised upstream), and the code here is compiled and
-    // loaded without anyone reading it. Only the version the lock pins is
-    // checked, so choosing another version still works.
+    // The commit of this version. The lock records it, and installing the same
+    // version again must give the same commit: a tag can be moved (a re-cut
+    // release, or a compromised upstream), and this code is compiled and
+    // loaded unread. Only the version the lock pins is checked, so choosing
+    // another version still works.
     std::string headCommit;
     if (RunGit({ "-C", dirArg, "rev-parse", "HEAD" }, headCommit) == 0)
     {
@@ -691,12 +666,11 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         }
     }
 
-    // Validate it is a package at all
     fs::path packageCmake = packageDir / "package.cmake";
     if (!IsPackageDirectory(packageDir))
     {
-        // Only discard a directory this call created - never one that already
-        // held a clone, which may carry the developer's branches.
+        // Only delete a directory this call created, never an existing clone,
+        // which may hold the developer's branches.
         if (!isExistingClone)
         {
             fs::remove_all(packageDir, ec);
@@ -706,13 +680,11 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     }
 
     // Refuse a package built against a newer engine than this editor embeds.
-    // The plugin ABI in DekiPlugin.h is not versioned in the DLL itself, so
-    // without this the mismatch surfaces as a compile error deep in a project
-    // build (a missing header, a symbol that no longer exists) with nothing
-    // pointing at the package that caused it.
+    // The DLL does not carry the plugin ABI version (DekiPlugin.h), so a
+    // mismatch would otherwise show up as a compile error deep in a project
+    // build, with nothing naming the package.
     //
-    // Absent minEngine means "any engine": packages published before the field
-    // existed must keep installing.
+    // A missing minEngine means any engine, so older packages still install.
     {
         std::string reason;
         if (!EngineSatisfiesPackage(packageDir, reason))
@@ -727,14 +699,12 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
     }
 
     // .deki-package.json is editor bookkeeping, not package source. Exclude it
-    // locally (.git/info/exclude, not the package's tracked .gitignore) so it
-    // never shows up as a stray change or gets pushed to the package repo.
+    // locally (.git/info/exclude, not the tracked .gitignore) so it never shows
+    // as a change or gets pushed to the package repo.
     ExcludeFromGitLocally(packageDir, ".deki-package.json");
 
-    // Parse platform-specific dependencies from package.cmake
     auto platformDeps = ParsePlatformDeps(packageCmake);
 
-    // Write metadata file for tracking
     fs::path metaPath = packageDir / ".deki-package.json";
     std::ofstream metaFile(metaPath);
     if (metaFile.is_open())
@@ -794,8 +764,8 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
     const fs::path packagesDir = GetPackagesDir(projectPath);
     fs::path packageDir = packagesDir / repoName;
 
-    // Same rule as Install: a manifest naming "../something" must not turn a
-    // package removal into the removal of something else.
+    // Same rule as Install: a manifest naming "../something" must not remove
+    // something else.
     {
         std::string reason;
         if (!IsSafeName(repoName, reason))
@@ -810,27 +780,24 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         }
     }
 
-    // Already absent is a success, not a failure: removal is idempotent, and the
-    // caller's real goal is to drop the package from the project. Failing here
-    // made a package that is declared but not installed impossible to remove -
-    // the manifest entry could never be cleared, so it showed up forever as
-    // declared-and-missing. Fall through so stray build artifacts are cleaned
-    // up too.
+    // An absent package is a success: the caller wants the package out of the
+    // project, and a package declared but not installed must still be
+    // removable from the manifest. Carry on so stray build artifacts are
+    // cleaned up too.
     const bool wasInstalled = fs::exists(packageDir);
 
-    // Never remove junction targets - only delete regular directories.
-    // See the note on the matching guard in Install() for why this is not
-    // fs::is_symlink.
+    // Never remove through a junction; only delete regular directories. See
+    // the matching guard in Install() for why this is not fs::is_symlink.
     if (wasInstalled && DekiEditor::IsReparsePoint(packageDir))
     {
         callback(false, "Package is a junction/symlink, not removing (manage via source repo)");
         return;
     }
 
-    // The package is a working clone, so uninstalling can destroy work that
+    // The package is a working clone, so removing it can destroy work that
     // exists nowhere else. Refuse while anything is uncommitted or unpushed.
-    // Checked before anything is read or deleted, so a refusal leaves the
-    // package exactly as it was.
+    // Checked before anything is deleted, so a refusal leaves the package as
+    // it was.
     if (fs::exists(packageDir / ".git"))
     {
         const std::string dirArg = packageDir.string();
@@ -861,9 +828,9 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
     // the sources go away.
     std::string packageTarget = ParsePackageVar(packageDir / "package.cmake", "PACKAGE_TARGET");
     {
-        // package.cmake is content of the clone, i.e. whatever the package
-        // author wrote; it names a settings directory below, so it gets the
-        // same allowlist as the package name.
+        // package.cmake is whatever the package author wrote, and it names a
+        // settings directory below, so it gets the same check as the package
+        // name.
         std::string reason;
         if (packageTarget.empty() || !IsSafeName(packageTarget, reason))
         {
@@ -882,18 +849,15 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
         }
     }
 
-    // Delete the built artifacts too. PackageLoader discovers packages by scanning
-    // bin/ for deki-* libraries, not by consulting the manifest, so a leftover
-    // library from a removed package keeps being loaded and its components keep
-    // registering - the package looks uninstalled everywhere except at runtime.
-    // Also clear the loader's shadow copy, or the next launch re-copies from it.
+    // Delete the built artifacts too. PackageLoader finds packages by scanning
+    // bin/ for deki-* libraries, not by reading the manifest, so a leftover
+    // library would keep loading and registering its components. Also clear
+    // the loader's shadow copy, or the next launch copies from it again.
     //
-    // Matched on stem so every per-platform companion goes with it: the import
+    // Matched on stem so every per-platform companion goes too: the import
     // library and .pdb on MSVC, versioned sonames on ELF.
     {
-        // The shadow dir is asked for by name rather than assumed to sit under bin/:
-        // it does not, and hardcoding a bin/-relative path here meant the shadow copy
-        // of an uninstalled package survived and got loaded again on the next launch.
+        // Ask PackageLoader for the shadow dir: it is not under bin/.
         const fs::path binDir = DekiEditor::ProjectPaths::Runtime(projectPath);
         const fs::path shadowDir = DekiEditor::PackageLoader::ShadowDirForProject(projectPath);
         for (const fs::path& dir : { binDir, shadowDir })
@@ -924,10 +888,11 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
             }
         }
 
-        // A package owns its settings folder, so it goes with the package. Left
-        // behind, the settings would be re-adopted by a later reinstall and, until
-        // then, sit in the project as an orphan nothing can edit. Keyed by package
-        // id, which is what PackageLoader files these under.
+        // A package owns its settings folder, so it goes with the package.
+        // Otherwise a later reinstall would pick the settings up again, and
+        // until then they would sit in the project where nothing can edit
+        // them. Keyed by the package's build target, the name of its library,
+        // which is what PackageLoader files them under.
         std::error_code settingsEc;
         const fs::path packageSettingsDir =
             DekiEditor::ProjectPaths::Settings(projectPath) / "packages" / packageTarget;
@@ -942,7 +907,7 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
 }
 
 // ============================================================================
-// Core Dependencies (not applicable for desktop packages)
+// Core dependencies: desktop packages have none
 // ============================================================================
 
 std::vector<CoreDependency> DekiPackageInstaller::GetCoreDependencies() const
@@ -952,7 +917,6 @@ std::vector<CoreDependency> DekiPackageInstaller::GetCoreDependencies() const
 
 void DekiPackageInstaller::EnsureCoreDependencies(const std::string& /*projectPath*/)
 {
-    // No core dependencies for desktop packages
 }
 
 bool DekiPackageInstaller::IsCoreDependency(const std::string& /*name*/) const
@@ -965,7 +929,7 @@ bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir, st
     const fs::path manifest = packageDir / "package.json";
     if (!fs::exists(manifest))
     {
-        return true;  // not every package ships one; nothing to check against
+        return true;  // not every package ships one
     }
 
     nlohmann::json j;
@@ -973,7 +937,7 @@ bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir, st
         std::ifstream in(manifest);
         if (!in.is_open())
         {
-            return true;  // unreadable manifest is not this check's business
+            return true;  // the loader reports an unreadable manifest
         }
         try
         {
@@ -1005,14 +969,10 @@ bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir, st
     }
 
     // The other direction. Releases are in lockstep, so minEngine is also the
-    // engine generation this package was BUILT against, and a package older
-    // than the engine can still build is refused here rather than later.
-    //
-    // Later is much worse: it installs, its DLL fails the reflection ABI
-    // handshake at load, the editor rebuilds it from source as that error asks,
-    // and the rebuild fails to compile against an engine the source predates.
-    // What reaches the user is a compile error inside a project build with
-    // nothing naming the package that caused it.
+    // engine this package was built against. A package older than the engine
+    // can still build is refused here, because otherwise its DLL fails the
+    // reflection ABI handshake, the editor rebuilds it from source, and that
+    // fails with a compile error that does not name the package.
     if (DekiEditor::CompareVersions(minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
     {
         reason = "Package was built for engine " + minEngine + "; this editor needs " + DEKI_OLDEST_SUPPORTED_PACKAGE +

@@ -51,8 +51,8 @@ void ActivityPanel::Draw()
         return;
     }
 
-    // Console-style toolbar strip: a flat Clear cell (eraser icon) with 1px
-    // dividers and a bottom hairline, matching ConsolePanel's toolbar chrome.
+    // Toolbar strip styled like the Console's: a flat Clear button between
+    // 1px dividers, with a hairline below.
     {
         const float dpi = m_App->Dpi(1.0f);
         const float rowH = 34.0f * dpi;
@@ -68,10 +68,9 @@ void ActivityPanel::Draw()
         float cursorX = rowMin.x;
         auto drawDivider = [&](float x) { dl->AddLine(ImVec2(x, rowMin.y), ImVec2(x, rowMax.y), colLine, 1.0f); };
 
-        // Leading divider at strip start.
         drawDivider(cursorX);
 
-        // Clear cell.
+        // Clear button.
         {
             const char* icon = ICON_TI_ERASER;
             const ImVec2 iconSz = ImGui::CalcTextSize(icon);
@@ -123,17 +122,17 @@ void ActivityPanel::Draw()
         if (proc.status == ProcessStatus::Completed)
         {
             icon = ICON_TI_CHECK;
-            iconColor = DekiEditor::Palette::Green;  // green
+            iconColor = DekiEditor::Palette::Green;
         }
         else if (proc.status == ProcessStatus::Failed)
         {
             icon = ICON_TI_X;
-            iconColor = DekiEditor::Palette::Red;  // red
+            iconColor = DekiEditor::Palette::Red;
         }
         else if (proc.status == ProcessStatus::Cancelled)
         {
             icon = ICON_TI_BAN;
-            iconColor = DekiEditor::Palette::Amber;  // yellow
+            iconColor = DekiEditor::Palette::Amber;
         }
 
         // Card background
@@ -147,7 +146,7 @@ void ActivityPanel::Draw()
         ImU32 bgColor = proc.expanded ? IM_COL32(50, 55, 60, 255) : IM_COL32(40, 42, 45, 255);
         drawList->AddRectFilled(cardPos, ImVec2(cardPos.x + cardWidth, cardPos.y + cardHeight), bgColor, 4.0f);
 
-        // Clickable area
+        // Clicking the card expands or collapses its log.
         if (ImGui::InvisibleButton("##card", ImVec2(cardWidth, cardHeight)))
         {
             proc.expanded = !proc.expanded;
@@ -207,7 +206,7 @@ void ActivityPanel::Draw()
         {
             float subtitleY = nameY + lineH + 4.0f;
 
-            // Truncate if too long
+            // Cut the text off at the card's width.
             float maxSubWidth = cardWidth - textX + cardPos.x - padding;
             const char* subtitleEnd = nullptr;
             ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxSubWidth, maxSubWidth, proc.lastMessage.c_str(),
@@ -271,7 +270,7 @@ void ActivityPanel::Draw()
                 ImGui::PopStyleColor();
             }
 
-            // Auto-scroll to bottom
+            // Follow new lines while the process runs.
             if (proc.status == ProcessStatus::Running)
             {
                 ImGui::SetScrollHereY(1.0f);
@@ -294,7 +293,7 @@ void ActivityPanel::Draw()
 
 ActivityProcess& ActivityPanel::FindOrCreateProcess(const std::string& name)
 {
-    // Only reuse a process that is still Running
+    // Reuse a running process with this name. A finished one gets a new card.
     for (auto& proc : m_Processes)
     {
         if (proc.name == name && proc.status == ProcessStatus::Running)
@@ -303,7 +302,7 @@ ActivityProcess& ActivityPanel::FindOrCreateProcess(const std::string& name)
         }
     }
 
-    // Always create a new entry (newest first)
+    // New processes go at the top, so the list is newest first.
     m_Processes.insert(m_Processes.begin(), ActivityProcess());
     auto& proc = m_Processes.front();
     proc.name = name;
@@ -324,7 +323,7 @@ void ActivityPanel::AddEntry(const std::string& process, const std::string& mess
     proc.entries.push_back(entry);
     proc.lastMessage = message;
 
-    // Cap entries per process
+    // Keep only the newest entries of each process.
     const size_t maxEntries = 500;
     if (proc.entries.size() > maxEntries)
     {
@@ -481,20 +480,20 @@ void ActivityPanel::DrawStatusBar()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    // Pre-calculate MCP button dimensions so we can exclude its area from the status bar click zone
+    // Measure the MCP button first so the bar's click area can stop short of it.
     bool mcpRunning = m_App->IsMcpServerRunning();
     const char* mcpLabel = mcpRunning ? ICON_TI_PLUG_CONNECTED " MCP connected" : ICON_TI_PLUG " MCP";
     ImVec2 mcpSize = ImGui::CalcTextSize(mcpLabel);
     float mcpBtnWidth = mcpSize.x + 12.0f;
 
-    // Clickable area - opens the Activity panel (excludes MCP button on the right)
+    // Clicking the bar, left of the MCP button, opens the Activity panel.
     ImGui::SetCursorScreenPos(barMin);
     if (ImGui::InvisibleButton("##StatusBarClick", ImVec2(barMax.x - barMin.x - mcpBtnWidth, barHeight)))
     {
         isOpen = true;
     }
 
-    // Bar background (schematic Panel) + hairline top border
+    // Bar background with a hairline along the top.
     const ImU32 bgCol = ImGui::ColorConvertFloat4ToU32(Palette::Panel);
     const ImU32 borderCol = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
     const ImU32 accentCol = ImGui::ColorConvertFloat4ToU32(Palette::Accent);
@@ -504,7 +503,7 @@ void ActivityPanel::DrawStatusBar()
     float textY = barMin.y + (barHeight - ImGui::GetTextLineHeight()) * 0.5f;
     float cursorX = barMin.x + padding;
 
-    // Count running processes
+    // Count running processes. The first one found is the newest.
     int runningCount = 0;
     const ActivityProcess* latestRunning = nullptr;
     for (const auto& proc : m_Processes)
@@ -560,7 +559,7 @@ void ActivityPanel::DrawStatusBar()
     }
     else if (!m_Processes.empty())
     {
-        // Show most recent completed/failed process
+        // Nothing running: show the newest finished process.
         const auto& proc = m_Processes.front();
         const char* statusIcon = ICON_TI_X;
         ImVec4 statusColor(1.0f, 0.3f, 0.3f, 1.0f);
@@ -588,7 +587,7 @@ void ActivityPanel::DrawStatusBar()
     }
     else
     {
-        // Accent square + "Ready" - schematic idle state.
+        // Idle: an accent square and "Ready".
         const float dotSize = 7.0f;
         const float lineH = ImGui::GetTextLineHeight();
         drawList->AddRectFilled(ImVec2(cursorX, textY + (lineH - dotSize) * 0.5f),
@@ -597,9 +596,9 @@ void ActivityPanel::DrawStatusBar()
         drawList->AddText(ImVec2(cursorX, textY), accentCol, "Ready");
         cursorX += ImGui::CalcTextSize("Ready").x;
 
-        // "Build failed · N error(s)" in red when a build left errors in the
-        // Console; any other errors are just counted. A scene that failed to
-        // load used to read as a failed build.
+        // "Build failed · N error(s)" in red only when a build left errors in
+        // the Console. Other errors are just counted, so a scene that failed
+        // to load does not read as a failed build.
         if (auto* console = ConsolePanel::GetInstance())
         {
             const int buildErrs = console->GetBuildErrorCount();
@@ -636,7 +635,6 @@ void ActivityPanel::DrawStatusBar()
         float mcpX = barMax.x - mcpSize.x - padding;
         float mcpBtnX = mcpX - 6.0f;
 
-        // Draw clickable button area
         ImGui::SetCursorScreenPos(ImVec2(mcpBtnX, barMin.y));
         ImGui::PushID("##McpToggle");
         if (ImGui::InvisibleButton("##McpBtn", ImVec2(mcpBtnWidth, barHeight)))
@@ -652,9 +650,8 @@ void ActivityPanel::DrawStatusBar()
         }
         ImGui::PopID();
 
-        // Right-click copies the connection URL. The server binds loopback and
-        // mints a fresh token each start, so the URL cannot be written down in
-        // advance - the user needs a way to get the current one.
+        // Right-click copies the connection URL. The server makes a new token
+        // each time it starts, so this is how the user gets the current one.
         if (mcpRunning && ImGui::IsItemClicked(ImGuiMouseButton_Right))
         {
             ImGui::SetClipboardText(m_App->GetMcpSseUrl().c_str());

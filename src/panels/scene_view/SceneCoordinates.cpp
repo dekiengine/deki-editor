@@ -26,8 +26,8 @@ void SceneCoordinates::SetViewport(ImVec2 canvasTopLeft, ImVec2 canvasSize, floa
 
 ImVec2 SceneCoordinates::WorldToScreen(float worldX, float worldY) const
 {
-    // world units → buffer pixels (× PPM) → screen pixels (× zoom × dpi).
-    // Y-up world → Y-down screen (negate Y).
+    // World meters * PPM = buffer pixels; * zoom * dpi = screen pixels.
+    // World Y points up and screen Y down, so Y is negated.
     float effectiveZoom = m_Zoom * ImGui::GetWindowDpiScale();
     float worldToScreen = effectiveZoom * m_PixelsPerMeter;
 
@@ -37,12 +37,12 @@ ImVec2 SceneCoordinates::WorldToScreen(float worldX, float worldY) const
     float sceneWidth = vpWidth * effectiveZoom;
     float sceneHeight = vpHeight * effectiveZoom;
 
-    // Scene center in screen coordinates (keep as float, floor only at final blit)
+    // Scene centre on screen. Kept as a float; only the final blit floors.
     float sceneCenterX = m_CanvasTopLeft.x + m_PanX + sceneWidth * 0.5f;
     float sceneCenterY = m_CanvasTopLeft.y + m_PanY + sceneHeight * 0.5f;
 
     float screenX = sceneCenterX + worldX * worldToScreen;
-    float screenY = sceneCenterY - worldY * worldToScreen;  // Negate Y: world Y+ is up
+    float screenY = sceneCenterY - worldY * worldToScreen;  // world Y points up
 
     return ImVec2(screenX, screenY);
 }
@@ -59,12 +59,11 @@ ImVec2 SceneCoordinates::ScreenToWorld(float screenX, float screenY) const
     float sceneWidth = vpWidth * effectiveZoom;
     float sceneHeight = vpHeight * effectiveZoom;
 
-    // Scene center in screen coordinates
     float sceneCenterX = m_CanvasTopLeft.x + m_PanX + sceneWidth * 0.5f;
     float sceneCenterY = m_CanvasTopLeft.y + m_PanY + sceneHeight * 0.5f;
 
     float worldX = (screenX - sceneCenterX) * screenToWorld;
-    float worldY = -(screenY - sceneCenterY) * screenToWorld;  // Y down → Y up
+    float worldY = -(screenY - sceneCenterY) * screenToWorld;  // screen Y down, world Y up
 
     return ImVec2(worldX, worldY);
 }
@@ -72,11 +71,10 @@ ImVec2 SceneCoordinates::ScreenToWorld(float screenX, float screenY) const
 void SceneCoordinates::GetBufferScreenBounds(int bufferWidth, int bufferHeight, float centerWorldX, float centerWorldY,
                                              ImVec2& outTopLeft, ImVec2& outBottomRight) const
 {
-    // The buffer is in framebuffer pixels; its center maps to (centerWorldX,
-    // centerWorldY) in world units. To find the display bounds, project the
-    // center to screen and extend by half the buffer size in screen pixels
-    // (i.e. buffer pixels × editor zoom - PPM does not enter because buffer
-    // pixels are already in framebuffer space).
+    // The buffer is in framebuffer pixels and its centre is at (centerWorldX,
+    // centerWorldY). Project the centre to screen and extend by half the
+    // buffer size times the editor zoom. PPM does not enter: buffer pixels are
+    // already framebuffer pixels.
     int halfW = bufferWidth / 2;
     int halfH = bufferHeight / 2;
     const float ez = GetEffectiveZoom();

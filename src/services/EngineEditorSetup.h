@@ -3,9 +3,8 @@
 namespace DekiEditor
 {
 
-// Register all engine-provided editor extensions (CustomEditors, AssetTypeEditors)
-// and ensure package DLLs are loaded with their component registrations.
-// Call this once during editor initialization.
+/// Registers the engine's editor extensions (CustomEditors, AssetTypeEditors)
+/// and loads the package DLLs with their components. Call once at editor start.
 void RegisterEngineEditors();
 
 }  // namespace DekiEditor

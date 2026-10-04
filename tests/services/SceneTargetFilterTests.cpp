@@ -1,8 +1,8 @@
 // One project serves several targets, and a scene is shared by all of them. An
-// object can say what it needs from the platform, and it is simply not part of
-// the build for a target that cannot offer it. Not an error, and nothing
-// removed from the project: excluding is the normal case, which is what makes
-// "a board with wifi and a board without" work from one scene.
+// object can say what it needs from the platform, and it is left out of the
+// build for a target that cannot offer it. That is not an error and changes
+// nothing in the project; it is how "a board with wifi and a board without"
+// work from one scene.
 //
 // The filter runs on the scene JSON at build time, so the runtime never learns
 // that targets exist.
@@ -20,8 +20,8 @@ namespace
 {
 
 // A boot scene with two objects, one of which only makes sense where there is
-// wifi. The component node carries an "id" as well, which is the trap: matching
-// on id alone tags the component instead of the object.
+// wifi. The component node carries an "id" as well, so matching on id alone
+// would tag the component instead of the object.
 nlohmann::json TwoObjects()
 {
     return nlohmann::json::parse(R"({
@@ -106,8 +106,8 @@ TEST(SceneTargetFilter, ASceneWithNoRequirementsIsUntouched)
     EXPECT_EQ(FilterSceneForTarget(plain, kNoWifi), plain);
 }
 
-// Components carry an "id" as well. Collecting by id alone picked up the
-// component inside the object and wrote the requirement twice.
+// Components carry an "id" as well. Collecting by id alone would pick up the
+// component inside the object and record the requirement twice.
 TEST(SceneTargetFilter, RequirementsAreCollectedFromObjectsNotComponents)
 {
     const auto reqs = CollectTargetRequirements(TwoObjects());

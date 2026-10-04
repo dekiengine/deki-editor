@@ -43,8 +43,8 @@ int PluginLoader::LoadPluginsFromDirectory(const std::string& directory)
         return 0;
     }
 
-    // Pre-pass: drop any stale duplicate plugin DLLs (e.g. left over from a
-    // project rename) before any of them registers components.
+    // First drop stale duplicate plugin DLLs (e.g. left from a project
+    // rename), before any of them registers components.
     auto candidates = ResolveDuplicateComponentDlls(directory);
 
     for (const auto& path : candidates)
@@ -76,8 +76,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
     };
     std::vector<Candidate> candidates;
 
-    // Step 1 - discover candidate plugin DLLs (same naming convention as the
-    // main load path).
+    // Step 1: find the candidate plugin DLLs (same naming rule as the main
+    // load path).
     for (const auto& entry : fs::directory_iterator(directory))
     {
         if (!entry.is_regular_file())
@@ -114,7 +114,7 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
 
     if (candidates.size() < 2)
     {
-        // Single (or zero) candidates - nothing to resolve. Return as-is.
+        // One candidate or none: nothing to resolve.
         std::vector<std::string> out;
         out.reserve(candidates.size());
         for (auto& c : candidates)
@@ -124,8 +124,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         return out;
     }
 
-    // Step 2 - peek-load each candidate to read its declared component typeIds.
-    // We deliberately don't register anything; this is just an inspection pass.
+    // Step 2: load each candidate briefly to read its component typeIds.
+    // Nothing is registered.
     for (auto& c : candidates)
     {
 #ifdef _WIN32
@@ -171,7 +171,7 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
 #endif
     }
 
-    // Step 3 - find candidates that share at least one typeId.
+    // Step 3: find candidates that share at least one typeId.
     std::unordered_map<uint32_t, std::vector<size_t>> byTypeId;
     for (size_t i = 0; i < candidates.size(); ++i)
     {
@@ -181,8 +181,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         }
     }
 
-    // Step 4 - for every conflict, mark the older candidates for removal.
-    // The newest mtime wins; ties broken lexicographically for determinism.
+    // Step 4: for every conflict, mark the older candidates for removal. The
+    // newest mtime wins; ties go by path so the result is stable.
     auto isNewer = [&candidates](size_t a, size_t b)
     {
         if (candidates[a].mtime != candidates[b].mtime)
@@ -216,10 +216,10 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         }
     }
 
-    // Step 5 - actually delete the stale files (DLL + sibling .pdb on Windows).
+    // Step 5: delete the stale files (the DLL, and its .pdb on Windows).
     if (!toDelete.empty())
     {
-        // Pick a representative survivor for the log message (first non-deleted).
+        // A survivor to name in the log message (the first one kept).
         std::string survivorName;
         for (size_t i = 0; i < candidates.size(); ++i)
         {
@@ -242,7 +242,7 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
                 continue;
             }
 
-            // Best-effort sibling .pdb removal (Windows debug info).
+            // Best effort: the .pdb next to it (Windows debug info).
             fs::path pdbPath = dllPath;
             pdbPath.replace_extension(".pdb");
             std::error_code pdbEc;
@@ -253,8 +253,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         }
     }
 
-    // Step 6 - return survivors, in deterministic order (matches original
-    // directory_iterator behaviour: lexicographic on most file systems).
+    // Step 6: return the survivors sorted by path, the order
+    // directory_iterator gives on most file systems.
     std::vector<std::string> out;
     out.reserve(candidates.size() - toDelete.size());
     std::vector<size_t> order;
@@ -280,7 +280,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     // Mark where plugin-owned editor factories begin. Only on the first plugin
     // of a load cycle: everything already in the registry belongs to packages
     // (or the engine), and a retry that loads a second plugin without an
-    // intervening unload must not move the boundary past the first one's
+    // unload in between must not move the boundary past the first one's
     // entries. See EditorFactoryWatermark().
     if (m_Plugins.empty())
     {
@@ -291,7 +291,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     info.path = path;
 
 #ifdef _WIN32
-    // Suppress Windows error dialogs (e.g., "DLL not found") that would freeze the UI
+    // Suppress Windows error dialogs (e.g. "DLL not found") that would freeze the UI.
     UINT oldErrorMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 
     HMODULE handle = LoadLibraryA(path.c_str());
@@ -309,7 +309,6 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     }
     info.handle = handle;
 
-    // Get function pointers
     auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPluginGetName");
     auto getVersion = (GetVersionFunc)GetProcAddress(handle, "DekiPluginGetVersion");
     auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
@@ -317,7 +316,6 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     auto init = (InitFunc)GetProcAddress(handle, "DekiPluginInit");
     auto getReflectionAbi = (DekiGetReflectionAbiFunc)GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
 #else
-    // Load shared library
     void* handle = dlopen(path.c_str(), RTLD_NOW);
     if (!handle)
     {
@@ -326,7 +324,6 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     }
     info.handle = handle;
 
-    // Get function pointers
     auto getName = (GetNameFunc)dlsym(handle, "DekiPluginGetName");
     auto getVersion = (GetVersionFunc)dlsym(handle, "DekiPluginGetVersion");
     auto getComponentCount = (GetComponentCountFunc)dlsym(handle, "DekiPluginGetComponentCount");
@@ -335,7 +332,6 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     auto getReflectionAbi = (DekiGetReflectionAbiFunc)dlsym(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
 #endif
 
-    // Validate required exports
     if (!getName || !getVersion)
     {
         DEKI_LOG_ERROR("PluginLoader: Plugin missing required exports (GetName/GetVersion)");
@@ -347,7 +343,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
         return false;
     }
 
-    // Get plugin info (SEH-protected - bad DLL won't crash editor)
+    // SEH-protected, so a bad DLL cannot crash the editor.
     const char* nameStr = SafeCallGetString(getName, "PluginLoader::getName");
     const char* versionStr = SafeCallGetString(getVersion, "PluginLoader::getVersion");
     if (!nameStr || !versionStr)
@@ -364,15 +360,15 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     info.version = versionStr;
 
     // Reflection layout guard, before anything reads this plugin's component
-    // metas. A plugin built against a different Deki::PropertyInfo has a different
-    // property-array stride, so properties[1] onward are misaligned and the name
-    // pointer read from there is non-null garbage that faults far away. This is
-    // the likeliest stale DLL in a project, because the plugin is rebuilt by the
-    // project's own build and can be left behind when that build fails.
+    // metas. A plugin built against a different Deki::PropertyInfo has a
+    // different property-array stride, so properties[1] onward are misaligned
+    // and the name pointer read from there is non-null garbage that faults far
+    // away. The plugin is the likeliest stale DLL in a project: the project's
+    // own build rebuilds it and leaves the old one behind when it fails.
     //
-    // A missing export only means the DLL predates the handshake, so that warns
-    // rather than refuses. A real mismatch skips the plugin but does NOT unload
-    // it: its static initializers have already handed engine registries function
+    // A missing export only means the DLL predates the handshake, so it only
+    // warns. A real mismatch skips the plugin but does NOT unload it: its
+    // static initializers have already handed engine registries function
     // pointers into its code, and FreeLibrary would leave those dangling.
     if (!getReflectionAbi)
     {
@@ -416,7 +412,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     DEKI_LOG_EDITOR("PluginLoader: Plugin '%s' v%s (%d components)", info.name.c_str(), info.version.c_str(),
                     info.componentCount);
 
-    // Initialize plugin (SEH-protected)
+    // SEH-protected
     if (init)
     {
         int result = SafeCallInit(init, "PluginLoader::init");
@@ -432,7 +428,7 @@ bool PluginLoader::LoadPlugin(const std::string& path)
         }
     }
 
-    // Register components from the plugin (SEH-protected)
+    // Register the plugin's components (SEH-protected).
     auto& registry = Deki::ComponentRegistry::Instance();
     if (getComponentCount && getComponentMeta)
     {
@@ -466,16 +462,12 @@ bool PluginLoader::LoadPlugin(const std::string& path)
         }
     }
 
-    // NOTE: Asset and PlayMode handlers are no longer used.
-    // Components now use lifecycle methods (LoadAssets, UnloadAssets, RuntimeUpdate, HandleInput)
-    // directly on Deki::Component base class.
-
     info.loaded = true;
     info.lastModified = std::filesystem::last_write_time(path);
     m_Plugins.push_back(info);
 
-    // Fire any newly-registered editor-auto SetupComponents from this plugin DLL
-    // (idempotent - already-fired entries are skipped).
+    // Run the editor-auto SetupComponents this plugin DLL registered; the ones
+    // already run are skipped.
     Deki::SetupComponent::RunEditorAutoSetups(Deki::SetupComponent::SetupPhase::EditorLoad);
 
     return true;
@@ -483,20 +475,20 @@ bool PluginLoader::LoadPlugin(const std::string& path)
 
 void PluginLoader::UnloadAllPlugins()
 {
-    // Clear editor-auto factory pointers - they may point into plugin DLL .text
-    // and would dangle after FreeLibrary. Static initializers re-register them
-    // when packages / plugins reload.
+    // Clear the editor-auto factory pointers: they may point into plugin DLL
+    // code and would dangle after FreeLibrary. Static initializers register
+    // them again when packages or plugins reload.
     Deki::SetupComponent::ClearEditorAutoFactories();
 
-    // Same hazard, one level up: REGISTER_EDITOR entries hold a std::function
-    // built inside the plugin DLL, and a std::function calls back into its
-    // owning DLL to copy OR to destroy itself. Left in place they outlive the
-    // FreeLibrary below, and the next thing to touch the registry faults -
-    // even just reading the list, since that copies the entries.
+    // Same hazard one level up: REGISTER_EDITOR entries hold a std::function
+    // built inside the plugin DLL, and a std::function calls into its owning
+    // DLL to copy OR destroy itself. Left in place they outlive the
+    // FreeLibrary below, and the next touch of the registry faults, even a
+    // read of the list, since that copies the entries.
     //
-    // Trim rather than Clear: everything below the watermark was registered by
-    // package DLLs that are NOT unloading here, and their static registrars do
-    // not rerun without a DLL reload.
+    // Trim, not Clear: everything below the watermark came from package DLLs
+    // that are NOT unloading here, and their static registrars do not run
+    // again without a DLL reload.
     DekiEditorInternal::EditorRegistry::Instance().TrimTo(m_EditorFactoryWatermark);
 
     for (auto& plugin : m_Plugins)
@@ -504,7 +496,7 @@ void PluginLoader::UnloadAllPlugins()
         if (plugin.handle)
         {
 #ifdef _WIN32
-            // Unregister plugin components from ComponentFactory before unloading
+            // Unregister the plugin's components from ComponentFactory before unloading.
             auto getComponentCount =
                 (GetComponentCountFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginGetComponentCount");
             auto getComponentMeta =
@@ -523,7 +515,7 @@ void PluginLoader::UnloadAllPlugins()
                 }
             }
 
-            // Try to call shutdown (SEH-protected - skip on crash)
+            // SEH-protected: a crash in shutdown is skipped.
             auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginShutdown");
             if (shutdown)
             {
@@ -582,7 +574,7 @@ bool PluginLoader::CheckForUpdates()
         }
         catch (const std::filesystem::filesystem_error& e)
         {
-            // File might be locked during build, ignore
+            // The file may be locked during a build.
             DEKI_LOG_WARNING("PluginLoader: Could not check '%s': %s", plugin.path.c_str(), e.what());
         }
     }
@@ -598,31 +590,27 @@ void PluginLoader::ReloadAllPlugins()
 
     DEKI_LOG_EDITOR("PluginLoader: Reloading all plugins...");
 
-    // Store paths before unloading
     std::vector<std::string> paths;
     for (const auto& plugin : m_Plugins)
     {
         paths.push_back(plugin.path);
     }
 
-    // Unload all plugins
     UnloadAllPlugins();
 
-    // Clear plugin components from registry (engine components are preserved)
+    // Engine components stay.
     Deki::ComponentRegistry::Instance().ClearPluginComponents();
 
-    // Small delay to ensure DLL is fully released
-    // (Windows may still have file locks briefly after FreeLibrary)
+    // Windows may hold file locks briefly after FreeLibrary.
 #ifdef _WIN32
     Sleep(100);
 #else
     usleep(100000);
 #endif
 
-    // Reload all plugins
     for (const auto& path : paths)
     {
-        // Retry up to 3 times if the file is still locked
+        // Up to 3 tries, in case the file is still locked.
         for (int attempt = 0; attempt < 3; ++attempt)
         {
             if (LoadPlugin(path))

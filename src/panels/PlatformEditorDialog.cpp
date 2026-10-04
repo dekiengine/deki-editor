@@ -15,10 +15,6 @@ namespace DekiEditor
 {
 
 // ============================================================================
-// Shared utility: editable string list (used by builder UIs)
-// ============================================================================
-
-// ============================================================================
 // Constructor / Destructor
 // ============================================================================
 
@@ -37,10 +33,9 @@ void PlatformEditorDialog::PopulateBuilderList()
 {
     m_AvailableBuilders.clear();
 
-    // Purely from what is registered. There used to be a hardcoded "Desktop
-    // Simulator" row here as well as NativeBuilder's own, so the simulator
-    // appeared twice; and a hardcoded list cannot show a builder the editor
-    // was not compiled with, which is the whole point of the plugin path.
+    // Only what is registered, so a builder the editor was not compiled with
+    // still appears. Do not add hardcoded rows: the Desktop Simulator comes
+    // from NativeBuilder and would show twice.
     BuilderRegistry::Instance().EnsureLoaded();
     for (auto* builder : BuilderRegistry::Instance().GetAllBuilders())
     {
@@ -69,7 +64,7 @@ void PlatformEditorDialog::ApplyBuilderDefaults(int builderIndex)
 
     m_FamilyIndex = builderIndex;
 
-    // Create editor UI from builder with default config
+    // The builder's editor UI, on a default config
     const auto& entry = m_AvailableBuilders[builderIndex];
     m_EditorUI.reset();
 
@@ -147,8 +142,8 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     strncpy(m_Id, config->id.c_str(), sizeof(m_Id) - 1);
     strncpy(m_DisplayName, config->displayName.c_str(), sizeof(m_DisplayName) - 1);
 
-    // Find builder index matching this platform's family
-    m_FamilyIndex = (int)m_AvailableBuilders.size() - 1;  // Default to Custom (last)
+    // The builder for this platform's framework
+    m_FamilyIndex = (int)m_AvailableBuilders.size() - 1;  // Custom (the last row) when none matches
     for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
     {
         if (!m_AvailableBuilders[i].frameworkId.empty() && m_AvailableBuilders[i].frameworkId == config->framework)
@@ -159,14 +154,14 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     }
     m_SelectedBuilderIndex = m_FamilyIndex;
 
-    // Native fallback fields
+    // Native fields, used when there is no builder UI
     m_ScreenWidth = config->screenWidth > 0 ? config->screenWidth : 320;
     m_ScreenHeight = config->screenHeight > 0 ? config->screenHeight : 240;
 
     m_Loaded = *config;
     m_AssetStorageIndex = config->assetStorage == "external" ? 1 : 0;
 
-    // Create editor UI from builder (loads all fields from config)
+    // The builder's UI loads its own fields from the config
     CreateEditorUI(*config);
 }
 
@@ -195,7 +190,7 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
     config.id = m_Id;
     config.displayName = m_DisplayName;
 
-    // Set family from selected builder
+    // Family and framework from the selected builder
     if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size())
     {
         config.family = m_AvailableBuilders[m_FamilyIndex].family;
@@ -208,14 +203,14 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
 
     config.assetStorage = m_AssetStorageIndex == 1 ? "external" : "internal";
 
-    // Delegate builder-specific fields to editor UI
+    // The builder's UI writes its own fields
     if (m_EditorUI)
     {
         m_EditorUI->ApplyToConfig(config);
     }
     else
     {
-        // Native / Custom fallback
+        // Native or Custom: no builder UI
         config.screenWidth = m_ScreenWidth;
         config.screenHeight = m_ScreenHeight;
 
@@ -225,7 +220,7 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
         }
     }
 
-    // bootScene is auto-managed by Platform Manager
+    // The Platform Manager owns bootScene; keep the stored one
     if (m_IsEditing)
     {
         auto* existing = PlatformRegistry::Instance().GetPlatform(m_OriginalId);
@@ -286,7 +281,7 @@ void PlatformEditorDialog::Draw()
         return;
     }
 
-    // Two steps, two dialogs: pick a framework, then edit the platform.
+    // Two steps in two dialogs: pick a framework, then edit the platform.
     // Opening the second at the same level closes the first.
     const char* title =
         m_ShowFrameworkPicker ? "New Platform##framework" : (m_IsEditing ? "Edit Platform" : "New Platform");
@@ -321,7 +316,7 @@ void PlatformEditorDialog::Draw()
     ImGui::BeginChild("PlatformEditorContent", ImVec2(0.0f, 520.0f * ImGui::GetStyle().FontScaleDpi), false);
     DrawBasicSection();
     ImGui::Spacing();
-    // Builder-specific UI or native fallback
+    // The builder's own fields, or the native ones when there is no builder
     if (m_EditorUI)
     {
         m_EditorUI->Draw();
@@ -368,8 +363,8 @@ void PlatformEditorDialog::Draw()
 }
 
 // ============================================================================
-// DrawInline - embed in parent panel (no window wrapper)
-// Returns true if Save was clicked successfully.
+// DrawInline: draws into the parent panel, without a window of its own.
+// Returns true when Save was clicked and the platform was valid.
 // ============================================================================
 
 bool PlatformEditorDialog::DrawInline()
@@ -445,7 +440,8 @@ bool PlatformEditorDialog::DrawInline()
 // ============================================================================
 
 // Fallbacks for a builder that does not describe itself. A builder's own
-// GetIcon()/GetDescription() win, so a third-party backend is not anonymous.
+// GetIcon() and GetDescription() come first, so a third-party backend shows
+// its own.
 static const char* GetFrameworkIcon(const char* builderIcon, const std::string& frameworkId)
 {
     if (builderIcon != nullptr)
@@ -465,7 +461,7 @@ static std::string GetFrameworkDescription(const std::string& builderDesc, const
     {
         return builderDesc;
     }
-    // Only the Custom row is the editor's own; every real framework is
+    // Only the Custom row belongs to the editor; every real framework is
     // described by the backend that provides it.
     if (frameworkId.empty())
     {
@@ -559,7 +555,7 @@ void PlatformEditorDialog::DrawBasicSection()
         ApplyBuilderDefaults(framework);
     }
 
-    // Custom family hint
+    // A hint for the Custom row
     if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size() &&
         m_AvailableBuilders[m_FamilyIndex].frameworkId.empty())
     {
@@ -575,7 +571,7 @@ void PlatformEditorDialog::DrawBasicSection()
 
 // ============================================================================
 // Storage: where the target keeps its assets. Only a target with external
-// storage (an SD card) has a choice; every other one keeps them inside.
+// storage (an SD card) has a choice; every other one keeps them internal.
 // ============================================================================
 
 void PlatformEditorDialog::DrawStorageSection()
@@ -601,7 +597,7 @@ void PlatformEditorDialog::DrawStorageSection()
 }
 
 // ============================================================================
-// Native editor (fallback for Desktop Simulator / Custom)
+// Native editor: for platforms without a builder UI (Desktop Simulator, Custom)
 // ============================================================================
 
 void PlatformEditorDialog::DrawNativeEditor()

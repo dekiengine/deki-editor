@@ -1,7 +1,7 @@
 // Undo steps recorded on a component must keep working when that component is
-// removed and restored, or added and undone: the commands used to delete it and
-// create a new one, and undoing an earlier edit then wrote into freed memory
-// (QA, 2026-10-03: Ctrl+Z crashed after Remove Component + Ctrl+Z).
+// removed and restored, or added and undone. The commands keep the same
+// instance alive: deleting it and creating a new one would make undoing an
+// earlier edit write into freed memory.
 
 #include <gtest/gtest.h>
 #include <deki-editor/CommandHistory.h>
@@ -52,7 +52,7 @@ TEST_F(ComponentUndoTest, RemoveThenUndoRestoresTheSameInstance)
     EXPECT_EQ(obj.GetComponents()[0], comp);  // the same instance, not a copy
     EXPECT_EQ(comp->intValue, 9);
 
-    history.Undo();  // 9 -> 5: crashed (freed component) before the fix
+    history.Undo();  // 9 -> 5, on the restored instance
     EXPECT_EQ(comp->intValue, 5);
     history.Undo();
     EXPECT_EQ(comp->intValue, 0);
@@ -81,7 +81,7 @@ TEST_F(ComponentUndoTest, AddUndoRedoKeepsTheSameInstance)
     history.Redo();  // the add: same instance back
     ASSERT_EQ(obj.GetComponents().size(), 1u);
     EXPECT_EQ(obj.GetComponents()[0], comp);
-    history.Redo();  // the edit: wrote into a freed component before the fix
+    history.Redo();  // the edit, on the restored instance
     EXPECT_EQ(comp->intValue, 7);
 }
 

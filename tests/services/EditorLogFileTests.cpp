@@ -1,10 +1,9 @@
 // EditorLogFile: the persistent Editor.log sink.
 //
-// What is pinned here is the contract a support request relies on: the file
-// exists where Initialize said, the previous session's log survives one
-// generation, Debug lines stay out unless verbose, and a session that never
-// ends cannot grow the file without bound - it rotates at the size limit and
-// keeps writing.
+// What a support request relies on: the file is where Initialize said, the
+// previous session's log is kept one generation, Debug lines stay out unless
+// verbose, and a long session rotates the file at the size limit and keeps
+// writing.
 
 #include <gtest/gtest.h>
 

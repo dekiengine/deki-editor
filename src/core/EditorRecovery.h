@@ -15,10 +15,10 @@ class Scene;
 namespace DekiEditor
 {
 
-/// One recovery snapshot found on disk, plus enough metadata to decide whether
-/// it is worth taking without opening it. "recovered.scene, untitled, 1 object"
-/// is almost always a crash before anything was built and safe to discard; the
-/// same line with 200 objects and this morning's timestamp is not.
+/// One recovery snapshot found on disk, with enough metadata to decide whether
+/// it is worth restoring without opening it. An untitled snapshot with 1 object
+/// is almost always safe to discard; one with 200 objects from this morning is
+/// not.
 struct RecoveryEntry
 {
     std::string recoveryPath;  // full path to <recovery dir>/foo.scene
@@ -31,37 +31,35 @@ struct RecoveryEntry
 
 /// Crash-recovery snapshots and the autosave timer that writes them.
 ///
-/// Deliberately free of EditorApp.h and of any UI: the dialogs that present
-/// this state still live in EditorApp.cpp and call in here. That is what lets
-/// this compile into DekiEditorTests, where the interesting behaviour - sidecar
-/// parsing, newest-first ordering, per-entry consumption, timer policy - can be
-/// exercised without standing up an editor.
+/// Has no UI and does not include EditorApp.h: the dialogs live in
+/// EditorApp.cpp and call in here. This keeps it testable in DekiEditorTests
+/// without an editor.
 ///
-/// The class deliberately takes the scene and paths it needs as parameters
-/// rather than holding an EditorApp back-pointer. Snapshot policy that depends
-/// on play mode or dirty state stays with the caller, which owns that state;
-/// this owns the files and the clock.
+/// Takes the scene and paths as parameters instead of holding an EditorApp
+/// pointer. The caller decides when a snapshot is wanted (play mode, dirty
+/// state); this class owns the files and the clock.
 class EditorRecovery
 {
 public:
     /// Recovery directory for a project, or "" when there is no editor data
     /// directory to write into.
     ///
-    /// Keyed per project so two projects cannot see each other's recoveries.
-    /// The folder name keeps the readable project name for anyone browsing the
-    /// directory, plus a hash of the normalised full path so two projects of
-    /// the same name in different places stay separate.
+    /// Each project gets its own folder: the readable project name plus a hash
+    /// of the normalised full path, so two projects with the same name in
+    /// different places stay separate.
     static std::string RecoveryDirFor(const std::string& projectPath);
-    /// Where an editor from before the stable folder hash kept it.
+    /// The recovery directory under the older, std::hash-based folder name.
+    /// Still scanned so recoveries left by older editors are found.
     static std::string LegacyRecoveryDirFor(const std::string& projectPath);
 
-    /// Delete the whole recovery directory. Only once every entry is resolved.
+    /// Deletes the whole recovery directory. Call only once every entry is
+    /// resolved.
     static void RemoveRecoveryDir(const std::string& projectPath);
 
     // -- discovery ----------------------------------------------------------
 
-    /// Populate the entry list from the project's recovery directory, newest
-    /// first. Resets the selection. Safe on a missing directory (finds nothing).
+    /// Fills the entry list from the project's recovery directory, newest
+    /// first, and resets the selection. A missing directory gives an empty list.
     void ScanProject(const std::string& projectPath);
 
     const std::vector<RecoveryEntry>& Entries() const { return m_Files; }
@@ -79,34 +77,33 @@ public:
 
     // -- writing ------------------------------------------------------------
 
-    /// Write @p scene to the project's recovery directory with its metadata
-    /// sidecar, recording @p scenePath as the original location so a restore
-    /// can rebind to it. Returns false if there was nothing to write or the
-    /// write failed; never throws - this also runs from the crash handler.
+    /// Writes `scene` to the project's recovery directory with a metadata
+    /// sidecar that records `scenePath`, so a restore can save back to it.
+    /// Returns false if there was nothing to write or the write failed. Never
+    /// throws: this also runs from the crash handler.
     ///
-    /// @param outWrittenPath optional; receives the file actually written. The
-    ///        caller reports it (the crash dialog shows it) - this class stays
-    ///        free of the crash handler, which lives in the editor executable
-    ///        and drags in SDL and ImGui.
+    /// `outWrittenPath`, when given, receives the file written, for the crash
+    /// dialog to show. The crash handler lives in the editor executable (SDL,
+    /// ImGui), so this class only hands the path back.
     bool WriteSnapshot(Deki::Scene* scene, const std::string& scenePath, const std::string& projectPath,
                        std::string* outWrittenPath = nullptr);
 
-    /// Advance the autosave clock. Returns true exactly on the ticks where a
-    /// snapshot is due, at which point the caller should call WriteSnapshot.
+    /// Advances the autosave clock. Returns true on the ticks where a snapshot
+    /// is due; the caller then calls WriteSnapshot.
     ///
-    /// @p ready is the caller's "a snapshot would be meaningful right now"
-    /// verdict - a project and scene are open, we are not in play mode, and the
-    /// history is dirty. When it is false the timer parks at zero, so the first
-    /// change after a save gets a full interval rather than an immediate write.
+    /// `ready` says whether a snapshot would be useful now: a project and scene
+    /// are open, play mode is off, and there are unsaved changes. While it is
+    /// false the timer stays at zero, so the first change after a save waits a
+    /// full interval.
     bool TickAutosaveTimer(float deltaSeconds, bool ready);
 
     static constexpr float kAutosaveIntervalSeconds = 90.0f;
 
     // -- preview ------------------------------------------------------------
 
-    /// Parse an entry's scene into the preview outline. Safe on a truncated
-    /// file: the outline just comes back empty, which the popup reports as
-    /// unreadable rather than as an empty scene.
+    /// Parses an entry's scene into the preview outline. A truncated file gives
+    /// an empty outline, which the popup reports as unreadable rather than as
+    /// an empty scene.
     void BuildPreview(const RecoveryEntry& entry);
     const std::vector<SceneOutlineNode>& Preview() const { return m_Preview; }
     const std::string& PreviewName() const { return m_PreviewName; }
@@ -114,26 +111,23 @@ public:
 
     // -- consumption --------------------------------------------------------
 
-    /// Delete one entry's files and drop it from the list. Consuming only what
-    /// was restored matters: this used to remove the whole directory, so with
-    /// two crashed scenes the second was destroyed without ever being offered.
-    /// Returns false if the index is out of range.
+    /// Deletes one entry's files and drops it from the list. Returns false if
+    /// the index is out of range. Must delete only this entry, not the whole
+    /// directory: other crashed scenes in it have not been offered yet.
     bool ConsumeEntry(int index);
 
-    /// Delete every remaining recovery and the directory itself.
+    /// Deletes every remaining recovery and the directory itself.
     void DiscardAll();
 
-    /// Delete the snapshots this session wrote, once they are obsolete: the
-    /// scene was saved, replaced, or the editor is quitting normally. A crash
-    /// never reaches this, so its snapshot survives for the next open.
-    ///
-    /// Without it, a scene left unsaved past one autosave interval kept its
-    /// snapshot forever, and every later open offered a "recovery" of work that
-    /// had been saved or discarded on purpose.
+    /// Deletes the snapshots this session wrote once they are obsolete: the
+    /// scene was saved or replaced, or the editor is quitting normally. A crash
+    /// never reaches this, so its snapshot survives for the next open. Without
+    /// it, every later open would offer to recover work that was saved or
+    /// discarded on purpose.
     ///
     /// Recoveries that were pending when the project opened (a crash postponed
-    /// with Later) are never touched, even when an autosave has since written
-    /// to the same file.
+    /// with Later) are kept, even when an autosave has since written to the
+    /// same file.
     void DiscardSessionSnapshots();
 
 private:
@@ -143,8 +137,8 @@ private:
     int m_Selected = 0;
     bool m_DialogRequested = false;
 
-    // Built on demand and held until the popup closes, so the file is parsed
-    // once rather than on every frame the popup is open.
+    // Built on demand and kept until the popup closes, so the file is parsed
+    // once, not every frame.
     std::vector<SceneOutlineNode> m_Preview;
     std::string m_PreviewName;
 

@@ -16,15 +16,9 @@ namespace DekiEditor
 class EditorApp;
 class ITargetBuilder;
 
-/**
- * @brief Build panel for firmware builds and uploads
- *
- * Provides UI for:
- * - Platform selection (V-Board, Simulator, etc.)
- * - Compact toolchain status summary
- * - Build, Clean and the active backend's deploy step
- * - Build options
- */
+/// Builds and deploys the project for a platform: platform choice, a short
+/// toolchain status, Build, Clean, the active backend's deploy step, and the
+/// build options.
 class BuildPanel : public IPanel
 {
 public:
@@ -48,8 +42,8 @@ private:
     void StartBuild();
     void StartDeploy();
 
-    /// Ask the active backend what a deploy can be aimed at, keeping the
-    /// current choice when it is still on offer.
+    /// Asks the active backend where a deploy can go, keeping the current
+    /// choice when it is still offered.
     void RefreshDeployTargets();
     ITargetBuilder* GetActiveBuilder();
 
@@ -61,7 +55,6 @@ private:
     std::string m_StripProject;
     std::string m_StripSummary;
 
-    // Selected platform ID
     std::string m_SelectedPlatform;
     int m_SelectedPlatformIndex = 0;
 
@@ -80,13 +73,12 @@ private:
     // Build options
     bool m_EnableLogging = true;
     bool m_EnableInternalLogging = false;
-    // Build the board's firmware for its backend's simulator (QEMU for ESP32),
-    // into its own build directory; deploy then runs it there.
+    // Build the board's firmware for its backend's simulator (QEMU for ESP32)
+    // in its own build directory; deploy then runs it there.
     bool m_Simulate = false;
     bool m_DeployAfterBuild = false;
     bool m_PendingDeploy = false;
 
-    // Platform editor dialog
     PlatformEditorDialog m_PlatformEditor;
     bool m_ShowDeleteConfirm = false;
     std::string m_PlatformToDelete;
@@ -100,9 +92,9 @@ private:
     unsigned m_OriginRevision = 0;
 
     // Whether the active builder's toolchain is installed. Asking reads the
-    // disk (ESP-IDF: its export script and version file), which done every
-    // frame made the panel crawl on Windows, so the answer is kept and asked
-    // again when the panel appears, the builder changes, or a few seconds pass.
+    // disk (for ESP-IDF, its export script and version file), too slow on
+    // Windows to do every frame. So the answer is kept, and asked again when
+    // the panel appears, the builder changes, or a few seconds pass.
     const void* m_ToolchainFor = nullptr;
     bool m_ToolchainReady = false;
     double m_ToolchainCheckedAt = -1.0;

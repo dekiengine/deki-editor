@@ -18,10 +18,9 @@ struct McpToolDescriptor
 };
 
 /// The arguments a tool's schema requires that `args` does not have, joined
-/// with ", "; empty when none are missing. Checked before every call: handlers
-/// read their arguments with operator[], which on a missing key asserts in a
-/// debug build - behind a message box that froze the editor's main thread
-/// while its window still answered.
+/// with ", "; empty when none are missing. Checked before every call, because
+/// handlers read their arguments with operator[], which asserts on a missing
+/// key in a debug build and blocks the main thread behind a message box.
 inline std::string MissingRequiredArguments(const McpToolDescriptor& tool, const nlohmann::json& args)
 {
     std::string missing;
@@ -49,9 +48,9 @@ class McpToolRegistry
 public:
     void Register(McpToolDescriptor tool) { m_Tools.push_back(std::move(tool)); }
 
-    /// Tools that are not known when the registry is built: the ones packages
-    /// add (CliTool), which come and go as packages load and unload. Asked
-    /// afresh on every listing and lookup.
+    /// Sets where to get the tools packages add (CliTool), which come and go as
+    /// packages load and unload. `source` is asked again on every listing and
+    /// lookup.
     void SetDynamicSource(std::function<std::vector<McpToolDescriptor>()> source) { m_Dynamic = std::move(source); }
 
     std::vector<McpToolDescriptor> GetTools() const
@@ -67,7 +66,8 @@ public:
         return tools;
     }
 
-    /// A copy, not a pointer: a package's tool is built on the fly.
+    /// Returns a copy, not a pointer, because a package's tool is built on the
+    /// fly.
     std::optional<McpToolDescriptor> FindTool(const std::string& name) const
     {
         for (const auto& tool : m_Tools)

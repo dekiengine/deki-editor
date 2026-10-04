@@ -58,9 +58,9 @@ TEST(SceneStats, IgnoresMalformedShapes)
     EXPECT_EQ(CountSceneObjects(json::parse(R"([])")), 0);
 }
 
-// The single-object case is what the recovery folder found in a real project actually
-// contained: one empty Root, i.e. a crash before any work existed. Reporting
-// "1 object" is exactly what tells you it is safe to discard.
+// The single-object case is common in real recovery folders: one empty Root,
+// from a crash before any work existed. "1 object" tells you it is safe to
+// discard.
 TEST(SceneStats, LoneRootReadsAsOneObject)
 {
     const auto doc = json::parse(R"({"objects":[{"name":"Root","children":[],"components":[]}]})");

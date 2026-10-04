@@ -13,8 +13,8 @@
 namespace Deki
 {
 
-// ImGui context sharing across DLL boundary
-// The editor must call this before using any windows that use ImGui
+// Shares the editor's ImGui context with this DLL. The editor calls it before
+// any window here uses ImGui.
 DEKI_EDITOR_API void SetImGuiContext(void* context)
 {
     ImGui::SetCurrentContext(static_cast<ImGuiContext*>(context));

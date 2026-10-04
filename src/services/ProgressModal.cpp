@@ -71,7 +71,7 @@ void DrawCardBody(const char* title, const char* phase, const char* detail, uint
     if (title && title[0] != '\0')
     {
         ImGui::TextColored(Palette::Accent, "%s", title);
-        // Right-aligned elapsed-time chip on the same row
+        // Elapsed-time chip, right-aligned on the same row
         char elapsed[32];
         FormatElapsed(nowMs - g_State.startMs, elapsed, sizeof(elapsed));
         ImVec2 ts = ImGui::CalcTextSize(elapsed);
@@ -96,7 +96,7 @@ void DrawCardBody(const char* title, const char* phase, const char* detail, uint
 
     ImGui::Spacing();
 
-    // -------- Animated indeterminate bar (pill, themed) --------
+    // -------- Animated bar with no fixed end (pill, themed) --------
     {
         // Smoothstep: the segment speeds up as it enters and slows as it
         // leaves, instead of sliding at one speed and vanishing at the edge.
@@ -114,10 +114,9 @@ void DrawCardBody(const char* title, const char* phase, const char* detail, uint
         const ImU32 colFill = ImGui::ColorConvertFloat4ToU32(Palette::Accent);
         const ImU32 colLead = ImGui::ColorConvertFloat4ToU32(ImVec4(0.62f, 0.86f, 1.0f, 1.0f));
 
-        // Track
         drawList->AddRectFilled(barPos, barMax, colBarBg, rounding);
 
-        // Animated sliding segment (clipped to the rounded track).
+        // The sliding segment, clipped to the rounded track.
         float segmentWidth = barSize.x * 0.28f;
         float slidePos = progress * (barSize.x + segmentWidth) - segmentWidth;
         float startX = barPos.x + (std::max)(0.0f, slidePos);
@@ -139,15 +138,14 @@ void DrawCardBody(const char* title, const char* phase, const char* detail, uint
 
     ImGui::Spacing();
 
-    // -------- Detail line (current file/asset being processed) --------
+    // -------- Detail line (the file or asset being processed) --------
     if (detail && detail[0] != '\0')
     {
-        // Truncate gracefully if it overflows the window width.
         std::string text = detail;
         float maxW = ImGui::GetContentRegionAvail().x;
         if (ImGui::CalcTextSize(text.c_str()).x > maxW && text.size() > 8)
         {
-            // Replace the middle with an ellipsis to keep both ends visible.
+            // Too wide: replace the middle with an ellipsis, keeping both ends visible.
             const std::string ell = " ... ";
             while (text.size() > 16 && ImGui::CalcTextSize((text.substr(0, text.size() / 2 - ell.size() / 2) + ell +
                                                             text.substr(text.size() / 2 + ell.size() / 2 + 1))
@@ -210,9 +208,9 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
         return;
     }
 
-    // Pump SDL events to prevent "not responding". Everything is forwarded to
-    // ImGui (so focus/mouse state stays coherent) except a close request,
-    // which is parked for the main loop - see TakeDeferredQuit().
+    // Pump SDL events so the OS does not mark the window "not responding".
+    // Everything goes on to ImGui (so focus and mouse state stay right) except
+    // a close request, which is kept for the main loop; see TakeDeferredQuit().
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -225,9 +223,9 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
         DekiEditor::TouchInput::Get().ProcessEvent(event);
     }
 
-    // Check if we're inside an active ImGui frame (e.g. called from DrawMenuBar)
-    // We can't use ImGui mid-frame because EndFrame asserts on unclosed windows,
-    // so just pump events to keep the window responsive and skip the visual.
+    // Inside an active ImGui frame (e.g. called from DrawMenuBar) ImGui cannot
+    // be used, since EndFrame asserts on unclosed windows, so only the events
+    // above are pumped and the drawing is skipped.
     bool midFrame = ImGui::GetCurrentContext() && ImGui::GetCurrentContext()->WithinFrameScope;
     if (midFrame)
     {
@@ -252,20 +250,19 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     g_State.lastDrawMs = nowMs;
     g_State.lastPhase = phaseText;
 
-    // Start a new ImGui frame for the progress modal
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     DekiEditor::TouchInput::Get().InjectPending();
     ImGui::NewFrame();
 
-    // DPI scale: ImGui units are physical pixels here (EditorApp::Dpi multiplies
-    // by the window DPI), so the modal must scale its size/padding too or the
-    // DPI-enlarged fonts overflow a fixed box and get clipped.
+    // ImGui units are physical pixels here (EditorApp::Dpi multiplies by the
+    // window DPI), so the modal scales its size and padding too; otherwise the
+    // larger fonts overflow a fixed box and get clipped.
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     const float dpi = (vp->DpiScale > 0.0f) ? vp->DpiScale : 1.0f;
     const float modalW = static_cast<float>(kModalWidth) * dpi;
 
-    // Center the modal. Fixed width, AUTO height (0) so content is never cut.
+    // Centred, fixed width, AUTO height (0) so content is never cut.
     ImVec2 center = vp->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(modalW, 0.0f), ImGuiCond_Always);
@@ -274,8 +271,8 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
                              ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar |
                              ImGuiWindowFlags_NoScrollbar;
 
-    // Card styling: padded, rounded, a slightly-raised panel bg with a hairline
-    // border so it stands out from the cleared backdrop.
+    // Card style: padded, rounded, a slightly raised panel background and a
+    // hairline border, so it stands out from the cleared backdrop.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f * dpi, 20.0f * dpi));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f * dpi, 10.0f * dpi));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f * dpi);
@@ -291,24 +288,21 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     ImGui::PopStyleColor(2);
     ImGui::PopStyleVar(4);
 
-    // Render
     ImGui::Render();
 
-    // Clear the full framebuffer (physical pixels) to the editor background, then
-    // draw the modal on top.
+    // Clear the full framebuffer (physical pixels) to the editor background,
+    // then draw the modal on top.
     int w = 0, h = 0;
     SDL_GetWindowSizeInPixels(s_Window, &w, &h);
     glViewport(0, 0, w, h);
     glClearColor(Palette::Bg.x, Palette::Bg.y, Palette::Bg.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Draw ImGui
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    // Swap buffers to show the progress
-    // Without waiting for vsync: Show runs inside work that is blocking the
-    // main thread, and a redraw that waits up to a whole refresh would cost
-    // that work a frame each time. The editor's own frames keep vsync.
+    // Swap without waiting for vsync: Show runs inside work that blocks the
+    // main thread, and waiting up to a whole refresh would cost that work a
+    // frame each time. The editor's own frames keep vsync.
     SDL_GL_SetSwapInterval(0);
     SDL_GL_SwapWindow(s_Window);
     SDL_GL_SetSwapInterval(1);

@@ -30,19 +30,17 @@ namespace
 
 std::string Relative(const fs::path& p, const fs::path& root)
 {
-    // Lexical, never through links: fs::relative resolves them, so a package
-    // that is a symlink or junction (a developer's checkout) came out as
-    // "../packages/<id>/...", its own sources stopped matching "packages/<id>/",
-    // and every feature looked used: nothing was ever stripped.
+    // Lexical, never through links. fs::relative resolves links, so a package
+    // that is a symlink or junction (a developer's checkout) would come out as
+    // "../packages/<id>/..." and stop matching "packages/<id>/".
     fs::path rel = p.lexically_normal().lexically_relative(root.lexically_normal());
     return (rel.empty() ? p : rel).generic_string();
 }
 
-// The name a component answers to now. A scene saved before a rename (or a
-// move to another package) names the old one, which DEKI_FORMER_NAME maps;
-// counted under the old name, the component itself looked unused and was
-// stripped while the scene still loaded as it. Without the component loaded
-// (the unit tests) the name is taken as written.
+// The component's current name. A scene saved before a rename (or a move to
+// another package) uses the old name, which DEKI_FORMER_NAME maps; counted
+// under the old name, the component would look unused and be stripped. When
+// the component is not loaded (the unit tests) the name is taken as written.
 std::string CurrentTypeName(const std::string& written)
 {
     if (const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(written))
@@ -131,15 +129,13 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath, const std::vec
     // Scenes: every component an object carries. The project's own scenes
     // under assets/ are shared by every target, so they always count.
     //
-    // Under platforms/ the boot scenes are where the setup components live
-    // (SDL3DisplaySetup, ESP32SerialSetup), and those are the one thing that
-    // is emphatically NOT shared: the simulator's boot scene naming
-    // SDL3DisplaySetup says nothing about what an ESP32 build needs. Reading
-    // all of them is how SDL3 ended up switched on for a firmware build and
-    // failed it. With a target named, only that target's own directory counts.
+    // The boot scenes under platforms/ hold the setup components
+    // (SDL3DisplaySetup, ESP32SerialSetup), which are per target: the
+    // simulator's SDL3DisplaySetup must not switch SDL3 on for a firmware
+    // build. With a target named, only that target's directory counts.
     //
-    // An empty target keeps the pooled view, which is what the editor's own
-    // panels want when no platform is selected.
+    // An empty target reads them all, which is what the editor's panels want
+    // when no platform is selected.
     std::vector<fs::path> sceneRoots{ fs::path(GetAssetsDirectory(projectPath)) };
     if (targetPlatformId.empty())
     {
@@ -191,13 +187,11 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath, const std::vec
 
     // Sources: what code names. Bounded to the known types.
     //
-    // Both the project's own sources AND the installed packages' sources count.
-    // A package may use another package's component - deki-fsm calls
-    // Deki2D::AnimationComponent::Play() and ButtonComponent::AddOnClickCallback()
-    // - and that reference is as real as one in the project. Scanning only the
-    // project's src/ stripped those two deki-2d features out of a build whose
-    // deki-fsm still referenced them, and the link failed with an undefined
-    // reference rather than anything pointing at stripping.
+    // The project's sources and the installed packages' sources both count. A
+    // package may use another package's component (deki-fsm calls
+    // Deki2D::AnimationComponent::Play() and
+    // ButtonComponent::AddOnClickCallback()); stripping those would fail the
+    // link with an undefined reference.
     if (!knownTypes.empty())
     {
         auto scanTree = [&](const fs::path& dir, bool skipEditorAndTests)

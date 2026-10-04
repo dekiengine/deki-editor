@@ -6,11 +6,10 @@
 namespace DekiEditor
 {
 
-// The editor's invariant is that a scene is always available to edit - there is
-// no usable "no scene" state. This helper backs that guarantee: if `scene` is
-// null it installs a fresh empty scene, and it always returns the (now non-null)
-// pointer. EditorApp::GetCurrentScene() routes through it so the rest of the
-// editor never has to null-check the current scene.
+/// The editor always has a scene to edit. If `scene` is null this puts a new
+/// empty scene in it; it always returns a non-null pointer.
+/// EditorApp::GetCurrentScene() goes through this, so the rest of the editor
+/// never null-checks the current scene.
 inline ::Deki::Scene* EnsureScene(std::unique_ptr<::Deki::Scene>& scene)
 {
     if (!scene)

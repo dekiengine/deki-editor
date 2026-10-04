@@ -26,10 +26,10 @@ int s_MovingFrame = -2;  // last frame anything was still short of its target
 
 int s_ReduceMotion = -1;  // -1 = not read from the settings yet
 
-// Look up (or create at `initial`) the entry for `id`, pruning first: ids are
-// cheap but not free, so anything not drawn for a few seconds (a closed
-// panel, a destroyed window) goes whenever the table grows large. Pruned
-// BEFORE the lookup, since erasing would invalidate a reference taken first.
+// Finds (or creates at `initial`) the entry for `id`. When the table grows
+// large, entries not drawn for a few seconds (a closed panel, a destroyed
+// window) are pruned first; before the lookup, since erasing would invalidate
+// a reference taken earlier.
 Entry& Touch(ImGuiID id, float initial)
 {
     const int frame = ImGui::GetFrameCount();

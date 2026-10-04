@@ -160,11 +160,9 @@ void Publish(int port, const std::string& token, const std::string& projectPath)
     const fs::path dir = Directory();
     fs::create_directories(dir, ec);
 #ifndef _WIN32
-    // The file holds the MCP server's token, which is what lets anything drive
-    // this editor. Written with the default umask it was readable by every
-    // user on the machine. The folder is owner-only, so nothing in it can be
-    // reached by others, whatever mode a file gets. (On Windows the per-user
-    // profile's ACL already does this.)
+    // The file holds the MCP server's token, which lets anything drive this
+    // editor, so only its owner may read it. On Windows the user profile's
+    // permissions already do this.
     fs::permissions(dir, fs::perms::owner_all, fs::perm_options::replace, ec);
 #endif
 

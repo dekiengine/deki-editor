@@ -4,14 +4,11 @@
 // long-running tool steps a build backend drives: an SDK's installer, a
 // version-control checkout, a vendor build script.
 //
-// Unlike ProcessLaunch (argument vectors, no shell), this takes a COMMAND LINE
-// for the platform shell, because those steps are shell-shaped: batch files
-// that must be `call`ed, environment scripts that must be sourced before the
-// next command, `&&` chains. The caller composes the line and is responsible
-// for quoting whatever it puts in it - never pass it untrusted text.
-//
-// It exists because every backend used to carry its own copy of the same
-// CreateProcess-and-pipe code.
+// Unlike ProcessLaunch (argument vectors, no shell), this takes a command line
+// for the platform shell, because those steps need one: batch files that must
+// be `call`ed, environment scripts sourced before the next command, `&&`
+// chains. The caller builds the line and quotes what it puts in it. Never pass
+// it untrusted text.
 
 #include <deki-editor/EditorExport.h>
 
@@ -22,15 +19,15 @@
 namespace DekiEditor
 {
 
-/// Run `commandLine` through the platform shell: `cmd.exe /S /C "<line>"` on
-/// Windows, `/bin/sh -c` elsewhere. stdout and stderr are merged and delivered
-/// to `onLine` one line at a time (no trailing newline; empty lines skipped),
-/// on the calling thread, as they arrive.
+/// Runs `commandLine` through the platform shell: `cmd.exe /S /C "<line>"` on
+/// Windows, `/bin/sh -c` elsewhere. stdout and stderr are merged and passed to
+/// `onLine` one line at a time as they arrive, on the calling thread, without
+/// the newline; empty lines are skipped.
 ///
-/// `workingDirectory` may be empty for the current one. When `cancel` becomes
-/// true the command is stopped - on Windows the whole process tree, since a
-/// build step's work happens in grandchildren (idf.py -> ninja -> compilers) -
-/// and the result is -1.
+/// An empty `workingDirectory` means the current one. When `cancel` becomes
+/// true the command is stopped. On Windows that kills the whole process tree,
+/// since a build step's work runs in grandchildren (idf.py -> ninja ->
+/// compilers).
 ///
 /// Returns the command's exit code, or -1 when it could not be started or was
 /// cancelled.

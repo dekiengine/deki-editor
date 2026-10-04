@@ -84,7 +84,7 @@ TEST_F(TransformCommandsTest, SetPositionCommand_ExplicitOldNewCtor)
     EXPECT_FLOAT_EQ(obj.GetY(), 2.0f);
 }
 
-// Replicate the InspectorPanel.cpp:735-752 sequence by hand.
+// Replicate the InspectorPanel.cpp drag sequence by hand.
 TEST_F(TransformCommandsTest, SetPositionCommand_InspectorFlowEndToEnd)
 {
     Deki::Object obj("TestObj");
@@ -245,8 +245,8 @@ TEST_F(TransformCommandsTest, SetScaleCommand_NoMerge)
 }
 
 // ----------------------------------------------------------------------------
-// SetActiveCommand: the Inspector's Active checkbox used to write the flag
-// straight into the object, so it could not be undone.
+// SetActiveCommand: the Inspector's Active checkbox goes through a command,
+// so it can be undone.
 // ----------------------------------------------------------------------------
 #include "core/commands/ObjectCommands.h"
 

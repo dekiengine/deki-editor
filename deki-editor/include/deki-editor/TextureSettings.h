@@ -7,37 +7,35 @@
 
 #include <nlohmann/json.hpp>
 
-/**
- * @brief How an image is stored, per target: its format and its Max Size.
- *
- * An image's sidecar (`<image>.data`, `settings.texture`) says:
- *
- *   "format":  "Automatic" (or absent) or a format name, for every target
- *   "maxSize": the largest side it is stored at, 0 (or absent) for no limit
- *   "targets": { "<platformId>": { "format": ..., "maxSize": ... } }
- *
- * A target's entry overrides the image's own value for whichever of the two
- * it names; its "maxSize" of 0 is "no limit" on that target, even when the
- * image has one. A target entry that is a plain string is the format only
- * (the form before Max Size existed), and is read as such.
- *
- * Max Size works like Unity's: an image whose larger side is over it is
- * stored scaled so that side is exactly Max Size, the other side in
- * proportion. Everything that addresses the image's pixels (sprite frames,
- * nine-slice borders, tileset tiles) keeps using the image's own pixels; the
- * stored file records the original size, and the runtime maps a source rect
- * to the stored pixels with SourceToStored below.
- */
+// How an image is stored, per target: its format and its Max Size.
+//
+// An image's sidecar (`<image>.data`, `settings.texture`) says:
+//
+//   "format":  "Automatic" (or absent) or a format name, for every target
+//   "maxSize": the largest side it is stored at, 0 (or absent) for no limit
+//   "targets": { "<platformId>": { "format": ..., "maxSize": ... } }
+//
+// A target's entry overrides the image's own value for whichever of the two
+// it names; its "maxSize" of 0 means no limit on that target, even when the
+// image has one. A target entry that is a plain string (an older form) names
+// only the format.
+//
+// Max Size works like Unity's: an image whose larger side is over it is stored
+// scaled so that side is exactly Max Size, the other side in proportion.
+// Everything that addresses the image's pixels (sprite frames, nine-slice
+// borders, tileset tiles) keeps using the image's own pixels; the stored file
+// records the original size, and the runtime maps a source rect to stored
+// pixels with SourceToStored below.
 
 namespace DekiEditor
 {
 
-/// The Max Size choices, as Unity offers them. 0 is "no limit".
+/// The Max Size choices, as Unity offers them. 0 means no limit.
 constexpr int kTextureMaxSizes[] = { 0, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
 constexpr int kTextureMaxSizeCount = sizeof(kTextureMaxSizes) / sizeof(kTextureMaxSizes[0]);
 
-/// One target's own values: format "" and maxSize -1 mean "as the image's
-/// Default"; maxSize 0 is "no limit" here.
+/// One target's own values. Format "" and maxSize -1 mean "use the image's
+/// default"; maxSize 0 means no limit on this target.
 struct TextureTargetSettings
 {
     std::string format;
@@ -71,7 +69,7 @@ struct TextureSettings
     }
 };
 
-/// Read `settings.texture` (pass the object itself; a missing one is fine).
+/// Reads `settings.texture`. Pass the object itself; a missing one gives defaults.
 inline TextureSettings ReadTextureSettings(const nlohmann::json& tex)
 {
     TextureSettings out;
@@ -116,8 +114,8 @@ inline TextureSettings ReadTextureSettings(const nlohmann::json& tex)
     return out;
 }
 
-/// Write one target's values into `settings.texture`; an empty entry is
-/// removed. Always written in the object form.
+/// Writes one target's values into `settings.texture`, always in the object
+/// form. An empty entry is removed.
 inline void WriteTextureTarget(nlohmann::json& tex, const std::string& platformId, const TextureTargetSettings& t)
 {
     if (t.Empty())

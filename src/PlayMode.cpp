@@ -1,9 +1,9 @@
-// Play Mode Implementation for Deki Editor
-// Uses Deki::Engine and DekiDisplay for rendering (same as simulator)
+// Play mode for the editor. Renders through Deki::Engine and a display, as
+// the simulator does.
 //
-// IMPORTANT: This file is COMPONENT-AGNOSTIC. It uses Deki::Component lifecycle
-// methods (LoadAssets, UnloadAssets, RuntimeUpdate) and DekiInputSystem instead of
-// hardcoded GetComponent<SpriteComponent> etc. calls.
+// Keep this file free of specific components: it goes through the
+// Deki::Component lifecycle (LoadAssets, UnloadAssets, RuntimeUpdate) and
+// the input system, never GetComponent<SpriteComponent> and the like.
 
 #include <deki-editor/SceneView.h>
 #include "EditorApp.h"
@@ -31,8 +31,7 @@
 #include <deki/providers/IDisplay.h>
 #include "platforms/editor/EditorDisplay.h"
 
-// PlayMode owns the EditorDisplay lifetime; engine-core just holds the
-// pointer. File-scope unique_ptr keeps it alive between Start/Stop cycles.
+// Play mode owns the EditorDisplay; engine-core only holds the pointer.
 static std::unique_ptr<Deki::EditorDisplay> s_EditorDisplay;
 #include <deki-editor/AssetPipeline.h>
 #include <deki/assets/AssetManager.h>
@@ -110,7 +109,7 @@ void EditorApp::Play()
         return;
     }
 
-    // Block play mode if there are compilation errors
+    // No play mode while there are compile errors.
     if ((m_HotReloadService && m_HotReloadService->HasBuildErrors()) ||
         (m_PackageLoader && m_PackageLoader->HasBuildErrors()))
     {
@@ -125,7 +124,6 @@ void EditorApp::Play()
 
     InitPlayMode();
 
-    // Validate critical systems before entering play mode
     if (!m_Play.renderSystem || m_Play.textureId == 0 || !Deki::Engine::GetInstance().GetRootScene())
     {
         DEKI_LOG_ERROR("Play mode initialization failed - aborting");
@@ -141,12 +139,12 @@ void EditorApp::Play()
     m_PlayModeState = PlayModeState::Playing;
     m_Play.camera = FindFirstCameraInScene(Deki::Engine::GetInstance().GetRootScene());
 
-    // Auto-open and focus Play View panel
+    // Open and focus the Play View panel.
     if (m_PlayViewPanel)
     {
         m_PlayViewPanel->isOpen = true;
 
-        // Save the currently selected tab in Play View's dock node so we can restore on Stop
+        // Remember the selected tab in Play View's dock node, for Stop to restore.
         ImGuiWindow* playWin = ImGui::FindWindowByName("Play View");
         if (playWin && playWin->DockId)
         {
@@ -160,12 +158,11 @@ void EditorApp::Play()
         ImGui::SetWindowFocus("PLAY VIEW###Play View");
     }
 
-    // Reset frame timing accumulator
     m_Play.timeAccumulator = 0.0f;
     m_Play.lastFrameTime = 0;
     m_Play.lastGameUpdateTime = 0;
 
-    // Auto-start profiling on play
+    // Profiling starts with play.
     ProfilingService::Get().StartRecording();
 }
 
@@ -184,13 +181,11 @@ void EditorApp::Stop()
         return;
     }
 
-    // Stop profiling when exiting play mode
     if (ProfilingService::Get().IsRecording())
     {
         ProfilingService::Get().StopRecording();
     }
 
-    // Stop frame capture if active
     if (m_FrameCaptureService && m_FrameCaptureService->IsCapturing())
     {
         m_FrameCaptureService->StopCapture();
@@ -214,7 +209,7 @@ void EditorApp::Stop()
     }
     m_Play.prePlaySelectedIds.clear();
 
-    // Restore the previously active tab (same approach as Play uses for "Play View")
+    // Bring back the tab that was active before Play.
     if (m_Play.prePlaySelectedTabId != 0)
     {
         ImGuiWindow* playWin = ImGui::FindWindowByName("Play View");
@@ -248,27 +243,24 @@ void EditorApp::InitPlayMode()
         return;
     }
 
-    // UNITY-STYLE: Backup scene state to memory before play
-    // This captures unsaved changes and allows restore on stop
+    // Keep the scene, unsaved changes included, in memory for Stop.
     m_Play.sceneBackup = m_CurrentScene->SaveToJsonString();
 
-    // Create isolated deep copy for play mode (JSON round-trip clone)
+    // Play runs on a separate copy, cloned through JSON.
     m_Play.scene = std::make_unique<::Deki::Scene>();
     m_Play.scene->LoadFromJsonString(m_Play.sceneBackup);
     RegisterSceneCallbacks(m_Play.scene.get());
 
-    // Setups that wait for Play, now that the user has asked for the game to
-    // run. A package declares this with DEKI_REGISTER_PLAY_AUTO_SETUP, for
-    // anything with a side effect outside the editor: deki-gps asks a third
-    // party where the machine is, and doing that when a project merely OPENED
-    // meant opening a project made a request nobody asked for.
+    // Setups that wait until the user asks the game to run. A package
+    // declares one with DEKI_REGISTER_PLAY_AUTO_SETUP for anything with a side
+    // effect outside the editor, such as deki-gps asking a third party where
+    // the machine is, which must not happen just because a project opened.
     //
-    // Idempotent per entry, so a second Play costs nothing, and a hot reload
-    // that cleared and re-registered an entry lets it fire again on the next
-    // Play.
+    // Each entry runs once, so a second Play costs nothing; a hot reload that
+    // re-registers an entry lets it run again on the next Play.
     Deki::SetupComponent::RunEditorAutoSetups(Deki::SetupComponent::SetupPhase::PlayStart);
 
-    // Save edit command history aside and start fresh for play mode
+    // Put the edit undo history aside; play mode starts with an empty one.
     CommandHistory::Instance().SaveAndClear();
 
     // The selection moves to the play copy's same objects (same ids).
@@ -294,10 +286,10 @@ void EditorApp::InitPlayMode()
     m_Play.width = DekiEditor::SceneView::Get().GetPreviewWidth();
     m_Play.height = DekiEditor::SceneView::Get().GetPreviewHeight();
 
-    // Create EditorDisplay directly (same pattern as Deki::Engine::Initialize editor path)
-    // Memory, filesystem, logging, and timing are already initialized by OpenProject/editor startup
+    // Memory, filesystem, logging and timing are already up from editor
+    // startup and OpenProject; only the display is new.
     s_EditorDisplay = std::make_unique<Deki::EditorDisplay>();
-    // ... in the previewed screen's pixel format, which SetDisplay gives the framebuffer.
+    // In the previewed screen's pixel format, which SetDisplay gives the framebuffer.
     s_EditorDisplay->SetColorFormat(DekiEditor::SceneView::Get().GetPreviewFormat());
     if (!s_EditorDisplay->Initialize(m_Play.width, m_Play.height))
     {
@@ -320,18 +312,15 @@ void EditorApp::InitPlayMode()
     }
     m_Play.renderSystem = renderSystem;  // non-owning pointer
 
-    // Get the EditorDisplay for the texture ID
     Deki::EditorDisplay* display = static_cast<Deki::EditorDisplay*>(Deki::Engine::GetInstance().GetDisplay());
     if (display)
     {
         m_Play.textureId = display->GetTextureId();
     }
 
-    // Reuse engine's lifecycle manager (non-owning pointer)
-    m_Play.lifecycleManager = Deki::Engine::GetInstance().GetLifecycleManager();
+    m_Play.lifecycleManager = Deki::Engine::GetInstance().GetLifecycleManager();  // non-owning
 
-    // Set up Unity-style profiling callbacks for per-component lifecycle profiling
-    // This profiles "TestComponent.Update", "EnemyAI.Start", etc.
+    // Profile each component lifecycle call ("EnemyAI.Update", "EnemyAI.Start").
     Deki::LifecycleManager::SetProfilingCallbacks(
         [](const char* name)
         {
@@ -348,29 +337,27 @@ void EditorApp::InitPlayMode()
             }
         });
 
-    // Load binary lookup table from cache (same as embedded runtime)
-    // This ensures editor play mode uses the exact same asset resolution path
+    // Load the binary asset lookup table from the cache, as a device does, so
+    // play mode resolves assets the same way.
     if (m_Project && m_AssetPipeline)
     {
         std::string projectPath = m_Project->GetPath();
         std::string tablePath = (ProjectPaths::Cache(projectPath) / "asset_table.bin").string();
 
-        // Use existing asset_table.bin from cache (maintained by AssetPipeline)
-        // If missing, regenerate it
+        // AssetPipeline keeps asset_table.bin up to date; rebuild it if missing.
         if (!fs::exists(tablePath))
         {
             DEKI_LOG_WARNING("PlayMode: No asset_table.bin in cache, regenerating...");
             m_AssetPipeline->UpdateAssetTable();
         }
 
-        // Load into engine using standard file I/O
         std::ifstream tableFile(tablePath, std::ios::binary | std::ios::ate);
         if (tableFile.is_open())
         {
             size_t fileSize = static_cast<size_t>(tableFile.tellg());
             tableFile.seekg(0, std::ios::beg);
 
-            // Static buffer to keep data alive for the duration of play mode
+            // Static: the table points into this data for the whole play session.
             static std::vector<uint8_t> s_PlayModeTableData;
             s_PlayModeTableData.resize(fileSize);
 
@@ -385,25 +372,24 @@ void EditorApp::InitPlayMode()
         }
     }
 
-    // Set up asset loading for play mode
     if (m_Project && m_AssetPipeline)
     {
         std::string projectPath = m_Project->GetPath();
 
-        // Notify packages that play mode is starting (e.g., deki-2d sets baked font GUIDs)
+        // Tell packages play mode is starting (deki-2d sets baked font GUIDs).
         if (m_PackageLoader)
         {
             m_PackageLoader->NotifyPlayModeStart(m_Play.scene.get());
         }
 
-        // Assets are now auto-loaded via ProcessStart() in LifecycleManager
+        // Assets load through LifecycleManager's ProcessStart().
     }
 
-    // Enter runtime mode - components follow device code paths (no editor GUID sync/baking)
+    // Runtime mode: components take device code paths (no editor GUID sync or baking).
     Deki::Engine::SetRuntimeMode(true);
 
-    // Set the play mode COPY on Deki::Engine (not the edit scene)
-    // Pass false for takeOwnership - editor owns m_Play.scene, not the engine
+    // The engine runs the play copy, not the edit scene. The editor owns
+    // m_Play.scene, so the engine does not take ownership.
     Deki::Engine::GetInstance().SetRootScene(m_Play.scene.get(), false);
 
     DEKI_LOG_EDITOR("Play mode initialized: %dx%d", m_Play.width, m_Play.height);
@@ -411,35 +397,33 @@ void EditorApp::InitPlayMode()
 
 void EditorApp::ShutdownPlayMode()
 {
-    // Notify packages that play mode is stopping
     if (m_PackageLoader)
     {
         m_PackageLoader->NotifyPlayModeStop();
     }
 
-    // Exit runtime mode - components revert to editor code paths
+    // Components go back to editor code paths.
     Deki::Engine::SetRuntimeMode(false);
 
-    // Clear Deki::Engine's root scene reference.
-    // If SceneSystem owns the current root (takeOwnership=true), it will be
-    // queued for deferred deletion. Flush immediately since play mode is stopping.
+    // A root the SceneSystem owns is queued for deferred deletion; flush it
+    // now, since play mode is stopping.
     Deki::Engine::GetInstance().SetRootScene(nullptr, false);
     Deki::Engine::GetInstance().GetSceneSystem().FlushPendingDeletions();
 
-    // Drop asset lookup cache so next play session loads fresh copies from disk.
-    // Don't UnloadAll() - edit-mode components still reference loaded fonts/textures.
+    // Drop the asset cache so the next play session loads fresh copies. Not
+    // UnloadAll(): edit-mode components still use the loaded fonts and textures.
     Deki::AssetManager::Get()->DropCache();
 
-    // Unload binary lookup table so edit mode reverts to m_GuidToPath map
+    // Edit mode goes back to the m_GuidToPath map.
     Deki::AssetLookupTable::Unload();
 
-    // Clear Persistent objects (they only exist during play mode)
+    // Persistent objects exist only during play mode.
     Deki::Engine::GetInstance().GetSceneSystem().ClearPersistentObjects();
 
-    // Clear selection - may point to play scene objects
+    // The selection may point at play scene objects.
     ClearSelection();
 
-    // Clear any cached object/component references in panels
+    // Panels may hold play scene objects and components.
     if (m_HierarchyPanel)
     {
         m_HierarchyPanel->ClearSceneReferences();
@@ -449,34 +433,31 @@ void EditorApp::ShutdownPlayMode()
         m_InspectorPanel->ClearSceneReferences();
     }
 
-    // Don't delete the texture - it's owned by EditorDisplay
+    // EditorDisplay owns the texture.
     m_Play.textureId = 0;
 
-    // Clear non-owning pointers (engine owns these subsystems)
+    // The engine owns the render system.
     m_Play.renderSystem = nullptr;
 
-    // Clear profiling callbacks and release lifecycle manager reference
     Deki::LifecycleManager::SetProfilingCallbacks(nullptr, nullptr);
     m_Play.lifecycleManager = nullptr;
 
-    // Shutdown display backend
-    // NOTE: We do NOT shutdown FileSystem or MemoryManager here because
-    // edit mode needs them for unified rendering (asset loading in edit view)
+    // Only the display goes. FileSystem and Memory stay: edit mode loads
+    // assets through them too.
     Deki::Engine::GetInstance().SetDisplay(nullptr, "");
     s_EditorDisplay.reset();
 
-    // Destroy the play mode scene copy - edit scene was never modified
+    // Destroy the play copy; the edit scene was never touched.
     m_Play.scene.reset();
     m_Play.sceneBackup.clear();
 
-    // Restore edit command history (discards play mode commands)
+    // Bring back the edit undo history; play mode's commands are dropped.
     CommandHistory::Instance().RestoreFromSave();
 
     m_Play.width = 0;
     m_Play.height = 0;
     m_Play.ready = false;
 
-    // Reset frame timing accumulator
     m_Play.timeAccumulator = 0.0f;
     m_Play.lastFrameTime = 0;
     m_Play.lastGameUpdateTime = 0;
@@ -494,7 +475,8 @@ void EditorApp::ShutdownPlayMode()
 
 namespace
 {
-// Returns true on success. On failure, logs to ConsolePanel and sets the crash flag.
+// Runs `fn` under the crash guard. On a crash, logs to the console, sets
+// `crashedFlag` and returns false.
 bool GuardedInvoke(const char* phase, const char* sceneName, bool& crashedFlag, const std::function<void()>& fn)
 {
     PlayModeGuard::CrashInfo info;
@@ -512,7 +494,7 @@ bool GuardedInvoke(const char* phase, const char* sceneName, bool& crashedFlag, 
     if (!info.accessDetails.empty())
     {
         msg += "\n  ";
-        // Strip trailing newline FormatAccessViolationDetails appends.
+        // Drop the newline FormatAccessViolationDetails appends.
         std::string ad = info.accessDetails;
         while (!ad.empty() && (ad.back() == '\n' || ad.back() == '\r'))
         {
@@ -541,16 +523,16 @@ bool GuardedInvoke(const char* phase, const char* sceneName, bool& crashedFlag, 
 
 void EditorApp::UpdatePlayMode()
 {
-    // NOTE: Don't profile this function directly - profiler frames are defined by
-    // BeginFrame/EndFrame below. Profiling here would span multiple profiler frames.
+    // No profile scope for this function: it spans several profiler frames,
+    // which BeginFrame/EndFrame below mark out.
 
     if (m_PlayModeState != PlayModeState::Playing || !m_Play.scene)
     {
         return;
     }
 
-    // If a guarded call faulted last frame, stop play mode now (out of the
-    // crashing call's stack) and bail. Editor stays alive.
+    // A guarded call crashed last frame: stop play mode now, outside the
+    // crashing call's stack. The editor keeps running.
     if (m_Play.crashedThisFrame)
     {
         m_Play.crashedThisFrame = false;
@@ -558,20 +540,18 @@ void EditorApp::UpdatePlayMode()
         return;
     }
 
-    // Frame pacing comes from the Core section: it is a frame-loop concern, not
-    // framebuffer geometry, and applies with no rendering package loaded. capFps=true caps at
-    // targetFps (fixed-timestep, smooth animations); capFps=false disables
-    // editor vsync during play so the game can exceed the monitor refresh
-    // rate. Without this, the editor's vsync (set in main.cpp) would block
-    // SwapWindow at the refresh rate and the game would inherit that ceiling.
+    // Frame pacing comes from the Core settings, since it belongs to the frame
+    // loop and applies with no rendering package loaded. capFps caps at
+    // targetFps with a fixed timestep. Without capFps, editor vsync is off
+    // during play so the game can run faster than the monitor refresh rate;
+    // the editor's vsync (set in main.cpp) would otherwise hold it there.
     auto* core = DekiEditor::GetCoreSettings();
     const bool capFps = core ? core->capFps : true;
     const int targetFps = (core && core->targetFps > 0) ? core->targetFps : 60;
     const float targetFrameTimeMs = 1000.0f / targetFps;
 
-    // Apply desired swap interval (only when it changes). Uncapped play mode
-    // turns vsync off; capped play mode keeps vsync on so the editor stays
-    // smooth and we don't burn CPU running the editor at 1000+ FPS.
+    // Set the swap interval when it changes. Capped play keeps vsync on, so
+    // the editor stays smooth and does not burn CPU at 1000+ FPS.
     const int desiredSwapInterval = capFps ? 1 : 0;
     if (desiredSwapInterval != m_Play.lastSwapInterval)
     {
@@ -579,7 +559,6 @@ void EditorApp::UpdatePlayMode()
         m_Play.lastSwapInterval = desiredSwapInterval;
     }
 
-    // Calculate elapsed time since last call (accumulator pattern when capped)
     uint64_t currentTime = SDL_GetTicks();
     if (m_Play.lastFrameTime == 0)
     {
@@ -589,13 +568,13 @@ void EditorApp::UpdatePlayMode()
     float deltaMs = static_cast<float>(currentTime - m_Play.lastFrameTime);
     m_Play.lastFrameTime = currentTime;
 
-    // Accumulate wall-clock time. Sub-step loop below drains it.
+    // Wall-clock time; the sub-step loop below drains it.
     m_Play.timeAccumulator += deltaMs;
 
-    // Spiral-of-death guard (capped only): if we fell catastrophically behind
-    // drop the slack so we don't try to catch up over many frames. Game
-    // appears to "pause" rather than chew CPU. Uncapped mode can't fall
-    // behind - it drains the entire accumulator each frame.
+    // Capped only: when far behind, drop the backlog instead of catching up
+    // over many frames. The game seems to pause rather than eat the CPU.
+    // Uncapped play drains the whole accumulator each frame, so it cannot
+    // fall behind.
     if (capFps)
     {
         const float kMaxAccumulator = targetFrameTimeMs * 4.0f;
@@ -606,16 +585,14 @@ void EditorApp::UpdatePlayMode()
     }
 
     // Sub-step loop:
-    //   capped:   drain accumulator in fixed targetFrameTimeMs increments,
-    //             up to kMaxSubStepsPerEditorFrame ticks per editor frame
-    //             (lets a high targetFps run multiple ticks per editor frame).
-    //   uncapped: time-budgeted loop - keep ticking until kUncappedBudgetNs
-    //             of real wall-clock has been consumed (or the sanity cap is
-    //             hit). Each tick uses the actual elapsed wall-clock since
-    //             the previous tick as its dt, so game time advances at real
-    //             time regardless of how many ticks fit per editor frame.
-    //             This decouples game FPS from editor FPS: a single editor
-    //             frame can produce hundreds of game ticks.
+    //   capped:   drain the accumulator in fixed targetFrameTimeMs steps, up
+    //             to kMaxSubStepsPerEditorFrame ticks per editor frame (so a
+    //             high targetFps runs several ticks per editor frame).
+    //   uncapped: tick until kUncappedBudgetNs of wall-clock time is used (or
+    //             the sanity cap is hit). Each tick's dt is the real time
+    //             since the previous tick, so game time follows real time
+    //             however many ticks fit. One editor frame can run hundreds
+    //             of game ticks, so game FPS does not depend on editor FPS.
     constexpr int kMaxSubStepsPerEditorFrame = 4;
     constexpr uint64_t kUncappedBudgetNs = 4'000'000ULL;  // 4 ms / editor frame
     constexpr int kUncappedMaxSubsteps = 1024;            // sanity cap
@@ -624,12 +601,12 @@ void EditorApp::UpdatePlayMode()
     uint64_t uncapLastTickNs = uncapStartNs;
     int subStepsThisFrame = 0;
     // A tick's profiler frame stays open until the next tick starts, so the
-    // last tick's frame also holds the render after the loop. Rendering used
-    // to land outside every frame: frames read "0.04 ms" beside a 6 ms render.
+    // last tick's frame also holds the render after the loop. Otherwise the
+    // render falls outside every frame and frames look far too cheap.
     bool profilerFrameOpen = false;
 
-    // Self-passing lambda: recursive without a std::function (which was
-    // rebuilt on the heap every game tick and dispatched indirectly per object).
+    // Self-passing lambda: recursive without a std::function, which would be
+    // built on the heap every game tick and called indirectly per object.
     auto updateComponentsRecursive = [&](auto&& self, Deki::Object* obj, float deltaSeconds) -> void
     {
         if (!obj)
@@ -637,10 +614,8 @@ void EditorApp::UpdatePlayMode()
             return;
         }
 
-        // Resolving the component's display name costs a registry lookup, and
-        // it is only ever used as a profiler label. Hoisted behind the
-        // recording check so an ordinary play session doesn't pay a hash lookup
-        // per component per frame for a string nobody reads.
+        // The component's name costs a registry lookup and is only a profiler
+        // label, so it is looked up only while recording.
         const bool profiling = ProfilingService::IsRecordingStatic();
 
         for (Deki::Component* comp : obj->GetComponents())
@@ -669,7 +644,7 @@ void EditorApp::UpdatePlayMode()
 
     while (subStepsThisFrame < loopMaxSubsteps)
     {
-        // Per-iteration loop condition + dt selection.
+        // Whether to tick again, and this tick's dt.
         float loopStepDtMs;
         if (capFps)
         {
@@ -686,9 +661,8 @@ void EditorApp::UpdatePlayMode()
         }
         else
         {
-            // Stop once the per-editor-frame budget is consumed (but always
-            // run at least one tick so we make progress even if scheduling
-            // is jittery).
+            // Stop once this editor frame's budget is used, but always run at
+            // least one tick, so the game moves even when scheduling jitters.
             if (subStepsThisFrame > 0 && (SDL_GetTicksNS() - uncapStartNs) >= kUncappedBudgetNs)
             {
                 break;
@@ -704,7 +678,7 @@ void EditorApp::UpdatePlayMode()
         }
         ++subStepsThisFrame;
 
-        // Begin profiler frame (one per game tick, like Unity)
+        // One profiler frame per game tick.
         if (profilerFrameOpen)
         {
             ProfilingService::Get().EndFrame();
@@ -712,17 +686,15 @@ void EditorApp::UpdatePlayMode()
         ProfilingService::Get().BeginFrame();
         profilerFrameOpen = true;
 
-        // Fixed timestep when capped (dt = targetFrameTimeMs); real elapsed
-        // wall-clock when uncapped (sum across ticks ≈ real time, so animations
-        // advance at real rate regardless of tick frequency).
+        // Fixed timestep when capped; real elapsed time when uncapped, so
+        // animations run at real speed however often the game ticks.
         Deki::Time::UpdateF(loopStepDtMs);
 
         m_Play.lastGameUpdateTime = currentTime;
 
-        // Flush deferred scene deletions from previous tick
+        // Deletions the previous tick deferred.
         Deki::Engine::GetInstance().GetSceneSystem().FlushPendingDeletions();
 
-        // Get the active scene from Deki::Engine (same as embedded runtime)
         Deki::Scene* activeScene = Deki::Engine::GetInstance().GetRootScene();
         if (!activeScene)
         {
@@ -734,7 +706,7 @@ void EditorApp::UpdatePlayMode()
 
         const char* sceneName = activeScene->GetName().c_str();
 
-        // Process lifecycle: InternalAwake -> Awake -> Start -> Update (correct order)
+        // Lifecycle, in order: InternalAwake, Awake, Start, Update.
         {
             CrashHandler::SetPlayModeContext("InternalAwake", sceneName);
             PROFILE_SCOPE("lifecycle", "ProcessInternalAwake");
@@ -779,10 +751,9 @@ void EditorApp::UpdatePlayMode()
             }
         }
 
-        // Package systems registered with Deki::Engine::RegisterUpdate (tweens,
-        // ...). On a device Deki::Engine::Update runs these; play mode drives the
-        // lifecycle by hand, so it has to run them itself or programmatic tweens
-        // only work outside the editor.
+        // Package systems registered with Deki::Engine::RegisterUpdate, such
+        // as tweens. On a device Engine::Update runs them; play mode drives
+        // the lifecycle by hand, so it runs them itself.
         {
             CrashHandler::SetPlayModeContext("UpdateCallbacks", sceneName);
             PROFILE_SCOPE("lifecycle", "UpdateCallbacks");
@@ -795,7 +766,6 @@ void EditorApp::UpdatePlayMode()
             }
         }
 
-        // Update components that need runtime updates
         {
             CrashHandler::SetPlayModeContext("ComponentUpdates", sceneName);
             PROFILE_SCOPE("lifecycle", "ComponentUpdates");
@@ -814,14 +784,14 @@ void EditorApp::UpdatePlayMode()
             }
         }
 
-        // Check if scene changed during lifecycle/update (e.g., SetRootScene called)
-        // If so, process lifecycle on new scene before next sub-step or render
+        // The tick may have switched scenes (SetRootScene). Run the new
+        // scene's lifecycle before the next sub-step or render.
         Deki::Scene* currentScene = Deki::Engine::GetInstance().GetRootScene();
         if (currentScene != activeScene && currentScene != nullptr)
         {
             const char* newSceneName = currentScene->GetName().c_str();
 
-            // Set baked font GUIDs on new scene (same as initial play mode start)
+            // Baked font GUIDs for the new scene, as at play start.
             if (m_PackageLoader)
             {
                 m_PackageLoader->NotifyPlayModeStart(currentScene);
@@ -863,11 +833,9 @@ void EditorApp::UpdatePlayMode()
         // The frame ends when the next tick begins, or after the render below.
     }
 
-    // Sample game FPS over a rolling 500 ms window: count sub-steps and
-    // divide by elapsed wall-clock. Per-editor-frame sampling doesn't work
-    // because some editor frames produce 0 sub-steps (game slower than
-    // editor) and others produce multiple, so a single-frame estimate is too
-    // noisy for a UI readout.
+    // Game FPS over a 500 ms window: sub-steps divided by elapsed time. One
+    // editor frame is too noisy, since some run no sub-steps (game slower
+    // than editor) and others run several.
     m_Play.fpsSubStepCounter += subStepsThisFrame;
     m_Play.fpsWindowMs += deltaMs;
     if (m_Play.fpsWindowMs >= 500.0f)
@@ -878,10 +846,9 @@ void EditorApp::UpdatePlayMode()
         m_Play.fpsWindowMs = 0.0f;
     }
 
-    // Render once per editor frame using the latest simulated state. If the
-    // accumulator didn't yield any sub-steps this editor frame, skip the
-    // render too - nothing changed since the previous editor frame's render,
-    // and PlayView keeps displaying the existing texture.
+    // Render once per editor frame from the latest state. With no sub-steps
+    // this frame nothing changed, so skip it; the Play view keeps showing the
+    // current texture.
     if (subStepsThisFrame > 0)
     {
         Deki::Scene* renderScene = Deki::Engine::GetInstance().GetRootScene();
@@ -914,7 +881,6 @@ void EditorApp::RenderPlayMode()
         return;
     }
 
-    // Get the active scene from Deki::Engine (same as embedded runtime)
     Deki::Scene* activeScene = Deki::Engine::GetInstance().GetRootScene();
     if (!activeScene)
     {
@@ -923,21 +889,21 @@ void EditorApp::RenderPlayMode()
         return;
     }
 
-    // Use unified render system (same as embedded runtime)
-    // DekiRenderSystem handles: finding camera, clearing buffer, rendering all objects via QuadBlit
+    // The same render system a device uses: it finds the camera, clears the
+    // buffer and draws every object.
     {
         PROFILE_SCOPE("rendering", "RenderSystem");
         m_Play.renderSystem->Render(activeScene);
     }
 
-    // Capture frame if recording (F9 to toggle)
+    // Frame capture, toggled with F9.
     if (m_FrameCaptureService && m_FrameCaptureService->IsCapturing())
     {
         m_FrameCaptureService->CaptureFrame(m_Play.renderSystem->GetFrameBuffer(), m_Play.width, m_Play.height,
                                             m_Play.renderSystem->GetColorFormat());
     }
 
-    // Present the frame buffer through DekiDisplayBackend (editor-only: GL texture upload)
+    // Present the framebuffer through the display (in the editor, a GL texture upload).
     {
         PROFILE_SCOPE("editor", "PresentFrame");
         if (Deki::Engine::GetInstance().GetDisplay())
@@ -945,7 +911,7 @@ void EditorApp::RenderPlayMode()
             // Partial upload of the changed rectangles when dirty tracking is
             // on, the whole frame otherwise (same path as the device).
             Deki::Engine::GetInstance().PresentFrame();
-            m_Play.ready = true;  // First frame rendered, safe to show play mode texture
+            m_Play.ready = true;  // a frame exists, so the play texture can be shown
         }
     }
 }
@@ -979,8 +945,8 @@ void EditorApp::HandlePlayModeInput(float gameX, float gameY, bool isDown, bool 
 
 void EditorApp::HandlePlayModeKey(uint32_t key, bool down)
 {
-    // Key-downs only while playing; key-ups always pass so a key held when
-    // play stops or focus leaves the play view doesn't stay stuck pressed.
+    // Key-downs only while playing. Key-ups always pass, so a key held when
+    // play stops or focus leaves the Play view does not stay pressed.
     if (down && m_PlayModeState != PlayModeState::Playing)
     {
         return;

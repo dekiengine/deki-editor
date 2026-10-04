@@ -9,11 +9,11 @@
 //   PropertyRef -> {"object": ..., "component": "<class name>", "field": ...}
 //
 // A hash cannot be turned back into the string it came from, so the name
-// fallback cannot reach an ObjectRef. Before this was fixed, 0.16.0 moving every
-// package component into a namespace changed every one of those hashes: the
-// component still loaded, the object still resolved, and the reference silently
-// pointed at nothing. Worse, the dead id was written straight back out on save,
-// so the file never healed.
+// fallback cannot reach an ObjectRef. Renaming a class (such as moving a
+// package component into a namespace) changes its hash. Without the repair
+// the component still loads, the object still resolves, and the reference
+// silently points at nothing; the dead id is also saved again, so the file
+// never heals.
 //
 // These tests pin both directions of the repair.
 

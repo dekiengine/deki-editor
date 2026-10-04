@@ -1,11 +1,10 @@
-// Deki::Buffer<T> - the owning buffer component and package code uses instead
-// of calling an allocator and remembering a matching Free.
+// Deki::Buffer<T>: the owning buffer that component and package code uses
+// instead of calling an allocator and remembering a matching Free.
 //
-// The cases below are the mistakes this type exists to make impossible, each
-// of which was a real bug in this engine: a buffer nothing freed, a free that
-// did not match its allocator, a cleanup path that released something it did
-// not own, and a size computed by a multiplication that wraps on a 32-bit
-// device.
+// The cases below cover the mistakes this type prevents: a buffer nothing
+// frees, a free that does not match its allocator, a cleanup path that
+// releases something it does not own, and a size computed by a
+// multiplication that wraps on a 32-bit device.
 
 #include <gtest/gtest.h>
 
@@ -45,8 +44,8 @@ TEST(DekiBuffer, AllocatesAndReportsElementsNotBytes)
 
 TEST(DekiBuffer, MemoryZeroesWhatItHandsBack)
 {
-    // Several call sites relied on `new T[n]{}` for this, so the replacement
-    // has to keep it or those buffers start full of noise.
+    // Call sites rely on zeroed memory, as `new T[n]{}` gave them; without it
+    // those buffers start full of noise.
     Buffer<uint32_t> b(32, Deki::Memory::Internal);
     ASSERT_TRUE(static_cast<bool>(b));
     for (size_t i = 0; i < b.Count(); ++i)
@@ -109,8 +108,8 @@ TEST(DekiBuffer, SelfMoveAssignmentIsNotADoubleFree)
 
 TEST(DekiBuffer, ReallocatingToTheSameCountKeepsTheMemory)
 {
-    // This is what makes Allocate safe to call from a render path every frame:
-    // the common case where nothing changed must not churn.
+    // This makes Allocate safe to call from a render path every frame: when
+    // nothing changed, nothing is reallocated.
     Buffer<uint8_t> b(64, Deki::Memory::External);
     ASSERT_TRUE(static_cast<bool>(b));
     const uint8_t* raw = b.Data();
@@ -170,17 +169,13 @@ TEST(DekiBuffer, ReleaseHandsOwnershipOut)
 
 // --- placement -------------------------------------------------------------
 // Nothing reaches external RAM unless the caller names Deki::Memory::External.
-// There used to be a size rule (>= 16 KB went to PSRAM) and it was removed:
-// in a graphics engine the largest allocations are usually the ones touched
-// every frame, and a framebuffer in PSRAM measures markedly worse on real
-// hardware. These pin that no such inference comes back.
+// Size never picks the region: in a graphics engine the largest allocations
+// are usually the ones touched every frame, and a framebuffer in PSRAM is
+// much slower on real hardware. These tests keep it that way.
 
 namespace
 {
-// Records where each allocation was asked from, so a test can assert the
-// region rather than infer it. HasExternalRAM is true, so the external branch
-// is live - on a host there is no PSRAM, but Memory cannot tell the
-// difference and neither should the rule.
+// Records which region each allocation asked for, so a test can assert it.
 class RegionSpyProvider : public Deki::IMemoryProvider
 {
 public:
@@ -219,10 +214,8 @@ public:
 
     void Free(Deki::Memory::Region, void* ptr) override { free(ptr); }
 
-    // A number a failure log can quote, so the reporting path is exercised.
-    // Zero for a region this board does not serve: reporting free space in
-    // memory that does not exist would read as "nearly full" rather than
-    // "not here".
+    // A number a failure log can quote, so the reporting path runs. Zero for
+    // a region this board does not serve.
     size_t GetAvailable(Deki::Memory::Region region) const override { return Serves(region) ? 256 * 1024 : 0; }
 
     int externalCalls = 0;
@@ -250,9 +243,8 @@ struct ScopedSpy
 
 TEST(DekiMemoryPlacement, TheDefaultIsInternalEvenForALargeAllocation)
 {
-    // 150 KB - comfortably over the 16 KB the old rule used, and the size of a
-    // 320x240 RGB565 framebuffer, which is exactly the buffer that must not go
-    // to PSRAM by accident.
+    // 150 KB: the size of a 320x240 RGB565 framebuffer, the buffer that must
+    // not go to PSRAM by accident.
     ScopedSpy s;
     void* p = Deki::Memory::Allocate(153600, Deki::Memory::Internal);
     ASSERT_NE(p, nullptr);
@@ -275,7 +267,7 @@ TEST(DekiMemoryPlacement, BufferIsTheOnlyRouteToExternal)
     ScopedSpy s;
     void* p = Deki::Memory::Allocate(64, Deki::Memory::External);
     ASSERT_NE(p, nullptr);
-    EXPECT_EQ(s.spy->externalCalls, 1);  // and size is irrelevant: 64 bytes
+    EXPECT_EQ(s.spy->externalCalls, 1);  // even at 64 bytes: size does not matter
     Deki::Memory::Free(p);
 }
 
@@ -299,10 +291,9 @@ TEST(DekiMemoryPlacement, AnOmittedMemoryUseIsInternal)
 }
 
 // --- the context the compiler fills in --------------------------------------
-// Nobody should have to type "ParticlePool::posX" by hand. AllocContext's
-// default argument captures the call site, and the property that makes it
-// worth anything is that it names the CALLER rather than whichever engine
-// header the allocation eventually passed through.
+// AllocContext's default argument captures the call site, so nobody types a
+// label by hand. It must name the CALLER, not the engine header the
+// allocation passed through.
 
 namespace
 {
@@ -313,8 +304,8 @@ class AlwaysFailsProvider : public Deki::IMemoryProvider
 public:
     bool Initialize() override { return true; }
     void Shutdown() override {}
-    // Serves the regions but has nothing left in them, which is a different
-    // failure from "this board has no such region" and has to log differently.
+    // Serves the regions but has nothing left in them. That is a different
+    // failure from "this board has no such region" and logs differently.
     bool Serves(Deki::Memory::Region region) const override
     {
         return region == Deki::Memory::Internal || region == Deki::Memory::External;
@@ -323,12 +314,12 @@ public:
     void* Allocate(Deki::Memory::Region, size_t, bool) override { return nullptr; }
     void Free(Deki::Memory::Region, void*) override {}
 
-    // Genuinely exhausted, so zero is the measurement rather than a shrug.
+    // Exhausted, so zero is the real figure.
     size_t GetAvailable(Deki::Memory::Region) const override { return 0; }
 };
 
-// Collects what the engine logged, so a test can assert on the message a
-// developer would actually read.
+// Collects what the engine logged, so a test can check the message a
+// developer reads.
 struct CapturedLog
 {
     CapturedLog()
@@ -367,10 +358,8 @@ TEST(DekiAllocContext, AContextNamesTheCallSite)
 
 TEST(DekiAllocContext, TwoAllocationsInOneFunctionAreToldApartByLine)
 {
-    // This is what replaced the hand-written labels. ParticlePool allocates
-    // thirteen columns inside one SetCapacity, and they used to be told apart
-    // by strings someone had to keep in step with the members. The line number
-    // does it without anyone maintaining anything.
+    // ParticlePool allocates thirteen columns inside one SetCapacity; the line
+    // number tells them apart with no hand-written labels.
     const Deki::AllocContext first;
     const Deki::AllocContext second;
 
@@ -386,11 +375,9 @@ TEST(DekiAllocContext, TwoAllocationsInOneFunctionAreToldApartByLine)
 
 TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
 {
-    // The whole point. Buffer<T>::Allocate is a template in Buffer.h which
-    // forwards to Memory::Allocate in Memory.cpp. If either of those
-    // re-defaulted the context instead of forwarding it, every allocation in
-    // the engine would report Buffer.h or Memory.cpp as its origin and the
-    // feature would be worse than useless - it would be confidently wrong.
+    // Buffer<T>::Allocate (Buffer.h) forwards to Memory::Allocate
+    // (Memory.cpp). Both must forward the context, not default it again, or
+    // every allocation reports Buffer.h or Memory.cpp as its origin.
     Deki::Memory::SetBackend(new AlwaysFailsProvider());
     CapturedLog log;
 
@@ -402,23 +389,20 @@ TEST(DekiAllocContext, AFailureNamesTheCallerNotTheEngineHeader)
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
     EXPECT_TRUE(log.Contains("AFailureNamesTheCallerNotTheEngineHeader")) << "logged: " << log.text;
 
-    // Match on "at <file>:", which is the origin the AllocContext claims.
-    // A bare filename test would pass on the logger's own "Memory.cpp:450 ->"
-    // stamp, which says where the DEKI_LOG_ERROR statement lives and has
-    // nothing to do with who asked for the memory.
+    // Match on "at <file>:", the origin the AllocContext gives. A bare file
+    // name would also match the logger's own "Memory.cpp:450 ->" stamp, which
+    // says where the log statement is, not who asked for the memory.
     EXPECT_TRUE(log.Contains("at BufferTests.cpp:")) << "logged: " << log.text;
     EXPECT_FALSE(log.Contains("at Buffer.h:")) << "logged: " << log.text;
     EXPECT_FALSE(log.Contains("at Memory.cpp:")) << "logged: " << log.text;
 #else
-    // Nothing was captured, so nothing is claimed - and in particular the
-    // engine must not invent an origin it does not have.
+    // Nothing was captured, so the log must not name an origin.
     EXPECT_FALSE(log.Contains(" at ")) << "logged: " << log.text;
 #endif
 }
 
 // --- the reporting side ----------------------------------------------------
-// "How much memory am I using?" needed GetStats for the allocated half and a
-// provider the caller does not have for the free half.
+// How much memory is allocated, and how much is free.
 
 TEST(DekiMemoryReporting, AvailableInternalIsSafeWithoutABackend)
 {
@@ -436,37 +420,32 @@ TEST(DekiMemoryReporting, StatsCountWhatBufferAllocates)
         ASSERT_TRUE(static_cast<bool>(b));
         EXPECT_GE(Deki::Memory::GetStats().totalAllocated, before + 4096u);
     }
-    // And stop counting it once the buffer goes out of scope, which is the
-    // property that makes the number worth logging at all.
+    // The count drops again once the buffer goes out of scope.
     EXPECT_EQ(Deki::Memory::GetStats().totalAllocated, before);
 }
 
 TEST(DekiMemoryReporting, LogStatsWorksWithAndWithoutALabel)
 {
-    // It formats and logs; the point of the test is that neither form
-    // dereferences a null label or a missing backend.
+    // Neither form may dereference a null label or a missing backend.
     Deki::Memory::LogStats();
     Deki::Memory::LogStats("BufferTests");
 }
 
 // --- regions are open -------------------------------------------------------
-// The engine ships "internal" and "external". Nothing stops a package adding
-// its own, which is the point: a board with RTC memory that survives deep
-// sleep should not need an engine release to say so.
+// The engine ships "internal" and "external". A package can add its own, so a
+// board with RTC memory that survives deep sleep needs no engine release.
 
 namespace TestBoard
 {
-// Exactly what a board-support package would write: its own namespace, its own
-// constant, no engine change and no registration call. Two board packages both
-// wanting an "Rtc" cannot collide, because each is in its own namespace - which
-// a class being closed is what guarantees.
+// What a board-support package writes: its own namespace and constant, with
+// no engine change and no registration call.
 inline constexpr Deki::Memory::Region kRtc{ "rtc" };
 }  // namespace TestBoard
 
 TEST(DekiMemoryRegion, APackageCanDefineItsOwnRegion)
 {
-    // Usable in a constant expression, so it costs nothing at runtime and can
-    // sit in a switch label inside a provider.
+    // A constant expression, so it costs nothing at runtime and can be a
+    // switch label inside a provider.
     static_assert(TestBoard::kRtc.id == Deki::HashName("rtc"));
     EXPECT_STREQ(TestBoard::kRtc.name, "rtc");
 }
@@ -483,10 +462,9 @@ TEST(DekiMemoryRegion, RegionsAreDistinctAndCompareByName)
 
 TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
 {
-    // FNV-1a, computed here at runtime, independently of the constexpr one.
-    // Region names must hash the way every other name in this engine does, or
-    // a region name and a platform capability name could not be the same token
-    // without a table mapping between them.
+    // FNV-1a, computed here at runtime, apart from the constexpr one. Region
+    // names hash like every other name in the engine, so a region name and a
+    // platform capability name can be the same token.
     auto runtimeFnv1a = [](const char* str)
     {
         uint32_t h = 2166136261u;
@@ -506,11 +484,9 @@ TEST(DekiMemoryRegion, TheHashMatchesTheRuntimeOneUsedEverywhereElse)
 
 TEST(DekiMemoryRegion, ARegionTheBoardDoesNotServeFailsAndIsNamed)
 {
-    // The other half of an open vocabulary. A package can define "rtc"
-    // without an engine release; a board that has no such memory must refuse
-    // it rather than quietly hand back internal RAM that does not survive
-    // deep sleep. Silently substituting would be worse than failing, because
-    // the data would be lost at the one moment it was supposed to persist.
+    // A board without the region must refuse it. Handing back internal RAM
+    // instead would lose the data in deep sleep, the one moment it was meant
+    // to survive.
     ScopedSpy s;
     CapturedLog log;
 
@@ -545,9 +521,8 @@ TEST(DekiMemoryRegion, DmaIsAConstraintNotAPlace)
 
 TEST(DekiMemoryRegion, TwoPackagesNamingTheSameRegionMeanTheSameRegion)
 {
-    // Not a conflict - the point. Two board packages that both support a part
-    // with RTC memory write Region("rtc") independently and interoperate,
-    // the same way two packages both requiring the "spi" capability do.
+    // Two board packages that both write Region("rtc") work together, the
+    // same way two packages both requiring the "spi" capability do.
     constexpr Deki::Memory::Region kFromPackageA = Deki::Memory::Region("rtc");
     constexpr Deki::Memory::Region kFromPackageB = Deki::Memory::Region("rtc");
 
@@ -560,9 +535,8 @@ TEST(DekiMemoryRegion, TwoPackagesNamingTheSameRegionMeanTheSameRegion)
 
 TEST(DekiMemoryRegion, PrefixedNamesKeepPackagesOutOfEachOthersWay)
 {
-    // The convention that stops two packages meaning different things by the
-    // same word. "scratch" is a word several packages would want; qualifying
-    // it makes the collision impossible rather than unlikely.
+    // A prefix stops two packages meaning different things by the same word,
+    // such as "scratch".
     static_assert(Deki::Memory::Region("particles.scratch") != Deki::Memory::Region("tilemap.scratch"));
     static_assert(Deki::Memory::Region("esp32.rtc") != Deki::Memory::Region("rtc"));
 }

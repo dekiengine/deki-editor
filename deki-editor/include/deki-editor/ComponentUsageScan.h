@@ -2,14 +2,13 @@
 
 #include <deki-editor/EditorExport.h>
 
-// Which component types a project actually uses.
+// Which component types a project uses.
 //
-// A scene names every component it carries, so the scenes are the authority
-// for authored content. A script can also create a component at runtime
-// (`AddComponent<GradientComponent>()`), which no scene records, so the
-// project's sources are searched for the known type names as well. The two
-// together are what the stripper trusts; anything neither mentions is a
-// candidate for leaving out of a device build.
+// A scene names every component it carries. A script can also create one at
+// runtime (`AddComponent<GradientComponent>()`), which no scene records, so
+// the project's sources are searched for the known type names too. The
+// stripper trusts the two together; anything neither mentions may be left
+// out of a device build.
 
 #include <map>
 #include <set>
@@ -29,36 +28,34 @@ struct DEKI_EDITOR_API ComponentUsage
     bool Uses(const std::string& type) const { return byType.count(type) != 0; }
 };
 
-// `knownTypes` bounds the source search to real component names, so a word
-// that happens to appear in a comment cannot keep a feature alive unless it
-// is a component the project could actually create.
+// `knownTypes` limits the source search to real component names, so a word
+// in a comment keeps a feature alive only if it names a component the
+// project could create.
 //
-// `targetPlatformId` scopes the platform boot scenes to the target being
-// built: one platform's boot scene is no evidence about another's, and
-// pooling them is what let a simulator's SDL3 setup keep SDL3 alive in a
-// firmware build. Empty means every platform, the pooled view the editor
-// panels use when no target is selected.
+// `targetPlatformId` limits the platform boot scenes to the target being
+// built: one platform's boot scene says nothing about another's (pooled, a
+// simulator's SDL3 setup kept SDL3 in a firmware build). Empty means every
+// platform, the pooled view the editor panels use when no target is selected.
 // `targetCapabilities` is what the target platform offers. Objects a scene
-// marks as needing something it does not offer are not part of that target's
-// build (services/SceneTargetFilter), so their components must not count as
-// used here either - otherwise the stripper keeps a package alive for an object
-// the build will not contain.
+// marks as needing something it does not offer are left out of that target's
+// build (services/SceneTargetFilter), so their components do not count as
+// used here either; otherwise a package is kept for an object the build will
+// not contain.
 // `scanPackageIds` names the packages whose own sources count as usage. A
-// package may use another package's component - deki-fsm calls
-// Deki2D::AnimationComponent::Play() - and that reference is as real as one in
-// the project's own code; scanning only the project stripped deki-2d's
-// animation feature out of a build whose deki-fsm still called it, and the
-// link failed with an undefined reference pointing nowhere near stripping.
+// package may use another package's component (deki-fsm calls
+// Deki2D::AnimationComponent::Play()), and that is as real as a use in the
+// project's code: leaving it out strips a feature the build still calls, and
+// the link fails with an undefined reference.
 //
 // It must be the packages ELIGIBLE for the target, not every installed one:
 // deki-sdl3-integration's sources are not this target's content when the
 // target cannot provide sdl3, and counting them reports a conflict against a
-// package that was never going to be built.
+// package that will not be built.
 //
-// `extraSceneDirs` are more directories whose scenes count, for a build whose
+// `extraSceneDirs` are more folders whose scenes count, for a build whose
 // boot scene is not under the project: a simulated build compiles a copy of
-// the board's boot scene with the simulator's steps added, kept in its own
-// build directory.
+// the board's boot scene, with the simulator's steps added, in its own build
+// folder.
 DEKI_EDITOR_API ComponentUsage ScanComponentUsage(const std::string& projectPath,
                                                   const std::vector<std::string>& knownTypes,
                                                   const std::vector<std::string>& scanPackageIds,

@@ -108,7 +108,7 @@ std::string ModifyComponentPropertyCommand::GetDescription() const
 
 void ModifyComponentPropertyCommand::Execute()
 {
-    // Apply new value - use special handlers for Array and Enum
+    // Array and Enum have their own apply functions; the rest use the type handler.
     if (m_PropertyType == Deki::PropertyType::Array)
     {
         Deki::PropertyInfo tempProp = {};
@@ -136,7 +136,7 @@ void ModifyComponentPropertyCommand::Execute()
 
 void ModifyComponentPropertyCommand::Undo()
 {
-    // Apply old value - use special handlers for Array and Enum
+    // Array and Enum have their own apply functions; the rest use the type handler.
     if (m_PropertyType == Deki::PropertyType::Array)
     {
         Deki::PropertyInfo tempProp = {};
@@ -244,7 +244,6 @@ bool ModifyMultipleComponentPropertyCommand::CanMerge(const Command* other) cons
         return false;
     }
 
-    // Check all components match
     for (size_t i = 0; i < m_Entries.size(); ++i)
     {
         if (cmd->m_Entries[i].component != m_Entries[i].component)

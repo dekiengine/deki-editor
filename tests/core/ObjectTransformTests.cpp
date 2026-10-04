@@ -1,9 +1,6 @@
-/**
- * @file ObjectTransformTests.cpp
- * @brief World-transform propagation (the rotation-0 fast path must equal the
- *        trig path), the one-shot GetWorldTransform read, the iterative
- *        active-hierarchy walk, and the interface-adapter version counter.
- */
+// World-transform propagation (the rotation-0 fast path must equal the trig
+// path), the one-shot GetWorldTransform read, the iterative active-hierarchy
+// walk, and the interface-adapter version counter.
 
 #include <gtest/gtest.h>
 #include <cmath>

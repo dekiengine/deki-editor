@@ -30,7 +30,7 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
 {
     m_ActiveLines.clear();
 
-    // Build combined vertical targets (X values): device edges + object targets
+    // Device edges and centre, plus the object targets.
     std::vector<float> vTargets = { -m_DeviceHalfW, 0.0f, m_DeviceHalfW };
     std::vector<float> hTargets = { -m_DeviceHalfH, 0.0f, m_DeviceHalfH };
 
@@ -46,8 +46,8 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
         }
     }
 
-    // Object edges (world coords, Y-up)
-    // World position is the CENTER of the object (pivot 0.5)
+    // Object edges in world coordinates, Y up. The position is the object's
+    // centre.
     float halfW = objW * 0.5f;
     float halfH = objH * 0.5f;
     float objLeft = x - halfW;
@@ -55,14 +55,13 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
     float objTop = y + halfH;
     float objBottom = y - halfH;
 
-    // Snap X axis - find closest vertical target to any object edge or center
+    // X: the closest vertical target to either edge or the centre.
     float bestSnapX = FLT_MAX;
     float bestDeltaX = FLT_MAX;
     float bestLineX = 0.0f;
 
     for (float target : vTargets)
     {
-        // Check left edge
         float delta = std::abs(objLeft - target);
         if (delta < m_SnapThreshold && delta < bestDeltaX)
         {
@@ -70,7 +69,6 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
             bestSnapX = target + halfW;
             bestLineX = target;
         }
-        // Check right edge
         delta = std::abs(objRight - target);
         if (delta < m_SnapThreshold && delta < bestDeltaX)
         {
@@ -78,7 +76,6 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
             bestSnapX = target - halfW;
             bestLineX = target;
         }
-        // Check center
         delta = std::abs(x - target);
         if (delta < m_SnapThreshold && delta < bestDeltaX)
         {
@@ -94,14 +91,13 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
         m_ActiveLines.push_back({ bestLineX, SnapAxis::Vertical });
     }
 
-    // Snap Y axis - find closest horizontal target to any object edge or center
+    // Y: the closest horizontal target to either edge or the centre.
     float bestSnapY = FLT_MAX;
     float bestDeltaY = FLT_MAX;
     float bestLineY = 0.0f;
 
     for (float target : hTargets)
     {
-        // Check top edge
         float delta = std::abs(objTop - target);
         if (delta < m_SnapThreshold && delta < bestDeltaY)
         {
@@ -109,7 +105,6 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
             bestSnapY = target - halfH;
             bestLineY = target;
         }
-        // Check bottom edge
         delta = std::abs(objBottom - target);
         if (delta < m_SnapThreshold && delta < bestDeltaY)
         {
@@ -117,7 +112,6 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
             bestSnapY = target + halfH;
             bestLineY = target;
         }
-        // Check center
         delta = std::abs(y - target);
         if (delta < m_SnapThreshold && delta < bestDeltaY)
         {
@@ -136,7 +130,7 @@ void SceneSnapping::CalculateSnap(float& x, float& y, float objW, float objH)
 
 float SceneSnapping::CalculateEdgeSnap(float edgeWorldCoord, SnapAxis axis)
 {
-    // Build combined targets: device edges + object targets
+    // Device edges and centre, plus the object targets.
     std::vector<float> targets;
 
     if (axis == SnapAxis::Vertical)
@@ -195,13 +189,13 @@ void SceneSnapping::DrawSnapGuides(ImDrawList* drawList, SceneCoordinates* coord
     {
         if (line.axis == SnapAxis::Vertical)
         {
-            // Vertical line at world X - convert to screen X, span full canvas height
+            // A vertical line at world X, the full canvas height.
             ImVec2 screenPos = coords->WorldToScreen(line.worldCoord, 0.0f);
             drawList->AddLine(ImVec2(screenPos.x, canvasTopLeft.y), ImVec2(screenPos.x, canvasBottom), snapColor, 1.0f);
         }
         else
         {
-            // Horizontal line at world Y - convert to screen Y, span full canvas width
+            // A horizontal line at world Y, the full canvas width.
             ImVec2 screenPos = coords->WorldToScreen(0.0f, line.worldCoord);
             drawList->AddLine(ImVec2(canvasTopLeft.x, screenPos.y), ImVec2(canvasRight, screenPos.y), snapColor, 1.0f);
         }

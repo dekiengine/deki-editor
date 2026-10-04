@@ -26,15 +26,15 @@ namespace DekiEditor
 namespace HistoryGuards
 {
 
-/// The memory of `obj` and its components; with `recursive`, of its whole
-/// subtree.
+/// Adds the memory of `obj` and its components to `dead`; with `recursive`,
+/// of its whole subtree.
 void AddObject(DeadMemory& dead, const Deki::Object* obj, bool recursive);
 
-/// The memory of one component (its full instance size when its type is
-/// registered).
+/// Adds the memory of one component to `dead`: its full instance size when
+/// its type is registered.
 void AddComponent(DeadMemory& dead, const Deki::Component* comp);
 
-/// Drop the undo steps that point into `obj`'s subtree / `comp`, which the
+/// Drops the undo steps that point into `obj`'s subtree / `comp`, which the
 /// caller is about to free outside Scene::DestroyDekiObject. ForgetComponent
 /// also drops the scene loader's record of it (Internal::ForgetComponentData).
 void ForgetObjectTree(const Deki::Object* obj);

@@ -1,5 +1,4 @@
-// EditorApp Project & Scene Management
-// Extracted from EditorApp.cpp - project open/close, scene lifecycle, hot reload callbacks
+// EditorApp: project open/close, scene lifecycle, hot reload callbacks.
 
 #include "services/ExportTarget.h"
 #include "ObjectInternal.h"
@@ -114,8 +113,8 @@ bool EditorApp::OpenProject(const std::string& path)
     CloseProject();
     m_ProjectLock = std::move(lock);
 
-    // The Console's messages and build errors were about the project just
-    // closed; the status bar went on counting them in the next one.
+    // The Console's messages and build errors are about the previous project;
+    // cleared, so the status bar does not count them in this one.
     if (m_ConsolePanel)
     {
         m_ConsolePanel->Clear();
@@ -167,7 +166,7 @@ bool EditorApp::OpenProject(const std::string& path)
 
     // Asset cache epoch: a bumped kAssetCacheEpoch means the compiled asset
     // format changed, so the cache is wiped here and ImportAllAssets below
-    // rebuilds it. The result used to be ignored - the bump only logged.
+    // rebuilds it.
     if (CheckAssetCacheEpochChanged(path))
     {
         std::error_code ec;
@@ -253,12 +252,11 @@ bool EditorApp::OpenProject(const std::string& path)
     // then what the installed packages offer, then the project's own, which
     // override both.
     //
-    // This used to run before the restore, with a desktop simulator the editor
-    // built from its own source registered first as "the fallback". The editor
-    // has no platform of its own now. A project's active platform that it does
-    // not define yet - a new project's, which names the starter's platform and
-    // nothing more - is adopted from the package offering it, and one that
-    // nobody offers is an error said here rather than a quiet substitute.
+    // The editor has no platform of its own. A project's active platform that
+    // it does not define yet - a new project's, which names the starter's
+    // platform and nothing more - is adopted from the package offering it, and
+    // one that nobody offers is an error said here rather than a quiet
+    // substitute.
     {
         ScopedTimer tPlatforms("OpenProject platforms");
         StartupProgress::Update("Checking platforms...");
@@ -347,10 +345,9 @@ bool EditorApp::OpenProject(const std::string& path)
     // The filesystem has to exist before the packages do. Loading a package
     // runs its editor-auto SetupComponents (SetupComponent::RunEditorAutoSetups,
     // from PackageLoader), and a setup may read or write S:/ - deki-gps caches
-    // its last location there, for one. This used to be created near the end of
-    // OpenProject, so those writes landed on no filesystem at all and vanished
-    // without an error: the GPS lookup ran again on every project open, which is
-    // exactly what its cache exists to prevent.
+    // its last location there, for one. Without a filesystem those writes
+    // vanish without an error, and the GPS lookup its cache exists to prevent
+    // runs again on every project open.
     //
     // Only the S:/ mount moves up here. The path resolver below it needs the
     // asset pipeline, which is not ready yet, and is attached to this same
@@ -425,7 +422,7 @@ bool EditorApp::OpenProject(const std::string& path)
     }
 
     // A project is open, so runtime/ is authoritative about what a package is -
-    // the loader no longer needs a vendor name prefix to recognise one.
+    // the loader needs no vendor name prefix to recognise one.
     m_PackageLoader->SetVendorAgnosticDiscovery(true);
 
     // Load project package DLLs from runtime/ (separate from the plugin)
@@ -456,9 +453,7 @@ bool EditorApp::OpenProject(const std::string& path)
     //
     // Project::Load runs before any package is loaded, so at that point the
     // settings registry holds engine-core sections only and a package's section
-    // resolves to nothing. That silently dropped every package setting on load -
-    // "Rendering" sat in the project file and was never applied, because the
-    // package that owns it had not registered yet. Settings are only fully
+    // (such as "Rendering") resolves to nothing. Settings are only fully
     // knowable once the packages are in, so this is where they are read.
     if (m_Project)
     {
@@ -511,10 +506,9 @@ bool EditorApp::OpenProject(const std::string& path)
     // Defer plugin + package build check to the main loop (same path as alt-tab
     // hot reload). Running them here (before the UI loop) would log errors
     // before ImGui layout is initialized, so the console panel can't be
-    // focused/shown to the user. Mirrors EditorApp::OnWindowFocusGained which
-    // schedules both checks; without the package check here, source edits made
-    // while the editor was closed only ran the plugin path on first focus and
-    // needed a second alt-tab to trigger the package rebuild.
+    // focused/shown to the user. Mirrors EditorApp::OnWindowFocusGained, which
+    // schedules both checks, so package sources edited while the editor was
+    // closed are rebuilt on the first focus too, not only the plugin.
     if (m_HotReloadService)
     {
         m_HotReloadService->RequestPackageCheck();
@@ -611,9 +605,9 @@ bool EditorApp::OpenProject(const std::string& path)
     };
 
     // Fired when ProcessAsset sees a path for the first time. Drives the
-    // editor-side UI refresh that previously had to be triggered manually
-    // by every "create asset" call site (AssetBrowser thumbnails, picker
-    // cache). Runtime registration still happens via onAssetDiscovered.
+    // editor-side UI refresh (AssetBrowser thumbnails, picker cache) however
+    // the asset was created. Runtime registration happens via
+    // onAssetDiscovered.
     m_AssetPipeline->onAssetCreated = [this](const std::string& /*relativePath*/)
     {
         if (m_AssetBrowserPanel)
@@ -758,8 +752,8 @@ bool EditorApp::OpenProject(const std::string& path)
     //
     // ProjectTemplate writes Standard2D.asset when it scaffolds a project, but
     // the asset has no GUID at that point (the pipeline assigns those on
-    // import), so nothing can fill renderPipelineGuid in. The result was a
-    // brand-new project entering play mode and reporting "No render pipeline
+    // import), so nothing can fill renderPipelineGuid in. Without this, a
+    // brand-new project would enter play mode and report "No render pipeline
     // configured" with a perfectly good pipeline sitting in its assets folder.
     //
     // Only adopt when there is exactly one candidate - with several, guessing
@@ -832,9 +826,9 @@ bool EditorApp::OpenProject(const std::string& path)
     std::string cachePath = GetCacheDirectory(path);
 
     // The filesystem itself was created and mounted before the packages loaded,
-    // because their setups can touch S:/. What was missing until now is the
-    // resolver, which needs the asset pipeline: it lets
-    // AssetManager::Load<T>("path") find the cached compiled file.
+    // because their setups can touch S:/. This attaches the resolver, which
+    // needs the asset pipeline: it lets AssetManager::Load<T>("path") find the
+    // cached compiled file.
     AssetPipeline* pipeline = m_AssetPipeline.get();
     editorFs->SetPathResolver(
         [pipeline, cachePath](const std::string& path) -> std::string
@@ -914,9 +908,9 @@ bool EditorApp::OpenProject(const std::string& path)
 
 bool EditorApp::OpenProjectShowingProgress(const std::string& path)
 {
-    // The progress card used to be switched off for good once the editor had
-    // started, so opening a project from the project list sat on a window
-    // that did not repaint for as long as the open took.
+    // The progress card shows for every open, not only at startup, so opening
+    // a project from the project list does not sit on a window that stops
+    // repainting for as long as the open takes.
     StartupProgress::Begin();
     const bool opened = OpenProject(path);
     if (opened)
@@ -992,11 +986,10 @@ void EditorApp::CloseProject()
     // Destroy tool windows while the code that created them still exists.
     //
     // Every EditorWindow instance comes from a createFunc in a package or plugin
-    // DLL, so its destructor lives there too. ToolHost was only cleared later,
-    // by DiscoverTools() near the end of the *next* OpenProject - by which point
-    // the DLLs were long gone and ~WindowInstance ran `delete` through a vtable
-    // in unmapped memory. Hot reload already clears them first for exactly this
-    // reason; project close simply never did.
+    // DLL, so its destructor lives there too. Left for DiscoverTools() in the
+    // *next* OpenProject, the DLLs would be gone and ~WindowInstance would run
+    // `delete` through a vtable in unmapped memory. Hot reload clears them
+    // first for the same reason.
     if (m_ToolHost)
     {
         m_ToolHost->ClearWindows();
@@ -1021,9 +1014,8 @@ void EditorApp::CloseProject()
     // Unload per-project packages
     if (m_PackageLoader && !m_PackageLoader->GetLoadedPackages().empty())
     {
-        // Everything that can hold a pointer into package code, in one place.
-        // This used to be a shorter copy of HotReloadService's list that
-        // missed the asset type registries and the font cache.
+        // Everything that can hold a pointer into package code, in one place,
+        // shared with HotReloadService.
         HotReloadService::ClearPackageReferencingState();
 
         m_PackageLoader->UnloadAllPackages();
@@ -1497,7 +1489,7 @@ void EditorApp::OnBeforePluginReload()
     // The undo history cannot outlive a reload: its steps point at the scene's
     // objects and components, which are rebuilt from JSON below, and some are
     // classes from the packages being unloaded (node graph edits). Undo after a
-    // script save wrote into freed memory. Unsaved changes stay unsaved.
+    // reload would write into freed memory. Unsaved changes stay unsaved.
     {
         CommandHistory& history = CommandHistory::Instance();
         const bool dirty = history.IsDirty();
@@ -1551,8 +1543,9 @@ void EditorApp::OnBeforePluginReload()
     }
 
     // Clear scene to release all component references before DLL unload. This
-    // must go through SetCurrentScene: a bare reset() left the EditorApplication
-    // facade naming the freed scene for the rest of the session.
+    // must go through SetCurrentScene: a bare reset() would leave the
+    // EditorApplication facade naming the freed scene for the rest of the
+    // session.
     SetCurrentScene(nullptr);
     ClearSelection();
 
@@ -1712,8 +1705,8 @@ bool EditorApp::CheckAssetCacheEpochChanged(const std::string& projectPath)
 {
     namespace fs = std::filesystem;
 
-    // Stored in settings/editor_version.txt. The filename is kept as-is so
-    // existing projects are not forced into a needless reimport by the rename.
+    // Stored in settings/editor_version.txt. Keep that filename: changing it
+    // would force every existing project into a needless reimport.
     fs::path settingsPath = fs::path(projectPath) / "settings";
     fs::path versionFilePath = settingsPath / "editor_version.txt";
 

@@ -9,12 +9,10 @@
 #include <string>
 
 // Which installer manages a package is decided by an id the installer declares
-// and the project records. It used to be decided by comparing an installer's
-// DISPLAY name against "ESP-IDF" in six places, so a second framework's
-// component manager could be registered and never be handed anything.
+// and the project records, never by an installer's display name.
 //
-// Nothing here names a real framework on purpose: the point is that the editor
-// routes on whatever id it is given.
+// Nothing here names a real framework on purpose: the editor routes on
+// whatever id it is given.
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -148,8 +146,9 @@ TEST(PackageSourceSpelling, TheEditorsOwnSourcesAndAnInstallersId)
     EXPECT_EQ(DekiEditor::PackageSourceToString(pkg), "alpha");
 }
 
-// A lock written when one framework's name WAS the package type. The id is in
-// the spelling; the component came from git, so "source" says nothing about it.
+// A lock in the older form, where a framework's name is the package type
+// ("alpha_component"). The installer id is read from that spelling; the
+// component came from git, so "source" says nothing about it.
 TEST(InstallerRouting, AnOlderLockStillSaysWhichInstaller)
 {
     TempProject project;
@@ -193,7 +192,7 @@ TEST(InstallerRouting, AnOlderLockStillSaysWhichInstaller)
 }
 
 // The registry catalogue a refresh merges in is offered, not used: the lock
-// records the project's packages only. It used to write every one of them.
+// records the project's packages only.
 TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)
 {
     TempProject project;

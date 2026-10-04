@@ -1,5 +1,5 @@
-// PropertyEditorFactory Multi-Selection Implementation
-// Extracted from PropertyEditorFactory.cpp - DrawPropertyMulti
+// PropertyEditorFactory: editing one property on several selected objects
+// (DrawPropertyMulti).
 
 #include "PropertyEditorFactory.h"
 #include <deki-editor/EditorTheme.h>
@@ -20,7 +20,7 @@ namespace DekiEditor
 
 using InspectorUtils::BeginPropertyRow;
 
-// Helper to check if all values are the same across components
+// True if every component holds the same value; it goes to `outValue`.
 template <typename T>
 static bool AreValuesSame(const std::vector<Deki::Component*>& components, const Deki::PropertyInfo& prop,
                           T* outValue = nullptr)
@@ -50,7 +50,7 @@ static bool AreValuesSame(const std::vector<Deki::Component*>& components, const
 void PropertyEditorFactory::DrawReadOnlyMulti(const std::vector<Deki::Component*>& components,
                                               const Deki::PropertyInfo& prop)
 {
-    // Wrapped: on one line it ran past the Inspector's edge.
+    // Wrapped, since on one line it runs past the Inspector's edge.
     ImGui::PushTextWrapPos(0.0f);
     ImGui::TextDisabled("Shows the first of %zu objects. Select one object to edit this.", components.size());
     ImGui::PopTextWrapPos();
@@ -74,7 +74,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
     // Make the tooltip available to the row label, whichever widget path draws it.
     InspectorUtils::SetNextRowTooltip(prop.tooltip);
 
-    // For most types, we'll check if values are mixed and show appropriate UI
+    // Mixed values show "-"; equal ones show the normal editor.
     switch (prop.type)
     {
         case Deki::PropertyType::Int32:
@@ -85,12 +85,11 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             BeginPropertyRow(displayName.c_str());
             if (!same)
             {
-                // Mixed values - show grey "-" that can be edited
+                // Mixed values: a grey "-" that can be edited.
                 char buf[32] = "-";
                 ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
                 if (ImGui::InputText("##value", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
                 {
-                    // Parse the new value
                     int32_t newValue = 0;
                     if (sscanf(buf, "%d", &newValue) == 1)
                     {
@@ -103,7 +102,6 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             }
             else
             {
-                // Same value - normal editor
                 int32_t capturedValue = value;
                 if (prop.hasRange)
                 {
@@ -126,7 +124,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
 
                 if (ImGui::IsItemDeactivatedAfterEdit() && value != s_OldValue)
                 {
-                    // Restore all components to old value before command
+                    // Restore the old value so the command records it.
                     for (Deki::Component* comp : components)
                     {
                         ::Deki::GetPropertyRef<int32_t>(comp, prop) = s_OldValue;
@@ -146,7 +144,6 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             BeginPropertyRow(displayName.c_str());
             if (!same)
             {
-                // Mixed values
                 char buf[32] = "-";
                 ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
                 if (ImGui::InputText("##value", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
@@ -163,7 +160,6 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             }
             else
             {
-                // Same value - normal editor
                 float capturedValue = value;
                 if (prop.hasRange)
                 {
@@ -203,10 +199,9 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
 
             if (!same)
             {
-                // Mixed values - show an indeterminate checkbox + "-". This branch
-                // is bespoke (the trailing dash), so it draws its own row, but uses
-                // the same collapsed FramePadding as EditorUI::Checkbox so the row
-                // height matches the unified compact checkbox rows.
+                // Mixed values: an indeterminate checkbox and "-". It draws its
+                // own row, with EditorUI::Checkbox's small FramePadding so the
+                // row height matches the other checkbox rows.
                 const ImVec2 fp = ImGui::GetStyle().FramePadding;
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(fp.x, ImGui::GetFontSize() * 0.1f));
                 BeginPropertyRow(displayName.c_str());
@@ -214,7 +209,6 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 bool dummy = false;
                 if (DekiEditor::SchematicCheckbox("##value", &dummy))
                 {
-                    // Set all to true
                     CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyMultipleComponentPropertyCommand>(
                         components, prop, nlohmann::json(true)));
                 }
@@ -228,7 +222,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                 bool oldValue = value;
                 if (EditorUI::Get().Checkbox(displayName.c_str(), &value))
                 {
-                    // Restore before command
+                    // Restore the old value so the command records it.
                     for (Deki::Component* comp : components)
                     {
                         ::Deki::GetPropertyRef<bool>(comp, prop) = oldValue;
@@ -263,7 +257,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             BeginPropertyRow(displayName.c_str());
             if (ImGui::InputText("##value", buf, sizeof(buf)))
             {
-                // Update all immediately for preview
+                // Live preview on every component.
                 for (Deki::Component* comp : components)
                 {
                     ::Deki::GetPropertyRef<std::string>(comp, prop) = buf;
@@ -283,7 +277,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             if (ImGui::IsItemDeactivatedAfterEdit())
             {
                 std::string newValue = buf;
-                // Restore old values
+                // Restore the old values so the command records them.
                 for (Deki::Component* comp : components)
                 {
                     ::Deki::GetPropertyRef<std::string>(comp, prop) = s_OldValue;
@@ -371,9 +365,9 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
                     default: return *reinterpret_cast<const int32_t*>(p);
                 }
             };
-            // readIndex returns the stored enumerator VALUE, not its row in the
-            // tables; those differ on any enum that is not numbered 0, 1, 2...
-            // Map value -> row for the combo and row -> value for the write.
+            // readIndex returns the stored enumerator value, not its row in the
+            // tables; they differ for an enum not numbered 0, 1, 2... Map value
+            // to row for the combo and row to value for the write.
             const int32_t value = readIndex(components[0]);
             bool same = true;
             for (size_t i = 1; i < components.size() && same; ++i)
@@ -409,10 +403,9 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
             break;
         }
 
-        // Types with no multi-edit path yet. Shown read-only from the first
-        // component: this used to draw a LIVE editor for components[0] under a
-        // "(N objects)" label, so an edit changed one object while the label
-        // said it changed all of them.
+        // Types without multi-edit: shown read-only from the first component.
+        // A live editor here would change one object under a label that says
+        // all of them.
         case Deki::PropertyType::Vector2:
         case Deki::PropertyType::Vector3:
         case Deki::PropertyType::Asset:
@@ -424,7 +417,7 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
 
     ShowTooltip(prop);
 
-    // Drop the one-shot tooltip if this field never drew a labeled row.
+    // Drop the tooltip in case this field drew no labelled row.
     InspectorUtils::SetNextRowTooltip(nullptr);
 
     ImGui::PopID();

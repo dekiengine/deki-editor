@@ -116,7 +116,7 @@ static void InvokePreCrashCallback()
         }
         catch (...)
         {
-            // Don't let recovery failure prevent crash dialog
+            // A failed recovery must not stop the crash dialog.
         }
     }
 }
@@ -134,14 +134,14 @@ static std::string FormatPlayModeContext()
     return buf;
 }
 
-// Get base path next to the executable (for symbol resolution)
+// The executable's directory, for symbol lookup.
 static std::string GetBaseDirPath()
 {
     const char* basePath = SDL_GetBasePath();
     return basePath ? std::string(basePath) : std::string();
 }
 
-// Get crash directory path (creates crash/ subfolder next to executable)
+// The crash/ folder next to the executable, created when missing.
 static std::string GetCrashDirPath()
 {
     const char* basePath = SDL_GetBasePath();
@@ -158,14 +158,14 @@ static std::string GetCrashDirPath()
     return crashDir;
 }
 
-// Write crash log to crash/ folder
+// Where the crash log goes, in the crash/ folder.
 static std::string GetCrashLogPath()
 {
     std::string crashDir = GetCrashDirPath();
     return crashDir + "deki_crash.log";
 }
 
-// Generate a timestamped dump filename in crash/ folder
+// A timestamped dump file name in the crash/ folder.
 static std::string GetTimestampedDumpPath(const char* extension)
 {
     std::string base = GetCrashDirPath();
@@ -191,7 +191,6 @@ static std::string GetTimestampedDumpPath(const char* extension)
 
 static void ShowCrashDialog(const std::string& title, const std::string& callstack)
 {
-    // Write to crash log file
     std::string logPath = GetCrashLogPath();
     FILE* f = fopen(logPath.c_str(), "w");
     if (f)
@@ -200,12 +199,11 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         fclose(f);
     }
 
-    // Print to stderr
     fprintf(stderr, "\n=== DEKI EDITOR CRASH ===\n%s\n\n%s\n\nCrash log written to: %s\n", title.c_str(),
             callstack.c_str(), logPath.c_str());
 
-    // Try to create a custom ImGui crash dialog window
-    // This is independent from the editor's SDL/ImGui state
+    // Show an ImGui crash dialog in its own window, apart from the editor's
+    // SDL and ImGui state.
     bool sdlWasInit = SDL_WasInit(SDL_INIT_VIDEO) != 0;
     // The editor turned SDL's touch-to-mouse emulation off to read touches
     // itself; this dialog has none of that, so a tap has to click again.
@@ -252,23 +250,21 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     SDL_GL_MakeCurrent(crashWindow, glCtx);
     SDL_GL_SetSwapInterval(1);
 
-    // Query DPI scale
     float dpiScale = SDL_GetWindowDisplayScale(crashWindow);
     if (dpiScale <= 0.0f)
     {
         dpiScale = 1.0f;
     }
 
-    // Create a fresh ImGui context for the crash dialog
     ImGuiContext* prevCtx = ImGui::GetCurrentContext();
     ImGuiContext* crashCtx = ImGui::CreateContext();
     ImGui::SetCurrentContext(crashCtx);
 
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;  // Don't save layout
-    // ImGui 1.92 canonical DPI pattern: backend updates style.FontScaleDpi
-    // automatically; we provide a sensible FontSizeBase and scale style
-    // sizes/padding once. Mirrors the main editor setup in main.cpp.
+    // ImGui 1.92's DPI pattern, as in main.cpp: the backend updates
+    // style.FontScaleDpi itself; this sets FontSizeBase and scales the style's
+    // sizes and padding once.
     io.ConfigDpiScaleFonts = true;
     ImGui::GetStyle().FontSizeBase = 13.0f;
     ImGui::GetStyle().FontScaleMain = 1.0f;
@@ -279,7 +275,6 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     ImGui_ImplSDL3_InitForOpenGL(crashWindow, glCtx);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    // Prepare callstack text buffer for InputTextMultiline
     std::string fullText = callstack + "\nCrash log: " + logPath;
     if (!s_LastDumpPath.empty())
     {
@@ -287,7 +282,6 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     }
     bool copied = false;
 
-    // Run crash dialog event loop
     bool running = true;
     while (running)
     {
@@ -309,7 +303,6 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        // Full-window ImGui panel
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(io.DisplaySize);
         ImGui::Begin("##CrashDialog", nullptr,
@@ -333,12 +326,10 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         }
         ImGui::Spacing();
 
-        // Scrollable callstack
         float buttonAreaHeight = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
         ImGui::InputTextMultiline("##callstack", fullText.data(), fullText.size() + 1, ImVec2(-1, -buttonAreaHeight),
                                   ImGuiInputTextFlags_ReadOnly);
 
-        // Buttons
         if (ImGui::Button("Copy to Clipboard"))
         {
             SDL_SetClipboardText(fullText.c_str());
@@ -367,12 +358,10 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         SDL_GL_SwapWindow(crashWindow);
     }
 
-    // Cleanup crash dialog
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext(crashCtx);
 
-    // Restore previous ImGui context if it existed
     if (prevCtx)
     {
         ImGui::SetCurrentContext(prevCtx);
@@ -398,15 +387,14 @@ static void InitializeSymbols()
     HANDLE process = GetCurrentProcess();
     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
 
-    // Build symbol search path: exe directory + shadow directories
-    // This ensures PDBs in shadow directories (_hotreload_N/) are found
+    // Symbol search path: the exe directory plus the shadow directories
+    // (_hotreload_N/), so their PDBs are found.
     std::string searchPath = GetBaseDirPath();
     if (!searchPath.empty() && searchPath.back() == '\\')
     {
         searchPath.pop_back();
     }
 
-    // Also add any existing shadow directories
     try
     {
         for (const auto& entry : std::filesystem::directory_iterator(GetBaseDirPath()))
@@ -505,7 +493,6 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
         char line[512];
         DWORD64 displacement = 0;
 
-        // Get package name for this address
         char packageName[64] = "";
         HMODULE hMod = nullptr;
         if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -815,8 +802,8 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     std::string dumpPath = WriteMiniDump(exceptionInfo);
 
     // Then the user's unsaved work, before anything slow or risky (symbol
-    // loading, stack walks): a second fault in those used to end the process
-    // with the recovery snapshot never written.
+    // loading, stack walks): a second fault there ends the process, and the
+    // recovery snapshot must already be written.
     InvokePreCrashCallback();
 
     // Refresh symbols in case new packages were loaded since startup
@@ -832,22 +819,18 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 
     std::string title = std::string("Deki Editor Crash: ") + GetExceptionCodeString(code);
 
-    // Build detailed crash message
     std::string message;
 
-    // Exception header
     char header[512];
     snprintf(header, sizeof(header), "Exception Code: 0x%08lX (%s)\n", code, GetExceptionCodeString(code));
     message += header;
 
-    // Access violation details
     std::string avDetails = FormatAccessViolationDetails(exceptionInfo->ExceptionRecord);
     if (!avDetails.empty())
     {
         message += avDetails;
     }
 
-    // Minidump path
     if (!dumpPath.empty())
     {
         message += "Minidump: " + dumpPath + "\n";
@@ -855,18 +838,14 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 
     message += "\n";
 
-    // Play mode context
     message += FormatPlayModeContext();
 
-    // Register state
     message += FormatRegistersWindows(exceptionInfo->ContextRecord);
     message += "\n";
 
-    // Crashing thread callstack
     message += "Crashing Thread Callstack:\n";
     message += CaptureStackTraceWindows(exceptionInfo->ContextRecord);
 
-    // Other threads
     std::string otherThreads = CaptureAllThreadStacks(GetCurrentThreadId());
     if (!otherThreads.empty())
     {
@@ -874,7 +853,6 @@ static LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
         message += otherThreads;
     }
 
-    // Loaded packages
     message += FormatLoadedModules();
 
     ShowCrashDialog(title, message);
@@ -908,7 +886,6 @@ static std::string CaptureStackTraceUnix()
                 ptrdiff_t offset = (char*)frames[i] - (char*)dlInfo.dli_saddr;
                 const char* packageName = dlInfo.dli_fname ? dlInfo.dli_fname : "<unknown>";
 
-                // Extract just the filename from the full path
                 const char* slash = strrchr(packageName, '/');
                 if (slash)
                 {
@@ -1136,7 +1113,6 @@ static std::string WriteCoreDump()
     pid_t child = fork();
     if (child == 0)
     {
-        // Child process: abort to produce core dump
         signal(SIGABRT, SIG_DFL);
         abort();
         _exit(1);  // Should not reach here
@@ -1146,7 +1122,6 @@ static std::string WriteCoreDump()
         int status = 0;
         waitpid(child, &status, 0);
 
-        // Try to determine core dump path
 #ifdef __linux__
         // Read /proc/sys/kernel/core_pattern to report where the core file went
         FILE* f = fopen("/proc/sys/kernel/core_pattern", "r");
@@ -1155,7 +1130,6 @@ static std::string WriteCoreDump()
             char pattern[256] = {};
             if (fgets(pattern, sizeof(pattern), f))
             {
-                // Remove trailing newline
                 size_t len = strlen(pattern);
                 if (len > 0 && pattern[len - 1] == '\n')
                 {
@@ -1207,16 +1181,14 @@ static std::string CaptureOtherThreadsMacOS()
         snprintf(header, sizeof(header), "\n--- Thread %u ---\n", threadList[i]);
         result += header;
 
-        // We can't easily call CaptureStackTraceUnix for other threads,
-        // but the core dump will have all thread stacks.
-        // Just note the thread exists.
+        // CaptureStackTraceUnix only works on the current thread; the core
+        // dump has every thread's stack, so just note that the thread exists.
         result += "  (see core dump for full stack)\n";
 
         thread_resume(threadList[i]);
         captured++;
     }
 
-    // Deallocate the thread list
     vm_deallocate(mach_task_self(), (vm_address_t)threadList, threadCount * sizeof(thread_act_t));
     mach_port_deallocate(mach_task_self(), selfThread);
 
@@ -1267,28 +1239,24 @@ static void CrashSignalHandlerUnix(int sig, siginfo_t* info, void* ucontext)
     signal(sig, SIG_DFL);
 
     // The user's unsaved work first. Everything below can fault again (the
-    // unwinder in backtrace() did, inside libgcc_s), and a fault in a handler
-    // ends the process on the spot: 2 of 3 crashes in QA wrote no snapshot.
+    // unwinder in backtrace() can, inside libgcc_s), and a fault in a handler
+    // ends the process on the spot, before any snapshot is written.
     InvokePreCrashCallback();
 
     std::string title = std::string("Deki Editor Crash: ") + GetSignalString(sig);
 
-    // Build detailed message
     std::string message;
 
-    // Signal header
     char header[256];
     snprintf(header, sizeof(header), "Signal: %d (%s)\n", sig, GetSignalString(sig));
     message += header;
 
-    // Fault details
     std::string faultDetails = FormatFaultDetails(sig, info);
     if (!faultDetails.empty())
     {
         message += faultDetails;
     }
 
-    // Core dump
     std::string coreInfo = WriteCoreDump();
     if (!coreInfo.empty())
     {
@@ -1298,18 +1266,14 @@ static void CrashSignalHandlerUnix(int sig, siginfo_t* info, void* ucontext)
 
     message += "\n";
 
-    // Play mode context
     message += FormatPlayModeContext();
 
-    // Register state
     message += FormatRegistersUnix(ucontext);
     message += "\n";
 
-    // Crashing thread callstack
     message += "Crashing Thread Callstack:\n";
     message += CaptureStackTraceUnix();
 
-    // Other threads
 #ifdef __APPLE__
     std::string otherThreads = CaptureOtherThreadsMacOS();
 #elif defined(__linux__)
@@ -1374,10 +1338,8 @@ static void CrashTerminateHandler()
         message += "Minidump: " + dumpPath + "\n\n";
     }
 
-    // Play mode context
     message += FormatPlayModeContext();
 
-    // Capture context for stack walk
     CONTEXT ctx;
     RtlCaptureContext(&ctx);
 
@@ -1403,7 +1365,6 @@ static void CrashTerminateHandler()
         message += otherThreads;
     }
 
-    // Loaded packages
     message += FormatLoadedModules();
 #else
     std::string coreInfo = WriteCoreDump();
@@ -1481,10 +1442,9 @@ void CrashHandler::Initialize()
 // ---- Public diagnostic helpers (declared in CrashHandler.h) ----
 
 #ifdef _WIN32
-// Walk every currently loaded package, collect the unique directories that
-// contain them, and extend DbgHelp's symbol search path with those dirs.
-// This is what makes plugin DLLs outside the editor's bin/ (e.g. the project
-// at <project>/bin/, or <project>/packages/_hotreload_*/) get their PDBs found.
+// Adds the directory of every loaded package to DbgHelp's symbol search path,
+// so plugin DLLs outside the editor's bin/ (such as <project>/bin/ or
+// <project>/packages/_hotreload_*/) get their PDBs found.
 static void ExtendSymbolSearchPathForLoadedModules()
 {
     HANDLE process = GetCurrentProcess();
@@ -1560,11 +1520,11 @@ std::string CrashHandler::CaptureStackTrace(void* contextPtr)
     }
     // Cover plugin/project DLLs that live outside the editor's bin/.
     ExtendSymbolSearchPathForLoadedModules();
-    // Pick up packages loaded after Initialize() (plugin DLLs, hot-reload copies).
-    // Without their unwind info, StackWalk64 produces garbage frames on x64.
+    // Pick up packages loaded after Initialize() (plugin DLLs, hot-reload
+    // copies). Without their unwind info, StackWalk64 gives garbage frames on x64.
     SymRefreshModuleList(GetCurrentProcess());
-    // StackWalk64 mutates the CONTEXT - work on a copy so the caller's
-    // EXCEPTION_POINTERS->ContextRecord is left untouched.
+    // StackWalk64 changes the CONTEXT, so work on a copy and leave the caller's
+    // EXCEPTION_POINTERS->ContextRecord untouched.
     CONTEXT ctxCopy = *static_cast<CONTEXT*>(contextPtr);
     return CaptureStackTraceWindows(&ctxCopy);
 #else

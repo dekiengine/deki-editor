@@ -1,7 +1,5 @@
-// EditorPaths - Centralized path utilities for the Deki Editor
-// Replaces duplicate path logic from ESPIDFBuilder,
-// BoardPackManager, BuilderRegistry, PlatformConfig,
-// ProjectTemplate, ToolchainComponentManager, BuildFileGenerator
+// EditorPaths: the editor's shared path utilities (data directory,
+// executable directory, home).
 
 #include <deki-editor/EditorPaths.h>
 #include <algorithm>
@@ -27,7 +25,7 @@ namespace DekiEditor
 std::string EditorPaths::GetUserHomeDir()
 {
 #ifdef _WIN32
-    // Try USERPROFILE first (most reliable on Windows)
+    // USERPROFILE first: the most reliable on Windows.
     const char* userProfile = getenv("USERPROFILE");
     if (userProfile && userProfile[0] != '\0')
     {
@@ -62,13 +60,11 @@ std::string EditorPaths::GetEditorDataDir()
 #ifdef _WIN32
     return home + "/.deki-editor";
 #else
-    // XDG on Linux and macOS: a dotfolder straight in $HOME is what this used
-    // to be, and it is the thing distribution packagers and users ask about
-    // first. $XDG_DATA_HOME wins when set, as the spec says.
+    // XDG on Linux and macOS: $XDG_DATA_HOME when set, as the spec says, else
+    // ~/.local/share.
     //
-    // A directory from before this keeps being used, so nobody's toolchains and
-    // board packs move out from under them; only a fresh install picks the new
-    // location.
+    // An existing ~/.deki-editor is kept, so installed toolchains and board
+    // packs stay where they are; only a fresh install uses the XDG location.
     const std::string legacy = home + "/.deki-editor";
     std::error_code ec;
     if (std::filesystem::exists(legacy, ec))

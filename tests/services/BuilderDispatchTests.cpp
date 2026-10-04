@@ -1,6 +1,6 @@
-// Choosing a build backend. The key is the platform's framework string, and
-// there is no fallback: a platform nobody claims is an error, never a quiet
-// hand-off to whichever builder was registered first.
+// Choosing a build backend. The key is the platform's framework string. A
+// platform no builder claims is an error; it never falls back to the first
+// registered builder.
 
 #include <gtest/gtest.h>
 
@@ -12,8 +12,8 @@ using namespace DekiEditor;
 
 namespace
 {
-// Only the identity matters here, so everything else is left to throw if the
-// dispatcher ever calls it - which it must not.
+// Only the name and framework matter here; the dispatcher must not call
+// anything else.
 class StubBuilder : public ITargetBuilder
 {
 public:
@@ -69,10 +69,10 @@ TEST(BuilderDispatch, PicksTheBuilderClaimingTheFramework)
 
 TEST(BuilderDispatch, TwoBuildersForTheSameSiliconAreToldApart)
 {
-    // The case that forced this design. A Tactility board IS an ESP32-S3, so
-    // its platform and an ESP-IDF platform share family "espressif"; keyed on
-    // family, the first registered builder would silently win and a Tactility
-    // app would be built as firmware.
+    // A Tactility board is an ESP32-S3, so its platform and an ESP-IDF
+    // platform share family "espressif". Keyed on family, the first
+    // registered builder would win and a Tactility app would build as
+    // firmware.
     StubBuilder espidf("ESP-IDF", "espidf");
     StubBuilder tactility("Tactility", "tactility");
     const std::vector<ITargetBuilder*> all{ &espidf, &tactility };
@@ -91,8 +91,8 @@ TEST(BuilderDispatch, AnUnclaimedFrameworkIsNullNotAGuess)
 
 TEST(BuilderDispatch, AnUnsetFrameworkMatchesNothing)
 {
-    // Rather than falling through to the only registered builder, which is how
-    // a misconfigured platform silently builds as something else.
+    // Even with only one builder registered: a misconfigured platform must
+    // not build as something else.
     StubBuilder espidf("ESP-IDF", "espidf");
     EXPECT_EQ(SelectBuilder({ &espidf }, ""), nullptr);
 }

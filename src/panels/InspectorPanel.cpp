@@ -183,10 +183,10 @@ void InspectorPanel::ClearSceneReferences()
     m_RenamingObject = nullptr;
     m_PropertyEditState = PropertyEditState{};
 
-    // A pin on objects keeps only those the current scene still has: the scene
+    // A pin keeps only the objects the current scene still has: the scene
     // changed (open, new, reload, Stop), and a pinned object of the old one
-    // would be drawn from freed memory on the next frame. Matched by address
-    // only; nothing stale is dereferenced.
+    // would be drawn from freed memory next frame. Matched by address only,
+    // so nothing stale is dereferenced.
     if (!m_LockedObjects.empty())
     {
         std::unordered_set<const Deki::Object*> live;
@@ -282,10 +282,10 @@ void InspectorPanel::Draw()
     }
 
     // The shared property-list context (body indent, row gap, field padding),
-    // the same one package tool windows open, so a row here and a row there are
-    // laid out identically. Closed with EndPropertyContext before each End
-    // below. bodyIndent is kept for the few places that step outside the indent
-    // and back (the asset path strip).
+    // the one package tool windows open too, so rows lay out the same in both.
+    // Closed with EndPropertyContext before each End below. bodyIndent is for
+    // the few places that step outside the indent and back (the asset path
+    // strip).
     const float bodyIndent = m_App->Dpi(Metrics::kInspectorIndent);
     DekiEditor::BeginPropertyContext();
 
@@ -382,9 +382,9 @@ void InspectorPanel::Draw()
     // Single selection
     Deki::Object* obj = selectedObjects[0];
 
-    // Schematic selection banner - small stamp + large display-font heading
-    // showing `<parent>/<selected>`. Provides at-a-glance context above the
-    // existing instance header and component sections.
+    // Selection banner: a small stamp and a large display-font heading
+    // showing `<parent>/<selected>`, above the instance header and the
+    // component sections.
     {
         // Small left padding (aligns under the PIN bar's icon) instead of flush
         // to the edge. Zero the vertical item spacing so the equal top/bottom
@@ -413,8 +413,8 @@ void InspectorPanel::Draw()
 
         Deki::Object* parent = obj->GetParent();
         ImFont* display = g_FontDisplay;  // SpaceGrotesk-Medium (weight 500)
-        // Render at an explicit size: the one-arg PushFont keeps the inherited
-        // ~13px base instead of the display size, so the heading looked small.
+        // Render at an explicit size: the one-argument PushFont keeps the
+        // inherited ~13px base size, not the display size.
         if (display)
         {
             ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
@@ -430,10 +430,8 @@ void InspectorPanel::Draw()
             ImGui::PopStyleColor();
             ImGui::SameLine(0, 6);
         }
-        // The heading IS the name field: click it to rename, the same gesture a
-        // node title takes in the graph editor. A separate "Name" row was a
-        // second place to edit what the header was already showing, and the one
-        // you were looking at was the one that could not be edited.
+        // The heading is the name field: click it to rename, as with a node
+        // title in the graph editor.
         if (m_RenamingObject != obj)
         {
             m_RenamingObject = nullptr;  // a rename never outlives its object
@@ -507,9 +505,8 @@ void InspectorPanel::Draw()
                 const std::string typed = m_RenameBuffer;
                 obj->SetName(m_RenameOldName);  // rewind the live preview...
                 // ...so the command records the real before and after, and one
-                // rename is one undo step. An object with no name cannot be
-                // picked out of the hierarchy, so an empty field is treated as
-                // "never mind" rather than as a nameless object.
+                // rename is one undo step. An empty field means "never mind":
+                // an object with no name cannot be picked out in the hierarchy.
                 if (!typed.empty() && typed != m_RenameOldName)
                 {
                     CommandHistory::Instance().Execute(std::make_unique<RenameObjectCommand>(obj, typed));
@@ -586,11 +583,10 @@ void InspectorPanel::Draw()
         // asset, or discard them and re-expand from source. Both support undo.
         if (::Deki::Scene* scene = m_App->GetCurrentScene())
         {
-            // Apply only makes sense when this instance actually differs from
-            // its source. CollectOverrides is expensive (loads source from
-            // disk, walks the tree), so cache the result keyed on the object
-            // + command history version - recompute only on selection change
-            // or after a new command/undo/redo.
+            // Apply shows only when this instance differs from its source.
+            // CollectOverrides is expensive (loads the source from disk, walks
+            // the tree), so the result is cached per object and undo count:
+            // recomputed on selection change or after a command, undo or redo.
             const size_t undoCount = CommandHistory::Instance().GetUndoCount();
             if (obj != m_OverrideCacheObj || undoCount != m_OverrideCacheUndoCount)
             {
@@ -658,10 +654,9 @@ void InspectorPanel::Draw()
                         }
                         else
                         {
-                            // Override stores the component's serializedName
-                            // (GUID, for scene format stability). Resolve it
-                            // through the registry so we display the class
-                            // name the user recognizes.
+                            // The override stores the component's serialized
+                            // name. Resolve it through the registry to show
+                            // the display name the user knows.
                             const std::string compGuid = entry.value("component", std::string());
                             const Deki::ComponentMeta* cmeta = Deki::ComponentRegistry::Instance().GetMeta(compGuid);
                             e.component = cmeta ? cmeta->GetDisplayName() : compGuid;
@@ -732,18 +727,14 @@ void InspectorPanel::Draw()
         ImGui::Separator();
     }
 
-    // Name lives on the header now (click the heading). Active stays here, but
-    // as a row like every other boolean in the inspector - label in the left
-    // column, box in the value column - instead of a labeled checkbox starting
-    // wherever its own text happened to end.
+    // The name is edited on the header. Active is a row like every other
+    // boolean: label in the left column, box in the value column.
     //
-    // It gets its own band between the header hairline and the filter strip, and
-    // that band has to pad itself: FullBleedSeparator charges no spacing above a
-    // row (a boundary owns no air) while the row charges kRowSpacing below, so
-    // left to the default flow the row hugs the hairline and the whole band
-    // reads top-heavy. Pad it explicitly on both sides with half the row gap
-    // each - the band keeps exactly the height it has today, but the air is
-    // split evenly, which puts the checkbox on the band's center line.
+    // It has its own band between the header hairline and the filter strip,
+    // and the band pads itself: FullBleedSeparator adds no space above a row
+    // while the row adds kRowSpacing below, so by default the row hugs the
+    // hairline. Half the row gap on each side keeps the band's height and
+    // centres the checkbox in it.
     const float activeBandPad = m_App->Dpi(Metrics::kRowSpacing * 0.5f);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ImGui::Dummy(ImVec2(0, activeBandPad));
@@ -759,17 +750,13 @@ void InspectorPanel::Draw()
     ImGui::Dummy(ImVec2(0, activeBandPad));
     ImGui::PopStyleVar();
 
-    // Property filter. One field over the whole object: on a component with
-    // thirty fields, typing three letters beats scrolling, and it spans
-    // components so you do not have to know which one owns the property. It
-    // takes component names too, so the field answers both questions you arrive
-    // with - "where is that property" and "where is that component".
+    // Property filter: one field over the whole object, across components,
+    // matching property names and component names.
     //
-    // Drawn as a band of its own - hairline above, hairline below, no row
-    // spacing inside - so it reads as panel chrome the way a toolbar strip
-    // does, rather than as one more property row that happens to have a
-    // magnifier. Its bottom hairline IS the divider the Transform band hangs
-    // from, so that boundary stays one line instead of two.
+    // Drawn as a band of its own (hairline above and below, no row spacing
+    // inside) so it reads as panel chrome, like a toolbar strip. Its bottom
+    // hairline is the divider the Transform band hangs from, so that boundary
+    // is one line, not two.
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     DekiEditor::FullBleedSeparator();
     ImGui::SetCursorPosX(InspectorUtils::SectionAlignedCursorX());
@@ -789,9 +776,8 @@ void InspectorPanel::Draw()
     m_ComponentManager->DrawComponentList(obj, [this](Deki::Component* comp, const Deki::ComponentMeta* meta)
                                           { DrawComponent(comp, meta); });
 
-    // A query that matched nothing says so. Without this the panel just ends
-    // under the Transform separator, which reads as an object that has lost its
-    // components rather than as a filter with no hits.
+    // Say so when the filter matches nothing. Otherwise the panel ends under
+    // the Transform separator and looks like an object with no components.
     if (InspectorUtils::PropertyFilterActive() && InspectorUtils::FilterHits() == 0)
     {
         ImGui::Spacing();
@@ -805,17 +791,16 @@ void InspectorPanel::Draw()
     {
         ImGui::Spacing();
         // The button's own rect, measured around the call: the add button ends
-        // with a zero-size item (so a panel that ends there does not trip
-        // ImGui's cursor check), which means GetItemRect* afterwards describes
-        // THAT, not the button.
+        // with a zero-size item (so a panel that ends there passes ImGui's
+        // cursor check), so GetItemRect* afterwards describes that item, not
+        // the button.
         const ImVec2 addTop = ImGui::GetCursorScreenPos();
         const bool addClicked = DekiEditor::SchematicAddButton(ICON_TI_PLUS "  Add Component");
         const float addBottom = ImGui::GetCursorScreenPos().y;
 
-        // Tell the picker where to hang from, every frame rather than on the
-        // click alone, so it has a real anchor on the very first frame it opens
-        // - the frame ImGui has no size for it and its own placement has
-        // nothing to work from.
+        // Give the picker its anchor every frame, not only on the click, so it
+        // has one on the first frame it opens, when ImGui has no size for it
+        // yet.
         {
             ComponentManager::AddPopupAnchor anchor;
             anchor.x = addTop.x;
@@ -993,10 +978,9 @@ void InspectorPanel::DrawApplyConfirmPopup()
 
 void InspectorPanel::DrawTransform(Deki::Object* obj)
 {
-    // Transform draws its rows by hand rather than through DrawProperty, so the
-    // filter is applied here: with one typed, the section appears only when one
-    // of its three fields - or its own name, as for any other component - is
-    // what you are looking for.
+    // Transform draws its rows by hand, not through DrawProperty, so the filter
+    // is applied here: with a filter typed, the section shows only when one of
+    // its three fields, or its own name, matches.
     const bool filtering = InspectorUtils::PropertyFilterActive();
 
     // Filter cleared: put the section back the way it was found.
@@ -1108,8 +1092,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
         }
 #ifdef DEKI_TRANSFORM_3D
         // The third axis, only when the project declares transform_3d: a 2D
-        // device drops these on load, so offering them to a 2D project would
-        // be offering something the board will not honour.
+        // device drops these values on load.
         if (m_App->ProjectDeclaresDepth())
         {
             {
@@ -1164,8 +1147,8 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
 
     auto& registry = Deki::ComponentRegistry::Instance();
 
-    // First, check CustomEditorRegistry (new API using EditorUI singleton)
-    // Use GetEditorForComponent to get a per-component instance with fresh state
+    // A custom editor (drawn through the EditorUI singleton) comes first.
+    // GetEditorForComponent gives a per-component instance with fresh state.
     auto* customEditor = CustomEditorRegistry::Instance().GetEditorForComponent(meta->name, comp);
     bool wantsOverride = false;
     if (customEditor)
@@ -1271,11 +1254,10 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
             {
                 try
                 {
-                    // Parse JSON strings
                     nlohmann::json oldData = nlohmann::json::parse(oldJson);
                     nlohmann::json newData = nlohmann::json::parse(newJson);
 
-                    // Create and execute command with callback for asset reimport
+                    // The callback reimports the asset and drops every cached copy
                     auto command = std::make_unique<ModifyAssetCommand>(
                         assetPath, assetGuid, oldData, newData,
                         [this, assetPath, assetGuid]()
@@ -1361,14 +1343,14 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
         m_PropertyEditor->DrawProperty(comp, prop);
     }
 
-    // Package-specific inspector extensions (e.g., tween duration display)
-    // are handled by the packages themselves via custom inspector registration.
+    // Packages add their own inspector extras (e.g. a tween's duration) by
+    // registering custom inspectors.
 }
 
 void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& objects)
 {
-    // Header in the same band as a single object's: a display-font heading and
-    // the names below it, instead of a line crammed under the PIN bar.
+    // Header in the same band as a single object's: a display-font heading
+    // with the names below it.
     {
         const float bodyIndent = m_App->Dpi(Metrics::kInspectorIndent);
         const float pathLeftPad = m_App->Dpi(16.0f);

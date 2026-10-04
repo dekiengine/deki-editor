@@ -22,26 +22,25 @@
 #include <memory>
 #include <string>
 
-// Engine provides functions to get all registered editor extensions
-// This avoids hardcoded extern declarations for each editor type
+// The engine lists every registered editor extension, so no editor type needs
+// its own extern declaration here.
 extern "C"
 {
-    // Factory-based API (new)
+    // Factory API
     int DekiEngineGetEditorFactoryCount();
     DekiEditor::EditorExtension* DekiEngineGetEditorPrototype(int index);
     DekiEditor::EditorExtension* DekiEngineCreateEditor(int index);
 
-    // Legacy API (backward compat)
+    // Older singleton API, used when the factory API lists nothing
     int DekiEngineGetEditorCount();
     DekiEditor::EditorExtension* DekiEngineGetEditor(int index);
 }
 
-// All package DLLs (including deki-2d) are loaded dynamically by PackageLoader.
-
 namespace DekiEditor
 {
 
-// Print registered components (auto-registration happens via DLL static initializers)
+// Prints the registered components. They register themselves through DLL
+// static initializers.
 static void PrintRegisteredComponents()
 {
     auto& registry = Deki::ComponentRegistry::Instance();
@@ -55,10 +54,10 @@ static void PrintRegisteredComponents()
 }
 
 // ----------------------------------------------------------------------------
-// Console-style toolbar strip (shared by Console / Deploy Analysis / Platform
-// Manager): a full-bleed row of cells with 1px dividers, hover/active fades,
-// dim->bright text and a bottom hairline. Immediate-mode, one toolbar at a
-// time, so the layout state is a single file-static updated between Begin/End.
+// Console-style toolbar strip (shared by Console, Deploy Analysis and Platform
+// Manager): a full-width row of cells with 1px dividers, hover and active
+// fades, dim-to-bright text and a bottom hairline. Only one toolbar is built
+// at a time, so the layout state is one file-static updated between Begin/End.
 // ----------------------------------------------------------------------------
 namespace
 {
@@ -71,7 +70,7 @@ struct ToolbarStrip
 };
 ToolbarStrip s_Toolbar;
 
-// Draw one toolbar cell (icon glyph or text label). Returns true when clicked.
+// Draws one toolbar cell (icon glyph or text label). Returns true when clicked.
 // `tooltip` may be null. Advances the strip cursor and draws the trailing divider.
 bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool enabled, bool active,
                      bool destructive = false)
@@ -108,9 +107,9 @@ bool DrawToolbarCell(const char* id, const char* text, const char* tooltip, bool
     const ImU32 colActive = IM_COL32(255, 255, 255, 10);
     const ImU32 colHover = IM_COL32(255, 255, 255, 6);
 
-    // A cell whose verb removes something says so before it is pressed: red at
-    // rest, full red and a red fill under the cursor. Same shape as its
-    // neighbours - the color is the whole warning.
+    // A cell that removes something says so before it is pressed: red at rest,
+    // full red with a red fill under the cursor. Same shape as its neighbours;
+    // the colour is the whole warning.
     const ImU32 colRed = ImGui::ColorConvertFloat4ToU32(Palette::Red);
     const ImU32 colRedDim =
         ImGui::ColorConvertFloat4ToU32(ImVec4(Palette::Red.x, Palette::Red.y, Palette::Red.z, 0.75f));
@@ -242,10 +241,10 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
 }
 }  // namespace
 
-// Install the ImGui-backed implementations behind EditorUI's styled controls,
-// so package custom-editors that call EditorUI::Get().X(...) render with the
-// editor's widgets. Called once; the lambdas hold no state (they call the
-// editor's free functions), so re-installing on hot reload is harmless.
+// Installs the ImGui implementations behind EditorUI's styled controls, so
+// package custom editors that call EditorUI::Get().X(...) draw with the
+// editor's widgets. The lambdas hold no state (they call the editor's free
+// functions), so installing again on hot reload is harmless.
 static void InstallEditorUIBackend()
 {
     EditorUI::WidgetBackend b;
@@ -254,10 +253,10 @@ static void InstallEditorUIBackend()
     b.dragInt = [](const char* id, int* v, float s, int mn, int mx) { return SchematicDragInt(id, v, s, mn, mx); };
     b.dragFloat = [](const char* id, float* v, float s, float mn, float mx, const char* fmt)
     { return SchematicDragFloat(id, v, s, mn, mx, fmt); };
-    // Unified checkbox: a visible label draws the complete labeled row at the
-    // SAME height as every other inspector field; a hidden/empty label ("##...")
-    // draws just the bare styled box for custom inline layouts (e.g. the particle
-    // per-emitter toggle), keeping its sibling alignment.
+    // Checkbox: a visible label draws the full labeled row at the same height
+    // as every other inspector field; a hidden label ("##...") draws just the
+    // styled box, for custom inline layouts such as the particle per-emitter
+    // toggle.
     b.checkbox = [](const char* label, bool* v) -> bool
     {
         const bool hasLabel = label && label[0] && !(label[0] == '#' && label[1] == '#');
@@ -266,11 +265,10 @@ static void InstallEditorUIBackend()
             return SchematicCheckbox(label && label[0] ? label : "##chk", v);
         }
 
-        // Keep the labeled checkbox at the full inspector field height so all rows
-        // are uniform. We deliberately do NOT collapse FramePadding here: with the
-        // ambient body FramePadding, GetFrameHeight matches the drag/string/combo
-        // fields, and SchematicCheckbox centers its small box inside that frame,
-        // leaving the unused vertical space as transparent padding above/below.
+        // The labeled checkbox keeps the full inspector field height so all rows
+        // match. FramePadding is left as it is on purpose: with it,
+        // GetFrameHeight matches the drag, string and combo fields, and
+        // SchematicCheckbox centres its small box inside that frame.
         ImGui::PushID(label);
         InspectorUtils::BeginPropertyRow(label);
         const bool changed = SchematicCheckbox("##chk", v);
@@ -317,22 +315,21 @@ static void InstallEditorUIBackend()
     { return DrawToolbarCell(id, icon, tooltip, enabled, active, destructive); };
     b.endToolbar = []()
     {
-        // Reserve the row in layout flow and close the bottom edge with a hairline.
+        // Reserve the row in the layout and close the bottom edge with a
+        // hairline.
         //
-        // The cursor lands one pixel BELOW that hairline, not on it. Everything
-        // in the window is one draw list, so whatever is submitted next paints
-        // over the strip's edge - a log row's background, a hovered row's fill
-        // - and the boundary silently disappears exactly when the panel has
-        // content near the top. A pixel of reserved space costs nothing and
-        // keeps the strip bounded whatever follows it.
+        // The cursor lands one pixel below that hairline, not on it. The whole
+        // window is one draw list, so whatever is drawn next (a log row's
+        // background, a hovered row's fill) would paint over the strip's edge
+        // and hide it. One reserved pixel keeps the edge visible.
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImU32 colLine = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
         dl->AddLine(ImVec2(s_Toolbar.rowMin.x, s_Toolbar.rowMax.y), ImVec2(s_Toolbar.rowMax.x, s_Toolbar.rowMax.y),
                     colLine, 1.0f);
-        // Reserved as an ITEM, not a bare cursor move: ImGui reports a window
-        // whose last act was moving the cursor ("submit an item e.g. Dummy()"),
-        // and a panel whose toolbar is the last thing it draws would trip that
-        // every frame. Zero item spacing around it so the pixel is all it costs.
+        // Reserved as an item, not a bare cursor move: ImGui complains about a
+        // window whose last act was moving the cursor ("submit an item e.g.
+        // Dummy()"), and a panel whose toolbar is the last thing it draws would
+        // trigger that every frame. No item spacing, so it costs only the pixel.
         ImGui::SetCursorScreenPos(ImVec2(s_Toolbar.rowMin.x, s_Toolbar.rowMax.y));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
         ImGui::Dummy(ImVec2(0.0f, 1.0f));
@@ -368,10 +365,11 @@ static void InstallEditorUIBackend()
         ImGui::PopStyleVar();
     };
     using ECB = EditorUI::EditCallbacksBytes;
-    // Drag-style lifecycle: onStartChange on activation, onChange on edited, and on
-    // deactivate-after-edit fire onEndChange + push the undo command (carrying
-    // onUndo/onRedo). ownsStorage=false (value mode) => command has a null target
-    // and only replays via onUndo/onRedo; true (pointer mode) => it also memcpy's.
+    // Drag-style lifecycle: onStartChange on activation, onChange on each edit,
+    // and on deactivation after an edit, onEndChange plus an undo command
+    // carrying onUndo/onRedo. With ownsStorage=false (value mode) the command
+    // has a null target and replays only through onUndo/onRedo; with true
+    // (pointer mode) it also copies the bytes.
     b.recordEdit = [](void* value, size_t size, bool ownsStorage, const void* before, const char* label, const ECB& cb)
     {
         static std::vector<uint8_t> s_Old;
@@ -391,10 +389,10 @@ static void InstallEditorUIBackend()
         }
         if (ImGui::IsItemDeactivated() && s_Started)
         {
-            // Every start gets its end, changed or not: a click that leaves
-            // the value alone, or the first click of a double-click into text
-            // entry, used to leave the live edit open for good, and the Play
-            // View re-rendered every frame from then on.
+            // Every start gets its end, changed or not. A click that leaves the
+            // value alone, or the first click of a double-click into text
+            // entry, would otherwise leave the live edit open for good, and the
+            // Play View would re-render every frame.
             s_Started = false;
             if (ImGui::IsItemDeactivatedAfterEdit() && s_Old.size() == size &&
                 std::memcmp(s_Old.data(), value, size) != 0)
@@ -434,8 +432,9 @@ static void InstallEditorUIBackend()
         CommandHistory::Instance().ExecuteNoMerge(std::make_unique<ModifyValueCommand>(
             ownsStorage ? value : nullptr, size, before, newBytes.data(), label ? label : "", cb.onUndo, cb.onRedo));
     };
-    // Unit-aware float/vector field: canonical (meters/radians) -> display (px/deg)
-    // with Distance pixel-snapping, plus the drag-style lifecycle above.
+    // Unit-aware float or vector field: stored units (meters, radians) shown as
+    // display units (px, degrees), Distance snapped to pixels, with the
+    // drag-style lifecycle above.
     b.unitField = [](const char* label, float* value, int count, int unitKind, bool ownsStorage, const ECB& cb) -> bool
     {
         const Deki::PhysicalUnit unit = static_cast<Deki::PhysicalUnit>(unitKind);
@@ -607,7 +606,7 @@ static void InstallEditorUIBackend()
 
 void RegisterEngineEditors()
 {
-    // Install EditorUI's widget backend once so package custom-editors render
+    // Install EditorUI's widget backend once, so package custom editors draw
     // their fields with the editor's styled controls.
     static bool s_UiBackendInstalled = false;
     if (!s_UiBackendInstalled)
@@ -616,18 +615,18 @@ void RegisterEngineEditors()
         s_UiBackendInstalled = true;
     }
 
-    // Register engine editor extensions by iterating through exported functions
-    // This dispatches each editor to the appropriate registry based on its type
+    // Register every editor extension the engine lists, each in the registry
+    // for its type.
     auto& customEditorRegistry = DekiEditor::CustomEditorRegistry::Instance();
     auto& assetTypeEditorRegistry = DekiEditor::AssetTypeEditorRegistry::Instance();
 
-    // Try factory-based API first (new system)
+    // The factory API first.
     int factoryCount = DekiEngineGetEditorFactoryCount();
     if (factoryCount > 0)
     {
         for (int i = 0; i < factoryCount; ++i)
         {
-            // Get prototype for metadata queries
+            // The prototype answers the metadata queries.
             DekiEditor::EditorExtension* prototype = DekiEngineGetEditorPrototype(i);
             if (!prototype)
             {
@@ -638,8 +637,8 @@ void RegisterEngineEditors()
             {
                 case DekiEditor::EditorType::CustomEditor:
                 {
-                    // Register a factory that creates fresh instances
-                    const int factoryIndex = i;  // Capture index for lambda
+                    // A factory that creates a new instance each time.
+                    const int factoryIndex = i;
                     customEditorRegistry.RegisterFactory(prototype->GetName(),
                                                          [factoryIndex]() -> std::unique_ptr<DekiEditor::CustomEditor>
                                                          {
@@ -659,12 +658,12 @@ void RegisterEngineEditors()
 
                 case DekiEditor::EditorType::AssetTypeEditor:
                 {
-                    // AssetTypeEditors remain singletons (they don't have per-component state)
+                    // AssetTypeEditors stay singletons: they have no per-component state.
                     auto* assetEditor = static_cast<DekiEditor::AssetTypeEditor*>(prototype);
                     assetTypeEditorRegistry.Register(assetEditor);
                     DEKI_LOG_DEBUG("Registered asset type editor: %s", prototype->GetName());
 
-                    // Auto-create AssetTypeHandler for creation menu
+                    // An AssetTypeHandler for the creation menu.
                     DekiEditor::AssetTypeHandler handler;
                     handler.typeName = assetEditor->GetTypeName();
                     handler.displayName = assetEditor->GetDisplayName();
@@ -677,13 +676,13 @@ void RegisterEngineEditors()
                                          : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
                                          : (target == 2) ? DekiEditor::AssetCompileTarget::Data
                                                          : DekiEditor::AssetCompileTarget::None;
-                    // Asset category is registered separately by each package's
-                    // static initializer (see ImageCacheHandler.cpp pattern).
-                    // We do not call assetEditor->GetCategory() because adding
-                    // a virtual to AssetTypeEditor would break vtable ABI for
-                    // already-loaded package DLLs.
+                    // Each package's static initializer registers the asset
+                    // category (as in ImageCacheHandler.cpp). There is no
+                    // assetEditor->GetCategory(): a new virtual on
+                    // AssetTypeEditor would break the vtable ABI of package DLLs
+                    // already loaded.
 
-                    // Wire compile callback to editor's Compile method
+                    // The compile callback calls the editor's Compile method.
                     if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
                     {
                         handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba,
@@ -709,7 +708,7 @@ void RegisterEngineEditors()
     }
     else
     {
-        // Fall back to legacy singleton API
+        // Otherwise the older singleton API.
         int editorCount = DekiEngineGetEditorCount();
         for (int i = 0; i < editorCount; ++i)
         {
@@ -732,7 +731,7 @@ void RegisterEngineEditors()
                     assetTypeEditorRegistry.Register(assetEditor);
                     DEKI_LOG_DEBUG("Registered asset type editor: %s", editor->GetName());
 
-                    // Auto-create AssetTypeHandler for creation menu
+                    // An AssetTypeHandler for the creation menu.
                     DekiEditor::AssetTypeHandler handler;
                     handler.typeName = assetEditor->GetTypeName();
                     handler.displayName = assetEditor->GetDisplayName();
@@ -745,13 +744,13 @@ void RegisterEngineEditors()
                                          : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
                                          : (target == 2) ? DekiEditor::AssetCompileTarget::Data
                                                          : DekiEditor::AssetCompileTarget::None;
-                    // Asset category is registered separately by each package's
-                    // static initializer (see ImageCacheHandler.cpp pattern).
-                    // We do not call assetEditor->GetCategory() because adding
-                    // a virtual to AssetTypeEditor would break vtable ABI for
-                    // already-loaded package DLLs.
+                    // Each package's static initializer registers the asset
+                    // category (as in ImageCacheHandler.cpp). There is no
+                    // assetEditor->GetCategory(): a new virtual on
+                    // AssetTypeEditor would break the vtable ABI of package DLLs
+                    // already loaded.
 
-                    // Wire compile callback to editor's Compile method
+                    // The compile callback calls the editor's Compile method.
                     if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
                     {
                         handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba,
@@ -776,13 +775,13 @@ void RegisterEngineEditors()
         }
     }
 
-    // All package DLLs (including deki-2d) are loaded dynamically by PackageLoader.
-    // Their REGISTER_EDITOR macros register into the shared EditorRegistry singleton
-    // in deki-editor.dll, so they appear in the factory list queried above.
+    // PackageLoader loads every package DLL (deki-2d included). Their
+    // REGISTER_EDITOR macros register into the shared EditorRegistry in
+    // deki-editor.dll, so they appear in the factory list read above.
 
-    // Register core components in the hierarchy "Create Object" menu.
-    // Core components live in deki-engine-core (not a package DLL), so they can't
-    // use REGISTER_CREATE_MENU_ITEM (which requires linking deki-editor at DLL load).
+    // Core components in the hierarchy's "Create Object" menu. They live in
+    // deki-engine-core, not a package DLL, so they cannot use
+    // REGISTER_CREATE_MENU_ITEM, which needs deki-editor linked at DLL load.
     auto& createMenu = DekiEditor::CreateMenuRegistry::Instance();
     createMenu.Register("Core", "Camera", "Camera", "CameraComponent");
 

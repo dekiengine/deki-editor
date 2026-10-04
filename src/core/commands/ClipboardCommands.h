@@ -23,16 +23,13 @@ class Scene;
 namespace DekiEditor
 {
 
-// Named imports rather than `using namespace`: a wholesale import in a header
-// is open-ended, so anything later added to ObjectSerializationHelper would
-// silently appear in every DekiEditor TU that includes this.
+// Named imports rather than `using namespace`, so things later added to
+// ObjectSerializationHelper do not leak into every file that includes this.
 using ObjectSerializationHelper::ChildData;
 using ObjectSerializationHelper::ComponentData;
 using ObjectSerializationHelper::ObjectData;
 
-/**
- * Command for pasting component property values to one or more components.
- */
+/// Pastes component property values onto one or more components.
 class PasteComponentValuesCommand : public Command
 {
 public:
@@ -66,9 +63,7 @@ private:
     std::function<void()> m_OnChange;
 };
 
-/**
- * Command for pasting a component as new to one or more objects.
- */
+/// Pastes a component as a new component on one or more objects.
 class PasteComponentAsNewCommand : public Command
 {
 public:
@@ -105,9 +100,7 @@ private:
     std::function<void(Deki::Component*)> m_OnAdded;
 };
 
-/**
- * Command for pasting transform values to one or more objects.
- */
+/// Pastes transform values onto one or more objects.
 class PasteTransformCommand : public Command
 {
 public:
@@ -141,9 +134,7 @@ private:
     std::function<void()> m_OnChange;
 };
 
-/**
- * Command for pasting objects (with children and components) into a scene.
- */
+/// Pastes objects, with their children and components, into a scene.
 class PasteObjectsCommand : public Command
 {
 public:

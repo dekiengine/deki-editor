@@ -39,7 +39,6 @@ struct DEKI_EDITOR_API ToolchainVersionInfo
     bool checked = false;
 };
 
-// Callback for progress updates
 using DownloadProgressCallback = std::function<void(const DownloadProgress&)>;
 using VersionCheckCallback = std::function<void(const ToolchainVersionInfo&)>;
 

@@ -1,25 +1,20 @@
 #pragma once
 
-// RunGit - spawn `git` with an argv array and capture its combined output.
+// RunGit runs `git` with an argument list and captures its combined output.
+// The package installer and the package integrity check both use it.
 //
-// Extracted from DekiPackageInstaller so the package installer and the
-// package integrity check share one implementation rather than two copies of
-// ~120 lines of platform process spawning. No shell is ever involved: Windows
-// passes an explicitly quoted command line with the application name given
-// separately, POSIX uses fork + execvp. That is what keeps a hostile ref or
-// URL (both arrive over the network from a registry) from becoming command
-// execution - see DekiPackageInstaller::IsSafeGitRef / IsSafeGitUrl, which
-// validate before anything is spawned.
-//
-// Returns the child's exit code, or -1 if it could not be started.
+// No shell is involved: Windows gets an explicitly quoted command line with
+// the application name given separately, POSIX uses fork + execvp. This keeps
+// a hostile ref or URL (both come over the network from a registry) from
+// running commands. DekiPackageInstaller::IsSafeGitRef / IsSafeGitUrl check
+// them before anything starts.
 //
 // A repository's own settings never run anything. A package folder can come
 // from someone else (a zipped project with packages/*/.git), and the editor
-// runs git in it on its own, on every focus. So every call passes
+// runs git in it by itself on every focus. So every call passes
 // core.fsmonitor=false and a hooks path with no hooks, and a repository whose
 // .git/config would make git run a command (a filter other than git-lfs, an
-// ssh/proxy/askpass command, a credential helper, an include) is refused:
-// RunGit returns -1 and says why in `output`.
+// ssh/proxy/askpass command, a credential helper, an include) is refused.
 
 #include <string>
 #include <vector>
@@ -27,6 +22,9 @@
 namespace DekiEditor
 {
 
+/// Runs git with `args` and puts its output in `output`. Returns git's exit
+/// code, or -1 when it could not start or the repository was refused (then
+/// `output` says why).
 int RunGit(const std::vector<std::string>& args, std::string& output);
 
 /// Why git must not run in `repoDir` ("" when it may): the command-running

@@ -31,14 +31,14 @@ void CreateObjectCommand::Execute()
         }
     }
 
-    // Single-root invariant: a null parent means "inside the scene root", not "as a sibling of root".
-    // If no root exists yet, the new object becomes the root. Re-resolved on
-    // every (re)execute so a redo after the root changed identity still lands inside.
+    // Single root: a null parent means "inside the scene root", not "beside it".
+    // With no root yet, the new object becomes the root. Resolved on every
+    // (re)execute, so a redo after the root was replaced still lands inside it.
     Deki::Object* resolvedParent = m_Parent;
     if (!resolvedParent)
     {
         auto& roots = m_Scene->GetObjects();
-        // Skip the just-created object when looking for an existing root
+        // Skip the object just created when looking for an existing root.
         for (Deki::Object* obj : roots)
         {
             if (obj != m_CreatedObject)
@@ -146,13 +146,12 @@ std::string ReparentObjectCommand::GetDescription() const
 
 void ReparentObjectCommand::Execute()
 {
-    // Remove from old parent if had one
     if (m_OldParent)
     {
         m_OldParent->RemoveChild(m_Object);
     }
 
-    // Resolve target parent - if nullptr, reparent to scene root (single-root model)
+    // Single root: a null new parent means the scene root.
     Deki::Object* targetParent = m_NewParent;
     if (!targetParent && m_Scene)
     {
@@ -165,10 +164,9 @@ void ReparentObjectCommand::Execute()
 
     if (targetParent)
     {
-        // Parenting: remove from scene root list, add as child
         if (m_Scene && !m_OldParent)
         {
-            // Was at root level, remove from scene's root list
+            // It was a root object: take it off the scene's root list.
             m_Scene->RemoveObject(m_Object);
             m_Object->SetOwnerScene(m_Scene);
         }
@@ -176,7 +174,7 @@ void ReparentObjectCommand::Execute()
     }
     else
     {
-        // Fallback: no scene root available
+        // No scene root: it becomes a root object.
         m_Object->SetParent(nullptr);
         if (m_Scene)
         {
@@ -187,7 +185,6 @@ void ReparentObjectCommand::Execute()
 
 void ReparentObjectCommand::Undo()
 {
-    // Remove from new parent if had one
     if (m_NewParent)
     {
         m_NewParent->RemoveChild(m_Object);
@@ -195,10 +192,9 @@ void ReparentObjectCommand::Undo()
 
     if (m_OldParent)
     {
-        // Re-parent to old parent: remove from scene root list if needed
         if (m_Scene && !m_NewParent)
         {
-            // Was at root level after execute, remove from scene's root list
+            // Execute left it at root level: take it off the scene's root list.
             m_Scene->RemoveObject(m_Object);
             m_Object->SetOwnerScene(m_Scene);
         }
@@ -206,7 +202,7 @@ void ReparentObjectCommand::Undo()
     }
     else
     {
-        // Was at root level originally: add back to scene root list
+        // It started as a root object: put it back on the scene's root list.
         m_Object->SetParent(nullptr);
         if (m_Scene)
         {
@@ -231,7 +227,7 @@ std::string MoveObjectsCommand::GetDescription() const
 
 void MoveObjectsCommand::Execute()
 {
-    // Resolve target parent - single-root model: nullptr means scene root
+    // Single root: a null target parent means the scene root.
     Deki::Object* resolvedParent = m_TargetParent;
     if (!resolvedParent && m_Scene)
     {
@@ -242,10 +238,10 @@ void MoveObjectsCommand::Execute()
         }
     }
 
-    // The target index was taken with the moved objects still in the list. Each
-    // one that sat before it under the same parent leaves a gap once removed,
-    // so a move DOWN within one parent used to land one place too far per
-    // object (and dropping an object just below itself moved it).
+    // The target index was taken with the moved objects still in the list.
+    // Each one that sat before it under the same parent leaves a gap once
+    // removed, so subtract those, or a move down within one parent lands one
+    // place too far per object.
     size_t removedBefore = 0;
     for (size_t i = 0; i < m_Objects.size(); i++)
     {
@@ -256,8 +252,8 @@ void MoveObjectsCommand::Execute()
     }
     const size_t targetIndex = m_TargetIndex - removedBefore;
 
-    // Remove all objects from their current positions (reverse index order per parent to avoid shifting)
-    // Sort by parent then descending index so removals don't affect each other
+    // Remove by parent, then by descending index, so one removal does not
+    // shift the index of the next.
     std::vector<size_t> removalOrder(m_Objects.size());
     for (size_t i = 0; i < m_Objects.size(); i++)
     {
@@ -287,10 +283,9 @@ void MoveObjectsCommand::Execute()
         }
     }
 
-    // Insert all objects at target position in order
+    // Insert in order at the target, keeping their relative order.
     if (resolvedParent)
     {
-        // Clamp target index to valid range after removals
         size_t maxIdx = resolvedParent->GetChildren().size();
         size_t insertIdx = std::min(targetIndex, maxIdx);
         for (size_t i = 0; i < m_Objects.size(); i++)
@@ -300,7 +295,7 @@ void MoveObjectsCommand::Execute()
     }
     else
     {
-        // No root available - fallback to adding as root objects
+        // No scene root: they become root objects.
         size_t maxIdx = m_Scene->GetObjects().size();
         size_t insertIdx = std::min(m_TargetIndex, maxIdx);
         for (size_t i = 0; i < m_Objects.size(); i++)
@@ -313,7 +308,7 @@ void MoveObjectsCommand::Execute()
 
 void MoveObjectsCommand::Undo()
 {
-    // Resolve the same target parent that Execute used
+    // The same target parent Execute used.
     Deki::Object* resolvedParent = m_TargetParent;
     if (!resolvedParent && m_Scene)
     {
@@ -324,7 +319,7 @@ void MoveObjectsCommand::Undo()
         }
     }
 
-    // Remove all objects from the target (reverse order to avoid index shifting)
+    // Reverse order, so removals do not shift each other's index.
     for (int i = static_cast<int>(m_Objects.size()) - 1; i >= 0; i--)
     {
         Deki::Object* obj = m_Objects[i];
@@ -339,8 +334,8 @@ void MoveObjectsCommand::Undo()
         }
     }
 
-    // Restore each object to its original parent + index
-    // Process in ascending index order per parent to avoid shifting issues
+    // Restore each object to its original parent and index, in ascending
+    // index order per parent so each lands where it was.
     std::vector<size_t> restoreOrder(m_OldStates.size());
     for (size_t i = 0; i < m_OldStates.size(); i++)
     {

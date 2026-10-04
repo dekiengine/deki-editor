@@ -17,7 +17,6 @@
 #include <unordered_set>
 #include <nlohmann/json.hpp>
 
-// Include the engine's Scene and its MessagePack helper
 #include <deki/Scene.h>
 #include <deki/SceneMessagePack.h>
 #include <deki/reflection/Property.h>
@@ -25,10 +24,9 @@
 #include <deki/assets/AssetRef.h>
 #include <deki/assets/AssetManager.h>
 
-// Engine logging
 #include <deki/LogSystem.h>
 
-// Debug heap validation to isolate heap corruption
+// Debug builds validate the heap at checkpoints to find heap corruption.
 #ifdef _DEBUG
 #include <crtdbg.h>
 #define DEKI_HEAP_CHECK(tag)                                                                                           \
@@ -92,10 +90,10 @@ uint64_t Fnv1a64(const std::string& s)
     return h;
 }
 
-// Compute a stable hash of the (path, guid) pairs in m_Assets PLUS the
-// (parentGuid, subGuid) pairs in m_SubAssets. Sub-assets are folded in so a
-// package that newly emits variant GUIDs (without changing source assets)
-// invalidates the warm-cache short-circuit.
+// A stable hash of the (path, guid) pairs in m_Assets and the
+// (parentGuid, subGuid) pairs in m_SubAssets. Sub-assets count so that a
+// package emitting new variant GUIDs, with no source asset changed, still
+// invalidates the warm-cache shortcut.
 uint64_t ComputeAssetSetHash(const std::unordered_map<std::string, AssetInfo>& assets,
                              const std::unordered_map<std::string, std::vector<SubAssetInfo>>& subAssets)
 {
@@ -151,7 +149,6 @@ void WriteAssetSetHash(const std::string& projectPath, uint64_t hash)
 }
 }  // namespace
 
-// Static member initialization
 AssetPipeline* AssetPipeline::s_Instance = nullptr;
 std::vector<std::function<void(AssetPipeline*)>> AssetPipeline::s_OnStartedCallbacks;
 std::vector<std::function<void(AssetPipeline*)>> AssetPipeline::s_OnImportCompleteCallbacks;
@@ -166,9 +163,8 @@ void AssetPipeline::ClearOnStartedCallbacks()
     s_OnStartedCallbacks.clear();
     s_OnImportCompleteCallbacks.clear();
 
-    // Also clear sync handlers, cache handlers, and variant providers on the
-    // active instance, since they may reference functions in the package being
-    // unloaded.
+    // Clear the active instance's sync handlers, cache handlers and variant
+    // providers too: they may point into the package being unloaded.
     if (s_Instance)
     {
         s_Instance->m_SyncHandlers.clear();
@@ -186,13 +182,13 @@ void AssetPipeline::OnImportComplete(std::function<void(AssetPipeline*)> callbac
 
 void AssetPipeline::OnStarted(std::function<void(AssetPipeline*)> callback)
 {
-    // Always store the callback for future pipeline restarts
-    // This ensures sync handlers are re-registered when a new project is opened
+    // Kept for every later pipeline start, so handlers are registered again
+    // when another project opens.
     s_OnStartedCallbacks.push_back(callback);
 
     if (s_Instance)
     {
-        // Pipeline already active, also invoke immediately
+        // The pipeline is already running: call it now too.
         callback(s_Instance);
     }
 }
@@ -269,18 +265,15 @@ std::string AssetPipeline::MakeProjectRelative(const std::string& absolutePath) 
 }
 
 // =========================================================================
-// Built-in cache handlers - only editor-core types live here. Package-owned
-// extensions (images, frame animations, fonts, tilemaps, etc.) register their
-// own handlers via AssetPipeline::OnStarted from the owning package's editor
-// translation units. See e.g. packages/deki-2d/editor/ImageCacheHandler.cpp.
+// Built-in cache handlers, for editor-core types only. Packages register
+// handlers for their own extensions (images, fonts, tilemaps...) through
+// AssetPipeline::OnStarted, e.g. packages/deki-2d/editor/ImageCacheHandler.cpp.
 // =========================================================================
 
 static AssetCacheResult HandleSceneCache(const AssetCacheContext& ctx)
 {
-    // Warm-cache short-circuit: only reuse the compiled cache when it is at
-    // least as new as the source .scene. External edits (e.g. user modifies
-    // the file outside the editor and alt-tabs back) bump the source mtime,
-    // so this branch falls through and we recompile on the next ProcessAsset.
+    // Reuse the compiled cache only when it is current for the source .scene.
+    // An edit made outside the editor makes it stale, so the scene recompiles.
     if (ctx.hasCachedVersion && ctx.cacheIsFresh)
     {
         return AssetCacheResult::Cached;
@@ -294,9 +287,8 @@ static AssetCacheResult HandleSceneCache(const AssetCacheContext& ctx)
 
 static AssetCacheResult HandleAssetFileCache(const AssetCacheContext& ctx)
 {
-    // Warm-cache short-circuit: if the cache is at least as new as the source,
-    // the previous compile is still valid. Live edits update source mtime, so
-    // they'll naturally fall through and recompile on next ProcessAsset.
+    // Reuse the compiled cache when it is current for the source; an edit
+    // makes it stale, so the asset recompiles.
     if (ctx.hasCachedVersion && ctx.cacheIsFresh)
     {
         return AssetCacheResult::Cached;
@@ -312,9 +304,9 @@ static AssetCacheResult HandleAssetFileCache(const AssetCacheContext& ctx)
 
 static AssetCacheResult DefaultAssetCacheHandler(const AssetCacheContext& ctx)
 {
-    // Default handler: no-op for file types without specific caching logic.
-    // Packages can override this via SetDefaultCacheHandler or register
-    // extension-specific handlers via RegisterCacheHandler.
+    // Default handler for file types with no caching of their own: does
+    // nothing. Packages replace it with SetDefaultCacheHandler, or add a
+    // handler per extension with RegisterCacheHandler.
     (void)ctx;
     return AssetCacheResult::NotCached;
 }
@@ -335,8 +327,8 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     ScopedTimer tStart("AssetPipeline::Start");
     m_AssetsPath = assetsPath;
     m_ProjectPath = projectPath;
-    // Fixed for the session: the assets directory relative to the project,
-    // which GetAssetInfoByGuid used to recompute with a filesystem call per lookup.
+    // The assets directory relative to the project. Fixed for the session, so
+    // GetAssetInfoByGuid needs no filesystem call per lookup.
     m_AssetsPrefix = fs::relative(m_AssetsPath, m_ProjectPath).string();
     for (char& c : m_AssetsPrefix)
     {
@@ -347,10 +339,9 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     }
     m_Running = true;
 
-    // Set singleton instance
     s_Instance = this;
 
-    // Check cache version - wipe compiled assets if engine format changed
+    // When the engine's cache format changed, wipe the compiled assets.
     {
         fs::path cacheDir = fs::path(GetCacheDirectory(projectPath));
         fs::path versionFile = cacheDir / "version";
@@ -370,7 +361,7 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
         if (!versionMatch && fs::exists(cacheDir))
         {
             DEKI_LOG_EDITOR("AssetPipeline: Cache version mismatch (want %s), clearing cache", currentVersion.c_str());
-            // Delete compiled assets but preserve guids.json (GUID assignments are stable)
+            // Keep guids.json: GUID assignments do not change with the format.
             for (auto& entry : fs::directory_iterator(cacheDir))
             {
                 if (entry.path().filename() == "guids.json")
@@ -382,7 +373,6 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
             }
         }
 
-        // Write current version
         fs::create_directories(cacheDir);
         std::ofstream f(versionFile, std::ios::trunc);
         f << currentVersion;
@@ -407,16 +397,15 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
         }
     }
 
-    // Register built-in cache handlers for editor-core types only.
-    // Package-owned types (images, frame animations, fonts, tilemaps, etc.) register
-    // their own handlers via AssetPipeline::OnStarted. OnStarted callbacks fire
-    // *after* this block so a package can also override these defaults if needed.
+    // Built-in cache handlers for editor-core types. Packages register theirs
+    // in the OnStarted callbacks below, which run after this, so a package can
+    // also replace these defaults.
     RegisterCacheHandler(".scene", HandleSceneCache);
     RegisterCacheHandler(".asset", HandleAssetFileCache);
     SetDefaultCacheHandler(DefaultAssetCacheHandler);
 
-    // Invoke OnStarted callbacks BEFORE syncing so handlers are ready
-    // when assets are processed (e.g., font sync handlers for auto-baking)
+    // OnStarted callbacks run before the sync, so handlers (e.g. font baking)
+    // are ready when assets are processed.
     for (auto& callback : s_OnStartedCallbacks)
     {
         callback(this);
@@ -424,7 +413,7 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
     DEKI_LOG_EDITOR("AssetPipeline: %zu cache handlers, %zu sync handlers", m_CacheHandlers.size(),
                     m_SyncHandlers.size());
 
-    // Initialize and sync GUID cache (handlers now ready to process assets)
+    // Load and sync the GUID cache.
     {
         ScopedTimer tGuid("AssetPipeline::Start GuidCache");
         std::string guidCachePath = (fs::path(GetCacheDirectory(projectPath)) / "guids.json").string();
@@ -432,14 +421,14 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
         if (!m_GuidCache.Load(guidCachePath))
         {
             DEKI_LOG_EDITOR("GuidCache: no usable cache, rebuilding from .data files");
-            // Cache missing or corrupt - rebuild from .data files
+            // Cache missing or corrupt: rebuild it from the .data files.
             ScopedTimer tRebuild("GuidCache::Rebuild");
             m_GuidCache.Rebuild(assetsPath);
             m_GuidCache.Save(guidCachePath);
         }
         else
         {
-            // Sync with filesystem to catch any changes
+            // Pick up changes made while the editor was closed.
             ScopedTimer tSync("GuidCache::Sync");
             m_GuidCache.Sync(assetsPath);
         }
@@ -448,7 +437,6 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
 
 void AssetPipeline::Stop()
 {
-    // Clear singleton instance
     if (s_Instance == this)
     {
         s_Instance = nullptr;
@@ -460,8 +448,8 @@ void AssetPipeline::Stop()
     }
     m_CacheStamps.clear();
 
-    // Stop the file watcher BEFORE clearing state so any in-flight events
-    // (which would dispatch into now-empty maps) are dropped cleanly.
+    // Stop the file watcher before clearing state, so events in flight are
+    // dropped instead of dispatched into empty maps.
     m_FileWatcher.reset();
 
     m_Running = false;
@@ -469,7 +457,7 @@ void AssetPipeline::Stop()
     m_GuidCache.Clear();
     m_SubAssets.clear();
     m_SubAssetLookup.clear();
-    m_SyncHandlers.clear();  // Clear sync handlers (they may hold references to destroyed objects)
+    m_SyncHandlers.clear();  // they may hold references to destroyed objects
     m_CacheHandlers.clear();
     m_ExportEncoders.clear();
     m_DefaultCacheHandler = nullptr;
@@ -478,9 +466,8 @@ void AssetPipeline::Stop()
 
 std::string AssetPipeline::GetAssetTypeFromExtension(const std::string& ext)
 {
-    // Asset types are owned by their respective packages via AssetTypeEditor +
-    // REGISTER_EDITOR. Core editor types (Scene, Asset, AssetPack) register
-    // themselves at editor startup. The pipeline only delegates here.
+    // Packages own asset types (AssetTypeEditor + REGISTER_EDITOR); the core
+    // types Scene, Asset and AssetPack register at editor startup.
     const AssetTypeHandler* handler = AssetTypeRegistry::Instance().GetHandlerForExtension(ext);
     return handler ? handler->typeName : std::string{};
 }
@@ -528,16 +515,15 @@ void AssetPipeline::ImportAllAssets()
         }
     } importScope(*this);
 
-    // Reset per-import counters
     g_ProcessAssetCounters = ProcessAssetCounters{};
 
-    // Two-pass import to ensure subassets are registered before scenes are compiled:
-    // Pass 1: Process all non-scene assets (images, fonts, etc.) - registers subassets
-    // Pass 2: Process scenes - now subassets are available for migration
+    // Two passes, so sub-assets exist before scenes compile:
+    // Pass 1: every non-scene asset (images, fonts...), which registers sub-assets.
+    // Pass 2: scenes, which can now resolve sub-assets.
 
     std::vector<std::string> scenePaths;
 
-    // Pass 1: Process non-scene assets first
+    // Pass 1: non-scene assets.
     auto tPass1Start = std::chrono::steady_clock::now();
     for (const auto& entry : fs::recursive_directory_iterator(m_AssetsPath))
     {
@@ -548,21 +534,18 @@ void AssetPipeline::ImportAllAssets()
 
         std::string ext = entry.path().extension().string();
 
-        // Skip .dekiguid and .data sidecar files
+        // Sidecar files.
         if (ext == ".dekiguid" || ext == ".data")
         {
             continue;
         }
 
-        // Only process supported asset types
         if (!IsAssetFile(ext))
         {
             continue;
         }
 
-        // Convert absolute path to project-relative path
         std::string relativePath = fs::relative(entry.path(), m_ProjectPath).string();
-        // Normalize path separators to forward slashes
         for (char& c : relativePath)
         {
             if (c == '\\')
@@ -571,7 +554,7 @@ void AssetPipeline::ImportAllAssets()
             }
         }
 
-        // Defer scenes to pass 2
+        // Scenes wait for pass 2.
         std::string extLower = ext;
         for (char& c : extLower)
         {
@@ -597,9 +580,9 @@ void AssetPipeline::ImportAllAssets()
     }
 
     auto tPass15Start = std::chrono::steady_clock::now();
-    // Pass 1.5: Pre-register all scene GUIDs in m_Assets so cross-scene
-    // instance resolution works during compilation (ExpandInstance needs to
-    // resolve source scene GUIDs via s_GuidToPathResolver -> GetAssetInfoByGuid).
+    // Pass 1.5: register every scene GUID in m_Assets first, so a scene can
+    // resolve instances of other scenes while compiling (ExpandInstance goes
+    // through s_GuidToPathResolver -> GetAssetInfoByGuid).
     for (const auto& scenePath : scenePaths)
     {
         std::string guid = GetOrCreateAssetGuid(scenePath);
@@ -612,7 +595,7 @@ void AssetPipeline::ImportAllAssets()
             preInfo.hasCachedVersion = fs::exists(GetAbsolutePath(preInfo.cachePath));
             m_Assets[scenePath] = preInfo;
 
-            // Ensure GuidCache has this entry for reverse GUID->path lookups
+            // GuidCache needs the entry for GUID -> path lookups.
             std::string absolutePath = GetAbsolutePath(scenePath);
             std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
             for (char& c : assetsRelativePath)
@@ -640,7 +623,7 @@ void AssetPipeline::ImportAllAssets()
         }
     }
 
-    // Pass 2: Process scenes (now all subassets and scene GUIDs are registered)
+    // Pass 2: scenes.
     {
         ScopedTimer tPass2("ImportAllAssets Pass2 (scenes)");
         for (const auto& scenePath : scenePaths)
@@ -649,14 +632,12 @@ void AssetPipeline::ImportAllAssets()
         }
     }
 
-    // Aggregate per-asset processing cost
     DEKI_LOG_EDITOR("[timing] ProcessAsset total: %d calls, %lld ms", g_ProcessAssetCounters.count,
                     g_ProcessAssetCounters.totalMs);
 
-    // Hash-gate: if the (path, guid) set is identical to last run, skip the
-    // cache-orphan sweep and the asset_table.bin rewrite. Both are only needed
-    // when the asset set changed (added or deleted file). Recompiled-but-still-
-    // present assets don't require either.
+    // When the (path, guid) set matches the last run, skip the orphan sweep
+    // and the asset_table.bin rewrite. Both are needed only when a file was
+    // added or deleted, not when an asset recompiled.
     const uint64_t currentHash = ComputeAssetSetHash(m_Assets, m_SubAssets);
     uint64_t previousHash = 0;
     const bool hasPrevious = ReadAssetSetHash(m_ProjectPath, previousHash);
@@ -668,13 +649,12 @@ void AssetPipeline::ImportAllAssets()
     }
     else
     {
-        // Validate cache integrity (remove orphan files)
+        // Remove orphan cache files.
         {
             ScopedTimer tValidate("ImportAllAssets ValidateCache");
             ValidateCache();
         }
 
-        // Update the persistent asset lookup table
         {
             ScopedTimer tTable("ImportAllAssets UpdateAssetTable");
             UpdateAssetTable();
@@ -683,7 +663,6 @@ void AssetPipeline::ImportAllAssets()
         WriteAssetSetHash(m_ProjectPath, currentHash);
     }
 
-    // Notify packages that all assets have been imported
     {
         ScopedTimer tOic("ImportAllAssets OnImportComplete callbacks");
         for (auto& cb : s_OnImportCompleteCallbacks)
@@ -697,8 +676,8 @@ void AssetPipeline::ImportAllAssets()
 
     SaveCacheStamps();
 
-    // Start the OS file watcher now that m_Assets reflects the on-disk state.
-    // Anything that changes from this point on will arrive via Tick().
+    // Start the OS file watcher now that m_Assets matches the disk. Changes
+    // from here on arrive through Tick().
     if (!m_FileWatcher)
     {
         m_FileWatcher = std::make_unique<AssetFileWatcher>();
@@ -780,9 +759,8 @@ void AssetPipeline::Tick()
                           { return e.kind != AssetFileWatcher::EventKind::Deleted; });
 
     // Forget `path`. When another registered path whose file exists holds the
-    // same GUID, the asset moved there: its cache file and its GUID are the
-    // moved asset's now, so neither is deleted nor announced as gone. (Both
-    // were, and the moved object vanished from the Play view until a restart.)
+    // same GUID, the asset moved there: its cache file and GUID now belong to
+    // the moved asset, so they are kept and nothing is reported as gone.
     auto forget = [this](std::unordered_map<std::string, AssetInfo>::iterator it)
     {
         const std::string relativePath = it->first;
@@ -836,8 +814,8 @@ void AssetPipeline::Tick()
     {
         const std::string& relativePath = evt.relativePath;
 
-        // Watcher already drops sidecar extensions, but we still need to filter
-        // out paths whose extension no package has claimed (folders, .tmp, etc.).
+        // The watcher drops sidecars; this drops paths whose extension no
+        // package claims (folders, .tmp, ...).
         std::string ext = fs::path(relativePath).extension().string();
         if (ext == ".dekiguid" || ext == ".data" || !IsAssetFile(ext))
         {
@@ -851,8 +829,8 @@ void AssetPipeline::Tick()
             {
                 std::string absolutePath = GetAbsolutePath(relativePath);
 
-                // Race: a file we were about to process was deleted before the
-                // debounce window expired. Treat as a deletion if we knew about it.
+                // The file was deleted before the debounce window ran out.
+                // Treat it as a deletion if it was known.
                 if (!fs::exists(absolutePath))
                 {
                     auto it = m_Assets.find(relativePath);
@@ -911,24 +889,21 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
 
     DEKI_LOG_DEBUG("ProcessAsset: %s", relativePath.c_str());
 
-    // Compute absolute path for filesystem operations
     std::string absolutePath = GetAbsolutePath(relativePath);
 
     AssetInfo info;
-    info.path = relativePath;  // Store project-relative path
+    info.path = relativePath;  // project-relative
 
-    // Get or create GUID (uses absolute path for filesystem access)
     info.guid = GetOrCreateAssetGuid(relativePath);
     if (info.guid.empty())
     {
         return;  // an unreadable sidecar with no GUID to recover; logged, the file left as is
     }
 
-    // Register with the GUID cache BEFORE the GUID picks the cache file. A file
-    // copied together with its .data claims the original's GUID; the cache
-    // gives the copy its own one here. This used to run after the cache was
-    // compiled, so the copy's pixels went into the ORIGINAL's cache file and
-    // the original showed the copy's image, even after a restart.
+    // Register with the GUID cache before the GUID picks the cache file. A file
+    // copied together with its .data claims the original's GUID, and the cache
+    // gives the copy a GUID of its own here. Must stay before the compile, or
+    // the copy overwrites the original's cache file.
     {
         std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
         for (char& c : assetsRelativePath)
@@ -953,30 +928,24 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         }
     }
 
-    // Determine asset type and get appropriate cache path
     std::string ext = fs::path(relativePath).extension().string();
     for (char& c : ext)
     {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
-    // Tentative cache path. The handler may override this via AssetCacheResult::PreCached
-    // (where the source file IS the cache and the relative path is reused verbatim).
+    // Tentative cache path. A handler returning AssetCacheResult::PreCached
+    // replaces it: the source file is then its own cache.
     info.cachePath = GetCacheDirectoryRelative() + "/" + info.guid;
     std::string absoluteCachePath = GetAbsolutePath(info.cachePath);
     bool cacheExists = fs::exists(absoluteCachePath);
 
-    // Check if cache is stale (source newer than cache). If a handler returns
-    // PreCached, the staleness check is skipped via the result-handling below
-    // since the source file is its own cache.
+    // A cache is current when it was built from exactly this source and .data
+    // file (the stamp). Comparing file times is not enough: a file restored
+    // from a backup has an older time. PreCached results skip this below.
     //
-    // forceRebuild bypasses the mtime check entirely: same-second writes on NTFS
-    // can leave sourceTime == cacheTime, which would let a stale cache survive
-    // a user-initiated edit. Explicit RefreshAsset paths set forceRebuild=true.
-    //
-    // Current means: built from exactly this source and .data file (the
-    // stamp). "The source is not newer than the cache" kept a stale cache
-    // when a file came back from a backup with an older time.
+    // forceRebuild (set by RefreshAsset) always rebuilds: two writes within
+    // one second on NTFS can share a timestamp.
     bool cacheIsFresh = false;
     if (forceRebuild && cacheExists)
     {
@@ -987,8 +956,8 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         {
             cacheExists = false;
         }
-        // Forgotten on disk too before the rebuild: a crash during it must
-        // not leave a record saying the old cache is current.
+        // Forget the stamp on disk before the rebuild too: a crash during it
+        // must not leave a record saying the old cache is current.
         if (m_CacheStamps.erase(info.guid))
         {
             m_StampsDirty = true;
@@ -1005,7 +974,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         }
         else if (!m_HaveStampFile)
         {
-            // A project from before stamps: the time rule, once.
+            // A project with no stamp file yet: compare file times, once.
             std::error_code ec;
             const auto sourceTime = fs::last_write_time(absolutePath, ec);
             const auto cacheTime = fs::last_write_time(absoluteCachePath, ec);
@@ -1034,8 +1003,8 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
 
     info.hasCachedVersion = cacheExists;
 
-    // Run registered cache handler for this extension.
-    // Handlers may report Cached, PreCached (source-is-cache), or NotCached.
+    // Run the cache handler for this extension. It reports Cached, PreCached
+    // (the source is the cache) or NotCached.
     {
         AssetCacheContext ctx;
         ctx.relativePath = relativePath;
@@ -1084,22 +1053,17 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         }
     }
 
-    // Get modification time (uses absolute path)
     auto lastWrite = fs::last_write_time(absolutePath);
     info.lastModified = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
         lastWrite - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
 
-    // Store in map keyed by relative path
     DEKI_HEAP_CHECK("ProcessAsset: before m_Assets update");
     bool isNew = (m_Assets.find(relativePath) == m_Assets.end());
     m_Assets[relativePath] = info;
 
-    // (The GUID cache was updated above, before the cache path was chosen.)
-
-    // Call registered sync handlers for this extension, subject to the handler's
-    // declared policy. OnSourceChange handlers skip on warm-cache reopens; Always
-    // handlers fire every time. Default for new registrations is OnSourceChange
-    // so warm-open paths stay fast.
+    // Run the sync handlers for this extension, by each handler's policy:
+    // OnSourceChange handlers (the default, which keeps reopening a project
+    // fast) skip when the cache was reused; Always handlers run every time.
     auto handlerIt = m_SyncHandlers.find(ext);
     if (handlerIt != m_SyncHandlers.end() && handlerIt->second.handler)
     {
@@ -1110,14 +1074,11 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
             handlerIt->second.handler(absolutePath, info.guid, m_ProjectPath);
         }
     }
-    // No fallback warning: if a package hasn't registered a sync handler for an
-    // extension, that's the package's responsibility, not the engine's. The
-    // pipeline's job here is dispatch only.
+    // An extension with no sync handler is fine: that is up to its package.
 
-    // Notify with relative path. For new assets we additionally refresh the
-    // persistent asset table (used by the runtime for GUID resolution) and
-    // fire onAssetCreated so subscribers (asset browser, picker, thumbnails)
-    // can refresh in one place rather than each call site doing it manually.
+    // For a new asset, also rewrite the asset table (the runtime resolves
+    // GUIDs with it) and fire onAssetCreated, so the asset browser, picker
+    // and thumbnails refresh from one place.
     if (isNew)
     {
         if (m_ImportingAll)
@@ -1154,14 +1115,13 @@ std::string AssetPipeline::GetAbsolutePath(const std::string& relativePath) cons
 
 std::string AssetPipeline::GetOrCreateAssetGuid(const std::string& relativePath)
 {
-    // Convert to absolute path for filesystem access
     std::string absolutePath = GetAbsolutePath(relativePath);
     const std::string dataPath = absolutePath + ".data";
 
-    // The GUID cache remembers what this path was called. Use it when the
-    // sidecar cannot say: it is missing (deleted, or not copied along with the
-    // asset) or unreadable with no recoverable GUID. A new GUID there broke
-    // every reference to the asset.
+    // The GUID cache remembers this path's GUID. Use it when the sidecar
+    // cannot say: it is missing (deleted, or not copied with the asset) or
+    // unreadable with no recoverable GUID. A new GUID would break every
+    // reference to the asset.
     std::string assetsRelative = fs::relative(absolutePath, m_AssetsPath).string();
     for (char& c : assetsRelative)
     {
@@ -1199,17 +1159,15 @@ std::string AssetPipeline::GetOrCreateAssetGuid(const std::string& relativePath)
             }
         }
     }
-    // Delegate to the global function in AssetData.cpp that uses .data files
     return ::DekiEditor::GetOrCreateAssetGuid(absolutePath);
 }
 
 bool AssetPipeline::IsAssetFile(const std::string& extension)
 {
-    // Asset discovery is package-driven: each package registers the extensions it
-    // owns via AssetTypeRegistry (packages' AssetTypeEditor subclasses + REGISTER_EDITOR;
-    // editor-core types Scene/Asset/AssetPack register from EditorApp /
-    // AssetPackEditor). If no package claims an extension, the file isn't an asset
-    // and the pipeline leaves it alone.
+    // Packages register the extensions they own in AssetTypeRegistry
+    // (AssetTypeEditor + REGISTER_EDITOR; the core types Scene, Asset and
+    // AssetPack register from EditorApp and AssetPackEditor). A file whose
+    // extension nobody claims is not an asset.
     return AssetTypeRegistry::Instance().HasHandlerForExtension(extension);
 }
 
@@ -1220,7 +1178,6 @@ std::string AssetPipeline::GetCachePathForGuid(const std::string& guid)
 
 bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::string& binaryPath)
 {
-    // Load the scene from JSON
     DEKI_HEAP_CHECK("CompileScene: before LoadFromFile");
     Deki::Scene scene;
     if (!scene.LoadFromFile(scenePath))
@@ -1229,8 +1186,9 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     }
     DEKI_HEAP_CHECK("CompileScene: after LoadFromFile");
 
-    // Set baked font GUIDs on TextComponents for embedded runtime
-    // Uses reflection to avoid compile-time dependency on the 2D package
+    // Set the baked font GUIDs on TextComponents for the embedded runtime.
+    // Done through reflection, so the editor needs no compile-time dependency
+    // on the 2D package.
     constexpr Deki::ComponentType kTextComponentType = Deki::HashString("5447ea24-d11f-4161-ae10-2f11e0a18d09");
     const Deki::ComponentMeta* textMeta = Deki::ComponentRegistry::Instance().GetMeta(kTextComponentType);
 
@@ -1247,10 +1205,8 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
             // Find font (AssetRef) and fontSize (Int32) properties via reflection
             const Deki::PropertyInfo* fontProp = nullptr;
             const Deki::PropertyInfo* fontSizeProp = nullptr;
-            // Bound by propertyCount: the array has no null sentinel after the
-            // last entry, so iterating until name==nullptr reads past the array
-            // into adjacent .rdata and crashes when those bytes happen to look
-            // like a non-null pointer (observed under clang-cl).
+            // Bound by propertyCount: the array has no null sentinel, so
+            // looping until name == nullptr reads past its end and can crash.
             if (textMeta->properties)
             {
                 for (int i = 0; i < textMeta->propertyCount; ++i)
@@ -1292,7 +1248,6 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
         }
     };
 
-    // Process all root objects and their hierarchies
     for (Deki::Object* obj : scene.GetObjects())
     {
         if (obj->GetParent() == nullptr)
@@ -1303,7 +1258,6 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
     DEKI_HEAP_CHECK("CompileScene: after font GUID modification");
 
-    // Create cache directory if it doesn't exist
     fs::path filePath(binaryPath);
     fs::path parentDir = filePath.parent_path();
     if (!parentDir.empty() && !fs::exists(parentDir))
@@ -1311,11 +1265,10 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
         fs::create_directories(parentDir);
     }
 
-    // Use SceneMsgPackWriter to serialize to MessagePack
     Deki::SceneFormat::SceneMsgPackWriter writer;
 
-    // Set subasset resolver for migration (fixes old scenes with frame GUIDs in guid field)
-    // When an AssetRef has a frame GUID in the guid field and empty source, swap them
+    // Migrates older scenes: an AssetRef with a frame GUID in its guid field
+    // and an empty source gets the two swapped.
     writer.SetSubAssetResolver(
         [this](const std::string& guid, std::string& outParentGuid) -> bool
         {
@@ -1330,8 +1283,8 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
             return false;
         });
 
-    // Don't set asset resolver - store GUIDs directly in binary scene
-    // Runtime resolves GUIDs to paths via AssetLookupTable
+    // No asset resolver: the binary scene stores GUIDs, and the runtime
+    // resolves them to paths through AssetLookupTable.
 
     if (!writer.WriteScene(&scene))
     {
@@ -1339,7 +1292,7 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     }
     DEKI_HEAP_CHECK("CompileScene: after WriteScene");
 
-    // Write to file, in one step (a cut-off cache counted as up to date)
+    // Written in one step: a cut-off cache file would count as up to date.
     std::string err;
     bool ok =
         AtomicWriteFile(binaryPath, std::string_view(reinterpret_cast<const char*>(writer.GetData()), writer.GetSize()),
@@ -1354,7 +1307,6 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
 bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::string& cachePath)
 {
-    // Read and parse JSON
     std::ifstream file(assetPath);
     if (!file.is_open())
     {
@@ -1387,10 +1339,11 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
 
     const auto* handler = AssetTypeRegistry::Instance().GetHandler(assetType);
 
-    // Generic data asset (ScriptableObject-style): a .asset whose "type" has a
-    // runtime loader but no texture compiler is compiled straight to a MessagePack
-    // cache - no per-type editor needed. The source JSON keys match the struct
-    // fields, so the generated DeserializeMsgPack reads it back on desktop + device.
+    // Generic data asset (like a Unity ScriptableObject): a .asset whose "type"
+    // has a runtime loader but no texture compiler compiles straight to a
+    // MessagePack cache, with no per-type editor. The JSON keys match the
+    // struct fields, so the generated DeserializeMsgPack reads it on desktop
+    // and device.
     const bool isTextureType = handler && handler->compilesTo == AssetCompileTarget::Texture;
     if (!isTextureType && !assetType.empty() && Deki::AssetManager::HasLoader(assetType.c_str()))
     {
@@ -1417,8 +1370,8 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
         return true;
     }
 
-    // Skip .asset files whose type has no registered compile handler (e.g. iconexport manifests)
-    // or whose compile target is None (e.g. RenderPipeline - configuration only, no output)
+    // Skip .asset files whose type has no compile handler (e.g. iconexport
+    // manifests) or compiles to None (e.g. RenderPipeline, which is settings only).
     if (!handler || handler->compilesTo == AssetCompileTarget::None)
     {
         return false;
@@ -1427,7 +1380,6 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
     DEKI_LOG_DEBUG("CompileAssetFile: Compiling %s (type=%s) -> %s", assetPath.c_str(), assetType.c_str(),
                    cachePath.c_str());
 
-    // Delegate to AssetTypeRegistry for compilation
     std::vector<uint8_t> rgba;
     int width, height;
     if (!AssetTypeRegistry::Instance().CompileAsset(data, rgba, width, height))
@@ -1436,7 +1388,6 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
         return false;
     }
 
-    // Create cache directory if needed
     fs::path filePath(cachePath);
     fs::path parentDir = filePath.parent_path();
     if (!parentDir.empty() && !fs::exists(parentDir))
@@ -1444,9 +1395,9 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
         fs::create_directories(parentDir);
     }
 
-    // Pass through 9-slice metadata declared on the procedural .asset JSON
-    // ("nine_slice": [top, right, bottom, left]). Parsed here so the AssetTypeEditor
-    // interface stays narrow.
+    // Pass on the 9-slice borders from the .asset JSON
+    // ("nine_slice": [top, right, bottom, left]). Parsed here so the
+    // AssetTypeEditor interface stays narrow.
     SpriteSettings spriteSettings;
     if (data.contains("nine_slice") && data["nine_slice"].is_array() && data["nine_slice"].size() >= 4)
     {
@@ -1458,7 +1409,6 @@ bool AssetPipeline::CompileAssetFile(const std::string& assetPath, const std::st
     }
     const SpriteSettings* settingsPtr = spriteSettings.HasData() ? &spriteSettings : nullptr;
 
-    // Write as DTEX texture
     return TextureImporter::WriteTexFile(cachePath, rgba.data(), static_cast<uint32_t>(width),
                                          static_cast<uint32_t>(height), TextureFormat::RGB565A8, settingsPtr);
 }
@@ -1480,7 +1430,6 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
         return;
     }
 
-    // Check if file exists using absolute path
     std::string absolutePath = GetAbsolutePath(relativePath);
     if (!fs::exists(absolutePath))
     {
@@ -1497,10 +1446,9 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
         return;
     }
 
-    // RefreshAsset is an explicit user-initiated request (modify, reimport,
-    // dialog-driven recompile), so any cached output for this asset is
-    // assumed stale. Force-rebuild is generic across all registered asset
-    // types and replaces the previous .scene-specific carve-out.
+    // RefreshAsset is an explicit request (an edit, a reimport, a recompile
+    // from a dialog), so any cached output for the asset counts as stale and
+    // is rebuilt, for every asset type.
     auto it = m_Assets.find(relativePath);
     if (it != m_Assets.end() && !it->second.cachePath.empty())
     {
@@ -1516,7 +1464,6 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
     DEKI_LOG_DEBUG("RefreshAsset: %s", relativePath.c_str());
     ProcessAsset(relativePath, /*forceRebuild=*/true);
 
-    // Trigger changed callback so UI can update
     if (onAssetChanged)
     {
         onAssetChanged(relativePath);
@@ -1527,7 +1474,6 @@ void AssetPipeline::RemoveAsset(const std::string& relativePath)
 {
     m_Assets.erase(relativePath);
 
-    // Update GuidCache
     std::string absolutePath = GetAbsolutePath(relativePath);
     std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
     for (char& c : assetsRelativePath)
@@ -1542,20 +1488,19 @@ void AssetPipeline::RemoveAsset(const std::string& relativePath)
 
 const AssetInfo* AssetPipeline::GetAssetInfoByGuid(const std::string& guid) const
 {
-    // Look up path from GuidCache (returns assets-relative path or "path:variant")
+    // GuidCache returns an assets-relative path, or "path:variant".
     std::string assetsRelativePath = m_GuidCache.GetPath(guid);
     if (!assetsRelativePath.empty())
     {
-        // Strip variant suffix if present (everything after ':')
+        // Drop the variant suffix (everything after ':').
         size_t colonPos = assetsRelativePath.find(':');
         if (colonPos != std::string::npos)
         {
             assetsRelativePath = assetsRelativePath.substr(0, colonPos);
         }
 
-        // Convert to project-relative path ("project/assets/fonts/..."): the
-        // assets prefix is fixed for the session (computed when the paths are
-        // set), not a filesystem call per lookup as it used to be.
+        // To a project-relative path ("project/assets/fonts/..."). The prefix
+        // is fixed for the session, set with the paths.
         std::string projectRelativePath = m_AssetsPrefix + "/" + assetsRelativePath;
         return GetAssetInfo(projectRelativePath);
     }
@@ -1570,7 +1515,6 @@ int AssetPipeline::CleanCache()
         return 0;
     }
 
-    // Cache directory
     fs::path cachePath = GetCacheDirectory(m_ProjectPath);
     if (!fs::exists(cachePath) || !fs::is_directory(cachePath))
     {
@@ -1587,12 +1531,10 @@ int AssetPipeline::CleanCache()
         }
     }
 
-    // Generate deterministic font cache GUIDs for all fonts at common sizes
-    // Format matches FontFileInspector: fontGuid:size and fontGuid:size:atlas
-    // Ask each registered cache-variant provider to enumerate its derived GUIDs
-    // (e.g. font baking emits one variant per requested size + atlas siblings).
-    // Packages register providers via RegisterCacheVariantProvider - engine has
-    // no built-in knowledge of which extensions produce variants.
+    // Each cache-variant provider adds the GUIDs it derives from an asset
+    // (e.g. a font emits one per baked size, plus atlases). Packages register
+    // providers with RegisterCacheVariantProvider; the pipeline itself does
+    // not know which extensions produce variants.
     for (const auto& [path, info] : m_Assets)
     {
         std::string ext = fs::path(path).extension().string();
@@ -1624,8 +1566,8 @@ int AssetPipeline::CleanCache()
         std::string stem = entry.path().stem().string();
 
         // Skip non-asset files (metadata, lookup tables). "version" is the
-        // cache format stamp Start() checks: deleting it here made every open
-        // find no stamp, wipe the cache and recompile every asset.
+        // cache format stamp Start() checks: without it, every open wipes the
+        // cache and recompiles every asset.
         if (ext == ".json" || stem == "asset_table" || stem == "guids" || stem == "play_mode_table" ||
             filename == "version")
         {
@@ -1639,7 +1581,6 @@ int AssetPipeline::CleanCache()
             stem = stem.substr(0, stem.size() - 6);
         }
 
-        // Check if this cache file's GUID exists in our valid set
         bool found = validGuids.find(stem) != validGuids.end();
         if (!found)
         {
@@ -1647,7 +1588,6 @@ int AssetPipeline::CleanCache()
         }
     }
 
-    // Remove orphaned files
     for (const auto& path : toRemove)
     {
         std::error_code ec;
@@ -1689,7 +1629,6 @@ void AssetPipeline::RegisterSubAssets(const std::string& parentGuid, const std::
         return;
     }
 
-    // Store in both registries
     m_SubAssets[parentGuid] = subAssets;
     for (const auto& subAsset : subAssets)
     {
@@ -1739,7 +1678,6 @@ void AssetPipeline::UpdateAssetTable()
             continue;
         }
 
-        // Determine asset type from extension
         std::string ext = fs::path(info.path).extension().string();
         std::string assetType = GetAssetTypeFromExtension(ext);
         if (assetType.empty())
@@ -1763,7 +1701,6 @@ void AssetPipeline::UpdateAssetTable()
             exportPath = exportPath.substr(0, dotPos);
         }
 
-        // Build key: "path:type"
         std::string key = exportPath + ":" + assetType;
 
         LookupEntry entry;
@@ -1788,20 +1725,18 @@ void AssetPipeline::UpdateAssetTable()
 
             std::string filename = entry.path().stem().string();
 
-            // Skip metadata files
             std::string ext = entry.path().extension().string();
             if (ext == ".json" || filename == "guids" || filename == "asset_table")
             {
                 continue;
             }
 
-            // Skip if already added from pipeline
             if (addedGuids.find(filename) != addedGuids.end())
             {
                 continue;
             }
 
-            // This is likely a baked font or other derived asset - add with GUID as key
+            // A derived asset (a baked font...), keyed by its GUID.
             LookupEntry lookupEntry;
             memset(&lookupEntry, 0, sizeof(lookupEntry));
             lookupEntry.hash = FNV1aHash(filename.c_str());
@@ -1835,10 +1770,8 @@ void AssetPipeline::UpdateAssetTable()
     // Sort by hash for binary search
     std::sort(entries.begin(), entries.end());
 
-    // Write binary file
     std::string tablePath = (fs::path(GetCacheDirectory(m_ProjectPath)) / "asset_table.bin").string();
 
-    // Ensure cache directory exists
     fs::create_directories(fs::path(tablePath).parent_path());
 
     // Entry count, then the entries; written in one step, since Play mode and
@@ -1882,9 +1815,7 @@ void AssetPipeline::ValidateCache()
         }
     }
 
-    // Generate deterministic font cache GUIDs for all fonts at common sizes
-    // This matches CleanCache() logic
-    // Same provider-driven enumeration as CleanCache - see comment there.
+    // The same variant GUIDs as CleanCache (see there).
     for (const auto& [path, info] : m_Assets)
     {
         std::string ext = fs::path(path).extension().string();
@@ -1919,7 +1850,6 @@ void AssetPipeline::ValidateCache()
             continue;
         }
 
-        // Skip metadata files
         std::string ext = entry.path().extension().string();
         if (ext == ".json")
         {
@@ -1932,14 +1862,12 @@ void AssetPipeline::ValidateCache()
             stem = stem.substr(0, stem.size() - 6);
         }
 
-        // Check if this cache file's GUID exists in our valid set
         if (validGuids.find(stem) == validGuids.end())
         {
             orphans.push_back(entry.path());
         }
     }
 
-    // Remove orphans
     int removedCount = 0;
     for (const auto& orphan : orphans)
     {

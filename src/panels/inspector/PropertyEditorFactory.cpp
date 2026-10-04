@@ -34,19 +34,17 @@ namespace DekiEditor
 using InspectorUtils::BeginPropertyRow;
 using InspectorUtils::ComponentIsOrDerivesFrom;
 
-// Physical-unit conversion (meters/radians -> px/degrees) and Distance pixel
-// snapping now happen inside the EditorUI unit-aware *Field helpers, so this file
-// no longer needs UnitDisplay/EditorPixelSnap directly.
+// Unit conversion (meters/radians to px/degrees) and Distance pixel snapping
+// happen inside EditorUI's unit-aware *Field helpers.
 
 namespace
 {
-// The EditorUI *Field helpers record undo via a byte-level ModifyValueCommand,
-// which (unlike ModifyComponentPropertyCommand) does NOT notify the component.
-// OnPropertyChanged is a virtual that components override to recompute derived
-// state (e.g. ScrollComponent re-lays-out its children), and ApplyToggleObject
-// handles object-active toggles. These build the per-shape callback structs that
-// re-fire those side effects after the field writes the member, for live edits,
-// undo, and redo alike, so behavior matches the old reflection command exactly.
+// The EditorUI *Field helpers record undo with a byte-level ModifyValueCommand,
+// which, unlike ModifyComponentPropertyCommand, does not notify the component.
+// Components override OnPropertyChanged to recompute derived state
+// (ScrollComponent lays out its children again, say), and ApplyToggleObject
+// handles object-active toggles. These build the callbacks that run those side
+// effects after the field writes the member, for live edits, undo and redo.
 void NotifyChanged(Deki::Component* comp, const std::string& name)
 {
     comp->OnPropertyChanged(name.c_str());
@@ -86,18 +84,16 @@ EditorUI::VecCallbacks NotifyVec(Deki::Component* comp, const char* name)
 
 // --- "is this still the default?" ----------------------------------------
 //
-// The reference is a freshly built component of the same type. Building one is
-// not free of risk: a game component's constructor and destructor are arbitrary
-// project code, and running them on an instance that belongs to no object can
-// fault. So it happens ONCE per type, inside the editor's exception barrier,
-// and what survives is the captured VALUES, not the instance - nothing of the
-// throwaway component outlives the snapshot, and a type whose construction
-// faults is simply recorded as having no defaults instead of taking the panel
-// down with it every frame.
+// The reference is a freshly built component of the same type. A game
+// component's constructor and destructor are project code, and running them on
+// an instance that belongs to no object can fault. So it happens once per type,
+// inside the editor's exception barrier, and only the captured values are kept,
+// not the instance. A type whose construction faults is recorded as having no
+// defaults.
 //
-// The snapshot is dropped whenever the factory's registration count changes,
-// which is what a package or plugin reload does, so a rebuilt component's new
-// defaults are picked up.
+// The snapshot is dropped when the factory's registration count changes, as a
+// package or plugin reload does, so a rebuilt component's new defaults are
+// picked up.
 struct DefaultsSnapshot
 {
     size_t factoryStamp = static_cast<size_t>(-1);
@@ -107,9 +103,9 @@ struct DefaultsSnapshot
 };
 DefaultsSnapshot g_Defaults;
 
-// Current value of one property, as the undo system already captures it - so
-// "differs from default" means exactly what "this edit changed something"
-// means, for every type including arrays and sized enums.
+// One property's current value, captured as the undo system does, so "differs
+// from default" means what "this edit changed something" means, for every type
+// including arrays and sized enums.
 nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
 {
     if (prop.type == Deki::PropertyType::Array)
@@ -144,7 +140,7 @@ void BuildDefaultsFor(uint32_t typeId)
                   return;
               }
 
-              // Own properties and every inherited one: the inspector draws both.
+              // Own and inherited properties, as the Inspector draws both.
               const Deki::ComponentMeta* walk = registry.GetMeta(typeId);
               while (walk)
               {
@@ -200,15 +196,15 @@ const nlohmann::json* DefaultValueFor(uint32_t typeId, const Deki::PropertyInfo&
 
 // --- label scrubbing ------------------------------------------------------
 //
-// Dragging a row's label sideways changes its value, the way the field itself
-// does. State is file-scope because exactly one drag exists at a time, whatever
-// inspector or panel owns the row.
+// Dragging a row's label sideways changes its value, as dragging the field
+// does. The state is file-scope because only one drag exists at a time,
+// whichever panel owns the row.
 //
-// The live value is kept here in double for the duration of the gesture: an int
-// field moving a quarter unit per pixel would otherwise lose the fraction to
-// truncation every frame and never move at all. The value is put back to where
-// the drag started before the command is built, so the undo step spans the
-// whole drag instead of its last frame (the trick DrawBoolProperty uses).
+// The live value is kept here as a double during the drag: an int field moving
+// a quarter unit per pixel would otherwise lose the fraction every frame and
+// never move. The value is put back to where the drag started before the
+// command is built, so one undo step covers the whole drag (as in
+// DrawBoolProperty).
 bool g_ScrubActive = false;
 const void* g_ScrubOwner = nullptr;  // component, for identity only
 size_t g_ScrubOffset = 0;            // property, for identity only
@@ -304,8 +300,8 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
 
     std::string displayName = InspectorUtils::GetDisplayName(prop);
 
-    // The inspector's filter is honoured HERE so every path obeys it: own
-    // properties, inherited ones, and whatever a custom editor asks to draw.
+    // The Inspector's filter is applied here so every path obeys it: own
+    // properties, inherited ones, and whatever a custom editor draws.
     if (!InspectorUtils::PropertyMatchesFilter(displayName.c_str()))
     {
         ImGui::PopID();
@@ -313,19 +309,16 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
     }
     InspectorUtils::NoteFilterHit();
 
-    // Make the tooltip available to the row label, whichever widget path draws it.
+    // For the row label, whichever widget path draws it.
     InspectorUtils::SetNextRowTooltip(prop.tooltip);
 
-    // What the row's marker means: this value has moved since the scene was
-    // last written to disk. That is the question you have in front of an object
-    // ("what have I changed and not saved?"), so it gets the visible bar; how
-    // the value compares to the TYPE's default is a rarer question and lives on
-    // the row menu below as an action rather than as a mark.
-    // Capturing the value as JSON and comparing it against the saved and the
-    // default value ran for every visible property every frame. The answer can
-    // only change when a command runs (undo, redo, an edit committing), the
-    // saved baseline moves, or an edit is in flight on this very row, so it is
-    // cached against the command generation and the saved-state epoch.
+    // The row's marker means the value changed since the scene was last
+    // written to disk. Whether it differs from the type's default is offered
+    // on the row menu below instead.
+    // Comparing as JSON is too slow to run per property per frame. The answer
+    // changes only when a command runs, the saved state moves, or this row is
+    // being edited, so it is cached against the command generation and the
+    // saved-state epoch.
     bool isUnsaved = false;
     bool differsFromDefault = false;
     {
@@ -387,14 +380,14 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
         default: ImGui::TextDisabled("%s: (unsupported type)", displayName.c_str()); break;
     }
 
-    // Drop the one-shots if this field never drew a labeled row.
+    // Drop the tooltip and marker in case this field drew no labelled row.
     InspectorUtils::SetNextRowTooltip(nullptr);
     InspectorUtils::SetNextRowUnsaved(false);
 
-    // Row menu, opened by right-clicking the label (the row helper records the
-    // click; the menu is built here, where the property and its default are
-    // known). Reset writes the default through the same command every edit
-    // uses, so it undoes like one.
+    // The row menu, opened by right-clicking the label. BeginPropertyRow
+    // records the click; the menu is built here, where the property and its
+    // default are known. Reset writes the default through the same command as
+    // any edit, so it can be undone.
     if (InspectorUtils::TakeRowMenuClick())
     {
         ImGui::OpenPopup("##rowmenu");
@@ -403,8 +396,8 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
     if (ImGui::BeginPopup("##rowmenu"))
     {
         PushContextMenuItemStyle();
-        // The values are looked up on the click (cheap map finds); the
-        // per-frame work above only keeps the two enable flags.
+        // The values are looked up on the click; the per-frame work above
+        // keeps only the two enable flags.
         if (ImGui::MenuItem("Revert to Saved", nullptr, false, isUnsaved))
         {
             if (const nlohmann::json* savedValue = InspectorUtils::SavedValueFor(comp, prop))
@@ -501,16 +494,14 @@ void PropertyEditorFactory::DrawFloatProperty(Deki::Component* comp, const Deki:
     const EditorUI::Unit unit = static_cast<EditorUI::Unit>(static_cast<int>(prop.physicalUnit));
     if (unit != EditorUI::Unit::None)
     {
-        // Unit-aware field converts canonical meters/radians to px/degrees and
-        // snaps Distance to whole pixels in Pixels mode (matches the gizmo math).
+        // Shows meters/radians as px/degrees and snaps Distance to whole
+        // pixels in Pixels mode, as the gizmos do.
         EditorUI::Get().FloatField(displayName, &value, unit, cb);
     }
     else if (prop.hasRange && prop.useSlider)
     {
         // DEKI_SLIDER asked for a slider. DEKI_RANGE sets the same min/max but
-        // leaves useSlider false, so the two macros have to be told apart here -
-        // checking hasRange alone made DEKI_SLIDER a no-op that rendered an
-        // ordinary drag field.
+        // leaves useSlider false, so check useSlider, not only hasRange.
         EditorUI::Get().SliderField(displayName, &value, prop.minValue, prop.maxValue, "%.3f", cb);
     }
     else if (prop.hasRange)
@@ -522,10 +513,8 @@ void PropertyEditorFactory::DrawFloatProperty(Deki::Component* comp, const Deki:
         EditorUI::Get().FloatField(displayName, &value, 0.1f, 0.0f, 0.0f, "%.3f", cb);
     }
 
-    // Dragging the row's LABEL scrubs the value too, so the widest, most
-    // clickable part of the row is not dead space. Speed follows the range when
-    // the property has one, so a 0..1 field crosses its range in a sane
-    // distance instead of taking a screen and a half.
+    // Dragging the row's label scrubs the value too. With a range, the speed
+    // follows it, so a 0..1 field crosses its range in 200 pixels.
     {
         const float speed = prop.hasRange ? (prop.maxValue - prop.minValue) / 200.0f : 0.1f;
         double scrubbed = value;
@@ -547,8 +536,9 @@ void PropertyEditorFactory::DrawBoolProperty(Deki::Component* comp, const Deki::
 
     if (EditorUI::Get().Checkbox(displayName, &value))
     {
-        // Checkbox is immediate - create command right away
-        value = oldValue;  // Restore so command captures old value
+        // A checkbox commits at once; restore the old value so the command
+        // records it.
+        value = oldValue;
         CommandHistory::Instance().ExecuteNoMerge(
             std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nlohmann::json(!oldValue)));
     }
@@ -560,14 +550,14 @@ void PropertyEditorFactory::DrawStringProperty(Deki::Component* comp, const Deki
                                                const char* displayName)
 {
     std::string& value = ::Deki::GetPropertyRef<std::string>(comp, prop);
-    std::string capturedValue = value;  // Capture BEFORE widget modifies it
+    std::string capturedValue = value;  // before the widget changes it
     char buf[1024];
     strncpy(buf, value.c_str(), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
 
     static std::string s_OldValue;
 
-    // Use multiline for "text" property (TextComponent)
+    // A property named "text" (TextComponent) gets a multiline box.
     if (strcmp(prop.name, "text") == 0)
     {
         ImGui::Text("%s", displayName);
@@ -623,11 +613,10 @@ void PropertyEditorFactory::DrawStringProperty(Deki::Component* comp, const Deki
 void PropertyEditorFactory::DrawColorProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                               const char* displayName)
 {
-    // Colors are stored as Deki::Color struct (r, g, b, a bytes)
+    // Stored as a Deki::Color (r, g, b, a bytes).
     Deki::Color& colorRef = ::Deki::GetPropertyRef<Deki::Color>(comp, prop);
-    Deki::Color capturedColor = colorRef;  // Capture BEFORE widget modifies it
+    Deki::Color capturedColor = colorRef;  // before the widget changes it
 
-    // Convert to float array for ImGui
     float color[4] = { colorRef.r / 255.0f, colorRef.g / 255.0f, colorRef.b / 255.0f, colorRef.a / 255.0f };
 
     BeginPropertyRow(displayName);
@@ -655,7 +644,7 @@ void PropertyEditorFactory::DrawColorProperty(Deki::Component* comp, const Deki:
         {
             Deki::Color newColor = colorRef;
             colorRef = s_OldColor;
-            // Store color as array [r, g, b, a] in JSON
+            // JSON form: [r, g, b, a].
             nlohmann::json colorJson = nlohmann::json::array({ newColor.r, newColor.g, newColor.b, newColor.a });
             CommandHistory::Instance().Execute(std::make_unique<ModifyComponentPropertyCommand>(comp, prop, colorJson));
         }
@@ -695,11 +684,10 @@ void PropertyEditorFactory::DrawVector3Property(Deki::Component* comp, const Dek
 void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                              const char* displayName)
 {
-    // Use enumSize from property metadata to read/write the correct number of bytes
+    // enumSize says how many bytes the field has.
     uint8_t enumSize = prop.enumSize > 0 ? prop.enumSize : 1;
     void* valuePtr = reinterpret_cast<char*>(comp) + prop.offset;
 
-    // Read current value
     int currentIndex = 0;
     switch (enumSize)
     {
@@ -713,12 +701,11 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
 
     if (prop.enumValues && prop.enumCount > 0)
     {
-        // What was read out of the field is the enumerator's VALUE, which is
-        // not the row it occupies in the tables: an enum may start off zero,
-        // leave a gap, or be a flags set. So map value -> row to drive the
-        // combo and row -> value to write back. This used to pass the value
-        // straight in as an index and clamp it into range, which silently
-        // rewrote the field on any enum that was not numbered 0, 1, 2, ...
+        // The field holds the enumerator's value, not its row in the tables:
+        // an enum may start above zero, skip numbers, or be a flags set. So
+        // map value to row for the combo and row to value for the write.
+        // Using the value as a row would rewrite any enum not numbered 0, 1,
+        // 2...
         int comboRow = Deki::EnumIndexForValue(prop, currentIndex);
         if (comboRow < 0)
         {
@@ -734,19 +721,20 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
             {
                 chosen = prop.enumInts[comboRow];
             }
-            // Combo is immediate; the command reads the component's old value.
+            // A combo commits at once; the command reads the old value from
+            // the component.
             CommandHistory::Instance().ExecuteNoMerge(
                 std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nlohmann::json(chosen)));
         }
     }
     else
     {
-        int capturedIndex = currentIndex;  // Capture BEFORE widget modifies it
+        int capturedIndex = currentIndex;  // before the widget changes it
 
         BeginPropertyRow(displayName);
         if (EditorUI::Get().DragInt("##value", &currentIndex))
         {
-            // Write back using correct size for live preview
+            // Live preview, written at the field's size.
             switch (enumSize)
             {
                 case 1: *reinterpret_cast<uint8_t*>(valuePtr) = static_cast<uint8_t>(currentIndex); break;
@@ -766,7 +754,7 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
         // Create undo command when editing finishes
         if (ImGui::IsItemDeactivatedAfterEdit() && currentIndex != s_OldEnumValue)
         {
-            // Restore old value so command captures it
+            // Restore the old value so the command records it.
             switch (enumSize)
             {
                 case 1: *reinterpret_cast<uint8_t*>(valuePtr) = static_cast<uint8_t>(s_OldEnumValue); break;
@@ -781,7 +769,7 @@ void PropertyEditorFactory::DrawEnumProperty(Deki::Component* comp, const Deki::
     ShowTooltip(prop);
 }
 
-// Helper to build hierarchy path string for an object (e.g. "Root/Parent/Child")
+// The object's path in the hierarchy, like "Root/Parent/Child".
 static std::string GetHierarchyPath(Deki::Object* obj)
 {
     std::vector<std::string> parts;
@@ -800,7 +788,7 @@ static std::string GetHierarchyPath(Deki::Object* obj)
     return path;
 }
 
-// Case-insensitive substring match
+// Case-insensitive substring match.
 static bool MatchesSearch(const std::string& text, const char* search)
 {
     if (!search || search[0] == '\0')
@@ -839,9 +827,9 @@ void PropertyEditorFactory::DrawPendingPopups()
         m_ObjectRefPickerPendingOpen = false;
     }
 
-    // Anchor below the field at the inspector's left edge, locked to the
-    // inspector's width so rows can never extend past the popup, with the
-    // unified context-menu inset (same as the Add Component picker).
+    // Below the field at the Inspector's left edge and as wide as the
+    // Inspector, with the usual context-menu inset (as the Add Component
+    // picker).
     const float popupW = m_ObjectRefPickerWidth > 0 ? m_ObjectRefPickerWidth : m_App->Dpi(500.0f);
     ImGui::SetNextWindowPos(ImVec2(m_ObjectRefPickerPosX, m_ObjectRefPickerPosY), ImGuiCond_Appearing);
     ImGui::SetNextWindowSizeConstraints(ImVec2(popupW, 0.0f), ImVec2(popupW, FLT_MAX));
@@ -872,12 +860,9 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
 {
     Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + prop.offset);
 
-    // Get display name of referenced object
     std::string refDisplayText = "(None)";
-    // A reference whose target is gone is not a value, it is damage: it reads
-    // like any other name in a plain field, so it gets amber text and a border
-    // to match, plus "Clear Reference" on the row menu. Being able to see it
-    // and fix it in place beats hunting for which field went stale.
+    // A reference whose target is gone gets amber text and border, and
+    // "Clear Reference" on the row menu, so it can be seen and fixed in place.
     bool refBroken = false;
     ::Deki::Scene* scene = m_App->GetCurrentScene();
     if (ref.id != 0 && scene)
@@ -913,14 +898,13 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
 
     BeginPropertyRow(displayName);
 
-    // Combined name + chevron field, matching the AssetRef rows (FrameBg-colored
-    // left-aligned name with a picker chevron flush on the right). Inherit the
-    // right gutter set by BeginPropertyRow so it lines up with the other rows.
+    // The name and a picker chevron as one field, like the AssetRef rows. Its
+    // width is the one BeginPropertyRow set, so it lines up with the others.
     float fieldWidth = ImGui::CalcItemWidth();
     float pickerBtnWidth = ImGui::GetFrameHeight();
     float nameFieldWidth = fieldWidth - pickerBtnWidth;
 
-    // Position popup at the window's left edge, below the clicked field
+    // The popup opens at the window's left edge, below the field.
     auto openPicker = [&]()
     {
         m_ObjectRefPickerPosX = ImGui::GetWindowPos().x;
@@ -957,7 +941,7 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
 
-    // Drag-drop target for objects from Hierarchy panel
+    // Drop target for objects from the Hierarchy.
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_OBJECT"))
@@ -1002,7 +986,7 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
 
     ShowTooltip(prop);
 
-    // Right: picker chevron, flush against the name field (one combined control)
+    // Right: the picker chevron, flush against the name.
     ImGui::SameLine(0, 0);
     std::string pickerBtnId = std::string(ICON_TI_CHEVRON_DOWN "##objrefpicker_") + prop.name;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
@@ -1025,7 +1009,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
     int arrayIdx = m_ObjectRefPickerIndex;
     bool isArray = (arrayIdx >= 0);
 
-    // Get current selection
+    // The current value.
     uint32_t currentObjId = 0;
     uint32_t currentTypeId = 0;
     nlohmann::json currentArrayValue;
@@ -1053,7 +1037,8 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         currentTypeId = ref.componentTypeId;
     }
 
-    // Resolve componentTypeId if not set but we have a type filter
+    // Find the component type when the value lacks one but the property
+    // names a type.
     if (currentObjId != 0 && currentTypeId == 0 && prop.componentRefType)
     {
         ::Deki::Scene* scene = m_App->GetCurrentScene();
@@ -1074,21 +1059,18 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         }
     }
 
-    // Focus search on first frame
     if (m_ObjectRefPickerJustOpened)
     {
         ImGui::SetKeyboardFocusHere();
         m_ObjectRefPickerJustOpened = false;
     }
 
-    // Schematic search band (dim magnifier + borderless input) with a
-    // full-width hairline beneath it, like the Add Component picker.
+    // Search band with a full-width line beneath, like the Add Component picker.
     SearchField("##objref_search", m_ObjectRefSearchBuf, sizeof(m_ObjectRefSearchBuf), 0.0f, /*bottomBorder*/ true);
 
-    // Row metrics. Rows are custom-drawn (name + dim component type on one
-    // line, dim hierarchy path underneath) and every text draw is clipped to
-    // the row rect, so long names stop at the popup edge instead of spilling
-    // past it.
+    // Rows are drawn by hand: name and dim component type on one line, dim
+    // hierarchy path below. Text is clipped to the row, so long names stop at
+    // the popup edge.
     const float padX = ImGui::GetStyle().FramePadding.x;
     const float padY = m_App->Dpi(5.0f);
     const float lineGap = m_App->Dpi(2.0f);
@@ -1098,9 +1080,9 @@ void PropertyEditorFactory::DrawObjectRefPicker()
     const ImU32 textCol = ImGui::GetColorU32(ImGuiCol_Text);
     const ImU32 dimCol = ImGui::GetColorU32(Palette::Dim);
 
-    // One picker row: primary-colored name, dim `suffix` (component type)
-    // continuing on the same line, dim smaller `path` below. Returns true
-    // when the row is clicked. Callers wrap in PushID for unique row ids.
+    // One row: the name, a dim `suffix` (component type) on the same line,
+    // and a dim smaller `path` below. Returns true when clicked. Callers wrap
+    // it in PushID.
     auto drawRow = [&](const char* name, const std::string& suffix, const std::string& path, bool isSelected) -> bool
     {
         const bool twoLines = !path.empty();
@@ -1110,7 +1092,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         {
             ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
         }
-        // Size.x = 0 spans the remaining row width
+        // Width 0 spans the rest of the row.
         const bool clicked = ImGui::Selectable("##item", isSelected, ImGuiSelectableFlags_None, ImVec2(0, rowH));
         if (isSelected)
         {
@@ -1142,7 +1124,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         return clicked;
     };
 
-    // Compact list: snug for short content, scrolls once it reaches the cap.
+    // The list fits short content and scrolls once it reaches the cap.
     ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, m_App->Dpi(340.0f)));
     ImGui::BeginChild("##objref_list", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, m_App->Dpi(2.0f)));
@@ -1183,7 +1165,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
         ImGui::PopID();
     }
 
-    // List all matching objects
+    // Every matching object.
     ::Deki::Scene* scene = m_App->GetCurrentScene();
     if (scene)
     {
@@ -1207,7 +1189,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
                     const auto* meta = registry.GetMeta(c->GetType());
                     std::string compName = (meta && meta->name) ? meta->name : "Unknown";
 
-                    // Search against name, path, and component
+                    // Search name, path and component.
                     std::string searchText = objName + " " + hierarchyPath + " " + compName;
                     if (!MatchesSearch(searchText, m_ObjectRefSearchBuf))
                     {
@@ -1240,7 +1222,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
             }
             else
             {
-                // No component filter - show object name
+                // No component type: list the object itself.
                 std::string searchText = objName + " " + hierarchyPath;
                 if (MatchesSearch(searchText, m_ObjectRefSearchBuf))
                 {
@@ -1272,7 +1254,6 @@ void PropertyEditorFactory::DrawObjectRefPicker()
                 }
             }
 
-            // Recurse into children
             for (Deki::Object* child : sceneObj->GetChildren())
             {
                 showObject(child);

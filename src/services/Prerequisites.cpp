@@ -20,15 +20,14 @@ namespace DekiEditor
 namespace
 {
 
-/// Run a command and return its first line of output, or "" if it could not run.
+/// Runs a command and returns its first line of output, or "" if it could not run.
 ///
-/// Through RunShellCommand, which starts the shell without a window. This used
-/// _popen, which in a windowed program opens a console for every call: a
-/// project open flashed one up per tool probed.
+/// Goes through RunShellCommand, which starts the shell without a window;
+/// _popen would flash a console up in a windowed program for every probe.
 ///
-/// An answer is kept for the rest of the session: these are version probes of
-/// installed tools, and every project open asked them again. A failed probe is
-/// not kept, so a tool installed while the editor runs is seen next time.
+/// An answer is kept for the rest of the session: these are version probes
+/// of installed tools, and every project open would ask again. A failed probe
+/// is not kept, so a tool installed while the editor runs is seen next time.
 std::string RunCapture(const std::string& cmd)
 {
     static std::mutex s_Mutex;
@@ -76,7 +75,7 @@ std::string RunCapture(const std::string& cmd)
 }
 
 /// Whether `tool` can be run: a path that exists, or a name found on PATH.
-/// Looked up here rather than by running `where` / `command -v`, which cost a
+/// Looked up here, not by running `where` or `command -v`, which cost a
 /// process each.
 bool ToolExists(const std::string& tool)
 {
@@ -170,9 +169,9 @@ int MajorVersion(const std::string& v)
     return std::atoi(v.c_str() + i);
 }
 
-/// Find a g++ new enough for the C++26 reflection codegen. Mirrors the
-/// find_program order the generated CMakeLists uses, so what we report and what
-/// the build actually picks cannot disagree.
+/// Finds a g++ new enough for the C++26 reflection codegen. Follows the
+/// find_program order of the generated CMakeLists, so the report and the
+/// build pick the same compiler.
 Prerequisite CheckReflectionCompiler()
 {
     Prerequisite p;
@@ -188,10 +187,10 @@ Prerequisite CheckReflectionCompiler()
                 "sudo apt install g++-16   (no current distro ships GCC 16 by default)";
 #endif
 
-    // The compiler project builds will actually use: the bundled one if this is
-    // a packaged install, otherwise the one the editor was built with (packages
-    // are dlopen'd into this process, so it has to match). Probing anything else
-    // would report a tool the build never invokes.
+    // The compiler project builds use: the bundled one in a packaged install,
+    // otherwise the one the editor was built with (packages are dlopen'd into
+    // this process, so it has to match). Probing anything else would report a
+    // tool the build never runs.
     const std::string projectCxx = ProjectCxxCompiler();
     for (const std::string& candidate : { projectCxx, std::string("g++-16"), std::string("g++") })
     {
@@ -210,8 +209,8 @@ Prerequisite CheckReflectionCompiler()
     return p;
 }
 
-/// The compiler PluginToolchain resolves for the editor's ABI - the one the
-/// package and plugin builds actually invoke.
+/// The compiler PluginToolchain picks for the editor's ABI, the one package
+/// and plugin builds run.
 [[maybe_unused]] Prerequisite CheckPluginToolchain()
 {
     const PluginToolchainInfo& tc = PluginToolchain::Get();
@@ -272,10 +271,9 @@ std::vector<Prerequisite> CheckPrerequisites()
 #ifdef _WIN32
     // ninja and sccache ship next to the executable on Windows. The compiler
     // that builds packages and the plugin must match the editor's own ABI: an
-    // MSVC-built editor needs clang-cl or cl, while a MinGW-built one uses the
-    // GCC checked above. Demanding clang-cl unconditionally refused machines
-    // that build fine and skipped the first build, leaving every component
-    // unresolved.
+    // MSVC-built editor needs clang-cl or cl, a MinGW-built one uses the GCC
+    // checked above. Must not demand clang-cl for both: that refuses machines
+    // that build fine and skips the first build.
     if constexpr (PluginToolchain::HostAbi() == PluginAbi::Msvc)
     {
         results.push_back(CheckPluginToolchain());
@@ -287,12 +285,12 @@ std::vector<Prerequisite> CheckPrerequisites()
 #else
                                 "sudo apt install ninja-build", true));
 #endif
-    // No separate host compiler entry: project builds are pinned to the
-    // editor's own compiler (checked above), so requiring a system c++ as well
-    // would report a tool the build never invokes.
-    // Not required: without curl the registry is unreachable, so only packages
-    // that already carry an explicit URL can be installed. Everything else still
-    // works, so this is a warning rather than a hard stop.
+    // No separate host compiler entry: project builds use the editor's own
+    // compiler (checked above), so a system c++ would be a tool the build
+    // never runs.
+    // Not required: without curl the registry is unreachable, so only
+    // packages with an explicit URL can be installed. Everything else works,
+    // so this is a warning, not a hard stop.
     results.push_back(CheckTool("curl", "fetches the Deki package registry",
 #if defined(__APPLE__)
                                 "brew install curl", false));

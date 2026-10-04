@@ -12,21 +12,21 @@ namespace DekiEditor
 
 class AssetPipeline;
 
-// Asset picker popup widget. Lives in the editor DLL so package editors can
-// use the same picker the Inspector does; it reads the project through the
-// asset pipeline rather than through EditorApp.
+/// Asset picker popup. Lives in the editor DLL so package editors use the
+/// same picker as the Inspector; it reads the project through the asset
+/// pipeline, not EditorApp.
 class DEKI_EDITOR_API AssetPicker
 {
 public:
     AssetPicker();
 
-    // Open the picker popup for a specific property
-    // Returns true if an asset was selected
+    /// Opens the picker popup for one property. Returns true when an asset
+    /// was selected.
     bool Open(const std::string& popupId, const std::string& currentValue, AssetFilterType filter,
               std::string& outSelectedPath);
 
-    // Call this every frame when the popup might be open
-    // Returns true if selection changed
+    /// Call every frame while the popup may be open. Returns true when the
+    /// selection changed.
     bool Draw(const std::string& popupId, std::string& outSelectedPath);
 
 private:
@@ -38,7 +38,7 @@ private:
     std::vector<AssetPickerEntry> m_Assets;
     char m_SearchBuffer[256] = "";
     int m_SelectedIndex = -1;
-    std::string m_SelectedSubAsset;          // Currently selected SubAsset GUID (for expandable entries)
+    std::string m_SelectedSubAsset;          // selected sub-asset GUID, for expandable entries
     std::set<std::string> m_ExpandedAssets;  // GUIDs of spritesheets whose frame list is open
     AssetFilterType m_CurrentFilter = AssetFilterType::All;
     bool m_NeedsRefresh = true;

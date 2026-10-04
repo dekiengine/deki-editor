@@ -35,9 +35,9 @@ namespace
 {
 using InspectorUtils::BeginPropertyRow;
 
-// A square icon button for a property row (add / edit / delete beside a
-// dropdown): no frame at rest, the toolbar cells' faint fill on hover, dim
-// icon brightening on hover, the palette's red when it removes something.
+// A square icon button for a property row (add, edit, delete beside a
+// dropdown). No frame at rest; on hover a faint fill and a brighter icon.
+// Red when it removes something.
 bool RowIconButton(const char* id, const char* icon, const char* tooltip, bool enabled = true, bool destructive = false)
 {
     const float size = ImGui::GetFrameHeight();
@@ -85,28 +85,25 @@ BuildPanel::BuildPanel(EditorApp* app)
     : m_App(app),
       m_PlatformEditor(app)
 {
-    // Register built-in builders (idempotent)
+    // Load the builders; safe to call more than once.
     BuilderRegistry::Instance().EnsureLoaded();
 
-    // Set default platform
     auto platforms = PlatformRegistry::Instance().GetAvailablePlatforms();
     if (!platforms.empty())
     {
         m_SelectedPlatform = platforms[0];
     }
 
-    // Set up platform editor callback
+    // A saved platform is written to the project and selected.
     m_PlatformEditor.SetOnPlatformSaved(
         [this](const PlatformConfig& config, bool isNew)
         {
-            // Get project platforms directory
             auto* project = m_App->GetProject();
             if (project)
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
                 PlatformRegistry::Instance().SavePlatformToFile(config, platformsDir);
 
-                // Select the new/edited platform
                 m_SelectedPlatform = config.id;
                 project->SetActivePlatformId(config.id);
                 project->Save();
@@ -155,7 +152,7 @@ void BuildPanel::Draw()
         return;
     }
 
-    // Deferred deploy after build completes (must run on main thread)
+    // Deploy queued by a finished build. It must start on the main thread.
     if (m_PendingDeploy)
     {
         m_PendingDeploy = false;
@@ -243,10 +240,9 @@ void BuildPanel::Draw()
 
     ImGui::EndChild();
 
-    // Platform editor dialog
     m_PlatformEditor.Draw();
 
-    // Delete confirmation popup
+    // Delete confirmation.
     if (m_ShowDeleteConfirm)
     {
         ImGui::OpenPopup("Delete Platform?");
@@ -268,17 +264,16 @@ void BuildPanel::Draw()
         const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
         if (button == 1)
         {
-            // Delete the platform
             auto* project = m_App->GetProject();
             if (project)
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
                 PlatformRegistry::Instance().DeletePlatform(m_PlatformToDelete, platformsDir);
 
-                // A platform a package offers is on offer again
+                // A platform a package offers comes back into the list.
                 ReloadProjectPlatforms(project->GetPath());
 
-                // Select another platform if available
+                // Select another platform, if any.
                 auto platforms = PlatformRegistry::Instance().GetAvailablePlatforms();
                 if (!platforms.empty())
                 {
@@ -301,7 +296,7 @@ void BuildPanel::Draw()
         EndSchematicModal();
     }
 
-    // Restore confirmation popup
+    // Restore confirmation.
     if (m_ShowRestoreConfirm)
     {
         ImGui::OpenPopup("Restore Platform?");
@@ -355,7 +350,6 @@ void BuildPanel::Draw()
 
 void BuildPanel::DrawToolbar()
 {
-    // Get builder for the active platform
     ITargetBuilder* builder = GetActiveBuilder();
     const bool isBusy = (builder && builder->IsBuilding());
 
@@ -368,8 +362,8 @@ void BuildPanel::DrawToolbar()
         RefreshDeployTargets();
     }
 
-    // Simulating changes what deploy is (run in the simulator, not flash a
-    // port), so the builder is told before its verb and targets are read.
+    // Simulating changes what deploy does (run in the simulator instead of
+    // flashing a port), so tell the builder before reading its verb and targets.
     if (activeBuilder != nullptr)
     {
         const bool simulate = m_Simulate && activeBuilder->SupportsSimulation();
@@ -403,8 +397,8 @@ void BuildPanel::DrawToolbar()
             m_DeployAfterBuild = true;
             StartBuild();
         }
-        // Offered even when nothing is listed: plugging a device in is how
-        // the list stops being empty.
+        // Shown even when nothing is listed: the user plugs a device in and
+        // then looks again.
         if (ui.ToolbarIconButton("##refreshtargets", ICON_TI_REFRESH, "Look for devices again", !isBusy))
         {
             RefreshDeployTargets();
@@ -447,9 +441,9 @@ void BuildPanel::DrawToolbar()
     ui.EndToolbar();
 }
 
-// Where a deploy goes, when the backend has places to choose between: a port,
-// a device. A backend with none (the desktop) shows no row; the toolbar's
-// refresh looks again.
+// Where a deploy goes (a port, a device) when the backend offers a choice.
+// A backend with none, like the desktop, shows no row. The toolbar's refresh
+// button looks again.
 void BuildPanel::DrawDeployTarget()
 {
     ITargetBuilder* const builder = GetActiveBuilder();
@@ -509,8 +503,8 @@ void BuildPanel::StartBuild()
     options.simulate = m_Simulate && builder->SupportsSimulation();
 
     // Toolchain check, boot payload, package defines, build files. Shared
-    // with the CLI so a firmware image built from a terminal is the image this
-    // button produces - see FirmwareBuildService::PrepareBuild.
+    // with the CLI, so a terminal build makes the same image as this button.
+    // See FirmwareBuildService::PrepareBuild.
     const FirmwareOpResult prepared =
         FirmwareBuildService::PrepareBuild(m_App->GetProject()->GetPath(), *platform, *builder, m_App, options,
                                            [](const std::string& line, bool isError)
@@ -596,8 +590,8 @@ void BuildPanel::StartDeploy()
     ITargetBuilder* builder = GetActiveBuilder();
     if (builder && m_App->GetProject() && builder->SupportsDeploy())
     {
-        // The Activity panel's process name is the backend's verb, so the log
-        // reads "Flash" for a board and "Run" for the desktop.
+        // The Activity process is named after the backend's verb: "Flash"
+        // for a board, "Run" for the desktop.
         const std::string verb = builder->GetDeployLabel();
         if (!builder->IsToolchainInstalled())
         {
@@ -645,7 +639,6 @@ void BuildPanel::DrawPlatformSelector()
     auto& registry = PlatformRegistry::Instance();
     auto platforms = registry.GetPlatformDisplayList();
 
-    // Build combo items and find current selection
     std::vector<const char*> items;
     int currentIndex = -1;
     for (size_t i = 0; i < platforms.size(); i++)
@@ -657,7 +650,7 @@ void BuildPanel::DrawPlatformSelector()
         }
     }
 
-    // If selected platform not found in list, select the first one
+    // Select the first platform when the selected one is not in the list.
     if (currentIndex < 0 && !platforms.empty())
     {
         currentIndex = 0;
@@ -666,7 +659,7 @@ void BuildPanel::DrawPlatformSelector()
     }
     else if (currentIndex < 0)
     {
-        currentIndex = 0;  // Fallback for empty list
+        currentIndex = 0;  // empty list
     }
 
     // The platform, then its add / edit / delete icons on the same row.
@@ -683,11 +676,11 @@ void BuildPanel::DrawPlatformSelector()
             m_SelectedPlatform = platforms[currentIndex].first;
             m_SelectedPlatformIndex = currentIndex;
 
-            // Persist active platform to project
+            // Save the choice in the project.
             if (m_App && m_App->GetProject())
             {
-                // Chosen from what a package offers: it becomes the project's
-                // own copy now, so it can be edited and its boot scene exists.
+                // A platform a package offers becomes the project's own copy
+                // now, so it can be edited and has its boot scene.
                 std::string adoptErr;
                 if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
                 {
@@ -698,7 +691,6 @@ void BuildPanel::DrawPlatformSelector()
                 m_App->GetProject()->Save();
                 m_App->ApplyEditorTarget();
 
-                // Regenerate build files for the new platform
                 const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
                 ITargetBuilder* platformBuilder = GetActiveBuilder();
                 if (config && platformBuilder)
@@ -743,8 +735,8 @@ void BuildPanel::DrawPlatformSelector()
     ImGui::SameLine(0.0f, gap);
     if (RowIconButton("##editplatform", ICON_TI_PENCIL, "Edit this platform", canEdit))
     {
-        // One a package only offers becomes the project's own first, boot
-        // scene included: saving the dialog alone would write just the JSON.
+        // A platform a package offers becomes the project's own first, boot
+        // scene included: saving the dialog alone writes only the JSON.
         if (m_App && m_App->GetProject())
         {
             std::string adoptErr;
@@ -968,8 +960,8 @@ void BuildPanel::DrawPlatformDetails()
     // The platform's own spelling: the editor has no list of families.
     row("Family", platform->family.empty() ? "custom" : platform->family);
 
-    // Whatever the backend thinks is worth saying about its own kind of
-    // target. The editor printed "Chip", "Flash" and "PSRAM" here itself.
+    // Whatever the backend thinks is worth saying about its kind of target,
+    // such as chip, flash and PSRAM. The editor adds no rows of its own.
     if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
     {
         for (const auto& [label, value] : describer->DescribePlatform(*platform))
@@ -985,7 +977,7 @@ void BuildPanel::DrawPlatformDetails()
 }
 
 // Stripping: what a device build leaves out (services/FeatureResolver). The
-// editor's own builds never strip; it has to open every scene.
+// editor's own builds never strip, since the editor must open every scene.
 void BuildPanel::DrawStripping()
 {
     auto* project = m_App->GetProject();
@@ -1039,7 +1031,6 @@ void BuildPanel::SetSelectedPlatform(const std::string& platformId)
 {
     m_SelectedPlatform = platformId;
 
-    // Update index
     auto platforms = PlatformRegistry::Instance().GetPlatformDisplayList();
     for (size_t i = 0; i < platforms.size(); i++)
     {
@@ -1059,10 +1050,10 @@ ITargetBuilder* BuildPanel::GetActiveBuilder()
         return nullptr;
     }
     ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
-    // One backend serves every platform of its framework, and what it answers
-    // (can it deploy, to what, is its toolchain in) can depend on which one.
-    // Tell it which before asking - but never under a running operation,
-    // which reads the platform it was started with.
+    // One backend serves every platform of its framework, and its answers
+    // (can it deploy, to what, is its toolchain in) can depend on which.
+    // Tell it which before asking, but not while an operation runs: that
+    // reads the platform it started with.
     if (builder && !builder->IsBuilding())
     {
         builder->SetPlatformConfig(*platform);

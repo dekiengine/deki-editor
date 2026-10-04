@@ -48,8 +48,8 @@ struct Ctx
     std::string platformId;
 };
 
-// Mirrors EditorProjectManager::OpenProject's registry setup so headless callers
-// see exactly the same platform set the GUI would.
+// Sets up the registries as EditorProjectManager::OpenProject does, so headless
+// callers see the same platforms the GUI would.
 bool Prepare(const std::string& projectPath, const std::string& platformId, Ctx& ctx, std::string& err)
 {
     if (!fs::exists(fs::path(projectPath) / "deki.json"))
@@ -120,12 +120,12 @@ bool Prepare(const std::string& projectPath, const std::string& platformId, Ctx&
         return false;
     }
 
-    // Bound before anything is asked of it. One backend serves every platform
-    // of its framework, and its answers - which toolchain components, whether
-    // they are installed, whether it can deploy - can depend on which one: a
-    // Tactility device app needs ESP-IDF, its simulator does not. Unbound, it
-    // described whatever platform it was last given, or none. Never under a
-    // running operation, which reads the platform it was started with.
+    // Told its platform before anything is asked of it. One backend serves
+    // every platform of its framework, and its answers (which toolchain
+    // components, whether they are installed, whether it can deploy) can
+    // depend on which one: a Tactility device app needs ESP-IDF, its simulator
+    // does not. Never during a running operation, which reads the platform it
+    // was started with.
     if (!ctx.builder->IsBuilding())
     {
         ctx.builder->SetPlatformConfig(*ctx.platform);
@@ -135,9 +135,9 @@ bool Prepare(const std::string& projectPath, const std::string& platformId, Ctx&
 }
 
 // The builder that owns the operation started most recently. This lets
-// QueryStatus() report progress without re-running Prepare(), which would call
-// PlatformRegistry::Clear() underneath a running build. Builders come from
-// packages now and are destroyed when those unload, so the pointer is checked
+// QueryStatus() report progress without running Prepare() again, which would
+// call PlatformRegistry::Clear() under a running build. Builders come from
+// packages and are destroyed when those unload, so the pointer is checked
 // against the registry (ActiveBuilder) before every use.
 struct ActiveOp
 {
@@ -149,7 +149,7 @@ struct ActiveOp
 ActiveOp g_Active;
 
 // g_Active's builder, if it still exists. A package reload destroys the
-// builders it brought; status and cancel then called into freed memory.
+// builders it brought, and status and cancel must not call into freed memory.
 // Compared by address only, never dereferenced until found.
 ITargetBuilder* ActiveBuilder()
 {
@@ -227,7 +227,7 @@ FirmwareOpResult ValidateComponent(const Ctx& ctx, const std::string& componentI
                                  ctx.platform->displayName };
     }
 
-    // InstallComponent() silently no-ops on an unknown id, which would look like success.
+    // InstallComponent() does nothing for an unknown id, which would look like success.
     std::string ids;
     for (const auto& c : ctx.builder->GetToolchainComponents())
     {
@@ -288,8 +288,8 @@ FirmwareOpResult Started(const Ctx& ctx)
     return r;
 }
 
-// Shared by Build() and StartBuild(): resolve, validate the toolchain,
-// regenerate build files, and kick the build thread off.
+// Shared by Build() and StartBuild(): resolves, checks the toolchain, writes
+// the build files, and starts the build thread.
 FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string& platformId, FirmwareLogCallback onLine,
                               Ctx& ctx, EditorApp* editor, const BuildOptions& options)
 {
@@ -333,8 +333,8 @@ nlohmann::json FirmwareBuildService::ListPlatforms(const std::string& projectPat
 {
     Ctx ctx;
     std::string err;
-    // Prepare() resolves a platform too; for listing we only need the registry,
-    // so tolerate "no active platform" by probing with an explicit lookup below.
+    // Prepare() also resolves a platform; listing only needs the registry, so
+    // "no active platform" is not an error here.
     if (!Prepare(projectPath, std::string(), ctx, err) && !ctx.project)
     {
         outError = err;
@@ -450,11 +450,10 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
                        ". Install it with --install-toolchain or the Build Panel.");
     }
 
-    // The builder learns its platform BEFORE the export below, not after.
-    // GetBuildDirectory is per platform only once it knows one, and it used to
-    // be told after the boot payload had already been written, so every board
-    // of one framework wrote into the same fallback directory and the last
-    // build won. Two boards in one project overwrote each other's assets.
+    // The builder must learn its platform before the export below.
+    // GetBuildDirectory is per platform only once it knows one; otherwise every
+    // board of one framework writes into the same fallback directory, and two
+    // boards in one project overwrite each other's assets.
     builder.SetPlatformConfig(platform);
     // The options too: a simulated build has its own build directory, and the
     // payload below goes into it.
@@ -477,13 +476,12 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
             (std::filesystem::path(builder.GetBuildDirectory(projectPath)) / kSimulationSceneDir).string();
     }
 
-    // Boot payload - project_data.bin plus the platform's boot scene - written
-    // where the backend asks for it, before it assembles anything. Without it
-    // a device comes up with no assets at all, which is exactly what every
-    // CLI build produced while this step lived only in BuildPanel::StartBuild.
+    // The boot payload (project_data.bin plus the platform's boot scene),
+    // written where the backend asks for it, before it assembles anything.
+    // Without it a device comes up with no assets at all.
     //
-    // It needs an imported asset pipeline, which is why the CLI now boots the
-    // editor rather than reaching for the builder directly.
+    // It needs an imported asset pipeline, which is why the CLI boots the
+    // editor rather than calling the builder directly.
     const std::string bootPayloadDir = builder.GetBootPayloadDirectory(projectPath);
     // Packages that did not build leave their components out of every scene
     // the export reads, and the firmware is compiled from the same sources.
@@ -495,9 +493,8 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     {
         // A platform may name its own boot scene (a splash that then loads
         // the game); without one the device boots the project's startup
-        // scene, the one the editor opens. Nothing at all used to be
-        // exported, and the engine's LoadBootScene failed on every board
-        // whose platform file did not set bootScene.
+        // scene, the one the editor opens. Something must always be exported,
+        // or the engine's LoadBootScene fails.
         std::string bootScene = platform.bootScene;
         if (bootScene.empty())
         {
@@ -553,8 +550,8 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
 
         AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline());
         exporter.SetTarget(target);
-        // So a scene object that asks for something this board has not got is
-        // left out of what gets flashed, rather than shipped and dead.
+        // A scene object that needs something this board lacks is left out
+        // of what gets flashed, rather than shipped and broken.
         exporter.SetTargetCapabilities(platform.Capabilities());
         if (exporter.ExportBootPayload(bootPayloadDir, bootScene))
         {
@@ -564,8 +561,8 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         }
         else
         {
-            // Flashing a board that cannot load its first scene gave a device
-            // with a blank screen and a build that said it succeeded.
+            // Must fail the build: a board that cannot load its first scene
+            // shows a blank screen.
             std::string why;
             for (const std::string& problem : exporter.GetProblems())
             {
@@ -610,7 +607,7 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     }
 
     // Which package features the firmware is compiled with. The panel's scan
-    // reads the project's scenes and contributes only what is actually used;
+    // reads the project's scenes and gives only what is used;
     // CollectPackageDefines is the weaker fallback for a caller with no editor,
     // taking every installed package's declared define.
     std::vector<std::string> defines;
@@ -634,9 +631,9 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
     builder.SetPlatformConfig(platform);
     builder.SetPackageDefines(defines);
 
-    // Regenerate before building: build files carry absolute engine/editor paths,
-    // so a project cloned from another machine would otherwise build against
-    // paths that do not exist here.
+    // Write the build files again before building: they hold absolute engine
+    // and editor paths, so a project cloned from another machine would
+    // otherwise build against paths that do not exist here.
     if (!builder.GenerateBuildFiles(projectPath, platform, defines))
     {
         return Failure("Failed to generate build files for '" + platform.id + "'.");
@@ -672,8 +669,8 @@ FirmwareOpResult FirmwareBuildService::StartBuild(const std::string& projectPath
 
 namespace
 {
-// A backend with no deploy step used to get its no-op Flash() called and the
-// caller told it had started.
+// The error for a backend with no deploy step. Its Flash() does nothing, so
+// calling it would wrongly report that a deploy started.
 std::string NoDeployStep(const ITargetBuilder& builder, const PlatformConfig& platform)
 {
     return std::string("The '") + builder.GetName() + "' backend has no deploy step for platform '" + platform.id +
@@ -908,8 +905,8 @@ FirmwareOpResult FirmwareBuildService::InstallToolchainComponent(const std::stri
     r.platformId = ctx.platformId;
     r.platformName = ctx.platform->displayName;
 
-    // Re-query rather than trusting the progress callback: the component list is
-    // rebuilt from disk detection, so this reflects what actually landed.
+    // Ask again rather than trust the progress callback: the component list is
+    // rebuilt by looking at the disk, so this shows what was really installed.
     for (const auto& c : ctx.builder->GetToolchainComponents())
     {
         if (c.id != componentId)

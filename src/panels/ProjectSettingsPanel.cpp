@@ -28,8 +28,8 @@ using InspectorUtils::BeginPropertyRow;
 
 namespace
 {
-// Show tooltip from DEKI_TOOLTIP("..."). Mirrors PropertyEditorFactory's
-// ShowTooltip but inline so this panel doesn't depend on the inspector.
+// Shows the DEKI_TOOLTIP text. A copy of PropertyEditorFactory's ShowTooltip,
+// so this panel does not depend on the inspector.
 void ShowTooltip(const Deki::PropertyInfo& prop)
 {
     if (prop.tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
@@ -38,9 +38,9 @@ void ShowTooltip(const Deki::PropertyInfo& prop)
     }
 }
 
-// Visibility check for DEKI_VISIBLE_WHEN(...). Returns true if the
-// property should be rendered. Mirrors InspectorUtils::IsPropertyVisible
-// for the bool-toggle and threshold cases - sufficient for settings.
+// True when DEKI_VISIBLE_WHEN lets the property show. Handles the bool,
+// mask and threshold cases of InspectorUtils::IsPropertyVisible, which is
+// all settings use.
 bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props, int propCount,
                const Deki::PropertyInfo& prop)
 {
@@ -55,7 +55,6 @@ bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props, int
         {
             continue;
         }
-        // Read controlling-property value as int32.
         int32_t controllingValue = 0;
         switch (other.type)
         {
@@ -87,16 +86,12 @@ bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props, int
     return true;
 }
 
-// Render one settings property using the same widget style as the
-// inspector (left-aligned label via BeginPropertyRow, drag widgets for
-// numerics). Returns true when the user has finished an edit and the
-// change should be persisted - atomic widgets (Checkbox/Combo) commit
-// on click; drag and text widgets commit on IsItemDeactivatedAfterEdit
-// so we don't write deki.json every frame during a drag.
-// One project-settings row. Every edit goes through CommandHistory, so
-// settings are undoable like the Inspector rows they are modelled on (they
-// used to write straight into the instance). `onChanged` runs after undo/redo
-// so the file on disk follows the in-memory value.
+// Draws one settings property in the Inspector's row style. Returns true when
+// an edit is finished and should be saved: checkboxes and combos commit on
+// click, drag and text widgets when the user lets go, so deki.json is not
+// written every frame of a drag. Every edit goes through CommandHistory, so
+// settings can be undone. `onChanged` also runs after undo/redo, so the file
+// on disk follows the value.
 bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const std::function<void()>& onChanged)
 {
     std::string displayName = InspectorUtils::GetDisplayName(prop);
@@ -370,9 +365,7 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
 
 void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
 {
-    // Same band and same property-list metrics as the Inspector: a settings
-    // section is a list of properties, and there is no reason for it to be laid
-    // out differently from every other list of properties in the editor.
+    // Laid out like an Inspector section, since it is a list of properties too.
     if (!DekiEditor::SchematicSectionBegin("Startup"))
     {
         return;
@@ -501,17 +494,16 @@ void ProjectSettingsPanel::Draw()
             return;
         }
 
-        // Asset-picker sections - engine-ignorant of feature packages but tied
-        // to the editor-only AssetPipeline, so they stay hardcoded.
+        // These two pick assets through the editor-only AssetPipeline, so they
+        // are written here rather than registered as settings.
         DrawStartupSceneSection(project);
         ImGui::Spacing();
         DrawRenderPipelineSection(project);
         ImGui::Spacing();
 
-        // Package-extensible settings - render every registered settings type
-        // generically by walking the registry and the type's reflection
-        // metadata. Tooltips, ranges, and visibility conditions all come from
-        // the same Deki::PropertyInfo machinery that drives the inspector.
+        // Every settings type packages register, drawn from its reflection
+        // data. Tooltips, ranges and visibility come from Deki::PropertyInfo,
+        // as in the Inspector.
         for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
         {
             if (DekiEditor::SchematicSectionBegin(info.sectionName))

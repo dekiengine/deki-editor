@@ -22,7 +22,7 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
 
     for (const PackageInfo& pkg : loader.GetLoadedPackages())
     {
-        // Most packages export nothing of the sort: the normal case, not worth a word.
+        // Most packages have no builder; that is normal and not logged.
         auto getAbi = (const DekiBuilderAbi* (*)())loader.GetFunction(pkg.name, "DekiBuilderGetAbi");
         if (getAbi == nullptr)
         {
@@ -42,9 +42,9 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
             continue;
         }
 
-        // Read the version THROUGH the pointer before trusting the struct: a
-        // package built against another revision may return a differently
-        // sized one, and copying it first is the bug PluginLoader documents.
+        // Read the version through the pointer before trusting the struct: a
+        // package built against another revision may return one of a
+        // different size, so copying it first is unsafe (see PluginLoader).
         const DekiBuilderAbi* abi = getAbi();
         if (abi == nullptr || abi->version != kDekiBuilderAbiVersion || abi->structSize != sizeof(DekiBuilderAbi) ||
             abi->platformConfigSize != sizeof(PlatformConfig) ||
@@ -66,8 +66,8 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
                 continue;
             }
 
-            // Claimed by an earlier pass (project reopen, hot reload): a
-            // duplicate would leave the registry dispatching to a stale one.
+            // Already registered by an earlier pass (project reopen, hot
+            // reload). A duplicate could leave the registry calling a stale one.
             if (registry.GetBuilder(builder->GetFrameworkId()) != nullptr)
             {
                 destroy(builder);

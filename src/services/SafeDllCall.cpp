@@ -1,7 +1,7 @@
-// SafeDllCall.cpp - hardware-fault protection for DLL function calls
+// SafeDllCall.cpp: hardware-fault protection for DLL function calls.
 //
-// Two implementations of the same contract, because the mechanism differs by
-// compiler but the guarantee must not:
+// Two implementations of one contract: the mechanism differs by compiler, the
+// guarantee does not:
 //
 //   MSVC        __try/__except. Requires /EHa (async SEH exceptions), set for
 //               this file in CMakeLists.txt.
@@ -9,8 +9,8 @@
 //   else        Windows/MinGW, sigaction + siglongjmp on POSIX. One body serves
 //               both, since the guard hides the difference.
 //
-// Either way an access violation, illegal instruction or similar fault inside a
-// package library is contained and logged rather than terminating the editor.
+// Either way an access violation, illegal instruction or similar fault inside
+// a package library is contained and logged instead of ending the editor.
 
 #include "SafeDllCall.h"
 #include "FaultGuard.h"
@@ -106,12 +106,9 @@ int SafeCallInit(int (*fn)(), const char* context)
 
 #else  // !_MSC_VER - MinGW and POSIX.
 
-// No __try/__except here, so the same protection comes from FaultGuard.h.
-// Mechanism and trade-offs are documented there; this body is platform-neutral.
-//
-// This matters as much as the MSVC path: packages are loaded into this process,
-// so without it one malformed DekiPlugin_* entry point takes the whole editor
-// down with no diagnostic.
+// No __try/__except here, so the same protection comes from FaultGuard.h,
+// which describes how it works and its trade-offs; this body is the same on
+// every platform.
 
 namespace
 {
@@ -125,18 +122,17 @@ void LogFault(const FaultGuard& g, const char* context)
 
 }  // namespace
 
-// Each wrapper pushes a guard, runs the call, and pops it on both paths.
-// The capture has to sit in the function that returns - the capture point is
-// the resume point - so it cannot be factored into a helper, and an RAII scope
-// guard is no good either since recovery bypasses destructors by design. Hence
-// the repetition, which mirrors the MSVC block above.
+// Each wrapper pushes a guard, runs the call, and pops it on both paths. The
+// capture point is the resume point, so it must sit in the function that
+// returns and cannot move into a helper; an RAII scope guard does not work
+// either, since recovery skips destructors. Hence the repetition, which
+// mirrors the MSVC block above.
 //
-// Anything read *after* recovery is copied into volatile storage first. On the
-// POSIX path recovery is a siglongjmp, which restores only callee-saved
-// registers, so a value the compiler happened to park in a caller-saved one is
-// indeterminate afterwards - GCC diagnoses exactly this as -Wclobbered. The
-// parameters themselves are fine to use on the normal path; it is only the
-// fault branch that needs the copies.
+// Anything read *after* recovery is copied into volatile storage first. On
+// the POSIX path recovery is a siglongjmp, which restores only callee-saved
+// registers, so a value in a caller-saved one is indeterminate afterwards
+// (GCC's -Wclobbered). The parameters are fine on the normal path; only the
+// fault branch needs the copies.
 
 bool SafeCallVoid(void (*fn)(), const char* context)
 {

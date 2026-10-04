@@ -36,8 +36,8 @@ struct BuildOutputSummary
 
 // Logs `output` to the Console: errors pinned under `tag` (a package target or
 // a pseudo-package such as "__plugin__"), warnings and notes as configured.
-// One copy of the classification and the "nothing matched, show the raw
-// text" fallback; three places used to carry their own loops.
+// Every build report goes through here, so the classification and the "show
+// the raw text when nothing matched" fallback exist once.
 BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& output, const std::string& tag,
                                      const BuildOutputOptions& options);
 

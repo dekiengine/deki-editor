@@ -24,17 +24,15 @@ class DekiRegistrySource;
 /// Why a package cannot be used with this editor, or empty when it can.
 ///
 /// The same two comparisons the installer makes, but against the registry's
-/// minEngine rather than a manifest that only exists once the package has been
-/// downloaded. That is the whole point: the package list can say so before
-/// anyone clicks Install, instead of the download happening and being thrown
-/// away again.
+/// minEngine instead of a manifest that exists only after download, so the
+/// package list can say so before anyone clicks Install.
 ///
 /// Inline so it can be tested without linking PackageManager.cpp, which pulls
-/// in the editor application. A test pins it against the installer's answer.
+/// in the editor application. A test checks it against the installer's answer.
 inline std::string PackageCompatibilityProblem(const PackageEntry& pkg)
 {
-    // No answer beats a wrong one: a package that never said which engine it
-    // needs predates the field, and the installer accepts those too.
+    // A package that never said which engine it needs predates the field, and
+    // the installer accepts those too.
     if (pkg.minEngine.empty())
     {
         return {};
@@ -53,7 +51,6 @@ inline std::string PackageCompatibilityProblem(const PackageEntry& pkg)
     return {};
 }
 
-// Main package manager service
 class PackageManager
 {
 public:
@@ -67,9 +64,9 @@ public:
     // Installer management
     void RegisterInstaller(std::unique_ptr<IPackageInstaller> installer);
 
-    /// Register an installer created by a loaded package module, with that
-    /// module's destroy function. Its vtable and operator delete live over
-    /// there, so this must never `delete` it.
+    /// Registers an installer created by a loaded package module, with that
+    /// module's destroy function. Its vtable and operator delete live in the
+    /// module, so this must never `delete` it.
     void RegisterPluginInstaller(IPackageInstaller* installer, void (*destroy)(IPackageInstaller*),
                                  const std::string& package = {});
 
@@ -91,66 +88,61 @@ public:
 
     /// The installer that manages `pkg`, or nullptr with the reason in whyNot.
     ///
-    /// The one place this is decided. It used to be written out in the panel
-    /// (three times), the restore pass and the CLI, and every copy sent a
-    /// FrameworkComponent to an installer looked up by the display name of one
-    /// particular framework - so a second framework's component manager could
-    /// be registered and still never be handed anything.
+    /// The one place this is decided; the panel, the restore pass and the CLI
+    /// all ask here, so every framework's component manager gets its
+    /// FrameworkComponents.
     IPackageInstaller* GetInstallerFor(const PackageEntry& pkg, const std::string& projectPath, std::string& whyNot);
 
     // Package operations
     bool AddPackageFromUrl(const std::string& url, PackageEntry& outInfo);
     void FetchVersionsForPackage(PackageEntry& pkg, VersionsCallback callback);
 
-    // Get all packages (installed + added). Main thread only: the panel
-    // iterates this while drawing, so nothing may mutate it from a worker.
+    /// All packages, installed and added. Main thread only: the panel walks
+    /// this while drawing, so no worker may change it.
     std::vector<PackageEntry>& GetPackages();
 
-    // Threading contract. Network fetches complete on detached threads; any
-    // work that touches m_Packages (or panel state) is posted here and run by
-    // DrainMainThread(), which the panel calls once per frame. A worker used
-    // to push into m_Packages directly while Draw() walked it.
+    /// Threading contract: network fetches finish on detached threads, and any
+    /// work that touches m_Packages (or panel state) is posted here and run by
+    /// DrainMainThread(), which the panel calls once per frame.
     void PostToMainThread(std::function<void()> fn);
     void DrainMainThread();
 
-    // Load/save package list from/to deki.json
+    /// Load and save the package list in deki.json.
     void LoadPackages(const std::string& projectPath);
     void SavePackages(const std::string& projectPath);
 
-    // Restoring declared-but-missing packages lives in services/PackageRestore.h,
-    // not here. It used to be duplicated on this class as well, which left two
-    // functions of the same name with different results (a count vs. installed /
-    // failed / unresolvable) - and only the free one was reachable. Both the
-    // --packages-restore verb and project open go through PackageRestore.
+    // Restoring declared-but-missing packages lives in
+    // services/PackageRestore.h; the --packages-restore verb and project open
+    // both go through it.
 
 private:
 public:
-    // Merge installed status from installer
+    /// Merges the installers' installed status into the package list.
     void RefreshInstalledStatus(const std::string& projectPath);
 
-    // Version overrides for auto-managed deps (persisted in deki.json)
+    /// Version overrides for auto-managed dependencies, saved in deki.json.
     void SetVersionOverride(const std::string& name, const std::string& version);
     void ClearVersionOverride(const std::string& name);
     std::string GetVersionOverride(const std::string& name) const;  // "" = no override
 
-    // Add a package if no package with the same ID exists. Returns true if added.
+    /// Adds a package unless one with the same ID exists. Returns true if added.
     bool AddPackageIfNew(const PackageEntry& pkg);
 
-    // Recursively resolve package dependencies, adding missing packages with resolvedBy set
+    /// Resolves package dependencies recursively, adding missing packages with resolvedBy set.
     void ResolveDependencies(const PackageEntry& pkg);
 
-    // Registry source access (for index fetching)
+    /// The registry source, for fetching the index.
     DekiRegistrySource* GetRegistrySource();
 
-    // Install a package and all its dependencies. Reads package.json after install
-    // for requiredPackages, resolves deps, and installs each one.
-    // Callback receives (success, message).
+    /// Installs a package and all its dependencies: reads package.json after
+    /// install for requiredPackages, resolves them and installs each one.
+    /// The callback gets (success, message).
     void InstallWithDependencies(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
                                  IPackageInstaller* installer, PackageCallback callback);
 
-    // Remove a package and detect orphaned dependencies.
-    // Returns orphaned dep IDs via the callback's message (comma-separated).
-    // Removes orphans from disk and clears their resolvedBy.
+    /// Removes a package and the dependencies nothing else needs any more:
+    /// deletes them from disk and clears their resolvedBy. The callback's
+    /// message lists their IDs, comma-separated.
     void RemoveWithOrphans(const std::string& projectPath, const PackageEntry& pkg, IPackageInstaller* installer,
                            PackageCallback callback);
 
@@ -158,9 +150,8 @@ private:
     DekiEditor::EditorApp* m_App;
     std::vector<std::unique_ptr<IPackageSource>> m_Sources;
     // shared_ptr, not unique_ptr, so one container holds both kinds: an
-    // installer the editor owns is deleted normally, while one created by a
-    // package module carries that module's own destroy function as its
-    // deleter. Every iteration site stays as it was.
+    // installer the editor owns is deleted normally, one created by a package
+    // module carries that module's destroy function as its deleter.
     std::vector<std::shared_ptr<IPackageInstaller>> m_Installers;
     // The package each entry of m_Installers came from ("" for the editor's own).
     std::vector<std::string> m_InstallerPackages;
@@ -172,10 +163,10 @@ private:
     // packages not on disk yet so a save does not drop the pin.
     std::map<std::string, std::string> m_LockedCommits;
 
-    // Shared with the fetch threads, which post into it after the manager may
-    // be gone (a restore's temporary manager): the queue lives as long as the
-    // last thread holding it. Posted work only runs from this manager's own
-    // DrainMainThread, so it never runs on a dead manager.
+    // Shared with the fetch threads, which may post into it after the manager
+    // is gone (a restore's temporary manager): the queue lives as long as the
+    // last thread holding it. Posted work runs only from this manager's own
+    // DrainMainThread, so never on a dead manager.
     struct MainQueue
     {
         std::mutex mutex;

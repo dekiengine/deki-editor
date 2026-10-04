@@ -36,8 +36,8 @@ namespace DekiEditor
 {
 namespace
 {
-// Used only when no project is open, so it sits next to whatever directory is
-// being scanned. Dot-prefixed to stay out of the way of real content there.
+// Used only when no project is open, so it sits next to the directory being
+// scanned. The dot keeps it out of the way of real content there.
 constexpr const char* kFallbackShadowDirName = ".deki-shadow";
 }  // namespace
 
@@ -56,9 +56,9 @@ PackageLoader::~PackageLoader()
 bool PackageLoader::IsPackageDLL(const std::string& filename) const
 {
     // Must be a shared library once the toolchain's decorations (the "lib"
-    // prefix GNU toolchains add, the extension) are stripped - see
-    // SharedLibNaming.h. Without the prefix handling every package built by a GNU
-    // toolchain is silently skipped and the editor loads none at all.
+    // prefix GNU toolchains add, the extension) are stripped; see
+    // SharedLibNaming.h. Without the prefix handling the editor skips every
+    // package a GNU toolchain built.
     std::string lower = filename;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
@@ -69,31 +69,30 @@ bool PackageLoader::IsPackageDLL(const std::string& filename) const
 
     const std::string stem = SharedLibStem(filename);
 
-    // Skip the editor's own libraries - they sit alongside real packages but are
-    // linked, not dlopen'd. Compare on the stem so this holds for
-    // "deki-engine-core.dll" and "libdeki-engine-core.so" alike.
+    // Skip the editor's own libraries: they sit next to real packages but are
+    // linked, not dlopen'd. Comparing the stem covers both
+    // "deki-engine-core.dll" and "libdeki-engine-core.so".
     if (stem == "deki-engine-core" || stem == "deki-editor" || stem == "deki-profiling-hooks")
     {
         return false;
     }
 
-    // The project's own component plugin is loaded by PluginLoader, on its own
-    // lifecycle. It happens to live in the same directory.
+    // The project's own component plugin lives in the same directory but is
+    // loaded by PluginLoader, on its own lifecycle.
     if (stem.size() > 11 && stem.compare(stem.size() - 11, 11, "-components") == 0)
     {
         return false;
     }
 
-    // A project's runtime/ holds exactly what that project's build produced, so
-    // anything left is a package regardless of who published it. The old rule
-    // required a "deki-" prefix and so refused every third-party package.
+    // A project's runtime/ holds exactly what that project's build produced,
+    // so anything left is a package, whoever published it.
     if (m_VendorAgnosticDiscovery)
     {
         return true;
     }
 
-    // No project open: this is the editor's own directory, which carries no such
-    // guarantee, so the first-party prefix still does the distinguishing.
+    // No project open: this is the editor's own directory, which has no such
+    // guarantee, so the first-party prefix decides.
     return stem.rfind("deki-", 0) == 0;
 }
 
@@ -113,12 +112,11 @@ std::string PackageLoader::CreateShadowDirectory()
 {
     namespace fs = std::filesystem;
 
-    // Deterministic shadow directory: a project reopen reuses the same dir so
-    // unchanged package DLLs (caught by the mtime guard below) avoid a multi-MB
-    // copy per file. Across process restarts the OS leaves the dir behind,
-    // which is fine - the per-file mtime check still gates each copy.
-    // With no project open there is nowhere project-scoped to put copies, so fall
-    // back to a sibling of the directory being scanned.
+    // A fixed shadow directory: reopening a project reuses it, so unchanged
+    // package DLLs (caught by the mtime check below) skip a multi-MB copy
+    // each. The directory survives process restarts; the per-file check still
+    // decides each copy. With no project open there is no project folder for
+    // the copies, so they go next to the directory being scanned.
     fs::path shadowDir =
         m_ShadowDir.empty() ? fs::path(m_PackageDirectory) / kFallbackShadowDirName : fs::path(m_ShadowDir);
 
@@ -131,15 +129,14 @@ std::string PackageLoader::CreateShadowDirectory()
         return {};
     }
 
-    // Record the owning process (a diagnostic for who last used these copies).
+    // Record the owning process, to show who last used these copies.
     //
     // A previous owner's copies are kept, even when it crashed: the freshness
-    // test below (size and write time) refreshes any that are stale, a locked
-    // one is shunted aside, and the project lock keeps a second live editor off
-    // this directory. This used to wipe the directory whenever the previous
-    // owner was gone - which after a normal exit it always is - so every launch
-    // copied every package library again: over a second on a small project,
-    // far more with Debug builds.
+    // test below (size and write time) refreshes stale ones, a locked one is
+    // moved aside, and the project lock keeps a second live editor off this
+    // directory. Wiping the directory instead would copy every package
+    // library on every launch: over a second on a small project, far more
+    // with Debug builds.
     {
         const fs::path ownerFile = shadowDir / "owner.pid";
         if (std::ofstream out{ ownerFile, std::ios::trunc })
@@ -148,9 +145,9 @@ std::string PackageLoader::CreateShadowDirectory()
         }
     }
 
-    // Remove ".stale-*" shunts left by previous sessions (see the locked-file
-    // repair below). Best-effort: a shunt still mapped by a dying instance
-    // stays locked and gets removed on a later startup instead.
+    // Remove ".stale-*" files left by previous sessions (see the locked-file
+    // repair below). Best effort: one still mapped by a dying instance stays
+    // locked and is removed on a later startup.
     {
         std::error_code iterEc;
         for (const auto& leftover : fs::directory_iterator(shadowDir, iterEc))
@@ -165,16 +162,12 @@ std::string PackageLoader::CreateShadowDirectory()
 
     // Copy, then stamp the destination with the source's write time.
     //
-    // The "is this shadow the current build?" test below - and the matching
-    // refusal in LoadPackage - both identify a faithful copy by (size, mtime).
-    // That only holds for free where copy_file goes through CopyFileW, which
-    // carries the timestamp across; libstdc++ (MinGW/MSYS2 as well as Linux)
-    // copies byte ranges and gives the destination a fresh mtime. On those
-    // toolchains every shadow copy looks "not the same build", LoadPackage
-    // refuses every package, and there is no way out by hand - deleting
-    // the shadow dir does not help, since the next copy is stamped fresh
-    // again. Propagate it explicitly so the invariant is real on any standard
-    // library rather than relying on one implementation's side effect.
+    // The "is this shadow the current build?" test below, and the matching
+    // refusal in LoadPackage, both know a faithful copy by (size, mtime).
+    // copy_file keeps the timestamp only where it goes through CopyFileW;
+    // libstdc++ (MinGW/MSYS2 and Linux) gives the destination a fresh mtime.
+    // Without the explicit stamp every copy there would look like another
+    // build and LoadPackage would refuse every package.
     auto copyPreservingTime = [](const fs::path& src, const fs::path& dst, std::error_code& outEc)
     {
         fs::copy_file(src, dst, fs::copy_options::overwrite_existing, outEc);
@@ -188,8 +181,8 @@ std::string PackageLoader::CreateShadowDirectory()
         {
             fs::last_write_time(dst, srcTime, timeEc);
         }
-        // A failure to stamp is not fatal here: the load-time check will catch
-        // the mismatch and refuse the package, which is the safe direction.
+        // A failure to stamp is not fatal here: the load-time check catches
+        // the mismatch and refuses the package, which is the safe direction.
     };
 
     auto copyIfStale = [&ec, &copyPreservingTime](const fs::path& src, const fs::path& dst)
@@ -212,12 +205,10 @@ std::string PackageLoader::CreateShadowDirectory()
                 return;
             }
             // Copy unless the shadow IS this build. Matching on "not older"
-            // would leave a newer-but-different copy in place, and LoadPackage
-            // refuses to load a copy that does not match its source - the two
-            // must agree on what "same build" means or a package could end up
-            // permanently unloadable. Size is compared for the same reason the
-            // load check compares it: the copy above propagates the source's
-            // write time, so a faithful copy matches on both.
+            // would keep a newer-but-different copy, which LoadPackage then
+            // refuses: the two must agree on what "same build" means or a
+            // package could never load. The copy above carries the source's
+            // write time, so a faithful copy matches on size and time.
             std::error_code srcSizeEc, dstSizeEc;
             const auto srcSize = fs::file_size(src, srcSizeEc);
             const auto dstSize = fs::file_size(dst, dstSizeEc);
@@ -231,12 +222,12 @@ std::string PackageLoader::CreateShadowDirectory()
 
         if (ec && fs::exists(dst, statEc))
         {
-            // Overwrite failed with a stale shadow still present - typically a
-            // previous editor instance mid-shutdown has the DLL mapped. A
+            // The overwrite failed and a stale shadow is still there, usually
+            // because an editor instance mid-shutdown has the DLL mapped. A
             // loaded PE file cannot be overwritten or deleted, but it CAN be
-            // renamed: shunt the locked copy aside and copy fresh under the
-            // canonical name. The shunt is deleted by the cleanup pass above
-            // once its holder exits.
+            // renamed: move the locked copy aside and copy fresh under the
+            // real name. The cleanup pass above deletes the moved file once
+            // its holder exits.
             std::error_code mvEc;
             for (int attempt = 0; attempt < 16; ++attempt)
             {
@@ -256,17 +247,17 @@ std::string PackageLoader::CreateShadowDirectory()
                 ec.clear();
                 copyPreservingTime(src, dst, ec);
             }
-            // If every rename attempt failed too, `ec` still holds the copy
-            // error and the caller's stale-shadow ERROR path reports it.
+            // If every rename failed too, `ec` still holds the copy error and
+            // the caller's stale-shadow ERROR path reports it.
         }
     };
 
-    // Every shadow file we still want after this pass. Anything else in the
-    // shadow dir belonged to a package that no longer exists in bin/ and is
-    // pruned below.
+    // Every shadow file still wanted after this pass. Anything else in the
+    // shadow dir belonged to a package that is gone from bin/ and is pruned
+    // below.
     std::set<std::string> expected;
 
-    // Copy all package DLLs (keeping original names for inter-package dependency resolution)
+    // Copy all package DLLs, keeping their names so dependencies between packages resolve.
     for (const auto& entry : fs::directory_iterator(m_PackageDirectory))
     {
         if (!entry.is_regular_file())
@@ -286,12 +277,11 @@ std::string PackageLoader::CreateShadowDirectory()
         copyIfStale(entry.path(), dest);
         if (ec)
         {
-            // A failed refresh means the loader will proceed with whatever
-            // shadow copy already exists. If that copy is OLDER than the
-            // freshly built DLL, the editor runs stale package code (missing
-            // node/component types, phantom bugs) - say so at ERROR level
-            // instead of burying it. Typical cause: a previous editor
-            // instance still shutting down holds the shadow file locked.
+            // After a failed refresh the loader goes on with the shadow copy
+            // already there. If that copy is OLDER than the fresh build, the
+            // editor runs stale package code (missing node or component
+            // types, phantom bugs), so report it as an ERROR. Usual cause: an
+            // editor instance still shutting down holds the file locked.
             std::error_code cmpEc;
             const bool staleShadow =
                 fs::exists(dest, cmpEc) && fs::last_write_time(dest, cmpEc) < fs::last_write_time(entry.path(), cmpEc);
@@ -310,11 +300,12 @@ std::string PackageLoader::CreateShadowDirectory()
             ec.clear();
         }
 
-        // Also copy .pdb file if it exists (enables symbol resolution in crash dumps).
-        // HotReloadService archives package PDBs out of bin/ to .pdb_archive/ after every
-        // build so the running editor's debugger can't lock bin/<package>.pdb (the path
-        // embedded in the DLL at link time) and break the next link with LNK1201.
-        // We check the archive first, then bin/ as a fallback for cold-start cases.
+        // Copy the .pdb too, if there is one, for symbols in crash dumps.
+        // HotReloadService moves package PDBs from bin/ to .pdb_archive/ after
+        // every build, so the running editor's debugger cannot lock
+        // bin/<package>.pdb (the path linked into the DLL) and break the next
+        // link with LNK1201. Look in the archive first, then in bin/ for a
+        // cold start.
         std::string pdbName = filename.substr(0, filename.find_last_of('.')) + ".pdb";
         expected.insert(pdbName);
         fs::path pdbSrc = entry.path().parent_path() / ".pdb_archive" / pdbName;
@@ -332,21 +323,20 @@ std::string PackageLoader::CreateShadowDirectory()
         }
     }
 
-    // Prune orphans: the loader enumerates the SHADOW dir, not bin/, so a package
-    // whose DLL was removed (uninstalled, renamed, dropped from the build) keeps
-    // getting loaded from its leftover shadow copy forever. That copy is by
-    // definition never rebuilt, so it fails every ABI handshake and registers
-    // components nothing else knows about.
+    // Prune orphans: the loader lists the SHADOW dir, not bin/, so a package
+    // whose DLL was removed (uninstalled, renamed, dropped from the build)
+    // would keep loading from its leftover copy. That copy is never rebuilt,
+    // so it fails every ABI handshake and registers components nothing else
+    // knows about.
     //
-    // A leftover is only an orphan when NO source dir still provides it. One
-    // shadow dir is fed by several: OpenProject loads the exe dir and then the
-    // project's bin/ into the same shadow dir, so testing against just
-    // m_PackageDirectory would make each pass delete the other's copies (23
-    // pointless multi-MB delete+recopy cycles per project open, and it defeats
-    // the mtime skip above). `expected` covers the dir being loaded now; the
-    // rest come from m_ShadowSourceDirs.
+    // A leftover is an orphan only when NO source dir still provides it.
+    // OpenProject loads the exe dir and then the project's bin/ into the same
+    // shadow dir, so testing against m_PackageDirectory alone would make each
+    // pass delete the other's copies and recopy them on every open.
+    // `expected` covers the dir being loaded now; the rest come from
+    // m_ShadowSourceDirs.
     //
-    // ".stale-" shunts are owned by the cleanup pass at the top of this function
+    // ".stale-" files belong to the cleanup pass at the top of this function
     // and are left alone here.
     {
         auto providedElsewhere = [this](const std::string& dllName)
@@ -379,7 +369,7 @@ std::string PackageLoader::CreateShadowDirectory()
             {
                 continue;
             }
-            // Bookkeeping for the stale-lock reclaim above, not a package file.
+            // The owner record written above, not a package file.
             if (name == "owner.pid")
             {
                 continue;
@@ -387,8 +377,8 @@ std::string PackageLoader::CreateShadowDirectory()
 
             std::string ext = leftover.path().extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            // .pdb is the MSVC debug sidecar; on ELF/Mach-O the debug info is
-            // inside the library itself, so there is no companion file to prune.
+            // .pdb is the MSVC debug file; on ELF/Mach-O the debug info is
+            // inside the library itself.
             if (ext != kSharedLibExt && ext != ".pdb")
             {
                 continue;
@@ -399,8 +389,8 @@ std::string PackageLoader::CreateShadowDirectory()
                 continue;
             }
 
-            // A .pdb lives or dies with its DLL, so resolve both through the
-            // library name rather than looking for a stray .pdb in the source dirs.
+            // A .pdb lives or dies with its DLL, so check both by the library
+            // name, not by looking for a .pdb in the source dirs.
             const std::string dllName = name.substr(0, name.find_last_of('.')) + kSharedLibExt;
             if (providedElsewhere(dllName))
             {
@@ -454,7 +444,6 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
         return 0;
     }
 
-    // Create shadow directory with copies of all package DLLs
     std::string shadowDir = CreateShadowDirectory();
     if (shadowDir.empty())
     {
@@ -463,7 +452,7 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
     }
     m_CurrentShadowDir = shadowDir;
 
-    // Collect package DLLs from shadow directory, sort by priority
+    // Collect package DLLs from the shadow directory, then sort by load order.
     std::vector<std::filesystem::path> packagePaths;
     for (const auto& entry : std::filesystem::directory_iterator(shadowDir))
     {
@@ -479,14 +468,11 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
         }
 
         // Only the packages THIS pass owns. The shadow dir is fed by several
-        // source dirs (the exe dir, then the project's bin/) and deliberately
-        // survives across runs, so everything the other pass owns is still
-        // sitting here from the last session. Loading those here would map the
-        // previous build before the pass that owns them gets to refresh it -
-        // and once a PE is mapped it can no longer be overwritten, so the
-        // refresh fails and the editor runs stale package code for the whole
-        // session (missing node types, UI that ignores the last build, or a
-        // failed load outright when the editor DLL's exports have moved on).
+        // source dirs (the exe dir, then the project's bin/) and survives
+        // across runs, so the other pass's files from the last session are
+        // still here. Loading them now would map the previous build before
+        // their own pass refreshes it, and a mapped PE cannot be overwritten,
+        // so the editor would run stale package code all session.
         std::error_code srcEc;
         if (!std::filesystem::exists(std::filesystem::path(directory) / filename, srcEc))
         {
@@ -496,13 +482,12 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
         packagePaths.push_back(entry.path());
     }
 
-    // Sort: deki-rendering must load before packages that depend on it (e.g. deki-2d)
+    // deki-rendering must load before the packages that depend on it (e.g. deki-2d).
     std::sort(packagePaths.begin(), packagePaths.end(),
               [](const std::filesystem::path& a, const std::filesystem::path& b)
               {
                   auto nameA = a.filename().string();
                   auto nameB = b.filename().string();
-                  // Rendering package provides the render system - load it first
                   bool aIsRendering = nameA.find("deki-rendering") == 0;
                   bool bIsRendering = nameB.find("deki-rendering") == 0;
                   if (aIsRendering != bIsRendering)
@@ -525,16 +510,15 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
         }
     }
 
-    // Fire editor-auto SetupComponents now that ALL packages in this bulk load
-    // are present. Doing this per-LoadPackage fires too eagerly - e.g. deki-gps
-    // would set up before deki-http, leaving DekiHttp null when GPS's
-    // background thread runs. The fired-tracking inside RunEditorAutoSetups is
-    // still idempotent, so calling it after the loop is safe even if a future
-    // path also calls it post-load.
+    // Run the editor-auto SetupComponents once ALL packages of this load are
+    // present. Per package would be too early: deki-gps would set up before
+    // deki-http and find DekiHttp null on its background thread.
+    // RunEditorAutoSetups remembers what it ran, so calling it again later is
+    // safe.
     Deki::SetupComponent::RunEditorAutoSetups(Deki::SetupComponent::SetupPhase::EditorLoad);
 
-    // Packages loaded successfully from existing DLLs - clear any stale build errors
-    // from BuildStalePackages() so play mode isn't blocked when DLLs are actually working
+    // Packages loaded from existing DLLs: clear stale build errors from
+    // BuildStalePackages() so they do not block play mode while the DLLs work.
     if (loadedCount > 0)
     {
         m_HasBuildErrors = false;
@@ -546,26 +530,24 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
 bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
 {
     PackageInfo info;
-    // Store the ORIGINAL path (in the build output dir) for timestamp checks
+    // Store the ORIGINAL path (in the build output dir) for timestamp checks.
     std::string filename = std::filesystem::path(path).filename().string();
     info.path = (std::filesystem::path(m_PackageDirectory) / filename).string();
     info.dllFilename = filename;
 
-    // Last line of defence against running a build that is not the one on disk.
+    // Last defence against running a build that is not the one on disk.
     //
     // Packages load from a shadow copy so the originals stay writable, and the
-    // copy CAN fail (a previous editor instance still holds the file mapped, a
-    // scanner has it open). Proceeding on the stale copy that is left behind is
-    // the worst outcome available: the editor runs code from an older build,
-    // every symptom points at the source it no longer matches, and the only
-    // clue is one line in the log. Refuse instead - a package that visibly does
-    // not load is a fact you can act on.
+    // copy CAN fail (an editor instance still has the file mapped, a scanner
+    // has it open). Running the stale copy left behind is the worst outcome:
+    // the editor runs older code, every symptom points at source it no longer
+    // matches, and the only clue is one log line. A package that visibly does
+    // not load is something you can act on.
     //
     // CreateShadowDirectory stamps each copy with its source's write time (see
-    // copyPreservingTime there), so a faithful copy has the same size AND the
-    // same timestamp on every platform. Skipped when the shadow dir IS the
-    // source dir (the fallback path when the shadow dir could not be created),
-    // where there is nothing to compare.
+    // copyPreservingTime there), so a faithful copy has the same size AND
+    // timestamp on every platform. Skipped when the shadow dir IS the source
+    // dir (the fallback when the shadow dir could not be created).
     {
         namespace fs = std::filesystem;
         std::error_code eqEc;
@@ -589,12 +571,12 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         }
     }
 
-    // Snapshot EditorWindow registry count BEFORE LoadLibrary - static initializers
-    // (REGISTER_EDITOR_WINDOW) run during LoadLibrary, so we need the count from
-    // before loading to properly trim entries if we end up freeing this DLL.
+    // Count the EditorWindow registry BEFORE LoadLibrary: static initializers
+    // (REGISTER_EDITOR_WINDOW) run during LoadLibrary, and a failed load
+    // trims back to this count.
     int windowCountBeforePackage = DekiEditor::GetRegisteredWindowCount();
-    // And the component types registered before it, so a failure removes only
-    // the ones this package's static initialisers added.
+    // Likewise the component types, so a failure removes only the ones this
+    // package's static initialisers added.
     std::set<uint32_t> typesBeforePackage;
     for (const Deki::ComponentMeta* meta : Deki::ComponentRegistry::Instance().GetAllComponents())
     {
@@ -605,11 +587,11 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     }
 
     // A package that fails after LoadLibrary is skipped but stays mapped, as
-    // the layout-mismatch paths below do: its static initialisers have already
+    // on the layout-mismatch paths below: its static initialisers have already
     // handed engine and editor registries pointers into its code (auto-setups,
-    // asset loaders, asset types, editor extensions), and unloading it left all
-    // of them dangling. Only its component types are taken back out. This used
-    // to clear EVERY package's components and editor registrations, then unload.
+    // asset loaders, asset types, editor extensions), and unloading it would
+    // leave them all dangling. Only its own component types and windows are
+    // taken back out; other packages' registrations stay.
     auto abandonPackage = [&]()
     {
         auto& registry = Deki::ComponentRegistry::Instance();
@@ -629,13 +611,13 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     };
 
 #ifdef _WIN32
-    // Suppress Windows error dialogs (e.g., "DLL not found") that would freeze the UI.
-    // We handle errors via GetLastError() instead.
+    // Suppress Windows error dialogs (e.g. "DLL not found") that would freeze
+    // the UI; errors are handled through GetLastError() instead.
     UINT oldErrorMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 
-    // Load from the shadow directory path using LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR
-    // so inter-package dependencies resolve within the shadow directory,
-    // while non-package deps (deki-engine-core.dll) resolve via default search.
+    // LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR makes dependencies between packages
+    // resolve inside the shadow directory, while non-package dependencies
+    // (deki-engine-core.dll) use the default search.
     HMODULE handle =
         LoadLibraryExA(path.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 
@@ -652,7 +634,6 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     }
     info.handle = handle;
 
-    // Get function pointers
     auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPluginGetName");
     auto init = (InitFunc)GetProcAddress(handle, "DekiPluginInit");
     auto registerComponents = (RegisterComponentsFunc)GetProcAddress(handle, "DekiPluginRegisterComponents");
@@ -680,7 +661,6 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     auto getComponentMeta = (GetComponentMetaFunc)dlsym(handle, "DekiPluginGetComponentMeta");
 #endif
 
-    // Validate required exports
     if (!getName)
     {
         DEKI_LOG_ERROR("PackageLoader: Package missing DekiPluginGetName: %s", path.c_str());
@@ -698,26 +678,24 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     }
     info.name = nameStr;
 
-    // Reflection layout guard, checked before the loader touches this package's
-    // component metas. A package built against a different Deki::PropertyInfo has a
-    // different property-array STRIDE, so properties[1] onward land mid-struct;
-    // the `const char*` name read from there is non-null garbage that walks past
-    // every null check and faults somewhere unrelated (classically inside strlen,
-    // deep in a JSON key lookup, while compiling a scene).
+    // Reflection layout guard, checked before the loader touches this
+    // package's component metas. A package built against a different
+    // Deki::PropertyInfo has a different property-array STRIDE, so
+    // properties[1] onward land mid-struct; the `const char*` name read from
+    // there is non-null garbage that passes every null check and faults
+    // somewhere unrelated (typically inside strlen, deep in a JSON key lookup,
+    // while compiling a scene).
     //
-    // On mismatch the package is SKIPPED but deliberately NOT unloaded. By the time
-    // we get here its static initializers have already run and handed engine-side
-    // registries function pointers into its code: editor extensions, node types,
-    // and SetupComponent::RegisterEditorAutoFactory. FreeLibrary would leave every
-    // one of those dangling, and the next RunEditorAutoSetups() would call into
-    // unmapped memory. Leaving the DLL mapped keeps them valid; skipping
-    // registerComponents/init below is what actually keeps the bad property tables
-    // out of ComponentRegistry.
+    // On mismatch the package is SKIPPED but NOT unloaded, on purpose. Its
+    // static initializers have already handed engine registries function
+    // pointers into its code (editor extensions, node types,
+    // SetupComponent::RegisterEditorAutoFactory). FreeLibrary would leave
+    // them dangling, and the next RunEditorAutoSetups() would call into
+    // unmapped memory. Skipping registerComponents/init below is what keeps
+    // the bad property tables out of ComponentRegistry.
     //
-    // A MISSING export is a warning, not a refusal: it only means the DLL was
-    // built before this handshake existed, and refusing on that would reject every
-    // package built before the guard shipped, including all of them on the build
-    // that introduces it.
+    // A MISSING export is only a warning: the DLL was built before this
+    // handshake existed.
     if (!getReflectionAbi)
     {
         DEKI_LOG_WARNING("PackageLoader: '%s' reports no reflection layout, so it predates the "
@@ -730,12 +708,10 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         // Read `version` THROUGH THE POINTER before copying the struct.
         //
         // The struct grew in v3. A package built against v2 returns a shorter
-        // object, so binding it to a `const DekiReflectionAbi&` and copying it
-        // by value - which is what this code used to do - reads past its end.
-        // In practice that reads adjacent .data rather than faulting, which is
-        // worse: it makes the very field we rely on to detect the mismatch
-        // unreliable. `version` sits at offset 0 in every revision, so it is
-        // always safe to read first.
+        // object, and copying it by value reads past its end, into adjacent
+        // .data rather than faulting, so the fields that detect the mismatch
+        // become unreliable. `version` sits at offset 0 in every revision, so
+        // it is always safe to read first.
         if (theirAbi->version < kDekiReflectionAbiVersion)
         {
             DEKI_LOG_ERROR("PackageLoader: '%s' was built against reflection ABI v%u, but this "
@@ -754,23 +730,22 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
                            "(%s). Skipping it rather than reading its property tables with the "
                            "wrong stride. Rebuild the package, then restart the editor.",
                            nameStr, mismatch);
-            // Not unloaded on purpose, see above. Only this package's own windows
-            // are withdrawn; the shared registries are left alone because clearing
-            // them wholesale would also discard packages that loaded fine.
+            // Not unloaded on purpose, see above. Only this package's own
+            // windows are withdrawn; clearing the shared registries would also
+            // discard packages that loaded fine.
             DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
             return false;
         }
     }
 
-    // ImGui ABI guard. A package that uses ImGui embeds its own copy and operates
-    // on the editor's ImGuiContext through the shared pointer set below. That only
-    // works while both sides were built from the identical ImGui - otherwise
-    // struct field offsets diverge and the first ImGui call from the package reads
-    // garbage and corrupts memory (observed as a crash deep in ImGui text
-    // formatting). Packages that opt in export their compiled sizeof(ImGuiContext);
-    // if it disagrees with the editor's, refuse the package with a clear, loud
-    // message instead of letting it corrupt memory later. Packages that don't
-    // export this (older or precompiled against a matching ImGui) load unchanged.
+    // ImGui ABI guard. A package that uses ImGui embeds its own copy and works
+    // on the editor's ImGuiContext through the shared pointer set below. That
+    // only works while both sides were built from the same ImGui; otherwise
+    // field offsets differ and the package's first ImGui call corrupts memory
+    // (seen as a crash deep in ImGui text formatting). Packages that opt in
+    // export their compiled sizeof(ImGuiContext); if it differs from the
+    // editor's, refuse the package with a clear message. Packages without the
+    // export load unchecked.
     if (getImGuiContextSize)
     {
         const unsigned int packageCtxSize = getImGuiContextSize();
@@ -782,25 +757,24 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
                            "memory corruption: rebuild the package against the editor's ImGui, "
                            "then restart the editor.",
                            info.name.c_str(), packageCtxSize, editorCtxSize);
-            // Same reasoning as the reflection guard above: do NOT unload. This
-            // package's static initializers have already given engine registries
-            // function pointers into its code (editor extensions, node types,
-            // SetupComponent auto-factories), and FreeLibrary would leave those
-            // dangling for the next RunEditorAutoSetups() to call. Nor do we clear
-            // the shared registries, which would discard packages that loaded fine.
+            // Do NOT unload, as with the reflection guard above: the static
+            // initializers have already given engine registries pointers into
+            // this package's code. The shared registries stay too, or packages
+            // that loaded fine would lose their entries.
             DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
             return false;
         }
     }
 
-    // Set ImGui context BEFORE registering components (packages may use ImGui during init)
+    // Set the ImGui context BEFORE registering components: packages may use ImGui during init.
     if (setImGuiContext && imguiContext)
     {
         SafeCallVoidPtr((void (*)(void*))setImGuiContext, imguiContext, "PackageLoader::setImGuiContext");
     }
 
-    // One-time package init (e.g. registering desktop driver singletons like SystemClockRTC).
-    // Runs before RegisterComponents so component code can rely on subsystems being live.
+    // One-time package init (e.g. registering desktop driver singletons like
+    // SystemClockRTC). Runs before RegisterComponents so component code can
+    // rely on its subsystems.
     if (init)
     {
         int result = SafeCallInit(init, "PackageLoader::init");
@@ -812,7 +786,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         }
     }
 
-    // Register components (calls EnsureRegistered internally)
+    // Calls EnsureRegistered internally.
     if (registerComponents)
     {
         if (!SafeCallVoid(registerComponents, "PackageLoader::registerComponents"))
@@ -823,7 +797,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         }
     }
 
-    // Store registered component typeIds for safe unregistration later
+    // Keep the registered component typeIds so unload can unregister them.
     if (getComponentCount && getComponentMeta)
     {
         int count = SafeCallGetInt(getComponentCount, 0, "PackageLoader::getComponentCount");
@@ -839,16 +813,16 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     }
     info.componentCount = static_cast<int>(info.registeredTypeIds.size());
 
-    // Attribute this package's project-settings sections to it, so its settings are
-    // stored under settings/packages/<package>/ and go away when it is uninstalled.
-    // A settings section is a Deki::Component, so it is already in the metadata
-    // collected above - intersecting against the registry avoids asking packages
-    // for a new export or widening the registry's cross-DLL struct.
+    // Mark this package as the owner of its project-settings sections, so its
+    // settings are stored under settings/packages/<package>/ and go away when
+    // it is uninstalled. A settings section is a Deki::Component, so it is
+    // already in the metadata collected above; matching against the registry
+    // needs no new package export.
     // Keyed by the library stem ("deki-rendering"), not DekiPluginGetName()
-    // ("Deki Rendering Package"). The stem is the package's id - it matches
-    // deki-packages.json and the folder under project/packages - so uninstall can
-    // find the settings folder and remove it. The display name is prose: it has
-    // spaces and no guaranteed relationship to the id.
+    // ("Deki Rendering Package"). The stem is the package's id: it matches
+    // deki-packages.json and the folder under project/packages, so uninstall
+    // can find the settings folder. The display name is prose with no fixed
+    // relation to the id.
     const std::string packageId = SharedLibStem(info.dllFilename);
     if (!packageId.empty())
     {
@@ -877,8 +851,9 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
 
 void PackageLoader::UnloadPackage(const std::string& name)
 {
-    // Clear editor-auto factory pointers - they point into package DLL .text
-    // and would dangle after FreeLibrary. Next package load re-registers them.
+    // Clear the editor-auto factory pointers: they point into package DLL
+    // code and would dangle after FreeLibrary. The next package load
+    // registers them again.
     Deki::SetupComponent::ClearEditorAutoFactories();
 
     auto it =
@@ -914,8 +889,8 @@ void PackageLoader::UnloadPackage(const std::string& name)
         for (uint32_t typeId : it->registeredTypeIds)
         {
             Deki::ComponentRegistry::Instance().Unregister(typeId);
-            // Same dance for project-settings instances - Deki::SettingsRegistry
-            // owns the live instance, whose vtable would dangle after FreeLibrary.
+            // Same for project-settings instances: Deki::SettingsRegistry owns
+            // the live instance, whose vtable would dangle after FreeLibrary.
             Deki::SettingsRegistry::Instance().Unregister(typeId);
         }
 
@@ -953,12 +928,12 @@ void PackageLoader::ReleaseImGuiContext()
 
 void PackageLoader::UnloadAllPackages()
 {
-    // Clear editor-auto factory pointers - they point into package DLL .text
-    // and would dangle after FreeLibrary. Static initializers re-register them
-    // when packages reload.
+    // Clear the editor-auto factory pointers: they point into package DLL
+    // code and would dangle after FreeLibrary. Static initializers register
+    // them again when packages reload.
     Deki::SetupComponent::ClearEditorAutoFactories();
 
-    // Phase 0: whatever the editor holds that packages created goes first.
+    // Phase 0: drop what the editor holds that packages created.
     if (onPackageUnloading)
     {
         for (auto& package : m_Packages)
@@ -970,9 +945,9 @@ void PackageLoader::UnloadAllPackages()
         }
     }
 
-    // Phase 1: Call all shutdown functions first (while all packages are still loaded).
-    // This is critical because shutdown code may reference types in other packages
-    // (e.g., deki-2d's shutdown uses Standard2DRenderer from deki-rendering).
+    // Phase 1: call every shutdown function while all packages are still
+    // loaded. Shutdown code may use types from other packages (deki-2d's
+    // shutdown uses Standard2DRenderer from deki-rendering).
     for (auto& package : m_Packages)
     {
         if (package.handle)
@@ -993,25 +968,24 @@ void PackageLoader::UnloadAllPackages()
         }
     }
 
-    // Atomically clear ALL non-engine-core entries from ComponentRegistry.
-    // This is more robust than per-typeId Unregister - it catches any entries
-    // that weren't tracked in registeredTypeIds (e.g., from static initializers).
+    // Clear ALL non-engine-core entries from ComponentRegistry at once. This
+    // also catches entries missing from registeredTypeIds (e.g. from static
+    // initializers).
     Deki::ComponentRegistry::Instance().ClearNonEngineComponents();
 
-    // Same for project-settings instances. ClearPluginSettings deletes plugin-
-    // owned instances and rebuilds the registry from the engine-core baseline,
-    // so SettingsRegistry::Get<T>() returns nullptr for plugin-defined settings
-    // until the packages reload and re-register their static initializers.
+    // Same for project-settings instances. ClearPluginSettings deletes the
+    // plugin-owned ones and rebuilds the registry from the engine-core
+    // baseline, so SettingsRegistry::Get<T>() returns nullptr for
+    // plugin-defined settings until the packages load again.
     Deki::SettingsRegistry::Instance().ClearPluginSettings();
 
     // Same for multi-provider registries (deki-location, deki-weather, ...).
-    // Belt-and-braces: each plugin's DekiPluginShutdown should have cleared
-    // its own providers, but this sweeps anything left over before FreeLibrary
-    // invalidates the vtables.
+    // Each plugin's DekiPluginShutdown should have cleared its own providers;
+    // this sweeps up anything left before FreeLibrary invalidates the vtables.
     Deki::ProviderRegistryBase::ClearAllPluginProviders();
 
-    // Phase 2: FreeLibrary in reverse order (dependents before dependencies).
-    // deki-rendering loads first, so it frees last.
+    // Phase 2: FreeLibrary in reverse order, dependents before dependencies.
+    // deki-rendering loads first, so it is freed last.
     for (int i = static_cast<int>(m_Packages.size()) - 1; i >= 0; --i)
     {
         if (m_Packages[i].handle)
@@ -1031,7 +1005,6 @@ void PackageLoader::UnloadAllPackages()
 
     m_Packages.clear();
 
-    // Clean up shadow directory
     CleanupShadowDirectory(m_CurrentShadowDir);
     m_CurrentShadowDir.clear();
 }
@@ -1052,9 +1025,8 @@ std::vector<std::string> PackageLoader::CheckForUpdates()
             auto currentTime = std::filesystem::last_write_time(package.path);
             if (currentTime != package.lastModified)
             {
-                // Diagnostic: print both timestamps so spurious reloads are
-                // explainable rather than mysterious. Goes through file_time
-                // → seconds-since-epoch for a portable readable number.
+                // Log both timestamps so a spurious reload can be explained.
+                // Seconds since the epoch give a portable, readable number.
                 auto toEpoch = [](std::filesystem::file_time_type t)
                 { return std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count(); };
                 DEKI_LOG_EDITOR(
@@ -1075,7 +1047,7 @@ std::vector<std::string> PackageLoader::CheckForUpdates()
 
 bool PackageLoader::ReloadPackage(const std::string& name, void* imguiContext)
 {
-    // Find the package to get its original path before unloading
+    // Get the original path before unloading.
     auto it =
         std::find_if(m_Packages.begin(), m_Packages.end(), [&name](const PackageInfo& m) { return m.name == name; });
 
@@ -1088,10 +1060,9 @@ bool PackageLoader::ReloadPackage(const std::string& name, void* imguiContext)
     std::string originalPath = it->path;  // Build output path
     std::string dllFilename = it->dllFilename;
 
-    // Unload
     UnloadPackage(name);
 
-    // Create fresh shadow directory and copy the new DLL
+    // Refresh the shadow directory, which copies the new DLL.
     std::string oldShadowDir = m_CurrentShadowDir;
     std::string newShadowDir = CreateShadowDirectory();
     if (newShadowDir.empty())
@@ -1101,7 +1072,6 @@ bool PackageLoader::ReloadPackage(const std::string& name, void* imguiContext)
     }
     m_CurrentShadowDir = newShadowDir;
 
-    // Load from the new shadow directory
     std::string shadowPath = (std::filesystem::path(newShadowDir) / dllFilename).string();
 
     bool success = false;
@@ -1121,7 +1091,7 @@ bool PackageLoader::ReloadPackage(const std::string& name, void* imguiContext)
 #endif
     }
 
-    // Clean up old shadow directory (best-effort, may still have mapped DLLs)
+    // Best effort: the old shadow directory may still have mapped DLLs.
     CleanupShadowDirectory(oldShadowDir);
 
     if (!success)
@@ -1245,8 +1215,8 @@ std::string PackageLoader::ResolveBuildDir(const std::string& packageDirectory)
         return "";
     }
 
-    // packageDirectory is the exe directory (build/bin/Debug/)
-    // Build dir is ../../ from there (build/)
+    // packageDirectory is the exe directory (build/bin/Debug/); the build dir
+    // is two levels up (build/).
     fs::path buildDir = fs::path(packageDirectory) / ".." / "..";
     buildDir = fs::weakly_canonical(buildDir);
 
@@ -1267,7 +1237,6 @@ std::string PackageLoader::ResolveEnginePath(const std::string& buildDir)
         return "";
     }
 
-    // Try to resolve from CMakeCache.txt
     {
         const std::string path = ReadCMakeCacheVar(buildDir, "DEKI_ENGINE_PATH");
         if (!path.empty() && fs::exists(path))
@@ -1276,7 +1245,7 @@ std::string PackageLoader::ResolveEnginePath(const std::string& buildDir)
         }
     }
 
-    // Fallback: submodule directory relative to editor root
+    // Fallback: the submodule directory under the editor root.
     fs::path editorRoot = fs::weakly_canonical(fs::path(buildDir) / "..");
     fs::path enginePath = editorRoot / "deki-engine";
     if (fs::exists(enginePath / "CMakeLists.txt"))
@@ -1299,8 +1268,8 @@ std::string PackageLoader::ResolvePackageSourceDir(const std::string& enginePath
         name = name.substr(5);
     }
 
-    // Packages are standalone - source lives in project/packages/deki-{name}/
-    // enginePath is repurposed: callers now pass the project path
+    // Package sources live in project/packages/deki-{name}/. Callers pass the
+    // project path as `enginePath`.
     const std::string& projectPath = enginePath;
 
     fs::path projectPackages = fs::path(GetPackagesDirectory(projectPath));
@@ -1309,21 +1278,21 @@ std::string PackageLoader::ResolvePackageSourceDir(const std::string& enginePath
         return "";
     }
 
-    // Try "deki-{name}" (e.g., "2d" → "deki-2d")
+    // "deki-{name}" (e.g. "2d" → "deki-2d")
     fs::path deki = projectPackages / ("deki-" + name);
     if (fs::exists(deki) && fs::is_directory(deki))
     {
         return deki.string();
     }
 
-    // Try "deki-{name}-integration" (e.g., "lovyangfx" → "deki-lovyangfx-integration")
+    // "deki-{name}-integration" (e.g. "lovyangfx" → "deki-lovyangfx-integration")
     fs::path integration = projectPackages / ("deki-" + name + "-integration");
     if (fs::exists(integration) && fs::is_directory(integration))
     {
         return integration.string();
     }
 
-    // Scan for any directory containing the name
+    // Otherwise any directory whose name contains it.
     try
     {
         for (const auto& entry : fs::directory_iterator(projectPackages))
@@ -1353,7 +1322,7 @@ bool PackageLoader::HasNewerSources(const std::string& srcDir, std::filesystem::
     {
         // Every project open walks packages/ through here, and each package is
         // a git clone: .git alone is thousands of files, generated/ and build
-        // output more. None of them are sources that make a package stale.
+        // output more. None of them make a package stale, so they are skipped.
         fs::recursive_directory_iterator it(srcDir, fs::directory_options::follow_directory_symlink);
         for (; it != fs::recursive_directory_iterator(); ++it)
         {

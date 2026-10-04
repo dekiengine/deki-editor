@@ -1,12 +1,12 @@
-// McpBuildTools - MCP tools for firmware build / flash / toolchain management.
+// MCP tools for firmware build, flash and toolchain management.
 //
-// Handlers run on the editor's frame loop (McpServer::ProcessMessages), so the
-// long-running operations are start-and-poll rather than blocking: build_firmware
-// returns once the build thread is up, and build_status reports progress. Only
-// the cheap, bounded operations (listing, status, cancel) answer synchronously.
+// Handlers run on the editor's frame loop (McpServer::ProcessMessages), so long
+// operations start and are polled rather than blocking: build_firmware returns
+// once the build thread is up, and build_status reports progress. Only the
+// quick operations (listing, status, cancel) answer directly.
 //
 // Toolchain installs download gigabytes, so install_toolchain_component is
-// start-and-poll too, sharing build_status via the builder's progress state.
+// polled too, through build_status and the builder's progress state.
 
 #include "McpTools.h"
 #include <deki-editor/build/PlatformTemplates.h>
@@ -317,15 +317,13 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               {
                   config.screenHeight = args["screen_height"].get<int32_t>();
               }
-              // family is an enum, spelled as a string everywhere a
-              // platform is written, so it is translated here rather
-              // than assigned.
+              // family is written as a string everywhere a platform
+              // is saved, so it is converted here rather than assigned.
               if (args.contains("family") && args["family"].is_string())
               {
-                  // Any spelling: the family is descriptive and
-                  // the editor has no list of the world's targets.
-                  // A capability name must still be matchable, so
-                  // it is validated as one.
+                  // Any name: the family is descriptive and the editor
+                  // has no list of every target. It is still checked
+                  // like a capability name, so it can be matched.
                   const std::string family = args["family"].get<std::string>();
                   if (!IsValidCapabilityName(family))
                   {
@@ -336,10 +334,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               }
               config.framework = args.value("framework", config.framework);
               // Framework settings pass through untouched: the
-              // editor does not know what any of them mean. A
-              // chip, its flash and its clock used to have
-              // parameters of their own here, which is one kind
-              // of target's idea of a platform.
+              // editor does not know what any of them mean, and
+              // must not model one kind of target (chip, flash,
+              // clock) as every platform.
               if (args.contains("framework_options") && args["framework_options"].is_object())
               {
                   config.frameworkOptions = args["framework_options"].dump();
@@ -361,9 +358,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               }
               config.bootScene = args.value("boot_scene", config.bootScene);
 
-              // Judged by the builder that owns the framework,
+              // Checked by the builder that owns the framework,
               // not here: this tool must not know what "espidf"
-              // means. Missing builder is not fatal - a platform
+              // means. A missing builder is not fatal: a platform
               // for a target whose package is not installed yet
               // is still worth saving.
               BuilderRegistry::Instance().EnsureLoaded();
@@ -520,11 +517,11 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
           [syncPlatform](const nlohmann::json& args) -> nlohmann::json
           { return syncPlatform(args, "restore_platform", true); } });
 
-    // The CLI equivalent of the Package Manager's "Editable (I am developing
-    // this package)" checkbox. Without it, a package directory belongs to the
-    // editor: PackageIntegrity stashes local edits and puts the checkout back
-    // on the pinned version every time the project opens, which on the command
-    // line happens on every single verb.
+    // The CLI version of the Package Manager's "Editable (I am developing this
+    // package)" checkbox. Without it, a package directory belongs to the
+    // editor: PackageIntegrity stashes local edits and resets the checkout to
+    // the pinned version every time the project opens, which on the command
+    // line is every verb.
     registry.Register(
         { "set_package_editable",
           "Mark a package as one this project is DEVELOPING rather than consuming. "
@@ -557,11 +554,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               PackageManager manager(editor);
               manager.LoadPackages(project->GetPath());
 
-              // Packages are named inconsistently across manifests:
-              // some carry a bare directory name, others "owner/repo".
-              // Accept either, plus the id and display name, rather
-              // than making the caller guess which one this package
-              // happens to use.
+              // Manifests name packages differently: some by bare
+              // directory name, others by "owner/repo". Accept either,
+              // plus the id and display name, so the caller does not
+              // have to guess.
               PackageEntry* found = nullptr;
               std::vector<std::string> known;
               for (auto& pkg : manager.GetPackages())
@@ -595,12 +591,11 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               found->editable = editable;
               manager.SavePackages(project->GetPath());
 
-              // Read it back rather than trusting the write. The
-              // manifest keeps only some of what it is handed, so
-              // a flag can be dropped on save; reporting success
-              // anyway is how a caller ends up believing a package
-              // is protected while the restore pass still stashes
-              // its edits.
+              // Read it back rather than trust the write. The
+              // manifest keeps only some of what it is given, so a
+              // flag can be dropped on save, and the caller would
+              // then believe a package is protected while the
+              // restore pass still stashes its edits.
               PackageManager check(editor);
               check.LoadPackages(project->GetPath());
               for (const auto& pkg : check.GetPackages())
@@ -718,7 +713,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               }
               // The other settings create_platform takes, so an existing
               // platform can be changed through the CLI instead of by
-              // editing its JSON. create_platform only ever makes a new one.
+              // editing its JSON. create_platform only makes new ones.
               if (args.contains("external_memory_size"))
               {
                   if (!args["external_memory_size"].is_number_unsigned() &&
@@ -802,9 +797,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                        { "assetStorage", config.assetStorage } };
           } });
 
-    // Per-target content. "requires" is a BUILD-time key: the exporter drops
-    // the object for targets that cannot satisfy it and the runtime never sees
-    // it, which is why this edits the scene file rather than the loaded scene.
+    // Per-target content. "requires" is read at build time: the exporter drops
+    // the object for targets that cannot satisfy it, and the runtime never
+    // sees it. So this edits the scene file, not the loaded scene.
     registry.Register(
         { "set_object_requires",
           "Say which platform capabilities an object needs, so it exists only on "
@@ -939,7 +934,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
           } });
 
     // =========================================================================
-    // Long-running operations (start-and-poll)
+    // Long operations (start, then poll)
     // =========================================================================
 
     registry.Register(

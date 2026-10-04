@@ -32,13 +32,11 @@ BuilderRegistry& BuilderRegistry::Instance()
 
 BuilderRegistry::~BuilderRegistry()
 {
-    // Instance() is a function-local static, so this runs while the process
-    // exits: after main returns, or inside ExitProcess, which is how both the
-    // window and the command line leave. By then the package libraries that
-    // made the builders may already be detached, and destroying a builder
-    // calls into them - it crashed every exit that way, a crash box on each
-    // editor close. Shutdown() is the supported path; without it, leave
-    // everything to the process teardown.
+    // Instance() is a function-local static, so this runs during process
+    // exit. By then the package libraries that made the builders may already
+    // be unloaded, and destroying a builder calls into them, which crashes.
+    // Shutdown() is the way to clean up; without it, the process teardown
+    // reclaims everything.
 }
 
 void BuilderRegistry::Shutdown()
@@ -49,9 +47,9 @@ void BuilderRegistry::Shutdown()
     }
     m_ShutDown = true;
 
-    // A build thread still running plugin code when its module is unloaded is
-    // the crash that gets blamed on the plugin's author. Ask each to stop and
-    // wait, with a bound so a wedged builder cannot hang the editor's exit.
+    // A build thread still running plugin code when its module is unloaded
+    // crashes. Ask each builder to stop and wait, with a time limit so a stuck
+    // builder cannot hang the editor's exit.
     for (const auto& entry : m_Builders)
     {
         if (entry.builder != nullptr && entry.builder->IsBuilding())
@@ -212,9 +210,8 @@ void BuilderRegistry::EnsureLoaded()
 
 std::vector<std::string> BuilderRegistry::GetSupportedPlatforms(const std::string& metadataPath) const
 {
-    // Any builder will do: the parsing is builder-independent, living in
-    // FirmwareBuilderBase. Asking m_Builders[0] specifically only worked
-    // because NativeBuilder happened to be registered first.
+    // Any builder will do: the parsing lives in FirmwareBuilderBase and is the
+    // same for all of them. Do not rely on registration order.
     for (const auto& entry : m_Builders)
     {
         if (entry.builder != nullptr)
@@ -354,9 +351,9 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
                       "CreateBuilder/DestroyBuilder");
     }
 
-    // Before anything else, and read THROUGH the pointer: a plugin built
-    // against a different revision may return a differently sized struct, and
-    // copying it first is exactly the bug PluginLoader documents.
+    // Check this first, and read it through the pointer: a plugin built
+    // against another revision may return a struct of a different size, so
+    // copying it is unsafe (see PluginLoader).
     const DekiBuilderAbi* abi = getAbi();
     if (abi == nullptr)
     {

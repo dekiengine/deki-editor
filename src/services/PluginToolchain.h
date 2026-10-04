@@ -1,16 +1,16 @@
 #pragma once
 
-// PluginToolchain - picks the compiler used to build project plugin/package DLLs.
+// PluginToolchain: picks the compiler that builds project plugin and package
+// DLLs.
 //
-// The plugin is not a standalone program: it links against deki-engine-core and
-// passes C++ objects (std::string, Scene*, std::vector) across the DLL boundary.
-// MSVC and GNU disagree on name mangling, std:: layouts and exception handling,
-// so a plugin built with a different ABI than the editor will fail to link or
-// crash at runtime in ways that look nothing like a toolchain problem.
+// The plugin links against deki-engine-core and passes C++ objects
+// (std::string, Scene*, std::vector) across the DLL boundary. MSVC and GNU
+// differ in name mangling, std:: layouts and exception handling, so a plugin
+// built with another ABI than the editor fails to link or crashes at run time
+// in ways that look nothing like a toolchain problem.
 //
-// The required ABI is therefore not a preference - it is fixed by how the editor
-// itself was compiled, which we can read off the preprocessor. Everything here
-// resolves a concrete compiler that satisfies that ABI.
+// So the ABI is fixed by how the editor itself was compiled, read off the
+// preprocessor. Everything here finds a concrete compiler with that ABI.
 
 #include <string>
 
@@ -49,20 +49,20 @@ public:
 #endif
     }
 
-    /// Resolve a compiler matching HostAbi(). Cached after the first call.
+    /// Finds a compiler matching HostAbi(), cached after the first call.
     /// Never throws; check .valid and report .error.
     static const PluginToolchainInfo& Get();
 
-    /// Substring that must appear in a CMakeCache CMAKE_CXX_COMPILER entry for
-    /// the cache to be considered built by this toolchain (lowercase).
-    /// Used to detect a cache left behind by a different compiler.
+    /// Lowercase text a CMakeCache CMAKE_CXX_COMPILER entry must contain for
+    /// the cache to count as built by this toolchain. Detects a cache left
+    /// by a different compiler.
     static std::string CacheCompilerMarker();
 
     /// Human-readable install hint for when resolution fails.
     static std::string InstallHint();
 
-    /// Locate an executable on PATH. `stem` is given without the platform
-    /// suffix ("ninja", not "ninja.exe"). Returns "" when not found.
+    /// Finds an executable on PATH. `stem` has no platform suffix ("ninja",
+    /// not "ninja.exe"). Returns "" when not found.
     static std::string FindOnPath(const std::string& stem);
 };
 

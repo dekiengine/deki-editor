@@ -1,8 +1,8 @@
-// Regressions for the stability/security audit fixes.
+// Checks from the stability/security audit.
 //
-// Each test below pins behaviour that was previously wrong in a way that lost
-// data, crashed the editor, or handed control to untrusted input. They are
-// grouped by the finding they cover so a failure points straight at what broke.
+// Each test pins behaviour that, done wrong, loses data, crashes the editor,
+// or hands control to untrusted input. They are grouped by the finding they
+// cover so a failure points straight at what broke.
 
 #include <gtest/gtest.h>
 
@@ -95,8 +95,9 @@ TEST(AuditCreateObjectCommand, RedoRestoresTheSameObjectInstance)
     cmd.Redo();
 
     // Same instance and same id. Destroying on undo and re-creating on redo
-    // handed back a different object, which left every other command in the
-    // history pointing at freed memory and broke ObjectRef/instance overrides.
+    // would hand back a different object, leaving every other command in the
+    // history pointing at freed memory and breaking ObjectRef/instance
+    // overrides.
     EXPECT_EQ(cmd.GetCreatedObject(), firstPointer);
     EXPECT_EQ(cmd.GetCreatedObject()->GetId(), firstId);
 }
@@ -116,8 +117,8 @@ TEST(AuditCreateObjectCommand, ObjectStaysUsableAcrossUndoRedoCycle)
     cmd.Undo();
     cmd.Redo();
 
-    // This is the read that used to be a use-after-free: a later command in the
-    // redo stack touching the object it was created with.
+    // A later command in the redo stack touching the object it was created
+    // with: a use-after-free unless the object was kept.
     EXPECT_EQ(cmd.GetCreatedObject()->GetName(), "Renamed");
 }
 
@@ -255,7 +256,7 @@ TEST(AuditCommandHistory, DiscardAlsoClearsTheRedoStack)
     dead.Add(&doomed, sizeof(Doomed));
     history.DiscardCommandsReferencing(dead);
 
-    // Redo would have re-run the command against freed memory.
+    // Redo would re-run the command against freed memory.
     EXPECT_EQ(history.GetRedoCount(), 0u);
 
     history.Clear();
@@ -334,8 +335,9 @@ TEST_F(AuditGuidCacheTest, DuplicateSidecarGetsAFreshGuid)
     ASSERT_FALSE(a.empty());
     ASSERT_FALSE(b.empty());
 
-    // Two live assets may never share one identity: whichever the cache saw
-    // last used to win the reverse mapping, so references silently moved to it.
+    // Two live assets may never share one identity: otherwise whichever the
+    // cache saw last wins the reverse mapping, and references silently move
+    // to it.
     EXPECT_NE(a, b);
     EXPECT_EQ(cache.GetCollisionsResolved(), 1u);
 
@@ -403,8 +405,8 @@ TEST_F(AuditGuidCacheTest, DeletingOneAssetKeepsTheOthersResolvable)
     fs::remove(m_Root / "assets" / "a.png.data");
     cache.Sync(AssetsRoot());
 
-    // RemoveEntry used to erase the reverse mapping unconditionally, which broke
-    // GUID->path lookup for whichever asset still held it.
+    // RemoveEntry must keep the reverse mapping of whichever asset still holds
+    // the GUID, or its GUID->path lookup breaks.
     EXPECT_EQ(cache.GetPath(guidB), "b.png");
     EXPECT_TRUE(cache.GetPath("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").empty());
 }
@@ -439,9 +441,9 @@ TEST(AuditSceneSave, ReportsFailureForAnUnwritablePath)
     Deki::Scene scene;
     scene.CreateDekiObject("Root");
 
-    // A path whose parent does not exist cannot be written. The old
-    // implementation returned file.good() before flushing, so failures like this
-    // could be reported as success and the editor would clear its dirty flag.
+    // A path whose parent does not exist cannot be written. The save must
+    // report it, or the editor clears its dirty flag; checking file.good()
+    // before flushing would call it a success.
     const fs::path bogus = fs::temp_directory_path() / "deki_audit_missing_dir" / "nested" / "x.scene";
     std::error_code ec;
     fs::remove_all(fs::temp_directory_path() / "deki_audit_missing_dir", ec);
@@ -507,7 +509,7 @@ TEST(AuditDeleteAssetsCommand, UndoStaysAlignedWhenAPathIsMissing)
     WriteFile(present, "contents-here");
 
     // `missing` does not exist, so Execute skips it. Pairing backups with
-    // originals by index used to drift here and restore `here.png`'s bytes to
+    // originals by index would drift here and restore `here.png`'s bytes to
     // `gone.png` - a silent rename of the user's asset.
     DeleteAssetsCommand cmd({ missing.string(), present.string() }, nullptr, dir.Path().string());
     cmd.Execute();
@@ -528,7 +530,7 @@ TEST(AuditDeleteAssetsCommand, SameFilenameInDifferentFoldersBothSurvive)
     WriteFile(ui, "contents-ui");
     WriteFile(hud, "contents-hud");
 
-    // Backups keyed on filename alone collided, and one file was destroyed.
+    // Backups keyed on filename alone would collide and destroy one file.
     DeleteAssetsCommand cmd({ ui.string(), hud.string() }, nullptr, dir.Path().string());
     cmd.Execute();
     cmd.Undo();
@@ -649,7 +651,7 @@ TEST(AuditPackageNameValidation, InsideDirectoryIsComponentWise)
 
 TEST(AuditPackageNameValidation, RemoveRefusesAPathThatLeavesPackages)
 {
-    // A manifest naming "x/../victim" used to resolve to <project>/victim and
+    // A manifest naming "x/../victim" must not resolve to <project>/victim and
     // remove it. The sibling must survive and the callback must say why.
     TempDir dir("deki_audit_remove_traversal");
     const fs::path project = dir.Path();
@@ -819,9 +821,9 @@ TEST(AuditReadTexFile, RejectsAnAbsurdDataSizeInsteadOfAllocatingIt)
     TempDir dir("deki_audit_tex");
     const fs::path path = dir / "evil.dtex";
 
-    // 4 GiB claimed, 16 bytes present. Passing this straight to resize() threw
-    // an uncaught bad_alloc and killed the editor, reachable by opening a
-    // project with a damaged cache.
+    // 4 GiB claimed, 16 bytes present. Passed straight to resize(), this throws
+    // an uncaught bad_alloc and kills the editor, which opening a project with
+    // a damaged cache can reach.
     WriteTexHeader(path, 4, 4, /*RGBA8888*/ 1, 0xFFFFFFFFu, 16);
 
     TexData data;
@@ -871,7 +873,7 @@ TEST(AuditReadTexFile, StillAcceptsAWellFormedFile)
 
 // A delete that leaves the undo history (another scene opened, the editor
 // closed) is not final: the files stay in generated/trash/ until they are
-// kTrashDays old. Both used to remove them at once.
+// kTrashDays old.
 TEST(AuditDeleteAssetsCommand, DeletedFilesOutliveTheUndoHistoryAndTheNextOpen)
 {
     TempDir dir("deki_audit_delete_outlives");

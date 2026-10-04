@@ -128,8 +128,8 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
     ZeroMemory(&pi, sizeof(pi));
 
     // /S /c "<command>": cmd strips exactly the outer quotes and runs the rest
-    // verbatim. Plain /c applies its "strip the first and the last quote" rule
-    // to a line that starts with a quoted program path, which turned
+    // as is. Plain /c applies its "strip the first and the last quote" rule to
+    // a line that starts with a quoted program path, turning
     // `"cmake" --build "C:\x"` into a command named `"cmake" --build "C:`.
     std::string cmdLine = "cmd.exe /S /c \"" + command + "\"";
     std::vector<char> cmdBuf(cmdLine.begin(), cmdLine.end());

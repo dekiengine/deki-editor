@@ -39,7 +39,6 @@ void FrameCapturePanel::Draw()
         const bool isPlaying = m_App->IsPlaying();
         const bool isCapturing = captureService && captureService->IsCapturing();
 
-        // Default path is project/captures
         const std::string defaultPath = project ? project->GetPath() + "/captures" : "";
         if (!m_UseCustomPath)
         {
@@ -63,9 +62,8 @@ void FrameCapturePanel::Draw()
         if (ui.ToolbarIconButton("##openfolder", ICON_TI_FOLDER, "Open the captures folder", !m_OutputPath.empty()) &&
             fs::exists(m_OutputPath))
         {
-            // Argument vector, not a shell string. The capture directory is
-            // derived from the project path, so a quote in it used to end
-            // the quoting and hand the rest to the shell.
+            // Argument vector, not a shell string: the folder comes from the
+            // project path, and a quote in it must not reach a shell.
             RevealInFileManager(m_OutputPath);
         }
         ui.EndToolbar();
@@ -116,8 +114,8 @@ void FrameCapturePanel::Draw()
 
         if (DekiEditor::SchematicSectionBegin("Make a Video"))
         {
-            // One PNG per frame; ffmpeg turns them into a video. At the right
-            // speed means rendering really kept up with 30 FPS.
+            // One PNG per frame; ffmpeg turns them into a video. The video
+            // plays at the right speed only if rendering kept up with 30 FPS.
             static constexpr const char* kCommand = "ffmpeg -framerate 30 -i frame_%05d.png -c:v libx264 output.mp4";
             DekiEditor::BeginPropertyContext();
             InspectorUtils::BeginPropertyRow("ffmpeg");

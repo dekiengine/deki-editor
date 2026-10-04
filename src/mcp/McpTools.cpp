@@ -24,7 +24,7 @@
 namespace DekiEditor
 {
 
-// Helper: serialize a single Deki::Object to JSON (non-recursive)
+// One object as JSON, without its children's contents.
 static nlohmann::json SerializeObject(Deki::Object* obj)
 {
     nlohmann::json j;
@@ -32,7 +32,7 @@ static nlohmann::json SerializeObject(Deki::Object* obj)
     j["name"] = obj->GetName();
     j["x"] = obj->GetX();
     j["y"] = obj->GetY();
-    // Public MCP surface reports rotation in degrees (storage is radians).
+    // MCP reports rotation in degrees; it is stored in radians.
     j["rotation"] = obj->GetLocalRotation() * Deki::Math::kRadToDeg;
     j["scaleX"] = obj->GetScaleX();
     j["scaleY"] = obj->GetScaleY();
@@ -42,7 +42,6 @@ static nlohmann::json SerializeObject(Deki::Object* obj)
         j["parentId"] = obj->GetParent()->GetId();
     }
 
-    // List components
     nlohmann::json comps = nlohmann::json::array();
     auto& registry = Deki::ComponentRegistry::Instance();
     for (auto* comp : obj->GetComponents())
@@ -55,7 +54,6 @@ static nlohmann::json SerializeObject(Deki::Object* obj)
     }
     j["components"] = comps;
 
-    // List children IDs
     nlohmann::json childIds = nlohmann::json::array();
     for (auto* child : obj->GetChildren())
     {
@@ -66,7 +64,7 @@ static nlohmann::json SerializeObject(Deki::Object* obj)
     return j;
 }
 
-// Helper: recursively serialize object tree
+// An object and all its descendants, added to `arr`.
 static void SerializeObjectTree(Deki::Object* obj, nlohmann::json& arr)
 {
     arr.push_back(SerializeObject(obj));
@@ -76,7 +74,7 @@ static void SerializeObjectTree(Deki::Object* obj, nlohmann::json& arr)
     }
 }
 
-// Helper: find component by type name on an object
+// The component of type `typeName` on `obj`, or null.
 static Deki::Component* FindComponentByType(Deki::Object* obj, const std::string& typeName)
 {
     auto& registry = Deki::ComponentRegistry::Instance();
@@ -93,12 +91,11 @@ static Deki::Component* FindComponentByType(Deki::Object* obj, const std::string
 
 // Read one property as JSON.
 //
-// Enum and AssetRef need the property info, not just its offset, so they cannot
-// go through the offset-only handler table: that table maps Enum to the
-// size-agnostic CaptureEnum (reads 4 bytes off a possibly 1-byte enum, pulling
-// in whatever follows it in the struct) and AssetRef to a no-op that always
-// reports null. Both were visible over MCP as garbage enum values and sprites
-// that render on screen while get_properties claims they are unset.
+// Enum and AssetRef need the property info, not just its offset, so they must
+// not go through the offset-only handler table. That table maps Enum to
+// CaptureEnum, which reads 4 bytes from what may be a 1-byte enum (taking in
+// whatever follows it in the struct), and AssetRef to a no-op that always
+// reports null.
 static nlohmann::json CapturePropertyValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
 {
     if (prop.type == Deki::PropertyType::Enum)
@@ -126,9 +123,9 @@ static nlohmann::json CapturePropertyValue(const Deki::Component* comp, const De
     return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
 }
 
-// Resolve an enum argument to its index. Accepts the integer index or the name
-// as listed in get_properties' enumValues, which is the only form a caller can
-// discover without reading the C++ header.
+// Turns an enum argument into its index. Accepts the integer index or the name
+// as listed in get_properties' enumValues, the only form a caller can find
+// without reading the C++ header.
 static int ResolveEnumValue(const Deki::PropertyInfo& prop, const nlohmann::json& value)
 {
     if (value.is_number_integer())
@@ -153,7 +150,7 @@ static int ResolveEnumValue(const Deki::PropertyInfo& prop, const nlohmann::json
                              "' expects an index or one of its enumValues names");
 }
 
-// Helper: find property info by name on a component meta
+// The property named `propName` in `meta`, or null.
 static const Deki::PropertyInfo* FindProperty(const Deki::ComponentMeta* meta, const std::string& propName)
 {
     for (int i = 0; i < meta->propertyCount; ++i)
@@ -166,7 +163,7 @@ static const Deki::PropertyInfo* FindProperty(const Deki::ComponentMeta* meta, c
     return nullptr;
 }
 
-// Helper: get property type as string
+// A property type's name.
 static const char* PropertyTypeToString(Deki::PropertyType type)
 {
     switch (type)
@@ -197,10 +194,10 @@ static const char* PropertyTypeToString(Deki::PropertyType type)
 
 void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 {
-    // Firmware build / flash / toolchain tools live in McpTools.Build.cpp
+    // Firmware build, flash and toolchain tools (McpTools.Build.cpp).
     RegisterBuildTools(registry, editor);
 
-    // Project / package manager / rebuild / capture live in McpTools.Editor.cpp
+    // Project, package manager, rebuild and capture tools (McpTools.Editor.cpp).
     RegisterEditorTools(registry, editor);
 
     // =========================================================================
@@ -232,7 +229,6 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("Failed to create object");
               }
 
-              // Reparent if parent_id specified
               if (args.contains("parent_id"))
               {
                   uint32_t parentId = args["parent_id"].get<uint32_t>();
@@ -264,7 +260,6 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("Object not found: " + std::to_string(objId));
               }
 
-              // Clear selection if this object is selected
               if (editor->IsSelected(obj))
               {
                   editor->RemoveFromSelection(obj);
@@ -276,9 +271,9 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
           } });
 
     // The copy's name, place and parent can be given in the same call. A
-    // --script is a fixed list of calls, so it cannot pass the id this returns
-    // on to a later set_position: without these, laying out copies from the
-    // command line was not possible at all.
+    // --script is a fixed list of calls and cannot pass the id this returns on
+    // to a later set_position, so this is the only way to lay out copies from
+    // the command line.
     registry.Register(
         { "duplicate_object",
           "Duplicate a DekiObject in the current scene. Returns the new object. Optionally names "
@@ -426,7 +421,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 throw std::runtime_error("Object not found: " + std::to_string(objId));
                             }
 
-                            // MCP API takes degrees; storage is radians.
+                            // MCP takes degrees; rotation is stored in radians.
                             float angleDeg = args["angle"].get<float>();
                             float angleRad = angleDeg * Deki::Math::kDegToRad;
                             float oldAngleRad = obj->GetLocalRotation();
@@ -554,7 +549,6 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 
                             std::string typeName = args["component_type"].get<std::string>();
 
-                            // Verify component type exists
                             auto& reg = Deki::ComponentRegistry::Instance();
                             const auto* meta = reg.GetMeta(typeName);
                             if (!meta)
@@ -644,10 +638,10 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
               }
 
               // AssetRef is a (guid, source) pair, not a plain value, and the
-              // generic property command's handler table deliberately no-ops on
-              // it. Routing it here is what makes "give this sprite a texture"
-              // reachable from automation at all - otherwise the call silently
-              // succeeds and leaves the reference null.
+              // generic property command's handler table does nothing with it on
+              // purpose. Handling it here lets automation give a sprite a
+              // texture; otherwise the call would succeed and leave the
+              // reference null.
               if (prop->type == Deki::PropertyType::AssetRef)
               {
                   const auto& value = args["value"];
@@ -806,7 +800,6 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   }
                   comp["propertyCount"] = meta->propertyCount;
 
-                  // List property names and types
                   nlohmann::json props = nlohmann::json::array();
                   for (int i = 0; i < meta->propertyCount; ++i)
                   {
@@ -818,7 +811,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   result.push_back(comp);
               }
 
-              // Also return categories
+              // And the categories.
               auto categories = reg.GetCategories();
 
               return { { "components", result }, { "count", result.size() }, { "categories", categories } };
@@ -969,7 +962,6 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                         {
                             auto* scene = editor->GetCurrentScene();
 
-                            // Count all objects recursively
                             nlohmann::json objects = nlohmann::json::array();
                             for (auto* obj : scene->GetObjects())
                             {
@@ -1251,9 +1243,9 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
     // scene property; then the project is saved, as the Project Settings
     // panel does after every edit.
     //
-    // Written directly, not through CommandHistory: that history is the open
-    // scene's, and an entry there marks the SCENE unsaved, so the next
-    // open_scene stopped at a save-changes prompt no command line can answer.
+    // Written directly, not through CommandHistory: that history belongs to the
+    // open scene, and an entry there marks the scene unsaved, so the next
+    // open_scene would stop at a save-changes prompt no command line can answer.
     registry.Register(
         { "set_project_setting",
           "Set a project setting: a property of one of the Project Settings sections (e.g. "

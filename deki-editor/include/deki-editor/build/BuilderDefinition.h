@@ -10,7 +10,7 @@ namespace DekiEditor
 {
 
 // ============================================================================
-// Toolchain definition structs - parsed from JSON a build backend supplies
+// Toolchain definition, parsed from JSON a build backend supplies
 // ============================================================================
 
 struct DEKI_EDITOR_API VersionCheckDef
@@ -39,9 +39,8 @@ struct DEKI_EDITOR_API SubComponentDef
     std::string version;
     std::string url;
     // Expected SHA-256 of the download, lowercase hex. Anything fetched here is
-    // extracted and then executed by the build, so an unpinned entry means the
-    // network and the mirror are both trusted. Empty is accepted but logged as
-    // unverified rather than passing silently.
+    // extracted and then run by the build, so an unpinned entry trusts the
+    // network and the mirror. Empty is accepted but logged as unverified.
     std::string sha256;
     std::string extractedName;  // Name of extracted folder from zip
     std::string targetName;     // Desired folder name after rename
@@ -58,16 +57,16 @@ struct DEKI_EDITOR_API ComponentDef
     VersionCheckDef versionCheck;
     FallbackDef fallback;
 
-    // Detection paths per platform. Key: "windows", "unix", or "any"
-    // Values may contain {installPath} and * wildcards
+    // Detection paths per platform. Key: "windows", "unix" or "any".
+    // Values may contain {installPath} and * wildcards.
     std::map<std::string, std::string> detection;
 
     PostInstallDef postInstall;
     std::vector<SubComponentDef> subComponents;
     std::string extractedName;  // Name of extracted folder from zip (for rename)
-    // Expected SHA-256 of this component's download, lowercase hex. See the
-    // note on SubComponentDef::sha256. Components whose URL is resolved at run
-    // time from a GitHub release cannot be pinned this way and stay empty.
+    // Expected SHA-256 of this component's download, lowercase hex; see
+    // SubComponentDef::sha256. Empty for components whose URL comes from a
+    // GitHub release at run time, since those cannot be pinned this way.
     std::string sha256;
     std::string tooltip;
 };
@@ -82,20 +81,16 @@ struct DEKI_EDITOR_API BuilderDefinition
     std::vector<ComponentDef> components;
 };
 
-/// Parse a toolchain definition from JSON text.
+/// Parses a toolchain definition from JSON text. On failure, says why in
+/// outError.
 ///
-/// Text, not a path, is the primary form: a build backend lives in a package,
-/// and the package DLL is built into the project's runtime directory, nowhere
-/// near its own sources - so a backend carries its definition inside itself
-/// rather than hoping a file sits beside the editor. It used to: the ESP-IDF
-/// backend read resources/builders/espidf.json next to DekiEditor.exe, which
-/// made the editor ship one framework's recipe after the backend had left.
-///
-/// A failure says why in outError. There is no silent "no toolchain" state.
+/// Text, not a path, is the main form: a backend lives in a package whose DLL
+/// is built into the project's runtime directory, far from its sources, so it
+/// carries its definition inside itself.
 DEKI_EDITOR_API bool ParseBuilderDefinition(const std::string& jsonText, BuilderDefinition& outDef,
                                             std::string& outError);
 
-/// The same, from a file a backend locates itself.
+/// The same, from a file the backend locates itself.
 DEKI_EDITOR_API bool LoadBuilderDefinition(const std::string& jsonPath, BuilderDefinition& outDef,
                                            std::string& outError);
 

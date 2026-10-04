@@ -5,7 +5,6 @@
 #include <functional>
 
 #include <deki-editor/EditorExport.h>
-// Forward declarations
 namespace Deki
 {
 class Component;
@@ -18,81 +17,50 @@ struct ComponentMeta;
 namespace DekiEditor
 {
 
-/**
- * @brief Singleton providing the editor UI controls + inspector drawing.
- *
- * Unity-like static access for CustomEditor implementations:
- *   auto& ui = EditorUI::Get();
- *   ui.DrawDefaultInspector();
- *   ui.PropertyField("speed");
- *
- * Packages depend on this class instead of ImGui directly: the implementations
- * live in the editor executable and are installed via the callback bridge
- * (BeginComponent for property drawing; widget methods added in later phases),
- * so package editors render with the editor's styled widgets.
- *
- * The InspectorPanel calls BeginComponent/EndComponent to set up context
- * before invoking CustomEditor::OnInspectorGUI().
- */
+/// The editor's UI controls and inspector drawing, for CustomEditor code:
+///   auto& ui = EditorUI::Get();
+///   ui.DrawDefaultInspector();
+///   ui.PropertyField("speed");
+///
+/// Packages use this class instead of ImGui directly. The implementations
+/// live in the editor executable and are installed through callbacks
+/// (BeginComponent for property drawing, SetWidgetBackend for widgets), so
+/// package editors draw with the editor's styled widgets.
+///
+/// InspectorPanel calls BeginComponent/EndComponent around
+/// CustomEditor::OnInspectorGUI().
 class DEKI_EDITOR_API EditorUI
 {
 public:
-    /**
-     * @brief Get singleton instance
-     */
     static EditorUI& Get();
 
     // =========================================================================
     // Property Drawing (valid between BeginComponent/EndComponent)
     // =========================================================================
 
-    /**
-     * @brief Draw all default properties for current component
-     *
-     * Equivalent to Unity's DrawDefaultInspector().
-     */
+    /// Draws every property of the current component, like Unity's
+    /// DrawDefaultInspector().
     void DrawDefaultInspector();
 
-    /**
-     * @brief Draw a specific property by member offset
-     * @param offset offsetof(ComponentType, member)
-     */
+    /// Draws one property by member offset: offsetof(ComponentType, member).
     void PropertyField(size_t offset);
 
-    /**
-     * @brief Draw a specific property by name
-     * @param propertyName Name of the property to draw
-     */
+    /// Draws one property by name.
     void PropertyField(const char* propertyName);
 
     // =========================================================================
     // Asset Utilities
     // =========================================================================
 
-    /**
-     * @brief Resolve asset GUID to display name
-     * @param guid Asset GUID
-     * @return Human-readable asset path/name
-     */
+    /// A readable path or name for an asset GUID.
     std::string ResolveAssetName(const std::string& guid);
 
-    /**
-     * @brief Get font atlas texture for preview
-     * @param fontGuid Font asset GUID
-     * @param fontSize Font size
-     * @param outWidth Output atlas width
-     * @param outHeight Output atlas height
-     * @return OpenGL texture ID, or 0 on failure
-     */
+    /// The OpenGL atlas texture of a font at a size, for previews, with its
+    /// width and height, or 0 on failure.
     uint32_t GetFontAtlasTexture(const std::string& fontGuid, int fontSize, uint32_t* outWidth, uint32_t* outHeight);
 
-    /**
-     * @brief Modify an asset file with undo/redo support
-     * @param assetPath Absolute path to the asset file
-     * @param assetGuid Asset GUID
-     * @param oldJson Old JSON state (for undo)
-     * @param newJson New JSON state (to apply)
-     */
+    /// Changes an asset file (absolute path) from `oldJson` to `newJson`, as
+    /// an undoable edit.
     void ModifyAsset(const std::string& assetPath, const std::string& assetGuid, const std::string& oldJson,
                      const std::string& newJson);
 
@@ -105,18 +73,18 @@ public:
     // (popups, draw lists, fonts, tool windows) still uses ImGui in the package.
     // =========================================================================
 
-    // Collapsing section header (full-bleed band). Returns true if expanded.
+    /// Collapsing section header (full-bleed band). Returns true if expanded.
     bool SectionHeader(const char* label);
-    // Begin a "label : value" row; the next control fills the value column.
+    /// Starts a "label : value" row; the next control fills the value column.
     void PropertyRow(const char* label);
 
     bool DragInt(const char* id, int* v, float speed = 1.0f, int vmin = 0, int vmax = 0);
     bool DragFloat(const char* id, float* v, float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
                    const char* format = "%.3f");
-    // Unified checkbox. A visible label (e.g. "Antialiased") draws a complete
-    // labeled row, compact (sized to the checkbox box, not the tall field frame).
-    // A hidden/empty label ("##id") draws just the bare styled box for custom
-    // inline layouts. Returns true when toggled.
+    /// A visible label (e.g. "Antialiased") draws a whole labeled row, compact
+    /// (sized to the checkbox, not the tall field frame). A hidden or empty
+    /// label ("##id") draws just the styled box, for custom inline layouts.
+    /// Returns true when toggled.
     bool Checkbox(const char* label, bool* v);
     bool ColorEdit4(const char* id, float col[4]);
     bool ColorEdit3(const char* id, float col[3]);
@@ -135,35 +103,34 @@ public:
     void Spacing();
     void Separator();
 
-    // ID stack, indentation, and section helpers. These exist so package
-    // inspectors that were written against raw ImGui can route through EditorUI
-    // instead. Implemented by the editor's widget backend.
+    // ID stack, indentation and section helpers, so package inspectors that
+    // would use raw ImGui can go through EditorUI. Implemented by the
+    // editor's widget backend.
     void PushID(int id);
     void PushID(const void* ptr);
     void PopID();
     void Indent();
     void Unindent();
-    // Indent/unindent by an explicit pixel amount (e.g. for a panel's content
-    // gutter). Pair Indent(amount) with Unindent(amount).
+    /// Indents by a given number of pixels (e.g. a panel's content gutter).
+    /// Pair Indent(amount) with Unindent(amount).
     void Indent(float amount);
     void Unindent(float amount);
     void BulletText(const char* text);
-    // Collapsing header with an optional close button. pVisible may be null (no
-    // close button); when non-null and the user clicks the close button it is
-    // set to false. Returns true when the section is expanded.
+    /// Collapsing header with an optional close button. With a null
+    /// `pVisible` there is no close button; otherwise clicking it sets
+    /// *pVisible to false. Returns true when the section is expanded.
     bool CollapsingHeader(const char* label, bool* pVisible = nullptr, bool defaultOpen = false);
 
     // =========================================================================
     // Custom drawing (into the current window)
     //
     // For tools that draw their own content: grids, previews, guides, atlases.
-    // Coordinates are screen-space pixels; pack colors with Rgba(). Reserve a
-    // region first with BeginCanvas() to get an origin and flow layout around it.
-    // (Scene-view gizmos draw via SceneView's Draw* methods instead, which
+    // Coordinates are screen-space pixels; pack colors with Rgba().
+    // (Scene-view gizmos draw with SceneView's Draw* methods instead, which
     // target the gizmo surface rather than the current window.)
     // =========================================================================
 
-    /** @brief Pack an RGBA color (components 0-255) for the Draw* methods. */
+    /// Packs an RGBA color (components 0-255) for the Draw* methods.
     static uint32_t Rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
         return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(g) << 8) |
@@ -171,16 +138,16 @@ public:
     }
 
     // Custom drawing maps 1:1 to ImGui: draw at GetCursorScreenPos(), then call
-    // Dummy() (or a widget) to reserve the layout space so following widgets flow
-    // past it. The Draw* methods below target the current window's draw list,
+    // Dummy() (or a widget) to reserve the space so following widgets flow
+    // past it. The Draw* methods below draw on the current window's draw list,
     // exactly like ImGui::GetWindowDrawList()->Add*.
 
-    /** @brief Top-left screen position where the next widget/drawing goes. */
+    /// Top-left screen position where the next widget or drawing goes.
     void GetCursorScreenPos(float* outX, float* outY);
-    /** @brief Place the layout cursor at an absolute screen position (for custom
-     *  chrome that positions widgets/draws by hand, e.g. toolbars). */
+    /// Puts the layout cursor at an absolute screen position, for custom
+    /// chrome that places widgets and drawing by hand (e.g. toolbars).
     void SetCursorScreenPos(float x, float y);
-    /** @brief Advance the layout cursor by w x h (reserve space for drawing). */
+    /// Advances the layout cursor by width x height, reserving space for drawing.
     void Dummy(float width, float height);
 
     void DrawLine(float x0, float y0, float x1, float y1, uint32_t rgba, float thickness = 1.0f);
@@ -190,28 +157,29 @@ public:
     void DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba);
     void DrawImage(uint32_t texture, float x0, float y0, float x1, float y1, float u0 = 0.0f, float v0 = 0.0f,
                    float u1 = 1.0f, float v1 = 1.0f, uint32_t tint = 0xFFFFFFFFu);
-    // Named DrawTextAt (not DrawText) on purpose: <windows.h> #defines DrawText
-    // as DrawTextA/W, which would break any package that includes it.
+    // Named DrawTextAt, not DrawText: <windows.h> #defines DrawText as
+    // DrawTextA/W, which would break any package that includes it.
     void DrawTextAt(float pixelSize, float x, float y, uint32_t rgba, const char* text);
-    // CSS-px text: the backend converts via Fonts::CssPx(currentFont, cssPx) and
-    // applies the DPI scale, so hand-drawn labels match widget text sizing.
-    // Prefer this over DrawTextAt for any UI-like text (DrawTextAt is raw pixels).
+    /// Text sized in CSS px: the backend converts with
+    /// Fonts::CssPx(currentFont, cssPx) and applies the DPI scale, so
+    /// hand-drawn labels match widget text. Use this rather than DrawTextAt
+    /// (raw pixels) for any UI-like text.
     void DrawTextCss(float cssPx, float x, float y, uint32_t rgba, const char* text);
-    // Measure text exactly as DrawTextCss will draw it (same size conversion).
+    /// Measures text exactly as DrawTextCss draws it.
     void MeasureTextCss(float cssPx, const char* text, float* outW, float* outH);
     void PushClipRect(float x0, float y0, float x1, float y1, bool intersectWithCurrent = true);
     void PopClipRect();
 
-    /** @brief Inline image widget (advances layout), e.g. a texture/atlas preview. */
+    /// Inline image widget that advances the layout, e.g. a texture or atlas preview.
     void Image(uint32_t texture, float w, float h, float u0 = 0.0f, float v0 = 0.0f, float u1 = 1.0f, float v1 = 1.0f);
 
     // =========================================================================
     // Generic toolkit: queries, containers, popups, windows, styling, input.
-    // These mirror the corresponding ImGui calls so tools can be built entirely
+    // These mirror the matching ImGui calls so tools can be built entirely
     // through EditorUI. Stable, append-only.
     // =========================================================================
 
-    /** @brief Editor style color slots (mapped internally to the theme). */
+    /// Editor style color slots, mapped to the theme.
     enum class Col
     {
         Text,
@@ -224,7 +192,7 @@ public:
         CheckMark
     };
 
-    /** @brief Tree node flags (bitwise-or). */
+    /// Tree node flags (bitwise-or).
     enum TreeFlags
     {
         TreeNone = 0,
@@ -234,7 +202,7 @@ public:
         TreeSelected = 1 << 3
     };
 
-    /** @brief Window flags (bitwise-or). */
+    /// Window flags (bitwise-or).
     enum WinFlags
     {
         WinNone = 0,
@@ -244,7 +212,7 @@ public:
         WinNoCollapse = 1 << 3
     };
 
-    /** @brief Table flags (bitwise-or). */
+    /// Table flags (bitwise-or).
     enum TableFlags
     {
         TableNone = 0,
@@ -254,7 +222,7 @@ public:
         TableBordersInnerV = 1 << 3,
         TableBordersOuter = 1 << 4
     };
-    /** @brief Table column flags (bitwise-or). */
+    /// Table column flags (bitwise-or).
     enum TableColumnFlags
     {
         TableColumnNone = 0,
@@ -270,12 +238,12 @@ public:
     void GetFramePadding(float* outX, float* outY);
     void GetItemSpacing(float* outX, float* outY);
     void GetItemInnerSpacing(float* outX, float* outY);
-    // Bounds of the last submitted item (screen space), e.g. to hang a control
-    // off the right edge of a row that was just drawn.
+    /// Bounds of the last submitted item (screen space), e.g. to hang a
+    /// control off the right edge of a row just drawn.
     void GetItemRect(float* outMinX, float* outMinY, float* outMaxX, float* outMaxY);
     float GetFrameHeight();
-    // Width the next framed control would take with the current item width /
-    // indent settings - the basis for splitting a row between two controls.
+    /// Width the next framed control would take with the current item width
+    /// and indent, for splitting a row between two controls.
     float CalcItemWidth();
     float GetFontSize();
     void MeasureText(const char* text, float* outW, float* outH);
@@ -287,18 +255,18 @@ public:
     void PopItemWidth();
     void GetMainViewportRect(float* outX, float* outY, float* outW, float* outH);
 
-    // --- Text / widgets not yet covered ---
+    // --- More text and widgets ---
     void TextWrapped(const char* text);
     bool SliderInt(const char* id, int* v, int vmin, int vmax);
     bool RadioButton(const char* label, bool active);
     bool Selectable(const char* label, bool selected);
-    // Selectable that spans every column of the enclosing table (full-width row).
+    /// Selectable spanning every column of the enclosing table (a full-width row).
     bool Selectable(const char* label, bool selected, bool spanAllColumns);
     bool ImageButton(const char* id, uint32_t texture, float w, float h, float u0 = 0.0f, float v0 = 0.0f,
                      float u1 = 1.0f, float v1 = 1.0f);
     bool InvisibleButton(const char* id, float w, float h);
     void SetNextItemWidth(float w);
-    // Virtualized list helper (one active clipper at a time; do not nest):
+    // Draws only the visible rows of a long list (one clipper at a time; do not nest):
     //   ui.BeginListClipper(count, rowHeight);
     //   int s, e; while (ui.ListClipperStep(&s, &e)) for (int i=s;i<e;++i) {...}
     //   ui.EndListClipper();
@@ -319,8 +287,8 @@ public:
     bool TreeNodeEx(const char* label, int treeFlags = 0);
     void TreePop();
 
-    // Layout group: treat a run of widgets as one item (for SameLine / sizing /
-    // hit-testing the whole block). Pair BeginGroup with EndGroup.
+    /// Treats a run of widgets as one item (for SameLine, sizing and hit
+    /// testing the whole block). Pair BeginGroup with EndGroup.
     void BeginGroup();
     void EndGroup();
 
@@ -351,28 +319,29 @@ public:
     // One toolbar at a time; it draws full width at the current cursor.
     void BeginToolbar();
     bool ToolbarButton(const char* label, bool enabled = true, bool active = false);
-    // `destructive` marks a cell whose verb removes something: it is drawn in
-    // the palette's red instead of the neutral tier, with a red hover fill, so
-    // a delete never looks like the buttons beside it.
+    /// `destructive` marks a cell that removes something: it is drawn in the
+    /// palette's red with a red hover fill, so a delete never looks like the
+    /// buttons beside it.
     bool ToolbarIconButton(const char* id, const char* icon, const char* tooltip = nullptr, bool enabled = true,
                            bool active = false, bool destructive = false);
     void EndToolbar();
 
-    // Sub-nav "tab links": a full-bleed row of text labels with a 2px accent
-    // underline on the active one (dim -> bright on hover) and a bottom hairline.
-    // Matches the Asset Browser's Assets/Scripts tabs. Pair BeginTabLinks with
-    // EndTabLinks; draw each with TabLink (returns true when clicked).
+    /// Sub-nav "tab links": a full-bleed row of text labels with a 2px accent
+    /// underline on the active one (dim -> bright on hover) and a bottom
+    /// hairline, like the Asset Browser's Assets/Scripts tabs. Pair
+    /// BeginTabLinks with EndTabLinks; draw each with TabLink (returns true
+    /// when clicked).
     void BeginTabLinks();
     bool TabLink(const char* label, bool active);
     void EndTabLinks();
 
-    // A richer list entry than Selectable: a full-width "card" with a bold title
-    // and an optional dim subtitle, hover/selected backgrounds (rounded), and a
-    // left accent bar when selected. Reserves its own height and advances layout,
-    // so cards stack vertically. Returns true when clicked; query IsItemHovered()
-    // / IsMouseDoubleClicked() right after for hover/double-click. subtitle may be
-    // null for a single-line entry. subtitleColor (packed via Rgba()) tints the
-    // subtitle; 0 = the default dim.
+    /// A richer list entry than Selectable: a full-width "card" with a bold
+    /// title and an optional dim subtitle, rounded hover/selected backgrounds,
+    /// and a left accent bar when selected. Reserves its own height, so cards
+    /// stack vertically. Returns true when clicked; call IsItemHovered() /
+    /// IsMouseDoubleClicked() right after for hover and double-click.
+    /// `subtitle` may be null for a single line. `subtitleColor` (packed with
+    /// Rgba()) tints the subtitle; 0 = the default dim.
     bool SelectableCard(const char* id, const char* title, const char* subtitle, bool selected,
                         uint32_t subtitleColor = 0);
 
@@ -381,15 +350,15 @@ public:
     bool BeginPopup(const char* id);
     bool BeginPopupModal(const char* name, bool* open = nullptr, int winFlags = 0);
     bool BeginPopupContextItem(const char* id = nullptr);
-    // Open `id` when the last submitted item is clicked with `mouseButton`
-    // (0 = left, 1 = right, 2 = middle). For context menus hung off a widget
-    // that already consumes the click itself.
+    /// Opens `id` when the last submitted item is clicked with `mouseButton`
+    /// (0 = left, 1 = right, 2 = middle). For context menus on a widget that
+    /// already uses the click itself.
     void OpenPopupOnItemClick(const char* id, int mouseButton = 1);
     void EndPopup();
     void CloseCurrentPopup();
     bool MenuItem(const char* label, bool enabled = true);
-    // Nested submenu inside an open popup/menu. Only call EndMenu() when
-    // BeginMenu() returned true.
+    /// Submenu inside an open popup or menu. Call EndMenu() only when
+    /// BeginMenu() returned true.
     bool BeginMenu(const char* label);
     void EndMenu();
 
@@ -401,7 +370,7 @@ public:
     void SetNextWindowPos(float x, float y, float pivotX = 0.0f, float pivotY = 0.0f);
 
     // --- Styling ---
-    /** @brief Vec2-valued style vars adjustable via PushStyleVar (balance with PopStyleVar). */
+    /// Vec2 style vars for PushStyleVar (balance with PopStyleVar).
     enum class StyleVar
     {
         ItemSpacing,
@@ -414,14 +383,14 @@ public:
     void PopStyleColor(int count = 1);
     uint32_t GetStyleColor(Col col);
     void PushButtonTextAlign(float x, float y);  // the one style-var packages use
-    // Push a Vec2 style var (e.g. table CellPadding, ItemSpacing); pop with PopStyleVar.
+    /// Pushes a Vec2 style var (e.g. table CellPadding, ItemSpacing); pop with PopStyleVar.
     void PushStyleVar(StyleVar var, float x, float y);
     void PopStyleVar(int count = 1);
     void TextColored(uint32_t rgba, const char* text);  // packed-color overload
-    void PushBoldFont();                                // push the editor's bold UI font (balanced by PopFont)
+    void PushBoldFont();                                // the editor's bold UI font; balance with PopFont
     void PopFont();
 
-    // --- Input state (replaces package GetIO() access) ---
+    // --- Input state (packages use this instead of ImGui's GetIO()) ---
     enum class Key
     {
         Z,
@@ -429,7 +398,7 @@ public:
         S,
         Delete
     };  // extend as tools need more named keys
-    /** @brief Mouse cursor shapes for SetMouseCursor (e.g. splitter resize handles). */
+    /// Mouse cursor shapes for SetMouseCursor (e.g. splitter resize handles).
     enum class MouseCursor
     {
         Arrow,
@@ -450,8 +419,8 @@ public:
     float GetMouseWheel();
     bool IsKeyShift();
     bool IsKeyCtrl();
-    // Global DPI scale (FontScaleDpi). Custom-drawn geometry that should track
-    // widget sizing multiplies by this (DrawTextCss already applies it to text).
+    /// The global DPI scale (FontScaleDpi). Multiply custom-drawn geometry by
+    /// it to match widget sizes (DrawTextCss already applies it to text).
     float GetDpiScale();
     bool IsKeyAlt();
     bool IsKeyPressed(Key key, bool repeat = true);
@@ -459,25 +428,25 @@ public:
     bool IsWindowFocused(bool rootAndChildWindows = false);
     bool IsItemActive();
     bool IsItemDeactivatedAfterEdit();
-    // Lost focus this frame, edited or not. The ...AfterEdit variant above stays
-    // silent when the value was left alone, which is not enough to close an
-    // inline edit field that the user clicked away from without typing.
+    /// Lost focus this frame, edited or not. IsItemDeactivatedAfterEdit stays
+    /// false when the value was left alone, so it cannot close an inline edit
+    /// field the user clicked away from without typing.
     bool IsItemDeactivated();
-    // Give the NEXT widget keyboard focus. For fields that appear already
-    // focused (click-to-rename), where asking for a second click to type is the
-    // difference between a rename and a chore.
+    /// Gives the NEXT widget keyboard focus, for fields that should appear
+    /// focused (click-to-rename) so the user can type without a second click.
     void SetKeyboardFocusHere();
-    // InvisibleButton variant that accepts which mouse buttons activate it.
+    /// InvisibleButton that takes which mouse buttons activate it.
     bool InvisibleButton(const char* id, float w, float h, bool allowLeft, bool allowMiddle, bool allowRight = false);
-    // Let items submitted LATER in the same window win the hit test against the
-    // NEXT item, turning submission order into front-to-back hit testing. Without
-    // it, a big hit surface (a canvas) claims the hovered id for the frame and
-    // every widget drawn on top of it becomes unclickable. Call it immediately
-    // before the surface, not before the widgets on top.
+    /// Lets items submitted LATER in the same window win the hit test against
+    /// the NEXT item, so submission order becomes front-to-back hit testing.
+    /// Without it, a big hit surface (a canvas) takes the hovered id for the
+    /// frame and every widget drawn on top of it cannot be clicked. Call it
+    /// right before the surface, not before the widgets on top.
     void SetNextItemAllowOverlap();
 
-    // Low-level styled controls (label-less; building blocks for the *Field
-    // helpers and for custom rows). DragFloat2/3 wrap N drag fields + axis stamps.
+    // Low-level styled controls without labels: building blocks for the
+    // *Field helpers and for custom rows. DragFloat2/3 wrap N drag fields and
+    // their axis stamps.
     bool DragFloat2(const char* id, float v[2], float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
                     const char* format = "%.3f");
     bool DragFloat3(const char* id, float v[3], float speed = 1.0f, float vmin = 0.0f, float vmax = 0.0f,
@@ -489,16 +458,16 @@ public:
     void Space() { Spacing(); }
 
     // =========================================================================
-    // Unity-style fields: label column + styled control as one call. Returns true
-    // the frame the value changed. The field always records its own undo. Two
+    // Unity-style fields: label column and styled control in one call. Each
+    // returns true the frame the value changed and records its own undo. Two
     // modes:
-    //   - Pointer mode: pass T* - the field reads/writes it and its command
-    //     restores/reapplies the bytes; callbacks add side-effects.
-    //   - Value mode: pass the current value(s) by value - the field holds an
-    //     internal copy and routes every change through the callbacks; its command
-    //     stores old/new copies and calls onUndo(old)/onRedo(new). YOU apply the
-    //     value in onChange/onUndo/onRedo (it never writes your storage).
-    // The five callbacks are notifications/appliers, each carrying the value:
+    //   - Pointer mode: pass T*. The field reads and writes it, and its
+    //     command restores or reapplies the bytes; callbacks add side effects.
+    //   - Value mode: pass the current value(s). The field keeps an internal
+    //     copy and sends every change through the callbacks; its command
+    //     stores old/new copies and calls onUndo(old)/onRedo(new). YOU apply
+    //     the value in onChange/onUndo/onRedo (it never writes your storage).
+    // Each of the five callbacks gets the value:
     //   onStartChange(begin) / onChange(live) / onEndChange(old,new) / onUndo / onRedo.
     // =========================================================================
     struct FloatCallbacks
@@ -527,10 +496,11 @@ public:
         std::function<void(const char*, const char*)> onEndChange;
     };
 
-    // Physical unit for a float/vector field. The value is stored canonical
-    // (meters / radians); the editor converts to the project's display unit
-    // (px/m, degrees) and snaps Distance to whole pixels in Pixels mode. Mirrors
-    // the engine's Deki::PhysicalUnit so the int passes straight through.
+    /// Physical unit of a float or vector field. The value is stored in
+    /// canonical units (meters, radians); the editor shows it in the project's
+    /// display unit (px/m, degrees) and snaps Distance to whole pixels in
+    /// Pixels mode. Mirrors the engine's Deki::PhysicalUnit so the int passes
+    /// straight through.
     enum class Unit
     {
         None = 0,
@@ -541,7 +511,7 @@ public:
     };
 
     // --- Pointer mode (the field reads/writes your member) ---
-    // Integer field: the width/signedness is chosen by the pointer overload.
+    // Integer fields: the pointer type picks the width and signedness.
     bool IntField(const char* label, int32_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
                   const IntCallbacks& cb = {});
     bool IntField(const char* label, uint32_t* v, float speed = 1.0f, int64_t vmin = 0, int64_t vmax = 0,
@@ -573,9 +543,9 @@ public:
                      const FloatCallbacks& cb = {});
     bool SliderField(const char* label, int* v, int vmin, int vmax, const EnumCallbacks& cb = {});
 
-    // --- Value mode (pointerless): pass the current value(s) by value; apply via
-    // callbacks. Vector components are passed individually to avoid binding a
-    // non-const array to the pointer overloads. `Unit::None` for no unit. ---
+    // --- Value mode: pass the current value(s); apply them in the callbacks.
+    // Vector components are passed one by one so a call cannot bind to the
+    // pointer overloads. `Unit::None` for no unit. ---
     bool FloatField(const char* label, float value, Unit unit, const FloatCallbacks& cb);
     bool Vector2Field(const char* label, float x, float y, Unit unit, const VecCallbacks& cb);
     bool Vector3Field(const char* label, float x, float y, float z, Unit unit, const VecCallbacks& cb);
@@ -587,8 +557,9 @@ public:
     bool Vector3Field(const char* label, float x, float y, float z, float speed, float vmin, float vmax,
                       const char* format, const VecCallbacks& cb);
 
-    // ImGui-backed implementations, installed once by the editor executable.
-    // Byte-level edit callbacks the backend invokes during the lifecycle.
+    // The ImGui implementations, installed once by the editor executable.
+    // EditCallbacksBytes are the edit callbacks the backend calls, with the
+    // values as raw bytes.
     struct EditCallbacksBytes
     {
         std::function<void(const void*)> onStartChange;             // begin (before-value bytes)
@@ -655,35 +626,36 @@ public:
         std::function<bool(const char*, bool)> tabLink;
         std::function<void()> endTabLinks;
         std::function<bool(const char*, const char*, const char*, bool, uint32_t)> selectableCard;
-        // Undo lifecycle for drag-style *Field helpers, run after the field's
-        // control. `value` is the current value bytes (the field's member in
-        // pointer mode, an internal temp in value mode). `ownsStorage` true =>
-        // the pushed command memcpy's `value` on undo/redo (pointer mode);
-        // false => value mode, the command only fires cb.onUndo/onRedo.
+        // Undo handling for drag-style *Field helpers, run after the field's
+        // control. `value` is the current value's bytes (the field's member in
+        // pointer mode, an internal temp in value mode). With `ownsStorage`
+        // (pointer mode) the pushed command memcpy's `value` on undo/redo;
+        // without it (value mode) the command only calls cb.onUndo/onRedo.
         std::function<void(void* value, size_t size, bool ownsStorage, const void* before, const char* label,
                            const EditCallbacksBytes& cb)>
             recordEdit;
-        // Same as recordEdit but for atomic widgets (combo): the DLL calls it only
-        // on the frame the value changed.
+        // recordEdit for widgets that change in one step (combo): the DLL
+        // calls it only on the frame the value changed.
         std::function<void(void* value, size_t size, bool ownsStorage, const void* before, const char* label,
                            const EditCallbacksBytes& cb)>
             commitEdit;
-        // Unit-aware float/vector field: draws + converts (px/m, degrees) + snaps,
-        // then runs the drag-style lifecycle. `value` is `count` canonical floats.
+        // Float/vector field with a unit: draws, converts (px/m, degrees) and
+        // snaps, then runs the drag-style undo handling. `value` is `count`
+        // floats in canonical units.
         std::function<bool(const char* label, float* value, int count, int unitKind, bool ownsStorage,
                            const EditCallbacksBytes& cb)>
             unitField;
-        // CSS-px text (see DrawTextCss): backend applies Fonts::CssPx + DPI scale.
+        // CSS-px text (see DrawTextCss): the backend applies Fonts::CssPx and the DPI scale.
         std::function<void(float, float, float, uint32_t, const char*)> drawTextCss;
         std::function<void(float, const char*, float*, float*)> measureTextCss;
     };
     static void SetWidgetBackend(const WidgetBackend& backend);
 
-    // Extra ImGui window flags for a window, by the name passed to Begin().
-    // Installed by the editor executable, which uses it to make a maximized
-    // panel non-resizable: the flag has to reach ImGui::Begin() itself, since
-    // that is what decides whether the resize grips, border highlight and
-    // resize cursor exist at all. Null (the default) adds nothing.
+    /// Extra ImGui window flags for a window, by the name passed to Begin().
+    /// The editor executable installs it to make a maximized panel
+    /// non-resizable: the flag must reach ImGui::Begin() itself, which decides
+    /// whether the resize grips, border highlight and resize cursor exist.
+    /// Null (the default) adds nothing.
     static void SetExtraWindowFlagsProvider(std::function<int(const char*)> fn);
 
     // =========================================================================
@@ -697,9 +669,7 @@ public:
     // Internal - Called by InspectorPanel
     // =========================================================================
 
-    /**
-     * @brief Callback types for property drawing
-     */
+    // Property drawing callbacks.
     using DrawPropertyByNameFunc = std::function<void(const char*)>;
     using DrawPropertyByOffsetFunc = std::function<void(size_t)>;
     using DrawDefaultPropertiesFunc = std::function<void()>;
@@ -708,32 +678,25 @@ public:
     using ModifyAssetFunc =
         std::function<void(const std::string&, const std::string&, const std::string&, const std::string&)>;
 
-    /**
-     * @brief Begin editing a component (called by InspectorPanel)
-     */
+    /// Starts drawing a component's Inspector. Called by InspectorPanel.
     void BeginComponent(Deki::Component* comp, const Deki::ComponentMeta* meta, DrawPropertyByNameFunc drawByName,
                         DrawPropertyByOffsetFunc drawByOffset, DrawDefaultPropertiesFunc drawDefault,
                         ResolveAssetNameFunc resolveAsset, GetFontAtlasFunc getFontAtlas,
                         ModifyAssetFunc modifyAsset = nullptr);
 
-    /**
-     * @brief End editing a component
-     */
     void EndComponent();
 
 private:
     EditorUI() = default;
     ~EditorUI() = default;
 
-    // Prevent copying
     EditorUI(const EditorUI&) = delete;
     EditorUI& operator=(const EditorUI&) = delete;
 
-    // Current state
     Deki::Component* m_CurrentComponent = nullptr;
     const Deki::ComponentMeta* m_CurrentMeta = nullptr;
 
-    // Callbacks (set by InspectorPanel)
+    // Set by InspectorPanel.
     DrawPropertyByNameFunc m_DrawPropertyByName;
     DrawPropertyByOffsetFunc m_DrawPropertyByOffset;
     DrawDefaultPropertiesFunc m_DrawDefaultProperties;
@@ -744,10 +707,6 @@ private:
 
 }  // namespace DekiEditor
 
-/**
- * @brief Helper macro to draw a property by member offset
- *
- * Usage: DRAW_PROPERTY_FIELD(SpriteComponent, width);
- */
+/// Draws a property by member: DRAW_PROPERTY_FIELD(SpriteComponent, width);
 #define DRAW_PROPERTY_FIELD(ComponentType, member)                                                                     \
     DekiEditor::EditorUI::Get().PropertyField(offsetof(ComponentType, member))

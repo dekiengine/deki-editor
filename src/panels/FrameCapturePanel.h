@@ -9,8 +9,7 @@ namespace DekiEditor
 
 class EditorApp;
 
-// Panel for capturing play mode frames to PNG sequence
-// Used to verify actual FPS by recording and analyzing frame output
+// Records Play mode frames as a PNG sequence, to check the real frame rate.
 class FrameCapturePanel : public IPanel
 {
 public:
@@ -19,8 +18,6 @@ public:
     ~FrameCapturePanel() = default;
 
     void Draw();
-
-    // UI state
 
 private:
     EditorApp* m_App;

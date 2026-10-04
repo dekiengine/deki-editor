@@ -1,10 +1,9 @@
-// Deki::Vector<T> - a growable array whose growth can fail.
+// Deki::Vector<T>: a growable array whose growth can fail.
 //
 // std::vector cannot fail gracefully here: push_back calls operator new,
-// which with exceptions off aborts, and the board reboots. The point of this
-// type is the bool, so most of what follows is about what happens when the
-// answer is false - and about the moved-from state, which is where a
-// hand-written move constructor earns its keep.
+// which aborts with exceptions off, and the board reboots. Vector returns a
+// bool instead, so most of these tests cover what happens when it is false,
+// and the moved-from state.
 
 #include <gtest/gtest.h>
 
@@ -21,9 +20,9 @@ using Deki::Vector;
 namespace
 {
 
-// Hands out a fixed number of allocations and then refuses, so the failure
-// paths can be reached from a host test. A 64-bit desktop will happily commit
-// anything a size_t can express, so there is no other way in.
+// Hands out a fixed number of allocations and then refuses, so a host test can
+// reach the failure paths. A 64-bit desktop heap commits anything a size_t can
+// express, so there is no other way in.
 class FailAfterProvider : public Deki::IMemoryProvider
 {
 public:
@@ -34,9 +33,6 @@ public:
 
     bool Initialize() override { return true; }
     void Shutdown() override {}
-    // One heap, a fixed number of allocations, then refusal - which is the
-    // only way to reach the out-of-memory paths from a host test, where a
-    // 64-bit heap will commit anything a size_t can express.
     bool Serves(Deki::Memory::Region region) const override
     {
         return region == Deki::Memory::Internal || region == Deki::Memory::External;
@@ -55,9 +51,8 @@ public:
 
     void Free(Deki::Memory::Region, void* ptr) override { free(ptr); }
 
-    // Not modelled: the budget counts allocations rather than bytes, so there
-    // is no byte figure to report and a made-up one would show up in the
-    // out-of-memory line these tests provoke.
+    // The budget counts allocations, not bytes, so there is no byte figure to
+    // report; a made-up one would show up in the out-of-memory log line.
     size_t GetAvailable(Deki::Memory::Region) const override { return 0; }
 
 private:
@@ -101,8 +96,7 @@ TEST(DekiVector, PushBackGrowsAndKeepsOrder)
 
 TEST(DekiVector, EndFollowsSizeNotCapacity)
 {
-    // Otherwise a range-for walks uninitialised tail elements, which is the
-    // kind of bug that shows up as one wrong entity per frame.
+    // Otherwise a range-for walks uninitialised tail elements.
     Vector<int> v(Deki::Memory::Internal);
     ASSERT_TRUE(v.Reserve(32));
     ASSERT_TRUE(v.PushBack(7));
@@ -135,7 +129,7 @@ TEST(DekiVector, ReserveNeverShrinksAndIsIdempotent)
 
 TEST(DekiVector, ReserveUpFrontMakesTheFollowingPushesInfallible)
 {
-    // The pattern worth writing on a device: one check, not one per element.
+    // The pattern to use on a device: one check, not one per element.
     Vector<int> v(Deki::Memory::Internal);
     ASSERT_TRUE(v.Reserve(64));
     const int* raw = v.Data();
@@ -232,9 +226,9 @@ TEST(DekiVector, ClearKeepsTheMemoryAndResetReleasesIt)
 
 TEST(DekiVector, MoveTransfersAndLeavesTheSourceEmpty)
 {
-    // The reason the move constructor is written out: a defaulted one would
-    // copy m_Size across, leaving the source claiming elements over a Buffer
-    // that no longer holds any, so Back() would dereference null.
+    // The move constructor is written out because a defaulted one would copy
+    // m_Size across, leaving the source claiming elements over a Buffer that
+    // no longer holds any, so Back() would dereference null.
     Vector<int> a(Deki::Memory::Internal);
     ASSERT_TRUE(a.PushBack(1));
     ASSERT_TRUE(a.PushBack(2));
@@ -300,8 +294,8 @@ TEST(DekiVector, PushBackReportsAFailedGrowth)
 
 TEST(DekiVector, AFailedGrowthLeavesEverythingAlreadyStoredIntact)
 {
-    // The property that makes the bool usable: a caller that drops the new
-    // element still has a working vector, not a half-grown one.
+    // A caller that drops the new element still has a working vector, not a
+    // half-grown one.
     Vector<int> v(Deki::Memory::Internal);
     ASSERT_TRUE(v.Reserve(4));
     for (int i = 0; i < 4; ++i)
@@ -345,7 +339,7 @@ TEST(DekiVector, AnImpossibleReserveFailsRatherThanWrapping)
 {
     // count * sizeof(T) is a 32-bit size_t on the device, so a huge count
     // could wrap to a small allocation the vector then overruns. Buffer
-    // checks it; this pins that Vector inherits the check.
+    // checks it, and Vector must keep that check.
     Vector<uint32_t> v(Deki::Memory::Internal);
     EXPECT_FALSE(v.Reserve(SIZE_MAX / 2));
     EXPECT_EQ(v.Capacity(), 0u);
@@ -353,8 +347,8 @@ TEST(DekiVector, AnImpossibleReserveFailsRatherThanWrapping)
 
 TEST(DekiVector, GrowthKeepsThePlacementReserveAsked)
 {
-    // Reserve records the Memory::Region so a later growth inside PushBack does
-    // not quietly fall back to Auto and land in a different region.
+    // Reserve records the Memory::Region, so a later growth inside PushBack
+    // lands in the same region.
     Vector<int> v(Deki::Memory::Internal);
     ASSERT_TRUE(v.Reserve(1));
     ASSERT_TRUE(v.PushBack(1));

@@ -1,13 +1,13 @@
 // The editor's search-first picker, shared by everything that adds a thing from
 // a list: Add Component in the Inspector, Add Action in the node graph's stacks.
 //
-// It browses in TWO levels - categories, then what is inside one - because
+// It browses in two levels, categories and then what is inside one, because
 // browsing beats one long list for the thing you cannot name yet ("it was
 // something under Animation"), and searching beats browsing for the thing you
-// can. So typing cuts across every level at once, results grouped under their
-// categories and ranked best-first, and clearing the box drops you back where
-// you were. Keyboard throughout: type, arrow, Enter to enter a group or take an
-// item, Left to go back.
+// can. Typing searches every level at once, with results grouped under their
+// categories and ranked best first, and clearing the box takes you back where
+// you were. It all works from the keyboard: type, arrows, Enter to open a
+// group or take an item, Left to go back.
 //
 // The caller owns the popup (and its placement); this draws the body.
 
@@ -183,12 +183,11 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
     {
         int index = -1;
         int rank = 0;
-        size_t matchPos = std::string::npos;  // in the LABEL, for the tint
+        size_t matchPos = std::string::npos;  // in the label, for the tint
         size_t matchLen = 0;
     };
     // Lower-cased copies of every item's label, alternate name and
-    // description, built when the item set changes. Five std::strings per
-    // item per frame used to be built here while the picker was open.
+    // description, built only when the item set changes, not every frame.
     struct LoweredItem
     {
         const char* label;  // the source pointer, to detect a changed item set
@@ -254,8 +253,8 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
         }
 
         // All words present, anywhere on the row. The description is where the
-        // answer to "which one of these does X?" actually lives.
-        // Searched field by field: no concatenation per item per frame.
+        // answer to "which one of these does X?" lives. Searched field by
+        // field, so nothing is concatenated per item per frame.
         size_t earliest = std::string::npos;
         bool allWords = !words.empty();
         for (const std::string& word : words)
@@ -442,9 +441,9 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
     }
 
     // --- keyboard --------------------------------------------------------
-    // Read AFTER the field has had its go at the input. A single-line InputText
-    // leaves the arrows and Enter alone, which is what makes type-arrow-Enter
-    // work without the query ever losing focus.
+    // Read after the field has handled the input. A single-line InputText
+    // leaves the arrows and Enter alone, so type, arrow, Enter works without
+    // the query losing focus.
     if (navCount > 0)
     {
         if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true))
@@ -483,21 +482,21 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
     }
 
     // --- the list --------------------------------------------------------
-    // Runs edge to edge inside the popup: left where the popup's window padding
-    // puts it, the child's scrollbar floats a padding-width in from the right,
-    // which reads as a misaligned scrollbar rather than the panel's own. The
-    // child keeps that padding INSIDE it, so rows stay inset while the
-    // scrollbar and the row highlight reach the edges.
+    // Runs edge to edge inside the popup. Left inside the popup's window
+    // padding, the child's scrollbar would sit a padding-width in from the
+    // right and look misaligned. The child keeps that padding inside it, so
+    // rows stay inset while the scrollbar and the row highlight reach the
+    // edges.
     {
         const float listY = ImGui::GetCursorScreenPos().y + 14.0f * dpi;
         ImGui::SetCursorScreenPos(ImVec2(ImGui::GetWindowPos().x, listY));
     }
     const float listW = ImGui::GetWindowSize().x;
-    // FIXED height, never auto-sized to the rows. The popup keeps one size
-    // whatever it is showing: eight components, two, or none while a query
-    // matches nothing. A picker that resizes as you type moves the very rows
-    // you are aiming at, and stepping into a small category made the whole
-    // window jump - the same reason a menu does not shrink around its items.
+    // Fixed height, never sized to the rows. The popup keeps one size whatever
+    // it shows: eight components, two, or none while a query matches nothing.
+    // A picker that resizes as you type moves the rows you are aiming at, and
+    // stepping into a small category would make the whole window jump; a menu
+    // does not shrink around its items for the same reason.
     ImGui::BeginChild("##picker_list", ImVec2(listW, listHeight), ImGuiChildFlags_None);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 4.0f * dpi));
 
@@ -515,12 +514,12 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
     const float slideX = (st.slideT >= 1.0f) ? 0.0f : (1.0f - SmoothStep(st.slideT)) * st.slideDir * listW;
 
     // Two-line rows when there is something to say about the item, one line
-    // when there is not. That second line is the point of the list: a project
-    // accumulates a dozen scripts with near-identical names, and a picker that
-    // shows only names asks you to remember which is which.
+    // when there is not. The second line matters: a project collects a dozen
+    // scripts with near-identical names, and a picker that shows only names
+    // asks you to remember which is which.
     const float rowH1 = 30.0f * dpi;
     const float rowH2 = 46.0f * dpi;
-    // Content inset, applied to what a row DRAWS rather than to the row itself,
+    // Content inset, applied to what a row draws rather than to the row itself,
     // so the highlight and the scrollbar still reach the popup's edges while the
     // icons and labels keep clear of them.
     const float rowPadX = 10.0f * dpi;
@@ -540,8 +539,8 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
         {
             ImGui::BeginDisabled();
         }
-        // Explicit size: a default Selectable is exactly one line of text tall,
-        // a cramped target for a list you scan and click. Explicit WIDTH too, so
+        // Explicit size: a default Selectable is one line of text tall, a
+        // cramped target for a list you scan and click. Explicit width too, so
         // a row keeps its full width while the level slides across.
         const bool clicked = ImGui::Selectable("##row", highlighted, ImGuiSelectableFlags_None, ImVec2(listW, rowH));
         if (disabled)
@@ -596,8 +595,7 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
         }
 
         // Trailing count and chevron, inset from the row's right edge: drawn
-        // flush they land under the scrollbar and the clip takes them, which
-        // reads as "the chevron is missing".
+        // flush, they land under the scrollbar and get clipped away.
         float right = rowStart.x + rowSize.x - rowPadX;
         if (trailChevron)
         {

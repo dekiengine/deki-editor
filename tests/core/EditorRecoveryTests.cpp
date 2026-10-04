@@ -1,9 +1,8 @@
 // Crash-recovery and autosave behaviour.
 //
-// None of this was reachable by a test before: it lived as ~615 lines of
-// private methods on EditorApp, which needs SDL, OpenGL and ImGui to exist. The
-// logic half now lives in core/EditorRecovery, and these are the properties
-// that actually matter when someone has just lost work.
+// The logic lives in core/EditorRecovery, apart from EditorApp and its SDL,
+// OpenGL and ImGui, so it can be tested. These are the properties that matter
+// when someone has just lost work.
 
 #include <gtest/gtest.h>
 
@@ -199,9 +198,8 @@ TEST_F(EditorRecoveryTest, SelectionIsClampedRatherThanLeftDangling)
 
 // --- consumption -----------------------------------------------------------
 
-// The regression this pins: consuming a recovery used to delete the whole
-// directory, so with two crashed scenes the second was destroyed without ever
-// being offered.
+// Consuming one recovery must not delete the whole directory: with two
+// crashed scenes, the second would be destroyed without ever being offered.
 TEST_F(EditorRecoveryTest, ConsumingOneEntryLeavesTheOthers)
 {
     WriteScene("first.scene", 1);
@@ -266,9 +264,9 @@ TEST_F(EditorRecoveryTest, DiscardAllRemovesEverything)
 
 // --- session snapshots -----------------------------------------------------
 
-// The regression this pins: an autosave snapshot outlived the session that
-// wrote it - through a save, a Don't Save, a clean quit - so every later open
-// offered a "recovery" of work that had been saved or discarded on purpose.
+// An autosave snapshot must not outlive the session that wrote it (through a
+// save, a Don't Save, a clean quit), or every later open offers a "recovery"
+// of work that was saved or discarded on purpose.
 TEST_F(EditorRecoveryTest, SnapshotsThisSessionWroteAreDiscardedWhenObsolete)
 {
     Deki::Scene scene;
@@ -433,7 +431,7 @@ TEST(EditorRecoveryDir, EmptyProjectPathHasNoRecoveryDirectory)
 }  // namespace
 
 // Two scenes with one file name in different folders each keep their own
-// snapshot; they used to overwrite each other's.
+// snapshot instead of overwriting each other's.
 TEST_F(EditorRecoveryTest, ScenesWithTheSameNameKeepSeparateSnapshots)
 {
     Deki::Scene a;

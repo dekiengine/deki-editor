@@ -1,22 +1,19 @@
 #pragma once
 
-/**
- * @file NodeCanvas.h
- * @brief Immediate-mode node-graph view widget: pan/zoom canvas, nodes with
- *        labeled pins, bezier links, link dragging, selection, context-menu
- *        and delete events.
- *
- * The canvas is a pure VIEW: the caller owns the graph data and passes it in
- * every frame; the canvas owns only view state (pan/zoom, in-progress drags)
- * and reports interactions through NodeCanvasEvents. It draws exclusively via
- * EditorUI (it lives in deki-editor.dll and crosses the DLL boundary), and it
- * deliberately knows nothing about node types, documents, or undo - the
- * hosting window (app-side) translates events into commands.
- *
- * Coordinates: node x/y are graph units (css px at zoom 1). The canvas applies
- * zoom and the global DPI scale to geometry, and sizes text via DrawTextCss so
- * labels match widget text sizing at any DPI.
- */
+// Immediate-mode node-graph widget: a pan/zoom canvas with nodes, labelled
+// pins and bezier links. It handles link dragging and selection, and reports
+// context-menu and delete events.
+//
+// The canvas is only a view. The caller owns the graph and passes it in every
+// frame; the canvas keeps only view state (pan, zoom, drags in progress) and
+// reports what the user did through NodeCanvasEvents. It draws only through
+// EditorUI, because it lives in deki-editor.dll and is called across the DLL
+// boundary. It knows nothing about node types, documents or undo: the window
+// hosting it turns events into commands.
+//
+// Coordinates: node x/y are graph units (css px at zoom 1). The canvas applies
+// zoom and the DPI scale to geometry, and sizes text with DrawTextCss so labels
+// match widget text at any DPI.
 
 #include <cstdint>
 
@@ -24,7 +21,7 @@
 namespace DekiEditor
 {
 
-/** @brief One node to draw. Pin labels are display-only; interaction reports pin indices. */
+/// One node to draw. Pin labels are for display; events report pin indices.
 struct NodeCanvasNode
 {
     uint32_t id = 0;           // caller's node id (nonzero)
@@ -35,13 +32,13 @@ struct NodeCanvasNode
     const char* const* outputLabels = nullptr;
     int outputCount = 0;  // caller resolves dynamic pin counts
     bool selected = false;
-    // Purely a display hint: this node contains something to descend into, so
-    // the canvas marks it as enterable. What "inside" means is the caller's
-    // business (the canvas still just reports the double-click).
+    // Display hint: the node has something to descend into, so the canvas
+    // marks it as enterable. The canvas only reports the double-click; the
+    // caller decides what "inside" means.
     bool hasSubgraph = false;
 };
 
-/** @brief One link to draw, by node ids + pin indices. */
+/// One link to draw, by node ids and pin indices.
 struct NodeCanvasLink
 {
     uint32_t fromNode = 0;
@@ -51,7 +48,7 @@ struct NodeCanvasLink
     bool selected = false;
 };
 
-/** @brief Canvas colors (packed via EditorUI::Rgba: a<<24|b<<16|g<<8|r). */
+/// Canvas colours, packed as EditorUI::Rgba does: a<<24 | b<<16 | g<<8 | r.
 struct NodeCanvasPalette
 {
     uint32_t background = 0xFF25201Eu;          // rgb(30, 32, 37)
@@ -68,7 +65,7 @@ struct NodeCanvasPalette
     uint32_t linkDrag = 0xFFD29A4Fu;            // rubber-band while connecting
 };
 
-/** @brief What happened this frame. All fields false/zero unless fired. */
+/// What happened this frame. Every field is false or zero unless its event fired.
 struct NodeCanvasEvents
 {
     bool nodeClicked = false;  // left-click on a node body
@@ -105,20 +102,17 @@ struct NodeCanvasEvents
 class DEKI_EDITOR_API NodeCanvas
 {
 public:
-    /**
-     * @brief Reserve width x height at the cursor and draw the graph.
-     *
-     * The caller owns nodes/links storage for the duration of the call. Events
-     * are written to `out` (reset at entry). Node positions are NOT mutated:
-     * apply nodeMoving to your model each frame for live dragging.
-     */
+    /// Reserves width x height at the cursor and draws the graph. `nodes` and
+    /// `links` only need to live for the call. `out` is reset, then filled with
+    /// this frame's events. Node positions are read only: apply nodeMoving to
+    /// your model each frame to drag live.
     void Draw(const char* id, float width, float height, const NodeCanvasNode* nodes, int nodeCount,
               const NodeCanvasLink* links, int linkCount, NodeCanvasEvents& out);
 
-    /** @brief Frame all content on the next Draw (call after opening a graph). */
+    /// Frames all content on the next Draw. Call after opening a graph.
     void FocusContent() { m_FocusRequested = true; }
 
-    // View state (session persistence).
+    // View state, saved with the session.
     float GetPanX() const { return m_PanX; }
     float GetPanY() const { return m_PanY; }
     float GetZoom() const { return m_Zoom; }
@@ -126,8 +120,8 @@ public:
 
     void SetPalette(const NodeCanvasPalette& palette) { m_Palette = palette; }
 
-    // Node metrics in graph units (the window uses these to spawn nodes centered
-    // on the cursor, and for hit-independent layout math).
+    /// Node size in graph units, for layout outside Draw (the window uses it to
+    /// centre new nodes on the cursor).
     static float NodeWidth(const NodeCanvasNode& n);
     static float NodeHeight(const NodeCanvasNode& n);
 

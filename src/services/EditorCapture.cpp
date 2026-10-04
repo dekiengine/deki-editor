@@ -5,8 +5,8 @@
 #include "imgui.h"
 #include "imgui_internal.h"  // FindWindowByName
 
-// STB_IMAGE_WRITE_IMPLEMENTATION lives in FrameCaptureService.cpp; this TU only
-// consumes the declarations.
+// STB_IMAGE_WRITE_IMPLEMENTATION is in FrameCaptureService.cpp; this file only
+// uses the declarations.
 #include "stb_image_write.h"
 
 #include <deki/LogSystem.h>
@@ -91,10 +91,10 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
             continue;
         }
 
-        // A docked panel is reparented under its dock node's host window, so it
-        // carries ChildWindow - the flag alone would filter out exactly the
-        // windows worth capturing. Treat anything with a dock assignment as a
-        // top-level panel and only drop genuine scaffolding.
+        // A docked panel is moved under its dock node's host window, so it has
+        // ChildWindow set, and that flag alone would filter out the windows
+        // worth capturing. Anything docked counts as a top-level panel; only
+        // real child windows are dropped.
         const bool isDockedPanel = (w->DockId != 0) || (w->DockNode != nullptr);
         if (!isDockedPanel && (w->Flags & ImGuiWindowFlags_ChildWindow))
         {
@@ -108,7 +108,7 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
         {
             continue;
         }
-        // Dock node host windows are implementation detail, not panels.
+        // Dock node host windows are internal to ImGui, not panels.
         if (w->Name && strncmp(w->Name, "##", 2) == 0)
         {
             continue;
@@ -197,9 +197,8 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
         std::copy(row.begin(), row.end(), b);
     }
 
-    // The backbuffer's alpha channel is meaningless here (nothing composites
-    // against it), and a 0-alpha readback would render as a fully transparent
-    // PNG. Force it opaque.
+    // The backbuffer's alpha means nothing here (nothing is composited over
+    // it), and alpha 0 would make a fully transparent PNG, so force it opaque.
     for (size_t i = 3; i < byteCount; i += 4)
     {
         m_Pixels[i] = 255;
@@ -264,9 +263,9 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
         if (!ResolveRect(req, fbW, fbH, x, y, w, h))
         {
             // A docked panel whose tab is not selected is alive but not drawn.
-            // Dropping on the first miss silently truncated sequences: a tab
-            // switch part-way through a capture left a half-length animation
-            // and a done marker that never appeared. Wait instead.
+            // Wait for it rather than drop the request on the first miss: a tab
+            // switch part-way through a sequence would otherwise leave half an
+            // animation and no done marker.
             if (++req.misses < kMaxResolveMisses)
             {
                 ++i;

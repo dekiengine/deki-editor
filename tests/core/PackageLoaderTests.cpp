@@ -231,9 +231,8 @@ protected:
 // The loader finds packages by name, so the decoration rules have to match what
 // the build actually emits. Getting this wrong is silent and total: every
 // package fails the "deki-*" test and the editor loads none of them, with no
-// error beyond components not existing. It has happened twice - once for the
-// ELF "lib" prefix, once for MinGW, which adds the same prefix on Windows where
-// the rule had been keyed on the OS rather than the toolchain.
+// error beyond components not existing. The rule follows the toolchain, not
+// the OS: ELF toolchains add a "lib" prefix, and so does MinGW on Windows.
 // ============================================================================
 
 TEST(SharedLibNaming, StemRoundTripsFileNameForThisToolchain)
@@ -361,8 +360,8 @@ TEST(PackageInfoTest, DefaultValues)
 
 TEST(EditorRegistrySharedSingletonTest, SingletonIsSharedAcrossCallSites)
 {
-    // This verifies that EditorRegistry::Instance() returns the same instance
-    // regardless of where it's called from (the fix for the DLL boundary bug)
+    // EditorRegistry::Instance() returns the same instance wherever it is
+    // called from, across the DLL boundary.
     auto& inst1 = EditorRegistry::Instance();
     auto& inst2 = EditorRegistry::Instance();
     EXPECT_EQ(&inst1, &inst2);

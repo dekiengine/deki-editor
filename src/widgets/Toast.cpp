@@ -4,7 +4,7 @@
 #include <deki-editor/Motion.h>
 
 #include "imgui.h"
-#include "imgui_internal.h"  // FindWindowByName - see BuildProgressBottom()
+#include "imgui_internal.h"  // FindWindowByName, for BuildProgressHeight()
 
 #include <algorithm>
 #include <cstdio>

@@ -18,9 +18,9 @@ namespace
 {
 
 #ifdef _WIN32
-/// Encode one argument the way CommandLineToArgvW parses it, so the child
-/// receives exactly the string we intended. This is argument encoding for a
-/// single process - no shell is involved, so there is nothing else to escape.
+/// Encodes one argument the way CommandLineToArgvW parses it, so the child
+/// receives exactly this string. No shell is involved, so nothing else needs
+/// escaping.
 std::string QuoteWindowsArg(const std::string& arg)
 {
     if (!arg.empty() && arg.find_first_of(" \t\n\v\"") == std::string::npos)
@@ -57,10 +57,9 @@ std::string QuoteWindowsArg(const std::string& arg)
     return out;
 }
 
-/// Resolve a bare program name against PATH, including the PATHEXT variants, so
-/// CreateProcessW can be given an explicit application name. Returns "" if not
-/// found. Passing the application explicitly means the command line is only ever
-/// parsed as arguments.
+/// Resolves a bare program name against PATH (trying .exe, .cmd and .bat), so
+/// CreateProcessW gets an explicit application name and the command line is
+/// only ever parsed as arguments. Returns "" if not found.
 std::wstring ResolveProgram(const std::string& program)
 {
     const int wlen = MultiByteToWideChar(CP_UTF8, 0, program.c_str(), -1, nullptr, 0);
@@ -71,8 +70,8 @@ std::wstring ResolveProgram(const std::string& program)
     }
 
     wchar_t resolved[MAX_PATH] = { 0 };
-    // SearchPathW with a null extension list uses PATHEXT when the name has no
-    // extension, which is what finds `code.cmd` for "code".
+    // Each extension in turn, then the name as given; .cmd is what finds
+    // `code.cmd` for "code".
     if (SearchPathW(nullptr, wide.c_str(), L".exe", MAX_PATH, resolved, nullptr) > 0)
     {
         return resolved;
@@ -137,8 +136,8 @@ bool LaunchDetached(const std::string& program, const std::vector<std::string>& 
         return false;
     }
 
-    // Detached: close the handles rather than wait. A blocked editor frame is
-    // worse than not knowing the child's exit code.
+    // Detached: close the handles instead of waiting, so the editor frame does
+    // not block. The child's exit code is not needed.
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     return true;

@@ -7,11 +7,11 @@
 // binary, and nothing at link time checks that those copies still agree with
 // the engine's.
 //
-// The failure mode this pins shut: three `#ifdef DEKI_EDITOR` members used to
-// sit ahead of `parent` in Deki::Object, so sizeof(Deki::Object) was 224 in the
-// editor build and 152 in a runtime build, and every inline GetParent() call in
-// a package compiled with the other setting read ~72 bytes off. No crash, no
-// warning - just wrong pointers.
+// The failure this guards against: an `#ifdef DEKI_EDITOR` member ahead of
+// `parent` in Deki::Object makes its size differ between editor and runtime
+// builds, so every inline GetParent() call in a package compiled with the
+// other setting reads at the wrong offset. No crash, no warning - just wrong
+// pointers.
 //
 // If one of these fails, do NOT simply update the number. See the note in
 // Object.cpp: the layout changing means every prebuilt package is now wrong,
@@ -59,17 +59,17 @@ TEST(ObjectLayout, SceneSizeIsPinned)
            "AssetPipeline::CompileSceneFile, so this must agree across the DLL boundary.";
 }
 
-// The point of moving the editor-only instance payload into a side table was to
-// make the layout independent of DEKI_EDITOR. This suite always compiles WITH
-// that define, so it cannot prove the runtime half on its own - that check is
-// the static_assert in Object.cpp, verified by building
+// The editor-only instance payload lives in a side table, so the layout does
+// not depend on DEKI_EDITOR. This suite always compiles WITH that define, so
+// it cannot prove the runtime half on its own - that check is the
+// static_assert in Object.cpp, verified by building
 // `-DDEKI_EDITOR=OFF -DSIMULATOR=ON`. What this can prove is that no
-// editor-only storage crept back into the object.
+// editor-only storage is back in the object.
 TEST(ObjectLayout, EditorOnlyPayloadIsNotStoredInTheObject)
 {
-    // Two std::strings and a bool used to live in Deki::Object under #ifdef. If
-    // anything like that returns, the size assertion above fires first - but
-    // this states the intent explicitly for whoever reads the failure.
+    // Editor-only fields (strings, flags) must not be stored in Deki::Object
+    // under #ifdef. If one is, the size assertion above fires first - but this
+    // states the intent for whoever reads the failure.
     EXPECT_LT(sizeof(Deki::Object), 184u + sizeof(std::string))
         << "Deki::Object appears to have regained editor-only storage. Editor-only "
            "payload belongs in the side table in Object.cpp, not in a member.";
@@ -109,7 +109,6 @@ TEST(ObjectLayout, AbiMismatchIsReportedAndNamed)
         << "the mismatch description must name the field so the log is actionable; got: " << what;
 }
 
-// The side table must behave exactly like the members it replaced.
 // The build chooses the transform width, and every package DLL bakes the
 // resulting Deki::Object layout into its inline accessors. So the handshake
 // carries the width and not only the size: a headless build and a 2D build
@@ -131,6 +130,7 @@ TEST(ObjectLayout, AbiTransformMismatchIsNamed)
     EXPECT_NE(std::string(what).find("transform configuration"), std::string::npos) << what;
 }
 
+// The side table must behave exactly like members of the object would.
 TEST(ObjectInstancePayload, RoundTripsThroughTheSideTable)
 {
     Deki::Object obj("probe");
@@ -144,8 +144,8 @@ TEST(ObjectInstancePayload, RoundTripsThroughTheSideTable)
     obj.SetInstanceOverridesJson("{\"x\":1}");
     EXPECT_EQ(obj.GetInstanceOverridesJson(), "{\"x\":1}");
 
-    // IsSceneInstance() used to be `!m_SourceSceneGuid.empty()`; clearing the
-    // guid must still clear the predicate.
+    // IsSceneInstance() means a source scene GUID is set, so clearing the
+    // guid clears it.
     obj.SetSourceSceneGuid("");
     EXPECT_FALSE(obj.IsSceneInstance());
     EXPECT_TRUE(obj.GetSourceSceneGuid().empty());

@@ -28,8 +28,8 @@ void AssetDatabase::ImportAsset(const std::string& path)
 
 void AssetDatabase::Refresh()
 {
-    // Drains pending OS-watcher events. The watcher is the authoritative
-    // change source - there is no full-tree scan to fall back to.
+    // Drains pending OS-watcher events. The watcher is the only source of
+    // file changes; nothing rescans the tree.
     if (s_Pipeline)
     {
         s_Pipeline->Tick();
@@ -102,11 +102,10 @@ void AssetDatabase::GetSpritesheetAssets(std::vector<std::pair<std::string, std:
         return;
     }
 
-    // Get all assets and filter for textures that have sub-assets (spritesheets)
+    // Spritesheets are textures that have sub-assets (frames).
     const auto& allAssets = s_Pipeline->GetAllAssets();
     for (const auto& [path, info] : allAssets)
     {
-        // Check if this is a texture
         size_t dotPos = path.rfind('.');
         if (dotPos == std::string::npos)
         {
@@ -114,7 +113,6 @@ void AssetDatabase::GetSpritesheetAssets(std::vector<std::pair<std::string, std:
         }
 
         std::string ext = path.substr(dotPos);
-        // Convert to lowercase for comparison
         for (char& c : ext)
         {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -125,16 +123,14 @@ void AssetDatabase::GetSpritesheetAssets(std::vector<std::pair<std::string, std:
             continue;
         }
 
-        // Check if it has sub-assets (frames)
         const auto* subAssets = s_Pipeline->GetSubAssets(info.guid);
         if (subAssets && !subAssets->empty())
         {
-            // This is a spritesheet - add it
             outAssets.emplace_back(info.guid, path);
         }
     }
 
-    // Sort by path for consistent display
+    // Sorted by path so the list order is stable.
     std::sort(outAssets.begin(), outAssets.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
 }
 

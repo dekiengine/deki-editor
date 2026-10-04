@@ -2,9 +2,9 @@
 // project creation, the package manager, plugin rebuilds, and screenshot /
 // frame-sequence capture of the editor's own window.
 //
-// McpTools.cpp stays focused on scene + asset editing; McpTools.Build.cpp on
-// firmware. This file is the "operate the application" surface, which is what
-// automation (docs screenshots, smoke runs) actually needs.
+// McpTools.cpp covers scene and asset editing, McpTools.Build.cpp firmware.
+// This file operates the application itself, which is what automation (docs
+// screenshots, smoke runs) needs.
 
 #include "McpTools.h"
 #include "services/EditorInput.h"
@@ -51,8 +51,8 @@ PackageManagerPanel* RequirePackagePanel(EditorApp* editor)
     return panel;
 }
 
-// Pull an optional pixel rect out of the arguments. Absent or degenerate means
-// "whole window", which ResolveRect treats as the framebuffer.
+// Reads an optional pixel rect from the arguments. Missing or empty means the
+// whole window, which ResolveRect treats as the framebuffer.
 EditorCapture::Region ReadRegion(const nlohmann::json& args)
 {
     EditorCapture::Region r;
@@ -65,9 +65,9 @@ EditorCapture::Region ReadRegion(const nlohmann::json& args)
 
 }  // namespace
 
-// An MCP call cannot answer the unsaved-changes prompt, so one that would
+// An MCP call cannot answer the unsaved-changes prompt, so a call that would
 // replace the open scene refuses while it has unsaved changes, unless told to
-// discard them. (open_project used to drop them silently.)
+// discard them.
 static void RequireSceneSavedOrDiscarded(EditorApp* editor, const nlohmann::json& args)
 {
     if (!editor || !editor->GetCurrentScene() || args.value("discard_changes", false))

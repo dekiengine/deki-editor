@@ -2,10 +2,10 @@
 
 #include <deki-editor/EditorExport.h>
 
-// Reads one variable out of a CMakeCache.txt. The editor's own cache is the
-// one place that records where its build put things (the engine path it was
-// configured with, the FetchContent base directory the third-party sources
-// live in), so project builds ask it instead of assuming the layout.
+// Reads one variable out of a CMakeCache.txt. The editor's own cache records
+// where its build put things (the engine path it was configured with, the
+// FetchContent folder holding the third-party sources), so project builds
+// ask it instead of assuming the layout.
 
 #include <string>
 

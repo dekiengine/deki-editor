@@ -12,24 +12,24 @@
 namespace DekiEditor
 {
 
-// Memory stats snapshot (mirrors Deki::MemoryStats for profiler use)
+// Memory stats for the profiler, mirroring Deki::MemoryStats.
 struct MemorySnapshot
 {
     uint32_t totalAllocated = 0;
     uint32_t externalAllocated = 0;
     uint32_t internalRamAllocated = 0;
-    uint32_t activeAllocations = 0;  // Available in DEBUG builds
-    uint32_t peakAllocations = 0;    // Available in DEBUG builds
+    uint32_t activeAllocations = 0;  // DEBUG builds only
+    uint32_t peakAllocations = 0;    // DEBUG builds only
 };
 
-// Hierarchical profile event for call tree (still used for our custom UI)
+// One node of the profiler's call tree, shown by the editor's own profiler UI.
 struct ProfileEvent
 {
     std::string category;
     std::string name;
     uint64_t startTimeUs;
     uint64_t durationUs;
-    bool isIdleTime = false;  // VSync wait, sleep, etc. - excluded from budget calculations
+    bool isIdleTime = false;  // vsync wait, sleep, etc.; left out of the frame budget
     std::vector<std::unique_ptr<ProfileEvent>> children;
 
     ProfileEvent()
@@ -48,7 +48,7 @@ struct ProfileEvent
     }
 };
 
-// Frame data with hierarchical call tree
+// One frame with its call tree.
 struct FrameData
 {
     uint64_t frameNumber;
@@ -57,7 +57,7 @@ struct FrameData
     std::unique_ptr<ProfileEvent> rootEvent;
     uint32_t objectCount;
     uint32_t componentCount;
-    MemorySnapshot memoryStats;  // Memory snapshot at end of frame
+    MemorySnapshot memoryStats;  // At the end of the frame
 
     FrameData()
         : frameNumber(0),
@@ -69,17 +69,15 @@ struct FrameData
     }
 };
 
-// Main profiling service (singleton)
+// The editor's profiler (a singleton).
 class ProfilingService
 {
 public:
     static ProfilingService& Get();
 
-    // Initialization
     void Initialize();
     void Shutdown();
 
-    // Recording control
     void StartRecording()
     {
         m_IsRecording = true;
@@ -92,35 +90,33 @@ public:
     }
     bool IsRecording() const { return m_IsRecording; }
 
-    // Deep profiling control (/Gh /GH hooks)
+    // Deep profiling: the /Gh /GH function hooks.
     void SetDeepProfileEnabled(bool enabled) { s_DeepProfileEnabled = enabled; }
     static bool IsDeepProfileEnabled() { return s_DeepProfileEnabled; }
 
-    // Static recording check - safe to call without accessing singleton (for DLL loading safety)
+    // Safe to call without touching the singleton, e.g. while a DLL is loading.
     static bool IsRecordingStatic() { return s_IsRecording; }
 
-    // Frame management
     void BeginFrame();
     void EndFrame();
 
-    // Event tracking (for our custom call tree display)
+    // Events for the call tree.
     void PushEvent(const char* category, const char* name);
-    void PushEventIdle(const char* category, const char* name);  // Marks event as idle time (vsync, etc.)
+    void PushEventIdle(const char* category, const char* name);  // An idle-time event (vsync, etc.)
     void PopEvent(uint64_t durationUs);
 
-    // Frame data access
     const std::deque<FrameData>& GetFrameHistory() const { return m_FrameHistory; }
     void ClearHistory() { m_FrameHistory.clear(); }
     const FrameData* GetFrame(size_t index) const;
 
-    // Symbol resolution for deep profiling (/Gh /GH hooks)
+    // Function name for an address, for deep profiling.
     const char* ResolveFunctionName(void* address);
 
-    // Static callbacks for deep profiling hooks (called from plugins via deki-editor DLL)
+    // Deep profiling hooks, called from plugins through the deki-editor DLL.
     static void OnProfileEnter(void* returnAddress);
     static void OnProfileExit();
 
-    // Check if profiling is safe to use (after Initialize() called)
+    // True once Initialize() has run and profiling is safe to use.
     static bool IsInitialized();
 
 private:
@@ -131,21 +127,20 @@ private:
 
     bool m_IsRecording = false;
 
-    // Frame tracking
     uint64_t m_FrameCounter = 0;
     std::chrono::high_resolution_clock::time_point m_FrameStartTime;
 
-    // Call tree construction (for our custom UI)
+    // The call tree being built for this frame.
     std::unique_ptr<ProfileEvent> m_CurrentFrameRoot;
     std::vector<ProfileEvent*> m_EventStack;
     std::mutex m_EventMutex;
 
-    // Circular frame buffer (300 frames = 5 seconds at 60fps)
+    // Ring of the last 300 frames (5 seconds at 60 fps).
     static constexpr size_t kMaxFrameHistory = 300;
     std::deque<FrameData> m_FrameHistory;
     mutable std::mutex m_FrameHistoryMutex;
 
-    // Symbol resolution cache for deep profiling
+    // Resolved function names for deep profiling.
     struct SymbolEntry
     {
         void* address;
@@ -155,17 +150,17 @@ private:
     std::mutex m_SymbolMutex;
     bool m_SymbolsInitialized = false;
 
-    // Static flag to prevent profiling before Initialize() is called
+    // Blocks profiling before Initialize() has run.
     static bool s_Initialized;
 
-    // Static recording flag - checked before accessing singleton (safe during DLL loading)
+    // Checked before touching the singleton, so it is safe while a DLL loads.
     static bool s_IsRecording;
 
-    // Static deep profile flag - when true, /Gh /GH hooks will record events
+    // When true, the /Gh /GH hooks record events.
     static bool s_DeepProfileEnabled;
 };
 
-// RAII helper for automatic trace events - integrates with both Tracy and our custom tracking
+// Records an event for the lifetime of the scope.
 class ScopedTrace
 {
 public:
@@ -174,14 +169,14 @@ public:
 
 private:
     const char* m_Category;
-    // Sampled once in the constructor. The destructor must match that decision
-    // rather than re-reading the flag, or a recording toggled mid-scope
+    // Sampled once in the constructor. The destructor must follow that
+    // decision, not read the flag again, or a recording toggled mid-scope
     // unbalances the event stack.
     bool m_Active;
     std::chrono::high_resolution_clock::time_point m_StartTime;
 };
 
-// RAII helper for idle time events (vsync wait, sleep, etc.) - excluded from budget calculations
+// Records an idle-time event (vsync wait, sleep, etc.) for the scope; left out of the frame budget.
 class ScopedTraceIdle
 {
 public:
@@ -193,13 +188,11 @@ private:
     std::chrono::high_resolution_clock::time_point m_StartTime;
 };
 
-// Convenience macro for profiling scopes
 #define PROFILE_SCOPE(category, name) DekiEditor::ScopedTrace _trace_##__LINE__(category, name)
 
-// Macro for static scope names
 #define PROFILE_SCOPE_STATIC(name) DekiEditor::ScopedTrace _trace_static_##__LINE__("", name)
 
-// Macro for idle time scopes (vsync wait, sleep, etc.) - excluded from budget calculations
+// Idle time (vsync wait, sleep, etc.), left out of the frame budget.
 #define PROFILE_SCOPE_IDLE(category, name) DekiEditor::ScopedTraceIdle _trace_idle_##__LINE__(category, name)
 
 }  // namespace DekiEditor

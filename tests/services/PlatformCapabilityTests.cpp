@@ -1,13 +1,10 @@
 // A package says what it needs FROM a platform; a platform says what it offers.
 // A package builds for a target when the target offers everything it needs.
 //
-// The point of matching requirements against capabilities, rather than listing
-// platform names a package approves of, is that the engine is modular enough
-// that platforms appear which no existing package has heard of. An allowlist
-// refuses those for no better reason than that their name is not on a list
-// written earlier; a denylist admits them and fails at the compiler. These
-// tests pin the open-world behaviour, because it is the property most easily
-// lost by someone "simplifying" this back into a list of names.
+// Matching requirements against capabilities, instead of listing platform
+// names, lets a platform that no package has heard of work. An allowlist of
+// names would refuse it; a denylist would admit it and fail at the compiler.
+// Do not turn this back into a list of names.
 
 #include <gtest/gtest.h>
 
@@ -62,15 +59,14 @@ TEST(PlatformCapability, MissingCapabilityExcludesAndSaysWhich)
     EXPECT_EQ(missing[0], "sdl3");
 }
 
-// The reason this design exists: a platform written after the package still
-// works, with no change to the package.
+// A platform written after the package works with no change to the package.
 TEST(PlatformCapability, UnknownPlatformThatOffersWhatIsNeededIsAccepted)
 {
     const PackageEntry sdl3 = Pkg("deki-sdl3", "DEKI_PACKAGE_SDL3", { "sdl3" });
     EXPECT_TRUE(PackageSupportsPlatform(sdl3, kThirdParty));
 
-    // And one that genuinely cannot be satisfied is still refused, rather than
-    // being admitted and failing at the compiler.
+    // One it cannot satisfy is still refused, instead of failing at the
+    // compiler.
     const PackageEntry desktopHal = Pkg("deki-desktop-hal", "DEKI_PACKAGE_DESKTOP_HAL", { "desktop-os" });
     EXPECT_FALSE(PackageSupportsPlatform(desktopHal, kThirdParty));
 }

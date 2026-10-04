@@ -29,7 +29,7 @@ namespace DekiEditor
 // Custom Editor Registry Implementation
 // ============================================================================
 
-// Static instance pointer - ensures single instance across DLL boundary
+// One instance shared across DLL boundaries.
 static CustomEditorRegistry* s_CustomEditorRegistry = nullptr;
 
 CustomEditorRegistry& CustomEditorRegistry::Instance()
@@ -51,7 +51,8 @@ void CustomEditorRegistry::RegisterFactory(const std::string& componentName, Fac
 
 void CustomEditorRegistry::Register(CustomEditor* editor)
 {
-    // Legacy: store singleton editor for backward compatibility
+    // A single editor instance shared by every component of this type. Used
+    // only when no factory is registered.
     if (editor)
     {
         m_Editors[editor->GetComponentName()] = editor;
@@ -65,10 +66,9 @@ CustomEditor* CustomEditorRegistry::GetEditorForComponent(const char* componentN
         return nullptr;
     }
 
-    // Check if we have a cached editor for this component.
-    // Validate the cached editor still matches the requested component name:
-    // raw-pointer keys can collide when a component is freed and the heap
-    // hands the same address to a component of a different type.
+    // A cached editor for this component, if its name still matches: the key
+    // is a raw pointer, and a freed component's address can be reused by a
+    // component of another type.
     auto cacheIt = m_Cache.find(comp);
     if (cacheIt != m_Cache.end())
     {
@@ -80,8 +80,8 @@ CustomEditor* CustomEditorRegistry::GetEditorForComponent(const char* componentN
         m_Cache.erase(cacheIt);
     }
 
-    // Try to create a new instance from factory (a std::string only on this
-    // cold path; the hit above, which runs per component per frame, has none)
+    // Create one from the factory. The std::string is built only on this
+    // rare path; the cache hit above runs per component per frame.
     const std::string nameKey(componentName);
     auto factoryIt = m_Factories.find(nameKey);
     if (factoryIt != m_Factories.end())
@@ -95,7 +95,7 @@ CustomEditor* CustomEditorRegistry::GetEditorForComponent(const char* componentN
         }
     }
 
-    // Fall back to legacy singleton
+    // Fall back to the shared single instance.
     auto editorIt = m_Editors.find(nameKey);
     return (editorIt != m_Editors.end()) ? editorIt->second : nullptr;
 }
@@ -124,7 +124,7 @@ void CustomEditorRegistry::Clear()
 // Asset Type Editor Registry Implementation
 // ============================================================================
 
-// Static instance pointer - ensures single instance across DLL boundary
+// One instance shared across DLL boundaries.
 static AssetTypeEditorRegistry* s_AssetTypeEditorRegistry = nullptr;
 
 AssetTypeEditorRegistry& AssetTypeEditorRegistry::Instance()
@@ -166,7 +166,7 @@ void AssetTypeEditorRegistry::Clear()
 // File Inspector Registry Implementation
 // ============================================================================
 
-// Static instance pointer - ensures single instance across DLL boundary
+// One instance shared across DLL boundaries.
 static FileInspectorRegistry* s_FileInspectorRegistry = nullptr;
 
 FileInspectorRegistry& FileInspectorRegistry::Instance()

@@ -5,24 +5,22 @@
 #include <deki/Engine.h>  // Deki::ColorFormat
 #include <deki-editor/TextureData.h>
 
-/**
- * @brief Which format an image is stored in for a given target.
- *
- * An image's sidecar (`<image>.data`, `settings.texture`) says:
- *   "format":  "Automatic" (or absent) or a format name, for every target
- *   "targets": { "<platformId>": "Automatic" | a format name }
- *
- * The first that names a format wins: the target's entry, then the image's
- * own. Automatic follows the target's screen (its platform `colorFormat`):
- *
- *   screen          opaque image   image with alpha
- *   RGB565          RGB565         RGB565A8
- *   RGB888/ARGB8888 RGB888         RGBA8888
- *   RGB565A8        RGB565A8       RGB565A8
- *
- * The editor cache, the per-target export and the texture inspector all ask
- * this one function, so they cannot disagree.
- */
+// Which format an image is stored in for a given target.
+//
+// An image's sidecar (`<image>.data`, `settings.texture`) says:
+//   "format":  "Automatic" (or absent) or a format name, for every target
+//   "targets": { "<platformId>": "Automatic" | a format name }
+//
+// The first that names a format wins: the target's entry, then the image's
+// own. Automatic follows the target's screen (its platform `colorFormat`):
+//
+//   screen          opaque image   image with alpha
+//   RGB565          RGB565         RGB565A8
+//   RGB888/ARGB8888 RGB888         RGBA8888
+//   RGB565A8        RGB565A8       RGB565A8
+//
+// The editor cache, the per-target export and the texture inspector all ask
+// ResolveTextureFormat, so they cannot disagree.
 
 namespace DekiEditor
 {
@@ -112,7 +110,7 @@ inline const char* ColorFormatName(Deki::ColorFormat f)
     return "RGB565";
 }
 
-/// Automatic for a screen of this format.
+/// The format Automatic picks for a screen of this format.
 inline TextureFormat AutomaticTextureFormat(Deki::ColorFormat screen, bool hasAlpha)
 {
     switch (screen)

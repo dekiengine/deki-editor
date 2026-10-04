@@ -1,8 +1,5 @@
-// The "you have unsaved changes" state machine.
-//
-// Previously five private fields and three private methods on EditorApp, so the
-// only way to exercise it was by hand with a mouse. These are the properties
-// that decide whether a user's work survives an interrupted New/Open/Close.
+// The "you have unsaved changes" state machine. These properties decide
+// whether a user's work survives an interrupted New/Open/Close.
 
 #include <gtest/gtest.h>
 
@@ -132,9 +129,9 @@ TEST(UnsavedChangesPrompt, InterruptedOpenRoundTrips)
     EXPECT_FALSE(p.IsOpen());
 }
 
-// Quit and Open Project are the two actions that used to bypass the prompt
-// entirely: the close button, Alt+F4, File > Exit and File > Open Project all
-// discarded a dirty scene with no question asked.
+// Quit and Open Project go through the prompt too: the close button, Alt+F4,
+// File > Exit and File > Open Project must not discard a dirty scene without
+// asking.
 TEST(UnsavedChangesPrompt, QuitIsDeferredWhileDirty)
 {
     UnsavedChangesPrompt p;

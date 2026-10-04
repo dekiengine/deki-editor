@@ -14,13 +14,11 @@ void CommandHistory::Execute(std::unique_ptr<Command> command)
 {
     auto now = std::chrono::steady_clock::now();
 
-    // Check for merge opportunity
     if (!m_UndoStack.empty())
     {
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_LastCommandTime);
         if (elapsed < m_MergeWindow && m_UndoStack.back()->CanMerge(command.get()))
         {
-            // Merge with previous command
             m_UndoStack.back()->Merge(command.get());
             command->Execute();
             m_LastCommandTime = now;
@@ -29,15 +27,13 @@ void CommandHistory::Execute(std::unique_ptr<Command> command)
         }
     }
 
-    // Execute and push to stack
     DEKI_LOG_DEBUG("[Undo] Execute: %s", command->GetDescription().c_str());
     command->Execute();
     m_UndoStack.push_back(std::move(command));
 
-    // Clear redo stack - new action invalidates redo history
+    // A new action makes the redo history invalid.
     m_RedoStack.clear();
 
-    // Trim if needed
     TrimHistory();
 
     m_LastCommandTime = now;
@@ -53,7 +49,7 @@ void CommandHistory::ExecuteNoMerge(std::unique_ptr<Command> command)
     m_RedoStack.clear();
     TrimHistory();
 
-    // Reset merge window
+    // Ends the merge window.
     m_LastCommandTime = std::chrono::steady_clock::time_point{};
     NotifyChanged();
 }
@@ -124,15 +120,15 @@ void CommandHistory::TrimHistory()
     {
         m_UndoStack.erase(m_UndoStack.begin());
 
-        // Adjust save point index - if it was pointing to a trimmed command,
-        // mark it as invalid (SIZE_MAX) so IsDirty() always returns true
+        // Shift the save point. If it pointed at a trimmed command, set it to
+        // SIZE_MAX, so IsDirty() always returns true.
         if (m_SavePointIndex > 0)
         {
             m_SavePointIndex--;
         }
         else
         {
-            m_SavePointIndex = SIZE_MAX;  // Save point was trimmed away
+            m_SavePointIndex = SIZE_MAX;  // the save point was trimmed away
         }
     }
 }
@@ -175,8 +171,8 @@ void CommandHistory::MarkSavePoint()
 
 void CommandHistory::MarkDirty()
 {
-    // Mirrors the "save point trimmed away" sentinel at line 134:
-    // SIZE_MAX can never equal m_UndoStack.size(), so IsDirty() is always true.
+    // The same sentinel TrimHistory uses: SIZE_MAX never equals
+    // m_UndoStack.size(), so IsDirty() is always true.
     m_SavePointIndex = SIZE_MAX;
     NotifyChanged();
 }
@@ -231,9 +227,9 @@ void CommandHistory::DiscardCommandsReferencing(const DeadMemory& dead)
     const size_t undoDropped = TruncateAtDead(m_UndoStack, dead);
     const size_t redoDropped = TruncateAtDead(m_RedoStack, dead);
 
-    // Play mode stashes the edit stacks aside; they point at the same edit-mode
-    // objects, so they need the same treatment or a Stop() would restore
-    // dangling commands.
+    // Play mode keeps the edit stacks aside. They point at the same edit-mode
+    // objects, so they are truncated too, or Stop() would restore dangling
+    // commands.
     TruncateAtDead(m_SavedUndoStack, dead);
     TruncateAtDead(m_SavedRedoStack, dead);
 
@@ -245,10 +241,9 @@ void CommandHistory::DiscardCommandsReferencing(const DeadMemory& dead)
     DEKI_LOG_DEBUG("[Undo] Dropped %zu undo / %zu redo entries referencing destroyed objects", undoDropped,
                    redoDropped);
 
-    // The save point is an index into the undo stack; shifting the stack
-    // invalidates it. If the point itself was inside the dropped range there is
-    // no longer a known-clean state, so fall back to "dirty" rather than let a
-    // stale index read as saved.
+    // The save point is an index into the undo stack, so it shifts with it.
+    // If the point was inside the dropped range there is no known clean state
+    // left, so the history counts as dirty.
     if (m_SavePointIndex != SIZE_MAX)
     {
         if (m_SavePointIndex >= undoDropped)

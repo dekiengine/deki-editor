@@ -23,15 +23,14 @@ namespace DekiEditor
 class EditorApp;
 class SceneTextureCache;
 
-/// Locate a component's resizable width/height fields by reflection.
+/// Finds a component's resizable width and height fields by reflection.
 ///
-/// Sizeable components (Sprite, Clip, Gradient, Text, ...) store size as world
-/// meters in float fields named "width"/"height" since the meters-internal
-/// migration. Base-class properties are searched first so a derived component
-/// can override them.
+/// Sizeable components (Sprite, Clip, Gradient, Text, ...) store their size in
+/// world meters, in float fields named "width" and "height". Base-class
+/// properties are searched first, so a derived component can override them.
 ///
-/// Returns true only when BOTH fields were found, writing pointers into the
-/// live component through @p outWidth / @p outHeight (either may be null).
+/// Returns true only when both fields are found, and writes pointers into the
+/// live component to `outWidth` / `outHeight` (either may be null).
 bool FindResizeProperties(Deki::Component* comp, const Deki::ComponentMeta* meta, float** outWidth, float** outHeight);
 
 class SceneObjectMeasurer
@@ -39,11 +38,11 @@ class SceneObjectMeasurer
 public:
     SceneObjectMeasurer(EditorApp* app, SceneTextureCache* textureCache);
 
-    // Get display dimensions for an object (uses component reflection)
-    // Returns true if size was determined, false if object has no visual size
+    /// The object's drawn size in pixels, asked of its components' editors.
+    /// Returns false when the object has no visible size.
     bool GetDisplaySize(Deki::Object* obj, float& outWidth, float& outHeight);
 
-    // Call OnEditorUpdate on all CustomEditors for all objects in the scene
+    /// Calls OnEditorUpdate on the CustomEditors of every object in the scene.
     void UpdateEditors(Deki::Scene* scene);
 
 private:

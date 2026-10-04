@@ -9,9 +9,7 @@ namespace DekiEditor
 class EditorApp;
 class AssetBrowserPanel;
 
-/**
- * Dialog for creating a new folder in the asset browser
- */
+/// Dialog that creates a folder in the asset browser.
 class CreateFolderDialog
 {
 public:
@@ -26,9 +24,7 @@ private:
     std::string m_Error;  // shown under the field; the dialog stays open
 };
 
-/**
- * Dialog for creating a new asset file (Scene, Animation, etc.)
- */
+/// Dialog that creates an asset file (Scene, Animation and so on).
 class CreateAssetDialog
 {
 public:
@@ -45,9 +41,7 @@ private:
     std::string m_Error;  // shown under the field; the dialog stays open
 };
 
-/**
- * Dialog for confirming deletion of assets/folders
- */
+/// Dialog that confirms deleting assets or folders.
 class DeleteConfirmDialog
 {
 public:
@@ -60,9 +54,7 @@ private:
     bool m_ShouldOpen = false;
 };
 
-/**
- * Dialog for renaming an asset or folder
- */
+/// Dialog that renames an asset or folder.
 class RenameDialog
 {
 public:
