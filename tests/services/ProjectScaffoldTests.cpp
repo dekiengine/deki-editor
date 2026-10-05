@@ -65,7 +65,7 @@ TEST(ProjectScaffold, DekiJsonIsCurrentAndComplete)
     EXPECT_TRUE(j.at("forceIncludeGuids").is_array());
     EXPECT_FALSE(j.contains("flashGuids"));
     EXPECT_TRUE(j.contains("renderPipelineGuid"));
-    EXPECT_FALSE(j.contains("displaySettings"));  // lives in settings/, Project::Save erases it
+    EXPECT_FALSE(j.contains("displaySettings"));  // lives in settings/
 }
 
 TEST(ProjectScaffold, ManifestDeclaresTheStarterPackagesAtNewest)

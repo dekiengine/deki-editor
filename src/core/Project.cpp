@@ -272,32 +272,6 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
     return written;
 }
 
-namespace
-{
-// The old Framebuffer section, settings/framebuffer.json, which held how much
-// of the world a project showed before cameras framed it themselves. Nothing
-// writes it. It stays on
-// disk because scenes migrate their cameras when they load, which can be long
-// after the project was first opened.
-//
-//   0.16  targetWidth/targetHeight: the render size, pixels
-//   0.18  designWidth/designHeight: the design area, meters; pixelPerfect
-nlohmann::json ReadLegacyFramebuffer(const std::string& root)
-{
-    const nlohmann::json file = ReadJsonFile(DekiEditor::ProjectPaths::Settings(root) / "framebuffer.json");
-    if (file.contains("Framebuffer") && file["Framebuffer"].is_object())
-    {
-        return file["Framebuffer"];
-    }
-    return nlohmann::json();
-}
-
-float LegacyNumber(const nlohmann::json& j, const char* key)
-{
-    return (j.is_object() && j.contains(key) && j[key].is_number()) ? j[key].get<float>() : 0.0f;
-}
-}  // namespace
-
 void Project::LoadSettingsFiles(const std::string& root)
 {
     for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
@@ -340,28 +314,6 @@ void ActivePlatformScreen(const Project* project, int& width, int& height)
         width = platform->screenWidth;
         height = platform->screenHeight;
     }
-}
-
-void Project::LoadLegacyFraming(const nlohmann::json& legacyFramebuffer)
-{
-    // From the old Framebuffer section, for scenes whose cameras migrate from
-    // it: its height in meters and its Pixel Perfect flag.
-    const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
-    SceneView::LegacyFraming legacy;
-    if (const float h = LegacyNumber(legacyFramebuffer, "designHeight"); h > 0.0f)
-    {
-        legacy.designHeight = h;
-    }
-    else if (const float px = LegacyNumber(legacyFramebuffer, "targetHeight"); px > 0.0f && ppm > 0.0f)
-    {
-        legacy.designHeight = px / ppm;
-    }
-    if (legacyFramebuffer.is_object() && legacyFramebuffer.contains("pixelPerfect") &&
-        legacyFramebuffer["pixelPerfect"].is_boolean())
-    {
-        legacy.pixelPerfect = legacyFramebuffer["pixelPerfect"].get<bool>();
-    }
-    SceneView::Get().SetLegacyFraming(legacy);
 }
 
 bool Project::Load(const std::string& path)
@@ -436,9 +388,7 @@ bool Project::Load(const std::string& path)
         m_CachePath = ProjectPaths::Cache(m_Path).string();
 
         LoadSettingsFiles(m_Path);
-        ApplySettingsToGlobalCache();  // the old framing converts at the art density
-
-        LoadLegacyFraming(ReadLegacyFramebuffer(m_Path));
+        ApplySettingsToGlobalCache();
 
         // Through SetStartupScene, which turns backslashes into forward
         // slashes: the runtime's asset lookup only matches forward slashes, and
@@ -524,19 +474,6 @@ bool Project::Save()
     {
         json["forceIncludeGuids"].push_back(guid);
     }
-
-    // Obsolete: where assets are kept is set per target
-    // (PlatformConfig::assetStorage), and no build read this list.
-    json.erase("flashGuids");
-
-    // Old copies of settings that now live in settings/, dropped so the two
-    // cannot disagree. SaveSettingsFiles above has already written them.
-    json.erase("displaySettings");
-    json.erase("profilingSettings");
-    json.erase("unitSettings");
-
-    // Nothing reads it, so it is dropped rather than migrated.
-    json.erase("assetSettings");
 
     // Atomic, so a crash mid-write cannot leave a truncated deki.json, the one
     // file the editor needs to open the project.

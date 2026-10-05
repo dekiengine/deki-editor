@@ -146,10 +146,6 @@ public:
     bool IsDirty() const { return m_IsDirty; }
 
 private:
-    // Passes the old Framebuffer section's framing to
-    // SceneView::SetLegacyFraming, for scenes whose cameras still migrate.
-    void LoadLegacyFraming(const nlohmann::json& legacyFramebuffer);
-
     std::string m_Name;
     std::string m_Path;          // Project root directory
     std::string m_LoadError;     // see GetLoadError()

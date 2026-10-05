@@ -22,7 +22,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     ... and an installer `DekiInstallerCreate`, ...
     `PostInstallDef::unix` is `unixLike` (`unix` is a macro under GCC).
 - **Builder ABI 3.** Builders built before this are rebuilt.
-
+- A package or project plugin without the reflection layout export is skipped
+  rather than loaded with a warning, the same as one with a different layout.
 ### Removed
 - The project folder migrations: `modules/` to `packages/`, the `project/`
   folder, and the move into `generated/`. A project from before 0.9 is opened
@@ -33,6 +34,17 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - The editor-extension exports `DekiEngineGetEditorCount` and
   `DekiEngineGetEditor`; the factory exports are the only ones.
 - The `--flash` and `--port` aliases. Use `--deploy` and `--deploy-target`.
+- Readers for forms of these files that the editor no longer writes:
+  - a scene's `"class"` key, and 0.10 GUID component types resolved by it;
+  - the camera framing read from `settings/framebuffer.json`;
+  - platform files with `psramSize`, and lock entries spelled
+    `<installer>_component`;
+  - a texture target saved as a plain format string, and an asset reference
+    stored as a path;
+  - the `deki.json` keys `flashGuids`, `displaySettings`, `profilingSettings`,
+    `unitSettings` and `assetSettings`, which a save used to drop;
+  - the old `.trash` folder, the Play view's old "custom" screen setting, and
+    origin records for platforms adopted before origins existed.
 
 ### Added
 - **`--upgrade-project`** re-saves a project in the current format: every
@@ -70,6 +82,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- **Removing a package works on Windows.** Git keeps its pack files
+  read-only, so the delete stopped partway: `--packages-remove` failed with
+  "access denied", and a failed install left half a clone behind. Read-only
+  files are deleted now, and a linked package folder is removed as a link
+  without touching what it points to.
 - **A failed build is built again on the next open.** A library whose build
   failed was missing, so nothing counted as stale: the next open built
   nothing, loaded the project without those packages or its own components,

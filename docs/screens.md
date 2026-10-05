@@ -102,8 +102,7 @@ colour on a desktop. Two things follow it.
   blending them, so the key colour stays exact. The editor shows the active
   target's size too; the Spritesheet editor always works on the original.
   Sidecar: `settings.texture.maxSize`, and per target
-  `settings.texture.targets.<id>: {"format", "maxSize"}` (0 = None there; the
-  older `"<id>": "<format>"` still reads).
+  `settings.texture.targets.<id>: {"format", "maxSize"}` (0 = None there).
 
 A platform's `colorFormat` is the format of its screen. The editor's own cache
 follows the active platform, so what the scene view shows is what that target

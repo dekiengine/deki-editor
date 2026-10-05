@@ -644,18 +644,7 @@ void PlayViewPanel::LoadPreview(const std::string& projectPath)
         m_UserScreensLoaded = true;
     }
 
-    std::string id = EditorSettings::GetString("playView.screen:" + projectPath);
-    if (id == "custom")
-    {
-        // Older settings store "custom" plus a separate size: read it as a
-        // resolution.
-        int w = 0, h = 0;
-        if (sscanf(EditorSettings::GetString("playView.customSize:" + projectPath).c_str(), "%dx%d", &w, &h) == 2)
-        {
-            id = ResolutionId(std::clamp(w, 1, 8192), std::clamp(h, 1, 8192));
-        }
-    }
-    SelectPreview(id);
+    SelectPreview(EditorSettings::GetString("playView.screen:" + projectPath));
 
     // Set after SelectPreview, which picks the screen's own format.
     Deki::ColorFormat format;

@@ -196,12 +196,11 @@ bool AssetPicker::Open(const std::string& popupId, const std::string& currentVal
         m_NeedsRefresh = false;
     }
 
-    // Find the current selection by GUID, or by relative path for older
-    // references that store a path.
+    // Find the current selection by GUID.
     m_SelectedIndex = -1;
     for (size_t i = 0; i < m_Assets.size(); ++i)
     {
-        if (m_Assets[i].guid == currentValue || m_Assets[i].relativePath == currentValue)
+        if (m_Assets[i].guid == currentValue)
         {
             m_SelectedIndex = static_cast<int>(i);
             break;

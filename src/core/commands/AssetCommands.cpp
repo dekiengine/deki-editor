@@ -130,42 +130,40 @@ void DeleteAssetsCommand::SweepStaleTrash(const std::string& projectRoot)
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
             .count();
     const long long maxAgeMs = 1000LL * 60 * 60 * 24 * kTrashDays;
-    for (const fs::path& root : { TrashRoot(projectRoot), fs::path(projectRoot) / ".trash" })
+    const fs::path root = TrashRoot(projectRoot);
+    std::error_code ec;
+    if (!fs::is_directory(root, ec))
     {
-        std::error_code ec;
-        if (!fs::is_directory(root, ec))
+        return;
+    }
+    std::vector<fs::path> old;
+    for (const auto& entry : fs::directory_iterator(root, ec))
+    {
+        const std::string name = entry.path().filename().string();
+        long long ms = 0;
+        if (name.rfind("delete_", 0) == 0)
         {
-            continue;
-        }
-        std::vector<fs::path> old;
-        for (const auto& entry : fs::directory_iterator(root, ec))
-        {
-            const std::string name = entry.path().filename().string();
-            long long ms = 0;
-            if (name.rfind("delete_", 0) == 0)
+            try
             {
-                try
-                {
-                    ms = std::stoll(name.substr(7));
-                }
-                catch (...)
-                {
-                    ms = 0;
-                }
+                ms = std::stoll(name.substr(7));
             }
-            if (ms == 0 || nowMs - ms > maxAgeMs)  // unreadable names are not kept forever
+            catch (...)
             {
-                old.push_back(entry.path());
+                ms = 0;
             }
         }
-        for (const fs::path& p : old)
+        if (ms == 0 || nowMs - ms > maxAgeMs)  // unreadable names are not kept forever
         {
-            fs::remove_all(p, ec);
+            old.push_back(entry.path());
         }
-        if (fs::is_empty(root, ec))
-        {
-            fs::remove(root, ec);
-        }
+    }
+    for (const fs::path& p : old)
+    {
+        fs::remove_all(p, ec);
+    }
+    if (fs::is_empty(root, ec))
+    {
+        fs::remove(root, ec);
     }
 }
 

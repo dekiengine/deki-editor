@@ -49,7 +49,7 @@ TEST(SceneDataLoss, UnknownKeysDoNotPassToTheNextComponentAtThatAddress)
     Deki::Scene scene;
     const std::string file = std::string(R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],)") +
                              R"("components":[{"type":")" + Deki::TypeName<MockComponent>() +
-                             R"(","class":"MockComponent","properties":{"removedField":42}}]}]}]})";
+                             R"(","properties":{"removedField":42}}]}]}]})";
     ASSERT_TRUE(scene.LoadFromJsonString(file));
     Deki::Object* root = scene.GetObjects()[0];
     Deki::Object* obj = root->GetChildren()[0];

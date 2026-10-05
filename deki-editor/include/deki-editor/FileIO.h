@@ -1,15 +1,16 @@
 #pragma once
 
-// File I/O helpers for the asset pipeline (AssetPipeline.cpp, GuidCache.cpp,
-// AssetData.cpp, AssetExporter.cpp): one place for atomic writes, error
-// reporting and any future locking. The rest of the editor uses
-// std::ifstream / std::ofstream directly.
+// File I/O helpers: atomic writes and error reporting for the asset pipeline
+// (AssetPipeline.cpp, GuidCache.cpp, AssetData.cpp, AssetExporter.cpp), and
+// deleting a directory tree that holds read-only files (package installs).
+// The rest of the editor uses std::ifstream / std::ofstream directly.
 
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <filesystem>
+#include <vector>
 
 #ifdef _WIN32
 // MoveFileExW: replace-in-one-step rename, so the destination is never
@@ -130,6 +131,83 @@ inline bool AtomicWriteFile(const std::string& path, std::string_view content, s
     // On failure the .tmp is kept: it holds the new content, and the
     // destination still holds the previous version, so neither is lost.
     return ReplaceFileWith(tmp, target, err, durable);
+}
+
+/// True when `path` is a symbolic link or, on Windows, a junction.
+inline bool IsLinkOrJunction(const std::filesystem::path& path)
+{
+#ifdef _WIN32
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+#else
+    std::error_code ec;
+    return std::filesystem::is_symlink(std::filesystem::symlink_status(path, ec));
+#endif
+}
+
+/// Deletes `path` and everything under it, like std::filesystem::remove_all,
+/// including read-only files: git keeps its pack files read-only, and
+/// remove_all cannot delete those on Windows. A link or junction is removed as
+/// a link; what it points to is never entered or changed. True when nothing is
+/// left at `path`.
+inline bool RemoveTree(const std::filesystem::path& path, std::error_code& ec)
+{
+    namespace fs = std::filesystem;
+    ec.clear();
+    std::error_code statusEc;
+    const fs::file_status status = fs::symlink_status(path, statusEc);
+    if (statusEc || !fs::exists(status))
+    {
+        return true;
+    }
+
+    if (IsLinkOrJunction(path))
+    {
+#ifdef _WIN32
+        // A junction or directory link is a directory entry; removing it
+        // leaves its target alone.
+        const DWORD attributes = GetFileAttributesW(path.c_str());
+        const BOOL removed =
+            (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ? RemoveDirectoryW(path.c_str()) : DeleteFileW(path.c_str());
+        if (!removed)
+        {
+            ec = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+        }
+#else
+        fs::remove(path, ec);
+#endif
+        return !ec;
+    }
+
+    if (fs::is_directory(status))
+    {
+        // Listed first: removing entries while iterating the same directory is
+        // not reliable.
+        std::vector<fs::path> children;
+        for (const auto& entry : fs::directory_iterator(path, ec))
+        {
+            children.push_back(entry.path());
+        }
+        if (ec)
+        {
+            return false;
+        }
+        for (const fs::path& child : children)
+        {
+            if (!RemoveTree(child, ec))
+            {
+                return false;
+            }
+        }
+    }
+    else
+    {
+        std::error_code permEc;
+        fs::permissions(path, fs::perms::owner_write, fs::perm_options::add, permEc);
+    }
+
+    fs::remove(path, ec);
+    return !ec;
 }
 
 }  // namespace DekiEditor

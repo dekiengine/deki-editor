@@ -8,20 +8,17 @@
 
 using namespace DekiEditor;
 
-// The old per-target form (a format string) still reads; the object form
-// carries Max Size, where 0 is "no limit here" and absent is "as Default".
-TEST(TextureSettings, ReadsBothForms)
+// A target's entry carries its format and Max Size, where 0 is "no limit
+// here" and absent is "as Default".
+TEST(TextureSettings, ReadsTargetEntries)
 {
     const nlohmann::json tex = nlohmann::json::parse(R"({
         "format": "RGB565", "maxSize": 512,
-        "targets": { "old": "RGB888",
-                     "new": { "format": "RGBA8888", "maxSize": 128 },
+        "targets": { "new": { "format": "RGBA8888", "maxSize": 128 },
                      "free": { "maxSize": 0 },
                      "empty": {} } })");
     const TextureSettings s = ReadTextureSettings(tex);
     EXPECT_EQ(s.format, "RGB565");
-    EXPECT_EQ(s.TargetFormat("old"), "RGB888");
-    EXPECT_EQ(s.MaxSizeFor("old"), 512);
     EXPECT_EQ(s.TargetFormat("new"), "RGBA8888");
     EXPECT_EQ(s.MaxSizeFor("new"), 128);
     EXPECT_EQ(s.TargetFormat("free"), "");

@@ -9,7 +9,9 @@
 //
 // An image's sidecar (`<image>.data`, `settings.texture`) says:
 //   "format":  "Automatic" (or absent) or a format name, for every target
-//   "targets": { "<platformId>": "Automatic" | a format name }
+//   "targets": { "<platformId>": { "format": "Automatic" | a format name, ... } }
+//
+// TextureSettings.h reads it.
 //
 // The first that names a format wins: the target's entry, then the image's
 // own. Automatic follows the target's screen (its platform `colorFormat`):

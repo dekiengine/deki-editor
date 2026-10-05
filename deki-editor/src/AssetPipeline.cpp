@@ -1267,22 +1267,6 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
     Deki::SceneFormat::SceneMsgPackWriter writer;
 
-    // Migrates older scenes: an AssetRef with a frame GUID in its guid field
-    // and an empty source gets the two swapped.
-    writer.SetSubAssetResolver(
-        [this](const std::string& guid, std::string& outParentGuid) -> bool
-        {
-            const SubAssetInfo* subAsset = GetSubAsset(guid);
-            if (subAsset)
-            {
-                outParentGuid = subAsset->parentGuid;
-                DEKI_LOG_DEBUG("CompileScene: Migrated subasset guid='%s' -> parent='%s'", guid.c_str(),
-                               outParentGuid.c_str());
-                return true;
-            }
-            return false;
-        });
-
     // No asset resolver: the binary scene stores GUIDs, and the runtime
     // resolves them to paths through AssetLookupTable.
 

@@ -33,7 +33,7 @@ std::string SceneWith(const char* properties)
 {
     return std::string(
                R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
-           Deki::TypeName<MockComponent>() + R"(","class":"MockComponent","properties":)" + properties + "}]}]}]}";
+           Deki::TypeName<MockComponent>() + R"(","properties":)" + properties + "}]}]}]}";
 }
 
 const MockComponent* FirstMock(const Deki::Scene& scene)

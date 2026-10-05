@@ -5,9 +5,12 @@ engine and package versions, what may change, and how a change reaches you.
 
 ## The promise
 
-- Every file a project tracks in git keeps loading in newer editors. When a
-  format must change incompatibly, the new editor migrates the old file (or
-  loads it through an alias) and the change is listed in [CHANGELOG.md](CHANGELOG.md).
+- Every file a project tracks in git keeps loading in the next minor
+  release. When a format must change incompatibly, that release migrates the
+  old file (or loads it through an alias) and the change is listed in
+  [CHANGELOG.md](CHANGELOG.md). `DekiEditor --upgrade-project` re-saves the
+  whole project in the current format. A migration is kept for at least one
+  minor version, so a project moves one minor version at a time.
 - A newer file refuses to load in an older editor with a message naming the
   version, rather than loading partially.
 - Package releases follow semver against the engine: `minEngine` in a
@@ -34,9 +37,9 @@ These are what downstream projects and packages depend on:
 | Reflected property names | `DEKI_EXPORT` members of every component | Renames carry `DEKI_RENAMED_FROM`; the old key loads and is written back under the new name on save |
 | Component type names | The qualified class name (`Game::Mover`), `"type"` in the file | Renames carry `DEKI_FORMER_NAME`, repeatable, so a file older than several renames still loads and is written back under the current name |
 | Enum values | The enumerator's NAME in the file, resolved through the reflected value table | Reorder or insert freely; renaming a value is the change that costs, and it fails loudly rather than silently |
-| Colours | `#RRGGBBAA` | A packed integer still reads |
+| Colours | `#RRGGBBAA` | |
 | Object transform keys | `x`, `y`, `rotation`, `scaleX`, `scaleY` on the object itself, written by `Scene.cpp` rather than through reflection | `rotation` is the Z angle in radians and stays a single number (below) |
-| Project descriptor `deki.json` | `structure` field | Layout migrations run on open (`v1`..`v5`) |
+| Project descriptor `deki.json` | `structure` field (`v5`) | |
 | Package manifest `deki-packages.json`, lock file | `schemaVersion` / `lockVersion` | |
 | Package descriptor `package.json`, `package.cmake` | | Editor reads unknown keys tolerantly |
 | Registry index | `https://dekiengine.github.io/registry/index.json` | `schemaVersion`; fields are only added (`docs` was added at schema 1) |
@@ -193,27 +196,18 @@ else alone. Device scenes are compiled from the editor's load, so they follow
 after a rebuild; a save writes the new shape. Keep a migration for at least one
 minor version.
 
-In 0.18: the camera frames the world itself. Its `pixelsPerMeter` p became
-an `orthoHeight`: the project's Framebuffer `targetHeight` in meters, divided
-by p over the project's pixels per meter (0 counts as the project's). Its
-`pixelSnap`, or the project's Pixel Perfect, became the camera's
-`pixelPerfect`. deki-3d's `Camera3DComponent` gave its field of view and clip
-planes to the camera and became `Mesh3DSettings`. The Framebuffer section is
-gone, and it is left on disk for scenes that have not loaded since. Every
-one of them looks the same on a screen of the old shape. See
-[docs/screens.md](docs/screens.md).
-
-Also in 0.18: the Framebuffer section's `colorFormat` is gone (the display
-decides), an image's missing Format now means Automatic rather than
-RGB565A8 (the same on an RGB565 target for an image with transparency;
-RGB565 for an opaque one, which draws the same), and deki-3d mesh files are
-version 4, reading version 3.
+In 0.18 the camera frames the world itself (`orthoHeight`, `pixelPerfect`),
+the project's Framebuffer section is gone, deki-3d's `Camera3DComponent`
+became `Mesh3DSettings`, and an image's missing Format means Automatic. These
+changed without a migration: no project outside the team used the old forms,
+and the team's projects were upgraded. See [docs/screens.md](docs/screens.md).
 
 ## Checking a project
 
 ```bash
 DekiEditor --verify-scenes <project>    # every key resolves; legacy keys warned
 DekiEditor --render-scenes <project>    # pixel hashes, before and after
+DekiEditor --upgrade-project <project>  # re-save every file in the current format
 ```
 
 ## Reporting a compatibility break

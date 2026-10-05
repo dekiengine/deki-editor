@@ -106,18 +106,6 @@ public:
         m_PreviewHeight = height;
     }
 
-    /// Framing settings from projects saved before cameras framed the world
-    /// (settings/framebuffer.json): the design area's height in meters and the
-    /// project's Pixel Perfect. Set when a project opens, for the scene
-    /// migration that turns a camera's zoom into its ortho height.
-    struct LegacyFraming
-    {
-        float designHeight = 15.0f;
-        bool pixelPerfect = false;
-    };
-    const LegacyFraming& GetLegacyFraming() const { return m_LegacyFraming; }
-    void SetLegacyFraming(const LegacyFraming& framing) { m_LegacyFraming = framing; }
-
     // =========================================================================
     // Gizmo drawing, in screen pixels
     //
@@ -173,7 +161,6 @@ private:
 
     int m_PreviewWidth = 0;
     int m_PreviewHeight = 0;
-    LegacyFraming m_LegacyFraming;
     Deki::ColorFormat m_PreviewFormat = Deki::ColorFormat::ARGB8888;
 };
 

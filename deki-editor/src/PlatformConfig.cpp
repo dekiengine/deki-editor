@@ -245,20 +245,18 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
     // framework's keys.
     config.framework = j.value("framework", "");
 
-    // Framework settings live in the nested "frameworkOptions" object. Older
-    // platform files keep them at the top level; those are read into the same
-    // place, and SavePlatformToFile writes only the nested form.
-    //
-    // Every top-level key this loader does not own is a framework setting, so
-    // the editor needs no list of any framework's setting names.
+    // Framework settings live in the nested "frameworkOptions" object. A
+    // top-level key this loader does not own is read into the same place, so
+    // it is kept, and SavePlatformToFile writes only the nested form. The
+    // editor needs no list of any framework's setting names.
     //
     // Their values are not checked here: the owning backend checks them in
     // ITargetBuilder::ValidatePlatform, and the build refuses a bad one.
     {
         static const std::set<std::string> kOwnKeys = {
-            "id",        "displayName", "family",       "framework",        "frameworkOptions", "externalMemorySize",
-            "psramSize", "screenWidth", "screenHeight", "colorFormat",      "defines",          "cFlags",
-            "cxxFlags",  "linkFlags",   "provides",     "requiresPackages", "bootScene",        "assetStorage"
+            "id",          "displayName",  "family",           "framework", "frameworkOptions", "externalMemorySize",
+            "screenWidth", "screenHeight", "colorFormat",      "defines",   "cFlags",           "cxxFlags",
+            "linkFlags",   "provides",     "requiresPackages", "bootScene", "assetStorage"
         };
 
         json options = json::object();
@@ -281,9 +279,7 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
         }
     }
 
-    // "psramSize" is what this key was called when the platform type
-    // described a microcontroller. Read, never written.
-    config.externalMemorySize = j.value("externalMemorySize", j.value("psramSize", 0u));
+    config.externalMemorySize = j.value("externalMemorySize", 0u);
 
     config.screenWidth = j.value("screenWidth", 0);
     config.screenHeight = j.value("screenHeight", 0);

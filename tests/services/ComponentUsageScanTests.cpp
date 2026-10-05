@@ -59,7 +59,7 @@ TEST(ComponentUsageScan, PlatformBootScenesCountToo)
     fs::create_directories(p.root / "platforms" / "native_simulator");
     std::ofstream(p.root / "platforms" / "native_simulator" / "boot.scene") << R"({
       "objects": [ { "name": "Platform", "components": [ { "type": "PlatformSetupComponent", "properties": {} } ],
-        "children": [ { "name": "d", "components": [ { "class": "SDL3DisplaySetup", "type": "SDL3DisplaySetup", "properties": {} } ] } ] } ] })";
+        "children": [ { "name": "d", "components": [ { "type": "SDL3DisplaySetup", "properties": {} } ] } ] } ] })";
 
     const ComponentUsage u = ScanComponentUsage(p.root.string(), {}, {});
     EXPECT_TRUE(u.Uses("SDL3DisplaySetup"));

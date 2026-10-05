@@ -24,12 +24,11 @@ protected:
     }
     void TearDown() override { MockComponent::Unregister(); }
 
-    static std::string SceneWith(const char* properties, const char* type = Deki::TypeName<MockComponent>(),
-                                 const char* classHint = "MockComponent")
+    static std::string SceneWith(const char* properties, const char* type = Deki::TypeName<MockComponent>())
     {
         return std::string(
                    R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],"components":[{"type":")") +
-               type + R"(","class":")" + classHint + R"(","properties":)" + properties + "}]}]}]}";
+               type + R"(","properties":)" + properties + "}]}]}]}";
     }
 
     static const MockComponent* FirstMock(const Deki::Scene& scene)
@@ -84,17 +83,4 @@ TEST_F(RenamedProperty, SaveWritesOnlyTheCurrentName)
     const nlohmann::json& props = j["objects"][0]["children"][0]["components"][0]["properties"];
     EXPECT_EQ(props.at("renamedValue"), 7);
     EXPECT_FALSE(props.contains("legacyValue")) << "a save completes the migration";
-}
-
-TEST_F(RenamedProperty, ChangedTypeGuidResolvesByClassName)
-{
-    Deki::Scene scene;
-    ASSERT_TRUE(scene.LoadFromJsonString(SceneWith(R"({"intValue":3})", "00000000-0000-0000-0000-000000000000")));
-    const MockComponent* mock = FirstMock(scene);
-    ASSERT_NE(mock, nullptr) << "the class name beside a stale GUID must resolve the component";
-    EXPECT_EQ(mock->intValue, 3);
-
-    const nlohmann::json j = nlohmann::json::parse(scene.SaveToJsonString());
-    EXPECT_EQ(j["objects"][0]["children"][0]["components"][0].at("type"), Deki::TypeName<MockComponent>())
-        << "a save writes the current GUID";
 }

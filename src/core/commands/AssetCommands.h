@@ -56,8 +56,8 @@ public:
     /// can report a partial delete.
     bool HadFailures() const { return m_HadFailures; }
 
-    /// Removes deletes older than kTrashDays from the trash, and from the
-    /// legacy <project>/.trash. Called on project open. Until then a deleted
+    /// Removes deletes older than kTrashDays from the trash. Called on project
+    /// open. Until then a deleted
     /// file can be taken back from generated/trash/ by hand, even after undo
     /// no longer can.
     static void SweepStaleTrash(const std::string& projectRoot);

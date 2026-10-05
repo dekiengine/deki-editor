@@ -432,7 +432,6 @@ void PackageManager::LoadPackages(const std::string& projectPath)
 
         DekiEditor::ReadPackageSource(entry.value("source", ""), /*emptyIsCustom*/ false, pkg);
 
-        static const std::string kComponentSuffix = "_component";
         std::string typeStr = entry.value("packageType", "unknown");
         if (typeStr == "deki_package")
         {
@@ -442,18 +441,6 @@ void PackageManager::LoadPackages(const std::string& projectPath)
         else if (typeStr == "framework_component")
         {
             pkg.packageType = PackageType::FrameworkComponent;
-        }
-        // Older locks spell the type "<installer id>_component". The id is in
-        // the spelling, so read it from there.
-        else if (typeStr.size() > kComponentSuffix.size() &&
-                 typeStr.compare(typeStr.size() - kComponentSuffix.size(), kComponentSuffix.size(), kComponentSuffix) ==
-                     0)
-        {
-            pkg.packageType = PackageType::FrameworkComponent;
-            if (pkg.installer.empty())
-            {
-                pkg.installer = typeStr.substr(0, typeStr.size() - kComponentSuffix.size());
-            }
         }
         // An explicit key wins over anything inferred above.
         if (entry.contains("installer") && entry["installer"].is_string())

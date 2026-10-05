@@ -146,51 +146,6 @@ TEST(PackageSourceSpelling, TheEditorsOwnSourcesAndAnInstallersId)
     EXPECT_EQ(DekiEditor::PackageSourceToString(pkg), "alpha");
 }
 
-// A lock in the older form, where a framework's name is the package type
-// ("alpha_component"). The installer id is read from that spelling; the
-// component came from git, so "source" says nothing about it.
-TEST(InstallerRouting, AnOlderLockStillSaysWhichInstaller)
-{
-    TempProject project;
-    project.Write("deki-packages.json", json{ { "schemaVersion", 1 },
-                                              { "packages",
-                                                { { "github:someone/widget",
-                                                    { { "version", "1.0.0" },
-                                                      { "source", "github" },
-                                                      { "url", "https://github.com/someone/widget" } } } } } });
-    project.Write("deki-packages-lock.json", json{ { "lockVersion", 1 },
-                                                   { "packages",
-                                                     { { "github:someone/widget",
-                                                         { { "name", "someone/widget" },
-                                                           { "installedVersion", "1.0.0" },
-                                                           { "source", "github" },
-                                                           { "packageType", "alpha_component" } } } } } });
-
-    PackageManager mgr(nullptr);
-    mgr.LoadPackages(project.dir.string());
-
-    const PackageEntry* found = nullptr;
-    for (const auto& p : mgr.GetPackages())
-    {
-        if (p.id == "github:someone/widget")
-        {
-            found = &p;
-        }
-    }
-    ASSERT_NE(found, nullptr);
-    EXPECT_EQ(found->packageType, PackageType::FrameworkComponent);
-    EXPECT_EQ(found->installer, "alpha");
-    EXPECT_EQ(found->source, PackageSourceType::GitHub);
-
-    // And it is written back in the current form, installer included.
-    mgr.SavePackages(project.dir.string());
-    const json lock = project.Read("deki-packages-lock.json");
-    const json& entry = lock["packages"]["github:someone/widget"];
-    EXPECT_EQ(entry.value("packageType", ""), "framework_component");
-    EXPECT_EQ(entry.value("installer", ""), "alpha");
-    EXPECT_EQ(entry.value("source", ""), "github");
-}
-
 // The registry catalogue a refresh merges in is offered, not used: the lock
 // records the project's packages only.
 TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)

@@ -98,22 +98,17 @@ TEST(PlatformConfig, AMicrocontrollersDescriptionIsItsBackendsBusiness)
     EXPECT_NE(again->frameworkOptions.find("\"gpio\":2"), std::string::npos) << again->frameworkOptions;
 }
 
-TEST(PlatformConfig, ExternalMemoryIsTheEnginesWordAndTheOldKeyStillReads)
+TEST(PlatformConfig, ExternalMemoryReads)
 {
     PlatformDir d;
-    d.Write("pc_old", R"({ "id": "pc_old", "displayName": "old", "framework": "x", "psramSize": 4194304 })");
     d.Write("pc_new", R"({ "id": "pc_new", "displayName": "new", "framework": "x", "externalMemorySize": 8388608 })");
 
-    const PlatformConfig* oldSpelling = Load(d, "pc_old");
-    ASSERT_NE(oldSpelling, nullptr);
-    EXPECT_EQ(oldSpelling->externalMemorySize, 4194304u);
-    EXPECT_EQ(oldSpelling->Capabilities().count("memory:external"), 1u);
+    const PlatformConfig* platform = Load(d, "pc_new");
+    ASSERT_NE(platform, nullptr);
+    EXPECT_EQ(platform->externalMemorySize, 8388608u);
+    EXPECT_EQ(platform->Capabilities().count("memory:external"), 1u);
     // Owned by the loader, so not mistaken for a framework setting.
-    EXPECT_EQ(oldSpelling->Option("psramSize", "absent"), "absent");
-
-    const PlatformConfig* newSpelling = PlatformRegistry::Instance().GetPlatform("pc_new");
-    ASSERT_NE(newSpelling, nullptr);
-    EXPECT_EQ(newSpelling->externalMemorySize, 8388608u);
+    EXPECT_EQ(platform->Option("externalMemorySize", "absent"), "absent");
 }
 
 // --- capabilities -----------------------------------------------------------

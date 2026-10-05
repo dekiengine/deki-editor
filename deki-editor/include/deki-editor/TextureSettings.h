@@ -17,8 +17,7 @@
 //
 // A target's entry overrides the image's own value for whichever of the two
 // it names; its "maxSize" of 0 means no limit on that target, even when the
-// image has one. A target entry that is a plain string (an older form) names
-// only the format.
+// image has one.
 //
 // Max Size works like Unity's: an image whose larger side is over it is stored
 // scaled so that side is exactly Max Size, the other side in proportion.
@@ -90,11 +89,7 @@ inline TextureSettings ReadTextureSettings(const nlohmann::json& tex)
         for (auto it = tex["targets"].begin(); it != tex["targets"].end(); ++it)
         {
             TextureTargetSettings t;
-            if (it.value().is_string())
-            {
-                t.format = it.value().get<std::string>();
-            }
-            else if (it.value().is_object())
+            if (it.value().is_object())
             {
                 if (it.value().contains("format") && it.value()["format"].is_string())
                 {

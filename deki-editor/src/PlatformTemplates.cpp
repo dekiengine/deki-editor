@@ -388,40 +388,6 @@ bool FindOffer(const std::string& projectPath, const std::string& platformId, co
     return found == 1;
 }
 
-// A platform adopted before origins were recorded, and not changed since, is
-// still the package's: record that, so it can be updated like any other.
-void RecordOriginIfPristine(const std::string& projectPath, const std::string& platformId)
-{
-    const fs::path directory = fs::path(GetPlatformsDirectory(projectPath)) / platformId;
-    std::error_code ec;
-    if (fs::exists(directory / kOriginFile, ec))
-    {
-        return;
-    }
-
-    PlatformTemplate offer;
-    if (!FindOffer(projectPath, platformId, "", offer))
-    {
-        return;
-    }
-
-    const std::vector<std::string> files = PlatformFiles(offer.directory, platformId);
-    OriginRecord record;
-    record.adopted = TakeSnapshot(offer.directory, platformId, files);
-    if (record.adopted.platform.is_null() ||
-        !Differences(record.adopted, TakeSnapshot(directory, platformId, files)).empty())
-    {
-        return;
-    }
-
-    record.package = offer.packageId;
-    record.version = InstalledPackageVersion(projectPath, offer.packageId);
-    if (WriteOrigin(directory, record))
-    {
-        ++g_PlatformsRevision;
-    }
-}
-
 }  // namespace
 
 AdoptPlatformResult AdoptPlatformTemplate(const std::string& projectPath, const std::string& platformId,
@@ -507,7 +473,7 @@ bool EnsureProjectPlatform(const std::string& projectPath, const std::string& pl
     std::string detail;
     switch (AdoptPlatformTemplate(projectPath, platformId, detail))
     {
-        case AdoptPlatformResult::AlreadyDefined: RecordOriginIfPristine(projectPath, platformId); return true;
+        case AdoptPlatformResult::AlreadyDefined: return true;
 
         case AdoptPlatformResult::NoTemplate: return true;
 

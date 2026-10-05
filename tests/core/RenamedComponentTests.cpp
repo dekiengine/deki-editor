@@ -24,8 +24,7 @@ protected:
 
     static std::string SceneWithType(const char* type)
     {
-        // No "class" hint: this must resolve through the former-name table
-        // alone, not through the separate by-class-name fallback.
+        // Resolves through the former-name table.
         return std::string(R"({"objects":[{"name":"Root","children":[{"name":"Obj","children":[],)"
                            R"("components":[{"type":")") +
                type + R"(","properties":{"intValue":42}}]}]}]})";

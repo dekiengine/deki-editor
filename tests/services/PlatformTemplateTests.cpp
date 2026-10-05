@@ -410,20 +410,7 @@ TEST(PlatformOrigin, WithThePackageGoneThePlatformStaysAndSaysWhy)
     EXPECT_NE(r.error.find("pkg-board"), std::string::npos);
 }
 
-// A platform adopted with no origin record, as in projects made before
-// origins were recorded.
-TEST(PlatformOrigin, AnUnrecordedCopyThatIsStillThePackagesGetsItsRecord)
-{
-    BoardProject p;
-    p.Ship(320, "a", "scene 1");
-    p.Adopt();
-    fs::remove(p.Mine() / "origin.json");
-
-    std::string err;
-    ASSERT_TRUE(EnsureProjectPlatform(p.Path(), "devkit", err));
-    EXPECT_TRUE(GetPlatformOrigin(p.Path(), "devkit").recorded);
-}
-
+// A copy without an origin record that differs from the package.
 TEST(PlatformOrigin, AnUnrecordedCopyThatDiffersCanOnlyBeRestored)
 {
     BoardProject p;

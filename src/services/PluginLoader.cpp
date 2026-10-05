@@ -366,18 +366,17 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     // away. The plugin is the likeliest stale DLL in a project: the project's
     // own build rebuilds it and leaves the old one behind when it fails.
     //
-    // A missing export only means the DLL predates the handshake, so it only
-    // warns. A real mismatch skips the plugin but does NOT unload it: its
-    // static initializers have already handed engine registries function
+    // A missing export or a mismatch skips the plugin but does NOT unload it:
+    // its static initializers have already handed engine registries function
     // pointers into its code, and FreeLibrary would leave those dangling.
     if (!getReflectionAbi)
     {
-        DEKI_LOG_WARNING("PluginLoader: '%s' reports no reflection layout, so it predates the "
-                         "layout handshake. Loading anyway, but rebuild it: a stale plugin's "
-                         "property tables are read with the wrong stride and corrupt memory.",
-                         info.name.c_str());
+        DEKI_LOG_ERROR("PluginLoader: '%s' reports no reflection layout, so its property tables cannot be "
+                       "read safely. Skipping it. Rebuild the project's plugin DLL, then restart the editor.",
+                       info.name.c_str());
+        return false;
     }
-    else if (const DekiReflectionAbi* theirAbi = getReflectionAbi())
+    if (const DekiReflectionAbi* theirAbi = getReflectionAbi())
     {
         // Read `version` THROUGH THE POINTER before copying the struct: the
         // handshake grew in v3, so a plugin built against an older revision

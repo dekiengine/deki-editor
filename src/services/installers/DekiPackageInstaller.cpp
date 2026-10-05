@@ -1,5 +1,6 @@
 #include "DekiPackageInstaller.h"
 #include <deki-editor/Paths.h>
+#include <deki-editor/FileIO.h>
 #include <deki-editor/build/ProjectPaths.h>
 #include "../SharedLibNaming.h"
 #include "../PackageLoader.h"
@@ -607,7 +608,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // Either way there is no history to keep.
         if (fs::exists(packageDir))
         {
-            fs::remove_all(packageDir, ec);
+            DekiEditor::RemoveTree(packageDir, ec);
             if (ec)
             {
                 callback(false, "Failed to remove existing package directory: " + ec.message());
@@ -620,7 +621,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // Package repos are small and source-only, so history costs little.
         if (RunGit({ "clone", "--branch", gitRef, "--", gitUrl, dirArg }, output) != 0)
         {
-            fs::remove_all(packageDir, ec);  // clean up partial clone
+            DekiEditor::RemoveTree(packageDir, ec);  // clean up partial clone
             callback(false, "Git clone failed: " + output);
             return;
         }
@@ -655,7 +656,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
             {
                 if (!isExistingClone)
                 {
-                    fs::remove_all(packageDir, ec);
+                    DekiEditor::RemoveTree(packageDir, ec);
                 }
                 callback(false, "'" + repoName + "' " + version + " is now commit " + headCommit.substr(0, 12) +
                                     ", but the project's lock recorded " + want.substr(0, 12) +
@@ -673,7 +674,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // which may hold the developer's branches.
         if (!isExistingClone)
         {
-            fs::remove_all(packageDir, ec);
+            DekiEditor::RemoveTree(packageDir, ec);
         }
         callback(false, "Not a valid Deki package (no package.json or package.cmake)");
         return;
@@ -691,7 +692,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         {
             if (!isExistingClone)
             {
-                fs::remove_all(packageDir, ec);
+                DekiEditor::RemoveTree(packageDir, ec);
             }
             callback(false, reason);
             return;
@@ -841,7 +842,7 @@ void DekiPackageInstaller::Remove(const std::string& projectPath, const PackageE
     std::error_code ec;
     if (wasInstalled)
     {
-        fs::remove_all(packageDir, ec);
+        DekiEditor::RemoveTree(packageDir, ec);
         if (ec)
         {
             callback(false, "Failed to remove package: " + ec.message());

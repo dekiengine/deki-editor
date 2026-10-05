@@ -686,24 +686,23 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // somewhere unrelated (typically inside strlen, deep in a JSON key lookup,
     // while compiling a scene).
     //
-    // On mismatch the package is SKIPPED but NOT unloaded, on purpose. Its
-    // static initializers have already handed engine registries function
+    // On a missing or mismatched layout the package is SKIPPED but NOT
+    // unloaded, on purpose. Its static initializers have already handed engine
+    // registries function
     // pointers into its code (editor extensions, node types,
     // SetupComponent::RegisterEditorAutoFactory). FreeLibrary would leave
     // them dangling, and the next RunEditorAutoSetups() would call into
     // unmapped memory. Skipping registerComponents/init below is what keeps
     // the bad property tables out of ComponentRegistry.
-    //
-    // A MISSING export is only a warning: the DLL was built before this
-    // handshake existed.
     if (!getReflectionAbi)
     {
-        DEKI_LOG_WARNING("PackageLoader: '%s' reports no reflection layout, so it predates the "
-                         "layout handshake. Loading anyway, but rebuild it: a stale package's "
-                         "property tables are read with the wrong stride and corrupt memory.",
-                         nameStr);
+        DEKI_LOG_ERROR("PackageLoader: '%s' reports no reflection layout, so its property tables cannot be "
+                       "read safely. Skipping it. Rebuild the package, then restart the editor.",
+                       nameStr);
+        DekiEditor::TrimRegisteredWindows(windowCountBeforePackage);
+        return false;
     }
-    else if (const DekiReflectionAbi* theirAbi = getReflectionAbi())
+    if (const DekiReflectionAbi* theirAbi = getReflectionAbi())
     {
         // Read `version` THROUGH THE POINTER before copying the struct.
         //
