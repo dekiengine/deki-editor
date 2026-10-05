@@ -936,6 +936,12 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
         stale = true;
         reason = "package sources changed";
     }
+    if (!stale && fs::exists(LastBuildFailedPath(projectPath), ec))
+    {
+        stale = true;
+        reason = "the last build failed";
+    }
+    ec.clear();
     // Checked even when sources already made it stale: whether the old binaries
     // were built for another editor or engine decides what a failed rebuild
     // may still load (below).
@@ -1485,6 +1491,30 @@ void HotReloadService::TouchLastBuildStamp(const std::string& projectPath)
     }
 }
 
+std::filesystem::path HotReloadService::LastBuildFailedPath(const std::string& projectPath)
+{
+    return ProjectPaths::Runtime(projectPath) / ".last_build_failed";
+}
+
+// Written when a build fails and removed when a full build succeeds. A library
+// whose build failed is missing from runtime/ and so never counts as stale;
+// this marker makes the next open build again instead of reporting success.
+void HotReloadService::RecordBuildFailed(const std::string& projectPath, bool failed)
+{
+    std::error_code ec;
+    if (!failed)
+    {
+        std::filesystem::remove(LastBuildFailedPath(projectPath), ec);
+        return;
+    }
+    std::filesystem::create_directories(ProjectPaths::Runtime(projectPath), ec);
+    std::ofstream f(LastBuildFailedPath(projectPath), std::ios::binary | std::ios::trunc);
+    if (f)
+    {
+        f << "failed\n";
+    }
+}
+
 // After a successful build: keep the debugger from locking package PDBs.
 void HotReloadService::ArchivePackagePdbs(const std::string& projectPath)
 {
@@ -1792,6 +1822,16 @@ void HotReloadService::FinishBuild()
     if (ok)
     {
         TouchLastBuildStamp(b.projectPath);
+    }
+    // A package-only rebuild does not build the plugin, so only a full build
+    // clears the failure.
+    if (!ok && !b.cancelled)
+    {
+        RecordBuildFailed(b.projectPath, true);
+    }
+    else if (ok && b.kind != ActiveBuild::Kind::Packages)
+    {
+        RecordBuildFailed(b.projectPath, false);
     }
     if (!b.cancelled)
     {

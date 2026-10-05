@@ -70,6 +70,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- **A failed build is built again on the next open.** A library whose build
+  failed was missing, so nothing counted as stale: the next open built
+  nothing, loaded the project without those packages or its own components,
+  and `--build-code` printed "Build OK".
 - The crash-recovery preview lists the components of scenes saved in the
   current format. It read a key those scenes no longer have.
 - The Inspector takes a sprite sheet's frame size from `settings.sprite`, where

@@ -170,6 +170,8 @@ private:
     void ArchivePackagePdbs(const std::string& projectPath);
     static std::filesystem::path LastBuildStampPath(const std::string& projectPath);
     static void TouchLastBuildStamp(const std::string& projectPath);
+    static std::filesystem::path LastBuildFailedPath(const std::string& projectPath);
+    static void RecordBuildFailed(const std::string& projectPath, bool failed);
     void UpdateStatusFromLine(const std::string& line);
     void SetBuildPhase(const std::string& phase);
     void BeginBuildStatus();
