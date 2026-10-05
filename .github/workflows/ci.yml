@@ -63,11 +63,11 @@ jobs:
       # DekiRenderingTests compiles deki-rendering's own tests; it looks for
       # the package beside the editor checkout (DEKI_PACKAGES_DIR defaults to
       # ../packages) and silently skips when it is not there.
+      # actions/checkout only writes inside the workspace, so this is a plain
+      # clone; the package is public.
       - name: Check out deki-rendering (for DekiRenderingTests)
-        uses: actions/checkout@v4
-        with:
-          repository: dekiengine/deki-rendering
-          path: ../packages/deki-rendering
+        shell: bash
+        run: git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
 
       # The runner image ships MSYS2 at C:\msys64, which is where the editor's
       # CMakeLists looks for g++ (see the top of CMakeLists.txt); release: false
@@ -166,10 +166,7 @@ jobs:
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
 
       - name: Check out deki-rendering (for DekiRenderingTests)
-        uses: actions/checkout@v4
-        with:
-          repository: dekiengine/deki-rendering
-          path: ../packages/deki-rendering
+        run: git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
 
       - name: Install toolchain and SDL3 build dependencies
         run: |
