@@ -40,32 +40,8 @@ RuntimeBuildTemp(const std::string& projectRoot);  // generated/runtime/.build_t
 DEKI_EDITOR_API std::filesystem::path
 RuntimePdbArchive(const std::string& projectRoot);  // generated/runtime/.pdb_archive/
 
-/// Structure version written to deki.json once a project uses this layout.
+/// The folder layout version deki.json records as "structure".
 inline constexpr const char* kStructureVersion = "v5";
-
-/// Moves src/, assets/, packages/ and platforms/ out of an older layout's
-/// project/ folder. Returns true if anything moved.
-///
-/// This touches authored, tracked content, so it is all-or-nothing: it moves
-/// nothing unless every destination is clear. In the same pass it rewrites the
-/// bootScene paths stored in platform configs
-/// ("project/platforms/<id>/boot.scene"), which would otherwise point at
-/// nothing.
-DEKI_EDITOR_API bool MigrateFlattenProjectFolder(const std::string& projectRoot, std::string& outSummary);
-
-/// Renames an older project's "modules" to "packages": the sources directory,
-/// the manifest and lock, and the per-package settings folder. Each entry is
-/// tried on its own; one that fails is retried on the next open.
-DEKI_EDITOR_API bool MigrateModulesToPackages(const std::string& projectRoot, std::string& outSummary);
-
-/// Moves an older project's bin/, build/, cache/ and CMakeLists.txt from the
-/// root into generated/. Returns true if anything moved.
-///
-/// Only generated content moves, so nothing tracked is touched. Each entry is
-/// moved on its own rather than all-or-nothing: all of it is disposable, so a
-/// partial move costs a rebuild, never data. Anything that cannot be moved
-/// stays where it is and is reported.
-DEKI_EDITOR_API bool MigrateToGeneratedLayout(const std::string& projectRoot, std::string& outSummary);
 
 }  // namespace ProjectPaths
 }  // namespace DekiEditor

@@ -183,7 +183,6 @@ static const char* PropertyTypeToString(Deki::PropertyType type)
         case Deki::PropertyType::Color: return "color";
         case Deki::PropertyType::Vector2: return "vector2";
         case Deki::PropertyType::Vector3: return "vector3";
-        case Deki::PropertyType::Asset: return "asset";
         case Deki::PropertyType::Enum: return "enum";
         case Deki::PropertyType::ObjectRef: return "objectRef";
         case Deki::PropertyType::Array: return "array";

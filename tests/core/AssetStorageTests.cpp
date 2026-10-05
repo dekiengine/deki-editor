@@ -22,16 +22,15 @@ TEST(AssetStorage, ProjectDataCarriesIt)
     }
 }
 
-// Before version 6 the assets were always on the SD card.
-TEST(AssetStorage, OlderProjectDataIsExternal)
+// A file from another version is refused: it was exported by a different editor.
+TEST(AssetStorage, OlderProjectDataIsRefused)
 {
     std::vector<uint8_t> bytes = Deki::ProjectSettings::Write(Deki::Storage::Internal, 30);
     Deki::ProjectSettings::FileHeader header;
     std::memcpy(&header, bytes.data(), sizeof(header));
     header.version = 5;
     std::memcpy(bytes.data(), &header, sizeof(header));
-    ASSERT_TRUE(Deki::ProjectSettings::Load(bytes.data(), bytes.size()));
-    EXPECT_EQ(Deki::ProjectSettings::GetAssetStorage(), Deki::Storage::External);
+    EXPECT_FALSE(Deki::ProjectSettings::Load(bytes.data(), bytes.size()));
 }
 
 TEST(AssetStorage, Roots)

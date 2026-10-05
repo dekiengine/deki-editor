@@ -19,7 +19,7 @@ namespace DekiEditor
 
 // Bump this when the compiled asset format changes. On a mismatch the
 // pipeline wipes the cache and rebuilds it.
-constexpr int kDekiCacheVersion = 4;  // 4: chroma spans mark rows with interior key pixels
+constexpr int kDekiCacheVersion = 5;  // 5: version 3 meshes and tilemaps without pool offsets are not read
 
 class AssetPipeline;
 class AssetFileWatcher;

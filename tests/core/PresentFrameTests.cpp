@@ -222,12 +222,12 @@ void Put(std::vector<uint8_t>& out, const void* p, size_t n)
     out.insert(out.end(), b, b + n);
 }
 
-// A v5 project_data.bin with one package section, "Rendering", holding a Bool and
+// A project_data.bin with one package section, "Rendering", holding a Bool and
 // an Int32, laid out the way Deki::ProjectSettings::Write emits them.
 std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
 {
     std::vector<uint8_t> img;
-    Deki::ProjectSettings::FileHeader hdr{ Deki::ProjectSettings::kMagic, 5, 0 };
+    Deki::ProjectSettings::FileHeader hdr{ Deki::ProjectSettings::kMagic, Deki::ProjectSettings::kVersion, 0 };
     Put(img, &hdr, sizeof(hdr));
     Deki::ProjectSettings::DisplaySettings ds{ 320, 240, 0, 0, 0, 0, 0.0f };
     Put(img, &ds, sizeof(ds));
@@ -267,7 +267,7 @@ std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
 }
 }  // namespace
 
-TEST(ProjectSettingsRuntime, ReadPackageSettingFindsBoolAndInt32InAV5Image)
+TEST(ProjectSettingsRuntime, ReadPackageSettingFindsBoolAndInt32)
 {
     const std::vector<uint8_t> img = BuildImage(true, 16);
     ASSERT_TRUE(Deki::ProjectSettings::Load(img.data(), img.size()));

@@ -488,7 +488,6 @@ inline const PropertyTypeHandler& GetPropertyTypeHandler(Deki::PropertyType type
         case Deki::PropertyType::Double: return kDouble;
         case Deki::PropertyType::Bool: return kBool;
         case Deki::PropertyType::String: return kString;
-        case Deki::PropertyType::Asset: return kString;  // legacy GUID string field
         case Deki::PropertyType::Color: return kColor;
         case Deki::PropertyType::Vector2: return kVector2;
         case Deki::PropertyType::Vector3: return kVector3;

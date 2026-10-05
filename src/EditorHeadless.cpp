@@ -49,6 +49,8 @@
 #include <deki/providers/ITimeProvider.h>
 #include "LifecycleManager.h"
 #include <deki-editor/AssetPipeline.h>
+#include <deki-editor/AssetData.h>
+#include <deki-editor/build/PlatformConfig.h>
 
 #include <nlohmann/json.hpp>
 
@@ -1095,6 +1097,303 @@ int CmdVerifyScenes(EditorApp& editor)
 }
 
 // ===========================================================================
+// Project upgrade
+// ===========================================================================
+
+namespace
+{
+
+// Every .scene under `dir`, sorted so the report reads the same each run.
+std::vector<fs::path> ScenesUnder(const fs::path& dir)
+{
+    std::vector<fs::path> out;
+    std::error_code ec;
+    if (!fs::is_directory(dir, ec))
+    {
+        return out;
+    }
+    for (const auto& entry : fs::recursive_directory_iterator(dir, ec))
+    {
+        if (ec)
+        {
+            break;
+        }
+        if (entry.is_regular_file() && entry.path().extension() == ".scene")
+        {
+            out.push_back(entry.path());
+        }
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+std::string ReadText(const fs::path& path)
+{
+    std::ifstream file(path, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+
+// True when two JSON texts hold the same values, however they are laid out.
+bool SameJson(const std::string& a, const std::string& b)
+{
+    const nlohmann::json ja = nlohmann::json::parse(a, nullptr, false);
+    const nlohmann::json jb = nlohmann::json::parse(b, nullptr, false);
+    return !ja.is_discarded() && !jb.is_discarded() && ja == jb;
+}
+
+// A scene loaded for the upgrade, with the text it saves as.
+struct SceneUpgrade
+{
+    fs::path path;
+    std::unique_ptr<Deki::Scene> scene;
+    bool changed = false;
+};
+
+// A platform file in the form the editor writes.
+struct PlatformUpgrade
+{
+    fs::path path;
+    PlatformConfig config;
+};
+
+// A sprite sheet's sidecar with an id written on every frame.
+struct SidecarUpgrade
+{
+    fs::path path;
+    AssetData data;
+};
+
+std::string Relative(const fs::path& path, const std::string& root)
+{
+    return path.lexically_relative(fs::path(root)).generic_string();
+}
+
+}  // namespace
+
+int CmdUpgradeProject(EditorApp& editor)
+{
+    Project* project = ProjectOf(editor, "--upgrade-project");
+    // Components from code that did not build are unknown, and their data
+    // would be kept but never moved to the current format.
+    if (!project || !CodeBuilt(editor, "Upgrade"))
+    {
+        return 1;
+    }
+    const std::string root = project->GetPath();
+
+    // Scenes and each platform's boot scene.
+    std::vector<fs::path> scenePaths = ScenesUnder(project->GetAssetsPath());
+    for (const fs::path& p : ScenesUnder(GetPlatformsDirectory(root)))
+    {
+        scenePaths.push_back(p);
+    }
+
+    // First pass: every scene must load with every component known and every
+    // key recognised. Otherwise a re-save would drop what was not read, so
+    // nothing is written.
+    std::vector<SceneUpgrade> scenes;
+    bool failed = false;
+    for (const fs::path& path : scenePaths)
+    {
+        const std::string name = Relative(path, root);
+        SceneUpgrade s;
+        s.path = path;
+        s.scene = std::make_unique<Deki::Scene>();
+        Deki::Scene::ClearUnknownProperties();
+        if (!s.scene->LoadFromFile(path.string()))
+        {
+            printf("Error: could not load %s\n", name.c_str());
+            failed = true;
+            continue;
+        }
+
+        std::set<std::string> missingTypes;
+        int total = 0, missing = 0;
+        CountComponents(*s.scene, total, missingTypes, missing);
+        if (missing > 0)
+        {
+            printf("Error: %s has %d component(s) of a type no package or project code provides:\n", name.c_str(),
+                   missing);
+            PrintMissingTypes(missingTypes);
+            failed = true;
+        }
+        const auto unknown = Deki::Scene::CollectUnknownProperties();
+        if (!unknown.empty())
+        {
+            // The scene keeps such a key and saves it back unchanged, so the
+            // upgrade loses nothing. Listed so it can be removed by hand.
+            printf("Note: %s has %zu property key(s) no component reads; they are kept as they are:\n", name.c_str(),
+                   unknown.size());
+            for (const auto& [component, key] : unknown)
+            {
+                printf("  %s.%s\n", component.c_str(), key.c_str());
+            }
+        }
+        scenes.push_back(std::move(s));
+    }
+
+    // Second pass: what each scene saves as must load back and save the same.
+    for (SceneUpgrade& s : scenes)
+    {
+        const std::string saved = s.scene->SaveToJsonString();
+        Deki::Scene reloaded;
+        if (!reloaded.LoadFromJsonString(saved) || reloaded.SaveToJsonString() != saved)
+        {
+            printf("Error: %s does not load back the same after a re-save\n", Relative(s.path, root).c_str());
+            failed = true;
+            continue;
+        }
+        s.changed = !SameJson(ReadText(s.path), saved);
+    }
+
+    // Platform files, in the form SavePlatformToFile writes.
+    std::vector<PlatformUpgrade> platforms;
+    std::error_code ec;
+    const fs::path platformsDir = GetPlatformsDirectory(root);
+    if (fs::is_directory(platformsDir, ec))
+    {
+        for (const auto& entry : fs::directory_iterator(platformsDir, ec))
+        {
+            const std::string id = entry.path().filename().string();
+            const fs::path file = entry.path() / (id + ".json");
+            if (!entry.is_directory() || !fs::exists(file, ec))
+            {
+                continue;
+            }
+            const std::string text = ReadText(file);
+            PlatformUpgrade p;
+            p.path = file;
+            PlatformConfig again;
+            if (!PlatformFromJson(text, p.config) || p.config.id != id)
+            {
+                printf("Error: %s is not a platform file for '%s'\n", Relative(file, root).c_str(), id.c_str());
+                failed = true;
+                continue;
+            }
+            const std::string saved = PlatformToJson(p.config);
+            if (!PlatformFromJson(saved, again) || PlatformToJson(again) != saved)
+            {
+                printf("Error: %s does not load back the same after a re-save\n", Relative(file, root).c_str());
+                failed = true;
+                continue;
+            }
+            if (!SameJson(text, saved))
+            {
+                platforms.push_back(std::move(p));
+            }
+        }
+    }
+
+    // Sprite sheets whose frames have no id. Such a frame's id is its
+    // position, so writing the position keeps every frame's GUID.
+    std::vector<SidecarUpgrade> sidecars;
+    for (const auto& entry : fs::recursive_directory_iterator(project->GetAssetsPath(), ec))
+    {
+        if (ec)
+        {
+            break;
+        }
+        if (!entry.is_regular_file() || entry.path().extension() != ".data")
+        {
+            continue;
+        }
+        SidecarUpgrade s;
+        s.path = entry.path();
+        if (!LoadAssetData(s.path.string(), s.data) || !s.data.settings.contains("settings") ||
+            !s.data.settings["settings"].contains("sprite"))
+        {
+            continue;
+        }
+        nlohmann::json& sprite = s.data.settings["settings"]["sprite"];
+        if (sprite.value("mode", "") != "atlas" || !sprite.contains("frames") || !sprite["frames"].is_array())
+        {
+            continue;
+        }
+        bool added = false;
+        for (size_t i = 0; i < sprite["frames"].size(); ++i)
+        {
+            nlohmann::json& frame = sprite["frames"][i];
+            if (frame.is_object() && !frame.contains("id"))
+            {
+                frame["id"] = static_cast<int32_t>(i);
+                added = true;
+            }
+        }
+        if (added)
+        {
+            sidecars.push_back(std::move(s));
+        }
+    }
+
+    if (failed)
+    {
+        printf("Nothing was written.\n");
+        return 1;
+    }
+
+    // Every check passed: write.
+    int written = 0;
+    for (SceneUpgrade& s : scenes)
+    {
+        if (!s.changed)
+        {
+            continue;
+        }
+        if (!s.scene->SaveToFile(s.path.string()))
+        {
+            printf("Error: could not write %s\n", Relative(s.path, root).c_str());
+            return 1;
+        }
+        printf("  scene     %s\n", Relative(s.path, root).c_str());
+        ++written;
+    }
+    for (const PlatformUpgrade& p : platforms)
+    {
+        if (!PlatformRegistry::Instance().SavePlatformToFile(p.config, platformsDir.string()))
+        {
+            printf("Error: could not write %s\n", Relative(p.path, root).c_str());
+            return 1;
+        }
+        printf("  platform  %s\n", Relative(p.path, root).c_str());
+        ++written;
+    }
+    for (const SidecarUpgrade& s : sidecars)
+    {
+        if (!SaveAssetData(s.path.string(), s.data))
+        {
+            printf("Error: could not write %s\n", Relative(s.path, root).c_str());
+            return 1;
+        }
+        printf("  frames    %s\n", Relative(s.path, root).c_str());
+        ++written;
+    }
+
+    // deki.json and settings/, as the editor saves them.
+    if (!project->Save())
+    {
+        printf("Error: could not save the project\n");
+        return 1;
+    }
+
+    // The old framing, which cameras in older scenes took their size from.
+    // Every scene now holds its own.
+    const fs::path framing = fs::path(GetSettingsDirectory(root)) / "framebuffer.json";
+    if (fs::exists(framing, ec))
+    {
+        fs::remove(framing, ec);
+        if (ec)
+        {
+            printf("Error: could not remove %s: %s\n", Relative(framing, root).c_str(), ec.message().c_str());
+            return 1;
+        }
+        printf("  removed   %s\n", Relative(framing, root).c_str());
+    }
+
+    printf("Upgraded %d file(s); %zu scene(s) checked.\n", written, scenes.size());
+    return 0;
+}
+
+// ===========================================================================
 // Headless scene rendering (pixel gate)
 // ===========================================================================
 
@@ -1613,7 +1912,6 @@ const char* PropertyTypeName(Deki::PropertyType t)
         case Deki::PropertyType::Color: return "Color";
         case Deki::PropertyType::Vector2: return "Vector2";
         case Deki::PropertyType::Vector3: return "Vector3";
-        case Deki::PropertyType::Asset: return "Asset";
         case Deki::PropertyType::Enum: return "enum";
         case Deki::PropertyType::ObjectRef: return "ObjectRef";
         case Deki::PropertyType::Array: return "Array";

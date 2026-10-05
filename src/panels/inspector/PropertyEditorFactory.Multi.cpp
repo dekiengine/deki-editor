@@ -408,7 +408,6 @@ void PropertyEditorFactory::DrawPropertyMulti(const std::vector<Deki::Component*
         // all of them.
         case Deki::PropertyType::Vector2:
         case Deki::PropertyType::Vector3:
-        case Deki::PropertyType::Asset:
         case Deki::PropertyType::AssetRef:
         case Deki::PropertyType::ObjectRef:
         case Deki::PropertyType::Array:

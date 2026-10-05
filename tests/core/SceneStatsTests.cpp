@@ -74,8 +74,8 @@ TEST(SceneStats, LoneRootReadsAsOneObject)
 TEST(SceneOutline, CapturesNamesComponentsAndNesting)
 {
     const auto doc = json::parse(R"({"objects":[
-        {"name":"Root","components":[{"class":"CameraComponent"}],"children":[
-            {"name":"Hero","components":[{"class":"SpriteComponent"},{"class":"HeroController"}],"children":[]}
+        {"name":"Root","components":[{"type":"DekiRendering::CameraComponent"}],"children":[
+            {"name":"Hero","components":[{"type":"Deki2D::SpriteComponent"},{"type":"HeroController"}],"children":[]}
         ]}
     ]})");
 

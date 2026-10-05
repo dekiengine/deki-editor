@@ -26,10 +26,12 @@ namespace
 {
 
 // Component types of the packages a new project starts with: the qualified
-// class name is the scene file's "type" key (see deki/TypeId.h).
-constexpr const char* kCameraType = "CameraComponent";      // deki-rendering
-constexpr const char* kGradientType = "GradientComponent";  // deki-2d
-constexpr const char* kTextType = "TextComponent";          // deki-2d
+// class name is the scene file's "type" key (see deki/TypeId.h). The scene is
+// written in the format the editor saves: colours as "#RRGGBBAA", enum values
+// by name.
+constexpr const char* kCameraType = "DekiRendering::CameraComponent";  // deki-rendering
+constexpr const char* kGradientType = "Deki2D::GradientComponent";     // deki-2d
+constexpr const char* kTextType = "Deki2D::TextComponent";             // deki-2d
 
 json Transform(double x, double y)
 {
@@ -44,9 +46,9 @@ json Object(uint32_t id, const char* name, json components, json children, doubl
     };
 }
 
-json Component(const char* type, const char* className, json properties)
+json Component(const char* type, json properties)
 {
-    return json{ { "class", className }, { "properties", std::move(properties) }, { "type", type } };
+    return json{ { "properties", std::move(properties) }, { "type", type } };
 }
 
 bool WriteText(const fs::path& path, const std::string& text, std::string& err)
@@ -225,30 +227,29 @@ bool WriteStarterScene(const std::string& projectPath, const std::string& fontSo
     // 20 x 15 m at 16 px/m and the gradient fills it.
     json children = json::array();
 
-    children.push_back(Object(2, "Camera",
-                              json::array({ Component(kCameraType, "CameraComponent",
-                                                      json{ { "orthoHeight", 15.0 }, { "clearColor", 202250495 } }) }),
-                              json::array()));
+    children.push_back(
+        Object(2, "Camera",
+               json::array({ Component(kCameraType, json{ { "orthoHeight", 15.0 }, { "clearColor", "#0C0E18FF" } }) }),
+               json::array()));
 
     children.push_back(Object(3, "Sky",
-                              json::array({ Component(kGradientType, "GradientComponent",
-                                                      json{ { "width", 20.0 },
-                                                            { "height", 15.0 },
-                                                            { "angle", 90.0 },
-                                                            { "gradientType", 0 },
-                                                            { "stopCount", 4 },
-                                                            { "stop1Color", 390692863 },
-                                                            { "stop1Position", 0.0 },
-                                                            { "stop2Color", 779860223 },
-                                                            { "stop2Position", 0.45 },
-                                                            { "stop3Color", 1656020223 },
-                                                            { "stop3Position", 0.78 },
-                                                            { "stop4Color", 2849894655 },
-                                                            { "stop4Position", 1.0 },
-                                                            { "ditherMode", 3 },
-                                                            { "ditherScale", 1 },
-                                                            { "sortingOrder", 0 },
-                                                            { "pixelSnap", true } }) }),
+                              json::array({ Component(kGradientType, json{ { "width", 20.0 },
+                                                                           { "height", 15.0 },
+                                                                           { "angle", 90.0 },
+                                                                           { "gradientType", "Linear" },
+                                                                           { "stopCount", 4 },
+                                                                           { "stop1Color", "#17497FFF" },
+                                                                           { "stop1Position", 0.0 },
+                                                                           { "stop2Color", "#2E7BB8FF" },
+                                                                           { "stop2Position", 0.45 },
+                                                                           { "stop3Color", "#62B4DCFF" },
+                                                                           { "stop3Position", 0.78 },
+                                                                           { "stop4Color", "#A9DDF0FF" },
+                                                                           { "stop4Position", 1.0 },
+                                                                           { "ditherMode", "Ordered8x8" },
+                                                                           { "ditherScale", 1 },
+                                                                           { "sortingOrder", 0 },
+                                                                           { "pixelSnap", true } }) }),
                               json::array()));
 
     if (!fontSourceGuid.empty())
@@ -259,21 +260,22 @@ bool WriteStarterScene(const std::string& projectPath, const std::string& fontSo
             GenerateDeterministicGuid(fontSourceGuid + ":" + std::to_string(kStarterFontSize));
         children.push_back(Object(
             4, "Hello",
-            json::array({ Component(kTextType, "TextComponent",
-                                    json{ { "text", "Hello, Deki" },
-                                          { "fontSize", kStarterFontSize },
-                                          { "font", json{ { "guid", variantGuid }, { "source", fontSourceGuid } } },
-                                          { "color", 4294967295u },
-                                          { "align", 1 },  // TextAlign::Center
-                                          { "verticalAlign", 1 },
-                                          { "width", 20.0 },
-                                          { "height", 2.0 },
-                                          { "sortingOrder", 1 },
-                                          { "pixelSnap", true } }) }),
+            json::array(
+                { Component(kTextType, json{ { "text", "Hello, Deki" },
+                                             { "fontSize", kStarterFontSize },
+                                             { "font", json{ { "guid", variantGuid }, { "source", fontSourceGuid } } },
+                                             { "color", "#FFFFFFFF" },
+                                             { "align", "Center" },
+                                             { "verticalAlign", "Middle" },
+                                             { "width", 20.0 },
+                                             { "height", 2.0 },
+                                             { "sortingOrder", 1 },
+                                             { "pixelSnap", true } }) }),
             json::array()));
     }
 
     json scene;
+    scene["formatVersion"] = 1;
     scene["objects"] = json::array({ Object(1, "Root", json::array(), std::move(children)) });
 
     const fs::path path = fs::path(GetAssetsDirectory(projectPath)) / kStartupScene;

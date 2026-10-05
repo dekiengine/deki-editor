@@ -26,9 +26,6 @@ class AssetPropertyEditor
 public:
     AssetPropertyEditor(EditorApp* app, AssetPicker* picker);
 
-    /// Draws an Asset property (a GUID string) with its picker.
-    bool DrawAssetProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const char* displayName);
-
     /// Draws an AssetRef property (an AssetRefBase with guid and source).
     bool DrawAssetRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const char* displayName);
 

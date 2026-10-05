@@ -287,9 +287,11 @@ void AssetPropertyEditor::AutoPopulateDimensions(Deki::Component* comp, const st
             DekiEditor::AssetData assetData;
             bool usedFrameSize = false;
 
-            if (DekiEditor::LoadAssetData(dataPath, assetData) && assetData.settings.contains("sprite"))
+            // The sidecar keeps sprite settings under "settings": { "sprite": ... }.
+            if (DekiEditor::LoadAssetData(dataPath, assetData) && assetData.settings.contains("settings") &&
+                assetData.settings["settings"].contains("sprite"))
             {
-                auto& sprite = assetData.settings["sprite"];
+                auto& sprite = assetData.settings["settings"]["sprite"];
                 if (sprite.contains("frameWidth") && sprite.contains("frameHeight"))
                 {
                     int fw = sprite["frameWidth"].get<int>();
@@ -339,74 +341,6 @@ void AssetPropertyEditor::RevealAssetInBrowser(const std::string& guid)
         std::string absPath = pipeline->GetAbsolutePath(info->path);
         browser->RevealAsset(absPath);
     }
-}
-
-bool AssetPropertyEditor::DrawAssetProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
-                                            const char* displayName)
-{
-    // The value is the asset's GUID, as in Unity.
-    std::string& assetRef = *reinterpret_cast<std::string*>(reinterpret_cast<char*>(comp) + prop.offset);
-
-    std::string displayText = ResolveGuidToDisplayName(assetRef);
-
-    // The label in the usual column, then the asset name and picker as one field.
-    InspectorUtils::BeginPropertyRow(displayName);
-    // The width BeginPropertyRow set, so the field ends in line with the others.
-    float fieldWidth = ImGui::CalcItemWidth();
-
-    float pickerBtnWidth = ImGui::GetFrameHeight();
-    float nameFieldWidth = fieldWidth - pickerBtnWidth;
-
-    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_FrameBgHovered]);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyle().Colors[ImGuiCol_FrameBgActive]);
-    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-
-    std::string popupId = std::string("AssetPicker##") + prop.name;
-
-    // Left: the asset name; double-click reveals it in the Asset Browser.
-    std::string nameBtnId = displayText + "##name_" + prop.name;
-    ImGui::Button(nameBtnId.c_str(), ImVec2(nameFieldWidth, 0));
-
-    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0) && !assetRef.empty())
-    {
-        RevealAssetInBrowser(assetRef);
-    }
-
-    if (ImGui::IsItemHovered() && !assetRef.empty())
-    {
-        DekiEditor::Tooltip("GUID: %s\nDouble-click to reveal in Asset Browser", assetRef.c_str());
-    }
-
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor(3);
-
-    // Right: the picker button, flush against the name.
-    ImGui::SameLine(0, 0);
-    std::string pickerBtnId = std::string(ICON_TI_CHEVRON_DOWN "##picker_") + prop.name;
-    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-    const bool pickerClicked = ImGui::Button(pickerBtnId.c_str(), ImVec2(pickerBtnWidth, 0));
-    ImGui::PopStyleVar();
-    if (pickerClicked)
-    {
-        m_ActivePropertyName = prop.name;
-        m_ActiveComponent = comp;
-
-        AssetFilterType filter = GetAssetFilterType(prop.assetType ? prop.assetType : "");
-        std::string selectedGuid;
-        m_AssetPicker->Open(popupId, assetRef, filter, selectedGuid);
-    }
-
-    std::string selectedGuid;
-    if (m_AssetPicker->Draw(popupId, selectedGuid))
-    {
-        if (m_ActiveComponent == comp && m_ActivePropertyName == prop.name)
-        {
-            assetRef = selectedGuid;
-        }
-    }
-
-    return false;
 }
 
 bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,

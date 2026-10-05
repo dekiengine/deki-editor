@@ -151,14 +151,13 @@ private:
     void LoadLegacyFraming(const nlohmann::json& legacyFramebuffer);
 
     std::string m_Name;
-    std::string m_Path;              // Project root directory
-    std::string m_LoadError;         // see GetLoadError()
-    std::string m_AssetsPath;        // project/assets/
-    std::string m_SrcPath;           // project/src/
-    std::string m_BuildPath;         // build/
-    std::string m_CachePath;         // cache/
-    std::string m_StructureVersion;  // deki.json "structure"; gates layout migrations
-    std::string m_StartupScene;      // relative to assets
+    std::string m_Path;          // Project root directory
+    std::string m_LoadError;     // see GetLoadError()
+    std::string m_AssetsPath;    // project/assets/
+    std::string m_SrcPath;       // project/src/
+    std::string m_BuildPath;     // build/
+    std::string m_CachePath;     // cache/
+    std::string m_StartupScene;  // relative to assets
     std::string m_RenderPipelineGuid;
     std::string m_ActivePlatformId;
     std::unordered_set<std::string> m_ForceIncludeGuids;

@@ -52,9 +52,6 @@ public:
     /// show in git status, one `git add .` from being committed) and not in the
     /// OS temp folder (cleared on reboot, which often follows a crash).
     static std::string RecoveryDirFor(const std::string& projectPath);
-    /// The recovery directory under the older, std::hash-based folder name.
-    /// Still scanned so recoveries left by older editors are found.
-    static std::string LegacyRecoveryDirFor(const std::string& projectPath);
 
     /// Deletes the whole recovery directory. Call only once every entry is
     /// resolved.

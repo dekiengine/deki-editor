@@ -63,6 +63,17 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll);
 /// resolved to a type and every key is recognised; 1 otherwise.
 int CmdVerifyScenes(EditorApp& editor);
 
+/// Re-save every file the project keeps in an older format, in the current
+/// one: the scenes under assets/, each platform's boot scene and platform
+/// file, sprite sheets whose frames have no id, deki.json and settings/. The
+/// old settings/framebuffer.json is removed.
+///
+/// Nothing is written unless every scene loads with every component known,
+/// and every scene and platform file loads back the same after the re-save.
+/// Keys no component reads are listed; the scene keeps them. Returns 0 when
+/// the project was upgraded.
+int CmdUpgradeProject(EditorApp& editor);
+
 /// Render every scene under the project's assets/ headless - through the same
 /// Deki::IRenderSystem::RenderToBuffer the editor's scene view uses, with the
 /// scene's own camera, at the project's screen size in RGB565 - for a fixed

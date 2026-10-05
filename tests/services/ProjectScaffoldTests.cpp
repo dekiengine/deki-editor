@@ -202,11 +202,12 @@ TEST(ProjectScaffold, StarterSceneHasCameraGradientAndText)
     ASSERT_TRUE(ProjectScaffold::WriteStarterScene(t.Path(), fontGuid, err)) << err;
 
     const json j = t.ReadJson(fs::path(GetAssetsDirectoryRelative()) / ProjectScaffold::kStartupScene);
+    EXPECT_EQ(j.at("formatVersion"), 1);
     ASSERT_EQ(j.at("objects").size(), 1u);
     const json& root = j.at("objects")[0];
     EXPECT_EQ(root.at("name"), "Root");
 
-    std::set<std::string> classes;
+    std::set<std::string> types;
     std::set<uint32_t> ids{ root.at("id").get<uint32_t>() };
     json textProps;
     for (const json& child : root.at("children"))
@@ -214,15 +215,16 @@ TEST(ProjectScaffold, StarterSceneHasCameraGradientAndText)
         EXPECT_TRUE(ids.insert(child.at("id").get<uint32_t>()).second) << "duplicate object id";
         for (const json& c : child.at("components"))
         {
-            classes.insert(c.at("class").get<std::string>());
-            EXPECT_EQ(c.at("type").get<std::string>(), c.at("class").get<std::string>());  // the class name is the type
-            if (c.at("class") == "TextComponent")
+            types.insert(c.at("type").get<std::string>());
+            EXPECT_FALSE(c.contains("class"));
+            if (c.at("type") == "Deki2D::TextComponent")
             {
                 textProps = c.at("properties");
             }
         }
     }
-    EXPECT_EQ(classes, (std::set<std::string>{ "CameraComponent", "GradientComponent", "TextComponent" }));
+    EXPECT_EQ(types, (std::set<std::string>{ "DekiRendering::CameraComponent", "Deki2D::GradientComponent",
+                                             "Deki2D::TextComponent" }));
 
     // The text references the baked variant the way the exporter derives it.
     ASSERT_FALSE(textProps.is_null());
@@ -242,7 +244,7 @@ TEST(ProjectScaffold, StarterSceneWithoutFontSkipsTheText)
     {
         for (const json& c : child.at("components"))
         {
-            EXPECT_NE(c.at("class"), "TextComponent");
+            EXPECT_NE(c.at("type"), "Deki2D::TextComponent");
         }
     }
 }

@@ -82,10 +82,13 @@ inline std::vector<SceneOutlineNode> BuildSceneOutline(const nlohmann::json& nod
                     {
                         continue;
                     }
-                    auto classIt = c.find("class");
-                    if (classIt != c.end() && classIt->is_string())
+                    // The class name without its namespace: "Deki2D::TextComponent" shows as "TextComponent".
+                    auto typeIt = c.find("type");
+                    if (typeIt != c.end() && typeIt->is_string())
                     {
-                        n.components.push_back(classIt->get<std::string>());
+                        const std::string type = typeIt->get<std::string>();
+                        const size_t colons = type.rfind("::");
+                        n.components.push_back(colons == std::string::npos ? type : type.substr(colons + 2));
                     }
                 }
             }

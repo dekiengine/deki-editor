@@ -342,11 +342,11 @@ work.
 
 --build-firmware      Build firmware for the active platform
 --build-all-targets   Build every platform the project declares, not just one
---deploy              Deploy the last build as its backend defines: flash, run, install (alias: --flash)
+--deploy              Deploy the last build as its backend defines: flash, run, install
 --clean               Clean the firmware build directory
 
 --platform <id>       Override the platform (default: activePlatformId)
---deploy-target <id>  What to deploy to, e.g. a serial port (default: the backend chooses; alias: --port)
+--deploy-target <id>  What to deploy to, e.g. a serial port (default: the backend chooses)
 
 --mcp                 Start the MCP server when the editor opens
 --mcp-port <port>     Port for the MCP server (implies --mcp)

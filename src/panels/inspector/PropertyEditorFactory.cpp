@@ -361,11 +361,6 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
 
         case Deki::PropertyType::Vector3: DrawVector3Property(comp, prop, displayName.c_str()); break;
 
-        case Deki::PropertyType::Asset:
-            m_AssetEditor->DrawAssetProperty(comp, prop, displayName.c_str());
-            ShowTooltip(prop);
-            break;
-
         case Deki::PropertyType::AssetRef:
             m_AssetEditor->DrawAssetRefProperty(comp, prop, displayName.c_str());
             ShowTooltip(prop);

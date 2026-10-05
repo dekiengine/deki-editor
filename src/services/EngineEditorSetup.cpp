@@ -26,14 +26,9 @@
 // its own extern declaration here.
 extern "C"
 {
-    // Factory API
     int DekiEngineGetEditorFactoryCount();
     DekiEditor::EditorExtension* DekiEngineGetEditorPrototype(int index);
     DekiEditor::EditorExtension* DekiEngineCreateEditor(int index);
-
-    // Older singleton API, used when the factory API lists nothing
-    int DekiEngineGetEditorCount();
-    DekiEditor::EditorExtension* DekiEngineGetEditor(int index);
 }
 
 namespace DekiEditor
@@ -620,158 +615,86 @@ void RegisterEngineEditors()
     auto& customEditorRegistry = DekiEditor::CustomEditorRegistry::Instance();
     auto& assetTypeEditorRegistry = DekiEditor::AssetTypeEditorRegistry::Instance();
 
-    // The factory API first.
-    int factoryCount = DekiEngineGetEditorFactoryCount();
-    if (factoryCount > 0)
+    const int factoryCount = DekiEngineGetEditorFactoryCount();
+    for (int i = 0; i < factoryCount; ++i)
     {
-        for (int i = 0; i < factoryCount; ++i)
+        // The prototype answers the metadata queries.
+        DekiEditor::EditorExtension* prototype = DekiEngineGetEditorPrototype(i);
+        if (!prototype)
         {
-            // The prototype answers the metadata queries.
-            DekiEditor::EditorExtension* prototype = DekiEngineGetEditorPrototype(i);
-            if (!prototype)
-            {
-                continue;
-            }
-
-            switch (prototype->GetEditorType())
-            {
-                case DekiEditor::EditorType::CustomEditor:
-                {
-                    // A factory that creates a new instance each time.
-                    const int factoryIndex = i;
-                    customEditorRegistry.RegisterFactory(prototype->GetName(),
-                                                         [factoryIndex]() -> std::unique_ptr<DekiEditor::CustomEditor>
-                                                         {
-                                                             auto* rawPtr = DekiEngineCreateEditor(factoryIndex);
-                                                             if (rawPtr && rawPtr->GetEditorType() ==
-                                                                               DekiEditor::EditorType::CustomEditor)
-                                                             {
-                                                                 return std::unique_ptr<DekiEditor::CustomEditor>(
-                                                                     static_cast<DekiEditor::CustomEditor*>(rawPtr));
-                                                             }
-                                                             delete rawPtr;
-                                                             return nullptr;
-                                                         });
-                    DEKI_LOG_DEBUG("Registered custom editor factory: %s", prototype->GetName());
-                    break;
-                }
-
-                case DekiEditor::EditorType::AssetTypeEditor:
-                {
-                    // AssetTypeEditors stay singletons: they have no per-component state.
-                    auto* assetEditor = static_cast<DekiEditor::AssetTypeEditor*>(prototype);
-                    assetTypeEditorRegistry.Register(assetEditor);
-                    DEKI_LOG_DEBUG("Registered asset type editor: %s", prototype->GetName());
-
-                    // An AssetTypeHandler for the creation menu.
-                    DekiEditor::AssetTypeHandler handler;
-                    handler.typeName = assetEditor->GetTypeName();
-                    handler.displayName = assetEditor->GetDisplayName();
-                    handler.extensions = assetEditor->GetExtensions();
-                    handler.defaultContent = assetEditor->GetDefaultContent();
-
-                    // Map compile target: 0=Texture, 1=Audio, 2=Data
-                    int target = assetEditor->GetCompileTarget();
-                    handler.compilesTo = (target == 0)   ? DekiEditor::AssetCompileTarget::Texture
-                                         : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
-                                         : (target == 2) ? DekiEditor::AssetCompileTarget::Data
-                                                         : DekiEditor::AssetCompileTarget::None;
-                    // Each package's static initializer registers the asset
-                    // category (as in ImageCacheHandler.cpp). There is no
-                    // assetEditor->GetCategory(): a new virtual on
-                    // AssetTypeEditor would break the vtable ABI of package DLLs
-                    // already loaded.
-
-                    // The compile callback calls the editor's Compile method.
-                    if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
-                    {
-                        handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba,
-                                                        int& width, int& height) -> bool
-                        { return assetEditor->Compile(data.dump(), rgba, width, height); };
-                    }
-                    else if (handler.compilesTo == DekiEditor::AssetCompileTarget::Data)
-                    {
-                        handler.compileToFile = [assetEditor](const nlohmann::json& data,
-                                                              const std::string& cachePath) -> bool
-                        { return assetEditor->CompileToFile(data.dump(), cachePath); };
-                    }
-
-                    DekiEditor::AssetTypeRegistry::Instance().Register(handler);
-                    break;
-                }
-                case DekiEditor::EditorType::CliTool:
-                    // Found by name when a tool is called (McpTools.cpp), not
-                    // registered here, so it goes with its package on unload.
-                    break;
-            }
+            continue;
         }
-    }
-    else
-    {
-        // Otherwise the older singleton API.
-        int editorCount = DekiEngineGetEditorCount();
-        for (int i = 0; i < editorCount; ++i)
+
+        switch (prototype->GetEditorType())
         {
-            DekiEditor::EditorExtension* editor = DekiEngineGetEditor(i);
-            if (!editor)
+            case DekiEditor::EditorType::CustomEditor:
             {
-                continue;
+                // A factory that creates a new instance each time.
+                const int factoryIndex = i;
+                customEditorRegistry.RegisterFactory(prototype->GetName(),
+                                                     [factoryIndex]() -> std::unique_ptr<DekiEditor::CustomEditor>
+                                                     {
+                                                         auto* rawPtr = DekiEngineCreateEditor(factoryIndex);
+                                                         if (rawPtr && rawPtr->GetEditorType() ==
+                                                                           DekiEditor::EditorType::CustomEditor)
+                                                         {
+                                                             return std::unique_ptr<DekiEditor::CustomEditor>(
+                                                                 static_cast<DekiEditor::CustomEditor*>(rawPtr));
+                                                         }
+                                                         delete rawPtr;
+                                                         return nullptr;
+                                                     });
+                DEKI_LOG_DEBUG("Registered custom editor factory: %s", prototype->GetName());
+                break;
             }
 
-            switch (editor->GetEditorType())
+            case DekiEditor::EditorType::AssetTypeEditor:
             {
-                case DekiEditor::EditorType::CustomEditor:
-                    customEditorRegistry.Register(static_cast<DekiEditor::CustomEditor*>(editor));
-                    DEKI_LOG_DEBUG("Registered custom editor (legacy): %s", editor->GetName());
-                    break;
+                // AssetTypeEditors stay singletons: they have no per-component state.
+                auto* assetEditor = static_cast<DekiEditor::AssetTypeEditor*>(prototype);
+                assetTypeEditorRegistry.Register(assetEditor);
+                DEKI_LOG_DEBUG("Registered asset type editor: %s", prototype->GetName());
 
-                case DekiEditor::EditorType::AssetTypeEditor:
+                // An AssetTypeHandler for the creation menu.
+                DekiEditor::AssetTypeHandler handler;
+                handler.typeName = assetEditor->GetTypeName();
+                handler.displayName = assetEditor->GetDisplayName();
+                handler.extensions = assetEditor->GetExtensions();
+                handler.defaultContent = assetEditor->GetDefaultContent();
+
+                // Map compile target: 0=Texture, 1=Audio, 2=Data
+                int target = assetEditor->GetCompileTarget();
+                handler.compilesTo = (target == 0)   ? DekiEditor::AssetCompileTarget::Texture
+                                     : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
+                                     : (target == 2) ? DekiEditor::AssetCompileTarget::Data
+                                                     : DekiEditor::AssetCompileTarget::None;
+                // Each package's static initializer registers the asset
+                // category (as in ImageCacheHandler.cpp). There is no
+                // assetEditor->GetCategory(): a new virtual on
+                // AssetTypeEditor would break the vtable ABI of package DLLs
+                // already loaded.
+
+                // The compile callback calls the editor's Compile method.
+                if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
                 {
-                    auto* assetEditor = static_cast<DekiEditor::AssetTypeEditor*>(editor);
-                    assetTypeEditorRegistry.Register(assetEditor);
-                    DEKI_LOG_DEBUG("Registered asset type editor: %s", editor->GetName());
-
-                    // An AssetTypeHandler for the creation menu.
-                    DekiEditor::AssetTypeHandler handler;
-                    handler.typeName = assetEditor->GetTypeName();
-                    handler.displayName = assetEditor->GetDisplayName();
-                    handler.extensions = assetEditor->GetExtensions();
-                    handler.defaultContent = assetEditor->GetDefaultContent();
-
-                    // Map compile target: 0=Texture, 1=Audio, 2=Data
-                    int target = assetEditor->GetCompileTarget();
-                    handler.compilesTo = (target == 0)   ? DekiEditor::AssetCompileTarget::Texture
-                                         : (target == 1) ? DekiEditor::AssetCompileTarget::Audio
-                                         : (target == 2) ? DekiEditor::AssetCompileTarget::Data
-                                                         : DekiEditor::AssetCompileTarget::None;
-                    // Each package's static initializer registers the asset
-                    // category (as in ImageCacheHandler.cpp). There is no
-                    // assetEditor->GetCategory(): a new virtual on
-                    // AssetTypeEditor would break the vtable ABI of package DLLs
-                    // already loaded.
-
-                    // The compile callback calls the editor's Compile method.
-                    if (handler.compilesTo == DekiEditor::AssetCompileTarget::Texture)
-                    {
-                        handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba,
-                                                        int& width, int& height) -> bool
-                        { return assetEditor->Compile(data.dump(), rgba, width, height); };
-                    }
-                    else if (handler.compilesTo == DekiEditor::AssetCompileTarget::Data)
-                    {
-                        handler.compileToFile = [assetEditor](const nlohmann::json& data,
-                                                              const std::string& cachePath) -> bool
-                        { return assetEditor->CompileToFile(data.dump(), cachePath); };
-                    }
-
-                    DekiEditor::AssetTypeRegistry::Instance().Register(handler);
-                    break;
+                    handler.compile = [assetEditor](const nlohmann::json& data, std::vector<uint8_t>& rgba, int& width,
+                                                    int& height) -> bool
+                    { return assetEditor->Compile(data.dump(), rgba, width, height); };
                 }
-                case DekiEditor::EditorType::CliTool:
-                    // Found by name when a tool is called (McpTools.cpp), not
-                    // registered here, so it goes with its package on unload.
-                    break;
+                else if (handler.compilesTo == DekiEditor::AssetCompileTarget::Data)
+                {
+                    handler.compileToFile = [assetEditor](const nlohmann::json& data,
+                                                          const std::string& cachePath) -> bool
+                    { return assetEditor->CompileToFile(data.dump(), cachePath); };
+                }
+
+                DekiEditor::AssetTypeRegistry::Instance().Register(handler);
+                break;
             }
+            case DekiEditor::EditorType::CliTool:
+                // Found by name when a tool is called (McpTools.cpp), not
+                // registered here, so it goes with its package on unload.
+                break;
         }
     }
 

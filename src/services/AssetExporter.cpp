@@ -554,17 +554,6 @@ void AssetExporter::CollectAssetsFromComponent(Deki::Component* comp, AssetUsage
                 CollectFontUsage(comp, assetRef, collection);
             }
         }
-        else if (prop.type == Deki::PropertyType::Asset)
-        {
-            // Legacy Asset type (string GUID)
-            const std::string& guid =
-                *reinterpret_cast<const std::string*>(reinterpret_cast<const char*>(comp) + prop.offset);
-
-            if (!guid.empty())
-            {
-                collection.usedGuids.insert(guid);
-            }
-        }
     }
 }
 

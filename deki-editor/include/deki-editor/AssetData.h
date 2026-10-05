@@ -14,7 +14,7 @@ namespace DekiEditor
 /// Example:
 ///   {
 ///     "guid": "abc-123-xyz",
-///     "sprite": { "frameWidth": 55, "frameHeight": 48 },
+///     "settings": { "sprite": { "frameWidth": 55, "frameHeight": 48 } },
 ///     "audio": { "volume": 0.8, "loop": true }
 ///   }
 struct DEKI_EDITOR_API AssetData

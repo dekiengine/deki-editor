@@ -65,6 +65,8 @@ void PrintUsage(const char* program)
     printf("  --args <json>         Arguments for --tool (default: {})\n");
     printf("  --script <file>       Run a JSON array of {\"tool\", \"args\"} in order,\n");
     printf("                        stopping at the first failure\n");
+    printf("  --upgrade-project     Re-save every scene, boot scene, platform file and sprite sheet in\n");
+    printf("                        the current format; writes nothing unless all of it loads back the same\n");
     printf("  --render-scenes       Render every scene headless and print a hash per scene\n");
     printf("                        (DEKI_RENDER_FRAMES=n, DEKI_RENDER_OUT=<dir> writes .ppm files,\n");
     printf("                        DEKI_RENDER_MODE=buffer|system|tracked: scene-view path, the\n");
@@ -78,7 +80,6 @@ void PrintUsage(const char* program)
     printf("Firmware (headless):\n");
     printf("  --build-firmware      Build firmware for the active platform\n");
     printf("  --deploy              Deploy the last build as its backend defines: flash, run, install\n");
-    printf("                        (--flash is accepted as the same thing)\n");
     printf("  --simulate            With --build-firmware or --deploy: the board's firmware in its\n");
     printf("                        simulator (QEMU for ESP32); the board's boot scene is not changed\n");
     printf("  --clean               Clean the firmware build directory\n");
@@ -86,8 +87,7 @@ void PrintUsage(const char* program)
     printf("  --toolchain-status    Show toolchain component status (JSON)\n");
     printf("  --install-toolchain <id>  Install a toolchain component (ids: --toolchain-status)\n");
     printf("  --platform <id>       Override the platform (default: activePlatformId)\n");
-    printf("  --deploy-target <id>  What to deploy to, e.g. a serial port (default: the backend chooses;\n");
-    printf("                        --port is accepted as the same thing)\n");
+    printf("  --deploy-target <id>  What to deploy to, e.g. a serial port (default: the backend chooses)\n");
     printf("\n");
     printf("MCP:\n");
     printf("  --mcp                 Start the MCP server (SSE, http://localhost:3000/sse)\n");
@@ -155,7 +155,7 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.firmwareBuild = true;
         }
-        else if (strcmp(argv[i], "--deploy") == 0 || strcmp(argv[i], "--flash") == 0)
+        else if (strcmp(argv[i], "--deploy") == 0)
         {
             o.deploy = true;
         }
@@ -183,7 +183,7 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         {
             o.platformId = takeValue(i, "--platform");
         }
-        else if (strcmp(argv[i], "--deploy-target") == 0 || strcmp(argv[i], "--port") == 0)
+        else if (strcmp(argv[i], "--deploy-target") == 0)
         {
             o.deployTarget = takeValue(i, argv[i]);
         }
@@ -210,6 +210,10 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         else if (strcmp(argv[i], "--render-scenes") == 0)
         {
             o.renderScenes = true;
+        }
+        else if (strcmp(argv[i], "--upgrade-project") == 0)
+        {
+            o.upgradeProject = true;
         }
         else if (strcmp(argv[i], "--strip-plan") == 0)
         {
@@ -311,11 +315,11 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
 
 bool HasCommand(const CliOptions& o)
 {
-    return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes || o.stripPlan ||
-           o.platformCompat || o.buildAllTargets || o.listTools || o.toolName || o.scriptPath || o.dumpMetadataOut ||
-           o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId || o.firmwareBuild ||
-           o.deploy || o.clean || o.packagesList || o.listPlatforms || o.toolchainStatus || o.installToolchainId ||
-           o.newProjectName;
+    return o.build || o.exportAssets || o.buildCode || o.verifyScenes || o.renderScenes || o.upgradeProject ||
+           o.stripPlan || o.platformCompat || o.buildAllTargets || o.listTools || o.toolName || o.scriptPath ||
+           o.dumpMetadataOut || o.packagesRestore || o.packagesAddUrl || o.packagesRemoveId || o.packagesUpdateId ||
+           o.firmwareBuild || o.deploy || o.clean || o.packagesList || o.listPlatforms || o.toolchainStatus ||
+           o.installToolchainId || o.newProjectName;
 }
 
 bool IsLightCommand(const CliOptions& o)
@@ -387,6 +391,7 @@ int RunCommand(const CliOptions& o, EditorApp& editor)
 
     run(o.dumpMetadataOut != nullptr, [&] { return CmdDumpMetadata(editor, o.dumpMetadataOut, o.includeProject); });
     run(o.verifyScenes, [&] { return CmdVerifyScenes(editor); });
+    run(o.upgradeProject, [&] { return CmdUpgradeProject(editor); });
     run(o.renderScenes, [&] { return CmdRenderScenes(editor, o.platformId); });
     run(o.platformCompat, [&] { return CmdPlatformCompat(editor); });
     run(o.stripPlan, [&] { return CmdStripPlan(editor, o.platformId); });

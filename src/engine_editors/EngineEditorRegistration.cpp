@@ -1,14 +1,9 @@
 // Exported functions over the EditorRegistry, which static initializers in
 // each editor file (the REGISTER_EDITOR macro) fill when the DLL loads.
 //
-// Factory API (preferred):
 //   - DekiEngineGetEditorFactoryCount() - number of factory-registered editors
 //   - DekiEngineGetEditorPrototype(index) - the prototype, for metadata
 //   - DekiEngineCreateEditor(index) - a new instance from the factory
-//
-// Older API, kept for existing callers:
-//   - DekiEngineGetEditorCount() - the factory count
-//   - DekiEngineGetEditor(index) - the prototype (not a new instance)
 
 #ifdef DEKI_EDITOR
 
@@ -31,10 +26,6 @@ class EditorExtension;
 
 extern "C"
 {
-    // ============================================================================
-    // Factory API
-    // ============================================================================
-
     /// The number of editor factories the engine registered.
     DEKI_ENGINE_EDITOR_EXPORT int DekiEngineGetEditorFactoryCount()
     {
@@ -63,29 +54,6 @@ extern "C"
         }
         auto instance = factories[index].factory();
         return instance.release();  // the caller owns it
-    }
-
-    // ============================================================================
-    // Older API, kept for existing callers
-    // ============================================================================
-
-    /// The number of editor extensions the engine registered: the factory
-    /// count.
-    DEKI_ENGINE_EDITOR_EXPORT int DekiEngineGetEditorCount()
-    {
-        return static_cast<int>(DekiEditorInternal::EditorRegistry::Instance().GetAllFactories().size());
-    }
-
-    /// The editor extension at `index`: the shared prototype, not a new
-    /// instance. Deprecated; use DekiEngineCreateEditor for a new instance.
-    DEKI_ENGINE_EDITOR_EXPORT DekiEditor::EditorExtension* DekiEngineGetEditor(int index)
-    {
-        const auto& factories = DekiEditorInternal::EditorRegistry::Instance().GetAllFactories();
-        if (index < 0 || index >= static_cast<int>(factories.size()))
-        {
-            return nullptr;
-        }
-        return factories[index].prototype;
     }
 
 }  // extern "C"

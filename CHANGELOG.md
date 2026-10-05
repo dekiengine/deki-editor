@@ -7,6 +7,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Changed
+- **New projects start in the current scene format**: qualified component
+  names, colours as `#RRGGBBAA`, enum values by name, `formatVersion` 1.
+- The asset cache is rebuilt once (cache version 5).
 - **Code style.** The editor's code is formatted with clang-format 22 and
   named to the style in deki-engine/docs/codestyle; `.clang-format` and
   `.clang-tidy` at the root are copies of the engine's.
@@ -20,7 +23,25 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     `PostInstallDef::unix` is `unixLike` (`unix` is a macro under GCC).
 - **Builder ABI 3.** Builders built before this are rebuilt.
 
+### Removed
+- The project folder migrations: `modules/` to `packages/`, the `project/`
+  folder, and the move into `generated/`. A project from before 0.9 is opened
+  once with 0.17 first.
+- Reading settings from a `packageSettings` block in `deki.json`.
+- Looking for crash recoveries under the folder names older editors used.
+- The Inspector's editor for `PropertyType::Asset` fields, which nothing used.
+- The editor-extension exports `DekiEngineGetEditorCount` and
+  `DekiEngineGetEditor`; the factory exports are the only ones.
+- The `--flash` and `--port` aliases. Use `--deploy` and `--deploy-target`.
+
 ### Added
+- **`--upgrade-project`** re-saves a project in the current format: every
+  scene and boot scene, the platform files, deki.json and settings/, and an
+  id on every atlas frame (each frame keeps its GUID). It removes the old
+  `settings/framebuffer.json`. It first checks that every scene loads with
+  every component known and that each file loads back the same; if anything
+  fails, it writes nothing and names the file. Keys no component reads are
+  listed and kept.
 - **Touchscreen controls.** A tap clicks, a drag drags, holding a finger still
   for half a second right-clicks (context menus), and two fingers scroll the
   panel under them. In the Scene view two fingers pan and pinch to zoom, and a
@@ -49,6 +70,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- The crash-recovery preview lists the components of scenes saved in the
+  current format. It read a key those scenes no longer have.
+- The Inspector takes a sprite sheet's frame size from `settings.sprite`, where
+  the sidecar keeps it. It read the place older sidecars used, so it showed
+  the whole texture's size.
 - **Every command on a command line runs.** Only the first verb the
   editor recognised ran and the rest were dropped without a word:
   `--export --verify-scenes` verified and exported nothing, and

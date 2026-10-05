@@ -456,23 +456,3 @@ TEST_F(EditorRecoveryTest, ScenesWithTheSameNameKeepSeparateSnapshots)
     EXPECT_EQ(originals[0], pathA);
     EXPECT_EQ(originals[1], pathB);
 }
-
-// A recovery left by an editor from before the stable folder hash is still
-// found (std::hash could change with the compiler).
-TEST_F(EditorRecoveryTest, FindsARecoveryInTheOldFolder)
-{
-    const std::string legacy = EditorRecovery::LegacyRecoveryDirFor(m_ProjectPath);
-    if (legacy == m_Dir)
-    {
-        GTEST_SKIP() << "the old and new hashes agree here";
-    }
-    std::error_code ec;
-    fs::create_directories(legacy, ec);
-    std::ofstream(fs::path(legacy) / "old.scene") << R"({"objects":[]})";
-
-    EditorRecovery scan;
-    scan.ScanProject(m_ProjectPath);
-    EXPECT_EQ(scan.Entries().size(), 1u);
-    EditorRecovery::RemoveRecoveryDir(m_ProjectPath);
-    EXPECT_FALSE(fs::exists(legacy));
-}

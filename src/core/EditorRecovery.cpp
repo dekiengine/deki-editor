@@ -62,7 +62,7 @@ std::string EditorRecovery::RecoveryDirFor(const std::string& projectPath)
 
     // FNV-1a, not std::hash: std::hash may change with the compiler or its
     // library, and then an updated editor could not find a recovery the old
-    // one left. LegacyRecoveryDirFor covers the std::hash folders.
+    // one left.
     uint64_t h = 1469598103934665603ull;
     for (unsigned char c : norm)
     {
@@ -75,32 +75,6 @@ std::string EditorRecovery::RecoveryDirFor(const std::string& projectPath)
     return dataDir + "/Recovery/" + name + "-" + hash;
 }
 
-std::string EditorRecovery::LegacyRecoveryDirFor(const std::string& projectPath)
-{
-    const std::string current = RecoveryDirFor(projectPath);
-    if (current.empty())
-    {
-        return "";
-    }
-    std::string norm = projectPath;
-    for (char& c : norm)
-    {
-        if (c == '\\')
-        {
-            c = '/';
-        }
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    while (!norm.empty() && norm.back() == '/')
-    {
-        norm.pop_back();
-    }
-    char hash[17];
-    std::snprintf(hash, sizeof(hash), "%016llx", static_cast<unsigned long long>(std::hash<std::string>{}(norm)));
-    // Same folder name, std::hash instead of FNV-1a.
-    return current.substr(0, current.size() - 16) + hash;
-}
-
 void EditorRecovery::RemoveRecoveryDir(const std::string& projectPath)
 {
     std::error_code ec;
@@ -109,11 +83,6 @@ void EditorRecovery::RemoveRecoveryDir(const std::string& projectPath)
     {
         fs::remove_all(fs::path(dir), ec);
     }
-    const std::string legacy = LegacyRecoveryDirFor(projectPath);
-    if (!legacy.empty() && legacy != dir)
-    {
-        fs::remove_all(fs::path(legacy), ec);
-    }
 }
 
 void EditorRecovery::ScanProject(const std::string& projectPath)
@@ -121,116 +90,102 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
     m_Files.clear();
     m_Selected = 0;
 
-    std::vector<std::string> dirs = { RecoveryDirFor(projectPath) };
-    const std::string legacy = LegacyRecoveryDirFor(projectPath);
-    if (!legacy.empty() && legacy != dirs[0])
+    const std::string recoveryDir = RecoveryDirFor(projectPath);
+    std::error_code dirEc;
+    if (recoveryDir.empty() || !fs::is_directory(recoveryDir, dirEc))
     {
-        dirs.push_back(legacy);  // written by older editors that used std::hash
+        return;
     }
 
-    for (const std::string& recoveryDir : dirs)
+    for (const auto& entry : fs::directory_iterator(recoveryDir, dirEc))
     {
-        if (recoveryDir.empty())
+        if (entry.path().extension() != ".scene")
         {
-            continue;
+            continue;  // skips .meta.json sidecars and any stray files
         }
 
-        std::error_code dirEc;
-        if (!fs::exists(recoveryDir, dirEc) || !fs::is_directory(recoveryDir, dirEc))
+        RecoveryEntry rec;
+        rec.recoveryPath = entry.path().string();
+        rec.displayName = entry.path().filename().string();
+
+        // The sidecar holds the original scene path; the snapshot's file
+        // name alone cannot say where the user's file lives.
+        fs::path metaPath = entry.path();
+        metaPath += ".meta.json";
+        if (fs::exists(metaPath))
         {
-            continue;
-        }
-
-        for (const auto& entry : fs::directory_iterator(recoveryDir, dirEc))
-        {
-            if (entry.path().extension() != ".scene")
-            {
-                continue;  // skips .meta.json sidecars and any stray files
-            }
-
-            RecoveryEntry rec;
-            rec.recoveryPath = entry.path().string();
-            rec.displayName = entry.path().filename().string();
-
-            // The sidecar holds the original scene path; the snapshot's file
-            // name alone cannot say where the user's file lives.
-            fs::path metaPath = entry.path();
-            metaPath += ".meta.json";
-            if (fs::exists(metaPath))
-            {
-                try
-                {
-                    std::ifstream f(metaPath);
-                    if (f.is_open())
-                    {
-                        nlohmann::json meta;
-                        f >> meta;
-                        rec.originalPath = meta.value("originalPath", std::string{});
-                        rec.savedAt = static_cast<std::time_t>(meta.value("savedAt", 0LL));
-                    }
-                }
-                catch (const std::exception& e)
-                {
-                    // The entry is still offered, but Save will ask for a
-                    // location.
-                    DEKI_LOG_WARNING("Recovery: sidecar '%s' unreadable (%s); original path unknown",
-                                     metaPath.string().c_str(), e.what());
-                }
-            }
-
-            // No savedAt (unreadable or older sidecar): use the file's mtime.
-            // Nothing rewrites these files, so it is the crash time.
-            if (rec.savedAt == 0)
-            {
-                std::error_code ec;
-                const auto ftime = fs::last_write_time(entry.path(), ec);
-                if (!ec)
-                {
-                    const auto sys = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-                        ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
-                    rec.savedAt = std::chrono::system_clock::to_time_t(sys);
-                }
-            }
-
-            std::error_code sizeEc;
-            rec.fileSize = fs::file_size(entry.path(), sizeEc);
-            if (sizeEc)
-            {
-                rec.fileSize = 0;
-            }
-
-            // The object count tells the user whether this is worth recovering.
-            // Counted here, not in the crash handler, which must only get the
-            // file written.
             try
             {
-                std::ifstream pf(entry.path());
-                if (pf.is_open())
+                std::ifstream f(metaPath);
+                if (f.is_open())
                 {
-                    nlohmann::json doc;
-                    pf >> doc;
-                    rec.objectCount = CountSceneObjects(doc);
+                    nlohmann::json meta;
+                    f >> meta;
+                    rec.originalPath = meta.value("originalPath", std::string{});
+                    rec.savedAt = static_cast<std::time_t>(meta.value("savedAt", 0LL));
                 }
             }
-            catch (const std::exception&)
+            catch (const std::exception& e)
             {
-                rec.objectCount = -1;  // shown as "unreadable" - still offered, the loader may cope
+                // The entry is still offered, but Save will ask for a
+                // location.
+                DEKI_LOG_WARNING("Recovery: sidecar '%s' unreadable (%s); original path unknown",
+                                 metaPath.string().c_str(), e.what());
             }
-
-            // Shown as its place in the project ("assets/level1/main.scene"): the
-            // snapshot's own file name is that path flattened.
-            if (!rec.originalPath.empty())
-            {
-                const fs::path rel = fs::path(rec.originalPath)
-                                         .lexically_normal()
-                                         .lexically_relative(fs::path(projectPath).lexically_normal());
-                if (!rel.empty() && *rel.begin() != "..")
-                {
-                    rec.displayName = rel.generic_string();
-                }
-            }
-            m_Files.push_back(std::move(rec));
         }
+
+        // No savedAt (unreadable or older sidecar): use the file's mtime.
+        // Nothing rewrites these files, so it is the crash time.
+        if (rec.savedAt == 0)
+        {
+            std::error_code ec;
+            const auto ftime = fs::last_write_time(entry.path(), ec);
+            if (!ec)
+            {
+                const auto sys = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                    ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+                rec.savedAt = std::chrono::system_clock::to_time_t(sys);
+            }
+        }
+
+        std::error_code sizeEc;
+        rec.fileSize = fs::file_size(entry.path(), sizeEc);
+        if (sizeEc)
+        {
+            rec.fileSize = 0;
+        }
+
+        // The object count tells the user whether this is worth recovering.
+        // Counted here, not in the crash handler, which must only get the
+        // file written.
+        try
+        {
+            std::ifstream pf(entry.path());
+            if (pf.is_open())
+            {
+                nlohmann::json doc;
+                pf >> doc;
+                rec.objectCount = CountSceneObjects(doc);
+            }
+        }
+        catch (const std::exception&)
+        {
+            rec.objectCount = -1;  // shown as "unreadable" - still offered, the loader may cope
+        }
+
+        // Shown as its place in the project ("assets/level1/main.scene"): the
+        // snapshot's own file name is that path flattened.
+        if (!rec.originalPath.empty())
+        {
+            const fs::path rel = fs::path(rec.originalPath)
+                                     .lexically_normal()
+                                     .lexically_relative(fs::path(projectPath).lexically_normal());
+            if (!rel.empty() && *rel.begin() != "..")
+            {
+                rec.displayName = rel.generic_string();
+            }
+        }
+        m_Files.push_back(std::move(rec));
     }
 
     // Newest first: after several crashes the most recent is almost always the
@@ -244,7 +199,7 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
         m_DialogRequested = true;
         // Logged because the files live outside the project, so users may
         // need to find them.
-        DEKI_LOG_EDITOR("Recovery: %zu scene(s) pending in %s", m_Files.size(), dirs[0].c_str());
+        DEKI_LOG_EDITOR("Recovery: %zu scene(s) pending in %s", m_Files.size(), recoveryDir.c_str());
     }
 }
 
