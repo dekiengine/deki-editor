@@ -656,6 +656,11 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                     { "description",
                       "Settings for the platform's build backend, merged key by key into what it already has. The "
                       "editor does not interpret them; the backend validates them when it builds." } } },
+                { "cxx_flags",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "C++ compiler flags for this platform's build, e.g. \"-O0\". Replaces what was "
+                                     "there when given." } } },
                 { "asset_storage",
                   { { "type", "string" },
                     { "enum", nlohmann::json::array({ "internal", "external" }) },
@@ -761,6 +766,22 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   }
                   config.frameworkOptions = options.dump();
               }
+              if (args.contains("cxx_flags"))
+              {
+                  if (!args["cxx_flags"].is_array())
+                  {
+                      throw std::runtime_error("cxx_flags is a list of flags");
+                  }
+                  config.cxxFlags.clear();
+                  for (const auto& flag : args["cxx_flags"])
+                  {
+                      if (!flag.is_string())
+                      {
+                          throw std::runtime_error("cxx_flags is a list of flags");
+                      }
+                      config.cxxFlags.push_back(flag.get<std::string>());
+                  }
+              }
               if (args.contains("asset_storage"))
               {
                   const std::string storage = args.value("asset_storage", "");
@@ -794,6 +815,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                        { "capabilities", caps },
                        { "screenWidth", config.screenWidth },
                        { "screenHeight", config.screenHeight },
+                       { "cxxFlags", config.cxxFlags },
                        { "assetStorage", config.assetStorage } };
           } });
 

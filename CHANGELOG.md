@@ -47,6 +47,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     origin records for platforms adopted before origins existed.
 
 ### Added
+- `set_platform_provides` takes `cxx_flags`, the platform's C++ compiler
+  flags.
 - **`--upgrade-project`** re-saves a project in the current format: every
   scene and boot scene, the platform files, deki.json and settings/, and an
   id on every atlas frame (each frame keeps its GUID). It removes the old

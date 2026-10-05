@@ -203,7 +203,7 @@ current version in.
 | --- | --- |
 | `list_platforms` (or `--list-platforms`) | Every target, with `origin` on the ones from a package: `package`, `modified`, `updateAvailable`, `canUpdate`, `canRestore`. |
 | `set_active_platform` | Choose the project's default target, adopting it if needed. |
-| `create_platform`, `set_platform_provides` | Make or change a platform of the project's own. `set_platform_provides` takes `asset_storage`. |
+| `create_platform`, `set_platform_provides` | Make or change a platform of the project's own. `set_platform_provides` takes `asset_storage` and `cxx_flags`. |
 | `update_platform` | Update from the package. Returns `taken` and `kept`. |
 | `restore_platform` | Restore the package's version. Returns `taken`. |
 
