@@ -457,7 +457,7 @@ jobs:
           set -e
           chmod +x build/bin/DekiEditor
           export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
-          xvfb-run -a ./build/bin/DekiEditor --install-toolchain esp-idf ci/deki-demo
+          xvfb-run -a ./build/bin/DekiEditor --install-toolchain esp-idf --platform lilygo_t_deck_plus ci/deki-demo
           for board in $(ls ci/deki-demo/platforms); do
             [ "$board" = native_simulator ] && continue
             echo "=== $board"
