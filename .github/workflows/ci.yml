@@ -11,6 +11,9 @@
 # it runs on pull requests, tags and manual dispatch rather than on every push,
 # to keep the minutes of a private repository in check.
 #
+# The "demo" jobs do the same with deki-demo on every board it targets: its
+# renders against tools/ci/golden-demo.txt, and nightly its firmware.
+#
 # GCC 16.1+ is a hard requirement (C++26 reflection for the codegen); the jobs
 # fail fast when the toolchain they installed is older.
 
@@ -25,6 +28,9 @@ on:
       - 'LICENSES/**'
   pull_request:
     branches: [master]
+  # Nightly: the demo's board checks and firmware builds (see demo-boards).
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 # Least privilege, set here rather than inherited: the repository or org
@@ -330,6 +336,108 @@ jobs:
           xvfb-run -a ./build/bin/DekiEditor --verify-scenes "$parent/ci-smoke"
           xvfb-run -a ./build/bin/DekiEditor --render-scenes "$parent/ci-smoke" | tee render.txt
           python3 tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
+
+  # ---------------------------------------------------------------------------
+  # deki-demo on every board it targets, against the editor, engine and
+  # packages on master. Each board renders the demo at its own screen size and
+  # colour format, and the hashes must match that board's block in
+  # tools/ci/golden-demo.txt. deki-demo is private: it is checked out with a
+  # read-only deploy key (DEKI_DEMO_DEPLOY_KEY, set up like the engine's, see
+  # .github/actions/checkout-with-engine).
+  demo-boards:
+    name: Demo on every board (Linux)
+    needs: linux
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          repository: dekiengine/deki-demo
+          ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
+          path: ci/deki-demo
+      - name: Install toolchain
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb libgl1-mesa-dev
+      - uses: actions/download-artifact@v4
+        with:
+          name: editor-linux
+          path: build
+      - name: Packages at master
+        run: python3 tools/ci/link_demo_packages.py ci/deki-demo ci/packages
+      - name: Build, verify, render every board
+        run: |
+          set -e
+          chmod +x build/bin/DekiEditor
+          export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
+          xvfb-run -a ./build/bin/DekiEditor --build-code ci/deki-demo
+          xvfb-run -a ./build/bin/DekiEditor --verify-scenes ci/deki-demo
+          for board in $(ls ci/deki-demo/platforms); do
+            echo "=== $board"
+            xvfb-run -a ./build/bin/DekiEditor --render-scenes --platform "$board" ci/deki-demo | tee "render-$board.txt"
+            python3 tools/ci/check_golden.py "render-$board.txt" tools/ci/golden-demo.txt
+          done
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
+
+  # Firmware for every board deki-demo targets. ESP-IDF is several GB and a
+  # cold firmware build takes minutes, so this runs nightly and on demand only.
+  demo-firmware:
+    name: Demo firmware (Linux)
+    needs: linux
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          repository: dekiengine/deki-demo
+          ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
+          path: ci/deki-demo
+      - name: Install toolchain
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb \
+            libgl1-mesa-dev python3-venv libusb-1.0-0
+      - uses: actions/download-artifact@v4
+        with:
+          name: editor-linux
+          path: build
+      - name: Packages at master
+        run: python3 tools/ci/link_demo_packages.py ci/deki-demo ci/packages
+      - name: Cache ESP-IDF
+        uses: actions/cache@v4
+        with:
+          path: ~/.deki-editor/toolchains
+          key: esp-idf-linux-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
+      - name: Build firmware for every board
+        run: |
+          set -e
+          chmod +x build/bin/DekiEditor
+          export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
+          xvfb-run -a ./build/bin/DekiEditor --install-toolchain esp-idf ci/deki-demo
+          for board in $(ls ci/deki-demo/platforms); do
+            [ "$board" = native_simulator ] && continue
+            echo "=== $board"
+            xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform "$board" ci/deki-demo
+          done
       - name: Editor log on failure
         if: failure()
         run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true

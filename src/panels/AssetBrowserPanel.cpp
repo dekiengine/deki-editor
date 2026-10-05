@@ -2605,9 +2605,11 @@ void AssetBrowserPanel::DeferMove(std::string srcPath, std::string destPath)
             // Skip if the destination is taken (two dropped files with one
             // name: the first wins). Checked when the move runs, not when it is
             // queued, so the order holds.
-            if (!std::filesystem::exists(dest))
+            if (!std::filesystem::exists(dest) &&
+                AssetFileOps::MoveWithData(src, dest, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot) &&
+                m_App)
             {
-                AssetFileOps::MoveWithData(src, dest, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);
+                m_App->FollowMovedAsset(src, dest);
             }
             m_PendingTreeRebuild = true;
         });
@@ -2709,7 +2711,13 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
 
 void AssetBrowserPanel::RenameAssetWithData(const std::string& oldPath, const std::string& newName)
 {
-    AssetFileOps::RenameWithData(oldPath, newName, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot);
+    std::string newPath;
+    if (AssetFileOps::RenameWithData(oldPath, newName, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot,
+                                     &newPath) &&
+        m_App)
+    {
+        m_App->FollowMovedAsset(oldPath, newPath);
+    }
     m_PendingTreeRebuild = true;
 }
 

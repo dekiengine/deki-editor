@@ -864,7 +864,12 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
         return;  // cycle
     }
 
-    for (const auto& depId : pkg.requiredPackages)
+    // Copies: `pkg` is often an entry of m_Packages, and the push_back below
+    // moves that vector, which would leave `pkg` and this loop reading freed
+    // memory and dropping the requirements after the first new one.
+    const std::string pkgId = pkg.id;
+    const std::vector<std::string> required = pkg.requiredPackages;
+    for (const auto& depId : required)
     {
         // Already in the list: mark it resolved.
         bool found = false;
@@ -879,7 +884,7 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
                 // package that depends on it would delete it too.
                 if (existing.resolvedBy.empty() && !existing.isInstalled)
                 {
-                    existing.resolvedBy = pkg.id;
+                    existing.resolvedBy = pkgId;
                 }
                 found = true;
                 break;
@@ -895,7 +900,7 @@ void PackageManager::ResolveDependenciesImpl(const PackageEntry& pkg, std::unord
         dep.name = depId;
         dep.displayName = depId;
         dep.source = PackageSourceType::Custom;
-        dep.resolvedBy = pkg.id;
+        dep.resolvedBy = pkgId;
 
         // Fill in metadata from the registry cache, if it has the package.
         auto* registry = GetRegistrySource();

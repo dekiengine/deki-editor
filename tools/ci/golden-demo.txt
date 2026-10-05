@@ -7,11 +7,20 @@
 # records its own block here rather than this one being loosened to a
 # tolerance until both fit, which is how a gate stops catching anything.
 #
-# Re-record only for an intended change:
-#   DekiEditor --render-scenes <deki-demo> > render.txt
+# Each board deki-demo targets renders at its own screen size, so each has a
+# block; CI (demo-boards in ci.yml) renders every one on Linux.
+#
+# Re-record only for an intended change, once per board:
+#   DekiEditor --render-scenes --platform <board> <deki-demo> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-09-12 - first recording: the dashboard gate had no file, the hash lived in a person's memory
+# recorded: 2026-10-05 - the desktop simulator target (1280x720), recorded on Linux: Windows draws the sky's dither one pixel over at this scale
+
+# config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
+4689d4e7ad5104d2  scenes/meadow.scene
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
-11a1c58163e02ee2  scenes/dashboard.scene
+11a1c58163e02ee2  scenes/meadow.scene
+
+# config: renderer=standard2d mode=buffer size=536x240 format=RGB565 frames=60
+ead26a7a1f7eab92  scenes/meadow.scene

@@ -108,7 +108,7 @@ bool MoveWithData(const std::string& srcPath, const std::string& destPath, Asset
 }
 
 bool RenameWithData(const std::string& oldPath, const std::string& newName, AssetPipeline* pipeline,
-                    const std::string& projectRoot)
+                    const std::string& projectRoot, std::string* newPath)
 {
     if (newName.empty())
     {
@@ -123,17 +123,41 @@ bool RenameWithData(const std::string& oldPath, const std::string& newName, Asse
     std::error_code ec;
     const std::string newFileName = fs::is_directory(oldPath, ec) ? newName : newName + oldPathObj.extension().string();
 
-    fs::path newPath = parentDir / newFileName;
+    const fs::path dest = parentDir / newFileName;
 
     // Refuse rather than overwrite: replacing another asset would destroy it
     // and break every reference to it.
-    if (fs::exists(newPath))
+    if (fs::exists(dest))
     {
         return false;
     }
 
     // A rename is a move within one directory.
-    return MoveWithData(oldPath, newPath.string(), pipeline, projectRoot);
+    if (!MoveWithData(oldPath, dest.string(), pipeline, projectRoot))
+    {
+        return false;
+    }
+    if (newPath)
+    {
+        *newPath = dest.string();
+    }
+    return true;
+}
+
+std::string PathAfterMove(const std::string& path, const std::string& srcPath, const std::string& destPath)
+{
+    const std::string p = fs::path(path).lexically_normal().generic_string();
+    const std::string src = fs::path(srcPath).lexically_normal().generic_string();
+    const std::string dest = fs::path(destPath).lexically_normal().generic_string();
+    if (p == src)
+    {
+        return dest;
+    }
+    if (p.size() > src.size() && p.compare(0, src.size(), src) == 0 && p[src.size()] == '/')
+    {
+        return dest + p.substr(src.size());
+    }
+    return path;
 }
 
 void ReassignGuidForCopy(const std::string& srcPath, const std::string& destPath)

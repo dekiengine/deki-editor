@@ -30,9 +30,15 @@ bool MoveWithData(const std::string& srcPath, const std::string& destPath, Asset
                   const std::string& projectRoot = {});
 
 /// Renames in place, keeping a file's extension. Refuses when the
-/// destination already exists. Returns false if the rename did not happen.
+/// destination already exists. Returns false if the rename did not happen;
+/// otherwise fills `newPath`, when given, with where it went.
 bool RenameWithData(const std::string& oldPath, const std::string& newName, AssetPipeline* pipeline = nullptr,
-                    const std::string& projectRoot = {});
+                    const std::string& projectRoot = {}, std::string* newPath = nullptr);
+
+/// Where `path` is after the asset or folder at `srcPath` moved to
+/// `destPath`: the new path when it was that asset or is inside that folder,
+/// otherwise `path` unchanged. All three are absolute.
+std::string PathAfterMove(const std::string& path, const std::string& srcPath, const std::string& destPath);
 
 /// Gives a freshly copied asset its own GUID.
 ///

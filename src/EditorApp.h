@@ -170,6 +170,11 @@ public:
     // scene is not open when it returns.
     bool OpenScene(const std::string& path);
     bool SaveScene();
+
+    // After an asset or folder moved (absolute paths): the open scene and the
+    // project's startup scene follow it when they were it or inside it, so a
+    // save does not recreate the old file and the game still starts.
+    void FollowMovedAsset(const std::string& srcPath, const std::string& destPath);
     bool SaveSceneAs(const std::string& path);
 
     // Before a save: a 2D device drops depth on load, so name the objects that

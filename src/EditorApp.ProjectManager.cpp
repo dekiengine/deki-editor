@@ -1,5 +1,6 @@
 // EditorApp: project open/close, scene lifecycle, hot reload callbacks.
 
+#include "panels/asset_browser/AssetFileOps.h"
 #include "services/ExportTarget.h"
 #include "ObjectInternal.h"
 #include "EditorApp.h"
@@ -1301,6 +1302,26 @@ void EditorApp::WarnIfDepthInFlatProject() const
                      "project's deki.json tags if that is not what you want.",
                      names.size(), list.c_str());
 #endif
+}
+
+void EditorApp::FollowMovedAsset(const std::string& srcPath, const std::string& destPath)
+{
+    if (!m_CurrentScenePath.empty())
+    {
+        m_CurrentScenePath = AssetFileOps::PathAfterMove(m_CurrentScenePath, srcPath, destPath);
+    }
+    if (m_Project && !m_Project->GetStartupScene().empty())
+    {
+        // The startup scene is stored relative to assets/.
+        const std::filesystem::path assets(m_Project->GetAssetsPath());
+        const std::string before = (assets / m_Project->GetStartupScene()).string();
+        const std::string after = AssetFileOps::PathAfterMove(before, srcPath, destPath);
+        if (after != before)
+        {
+            m_Project->SetStartupScene(std::filesystem::path(after).lexically_relative(assets).generic_string());
+            m_Project->Save();
+        }
+    }
 }
 
 bool EditorApp::SaveScene()

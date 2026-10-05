@@ -47,6 +47,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     origin records for platforms adopted before origins existed.
 
 ### Added
+- `move_asset` CLI and MCP tool: moves or renames an asset or folder under
+  assets/ with its sidecar, so its GUID and every reference keep working.
+- CI checks deki-demo on every board it targets: on pull requests and nightly
+  each board's render is compared with tools/ci/golden-demo.txt, and nightly
+  each board's firmware is built (`demo-boards`, `demo-firmware`).
 - **Screen Anchor** pins an object to a point on the screen, for a HUD. Its
   Inspector picks the point from a 3x3 grid; the Transform's position shows
   greyed out, since the anchor sets it. In the Scene view anchored objects sit
@@ -90,6 +95,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- Adding a package installs every package it requires. Requirements after the
+  first new one could be skipped: adding deki-lilygo-boards left out
+  deki-lovyangfx-integration.
+- Moving or renaming the startup scene, or the open scene, in the Asset
+  Browser updates deki.json and the editor's path to it. The game started a
+  scene that no longer existed, and a save wrote the old file back.
+- CI clones deki-rendering with git; the checkout step it used cannot write
+  outside the workspace and failed on every run.
 - Editors built into the editor (Screen Anchor's Inspector, the asset pack
   editor) are kept when a project opens or packages reload. Opening a project
   with no plugins dropped them.

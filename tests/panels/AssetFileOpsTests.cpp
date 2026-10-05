@@ -190,4 +190,24 @@ TEST_F(AssetFileOpsTest, ReassignOnAMissingTreeIsANoOp)
     EXPECT_NO_THROW(Ops::ReassignGuidsInTree((m_Root / "nope").string()));
 }
 
+// The open scene and the startup scene follow a moved asset or folder.
+TEST(AssetPathAfterMove, FollowsTheMovedFile)
+{
+    EXPECT_EQ(Ops::PathAfterMove("/p/assets/scenes/a.scene", "/p/assets/scenes/a.scene", "/p/assets/scenes/b.scene"),
+              "/p/assets/scenes/b.scene");
+}
+
+TEST(AssetPathAfterMove, FollowsAMovedFolder)
+{
+    EXPECT_EQ(Ops::PathAfterMove("/p/assets/scenes/a.scene", "/p/assets/scenes", "/p/assets/levels"),
+              "/p/assets/levels/a.scene");
+}
+
+TEST(AssetPathAfterMove, LeavesOtherPathsAlone)
+{
+    EXPECT_EQ(Ops::PathAfterMove("/p/assets/scenes2/a.scene", "/p/assets/scenes", "/p/assets/levels"),
+              "/p/assets/scenes2/a.scene");
+    EXPECT_EQ(Ops::PathAfterMove("/p/assets/b.scene", "/p/assets/a.scene", "/p/assets/c.scene"), "/p/assets/b.scene");
+}
+
 }  // namespace

@@ -17,6 +17,7 @@
 #include "../services/ProjectTemplate.h"
 #include "../services/HotReloadService.h"
 #include "../services/EditorCapture.h"
+#include "../panels/asset_browser/AssetFileOps.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/CommandHistory.h>
 
@@ -316,6 +317,58 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               pipeline->ImportAllAssets();
 
               return { { "path", dest.string() } };
+          } });
+
+    registry.Register(
+        { "move_asset",
+          "Move or rename an asset or folder under assets/, with its .data sidecar, so its GUID and every "
+          "reference to it keep working. The open scene and the project's startup scene follow it. Refuses to "
+          "overwrite.",
+          { { "type", "object" },
+            { "properties",
+              { { "from",
+                  { { "type", "string" },
+                    { "description", "Project-relative path, e.g. assets/scenes/level.scene" } } },
+                { "to", { { "type", "string" }, { "description", "Project-relative path it moves to" } } } } },
+            { "required", nlohmann::json::array({ "from", "to" }) } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              auto* project = RequireProject(editor);
+              const fs::path root(project->GetPath());
+              const fs::path assets = fs::path(GetAssetsDirectory(project->GetPath())).lexically_normal();
+              const fs::path from = (root / args.at("from").get<std::string>()).lexically_normal();
+              const fs::path to = (root / args.at("to").get<std::string>()).lexically_normal();
+
+              auto insideAssets = [&assets](const fs::path& p)
+              {
+                  const std::string rel = p.lexically_relative(assets).generic_string();
+                  return !rel.empty() && rel != "." && rel.rfind("..", 0) != 0;
+              };
+              if (!insideAssets(from) || !insideAssets(to))
+              {
+                  throw std::runtime_error("from and to must both be under assets/");
+              }
+              if (!fs::exists(from))
+              {
+                  throw std::runtime_error("No such asset: " + args.at("from").get<std::string>());
+              }
+              if (fs::exists(to))
+              {
+                  throw std::runtime_error(args.at("to").get<std::string>() + " already exists");
+              }
+
+              std::error_code ec;
+              fs::create_directories(to.parent_path(), ec);
+              if (!AssetFileOps::MoveWithData(from.string(), to.string(), editor->GetAssetPipeline(),
+                                              project->GetPath()))
+              {
+                  throw std::runtime_error("Could not move " + args.at("from").get<std::string>());
+              }
+              editor->FollowMovedAsset(from.string(), to.string());
+
+              return { { "from", args.at("from") },
+                       { "to", args.at("to") },
+                       { "startupScene", project->GetStartupScene() } };
           } });
 
     // ── Dialogs ──────────────────────────────────────────────────────────────

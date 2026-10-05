@@ -168,6 +168,33 @@ TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)
     EXPECT_FALSE(lock["packages"].contains("deki-offer"));
 }
 
+// Every requirement of a package is resolved, even when resolving one adds
+// entries to the list the package itself lives in. deki-lilygo-boards lost
+// deki-lovyangfx-integration this way: the list moved under the loop.
+TEST(PackageDependencies, EveryRequirementIsResolved)
+{
+    PackageManager mgr(nullptr);
+    PackageEntry board;
+    board.id = "deki-board";
+    board.name = "deki-board";
+    board.requiredPackages = { "deki-a", "deki-b", "deki-c", "deki-d" };
+    mgr.GetPackages().clear();
+    mgr.GetPackages().shrink_to_fit();
+    mgr.GetPackages().push_back(board);
+
+    mgr.ResolveDependencies(mgr.GetPackages()[0]);
+
+    for (const char* id : { "deki-a", "deki-b", "deki-c", "deki-d" })
+    {
+        bool found = false;
+        for (const PackageEntry& entry : mgr.GetPackages())
+        {
+            found |= entry.id == id && entry.resolvedBy == "deki-board";
+        }
+        EXPECT_TRUE(found) << id;
+    }
+}
+
 // The lock records the commit each package's version is (from the installer's
 // .deki-package.json), so a restore can tell when a tag was moved. A package
 // not on disk yet keeps the commit the lock already had.
