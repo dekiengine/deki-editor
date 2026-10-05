@@ -161,7 +161,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: editor-windows
-          path: build/bin
+          # The sources the editor fetched: a project build compiles against
+          # them (DEKI_DEPS_DIR, <editor>/build/_deps).
+          path: |
+            build/bin
+            build/_deps/*-src
           retention-days: 3
 
   # ---------------------------------------------------------------------------
@@ -264,6 +268,7 @@ jobs:
           path: |
             build/bin
             build/lib
+            build/_deps/*-src
           retention-days: 3
 
   # ---------------------------------------------------------------------------
@@ -297,7 +302,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: editor-windows
-          path: build/bin
+          path: build
       - name: New project, build, verify, render
         run: |
           set -e
@@ -369,7 +374,12 @@ jobs:
       - uses: ./.github/actions/checkout-with-engine
         with:
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      # Without the agent the engine checkout left running: ssh would offer
+      # the engine's key first, GitHub would take it, and deki-demo would read
+      # as "not found".
       - uses: actions/checkout@v4
+        env:
+          SSH_AUTH_SOCK: ''
         with:
           repository: dekiengine/deki-demo
           ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
@@ -415,7 +425,12 @@ jobs:
       - uses: ./.github/actions/checkout-with-engine
         with:
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      # Without the agent the engine checkout left running: ssh would offer
+      # the engine's key first, GitHub would take it, and deki-demo would read
+      # as "not found".
       - uses: actions/checkout@v4
+        env:
+          SSH_AUTH_SOCK: ''
         with:
           repository: dekiengine/deki-demo
           ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}

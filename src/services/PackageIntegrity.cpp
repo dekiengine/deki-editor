@@ -167,8 +167,10 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
         return result;  // no HEAD yet (empty repo); nothing to correct
     }
 
+    // ^0 is the commit a tag points at. Not ^{commit}: MSYS2's git expands
+    // braces in the arguments it is started with.
     std::string pinSha;
-    if (RunGit({ "-C", dirArg, "rev-parse", pinnedRef + "^{commit}" }, pinSha) != 0)
+    if (RunGit({ "-C", dirArg, "rev-parse", pinnedRef + "^0" }, pinSha) != 0)
     {
         // The pinned tag is not present locally. Fetching it is the
         // installer's job, not a focus-gain check's.
