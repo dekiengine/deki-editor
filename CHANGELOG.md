@@ -95,13 +95,17 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- Package restore works with MSYS2's git. It asked git for the repository's
+  root and compared paths, and MSYS2's git answers with paths Windows cannot
+  open, so every package was skipped as "not the root of its repository".
 - Adding a package installs every package it requires. Requirements after the
   first new one could be skipped: adding deki-lilygo-boards left out
   deki-lovyangfx-integration.
 - Moving or renaming the startup scene, or the open scene, in the Asset
   Browser updates deki.json and the editor's path to it. The game started a
   scene that no longer existed, and a save wrote the old file back.
-- CI clones deki-rendering with git; the checkout step it used cannot write
+- CI clones the packages its tests read (deki-rendering and the three that
+  ship platform templates) with git; the checkout step it used cannot write
   outside the workspace and failed on every run.
 - Editors built into the editor (Screen Anchor's Inspector, the asset pack
   editor) are kept when a project opens or packages reload. Opening a project

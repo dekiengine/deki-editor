@@ -95,23 +95,22 @@ PackageIntegrityResult RestorePackage(const fs::path& packageDir, const std::str
     // included, would land there. The docs build puts a project inside the
     // editor checkout, so that enclosing repo can be deki-editor itself.
     //
-    // So ask git for the root and go on only if it is this directory.
-    if (RunGit({ "-C", dirArg, "rev-parse", "--show-toplevel" }, out) != 0)
+    // So ask git how far up the root is, and go on only if it is this
+    // directory: --show-cdup prints nothing there. It is a relative path, so
+    // it reads the same whichever git answers (MSYS2's git reports roots as
+    // /c/... paths that Windows cannot open).
+    if (RunGit({ "-C", dirArg, "rev-parse", "--show-cdup" }, out) != 0)
     {
         result.action = PackageIntegrityResult::Action::Skipped;
         result.detail = "'" + packageName + "' is not a git clone";
         return result;
     }
+    if (!Trim(out).empty())
     {
-        std::error_code cmpEc;
-        const fs::path reportedRoot = fs::path(Trim(out));
-        if (!fs::exists(reportedRoot, cmpEc) || !fs::equivalent(reportedRoot, packageDir, cmpEc) || cmpEc)
-        {
-            result.action = PackageIntegrityResult::Action::Skipped;
-            result.detail = "'" + packageName + "' is not the root of its own repository (git says " + Trim(out) +
-                            "); leaving it alone rather than running git in " + "whatever encloses it";
-            return result;
-        }
+        result.action = PackageIntegrityResult::Action::Skipped;
+        result.detail = "'" + packageName + "' is not the root of its own repository (its root is " + Trim(out) +
+                        " above it); leaving it alone rather than running git in whatever encloses it";
+        return result;
     }
 
     // ---- 1. Local modifications -------------------------------------------

@@ -69,11 +69,15 @@ jobs:
       # DekiRenderingTests compiles deki-rendering's own tests; it looks for
       # the package beside the editor checkout (DEKI_PACKAGES_DIR defaults to
       # ../packages) and silently skips when it is not there.
-      # actions/checkout only writes inside the workspace, so this is a plain
-      # clone; the package is public.
-      - name: Check out deki-rendering (for DekiRenderingTests)
+      # actions/checkout only writes inside the workspace, so these are plain
+      # clones; the packages are public. The other three ship the platform
+      # templates the editor tests check.
+      - name: Check out packages the tests read
         shell: bash
-        run: git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
+        run: |
+          for p in deki-rendering deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
+            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../packages/$p"
+          done
 
       # The runner image ships MSYS2 at C:\msys64, which is where the editor's
       # CMakeLists looks for g++ (see the top of CMakeLists.txt); release: false
@@ -171,8 +175,11 @@ jobs:
         with:
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
 
-      - name: Check out deki-rendering (for DekiRenderingTests)
-        run: git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
+      - name: Check out packages the tests read
+        run: |
+          for p in deki-rendering deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
+            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../packages/$p"
+          done
 
       - name: Install toolchain and SDL3 build dependencies
         run: |
