@@ -201,9 +201,13 @@ set(DEKI_PACKAGES_DIR "${CMAKE_SOURCE_DIR}/../packages" CACHE PATH
 
 # PlatformTemplateTests checks the boot scenes the packages ship, when there is
 # a packages checkout to look in. After the default above, or a fresh configure
-# would find the variable unset and compile the check out.
-if(EXISTS "${DEKI_PACKAGES_DIR}")
-    target_compile_definitions(DekiEditorTests PRIVATE DEKI_TEST_PACKAGES_DIR="${DEKI_PACKAGES_DIR}")
+# would find the variable unset and compile the check out. Its own setting, so
+# CI can give it the packages that ship templates without every package below
+# compiling them, which needs the packages they require too.
+set(DEKI_TEMPLATE_PACKAGES_DIR "${DEKI_PACKAGES_DIR}" CACHE PATH
+    "Directory holding the packages whose platform templates PlatformTemplateTests checks")
+if(EXISTS "${DEKI_TEMPLATE_PACKAGES_DIR}")
+    target_compile_definitions(DekiEditorTests PRIVATE DEKI_TEST_PACKAGES_DIR="${DEKI_TEMPLATE_PACKAGES_DIR}")
 endif()
 
 function(deki_read_package_descriptor pkg_id)

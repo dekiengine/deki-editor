@@ -14,7 +14,7 @@
 # The "demo" jobs do the same with deki-demo on every board it targets: its
 # renders against tools/ci/golden-demo.txt, and nightly its firmware.
 #
-# GCC 16.1+ is a hard requirement (C++26 reflection for the codegen); the jobs
+# GCC 16 is a hard requirement (C++26 reflection for the codegen); the jobs
 # fail fast when the toolchain they installed is older.
 
 name: CI
@@ -70,13 +70,15 @@ jobs:
       # the package beside the editor checkout (DEKI_PACKAGES_DIR defaults to
       # ../packages) and silently skips when it is not there.
       # actions/checkout only writes inside the workspace, so these are plain
-      # clones; the packages are public. The other three ship the platform
-      # templates the editor tests check.
+      # clones; the packages are public. The three in ../templates ship the
+      # platform templates PlatformTemplateTests reads; apart from ../packages,
+      # where every package is compiled and would need its requirements too.
       - name: Check out packages the tests read
         shell: bash
         run: |
-          for p in deki-rendering deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
-            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../packages/$p"
+          git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
+          for p in deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
+            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../templates/$p"
           done
 
       # The runner image ships MSYS2 at C:\msys64, which is where the editor's
@@ -94,13 +96,13 @@ jobs:
             mingw-w64-x86_64-ninja
             git
 
-      - name: Toolchain check (GCC 16.1+)
+      - name: Toolchain check (GCC 16)
         run: |
           g++ --version | head -n1
           ver=$(g++ -dumpfullversion)
           case "$ver" in
-            16.[1-9]*|1[7-9].*|[2-9][0-9].*) ;;
-            *) echo "::error::GCC 16.1+ required for the reflection codegen, got $ver"; exit 1 ;;
+            16.*|1[7-9].*|[2-9][0-9].*) ;;
+            *) echo "::error::GCC 16 required for the reflection codegen, got $ver"; exit 1 ;;
           esac
           cmake --version | head -n1
           python --version
@@ -121,7 +123,7 @@ jobs:
           restore-keys: sccache-windows-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates
 
       - name: Build editor
         run: cmake --build build --target DekiEditor
@@ -177,8 +179,9 @@ jobs:
 
       - name: Check out packages the tests read
         run: |
-          for p in deki-rendering deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
-            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../packages/$p"
+          git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
+          for p in deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
+            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../templates/$p"
           done
 
       - name: Install toolchain and SDL3 build dependencies
@@ -192,13 +195,13 @@ jobs:
             libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
             libdbus-1-dev libudev-dev xvfb
 
-      - name: Toolchain check (GCC 16.1+)
+      - name: Toolchain check (GCC 16)
         run: |
           g++-16 --version | head -n1
           ver=$(g++-16 -dumpfullversion)
           case "$ver" in
-            16.[1-9]*|1[7-9].*|[2-9][0-9].*) ;;
-            *) echo "::error::GCC 16.1+ required for the reflection codegen, got $ver"; exit 1 ;;
+            16.*|1[7-9].*|[2-9][0-9].*) ;;
+            *) echo "::error::GCC 16 required for the reflection codegen, got $ver"; exit 1 ;;
           esac
 
       - name: Cache FetchContent sources
@@ -219,7 +222,7 @@ jobs:
       - name: Configure
         run: >-
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
-          -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
+          -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build editor
