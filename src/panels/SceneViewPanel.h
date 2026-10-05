@@ -70,6 +70,10 @@ public:
     /// Updates every CustomEditor in the active scene (layout sync and such).
     void UpdateCustomEditors();
 
+    /// Moves the active scene's Screen Anchor objects to their points on the
+    /// screen the Play view shows. Play mode places them as it renders.
+    void PlaceScreenAnchors();
+
     /// True while an object is dragged or resized in the Scene view (this frame
     /// or the last). Drags move objects outside the command history, so views
     /// that redraw only on change (the Play view preview) check this as well as
@@ -139,6 +143,11 @@ private:
     float m_DragOffsetY = 0.0f;
     float m_DragStartObjX = 0.0f;
     float m_DragStartObjY = 0.0f;
+    // A Screen Anchor's offset when the drag started; a drag moves an
+    // anchored object through its offset.
+    float m_DragStartAnchorX = 0.0f;
+    float m_DragStartAnchorY = 0.0f;
+    void RememberAnchorOffset(Deki::Object* obj);
 
     // Click or drag on the selected object: a press arms this. Moving turns it
     // into a drag; releasing without moving selects the next object under the

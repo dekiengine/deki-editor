@@ -5,6 +5,7 @@
 #include <deki/Component.h>
 #include <deki/Object.h>
 #include <deki/Scene.h>
+#include <deki/ScreenAnchor.h>
 
 namespace DekiEditor
 {
@@ -38,6 +39,23 @@ void SetPositionCommand::Merge(const Command* other)
 bool SetPositionCommand::ReferencesAny(const DeadMemory& dead) const
 {
     return CommandRefs::Has(dead, m_Object);
+}
+
+void SetAnchorOffsetCommand::Execute()
+{
+    m_Anchor->offsetX = m_NewX;
+    m_Anchor->offsetY = m_NewY;
+}
+
+void SetAnchorOffsetCommand::Undo()
+{
+    m_Anchor->offsetX = m_OldX;
+    m_Anchor->offsetY = m_OldY;
+}
+
+bool SetAnchorOffsetCommand::ReferencesAny(const DeadMemory& dead) const
+{
+    return CommandRefs::Has(dead, m_Anchor);
 }
 
 void SetWorldPositionCommand::Execute()

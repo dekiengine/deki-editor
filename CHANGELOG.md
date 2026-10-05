@@ -47,6 +47,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
     origin records for platforms adopted before origins existed.
 
 ### Added
+- **Screen Anchor** pins an object to a point on the screen, for a HUD. Its
+  Inspector picks the point from a 3x3 grid; the Transform's position shows
+  greyed out, since the anchor sets it. In the Scene view anchored objects sit
+  where they would on the screen the Play view shows, dragging one changes its
+  offset, and a line joins the selected one to its point. `--render-scenes`
+  places them for the size it renders at. See docs/screens.md.
 - `set_platform_provides` takes `cxx_flags`, the platform's C++ compiler
   flags.
 - **`--upgrade-project`** re-saves a project in the current format: every
@@ -84,6 +90,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- Editors built into the editor (Screen Anchor's Inspector, the asset pack
+  editor) are kept when a project opens or packages reload. Opening a project
+  with no plugins dropped them.
+- A firmware build picks up engine and package source files added after it
+  was first configured. It kept the list of files from its first build, so an
+  update that added one failed to link.
 - **Removing a package works on Windows.** Git keeps its pack files
   read-only, so the delete stopped partway: `--packages-remove` failed with
   "access denied", and a failed install left half a clone behind. Read-only

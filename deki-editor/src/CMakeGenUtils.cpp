@@ -453,8 +453,10 @@ std::set<std::string> ResolveActivePackages(const std::vector<PackageEntry>& all
 
 void EmitEngineCoreSourceCollection(std::ostream& out, const std::vector<std::string>& extraExclusions)
 {
+    // CONFIGURE_DEPENDS on every glob here: an engine or package update that
+    // adds a file would otherwise stay out of a build configured before it.
     out << "# Engine core sources (excluding packages, generated, desktop, editor)\n";
-    out << "file(GLOB_RECURSE DEKI_ENGINE_SOURCES \"${DEKI_ENGINE_PATH}/src/*.cpp\")\n";
+    out << "file(GLOB_RECURSE DEKI_ENGINE_SOURCES CONFIGURE_DEPENDS \"${DEKI_ENGINE_PATH}/src/*.cpp\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/packages/.*\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/generated/.*\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/editor/.*\")\n";
@@ -536,7 +538,8 @@ void EmitActivePackageSources(std::ostream& out, const std::vector<PackageEntry>
         // CMake variable suffix it is reduced to identifier characters, as
         // string(MAKE_C_IDENTIFIER) would.
         const std::string var = "DEKI_PKG_SOURCES_" + CMakeIdentifier(pkg.dirName);
-        out << "file(GLOB_RECURSE " << var << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.cpp\""
+        out << "file(GLOB_RECURSE " << var << " CONFIGURE_DEPENDS \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName
+            << "/*.cpp\""
             << " \"${DEKI_PROJECT_PATH}/packages/" << pkg.dirName << "/*.c\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/editor/.*\")\n";
         out << "list(FILTER " << var << " EXCLUDE REGEX \".*/tests/.*\")\n";
@@ -656,7 +659,7 @@ void EmitProjectSourceCollection(std::ostream& out, const std::string& relPath, 
 {
     out << "\n";
     out << "# Project sources\n";
-    out << "file(GLOB_RECURSE PROJECT_SOURCES\n";
+    out << "file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS\n";
     out << "    \"" << relPath << "/*.cpp\"\n";
     out << "    \"" << relPath << "/*.c\"\n";
     out << ")\n";

@@ -487,8 +487,12 @@ void PluginLoader::UnloadAllPlugins()
     //
     // Trim, not Clear: everything below the watermark came from package DLLs
     // that are NOT unloading here, and their static registrars do not run
-    // again without a DLL reload.
-    DekiEditorInternal::EditorRegistry::Instance().TrimTo(m_EditorFactoryWatermark);
+    // again without a DLL reload. With no plugin loaded the watermark was
+    // never set, and there is nothing of a plugin's to drop.
+    if (!m_Plugins.empty())
+    {
+        DekiEditorInternal::EditorRegistry::Instance().TrimTo(m_EditorFactoryWatermark);
+    }
 
     for (auto& plugin : m_Plugins)
     {

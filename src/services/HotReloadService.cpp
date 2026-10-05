@@ -2034,7 +2034,7 @@ void HotReloadService::UnloadPlugins()
     Deki::ComponentRegistry::Instance().ClearPluginComponents();
     CustomEditorRegistry::Instance().Clear();
     CreateMenuRegistry::Instance().Clear();
-    DekiEditorInternal::EditorRegistry::Instance().Clear();
+    DekiEditorInternal::EditorRegistry::Instance().TrimTo(DekiEditor::BuiltInEditorCount());
     DekiEditor::ClearRegisteredWindows();
     // AssetTypeEditorRegistry holds raw AssetTypeEditor* prototypes that live in
     // package DLLs, and AssetTypeRegistry's handlers are std::functions built by
@@ -2190,7 +2190,7 @@ void HotReloadService::ClearPackageReferencingState()
 {
     CustomEditorRegistry::Instance().Clear();
     CreateMenuRegistry::Instance().Clear();
-    DekiEditorInternal::EditorRegistry::Instance().Clear();
+    DekiEditorInternal::EditorRegistry::Instance().TrimTo(DekiEditor::BuiltInEditorCount());
     DekiEditor::ClearRegisteredWindows();
     // AssetTypeEditorRegistry holds raw AssetTypeEditor* prototypes that live in
     // package DLLs, and AssetTypeRegistry's handlers are std::functions built by

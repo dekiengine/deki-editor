@@ -1,4 +1,5 @@
 #include "EngineEditorSetup.h"
+#include <deki-editor/EditorRegistry.h>
 #include "../PanelMaximize.h"
 
 #include <nlohmann/json.hpp>
@@ -597,6 +598,21 @@ static void InstallEditorUIBackend()
     // deki-editor.dll and cannot see the maximize state, which is the
     // executable's, so it asks through here.
     EditorUI::SetExtraWindowFlagsProvider([](const char* name) -> int { return MaximizedWindowFlags(name); });
+}
+
+namespace
+{
+size_t s_BuiltInEditorCount = 0;
+}  // namespace
+
+void RememberBuiltInEditors()
+{
+    s_BuiltInEditorCount = DekiEditorInternal::EditorRegistry::Instance().GetTotalCount();
+}
+
+size_t BuiltInEditorCount()
+{
+    return s_BuiltInEditorCount;
 }
 
 void RegisterEngineEditors()

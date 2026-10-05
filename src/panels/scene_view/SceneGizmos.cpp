@@ -375,6 +375,7 @@ void SceneGizmos::StartResizeDrag(ResizeEdge edge, float startWidth, float start
     m_ResizeStartY = startMouseY;
     m_ResizeStartObjX = startObjX;
     m_ResizeStartObjY = startObjY;
+    m_ResizeAnchorRecorded = false;
 }
 
 bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
@@ -578,6 +579,17 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
 
         newWorldX = SnapMetersToPixel(newWorldX);
         newWorldY = SnapMetersToPixel(newWorldY);
+        if (auto* anchor = obj->GetComponent<Deki::ScreenAnchor>())
+        {
+            if (!m_ResizeAnchorRecorded)
+            {
+                m_ResizeAnchorRecorded = true;
+                m_ResizeStartAnchorX = anchor->offsetX;
+                m_ResizeStartAnchorY = anchor->offsetY;
+            }
+            anchor->offsetX += newWorldX - obj->GetWorldX();
+            anchor->offsetY += newWorldY - obj->GetWorldY();
+        }
         obj->SetWorldPosition(newWorldX, newWorldY);
         return true;  // still dragging
     }
@@ -609,7 +621,17 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
                 steps.push_back(std::make_unique<ModifyFieldPairCommand<float>>(resizableWidthPtr, resizableHeightPtr,
                                                                                 finalWidth, finalHeight, "Resize"));
             }
-            if (posChanged)
+            auto* anchor = obj->GetComponent<Deki::ScreenAnchor>();
+            if (posChanged && anchor && m_ResizeAnchorRecorded)
+            {
+                const float finalAnchorX = anchor->offsetX;
+                const float finalAnchorY = anchor->offsetY;
+                anchor->offsetX = m_ResizeStartAnchorX;
+                anchor->offsetY = m_ResizeStartAnchorY;
+                steps.push_back(std::make_unique<SetAnchorOffsetCommand>(
+                    anchor, m_ResizeStartAnchorX, m_ResizeStartAnchorY, finalAnchorX, finalAnchorY));
+            }
+            else if (posChanged)
             {
                 steps.push_back(std::make_unique<SetWorldPositionCommand>(obj, finalObjX, finalObjY, "Move (Resize)"));
             }

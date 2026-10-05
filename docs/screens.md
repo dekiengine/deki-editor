@@ -34,6 +34,28 @@ Keep what matters inside the narrowest screen you target, and build a little
 world beyond it for wider ones, or the player sees the camera's clear color
 there.
 
+## Pinning to the screen
+
+A HUD belongs to the screen, not to the world: hearts in the top-left corner,
+a score in the top-right. Add **Screen Anchor** to the object and pick the
+point in its grid: a corner, the middle of an edge, or the centre. Its
+**Offset** is the distance from that point in meters, with Y up, so hearts
+0.875 m in from the left and 1 m down are Top Left with an offset of
+(0.875, -1).
+
+The object then stays at that point on every screen and while the camera
+moves. It is sized in meters like everything else, so it scales with the
+camera: the same size on a 320x240 and a 536x240 screen, three times the
+pixels at 720p.
+
+- The Transform's position is set by the anchor and shows greyed out. Rotation
+  and scale still come from the Transform, and children follow the anchored
+  object as usual.
+- In the Scene view the object sits where it would on the screen the Play view
+  shows; switching that screen moves it. Dragging it changes its offset. A line
+  joins the selected object to its point.
+- The scene file stores the offset, so it does not change with the screen.
+
 ## Recipes
 
 **2D pixel art.** Set the ortho height to your art's native height: 15 m for

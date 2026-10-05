@@ -5,6 +5,7 @@
 #include "PropertyTypeHandlers.h"
 #include <deki/Object.h>
 #include <deki/Component.h>
+#include <deki/ScreenAnchor.h>
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/ObjectRef.h>
@@ -56,6 +57,34 @@ public:
 
 private:
     Deki::Object* m_Object;
+    float m_OldX, m_OldY;
+    float m_NewX, m_NewY;
+};
+
+/// Moves an object that has a Screen Anchor by changing the anchor's offset,
+/// since the anchor sets its position. A Scene view drag records one.
+class SetAnchorOffsetCommand : public Command
+{
+public:
+    SetAnchorOffsetCommand(Deki::ScreenAnchor* anchor, float oldX, float oldY, float newX, float newY)
+        : m_Anchor(anchor),
+          m_OldX(oldX),
+          m_OldY(oldY),
+          m_NewX(newX),
+          m_NewY(newY)
+    {
+    }
+
+    std::string GetDescription() const override { return "Move Object"; }
+
+    void Execute() override;
+
+    void Undo() override;
+
+    bool ReferencesAny(const DeadMemory& dead) const override;
+
+private:
+    Deki::ScreenAnchor* m_Anchor;
     float m_OldX, m_OldY;
     float m_NewX, m_NewY;
 };

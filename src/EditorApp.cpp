@@ -396,6 +396,7 @@ void EditorApp::Update()
     if (m_PlayModeState != PlayModeState::Playing && m_SceneViewPanel)
     {
         m_SceneViewPanel->UpdateCustomEditors();
+        m_SceneViewPanel->PlaceScreenAnchors();
     }
 
     DrawMenuBar();

@@ -26,6 +26,7 @@
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/ICamera.h>
+#include <deki/ScreenAnchor.h>
 #include <deki/ISortableProvider.h>
 #include <deki/IClipProvider.h>
 #include <deki/reflection/ComponentFactory.h>
@@ -204,6 +205,27 @@ void SceneViewPanel::InvalidateEditorCamera()
     m_EditorCameraObject = std::make_unique<Deki::Object>();
     m_EditorCameraObject->SetName("__EditorCamera");
     m_EditorCameraObject->SetEditorOnly(true);
+}
+
+void SceneViewPanel::RememberAnchorOffset(Deki::Object* obj)
+{
+    if (auto* anchor = obj->GetComponent<Deki::ScreenAnchor>())
+    {
+        m_DragStartAnchorX = anchor->offsetX;
+        m_DragStartAnchorY = anchor->offsetY;
+    }
+}
+
+void SceneViewPanel::PlaceScreenAnchors()
+{
+    Deki::Scene* scene = m_App->GetCurrentScene();
+    Deki::ICamera* camera = GetSceneCamera();
+    if (!scene || !camera)
+    {
+        return;
+    }
+    const SceneView& view = SceneView::Get();
+    Deki::ScreenAnchor::PlaceAll(scene, *camera, view.GetPreviewWidth(), view.GetPreviewHeight());
 }
 
 void SceneViewPanel::UpdateCustomEditors()
@@ -731,6 +753,7 @@ void SceneViewPanel::DrawSceneCanvas()
             m_DragOffsetY = selected->GetWorldY() - worldPos.y;
             m_DragStartObjX = selected->GetWorldX();
             m_DragStartObjY = selected->GetWorldY();
+            RememberAnchorOffset(selected);
         }
         else
         {
@@ -745,6 +768,7 @@ void SceneViewPanel::DrawSceneCanvas()
                 m_DragOffsetY = selected->GetWorldY() - worldPos.y;
                 m_DragStartObjX = selected->GetWorldX();
                 m_DragStartObjY = selected->GetWorldY();
+                RememberAnchorOffset(selected);
             }
             else
             {
@@ -896,6 +920,11 @@ void SceneViewPanel::DrawSceneCanvas()
             // project is in Pixels mode.
             newWorldX = SnapMetersToPixel(newWorldX);
             newWorldY = SnapMetersToPixel(newWorldY);
+            if (auto* anchor = selected->GetComponent<Deki::ScreenAnchor>())
+            {
+                anchor->offsetX += newWorldX - selected->GetWorldX();
+                anchor->offsetY += newWorldY - selected->GetWorldY();
+            }
             selected->SetWorldPosition(newWorldX, newWorldY);
         }
         else
@@ -907,7 +936,13 @@ void SceneViewPanel::DrawSceneCanvas()
             {
                 bool posChanged =
                     (selected->GetWorldX() != m_DragStartObjX || selected->GetWorldY() != m_DragStartObjY);
-                if (posChanged)
+                auto* anchor = selected->GetComponent<Deki::ScreenAnchor>();
+                if (posChanged && anchor)
+                {
+                    CommandHistory::Instance().Execute(std::make_unique<SetAnchorOffsetCommand>(
+                        anchor, m_DragStartAnchorX, m_DragStartAnchorY, anchor->offsetX, anchor->offsetY));
+                }
+                else if (posChanged)
                 {
                     float finalLocalX = selected->GetX();
                     float finalLocalY = selected->GetY();

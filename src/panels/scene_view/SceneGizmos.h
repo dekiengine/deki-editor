@@ -95,6 +95,11 @@ private:
     float m_ResizeStartY = 0.0f;
     float m_ResizeStartObjX = 0.0f;  // object position at the start
     float m_ResizeStartObjY = 0.0f;
+    // A Screen Anchor's offset at the start: a resize that moves an anchored
+    // object moves it through the offset.
+    bool m_ResizeAnchorRecorded = false;
+    float m_ResizeStartAnchorX = 0.0f;
+    float m_ResizeStartAnchorY = 0.0f;
 };
 
 }  // namespace DekiEditor

@@ -38,6 +38,7 @@
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/Component.h>
+#include <deki/ScreenAnchor.h>
 #include "MissingComponent.h"
 #include <deki/Engine.h>
 #include <deki/ICamera.h>
@@ -1820,6 +1821,7 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
             else
             {
                 FillClear(buffer, format, cr, cg, cb);
+                Deki::ScreenAnchor::PlaceAll(&scene, *camera, width, height);
                 rs->RenderToBuffer(&scene, camera, buffer.data(), width, height, format);
             }
             if (clock && outDir)

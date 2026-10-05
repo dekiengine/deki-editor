@@ -800,6 +800,7 @@ set(EDITOR_SOURCES
 list(APPEND EDITOR_SOURCES
     src/engine_editors/AssetPackEditor.cpp
     src/engine_editors/EngineEditorRegistration.cpp
+    src/engine_editors/ScreenAnchorEditor.cpp
 )
 
 add_executable(DekiEditor ${EDITOR_SOURCES})

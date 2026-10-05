@@ -34,6 +34,7 @@
 
 // Engine includes
 #include <deki/Object.h>
+#include <deki/ScreenAnchor.h>
 #include <deki/Engine.h>  // for DekiEngineSettings::Global() (transform unit suffix)
 #include <deki/Math.h>    // for DekiMath::kRadToDeg / kDegToRad
 #include <deki/Component.h>
@@ -1070,7 +1071,17 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             cb.onUndo = [obj](const float* v) { obj->SetLocalPosition(v[0], v[1]); };
             cb.onRedo = [obj](const float* v) { obj->SetLocalPosition(v[0], v[1]); };
             cb.onEndChange = [this](const float*, const float*) { EndLiveEdit(); };
+            // A Screen Anchor sets the position, so it shows here but is edited there.
+            const bool anchored = obj->HasComponent<Deki::ScreenAnchor>();
+            ImGui::BeginDisabled(anchored);
+            ImGui::BeginGroup();
             EditorUI::Get().Vector2Field(posLabel, obj->GetX(), obj->GetY(), EditorUI::Unit::Distance, cb);
+            ImGui::EndGroup();
+            ImGui::EndDisabled();
+            if (anchored && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            {
+                DekiEditor::Tooltip("Set by Screen Anchor");
+            }
         }
         {
             EditorUI::FloatCallbacks cb;
@@ -1502,11 +1513,20 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
         { "Scale", 2, 1.0f, "%.3f", 0.01f },
     };
 
+    bool anyAnchored = false;
+    for (Deki::Object* o : objects)
+    {
+        anyAnchored |= o->HasComponent<Deki::ScreenAnchor>();
+    }
+
     for (int row = 0; row < 3; ++row)
     {
         const Row& r = rows[row];
         InspectorUtils::BeginPropertyRow(r.label);
         ImGui::PushID(row);
+        // A Screen Anchor sets the position (see DrawTransform).
+        const bool locked = row == 0 && anyAnchored;
+        ImGui::BeginDisabled(locked);
         // The single-object rows' widths and gap (SchematicDragFloat2's).
         const float gap = ImGui::GetStyle().ItemInnerSpacing.x;
         const float boxW = (ImGui::CalcItemWidth() - gap * (float)(r.count - 1)) / (float)r.count;
@@ -1580,6 +1600,7 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
             }
             ImGui::PopID();
         }
+        ImGui::EndDisabled();
         ImGui::PopID();
     }
 }

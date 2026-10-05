@@ -21,6 +21,7 @@
 #include "PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>  // DrawDockSeams, DrawAllTabTopAccents
 #include "services/CrashHandler.h"
+#include "services/EngineEditorSetup.h"
 #include <deki-editor/build/BuilderRegistry.h>
 #include <memory>
 #include "services/ProgressModal.h"
@@ -91,6 +92,9 @@ int main(int argc, char* argv[])
 {
     // Register crash handler as early as possible
     DekiEditor::CrashHandler::Initialize();
+
+    // Before any package DLL loads, so unloading packages keeps these.
+    DekiEditor::RememberBuiltInEditors();
 
     DekiEditor::CliOptions cli;
     const bool parsed = DekiEditor::ParseArgs(argc, argv, cli);
