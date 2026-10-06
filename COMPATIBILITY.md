@@ -127,8 +127,8 @@ or depend on it:
 
 ## One version number
 
-The engine and the editor share one version number: editor 0.18.0 ships engine
-0.18.0, and a package's `minEngine` names that number. Both stay at 0.x until
+The engine and the editor share one version number: editor 0.18.1 ships engine
+0.18.1, and a package's `minEngine` names that number. Both stay at 0.x until
 the API is declared stable, and before 1.0 a breaking change bumps the minor
 across the editor, the engine and every package together.
 
