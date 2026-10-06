@@ -238,13 +238,28 @@ inline void ApplyString(Deki::Component* comp, size_t offset, const nlohmann::js
 
 inline void ApplyColor(Deki::Component* comp, size_t offset, const nlohmann::json& value)
 {
+    uint8_t* colorPtr = reinterpret_cast<uint8_t*>(reinterpret_cast<char*>(comp) + offset);
     if (value.is_array() && value.size() >= 4)
     {
-        uint8_t* colorPtr = reinterpret_cast<uint8_t*>(reinterpret_cast<char*>(comp) + offset);
         colorPtr[0] = value[0].get<uint8_t>();
         colorPtr[1] = value[1].get<uint8_t>();
         colorPtr[2] = value[2].get<uint8_t>();
         colorPtr[3] = value[3].get<uint8_t>();
+    }
+    else if (value.is_string())
+    {
+        // "#RRGGBBAA" or "#RRGGBB", as scene files write colours.
+        const std::string hex = value.get<std::string>();
+        if ((hex.size() != 7 && hex.size() != 9) || hex[0] != '#' ||
+            hex.find_first_not_of("0123456789abcdefABCDEF", 1) != std::string::npos)
+        {
+            return;
+        }
+        for (size_t i = 0; i < 4; ++i)
+        {
+            colorPtr[i] =
+                1 + 2 * i < hex.size() ? static_cast<uint8_t>(std::stoul(hex.substr(1 + 2 * i, 2), nullptr, 16)) : 255;
+        }
     }
 }
 

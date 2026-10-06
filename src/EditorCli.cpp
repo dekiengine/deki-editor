@@ -64,7 +64,8 @@ void PrintUsage(const char* program)
     printf("  --tool <name>         Run one tool and print its result as JSON\n");
     printf("  --args <json>         Arguments for --tool (default: {})\n");
     printf("  --script <file>       Run a JSON array of {\"tool\", \"args\"} in order,\n");
-    printf("                        stopping at the first failure\n");
+    printf("                        stopping at the first failure. A step with \"as\": \"name\" saves\n");
+    printf("                        its result; later steps use it as \"${name.id}\"\n");
     printf("  --upgrade-project     Re-save every scene, boot scene, platform file and sprite sheet in\n");
     printf("                        the current format; writes nothing unless all of it loads back the same\n");
     printf("  --render-scenes       Render every scene headless and print a hash per scene\n");

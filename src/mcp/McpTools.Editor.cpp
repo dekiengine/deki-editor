@@ -371,6 +371,34 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                        { "startupScene", project->GetStartupScene() } };
           } });
 
+    registry.Register(
+        { "set_startup_scene",
+          "Set the scene the game starts in, as the Project Settings panel does. Saves deki.json.",
+          { { "type", "object" },
+            { "properties",
+              { { "path",
+                  { { "type", "string" },
+                    { "description", "The scene, project-relative, e.g. assets/scenes/menu.scene" } } } } },
+            { "required", nlohmann::json::array({ "path" }) } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              auto* project = RequireProject(editor);
+              const fs::path assets = fs::path(GetAssetsDirectory(project->GetPath())).lexically_normal();
+              const fs::path scene =
+                  (fs::path(project->GetPath()) / args.at("path").get<std::string>()).lexically_normal();
+              const std::string rel = scene.lexically_relative(assets).generic_string();
+              if (rel.empty() || rel.rfind("..", 0) == 0 || scene.extension() != ".scene" || !fs::exists(scene))
+              {
+                  throw std::runtime_error(args.at("path").get<std::string>() + " is not a scene under assets/");
+              }
+              project->SetStartupScene(rel);
+              if (!project->Save())
+              {
+                  throw std::runtime_error("could not save deki.json");
+              }
+              return { { "startupScene", project->GetStartupScene() } };
+          } });
+
     // ── Dialogs ──────────────────────────────────────────────────────────────
 
     registry.Register(

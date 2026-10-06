@@ -520,6 +520,7 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/Project.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageLoader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/LibraryDependencies.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ScriptRefs.cpp
     # RegistrySourceTests: the registry index / package file parsers.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/sources/DekiRegistrySource.cpp
     # ProjectScaffoldTests: what a new project is made of, and the manifest

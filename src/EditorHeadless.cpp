@@ -13,6 +13,7 @@
 #include <deki-editor/SceneView.h>
 #include "services/ExportTarget.h"
 #include "EditorHeadless.h"
+#include "core/ScriptRefs.h"
 #include "EditorVersion.h"
 #include <deki-editor/VersionCompare.h>
 #include "EditorApp.h"
@@ -2166,7 +2167,8 @@ ToolCall LiveToolCall(const LiveSession::Info& session)
     { return LiveSession::CallTool(session, name, args, result, error); };
 }
 
-bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::json& args, std::string& outError)
+bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::json& args, std::string& outError,
+                nlohmann::json* outResult = nullptr)
 {
     nlohmann::json result;
     if (!call(name, args, result, outError))
@@ -2174,6 +2176,10 @@ bool RunOneTool(const ToolCall& call, const std::string& name, const nlohmann::j
         return false;
     }
     printf("%s\n", result.dump(2).c_str());
+    if (outResult)
+    {
+        *outResult = std::move(result);
+    }
     return true;
 }
 
@@ -2233,6 +2239,7 @@ int RunScriptWith(const ToolCall& call, const char* scriptPath)
         return 1;
     }
 
+    std::map<std::string, nlohmann::json> saved;
     int stepNumber = 0;
     for (const auto& step : script)
     {
@@ -2243,16 +2250,26 @@ int RunScriptWith(const ToolCall& call, const char* scriptPath)
             return 1;
         }
         const std::string name = step["tool"].get<std::string>();
-        const nlohmann::json args = step.contains("args") ? step["args"] : nlohmann::json::object();
+        nlohmann::json args = step.contains("args") ? step["args"] : nlohmann::json::object();
 
         printf("[%d/%d] %s\n", stepNumber, static_cast<int>(script.size()), name.c_str());
         std::string error;
-        if (!RunOneTool(call, name, args, error))
+        if (!ResolveScriptRefs(args, saved, error))
+        {
+            printf("Error: step %d (%s): %s\n", stepNumber, name.c_str(), error.c_str());
+            return 1;
+        }
+        nlohmann::json result;
+        if (!RunOneTool(call, name, args, error, &result))
         {
             // Stop at the first failure: later steps almost always depend on
             // this one, and a cascade of failures hides which one broke.
             printf("Error: step %d (%s) failed: %s\n", stepNumber, name.c_str(), error.c_str());
             return 1;
+        }
+        if (step.contains("as") && step["as"].is_string())
+        {
+            saved[step["as"].get<std::string>()] = std::move(result);
         }
     }
     printf("Script finished: %d step(s).\n", stepNumber);

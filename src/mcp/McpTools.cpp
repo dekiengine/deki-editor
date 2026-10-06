@@ -151,14 +151,21 @@ static int ResolveEnumValue(const Deki::PropertyInfo& prop, const nlohmann::json
 }
 
 // The property named `propName` in `meta`, or null.
+// The component's own properties first, then each base class's (sortingOrder
+// on a SpriteComponent is RendererComponent's), as the Inspector shows them.
 static const Deki::PropertyInfo* FindProperty(const Deki::ComponentMeta* meta, const std::string& propName)
 {
-    for (int i = 0; i < meta->propertyCount; ++i)
+    auto& registry = Deki::ComponentRegistry::Instance();
+    for (int depth = 0; meta && depth < 8; ++depth)
     {
-        if (meta->properties[i].name == propName)
+        for (int i = 0; i < meta->propertyCount; ++i)
         {
-            return &meta->properties[i];
+            if (meta->properties[i].name == propName)
+            {
+                return &meta->properties[i];
+            }
         }
+        meta = meta->baseTypeId ? registry.GetMeta(meta->baseTypeId) : nullptr;
     }
     return nullptr;
 }
@@ -716,10 +723,21 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("Unknown component type: " + typeName);
               }
 
-              nlohmann::json properties = nlohmann::json::object();
-              for (int i = 0; i < meta->propertyCount; ++i)
+              // Own properties and those of each base class (see FindProperty).
+              std::vector<const Deki::PropertyInfo*> all;
+              for (const Deki::ComponentMeta* m = meta; m && all.size() < 1024;
+                   m = m->baseTypeId ? reg.GetMeta(m->baseTypeId) : nullptr)
               {
-                  const auto& prop = meta->properties[i];
+                  for (int i = 0; i < m->propertyCount; ++i)
+                  {
+                      all.push_back(&m->properties[i]);
+                  }
+              }
+
+              nlohmann::json properties = nlohmann::json::object();
+              for (const Deki::PropertyInfo* p : all)
+              {
+                  const auto& prop = *p;
                   nlohmann::json propInfo;
                   propInfo["type"] = PropertyTypeToString(prop.type);
 

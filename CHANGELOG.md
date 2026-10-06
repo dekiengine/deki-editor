@@ -4,6 +4,21 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- `set_property` and `get_properties` reach a component's inherited
+  properties, such as `sortingOrder` on a sprite or text.
+
+### Added
+- A `--script` step can use what an earlier step returned: `"as": "panel"`
+  saves a step's result, and a later argument `"${panel.id}"` is replaced by
+  its `id`. A script can now create an object and then add components to it.
+- `set_startup_scene` CLI and MCP tool: sets the scene the game starts in.
+- `set_property` takes a colour as `"#RRGGBBAA"` or `"#RRGGBB"`, as scene files
+  write it, as well as `[r, g, b, a]`. Before, a colour given as text was
+  ignored and no error was reported.
+
 ## 0.18.1 - 2026-10-06
 
 ### Fixed
