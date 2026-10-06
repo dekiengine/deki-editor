@@ -168,6 +168,87 @@ TEST(PackageLock, RegistryOffersAreNotWrittenToTheLock)
     EXPECT_FALSE(lock["packages"].contains("deki-offer"));
 }
 
+// Updating or restoring a package that is another's dependency keeps it a
+// dependency; only a package asked for directly is declared.
+TEST(PackageDependencies, UpdatingADependencyDoesNotDeclareIt)
+{
+    class SucceedingInstaller : public StubInstaller
+    {
+    public:
+        SucceedingInstaller()
+            : StubInstaller("stub")
+        {
+        }
+        void Install(const std::string&, const PackageEntry&, const std::string&, PackageCallback callback) override
+        {
+            callback(true, "");
+        }
+    };
+
+    TempProject project;
+    PackageManager mgr(nullptr);
+    PackageEntry dependency;
+    dependency.id = "deki-dep";
+    dependency.name = "deki-dep";
+    dependency.resolvedBy = "deki-board";
+    dependency.isInstalled = true;
+    mgr.GetPackages().push_back(dependency);
+    PackageEntry asked;
+    asked.id = "deki-asked";
+    asked.name = "deki-asked";
+    mgr.GetPackages().push_back(asked);
+
+    SucceedingInstaller installer;
+    mgr.InstallWithDependencies(project.dir.string(), dependency, "2.0.0", &installer, [](bool, const std::string&) {});
+    mgr.InstallWithDependencies(project.dir.string(), asked, "1.0.0", &installer, [](bool, const std::string&) {});
+
+    for (const PackageEntry& entry : mgr.GetPackages())
+    {
+        if (entry.id == "deki-dep")
+        {
+            EXPECT_FALSE(entry.declaredInManifest);
+        }
+        if (entry.id == "deki-asked")
+        {
+            EXPECT_TRUE(entry.declaredInManifest);
+        }
+    }
+}
+
+// An installed package is marked installed at its new version. A later
+// install that requires it reads that mark; unmarked, it installed the
+// package again at the version the lock remembered, undoing an update.
+TEST(PackageDependencies, AnInstalledPackageIsMarkedAtItsVersion)
+{
+    class SucceedingInstaller : public StubInstaller
+    {
+    public:
+        SucceedingInstaller()
+            : StubInstaller("stub")
+        {
+        }
+        void Install(const std::string&, const PackageEntry&, const std::string&, PackageCallback callback) override
+        {
+            callback(true, "");
+        }
+    };
+
+    TempProject project;
+    PackageManager mgr(nullptr);
+    PackageEntry package;
+    package.id = "deki-x";
+    package.name = "deki-x";
+    package.lockedVersion = "1.0.0";
+    mgr.GetPackages().push_back(package);
+
+    SucceedingInstaller installer;
+    mgr.InstallWithDependencies(project.dir.string(), package, "2.0.0", &installer, [](bool, const std::string&) {});
+
+    ASSERT_EQ(mgr.GetPackages().size(), 1u);
+    EXPECT_TRUE(mgr.GetPackages()[0].isInstalled);
+    EXPECT_EQ(mgr.GetPackages()[0].installedVersion, "2.0.0");
+}
+
 // Every requirement of a package is resolved, even when resolving one adds
 // entries to the list the package itself lives in. deki-lilygo-boards lost
 // deki-lovyangfx-integration this way: the list moved under the loop.

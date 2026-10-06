@@ -34,6 +34,7 @@
 #include "services/ProjectTemplate.h"
 #include "services/PackageLoader.h"
 #include <deki-editor/Paths.h>
+#include <deki-editor/FileIO.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/Scene.h>
 #include <deki/Object.h>
@@ -558,9 +559,9 @@ int CmdPackagesRestore(EditorApp& editor)
 
     if (missing > 0)
     {
-        printf("\n%d package(s) could not be installed. A package with no source URL\n"
-               "that is not in the Deki registry has to be installed by hand from the\n"
-               "Package Manager.\n",
+        printf("\n%d package(s) could not be installed; the errors above say why. A\n"
+               "package with no source URL that is not in the Deki registry has to be\n"
+               "installed by hand from the Package Manager.\n",
                missing);
         return 1;
     }
@@ -783,7 +784,11 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
     std::vector<PackageEntry> targets;
     for (const auto& p : mgr.GetPackages())
     {
-        if (!p.isInstalled)
+        // The project's packages, installed or not: one pinned to a version
+        // this editor refuses cannot be restored, and updating it is how the
+        // project moves on. Registry offers the project never asked for are
+        // left out.
+        if (!p.isInstalled && !p.declaredInManifest && p.resolvedBy.empty())
         {
             continue;
         }
@@ -806,11 +811,11 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
     {
         if (all)
         {
-            printf("No installed packages to update.\n");
+            printf("No packages to update.\n");
         }
         else
         {
-            printf("Error: '%s' is not an installed package of this project\n", idOrAll);
+            printf("Error: '%s' is not a package of this project\n", idOrAll);
         }
         return 1;
     }
@@ -832,6 +837,14 @@ int CmdPackagesUpdate(EditorApp& editor, const char* idOrAll)
         if (version == pkg.installedVersion)
         {
             printf("%s: already at %s\n", pkg.id.c_str(), version.c_str());
+            continue;
+        }
+
+        // A package folder linked to a checkout is managed there; the
+        // installer leaves it alone, so it is not updated here either.
+        if (DekiEditor::IsLinkOrJunction(fs::path(GetPackagesDirectory(projectPath)) / pkg.id))
+        {
+            printf("%s: linked to a checkout, skipped (update it there)\n", pkg.id.c_str());
             continue;
         }
 

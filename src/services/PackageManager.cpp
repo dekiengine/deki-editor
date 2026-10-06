@@ -939,6 +939,9 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                                              PackageCallback callback)
 {
     std::string pkgId = pkg.id;
+    // A package already known as another's dependency stays one: updating or
+    // restoring it is not asking for it, so it is not declared.
+    const bool asDependency = !pkg.resolvedBy.empty() && !pkg.declaredInManifest;
 
     // Outcome of the primary install, reported to the caller. The installers
     // in use call their callback inline (see DekiPackageInstaller::Install),
@@ -948,7 +951,7 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
 
     installer->Install(
         projectPath, pkg, version,
-        [this, projectPath, pkgId, version, primary](bool success, const std::string& message)
+        [this, projectPath, pkgId, version, primary, asDependency](bool success, const std::string& message)
         {
             *primary = { success, message };
             if (!success)
@@ -968,7 +971,15 @@ void PackageManager::InstallWithDependencies(const std::string& projectPath, con
                 // deki-packages.json. Without this the save after an
                 // install leaves it out (not declared yet, and not yet
                 // known to be on disk).
-                installed.declaredInManifest = true;
+                if (!asDependency)
+                {
+                    installed.declaredInManifest = true;
+                }
+                // On disk now, at this version. Left unmarked, a later install
+                // that requires it would install it again, at the version the
+                // lock remembers, undoing an update.
+                installed.isInstalled = true;
+                installed.installedVersion = version;
 
                 if (installed.requiredPackages.empty())
                 {

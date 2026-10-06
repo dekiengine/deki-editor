@@ -4,6 +4,22 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- `--packages-update` installs a project's packages that are missing, at the
+  newest version. A project pinned to versions this editor refuses (0.17
+  packages in 0.18) could neither restore them nor update them.
+- An updated package is marked installed at its new version. A later package
+  that required it installed it again at the version the lock remembered,
+  undoing the update.
+- Updating or restoring a package that another one requires keeps it out of
+  deki-packages.json; only packages asked for directly are declared there.
+- `--packages-update` skips a package folder linked to a checkout and says so.
+  It reported such packages as updated without changing them.
+- A package restore that fails says why (for example, a version this editor
+  refuses) instead of only naming the package.
+
 ## 0.18.0 - 2026-10-06
 
 ### Changed

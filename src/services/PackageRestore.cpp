@@ -426,6 +426,8 @@ PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, Pack
             }
             else
             {
+                DEKI_LOG_ERROR("Package restore: '%s' %s could not be installed: %s", pkg.id.c_str(), version.c_str(),
+                               message.empty() ? "no reason given" : message.c_str());
                 result.failed.push_back(pkg.id);
                 seen.insert(pkg.id);
             }

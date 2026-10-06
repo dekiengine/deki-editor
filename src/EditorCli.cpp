@@ -48,7 +48,7 @@ void PrintUsage(const char* program)
     printf("  --packages-restore     Install every declared package that is missing on disk\n");
     printf("  --packages-add <url>   Add a package by repo URL or registry id, and install it\n");
     printf("  --packages-remove <id> Remove a package and any dependencies only it needed\n");
-    printf("  --packages-update <id|all> Update installed package(s) to the newest version, then rebuild\n");
+    printf("  --packages-update <id|all> Update the project's package(s) to the newest version, then rebuild\n");
     printf("  --version <ver>       Version/tag for --packages-add (or branch:<name>)\n");
     printf("  --build-code          Regenerate build files and compile packages + plugin\n");
     printf("  --verify-scenes       Report scene property keys no component recognises\n");
