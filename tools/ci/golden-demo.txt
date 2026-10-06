@@ -14,10 +14,10 @@
 #   DekiEditor --render-scenes --platform <board> <deki-demo> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-10-05 - the desktop simulator target (1280x720), recorded on Linux: Windows draws the sky's dither one pixel over at this scale
+# recorded: 2026-10-06 - the desktop simulator target (1280x720), the same on Windows and Linux now that Linux loads each package library once
 
 # config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
-4689d4e7ad5104d2  scenes/meadow.scene
+8b4bfdad562b91d5  scenes/meadow.scene
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
 11a1c58163e02ee2  scenes/meadow.scene

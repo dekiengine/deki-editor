@@ -4,6 +4,7 @@
 #include <deki-editor/build/ProjectPaths.h>
 #include "core/SettingsOwnership.h"
 #include "SharedLibNaming.h"
+#include "LibraryDependencies.h"
 #include "SafeDllCall.h"
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/SettingsRegistry.h>
@@ -482,20 +483,9 @@ int PackageLoader::LoadPackagesFromDirectory(const std::string& directory, void*
         packagePaths.push_back(entry.path());
     }
 
-    // deki-rendering must load before the packages that depend on it (e.g. deki-2d).
-    std::sort(packagePaths.begin(), packagePaths.end(),
-              [](const std::filesystem::path& a, const std::filesystem::path& b)
-              {
-                  auto nameA = a.filename().string();
-                  auto nameB = b.filename().string();
-                  bool aIsRendering = nameA.find("deki-rendering") == 0;
-                  bool bIsRendering = nameB.find("deki-rendering") == 0;
-                  if (aIsRendering != bIsRendering)
-                  {
-                      return aIsRendering;
-                  }
-                  return nameA < nameB;
-              });
+    // Each package after the ones it links to (deki-rendering before deki-2d),
+    // so every library is loaded once (see DependencyOrder).
+    packagePaths = DependencyOrder(packagePaths, NeededLibraries);
 
     for (const auto& path : packagePaths)
     {

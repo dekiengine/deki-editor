@@ -95,6 +95,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `capture_sequence` now records input as it plays instead of waiting for it.
 
 ### Fixed
+- On Linux the editor loaded a package library a second time when a package
+  that links to it loaded first (deki-2d before deki-rendering), so the two
+  copies kept separate state. Gradients then baked without the screen's size
+  and drew one pixel off at 3x. Package libraries load after the ones they
+  link to now, read from each library's own dependency list.
 - Package restore works with MSYS2's git. It asked git for the repository's
   root and compared paths, and MSYS2's git answers with paths Windows cannot
   open, so every package was skipped as "not the root of its repository".

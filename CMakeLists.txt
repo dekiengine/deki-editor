@@ -516,9 +516,10 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/InstanceCommands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/HistoryGuards.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/SettingsOwnership.cpp
-    # LegacyFramingTests: what an older project's cameras migrate from.
+    # ProjectSettingsFilesTests: how a project reads its settings files.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/Project.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageLoader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/LibraryDependencies.cpp
     # RegistrySourceTests: the registry index / package file parsers.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/sources/DekiRegistrySource.cpp
     # ProjectScaffoldTests: what a new project is made of, and the manifest

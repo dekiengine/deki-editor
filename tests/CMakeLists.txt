@@ -56,6 +56,7 @@ set(TEST_SOURCES
     services/BuiltLibrariesTests.cpp
     services/BuilderDispatchTests.cpp
     services/InstallerRoutingTests.cpp
+    services/LibraryDependenciesTests.cpp
     services/BuildStripSettingsTests.cpp
     services/PlayModeGuardTests.cpp
     services/TouchGesturesTests.cpp
