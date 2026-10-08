@@ -40,14 +40,14 @@ git submodule update --init --recursive
 
 ### The whole workspace in one step
 
-`tools/setup-workspace.sh` builds that layout around the editor checkout - the
+`tools/sync-repos.sh` builds that layout around the editor checkout - the
 engine, every `dekiengine` package in the registry, `deki-demo` and
 `deki-registry` - and writes `<root>/.vscode/settings.json` so VS Code's Source
 Control lists every repo when you open `<root>`:
 
 ```bash
 git clone https://github.com/dekiengine/deki-editor.git ~/deki/deki-editor
-~/deki/deki-editor/tools/setup-workspace.sh      # --ssh to clone over SSH
+~/deki/deki-editor/tools/sync-repos.sh      # --ssh to clone over SSH
 code ~/deki
 ```
 
@@ -59,21 +59,70 @@ committed. On Windows, run it from Git Bash.
 
 ## 2. Prerequisites
 
+### Installing them with one script
+
+`tools/setup-windows.ps1` and `tools/setup-linux.sh` install everything below
+and, with `-Build` / `--build`, build the editor. Each checks the machine first,
+prints what it is about to change, and asks before changing anything; it only
+installs what is missing, so running it again is safe. Every run writes a log
+(`%LOCALAPPDATA%\deki\` on Windows, `~/.local/state/deki/` on Linux).
+
+```powershell
+# Windows (normal PowerShell, not admin; winget shows one UAC prompt for MSYS2)
+powershell -ExecutionPolicy Bypass -File tools\setup-windows.ps1 -Build
+```
+
+```bash
+# Linux: Ubuntu/Debian (apt), Fedora (dnf) or Arch (pacman). Run as your user;
+# it asks for the sudo password once, for the package installs only.
+tools/setup-linux.sh --build
+```
+
+| Windows | Linux | |
+|---|---|---|
+| `-Yes` | `--yes` | do not ask (CI, scripts) |
+| `-Build` | `--build` | configure and build `DekiEditor` |
+| `-BuildType T` | `--build-type T` | `Debug` (default), `Release`, `RelWithDebInfo`, `MinSizeRel` |
+| `-SyncRepos [-Ssh]` | `--sync-repos [--ssh]` | then run `tools/sync-repos.sh` (§1) |
+| `-SkipPath` | | do not add `C:\msys64\mingw64\bin` to the user PATH |
+| | `--allow-root` | run as root, for containers |
+
+What they change: Windows installs Git / Git LFS / MSYS2 with winget when
+missing, updates MSYS2's packages (all inside `C:\msys64`), and appends
+`C:\msys64\mingw64\bin` to the end of the user PATH. Linux installs the
+packages CI uses; on Ubuntu without `g++-16` it adds
+`ppa:ubuntu-toolchain-r/test`, which also brings a newer, backward-compatible
+libstdc++, and GCC 16 installs next to the system compiler. On Arch, `pacman
+-Syu` upgrades the whole system, as Arch requires. Both run `git lfs install`
+for the current user. The build always uses the exact GCC, CMake and Ninja the
+script checked, by absolute path, whatever else is on PATH.
+
+On WSL, clone the repo inside Linux (`~/deki`), not under `/mnt/c` - builds
+across the Windows drive are many times slower.
+
+The rest of this section is what the scripts install, for doing it by hand.
+
 | Tool | Why | Notes |
 |---|---|---|
 | CMake ≥ 3.16 | build system | 3.29 used in practice |
 | Ninja | generator | CMake copies one next to `DekiEditor.exe` for project builds |
-| **GCC 16.1+** | reflection codegen | **hard requirement**, see below |
+| **GCC 16** with C++26 reflection | reflection codegen | **hard requirement**, see below |
 | A C++23 compiler | editor + engine | MinGW-w64 **or** MSVC - see §3 |
 | git (+ git-lfs) | package install shells out to `git` | must be on `PATH` |
 | Network access | packages and the registry | `github.com`, `raw.githubusercontent.com` |
 
-### GCC 16.1+ is not optional
+### GCC 16 is not optional
 
 The engine generates component reflection with a **C++26 static-reflection**
-generator (`deki-engine/tools/reflection_codegen.cpp`). It needs GCC 16.1 or
-newer, and it runs as a plain `g++` invocation **independent of the compiler you
-build the project with** - so an MSVC build still needs GCC 16.1 installed.
+generator (`deki-engine/tools/reflection_codegen.cpp`). It needs a GCC 16 that
+compiles `-std=c++26 -freflection` with `<meta>`, and it runs as a plain `g++`
+invocation **independent of the compiler you build the project with** - so an
+MSVC build still needs GCC 16 installed.
+
+What counts is that capability, not the version number: MSYS2 ships 16.2, while
+the Ubuntu toolchain PPA (`ppa:ubuntu-toolchain-r/test`, what CI uses) ships a
+16.0.1 snapshot that already has it. The setup scripts check by compiling a
+small reflection program.
 
 CMake looks for it in this order:
 
@@ -85,12 +134,20 @@ On Windows, via MSYS2:
 
 ```bash
 pacman -Syu                       # run twice; the first pass updates the core
-pacman -S mingw-w64-x86_64-gcc    # 16.1.0 or newer
+pacman -S mingw-w64-x86_64-gcc    # 16.x
 ```
 
-Verify: `C:/msys64/mingw64/bin/g++ --version` must report **16.1.0+**. With an
-older GCC the configure step stops with `generator compile failed ... needs GCC 16.1+`
-rather than continuing with stale or missing generated sources.
+On Ubuntu, from the toolchain PPA (the system `g++` stays as it is):
+
+```bash
+sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+sudo apt-get install g++-16 gcc-16
+```
+
+Verify: `g++ --version` (MSYS2) or `g++-16 --version` (Ubuntu) must report
+**16.x**. With a GCC that lacks reflection the configure step stops with
+`generator compile failed ... needs GCC 16.1+` (the engine's message) rather
+than continuing with stale or missing generated sources.
 ---
 
 ## 3. Choosing a toolchain

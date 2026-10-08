@@ -19,7 +19,7 @@
 #
 # New machine:
 #     git clone https://github.com/dekiengine/deki-editor.git ~/deki/deki-editor
-#     ~/deki/deki-editor/tools/setup-workspace.sh
+#     ~/deki/deki-editor/tools/sync-repos.sh
 #     code ~/deki
 #
 # deki-editor, deki-engine and deki-demo are private, so git needs a GitHub login: an SSH
@@ -28,7 +28,7 @@
 # example `git config --global credential.helper store`), or later runs cannot
 # fetch those three.
 #
-# Usage: tools/setup-workspace.sh [--root DIR] [--ssh] [--no-pull] [--with-site]
+# Usage: tools/sync-repos.sh [--root DIR] [--ssh] [--no-pull] [--with-site]
 #     --root DIR    workspace folder (default: the folder that holds deki-editor/)
 #     --ssh         clone with git@github.com: URLs instead of https://
 #     --no-pull     fetch and report, but do not update anything
