@@ -6,7 +6,7 @@ repository) and the packages (`github.com/dekiengine/deki-*`).
 
 ## Toolchain
 
-GCC 16.1+ everywhere (C++26 static reflection drives the codegen), Ninja, and
+GCC 16 with `-freflection` everywhere (C++26 static reflection drives the codegen), Ninja, and
 CMake 3.16+ to build the editor. A project's own generated build files ask for
 3.25, so that is the version to have in practice.
 

@@ -18,7 +18,7 @@ the code: **https://dekiengine.github.io/docs/**
 
 ## Quick start
 
-GCC 16.1 or newer is required, on every platform: the component reflection is
+GCC 16 with `-freflection` is required, on every platform: the component reflection is
 C++26 static reflection, generated at configure time. On Windows that means
 MSYS2 (`pacman -S mingw-w64-x86_64-gcc`); on Ubuntu the toolchain PPA. Details,
 alternatives and troubleshooting are in [SETUP.md](SETUP.md).

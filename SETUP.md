@@ -146,7 +146,7 @@ sudo apt-get install g++-16 gcc-16
 
 Verify: `g++ --version` (MSYS2) or `g++-16 --version` (Ubuntu) must report
 **16.x**. With a GCC that lacks reflection the configure step stops with
-`generator compile failed ... needs GCC 16.1+` (the engine's message) rather
+`generator compile failed ... needs GCC 16 with -freflection` rather
 than continuing with stale or missing generated sources.
 ---
 
@@ -507,7 +507,7 @@ has it); a firmware build that strips nothing is exactly what it was before.
 
 ## 10. Troubleshooting
 
-**`Deki reflection codegen needs GCC 16.1+`**
+**`Deki reflection codegen needs GCC 16 with C++26 reflection (-freflection)`**
 Install it (§2) or pass `-DDEKI_GXX16=<path to g++>`.
 
 **`'uint32_t' has not been declared` in a package**
