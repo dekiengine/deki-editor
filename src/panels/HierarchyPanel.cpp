@@ -11,6 +11,7 @@
 #include <deki-editor/CommandHistory.h>
 #include "core/Commands.h"
 #include "core/Project.h"
+#include "services/AgentCursor.h"
 #include "services/ClipboardService.h"
 #include <deki-editor/AssetPicker.h>
 #include "widgets/DragScroll.h"
@@ -61,6 +62,15 @@ void HierarchyPanel::Draw()
 
     // Rows read last frame's hover (see DrawObjectNode).
     m_RowHover.BeginFrame();
+
+    // Looked up once per frame, not per row; null when the pointer is idle.
+    m_AgentObject = nullptr;
+    m_AgentReveal = false;
+    if (const AgentIntent* want = AgentCursor::Get().Wanted(); want && want->hasObject && scene)
+    {
+        m_AgentObject = scene->FindDekiObject(want->objectId);
+        m_AgentReveal = AgentCursor::Get().WantsReveal();
+    }
 
     // Breadcrumb navigation header
     const auto& navStack = m_App->GetSceneNavigationStack();
@@ -630,6 +640,11 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
     {
         ImGui::SetNextItemOpen(true);
     }
+    // Likewise for the agent pointer's object, while the pointer is on its way.
+    if (m_AgentReveal && m_AgentObject && m_AgentObject != obj && m_AgentObject->IsDescendantOf(obj))
+    {
+        ImGui::SetNextItemOpen(true);
+    }
 
     // A rename field in place of the row
     if (m_RenamingObject == obj)
@@ -747,6 +762,21 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         bar.w *= selT;
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(rmin.x, rmin.y), ImVec2(rmin.x + 2.0f, rmax.y),
                                                   ImGui::ColorConvertFloat4ToU32(bar));
+    }
+
+    // The agent pointer's object: exact for a tool on the object itself, a
+    // stand-in for one on its components (the Inspector reports those when it
+    // shows them). Scrolled into view while the pointer is on its way.
+    if (obj == m_AgentObject)
+    {
+        const AgentIntent* want = AgentCursor::Get().Wanted();
+        const bool exact = want && want->target == AgentIntent::Target::Object;
+        AgentCursor::Get().Report(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                                  exact ? AgentCursor::Precision::Exact : AgentCursor::Precision::ObjectRow);
+        if (m_AgentReveal && !ImGui::IsItemVisible())
+        {
+            ImGui::SetScrollHereY(0.5f);
+        }
     }
 
     // Sync ImGui nav focus to match our selection after arrow key navigation

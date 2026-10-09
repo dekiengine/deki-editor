@@ -66,6 +66,52 @@ inline void Append(ImDrawData* dd, ImDrawList* copy)
     dd->AddDrawList(copy);
 }
 
+/// Whether every texture a copy draws from is still alive. A copy keeps the
+/// textures it was drawn with, but when the font atlas grows ImGui replaces
+/// its texture, and the backend destroys the old one in this very render,
+/// before it draws: a copy still pointing at it would be drawn with no texture
+/// (an assert in debug builds, blank glyphs otherwise). Checked by looking the
+/// texture up in ImGui's live list, never by reading through the copy's
+/// pointer, which may already be freed.
+inline bool TexturesAlive(const ImDrawList* dl)
+{
+    const ImVector<ImTextureData*>& live = ImGui::GetPlatformIO().Textures;
+    for (const ImDrawCmd& cmd : dl->CmdBuffer)
+    {
+        const ImTextureData* tex = cmd.TexRef._TexData;
+        if (!tex)
+        {
+            continue;  // a raw texture id (an image), not one ImGui manages
+        }
+        bool alive = false;
+        for (const ImTextureData* t : live)
+        {
+            if (t == tex)
+            {
+                alive = t->Status != ImTextureStatus_WantDestroy && t->Status != ImTextureStatus_Destroyed;
+                break;
+            }
+        }
+        if (!alive)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+inline bool TexturesAlive(const ImVector<ImDrawList*>& lists)
+{
+    for (const ImDrawList* l : lists)
+    {
+        if (!TexturesAlive(l))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline void Free(ImVector<ImDrawList*>& lists)
 {
     for (ImDrawList* l : lists)

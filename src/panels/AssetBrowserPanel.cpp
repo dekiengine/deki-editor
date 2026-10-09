@@ -2,6 +2,7 @@
 #include "asset_browser/VirtualFolders.h"
 #include "asset_browser/AssetFileOps.h"
 #include <deki-editor/ProcessLaunch.h>
+#include "../services/AgentCursor.h"
 #include "../services/ScriptTemplate.h"
 #include "../services/AssetImportDrop.h"
 #include "../core/SceneExport.h"
@@ -1508,6 +1509,19 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
         ImGui::Selectable("##file", fileAlpha > 0.0f, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, rowHeight));
     m_RowHover.Track(fileRowId);
     ImGui::PopStyleColor(3);
+    // The agent pointer's asset. Compared like a pending reveal above: the
+    // file name first, so the filesystem call runs only for a likely row.
+    if (const AgentIntent* want = AgentCursor::Get().Wanted();
+        want && want->target == AgentIntent::Target::Asset && !want->assetPath.empty() &&
+        fs::path(entry.path).filename() == fs::path(want->assetPath).filename() &&
+        fs::weakly_canonical(fs::path(entry.path)) == fs::weakly_canonical(fs::path(want->assetPath)))
+    {
+        AgentCursor::Get().Report(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), AgentCursor::Precision::Exact);
+        if (AgentCursor::Get().WantsReveal() && !ImGui::IsItemVisible())
+        {
+            ImGui::SetScrollHereY(0.5f);
+        }
+    }
     if (fileClicked)
     {
         bool shiftHeld = ImGui::GetIO().KeyShift;

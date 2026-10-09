@@ -9,6 +9,7 @@
 #include <deki-editor/CommandHistory.h>
 #include "../../core/Commands.h"
 #include <deki-editor/build/PlatformConfig.h>
+#include "../../services/AgentCursor.h"
 #include "../../services/ClipboardService.h"
 #include "../../services/PackageLoader.h"
 #include <deki-editor/EditorSettings.h>
@@ -397,6 +398,23 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                                                         ImGui::GetStateStorage()->GetInt(headerId, 1) != 0 };
         }
         ImGui::OpenPopupOnItemClick("ComponentContextMenu", ImGuiPopupFlags_MouseButtonRight);
+
+        // The agent pointer's component: its header is the target of a
+        // component tool, and stands in for one of its properties (exact once
+        // the row is drawn, which a collapsed header does not do).
+        if (const AgentIntent* want = AgentCursor::Get().Wanted();
+            want && meta && want->objectId == obj->GetId() && want->component == meta->serializedName &&
+            (want->target == AgentIntent::Target::Component || want->target == AgentIntent::Target::Property))
+        {
+            AgentCursor::Get().Report(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                                      want->target == AgentIntent::Target::Component
+                                          ? AgentCursor::Precision::Exact
+                                          : AgentCursor::Precision::Section);
+            if (AgentCursor::Get().WantsReveal() && !ImGui::IsItemVisible())
+            {
+                ImGui::SetScrollHereY(0.5f);
+            }
+        }
 
         // Right-aligned `EDIT ->` action link for package/project components.
         if (meta && IsEditableComponent(m_App, comp->GetType()))

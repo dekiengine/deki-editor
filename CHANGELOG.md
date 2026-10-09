@@ -9,6 +9,17 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Fixed
 - `set_property` and `get_properties` reach a component's inherited
   properties, such as `sortingOrder` on a sprite or text.
+- Windows: a project's packages now build however the editor was started.
+  It looked for cmake and ninja only on PATH, so an editor started from a
+  terminal opened before MSYS2 was installed, or with MSYS2 not on PATH,
+  failed with "'cmake' is not recognized" and left the packages' components
+  missing. The editor now puts its toolchain's folder (the bundled one, the
+  compiler it was built with, or MSYS2's) on its own PATH for the builds it
+  starts, and finds the tools there.
+- A window or popup fading out while the font atlas grew drew from a
+  texture that had just been destroyed: an ImGui assert in debug builds
+  (every frame, so the editor could not be used), blank text in release.
+  Its fading picture is now dropped a few frames early instead.
 
 ### Changed
 - `tools/setup-workspace.sh` is now `tools/get-packages.sh`: it downloads
@@ -22,6 +33,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   MSYS2 on Windows, SDL3's build dependencies on Linux), build the editor,
   and download the Deki packages. Options (`--build`, `--get-packages`, ...)
   skip the menu for CI. See SETUP.md §2.
+- Agent pointer: when an agent works in the editor over MCP, a pointer and a
+  label show what each call does and where - the Hierarchy row, Inspector
+  property, asset or exact pixel it acts on - and the call runs once the
+  pointer is there (0.2 s). It follows drags, does not hold input into a
+  running game, and stays out of screenshots. Editor Settings > MCP turns it
+  off. MCP clients see each changing call take that much longer.
 - A `--script` step can use what an earlier step returned: `"as": "panel"`
   saves a step's result, and a later argument `"${panel.id}"` is replaced by
   its `id`. A script can now create an object and then add components to it.

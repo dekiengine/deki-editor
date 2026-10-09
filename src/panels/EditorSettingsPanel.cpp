@@ -2,6 +2,7 @@
 
 #include "../PanelMaximize.h"
 #include "inspector/InspectorUtils.h"
+#include "../services/AgentCursor.h"
 #include "../services/EditorLogFile.h"
 #include "../services/UpdateCheck.h"
 
@@ -117,6 +118,23 @@ void EditorSettingsPanel::Draw()
         {
             UpdateCheck::SetEnabled(check);
         }
+        EndPropertyContext();
+        SchematicSectionEnd();
+    }
+    ImGui::Spacing();
+
+    if (SchematicSectionBegin("MCP"))
+    {
+        BeginPropertyContext();
+        InspectorUtils::SetNextRowTooltip("When an AI agent works in the editor over MCP, a pointer shows what it "
+                                          "is doing and where, and each change waits a moment for it.");
+        BeginPropertyRow("Agent Pointer");
+        bool pointer = AgentCursor::IsEnabled();
+        if (SchematicCheckbox("##agentpointer", &pointer))
+        {
+            AgentCursor::SetEnabled(pointer);
+        }
+        Note("Off: tools run at once, with nothing shown.");
         EndPropertyContext();
         SchematicSectionEnd();
     }

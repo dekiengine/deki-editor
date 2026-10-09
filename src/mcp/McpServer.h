@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
+#include <optional>
 #include <nlohmann/json.hpp>
 
 namespace httplib  // NOLINT(readability-identifier-naming): cpp-httplib's name
@@ -129,6 +130,14 @@ private:
         std::shared_ptr<std::promise<std::string>> responsePromise;
     };
     ThreadSafeQueue<PendingRequest> m_IncomingRequests;
+
+    // A tool call the agent pointer is showing, held until the pointer is on
+    // its target (AgentCursor::Arrived). Nothing behind it in the queue runs
+    // first, so calls still happen in the order they came.
+    std::optional<PendingRequest> m_Parked;
+    // Starts the pointer for `msg` when it is a tool call it shows; true when
+    // the call must wait for it.
+    bool ShowOnAgentPointer(const nlohmann::json& msg);
 
     // The main thread pushes responses, the SSE stream sends them.
     ThreadSafeQueue<SseResponse> m_SseResponses;

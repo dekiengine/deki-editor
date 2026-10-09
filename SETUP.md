@@ -508,6 +508,19 @@ project lock refuses. A note on stderr names the editor's process; stdout is
 the tool output as usual. Other verbs on a project open elsewhere are still
 refused.
 
+**Agent pointer.** In a windowed editor, a violet pointer shows what an agent
+is doing: for each call that changes something it glides to the row, panel or
+pixel the call acts on - the object's Hierarchy row, the property's Inspector
+row (scrolled to, its parents opened), the asset's row, the exact point of a
+`click`, `drag`, `hover` or `scroll` - with a label such as "Setting
+SpriteComponent.color", and the call runs once the pointer is there, 0.2 s
+later. During a drag it follows the injected mouse, with a dot while the
+button is down. While the game is playing, input calls are shown but not
+held, so a test's timing is what it asked for. Calls that only read are not
+shown, the pointer is never in a `screenshot` or `capture_sequence`, and it
+fades out after a few idle seconds. **Editor Settings > MCP > Agent Pointer**
+turns it off (setting `mcp.agentPointer`); then calls run at once.
+
 ---
 
 ## 9. Stripping

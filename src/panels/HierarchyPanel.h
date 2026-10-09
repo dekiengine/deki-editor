@@ -85,6 +85,11 @@ private:
     bool m_ArrowKeyHandled = false;              // One node handles each key press
     Deki::Object* m_ScrollToObject = nullptr;    // Moves ImGui nav focus here after arrow navigation
 
+    // The object the agent pointer is after this frame (AgentCursor), or null.
+    // Its row is reported to the pointer, and shown: ancestors open, scrolled to.
+    Deki::Object* m_AgentObject = nullptr;
+    bool m_AgentReveal = false;
+
     // Selected objects as they were when the drag started
     std::vector<Deki::Object*> m_DraggedObjects;
 

@@ -25,6 +25,8 @@
 #include <deki-editor/build/BuilderRegistry.h>
 #include <memory>
 #include "services/ProgressModal.h"
+#include "services/AgentCursor.h"
+#include "services/BundledToolchain.h"
 #include "services/EditorCapture.h"
 #include "services/EditorInput.h"
 #include "services/TouchInput.h"
@@ -95,6 +97,10 @@ int main(int argc, char* argv[])
 
     // Before any package DLL loads, so unloading packages keeps these.
     DekiEditor::RememberBuiltInEditors();
+
+    // The build toolchain on this process's PATH, so every project build finds
+    // cmake, ninja and the compiler however the editor was started.
+    DekiEditor::PrepareToolchainPath();
 
     DekiEditor::CliOptions cli;
     const bool parsed = DekiEditor::ParseArgs(argc, argv, cli);
@@ -406,6 +412,10 @@ int main(int argc, char* argv[])
         // Overlay 1px accent line on top of every selected dock tab so panel
         // tabs visibly read as tabs in the schematic style.
         DekiEditor::DrawAllTabTopAccents();
+
+        // The agent pointer, over everything (popups and tooltips too): last,
+        // after every window has reported where its rows are this frame.
+        DekiEditor::AgentCursor::Get().Draw();
 
         // Rendering
         phase.emplace("Frame: ImGui render + GL draw");

@@ -17,6 +17,7 @@
 #include <deki-editor/EditorUI.h>
 #include <deki-editor/AssetDatabase.h>
 #include <deki-editor/EditorAssets.h>
+#include "../services/AgentCursor.h"
 #include "../services/ClipboardService.h"
 #include "../services/SafeDispatch.h"
 #include "AssetBrowserPanel.h"
@@ -1014,6 +1015,34 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
     // section is closing, which is when the body still has to be submitted.
     ImGuiID transformHeaderId = 0;
     const bool transformBody = SchematicSectionBegin("Transform", ImGuiTreeNodeFlags_DefaultOpen, &transformHeaderId);
+
+    // The agent pointer's Transform row (set_position, set_rotation,
+    // set_scale): the header stands in while the section is shut, each row is
+    // measured where it is drawn below.
+    const AgentIntent* agentWant = AgentCursor::Get().Wanted();
+    if (agentWant && (agentWant->target != AgentIntent::Target::Transform || agentWant->objectId != obj->GetId()))
+    {
+        agentWant = nullptr;
+    }
+    if (agentWant)
+    {
+        AgentCursor::Get().Report(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), AgentCursor::Precision::Section);
+    }
+    auto reportAgentRow = [agentWant](const char* field, const ImVec2& start)
+    {
+        if (!agentWant || agentWant->property != field)
+        {
+            return;
+        }
+        const ImVec2 end(start.x + ImGui::GetContentRegionAvail().x,
+                         std::max(ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y,
+                                  start.y + ImGui::GetFrameHeight()));
+        AgentCursor::Get().Report(start, end, AgentCursor::Precision::Exact);
+        if (AgentCursor::Get().WantsReveal() && !ImGui::IsRectVisible(start, end))
+        {
+            ImGui::SetScrollFromPosY(start.y - ImGui::GetWindowPos().y, 0.5f);
+        }
+    };
     if (filtering && !m_TransformStateKnown && transformHeaderId != 0)
     {
         m_TransformHeaderId = static_cast<unsigned int>(transformHeaderId);
@@ -1064,6 +1093,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
         // onEndChange bracket the live edit. Unit::Distance handles px/m + snapping,
         // Unit::Angle handles degrees<->radians.
         const char* posLabel = obj->GetParent() ? "Local Position" : "Position";
+        ImVec2 agentRowStart = ImGui::GetCursorScreenPos();
         {
             EditorUI::VecCallbacks cb;
             cb.onStartChange = [this](const float*) { BeginLiveEdit(); };
@@ -1083,6 +1113,8 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
                 DekiEditor::Tooltip("Set by Screen Anchor");
             }
         }
+        reportAgentRow("position", agentRowStart);
+        agentRowStart = ImGui::GetCursorScreenPos();
         {
             EditorUI::FloatCallbacks cb;
             cb.onStartChange = [this](float) { BeginLiveEdit(); };
@@ -1092,6 +1124,8 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             cb.onEndChange = [this](float, float) { EndLiveEdit(); };
             EditorUI::Get().FloatField("Rotation", obj->GetLocalRotation(), EditorUI::Unit::Angle, cb);
         }
+        reportAgentRow("rotation", agentRowStart);
+        agentRowStart = ImGui::GetCursorScreenPos();
         {
             EditorUI::VecCallbacks cb;
             cb.onStartChange = [this](const float*) { BeginLiveEdit(); };
@@ -1101,6 +1135,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             cb.onEndChange = [this](const float*, const float*) { EndLiveEdit(); };
             EditorUI::Get().Vector2Field("Scale", obj->GetScaleX(), obj->GetScaleY(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
         }
+        reportAgentRow("scale", agentRowStart);
 #ifdef DEKI_TRANSFORM_3D
         // The third axis, only when the project declares transform_3d: a 2D
         // device drops these values on load.

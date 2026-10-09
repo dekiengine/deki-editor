@@ -7,6 +7,7 @@
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/CommandHistory.h>
 #include "../../core/Commands.h"
+#include "../../services/AgentCursor.h"
 #include "../../services/SafeDispatch.h"
 #include "../../core/commands/PropertyTypeHandlers.h"
 #include <deki/reflection/Property.h>
@@ -20,6 +21,7 @@
 #include <deki/Color.h>
 #include "imgui.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <climits>
 #include <cstring>
 #include <functional>
@@ -294,6 +296,21 @@ void PropertyEditorFactory::ShowTooltip(const Deki::PropertyInfo& prop)
     }
 }
 
+// Whether `propName` on `comp` is the property the agent pointer is after.
+// The cheap checks go first: this runs for every row, and the pointer is
+// mostly idle.
+static bool IsAgentProperty(const Deki::Component* comp, const char* propName)
+{
+    const AgentIntent* want = AgentCursor::Get().Wanted();
+    if (!want || want->target != AgentIntent::Target::Property || !comp->GetOwner() ||
+        comp->GetOwner()->GetId() != want->objectId || want->property != propName)
+    {
+        return false;
+    }
+    const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(comp->GetType());
+    return meta && want->component == meta->serializedName;
+}
+
 void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::PropertyInfo& prop)
 {
     ImGui::PushID(prop.name);
@@ -341,6 +358,12 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
     }
     InspectorUtils::SetNextRowUnsaved(isUnsaved);
 
+    // The agent pointer's row is measured from here to where the widget ends,
+    // whichever widget it is.
+    const bool agentRow = IsAgentProperty(comp, prop.name);
+    const ImVec2 agentStart = agentRow ? ImGui::GetCursorScreenPos() : ImVec2();
+    const float agentRight = agentRow ? agentStart.x + ImGui::GetContentRegionAvail().x : 0.0f;
+
     switch (prop.type)
     {
         case Deki::PropertyType::Int32: DrawInt32Property(comp, prop, displayName.c_str()); break;
@@ -373,6 +396,17 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
         case Deki::PropertyType::Array: DrawArrayProperty(comp, prop, displayName.c_str()); break;
 
         default: ImGui::TextDisabled("%s: (unsupported type)", displayName.c_str()); break;
+    }
+
+    if (agentRow)
+    {
+        const float bottom = ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y;
+        const ImVec2 end(agentRight, std::max(bottom, agentStart.y + ImGui::GetFrameHeight()));
+        AgentCursor::Get().Report(agentStart, end, AgentCursor::Precision::Exact);
+        if (AgentCursor::Get().WantsReveal() && !ImGui::IsRectVisible(agentStart, end))
+        {
+            ImGui::SetScrollFromPosY(agentStart.y - ImGui::GetWindowPos().y, 0.5f);
+        }
     }
 
     // Drop the tooltip and marker in case this field drew no labelled row.

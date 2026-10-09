@@ -237,7 +237,9 @@ void OnRenderPost(ImGuiContext*, ImGuiContextHook*)
     for (auto it = s_Ghosts.begin(); it != s_Ghosts.end();)
     {
         const float t = Motion::To(it->key, 0.0f, Motion::kFast);
-        if (t <= 0.0f || !dd)
+        // A picture whose font texture the atlas has since replaced is dropped,
+        // a few frames early: drawn, it would have no texture (DrawListFx).
+        if (t <= 0.0f || !dd || !DrawListFx::TexturesAlive(it->frozen))
         {
             DrawListFx::Free(it->frozen);
             DrawListFx::Free(it->shown);

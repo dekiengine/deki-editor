@@ -2,8 +2,15 @@
 #include "McpToolRegistry.h"
 #include "McpTools.h"
 #include "McpResources.h"
+#include "../EditorApp.h"
+#include "../core/Project.h"
+#include "../services/AgentCursor.h"
+
+#include <deki/Object.h>
+#include <deki/Scene.h>
 
 #include <httplib.h>
+#include <filesystem>
 #include <future>
 #include <random>
 #include <sstream>
@@ -356,6 +363,16 @@ void McpServer::Stop()
     // Answer what is still queued: the main thread will not get to it now, and
     // each one has a server thread waiting on it (see the /message handler).
     PendingRequest req;
+    if (m_Parked)
+    {
+        req = std::move(*m_Parked);
+        m_Parked.reset();
+        if (req.responsePromise)
+        {
+            req.responsePromise->set_value(
+                MakeError(req.message.value("id", nlohmann::json()), -32603, "The editor is closing").dump());
+        }
+    }
     while (m_IncomingRequests.TryPop(req))
     {
         if (req.responsePromise)
@@ -387,14 +404,38 @@ void McpServer::ServerThread()
 
 void McpServer::ProcessMessages()
 {
-    PendingRequest req;
     // At most 10 messages per frame, so the UI keeps running.
     int processed = 0;
     // The count must be checked before TryPop: otherwise the 11th message is
     // popped and dropped on loop exit, its promise never set, and the client
     // waits out the full request timeout.
-    while (processed < 10 && m_IncomingRequests.TryPop(req))
+    while (processed < 10)
     {
+        PendingRequest req;
+        if (m_Parked)
+        {
+            // Held for the agent pointer: it runs once the pointer is there, and
+            // until then nothing queued behind it does.
+            if (!AgentCursor::Get().Arrived())
+            {
+                return;
+            }
+            req = std::move(*m_Parked);
+            m_Parked.reset();
+        }
+        else
+        {
+            if (!m_IncomingRequests.TryPop(req))
+            {
+                return;
+            }
+            if (ShowOnAgentPointer(req.message))
+            {
+                m_Parked = std::move(req);
+                continue;  // runs on a later frame, or now if the pointer has nowhere to go
+            }
+        }
+
         auto response = HandleMessage(req.message);
 
         if (req.responsePromise)
@@ -404,6 +445,51 @@ void McpServer::ProcessMessages()
 
         ++processed;
     }
+}
+
+bool McpServer::ShowOnAgentPointer(const nlohmann::json& msg)
+{
+    if (!AgentCursor::IsEnabled() || msg.value("method", "") != "tools/call")
+    {
+        return false;
+    }
+    const nlohmann::json params = msg.value("params", nlohmann::json::object());
+    const nlohmann::json args = params.value("arguments", nlohmann::json::object());
+    AgentIntent intent = IntentForTool(params.value("name", ""), args.is_object() ? args : nlohmann::json::object());
+    if (!intent.Shows())
+    {
+        return false;
+    }
+
+    // What the mapping cannot know without the editor: the object's name for
+    // the label, and the asset's absolute path, which the Asset Browser's rows
+    // hold.
+    if (const size_t at = intent.label.find("{object}"); at != std::string::npos)
+    {
+        std::string name = "object " + std::to_string(intent.objectId);
+        Deki::Scene* scene = m_Editor ? m_Editor->GetCurrentScene() : nullptr;
+        if (Deki::Object* obj = (scene && intent.hasObject) ? scene->FindDekiObject(intent.objectId) : nullptr)
+        {
+            name = "'" + obj->GetName() + "'";
+        }
+        intent.label.replace(at, 8, name);
+    }
+    if (!intent.assetPath.empty())
+    {
+        Project* project = m_Editor ? m_Editor->GetProject() : nullptr;
+        intent.assetPath = project ? (std::filesystem::path(project->GetPath()) / intent.assetPath).string() : "";
+        if (intent.assetPath.empty())
+        {
+            intent.target = AgentIntent::Target::Panel;
+        }
+    }
+
+    // Input into a running game is shown but not held: a pause before each tap
+    // would change what is being tested (timing, double taps, a held drag).
+    const bool playing = m_Editor && !m_Editor->IsStopped();
+    const bool wait = intent.Travels() && !(playing && intent.target == AgentIntent::Target::Point);
+    AgentCursor::Get().Show(intent, wait);
+    return wait;
 }
 
 nlohmann::json McpServer::HandleMessage(const nlohmann::json& msg)

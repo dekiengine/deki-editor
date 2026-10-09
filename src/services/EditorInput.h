@@ -82,6 +82,21 @@ public:
     /// Whether `panel` names an open window, so the tools can reject a typo at once.
     static bool PanelExists(const std::string& panel);
 
+    /// Where automation holds the mouse while its steps play (window pixels),
+    /// and whether a button is down; false when it is not driving the mouse.
+    /// The agent pointer follows it, so a drag is seen being dragged.
+    bool LivePointer(float& x, float& y, bool& pressed) const
+    {
+        if (m_Steps.empty() && m_HoldSeconds <= 0.0f && !m_Pressed)
+        {
+            return false;
+        }
+        x = m_MouseX;
+        y = m_MouseY;
+        pressed = m_Pressed;
+        return true;
+    }
+
 private:
     EditorInput() = default;
 
@@ -124,6 +139,7 @@ private:
     // and a press would otherwise land wherever that is.
     float m_MouseX = 0.0f, m_MouseY = 0.0f;
     float m_HoldSeconds = 0.0f;  // time left to keep the mouse at m_MouseX/Y
+    bool m_Pressed = false;      // a button is down (between a ButtonDown and its ButtonUp)
 };
 
 }  // namespace DekiEditor

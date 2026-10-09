@@ -198,6 +198,7 @@ void EditorInput::InjectPending()
                     DEKI_LOG_ERROR("EditorInput: panel '%s' is not drawn; dropping the rest of this input",
                                    step.panel.c_str());
                     m_Steps.clear();
+                    m_Pressed = false;
                     return;
                 }
                 ox = win->Pos.x;
@@ -212,6 +213,7 @@ void EditorInput::InjectPending()
         case Step::Kind::ButtonUp:
             io.AddMousePosEvent(m_MouseX, m_MouseY);
             io.AddMouseButtonEvent(step.button, step.kind == Step::Kind::ButtonDown);
+            m_Pressed = step.kind == Step::Kind::ButtonDown;
             break;
         case Step::Kind::Wheel:
             io.AddMousePosEvent(m_MouseX, m_MouseY);
@@ -282,6 +284,7 @@ void EditorInput::InjectPending()
             {
                 DEKI_LOG_ERROR("EditorInput: a drag's panel is not drawn; dropping the rest of this input");
                 m_Steps.clear();
+                m_Pressed = false;
                 return;
             }
             // This frame puts the pointer on the start point; a widget reacts

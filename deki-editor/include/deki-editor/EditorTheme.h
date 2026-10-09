@@ -44,6 +44,10 @@ constexpr ImVec4 AccentDim = ImVec4(0.230f, 0.764f, 1.000f, 0.40f);
 // saturated cousin of Accent on the same 240 hue.
 constexpr ImVec4 FolderIcon = ImVec4(0.141f, 0.561f, 0.800f, 1.0f);
 
+// The agent pointer (AgentCursor): what an AI agent is doing over MCP. Violet,
+// so it is never mistaken for the user's own selection (Accent) or a status.
+constexpr ImVec4 Agent = ImVec4(0.706f, 0.549f, 1.000f, 1.0f);  // #b48cff
+
 // Status signals
 constexpr ImVec4 Red = ImVec4(0.910f, 0.420f, 0.310f, 1.0f);    // errors / destructive
 constexpr ImVec4 Amber = ImVec4(0.870f, 0.690f, 0.310f, 1.0f);  // warnings
