@@ -11,15 +11,17 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   properties, such as `sortingOrder` on a sprite or text.
 
 ### Changed
-- `tools/setup-workspace.sh` is now `tools/sync-repos.sh`: it clones and
-  updates the repos and installs nothing, which the old name did not say.
-  Same options; call it by the new name.
+- `tools/setup-workspace.sh` is now `tools/get-packages.sh`: it downloads
+  the Deki packages (plus the demo and registry) to develop with, and installs
+  nothing, which the old name did not say. Same options; call it by the new
+  name.
 
 ### Added
-- `tools/setup-windows.ps1` and `tools/setup-linux.sh` install the build
-  prerequisites (GCC 16, CMake, Ninja, git-lfs; MSYS2 on Windows, SDL3's
-  build dependencies on Linux) and, with `-Build` / `--build`, build the
-  editor. See SETUP.md §2.
+- `tools/setup-windows.ps1` and `tools/setup-linux.sh` set a machine up from
+  a menu: install the build prerequisites (GCC 16, CMake, Ninja, git-lfs;
+  MSYS2 on Windows, SDL3's build dependencies on Linux), build the editor,
+  and download the Deki packages. Options (`--build`, `--get-packages`, ...)
+  skip the menu for CI. See SETUP.md §2.
 - A `--script` step can use what an earlier step returned: `"as": "panel"`
   saves a step's result, and a later argument `"${panel.id}"` is replaced by
   its `id`. A script can now create an object and then add components to it.

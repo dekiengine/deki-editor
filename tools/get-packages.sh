@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Set up (or bring up to date) the whole Deki workspace in one folder, ready to
-# open in VS Code:
+# Download every Deki package - plus the demo project and the registry - as
+# working git clones next to the editor, to develop them alongside it, and keep
+# them up to date. The result is one folder, ready to open in VS Code:
 #
 #     <root>/
 #         deki-editor/            the editor, with deki-engine/ inside (submodule)
@@ -19,8 +20,11 @@
 #
 # New machine:
 #     git clone https://github.com/dekiengine/deki-editor.git ~/deki/deki-editor
-#     ~/deki/deki-editor/tools/sync-repos.sh
+#     ~/deki/deki-editor/tools/get-packages.sh
 #     code ~/deki
+#
+# tools/setup-linux.sh and tools/setup-windows.ps1 run this for you (menu
+# choices 3 and 4, or --get-packages / -GetPackages).
 #
 # deki-editor, deki-engine and deki-demo are private, so git needs a GitHub login: an SSH
 # key added to your account (then pass --ssh), or HTTPS with a personal access
@@ -28,7 +32,7 @@
 # example `git config --global credential.helper store`), or later runs cannot
 # fetch those three.
 #
-# Usage: tools/sync-repos.sh [--root DIR] [--ssh] [--no-pull] [--with-site]
+# Usage: tools/get-packages.sh [--root DIR] [--ssh] [--no-pull] [--with-site]
 #     --root DIR    workspace folder (default: the folder that holds deki-editor/)
 #     --ssh         clone with git@github.com: URLs instead of https://
 #     --no-pull     fetch and report, but do not update anything

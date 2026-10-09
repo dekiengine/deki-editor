@@ -38,16 +38,17 @@ If you cloned without `--recurse-submodules`:
 git submodule update --init --recursive
 ```
 
-### The whole workspace in one step
+### All the Deki packages, to develop with them
 
-`tools/sync-repos.sh` builds that layout around the editor checkout - the
-engine, every `dekiengine` package in the registry, `deki-demo` and
-`deki-registry` - and writes `<root>/.vscode/settings.json` so VS Code's Source
-Control lists every repo when you open `<root>`:
+`tools/get-packages.sh` downloads every `dekiengine` package in the registry,
+`deki-demo` and `deki-registry` as working clones into that layout around the
+editor checkout, and writes `<root>/.vscode/settings.json` so VS Code's Source
+Control lists every repo when you open `<root>`. The setup scripts (§2) run it
+for you - menu choice 3 or 4 - or run it on its own:
 
 ```bash
 git clone https://github.com/dekiengine/deki-editor.git ~/deki/deki-editor
-~/deki/deki-editor/tools/sync-repos.sh      # --ssh to clone over SSH
+~/deki/deki-editor/tools/get-packages.sh      # --ssh to clone over SSH
 code ~/deki
 ```
 
@@ -61,31 +62,55 @@ committed. On Windows, run it from Git Bash.
 
 ### Installing them with one script
 
-`tools/setup-windows.ps1` and `tools/setup-linux.sh` install everything below
-and, with `-Build` / `--build`, build the editor. Each checks the machine first,
-prints what it is about to change, and asks before changing anything; it only
-installs what is missing, so running it again is safe. Every run writes a log
-(`%LOCALAPPDATA%\deki\` on Windows, `~/.local/state/deki/` on Linux).
+One script per platform sets everything up. Run it with no options and it asks
+what to do:
 
 ```powershell
 # Windows (normal PowerShell, not admin; winget shows one UAC prompt for MSYS2)
-powershell -ExecutionPolicy Bypass -File tools\setup-windows.ps1 -Build
+powershell -ExecutionPolicy Bypass -File tools\setup-windows.ps1
 ```
 
 ```bash
 # Linux: Ubuntu/Debian (apt), Fedora (dnf) or Arch (pacman). Run as your user;
 # it asks for the sudo password once, for the package installs only.
-tools/setup-linux.sh --build
+tools/setup-linux.sh
 ```
+
+```
+┌─ Deki setup ──────────────────────────────────────────────────────────────┐
+│  Setup     Options     Status                                             │
+├───────────────────────────────────────────────────────────────────────────┤
+│     Build tools only        GCC 16, CMake, Ninja, git-lfs (+ MSYS2 / ...) │
+│   ► Build tools + editor    ... and build DekiEditor                      │
+│     Everything              ... and download every Deki package           │
+│     Deki packages only      download / update the packages, demo, registry│
+├───────────────────────────────────────────────────────────────────────────┤
+│ ←/→ Tab: tabs   ↑/↓: move   Enter: start   Esc: quit                      │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+Use the arrow keys and Tab, or the mouse: click a tab, an action or an option,
+and the wheel scrolls. The **Options** tab sets the build type (Debug or Release), whether packages
+are cloned over SSH or HTTPS (SSH is the default when GitHub already accepts
+the machine's key) and, on Windows, whether MSYS2 goes on the PATH. The
+**Status** tab shows what is installed already. After a choice on **Setup** it
+checks the machine, prints what it is about to change, and asks before
+changing anything; it only installs what is missing, so running it again is
+safe. Every run writes a log (`%LOCALAPPDATA%\deki\` on Windows,
+`~/.local/state/deki/` on Linux).
+
+For CI and scripts, options skip the menu:
 
 | Windows | Linux | |
 |---|---|---|
 | `-Yes` | `--yes` | do not ask (CI, scripts) |
 | `-Build` | `--build` | configure and build `DekiEditor` |
 | `-BuildType T` | `--build-type T` | `Debug` (default), `Release`, `RelWithDebInfo`, `MinSizeRel` |
-| `-SyncRepos [-Ssh]` | `--sync-repos [--ssh]` | then run `tools/sync-repos.sh` (§1) |
+| `-GetPackages [-Ssh]` | `--get-packages [--ssh]` | then run `tools/get-packages.sh` (§1) |
 | `-SkipPath` | | do not add `C:\msys64\mingw64\bin` to the user PATH |
 | | `--allow-root` | run as root, for containers |
+
+With no options and no terminal they install the build tools only.
 
 What they change: Windows installs Git / Git LFS / MSYS2 with winget when
 missing, updates MSYS2's packages (all inside `C:\msys64`), and appends
