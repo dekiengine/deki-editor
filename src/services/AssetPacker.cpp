@@ -257,12 +257,10 @@ void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid, const s
             continue;
         }
 
-        // Must use the same GUID formula as AssetExporter::BakeFontsForExport.
-        std::string seedString = sourceGuid + ":" + std::to_string(usage.fontSize);
-        std::string variantGuid = GenerateDeterministicGuid(seedString);
-
-        std::string atlasSeed = seedString + ":atlas";
-        std::string atlasGuid = GenerateDeterministicGuid(atlasSeed);
+        // The GUIDs AssetExporter::BakeFontsForExport bakes under: one form per
+        // size, or one per BDF font.
+        std::string variantGuid = usage.FontGuid();
+        std::string atlasGuid = usage.AtlasGuid();
 
         // The variant's .dfont.
         std::string variantPath = cacheDir + "/" + variantGuid;

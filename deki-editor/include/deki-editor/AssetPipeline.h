@@ -203,6 +203,10 @@ public:
 
     const AssetInfo* GetAssetInfoByGuid(const std::string& guid) const;
 
+    /// True when the font asset with this GUID is a BDF font, which has one
+    /// baked form whatever the text's size (see BakedFontGuid).
+    bool IsBdfFont(const std::string& sourceGuid) const;
+
     /// The type name for an extension with dot (".scene" gives "Scene",
     /// ".png" gives "Sprite"), or "" when unknown.
     static std::string GetAssetTypeFromExtension(const std::string& ext);

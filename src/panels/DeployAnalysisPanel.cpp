@@ -306,9 +306,8 @@ void DeployAnalysisPanel::ScanAssets()
     // variants and atlases too; they are derived from the font GUID and size.
     for (const auto& fu : usage.fontUsages)
     {
-        std::string seed = fu.sourceGuid + ":" + std::to_string(fu.fontSize);
-        usage.usedGuids.insert(GenerateDeterministicGuid(seed));
-        usage.usedGuids.insert(GenerateDeterministicGuid(seed + ":atlas"));
+        usage.usedGuids.insert(fu.FontGuid());
+        usage.usedGuids.insert(fu.AtlasGuid());
     }
 
     const auto& forceGuids = project->GetForceIncludeGuids();
@@ -358,11 +357,8 @@ void DeployAnalysisPanel::ScanAssets()
                                     {
                                         continue;
                                     }
-                                    std::string seed = guid + ":" + std::to_string(fu.fontSize);
-                                    std::string variantGuid = GenerateDeterministicGuid(seed);
-                                    std::string atlasGuid = GenerateDeterministicGuid(seed + ":atlas");
-                                    guidToPackName[variantGuid] = packDisplayName;
-                                    guidToPackName[atlasGuid] = packDisplayName;
+                                    guidToPackName[fu.FontGuid()] = packDisplayName;
+                                    guidToPackName[fu.AtlasGuid()] = packDisplayName;
                                 }
                             }
                         }
@@ -442,9 +438,8 @@ void DeployAnalysisPanel::ScanAssets()
 
         for (const auto& fu : usage.fontUsages)
         {
-            std::string seed = fu.sourceGuid + ":" + std::to_string(fu.fontSize);
-            std::string variantGuid = GenerateDeterministicGuid(seed);
-            std::string atlasGuid = GenerateDeterministicGuid(seed + ":atlas");
+            std::string variantGuid = fu.FontGuid();
+            std::string atlasGuid = fu.AtlasGuid();
 
             auto addBakedEntry = [&](const std::string& guid, const std::string& label)
             {

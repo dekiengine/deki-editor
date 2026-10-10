@@ -591,7 +591,8 @@ void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRef
 
     FontUsageInfo fontInfo;
     fontInfo.sourceGuid = assetRef.source;
-    fontInfo.fontSize = fontSize;
+    fontInfo.bdf = m_Pipeline && m_Pipeline->IsBdfFont(assetRef.source);
+    fontInfo.fontSize = fontInfo.bdf ? 0 : fontSize;  // One baked form per BDF font
     collection.fontUsages.insert(fontInfo);
 
     DEKI_LOG_DEBUG("  Found font usage: %s @ %d px", assetRef.source.c_str(), fontSize);
@@ -612,21 +613,19 @@ AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
 
     for (const auto& fontInfo : fontUsages)
     {
-        // GUIDs derived from font and size, so the same font and size always
-        // get the same ones. AssetPacker::ResolveFontDependencies must match.
-        std::string seedString = fontInfo.sourceGuid + ":" + std::to_string(fontInfo.fontSize);
-        std::string fontGuid = GenerateDeterministicGuid(seedString);
-
-        std::string atlasSeedString = fontInfo.sourceGuid + ":" + std::to_string(fontInfo.fontSize) + ":atlas";
-        std::string atlasGuid = GenerateDeterministicGuid(atlasSeedString);
+        // GUIDs derived from the font and its size (BakedFontGuid), so the
+        // same font and size always get the same ones. AssetPacker uses them
+        // too.
+        std::string fontGuid = fontInfo.FontGuid();
+        std::string atlasGuid = fontInfo.AtlasGuid();
 
         std::string fontCachePath = GetCachePath(projectPath, fontGuid);
         std::string atlasCachePath = GetCachePath(projectPath, atlasGuid);
+        std::string key = fontInfo.sourceGuid + ":" + (fontInfo.bdf ? "bdf" : std::to_string(fontInfo.fontSize));
 
         if (fs::exists(fontCachePath) && fs::exists(atlasCachePath))
         {
-            DEKI_LOG_DEBUG("  Font already baked: %s @ %d px", fontInfo.sourceGuid.c_str(), fontInfo.fontSize);
-            std::string key = fontInfo.sourceGuid + ":" + std::to_string(fontInfo.fontSize);
+            DEKI_LOG_DEBUG("  Font already baked: %s", key.c_str());
             bakedFonts[key] = fontGuid;
             bakedFonts[key + ":atlas"] = atlasGuid;
             continue;
@@ -636,6 +635,26 @@ AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
         if (!assetInfo)
         {
             DEKI_LOG_WARNING("  Font source not found: %s", fontInfo.sourceGuid.c_str());
+            continue;
+        }
+
+        // A BDF font is baked by deki-2d when the font is imported, once
+        // whatever the size; the TrueType compiler below cannot read it. Not
+        // baked yet (a cleaned cache), it is imported again, which bakes it.
+        if (fontInfo.bdf)
+        {
+            m_Pipeline->RefreshAsset(assetInfo->path);
+            if (fs::exists(fontCachePath) && fs::exists(atlasCachePath))
+            {
+                DEKI_LOG_INFO("  Baked BDF font: %s -> %s", assetInfo->path.c_str(), fontGuid.c_str());
+                bakedFonts[key] = fontGuid;
+                bakedFonts[key + ":atlas"] = atlasGuid;
+            }
+            else
+            {
+                DEKI_LOG_ERROR("  BDF font not baked: %s", assetInfo->path.c_str());
+                AddProblem("The BDF font " + assetInfo->path + " could not be baked (is the deki-2d package loaded?)");
+            }
             continue;
         }
 
@@ -708,7 +727,6 @@ AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
         DEKI_LOG_INFO("  Baked font: %s @ %d px -> %s", fontInfo.sourceGuid.c_str(), fontInfo.fontSize,
                       fontGuid.c_str());
 
-        std::string key = fontInfo.sourceGuid + ":" + std::to_string(fontInfo.fontSize);
         bakedFonts[key] = fontGuid;
         bakedFonts[key + ":atlas"] = atlasGuid;
     }

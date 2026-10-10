@@ -638,33 +638,104 @@ const Deki::ComponentTypeInfo TextComponent::kTypeInfo = { Deki::TypeName<TextCo
                                                            &TextComponent::kComponentMeta };
 }  // namespace Deki2D
 
-TEST_F(AssetLifecycleTest, CompiledScene_TextPointsAtTheFontBakedForItsSize)
+// Compiles a one-text scene, the text using `fontSource` at `fontSize`, and
+// returns the binary. The stand-in TextComponent is registered meanwhile.
+// The binary stores an AssetRef's guid and source as plain strings; reading
+// it back would need a component's generated deserializer, which a stand-in
+// does not have.
+static std::string CompileTextScene(AssetPipeline& pipeline, const fs::path& dir, const std::string& fontSource,
+                                    int fontSize)
 {
-    ASSERT_EQ(Deki2D::TextComponent::kStaticType, Deki::HashString("Deki2D::TextComponent"));
-    Deki::ComponentRegistry::Instance().Register(&Deki2D::TextComponent::kComponentMeta);
-    Deki::ComponentFactory::Instance().Register(&Deki2D::TextComponent::kTypeInfo);
+    struct Registered
+    {
+        Registered()
+        {
+            Deki::ComponentRegistry::Instance().Register(&Deki2D::TextComponent::kComponentMeta);
+            Deki::ComponentFactory::Instance().Register(&Deki2D::TextComponent::kTypeInfo);
+        }
+        ~Registered()
+        {
+            Deki::ComponentFactory::Instance().Unregister(Deki2D::TextComponent::kStaticType);
+            Deki::ComponentRegistry::Instance().Unregister(Deki2D::TextComponent::kStaticType);
+        }
+    } registered;
 
-    const std::string fontSource = "11111111-2222-3333-4444-555555555555";
-    const fs::path scenePath = m_TempDir / "assets" / "title.scene";
+    const fs::path scenePath = dir / "assets" / "title.scene";
     {
         std::ofstream out(scenePath, std::ios::trunc);
         out << R"({"formatVersion":1,"objects":[{"active":true,"children":[],"components":[)"
-            << R"({"properties":{"font":{"guid":"stale","source":")" << fontSource << R"("},"fontSize":24},)"
-            << R"("type":"Deki2D::TextComponent"}],)"
+            << R"({"properties":{"font":{"guid":"stale","source":")" << fontSource << R"("},"fontSize":)" << fontSize
+            << R"(},"type":"Deki2D::TextComponent"}],)"
             << R"("id":7,"name":"Title","transform":{"rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":0.0,"y":0.0}}]})";
     }
-    const fs::path compiled = m_TempDir / "title.bin";
-    ASSERT_TRUE(m_Pipeline->CompileSceneFile(scenePath.string(), compiled.string()));
-
-    // The binary scene stores an AssetRef's guid and source as plain strings.
-    // (Reading it back needs a component's generated deserializer, which a
-    // stand-in does not have.)
+    const fs::path compiled = dir / "title.bin";
+    if (!pipeline.CompileSceneFile(scenePath.string(), compiled.string()))
+    {
+        return "";
+    }
     std::ifstream in(compiled, std::ios::binary);
-    const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+TEST_F(AssetLifecycleTest, CompiledScene_TextPointsAtTheFontBakedForItsSize)
+{
+    ASSERT_EQ(Deki2D::TextComponent::kStaticType, Deki::HashString("Deki2D::TextComponent"));
+
+    const std::string fontSource = "11111111-2222-3333-4444-555555555555";
+    const std::string bytes = CompileTextScene(*m_Pipeline, m_TempDir, fontSource, 24);
+    ASSERT_FALSE(bytes.empty());
     EXPECT_NE(bytes.find(GenerateDeterministicGuid(fontSource + ":24")), std::string::npos)
         << "the font is not the one baked for the text's size";
     EXPECT_EQ(bytes.find("stale"), std::string::npos) << "the font kept the guid it was saved with";
     EXPECT_NE(bytes.find(fontSource), std::string::npos);
-    Deki::ComponentFactory::Instance().Unregister(Deki2D::TextComponent::kStaticType);
-    Deki::ComponentRegistry::Instance().Unregister(Deki2D::TextComponent::kStaticType);
+}
+
+// -----------------------------------------------------------------------------
+// A BDF font has one baked form whatever the size ("source:bdf", as deki-2d's
+// FontSyncHandler bakes it). A text using one points at that form, and the
+// export and the asset packs look for it and its atlas under the same GUIDs
+// (BakedFontGuid); before, they looked for a per-size form that never exists
+// and left the atlas out of the firmware.
+// -----------------------------------------------------------------------------
+
+TEST(BakedFontGuid, TrueTypePerSize_BdfOnce)
+{
+    const std::string source = "11111111-2222-3333-4444-555555555555";
+    EXPECT_EQ(BakedFontGuid(source, 16, false), GenerateDeterministicGuid(source + ":16"));
+    EXPECT_EQ(BakedFontAtlasGuid(source, 16, false), GenerateDeterministicGuid(source + ":16:atlas"));
+    EXPECT_EQ(BakedFontGuid(source, 16, true), GenerateDeterministicGuid(source + ":bdf"));
+    EXPECT_EQ(BakedFontAtlasGuid(source, 16, true), GenerateDeterministicGuid(source + ":bdf:atlas"));
+    EXPECT_EQ(BakedFontGuid(source, 16, true), BakedFontGuid(source, 32, true)) << "a BDF font has one form";
+}
+
+TEST_F(AssetLifecycleTest, CompiledScene_BdfTextPointsAtItsOneBakedForm)
+{
+    if (!AssetTypeRegistry::Instance().GetHandler("BdfFont"))
+    {
+        AssetTypeHandler handler;
+        handler.typeName = "BdfFont";
+        handler.displayName = "BDF Font";
+        handler.extensions = { ".bdf" };
+        handler.compilesTo = AssetCompileTarget::Data;
+        AssetTypeRegistry::Instance().Register(handler);
+    }
+    {
+        std::ofstream out(m_TempDir / "assets" / "pixel.bdf", std::ios::trunc);
+        out << "STARTFONT 2.1\nENDFONT\n";
+    }
+    const std::string rel = AssetRelPath("pixel.bdf");
+    m_Pipeline->RefreshAsset(rel);
+    const AssetInfo* info = m_Pipeline->GetAssetInfo(rel);
+    ASSERT_NE(info, nullptr);
+    ASSERT_FALSE(info->guid.empty());
+    const std::string fontSource = info->guid;
+    EXPECT_TRUE(m_Pipeline->IsBdfFont(fontSource));
+    EXPECT_FALSE(m_Pipeline->IsBdfFont("11111111-2222-3333-4444-555555555555"));
+
+    const std::string bytes = CompileTextScene(*m_Pipeline, m_TempDir, fontSource, 24);
+    ASSERT_FALSE(bytes.empty());
+    EXPECT_NE(bytes.find(GenerateDeterministicGuid(fontSource + ":bdf")), std::string::npos)
+        << "a BDF text does not point at the font's baked form";
+    EXPECT_EQ(bytes.find(GenerateDeterministicGuid(fontSource + ":24")), std::string::npos)
+        << "a BDF text points at a per-size form, which is never baked";
 }

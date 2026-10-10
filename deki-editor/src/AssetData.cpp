@@ -143,6 +143,21 @@ std::string GenerateDeterministicGuid(const std::string& seed)
     return Deki::GenerateDeterministicGuid(seed);
 }
 
+static std::string BakedFontSeed(const std::string& sourceGuid, int fontSize, bool bdf)
+{
+    return bdf ? sourceGuid + ":bdf" : sourceGuid + ":" + std::to_string(fontSize);
+}
+
+std::string BakedFontGuid(const std::string& sourceGuid, int fontSize, bool bdf)
+{
+    return Deki::GenerateDeterministicGuid(BakedFontSeed(sourceGuid, fontSize, bdf));
+}
+
+std::string BakedFontAtlasGuid(const std::string& sourceGuid, int fontSize, bool bdf)
+{
+    return Deki::GenerateDeterministicGuid(BakedFontSeed(sourceGuid, fontSize, bdf) + ":atlas");
+}
+
 std::string SalvageAssetGuid(const std::string& dataPath)
 {
     std::ifstream file(dataPath, std::ios::binary);

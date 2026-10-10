@@ -49,6 +49,14 @@ DEKI_EDITOR_API std::string SalvageAssetGuid(const std::string& dataPath);
 /// assets such as font sizes.
 DEKI_EDITOR_API std::string GenerateDeterministicGuid(const std::string& seed);
 
+/// The GUID of a font's baked form, as deki-2d bakes it (FontSyncHandler): a
+/// TrueType font has one per size ("source:size"), a BDF font one whatever
+/// the size ("source:bdf").
+DEKI_EDITOR_API std::string BakedFontGuid(const std::string& sourceGuid, int fontSize, bool bdf);
+
+/// The GUID of the atlas of the baked form BakedFontGuid names.
+DEKI_EDITOR_API std::string BakedFontAtlasGuid(const std::string& sourceGuid, int fontSize, bool bdf);
+
 /// A new random GUID.
 DEKI_EDITOR_API std::string GenerateGuid();
 

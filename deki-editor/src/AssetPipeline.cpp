@@ -1323,20 +1323,7 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
                 if (!fontRef.source.empty())
                 {
-                    // A BDF font has one baked form; a TTF one per size.
-                    bool isBdf = false;
-                    if (const AssetInfo* fontInfo = GetAssetInfoByGuid(fontRef.source))
-                    {
-                        std::string ext = fs::path(fontInfo->path).extension().string();
-                        for (char& c : ext)
-                        {
-                            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                        }
-                        isBdf = ext == ".bdf";
-                    }
-                    std::string seed =
-                        isBdf ? fontRef.source + ":bdf" : fontRef.source + ":" + std::to_string(fontSize);
-                    fontRef.guid = GenerateDeterministicGuid(seed);
+                    fontRef.guid = BakedFontGuid(fontRef.source, fontSize, IsBdfFont(fontRef.source));
                     DEKI_LOG_DEBUG("CompileScene: Set font.guid for '%s' fontSize=%d -> guid=%s",
                                    fontRef.source.c_str(), fontSize, fontRef.guid.c_str());
                 }
@@ -1625,6 +1612,21 @@ const AssetInfo* AssetPipeline::GetAssetInfoByGuid(const std::string& guid) cons
         return GetAssetInfo(projectRelativePath);
     }
     return nullptr;
+}
+
+bool AssetPipeline::IsBdfFont(const std::string& sourceGuid) const
+{
+    const AssetInfo* info = GetAssetInfoByGuid(sourceGuid);
+    if (!info)
+    {
+        return false;
+    }
+    std::string ext = fs::path(info->path).extension().string();
+    for (char& c : ext)
+    {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return ext == ".bdf";
 }
 
 int AssetPipeline::CleanCache()

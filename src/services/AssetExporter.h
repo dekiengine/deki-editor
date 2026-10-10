@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include <set>
+#include <deki-editor/AssetData.h>      // BakedFontGuid
 #include <deki-editor/AssetPipeline.h>  // AssetExportTarget
 
 namespace Deki
@@ -42,12 +43,18 @@ enum class ExportAssetType : uint8_t
     Audio = 4
 };
 
-/// A font used at one size: its TTF source and the size. The export bakes
-/// each one found in the scenes' TextComponents.
+/// A font used at one size: its source and the size. The export bakes each
+/// one found in the scenes' TextComponents. A BDF font has one baked form
+/// whatever the size, so it is recorded once, with size 0.
 struct FontUsageInfo
 {
-    std::string sourceGuid;  // TTF asset GUID (from AssetRef.source)
-    int fontSize;            // In pixels
+    std::string sourceGuid;  // The font asset's GUID (from AssetRef.source)
+    int fontSize;            // In pixels; 0 for a BDF font
+    bool bdf = false;
+
+    /// The GUIDs of its baked form and that form's atlas.
+    std::string FontGuid() const { return BakedFontGuid(sourceGuid, fontSize, bdf); }
+    std::string AtlasGuid() const { return BakedFontAtlasGuid(sourceGuid, fontSize, bdf); }
 
     bool operator<(const FontUsageInfo& other) const
     {

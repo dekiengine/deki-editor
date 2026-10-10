@@ -36,6 +36,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   The step looked TextComponent up by a GUID from before type ids were class
   names, so since 0.11 it did nothing and a text kept the font GUID it was
   saved with.
+- **BDF fonts on a device.** An export treated every font as TrueType: it ran
+  the TrueType compiler on a BDF file (which fails, logged as an error the
+  export then ignored) and looked for a baked form per size, so the BDF
+  font's atlas (`source:bdf:atlas`) was never copied or packed and its text
+  drew nothing. The export, the asset packs and Deploy Analysis now take a
+  BDF font's one baked form and its atlas (`BakedFontGuid`), import the font
+  again if they are missing from the cache, and report the export as failed
+  if it still cannot be baked.
 
 ### Changed
 - `tools/setup-workspace.sh` is now `tools/get-packages.sh`: it downloads
