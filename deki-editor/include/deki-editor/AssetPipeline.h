@@ -210,6 +210,13 @@ public:
     /// Reimports one asset and rebuilds its cache.
     void RefreshAsset(const std::string& relativePath);
 
+    /// Recompiles every scene whose cache does not match the component types
+    /// registered now (see MakeCacheStamp), or that has none: one that could
+    /// not compile before its packages were built or loaded, or compiled
+    /// before a component gained or lost a property. Returns how many it
+    /// tried. Play mode calls it before it starts.
+    int RecompileStaleScenes();
+
     /// Removes an asset from the index and the GuidCache. When an asset moves
     /// or is renamed, call this with the old path before RefreshAsset.
     void RemoveAsset(const std::string& relativePath);
@@ -320,7 +327,8 @@ private:
 public:
     /// What a cache built from this source now would be built from: the size
     /// and modification time of the source and its .data file, and the cache
-    /// format version. Compared for equality (not "is the source newer"), so
+    /// format version; for a scene, also the registered component types and
+    /// their properties. Compared for equality (not "is the source newer"), so
     /// a file restored from a backup or unzip with an older time, or a cache
     /// format change, still counts as changed. Also used for the per-target
     /// export cache.

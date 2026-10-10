@@ -20,6 +20,22 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   texture that had just been destroyed: an ImGui assert in debug builds
   (every frame, so the editor could not be used), blank text in release.
   Its fading picture is now dropped a few frames early instead.
+- **Scenes opened during play work.** A scene play mode opens (a scene
+  link, `SetRootScene`) loads compiled from the asset cache, and a project
+  opened before its packages were built compiled its scenes then: every
+  package component was written without its properties - no sprites, no
+  text, no references - and the cache counted as current from then on, since
+  only the .scene file was checked. A scene's cache now also records the
+  component types registered and their properties, play mode recompiles any
+  scene compiled against others first, and a scene using a component type
+  nothing registers is not compiled at all (a warning names the type; an
+  export reports it) rather than compiled without that component's data.
+  Projects need nothing: their scenes recompile on the next Play.
+- A compiled scene points each text at the font baked for its size, as the
+  embedded runtime loads it (`source:size`, or `source:bdf` for a BDF font).
+  The step looked TextComponent up by a GUID from before type ids were class
+  names, so since 0.11 it did nothing and a text kept the font GUID it was
+  saved with.
 
 ### Changed
 - `tools/setup-workspace.sh` is now `tools/get-packages.sh`: it downloads

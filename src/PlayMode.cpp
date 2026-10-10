@@ -337,6 +337,15 @@ void EditorApp::InitPlayMode()
             }
         });
 
+    // Scenes opened during play load compiled from the cache. One compiled
+    // before its packages were built or loaded, or before a component gained
+    // a property, holds its components without their properties, so those are
+    // compiled again first.
+    if (m_AssetPipeline)
+    {
+        m_AssetPipeline->RecompileStaleScenes();
+    }
+
     // Load the binary asset lookup table from the cache, as a device does, so
     // play mode resolves assets the same way.
     if (m_Project && m_AssetPipeline)

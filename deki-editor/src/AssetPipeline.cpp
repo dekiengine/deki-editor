@@ -19,6 +19,9 @@
 
 #include <deki/Scene.h>
 #include <deki/SceneMessagePack.h>
+#include "MissingComponent.h"
+#include <functional>
+#include <set>
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/assets/AssetRef.h>
@@ -685,6 +688,42 @@ void AssetPipeline::ImportAllAssets()
     m_FileWatcher->Start(m_AssetsPath, m_ProjectPath);
 }
 
+// The registered component types and their properties, as one hash. A
+// compiled scene holds each component's properties as the registry described
+// them when it was compiled, and a component the registry did not know (its
+// package not built or loaded yet) without them, so a compiled scene is
+// current only for the registry it was compiled against.
+static std::string ComponentRegistryFingerprint()
+{
+    std::vector<std::string> entries;
+    for (const Deki::ComponentMeta* meta : Deki::ComponentRegistry::Instance().GetAllComponents())
+    {
+        if (!meta || !meta->serializedName)
+        {
+            continue;
+        }
+        std::string entry = meta->serializedName;
+        for (int i = 0; meta->properties && i < meta->propertyCount; ++i)
+        {
+            const Deki::PropertyInfo& prop = meta->properties[i];
+            entry += '|';
+            entry += prop.name ? prop.name : "";
+            entry += ':';
+            entry += std::to_string(static_cast<int>(prop.type));
+        }
+        entries.push_back(std::move(entry));
+    }
+    // Registration order depends on load order; the set does not.
+    std::sort(entries.begin(), entries.end());
+    std::string all;
+    for (const std::string& entry : entries)
+    {
+        all += entry;
+        all += '\n';
+    }
+    return std::to_string(Deki::HashStringView(all));
+}
+
 std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
 {
     auto part = [](const fs::path& p) -> std::string
@@ -702,7 +741,13 @@ std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
         }
         return std::to_string(size) + "@" + std::to_string(time.time_since_epoch().count());
     };
-    return part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(kDekiCacheVersion);
+    std::string stamp =
+        part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(kDekiCacheVersion);
+    if (fs::path(absolutePath).extension() == ".scene")
+    {
+        stamp += "|r" + ComponentRegistryFingerprint();
+    }
+    return stamp;
 }
 
 void AssetPipeline::SaveCacheStamps()
@@ -1186,10 +1231,54 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     }
     DEKI_HEAP_CHECK("CompileScene: after LoadFromFile");
 
-    // Set the baked font GUIDs on TextComponents for the embedded runtime.
+    // A component whose type is not registered cannot be compiled: the binary
+    // form of a property depends on its type (a colour is a number, an enum
+    // its value, a reference an [id, typeId] pair), which only the registry
+    // knows, so it would be written without its properties and the scene
+    // would run with them all at their defaults. The scene is not compiled
+    // instead; its .scene file keeps everything, and it compiles once the
+    // package is built and loaded (RecompileStaleScenes, the export).
+    {
+        std::set<std::string> missingTypes;
+        std::function<void(const Deki::Object*)> findMissing = [&](const Deki::Object* obj)
+        {
+            for (const Deki::Component* comp : obj->GetComponents())
+            {
+                if (comp && comp->GetType() == Deki::MissingComponent::kStaticType)
+                {
+                    missingTypes.insert(static_cast<const Deki::MissingComponent*>(comp)->typeName);
+                }
+            }
+            for (const Deki::Object* child : obj->GetChildren())
+            {
+                findMissing(child);
+            }
+        };
+        for (const Deki::Object* obj : scene.GetObjects())
+        {
+            findMissing(obj);
+        }
+        if (!missingTypes.empty())
+        {
+            std::string names;
+            for (const std::string& name : missingTypes)
+            {
+                names += (names.empty() ? "" : ", ") + name;
+            }
+            DEKI_LOG_WARNING("Scene %s not compiled: it uses %s, which no loaded package registers. It compiles once "
+                             "the package is built and loaded; if the package was removed, remove those components "
+                             "from the scene.",
+                             fs::path(scenePath).filename().string().c_str(), names.c_str());
+            return false;
+        }
+    }
+
+    // Set the baked font GUIDs on TextComponents for the embedded runtime, as
+    // deki-2d does for the scene play mode starts on (DekiPluginOnPlayModeStart).
     // Done through reflection, so the editor needs no compile-time dependency
-    // on the 2D package.
-    constexpr Deki::ComponentType kTextComponentType = Deki::HashString("5447ea24-d11f-4161-ae10-2f11e0a18d09");
+    // on the 2D package. A component's type id is the hash of its qualified
+    // name.
+    constexpr Deki::ComponentType kTextComponentType = Deki::HashString("Deki2D::TextComponent");
     const Deki::ComponentMeta* textMeta = Deki::ComponentRegistry::Instance().GetMeta(kTextComponentType);
 
     std::function<void(Deki::Object*)> setFontGuidsRecursive = [&](Deki::Object* obj)
@@ -1234,7 +1323,19 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
                 if (!fontRef.source.empty())
                 {
-                    std::string seed = fontRef.source + ":" + std::to_string(fontSize);
+                    // A BDF font has one baked form; a TTF one per size.
+                    bool isBdf = false;
+                    if (const AssetInfo* fontInfo = GetAssetInfoByGuid(fontRef.source))
+                    {
+                        std::string ext = fs::path(fontInfo->path).extension().string();
+                        for (char& c : ext)
+                        {
+                            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                        }
+                        isBdf = ext == ".bdf";
+                    }
+                    std::string seed =
+                        isBdf ? fontRef.source + ":bdf" : fontRef.source + ":" + std::to_string(fontSize);
                     fontRef.guid = GenerateDeterministicGuid(seed);
                     DEKI_LOG_DEBUG("CompileScene: Set font.guid for '%s' fontSize=%d -> guid=%s",
                                    fontRef.source.c_str(), fontSize, fontRef.guid.c_str());
@@ -1452,6 +1553,41 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
     {
         onAssetChanged(relativePath);
     }
+}
+
+int AssetPipeline::RecompileStaleScenes()
+{
+    if (!m_Running)
+    {
+        return 0;
+    }
+
+    // Collected first: RefreshAsset updates m_Assets.
+    std::vector<std::string> stale;
+    for (const auto& [relativePath, info] : m_Assets)
+    {
+        if (info.guid.empty() || fs::path(relativePath).extension() != ".scene")
+        {
+            continue;
+        }
+        auto stampIt = m_CacheStamps.find(info.guid);
+        if (stampIt != m_CacheStamps.end() && stampIt->second == MakeCacheStamp(GetAbsolutePath(relativePath)))
+        {
+            continue;
+        }
+        stale.push_back(relativePath);
+    }
+
+    for (const std::string& relativePath : stale)
+    {
+        RefreshAsset(relativePath);
+    }
+    if (!stale.empty())
+    {
+        SaveCacheStamps();
+        DEKI_LOG_EDITOR("Recompiled %d scene(s) for the component types registered now", static_cast<int>(stale.size()));
+    }
+    return static_cast<int>(stale.size());
 }
 
 void AssetPipeline::RemoveAsset(const std::string& relativePath)

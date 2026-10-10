@@ -4,6 +4,16 @@
 #include <deki-editor/AssetData.h>
 #include <deki-editor/GuidCache.h>
 #include <deki-editor/AssetTypeRegistry.h>
+#include <deki/Scene.h>
+#include <deki/TypeId.h>
+#include <deki/reflection/ComponentRegistry.h>
+#include <deki/reflection/ComponentFactory.h>
+#include <deki/reflection/Property.h>
+#include <deki/assets/AssetRef.h>
+#include <deki/Object.h>
+#include <cstddef>
+#include <iterator>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <atomic>
 #include <chrono>
@@ -498,4 +508,163 @@ TEST_F(AssetLifecycleTest, SourceRestoredWithAnOlderTime_CacheRebuilt)
     m_Pipeline->ImportAllAssets();
 
     EXPECT_EQ(ReadCachedValue(cache), 2) << "the cache from before the restore was kept";
+}
+
+// -----------------------------------------------------------------------------
+// A scene compiled before a package registered its components holds them
+// without their properties: the cache stamp of a scene names the registered
+// component types, so registering one (a package loading) or removing one
+// makes the scene stale, and RecompileStaleScenes compiles it again. Play mode
+// calls it before it starts; without it, every scene opened during play ran
+// from a cache compiled before the project's packages were built.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, SceneCompiledBeforeItsPackage_RecompiledWhenItRegisters)
+{
+    const fs::path scenePath = m_TempDir / "assets" / "level.scene";
+    {
+        Deki::Scene scene;
+        ASSERT_TRUE(scene.SaveToFile(scenePath.string()));
+    }
+    const std::string rel = AssetRelPath("level.scene");
+    m_Pipeline->RefreshAsset(rel);
+    const AssetInfo* info = m_Pipeline->GetAssetInfo(rel);
+    ASSERT_NE(info, nullptr);
+    ASSERT_TRUE(info->hasCachedVersion);
+    EXPECT_EQ(m_Pipeline->RecompileStaleScenes(), 0) << "a current scene was recompiled";
+
+    static Deki::ComponentMeta lateMeta{};
+    lateMeta.name = "LateComponent";
+    lateMeta.serializedName = "DekiTest::LateComponent";
+    lateMeta.typeId = Deki::HashString("DekiTest::LateComponent");
+    Deki::ComponentRegistry::Instance().Register(&lateMeta);
+
+    EXPECT_EQ(m_Pipeline->RecompileStaleScenes(), 1) << "a package registering a component left the scene as compiled";
+    EXPECT_EQ(m_Pipeline->RecompileStaleScenes(), 0) << "the recompiled scene still counts as stale";
+
+    Deki::ComponentRegistry::Instance().Unregister(lateMeta.typeId);
+    EXPECT_EQ(m_Pipeline->RecompileStaleScenes(), 1) << "a component going away left the scene as compiled";
+}
+
+// -----------------------------------------------------------------------------
+// A scene using a component type nothing registers is not compiled: a
+// compiled property's form depends on its type, so it would be written
+// without its properties and run with them all at their defaults. No cache is
+// left behind for play mode or an export to pick up.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, SceneWithAnUnregisteredComponent_NotCompiled)
+{
+    const fs::path scenePath = m_TempDir / "assets" / "orphan.scene";
+    {
+        std::ofstream out(scenePath, std::ios::trunc);
+        out << R"({"formatVersion":1,"objects":[{"active":true,"children":[],"components":[)"
+            << R"({"properties":{"speed":3.0},"type":"DekiTest::NeverRegistered"}],)"
+            << R"("id":7,"name":"Orphan","transform":{"rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":0.0,"y":0.0}}]})";
+    }
+    const std::string rel = AssetRelPath("orphan.scene");
+    m_Pipeline->RefreshAsset(rel);
+
+    const AssetInfo* info = m_Pipeline->GetAssetInfo(rel);
+    ASSERT_NE(info, nullptr);
+    EXPECT_FALSE(info->hasCachedVersion) << "a scene was compiled without one of its components' properties";
+    EXPECT_FALSE(fs::exists(m_Pipeline->GetAbsolutePath(info->cachePath)));
+}
+
+// -----------------------------------------------------------------------------
+// Compiling a scene points each TextComponent's font at the font baked for its
+// size, as the embedded runtime loads it. The component is found by its type
+// id, the hash of its qualified name; it was looked up by a GUID from before
+// type ids were names, so the step did nothing.
+// -----------------------------------------------------------------------------
+
+namespace Deki2D
+{
+// Stands in for deki-2d's TextComponent, which the editor tests do not link:
+// the same qualified name (so the same type id) and the two properties the
+// compile step reads.
+class TextComponent : public Deki::Component
+{
+public:
+    static constexpr Deki::ComponentType kStaticType = Deki::TypeId<TextComponent>();
+    static const Deki::ComponentTypeInfo kTypeInfo;
+    TextComponent() { SetTypeInfo(&kTypeInfo); }
+
+    Deki::AssetRefBase font;
+    int32_t fontSize = 16;
+
+    static const Deki::PropertyInfo kProperties[];
+    static const Deki::ComponentMeta kComponentMeta;
+};
+
+const Deki::PropertyInfo TextComponent::kProperties[] = {
+    { "font",           "Font", Deki::PropertyType::AssetRef, offsetof(TextComponent, font), nullptr, 0, 0, false,
+      "BitmapFont",     nullptr, 0, 1, Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false,
+      nullptr,          nullptr },
+    { "fontSize",       "Font Size", Deki::PropertyType::Int32, offsetof(TextComponent, fontSize), nullptr, 0, 0,
+      false,            nullptr, nullptr, 0, 1, Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false,
+      nullptr,          false, nullptr, nullptr }
+};
+
+const Deki::ComponentMeta TextComponent::kComponentMeta = { "TextComponent",
+                                                            Deki::TypeName<TextComponent>(),
+                                                            "Testing",
+                                                            "Stand-in for deki-2d's TextComponent",
+                                                            TextComponent::kStaticType,
+                                                            0,
+                                                            false,
+                                                            false,
+                                                            false,
+                                                            false,
+                                                            sizeof(TextComponent),
+                                                            []() -> Deki::Component* { return new TextComponent(); },
+                                                            TextComponent::kProperties,
+                                                            2,
+                                                            {},
+                                                            false };
+
+const Deki::ComponentTypeInfo TextComponent::kTypeInfo = { Deki::TypeName<TextComponent>(),
+                                                           "TextComponent",
+                                                           TextComponent::kStaticType,
+                                                           Deki::TypeId<Deki::Component>(),
+                                                           false,
+                                                           false,
+                                                           []() -> Deki::Component* { return new TextComponent(); },
+                                                           nullptr,
+                                                           nullptr,
+                                                           nullptr,
+                                                           nullptr,
+                                                           0,
+                                                           &TextComponent::kComponentMeta };
+}  // namespace Deki2D
+
+TEST_F(AssetLifecycleTest, CompiledScene_TextPointsAtTheFontBakedForItsSize)
+{
+    ASSERT_EQ(Deki2D::TextComponent::kStaticType, Deki::HashString("Deki2D::TextComponent"));
+    Deki::ComponentRegistry::Instance().Register(&Deki2D::TextComponent::kComponentMeta);
+    Deki::ComponentFactory::Instance().Register(&Deki2D::TextComponent::kTypeInfo);
+
+    const std::string fontSource = "11111111-2222-3333-4444-555555555555";
+    const fs::path scenePath = m_TempDir / "assets" / "title.scene";
+    {
+        std::ofstream out(scenePath, std::ios::trunc);
+        out << R"({"formatVersion":1,"objects":[{"active":true,"children":[],"components":[)"
+            << R"({"properties":{"font":{"guid":"stale","source":")" << fontSource << R"("},"fontSize":24},)"
+            << R"("type":"Deki2D::TextComponent"}],)"
+            << R"("id":7,"name":"Title","transform":{"rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":0.0,"y":0.0}}]})";
+    }
+    const fs::path compiled = m_TempDir / "title.bin";
+    ASSERT_TRUE(m_Pipeline->CompileSceneFile(scenePath.string(), compiled.string()));
+
+    // The binary scene stores an AssetRef's guid and source as plain strings.
+    // (Reading it back needs a component's generated deserializer, which a
+    // stand-in does not have.)
+    std::ifstream in(compiled, std::ios::binary);
+    const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    EXPECT_NE(bytes.find(GenerateDeterministicGuid(fontSource + ":24")), std::string::npos)
+        << "the font is not the one baked for the text's size";
+    EXPECT_EQ(bytes.find("stale"), std::string::npos) << "the font kept the guid it was saved with";
+    EXPECT_NE(bytes.find(fontSource), std::string::npos);
+    Deki::ComponentFactory::Instance().Unregister(Deki2D::TextComponent::kStaticType);
+    Deki::ComponentRegistry::Instance().Unregister(Deki2D::TextComponent::kStaticType);
 }
