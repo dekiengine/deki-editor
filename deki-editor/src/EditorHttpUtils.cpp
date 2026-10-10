@@ -391,8 +391,14 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
     sa.nLength = sizeof(sa);
     sa.bInheritHandle = TRUE;
     sa.lpSecurityDescriptor = NULL;
+    // A large pipe. The default holds about 4 KB, and the loop below sleeps
+    // 50 ms whenever it finds the pipe empty, so a child printing a lot (tar
+    // listing ESP-IDF's 40 000 entries) spent most of its time blocked on a
+    // full pipe: some 80 KB/s, over two minutes for a listing tar writes in
+    // under a second.
+    constexpr DWORD kPipeBytes = 1u << 20;
     HANDLE readPipe = NULL, writePipe = NULL;
-    if (!CreatePipe(&readPipe, &writePipe, &sa, 0))
+    if (!CreatePipe(&readPipe, &writePipe, &sa, kPipeBytes))
     {
         return -1;
     }
@@ -926,6 +932,144 @@ bool EditorHttpUtils::ZipEntriesAreSafe(const std::string& zipPath, std::string&
     return true;
 }
 
+namespace
+{
+
+// The non-empty lines of a tool's output, line endings stripped.
+std::vector<std::string> OutputLines(const std::string& text)
+{
+    std::vector<std::string> lines;
+    std::istringstream in(text);
+    std::string line;
+    while (std::getline(in, line))
+    {
+        while (!line.empty() && (line.back() == '\r' || line.back() == '\n'))
+        {
+            line.pop_back();
+        }
+        if (!line.empty())
+        {
+            lines.push_back(line);
+        }
+    }
+    return lines;
+}
+
+bool IsWithin(const std::filesystem::path& root, const std::filesystem::path& p)
+{
+    const std::filesystem::path rel = p.lexically_relative(root);
+    return !rel.empty() && *rel.begin() != ".." && !rel.is_absolute();
+}
+
+}  // namespace
+
+bool EditorHttpUtils::ParseArchiveLinks(const std::string& names, const std::string& verbose,
+                                        std::vector<ArchiveLink>& out, std::string& error)
+{
+    out.clear();
+    const std::vector<std::string> nameLines = OutputLines(names);
+    const std::vector<std::string> verboseLines = OutputLines(verbose);
+    if (nameLines.size() != verboseLines.size())
+    {
+        error = "the archive's listings differ (" + std::to_string(nameLines.size()) + " names, " +
+                std::to_string(verboseLines.size()) + " entries)";
+        return false;
+    }
+    for (size_t i = 0; i < nameLines.size(); ++i)
+    {
+        const std::string& line = verboseLines[i];
+        if (line[0] != 'l')
+        {
+            continue;
+        }
+        // The name is known from the plain listing, so a name with spaces or
+        // an arrow in it is still found whole.
+        const std::string marker = " " + nameLines[i] + " -> ";
+        const size_t at = line.find(marker);
+        if (at == std::string::npos || at + marker.size() >= line.size())
+        {
+            error = "could not read where the link " + nameLines[i] + " points";
+            return false;
+        }
+        out.push_back({ nameLines[i], line.substr(at + marker.size()) });
+    }
+    return true;
+}
+
+bool EditorHttpUtils::MaterializeArchiveLinks(const std::string& destDir, const std::vector<ArchiveLink>& links,
+                                              std::string& error)
+{
+    namespace fs = std::filesystem;
+    const fs::path root = fs::path(destDir).lexically_normal();
+
+    struct Pending
+    {
+        fs::path link;
+        fs::path target;
+    };
+    std::vector<Pending> pending;
+    for (const ArchiveLink& l : links)
+    {
+        const fs::path stored(l.target);
+        const fs::path link = (root / l.path).lexically_normal();
+        const fs::path target = (link.parent_path() / stored).lexically_normal();
+        if (stored.is_absolute() || stored.has_root_name() || stored.has_root_directory() || !IsWithin(root, target) ||
+            !IsWithin(root, link))
+        {
+            error = "the link " + l.path + " points outside the archive (" + l.target + ")";
+            return false;
+        }
+        pending.push_back({ link, target });
+    }
+
+    // A target is copied once it is in place and holds no link still to be
+    // copied, so a link to a link, or to a directory with a link in it, gets
+    // the finished copy. Rounds repeat while one makes progress; what is left
+    // points at nothing (or at a loop) and is left out.
+    bool progress = true;
+    while (progress && !pending.empty())
+    {
+        progress = false;
+        for (size_t i = 0; i < pending.size();)
+        {
+            const Pending& p = pending[i];
+            bool waits = false;
+            for (const Pending& other : pending)
+            {
+                if (&other != &p && (other.link == p.target || IsWithin(p.target, other.link)))
+                {
+                    waits = true;
+                    break;
+                }
+            }
+            std::error_code ec;
+            if (waits || !fs::exists(p.target, ec))
+            {
+                ++i;
+                continue;
+            }
+            fs::create_directories(p.link.parent_path(), ec);
+            if (fs::is_directory(p.target, ec))
+            {
+                fs::copy(p.target, p.link, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+            }
+            else
+            {
+                fs::copy_file(p.target, p.link, fs::copy_options::overwrite_existing, ec);
+            }
+            if (ec)
+            {
+                error = "could not copy " + p.target.string() + " for the link " + p.link.string() + ": " +
+                        ec.message();
+                return false;
+            }
+            pending.erase(pending.begin() + static_cast<std::ptrdiff_t>(i));
+            progress = true;
+        }
+    }
+    return true;
+}
+
 #ifdef _WIN32
 
 bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& localPath, std::atomic<bool>* cancelFlag,
@@ -1207,8 +1351,22 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
     return false;
 }
 
-bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status)
+bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status,
+                                 std::string* error)
 {
+    auto fail = [&](const std::string& why)
+    {
+        if (status)
+        {
+            status("Extraction failed: " + why);
+        }
+        if (error)
+        {
+            *error = why;
+        }
+        return false;
+    };
+
     if (status)
     {
         status("Extracting archive to " + destDir + "...");
@@ -1223,38 +1381,114 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
         std::string reason;
         if (!ZipEntriesAreSafe(zipPath, reason))
         {
-            if (status)
-            {
-                status("Refusing to extract " + zipPath + ": " + reason);
-            }
-            return false;
+            return fail("refusing " + zipPath + ": " + reason);
+        }
+    }
+
+    // Symbolic links. tar.exe cannot create one without administrator rights
+    // or Developer Mode, and fails the whole extract on it (ESP-IDF has
+    // some), so links are left out of the extract and put in afterwards as
+    // copies of what they point to (MaterializeArchiveLinks).
+    std::vector<ArchiveLink> links;
+    {
+        std::string names, verbose;
+        const DWORD kListTimeoutMs = 60u * 1000u;
+        if (RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-tf", zipPath }, names, kListTimeoutMs) != 0 ||
+            RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-tvf", zipPath }, verbose, kListTimeoutMs) != 0)
+        {
+            return fail("could not list " + zipPath);
+        }
+        std::string reason;
+        if (!ParseArchiveLinks(names, verbose, links, reason))
+        {
+            return fail(reason);
         }
     }
 
     std::error_code ec;
     std::filesystem::create_directories(destDir, ec);
 
+    // The links' names as exclude patterns: bsdtar matches them as globs, so
+    // a glob character in a name is bracketed to stand for itself.
+    std::string excludeFile;
+    if (!links.empty())
+    {
+        excludeFile = (std::filesystem::temp_directory_path(ec) /
+                       ("deki-extract-" + std::to_string(GetCurrentProcessId()) + "-" +
+                        std::to_string(GetTickCount64()) + ".txt"))
+                          .string();
+        std::ofstream out(excludeFile, std::ios::binary);
+        for (const ArchiveLink& l : links)
+        {
+            for (char c : l.path)
+            {
+                if (c == '*' || c == '?' || c == '[' || c == '\\')
+                {
+                    out << '[' << c << ']';
+                }
+                else
+                {
+                    out << c;
+                }
+            }
+            out << '\n';
+        }
+        if (!out)
+        {
+            return fail("could not write " + excludeFile);
+        }
+    }
+
+    std::vector<std::string> args = { WindowsSystemTool("tar.exe"), "-xf", zipPath, "-C", destDir };
+    if (!excludeFile.empty())
+    {
+        args.push_back("-X");
+        args.push_back(excludeFile);
+    }
     std::string output;
     const DWORD kUnzipTimeoutMs = 10u * 60u * 1000u;
-    const int rc = RunProcessCaptureWindows({ WindowsSystemTool("tar.exe"), "-xf", zipPath, "-C", destDir }, output,
-                                            kUnzipTimeoutMs);
+    const int rc = RunProcessCaptureWindows(args, output, kUnzipTimeoutMs);
+    if (!excludeFile.empty())
+    {
+        std::filesystem::remove(excludeFile, ec);
+    }
+
+    if (rc < 0)
+    {
+        return fail("tar.exe did not start, or ran past 10 minutes");
+    }
+    if (rc != 0)
+    {
+        // tar names every entry it could not write; the last lines say why.
+        const std::vector<std::string> lines = OutputLines(output);
+        std::string tail;
+        for (size_t i = lines.size() > 5 ? lines.size() - 5 : 0; i < lines.size(); ++i)
+        {
+            tail += (tail.empty() ? "" : "\n") + lines[i];
+        }
+        return fail("tar.exe exited with code " + std::to_string(rc) + (tail.empty() ? "" : ":\n" + tail));
+    }
+
+    if (!links.empty())
+    {
+        std::string reason;
+        if (!MaterializeArchiveLinks(destDir, links, reason))
+        {
+            return fail(reason);
+        }
+        if (status)
+        {
+            status("Put in " + std::to_string(links.size()) +
+                   " symbolic link(s) as copies of what they point to (Windows creates links only with "
+                   "administrator rights)");
+        }
+    }
 
     if (status)
     {
-        if (rc == 0)
-        {
-            status("Extraction complete");
-        }
-        else if (rc < 0)
-        {
-            status("Extraction failed to start or timed out after 10 minutes");
-        }
-        else
-        {
-            status("Extraction failed (exit code " + std::to_string(rc) + "): " + output);
-        }
+        status("Extraction complete");
     }
-    return rc == 0;
+    return true;
 }
 
 #else
@@ -1307,7 +1541,8 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
     return ok;
 }
 
-bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status)
+bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status,
+                                 std::string* error)
 {
     if (status)
     {
@@ -1321,16 +1556,26 @@ bool EditorHttpUtils::ExtractZip(const std::string& zipPath, const std::string& 
             {
                 status("Refusing to extract " + zipPath + ": " + reason);
             }
+            if (error)
+            {
+                *error = "refusing " + zipPath + ": " + reason;
+            }
             return false;
         }
     }
     // An argument vector, not a shell string, so a quote in either path is
     // just a character. unzip also strips "../" itself, but the listing check
-    // above refuses such an archive instead of quietly rewriting it.
-    bool ok = RunProcess({ "unzip", "-o", "--", zipPath, "-d", destDir }) == 0;
+    // above refuses such an archive instead of quietly rewriting it. unzip
+    // creates the archive's symbolic links as links.
+    const int rc = RunProcess({ "unzip", "-o", "--", zipPath, "-d", destDir });
+    const bool ok = rc == 0;
     if (status)
     {
         status(ok ? "Extraction complete" : "Extraction failed");
+    }
+    if (!ok && error)
+    {
+        *error = "unzip exited with code " + std::to_string(rc);
     }
     return ok;
 }

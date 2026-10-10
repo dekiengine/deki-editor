@@ -47,6 +47,10 @@ public:
     /// Whether an operation is in progress.
     bool IsBusy() const { return m_IsBusy; }
 
+    /// The PATH entries (ComponentDef::pathEntries) of every installed
+    /// component, absolute and in definition order, for this platform.
+    std::vector<std::string> InstalledPathEntries() const;
+
 private:
     BuilderDefinition m_Definition;
     std::string m_ToolchainsDir;  // ~/.deki-editor/toolchains/

@@ -3,6 +3,7 @@
 #include <string>
 #include <functional>
 #include <atomic>
+#include <vector>
 
 #include <deki-editor/EditorExport.h>
 namespace DekiEditor
@@ -52,7 +53,35 @@ public:
 
     /// Extracts a zip into destDir. Before writing anything, refuses an
     /// archive with entries that would land outside destDir (ZipEntriesAreSafe).
-    static bool ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status = nullptr);
+    /// On Windows a symbolic link in the archive is extracted as a copy of
+    /// what it points to (MaterializeArchiveLinks): tar.exe cannot create
+    /// links without administrator rights or Developer Mode, and failing on
+    /// them failed the whole extract. `error`, when given, says why it failed.
+    static bool ExtractZip(const std::string& zipPath, const std::string& destDir, HttpStatusCallback status = nullptr,
+                           std::string* error = nullptr);
+
+    /// A symbolic link in an archive: its entry name and the path it points
+    /// to, as the archive stores them.
+    struct ArchiveLink
+    {
+        std::string path;
+        std::string target;
+    };
+
+    /// The links in an archive, read from `tar -tf` (its entry names, one
+    /// per line) and `tar -tvf` (the same entries in the same order; a link's
+    /// line starts with 'l' and ends "name -> target"). False, with `error`,
+    /// when the two listings do not line up.
+    static bool ParseArchiveLinks(const std::string& names, const std::string& verbose, std::vector<ArchiveLink>& out,
+                                  std::string& error);
+
+    /// Puts a copy of each link's target where the link would be, under
+    /// destDir: a file is copied, a directory copied whole, and a link to
+    /// another link once that one is in place. False, with `error`, when a
+    /// target is absolute or outside destDir. A link to nothing is left out,
+    /// as such a link would lead nowhere either.
+    static bool MaterializeArchiveLinks(const std::string& destDir, const std::vector<ArchiveLink>& links,
+                                        std::string& error);
 
     /// Lists the archive and applies IsSafeArchiveEntry to every entry.
     static bool ZipEntriesAreSafe(const std::string& zipPath, std::string& reason);

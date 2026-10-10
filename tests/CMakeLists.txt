@@ -46,6 +46,7 @@ set(TEST_SOURCES
     services/UpdateCheckTests.cpp
     services/AgentCursorIntentTests.cpp
     services/ToolchainPathTests.cpp
+    services/BuilderDefinitionTests.cpp
     services/FileDialogFilterTests.cpp
     services/BufferTests.cpp
     services/VectorTests.cpp

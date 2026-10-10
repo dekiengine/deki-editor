@@ -62,6 +62,14 @@ struct DEKI_EDITOR_API ComponentDef
     std::map<std::string, std::string> detection;
 
     PostInstallDef postInstall;
+
+    // Directories an installed copy puts on PATH for the toolchain's own
+    // setup steps, per platform ("windows", "unix" or "any"); may contain
+    // {installPath}. A setup script that runs a tool by name (ESP-IDF's
+    // install.bat runs `python`) finds this component's copy rather than
+    // whatever the machine has, or nothing.
+    std::map<std::string, std::vector<std::string>> pathEntries;
+
     std::vector<SubComponentDef> subComponents;
     std::string extractedName;  // Name of extracted folder from zip (for rename)
     // Expected SHA-256 of this component's download, lowercase hex; see

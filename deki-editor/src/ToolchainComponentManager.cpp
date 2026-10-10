@@ -197,6 +197,40 @@ bool ToolchainComponentManager::EvaluateDetection(const ComponentDef& comp) cons
     return false;
 }
 
+std::vector<std::string> ToolchainComponentManager::InstalledPathEntries() const
+{
+    std::vector<std::string> entries;
+    if (m_ToolchainsDir.empty())
+    {
+        return entries;
+    }
+#ifdef _WIN32
+    const char* platform = "windows";
+#else
+    const char* platform = "unix";
+#endif
+    for (const ComponentDef& comp : m_Definition.components)
+    {
+        if (comp.pathEntries.empty() || !EvaluateDetection(comp))
+        {
+            continue;
+        }
+        for (const char* key : { platform, "any" })
+        {
+            auto it = comp.pathEntries.find(key);
+            if (it == comp.pathEntries.end())
+            {
+                continue;
+            }
+            for (const std::string& entry : it->second)
+            {
+                entries.push_back(m_ToolchainsDir + "/" + ResolvePath(entry, comp));
+            }
+        }
+    }
+    return entries;
+}
+
 // ============================================================================
 // Component Status
 // ============================================================================
@@ -335,6 +369,105 @@ void ToolchainComponentManager::InstallComponent(const std::string& componentId,
         });
 }
 
+// Downloads `url` to `zipPath`, or uses the archive already there when it
+// matches the pinned `sha256`. An install keeps its archive until it succeeds
+// (see the callers), so retrying a failed one does not fetch it again: ESP-IDF
+// alone is close to 2 GB. Without a pinned hash nothing proves the file is the
+// one wanted, so it is downloaded again.
+static bool FetchArchive(const std::string& url, const std::string& zipPath, const std::string& sha256,
+                         const HttpStatusCallback& status)
+{
+    std::error_code ec;
+    if (!sha256.empty() && fs::exists(zipPath, ec))
+    {
+        status("Checking the archive downloaded before: " + zipPath);
+        std::string have = EditorHttpUtils::Sha256File(zipPath);
+        std::string want = sha256;
+        for (std::string* s : { &have, &want })
+        {
+            std::transform(s->begin(), s->end(), s->begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        }
+        if (!have.empty() && have == want)
+        {
+            status("Using it: it matches the pinned SHA-256, so nothing is downloaded");
+            return true;
+        }
+        status("It does not match the pinned SHA-256 (an interrupted download?); downloading again");
+        fs::remove(zipPath, ec);
+    }
+    fs::create_directories(fs::path(zipPath).parent_path(), ec);
+    return EditorHttpUtils::DownloadFileVerified(url, zipPath, sha256, nullptr, status);
+}
+
+// Gives every .bat and .cmd file under `root` CRLF line endings, as git does
+// on Windows, and returns how many it rewrote. cmd reads a batch file's
+// :labels line by line, and with LF alone it misses some, so a `goto :label`
+// fails ("The system cannot find the batch label specified"). Archives made on
+// Linux carry their batch files that way: ESP-IDF's export.bat could not reach
+// its own error message, and a build failed with nothing to say why.
+static int NormalizeBatchLineEndings(const fs::path& root)
+{
+#ifdef _WIN32
+    int rewritten = 0;
+    std::error_code ec;
+    if (!fs::is_directory(root, ec))
+    {
+        return 0;
+    }
+    for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied, ec);
+         !ec && it != fs::recursive_directory_iterator(); it.increment(ec))
+    {
+        std::error_code fileError;
+        if (!it->is_regular_file(fileError))
+        {
+            continue;
+        }
+        std::string ext = it->path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (ext != ".bat" && ext != ".cmd")
+        {
+            continue;
+        }
+        std::string text;
+        {
+            std::ifstream in(it->path(), std::ios::binary);
+            text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        }
+        std::string fixed;
+        fixed.reserve(text.size() + text.size() / 16);
+        bool changed = false;
+        for (size_t i = 0; i < text.size(); ++i)
+        {
+            if (text[i] == '\n' && (i == 0 || text[i - 1] != '\r'))
+            {
+                fixed += '\r';
+                changed = true;
+            }
+            fixed += text[i];
+        }
+        if (changed)
+        {
+            std::ofstream out(it->path(), std::ios::binary | std::ios::trunc);
+            out.write(fixed.data(), static_cast<std::streamsize>(fixed.size()));
+            ++rewritten;
+        }
+    }
+    return rewritten;
+#else
+    (void)root;
+    return 0;
+#endif
+}
+
+// Where an archive is kept between attempts, named by component and version
+// so a newer pin never takes an older file for itself.
+static std::string ArchivePath(const std::string& toolchainsDir, const std::string& name)
+{
+    return toolchainsDir + "/.downloads/" + name + ".zip";
+}
+
 void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, BuildProgressCallback cb)
 {
     // Status helper: forwards messages to the callback and Activity panel
@@ -374,7 +507,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     }
 
     std::string destDir = m_ToolchainsDir + "/" + comp.installPath;
-    std::string zipPath = m_ToolchainsDir + "/" + comp.id + "_download.zip";
+    std::string zipPath = ArchivePath(m_ToolchainsDir, comp.id + "-" + installVersion);
 
     status("Downloading " + comp.displayName + "...");
     status("URL: " + url);
@@ -383,7 +516,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     // Download and verify. The archive becomes a compiler the build runs, so
     // an unchecked download would trust both the transport and the mirror. A
     // mismatch deletes the file and fails the install rather than warning.
-    bool downloaded = EditorHttpUtils::DownloadFileVerified(url, zipPath, comp.sha256, nullptr, status);
+    bool downloaded = FetchArchive(url, zipPath, comp.sha256, status);
     if (!downloaded)
     {
         std::string err = "Download failed for " + comp.displayName;
@@ -396,6 +529,25 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
             cb(p);
         }
         return;
+    }
+
+    // An install replaces what is there: an update, or a component whose
+    // archive changed form, would otherwise land on top of the old files and
+    // leave a mix of both. Only a folder of its own below the toolchains
+    // directory is cleared.
+    {
+        const fs::path dest = fs::path(destDir).lexically_normal();
+        const fs::path rel = dest.lexically_relative(fs::path(m_ToolchainsDir).lexically_normal());
+        std::error_code ec;
+        if (!comp.installPath.empty() && !rel.empty() && *rel.begin() != ".." && rel != "." && fs::exists(dest, ec))
+        {
+            status("Removing the previous " + comp.displayName + " from " + destDir);
+            fs::remove_all(dest, ec);
+            if (ec)
+            {
+                status("Could not remove all of it: " + ec.message());
+            }
+        }
     }
 
     std::string extractDir = destDir;
@@ -423,16 +575,20 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     }
 
     status("Extracting " + comp.displayName + " to " + extractDir + "...");
-    bool extracted = EditorHttpUtils::ExtractZip(zipPath, extractDir, status);
+    std::string extractError;
+    bool extracted = EditorHttpUtils::ExtractZip(zipPath, extractDir, status, &extractError);
 
-    try
+    // Kept when the extract failed, so a retry uses it (FetchArchive).
+    if (extracted)
     {
-        fs::remove(zipPath);
+        std::error_code removeError;
+        fs::remove(zipPath, removeError);
+        status("Removed the downloaded archive");
     }
-    catch (...)
-    { /* best effort: the operation that needs this path fails visibly on its own if it did not happen */
+    else
+    {
+        status("Kept the downloaded archive for the next attempt: " + zipPath);
     }
-    status("Cleaned up temporary archive");
 
     // Move the extracted folder to the target path if needed.
     // An archive that wraps everything in one directory leaves the real root a
@@ -543,6 +699,11 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
 
     if (extracted)
     {
+        if (const int fixedScripts = NormalizeBatchLineEndings(destDir); fixedScripts > 0)
+        {
+            status("Gave " + std::to_string(fixedScripts) + " batch file(s) Windows line endings");
+        }
+
         // Record the installed version so "Check for Updates" can compare it with
         // the latest release and flag outdated components.
         WriteInstalledVersion(m_ToolchainsDir, comp.id, installVersion);
@@ -565,7 +726,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
     }
     else
     {
-        BuildActivityFail(actCategory, "Failed to extract " + comp.displayName);
+        BuildActivityFail(actCategory, "Failed to extract " + comp.displayName + ": " + extractError);
     }
 
     if (cb)
@@ -576,7 +737,7 @@ void ToolchainComponentManager::DoInstallComponent(const ComponentDef& comp, Bui
         p.progress = 1.0f;
         if (!extracted)
         {
-            p.error = "Failed to extract " + comp.displayName;
+            p.error = "Failed to extract " + comp.displayName + ": " + extractError;
         }
         cb(p);
     }
@@ -615,9 +776,9 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
         status("(" + std::to_string(current + 1) + "/" + std::to_string(total) + ") Downloading " + sub.name + "...");
         status("URL: " + sub.url);
 
-        std::string zipPath = baseDir + "/" + sub.name + ".zip";
+        std::string zipPath = ArchivePath(m_ToolchainsDir, comp.id + "-" + sub.name);
 
-        bool downloaded = EditorHttpUtils::DownloadFileVerified(sub.url, zipPath, sub.sha256, nullptr, status);
+        bool downloaded = FetchArchive(sub.url, zipPath, sub.sha256, status);
         if (!downloaded)
         {
             std::string err = "Download failed for " + sub.name;
@@ -633,18 +794,18 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
         }
 
         status("Extracting " + sub.name + "...");
-        bool extracted = EditorHttpUtils::ExtractZip(zipPath, baseDir, status);
-        try
+        std::string extractError;
+        bool extracted = EditorHttpUtils::ExtractZip(zipPath, baseDir, status, &extractError);
+        // Kept when the extract failed, so a retry uses it (FetchArchive).
+        if (extracted)
         {
-            fs::remove(zipPath);
-        }
-        catch (...)
-        { /* best effort: the operation that needs this path fails visibly on its own if it did not happen */
+            std::error_code removeError;
+            fs::remove(zipPath, removeError);
         }
 
         if (!extracted)
         {
-            std::string err = "Extraction failed for " + sub.name;
+            std::string err = "Extraction failed for " + sub.name + ": " + extractError;
             BuildActivityFail(actCategory, err);
             if (cb)
             {
@@ -859,6 +1020,28 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     }
 
     std::string workDir = fs::path(fullCommand).parent_path().string();
+
+    // Here as well as after the extract, for a copy installed before it was
+    // done there (see NormalizeBatchLineEndings).
+    if (const int fixedScripts = NormalizeBatchLineEndings(m_ToolchainsDir + "/" + comp.installPath);
+        fixedScripts > 0)
+    {
+        status("Gave " + std::to_string(fixedScripts) + " batch file(s) Windows line endings");
+    }
+
+    // The installed components' PATH entries go first, so the script runs
+    // their tools (ESP-IDF's install.bat runs `python`) rather than whatever
+    // the machine has: on a fresh Windows, only the Microsoft Store's
+    // python.exe stub, which exits with 9009.
+    std::string pathPrefix;
+    for (const std::string& entry : InstalledPathEntries())
+    {
+#ifdef _WIN32
+        pathPrefix += entry + ";";
+#else
+        pathPrefix += entry + ":";
+#endif
+    }
 #ifdef _WIN32
     std::replace(fullCommand.begin(), fullCommand.end(), '/', '\\');
     std::replace(workDir.begin(), workDir.end(), '/', '\\');
@@ -872,8 +1055,17 @@ void ToolchainComponentManager::DoSetupComponent(const ComponentDef& comp, Build
     // installed nothing, leaving a new SDK with no compilers. The ESP32 backend
     // clears it the same way for export.bat.
     std::string cmdLine = "set \"MSYSTEM=\" && call \"" + fullCommand + "\"";
+    if (!pathPrefix.empty())
+    {
+        std::replace(pathPrefix.begin(), pathPrefix.end(), '/', '\\');
+        cmdLine = "set \"PATH=" + pathPrefix + "%PATH%\" && " + cmdLine;
+    }
 #else
     std::string cmdLine = "\"" + fullCommand + "\"";
+    if (!pathPrefix.empty())
+    {
+        cmdLine = "PATH=\"" + pathPrefix + "$PATH\" " + cmdLine;
+    }
 #endif
     if (!argsPart.empty())
     {

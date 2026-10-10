@@ -44,6 +44,32 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   BDF font's one baked form and its atlas (`BakedFontGuid`), import the font
   again if they are missing from the cache, and report the export as failed
   if it still cannot be baked.
+- **Windows: the ESP-IDF toolchain installs.** Its archive holds symbolic
+  links, which tar.exe cannot create without administrator rights or
+  Developer Mode, and failing on them failed the whole install ("Failed to
+  extract ESP-IDF SDK"): the archive was deleted, its setup never ran, and
+  the SDK was left a folder too deep to be found. Links are now left out of
+  the extract and put in as copies of what they point to, so an install
+  needs no prompt and runs unattended (from MCP too). An extract that still
+  fails says why: the error carries tar's last lines.
+- A toolchain download is kept until its install succeeds (in
+  `toolchains/.downloads`, named by component and version), and an install
+  uses an archive already there when it matches the pinned SHA-256. A failed
+  install used to delete it, so every retry downloaded it again (ESP-IDF is
+  1.8 GB).
+- Windows: a tool the editor runs and reads the output of (tar, git) no
+  longer crawls when it prints a lot. Its output went through a pipe of about
+  4 KB that was drained every 50 ms, some 80 KB/s: listing ESP-IDF's archive
+  took over two minutes and ran past its time limit. The pipe now holds 1 MB;
+  extracting ESP-IDF takes under 20 s.
+- A toolchain install replaces the component's previous copy instead of
+  unpacking over it, so an update or a change of archive leaves no mix of
+  old and new files.
+- Windows: a toolchain's batch files get CRLF line endings when it is
+  installed and before its setup runs. ESP-IDF's release archive carries
+  them with LF only, and cmd then cannot find their `:labels`: export.bat
+  failed every build with "The system cannot find the batch label
+  specified", hiding the error it meant to show.
 
 ### Changed
 - **MCP calls return when their work is done.** `screenshot` returns once the
@@ -64,6 +90,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   name.
 
 ### Added
+- Toolchain definitions: a component's `pathEntries` (per platform) are put
+  first on PATH while a component's setup script runs, so the script finds
+  the toolchain's own tools. ESP-IDF's install.bat runs `python`, and a fresh
+  Windows has only the Microsoft Store's stub, which exits with 9009.
 - `tools/setup-windows.ps1` and `tools/setup-linux.sh` set a machine up from
   a menu: install the build prerequisites (GCC 16, CMake, Ninja, git-lfs;
   MSYS2 on Windows, SDL3's build dependencies on Linux), build the editor,

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -60,6 +61,9 @@ struct Entry
 {
     std::string name;
     std::string data;
+    // Unix mode, as an archiver on Unix stores it (0xA1FF a symbolic link,
+    // whose data is its target); 0 for none.
+    uint32_t mode = 0;
 };
 
 // A minimal stored zip. Entry names are written verbatim, which is the point:
@@ -89,7 +93,7 @@ std::string BuildZip(const std::vector<Entry>& entries)
         out += e.data;
         // central directory record
         Put32(central, 0x02014b50);
-        Put16(central, 20);
+        Put16(central, e.mode ? 0x031E : 20);  // version made by: Unix when a mode is stored
         Put16(central, 20);
         Put16(central, 0);
         Put16(central, 0);
@@ -103,7 +107,7 @@ std::string BuildZip(const std::vector<Entry>& entries)
         Put16(central, 0);
         Put16(central, 0);
         Put16(central, 0);
-        Put32(central, 0);
+        Put32(central, e.mode << 16);  // external attributes
         Put32(central, offset);
         central += e.name;
     }
@@ -193,4 +197,91 @@ TEST(ZipSafety, PlainArchiveExtracts)
     std::ifstream in(dest / "ok" / "file.txt", std::ios::binary);
     std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     EXPECT_EQ(content, "hello");
+}
+
+// -----------------------------------------------------------------------------
+// Symbolic links. ESP-IDF's archive has some, and tar.exe cannot create a link
+// without administrator rights or Developer Mode: it failed the whole extract
+// on them. A link is now put in as a copy of what it points to on Windows (on
+// Linux and macOS unzip makes the link), so what it points to reads the same
+// either way.
+// -----------------------------------------------------------------------------
+
+namespace
+{
+std::string ReadAll(const fs::path& p)
+{
+    std::ifstream in(p, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+}  // namespace
+
+TEST(ZipLinks, ParsedFromTheTwoListings)
+{
+    const std::string names = "top/\ntop/dir/\ntop/dir/run.sh\ntop/dir/run copy.sh\ntop/linkdir\n";
+    const std::string verbose = "drwxr-xr-x  0 0      0           0 Jan 01  1980 top/\r\n"
+                                "drwxr-xr-x  0 0      0           0 Jan 01  1980 top/dir/\r\n"
+                                "-rwxr-xr-x  0 0      0          20 Jan 01  1980 top/dir/run.sh\r\n"
+                                "lrwxrwxrwx  0 0      0           0 Jan 01  1980 top/dir/run copy.sh -> run.sh\r\n"
+                                "lrwxrwxrwx  0 0      0           0 Jan 01  1980 top/linkdir -> dir\r\n";
+    std::vector<EditorHttpUtils::ArchiveLink> links;
+    std::string error;
+    ASSERT_TRUE(EditorHttpUtils::ParseArchiveLinks(names, verbose, links, error)) << error;
+    ASSERT_EQ(links.size(), 2u);
+    EXPECT_EQ(links[0].path, "top/dir/run copy.sh");
+    EXPECT_EQ(links[0].target, "run.sh");
+    EXPECT_EQ(links[1].path, "top/linkdir");
+    EXPECT_EQ(links[1].target, "dir");
+
+    EXPECT_FALSE(EditorHttpUtils::ParseArchiveLinks("a\nb\n", "-rw a\n", links, error)) << "listings out of step";
+}
+
+TEST(ZipLinks, CopiedInPlaceAndKeptInside)
+{
+    Scratch s("deki_ziplinks_copy");
+    fs::create_directories(s.dir / "top" / "dir");
+    std::ofstream(s.dir / "top" / "dir" / "run.sh", std::ios::binary) << "#!/bin/sh\n";
+    std::ofstream(s.dir / "top" / "dir" / "data.txt", std::ios::binary) << "data";
+
+    std::string error;
+    // A link to a link and a link into a directory that holds a link: each
+    // gets the finished copy whatever the order. A link to nothing is left out.
+    ASSERT_TRUE(EditorHttpUtils::MaterializeArchiveLinks(s.dir.string(),
+                                                         { { "top/again.sh", "dir/run-esp32.sh" },
+                                                           { "top/linkdir", "dir" },
+                                                           { "top/dir/run-esp32.sh", "run.sh" },
+                                                           { "top/gone.sh", "missing.sh" } },
+                                                         error))
+        << error;
+    EXPECT_EQ(ReadAll(s.dir / "top" / "dir" / "run-esp32.sh"), "#!/bin/sh\n");
+    EXPECT_EQ(ReadAll(s.dir / "top" / "again.sh"), "#!/bin/sh\n");
+    EXPECT_EQ(ReadAll(s.dir / "top" / "linkdir" / "data.txt"), "data");
+    EXPECT_EQ(ReadAll(s.dir / "top" / "linkdir" / "run-esp32.sh"), "#!/bin/sh\n");
+    EXPECT_FALSE(fs::exists(s.dir / "top" / "gone.sh"));
+
+    EXPECT_FALSE(EditorHttpUtils::MaterializeArchiveLinks(s.dir.string(), { { "top/evil", "../../outside.txt" } },
+                                                          error))
+        << "a link out of the archive is refused";
+    EXPECT_FALSE(
+        EditorHttpUtils::MaterializeArchiveLinks(s.dir.string(), { { "top/evil", "/etc/passwd" } }, error));
+}
+
+TEST(ZipLinks, ArchiveWithLinksExtracts)
+{
+    Scratch s("deki_ziplinks_extract");
+    const fs::path zip = s.Write("links.zip", BuildZip({ { "top/", "", 040755 },
+                                                         { "top/dir/", "", 040755 },
+                                                         { "top/dir/run.sh", "#!/bin/sh\necho hi\n", 0100755 },
+                                                         { "top/dir/run copy.sh", "run.sh", 0120777 },
+                                                         { "top/linkdir", "dir", 0120777 },
+                                                         { "top/dir/data.txt", "hello", 0100644 } }));
+    const fs::path dest = s.dir / "dest";
+
+    std::string log, error;
+    ASSERT_TRUE(EditorHttpUtils::ExtractZip(zip.string(), dest.string(),
+                                            [&](const std::string& m) { log += m + "\n"; }, &error))
+        << error << "\n"
+        << log;
+    EXPECT_EQ(ReadAll(dest / "top" / "dir" / "run copy.sh"), "#!/bin/sh\necho hi\n");
+    EXPECT_EQ(ReadAll(dest / "top" / "linkdir" / "data.txt"), "hello");
 }

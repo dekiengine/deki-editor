@@ -61,6 +61,25 @@ static void ParseComponent(const json& j, ComponentDef& comp)
         comp.postInstall.unixLike = pi.value("unix", "");
     }
 
+    // PATH entries: map of platform -> list of directories.
+    if (j.contains("pathEntries") && j["pathEntries"].is_object())
+    {
+        for (auto& [key, val] : j["pathEntries"].items())
+        {
+            if (!val.is_array())
+            {
+                continue;
+            }
+            for (const auto& entry : val)
+            {
+                if (entry.is_string())
+                {
+                    comp.pathEntries[key].push_back(entry.get<std::string>());
+                }
+            }
+        }
+    }
+
     if (j.contains("subComponents") && j["subComponents"].is_array())
     {
         for (const auto& sc : j["subComponents"])
