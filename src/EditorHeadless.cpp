@@ -27,6 +27,7 @@
 #include "services/HotReloadService.h"
 #include "services/FirmwareBuildService.h"
 #include <deki-editor/FeatureResolver.h>
+#include "mcp/McpCompletion.h"
 #include "mcp/McpToolRegistry.h"
 #include "services/LiveSession.h"
 #include "EditorCli.h"
@@ -2151,6 +2152,9 @@ ToolCall LocalToolCall(const McpToolRegistry& registry)
         try
         {
             result = tool->handler(args);
+            // No frames run here to finish deferred work: the queued result is
+            // the answer (McpCompletion is for the live editor's server).
+            McpCompletion::Take();
             return true;
         }
         catch (const std::exception& e)

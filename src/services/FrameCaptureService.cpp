@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <cstdio>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+// The implementation is in StbImageWrite.cpp.
 #include "stb_image_write.h"
 
 #include <deki/LogSystem.h>

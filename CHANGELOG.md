@@ -46,6 +46,18 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   if it still cannot be baked.
 
 ### Changed
+- **MCP calls return when their work is done.** `screenshot` returns once the
+  PNG is written (or with why it could not be, such as a panel that is not
+  drawn); `click`, `drag`, `hover`, `scroll`, `key` and `type_text` once their
+  input has played and the editor has drawn a frame after it; `focus_panel`
+  once the tab is drawn. They used to return "queued" at once, so a client
+  slept for a guessed time or polled for the file. A held reply never holds
+  up other calls. `capture_sequence` still returns at once (it records the
+  input that follows); poll for its `done.txt`.
+- Screenshots are 4 to 5 times faster: a panel about 0.13 s, the whole window
+  about 0.26 s. PNGs are written without the per-row filter search and with
+  light deflate (files about 4% larger), and the encoder is compiled
+  optimised in every build.
 - `tools/setup-workspace.sh` is now `tools/get-packages.sh`: it downloads
   the Deki packages (plus the demo and registry) to develop with, and installs
   nothing, which the old name did not say. Same options; call it by the new

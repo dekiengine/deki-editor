@@ -1,4 +1,5 @@
 #include "McpServer.h"
+#include "McpCompletion.h"
 #include "McpToolRegistry.h"
 #include "McpTools.h"
 #include "McpResources.h"
@@ -27,6 +28,22 @@ namespace
 {
 // See the wait_for() call in Start() for why this is minutes rather than seconds.
 constexpr int kRequestTimeoutSeconds = 900;
+
+// How long a tool's deferred work (McpCompletion) may take before its call
+// fails rather than hangs. A screenshot or a click takes a few frames; a
+// minute only fires when something is stuck (a hidden window does not draw).
+constexpr auto kDeferredTimeout = std::chrono::seconds(60);
+
+nlohmann::json ToolResult(const nlohmann::json& result)
+{
+    return { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", result.dump() } } }) } };
+}
+
+nlohmann::json ToolError(const std::string& message)
+{
+    return { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", "Error: " + message } } }) },
+             { "isError", true } };
+}
 
 // Loopback only. MCP reaches the whole editor (install_package clones and
 // rebuild compiles), so reaching it means running code on this machine; on
@@ -381,6 +398,11 @@ void McpServer::Stop()
                 MakeError(req.message.value("id", nlohmann::json()), -32603, "The editor is closing").dump());
         }
     }
+    for (DeferredCall& call : m_Deferred)
+    {
+        call.responsePromise->set_value(MakeError(call.id, -32603, "The editor is closing").dump());
+    }
+    m_Deferred.clear();
 
     if (m_HttpServer)
     {
@@ -404,6 +426,40 @@ void McpServer::ServerThread()
 
 void McpServer::ProcessMessages()
 {
+    // Calls whose work has finished since the last frame are answered first.
+    for (size_t i = 0; i < m_Deferred.size();)
+    {
+        DeferredCall& call = m_Deferred[i];
+        nlohmann::json result;
+        bool done = true;
+        try
+        {
+            if (std::optional<nlohmann::json> finished = call.poll())
+            {
+                result = ToolResult(*finished);
+            }
+            else if (std::chrono::steady_clock::now() - call.started > kDeferredTimeout)
+            {
+                result = ToolError("not finished after " + std::to_string(kDeferredTimeout.count()) + " s");
+            }
+            else
+            {
+                done = false;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            result = ToolError(e.what());
+        }
+        if (!done)
+        {
+            ++i;
+            continue;
+        }
+        call.responsePromise->set_value(MakeResponse(call.id, result).dump());
+        m_Deferred.erase(m_Deferred.begin() + static_cast<std::ptrdiff_t>(i));
+    }
+
     // At most 10 messages per frame, so the UI keeps running.
     int processed = 0;
     // The count must be checked before TryPop: otherwise the 11th message is
@@ -438,7 +494,16 @@ void McpServer::ProcessMessages()
 
         auto response = HandleMessage(req.message);
 
-        if (req.responsePromise)
+        // A tool that finishes on a later frame is answered once it has
+        // (above, on a later call); its queued reply is not sent.
+        std::optional<McpCompletion::Poll> poll = std::move(m_LastCallDeferral);
+        m_LastCallDeferral.reset();
+        if (poll && req.responsePromise)
+        {
+            m_Deferred.push_back({ req.message.value("id", nlohmann::json()), req.responsePromise, std::move(*poll),
+                                   std::chrono::steady_clock::now() });
+        }
+        else if (req.responsePromise)
         {
             req.responsePromise->set_value(response.dump());
         }
@@ -570,21 +635,20 @@ nlohmann::json McpServer::HandleToolsCall(const nlohmann::json& params)
 
     if (const std::string missing = MissingRequiredArguments(*tool, arguments); !missing.empty())
     {
-        return { { "content", nlohmann::json::array(
-                                  { { { "type", "text" }, { "text", "Error: " + toolName + " needs " + missing } } }) },
-                 { "isError", true } };
+        return ToolError(toolName + " needs " + missing);
     }
 
+    McpCompletion::Take();  // a deferral left by a handler run elsewhere is not this call's
     try
     {
         nlohmann::json result = tool->handler(arguments);
-        return { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", result.dump() } } }) } };
+        m_LastCallDeferral = McpCompletion::Take();
+        return ToolResult(result);
     }
     catch (const std::exception& e)
     {
-        return { { "content",
-                   nlohmann::json::array({ { { "type", "text" }, { "text", std::string("Error: ") + e.what() } } }) },
-                 { "isError", true } };
+        McpCompletion::Take();
+        return ToolError(e.what());
     }
 }
 

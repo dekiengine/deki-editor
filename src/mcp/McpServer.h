@@ -9,7 +9,12 @@
 #include <functional>
 #include <future>
 #include <optional>
+#include <chrono>
+#include <memory>
+#include <vector>
 #include <nlohmann/json.hpp>
+
+#include "McpCompletion.h"
 
 namespace httplib  // NOLINT(readability-identifier-naming): cpp-httplib's name
 {
@@ -138,6 +143,19 @@ private:
     // Starts the pointer for `msg` when it is a tool call it shows; true when
     // the call must wait for it.
     bool ShowOnAgentPointer(const nlohmann::json& msg);
+
+    // Tool calls whose work finishes on a later frame (McpCompletion): each is
+    // answered from ProcessMessages once its poll returns the result.
+    struct DeferredCall
+    {
+        nlohmann::json id;
+        std::shared_ptr<std::promise<std::string>> responsePromise;
+        McpCompletion::Poll poll;
+        std::chrono::steady_clock::time_point started;
+    };
+    std::vector<DeferredCall> m_Deferred;
+    // The deferral the tool call just handled made, for ProcessMessages.
+    std::optional<McpCompletion::Poll> m_LastCallDeferral;
 
     // The main thread pushes responses, the SSE stream sends them.
     ThreadSafeQueue<SseResponse> m_SseResponses;

@@ -773,6 +773,7 @@ set(EDITOR_SOURCES
     src/services/ProfilingService.cpp
     src/services/ProfilingService.h
     src/services/FrameCaptureService.cpp
+    src/services/StbImageWrite.cpp
     src/services/FrameCaptureService.h
     src/services/AgentCursor.cpp
     src/services/AgentCursor.h
@@ -792,6 +793,8 @@ set(EDITOR_SOURCES
     src/panels/FrameCapturePanel.h
     src/mcp/McpServer.cpp
     src/mcp/McpServer.h
+    src/mcp/McpCompletion.cpp
+    src/mcp/McpCompletion.h
     src/mcp/McpToolRegistry.h
     src/mcp/McpTools.cpp
     src/mcp/McpTools.h
@@ -864,6 +867,17 @@ if(MSVC)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SafeDllCall.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SafeDispatch.cpp
         PROPERTIES COMPILE_FLAGS "/EHa")
+endif()
+
+# The PNG encoder optimised in every build: screenshots are encoded on the main
+# thread, and a Debug build's unoptimised stb took over a second for the whole
+# window. Its own file, out of any unity batch and the precompiled header
+# (built without -O2, so GCC would refuse it), so nothing else is optimised
+# with it. MSVC's Debug /RTC1 refuses /O2, so it is GCC and Clang only.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/services/StbImageWrite.cpp
+        PROPERTIES COMPILE_OPTIONS "-O2" SKIP_UNITY_BUILD_INCLUSION ON SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 target_include_directories(DekiEditor PRIVATE

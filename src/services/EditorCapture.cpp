@@ -5,8 +5,8 @@
 #include "imgui.h"
 #include "imgui_internal.h"  // FindWindowByName
 
-// STB_IMAGE_WRITE_IMPLEMENTATION is in FrameCaptureService.cpp; this file only
-// uses the declarations.
+// STB_IMAGE_WRITE_IMPLEMENTATION is in StbImageWrite.cpp; this file only uses
+// the declarations.
 #include "stb_image_write.h"
 
 #include <deki/LogSystem.h>
@@ -28,17 +28,40 @@ EditorCapture& EditorCapture::Get()
     return s_Instance;
 }
 
-void EditorCapture::RequestScreenshot(const std::string& path, const std::string& panel, const Region& region,
-                                      float padding, int framesToWait)
+uint64_t EditorCapture::RequestScreenshot(const std::string& path, const std::string& panel, const Region& region,
+                                          float padding, int framesToWait)
 {
     Request req;
     req.sequence = false;
+    req.ticket = ++m_LastTicket;
     req.path = path;
     req.panel = panel;
     req.region = region;
     req.padding = padding;
     req.framesToWait = std::max(0, framesToWait);
     m_Requests.push_back(std::move(req));
+    return m_LastTicket;
+}
+
+bool EditorCapture::TakeOutcome(uint64_t ticket, std::string& error)
+{
+    auto it = m_Outcomes.find(ticket);
+    if (it == m_Outcomes.end())
+    {
+        return false;
+    }
+    error = std::move(it->second);
+    m_Outcomes.erase(it);
+    return true;
+}
+
+void EditorCapture::Finish(const Request& req, std::string error)
+{
+    // Kept only for a caller that asked for it (McpCompletion polls by ticket).
+    if (req.ticket != 0)
+    {
+        m_Outcomes[req.ticket] = std::move(error);
+    }
 }
 
 void EditorCapture::RequestSequence(const std::string& dir, const std::string& panel, const Region& region,
@@ -211,8 +234,19 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
         fs::create_directories(target.parent_path(), ec);
     }
 
+    // The write blocks the editor's frame and an MCP screenshot call waits for
+    // it. By default stb tries all five PNG row filters on every row and keeps
+    // the best, which is most of its time; no filter and the lightest deflate
+    // encode the whole window about 2.5 times faster for a file some 4% larger.
     const std::string tmp = path + ".tmp";
-    if (!stbi_write_png(tmp.c_str(), w, h, 4, m_Pixels.data(), (int)stride))
+    const int savedLevel = stbi_write_png_compression_level;
+    const int savedFilter = stbi_write_force_png_filter;
+    stbi_write_png_compression_level = kPngCompressionLevel;
+    stbi_write_force_png_filter = kPngFilter;
+    const bool encoded = stbi_write_png(tmp.c_str(), w, h, 4, m_Pixels.data(), (int)stride) != 0;
+    stbi_write_png_compression_level = savedLevel;
+    stbi_write_force_png_filter = savedFilter;
+    if (!encoded)
     {
         Deki::LogSystem::LogWithLevel(Deki::LogLevel::Error, __FILE__, __LINE__, "EditorCapture: failed to write %s",
                                       tmp.c_str());
@@ -275,6 +309,10 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
                                           "EditorCapture: panel '%s' was not drawn for %d frames, dropping request "
                                           "(is its tab selected? see focus_panel)",
                                           req.panel.c_str(), req.misses);
+            Finish(req, req.panel.empty() ? std::string("the region is outside the window")
+                                          : "panel '" + req.panel + "' was not drawn for " +
+                                                std::to_string(req.misses) +
+                                                " frames (is its tab selected? see focus_panel)");
             m_Requests.erase(m_Requests.begin() + i);
             continue;
         }
@@ -282,7 +320,8 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
 
         if (!req.sequence)
         {
-            CaptureToFile(req.path, x, y, w, h, fbH);
+            const bool written = CaptureToFile(req.path, x, y, w, h, fbH);
+            Finish(req, written ? std::string() : "could not write " + req.path);
             m_Requests.erase(m_Requests.begin() + i);
             continue;
         }

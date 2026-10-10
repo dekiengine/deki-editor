@@ -7,6 +7,7 @@
 // screenshots, smoke runs) needs.
 
 #include "McpTools.h"
+#include "McpCompletion.h"
 #include "services/EditorInput.h"
 #include <deki-editor/Paths.h>
 #include "McpToolRegistry.h"
@@ -22,6 +23,8 @@
 #include <deki-editor/CommandHistory.h>
 
 #include <filesystem>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 
 namespace fs = std::filesystem;
@@ -62,6 +65,34 @@ EditorCapture::Region ReadRegion(const nlohmann::json& args)
     r.w = args.value("width", 0.0f);
     r.h = args.value("height", 0.0f);
     return r;
+}
+
+// Holds an input tool's reply (McpCompletion) until the queued input has
+// played and the editor has drawn one more frame after it, so the call returns
+// once what it does has happened: a clicked button has run, a popup it opens
+// is up. Input plays one step per frame, before the panels are drawn, and the
+// poll runs after them, so the first empty queue means the last step was drawn
+// this frame and the second that a frame has followed it.
+void ReplyWhenInputPlayed(nlohmann::json result)
+{
+    auto emptyBefore = std::make_shared<bool>(false);
+    McpCompletion::Defer(
+        [result, emptyBefore]() -> std::optional<nlohmann::json>
+        {
+            if (EditorInput::Get().HasPendingWork())
+            {
+                *emptyBefore = false;
+                return std::nullopt;
+            }
+            if (!*emptyBefore)
+            {
+                *emptyBefore = true;
+                return std::nullopt;
+            }
+            nlohmann::json done = result;
+            done["status"] = "done";
+            return done;
+        });
 }
 
 }  // namespace
@@ -544,8 +575,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register(
         { "focus_panel",
-          "Select a docked panel's tab so it is actually drawn. Takes effect on the "
-          "next frame - screenshot it with wait_frames >= 2.",
+          "Select a docked panel's tab so it is actually drawn. Returns once the tab "
+          "has been drawn, so it can be screenshot or clicked straight away.",
           { { "type", "object" },
             { "properties",
               { { "name", { { "type", "string" }, { "description", "Panel name from list_panels" } } } } },
@@ -554,15 +585,27 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
           {
               const std::string name = args.at("name").get<std::string>();
               EditorCapture::Get().RequestFocus(name);
+              // Applied at the top of the next frame and drawn in it; the
+              // second poll is after a frame has drawn the selected tab.
+              auto polls = std::make_shared<int>(0);
+              McpCompletion::Defer(
+                  [name, polls]() -> std::optional<nlohmann::json>
+                  {
+                      if (++*polls < 2)
+                      {
+                          return std::nullopt;
+                      }
+                      return nlohmann::json{ { "focused", name } };
+                  });
               return { { "focused", name } };
           } });
 
     registry.Register(
         { "screenshot",
-          "Capture the editor window (or one panel) to a PNG. The capture is queued "
-          "and taken at the end of a later frame, so this returns as soon as it is "
-          "scheduled - poll for the file. The PNG is renamed into place, so seeing "
-          "the path means the file is complete.",
+          "Capture the editor window (or one panel) to a PNG. Returns once the file "
+          "is written (after any queued input has played and wait_frames have "
+          "passed), or with the reason it could not be, such as a panel that is "
+          "not drawn. No need to wait or poll for the file afterwards.",
           { { "type", "object" },
             { "properties",
               { { "path", { { "type", "string" }, { "description", "Absolute output .png path" } } },
@@ -581,15 +624,31 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
           [](const nlohmann::json& args) -> nlohmann::json
           {
               const std::string path = args.at("path").get<std::string>();
-              EditorCapture::Get().RequestScreenshot(path, args.value("panel", ""), ReadRegion(args),
-                                                     args.value("padding", 0.0f), args.value("wait_frames", 2));
+              const uint64_t ticket =
+                  EditorCapture::Get().RequestScreenshot(path, args.value("panel", ""), ReadRegion(args),
+                                                         args.value("padding", 0.0f), args.value("wait_frames", 2));
+              McpCompletion::Defer(
+                  [path, ticket]() -> std::optional<nlohmann::json>
+                  {
+                      std::string error;
+                      if (!EditorCapture::Get().TakeOutcome(ticket, error))
+                      {
+                          return std::nullopt;
+                      }
+                      if (!error.empty())
+                      {
+                          throw std::runtime_error(error);
+                      }
+                      return nlohmann::json{ { "path", path }, { "status", "written" } };
+                  });
               return { { "path", path }, { "status", "queued" } };
           } });
 
     // Input. Positions are in the same pixels as a screenshot of the panel
     // (or of the window when no panel is named), so a point read off a
-    // screenshot can be clicked as is. Queued and played one step per frame; a
-    // screenshot asked for afterwards waits for them.
+    // screenshot can be clicked as is. Queued and played one step per frame; each
+    // call returns once its input has played (ReplyWhenInputPlayed), and a
+    // screenshot asked for afterwards waits for it too.
     auto pointSchema = [](const char* extraName, nlohmann::json extra)
     {
         nlohmann::json props = { { "panel",
@@ -625,7 +684,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "click",
           "Click in the editor at a point: moves the mouse there, then presses and "
-          "releases. Takes a few frames; a screenshot asked for after it shows the result.",
+          "releases. Returns once the click has played and the editor has drawn a "
+          "frame after it, so its result can be screenshot or read straight away.",
           pointSchema(
               "button",
               { { "button",
@@ -664,7 +724,9 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               mods.alt = args.value("alt", false);
               EditorInput::Get().RequestClick(panel, x, y, button, args.value("double", false) ? 2 : 1,
                                               args.value("hold_seconds", 0.0f), mods);
-              return { { "status", "queued" }, { "x", x }, { "y", y } };
+              const nlohmann::json result = { { "status", "queued" }, { "x", x }, { "y", y } };
+              ReplyWhenInputPlayed(result);
+              return result;
           } });
 
     registry.Register(
@@ -722,6 +784,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               EditorInput::Get().RequestDrag(panel, args.at("x").get<float>(), args.at("y").get<float>(), toPanel,
                                              args.at("to_x").get<float>(), args.at("to_y").get<float>(), button,
                                              args.value("frames", 12), args.value("hold_seconds", 0.2f), mods);
+              ReplyWhenInputPlayed({ { "status", "queued" } });
               return { { "status", "queued" } };
           } });
 
@@ -739,6 +802,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               const std::string panel = checkPanel(args);
               EditorInput::Get().RequestHover(panel, args.at("x").get<float>(), args.at("y").get<float>(),
                                               args.value("hold_seconds", 3.0f));
+              ReplyWhenInputPlayed({ { "status", "queued" } });
               return { { "status", "queued" } };
           } });
 
@@ -752,6 +816,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               const std::string panel = checkPanel(args);
               EditorInput::Get().RequestScroll(panel, args.at("x").get<float>(), args.at("y").get<float>(),
                                                args.value("dx", 0.0f), args.value("dy", 0.0f));
+              ReplyWhenInputPlayed({ { "status", "queued" } });
               return { { "status", "queued" } };
           } });
 
@@ -775,6 +840,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             {
                                 throw std::runtime_error(error);
                             }
+                            ReplyWhenInputPlayed({ { "status", "queued" } });
                             return { { "status", "queued" } };
                         } });
 
@@ -786,6 +852,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         [](const nlohmann::json& args) -> nlohmann::json
                         {
                             EditorInput::Get().RequestText(args.at("text").get<std::string>());
+                            ReplyWhenInputPlayed({ { "status", "queued" } });
                             return { { "status", "queued" } };
                         } });
 

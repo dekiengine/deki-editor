@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <unordered_map>
 
 namespace DekiEditor
 {
@@ -35,8 +36,13 @@ public:
 
     /// Queues one PNG. `panel` (an ImGui window name), when set, wins over
     /// `region`; `padding` grows the rect on every side, clamped to the window.
-    void RequestScreenshot(const std::string& path, const std::string& panel, const Region& region, float padding,
-                           int framesToWait);
+    /// Returns a ticket for TakeOutcome.
+    uint64_t RequestScreenshot(const std::string& path, const std::string& panel, const Region& region,
+                               float padding, int framesToWait);
+
+    /// True once the screenshot with this ticket is done: written (`error`
+    /// empty) or given up on (`error` says why). Each outcome is taken once.
+    bool TakeOutcome(uint64_t ticket, std::string& error);
 
     /// Queues a PNG sequence: `frames` files, one every `stride` frames, as
     /// frame_0000.png … in `dir`, then a `done.txt` marker holding the count.
@@ -86,6 +92,7 @@ private:
     struct Request
     {
         bool sequence = false;
+        uint64_t ticket = 0;  // a screenshot's, for TakeOutcome
         std::string path;  // file (single) or directory (sequence)
         std::string panel;
         Region region;
@@ -113,7 +120,16 @@ private:
 
     bool CaptureToFile(const std::string& path, int x, int y, int w, int h, int fbH);
 
+    // Records how a screenshot ended, for TakeOutcome.
+    void Finish(const Request& req, std::string error);
+
+    // Fast PNG settings (see CaptureToFile): deflate level 1, filter 0 (none).
+    static constexpr int kPngCompressionLevel = 1;
+    static constexpr int kPngFilter = 0;
+
     std::vector<Request> m_Requests;
+    uint64_t m_LastTicket = 0;
+    std::unordered_map<uint64_t, std::string> m_Outcomes;  // ticket -> error, "" when written
     std::vector<std::string> m_PendingFocus;
     std::vector<uint8_t> m_Pixels;  // reused scratch for glReadPixels
 };
