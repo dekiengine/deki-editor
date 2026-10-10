@@ -36,7 +36,7 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Agent pointer: when an agent works in the editor over MCP, a pointer and a
   label show what each call does and where - the Hierarchy row, Inspector
   property, asset or exact pixel it acts on - and the call runs once the
-  pointer is there (0.2 s). It follows drags, does not hold input into a
+  pointer is there (0.3 s). It follows drags, does not hold input into a
   running game, and stays out of screenshots. Editor Settings > MCP turns it
   off. MCP clients see each changing call take that much longer.
 - A `--script` step can use what an earlier step returned: `"as": "panel"`

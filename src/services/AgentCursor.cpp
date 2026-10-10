@@ -19,12 +19,12 @@ namespace
 {
 
 // Seconds. Long enough to follow with the eye, short enough that an agent
-// making many edits is not held up much: a call waits kTravel + kDwell, 0.2 s.
-constexpr float kTravel = 0.15f;
-constexpr float kDwell = 0.05f;
+// making many edits is not held up much: a call waits kTravel + kDwell, 0.3 s.
+constexpr float kTravel = 0.22f;
+constexpr float kDwell = 0.08f;
 // Reduce Motion: no glide, but the same short rest on the target, so the user
 // still sees where the edit lands before it does.
-constexpr float kReducedDwell = 0.20f;
+constexpr float kReducedDwell = 0.30f;
 // Input into a running game is not held, so the pointer catches up with the
 // injected mouse quickly instead of gliding ahead of it.
 constexpr float kCatchUp = 0.10f;

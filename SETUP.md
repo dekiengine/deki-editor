@@ -513,7 +513,7 @@ is doing: for each call that changes something it glides to the row, panel or
 pixel the call acts on - the object's Hierarchy row, the property's Inspector
 row (scrolled to, its parents opened), the asset's row, the exact point of a
 `click`, `drag`, `hover` or `scroll` - with a label such as "Setting
-SpriteComponent.color", and the call runs once the pointer is there, 0.2 s
+SpriteComponent.color", and the call runs once the pointer is there, 0.3 s
 later. During a drag it follows the injected mouse, with a dot while the
 button is down. While the game is playing, input calls are shown but not
 held, so a test's timing is what it asked for. Calls that only read are not
