@@ -745,7 +745,7 @@ std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
         part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(kDekiCacheVersion);
     if (fs::path(absolutePath).extension() == ".scene")
     {
-        stamp += "|r" + ComponentRegistryFingerprint();
+        stamp += "|s" + std::to_string(kSceneCompileVersion) + "|r" + ComponentRegistryFingerprint();
     }
     return stamp;
 }
@@ -1345,6 +1345,53 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     }
 
     DEKI_HEAP_CHECK("CompileScene: after font GUID modification");
+
+    // A reference to one frame of a sprite sheet is written as the sheet, with
+    // the frame in source: a frame has no file of its own on a device, so the
+    // runtime loads the sheet and picks the frame by source. A scene can hold
+    // the frame's GUID alone (the editor resolves that itself), which a device
+    // looked up as a file that is not there, and drew nothing.
+    std::function<void(Deki::Object*)> pointFramesAtSheets = [&](Deki::Object* obj)
+    {
+        for (Deki::Component* comp : obj->GetComponents())
+        {
+            const Deki::ComponentMeta* meta = comp ? Deki::ComponentRegistry::Instance().GetMeta(comp->GetType()) : nullptr;
+            if (!meta || !meta->properties)
+            {
+                continue;
+            }
+            for (int i = 0; i < meta->propertyCount; ++i)
+            {
+                const Deki::PropertyInfo& prop = meta->properties[i];
+                if (prop.type != Deki::PropertyType::AssetRef)
+                {
+                    continue;
+                }
+                auto& ref = Deki::GetPropertyRef<Deki::AssetRefBase>(comp, prop);
+                if (ref.guid.empty() || !ref.source.empty())
+                {
+                    continue;
+                }
+                const SubAssetInfo* frame = GetSubAsset(ref.guid);
+                if (frame && frame->cachePath.empty() && !frame->parentGuid.empty())
+                {
+                    ref.source = ref.guid;
+                    ref.guid = frame->parentGuid;
+                }
+            }
+        }
+        for (Deki::Object* child : obj->GetChildren())
+        {
+            pointFramesAtSheets(child);
+        }
+    };
+    for (Deki::Object* obj : scene.GetObjects())
+    {
+        if (obj->GetParent() == nullptr)
+        {
+            pointFramesAtSheets(obj);
+        }
+    }
 
     fs::path filePath(binaryPath);
     fs::path parentDir = filePath.parent_path();

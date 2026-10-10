@@ -36,6 +36,10 @@ struct FirmwareOpResult
 /// Streamed build output. isError marks stderr / detected error lines.
 using FirmwareLogCallback = std::function<void(const std::string& line, bool isError)>;
 
+/// Called once when a started build or deploy ends: Completed, Failed (text is
+/// the error) or Idle (cancelled; text is the status). On the build thread.
+using FirmwareDoneCallback = std::function<void(BuildState state, const std::string& text)>;
+
 class FirmwareBuildService
 {
 public:
@@ -88,12 +92,12 @@ public:
     /// block for the minutes a firmware build takes.
     static FirmwareOpResult StartBuild(const std::string& projectPath, const std::string& platformId,
                                        FirmwareLogCallback onLine = nullptr, EditorApp* editor = nullptr,
-                                       const BuildOptions& options = {});
+                                       const BuildOptions& options = {}, FirmwareDoneCallback onDone = nullptr);
 
     /// Deploy() without waiting. success==true means started.
     static FirmwareOpResult StartDeploy(const std::string& projectPath, const std::string& platformId,
                                         const std::string& deployTargetId, FirmwareLogCallback onLine = nullptr,
-                                        const BuildOptions& options = {});
+                                        const BuildOptions& options = {}, FirmwareDoneCallback onDone = nullptr);
 
     /// InstallToolchainComponent() without waiting. success==true means
     /// started. QueryStatus() shows its progress as state "installing".
@@ -113,10 +117,18 @@ public:
     /// {"active": bool, "state": "...", "statusText": "...", "progress": f,
     ///  "error": "...", "platformId": "..."}.
     /// state is one of idle|building|deploying|installing|completed|failed.
-    static nlohmann::json QueryStatus();
+    /// With outputLines, also "output": the operation's last lines (at most
+    /// that many, of the last 500 kept; error lines start "error: "), and
+    /// "outputLineCount", how many it has printed in all.
+    static nlohmann::json QueryStatus(size_t outputLines = 0);
 
     /// Asks the running operation to cancel. Does nothing when idle.
     static bool CancelActive();
+
+private:
+    static nlohmann::json QueryState();
+
+public:
 
     /// Deploys the last build, whatever that means for the platform's backend:
     /// flash it, run it, install it. deployTargetId is one of the backend's

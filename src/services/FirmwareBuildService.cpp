@@ -12,7 +12,9 @@
 #include "services/ExportTarget.h"
 #include <deki-editor/FeatureResolver.h>
 
+#include <atomic>
 #include <chrono>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -175,12 +177,82 @@ std::string g_ToolchainStatusText;
 std::string g_ToolchainError;
 float g_ToolchainProgress = 0.0f;
 
+BuildState g_ToolchainState = BuildState::Idle;  // Completed or Failed once it ends
+
+// Whether the operation started last is a toolchain install or setup, whose
+// result is the mirror above rather than the builder's BuildState.
+bool g_LastOpIsToolchain = false;
+
 void ResetToolchainStatus()
 {
     std::lock_guard<std::mutex> lock(g_ToolchainMutex);
     g_ToolchainStatusText.clear();
     g_ToolchainError.clear();
     g_ToolchainProgress = 0.0f;
+    g_ToolchainState = BuildState::Idle;
+}
+
+// The output of the operation started last, for QueryStatus(). One started
+// from MCP has nobody reading its lines as they come, and why a build failed
+// is in them (the compiler's error), not in its status.
+constexpr size_t kOutputLines = 500;
+std::mutex g_OutputMutex;
+std::deque<std::string> g_Output;
+size_t g_OutputTotal = 0;
+
+void ResetOutput()
+{
+    std::lock_guard<std::mutex> lock(g_OutputMutex);
+    g_Output.clear();
+    g_OutputTotal = 0;
+}
+
+// onLine, with each line also kept in g_Output. Error lines are kept with an
+// "error: " prefix, the only place their flag survives.
+FirmwareLogCallback Recording(FirmwareLogCallback onLine)
+{
+    return [onLine](const std::string& line, bool isError)
+    {
+        {
+            std::lock_guard<std::mutex> lock(g_OutputMutex);
+            g_Output.push_back(isError ? "error: " + line : line);
+            if (g_Output.size() > kOutputLines)
+            {
+                g_Output.pop_front();
+            }
+            ++g_OutputTotal;
+        }
+        if (onLine)
+        {
+            onLine(line, isError);
+        }
+    };
+}
+
+// A build or deploy's progress, reduced to the one call that says it ended:
+// Completed, Failed, or Idle after it ran (cancelled). Null without onDone.
+BuildProgressCallback DoneSink(FirmwareDoneCallback onDone)
+{
+    if (!onDone)
+    {
+        return nullptr;
+    }
+    auto ran = std::make_shared<std::atomic<bool>>(false);
+    auto ended = std::make_shared<std::atomic<bool>>(false);
+    return [onDone, ran, ended](const BuildProgress& p)
+    {
+        if (p.state == BuildState::Building || p.state == BuildState::Deploying)
+        {
+            *ran = true;
+            return;
+        }
+        const bool end = p.state == BuildState::Completed || p.state == BuildState::Failed ||
+                         (p.state == BuildState::Idle && *ran);
+        if (end && !ended->exchange(true))
+        {
+            onDone(p.state, p.state == BuildState::Failed ? p.error : p.statusText);
+        }
+    };
 }
 
 // Progress sink shared by the blocking and non-blocking install paths.
@@ -200,6 +272,10 @@ BuildProgressCallback MakeToolchainProgressSink(FirmwareLogCallback onLine)
             if (!p.error.empty())
             {
                 g_ToolchainError = p.error;
+            }
+            if (p.state == BuildState::Completed || p.state == BuildState::Failed)
+            {
+                g_ToolchainState = p.state;
             }
         }
 
@@ -288,10 +364,19 @@ FirmwareOpResult Started(const Ctx& ctx)
     return r;
 }
 
+// Makes ctx's builder the one QueryStatus() reports on, with a fresh output.
+void BeginOp(const Ctx& ctx, bool toolchain)
+{
+    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
+    g_LastOpIsToolchain = toolchain;
+    ResetOutput();
+}
+
 // Shared by Build() and StartBuild(): resolves, checks the toolchain, writes
 // the build files, and starts the build thread.
 FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string& platformId, FirmwareLogCallback onLine,
-                              Ctx& ctx, EditorApp* editor, const BuildOptions& options)
+                              Ctx& ctx, EditorApp* editor, const BuildOptions& options,
+                              FirmwareDoneCallback onDone = nullptr)
 {
     std::string err;
     if (!Prepare(projectPath, platformId, ctx, err))
@@ -304,16 +389,20 @@ FirmwareOpResult KickOffBuild(const std::string& projectPath, const std::string&
         return Failure("A build is already in progress for this builder.");
     }
 
+    ResetOutput();
+    const FirmwareLogCallback lines = Recording(onLine);
+
     // One definition of "prepare a firmware build", shared with the Build panel.
     FirmwareOpResult prepared =
-        FirmwareBuildService::PrepareBuild(projectPath, *ctx.platform, *ctx.builder, editor, options, onLine);
+        FirmwareBuildService::PrepareBuild(projectPath, *ctx.platform, *ctx.builder, editor, options, lines);
     if (!prepared.success)
     {
         return prepared;
     }
 
     g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->Build(projectPath, onLine, nullptr);
+    g_LastOpIsToolchain = false;
+    ctx.builder->Build(projectPath, lines, DoneSink(onDone));
     return Started(ctx);
 }
 
@@ -578,7 +667,17 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
         {
             if (!exporter.ExportAssets((std::filesystem::path(bootPayloadDir) / "assets").string()))
             {
-                return Failure("Failed to export the assets into the build; the log lists what is wrong.");
+                // Each problem in the build's output and in the error, not
+                // only the Console: a build started from MCP or the CLI has
+                // no Console to read.
+                std::string why;
+                for (const std::string& problem : exporter.GetProblems())
+                {
+                    log(problem, true);
+                    why += (why.empty() ? "" : "; ") + problem;
+                }
+                return Failure("Failed to export the assets into the build" +
+                               (why.empty() ? std::string("; the log lists what is wrong.") : ": " + why));
             }
             log("Exported the assets into the build (internal storage)", false);
         }
@@ -661,10 +760,10 @@ FirmwareOpResult FirmwareBuildService::Build(const std::string& projectPath, con
 
 FirmwareOpResult FirmwareBuildService::StartBuild(const std::string& projectPath, const std::string& platformId,
                                                   FirmwareLogCallback onLine, EditorApp* editor,
-                                                  const BuildOptions& options)
+                                                  const BuildOptions& options, FirmwareDoneCallback onDone)
 {
     Ctx ctx;
-    return KickOffBuild(projectPath, platformId, onLine, ctx, editor, options);
+    return KickOffBuild(projectPath, platformId, onLine, ctx, editor, options, onDone);
 }
 
 namespace
@@ -680,7 +779,7 @@ std::string NoDeployStep(const ITargetBuilder& builder, const PlatformConfig& pl
 
 FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPath, const std::string& platformId,
                                                    const std::string& deployTargetId, FirmwareLogCallback onLine,
-                                                   const BuildOptions& options)
+                                                   const BuildOptions& options, FirmwareDoneCallback onDone)
 {
     Ctx ctx;
     std::string err;
@@ -703,8 +802,8 @@ FirmwareOpResult FirmwareBuildService::StartDeploy(const std::string& projectPat
     {
         return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
     }
-    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
+    BeginOp(ctx, false);
+    ctx.builder->Deploy(projectPath, deployTargetId, Recording(onLine), DoneSink(onDone));
     return Started(ctx);
 }
 
@@ -727,8 +826,8 @@ FirmwareOpResult FirmwareBuildService::StartInstallToolchainComponent(const std:
     }
 
     ResetToolchainStatus();
-    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->InstallToolchainComponent(componentId, MakeToolchainProgressSink(onLine));
+    BeginOp(ctx, true);
+    ctx.builder->InstallToolchainComponent(componentId, MakeToolchainProgressSink(Recording(onLine)));
     return Started(ctx);
 }
 
@@ -751,12 +850,25 @@ FirmwareOpResult FirmwareBuildService::StartSetupToolchainComponent(const std::s
     }
 
     ResetToolchainStatus();
-    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->SetupToolchainComponent(componentId, MakeToolchainProgressSink(onLine));
+    BeginOp(ctx, true);
+    ctx.builder->SetupToolchainComponent(componentId, MakeToolchainProgressSink(Recording(onLine)));
     return Started(ctx);
 }
 
-nlohmann::json FirmwareBuildService::QueryStatus()
+nlohmann::json FirmwareBuildService::QueryStatus(size_t outputLines)
+{
+    nlohmann::json out = QueryState();
+    if (outputLines > 0)
+    {
+        std::lock_guard<std::mutex> lock(g_OutputMutex);
+        const size_t n = std::min(outputLines, g_Output.size());
+        out["output"] = std::vector<std::string>(g_Output.end() - static_cast<std::ptrdiff_t>(n), g_Output.end());
+        out["outputLineCount"] = g_OutputTotal;
+    }
+    return out;
+}
+
+nlohmann::json FirmwareBuildService::QueryState()
 {
     nlohmann::json out;
 
@@ -806,19 +918,16 @@ nlohmann::json FirmwareBuildService::QueryStatus()
     out["platformId"] = g_Active.platformId;
     out["platformName"] = g_Active.platformName;
 
-    // Surface a finished install's error when no build has run since.
-    if (p.state == BuildState::Idle)
+    // A finished install or setup reports its own result: the builder's
+    // BuildState is still whatever the last build left.
+    if (g_LastOpIsToolchain)
     {
         std::lock_guard<std::mutex> lock(g_ToolchainMutex);
-        if (!g_ToolchainError.empty())
-        {
-            out["state"] = "failed";
-            out["error"] = g_ToolchainError;
-        }
-        else if (!g_ToolchainStatusText.empty())
-        {
-            out["statusText"] = g_ToolchainStatusText;
-        }
+        const bool failed = g_ToolchainState == BuildState::Failed || !g_ToolchainError.empty();
+        out["state"] = failed ? "failed" : g_ToolchainState == BuildState::Completed ? "completed" : "idle";
+        out["statusText"] = g_ToolchainStatusText;
+        out["progress"] = g_ToolchainProgress;
+        out["error"] = g_ToolchainError;
     }
 
     return out;
@@ -853,8 +962,8 @@ FirmwareOpResult FirmwareBuildService::Deploy(const std::string& projectPath, co
         return Failure(NoDeployStep(*ctx.builder, *ctx.platform));
     }
 
-    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->Deploy(projectPath, deployTargetId, onLine, nullptr);
+    BeginOp(ctx, false);
+    ctx.builder->Deploy(projectPath, deployTargetId, Recording(onLine), nullptr);
     return WaitForBuild(ctx.builder, ctx);
 }
 
@@ -869,8 +978,8 @@ FirmwareOpResult FirmwareBuildService::Clean(const std::string& projectPath, con
     }
 
     ctx.builder->SetPlatformConfig(*ctx.platform);
-    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->Clean(projectPath, onLine, nullptr);
+    BeginOp(ctx, false);
+    ctx.builder->Clean(projectPath, Recording(onLine), nullptr);
     return WaitForBuild(ctx.builder, ctx);
 }
 
@@ -893,8 +1002,8 @@ FirmwareOpResult FirmwareBuildService::InstallToolchainComponent(const std::stri
     }
 
     ResetToolchainStatus();
-    g_Active = ActiveOp{ ctx.builder, ctx.platformId, ctx.platform->displayName };
-    ctx.builder->InstallToolchainComponent(componentId, MakeToolchainProgressSink(onLine));
+    BeginOp(ctx, true);
+    ctx.builder->InstallToolchainComponent(componentId, MakeToolchainProgressSink(Recording(onLine)));
 
     while (ctx.builder->IsToolchainBusy())
     {

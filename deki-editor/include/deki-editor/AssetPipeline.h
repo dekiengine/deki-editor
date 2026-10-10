@@ -21,6 +21,10 @@ namespace DekiEditor
 // pipeline wipes the cache and rebuilds it.
 constexpr int kDekiCacheVersion = 5;  // 5: version 3 meshes and tilemaps without pool offsets are not read
 
+// Bump when CompileSceneFile writes a scene differently: compiled scenes are
+// rebuilt, and nothing else is. 2: a sprite frame is written as its sheet.
+constexpr int kSceneCompileVersion = 2;
+
 class AssetPipeline;
 class AssetFileWatcher;
 

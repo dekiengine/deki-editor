@@ -569,6 +569,8 @@ set(EDITOR_TESTABLE_SOURCES
     # FileDialogFilterTests: the Win32 filter string the call sites are
     # written in, as the portable dialogs need it.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FileDialogFilter.cpp
+    # DeviceScreenshotTests: reading a board's answer to a screen capture.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/DeviceScreenshot.cpp
     # TransformWidthTests: the width a project compiles, from the tags its
     # packages and deki.json declare.
     # The stripper: what a device build leaves out, from the descriptors, the

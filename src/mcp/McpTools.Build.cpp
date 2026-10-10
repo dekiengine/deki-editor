@@ -14,6 +14,11 @@
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include "../services/FirmwareBuildService.h"
+#include "../panels/ActivityPanel.h"
+#include "../services/DeviceScreenshot.h"
+#include "McpCompletion.h"
+#include <deki-editor/SerialPorts.h>
+#include "stb_image_write.h"
 #include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/build/BuilderRegistry.h>
 #include <deki-editor/build/TargetBuilder.h>
@@ -21,6 +26,10 @@
 #include "../services/PackageManager.h"
 #include <deki-editor/Paths.h>
 
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <mutex>
 #include <filesystem>
 #include <chrono>
 #include <cstdio>
@@ -61,6 +70,59 @@ std::string ResolveProjectPath(EditorApp* editor, const nlohmann::json& args)
 std::string ArgPlatform(const nlohmann::json& args)
 {
     return args.value("platform_id", std::string());
+}
+
+// The Activity panel's process for a deploy: the backend's own verb ("Flash"),
+// as the Build panel names it.
+std::string DeployVerb(EditorApp* editor, const nlohmann::json& args)
+{
+    std::string id = ArgPlatform(args);
+    if (id.empty() && editor && editor->GetProject())
+    {
+        id = editor->GetProject()->GetActivePlatformId();
+    }
+    const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(id);
+    ITargetBuilder* builder = platform ? BuilderRegistry::Instance().GetBuilderForPlatform(*platform) : nullptr;
+    return builder ? builder->GetDeployLabel() : "Deploy";
+}
+
+// A build or deploy started from MCP shows in the Activity panel like one
+// started from the Build panel: its output as it comes, and how it ended.
+// Without this its output went nowhere, so a failed build could not be read
+// in the editor.
+FirmwareLogCallback ActivityLines(const std::string& process)
+{
+    ActivityPanel::Log(process, process + " (started over MCP)...");
+    return [process](const std::string& line, bool isError)
+    {
+        if (isError)
+        {
+            ActivityPanel::LogError(process, line);
+        }
+        else
+        {
+            ActivityPanel::Log(process, line);
+        }
+    };
+}
+
+FirmwareDoneCallback ActivityDone(const std::string& process)
+{
+    return [process](BuildState state, const std::string& text)
+    {
+        if (state == BuildState::Completed)
+        {
+            ActivityPanel::CompleteProcess(process);
+        }
+        else if (state == BuildState::Failed)
+        {
+            ActivityPanel::FailProcess(process, text);
+        }
+        else
+        {
+            ActivityPanel::CancelProcess(process);
+        }
+    };
 }
 
 nlohmann::json OpToJson(const FirmwareOpResult& r)
@@ -982,7 +1044,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               options.simulate = args.value("simulate", false);
               // The editor, so the build gets its boot payload and the
               // scene-scanned defines, as the CLI and the Build panel do.
-              FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), nullptr, editor, options);
+              FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), ActivityLines("Build"), editor,
+                                                                   options, ActivityDone("Build"));
               if (!r.success)
               {
                   throw std::runtime_error(r.error);
@@ -994,12 +1057,23 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               return j;
           } });
 
-    registry.Register({ "build_status",
-                        "Progress of the most recently started build, flash, or toolchain "
-                        "install. state is idle|building|flashing|completed|failed; active is "
-                        "true while the worker thread is running.",
-                        { { "type", "object" }, { "properties", nlohmann::json::object() } },
-                        [](const nlohmann::json&) -> nlohmann::json { return FirmwareBuildService::QueryStatus(); } });
+    registry.Register(
+        { "build_status",
+          "Progress of the most recently started build, flash, or toolchain install or setup. state is "
+          "idle|building|deploying|installing|completed|failed; active is true while the worker thread is "
+          "running. output is the operation's last lines (error lines start \"error: \"): a failed build's "
+          "reason, such as the compiler error, is there.",
+          { { "type", "object" },
+            { "properties",
+              { { "output_lines",
+                  { { "type", "integer" },
+                    { "description", "How many of the last output lines to return (default 20, at most 500; 0 for "
+                                     "none)" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              const int lines = args.value("output_lines", 20);
+              return FirmwareBuildService::QueryStatus(static_cast<size_t>(std::clamp(lines, 0, 500)));
+          } });
 
     registry.Register({ "cancel_build",
                         "Request cancellation of the in-flight build or flash. Returns "
@@ -1074,7 +1148,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               const std::string target = args.value("target", std::string());
               BuildOptions options;
               options.simulate = args.value("simulate", false);
-              FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target, nullptr, options);
+              const std::string verb = DeployVerb(editor, args);
+              FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target,
+                                                                    ActivityLines(verb), options, ActivityDone(verb));
               if (!r.success)
               {
                   throw std::runtime_error(r.error);
@@ -1084,6 +1160,113 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               j["started"] = true;
               j["note"] = "Deploy running in background - poll build_status.";
               return j;
+          } });
+
+    // What the board itself shows, fetched over its serial port: the one way
+    // to see what the hardware drew (DeviceScreenshot.h has the protocol).
+    registry.Register(
+        { "device_screenshot",
+          "Save the frame a connected board is showing to a PNG, fetched over its serial port. The firmware must "
+          "answer the screen capture request (the ESP32 HAL does, from the build that added it). Returns once the "
+          "file is written, about a second for 320x240. Close the Serial Monitor first if it has the port open.",
+          { { "type", "object" },
+            { "required", nlohmann::json::array({ "path" }) },
+            { "properties",
+              { { "path", { { "type", "string" }, { "description", "PNG file to write" } } },
+                { "port",
+                  { { "type", "string" },
+                    { "description", "Serial port (COM3, /dev/ttyACM0); default: the only one there is" } } },
+                { "timeout_ms",
+                  { { "type", "integer" }, { "description", "How long to wait for the frame (default 15000)" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = args.value("path", std::string());
+              if (path.empty())
+              {
+                  throw std::runtime_error("device_screenshot needs a path");
+              }
+              std::string port = args.value("port", std::string());
+              if (port.empty())
+              {
+                  const std::vector<std::string> ports = EnumerateSerialPorts();
+                  if (ports.empty())
+                  {
+                      throw std::runtime_error("No serial port: connect the board with a USB data cable");
+                  }
+                  if (ports.size() > 1)
+                  {
+                      std::string list;
+                      for (const std::string& p : ports)
+                      {
+                          list += (list.empty() ? "" : ", ") + p;
+                      }
+                      throw std::runtime_error("Several serial ports (" + list + "): name the board's with port");
+                  }
+                  port = ports.front();
+              }
+              std::string reason;
+              if (!SafeNames::IsSafeSerialPort(port, reason))
+              {
+                  throw std::runtime_error("Not a serial port: " + reason + " ('" + port + "')");
+              }
+              const int timeoutMs = std::clamp(args.value("timeout_ms", 15000), 1000, 55000);
+
+              // The serial exchange blocks for about a second, so it runs on
+              // its own thread and the call is answered once it is done.
+              struct Job
+              {
+                  std::mutex mutex;
+                  bool done = false;
+                  bool ok = false;
+                  std::string error;
+                  DeviceFrame frame;
+                  double seconds = 0.0;
+              };
+              auto job = std::make_shared<Job>();
+              std::thread(
+                  [job, port, timeoutMs]()
+                  {
+                      const auto t0 = std::chrono::steady_clock::now();
+                      DeviceFrame frame;
+                      std::string error;
+                      const bool ok = CaptureDeviceScreenshot(port, timeoutMs, frame, error);
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      job->ok = ok;
+                      job->error = error;
+                      job->frame = std::move(frame);
+                      job->seconds =
+                          std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                      job->done = true;
+                  })
+                  .detach();
+
+              McpCompletion::Defer(
+                  [job, path, port]() -> std::optional<nlohmann::json>
+                  {
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      if (!job->done)
+                      {
+                          return std::nullopt;
+                      }
+                      if (!job->ok)
+                      {
+                          throw std::runtime_error(job->error);
+                      }
+                      std::error_code ec;
+                      const std::filesystem::path parent = std::filesystem::path(path).parent_path();
+                      if (!parent.empty())
+                      {
+                          std::filesystem::create_directories(parent, ec);
+                      }
+                      const DeviceFrame& f = job->frame;
+                      if (!stbi_write_png(path.c_str(), f.width, f.height, 4, f.rgba.data(), f.width * 4))
+                      {
+                          throw std::runtime_error("could not write " + path);
+                      }
+                      return nlohmann::json{ { "path", path },     { "port", port },         { "width", f.width },
+                                             { "height", f.height }, { "format", f.format }, { "seconds", job->seconds } };
+                  });
+              return { { "status", "fetching" }, { "port", port } };
           } });
 
     registry.Register(

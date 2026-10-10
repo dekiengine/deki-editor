@@ -7,6 +7,19 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Fixed
+- **A sprite that shows one frame of a sprite sheet draws on a device.** A
+  scene can name the frame by its own GUID, which the editor resolves but a
+  device looked up as a file that is not there, so the sprite drew nothing and
+  its animation never ran (the meadow's alien and flyer). Compiled scenes now
+  name the sheet, with the frame in `source`, as the runtime expects; scenes
+  are compiled again once (`kSceneCompileVersion`).
+- A build or flash started from MCP shows in the Activity panel, its output
+  and how it ended, like one started from the Build panel. Its output used to
+  go nowhere, so a failed build could not be read in the editor.
+- A build that fails exporting its assets says which assets, in the build's
+  output and its error, not only in the Console.
+- `build_status` reports a finished toolchain install or setup as
+  `completed` (or `failed`); it said `idle`.
 - `set_property` and `get_properties` reach a component's inherited
   properties, such as `sortingOrder` on a sprite or text.
 - Windows: a project's packages now build however the editor was started.
@@ -90,6 +103,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   name.
 
 ### Added
+- **`device_screenshot`** (MCP): saves the frame a connected board is showing
+  to a PNG, fetched over its serial port, about a second for 320x240. What the
+  hardware drew can be looked at, which play mode cannot show. The board's
+  firmware answers the request (`DEKI:SCREENSHOT`; the ESP32 HAL does from
+  this release); the port defaults to the only one there is.
+- `build_status` returns the operation's last output lines (`output`,
+  `output_lines` to choose how many, up to 500), so the reason a build failed,
+  such as the compiler's error, can be read over MCP.
 - Toolchain definitions: a component's `pathEntries` (per platform) are put
   first on PATH while a component's setup script runs, so the script finds
   the toolchain's own tools. ESP-IDF's install.bat runs `python`, and a fresh

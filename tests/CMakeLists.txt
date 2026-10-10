@@ -47,6 +47,7 @@ set(TEST_SOURCES
     services/AgentCursorIntentTests.cpp
     services/ToolchainPathTests.cpp
     services/BuilderDefinitionTests.cpp
+    services/DeviceScreenshotTests.cpp
     services/FileDialogFilterTests.cpp
     services/BufferTests.cpp
     services/VectorTests.cpp
