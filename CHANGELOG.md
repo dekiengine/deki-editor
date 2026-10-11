@@ -4,9 +4,14 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.18.2 - 2026-10-11
 
 ### Fixed
+- **Windows: the download builds projects.** The bundled compiler found the
+  C++ headers but not the C ones (`wchar.h`), so the 0.18.0 archive failed its
+  own check and was never published. MSYS2's GCC finds the C headers through
+  its sysroot, `/mingw64`, which it relocates as `bin/../../mingw64`: the
+  toolchain is now bundled as `toolchain/mingw64/`, where that resolves.
 - **A sprite that shows one frame of a sprite sheet draws on a device.** A
   scene can name the frame by its own GUID, which the editor resolves but a
   device looked up as a file that is not there, so the sprite drew nothing and
