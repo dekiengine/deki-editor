@@ -3,6 +3,8 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <map>
 #include <sstream>
 
 #ifdef _WIN32
@@ -226,18 +228,17 @@ bool ParseDeviceScreenshot(const std::string& received, DeviceFrame& frame, std:
     return true;
 }
 
-bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame& frame, std::string& error)
+namespace
 {
-    static const char kRequest[] = "\nDEKI:SCREENSHOT\n";
-    std::string received;
+// Opens `port`, sends `request` and collects what comes back until
+// `finished(received)` or the time is up. The port is opened without raising
+// DTR or RTS, which would reset an ESP32. False only when the port could not
+// be opened or written; what arrived is in `received` either way.
+bool Exchange(const std::string& port, const std::string& request, const std::function<bool(const std::string&)>& isDone,
+              int timeoutMs, std::string& received, std::string& error)
+{
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
-    auto finished = [&received]()
-    {
-        const size_t begin = received.rfind(kBegin);
-        return (begin != std::string::npos && received.find(kEnd, begin) != std::string::npos &&
-                received.find('\n', received.find(kEnd, begin)) != std::string::npos) ||
-               received.find(kError) != std::string::npos;
-    };
+    auto finished = [&]() { return isDone(received); };
 
 #ifdef _WIN32
     const std::string path = port.rfind("\\\\.\\", 0) == 0 ? port : "\\\\.\\" + port;
@@ -268,7 +269,8 @@ bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame
     PurgeComm(handle, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
     DWORD written = 0;
-    if (!WriteFile(handle, kRequest, sizeof(kRequest) - 1, &written, nullptr) || written != sizeof(kRequest) - 1)
+    if (!WriteFile(handle, request.data(), static_cast<DWORD>(request.size()), &written, nullptr) ||
+        written != request.size())
     {
         CloseHandle(handle);
         error = "could not send the request to " + port;
@@ -302,7 +304,7 @@ bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame
         tcsetattr(fd, TCSANOW, &tty);
     }
     tcflush(fd, TCIOFLUSH);
-    if (write(fd, kRequest, sizeof(kRequest) - 1) != static_cast<ssize_t>(sizeof(kRequest) - 1))
+    if (write(fd, request.data(), request.size()) != static_cast<ssize_t>(request.size()))
     {
         close(fd);
         error = "could not send the request to " + port;
@@ -323,14 +325,88 @@ bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame
     }
     close(fd);
 #endif
+    return true;
+}
+}  // namespace
 
-    if (!finished() && received.find(kBegin) == std::string::npos && received.find(kError) == std::string::npos)
+bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame& frame, std::string& error)
+{
+    std::string received;
+    auto finished = [](const std::string& text)
+    {
+        const size_t begin = text.rfind(kBegin);
+        return (begin != std::string::npos && text.find(kEnd, begin) != std::string::npos &&
+                text.find('\n', text.find(kEnd, begin)) != std::string::npos) ||
+               text.find(kError) != std::string::npos;
+    };
+    if (!Exchange(port, "\nDEKI:SCREENSHOT\n", finished, timeoutMs, received, error))
+    {
+        return false;
+    }
+    if (!finished(received) && received.find(kBegin) == std::string::npos && received.find(kError) == std::string::npos)
     {
         error = "no answer from the board on " + port + " within " + std::to_string(timeoutMs / 1000) +
                 " s. Its firmware may be older than the screen capture (flash it again), or it is not running";
         return false;
     }
     return ParseDeviceScreenshot(received, frame, error);
+}
+
+bool ParseDeviceStats(const std::string& received, std::map<std::string, std::string>& stats, std::string& error)
+{
+    static const std::string kStats = "DEKI:STATS ";
+    static const std::string kStatsError = "DEKI:STATS:ERROR";
+    const size_t at = received.rfind(kStats);
+    if (at == std::string::npos)
+    {
+        const size_t failed = received.rfind(kStatsError);
+        if (failed != std::string::npos)
+        {
+            const size_t start = failed + kStatsError.size();
+            const size_t end = received.find_first_of("\r\n", start);
+            error = "the board has no statistics yet:" +
+                    received.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        }
+        else
+        {
+            error = "the board did not answer. Its firmware may be older than the statistics (flash it again), or "
+                    "it is not running";
+        }
+        return false;
+    }
+    const size_t end = received.find_first_of("\r\n", at);
+    if (end == std::string::npos)
+    {
+        error = "the board's statistics were cut short";
+        return false;
+    }
+    std::istringstream fields(received.substr(at + kStats.size(), end - at - kStats.size()));
+    std::string field;
+    while (fields >> field)
+    {
+        const size_t eq = field.find('=');
+        if (eq != std::string::npos)
+        {
+            stats[field.substr(0, eq)] = field.substr(eq + 1);
+        }
+    }
+    return true;
+}
+
+bool QueryDeviceStats(const std::string& port, int timeoutMs, std::map<std::string, std::string>& stats,
+                      std::string& error)
+{
+    std::string received;
+    auto finished = [](const std::string& text)
+    {
+        const size_t at = text.rfind("DEKI:STATS");
+        return at != std::string::npos && text.find('\n', at) != std::string::npos;
+    };
+    if (!Exchange(port, "\nDEKI:STATS\n", finished, timeoutMs, received, error))
+    {
+        return false;
+    }
+    return ParseDeviceStats(received, stats, error);
 }
 
 }  // namespace DekiEditor

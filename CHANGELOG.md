@@ -103,6 +103,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   name.
 
 ### Added
+- **`device_stats`** (MCP): frames per second and the average frame,
+  update, render and present times of a connected board over the last second,
+  and its free memory, for measuring what makes a game slow on the hardware.
 - **`device_screenshot`** (MCP): saves the frame a connected board is showing
   to a PNG, fetched over its serial port, about a second for 320x240. What the
   hardware drew can be looked at, which play mode cannot show. The board's

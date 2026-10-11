@@ -4,6 +4,7 @@
 
 #include "services/DeviceScreenshot.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -113,4 +114,27 @@ TEST(DeviceScreenshot, ASizeThatDoesNotMatchTheFormatIsRefused)
     std::string error;
     EXPECT_FALSE(ParseDeviceScreenshot(Answer(kRedBlue, Crc32(kRedBlue), "2 1 RGB565 6"), frame, error));
     EXPECT_FALSE(error.empty());
+}
+
+TEST(DeviceStats, ReadsTheNameValueLineAmongLogLines)
+{
+    std::map<std::string, std::string> stats;
+    std::string error;
+    ASSERT_TRUE(ParseDeviceStats("I (5) x\r\n\r\nDEKI:STATS fps=31.5 frameMs=31.75 presentMs=26.10 frames=32\r\nI (6) y\r\n",
+                                 stats, error))
+        << error;
+    EXPECT_EQ(stats["fps"], "31.5");
+    EXPECT_EQ(stats["frameMs"], "31.75");
+    EXPECT_EQ(stats["presentMs"], "26.10");
+    EXPECT_EQ(stats["frames"], "32");
+}
+
+TEST(DeviceStats, TheBoardsErrorAndNoAnswerAreReported)
+{
+    std::map<std::string, std::string> stats;
+    std::string error;
+    EXPECT_FALSE(ParseDeviceStats("\r\nDEKI:STATS:ERROR no frames counted yet\r\n", stats, error));
+    EXPECT_NE(error.find("no frames counted yet"), std::string::npos) << error;
+    EXPECT_FALSE(ParseDeviceStats("nothing\r\n", stats, error));
+    EXPECT_NE(error.find("did not answer"), std::string::npos) << error;
 }

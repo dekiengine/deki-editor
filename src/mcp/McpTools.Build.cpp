@@ -28,6 +28,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdlib>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <filesystem>
@@ -84,6 +86,37 @@ std::string DeployVerb(EditorApp* editor, const nlohmann::json& args)
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(id);
     ITargetBuilder* builder = platform ? BuilderRegistry::Instance().GetBuilderForPlatform(*platform) : nullptr;
     return builder ? builder->GetDeployLabel() : "Deploy";
+}
+
+// The serial port a board tool talks to: `port` from the arguments, else the
+// only one there is.
+std::string BoardPort(const nlohmann::json& args)
+{
+    std::string port = args.value("port", std::string());
+    if (port.empty())
+    {
+        const std::vector<std::string> ports = EnumerateSerialPorts();
+        if (ports.empty())
+        {
+            throw std::runtime_error("No serial port: connect the board with a USB data cable");
+        }
+        if (ports.size() > 1)
+        {
+            std::string list;
+            for (const std::string& p : ports)
+            {
+                list += (list.empty() ? "" : ", ") + p;
+            }
+            throw std::runtime_error("Several serial ports (" + list + "): name the board's with port");
+        }
+        port = ports.front();
+    }
+    std::string reason;
+    if (!SafeNames::IsSafeSerialPort(port, reason))
+    {
+        throw std::runtime_error("Not a serial port: " + reason + " ('" + port + "')");
+    }
+    return port;
 }
 
 // A build or deploy started from MCP shows in the Activity panel like one
@@ -1185,30 +1218,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               {
                   throw std::runtime_error("device_screenshot needs a path");
               }
-              std::string port = args.value("port", std::string());
-              if (port.empty())
-              {
-                  const std::vector<std::string> ports = EnumerateSerialPorts();
-                  if (ports.empty())
-                  {
-                      throw std::runtime_error("No serial port: connect the board with a USB data cable");
-                  }
-                  if (ports.size() > 1)
-                  {
-                      std::string list;
-                      for (const std::string& p : ports)
-                      {
-                          list += (list.empty() ? "" : ", ") + p;
-                      }
-                      throw std::runtime_error("Several serial ports (" + list + "): name the board's with port");
-                  }
-                  port = ports.front();
-              }
-              std::string reason;
-              if (!SafeNames::IsSafeSerialPort(port, reason))
-              {
-                  throw std::runtime_error("Not a serial port: " + reason + " ('" + port + "')");
-              }
+              const std::string port = BoardPort(args);
               const int timeoutMs = std::clamp(args.value("timeout_ms", 15000), 1000, 55000);
 
               // The serial exchange blocks for about a second, so it runs on
@@ -1267,6 +1277,74 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                                              { "height", f.height }, { "format", f.format }, { "seconds", job->seconds } };
                   });
               return { { "status", "fetching" }, { "port", port } };
+          } });
+
+    registry.Register(
+        { "device_stats",
+          "Frame statistics from a connected board, averaged over the last second: fps, frameMs, and the engine's "
+          "split of a frame (updateMs, renderMs, presentMs, whole milliseconds averaged), plus free internal and "
+          "external memory. The firmware must answer the request (the ESP32 HAL does, from the build that added "
+          "it). Close the Serial Monitor first if it has the port open.",
+          { { "type", "object" },
+            { "properties",
+              { { "port",
+                  { { "type", "string" },
+                    { "description", "Serial port (COM3, /dev/ttyACM0); default: the only one there is" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string port = BoardPort(args);
+              struct Job
+              {
+                  std::mutex mutex;
+                  bool done = false;
+                  bool ok = false;
+                  std::string error;
+                  std::map<std::string, std::string> stats;
+              };
+              auto job = std::make_shared<Job>();
+              std::thread(
+                  [job, port]()
+                  {
+                      std::map<std::string, std::string> stats;
+                      std::string error;
+                      const bool ok = QueryDeviceStats(port, 5000, stats, error);
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      job->ok = ok;
+                      job->error = error;
+                      job->stats = std::move(stats);
+                      job->done = true;
+                  })
+                  .detach();
+              McpCompletion::Defer(
+                  [job, port]() -> std::optional<nlohmann::json>
+                  {
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      if (!job->done)
+                      {
+                          return std::nullopt;
+                      }
+                      if (!job->ok)
+                      {
+                          throw std::runtime_error(job->error);
+                      }
+                      nlohmann::json out{ { "port", port } };
+                      for (const auto& [name, value] : job->stats)
+                      {
+                          // Numbers as numbers.
+                          char* end = nullptr;
+                          const double number = std::strtod(value.c_str(), &end);
+                          if (end && *end == 0 && !value.empty())
+                          {
+                              out[name] = number;
+                          }
+                          else
+                          {
+                              out[name] = value;
+                          }
+                      }
+                      return out;
+                  });
+              return { { "status", "asking" }, { "port", port } };
           } });
 
     registry.Register(

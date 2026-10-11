@@ -7,6 +7,7 @@
 // editor's play mode cannot show.
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -31,5 +32,15 @@ bool ParseDeviceScreenshot(const std::string& received, DeviceFrame& frame, std:
 /// port is opened without raising DTR or RTS, which would reset an ESP32.
 /// Blocks: call it off the main thread.
 bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame& frame, std::string& error);
+
+/// Reads a board's answer to "DEKI:STATS": one line of name=value pairs
+/// (fps, frameMs, updateMs, renderMs, presentMs, frames, internalFree,
+/// externalFree), averaged over the last second or so.
+bool ParseDeviceStats(const std::string& received, std::map<std::string, std::string>& stats, std::string& error);
+
+/// Asks the board on `port` for its frame statistics. Blocks: call it off the
+/// main thread.
+bool QueryDeviceStats(const std::string& port, int timeoutMs, std::map<std::string, std::string>& stats,
+                      std::string& error);
 
 }  // namespace DekiEditor
