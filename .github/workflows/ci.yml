@@ -8,8 +8,7 @@
 # project, build it (packages cloned from the public registry, compiled with
 # the same GCC), verify its scene and render it, and compare the pixel hash to
 # tools/ci/golden-scaffold.txt. That is a cold build of several packages, so
-# it runs on pull requests, tags and manual dispatch rather than on every push,
-# to keep the minutes of a private repository in check.
+# it runs on pull requests, tags and manual dispatch rather than on every push.
 #
 # The "demo" jobs do the same with deki-demo on every board it targets: its
 # renders against tools/ci/golden-demo.txt, and nightly its firmware.
@@ -361,11 +360,14 @@ jobs:
   # colour format, and the hashes must match that board's block in
   # tools/ci/golden-demo.txt. deki-demo is private: it is checked out with a
   # read-only deploy key (DEKI_DEMO_DEPLOY_KEY, set up like the engine's, see
-  # .github/actions/checkout-with-engine).
+  # .github/actions/checkout-with-engine). A pull request from a fork gets no
+  # secrets, so it cannot read the demo and skips this job.
   demo-boards:
     name: Demo on every board (Linux)
     needs: linux
-    if: github.event_name != 'push'
+    if: >-
+      github.event_name != 'push' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
