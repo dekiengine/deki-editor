@@ -66,7 +66,12 @@ std::string BundledPath(const std::string& name)
 
 std::string BundledToolchainDir()
 {
-    return (fs::path(EditorPaths::GetExecutableDir()) / "toolchain").string();
+    const fs::path dir = fs::path(EditorPaths::GetExecutableDir()) / "toolchain";
+#ifdef _WIN32
+    return (dir / "mingw64").string();
+#else
+    return dir.string();
+#endif
 }
 
 bool HasBundledToolchain()

@@ -14,13 +14,12 @@
 #     dist\DekiEditor-windows-x86_64\
 #         DekiEditor.exe
 #         libdeki-*.dll, SDL3.dll, resources\, ninja.exe, sccache.exe
-#         toolchain\bin\{g++.exe,gcc.exe,as.exe,ld.exe,cmake.exe,ninja.exe,...}
-#         toolchain\lib\gcc\...            <- cc1plus, found via argv[0]
-#         toolchain\include\c++\...
-#         toolchain\x86_64-w64-mingw32\...
+#         toolchain\mingw64\bin\{g++.exe,gcc.exe,as.exe,ld.exe,cmake.exe,ninja.exe,...}
+#         toolchain\mingw64\lib\gcc\...            <- cc1plus, found via argv[0]
+#         toolchain\mingw64\include\{c++\...,wchar.h,...}
 #
-# The editor prefers toolchain\ and falls back to PATH, so a build from source
-# with no bundle keeps working (see services/BundledToolchain.h).
+# The editor prefers toolchain\mingw64\ and falls back to PATH, so a build from
+# source with no bundle keeps working (see services/BundledToolchain.h).
 #
 # Usage: tools\package-windows.ps1 [-BuildDir build] [-Msys2 C:\msys64]
 
@@ -111,13 +110,16 @@ Get-ChildItem $Dist -Filter '*.pdb' -Recurse | Remove-Item -Force -ErrorAction S
 # product.
 Get-ChildItem $Dist -Filter '*Tests.exe' | Remove-Item -Force -ErrorAction SilentlyContinue
 
-$TC = Join-Path $Dist 'toolchain'
+# In a directory named mingw64: MSYS2's GCC has /mingw64 as its sysroot, which
+# it relocates as bin\..\..\mingw64, and finds the C headers (wchar.h, ...) in
+# its include\. Anywhere else the C++ headers are found and the C ones are not.
+$TC = Join-Path $Dist 'toolchain\mingw64'
 New-Item -ItemType Directory -Force -Path "$TC\bin" | Out-Null
 
 # --- toolchain -------------------------------------------------------------
 # GCC locates cc1plus, its headers and its libs relative to argv[0]
 # (`g++ -print-prog-name=cc1plus` reports bin\..\lib\gcc\...), so preserving the
-# mingw64 layout under toolchain\ is what makes the copy relocatable.
+# mingw64 layout under toolchain\mingw64\ is what makes the copy relocatable.
 Write-Host "==> Staging GCC"
 
 $gccTargets = @('gcc.exe','g++.exe','cpp.exe','as.exe','ld.exe','ar.exe','ranlib.exe','strip.exe','objdump.exe')

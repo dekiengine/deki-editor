@@ -14,6 +14,10 @@
 //     toolchain/
 //         bin/{g++,gcc,ninja,cmake,...}
 //
+// On Windows it is toolchain/mingw64/: MSYS2's GCC finds the C headers through
+// its sysroot, /mingw64, which it relocates as bin/../../mingw64, so the
+// toolchain works only from a directory of that name.
+//
 // Each tool falls back to PATH when there is no bundled copy, so a build from
 // source works too.
 
@@ -22,7 +26,8 @@
 namespace DekiEditor
 {
 
-/// Absolute path to <executable dir>/toolchain, whether or not it exists.
+/// Absolute path to <executable dir>/toolchain (toolchain/mingw64 on Windows),
+/// whether or not it exists.
 std::string BundledToolchainDir();
 
 /// True if a bundled toolchain is present (its bin/ directory exists).
