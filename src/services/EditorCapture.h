@@ -46,9 +46,11 @@ public:
 
     /// Queues a PNG sequence: `frames` files, one every `stride` frames, as
     /// frame_0000.png … in `dir`, then a `done.txt` marker holding the count.
-    /// Meant to be made into a GIF or video outside the editor.
+    /// Meant to be made into a GIF or video outside the editor. With
+    /// `agentPointer` the frames show the agent's pointer (AgentCursor), for a
+    /// recording of an agent at work; screenshots never do.
     void RequestSequence(const std::string& dir, const std::string& panel, const Region& region, float padding,
-                         int frames, int stride, int framesToWait);
+                         int frames, int stride, int framesToWait, bool agentPointer = false);
 
     /// Called once per frame, after the draw data is submitted and before swap.
     void ProcessEndOfFrame(int framebufferWidth, int framebufferHeight);
@@ -71,6 +73,20 @@ public:
 
     bool HasPendingWork() const { return !m_Requests.empty(); }
 
+    /// True while a pending capture must not show the agent's pointer: any
+    /// screenshot, and a sequence not asked to show it.
+    bool HidesAgentPointer() const
+    {
+        for (const Request& r : m_Requests)
+        {
+            if (!r.agentPointer)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// True while a frame sequence is being recorded. The main loop then steps
     /// the UI by a fixed 1/60 s per frame, so each captured frame is 1/60 s of
     /// animation however long writing it takes.
@@ -92,6 +108,7 @@ private:
     struct Request
     {
         bool sequence = false;
+        bool agentPointer = false;  // a sequence that shows AgentCursor
         uint64_t ticket = 0;  // a screenshot's, for TakeOutcome
         std::string path;  // file (single) or directory (sequence)
         std::string panel;

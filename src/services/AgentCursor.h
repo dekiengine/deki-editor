@@ -4,7 +4,6 @@
 
 #include "imgui.h"
 
-#include <chrono>
 #include <string>
 
 namespace DekiEditor
@@ -74,12 +73,12 @@ public:
 private:
     AgentCursor() = default;
 
-    using Clock = std::chrono::steady_clock;
-    float SecondsSince(Clock::time_point t) const;
+    // Seconds since the last Show(), counted in frame time (see Draw).
+    float Age() const;
 
     AgentIntent m_Intent;
     bool m_Active = false;
-    Clock::time_point m_ShownAt{};
+    float m_Age = 0.0f;  // seconds since Show(), in frame time
     float m_Travel = 0.0f;  // seconds to glide to the target
     float m_Dwell = 0.0f;   // seconds to rest there before the tool runs
     bool m_Wait = true;     // the call is held until Arrived()

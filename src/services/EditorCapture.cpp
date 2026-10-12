@@ -65,10 +65,11 @@ void EditorCapture::Finish(const Request& req, std::string error)
 }
 
 void EditorCapture::RequestSequence(const std::string& dir, const std::string& panel, const Region& region,
-                                    float padding, int frames, int stride, int framesToWait)
+                                    float padding, int frames, int stride, int framesToWait, bool agentPointer)
 {
     Request req;
     req.sequence = true;
+    req.agentPointer = agentPointer;
     req.path = dir;
     req.panel = panel;
     req.region = region;

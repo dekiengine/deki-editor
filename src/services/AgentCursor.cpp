@@ -134,9 +134,9 @@ void AgentCursor::SetEnabled(bool enabled)
     }
 }
 
-float AgentCursor::SecondsSince(Clock::time_point t) const
+float AgentCursor::Age() const
 {
-    return std::chrono::duration<float>(Clock::now() - t).count();
+    return m_Age;
 }
 
 void AgentCursor::Show(const AgentIntent& intent, bool wait)
@@ -144,7 +144,7 @@ void AgentCursor::Show(const AgentIntent& intent, bool wait)
     m_Intent = intent;
     m_Active = true;
     m_Wait = wait;
-    m_ShownAt = Clock::now();
+    m_Age = 0.0f;
     m_BusyAge = 0.0f;
     const bool reduce = Motion::ReduceMotion();
     // Not waiting, the input is already playing: a quick catch-up, not a glide.
@@ -155,12 +155,12 @@ void AgentCursor::Show(const AgentIntent& intent, bool wait)
 
 bool AgentCursor::Arrived() const
 {
-    return !m_Active || !m_Wait || !m_Intent.Travels() || SecondsSince(m_ShownAt) >= m_Travel + m_Dwell;
+    return !m_Active || !m_Wait || !m_Intent.Travels() || Age() >= m_Travel + m_Dwell;
 }
 
 bool AgentCursor::WantsReveal() const
 {
-    return m_Active && m_Intent.Travels() && SecondsSince(m_ShownAt) < m_Travel + m_Dwell + 0.25f;
+    return m_Active && m_Intent.Travels() && Age() < m_Travel + m_Dwell + 0.25f;
 }
 
 void AgentCursor::Report(const ImVec2& min, const ImVec2& max, Precision precision)
@@ -185,7 +185,11 @@ void AgentCursor::Draw()
     {
         return;
     }
-    const float age = SecondsSince(m_ShownAt);
+    // The frame's time step rather than the wall clock: while a frame sequence
+    // records, that is a fixed 1/60 s, so the glide is recorded as it looks
+    // live however slow each frame is to capture.
+    m_Age += ImGui::GetIO().DeltaTime;
+    const float age = m_Age;
     // The linger counts from the end of the glide, or from the last frame the
     // input was still playing: a long drag or hover keeps its pointer.
     float lx = 0.0f, ly = 0.0f;
@@ -264,8 +268,9 @@ void AgentCursor::Draw()
     const float e = EaseOutCubic(t);
     m_Tip = ImVec2(m_From.x + (aim.x - m_From.x) * e, m_From.y + (aim.y - m_From.y) * e);
 
-    // Never in a frame a screenshot reads (see the class comment).
-    if (EditorCapture::Get().HasPendingWork())
+    // Never in a frame a screenshot reads (see the class comment), unless a
+    // recording asked for it.
+    if (EditorCapture::Get().HidesAgentPointer())
     {
         return;
     }

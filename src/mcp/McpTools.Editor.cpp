@@ -876,7 +876,11 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                 { "height", { { "type", "number" } } },
                 { "padding", { { "type", "number" } } },
                 { "wait_frames",
-                  { { "type", "integer" }, { "description", "Frames to let pass before starting (default 2)" } } } } },
+                  { { "type", "integer" }, { "description", "Frames to let pass before starting (default 2)" } } },
+                { "pointer",
+                  { { "type", "boolean" },
+                    { "description",
+                      "Show the agent pointer in the frames (default false), to record an agent at work" } } } } },
             { "required", nlohmann::json::array({ "dir", "frames" }) } },
           [](const nlohmann::json& args) -> nlohmann::json
           {
@@ -889,7 +893,7 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
               EditorCapture::Get().RequestSequence(dir, args.value("panel", ""), ReadRegion(args),
                                                    args.value("padding", 0.0f), frames, args.value("stride", 1),
-                                                   args.value("wait_frames", 2));
+                                                   args.value("wait_frames", 2), args.value("pointer", false));
 
               return { { "dir", dir }, { "frames", frames }, { "status", "queued" } };
           } });

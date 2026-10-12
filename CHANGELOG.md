@@ -6,7 +6,15 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## 0.18.2 - 2026-10-11
 
+### Added
+- `capture_sequence` takes `pointer`: the frames show the agent pointer, to
+  record an agent at work. Screenshots still never show it.
+
 ### Fixed
+- A frame sequence recorded play mode jumping ahead: the game ran on the wall
+  clock while each frame was slow to write. While `capture_sequence` records,
+  the game now advances one 60 fps frame per captured frame, as the editor's
+  own animations already did, and so does the agent pointer's glide.
 - **Windows: the download builds projects.** The bundled compiler found the
   C++ headers but not the C ones (`wchar.h`), so the 0.18.0 archive failed its
   own check and was never published. MSYS2's GCC finds the C headers through

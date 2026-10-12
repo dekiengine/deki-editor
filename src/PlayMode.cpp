@@ -13,6 +13,7 @@
 #include <imgui_internal.h>
 #include <deki-editor/Paths.h>
 #include "services/CrashHandler.h"
+#include "services/EditorCapture.h"
 #include "services/PlayModeGuard.h"
 #include "services/ProfilingService.h"
 #include "panels/ConsolePanel.h"
@@ -577,6 +578,16 @@ void EditorApp::UpdatePlayMode()
     float deltaMs = static_cast<float>(currentTime - m_Play.lastFrameTime);
     m_Play.lastFrameTime = currentTime;
 
+    // While capture_sequence records, the game advances one 60 fps frame per
+    // editor frame, as the editor's own animations do (main.cpp). Each capture
+    // is slow to write, and on the wall clock the recording would show the
+    // game jumping ahead by however long that took.
+    const bool recording = DekiEditor::EditorCapture::Get().IsRecordingSequence();
+    if (recording)
+    {
+        deltaMs = 1000.0f / 60.0f;
+    }
+
     // Wall-clock time; the sub-step loop below drains it.
     m_Play.timeAccumulator += deltaMs;
 
@@ -667,6 +678,15 @@ void EditorApp::UpdatePlayMode()
                 m_Play.timeAccumulator = 0.0f;
             }
             loopStepDtMs = targetFrameTimeMs;
+        }
+        else if (recording)
+        {
+            // One tick of one 60 fps frame, as above.
+            if (subStepsThisFrame > 0)
+            {
+                break;
+            }
+            loopStepDtMs = 1000.0f / 60.0f;
         }
         else
         {
