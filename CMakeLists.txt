@@ -970,6 +970,14 @@ if(NOT WIN32)
     target_link_options(DekiEditor PRIVATE -rdynamic)
 endif()
 
+# Linux: keep SDL's GLib/GTK-named globals out of those exports, or GTK calls
+# land in them and crash (see the map file).
+if(UNIX AND NOT APPLE)
+    set(_deki_exports_map "${CMAKE_SOURCE_DIR}/cmake/DekiEditor.exports.map")
+    target_link_options(DekiEditor PRIVATE "LINKER:--version-script=${_deki_exports_map}")
+    set_property(TARGET DekiEditor APPEND PROPERTY LINK_DEPENDS "${_deki_exports_map}")
+endif()
+
 # Copy font resources next to executable
 add_custom_command(TARGET DekiEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts"

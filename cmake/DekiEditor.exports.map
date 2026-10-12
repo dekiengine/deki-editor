@@ -1,0 +1,18 @@
+/* Dynamic exports of the DekiEditor executable on Linux (see CMakeLists.txt).
+ *
+ * -rdynamic exports everything, which plugins and the crash handler rely on.
+ * The exceptions are SDL's GTK tray loader globals (src/tray/unix/SDL_tray.c,
+ * SDL 3.2.x), which are function-pointer variables named after real GLib/GTK
+ * functions and are not static. Exported, they interpose the real ones: once
+ * GTK is in the process (libdecor's GTK plugin on GNOME Wayland, for one),
+ * its calls to g_object_ref jump into the variable's .bss slot and SIGSEGV.
+ */
+{
+    global:
+        *;
+    local:
+        g_object_ref;
+        g_object_ref_sink;
+        gtk_names;
+        gdk_names;
+};
