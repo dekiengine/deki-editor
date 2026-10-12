@@ -61,9 +61,11 @@ static void BuildDefaultDockLayout(ImGuiID dockspaceId, ImVec2 size)
     ImGui::DockBuilderSetNodeSize(dockspaceId, size);
 
     // Columns: left strip, right strip, and whatever is left in the middle.
+    // The Inspector's strip is wide enough that vector fields (X / Y) show
+    // their numbers instead of clipping them.
     ImGuiID dockLeft, dockCenter, dockRight;
     ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, &dockLeft, &dockCenter);
-    ImGui::DockBuilderSplitNode(dockCenter, ImGuiDir_Right, 0.25f, &dockRight, &dockCenter);
+    ImGui::DockBuilderSplitNode(dockCenter, ImGuiDir_Right, 0.32f, &dockRight, &dockCenter);
 
     // Height of the bottom row, as a fraction of the dockspace. Both columns
     // are split by this same value so Asset Browser and Console line up: the
