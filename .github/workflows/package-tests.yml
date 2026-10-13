@@ -41,7 +41,6 @@ permissions:
 env:
   PACKAGE: ${{ inputs.package }}
   CMAKE_BUILD_TYPE: Release
-  CCACHE_DIR: ${{ github.workspace }}/.ccache
   CCACHE_MAXSIZE: 1500M
 
 jobs:
@@ -73,9 +72,24 @@ jobs:
       - name: Check out what the package requires
         run: python3 deki-editor/tools/ci/clone_packages.py packages --for "$PACKAGE"
 
+      # The reflection codegen assigns a type to a package when the package's
+      # directory name is a component of the type's source path. The
+      # workspace is /home/runner/work/<repo>/<repo>, the package's own name,
+      # so every engine header in it would count as the package's. The build
+      # runs from a directory whose path names no package instead.
+      - name: Move out of the repository-named workspace
+        id: moved
+        run: |
+          echo "deps=${{ hashFiles('deki-editor/CMakeLists.txt', 'deki-editor/tests/CMakeLists.txt') }}" >> "$GITHUB_OUTPUT"
+          root="$RUNNER_TEMP/w"
+          mkdir -p "$root"
+          mv deki-editor packages "$root/"
+          echo "ROOT=$root" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+
       - name: Install toolchain and SDL3 build dependencies
         run: |
-          bash deki-editor/tools/ci/add_toolchain_ppa.sh
+          bash "$ROOT/deki-editor/tools/ci/add_toolchain_ppa.sh"
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
@@ -88,9 +102,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            deki-editor/build/_deps
-            !deki-editor/build/_deps/*-build
-          key: deps-linux-${{ hashFiles('deki-editor/CMakeLists.txt', 'deki-editor/tests/CMakeLists.txt') }}
+            ${{ runner.temp }}/w/deki-editor/build/_deps
+            !${{ runner.temp }}/w/deki-editor/build/_deps/*-build
+          key: deps-linux-${{ steps.moved.outputs.deps }}
 
       # Keyed by the editor and engine commits: a new commit of the package
       # alone reuses the whole engine build, and a new engine commit starts
@@ -98,7 +112,7 @@ jobs:
       - name: Cache compiler output
         uses: actions/cache@v4
         with:
-          path: .ccache
+          path: ${{ runner.temp }}/ccache
           key: ccache-pkgtests-${{ steps.editor.outputs.sha }}-${{ github.sha }}
           restore-keys: |
             ccache-pkgtests-${{ steps.editor.outputs.sha }}-
@@ -106,13 +120,13 @@ jobs:
 
       - name: Configure
         run: >-
-          cmake -S deki-editor -B deki-editor/build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+          cmake -S "$ROOT/deki-editor" -B "$ROOT/deki-editor/build" -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
           -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 -DDEKI_GXX16=g++-16
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DDEKI_PACKAGES_DIR=${{ github.workspace }}/packages
+          -DDEKI_PACKAGES_DIR="$ROOT/packages"
 
       - name: Tests
-        run: cmake --build deki-editor/build --target "run-pkgtests-$PACKAGE"
+        run: cmake --build "$ROOT/deki-editor/build" --target "run-pkgtests-$PACKAGE"
 
       # The package's own sources against the engine, as a project would
       # compile them. Absent for a package that needs a library CI does not
@@ -120,8 +134,8 @@ jobs:
       - name: Compile check
         run: |
           target="pkgcheck_$(echo "$PACKAGE" | tr '-' '_')"
-          if ninja -C deki-editor/build -t targets all | grep -q "^$target:"; then
-            cmake --build deki-editor/build --target "$target"
+          if ninja -C "$ROOT/deki-editor/build" -t targets all | grep -q "^$target:"; then
+            cmake --build "$ROOT/deki-editor/build" --target "$target"
           else
             echo "No compile check for $PACKAGE"
           fi
