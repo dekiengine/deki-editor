@@ -540,6 +540,25 @@ deki_add_package_tests(deki-i2s TARGET DekiI2STests SOURCES DekiI2S.cpp DekiI2SP
 deki_add_package_tests(deki-wifi TARGET DekiWiFiTests SOURCES DekiWiFi.cpp DekiWiFiPackage.cpp)
 deki_add_package_tests(deki-ble TARGET DekiBLETests SOURCES DekiBLE.cpp DekiBLEPackage.cpp)
 
+# SDL3Input against SDL's own event queue (the event subsystem only, no
+# window), linked to the SDL3 the editor builds or fetches.
+deki_add_package_tests(deki-sdl3-integration TARGET DekiSDL3IntegrationTests
+                       SOURCES SDL3Input.cpp LIBS ${DEKI_SDL3_TARGET})
+
+# deki-lovyangfx-integration off a device: the stubs it compiles to and its
+# plugin entry file. The driver itself only builds for ESP32.
+deki_add_package_tests(deki-lovyangfx-integration TARGET DekiLovyanGFXIntegrationTests
+                       SOURCES LGFXDisplayPanel.cpp LGFXTouchPanel.cpp LovyanGFXDisplay.cpp LovyanGFXPackage.cpp)
+
+# deki-lilygo-boards has no code: its boards are checked as the editor loads
+# them, against deki-esp32-integration's builder.
+deki_add_package_tests(deki-lilygo-boards TARGET DekiLilyGOBoardsTests NEEDS_EDITOR
+                       SOURCES ../deki-esp32-integration/editor/ESPIDFBuilder.cpp
+                               ../deki-esp32-integration/editor/ESPIDFToolchain.cpp
+                               ../deki-esp32-integration/editor/ESPIDFInstaller.cpp
+                       DEFINES "DEKI_LILYGO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-lilygo-boards\""
+                       LIBS nlohmann_json::nlohmann_json)
+
 # deki-fsm has no target, and the reason is structural rather than an
 # oversight. Its actions reach through FsmContext into an Object, a scene and
 # reflected property bindings, and FsmActions.h pulls in generated tables, so a
