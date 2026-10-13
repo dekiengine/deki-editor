@@ -433,6 +433,14 @@ function(deki_add_package_tests pkg_id)
             COMMENT "Running ${pkg_id} tests...")
     endif()
     set_property(GLOBAL APPEND PROPERTY DEKI_PKGTEST_TARGETS ${T_TARGET})
+
+    # Builds and runs this one package's tests, by package id: what a
+    # package's own CI calls (.github/workflows/package-tests.yml).
+    add_custom_target(run-pkgtests-${pkg_id}
+        COMMAND $<TARGET_FILE:${T_TARGET}> --gtest_brief=1
+        DEPENDS ${T_TARGET}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        USES_TERMINAL)
 endfunction()
 
 # deki-rendering's tests reach into QuadBlit's .cpp and construct components,

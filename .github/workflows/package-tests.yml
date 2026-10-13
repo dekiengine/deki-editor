@@ -1,0 +1,131 @@
+# One package's tests, run from that package's own repository.
+#
+# Each package repo calls this on push and pull request with a few lines:
+#
+#     jobs:
+#       tests:
+#         uses: dekiengine/deki-editor/.github/workflows/package-tests.yml@master
+#         with:
+#           package: deki-gps
+#
+# It checks out the package at the commit under test, the editor and engine at
+# master, and what the package requires from the registry at master
+# (tools/ci/clone_packages.py --for), then builds and runs that package's test
+# target (run-pkgtests-<package>, tests/CMakeLists.txt) and its compile check.
+# The editor's own CI runs every package against each editor change; this
+# runs one package against each change to it.
+#
+# Building the engine and editor libraries is most of the work, so it is
+# cached: the compiler cache and the fetched dependencies. An Actions cache
+# belongs to the repository the workflow runs in, so each package keeps its
+# own; its first run builds cold and later ones reuse what did not change.
+
+name: Package tests
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: The package id, as in its package.json (deki-gps)
+        required: true
+        type: string
+      editor-ref:
+        description: The deki-editor ref to test against
+        required: false
+        type: string
+        default: master
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE: ${{ inputs.package }}
+  CMAKE_BUILD_TYPE: Release
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 1500M
+
+jobs:
+  tests:
+    name: ${{ inputs.package }} (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the package
+        uses: actions/checkout@v4
+        with:
+          path: packages/${{ inputs.package }}
+
+      - name: Check out deki-editor and deki-engine
+        uses: actions/checkout@v4
+        with:
+          repository: dekiengine/deki-editor
+          ref: ${{ inputs.editor-ref }}
+          path: deki-editor
+          submodules: false
+          persist-credentials: false
+
+      # The engine is public: fetched over plain HTTPS, with no key.
+      - name: Fetch deki-engine
+        id: editor
+        run: |
+          git -C deki-editor submodule update --init --depth=1
+          echo "sha=$(git -C deki-editor rev-parse --short HEAD)-$(git -C deki-editor/deki-engine rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out what the package requires
+        run: python3 deki-editor/tools/ci/clone_packages.py packages --for "$PACKAGE"
+
+      - name: Install toolchain and SDL3 build dependencies
+        run: |
+          bash deki-editor/tools/ci/add_toolchain_ppa.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
+            libdbus-1-dev libudev-dev
+
+      - name: Cache fetched dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            deki-editor/build/_deps
+            !deki-editor/build/_deps/*-build
+          key: deps-linux-${{ hashFiles('deki-editor/CMakeLists.txt', 'deki-editor/tests/CMakeLists.txt') }}
+
+      # Keyed by the editor and engine commits: a new commit of the package
+      # alone reuses the whole engine build, and a new engine commit starts
+      # from the last one's and recompiles only what changed.
+      - name: Cache compiler output
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-pkgtests-${{ steps.editor.outputs.sha }}-${{ github.sha }}
+          restore-keys: |
+            ccache-pkgtests-${{ steps.editor.outputs.sha }}-
+            ccache-pkgtests-
+
+      - name: Configure
+        run: >-
+          cmake -S deki-editor -B deki-editor/build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+          -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 -DDEKI_GXX16=g++-16
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DDEKI_PACKAGES_DIR=${{ github.workspace }}/packages
+
+      - name: Tests
+        run: cmake --build deki-editor/build --target "run-pkgtests-$PACKAGE"
+
+      # The package's own sources against the engine, as a project would
+      # compile them. Absent for a package that needs a library CI does not
+      # have (SDL3, LovyanGFX) or that has no sources.
+      - name: Compile check
+        run: |
+          target="pkgcheck_$(echo "$PACKAGE" | tr '-' '_')"
+          if ninja -C deki-editor/build -t targets all | grep -q "^$target:"; then
+            cmake --build deki-editor/build --target "$target"
+          else
+            echo "No compile check for $PACKAGE"
+          fi
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s
