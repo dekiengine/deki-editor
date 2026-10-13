@@ -316,15 +316,22 @@ endif()
 #   ALL_SOURCES    compile the package's whole runtime plus generated
 #                  reflection tables, which is what a test touching components
 #                  needs. Implies CODEGEN.
+#   CODEGEN        generate the reflection tables and compile them with only
+#                  the SOURCES named: for a package whose whole runtime would
+#                  drag in what it requires (deki-fsm's action library calls
+#                  into deki-2d and deki-tween).
 
 function(deki_add_package_tests pkg_id)
-    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR" "TARGET" "SOURCES;DEFINES;LIBS" ${ARGN})
+    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR;CODEGEN" "TARGET" "SOURCES;DEFINES;LIBS" ${ARGN})
     set(_pkg "${DEKI_PACKAGES_DIR}/${pkg_id}")
     if(NOT EXISTS "${_pkg}/tests")
         message(STATUS "Deki: ${pkg_id} tests skipped (no checkout at ${_pkg})")
         return()
     endif()
-    if(T_ALL_SOURCES AND NOT DEKI_GXX16)
+    if(T_ALL_SOURCES)
+        set(T_CODEGEN TRUE)
+    endif()
+    if(T_CODEGEN AND NOT DEKI_GXX16)
         message(STATUS "Deki: ${pkg_id} tests skipped (reflection codegen needs DEKI_GXX16)")
         return()
     endif()
@@ -364,7 +371,7 @@ function(deki_add_package_tests pkg_id)
         endif()
     endforeach()
 
-    if(T_ALL_SOURCES)
+    if(T_CODEGEN)
         include(${DEKI_ENGINE_PATH}/cmake/DekiReflectionCodegen.cmake)
         file(MAKE_DIRECTORY "${_gen}/generated")
         deki_reflection_codegen(
@@ -373,16 +380,18 @@ function(deki_add_package_tests pkg_id)
             PACKAGE_PREFIXES "${PACKAGE_PREFIX}" PACKAGE_OUTDIRS "${_gen}/generated"
             GENERATOR_SRC "${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
             INCLUDE_DIRS "${DEKI_ENGINE_PATH}/include" "${DEKI_ENGINE_PATH}/third_party"
-                         "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}"
+                         "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}" ${_req_includes}
             DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
                     "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
-        file(GLOB _all_srcs CONFIGURE_DEPENDS "${_pkg}/*.cpp")
-        list(APPEND _srcs ${_all_srcs})
+        if(T_ALL_SOURCES)
+            file(GLOB _all_srcs CONFIGURE_DEPENDS "${_pkg}/*.cpp")
+            list(APPEND _srcs ${_all_srcs})
+        endif()
         file(GLOB _gen_srcs CONFIGURE_DEPENDS "${_gen}/generated/*.cpp")
     endif()
 
     add_executable(${T_TARGET} EXCLUDE_FROM_ALL ${_srcs} ${_tests} ${_gen_srcs})
-    if(T_ALL_SOURCES)
+    if(T_CODEGEN)
         add_dependencies(${T_TARGET} ${DEKI_RC_TARGETS_${_sfx}})
     endif()
     target_include_directories(${T_TARGET} PRIVATE
@@ -559,14 +568,18 @@ deki_add_package_tests(deki-lilygo-boards TARGET DekiLilyGOBoardsTests NEEDS_EDI
                        DEFINES "DEKI_LILYGO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-lilygo-boards\""
                        LIBS nlohmann_json::nlohmann_json)
 
-# deki-fsm has no target, and the reason is structural rather than an
-# oversight. Its actions reach through FsmContext into an Object, a scene and
-# reflected property bindings, and FsmActions.h pulls in generated tables, so a
-# test needs the whole package compiled -- at which point it needs the whole
-# requires closure linked too, since the action library calls into deki-tween
-# (Ease::GetFunction) and deki-2d (AnimationComponent, ButtonComponent). That
-# is a project-shaped build, not a unit-test target. Covering the FSM properly
-# means a fake runtime, and that is its own piece of work.
+# The state machine interpreter. The action library is left out: its actions
+# reach into objects, scenes, deki-2d and deki-tween, which would make this a
+# project-shaped build. The tests register their own behaviour for two of the
+# package's real action types instead, so the interpreter runs unchanged.
+# CODEGEN for the node and component tables; deki-nodegraph's loader and
+# factory compiled in, as DekiNodeGraphTests does.
+deki_add_package_tests(deki-fsm TARGET DekiFsmTests CODEGEN
+                       SOURCES FsmComponent.cpp FsmGraphAsset.cpp FsmActionRegistry.cpp
+                               ../deki-nodegraph/NodeGraphData.cpp ../deki-nodegraph/NodeFactory.cpp
+                               ../deki-nodegraph/editor/NodeTypeRegistry.cpp
+                       DEFINES DEKI_NODEGRAPH_EXPORTS
+                       LIBS nlohmann_json::nlohmann_json)
 
 get_property(_pkgtests GLOBAL PROPERTY DEKI_PKGTEST_TARGETS)
 if(_pkgtests)
