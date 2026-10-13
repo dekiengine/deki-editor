@@ -265,11 +265,23 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
 
     // SDL3 comes from wherever the editor's own build took it: a prebuilt
     // archive (headers and import library under its prefix) or a source
-    // build (headers in sdl3-src, the static library beside the editor's).
-    // The editor passes both locations; an older caller gets the source layout.
+    // build (headers in sdl3-src/include, the static library beside the editor's).
+    // The editor passes both locations, read from its build's CMakeCache.txt.
+    // Without that cache (an editor build copied without it, as CI's smoke
+    // jobs do), the layout is told apart by what sdl3-src holds.
     file << "# SDL3, as the editor build has it\n";
     file << "if(NOT DEKI_SDL3_INCLUDE_DIR)\n";
-    file << "    set(DEKI_SDL3_INCLUDE_DIR \"${DEKI_DEPS_DIR}/sdl3-src/include\")\n";
+    file << "    file(GLOB _deki_sdl3_prefix LIST_DIRECTORIES true \"${DEKI_DEPS_DIR}/sdl3-src/x86_64-w64-mingw32\"\n";
+    file << "         \"${DEKI_DEPS_DIR}/sdl3-src/SDL3-*/x86_64-w64-mingw32\")\n";
+    file << "    if(WIN32 AND _deki_sdl3_prefix)\n";
+    file << "        list(GET _deki_sdl3_prefix 0 _deki_sdl3_prefix)\n";
+    file << "        set(DEKI_SDL3_INCLUDE_DIR \"${_deki_sdl3_prefix}/include\")\n";
+    file << "        if(NOT DEKI_SDL3_LIB_DIR)\n";
+    file << "            set(DEKI_SDL3_LIB_DIR \"${_deki_sdl3_prefix}/lib\")\n";
+    file << "        endif()\n";
+    file << "    else()\n";
+    file << "        set(DEKI_SDL3_INCLUDE_DIR \"${DEKI_DEPS_DIR}/sdl3-src/include\")\n";
+    file << "    endif()\n";
     file << "endif()\n";
     file << "if(NOT DEKI_SDL3_LIB_DIR)\n";
     file << "    set(DEKI_SDL3_LIB_DIR \"${DEKI_LIB_DIR}\")\n";

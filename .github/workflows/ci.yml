@@ -161,10 +161,13 @@ jobs:
         with:
           name: editor-windows
           # The sources the editor fetched: a project build compiles against
-          # them (DEKI_DEPS_DIR, <editor>/build/_deps).
+          # them (DEKI_DEPS_DIR, <editor>/build/_deps). CMakeCache.txt says
+          # where in them SDL3's headers and import library are
+          # (DEKI_SDL3_INCLUDE_DIR / DEKI_SDL3_LIB_DIR, see EditorSettings).
           path: |
             build/bin
             build/_deps/*-src
+            build/CMakeCache.txt
           retention-days: 3
 
   # ---------------------------------------------------------------------------
@@ -189,7 +192,7 @@ jobs:
 
       - name: Install toolchain and SDL3 build dependencies
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          bash tools/ci/add_toolchain_ppa.sh
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
@@ -268,6 +271,7 @@ jobs:
             build/bin
             build/lib
             build/_deps/*-src
+            build/CMakeCache.txt
           retention-days: 3
 
   # ---------------------------------------------------------------------------
@@ -331,7 +335,7 @@ jobs:
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
       - name: Install toolchain
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          bash tools/ci/add_toolchain_ppa.sh
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb libgl1-mesa-dev
       - uses: actions/download-artifact@v4
@@ -388,7 +392,7 @@ jobs:
           path: ci/deki-demo
       - name: Install toolchain
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          bash tools/ci/add_toolchain_ppa.sh
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb libgl1-mesa-dev
       - uses: actions/download-artifact@v4
@@ -439,7 +443,7 @@ jobs:
           path: ci/deki-demo
       - name: Install toolchain
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          bash tools/ci/add_toolchain_ppa.sh
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb \
             libgl1-mesa-dev python3-venv libusb-1.0-0

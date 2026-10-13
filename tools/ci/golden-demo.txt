@@ -14,25 +14,37 @@
 #   DekiEditor --render-scenes --platform <board> <deki-demo> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-10-07 - deki-demo's menu, UI, effects and logic scenes, and the meadow's Back button
+# recorded: 2026-10-13 - deki-demo's GPS, LoRa, trackball and keyboard scenes and its modern look
 
 # config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
-d35369f01c0edcd9  scenes/effects.scene
-2b6b74ac65887061  scenes/logic.scene
-8af5fe9c441de4f8  scenes/meadow.scene
-64e52eadcfb50336  scenes/menu.scene
-2a53906394c49375  scenes/ui.scene
+aa53b6ee90a63870  scenes/effects.scene
+d80b4fe07b9f030f  scenes/gps.scene
+d5d5fede87de8e1c  scenes/keyboard.scene
+a55409602c651212  scenes/logic.scene
+a42f8c6618245a03  scenes/lora.scene
+6f8116f436336157  scenes/meadow.scene
+2a09eb58a80a969b  scenes/menu.scene
+149859cd40054b8c  scenes/trackball.scene
+c42c17ef977841be  scenes/ui.scene
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
-9ea133b7c5e4d697  scenes/effects.scene
-28f1fd7c7ca036a8  scenes/logic.scene
-64c37c629b3eba66  scenes/meadow.scene
-413c21dd48868a68  scenes/menu.scene
-f3bbc762d6f5f910  scenes/ui.scene
+2598b20d26ea5e4a  scenes/effects.scene
+96f0520c491c41db  scenes/gps.scene
+86b6d7206f42f689  scenes/keyboard.scene
+540df412564f4203  scenes/logic.scene
+6b4c0505bbd31c51  scenes/lora.scene
+6db4ad8b9f83f587  scenes/meadow.scene
+1415de709444c91c  scenes/menu.scene
+8bae86a7a52842c5  scenes/trackball.scene
+bf37af0bc447f26c  scenes/ui.scene
 
 # config: renderer=standard2d mode=buffer size=536x240 format=RGB565 frames=60
-33e8f690b0ee9861  scenes/effects.scene
-c48a1c6b82ab17d2  scenes/logic.scene
-36a328f8215b8ea5  scenes/meadow.scene
-fd45292b6c72d9ae  scenes/menu.scene
-6347ca009d3fb27e  scenes/ui.scene
+497443dcf55bfa2a  scenes/effects.scene
+6d1e44ec2ff23a1b  scenes/gps.scene
+e8fc8cc9f2c20469  scenes/keyboard.scene
+acb5a585be4ca6a3  scenes/logic.scene
+a7db6acf8f666291  scenes/lora.scene
+38420fd836ac723b  scenes/meadow.scene
+dce35ceaf7c1471c  scenes/menu.scene
+173a5a90b3713905  scenes/trackball.scene
+c7b7086aeb65e88c  scenes/ui.scene
