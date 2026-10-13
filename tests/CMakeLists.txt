@@ -249,7 +249,8 @@ function(deki_read_package_descriptor pkg_id)
     endforeach()
 endfunction()
 
-# Walks the requires closure of pkg_id and returns its compile defines.
+# Walks the requires closure of pkg_id and returns its compile defines, and,
+# given a third argument, the closure itself (pkg_id first).
 function(deki_package_compile_defines pkg_id out_var)
     set(_pending "${pkg_id}")
     set(_seen "")
@@ -283,6 +284,9 @@ function(deki_package_compile_defines pkg_id out_var)
         list(APPEND _defines DEKI_TRANSFORM_3D)
     endif()
     set(${out_var} "${_defines}" PARENT_SCOPE)
+    if(ARGC GREATER 2)
+        set(${ARGV2} "${_seen}" PARENT_SCOPE)
+    endif()
 endfunction()
 
 if(EXISTS "${DEKI_PACKAGES_DIR}")
@@ -314,7 +318,7 @@ endif()
 #                  needs. Implies CODEGEN.
 
 function(deki_add_package_tests pkg_id)
-    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR" "TARGET" "SOURCES;DEFINES" ${ARGN})
+    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR" "TARGET" "SOURCES;DEFINES;LIBS" ${ARGN})
     set(_pkg "${DEKI_PACKAGES_DIR}/${pkg_id}")
     if(NOT EXISTS "${_pkg}/tests")
         message(STATUS "Deki: ${pkg_id} tests skipped (no checkout at ${_pkg})")
@@ -348,7 +352,17 @@ function(deki_add_package_tests pkg_id)
     if(EXISTS "${_pkg}/package.cmake")
         include("${_pkg}/package.cmake")
     endif()
-    deki_package_compile_defines("${pkg_id}" _pkg_defines)
+    deki_package_compile_defines("${pkg_id}" _pkg_defines _pkg_closure)
+
+    # Packages include what they require by bare filename ("IDekiUART.h"
+    # from deki-uart), as a project build puts every package root on the
+    # include path; here the roots of the requires closure are enough.
+    set(_req_includes "")
+    foreach(_r IN LISTS _pkg_closure)
+        if(NOT _r STREQUAL pkg_id AND IS_DIRECTORY "${DEKI_PACKAGES_DIR}/${_r}")
+            list(APPEND _req_includes "${DEKI_PACKAGES_DIR}/${_r}")
+        endif()
+    endforeach()
 
     if(T_ALL_SOURCES)
         include(${DEKI_ENGINE_PATH}/cmake/DekiReflectionCodegen.cmake)
@@ -377,6 +391,7 @@ function(deki_add_package_tests pkg_id)
         ${DEKI_PACKAGES_DIR}
         ${_pkg}
         ${_gen}
+        ${_req_includes}
     )
     target_compile_definitions(${T_TARGET} PRIVATE
         DEKI_EDITOR
@@ -390,13 +405,15 @@ function(deki_add_package_tests pkg_id)
         target_compile_definitions(${T_TARGET} PRIVATE "DEKI_${PACKAGE_UPPER}_EXPORTS")
     endif()
     # Generated property tables take offsetof() of polymorphic components; the
-    # project builds carry the same warning suppression.
-    target_compile_options(${T_TARGET} PRIVATE -Wno-invalid-offsetof)
+    # project builds carry the same warning suppression. C++ only: a package's
+    # vendored .c file would warn that the flag means nothing to C.
+    target_compile_options(${T_TARGET} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-invalid-offsetof>)
 
     set(_libs GTest::gtest_main deki-engine-internal)
     if(T_NEEDS_EDITOR)
         list(APPEND _libs deki-editor)
     endif()
+    list(APPEND _libs ${T_LIBS})
     target_link_libraries(${T_TARGET} PRIVATE ${_libs})
 
     gtest_discover_tests(${T_TARGET})
@@ -454,6 +471,32 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # finished frame. Sprite.cpp is here for Max Size: the loader maps a shrunk
 # texture's frames the way the (header-only) encoder resampled them.
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES Sprite.cpp)
+
+# Document wraps the vendored cJSON; its .c file compiles with it, and nothing
+# else in the package is needed. The editor itself is C++ only on Windows
+# (SDL3 comes prebuilt), so C is enabled here for that one file.
+enable_language(C)
+deki_add_package_tests(deki-json TARGET DekiJsonTests
+                       SOURCES DekiJson.cpp third_party/cJSON/cJSON.c)
+
+# The NMEA driver reads its UART through deki-uart's factory, which the tests
+# point at a fake; DekiUART.cpp is that factory.
+deki_add_package_tests(deki-gps TARGET DekiGPSTests
+                       SOURCES nmea/NMEAGPS.cpp ../deki-uart/DekiUART.cpp
+                       DEFINES DEKI_UART_EXPORTS)
+
+# The DS3231 driver finds its bus through deki-i2c's registry, which the tests
+# fill with a fake bus; DekiI2C.cpp is that registry.
+deki_add_package_tests(deki-rtc TARGET DekiRTCTests
+                       SOURCES chips/DS3231RTC.cpp ../deki-i2c/DekiI2C.cpp
+                       DEFINES DEKI_I2C_EXPORTS)
+
+# The platform's HTTP client against a cpp-httplib server on localhost. Both
+# clients compile everywhere (each is a stub off its platform); the test picks
+# the one the platform uses.
+deki_add_package_tests(deki-http TARGET DekiHttpTests
+                       SOURCES DekiHttp.cpp CurlHttpClient.cpp WinHttpClient.cpp
+                       LIBS httplib::httplib $<$<PLATFORM_ID:Windows>:winhttp>)
 
 # deki-fsm has no target, and the reason is structural rather than an
 # oversight. Its actions reach through FsmContext into an Object, a scene and
