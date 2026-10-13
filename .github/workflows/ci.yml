@@ -164,8 +164,11 @@ jobs:
           # them (DEKI_DEPS_DIR, <editor>/build/_deps). CMakeCache.txt says
           # where in them SDL3's headers and import library are
           # (DEKI_SDL3_INCLUDE_DIR / DEKI_SDL3_LIB_DIR, see EditorSettings).
+          # build/lib holds the engine's import libraries (libdeki-*.dll.a)
+          # that packages link against (DEKI_LIB_DIR, <editor>/build/lib).
           path: |
             build/bin
+            build/lib
             build/_deps/*-src
             build/CMakeCache.txt
           retention-days: 3
