@@ -13,6 +13,9 @@
 # The "demo" jobs do the same with deki-demo on every board it targets: its
 # renders against tools/ci/golden-demo.txt, and nightly its firmware.
 #
+# The "packages" job clones every package in the registry and runs their own
+# tests and a compile check of each against this engine.
+#
 # GCC 16 is a hard requirement (C++26 reflection for the codegen); the jobs
 # fail fast when the toolchain they installed is older.
 
@@ -276,6 +279,80 @@ jobs:
             build/_deps/*-src
             build/CMakeCache.txt
           retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # Every package in the registry, at master, against the engine built here:
+  # each package's own tests (deki_add_package_tests in tests/CMakeLists.txt)
+  # and a compile check of every package's sources (DekiPackageCompileCheck).
+  # A package is otherwise compiled only by a project, against a released tag,
+  # so a change to the engine that breaks a package shows up here first.
+  # Configure runs reflection codegen for every package, a few minutes, so
+  # this is its own job beside the editor builds rather than a step in one.
+  packages:
+    name: Packages (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+
+      - name: Check out every package
+        run: python3 tools/ci/clone_packages.py ../packages
+
+      - name: Install toolchain and SDL3 build dependencies
+        run: |
+          bash tools/ci/add_toolchain_ppa.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
+            libdbus-1-dev libudev-dev
+
+      - name: Cache FetchContent sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-linux-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-packages-linux-${{ github.sha }}
+          restore-keys: ccache-packages-linux-
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+          -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 -DDEKI_GXX16=g++-16
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Package compile checks
+        run: cmake --build build --target DekiPackageCompileCheck
+
+      - name: Build package tests
+        run: cmake --build build --target DekiPackageTests
+
+      - name: Package tests
+        run: |
+          status=0
+          for t in build/bin/Deki*Tests; do
+            echo "=== $(basename "$t")"
+            "$t" --gtest_brief=1 || status=1
+          done
+          exit $status
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s
 
   # ---------------------------------------------------------------------------
   # What a user does: a new project, built from the registry, verified and
