@@ -498,6 +498,48 @@ deki_add_package_tests(deki-http TARGET DekiHttpTests
                        SOURCES DekiHttp.cpp CurlHttpClient.cpp WinHttpClient.cpp
                        LIBS httplib::httplib $<$<PLATFORM_ID:Windows>:winhttp>)
 
+# The desktop file system's mounts and file calls, in a temporary directory.
+deki_add_package_tests(deki-desktop-integration TARGET DekiDesktopIntegrationTests
+                       SOURCES DesktopFileSystem.cpp)
+
+# The ESP-IDF builder's validation and generated files, which need the editor
+# library but not ESP-IDF.
+deki_add_package_tests(deki-esp32-integration TARGET DekiESP32IntegrationTests NEEDS_EDITOR
+                       SOURCES editor/ESPIDFBuilder.cpp editor/ESPIDFToolchain.cpp editor/ESPIDFInstaller.cpp)
+
+# The ELF reader that checks a Tactility device app's imports before it goes
+# to a device.
+deki_add_package_tests(deki-tactility-integration TARGET DekiTactilityIntegrationTests
+                       SOURCES editor/ElfImports.cpp)
+
+# The SX1262 driver takes its SPI, pins and clock through ISX126xBus, which
+# the tests implement as a fake chip.
+deki_add_package_tests(deki-lora TARGET DekiLoRaTests SOURCES SX1262Radio.cpp)
+
+# deki-i2c's bus registry, and I2CBusComponent setting a bus up from the boot
+# scene against a fake bus from the factory.
+deki_add_package_tests(deki-i2c TARGET DekiI2CTests SOURCES DekiI2C.cpp I2CBusComponent.cpp)
+
+# GpioPinSetup against a fake GPIO backend.
+deki_add_package_tests(deki-gpio TARGET DekiGPIOTests SOURCES DekiGPIO.cpp GpioPinSetup.cpp)
+
+# The MAX98357 amp over a fake I2S channel from deki-i2s's factory.
+deki_add_package_tests(deki-audio TARGET DekiAudioTests
+                       SOURCES chips/MAX98357Audio.cpp ../deki-i2s/DekiI2S.cpp
+                       DEFINES DEKI_I2S_EXPORTS)
+
+# SDCardComponent mounting a fake card from the factory.
+deki_add_package_tests(deki-sdcard TARGET DekiSDCardTests SOURCES DekiSDCard.cpp SDCardComponent.cpp)
+
+# deki-uart, deki-i2s, deki-wifi and deki-ble hold a factory or the current
+# driver, and the plugin entry file every package has; the drivers themselves
+# are in the platform packages. The tests stand in for the generated
+# registration functions the entry file calls.
+deki_add_package_tests(deki-uart TARGET DekiUARTTests SOURCES DekiUART.cpp DekiUARTPackage.cpp)
+deki_add_package_tests(deki-i2s TARGET DekiI2STests SOURCES DekiI2S.cpp DekiI2SPackage.cpp)
+deki_add_package_tests(deki-wifi TARGET DekiWiFiTests SOURCES DekiWiFi.cpp DekiWiFiPackage.cpp)
+deki_add_package_tests(deki-ble TARGET DekiBLETests SOURCES DekiBLE.cpp DekiBLEPackage.cpp)
+
 # deki-fsm has no target, and the reason is structural rather than an
 # oversight. Its actions reach through FsmContext into an Object, a scene and
 # reflected property bindings, and FsmActions.h pulls in generated tables, so a
