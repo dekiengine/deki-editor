@@ -208,8 +208,28 @@ void EditorSettings::SetLastProjectPath(const std::string& path)
     Save();
 }
 
+std::string EditorSettings::GetSdkDir()
+{
+    // Told apart by its engine rather than by the folder alone, so a stray
+    // sdk/ folder in a build tree does not switch every lookup over to it.
+    const fs::path sdk = fs::path(EditorPaths::GetExecutableDir()) / "sdk";
+    std::error_code ec;
+    if (fs::exists(sdk / "deki-engine" / "CMakeLists.txt", ec))
+    {
+        return fs::weakly_canonical(sdk, ec).string();
+    }
+    return "";
+}
+
 std::string EditorSettings::GetEnginePath()
 {
+    // A downloaded editor has no source checkout around it; its SDK carries
+    // the engine.
+    if (const std::string sdk = GetSdkDir(); !sdk.empty())
+    {
+        return (fs::path(sdk) / "deki-engine").string();
+    }
+
     // The engine is at <editor-root>/deki-engine. Multi-config generators (VS)
     // put the exe under build/bin/<Config>/, single-config ones (Ninja, Make)
     // under build/bin/; walk up the right number of levels for either, as
@@ -230,6 +250,13 @@ std::string EditorSettings::GetEnginePath()
 
 std::string EditorSettings::GetBuildDir()
 {
+    // A downloaded editor has no build folder. The folder above it is wherever
+    // the archive was unpacked, so a CMakeCache.txt there is someone else's.
+    if (!GetSdkDir().empty())
+    {
+        return "";
+    }
+
     // Same layout walk as GetEnginePath: build/bin/<Config>/ (multi-config) or
     // build/bin/ (single-config) up to the directory holding CMakeCache.txt.
     fs::path exeDir = fs::path(EditorPaths::GetExecutableDir());
@@ -242,6 +269,10 @@ std::string EditorSettings::GetBuildDir()
 
 std::string EditorSettings::GetDepsDir()
 {
+    if (const std::string sdk = GetSdkDir(); !sdk.empty())
+    {
+        return (fs::path(sdk) / "_deps").string();
+    }
     const std::string buildDir = GetBuildDir();
     const std::string fromCache = ReadCMakeCacheVar(buildDir, "FETCHCONTENT_BASE_DIR");
     if (!fromCache.empty() && fs::exists(fromCache))

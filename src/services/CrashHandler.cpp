@@ -272,14 +272,30 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
     ImGui::StyleColorsDark();
     ImGui::GetStyle().ScaleAllSizes(dpiScale);
 
-    ImGui_ImplSDL3_InitForOpenGL(crashWindow, glCtx);
-    ImGui_ImplOpenGL3_Init("#version 330");
-
     std::string fullText = callstack + "\nCrash log: " + logPath;
     if (!s_LastDumpPath.empty())
     {
         fullText += "\nDump file: " + s_LastDumpPath;
     }
+
+    ImGui_ImplSDL3_InitForOpenGL(crashWindow, glCtx);
+    // Fails on a context older than GL 2 (Windows' "GDI Generic" software
+    // renderer, which SDL accepts), and drawing on would crash inside the
+    // crash handler. The plain message box still shows the report.
+    if (!ImGui_ImplOpenGL3_Init("#version 330"))
+    {
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext(crashCtx);
+        if (prevCtx)
+        {
+            ImGui::SetCurrentContext(prevCtx);
+        }
+        SDL_GL_DestroyContext(glCtx);
+        SDL_DestroyWindow(crashWindow);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title.c_str(), fullText.c_str(), nullptr);
+        return;
+    }
+
     bool copied = false;
 
     bool running = true;

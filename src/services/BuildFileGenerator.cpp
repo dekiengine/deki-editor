@@ -217,8 +217,13 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     // (VS) puts the exe under build/bin/<Config>/, single-config (Ninja/Make) under
     // build/bin/. Deciding at configure time means a project generated against one
     // generator still resolves correctly against the other.
+    // A downloaded editor carries the same pieces in <exe dir>/sdk/ (see
+    // EditorSettings::GetSdkDir), laid out like an editor root plus lib/.
     file << "get_filename_component(DEKI_BUILD_CONFIG \"${DEKI_EDITOR_DIR}\" NAME)\n";
-    file << "if(DEKI_BUILD_CONFIG MATCHES \"^(Debug|Release|RelWithDebInfo|MinSizeRel)$\")\n";
+    file << "if(EXISTS \"${DEKI_EDITOR_DIR}/sdk/deki-engine/CMakeLists.txt\")\n";
+    file << "    set(DEKI_LIB_DIR \"${DEKI_EDITOR_DIR}/sdk/lib\")\n";
+    file << "    set(DEKI_EDITOR_ROOT \"${DEKI_EDITOR_DIR}/sdk\")\n";
+    file << "elseif(DEKI_BUILD_CONFIG MATCHES \"^(Debug|Release|RelWithDebInfo|MinSizeRel)$\")\n";
     file << "    set(DEKI_LIB_DIR \"${DEKI_EDITOR_DIR}/../../lib/${DEKI_BUILD_CONFIG}\")\n";
     file << "    get_filename_component(DEKI_EDITOR_ROOT \"${DEKI_EDITOR_DIR}/../../..\" ABSOLUTE)\n";
     file << "else()\n";

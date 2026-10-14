@@ -47,7 +47,9 @@ records an absolute path:
 - Committed reflection output under `src/generated/` uses relative source paths.
 
 Moving the **editor** is equally safe: engine paths resolve from the running executable
-(`EditorSettings::GetEnginePath`) on every call and are never persisted.
+(`EditorSettings::GetEnginePath`) on every call and are never persisted. A downloaded editor
+finds them in the `sdk/` folder beside it (`EditorSettings::GetSdkDir`); one run from its build
+tree finds them in the source checkout around the build folder.
 
 ## Recovery
 

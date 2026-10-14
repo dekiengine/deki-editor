@@ -16,6 +16,27 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Fixed
 - Device screenshots read an RGB565A8 framebuffer at two bytes a pixel; it is
   three.
+- **The download builds projects.** A project's code compiles against the
+  engine source, the editor's headers, the third-party headers and import
+  libraries, which the editor found only in a source checkout around its
+  build folder, so every project made with a downloaded editor failed its
+  first build at "DEKI_ENGINE_PATH and DEKI_EDITOR_DIR must be supplied". The
+  archive now carries them in `sdk/`, and packaging builds a new project with
+  the packaged editor, with a PATH of only the system and git, before it
+  writes the archive.
+- **Windows: the download starts without MSYS2.** The editor links OpenSSL,
+  zlib and brotli, which the archive did not carry; it started only where
+  MSYS2 was on PATH, and there loaded whichever `zlib1.dll` came first. The
+  bundled `cmake.exe` lacked its DLLs (libcurl, libarchive, libuv, ...) the
+  same way, and elsewhere exited at once with no output. The packaging now
+  ships every MinGW DLL the editor and the build tools need.
+- **No crash at startup without OpenGL 3.3.** Where Windows has no OpenGL
+  driver for the graphics card (a broken driver install), it gives software
+  OpenGL 1.1, which SDL accepts and ImGui's GL backend refuses, and the first
+  frame crashed. The editor now says so in an error box, with the displays,
+  their adapters and what OpenGL Windows offers, and saves the same text to
+  `deki_gl_report.txt` beside the executable. The crash dialog falls back to
+  a plain message box the same way.
 
 ## 0.18.2 - 2026-10-11
 

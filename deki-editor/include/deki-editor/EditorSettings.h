@@ -25,16 +25,26 @@ public:
     static std::string GetLastProjectPath();
     static void SetLastProjectPath(const std::string& path);
 
-    // The engine source folder, found from the submodule next to the executable.
+    // The SDK a downloaded editor carries, <exe dir>/sdk: the engine source,
+    // the editor DLL's headers, the third-party headers and the import
+    // libraries a project build compiles and links against. Empty for an
+    // editor run from its build tree, where all of these are in the source
+    // checkout instead.
+    static std::string GetSdkDir();
+
+    // The engine source folder: <sdk>/deki-engine in a downloaded editor, else
+    // the submodule beside the build folder.
     static std::string GetEnginePath();
 
     // The editor's own CMake build folder (the one holding CMakeCache.txt),
     // found from the executable's location under either generator layout.
+    // Empty for a downloaded editor (see GetSdkDir), which has none.
     static std::string GetBuildDir();
 
     // Where the editor build fetched its third-party sources (ImGui, SDL3,
-    // FreeType, stb): FETCHCONTENT_BASE_DIR from the editor's CMakeCache, or
-    // <build>/_deps. Package DLLs compile against these exact sources, so the
+    // FreeType, stb): <sdk>/_deps in a downloaded editor, else
+    // FETCHCONTENT_BASE_DIR from the editor's CMakeCache, or <build>/_deps.
+    // Package DLLs compile against these exact sources, so the
     // generated project CMake gets this path instead of assuming the build
     // folder is called build/.
     static std::string GetDepsDir();

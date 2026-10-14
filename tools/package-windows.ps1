@@ -13,20 +13,26 @@
 #
 #     dist\DekiEditor-windows-x86_64\
 #         DekiEditor.exe
-#         libdeki-*.dll, SDL3.dll, resources\, ninja.exe, sccache.exe
+#         libdeki-*.dll, SDL3.dll, MinGW runtime DLLs, resources\, ninja.exe, sccache.exe
 #         toolchain\mingw64\bin\{g++.exe,gcc.exe,as.exe,ld.exe,cmake.exe,ninja.exe,...}
 #         toolchain\mingw64\lib\gcc\...            <- cc1plus, found via argv[0]
 #         toolchain\mingw64\include\{c++\...,wchar.h,...}
+#         sdk\deki-engine\                         <- engine source
+#         sdk\deki-editor\include\                 <- editor DLL headers
+#         sdk\_deps\{imgui-src,freetype-src,stb-src,sdl3-src}\
+#         sdk\lib\{libdeki-*.dll.a,libimgui.a,libfreetype.a}
 #
 # The editor prefers toolchain\mingw64\ and falls back to PATH, so a build from
-# source with no bundle keeps working (see services/BundledToolchain.h).
+# source with no bundle keeps working (see services/BundledToolchain.h). The
+# same for sdk\ (EditorSettings::GetSdkDir) and the source checkout.
 #
-# Usage: tools\package-windows.ps1 [-BuildDir build] [-Msys2 C:\msys64]
+# Usage: tools\package-windows.ps1 [-BuildDir build] [-Msys2 C:\msys64] [-SkipProjectCheck]
 
 [CmdletBinding()]
 param(
     [string]$BuildDir = "",
-    [string]$Msys2    = "C:\msys64"
+    [string]$Msys2    = "C:\msys64",
+    [switch]$SkipProjectCheck
 )
 
 $ErrorActionPreference = 'Stop'
@@ -110,6 +116,112 @@ Get-ChildItem $Dist -Filter '*.pdb' -Recurse | Remove-Item -Force -ErrorAction S
 # product.
 Get-ChildItem $Dist -Filter '*Tests.exe' | Remove-Item -Force -ErrorAction SilentlyContinue
 
+$objdump = Join-Path $Mingw 'bin\objdump.exe'
+
+# The MinGW DLLs a set of binaries needs, recursively: the names that exist in
+# mingw64\bin. Anything else is a system DLL every Windows machine has.
+function Resolve-MingwDlls([string[]]$Binaries) {
+    $found = New-Object System.Collections.Generic.HashSet[string]
+    $queue = New-Object System.Collections.Generic.Queue[string]
+    foreach ($b in $Binaries) { $queue.Enqueue($b) }
+    while ($queue.Count -gt 0) {
+        $bin = $queue.Dequeue()
+        $deps = & $objdump -p $bin 2>$null | Select-String -Pattern '^\s*DLL Name:\s*(.+)$' |
+                ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() }
+        foreach ($d in $deps) {
+            $cand = Join-Path $Mingw "bin\$d"
+            if ((Test-Path $cand) -and $found.Add($d)) { $queue.Enqueue($cand) }
+        }
+    }
+    return $found
+}
+
+# --- editor runtime DLLs ---------------------------------------------------
+# The build copies only libstdc++, libgcc and libwinpthread next to the
+# executable. The rest it links (OpenSSL, zlib and brotli for the HTTP client)
+# were found on the build machine's PATH, so an archive without them started
+# only where MSYS2 happened to be on PATH, and there loaded whichever zlib1.dll
+# came first.
+Write-Host "==> Staging editor runtime DLLs"
+$editorBins = Get-ChildItem $Dist -File | Where-Object { $_.Extension -in '.exe','.dll' } |
+              ForEach-Object { $_.FullName }
+$editorDlls = Resolve-MingwDlls $editorBins
+foreach ($d in $editorDlls) {
+    if (-not (Test-Path (Join-Path $Dist $d))) {
+        Copy-Item (Join-Path $Mingw "bin\$d") $Dist -Force
+        Write-Host "    + $d"
+    }
+}
+
+# --- SDK -------------------------------------------------------------------
+# What a project build compiles and links against, which a source checkout has
+# around the build folder and a download does not: the engine source, the
+# editor DLL's headers, the third-party headers the editor was built with and
+# the import libraries. The editor finds them in sdk\ (EditorSettings::
+# GetSdkDir); without them every project build stopped at "DEKI_ENGINE_PATH and
+# DEKI_EDITOR_DIR must be supplied".
+Write-Host "==> Staging SDK"
+$Sdk = Join-Path $Dist 'sdk'
+
+function Copy-Tree([string]$From, [string]$To, [string[]]$Exclude = @()) {
+    New-Item -ItemType Directory -Force -Path $To | Out-Null
+    Get-ChildItem $From -Force | Where-Object { $_.Name -notin (@('.git') + $Exclude) } |
+        ForEach-Object { Copy-Item $_.FullName (Join-Path $To $_.Name) -Recurse -Force }
+}
+
+# The engine: its tracked files, so no build output or files a local firmware
+# build generated into it come along.
+$engine = Join-Path $RepoRoot 'deki-engine'
+$engineFiles = & git -C $engine ls-files 2>$null
+if ($LASTEXITCODE -eq 0 -and $engineFiles) {
+    foreach ($f in $engineFiles) {
+        $dst = Join-Path "$Sdk\deki-engine" ($f -replace '/','\')
+        $dstDir = Split-Path $dst -Parent
+        if (-not (Test-Path $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
+        Copy-Item (Join-Path $engine ($f -replace '/','\')) $dst -Force
+    }
+} else {
+    Copy-Tree $engine "$Sdk\deki-engine"
+}
+Write-Host "    + deki-engine"
+
+Copy-Tree "$RepoRoot\deki-editor\include" "$Sdk\deki-editor\include"
+Write-Host "    + deki-editor\include"
+
+$depsDir = (Select-String -Path $cache -Pattern '^FETCHCONTENT_BASE_DIR:' |
+            Select-Object -First 1).Line -replace '^[^=]*=',''
+if (-not $depsDir -or -not (Test-Path $depsDir)) { $depsDir = Join-Path $BuildDir '_deps' }
+$sdkDeps = Join-Path $Sdk '_deps'
+# Headers only, plus licenses; the examples and docs are most of ImGui's size.
+Copy-Tree "$depsDir\imgui-src" "$sdkDeps\imgui-src" -Exclude @('examples','docs')
+Copy-Tree "$depsDir\freetype-src\include" "$sdkDeps\freetype-src\include"
+Copy-Item "$depsDir\freetype-src\LICENSE.TXT" "$sdkDeps\freetype-src\" -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path "$sdkDeps\stb-src" | Out-Null
+Get-ChildItem "$depsDir\stb-src" -File | Where-Object { $_.Extension -eq '.h' -or $_.Name -eq 'LICENSE' } |
+    ForEach-Object { Copy-Item $_.FullName "$sdkDeps\stb-src\" -Force }
+# SDL3's prebuilt archive prefix, at the path the generated project CMake globs
+# for (sdl3-src\x86_64-w64-mingw32).
+$sdl3Include = (Select-String -Path $cache -Pattern '^DEKI_SDL3_INCLUDE_DIR:' |
+                Select-Object -First 1).Line -replace '^[^=]*=',''
+$sdl3Prefix = if ($sdl3Include) { Split-Path ($sdl3Include -replace '/','\') -Parent } else { "$depsDir\sdl3-src\x86_64-w64-mingw32" }
+if (-not (Test-Path "$sdl3Prefix\include\SDL3\SDL.h")) {
+    Write-Error "SDL3's prebuilt archive is not at $sdl3Prefix; reconfigure the editor build."
+}
+Copy-Tree "$sdl3Prefix\include" "$sdkDeps\sdl3-src\x86_64-w64-mingw32\include"
+Copy-Tree "$sdl3Prefix\lib" "$sdkDeps\sdl3-src\x86_64-w64-mingw32\lib"
+Write-Host "    + third-party headers (imgui, freetype, stb, SDL3)"
+
+# Import libraries for the editor DLLs, and the static ImGui and FreeType the
+# packages link like the editor does.
+New-Item -ItemType Directory -Force -Path "$Sdk\lib" | Out-Null
+$libs = @(Get-ChildItem "$BuildDir\lib" -File | Where-Object {
+    $_.Name -like 'libdeki-*.dll.a' -or $_.Name -eq 'libimgui.a' -or $_.Name -like 'libfreetype*.a' })
+if (-not ($libs | Where-Object Name -eq 'libdeki-editor.dll.a')) {
+    Write-Error "No libdeki-editor.dll.a in $BuildDir\lib; build the DekiEditor target first."
+}
+$libs | ForEach-Object { Copy-Item $_.FullName "$Sdk\lib\" -Force }
+Write-Host "    + $($libs.Count) libraries"
+
 # In a directory named mingw64: MSYS2's GCC has /mingw64 as its sysroot, which
 # it relocates as bin\..\..\mingw64, and finds the C headers (wchar.h, ...) in
 # its include\. Anywhere else the C++ headers are found and the C ones are not.
@@ -134,24 +246,11 @@ foreach ($t in $gccTargets) {
 # mingw64\bin are bundled; anything else is a system DLL that the target machine
 # already has.
 Write-Host "    resolving DLL dependencies"
-$objdump = Join-Path $Mingw 'bin\objdump.exe'
-$needed  = New-Object System.Collections.Generic.HashSet[string]
-$queue   = New-Object System.Collections.Generic.Queue[string]
-
-Get-ChildItem "$TC\bin" -Filter *.exe | ForEach-Object { $queue.Enqueue($_.FullName) }
+$tcBins = @(Get-ChildItem "$TC\bin" -Filter *.exe | ForEach-Object { $_.FullName })
 # cc1plus and friends pull in their own set (libisl, libmpc, ...).
-Get-ChildItem "$Mingw\lib\gcc\x86_64-w64-mingw32" -Recurse -Filter 'cc1*.exe' -ErrorAction SilentlyContinue |
-    ForEach-Object { $queue.Enqueue($_.FullName) }
-
-while ($queue.Count -gt 0) {
-    $bin = $queue.Dequeue()
-    $deps = & $objdump -p $bin 2>$null | Select-String -Pattern '^\s*DLL Name:\s*(.+)$' |
-            ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() }
-    foreach ($d in $deps) {
-        $cand = Join-Path $Mingw "bin\$d"
-        if ((Test-Path $cand) -and $needed.Add($d)) { $queue.Enqueue($cand) }
-    }
-}
+$tcBins += @(Get-ChildItem "$Mingw\lib\gcc\x86_64-w64-mingw32" -Recurse -Filter 'cc1*.exe' -ErrorAction SilentlyContinue |
+             ForEach-Object { $_.FullName })
+$needed = Resolve-MingwDlls $tcBins
 foreach ($d in $needed) { Copy-Item (Join-Path $Mingw "bin\$d") "$TC\bin\" -Force }
 Write-Host "    + $($needed.Count) runtime DLLs"
 
@@ -277,6 +376,18 @@ if (Test-Path $cmakeExe) {
     Write-Host "    ! cmake not found; the editor will fall back to PATH"
 }
 
+# cmake links a set of its own (libcurl, libarchive, libuv, jsoncpp, ...). They
+# were resolved with GCC's above, before cmake was copied, so they never came
+# along: the bundled cmake ran only where MSYS2 was on PATH, and elsewhere
+# exited at once with STATUS_DLL_NOT_FOUND and no output.
+$toolBins = @(Get-ChildItem "$TC\bin" -File | Where-Object { $_.Name -in 'cmake.exe','ninja.exe' } |
+              ForEach-Object { $_.FullName })
+$toolDlls = 0
+foreach ($d in (Resolve-MingwDlls $toolBins)) {
+    if (-not (Test-Path "$TC\bin\$d")) { Copy-Item (Join-Path $Mingw "bin\$d") "$TC\bin\" -Force; $toolDlls++ }
+}
+Write-Host "    + $toolDlls build tool DLLs"
+
 # --- sanity check ----------------------------------------------------------
 # The whole point is that this works on a machine with nothing installed, so
 # prove it here rather than shipping and finding out: compile with C++26
@@ -295,6 +406,14 @@ try {
     $env:PATH = "$TC\bin"
     & "$TC\bin\g++.exe" -std=c++26 -freflection $probeCc -o $probeOut 2>&1 | ForEach-Object { "    $_" }
     $rc = $LASTEXITCODE
+    # The build tools have DLLs of their own; a missing one fails before any output.
+    $toolRc = 0
+    foreach ($tool in @('cmake.exe','ninja.exe')) {
+        if (Test-Path "$TC\bin\$tool") {
+            & "$TC\bin\$tool" --version | Out-Null
+            if ($LASTEXITCODE -ne 0) { Write-Host "    ! $tool --version failed ($LASTEXITCODE)"; $toolRc = 1 }
+        }
+    }
 } finally {
     $env:PATH = $savedPath
 }
@@ -303,7 +422,10 @@ Remove-Item $probeCc, $probeOut -Force -ErrorAction SilentlyContinue
 if ($rc -ne 0) {
     Write-Error "The bundled toolchain could not compile with an empty PATH - the bundle is incomplete."
 }
-Write-Host "    compiled C++26 + reflection with PATH set to the bundle only"
+if ($toolRc -ne 0) {
+    Write-Error "A bundled build tool could not run with an empty PATH - the bundle is incomplete."
+}
+Write-Host "    compiled C++26 + reflection and ran cmake and ninja with PATH set to the bundle only"
 
 $size = (Get-ChildItem $Dist -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
 Write-Host ""
@@ -333,3 +455,49 @@ $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLower()
 $zipSize = (Get-Item $archive).Length / 1MB
 Write-Host ("    {0}  ({1:N0} MB)" -f $archive, $zipSize)
 Write-Host "    sha256 $hash"
+
+# --- project check ---------------------------------------------------------
+# What a user does first: unpack the archive, create a project and build its
+# code, with a PATH holding only Windows and git (which installs the project's
+# packages). CI's smoke jobs run the editor from its build tree, where the
+# engine, the import libraries and MSYS2's DLLs are all at hand, so only this
+# proves the archive works on its own. It runs from the unpacked zip in the
+# temp folder rather than from dist\: two levels above dist\'s editor is this
+# repository, whose deki-engine the editor's source-checkout lookup would find
+# in place of a missing sdk\. Skipped with -SkipProjectCheck; it compiles every
+# starter package, which takes minutes. A failure deletes the archive.
+if (-not $SkipProjectCheck) {
+    Write-Host "==> Building a new project with the unpacked archive"
+    $git = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $git) { Write-Error "git is needed for the project check (it installs the starter packages)." }
+    $checkRoot = Join-Path ([System.IO.Path]::GetTempPath()) "deki-archive-check-$PID"
+    New-Item -ItemType Directory -Force -Path "$checkRoot\projects" | Out-Null
+    $savedPath = $env:PATH
+    $failure = $null
+    try {
+        & $bsdtar -x -f $archive -C $checkRoot
+        if ($LASTEXITCODE -ne 0) { throw "$bsdtar could not unpack $archive" }
+        $exe = Join-Path $checkRoot "$(Split-Path -Leaf $Dist)\DekiEditor.exe"
+        $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\Wbem;" +
+                    (Split-Path $git.Source -Parent)
+        # The editor is a GUI-subsystem program, which the call operator does not wait for.
+        foreach ($verb in @(@('--new-project', 'deki-check', "$checkRoot\projects"),
+                            @('--build-code', "$checkRoot\projects\deki-check"))) {
+            $p = Start-Process -FilePath $exe -ArgumentList ($verb | ForEach-Object { "`"$_`"" }) `
+                               -NoNewWindow -Wait -PassThru
+            if ($p.ExitCode -ne 0) {
+                throw "The packaged editor failed '$($verb[0])' (exit $($p.ExitCode)); see %APPDATA%\DekiEditor\Editor.log."
+            }
+            Write-Host "    $($verb[0]): ok"
+        }
+    } catch {
+        $failure = $_.Exception.Message
+    } finally {
+        $env:PATH = $savedPath
+        Remove-Item -Recurse -Force $checkRoot -ErrorAction SilentlyContinue
+    }
+    if ($failure) {
+        Remove-Item $archive, "$archive.sha256" -Force -ErrorAction SilentlyContinue
+        Write-Error "$failure The archive was deleted."
+    }
+}

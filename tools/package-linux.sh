@@ -17,9 +17,11 @@
 #         DekiEditor
 #         lib*.so, resources/
 #         toolchain/bin/{g++,gcc,ninja,...}     <- found automatically at runtime
+#         sdk/{deki-engine,deki-editor/include,_deps,lib}  <- what project builds use
 #
 # The editor prefers toolchain/ and falls back to PATH, so a build from source
-# with no bundle keeps working (see services/BundledToolchain.h).
+# with no bundle keeps working (see services/BundledToolchain.h). The same for
+# sdk/ (EditorSettings::GetSdkDir) and the source checkout.
 #
 # Usage: tools/package-linux.sh [build-dir]      (default: build)
 
@@ -50,6 +52,52 @@ mkdir -p "$DIST/lib"
 cp -a "$BUILD_DIR"/lib/*.so "$DIST/lib/" 2>/dev/null || true
 patchelf --set-rpath '$ORIGIN/lib:$ORIGIN' "$DIST/DekiEditor" 2>/dev/null \
     || echo "    (patchelf not installed - set LD_LIBRARY_PATH, or install patchelf for a relocatable rpath)"
+
+echo "==> Staging SDK"
+# What a project build compiles and links against, which a source checkout has
+# around the build folder and a download does not: the engine source, the
+# editor library's headers, the third-party headers the editor was built with
+# and the libraries. The editor finds them in sdk/ (EditorSettings::GetSdkDir);
+# without them every project build stopped at "DEKI_ENGINE_PATH and
+# DEKI_EDITOR_DIR must be supplied". Same layout as package-windows.ps1.
+SDK="$DIST/sdk"
+mkdir -p "$SDK/deki-engine" "$SDK/deki-editor" "$SDK/_deps" "$SDK/lib"
+# The engine's tracked files, so no build output or files a local firmware
+# build generated into it come along.
+if git -C "$REPO_ROOT/deki-engine" ls-files >/dev/null 2>&1; then
+    ( cd "$REPO_ROOT/deki-engine" && git ls-files -z | xargs -0 cp --parents -t "$SDK/deki-engine" )
+else
+    cp -a "$REPO_ROOT/deki-engine/." "$SDK/deki-engine/"
+    rm -rf "$SDK/deki-engine/.git"
+fi
+cp -a "$REPO_ROOT/deki-editor/include" "$SDK/deki-editor/include"
+
+DEPS_DIR="$(grep -m1 '^FETCHCONTENT_BASE_DIR:' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2)"
+[[ -d "$DEPS_DIR" ]] || DEPS_DIR="$BUILD_DIR/_deps"
+# Headers only, plus licenses; the examples and docs are most of ImGui's size.
+mkdir -p "$SDK/_deps/imgui-src" "$SDK/_deps/freetype-src" "$SDK/_deps/stb-src" "$SDK/_deps/sdl3-src"
+( cd "$DEPS_DIR/imgui-src" && find . -mindepth 1 -maxdepth 1 ! -name examples ! -name docs ! -name .git \
+      -exec cp -a {} "$SDK/_deps/imgui-src/" \; )
+cp -a "$DEPS_DIR/freetype-src/include" "$SDK/_deps/freetype-src/include"
+cp -a "$DEPS_DIR/freetype-src/LICENSE.TXT" "$SDK/_deps/freetype-src/" 2>/dev/null || true
+cp -a "$DEPS_DIR"/stb-src/*.h "$DEPS_DIR/stb-src/LICENSE" "$SDK/_deps/stb-src/"
+# SDL3 is built from source here: its headers from the source tree, its static
+# library from build/lib below.
+cp -a "$DEPS_DIR/sdl3-src/include" "$SDK/_deps/sdl3-src/include"
+cp -a "$DEPS_DIR/sdl3-src/LICENSE.txt" "$SDK/_deps/sdl3-src/" 2>/dev/null || true
+
+# The editor's shared libraries are already in lib/; link rather than copy
+# them, so the archive carries one copy. The static ImGui, FreeType and SDL3
+# are linked into packages as into the editor.
+for so in "$DIST"/lib/libdeki-*.so; do
+    [[ -e "$so" ]] && ln -sf "../../lib/$(basename "$so")" "$SDK/lib/$(basename "$so")"
+done
+cp -a "$BUILD_DIR"/lib/libimgui.a "$BUILD_DIR"/lib/libfreetype*.a "$SDK/lib/"
+cp -a "$BUILD_DIR"/lib/libSDL3*.a "$SDK/lib/" 2>/dev/null || true
+if [[ ! -e "$SDK/lib/libdeki-editor.so" ]]; then
+    echo "error: no libdeki-editor.so in $DIST/lib; build the DekiEditor target first." >&2
+    exit 1
+fi
 
 echo "==> Staging toolchain"
 # The compiler the editor was built with, so project builds match its ABI
@@ -162,6 +210,21 @@ if command -v cmake >/dev/null 2>&1; then
     fi
 else
     echo "    ! cmake not found; the editor will fall back to PATH"
+fi
+
+# --- project check ----------------------------------------------------------
+# What a user does first: create a project and build its code, with the
+# packaged editor and a plain system PATH. CI's smoke jobs run the editor from
+# its build tree, where the engine and the libraries are at hand, so only this
+# proves the archive works on its own. DEKI_SKIP_PROJECT_CHECK=1 skips it; it
+# compiles every starter package, which takes minutes.
+if [[ "${DEKI_SKIP_PROJECT_CHECK:-0}" != "1" ]]; then
+    echo "==> Building a new project with the packaged editor"
+    PROJ_PARENT="$(mktemp -d)"
+    trap 'rm -rf "$PROJ_PARENT"' EXIT
+    env PATH=/usr/bin:/bin "$DIST/DekiEditor" --new-project deki-check "$PROJ_PARENT"
+    env PATH=/usr/bin:/bin "$DIST/DekiEditor" --build-code "$PROJ_PARENT/deki-check"
+    echo "    --new-project, --build-code: ok"
 fi
 
 echo

@@ -311,6 +311,131 @@ namespace DekiEditor
 namespace
 {
 
+/// GL_VENDOR / GL_RENDERER / GL_VERSION of the current context.
+std::string CurrentGlStrings()
+{
+    auto str = [](GLenum name)
+    {
+        const GLubyte* s = glGetString(name);
+        return std::string(s ? reinterpret_cast<const char*>(s) : "?");
+    };
+    return str(GL_VENDOR) + " / " + str(GL_RENDERER) + " / " + str(GL_VERSION);
+}
+
+/// OpenGL did not start: says why in an error box and the log. Without this
+/// the first frame dereferences the GL backend's null data and the editor
+/// crashes with nothing to go on. Lists the step and SDL's error, the adapter
+/// behind each display, and what a plain (version-less) context gives here:
+/// Microsoft's "GDI Generic" means Windows found no GPU OpenGL driver for the
+/// display.
+void ReportGlFailure(SDL_Window* window, const char* step)
+{
+    const char* sdlError = SDL_GetError();
+    std::string text = std::string("Failed at: ") + step + "\n";
+    text += std::string("SDL error: ") + (sdlError && *sdlError ? sdlError : "(none)") + "\n";
+
+    // Windows' own OpenGL 1.1 software renderer: SDL accepts it as a context,
+    // and the GL backend then refuses it.
+    bool softwareGl = false;
+    if (SDL_GL_GetCurrentContext())
+    {
+        const std::string strings = CurrentGlStrings();
+        softwareGl = strings.find("GDI Generic") != std::string::npos;
+        text += "Editor context: " + strings + "\n";
+    }
+
+    if (SDL_DisplayID display = SDL_GetDisplayForWindow(window))
+    {
+        const char* name = SDL_GetDisplayName(display);
+        text += std::string("Window on display: ") + (name ? name : "?") + "\n";
+    }
+
+#ifdef _WIN32
+    std::string windowDevice;
+    if (HWND hwnd =
+            (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL))
+    {
+        MONITORINFOEXA mi{};
+        mi.cbSize = sizeof(mi);
+        if (GetMonitorInfoA(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi))
+        {
+            windowDevice = mi.szDevice;
+        }
+    }
+    text += "Displays:\n";
+    DISPLAY_DEVICEA dd{};
+    dd.cb = sizeof(dd);
+    for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0); ++i)
+    {
+        if (dd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP)
+        {
+            text += std::string("  ") + dd.DeviceName + "  " + dd.DeviceString;
+            if (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)
+            {
+                text += "  [primary]";
+            }
+            if (windowDevice == dd.DeviceName)
+            {
+                text += "  [editor window]";
+            }
+            text += "\n";
+        }
+        dd = {};
+        dd.cb = sizeof(dd);
+    }
+#endif
+
+    // On a second, hidden window: a window's pixel format is set once, and the
+    // editor window already has one.
+    SDL_GL_ResetAttributes();
+    if (SDL_Window* probe = SDL_CreateWindow("Deki GL probe", 64, 64, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN))
+    {
+        if (SDL_GLContext gl = SDL_GL_CreateContext(probe))
+        {
+            const std::string strings = CurrentGlStrings();
+            softwareGl = softwareGl || strings.find("GDI Generic") != std::string::npos;
+            text += "Plain OpenGL context: " + strings + "\n";
+            SDL_GL_DestroyContext(gl);
+        }
+        else
+        {
+            text += std::string("Plain OpenGL context: none (") + SDL_GetError() + ")\n";
+        }
+        SDL_DestroyWindow(probe);
+    }
+
+    std::string advice = "Deki Editor could not start OpenGL 3.3, which it needs to draw.\n\n";
+    if (softwareGl)
+    {
+        advice += "Windows found no OpenGL driver for the graphics card and fell back to its own OpenGL 1.1 "
+                  "software renderer (\"GDI Generic\"). Other OpenGL programs, such as Blender, fail the same "
+                  "way. Reinstall the graphics driver (AMD: the Adrenalin installer's Factory Reset option); "
+                  "DirectX and Vulkan games can keep working while its OpenGL part is broken.\n\n";
+    }
+    else
+    {
+        advice += "Update the graphics driver. Over Remote Desktop, in a virtual machine or on a virtual "
+                  "display, OpenGL 3.3 may not be available at all.\n\n";
+    }
+    text = advice + text;
+
+    // Editor.log is not open yet this early in boot, so the report also goes
+    // to a file next to the executable.
+    const char* basePath = SDL_GetBasePath();
+    const std::string reportPath = std::string(basePath ? basePath : "") + "deki_gl_report.txt";
+    text += "\nThis report is also saved to " + reportPath;
+    if (FILE* f = fopen(reportPath.c_str(), "w"))
+    {
+        fputs(text.c_str(), f);
+        fclose(f);
+    }
+
+    DEKI_LOG_ERROR("[gl] %s", text.c_str());
+    printf("Error: %s\n", text.c_str());
+    fflush(stdout);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Deki Editor", text.c_str(), window);
+}
+
 /// Window, GL context, ImGui context, theme and fonts. GUI only: a headless
 /// boot never calls this, so it needs no display.
 bool BootDisplay(BootContext& ctx)
@@ -470,7 +595,17 @@ bool BootDisplay(BootContext& ctx)
 #endif
 
     ctx.glContext = SDL_GL_CreateContext(ctx.window);
-    SDL_GL_MakeCurrent(ctx.window, ctx.glContext);
+    if (!ctx.glContext)
+    {
+        ReportGlFailure(ctx.window, "SDL_GL_CreateContext");
+        return false;
+    }
+    if (!SDL_GL_MakeCurrent(ctx.window, ctx.glContext))
+    {
+        ReportGlFailure(ctx.window, "SDL_GL_MakeCurrent");
+        return false;
+    }
+    DEKI_LOG_EDITOR("OpenGL: %s", CurrentGlStrings().c_str());
     SDL_GL_SetSwapInterval(1);  // vsync
 
     IMGUI_CHECKVERSION();
@@ -574,7 +709,11 @@ bool BootDisplay(BootContext& ctx)
                                                             : "greyscale");
 
     ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
-    ImGui_ImplOpenGL3_Init(glslVersion);
+    if (!ImGui_ImplOpenGL3_Init(glslVersion))
+    {
+        ReportGlFailure(ctx.window, "ImGui_ImplOpenGL3_Init");
+        return false;
+    }
 
 #ifdef _WIN32
     // Started in the background: show the hidden window now, minimized and

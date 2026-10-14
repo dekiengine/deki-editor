@@ -79,8 +79,7 @@ struct EditorTimeProvider : public Deki::ITimeProvider
 // pointer. When the editor is rebuilt against a newer ImGui, this header's
 // time moves forward; comparing it with a package or plugin DLL's time finds
 // an ImGuiContext ABI mismatch the source watcher cannot see (it only watches
-// project/ sources). Returns an empty path when the header cannot be found
-// (such as a deployed editor without its build tree).
+// project/ sources). Returns an empty path when the header cannot be found.
 std::filesystem::path EditorImGuiInternalHeader()
 {
     namespace fs = std::filesystem;
@@ -103,7 +102,9 @@ std::vector<std::filesystem::path> EditorAbiInputs()
 {
     namespace fs = std::filesystem;
     fs::path editorDir = DekiEditor::EditorPaths::GetExecutableDir();
-    fs::path libDir = editorDir / ".." / "lib";
+    // A downloaded editor keeps the import libs in its SDK (EditorSettings::GetSdkDir).
+    const std::string sdkDir = DekiEditor::EditorSettings::GetSdkDir();
+    fs::path libDir = sdkDir.empty() ? editorDir / ".." / "lib" : fs::path(sdkDir) / "lib";
     // If any of these is newer than the project's build outputs, the editor
     // changed and plugins must be rebuilt against it. Names carry platform
     // decoration, and the layouts differ: MSVC splits a DLL from its import
