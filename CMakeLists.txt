@@ -47,7 +47,7 @@ endif()
 # The release number. The engine (deki-engine/CMakeLists.txt) carries the same
 # one, packages name it as minEngine, and the git tag equals it; see
 # COMPATIBILITY.md. tools/ci/check_version.py fails when the two drift.
-project(DekiEditor VERSION 0.18.2 LANGUAGES CXX)
+project(DekiEditor VERSION 0.18.3 LANGUAGES CXX)
 
 # Unity builds batch sources into a few large translation units, which makes
 # a clean build much faster. Opt-in until every TU is known to be free of

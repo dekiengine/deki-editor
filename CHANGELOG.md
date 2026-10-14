@@ -4,7 +4,7 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.18.3 - 2026-10-15
 
 ### Added
 - Device screenshots read `RGB565_BE` and `RGB565A8_BE`, from a board built
