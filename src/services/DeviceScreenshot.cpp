@@ -96,11 +96,11 @@ bool DecodeBase64Line(const std::string& line, std::vector<uint8_t>& out)
 
 size_t BytesPerPixel(const std::string& format)
 {
-    if (format == "RGB565")
+    if (format == "RGB565" || format == "RGB565_BE")
     {
         return 2;
     }
-    if (format == "RGB888" || format == "RGB565A8")
+    if (format == "RGB888" || format == "RGB565A8" || format == "RGB565A8_BE")
     {
         return 3;
     }
@@ -200,13 +200,18 @@ bool ParseDeviceScreenshot(const std::string& received, DeviceFrame& frame, std:
 
         const size_t pixels = static_cast<size_t>(frame.width) * static_cast<size_t>(frame.height);
         frame.rgba.assign(pixels * 4, 255);
+        // A board built with DEKI_RGB565_BIG_ENDIAN keeps RGB565 high byte
+        // first and says so with _BE. RGB565A8 is the 565 value, then alpha.
+        const bool is565 = frame.format.rfind("RGB565", 0) == 0;
+        const bool bigEndian = frame.format.size() > 3 && frame.format.compare(frame.format.size() - 3, 3, "_BE") == 0;
         for (size_t i = 0; i < pixels; ++i)
         {
             uint8_t* px = &frame.rgba[i * 4];
-            if (frame.format == "RGB565" || frame.format == "RGB565A8")
+            if (is565)
             {
-                // RGB565A8 keeps its colour plane first, as two bytes a pixel.
-                const uint16_t v = static_cast<uint16_t>(data[i * 2] | (data[i * 2 + 1] << 8));
+                const uint8_t* p = &data[i * pixelBytes];
+                const uint16_t v = bigEndian ? static_cast<uint16_t>((p[0] << 8) | p[1])
+                                             : static_cast<uint16_t>(p[0] | (p[1] << 8));
                 px[0] = static_cast<uint8_t>(((v >> 11) & 31) * 255 / 31);
                 px[1] = static_cast<uint8_t>(((v >> 5) & 63) * 255 / 63);
                 px[2] = static_cast<uint8_t>((v & 31) * 255 / 31);

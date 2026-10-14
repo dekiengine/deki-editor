@@ -320,9 +320,14 @@ endif()
 #                  the SOURCES named: for a package whose whole runtime would
 #                  drag in what it requires (deki-fsm's action library calls
 #                  into deki-2d and deki-tween).
+#
+# BIG_ENDIAN builds the same tests a second time with DEKI_RGB565_BIG_ENDIAN,
+# as a board whose panel takes RGB565 high byte first is built. It follows the
+# package's plain call, reuses its reflection tables, and its run target runs
+# with run-pkgtests-<pkg>, so a package's CI checks both byte orders.
 
 function(deki_add_package_tests pkg_id)
-    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR;CODEGEN" "TARGET" "SOURCES;DEFINES;LIBS" ${ARGN})
+    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR;CODEGEN;BIG_ENDIAN" "TARGET" "SOURCES;DEFINES;LIBS" ${ARGN})
     set(_pkg "${DEKI_PACKAGES_DIR}/${pkg_id}")
     if(NOT EXISTS "${_pkg}/tests")
         message(STATUS "Deki: ${pkg_id} tests skipped (no checkout at ${_pkg})")
@@ -371,7 +376,10 @@ function(deki_add_package_tests pkg_id)
         endif()
     endforeach()
 
-    if(T_CODEGEN)
+    if(T_CODEGEN AND T_BIG_ENDIAN)
+        # The tables do not depend on byte order: the plain call made them.
+        get_property(DEKI_RC_TARGETS_${_sfx} GLOBAL PROPERTY DEKI_PKGTEST_RC_${_sfx})
+    elseif(T_CODEGEN)
         include(${DEKI_ENGINE_PATH}/cmake/DekiReflectionCodegen.cmake)
         file(MAKE_DIRECTORY "${_gen}/generated")
         deki_reflection_codegen(
@@ -383,6 +391,9 @@ function(deki_add_package_tests pkg_id)
                          "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}" ${_req_includes}
             DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
                     "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
+        set_property(GLOBAL PROPERTY DEKI_PKGTEST_RC_${_sfx} "${DEKI_RC_TARGETS_${_sfx}}")
+    endif()
+    if(T_CODEGEN)
         if(T_ALL_SOURCES)
             file(GLOB _all_srcs CONFIGURE_DEPENDS "${_pkg}/*.cpp")
             list(APPEND _srcs ${_all_srcs})
@@ -409,6 +420,7 @@ function(deki_add_package_tests pkg_id)
         "DEKI_PACKAGE_VERSION=\"tests\""
         ${_pkg_defines}
         ${T_DEFINES}
+        $<$<BOOL:${T_BIG_ENDIAN}>:DEKI_RGB565_BIG_ENDIAN>
     )
     if(PACKAGE_UPPER)
         target_compile_definitions(${T_TARGET} PRIVATE "DEKI_${PACKAGE_UPPER}_EXPORTS")
@@ -425,7 +437,11 @@ function(deki_add_package_tests pkg_id)
     list(APPEND _libs ${T_LIBS})
     target_link_libraries(${T_TARGET} PRIVATE ${_libs})
 
-    gtest_discover_tests(${T_TARGET})
+    if(T_BIG_ENDIAN)
+        gtest_discover_tests(${T_TARGET} TEST_SUFFIX ".BigEndian")
+    else()
+        gtest_discover_tests(${T_TARGET})
+    endif()
     if(DEKI_RUN_TESTS_ON_BUILD)
         add_custom_command(TARGET ${T_TARGET} POST_BUILD
             COMMAND $<TARGET_FILE:${T_TARGET}> --gtest_brief=1
@@ -436,19 +452,28 @@ function(deki_add_package_tests pkg_id)
 
     # Builds and runs this one package's tests, by package id: what a
     # package's own CI calls (.github/workflows/package-tests.yml).
-    add_custom_target(run-pkgtests-${pkg_id}
+    set(_run run-pkgtests-${pkg_id})
+    if(T_BIG_ENDIAN)
+        set(_run run-pkgtests-${pkg_id}-big-endian)
+    endif()
+    add_custom_target(${_run}
         COMMAND $<TARGET_FILE:${T_TARGET}> --gtest_brief=1
         DEPENDS ${T_TARGET}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         USES_TERMINAL)
+    if(T_BIG_ENDIAN AND TARGET run-pkgtests-${pkg_id})
+        add_dependencies(run-pkgtests-${pkg_id} ${_run})
+    endif()
 endfunction()
 
 # deki-rendering's tests reach into QuadBlit's .cpp and construct components,
 # so this one needs the package's whole runtime and its reflection tables.
 deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR)
+deki_add_package_tests(deki-rendering TARGET DekiRenderingTestsBigEndian ALL_SOURCES NEEDS_EDITOR BIG_ENDIAN)
 
 # ParticlePool is a header, so the tests compile alone against the engine.
 deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
+deki_add_package_tests(deki-particles TARGET DekiParticlesTestsBigEndian BIG_ENDIAN)
 
 # deki-3d: the rasteriser and the mesh file, every texture and framebuffer
 # format. tests/standalone/ holds two programs with their own main()
@@ -456,6 +481,8 @@ deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
 # line in their header comments.
 deki_add_package_tests(deki-3d TARGET Deki3DTests
     SOURCES Raster3D.cpp MeshAsset.cpp editor/ObjImporter.cpp)
+deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian
+    SOURCES Raster3D.cpp MeshAsset.cpp editor/ObjImporter.cpp BIG_ENDIAN)
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
 deki_add_package_tests(deki-imu TARGET DekiImuTests)
@@ -488,6 +515,7 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # finished frame. Sprite.cpp is here for Max Size: the loader maps a shrunk
 # texture's frames the way the (header-only) encoder resampled them.
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES Sprite.cpp)
+deki_add_package_tests(deki-2d TARGET Deki2DTestsBigEndian SOURCES Sprite.cpp BIG_ENDIAN)
 
 # Document wraps the vendored cJSON; its .c file compiles with it, and nothing
 # else in the package is needed. The editor itself is C++ only on Windows

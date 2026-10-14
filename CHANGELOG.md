@@ -4,6 +4,19 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- Device screenshots read `RGB565_BE` and `RGB565A8_BE`, from a board built
+  with `DEKI_RGB565_BIG_ENDIAN`.
+- Package tests: `deki_add_package_tests(... BIG_ENDIAN)` builds a package's
+  tests again with `DEKI_RGB565_BIG_ENDIAN`. deki-rendering, deki-2d,
+  deki-3d and deki-particles are, and `run-pkgtests-<pkg>` runs both.
+
+### Fixed
+- Device screenshots read an RGB565A8 framebuffer at two bytes a pixel; it is
+  three.
+
 ## 0.18.2 - 2026-10-11
 
 ### Added

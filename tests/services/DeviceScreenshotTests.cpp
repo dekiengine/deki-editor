@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace DekiEditor;
@@ -73,6 +74,41 @@ TEST(DeviceScreenshot, ReadsAnRgb565FrameAmongLogLines)
     EXPECT_EQ(frame.rgba[4], 0);  // blue
     EXPECT_EQ(frame.rgba[5], 0);
     EXPECT_EQ(frame.rgba[6], 255);
+}
+
+// A board built with DEKI_RGB565_BIG_ENDIAN sends RGB565 high byte first and
+// names it RGB565_BE.
+TEST(DeviceScreenshot, ReadsABigEndianRgb565Frame)
+{
+    const std::vector<uint8_t> redBlue = { 0xF8, 0x00, 0x00, 0x1F };
+    DeviceFrame frame;
+    std::string error;
+    ASSERT_TRUE(ParseDeviceScreenshot(Answer(redBlue, Crc32(redBlue), "2 1 RGB565_BE 4"), frame, error)) << error;
+    EXPECT_EQ(frame.format, "RGB565_BE");
+    ASSERT_EQ(frame.rgba.size(), 8u);
+    EXPECT_EQ(frame.rgba[0], 255);  // red
+    EXPECT_EQ(frame.rgba[2], 0);
+    EXPECT_EQ(frame.rgba[4], 0);  // blue
+    EXPECT_EQ(frame.rgba[6], 255);
+}
+
+// RGB565A8 is three bytes a pixel: the 565 value, then alpha.
+TEST(DeviceScreenshot, ReadsRgb565A8ThreeBytesAPixel)
+{
+    const std::vector<uint8_t> le = { 0x00, 0xF8, 0xFF, 0x1F, 0x00, 0x80 };
+    const std::vector<uint8_t> be = { 0xF8, 0x00, 0xFF, 0x00, 0x1F, 0x80 };
+    for (const auto& [data, header] : { std::pair{ le, std::string("2 1 RGB565A8 6") },
+                                        std::pair{ be, std::string("2 1 RGB565A8_BE 6") } })
+    {
+        DeviceFrame frame;
+        std::string error;
+        ASSERT_TRUE(ParseDeviceScreenshot(Answer(data, Crc32(data), header), frame, error)) << error;
+        ASSERT_EQ(frame.rgba.size(), 8u);
+        EXPECT_EQ(frame.rgba[0], 255) << header;  // red
+        EXPECT_EQ(frame.rgba[2], 0) << header;
+        EXPECT_EQ(frame.rgba[4], 0) << header;  // blue
+        EXPECT_EQ(frame.rgba[6], 255) << header;
+    }
 }
 
 TEST(DeviceScreenshot, ADamagedFrameIsRefused)
