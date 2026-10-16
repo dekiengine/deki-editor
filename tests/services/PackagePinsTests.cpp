@@ -131,7 +131,14 @@ public:
         return Trim(out);
     }
     std::string Head() const { return Rev("HEAD", PackageDir()); }
-    std::string OriginTag(const std::string& tag) const { return Rev(tag + "^{commit}", m_Root / "origin"); }
+    // rev-list rather than rev-parse <tag>^{commit}: an MSYS2 git (CI's)
+    // takes the braces out of its arguments, so it would be asked for <tag>^commit.
+    std::string OriginTag(const std::string& tag) const
+    {
+        std::string out;
+        Git({ "-C", (m_Root / "origin").string(), "rev-list", "-n", "1", tag }, &out);
+        return Trim(out);
+    }
 
     std::string LockedVersion() const
     {
