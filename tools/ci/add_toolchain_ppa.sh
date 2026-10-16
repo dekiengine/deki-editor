@@ -8,6 +8,12 @@
 # not fail on it. Three tries, 30 s apart, then the last error stands.
 set -u
 
+# The PPA's file server answers some downloads with 503 Service Unavailable
+# under load, and the ~100 packages of GCC 16 and its runtime meet a few of
+# them; apt gave up on the first and failed the job. It now retries each
+# failed download (growing delays between tries) for every apt-get after this.
+echo 'Acquire::Retries "10";' | sudo tee /etc/apt/apt.conf.d/80-deki-retries >/dev/null
+
 for attempt in 1 2 3; do
     if sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; then
         exit 0
