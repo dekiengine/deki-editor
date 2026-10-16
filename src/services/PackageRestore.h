@@ -12,6 +12,7 @@
 // project restores the same way from the GUI and from a script.
 
 #include "PackageManager.h"  // PackageEntry, IPackageInstaller
+#include "PackagePins.h"     // PinMismatch, FindPinMismatches, ApplyPinnedVersions
 
 #include <functional>
 #include <string>
@@ -58,23 +59,5 @@ bool TryFillFromRegistry(PackageManager& mgr, PackageEntry& pkg);
 /// generated build files.
 PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, PackageManager& mgr,
                                             const PackageRestoreProgress& onProgress = {});
-
-/// A package deki-packages.json pins to one version while another is installed.
-struct PinMismatch
-{
-    std::string id;
-    std::string pinned;     // what the manifest says
-    std::string installed;  // what is on disk
-};
-
-/// Installed packages whose version differs from the manifest's pin. A pin
-/// is applied only when a package is installed, so changing it later does
-/// nothing by itself; this reports it. Unpinned ("*"), branch pins and
-/// packages whose installed version is unknown are not compared. Call
-/// LoadPackages() on `mgr` for this project first.
-std::vector<PinMismatch> FindPinMismatches(const std::string& projectPath, PackageManager& mgr);
-
-/// One line per mismatch: what differs, and the command that installs the pin.
-std::string DescribePinMismatch(const PinMismatch& m);
 
 }  // namespace DekiEditor

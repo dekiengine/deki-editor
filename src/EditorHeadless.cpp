@@ -568,9 +568,10 @@ int CmdPackagesRestore(EditorApp& editor)
         return 1;
     }
 
-    // Restoring installs what is missing but leaves an installed package at
-    // its version. One that differs from its pin is not what the manifest
-    // asks for, so the restore fails.
+    // The open also moved installed packages onto their pins
+    // (ApplyPinnedVersions). One still off its pin is a checkout that may hold
+    // someone's work, left alone on purpose; it is not what the manifest asks
+    // for, so the restore fails.
     const std::vector<PinMismatch> mismatches = FindPinMismatches(path, mgr);
     if (!mismatches.empty())
     {

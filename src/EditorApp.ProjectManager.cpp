@@ -243,9 +243,28 @@ bool EditorApp::OpenProject(const std::string& path)
             }
         }
 
-        for (const auto& mismatch : DekiEditor::FindPinMismatches(path, packageMgr))
+        // A package installed at another version than the project now pins (its
+        // pins changed since the install) moves onto the pin, before the build
+        // compiles the project against it. Only a checkout that may hold
+        // someone's work stays, with a warning. The registry index resolves
+        // dependencies a newer version adds.
+        if (!DekiEditor::FindPinMismatches(path, packageMgr).empty())
         {
-            DEKI_LOG_WARNING("EditorApp: %s", DekiEditor::DescribePinMismatch(mismatch).c_str());
+            StartupProgress::Update("Updating packages...");
+            DekiEditor::WarmRegistryIndex(packageMgr);
+        }
+        const auto pins = DekiEditor::ApplyPinnedVersions(path, packageMgr);
+        for (const auto& line : pins.updated)
+        {
+            DEKI_LOG_EDITOR("EditorApp: moved package %s, the version the project pins", line.c_str());
+        }
+        for (const auto& line : pins.kept)
+        {
+            DEKI_LOG_WARNING("EditorApp: %s", line.c_str());
+        }
+        if (pins.DidWork() && m_HotReloadService)
+        {
+            m_HotReloadService->ForceNextBuild();
         }
     }
 

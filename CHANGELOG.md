@@ -4,6 +4,19 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- **A project whose package pins changed builds against the new versions.**
+  A pin was applied only when a package was installed, so after pulling a
+  project with newer pins (or downloading it again over an old copy) the old
+  checkouts stayed, and the project failed to compile against an API they did
+  not have yet. Opening a project now moves every intact package onto its
+  pin before the first build: one still on the commit the editor installed,
+  with no file changed. A package that is not intact (local edits or commits,
+  another commit checked out, an editable package on a branch, or a link to
+  another folder) is left as it is, with a warning saying why.
+
 ## 0.18.3 - 2026-10-15
 
 ### Added

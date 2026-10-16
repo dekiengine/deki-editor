@@ -559,6 +559,8 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/GitProcess.cpp
     # PackageIntegrityTests drives it against throwaway git repos.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackageIntegrity.cpp
+    # PackagePinsTests: a package whose pin changed moves onto it.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PackagePins.cpp
     # Provides the fault handler SafeDllCall relies on off MSVC. Compiled away
     # to nothing on MSVC, which uses __try/__except instead.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FaultGuard.cpp
@@ -759,6 +761,8 @@ set(EDITOR_SOURCES
     src/services/ProjectTemplate.h
     src/services/PackageManager.cpp
     src/services/PackageManager.h
+    src/services/PackagePins.cpp
+    src/services/PackagePins.h
     src/services/PackageRestore.cpp
     src/services/PackageRestore.h
     src/services/Prerequisites.cpp

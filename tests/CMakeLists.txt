@@ -90,6 +90,7 @@ set(TEST_SOURCES
     services/PlatformTemplateTests.cpp
     services/MinEngineGateTests.cpp
     services/PackageIntegrityTests.cpp
+    services/PackagePinsTests.cpp
     panels/VirtualFoldersTests.cpp
     panels/AssetFileOpsTests.cpp
     core/SceneCorpusTests.cpp
