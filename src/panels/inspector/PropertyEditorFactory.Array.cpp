@@ -30,7 +30,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
     nlohmann::json currentValue = CaptureArray(comp, prop);
 
     // --- Header: label + size input + Add button ---
-    ImGui::Text("%s", displayName);
+    ImGui::Text("%s", Tr(displayName));
     ShowTooltip(prop);
 
     ImGui::SameLine();

@@ -52,6 +52,7 @@
 // Services
 #include "services/FileDialogs.h"
 #include "core/Commands.h"
+#include "core/commands/CommandText.h"
 #include "core/commands/HistoryGuards.h"
 #include <filesystem>
 #include "services/EngineEditorSetup.h"
@@ -1903,7 +1904,7 @@ bool EditorApp::DeleteObjects(const std::vector<Deki::Object*>& objects)
     }
     ClearSelection();
     CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-        "Delete " + std::to_string(targets.size()) + " objects", std::move(commands)));
+        CommandText::Format(Tr("Delete %zu objects"), targets.size()), std::move(commands)));
     return true;
 }
 
@@ -1946,7 +1947,7 @@ void EditorApp::DuplicateObjects(const std::vector<Deki::Object*>& objects)
     else
     {
         CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-            "Duplicate " + std::to_string(sources.size()) + " objects", std::move(commands)));
+            CommandText::Format(Tr("Duplicate %zu objects"), sources.size()), std::move(commands)));
     }
 }
 

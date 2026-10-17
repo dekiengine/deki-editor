@@ -42,7 +42,7 @@ void CreateAssetDialog::Draw()
         const AssetTypeHandler* handler = AssetTypeRegistry::Instance().GetHandler(m_CreateAssetType);
         if (handler)
         {
-            ImGui::Text(Tr("Create a new %s."), handler->displayName.c_str());
+            ImGui::Text(Tr("Create a new %s."), Tr(handler->displayName.c_str()));
         }
         else
         {

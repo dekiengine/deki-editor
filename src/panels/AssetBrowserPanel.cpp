@@ -1293,7 +1293,7 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
                     {
                         continue;
                     }
-                    if (ImGui::MenuItem(type.displayName.c_str()))
+                    if (ImGui::MenuItem(TrLabel(type.displayName.c_str())))
                     {
                         m_CurrentPath = node.path;
                         m_CreateAssetDialog->Open(type.typeName);
@@ -2552,7 +2552,7 @@ void AssetBrowserPanel::DrawContextMenu()
                     {
                         continue;  // imported, not created (see above)
                     }
-                    if (ImGui::MenuItem(type.displayName.c_str()))
+                    if (ImGui::MenuItem(TrLabel(type.displayName.c_str())))
                     {
                         m_CreateAssetDialog->Open(type.typeName);
                     }

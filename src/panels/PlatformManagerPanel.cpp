@@ -935,7 +935,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         }
 
         bool clicked =
-            ui.SelectableCard(comp.id.c_str(), comp.displayName.c_str(), subtitle.c_str(), false, Pack(subCol));
+            ui.SelectableCard(comp.id.c_str(), Tr(comp.displayName.c_str()), subtitle.c_str(), false, Pack(subCol));
         if (!comp.tooltip.empty() && ui.IsItemHovered())
         {
             ui.SetTooltip(Tr(comp.tooltip.c_str()));  // English, from the backend

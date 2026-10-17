@@ -468,6 +468,19 @@ bool EditorApp::OpenProject(const std::string& path)
         // runs per instance rather than once per open.)
         RegisterBuildersFromPackages(*m_PackageLoader);
         ::PackageManager::RefreshPluginInstallers();
+
+        // Each package's own translations: its component and property names
+        // and its editor's text, in <package>/editor/lang/<language>.json.
+        std::error_code langEc;
+        for (const auto& package :
+             std::filesystem::directory_iterator(std::filesystem::path(path) / "packages", langEc))
+        {
+            const std::filesystem::path lang = package.path() / "editor" / "lang";
+            if (std::filesystem::is_directory(lang, langEc))
+            {
+                Localization::AddTableDirectory(lang.string());
+            }
+        }
     }
 
     // Re-apply settings now that package-owned sections exist.

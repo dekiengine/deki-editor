@@ -21,6 +21,7 @@
 #include <deki-editor/Command.h>
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/Localization.h>
+#include "../../core/commands/CommandText.h"
 #include "../../core/commands/PropertyCommands.h"
 #include "../../core/commands/ModifyFieldCommand.h"
 #include <nlohmann/json.hpp>
@@ -438,8 +439,9 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
                 }
             }
 
-            CommandHistory::Instance().ExecuteNoMerge(
-                std::make_unique<CompoundCommand>("Set " + std::string(prop.name), std::move(commands)));
+            CommandHistory::Instance().ExecuteNoMerge(std::make_unique<CompoundCommand>(
+                CommandText::Format(Tr("Set %s"), Tr(EditorNaming::GetDisplayName(prop).c_str())),
+                std::move(commands)));
         };
 
         bool handled = false;

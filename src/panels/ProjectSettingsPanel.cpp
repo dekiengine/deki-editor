@@ -35,7 +35,7 @@ void ShowTooltip(const Deki::PropertyInfo& prop)
 {
     if (prop.tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
     {
-        DekiEditor::Tooltip("%s", prop.tooltip);
+        DekiEditor::Tooltip("%s", Tr(prop.tooltip));
     }
 }
 

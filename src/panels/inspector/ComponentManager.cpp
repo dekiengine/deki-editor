@@ -687,12 +687,13 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         // growing vector would move them.
         for (const Deki::ComponentMeta* meta : m_AddCompMetas)
         {
+            // Shown in the editor's language; the class name stays searchable.
             const char* displayName = meta->GetDisplayName();
             DekiEditor::PickerItem item;
-            item.label = displayName ? displayName : meta->name;
+            item.label = Tr(displayName ? displayName : meta->name);
             item.altName = meta->name;
-            item.category = meta->category;
-            item.description = meta->description;  // shown under the name
+            item.category = meta->category ? Tr(meta->category) : nullptr;
+            item.description = meta->description ? Tr(meta->description) : nullptr;  // shown under the name
             item.disabled = isTaken(meta);
             if (item.disabled)
             {

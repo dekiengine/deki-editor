@@ -13,6 +13,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   English. Noto Sans JP ships with the editor for Japanese text, which also
   shows Japanese file and project names in any language. How to translate
   editor and package text: [docs/localization.md](docs/localization.md).
+- Japanese covers every screen, the Inspector's component and property names,
+  tooltips and enum values, the Add Component picker, the Create menu, asset
+  type names and the Undo/Redo descriptions. A package translates its own
+  names in `editor/lang/<language>.json`, read when a project opens.
+  Logs stay in English.
 - The Play view's screen size can change while playing or paused. The game
   gets a display of the new size, as if the device's screen changed; the
   pixel format stays the one play started with.
@@ -20,6 +25,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   on the game's first frame, then left where it is).
 
 ### Fixed
+- Property names with a digit before a word read as words: `stop1Position` is
+  "Stop 1 Position", not "Stop 1Position" (`texture2D` stays "Texture 2D").
 - Screen Anchors in the Play view moved to a newly picked screen size only
   after a visit to the Scene view.
 

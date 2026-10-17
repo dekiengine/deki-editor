@@ -4,6 +4,7 @@
 #include "SafeDispatch.h"
 #include <deki-editor/EditorWindow.h>
 #include <deki-editor/EditorDLL.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -107,7 +108,8 @@ void ToolHost::DrawToolsMenu()
         const char* title = instance.window->GetTitle();
         const char* shortcut = instance.window->GetShortcut();
 
-        if (ImGui::MenuItem(title, shortcut))
+        // Titles are English from the package; shown in the editor's language.
+        if (ImGui::MenuItem(DekiEditor::TrLabel(title), shortcut))
         {
             if (!instance.window->IsOpen())
             {

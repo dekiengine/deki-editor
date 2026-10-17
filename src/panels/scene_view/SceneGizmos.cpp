@@ -8,6 +8,7 @@
 #include <deki-editor/EditorExtension.h>
 #include <deki-editor/CustomEditor.h>
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "../../services/SafeDispatch.h"
 #include <deki/Object.h>
 #include <deki/Scene.h>
@@ -618,8 +619,8 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             std::vector<std::unique_ptr<Command>> steps;
             if (sizeChanged)
             {
-                steps.push_back(std::make_unique<ModifyFieldPairCommand<float>>(resizableWidthPtr, resizableHeightPtr,
-                                                                                finalWidth, finalHeight, "Resize"));
+                steps.push_back(std::make_unique<ModifyFieldPairCommand<float>>(
+                    resizableWidthPtr, resizableHeightPtr, finalWidth, finalHeight, TrMark("Resize")));
             }
             auto* anchor = obj->GetComponent<Deki::ScreenAnchor>();
             if (posChanged && anchor && m_ResizeAnchorRecorded)
@@ -633,7 +634,8 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             }
             else if (posChanged)
             {
-                steps.push_back(std::make_unique<SetWorldPositionCommand>(obj, finalObjX, finalObjY, "Move (Resize)"));
+                steps.push_back(
+                    std::make_unique<SetWorldPositionCommand>(obj, finalObjX, finalObjY, TrMark("Move (Resize)")));
             }
             if (steps.size() == 1)
             {
@@ -641,7 +643,8 @@ bool SceneGizmos::HandleResizeDrag(Deki::Object* obj, bool anchorEdge)
             }
             else
             {
-                CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>("Resize", std::move(steps)));
+                CommandHistory::Instance().Execute(
+                    std::make_unique<CompoundCommand>(TrMark("Resize"), std::move(steps)));
             }
         }
         if (m_Snapping)

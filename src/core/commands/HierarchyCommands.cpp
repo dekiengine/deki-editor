@@ -1,5 +1,6 @@
 #include "HierarchyCommands.h"
 
+#include "CommandText.h"
 #include "ObjectSerializationHelper.h"
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/Component.h>
@@ -11,7 +12,7 @@ namespace DekiEditor
 
 std::string CreateObjectCommand::GetDescription() const
 {
-    return "Create " + m_Name;
+    return CommandText::Format(Tr("Create %s"), m_Name.c_str());
 }
 
 void CreateObjectCommand::Execute()
@@ -114,7 +115,7 @@ bool CreateObjectCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string RenameObjectCommand::GetDescription() const
 {
-    return "Rename " + m_OldName;
+    return CommandText::Format(Tr("Rename %s"), m_OldName.c_str());
 }
 
 void RenameObjectCommand::Execute()
@@ -136,11 +137,11 @@ std::string ReparentObjectCommand::GetDescription() const
 {
     if (m_NewParent)
     {
-        return "Parent " + m_ObjectName;
+        return CommandText::Format(Tr("Parent %s"), m_ObjectName.c_str());
     }
     else
     {
-        return "Unparent " + m_ObjectName;
+        return CommandText::Format(Tr("Unparent %s"), m_ObjectName.c_str());
     }
 }
 
@@ -220,9 +221,9 @@ std::string MoveObjectsCommand::GetDescription() const
 {
     if (m_Objects.size() == 1)
     {
-        return "Move " + m_Objects[0]->GetName();
+        return CommandText::Format(Tr("Move %s"), m_Objects[0]->GetName().c_str());
     }
-    return "Move " + std::to_string(m_Objects.size()) + " objects";
+    return CommandText::Format(Tr("Move %zu objects"), m_Objects.size());
 }
 
 void MoveObjectsCommand::Execute()

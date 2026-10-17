@@ -3,6 +3,7 @@
 // One undo stack shared by the editor app, deki-editor.dll and every package
 // tool window, so a package's edits interleave correctly with scene edits.
 #include <deki-editor/EditorExport.h>
+#include <deki-editor/Localization.h>
 #include <string>
 #include <memory>
 #include <vector>
@@ -75,7 +76,7 @@ class DEKI_EDITOR_API Command
 public:
     virtual ~Command() = default;
 
-    /// Human-readable text shown in the UI.
+    /// Human-readable text shown in the UI, in the editor's current language.
     virtual std::string GetDescription() const = 0;
 
     virtual void Execute() = 0;
@@ -119,7 +120,8 @@ public:
     CompoundCommand(const CompoundCommand&) = delete;
     CompoundCommand& operator=(const CompoundCommand&) = delete;
 
-    std::string GetDescription() const override { return m_Description; }
+    // The caller's text, translated when the table has it.
+    std::string GetDescription() const override { return Tr(m_Description.c_str()); }
 
     void Execute() override
     {

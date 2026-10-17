@@ -294,7 +294,7 @@ void PropertyEditorFactory::ShowTooltip(const Deki::PropertyInfo& prop)
 {
     if (prop.tooltip && ImGui::IsItemHovered())
     {
-        DekiEditor::Tooltip("%s", prop.tooltip);
+        DekiEditor::Tooltip("%s", Tr(prop.tooltip));
     }
 }
 
@@ -591,7 +591,7 @@ void PropertyEditorFactory::DrawStringProperty(Deki::Component* comp, const Deki
     // A property named "text" (TextComponent) gets a multiline box.
     if (strcmp(prop.name, "text") == 0)
     {
-        ImGui::Text("%s", displayName);
+        ImGui::Text("%s", Tr(displayName));
         ShowTooltip(prop);
         if (ImGui::InputTextMultiline("##text_multiline", buf, sizeof(buf), ImVec2(-1, ImGui::GetTextLineHeight() * 4),
                                       ImGuiInputTextFlags_AllowTabInput))

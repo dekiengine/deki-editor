@@ -121,7 +121,8 @@ bool SetScaleCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string ModifyComponentPropertyCommand::GetDescription() const
 {
-    return "Change " + m_PropertyName;
+    const std::string name = CommandText::TranslatedOr(m_DisplayName, m_PropertyName);
+    return CommandText::Format(Tr("Change %s"), name.c_str());
 }
 
 void ModifyComponentPropertyCommand::Execute()
@@ -205,11 +206,12 @@ bool ModifyComponentPropertyCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string ModifyMultipleComponentPropertyCommand::GetDescription() const
 {
+    const std::string name = CommandText::TranslatedOr(m_DisplayName, m_PropertyName);
     if (m_Entries.size() == 1)
     {
-        return "Change " + m_PropertyName;
+        return CommandText::Format(Tr("Change %s"), name.c_str());
     }
-    return "Change " + m_PropertyName + " (" + std::to_string(m_Entries.size()) + " objects)";
+    return CommandText::Format(Tr("Change %s (%zu objects)"), name.c_str(), m_Entries.size());
 }
 
 void ModifyMultipleComponentPropertyCommand::Execute()
@@ -316,7 +318,8 @@ void ModifyMultipleComponentPropertyCommand::ApplyValue(Deki::Component* comp, c
 
 std::string ModifyAssetRefCommand::GetDescription() const
 {
-    return "Set " + m_PropertyName;
+    const std::string name = CommandText::TranslatedOr(m_DisplayName, m_PropertyName);
+    return CommandText::Format(Tr("Set %s"), name.c_str());
 }
 
 bool ModifyAssetRefCommand::ReferencesAny(const DeadMemory& dead) const

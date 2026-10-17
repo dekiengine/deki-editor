@@ -15,7 +15,11 @@ translate what they are given (section headers, property rows, tooltips).
     python tools/ci/check_translations.py --language ja --package ../packages/deki-2d
 
 A package keeps its own table in editor/lang/<code>.json and is checked
-against the sources under its editor/ folder.
+against the sources under its editor/ folder and the names its components
+show in the Inspector: component and property names, tooltips, categories,
+descriptions, groups and enum values, read from its generated reflection
+(generated/*Reflection*.gen.cpp, written by any build of the package). The
+engine's own components are checked with the editor.
 """
 
 from __future__ import annotations
@@ -48,6 +52,9 @@ CALL_RE = re.compile(
     r"(?<![A-Za-z0-9_])(?:" + "|".join(TRANSLATING_CALLS) + r")\s*\(\s*(?:ICON_\w+\s*)*((?:\"(?:[^\"\\\n]|\\.)*\"\s*)+)",
     re.DOTALL,
 )
+# Create-menu entries: the category and the name shown.
+CREATE_MENU_RE = re.compile(
+    r'(?:REGISTER_CREATE_MENU_ITEM\(\s*\w+\s*,|createMenu\.Register\()\s*"([^"]+)"\s*,\s*"([^"]+)"')
 LITERAL_RE = re.compile(r"\"((?:[^\"\\\n]|\\.)*)\"")
 ESCAPES = {"n": "\n", "t": "\t", '"': '"', "\\": "\\", "'": "'", "0": "\0"}
 
@@ -100,6 +107,141 @@ def scan(sources: list[Path]) -> dict[str, list[str]]:
                     continue
                 line = text.count("\n", 0, match.start()) + 1
                 found.setdefault(key, []).append(f"{path.relative_to(root.parent)}:{line}")
+            for match in CREATE_MENU_RE.finditer(text):
+                line = text.count("\n", 0, match.start()) + 1
+                for key in match.groups():
+                    found.setdefault(key, []).append(f"{path.relative_to(root.parent)}:{line}")
+    return found
+
+
+# ---- Names the Inspector shows, from generated reflection ----
+#
+# The order of a PropertyInfo initializer (deki/reflection/Property.h).
+PROP_NAME, PROP_DISPLAY_NAME, PROP_TOOLTIP, PROP_ENUM_VALUES, PROP_GROUP = 0, 1, 4, 9, 21
+
+
+def split_top_level(body: str) -> list[str]:
+    """`body` split at commas outside strings, braces and parentheses."""
+    parts, depth, start, i, in_str = [], 0, 0, 0, False
+    while i < len(body):
+        c = body[i]
+        if in_str:
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c in "({[":
+            depth += 1
+        elif c in ")}]":
+            depth -= 1
+        elif c == "," and depth == 0:
+            parts.append(body[start:i].strip())
+            start = i + 1
+        i += 1
+    tail = body[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def braced_block(text: str, open_at: int) -> str:
+    """The text inside the braces that open at `open_at`."""
+    depth, i, in_str = 0, open_at, False
+    while i < len(text):
+        c = text[i]
+        if in_str:
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_at + 1:i]
+        i += 1
+    return ""
+
+
+def literal(token: str) -> str | None:
+    match = re.fullmatch(r'\s*"((?:[^"\\]|\\.)*)"\s*(?://.*)?', token, re.DOTALL)
+    return decode(match.group(1)) if match else None
+
+
+def class_display_name(name: str) -> str:
+    """ComponentMeta::GetDisplayName: a space before a capital next to a lower-case letter."""
+    out = ""
+    for i, c in enumerate(name):
+        if out and c.isupper():
+            nxt = name[i + 1] if i + 1 < len(name) else ""
+            if out[-1].islower() or nxt.islower():
+                out += " "
+        out += c
+    return out
+
+
+def nicify(name: str) -> str:
+    """EditorNaming::NicifyName: "topColor" -> "Top Color", "scroll_speed" -> "Scroll Speed"."""
+    out, cap = "", True
+    for i, c in enumerate(name):
+        if c in "_- ":
+            if out and out[-1] != " ":
+                out += " "
+            cap = True
+            continue
+        prev = name[i - 1] if i else ""
+        nxt = name[i + 1] if i + 1 < len(name) else ""
+        if c.isupper() and (prev.islower() or (prev.isdigit() and nxt.islower())):
+            out += " "
+        elif c.isdigit() and prev.isalpha():
+            out += " "
+        out += c.upper() if cap else c
+        cap = False
+    return out
+
+
+def reflection_texts(files: list[Path]) -> dict[str, list[str]]:
+    found: dict[str, list[str]] = {}
+
+    def add(key: str | None, where: str):
+        if key and re.search(r"[A-Za-z]", key):
+            found.setdefault(key, []).append(where)
+
+    for path in files:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        enums = {m.group(1): [literal(v) for v in split_top_level(m.group(2))]
+                 for m in re.finditer(r"static const char\* const (s_\w+_Values)\[\] = \{([^}]*)\}", text)}
+        for m in re.finditer(r"ComponentMeta (\w+)_Meta = \{", text):
+            fields = split_top_level(braced_block(text, m.end() - 1))
+            where = f"{path.name}: {m.group(1)}"
+            name = literal(fields[0]) if fields else None
+            add(class_display_name(name) if name else None, where)
+            add(literal(fields[2]) if len(fields) > 2 else None, where)  # category
+            add(literal(fields[3]) if len(fields) > 3 else None, where)  # description
+        for m in re.finditer(r"PropertyInfo (\w+)_Props\[\] = \{", text):
+            block = braced_block(text, m.end() - 1)
+            i = 0
+            while True:
+                start = block.find("{", i)
+                if start < 0:
+                    break
+                entry = braced_block(block, start)
+                i = start + len(entry) + 2
+                fields = split_top_level(entry)
+                if len(fields) <= PROP_GROUP:
+                    continue
+                where = f"{path.name}: {m.group(1)}"
+                name, shown = literal(fields[PROP_NAME]), literal(fields[PROP_DISPLAY_NAME])
+                add(shown or (nicify(name) if name else None), where)
+                add(literal(fields[PROP_TOOLTIP]), where)
+                add(literal(fields[PROP_GROUP]), where)
+                for value in enums.get(fields[PROP_ENUM_VALUES].strip(), []):
+                    add(value, where)
     return found
 
 
@@ -140,14 +282,18 @@ def main() -> int:
     if args.package:
         sources = [args.package / "editor"]
         table_path = args.package / "editor" / "lang" / f"{args.language}.json"
+        reflection = sorted((args.package / "generated").glob("*Reflection*.gen.cpp"))
     else:
         sources = [EDITOR_ROOT / "src", EDITOR_ROOT / "deki-editor" / "src", EDITOR_ROOT / "deki-editor" / "include"]
         table_path = EDITOR_ROOT / "resources" / "lang" / f"{args.language}.json"
+        reflection = sorted((EDITOR_ROOT / "deki-engine" / "include" / "deki" / "generated").glob("*Reflection*.gen.cpp"))
 
     table = load_tables(table_path)
     if table is None:
         return 1
     found = scan([s for s in sources if s.exists()])
+    for key, where in reflection_texts(reflection).items():
+        found.setdefault(key, []).extend(where)
     missing = sorted(k for k in found if k not in table)
     stale = sorted(k for k in table if k not in found)
 

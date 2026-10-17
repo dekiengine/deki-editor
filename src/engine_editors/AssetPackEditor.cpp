@@ -20,7 +20,7 @@ class AssetPackEditor : public AssetTypeEditor
 {
 public:
     const char* GetTypeName() const override { return "AssetPack"; }
-    const char* GetDisplayName() const override { return "Asset Pack"; }
+    const char* GetDisplayName() const override { return TrMark("Asset Pack"); }
     const char* GetExtension() const override { return ".dpack"; }
 
     const char* GetDefaultContent() const override

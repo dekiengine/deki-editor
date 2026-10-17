@@ -10,6 +10,7 @@
 #include <deki/SceneSystem.h>
 #include <deki-editor/CommandHistory.h>
 #include "core/Commands.h"
+#include "core/commands/CommandText.h"
 #include "core/Project.h"
 #include "services/AgentCursor.h"
 #include "services/ClipboardService.h"
@@ -445,7 +446,7 @@ void HierarchyPanel::Draw()
 
             for (const auto& category : categories)
             {
-                if (ImGui::BeginMenu(category.c_str()))
+                if (ImGui::BeginMenu(TrLabel(category.c_str())))
                 {
                     for (const auto& entry : entries)
                     {
@@ -454,7 +455,7 @@ void HierarchyPanel::Draw()
                             continue;
                         }
 
-                        if (ImGui::MenuItem(entry.displayName.c_str()))
+                        if (ImGui::MenuItem(TrLabel(entry.displayName.c_str())))
                         {
                             std::string compName = entry.componentName;
                             std::string objName = entry.objectName;
@@ -1286,8 +1287,8 @@ void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
     }
     else
     {
-        CommandHistory::Instance().Execute(
-            std::make_unique<CompoundCommand>("Create " + std::to_string(cmds.size()) + " Instances", std::move(cmds)));
+        CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
+            CommandText::Format(Tr("Create %zu Instances"), cmds.size()), std::move(cmds)));
     }
 }
 

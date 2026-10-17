@@ -1839,7 +1839,7 @@ bool PanelToolbar(bool* pinnedExt)
     if (ImGui::BeginPopup("##deki_panel_menu"))
     {
         PushContextMenuItemStyle();
-        if (ImGui::MenuItem(TrLabel("Pin"), nullptr, *pinned))
+        if (ImGui::MenuItem(TrLabel("Pin Panel"), nullptr, *pinned))
         {
             *pinned = !*pinned;
         }

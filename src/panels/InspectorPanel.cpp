@@ -1,4 +1,5 @@
 #include "InspectorPanel.h"
+#include "core/commands/CommandText.h"
 #include "core/commands/HistoryGuards.h"
 #include "../PanelMaximize.h"
 #include "inspector/InspectorUtils.h"
@@ -1639,7 +1640,7 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
                     if (!steps.empty())
                     {
                         CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-                            std::string(r.label) + " (" + std::to_string(objects.size()) + " objects)",
+                            CommandText::Format(Tr("%s (%zu objects)"), Tr(r.label), objects.size()),
                             std::move(steps)));
                     }
                 }
