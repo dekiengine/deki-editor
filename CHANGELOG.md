@@ -4,7 +4,7 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.19.0 - 2026-10-17
 
 ### Added
 - **Languages.** Edit > Editor Settings > Language, and the project list,
@@ -21,6 +21,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   own translation wins for its own components and nodes, so two packages (or
   a package and the editor) can translate the same English word differently.
   Logs stay in English.
+- **Docs in four languages.** The docs site is built in English, Japanese,
+  Chinese and Korean (`/docs/ja/`, `/zh/`, `/ko/`, the same for each
+  package's site), with a language menu in the bar that keeps the page. The
+  editor guides in `docs/` are on the site now, translated in
+  `docs/<language>/`. Component names, descriptions and tooltips come from
+  the same tables the editor reads; the API reference stays in English.
+  `tools/docs/build_docs.py --languages` builds some of them.
 - The Play view's screen size can change while playing or paused. The game
   gets a display of the new size, as if the device's screen changed; the
   pixel format stays the one play started with.
@@ -32,6 +39,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   "Stop 1 Position", not "Stop 1Position" (`texture2D` stays "Texture 2D").
 - Screen Anchors in the Play view moved to a newly picked screen size only
   after a visit to the Scene view.
+- `tools/ci/check_translations.py` skipped every component category and
+  description: the comment the codegen writes after a field hid the next one.
+  Those texts, shown in the Add Component picker, are translated now.
 
 ## 0.18.4 - 2026-10-16
 
