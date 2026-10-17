@@ -37,6 +37,16 @@ RUN apt-get update \
       libdbus-1-dev libudev-dev \
  && rm -rf /var/lib/apt/lists/* /tmp/add_toolchain_ppa.sh
 
+# GitHub's SSH host keys, system-wide. The engine checkout clones over ssh, and
+# in a container job ssh runs as root with HOME=/root, so it never sees the
+# known_hosts webfactory/ssh-agent writes under the job's HOME (/github/home):
+# every clone failed with "Host key verification failed". Taken from GitHub's
+# API over https rather than ssh-keyscan, which trusts whoever answers.
+RUN curl -fsSL https://api.github.com/meta \
+    | python3 -c "import json, sys; print('\n'.join('github.com ' + k for k in json.load(sys.stdin)['ssh_keys']))" \
+    > /etc/ssh/ssh_known_hosts \
+ && test -s /etc/ssh/ssh_known_hosts
+
 # The workspace a job mounts is owned by another user than the one the steps
 # run as, and git refuses such a repository ("dubious ownership"). The engine
 # submodule checkout runs plain git commands on it.
