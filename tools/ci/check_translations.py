@@ -120,6 +120,34 @@ def scan(sources: list[Path]) -> dict[str, list[str]]:
 PROP_NAME, PROP_DISPLAY_NAME, PROP_TOOLTIP, PROP_ENUM_VALUES, PROP_GROUP = 0, 1, 4, 9, 21
 
 
+def strip_line_comments(text: str) -> str:
+    """`text` without its // comments, leaving strings alone.
+
+    The codegen writes a comment after the comma that ends a field, so without
+    this the comment leads the next field and its literal is not read: every
+    category and description went unchecked that way.
+    """
+    out, i, in_str = [], 0, False
+    while i < len(text):
+        c = text[i]
+        if in_str:
+            if c == "\\":
+                out.append(text[i:i + 2])
+                i += 2
+                continue
+            if c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif text.startswith("//", i):
+            end = text.find("\n", i)
+            i = len(text) if end < 0 else end
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 def split_top_level(body: str) -> list[str]:
     """`body` split at commas outside strings, braces and parentheses."""
     parts, depth, start, i, in_str = [], 0, 0, 0, False
@@ -213,8 +241,8 @@ def reflection_texts(files: list[Path]) -> dict[str, list[str]]:
             found.setdefault(key, []).append(where)
 
     for path in files:
-        text = path.read_text(encoding="utf-8", errors="replace")
-        enums = {m.group(1): [literal(v) for v in split_top_level(m.group(2))]
+        text = strip_line_comments(path.read_text(encoding="utf-8", errors="replace"))
+        enums ={m.group(1): [literal(v) for v in split_top_level(m.group(2))]
                  for m in re.finditer(r"static const char\* const (s_\w+_Values)\[\] = \{([^}]*)\}", text)}
         for m in re.finditer(r"ComponentMeta (\w+)_Meta = \{", text):
             fields = split_top_level(braced_block(text, m.end() - 1))

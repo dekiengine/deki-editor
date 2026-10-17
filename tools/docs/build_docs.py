@@ -17,6 +17,11 @@ Steps:
                     tools/docs/Doxyfile.package -> build/docs/packages/<id>/html/
                     (Doxygen is found on PATH or in build/docs/doxygen/, else
                     downloaded there on Windows)
+
+Steps 3 and 4 run once per language (--languages, default all): English at
+the root of every site, Japanese, Chinese and Korean in html/<code>/ beside
+it, each with the editor guides (docs/ and docs/<code>/) as pages. The API
+reference is built in English only. See localize.py.
   5. publish        --publish hands both to tools/docs/publish_docs.py: the main
                     site to dekiengine/docs, each package site to its repository's
                     gh-pages branch
@@ -36,6 +41,8 @@ import subprocess
 import sys
 import urllib.request
 import zipfile
+
+import localize
 
 def _rmtree(path):
     """shutil.rmtree that also removes read-only files.
@@ -74,7 +81,10 @@ MAIN_URL = "https://dekiengine.github.io/docs/"
 
 
 def log(msg):
-    print(f"[docs] {msg}", flush=True)
+    # The overrides carry Japanese, Chinese and Korean text, which a Windows
+    # console or a redirect in its code page cannot print.
+    encoding = sys.stdout.encoding or "utf-8"
+    print(f"[docs] {msg}".encode(encoding, "backslashreplace").decode(encoding), flush=True)
 
 
 def run(cmd, cwd=None, env=None):
@@ -114,6 +124,19 @@ def find_doxygen(docs_dir):
     return local
 
 
+def doxygen_run(doxygen, doxyfile, overrides, cwd, env):
+    """Doxygen with a few settings replaced: the Doxyfile is read, the
+    overrides are appended (a later value wins) and the result goes in on stdin."""
+    with open(doxyfile, encoding="utf-8") as f:
+        config = f.read()
+    # Forward slashes: a backslash inside a quoted Doxygen value is an escape.
+    config += "\n" + "".join(f'{key} = "{str(value).replace(chr(92), "/")}"\n' for key, value in overrides.items())
+    log(f"{doxygen} {os.path.basename(doxyfile)} " + " ".join(f"{k}={v}" for k, v in overrides.items()))
+    rc = subprocess.run([doxygen, "-"], cwd=cwd, env=env, input=config.encode("utf-8"))
+    if rc.returncode != 0:
+        raise SystemExit(f"doxygen failed: {doxyfile}")
+
+
 def engine_version(root):
     path = os.path.join(root, "deki-engine", "CMakeLists.txt")
     try:
@@ -138,6 +161,7 @@ def main(argv):
     ap.add_argument("--no-packages", action="store_true", help="build only the main site")
     ap.add_argument("--allow-no-packages", action="store_true",
                     help="proceed even when the metadata contains no packages")
+    ap.add_argument("--languages", help="comma-separated language codes to build (default: en,ja,zh,ko)")
     ap.add_argument("--publish", action="store_true", help="push the main site and the package sites")
     a = ap.parse_args(argv)
 
@@ -208,44 +232,88 @@ def main(argv):
         cand = os.path.join(root, "..", "deki-registry", "index.json")
         registry_file = cand if os.path.isfile(cand) else None
 
-    for d in (md_dir, md_pkg_dir, html_dir, pkg_out):
-        if os.path.isdir(d):
-            _rmtree(d)
-    cmd = [sys.executable, os.path.join(tools, "gen_component_docs.py"), metadata, md_dir, "--main-url", MAIN_URL]
-    if not a.no_packages:
-        cmd += ["--packages-out", md_pkg_dir]
-    if packages:
-        cmd += ["--packages", packages]
-    if registry_file:
-        cmd += ["--registry", registry_file]
-    run(cmd)
-
+    site_dir = os.path.join(root, "..", "hugo-dekiengine")
+    languages = a.languages.split(",") if a.languages else list(localize.LABELS)
     doxygen = find_doxygen(docs_dir)
     version = engine_version(root)
-    env = dict(os.environ)
-    env["DEKI_DOCS_VERSION"] = version
-    env["DEKI_DOCS_OUT"] = docs_dir
-    env["DEKI_DOCS_MD"] = md_dir
-    run([doxygen, os.path.join(tools, "Doxyfile")], cwd=root, env=env)
-    shutil.copyfile(os.path.join(tools, "nojekyll"), os.path.join(html_dir, ".nojekyll"))
-    index = os.path.join(html_dir, "index.html")
-    if not os.path.isfile(index):
-        raise SystemExit("doxygen produced no index.html")
-    log(f"main site: {index}")
+    # English owns the root of each site, so building it starts every site
+    # afresh; building only other languages replaces just their folders.
+    stale = [os.path.join(docs_dir, "theme")]
+    if "en" in languages:
+        stale += [md_dir, md_pkg_dir, html_dir, pkg_out]
+    else:
+        stale += [os.path.join(html_dir, lang) for lang in languages]
+        if os.path.isdir(pkg_out):
+            stale += [os.path.join(pkg_out, p, "html", lang) for p in os.listdir(pkg_out) for lang in languages]
+    for d in stale:
+        if os.path.isdir(d):
+            _rmtree(d)
+    with open(os.path.join(tools, "theme", "header.html"), encoding="utf-8") as f:
+        header_template = f.read()
 
-    if not a.no_packages and os.path.isdir(md_pkg_dir):
-        for pkg_id in sorted(os.listdir(md_pkg_dir)):
-            penv = dict(env)
-            penv["DEKI_PKG_NAME"] = pkg_id
-            penv["DEKI_PKG_MD"] = os.path.join(md_pkg_dir, pkg_id)
-            penv["DEKI_PKG_OUT"] = os.path.join(pkg_out, pkg_id)
-            os.makedirs(penv["DEKI_PKG_OUT"], exist_ok=True)  # doxygen does not create nested output dirs
-            log(f"package site: {pkg_id}")
-            rc = subprocess.run([doxygen, os.path.join(tools, "Doxyfile.package")], cwd=root, env=penv)
-            if rc.returncode != 0:
-                raise SystemExit(f"doxygen failed for package {pkg_id}")
-            shutil.copyfile(os.path.join(tools, "nojekyll"), os.path.join(pkg_out, pkg_id, "html", ".nojekyll"))
-        log(f"package sites: {pkg_out}/<id>/html")
+    # English at the root of each site, every other language in its own
+    # /<code>/ folder of the same site, so one push publishes them all.
+    for lang in languages:
+        suffix = "" if lang == "en" else f"-{lang}"
+        lang_md = md_dir + suffix
+        lang_md_pkg = md_pkg_dir + suffix
+        html_output = "html" if lang == "en" else f"html/{lang}"
+        if lang != "en":
+            for d in (lang_md, lang_md_pkg):
+                if os.path.isdir(d):
+                    _rmtree(d)
+        cmd = [sys.executable, os.path.join(tools, "gen_component_docs.py"), metadata, lang_md, "--main-url", MAIN_URL,
+               "--language", lang, "--guides", os.path.join(root, "docs"), "--editor-root", root]
+        if not a.no_packages:
+            cmd += ["--packages-out", lang_md_pkg]
+        if packages:
+            cmd += ["--packages", packages]
+        if registry_file:
+            cmd += ["--registry", registry_file]
+        if os.path.isdir(site_dir):
+            cmd += ["--site", site_dir]
+        run(cmd)
+
+        header = os.path.join(docs_dir, "theme", lang, "header.html")
+        os.makedirs(os.path.dirname(header), exist_ok=True)
+        with open(header, "w", encoding="utf-8", newline="\n") as f:
+            f.write(localize.header(header_template, lang))
+        overrides = {"HTML_HEADER": header, "HTML_OUTPUT": html_output,
+                     "OUTPUT_LANGUAGE": localize.DOXYGEN_LANGUAGES[lang]}
+
+        env = dict(os.environ)
+        env["DEKI_DOCS_VERSION"] = version
+        env["DEKI_DOCS_OUT"] = docs_dir
+        env["DEKI_DOCS_MD"] = lang_md
+        main_overrides = dict(overrides)
+        if lang != "en":
+            # The API reference is English only; each language links to it.
+            main_overrides["INPUT"] = lang_md
+            main_overrides["PROJECT_BRIEF"] = localize.bar_word(lang, "brief", "")
+        os.makedirs(os.path.join(docs_dir, html_output), exist_ok=True)  # doxygen does not create nested output dirs
+        doxygen_run(doxygen, os.path.join(tools, "Doxyfile"), main_overrides, root, env)
+        out = os.path.join(docs_dir, html_output)
+        shutil.copyfile(os.path.join(tools, "nojekyll"), os.path.join(out, ".nojekyll"))
+        index = os.path.join(out, "index.html")
+        if not os.path.isfile(index):
+            raise SystemExit(f"doxygen produced no index.html ({lang})")
+        log(f"main site ({lang}): {index}")
+
+        if not a.no_packages and os.path.isdir(lang_md_pkg):
+            for pkg_id in sorted(os.listdir(lang_md_pkg)):
+                penv = dict(env)
+                penv["DEKI_PKG_NAME"] = pkg_id
+                penv["DEKI_PKG_MD"] = os.path.join(lang_md_pkg, pkg_id)
+                penv["DEKI_PKG_OUT"] = os.path.join(pkg_out, pkg_id)
+                pkg_overrides = dict(overrides)
+                if lang != "en":
+                    pkg_overrides["PROJECT_BRIEF"] = localize.bar_word(lang, "package brief", "")
+                os.makedirs(os.path.join(pkg_out, pkg_id, html_output), exist_ok=True)
+                log(f"package site ({lang}): {pkg_id}")
+                doxygen_run(doxygen, os.path.join(tools, "Doxyfile.package"), pkg_overrides, root, penv)
+                shutil.copyfile(os.path.join(tools, "nojekyll"),
+                                os.path.join(pkg_out, pkg_id, html_output, ".nojekyll"))
+            log(f"package sites ({lang}): {pkg_out}/<id>/{html_output}")
 
     if a.publish:
         cmd = [sys.executable, os.path.join(tools, "publish_docs.py"), "--html", html_dir, "--root", root]
