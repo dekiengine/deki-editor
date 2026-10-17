@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  packages: read  # the Linux job's build image
 
 env:
   CMAKE_BUILD_TYPE: Release
@@ -85,6 +86,13 @@ jobs:
     name: Package Linux
     needs: check
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04 with GCC 16 and the build dependencies installed
+    # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # actions/checkout first so the composite action below exists in the tree.
       - uses: actions/checkout@v4
@@ -95,16 +103,6 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
-      - name: Install toolchain and SDL3 build dependencies
-        run: |
-          bash tools/ci/add_toolchain_ppa.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            g++-16 gcc-16 cmake ninja-build git curl pkg-config patchelf \
-            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
-            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
-            libdbus-1-dev libudev-dev
       - name: Configure and build
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \

@@ -13,6 +13,10 @@
 
 FROM ubuntu:24.04
 
+# Connects the package on ghcr.io to this repository, whose workflows pull it.
+LABEL org.opencontainers.image.source="https://github.com/dekiengine/deki-editor"
+LABEL org.opencontainers.image.description="Deki Editor's Linux build environment: Ubuntu 24.04 with GCC 16"
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The same script the jobs used: it adds the PPA with retries and makes apt

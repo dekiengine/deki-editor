@@ -41,6 +41,7 @@ on:
 # needs it.
 permissions:
   contents: read
+  packages: read  # the Linux jobs' build image
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -180,6 +181,13 @@ jobs:
   linux:
     name: Linux (GCC 16)
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04 with GCC 16 and the build dependencies installed
+    # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -195,17 +203,6 @@ jobs:
           for p in deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
             git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../templates/$p"
           done
-
-      - name: Install toolchain and SDL3 build dependencies
-        run: |
-          bash tools/ci/add_toolchain_ppa.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
-            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
-            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
-            libdbus-1-dev libudev-dev xvfb
 
       - name: Toolchain check (GCC 16)
         run: |
@@ -291,6 +288,13 @@ jobs:
   packages:
     name: Packages (Linux)
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04 with GCC 16 and the build dependencies installed
+    # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -302,17 +306,6 @@ jobs:
 
       - name: Check out every package
         run: python3 tools/ci/clone_packages.py ../packages
-
-      - name: Install toolchain and SDL3 build dependencies
-        run: |
-          bash tools/ci/add_toolchain_ppa.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            g++-16 gcc-16 cmake ninja-build ccache git curl pkg-config \
-            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libxss-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
-            libegl1-mesa-dev libgl1-mesa-dev libasound2-dev libpulse-dev \
-            libdbus-1-dev libudev-dev
 
       - name: Cache FetchContent sources
         uses: actions/cache@v4
@@ -405,6 +398,13 @@ jobs:
     needs: linux
     if: github.event_name != 'push'
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04 with GCC 16 and the build dependencies installed
+    # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -413,11 +413,6 @@ jobs:
       - uses: ./.github/actions/checkout-with-engine
         with:
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
-      - name: Install toolchain
-        run: |
-          bash tools/ci/add_toolchain_ppa.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb libgl1-mesa-dev
       - uses: actions/download-artifact@v4
         with:
           name: editor-linux
@@ -453,6 +448,13 @@ jobs:
       github.event_name != 'push' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04 with GCC 16 and the build dependencies installed
+    # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -470,11 +472,6 @@ jobs:
           repository: dekiengine/deki-demo
           ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
           path: ci/deki-demo
-      - name: Install toolchain
-        run: |
-          bash tools/ci/add_toolchain_ppa.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb libgl1-mesa-dev
       - uses: actions/download-artifact@v4
         with:
           name: editor-linux
@@ -504,6 +501,13 @@ jobs:
     needs: linux
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04 with GCC 16 and the build dependencies installed
+    # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -521,12 +525,6 @@ jobs:
           repository: dekiengine/deki-demo
           ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
           path: ci/deki-demo
-      - name: Install toolchain
-        run: |
-          bash tools/ci/add_toolchain_ppa.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends g++-16 gcc-16 cmake ninja-build git curl xvfb \
-            libgl1-mesa-dev python3-venv libusb-1.0-0
       - uses: actions/download-artifact@v4
         with:
           name: editor-linux
