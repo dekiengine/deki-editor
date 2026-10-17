@@ -217,7 +217,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 }
             }
 
-            // Title bar drag: only the "D DEKI/EDITOR" block on the left of the
+            // Title bar drag: only the cat and DEKI/EDITOR block on the left of the
             // menu bar. The menu items (File/Edit/...) and everything right of
             // them report HTCLIENT, so ImGui gets mouse moves and clicks there.
             // Hover features like the item picker need that: HTCAPTION regions

@@ -60,6 +60,61 @@ void FocusPanelTab(const char* idName)
 // on an open menu's header (close it) from a click on a closed one (open it).
 ImGuiID s_BarMenuOpenLastFrame = 0;
 ImGuiID s_BarMenuOpenThisFrame = 0;
+
+// The Deki cat peeking over its ledge, the mark in the website's nav and on
+// the community icons. The same pixel map and colours as CAT and COL in
+// deki-brand/tools/make-cat-icons.py: change it there first.
+constexpr int kCatW = 16;
+constexpr const char* kCat[] = {
+    "...A........A...",  //
+    "...AA......AA...",  //
+    "...AAAAAAAAAA...",  //
+    "..AAAAAAAAAAAA..",  //
+    "..AAKSAAAAKSAA..",  //
+    "..AAKKAAAAKKAA..",  //
+    "..AAAAAPPAAAAA..",  //
+    "..AWWAAAAAAWWA..",  //
+    "BBBBBBBBBBBBBBBB",  //
+};
+
+ImU32 CatColor(char c)
+{
+    switch (c)
+    {
+        case 'A': return IM_COL32(0x3b, 0xc3, 0xff, 255);  // fur, the accent
+        case 'B': return IM_COL32(0x0c, 0x82, 0xbf, 255);  // ledge
+        case 'W': return IM_COL32(0x9d, 0xe1, 0xff, 255);  // paws
+        case 'S': return IM_COL32(0xe8, 0xe6, 0xe1, 255);  // shine in the eyes
+        case 'K': return IM_COL32(0x0a, 0x0b, 0x0d, 255);  // eyes
+        case 'P': return IM_COL32(0xff, 0x8f, 0xb8, 255);  // mouth
+        default: return 0;
+    }
+}
+
+// Draws the cat at the cursor, centred vertically between barTopY and
+// barBottomY, and reserves its width so the title can follow on the same
+// line. A cat pixel is an eighth of the font height in whole screen pixels,
+// so it stays crisp: 2 at the 16px title font, 3 at 150% scale.
+void DrawCatMark(float barTopY, float barBottomY)
+{
+    constexpr int rows = IM_ARRAYSIZE(kCat);
+    const float px = ImMax(1.0f, IM_ROUND(ImGui::GetFontSize() / 8.0f));
+    const float x0 = ImFloor(ImGui::GetCursorScreenPos().x);
+    const float y0 = ImFloor(barTopY + (barBottomY - barTopY - rows * px) * 0.5f);
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    for (int y = 0; y < rows; ++y)
+    {
+        for (int x = 0; x < kCatW; ++x)
+        {
+            if (const ImU32 col = CatColor(kCat[y][x]))
+            {
+                dl->AddRectFilled(ImVec2(x0 + x * px, y0 + y * px), ImVec2(x0 + (x + 1) * px, y0 + (y + 1) * px),
+                                  col);
+            }
+        }
+    }
+    ImGui::Dummy(ImVec2(kCatW * px, 0.0f));
+}
 }  // namespace
 
 void EditorApp::DrawMenuBar()
@@ -111,14 +166,14 @@ void EditorApp::DrawMenuBar()
                                  ImGui::GetColorU32(ImGuiCol_Border));
         }
 
-        // --- Title block: "D DEKI/EDITOR" in Space Grotesk (g_FontDisplay) ---
+        // --- Title block: the cat and "DEKI/EDITOR" in Space Grotesk (g_FontDisplay) ---
         {
             ImFont* titleFont = g_FontDisplay ? g_FontDisplay : ImGui::GetFont();
             // PushFont takes a base size: ImGui multiplies it by FontScaleMain
             // * FontScaleDpi at draw time, so no *dpi here.
             ImGui::PushFont(titleFont, 16.0f);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(Palette::Accent, "D");
+            DrawCatMark(barTopY, barBottomY);
             ImGui::SameLine();
             ImGui::TextColored(Palette::Fg, "DEKI/EDITOR");
             ImGui::PopFont();
@@ -891,7 +946,7 @@ void EditorApp::DrawProjectManagerMenuBar()
             ImFont* titleFont = g_FontDisplay ? g_FontDisplay : ImGui::GetFont();
             ImGui::PushFont(titleFont, 16.0f);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(Palette::Accent, "D");
+            DrawCatMark(barRect.Min.y, barRect.Max.y);
             ImGui::SameLine();
             ImGui::TextColored(Palette::Fg, "DEKI/EDITOR");
             ImGui::PopFont();

@@ -1079,6 +1079,7 @@ void DrawDockSeams()
 {
     ImGuiContext& g = *GImGui;
     const ImU32 col = ImGui::GetColorU32(ImGuiCol_Border);
+    const ImGuiViewport* mainVp = ImGui::GetMainViewport();
 
     for (int i = 0; i < g.Windows.Size; ++i)
     {
@@ -1092,6 +1093,14 @@ void DrawDockSeams()
             continue;
         }
         if (w->DockIsActive || w->DockNodeAsHost)
+        {
+            continue;
+        }
+        // The window filling the main viewport (main.cpp's DockSpace host,
+        // which holds the menu bar and toolbar) has the OS window's edges as
+        // its own: a frame there is a stray line along the screen's edges.
+        if (w->Viewport == mainVp && w->Pos.x <= mainVp->WorkPos.x && w->Pos.y <= mainVp->WorkPos.y &&
+            w->Size.x >= mainVp->WorkSize.x && w->Size.y >= mainVp->WorkSize.y)
         {
             continue;
         }
