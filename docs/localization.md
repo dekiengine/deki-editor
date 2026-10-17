@@ -94,9 +94,15 @@ when the project opens. `check_translations.py --package` lists them from the
 package's generated reflection (`generated/*Reflection*.gen.cpp`, written by
 any build of the package).
 
-All tables share one lookup, and the editor's tables are read first. A word
-the editor already translates (such as "Add") shows the editor's translation
-in a package too.
+Every table also goes into one shared lookup, where the editor's tables are
+read first. While the editor draws a package's component or node (the
+Inspector, Add Component, Project Settings, the node graph window), that
+package's own table is looked up first, so a package can translate a word its
+own way: deki-fsm's "Add" is the arithmetic operation 加算 while the editor's
+"Add" button stays 追加. Code that draws a package's class itself does the
+same with `Localization::ScopedPackage scope(meta->package);`, where
+`Deki::ComponentMeta::package` and `DekiNodeMeta::package` name the package
+the class is in.
 
 ## Fonts
 

@@ -507,6 +507,8 @@ void ProjectSettingsPanel::Draw()
         // as in the Inspector.
         for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
         {
+            // The section reads as its package translates it.
+            const Localization::ScopedPackage packageText(info.meta ? info.meta->package : nullptr);
             if (DekiEditor::SchematicSectionBegin(info.sectionName))
             {
                 DekiEditor::BeginPropertyContext();

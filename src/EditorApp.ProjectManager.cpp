@@ -478,7 +478,7 @@ bool EditorApp::OpenProject(const std::string& path)
             const std::filesystem::path lang = package.path() / "editor" / "lang";
             if (std::filesystem::is_directory(lang, langEc))
             {
-                Localization::AddTableDirectory(lang.string());
+                Localization::AddTableDirectory(lang.string(), package.path().filename().string());
             }
         }
     }

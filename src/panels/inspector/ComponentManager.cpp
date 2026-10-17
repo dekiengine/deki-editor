@@ -360,6 +360,9 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         }
 
         const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
+        // Its names, tooltips and enum values read as its own package
+        // translates them.
+        const Localization::ScopedPackage packageText(meta ? meta->package : nullptr);
 
         // With a filter typed, a component with no matching property is left
         // out, header and all.
@@ -687,7 +690,9 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         // growing vector would move them.
         for (const Deki::ComponentMeta* meta : m_AddCompMetas)
         {
-            // Shown in the editor's language; the class name stays searchable.
+            // Shown in the editor's language, as the component's package
+            // translates it; the class name stays searchable.
+            const Localization::ScopedPackage packageText(meta->package);
             const char* displayName = meta->GetDisplayName();
             DekiEditor::PickerItem item;
             item.label = Tr(displayName ? displayName : meta->name);

@@ -50,8 +50,15 @@ struct State
     // Per language. Nothing is ever removed, so a pointer Tr or TrLabel
     // returned stays valid after a switch or a new table.
     std::unordered_map<std::string, StringMap> tables;
+    // Each package's own table, per language then package: what Tr uses first
+    // inside that package's ScopedPackage.
+    std::unordered_map<std::string, std::unordered_map<std::string, StringMap>> packageTables;
+    std::vector<std::string> packages;  // ScopedPackage stack; "" = none
+    // Built labels per language and package scope ("ja\x1fdeki-fsm"), since
+    // the same label can read differently in two packages.
+    std::string cacheKey = "en\x1f";
     std::unordered_map<std::string, LabelMap> labels;
-    std::unordered_map<std::string, LabelMap> iconTexts;  // icon + translated text, per language
+    std::unordered_map<std::string, LabelMap> iconTexts;  // icon + translated text
     std::deque<std::string> labelTexts;                   // what LabelMap points into
     uint32_t tableGeneration = 1;                         // bumped when a table is added
     std::unordered_set<std::string> missing;
@@ -62,6 +69,38 @@ State& GetState()
 {
     static State s_State;
     return s_State;
+}
+
+void UpdateCacheKey(State& state)
+{
+    state.cacheKey = state.current + '\x1f' + (state.packages.empty() ? std::string() : state.packages.back());
+}
+
+// `english` in the current language: the current package's table first, then
+// the shared one. nullptr when neither has it.
+const std::string* Find(State& state, std::string_view english)
+{
+    if (!state.packages.empty() && !state.packages.back().empty())
+    {
+        auto byLanguage = state.packageTables.find(state.current);
+        if (byLanguage != state.packageTables.end())
+        {
+            auto table = byLanguage->second.find(state.packages.back());
+            if (table != byLanguage->second.end())
+            {
+                if (auto it = table->second.find(english); it != table->second.end())
+                {
+                    return &it->second;
+                }
+            }
+        }
+    }
+    const StringMap& shared = state.tables[state.current];
+    if (auto it = shared.find(english); it != shared.end())
+    {
+        return &it->second;
+    }
+    return nullptr;
 }
 
 bool IsKnown(const std::string& code)
@@ -76,9 +115,9 @@ bool IsKnown(const std::string& code)
     return false;
 }
 
-// Adds one translation file to that language's table. Keys already there
-// stay.
-void ReadTableFile(const fs::path& path, const std::string& code)
+// Adds one translation file to that language's shared table, where keys
+// already there stay, and to `package`'s own table when there is one.
+void ReadTableFile(const fs::path& path, const std::string& code, const std::string& package)
 {
     std::ifstream file(path);
     nlohmann::json json = nlohmann::json::parse(file, nullptr, false, true);  // comments allowed, for translators
@@ -88,25 +127,31 @@ void ReadTableFile(const fs::path& path, const std::string& code)
                        path.string().c_str());
         return;
     }
-    StringMap& table = GetState().tables[code];
+    State& state = GetState();
+    StringMap& table = state.tables[code];
+    StringMap* own = package.empty() ? nullptr : &state.packageTables[code][package];
     for (const auto& [english, translated] : json.items())
     {
         if (translated.is_string() && !translated.get_ref<const std::string&>().empty())
         {
             table.emplace(english, translated.get<std::string>());
+            if (own)
+            {
+                own->emplace(english, translated.get<std::string>());
+            }
         }
     }
 }
 
 // Adds `dir`/<code>.json and every file in `dir`/<code>/ to that language's
 // table, so a large table can be split by area.
-void ReadTable(const std::string& dir, const std::string& code)
+void ReadTable(const std::string& dir, const std::string& code, const std::string& package)
 {
     std::error_code ec;
     const fs::path single = fs::path(dir) / (code + ".json");
     if (fs::exists(single, ec))
     {
-        ReadTableFile(single, code);
+        ReadTableFile(single, code, package);
     }
     const fs::path folder = fs::path(dir) / code;
     if (!fs::is_directory(folder, ec))
@@ -124,7 +169,7 @@ void ReadTable(const std::string& dir, const std::string& code)
     std::sort(files.begin(), files.end());  // the same order on every machine
     for (const fs::path& path : files)
     {
-        ReadTableFile(path, code);
+        ReadTableFile(path, code, package);
     }
 }
 
@@ -183,10 +228,9 @@ const char* Tr(const char* english)
     {
         return english;
     }
-    const StringMap& table = state.tables[state.current];
-    if (auto it = table.find(std::string_view(english)); it != table.end())
+    if (const std::string* found = Find(state, english))
     {
-        return it->second.c_str();
+        return found->c_str();
     }
 
     // A label that starts with an icon is translated without it, and the
@@ -195,16 +239,16 @@ const char* Tr(const char* english)
     const size_t prefix = IconPrefixLength(whole);
     if (prefix > 0 && prefix < whole.size())
     {
-        LabelMap& built = state.iconTexts[state.current];
+        LabelMap& built = state.iconTexts[state.cacheKey];
         if (auto it = built.find(whole); it != built.end() && it->second.generation == state.tableGeneration)
         {
             return it->second.text;
         }
         const std::string_view rest = whole.substr(prefix);
-        if (auto it = table.find(rest); it != table.end())
+        if (const std::string* found = Find(state, rest))
         {
             std::string result(whole.substr(0, prefix));
-            result += it->second;
+            result += *found;
             BuiltLabel& entry = built[std::string(whole)];
             entry.text = state.labelTexts.emplace_back(std::move(result)).c_str();
             entry.generation = state.tableGeneration;
@@ -224,7 +268,7 @@ const char* TrLabel(const char* label)
         return label;
     }
     State& state = GetState();
-    LabelMap& built = state.labels[state.current];
+    LabelMap& built = state.labels[state.cacheKey];
     auto it = built.find(std::string_view(label));
     if (it != built.end() && it->second.generation == state.tableGeneration)
     {
@@ -279,6 +323,7 @@ void UseLanguage(const std::string& code)
     if (next != state.current)
     {
         state.current = next;
+        UpdateCacheKey(state);
         ++state.generation;
     }
 }
@@ -295,7 +340,7 @@ void Load()
     AddTableDirectory((fs::path(EditorPaths::GetExecutableDir()) / "resources" / "lang").string());
 }
 
-void AddTableDirectory(const std::string& dir)
+void AddTableDirectory(const std::string& dir, const std::string& package)
 {
     State& state = GetState();
     for (const std::string& known : state.dirs)
@@ -310,7 +355,7 @@ void AddTableDirectory(const std::string& dir)
     {
         if (language.code != "en")
         {
-            ReadTable(dir, language.code);
+            ReadTable(dir, language.code, package);
         }
     }
     // Labels built before this table may have missed its text.
@@ -321,6 +366,20 @@ void AddTableDirectory(const std::string& dir)
 uint32_t Generation()
 {
     return GetState().generation;
+}
+
+ScopedPackage::ScopedPackage(const char* package)
+{
+    State& state = GetState();
+    state.packages.emplace_back(package ? package : "");
+    UpdateCacheKey(state);
+}
+
+ScopedPackage::~ScopedPackage()
+{
+    State& state = GetState();
+    state.packages.pop_back();
+    UpdateCacheKey(state);
 }
 
 }  // namespace Localization

@@ -101,6 +101,34 @@ TEST_F(Localization, TheFirstTableToTranslateATextKeepsIt)
     EXPECT_STREQ(DekiEditor::Tr("Prefab"), "プレハブ");
 }
 
+// Inside a package's scope its own table wins over the shared one.
+TEST_F(Localization, APackageScopeUsesThePackagesOwnWordFirst)
+{
+    TableDir editor("deki-loc-editor-add", R"({ "Add": "追加" })");
+    TableDir fsm("deki-loc-fsm-add", R"({ "Add": "加算", "Variable": "変数" })");
+    DekiEditor::Localization::AddTableDirectory(editor.Path());
+    DekiEditor::Localization::AddTableDirectory(fsm.Path(), "deki-fsm");
+    DekiEditor::Localization::UseLanguage("ja");
+
+    EXPECT_STREQ(DekiEditor::Tr("Add"), "追加");
+    EXPECT_STREQ(DekiEditor::TrLabel("Add"), "追加###Add");
+    {
+        DekiEditor::Localization::ScopedPackage scope("deki-fsm");
+        EXPECT_STREQ(DekiEditor::Tr("Add"), "加算");
+        EXPECT_STREQ(DekiEditor::TrLabel("Add"), "加算###Add");
+        {
+            DekiEditor::Localization::ScopedPackage none(nullptr);
+            EXPECT_STREQ(DekiEditor::Tr("Add"), "追加");
+        }
+        EXPECT_STREQ(DekiEditor::Tr("Add"), "加算");
+    }
+    EXPECT_STREQ(DekiEditor::Tr("Add"), "追加");
+    EXPECT_STREQ(DekiEditor::TrLabel("Add"), "追加###Add");
+
+    // A word only the package has is in the shared table too.
+    EXPECT_STREQ(DekiEditor::Tr("Variable"), "変数");
+}
+
 // An icon in front of a label is kept and not part of the lookup.
 TEST_F(Localization, AnIconInFrontIsKept)
 {

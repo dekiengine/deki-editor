@@ -16,7 +16,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Japanese covers every screen, the Inspector's component and property names,
   tooltips and enum values, the Add Component picker, the Create menu, asset
   type names and the Undo/Redo descriptions. A package translates its own
-  names in `editor/lang/<language>.json`, read when a project opens.
+  names in `editor/lang/<language>.json`, read when a project opens, and its
+  own translation wins for its own components and nodes, so two packages (or
+  a package and the editor) can translate the same English word differently.
   Logs stay in English.
 - The Play view's screen size can change while playing or paused. The game
   gets a display of the new size, as if the device's screen changed; the

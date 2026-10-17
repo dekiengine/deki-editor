@@ -84,13 +84,32 @@ DEKI_EDITOR_API void UseLanguage(const std::string& code);
 DEKI_EDITOR_API void Load();
 
 /// Adds the translations in `dir`/<code>.json and in every file of
-/// `dir`/<code>/, for a package's own text. A key the editor already
-/// translates keeps the editor's translation.
-DEKI_EDITOR_API void AddTableDirectory(const std::string& dir);
+/// `dir`/<code>/. They go into one shared table, where a key the editor (or an
+/// earlier package) already translates keeps that translation. With a
+/// `package` ("deki-fsm"), they are also that package's own table, which wins
+/// inside its ScopedPackage.
+DEKI_EDITOR_API void AddTableDirectory(const std::string& dir, const std::string& package = "");
 
 /// Changes whenever the language or a table changes, for caches of
 /// translated text.
 DEKI_EDITOR_API uint32_t Generation();
+
+/// While it lives, Tr and TrLabel look in `package`'s own table first, so
+/// text a package's class shows (its component, property and enum names) reads
+/// as that package translates it even when the editor or another package
+/// translates the same English word differently: deki-fsm's "Add" (an
+/// arithmetic operation) is not the editor's "Add" button. Draw each
+/// component or node inside one, with Deki::ComponentMeta::package or
+/// DekiNodeMeta::package. nullptr or "" means the shared table only. Scopes
+/// nest.
+class DEKI_EDITOR_API ScopedPackage
+{
+public:
+    explicit ScopedPackage(const char* package);
+    ~ScopedPackage();
+    ScopedPackage(const ScopedPackage&) = delete;
+    ScopedPackage& operator=(const ScopedPackage&) = delete;
+};
 
 }  // namespace Localization
 
