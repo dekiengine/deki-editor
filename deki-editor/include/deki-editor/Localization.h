@@ -37,7 +37,9 @@ namespace DekiEditor
 {
 
 /// `english` in the current language, or `english` itself when there is no
-/// translation. The result lives as long as the editor.
+/// translation. Icons and spaces in front of the text are kept and not
+/// looked up: ICON_TI_PLUS "  New Project" uses the entry for "New Project".
+/// The result lives as long as the editor.
 DEKI_EDITOR_API const char* Tr(const char* english);
 
 /// An ImGui label in the current language: the translated text before any
@@ -81,8 +83,9 @@ DEKI_EDITOR_API void UseLanguage(const std::string& code);
 /// tables. Called once at startup, after the settings load.
 DEKI_EDITOR_API void Load();
 
-/// Adds the translations in `dir`/<code>.json, for a package's own text. A
-/// key the editor already translates keeps the editor's translation.
+/// Adds the translations in `dir`/<code>.json and in every file of
+/// `dir`/<code>/, for a package's own text. A key the editor already
+/// translates keeps the editor's translation.
 DEKI_EDITOR_API void AddTableDirectory(const std::string& dir);
 
 /// Changes whenever the language or a table changes, for caches of

@@ -12,6 +12,7 @@
 // The caller owns the popup (and its placement); this draws the body.
 
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <deki-editor/IconsTabler.h>
@@ -749,8 +750,8 @@ int SchematicPicker(const char* id, const char* title, const PickerItem* items, 
     {
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-        ImGui::TextUnformatted(query.empty() ? (emptyText && emptyText[0] ? emptyText : "Nothing available")
-                                             : "No matches");
+        ImGui::TextUnformatted(query.empty() ? (emptyText && emptyText[0] ? emptyText : Tr("Nothing available"))
+                                             : Tr("No matches"));
         ImGui::PopStyleColor();
     }
 

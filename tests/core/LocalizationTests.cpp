@@ -101,6 +101,34 @@ TEST_F(Localization, TheFirstTableToTranslateATextKeepsIt)
     EXPECT_STREQ(DekiEditor::Tr("Prefab"), "プレハブ");
 }
 
+// An icon in front of a label is kept and not part of the lookup.
+TEST_F(Localization, AnIconInFrontIsKept)
+{
+    TableDir dir("deki-loc-icons", R"({ "New Project": "新規プロジェクト" })");
+    DekiEditor::Localization::AddTableDirectory(dir.Path());
+    DekiEditor::Localization::UseLanguage("ja");
+
+    // U+EB0B, a Tabler icon, then two spaces.
+    EXPECT_STREQ(DekiEditor::Tr("\xee\xac\x8b  New Project"), "\xee\xac\x8b  新規プロジェクト");
+    EXPECT_STREQ(DekiEditor::TrLabel("\xee\xac\x8b  New Project"),
+                 "\xee\xac\x8b  新規プロジェクト###\xee\xac\x8b  New Project");
+    EXPECT_STREQ(DekiEditor::Tr("\xee\xac\x8b  Unknown"), "\xee\xac\x8b  Unknown");
+}
+
+// Files in <dir>/ja/ add to <dir>/ja.json.
+TEST_F(Localization, ATableCanBeSplitIntoFiles)
+{
+    TableDir dir("deki-loc-split", R"({ "Hierarchy": "ヒエラルキー" })");
+    std::filesystem::create_directories(std::filesystem::path(dir.Path()) / "ja");
+    std::ofstream(std::filesystem::path(dir.Path()) / "ja" / "panels.json", std::ios::binary)
+        << R"({ "Console": "コンソール" })";
+    DekiEditor::Localization::AddTableDirectory(dir.Path());
+    DekiEditor::Localization::UseLanguage("ja");
+
+    EXPECT_STREQ(DekiEditor::Tr("Hierarchy"), "ヒエラルキー");
+    EXPECT_STREQ(DekiEditor::Tr("Console"), "コンソール");
+}
+
 // A label built before a package added its table is rebuilt, and the text
 // handed out before stays readable.
 TEST_F(Localization, ALaterTableUpdatesLabelsWithoutFreeingOldOnes)

@@ -5,6 +5,7 @@
 #include <deki-editor/EditorRegistry.h>
 #include <deki-editor/AssetDatabase.h>
 #include <deki-editor/AssetPipeline.h>
+#include <deki-editor/Localization.h>
 #include <imgui.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -48,7 +49,7 @@ public:
         }
         catch (...)
         {
-            ImGui::TextColored(DekiEditor::Palette::Red, "Invalid JSON");
+            ImGui::TextColored(DekiEditor::Palette::Red, "%s", DekiEditor::Tr("Invalid JSON"));
             return false;
         }
 
@@ -60,11 +61,11 @@ public:
 
         auto& assets = data["assets"];
 
-        ImGui::Text("Assets in pack: %d", (int)assets.size());
+        ImGui::Text(DekiEditor::Tr("Assets in pack: %d"), (int)assets.size());
 
         // Estimated total size.
         ImGui::SameLine();
-        ImGui::TextDisabled("(exported as single .pack file)");
+        ImGui::TextDisabled("%s", DekiEditor::Tr("(exported as single .pack file)"));
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -127,7 +128,7 @@ public:
         ImGui::Spacing();
 
         // Drop zone for adding assets.
-        ImGui::Text("Drag assets here to add to pack:");
+        ImGui::TextUnformatted(DekiEditor::Tr("Drag assets here to add to pack:"));
 
         ImVec2 dropSize(ImGui::GetContentRegionAvail().x, 60);
         ImVec2 cursorPos = ImGui::GetCursorScreenPos();
@@ -138,7 +139,7 @@ public:
         drawList->AddRect(cursorPos, ImVec2(cursorPos.x + dropSize.x, cursorPos.y + dropSize.y), borderColor, 4.0f, 0,
                           2.0f);
 
-        const char* dropText = "Drop Asset Here";
+        const char* dropText = DekiEditor::Tr("Drop Asset Here");
         ImVec2 textSize = ImGui::CalcTextSize(dropText);
         drawList->AddText(
             ImVec2(cursorPos.x + (dropSize.x - textSize.x) * 0.5f, cursorPos.y + (dropSize.y - textSize.y) * 0.5f),

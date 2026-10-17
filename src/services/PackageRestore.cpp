@@ -1,5 +1,6 @@
 #include "PackageRestore.h"
 #include <deki/LogSystem.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Paths.h>
 
 #include "PackageManager.h"
@@ -58,7 +59,7 @@ bool WaitBounded(FetchWait& w, const char* detail, const std::function<void()>& 
             {
                 drain();
             }
-            StartupProgress::Update("Installing packages...", detail);
+            StartupProgress::Update(TrMark("Installing packages..."), detail);
             lock.lock();
         }
     }
@@ -109,7 +110,6 @@ std::string ChooseVersion(PackageManager& mgr, PackageEntry& pkg)
     }
     return "";
 }
-
 
 }  // namespace
 
@@ -241,7 +241,6 @@ bool HasMissingPackages(const std::string& projectPath, PackageManager& mgr)
     }
     return false;
 }
-
 
 PackageRestoreResult RestoreMissingPackages(const std::string& projectPath, PackageManager& mgr,
                                             const PackageRestoreProgress& onProgress)

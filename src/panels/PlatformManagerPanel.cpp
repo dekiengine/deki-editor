@@ -12,8 +12,10 @@
 #include <deki-editor/build/TargetBuilder.h>
 #include <deki/Scene.h>
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <algorithm>
+#include <cstdio>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -42,7 +44,14 @@ inline uint32_t Pack(const ImVec4& c)
 // differently from one it does not.
 std::string FamilyName(const std::string& family)
 {
-    return family.empty() ? "Custom" : family;
+    return family.empty() ? Tr("Custom") : family;
+}
+// `format`, already translated, with one string filled in.
+std::string Format(const char* format, const std::string& value)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf), format, value.c_str());
+    return buf;
 }
 }  // namespace
 
@@ -120,7 +129,7 @@ void PlatformManagerPanel::Draw()
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(m_App->Dpi(860.0f), m_App->Dpi(560.0f), /*firstUseEver*/ true);
 
-    if (ui.Begin("PLATFORM MANAGER###Platform Manager", &isOpen))
+    if (ui.Begin(TrLabel("PLATFORM MANAGER###Platform Manager"), &isOpen))
     {
         const float pad = m_App->Dpi(12.0f);
         auto* project = m_App->GetProject();
@@ -128,18 +137,18 @@ void PlatformManagerPanel::Draw()
         {
             ui.Spacing();
             ui.Indent(pad);
-            TextCol(ui, Palette::Dim, "Open a project to manage platforms.");
+            TextCol(ui, Palette::Dim, Tr("Open a project to manage platforms."));
             ui.Unindent(pad);
         }
         else
         {
             // Tab links as in the Asset Browser (accent underline on the active one).
             ui.BeginTabLinks();
-            if (ui.TabLink("Project Platforms", m_ActiveTab == 0))
+            if (ui.TabLink(Tr("Project Platforms"), m_ActiveTab == 0))
             {
                 m_ActiveTab = 0;
             }
-            if (ui.TabLink("Toolchains", m_ActiveTab == 1))
+            if (ui.TabLink(Tr("Toolchains"), m_ActiveTab == 1))
             {
                 m_ActiveTab = 1;
             }
@@ -188,11 +197,11 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     // the inline platform editor is open. Each cell's enabled flag gates its
     // clicks, so no BeginDisabled is needed.
     ui.BeginToolbar();
-    if (ui.ToolbarIconButton("##newPlatform", ICON_TI_PLUS, "New Platform", !editorActive))
+    if (ui.ToolbarIconButton("##newPlatform", ICON_TI_PLUS, Tr("New Platform"), !editorActive))
     {
         m_PlatformEditor.ShowNew();
     }
-    if (ui.ToolbarIconButton("##editPlatform", ICON_TI_PENCIL, "Edit Platform", hasSelection && !editorActive))
+    if (ui.ToolbarIconButton("##editPlatform", ICON_TI_PENCIL, Tr("Edit Platform"), hasSelection && !editorActive))
     {
         auto* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatformId);
         if (platform)
@@ -200,12 +209,12 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
             m_PlatformEditor.ShowEdit(platform);
         }
     }
-    if (ui.ToolbarIconButton("##deletePlatform", ICON_TI_TRASH, "Delete Platform", hasSelection && !editorActive))
+    if (ui.ToolbarIconButton("##deletePlatform", ICON_TI_TRASH, Tr("Delete Platform"), hasSelection && !editorActive))
     {
         m_ShowDeleteConfirm = true;
         m_PlatformToDelete = m_SelectedPlatformId;
     }
-    if (ui.ToolbarIconButton("##refreshPlatforms", ICON_TI_REFRESH, "Refresh", !editorActive))
+    if (ui.ToolbarIconButton("##refreshPlatforms", ICON_TI_REFRESH, Tr("Refresh"), !editorActive))
     {
         RefreshPlatformList();
     }
@@ -322,18 +331,18 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     auto* project = m_App->GetProject();
     if (m_ShowDeleteConfirm)
     {
-        ui.OpenPopup("Delete Platform?");
+        ui.OpenPopup(TrLabel("Delete Platform?"));
     }
 
     ui.SetNextWindowSize(m_App->Dpi(380.0f), 0.0f, /*firstUseEver*/ false);
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(18.0f), m_App->Dpi(16.0f));
-    if (ui.BeginPopupModal("Delete Platform?", nullptr, EditorUI::WinNoSavedSettings))
+    if (ui.BeginPopupModal(TrLabel("Delete Platform?"), nullptr, EditorUI::WinNoSavedSettings))
     {
-        ui.Text(("Delete \"" + m_PlatformToDelete + "\"?").c_str());
+        ui.Text(Format(Tr("Delete \"%s\"?"), m_PlatformToDelete).c_str());
 
         ui.Spacing();
         ui.PushStyleColor(EditorUI::Col::Text, Pack(Palette::Dim));
-        ui.TextWrapped("This permanently removes the platform's JSON file and cannot be undone.");
+        ui.TextWrapped(Tr("This permanently removes the platform's JSON file and cannot be undone."));
         ui.PopStyleColor();
 
         ui.Spacing();
@@ -349,7 +358,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
         // frame padding; a shorter fixed height pushes the label to the bottom.
         ui.PushButtonTextAlign(0.5f, 0.5f);
 
-        if (ui.Button("Cancel", btnW, 0.0f))
+        if (ui.Button(TrLabel("Cancel"), btnW, 0.0f))
         {
             m_ShowDeleteConfirm = false;
             ui.CloseCurrentPopup();
@@ -363,7 +372,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
         ui.PushStyleColor(EditorUI::Col::ButtonHovered,
                           Pack(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
         ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(red));
-        if (ui.Button("Delete", btnW, 0.0f))
+        if (ui.Button(TrLabel("Delete"), btnW, 0.0f))
         {
             if (project)
             {
@@ -391,14 +400,14 @@ void PlatformManagerPanel::DrawPlatformDetails()
 
     if (m_SelectedIndex < 0 || m_SelectedIndex >= (int)m_PlatformList.size())
     {
-        TextCol(ui, Palette::Dim, "Select a platform to view details.");
+        TextCol(ui, Palette::Dim, Tr("Select a platform to view details."));
         return;
     }
 
     auto* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatformId);
     if (!platform)
     {
-        TextCol(ui, Palette::Dim, "Platform not found.");
+        TextCol(ui, Palette::Dim, Tr("Platform not found."));
         return;
     }
 
@@ -436,7 +445,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
 
     // Header: name and id
     ui.Text(platform->displayName.c_str());
-    TextCol(ui, Palette::Dim, ("ID: " + platform->id).c_str());
+    TextCol(ui, Palette::Dim, Format(Tr("ID: %s"), platform->id).c_str());
 
     ui.Spacing();
     ui.Separator();
@@ -446,16 +455,17 @@ void PlatformManagerPanel::DrawPlatformDetails()
     // then whatever the platform's backend chooses to show (a chip, a devkit
     // model, or nothing).
     const float valueX = m_App->Dpi(110.0f);
+    // `label` is English; the backend's own labels are English too.
     auto row = [&](const char* label, const std::string& value)
     {
-        TextCol(ui, Palette::Dim, label);
+        TextCol(ui, Palette::Dim, label[0] ? Tr(label) : label);
         ImGui::SameLine(pad + valueX);
         ui.Text(value.c_str());
     };
-    row("Family", FamilyName(platform->family));
+    row(TrMark("Family"), FamilyName(platform->family));
     if (!platform->framework.empty())
     {
-        row("Framework", platform->framework);
+        row(TrMark("Framework"), platform->framework);
     }
     if (ITargetBuilder* describer = BuilderRegistry::Instance().GetBuilderForPlatform(*platform))
     {
@@ -466,14 +476,14 @@ void PlatformManagerPanel::DrawPlatformDetails()
     }
     for (size_t i = 0; i < platform->defines.size(); ++i)
     {
-        row(i == 0 ? "Defines" : "", platform->defines[i]);
+        row(i == 0 ? TrMark("Defines") : "", platform->defines[i]);
     }
-    row("Boot Scene", platform->bootScene);
+    row(TrMark("Boot Scene"), platform->bootScene);
 
     ui.Spacing();
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + valueX);
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-    if (ui.Button("Open Boot Scene"))
+    if (ui.Button(TrLabel("Open Boot Scene")))
     {
         auto* project = m_App->GetProject();
         if (project)
@@ -502,12 +512,12 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
     if (m_PackManager->IsFetching())
     {
         ui.BeginDisabled();
-        ui.Button("Fetching...");
+        ui.Button(TrLabel("Fetching..."));
         ui.EndDisabled();
     }
     else
     {
-        if (ui.Button("Refresh Packs"))
+        if (ui.Button(TrLabel("Refresh Packs")))
         {
             m_PackManager->FetchAvailablePacks();
         }
@@ -542,8 +552,8 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
 
         if (allPacks.empty())
         {
-            TextCol(ui, Palette::Dim, "No platform packs found.");
-            TextCol(ui, Palette::Dim, "Click 'Refresh Packs' to check online.");
+            TextCol(ui, Palette::Dim, Tr("No platform packs found."));
+            TextCol(ui, Palette::Dim, Tr("Click 'Refresh Packs' to check online."));
         }
 
         for (int i = 0; i < (int)allPacks.size(); i++)
@@ -554,7 +564,7 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
             std::string label = pack.name;
             if (pack.isInstalled)
             {
-                label += "  [installed]";
+                label += std::string("  ") + Tr("[installed]");
             }
 
             if (ui.Selectable(label.c_str(), selected))
@@ -586,7 +596,7 @@ void PlatformManagerPanel::DrawPackDetails()
 
     if (m_SelectedPackIndex < 0 || m_SelectedPackIndex >= (int)allPacks.size())
     {
-        TextCol(ui, Palette::Dim, "Select a platform pack to view details.");
+        TextCol(ui, Palette::Dim, Tr("Select a platform pack to view details."));
         return;
     }
 
@@ -599,11 +609,11 @@ void PlatformManagerPanel::DrawPackDetails()
     ui.Text(pack.name.c_str());
     if (!pack.version.empty())
     {
-        TextCol(ui, Palette::Dim, ("Version: " + pack.version).c_str());
+        TextCol(ui, Palette::Dim, Format(Tr("Version: %s"), pack.version).c_str());
     }
     if (!pack.author.empty())
     {
-        TextCol(ui, Palette::Dim, ("Author: " + pack.author).c_str());
+        TextCol(ui, Palette::Dim, Format(Tr("Author: %s"), pack.author).c_str());
     }
     if (!pack.description.empty())
     {
@@ -618,7 +628,7 @@ void PlatformManagerPanel::DrawPackDetails()
     // Install / Uninstall
     if (pack.isInstalled)
     {
-        TextCol(ui, Palette::Green, "Installed");
+        TextCol(ui, Palette::Green, Tr("Installed"));
         if (!pack.installedVersion.empty())
         {
             ui.SameLine();
@@ -630,7 +640,7 @@ void PlatformManagerPanel::DrawPackDetails()
         auto* project = m_App->GetProject();
         if (project)
         {
-            if (ui.Button("Import All to Project"))
+            if (ui.Button(TrLabel("Import All to Project")))
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
                 if (m_PackManager->ImportAllPlatformsToProject(pack.id, platformsDir))
@@ -641,7 +651,7 @@ void PlatformManagerPanel::DrawPackDetails()
             ui.SameLine();
         }
 
-        if (ui.Button("Uninstall"))
+        if (ui.Button(TrLabel("Uninstall")))
         {
             m_PackManager->UninstallPack(pack.id);
         }
@@ -654,7 +664,7 @@ void PlatformManagerPanel::DrawPackDetails()
             ui.BeginDisabled();
         }
 
-        if (ui.Button("Install"))
+        if (ui.Button(TrLabel("Install")))
         {
             m_PackManager->InstallPack(pack.id);
         }
@@ -670,7 +680,9 @@ void PlatformManagerPanel::DrawPackDetails()
     ui.Spacing();
 
     // Platforms in this pack
-    ui.Text(("Platforms (" + std::to_string((int)pack.platforms.size()) + ")").c_str());
+    char platformsTitle[64];
+    snprintf(platformsTitle, sizeof(platformsTitle), Tr("Platforms (%d)"), (int)pack.platforms.size());
+    ui.Text(platformsTitle);
     ui.Indent();
 
     auto* project = m_App->GetProject();
@@ -689,7 +701,7 @@ void PlatformManagerPanel::DrawPackDetails()
         if (pack.isInstalled && project)
         {
             ui.SameLine();
-            std::string btnId = "Import##" + plat.id;
+            std::string btnId = std::string(Tr("Import")) + "###import_" + plat.id;
             if (ui.SmallButton(btnId.c_str()))
             {
                 std::string platformsDir = GetPlatformsDirectory(project->GetPath());
@@ -735,7 +747,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
 
     // Full-width toolbar in the Console's style: rescan all toolchains.
     ui.BeginToolbar();
-    if (ui.ToolbarIconButton("##rescanToolchains", ICON_TI_REFRESH, "Rescan toolchains", true))
+    if (ui.ToolbarIconButton("##rescanToolchains", ICON_TI_REFRESH, Tr("Rescan toolchains"), true))
     {
         RefreshToolchains();
     }
@@ -748,7 +760,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
 
     if (builders.empty())
     {
-        TextCol(ui, Palette::Dim, "No toolchains available.");
+        TextCol(ui, Palette::Dim, Tr("No toolchains available."));
         ui.Unindent(pad);
         return;
     }
@@ -785,14 +797,14 @@ void PlatformManagerPanel::DrawToolchainsTab()
                 }
             }
 
-            std::string subtitle = std::to_string(installed) + " / " + std::to_string(total) + " installed";
+            char subtitle[64];
+            snprintf(subtitle, sizeof(subtitle), Tr("%d / %d installed"), installed, total);
             ImVec4 sc = (total > 0 && installed == total) ? Palette::Green
                         : (installed > 0)                 ? Palette::Amber
                                                           : Palette::Dim;
 
             std::string id = std::string("##tc_") + builders[i]->GetName();
-            if (ui.SelectableCard(id.c_str(), builders[i]->GetName(), subtitle.c_str(), m_SelectedBuilder == i,
-                                  Pack(sc)))
+            if (ui.SelectableCard(id.c_str(), builders[i]->GetName(), subtitle, m_SelectedBuilder == i, Pack(sc)))
             {
                 m_SelectedBuilder = i;
             }
@@ -857,7 +869,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
 
     if (components.empty())
     {
-        TextCol(ui, Palette::Dim, "No toolchain components defined");
+        TextCol(ui, Palette::Dim, Tr("No toolchain components defined"));
         ui.Unindent(pad);
         return;
     }
@@ -879,7 +891,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
         switch (comp.status)
         {
             case ToolchainComponentStatus::Installed:
-                subtitle = "Installed";
+                subtitle = Tr("Installed");
                 // The latest known version, else the detected installed one
                 // (system toolchains such as MSVC and CMake report only that).
                 if (!comp.latestVersion.empty())
@@ -893,31 +905,31 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
                 subCol = Palette::Green;
                 break;
             case ToolchainComponentStatus::UpdateAvailable:
-                subtitle = "Update available";
+                subtitle = Tr("Update available");
                 if (!comp.latestVersion.empty())
                 {
                     subtitle += "  \xc2\xb7  v" + comp.latestVersion;
                 }
                 if (comp.canInstall)
                 {
-                    subtitle += "  \xc2\xb7  click to update";
+                    subtitle += std::string("  \xc2\xb7  ") + Tr("click to update");
                 }
                 subCol = Palette::Amber;
                 break;
             case ToolchainComponentStatus::Installing:
-                subtitle = "Installing...";
+                subtitle = Tr("Installing...");
                 subCol = Palette::Accent;
                 break;
             case ToolchainComponentStatus::NotInstalled:
             default:
-                subtitle = "Not installed";
+                subtitle = Tr("Not installed");
                 if (comp.canInstall)
                 {
                     if (!comp.latestVersion.empty())
                     {
                         subtitle += " (v" + comp.latestVersion + ")";
                     }
-                    subtitle += "  \xc2\xb7  click to install";
+                    subtitle += std::string("  \xc2\xb7  ") + Tr("click to install");
                 }
                 break;
         }
@@ -926,7 +938,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
             ui.SelectableCard(comp.id.c_str(), comp.displayName.c_str(), subtitle.c_str(), false, Pack(subCol));
         if (!comp.tooltip.empty() && ui.IsItemHovered())
         {
-            ui.SetTooltip(comp.tooltip.c_str());
+            ui.SetTooltip(Tr(comp.tooltip.c_str()));  // English, from the backend
         }
 
         // Clicking installs a missing component or updates an outdated one;
@@ -988,11 +1000,12 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
             continue;
         }
 
-        const std::string subtitle =
-            comp.setupDone ? "Setup complete  \xc2\xb7  click to re-run" : "Click to run setup";
+        const std::string subtitle = comp.setupDone
+                                         ? std::string(Tr("Setup complete")) + "  \xc2\xb7  " + Tr("click to re-run")
+                                         : std::string(Tr("Click to run setup"));
         const ImVec4 subCol = comp.setupDone ? Palette::Green : Palette::Amber;
         const std::string setupId = "##setup_" + comp.id;
-        if (ui.SelectableCard(setupId.c_str(), "Setup", subtitle.c_str(), false, Pack(subCol)))
+        if (ui.SelectableCard(setupId.c_str(), Tr("Setup"), subtitle.c_str(), false, Pack(subCol)))
         {
             ActivityPanel::Log(comp.displayName + " Setup", "Running setup...");
             builder->SetupToolchainComponent(comp.id,
@@ -1023,7 +1036,7 @@ void PlatformManagerPanel::DrawBuilderToolchains(ITargetBuilder* builder)
 
     ui.Spacing();
 
-    if (ui.Button(("Check for Updates##" + std::string(builder->GetName())).c_str()))
+    if (ui.Button((std::string(Tr("Check for Updates")) + "###checkupdates_" + builder->GetName()).c_str()))
     {
         builder->CheckForToolchainUpdates();
     }

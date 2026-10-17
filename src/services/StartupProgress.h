@@ -14,8 +14,9 @@ public:
     static void SetWindow(SDL_Window* window);
 
     /// Updates and draws the progress screen. `phase` is the current
-    /// operation (e.g. "Loading project..."), `detail` optional extra text
-    /// (e.g. the file being loaded).
+    /// operation in English (e.g. "Loading project..."), shown in the editor's
+    /// language, so callers mark it with TrMark rather than Tr. `detail` is
+    /// optional extra text shown as it is (e.g. the file being loaded).
     static void Update(const char* phase, const char* detail = nullptr);
 
     /// Shows progress again for a new long operation (opening another

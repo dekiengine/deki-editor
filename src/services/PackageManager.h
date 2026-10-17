@@ -1,8 +1,10 @@
 #pragma once
 
+#include <deki-editor/Localization.h>
 #include <deki-editor/PackageContract.h>
 #include <deki-editor/VersionCompare.h>
 
+#include <cstdio>
 #include <functional>
 #include <map>
 #include <memory>
@@ -21,7 +23,8 @@ class DekiRegistrySource;
 // Editor policy, not part of the package contract: it reads the editor's own
 // build defines (DEKI_ENGINE_VERSION, DEKI_OLDEST_SUPPORTED_PACKAGE), which a
 // package compiling against the contract header does not have.
-/// Why a package cannot be used with this editor, or empty when it can.
+/// Why a package cannot be used with this editor, in the editor's language,
+/// or empty when it can.
 ///
 /// The same two comparisons the installer makes, but against the registry's
 /// minEngine instead of a manifest that exists only after download, so the
@@ -40,12 +43,18 @@ inline std::string PackageCompatibilityProblem(const PackageEntry& pkg)
 
     if (DekiEditor::CompareVersions(DEKI_ENGINE_VERSION, pkg.minEngine) < 0)
     {
-        return "Needs editor " + pkg.minEngine + "; this one is " + DEKI_ENGINE_VERSION;
+        char buf[256];
+        snprintf(buf, sizeof(buf), DekiEditor::Tr("Needs editor %s; this one is %s"), pkg.minEngine.c_str(),
+                 DEKI_ENGINE_VERSION);
+        return buf;
     }
 
     if (DekiEditor::CompareVersions(pkg.minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
     {
-        return "Built for editor " + pkg.minEngine + "; this one needs " + DEKI_OLDEST_SUPPORTED_PACKAGE + " or newer";
+        char buf[256];
+        snprintf(buf, sizeof(buf), DekiEditor::Tr("Built for editor %s; this one needs %s or newer"),
+                 pkg.minEngine.c_str(), DEKI_OLDEST_SUPPORTED_PACKAGE);
+        return buf;
     }
 
     return {};

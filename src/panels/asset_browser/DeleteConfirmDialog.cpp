@@ -3,6 +3,7 @@
 #include <deki-editor/CommandHistory.h>
 #include "../../core/Commands.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <vector>
 
@@ -23,11 +24,11 @@ void DeleteConfirmDialog::Draw()
 {
     if (m_ShouldOpen)
     {
-        ImGui::OpenPopup("Delete Confirmation");
+        ImGui::OpenPopup(TrLabel("Delete Confirmation"));
         m_ShouldOpen = false;
     }
 
-    if (BeginSchematicModal("Delete Confirmation", 400.0f))
+    if (BeginSchematicModal(TrLabel("Delete Confirmation"), 400.0f))
     {
         const auto& selectedIndices = m_Browser->GetSelectedIndices();
         const auto& entries = m_Browser->GetEntries();
@@ -35,14 +36,14 @@ void DeleteConfirmDialog::Draw()
 
         if (selectedIndices.size() > 1)
         {
-            ImGui::TextWrapped("Delete %zu items?", selectedIndices.size());
+            ImGui::TextWrapped(Tr("Delete %zu items?"), selectedIndices.size());
         }
         else if (selectedIndex >= 0 && selectedIndex < static_cast<int>(entries.size()))
         {
-            ImGui::TextWrapped("Delete '%s'?", entries[selectedIndex].name.c_str());
+            ImGui::TextWrapped(Tr("Delete '%s'?"), entries[selectedIndex].name.c_str());
         }
 
-        ImGui::TextColored(Palette::Dim, "Ctrl+Z brings it back.");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("Ctrl+Z brings it back."));
 
         const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
         if (button == 1)

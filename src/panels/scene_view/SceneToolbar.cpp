@@ -2,6 +2,7 @@
 #include "../../EditorApp.h"
 #include "../../core/Project.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include "imgui.h"
@@ -61,7 +62,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         bool hovered = ImGui::IsItemHovered();
         if (hovered && tooltip)
         {
-            DekiEditor::Tooltip("%s", tooltip);
+            DekiEditor::Tooltip("%s", Tr(tooltip));
         }
         // Active and hover backgrounds fade in and out; hover shows only
         // while the cell is not active.
@@ -98,23 +99,23 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
     drawDivider(cursorX);
 
     // Tools.
-    iconBtn("select", ICON_TI_POINTER, "Select (Q)", m_CurrentTool == SceneTool::Select,
+    iconBtn("select", ICON_TI_POINTER, TrMark("Select (Q)"), m_CurrentTool == SceneTool::Select,
             [&] { m_CurrentTool = SceneTool::Select; });
-    iconBtn("move", ICON_TI_ARROWS_MOVE, "Move (W)", m_CurrentTool == SceneTool::Move,
+    iconBtn("move", ICON_TI_ARROWS_MOVE, TrMark("Move (W)"), m_CurrentTool == SceneTool::Move,
             [&] { m_CurrentTool = SceneTool::Move; });
-    iconBtn("rect", ICON_TI_FRAME, "Rect (R)", m_CurrentTool == SceneTool::Rect,
+    iconBtn("rect", ICON_TI_FRAME, TrMark("Rect (R)"), m_CurrentTool == SceneTool::Rect,
             [&] { m_CurrentTool = SceneTool::Rect; });
 
     // Anchor edge toggle, only with the Rect tool.
     if (m_CurrentTool == SceneTool::Rect)
     {
         iconBtn("anchor", ICON_TI_ANCHOR,
-                m_RectAnchorEdge ? "Anchor opposite edge (click to resize from center)"
-                                 : "Resize from center (click to anchor opposite edge)",
+                m_RectAnchorEdge ? TrMark("Anchor opposite edge (click to resize from center)")
+                                 : TrMark("Resize from center (click to anchor opposite edge)"),
                 m_RectAnchorEdge, [&] { m_RectAnchorEdge = !m_RectAnchorEdge; });
     }
 
-    iconBtn("grid", ICON_TI_GRID_DOTS, "Toggle Grid", m_ShowGrid, [&] { m_ShowGrid = !m_ShowGrid; });
+    iconBtn("grid", ICON_TI_GRID_DOTS, TrMark("Toggle Grid"), m_ShowGrid, [&] { m_ShowGrid = !m_ShowGrid; });
 
     // Grid size: a borderless numeric cell the row's height, like the
     // console's search input.
@@ -140,13 +141,14 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
         drawDivider(cursorX);
     }
 
-    iconBtn("outlines", ICON_TI_SCAN, "Toggle Outlines", m_ShowOutlines, [&] { m_ShowOutlines = !m_ShowOutlines; });
+    iconBtn("outlines", ICON_TI_SCAN, TrMark("Toggle Outlines"), m_ShowOutlines,
+            [&] { m_ShowOutlines = !m_ShowOutlines; });
 
     // Gizmos: device frame, camera rect, selection bounds.
-    iconBtn("gizmos", ICON_TI_VECTOR, "Toggle Gizmos", m_ShowGizmos, [&] { m_ShowGizmos = !m_ShowGizmos; });
+    iconBtn("gizmos", ICON_TI_VECTOR, TrMark("Toggle Gizmos"), m_ShowGizmos, [&] { m_ShowGizmos = !m_ShowGizmos; });
 
     // Zoom reset to 1:1, an action that is never shown active.
-    iconBtn("fitview", ICON_TI_MAXIMIZE, "Reset zoom 1:1", false,
+    iconBtn("fitview", ICON_TI_MAXIMIZE, TrMark("Reset zoom 1:1"), false,
             [&]
             {
                 zoom = 1.0f;

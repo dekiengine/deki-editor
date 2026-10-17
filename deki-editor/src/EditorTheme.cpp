@@ -1786,7 +1786,7 @@ bool PanelToolbar(bool* pinnedExt)
     {
         const char* ico = *pinned ? ICON_TI_PIN_FILLED : ICON_TI_PIN;
         const ImVec2 icoSz = iconFont->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, ico);
-        const char* lbl = "PIN";
+        const char* lbl = Tr("PIN");
         const float lblW = lblFont->CalcTextSizeA(lblSize, FLT_MAX, 0.0f, lbl).x + lblSpacing * 3.0f;
         const float btnW = padX * 2.0f + icoSz.x + gapIcoLbl + lblW;
 
@@ -1839,7 +1839,7 @@ bool PanelToolbar(bool* pinnedExt)
     if (ImGui::BeginPopup("##deki_panel_menu"))
     {
         PushContextMenuItemStyle();
-        if (ImGui::MenuItem("Pin", nullptr, *pinned))
+        if (ImGui::MenuItem(TrLabel("Pin"), nullptr, *pinned))
         {
             *pinned = !*pinned;
         }
@@ -1943,7 +1943,7 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_TextDisabled, Palette::Dim2);
     ImGui::SetNextItemWidth((inputRight - clearWidth) - inputLeftX);
-    ImGui::InputTextWithHint(id, hint ? hint : "Search", buf, bufSize);
+    ImGui::InputTextWithHint(id, Tr(hint ? hint : TrMark("Search")), buf, bufSize);
     // Escape empties the field as well as dropping focus. In a popup ImGui
     // uses Escape to close, so this is checked while the input is active.
     const bool inputActive = ImGui::IsItemActive();

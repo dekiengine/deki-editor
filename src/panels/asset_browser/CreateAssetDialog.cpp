@@ -5,7 +5,9 @@
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetTypeRegistry.h>
 #include <deki-editor/Paths.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
+#include <cstdio>
 #include <filesystem>
 #include <deki/LogSystem.h>
 #include <deki/assets/AssetManager.h>
@@ -31,24 +33,24 @@ void CreateAssetDialog::Draw()
 {
     if (m_ShouldOpen)
     {
-        ImGui::OpenPopup("Create New Asset");
+        ImGui::OpenPopup(TrLabel("Create New Asset"));
         m_ShouldOpen = false;
     }
 
-    if (BeginSchematicModal("Create New Asset", 440.0f))
+    if (BeginSchematicModal(TrLabel("Create New Asset"), 440.0f))
     {
         const AssetTypeHandler* handler = AssetTypeRegistry::Instance().GetHandler(m_CreateAssetType);
         if (handler)
         {
-            ImGui::Text("Create a new %s.", handler->displayName.c_str());
+            ImGui::Text(Tr("Create a new %s."), handler->displayName.c_str());
         }
         else
         {
-            ImGui::Text("Create a new asset.");
+            ImGui::TextUnformatted(Tr("Create a new asset."));
         }
 
         ImGui::Spacing();
-        ImGui::TextColored(Palette::Dim, "Name");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("Name"));
 
         // Focus is requested before the item: SetKeyboardFocusHere(-1) after
         // it does not take on a modal's first frame, and typing goes nowhere.
@@ -79,7 +81,7 @@ void CreateAssetDialog::Draw()
         const float btnW = (availW - gap) * 0.5f;
 
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-        if (ImGui::Button("Cancel", ImVec2(btnW, 0)))
+        if (ImGui::Button(TrLabel("Cancel"), ImVec2(btnW, 0)))
         {
             ImGui::CloseCurrentPopup();
         }
@@ -94,7 +96,7 @@ void CreateAssetDialog::Draw()
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
 
-        if (ImGui::Button("Create", ImVec2(btnW, 0)) || (enterPressed && canCreate))
+        if (ImGui::Button(TrLabel("Create"), ImVec2(btnW, 0)) || (enterPressed && canCreate))
         {
             namespace fs = std::filesystem;
 
@@ -113,7 +115,9 @@ void CreateAssetDialog::Draw()
             if (fs::exists(newAssetPath))
             {
                 // Say so and stay open.
-                m_Error = "'" + filename + "' already exists here.";
+                char message[512];
+                snprintf(message, sizeof(message), Tr("'%s' already exists here."), filename.c_str());
+                m_Error = message;
             }
             else
             {
@@ -147,7 +151,7 @@ void CreateAssetDialog::Draw()
                 else
                 {
                     DEKI_LOG_WARNING("CreateAssetDialog: CreateAsset FAILED");
-                    m_Error = "Could not create the asset. See the Console for details.";
+                    m_Error = Tr("Could not create the asset. See the Console for details.");
                 }
             }
             if (m_Error.empty())

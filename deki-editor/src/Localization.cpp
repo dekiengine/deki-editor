@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -50,8 +51,9 @@ struct State
     // returned stays valid after a switch or a new table.
     std::unordered_map<std::string, StringMap> tables;
     std::unordered_map<std::string, LabelMap> labels;
-    std::deque<std::string> labelTexts;  // what LabelMap points into
-    uint32_t tableGeneration = 1;        // bumped when a table is added
+    std::unordered_map<std::string, LabelMap> iconTexts;  // icon + translated text, per language
+    std::deque<std::string> labelTexts;                   // what LabelMap points into
+    uint32_t tableGeneration = 1;                         // bumped when a table is added
     std::unordered_set<std::string> missing;
     uint32_t generation = 1;
 };
@@ -74,15 +76,10 @@ bool IsKnown(const std::string& code)
     return false;
 }
 
-// Adds `dir`/<code>.json to that language's table. Keys already there stay.
-void ReadTable(const std::string& dir, const std::string& code)
+// Adds one translation file to that language's table. Keys already there
+// stay.
+void ReadTableFile(const fs::path& path, const std::string& code)
 {
-    const fs::path path = fs::path(dir) / (code + ".json");
-    std::error_code ec;
-    if (!fs::exists(path, ec))
-    {
-        return;
-    }
     std::ifstream file(path);
     nlohmann::json json = nlohmann::json::parse(file, nullptr, false, true);  // comments allowed, for translators
     if (!json.is_object())
@@ -99,6 +96,61 @@ void ReadTable(const std::string& dir, const std::string& code)
             table.emplace(english, translated.get<std::string>());
         }
     }
+}
+
+// Adds `dir`/<code>.json and every file in `dir`/<code>/ to that language's
+// table, so a large table can be split by area.
+void ReadTable(const std::string& dir, const std::string& code)
+{
+    std::error_code ec;
+    const fs::path single = fs::path(dir) / (code + ".json");
+    if (fs::exists(single, ec))
+    {
+        ReadTableFile(single, code);
+    }
+    const fs::path folder = fs::path(dir) / code;
+    if (!fs::is_directory(folder, ec))
+    {
+        return;
+    }
+    std::vector<fs::path> files;
+    for (const fs::directory_entry& entry : fs::directory_iterator(folder, ec))
+    {
+        if (entry.path().extension() == ".json")
+        {
+            files.push_back(entry.path());
+        }
+    }
+    std::sort(files.begin(), files.end());  // the same order on every machine
+    for (const fs::path& path : files)
+    {
+        ReadTableFile(path, code);
+    }
+}
+
+// The length of the icons and spaces a label starts with, such as
+// ICON_TI_PLUS "  New Project". Tabler icons are in the Private Use Area,
+// U+E000 to U+F8FF, three bytes each in UTF-8.
+size_t IconPrefixLength(std::string_view text)
+{
+    size_t i = 0;
+    while (i < text.size())
+    {
+        const unsigned char c = static_cast<unsigned char>(text[i]);
+        if (c == ' ')
+        {
+            ++i;
+        }
+        else if (i + 2 < text.size() && (c == 0xEE || (c == 0xEF && static_cast<unsigned char>(text[i + 1]) <= 0xA3)))
+        {
+            i += 3;
+        }
+        else
+        {
+            break;
+        }
+    }
+    return i;
 }
 
 // With DEKI_LOC_MISSING=<file>, each text shown without a translation is
@@ -135,6 +187,31 @@ const char* Tr(const char* english)
     if (auto it = table.find(std::string_view(english)); it != table.end())
     {
         return it->second.c_str();
+    }
+
+    // A label that starts with an icon is translated without it, and the
+    // icon is put back in front.
+    const std::string_view whole(english);
+    const size_t prefix = IconPrefixLength(whole);
+    if (prefix > 0 && prefix < whole.size())
+    {
+        LabelMap& built = state.iconTexts[state.current];
+        if (auto it = built.find(whole); it != built.end() && it->second.generation == state.tableGeneration)
+        {
+            return it->second.text;
+        }
+        const std::string_view rest = whole.substr(prefix);
+        if (auto it = table.find(rest); it != table.end())
+        {
+            std::string result(whole.substr(0, prefix));
+            result += it->second;
+            BuiltLabel& entry = built[std::string(whole)];
+            entry.text = state.labelTexts.emplace_back(std::move(result)).c_str();
+            entry.generation = state.tableGeneration;
+            return entry.text;
+        }
+        ReportMissing(rest);
+        return english;
     }
     ReportMissing(english);
     return english;

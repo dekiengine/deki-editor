@@ -1,5 +1,6 @@
 #include "NewProjectDialog.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "EditorApp.h"
 #include "services/FileDialogs.h"
 #include "services/ProjectTemplate.h"
@@ -61,11 +62,11 @@ void NewProjectDialog::Draw()
         return;
     }
 
-    if (!ImGui::IsPopupOpen("New Project"))
+    if (!ImGui::IsPopupOpen(TrLabel("New Project")))
     {
-        ImGui::OpenPopup("New Project");
+        ImGui::OpenPopup(TrLabel("New Project"));
     }
-    if (!BeginSchematicModal("New Project", 480.0f))
+    if (!BeginSchematicModal(TrLabel("New Project"), 480.0f))
     {
         m_Open = false;  // closed some other way (Escape)
         return;
@@ -73,7 +74,7 @@ void NewProjectDialog::Draw()
 
     const float gap = 8.0f * ImGui::GetStyle().FontScaleDpi;
 
-    ImGui::TextColored(Palette::Dim, "Project name");
+    ImGui::TextColored(Palette::Dim, "%s", Tr("Project name"));
     ImGui::SetNextItemWidth(-FLT_MIN);
     // Focus request must precede the item, and only on the frame it opens.
     if (m_JustOpened)
@@ -84,17 +85,17 @@ void NewProjectDialog::Draw()
     ImGui::InputText("##ProjectName", m_ProjectName, sizeof(m_ProjectName));
 
     ImGui::Spacing();
-    ImGui::TextColored(Palette::Dim, "Location");
-    const float browseW = ImGui::CalcTextSize("Browse").x + ImGui::GetStyle().FramePadding.x * 4.0f;
+    ImGui::TextColored(Palette::Dim, "%s", Tr("Location"));
+    const float browseW = ImGui::CalcTextSize(Tr("Browse")).x + ImGui::GetStyle().FramePadding.x * 4.0f;
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browseW - gap);
     ImGui::InputText("##Location", m_Location, sizeof(m_Location));
     ImGui::SameLine(0.0f, gap);
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-    if (ImGui::Button("Browse", ImVec2(browseW, 0.0f)))
+    if (ImGui::Button(TrLabel("Browse"), ImVec2(browseW, 0.0f)))
     {
         // The answer arrives on a later frame; the dialog outlives it.
         FileDialogs::OpenFolder(
-            "Select Project Location",
+            TrMark("Select Project Location"),
             [this](const std::string& folder)
             {
                 if (folder.empty())
@@ -108,13 +109,13 @@ void NewProjectDialog::Draw()
     ImGui::PopStyleVar();
 
     ImGui::Spacing();
-    ImGui::TextColored(Palette::Dim, "Target platform");
+    ImGui::TextColored(Palette::Dim, "%s", Tr("Target platform"));
     if (m_Platforms.empty())
     {
         // The project still gets the desktop target from the starter; boards
         // arrive with packages, which are added once the project is open.
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-        ImGui::TextWrapped("Desktop. Add a board later from the project's Package Manager.");
+        ImGui::TextWrapped("%s", Tr("Desktop. Add a board later from the project's Package Manager."));
         ImGui::PopStyleColor();
     }
     else
@@ -132,7 +133,8 @@ void NewProjectDialog::Draw()
         if (m_Platforms.size() == 1)
         {
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-            ImGui::TextWrapped("Boards come with packages. Add one later from the project's Package Manager.");
+            ImGui::TextWrapped("%s",
+                               Tr("Boards come with packages. Add one later from the project's Package Manager."));
             ImGui::PopStyleColor();
         }
     }
@@ -141,7 +143,7 @@ void NewProjectDialog::Draw()
     ImGui::Spacing();
     const fs::path fullPath = fs::path(m_Location) / m_ProjectName;
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-    ImGui::TextWrapped("Creates %s", fullPath.string().c_str());
+    ImGui::TextWrapped(Tr("Creates %s"), fullPath.string().c_str());
     ImGui::PopStyleColor();
 
     if (m_ShowError && !m_ErrorMessage.empty())
@@ -152,8 +154,8 @@ void NewProjectDialog::Draw()
         ImGui::PopStyleColor();
     }
 
-    const int button =
-        SchematicDialogButtons({ { "Cancel" }, { "Create", DialogButton::Primary, m_ProjectName[0] != '\0' } });
+    const int button = SchematicDialogButtons(
+        { { TrMark("Cancel") }, { TrMark("Create"), DialogButton::Primary, m_ProjectName[0] != '\0' } });
     if (button == 1 && CreateProject())
     {
         m_Open = false;
@@ -171,7 +173,7 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
 {
     if (strlen(m_ProjectName) == 0)
     {
-        errorMessage = "Project name cannot be empty.";
+        errorMessage = Tr("Project name cannot be empty.");
         return false;
     }
 
@@ -181,14 +183,14 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
     {
         if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|')
         {
-            errorMessage = "Project name contains invalid characters.";
+            errorMessage = Tr("Project name contains invalid characters.");
             return false;
         }
     }
 
     if (strlen(m_Location) == 0)
     {
-        errorMessage = "Location cannot be empty.";
+        errorMessage = Tr("Location cannot be empty.");
         return false;
     }
 
@@ -200,7 +202,7 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
         fs::create_directories(m_Location, ec);
         if (ec)
         {
-            errorMessage = "Could not create the location folder: " + ec.message();
+            errorMessage = std::string(Tr("Could not create the location folder:")) + " " + ec.message();
             return false;
         }
     }
@@ -208,7 +210,7 @@ bool NewProjectDialog::ValidateInputs(std::string& errorMessage)
     fs::path projectPath = fs::path(m_Location) / m_ProjectName;
     if (fs::exists(projectPath))
     {
-        errorMessage = "A folder with this name already exists at the specified location.";
+        errorMessage = Tr("A folder with this name already exists at the specified location.");
         return false;
     }
 
@@ -231,7 +233,7 @@ bool NewProjectDialog::CreateProject()
 
     if (!ProjectTemplate::CreateProject(m_Location, m_ProjectName, platform))
     {
-        m_ErrorMessage = "Failed to create project. Check folder permissions.";
+        m_ErrorMessage = Tr("Failed to create project. Check folder permissions.");
         m_ShowError = true;
         return false;
     }

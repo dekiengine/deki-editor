@@ -5,10 +5,12 @@
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetTypeRegistry.h>
 #include <deki-editor/EditorAssets.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <fstream>
 #include <functional>
 #include <nlohmann/json.hpp>
@@ -32,7 +34,7 @@ float Dpi(float v)
 // The modal's title is what users read; the caller's popup id stays its identity.
 std::string ModalName(const std::string& popupId)
 {
-    return "Choose Asset###" + popupId;
+    return std::string(Tr("Choose Asset")) + "###" + popupId;
 }
 }  // namespace
 
@@ -245,26 +247,26 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
         SearchField("##assetpicker_search", m_SearchBuffer, sizeof(m_SearchBuffer), 0.0f, /*bottomBorder*/ true);
 
         // Meta row: dim uppercase filter/count summary + right-aligned REFRESH link
-        const char* filterName = "ALL";
+        const char* filterName = TrMark("ALL");
         switch (m_CurrentFilter)
         {
-            case AssetFilterType::Textures: filterName = "TEXTURES"; break;
-            case AssetFilterType::Audio: filterName = "AUDIO"; break;
-            case AssetFilterType::Scripts: filterName = "SCRIPTS"; break;
-            case AssetFilterType::Scenes: filterName = "SCENES"; break;
-            case AssetFilterType::Fonts: filterName = "FONTS"; break;
-            case AssetFilterType::Animations: filterName = "ANIMATIONS"; break;
+            case AssetFilterType::Textures: filterName = TrMark("TEXTURES"); break;
+            case AssetFilterType::Audio: filterName = TrMark("AUDIO"); break;
+            case AssetFilterType::Scripts: filterName = TrMark("SCRIPTS"); break;
+            case AssetFilterType::Scenes: filterName = TrMark("SCENES"); break;
+            case AssetFilterType::Fonts: filterName = TrMark("FONTS"); break;
+            case AssetFilterType::Animations: filterName = TrMark("ANIMATIONS"); break;
             default: break;
         }
         {
             ImFont* metaFont = g_FontUIBold ? g_FontUIBold : ImGui::GetFont();
             ImGui::PushFont(metaFont, Fonts::CssPx(metaFont, 10.5f));
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-            ImGui::Text("FILTER: %s   %zu ASSETS", filterName, m_Assets.size());
+            ImGui::Text(Tr("FILTER: %s   %zu ASSETS"), Tr(filterName), m_Assets.size());
             ImGui::PopStyleColor();
             ImGui::PopFont();
         }
-        if (SchematicActionLink("REFRESH##assetpicker_refresh"))
+        if (SchematicActionLink(TrLabel("REFRESH##assetpicker_refresh")))
         {
             RefreshAssets(m_CurrentFilter);
         }
@@ -349,7 +351,7 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
         {
             bool isNoneSelected = m_SelectedIndex == -1;
             ImGui::PushID("none");
-            if (drawAssetRow("(None)", isNoneSelected, 0.0f, Chevron::None, nullptr, nullptr))
+            if (drawAssetRow(Tr("(None)"), isNoneSelected, 0.0f, Chevron::None, nullptr, nullptr))
             {
                 m_SelectedIndex = -1;
                 m_SelectedSubAsset.clear();
@@ -441,9 +443,13 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
                         for (const auto& subAsset : *subAssets)
                         {
                             bool subSelected = (m_SelectedSubAsset == subAsset.guid);
-                            std::string subLabel = subAsset.name.empty()
-                                                       ? "Frame " + std::to_string(subAsset.subAssetIndex)
-                                                       : subAsset.name;
+                            std::string subLabel = subAsset.name;
+                            if (subLabel.empty())
+                            {
+                                char frameLabel[48];
+                                std::snprintf(frameLabel, sizeof(frameLabel), Tr("Frame %d"), subAsset.subAssetIndex);
+                                subLabel = frameLabel;
+                            }
 
                             ImGui::PushID(subIdx++);
                             if (drawAssetRow(
@@ -515,7 +521,7 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + freeW);
         }
 
-        if (ImGui::Button("Select", ImVec2(btnW, 0)))
+        if (ImGui::Button(TrLabel("Select"), ImVec2(btnW, 0)))
         {
             if (!m_SelectedSubAsset.empty())
             {
@@ -537,7 +543,7 @@ bool AssetPicker::Draw(const std::string& popupId, std::string& outSelectedPath)
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Cancel", ImVec2(btnW, 0)))
+        if (ImGui::Button(TrLabel("Cancel"), ImVec2(btnW, 0)))
         {
             ImGui::CloseCurrentPopup();
         }

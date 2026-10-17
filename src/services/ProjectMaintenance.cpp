@@ -1,5 +1,6 @@
 #include "ProjectMaintenance.h"
 #include "PackageLoader.h"
+#include <deki-editor/Localization.h>
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki/LogSystem.h>
 
@@ -40,13 +41,15 @@ MaintenanceInfo ProjectMaintenance::Describe(MaintenanceAction action)
     switch (action)
     {
         case MaintenanceAction::ResetPackageCopies:
-            return { "Reset Package Copies", "Deletes the hot-reload copies. Restored in seconds on the next load." };
+            return { TrMark("Reset Package Copies"),
+                     TrMark("Deletes the hot-reload copies. Restored in seconds on the next load.") };
         case MaintenanceAction::ClearAssetCache:
-            return { "Clear Asset Cache", "Deletes cached asset conversions. Assets are reimported on next use." };
+            return { TrMark("Clear Asset Cache"),
+                     TrMark("Deletes cached asset conversions. Assets are reimported on next use.") };
         case MaintenanceAction::CleanBuild:
-            return { "Clean Build", "Deletes the build tree. The next build is a full recompile." };
+            return { TrMark("Clean Build"), TrMark("Deletes the build tree. The next build is a full recompile.") };
         case MaintenanceAction::FullClean:
-            return { "Full Clean", "Deletes all generated state. Costs a full rebuild and reimport." };
+            return { TrMark("Full Clean"), TrMark("Deletes all generated state. Costs a full rebuild and reimport.") };
     }
     return { "", "" };
 }

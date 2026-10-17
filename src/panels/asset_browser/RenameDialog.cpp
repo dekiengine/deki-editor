@@ -2,6 +2,7 @@
 #include "../AssetBrowserPanel.h"
 #include "../../EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <filesystem>
 #include <cstring>
@@ -37,11 +38,11 @@ void RenameDialog::Draw()
 {
     if (m_ShouldOpen)
     {
-        ImGui::OpenPopup("Rename Asset");
+        ImGui::OpenPopup(TrLabel("Rename Asset"));
         m_ShouldOpen = false;
     }
 
-    if (BeginSchematicModal("Rename Asset", 440.0f))
+    if (BeginSchematicModal(TrLabel("Rename Asset"), 440.0f))
     {
         EditorApp* app = m_Browser->GetApp();
         const auto& entries = m_Browser->GetEntries();
@@ -56,9 +57,9 @@ void RenameDialog::Draw()
         const auto& entry = entries[m_RenameIndex];
         bool isDirectory = entry.isDirectory;
 
-        ImGui::Text("Rename %s '%s'.", isDirectory ? "folder" : "file", entry.name.c_str());
+        ImGui::Text(isDirectory ? Tr("Rename folder '%s'.") : Tr("Rename file '%s'."), entry.name.c_str());
         ImGui::Spacing();
-        ImGui::TextColored(Palette::Dim, "New name");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("New name"));
 
         // Focus is requested before the item: SetKeyboardFocusHere(-1) after
         // it does not take on a modal's first frame, and typing goes nowhere.
@@ -81,7 +82,7 @@ void RenameDialog::Draw()
         const float btnW = (availW - gap) * 0.5f;
 
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-        if (ImGui::Button("Cancel", ImVec2(btnW, 0)))
+        if (ImGui::Button(TrLabel("Cancel"), ImVec2(btnW, 0)))
         {
             ImGui::CloseCurrentPopup();
         }
@@ -96,7 +97,7 @@ void RenameDialog::Draw()
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
 
-        if (ImGui::Button("Rename", ImVec2(btnW, 0)) || (enterPressed && canRename))
+        if (ImGui::Button(TrLabel("Rename"), ImVec2(btnW, 0)) || (enterPressed && canRename))
         {
             m_Browser->RenameAssetWithData(entry.path, m_RenameBuffer);
             m_Browser->NavigateTo(m_Browser->GetCurrentPath());  // Refresh

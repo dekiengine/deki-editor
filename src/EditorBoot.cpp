@@ -773,8 +773,8 @@ bool BootDisplay(BootContext& ctx)
                 DEKI_LOG_ERROR("[fonts] required font missing: %s", p.c_str());
                 SDL_ShowSimpleMessageBox(
                     SDL_MESSAGEBOX_ERROR, "Deki Editor",
-                    ("Required font file not found:\n" + p +
-                     "\n\nRebuild the project so resources/fonts/ is copied next to the executable.")
+                    (DekiEditor::Tr("Required font file not found:") + ("\n" + p + "\n\n") +
+                     DekiEditor::Tr("Rebuild the project so resources/fonts/ is copied next to the executable."))
                         .c_str(),
                     ctx.window);
                 return false;
@@ -947,7 +947,7 @@ bool BootPlatform(const BootOptions& opts, BootContext& ctx)
     // returns at once, so each StartupProgress::Update on the open path does
     // nothing headless, with no check at its ~10 call sites.
     StartupProgress::SetWindow(ctx.window);
-    StartupProgress::Update("Initializing...");
+    StartupProgress::Update(DekiEditor::TrMark("Initializing..."));
 
     // Parents the file dialogs. Null headless, which is what the portable
     // backend expects when there is no window to sit in front of.
@@ -973,7 +973,7 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     bool opened = true;
     if (opts.projectPath)
     {
-        StartupProgress::Update("Loading project...");
+        StartupProgress::Update(DekiEditor::TrMark("Loading project..."));
         opened = editor.OpenProject(opts.projectPath);
         if (!opened)
         {

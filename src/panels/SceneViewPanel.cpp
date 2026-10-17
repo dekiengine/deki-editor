@@ -15,6 +15,7 @@
 #include "scene_view/SceneSnapping.h"
 #include "EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 #include <chrono>
 #include "../core/Units.h"
@@ -337,7 +338,7 @@ void SceneViewPanel::Draw()
         return;
     }
 
-    bool visible = ImGui::Begin("SCENE VIEW###Scene View", &isOpen,
+    bool visible = ImGui::Begin(TrLabel("SCENE VIEW###Scene View"), &isOpen,
                                 DekiEditor::MaximizedWindowFlags("SCENE VIEW###Scene View") |
                                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -350,7 +351,7 @@ void SceneViewPanel::Draw()
     auto* scene = m_App->GetCurrentScene();
     if (!scene)
     {
-        ImGui::TextDisabled("No scene loaded");
+        ImGui::TextDisabled("%s", Tr("No scene loaded"));
         ImGui::End();
         return;
     }
@@ -1394,7 +1395,7 @@ void SceneViewPanel::DrawSceneCanvas()
         ImVec2 worldPos = m_Coords->ScreenToWorld(mousePos.x, mousePos.y);
 
         ImGui::SetCursorScreenPos(ImVec2(m_CanvasTopLeft.x + 5, m_CanvasTopLeft.y + m_CanvasSize.y - 20));
-        ImGui::Text("World: (%.1f, %.1f)", worldPos.x, worldPos.y);
+        ImGui::Text(Tr("World: (%.1f, %.1f)"), worldPos.x, worldPos.y);
     }
 }
 

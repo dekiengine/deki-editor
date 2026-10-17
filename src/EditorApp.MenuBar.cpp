@@ -4,6 +4,7 @@
 #include "EditorApp.h"
 #include "services/UpdateCheck.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/build/PlatformConfig.h>
@@ -15,6 +16,7 @@
 #include "imgui_internal.h"
 #include <deki-editor/IconsTabler.h>
 #include <SDL3/SDL.h>
+#include <cstdio>
 #include <filesystem>
 #include <string>
 
@@ -108,8 +110,7 @@ void DrawCatMark(float barTopY, float barBottomY)
         {
             if (const ImU32 col = CatColor(kCat[y][x]))
             {
-                dl->AddRectFilled(ImVec2(x0 + x * px, y0 + y * px), ImVec2(x0 + (x + 1) * px, y0 + (y + 1) * px),
-                                  col);
+                dl->AddRectFilled(ImVec2(x0 + x * px, y0 + y * px), ImVec2(x0 + (x + 1) * px, y0 + (y + 1) * px), col);
             }
         }
     }
@@ -292,15 +293,15 @@ void EditorApp::DrawMenuBar()
             }
         };
 
-        bool fileOpen = beginBarMenu("File###File");
-        drawMenuItemBg(fileOpen, "File###File");
+        bool fileOpen = beginBarMenu(TrLabel("File###File"));
+        drawMenuItemBg(fileOpen, TrLabel("File###File"));
         if (fileOpen)
         {
-            if (ImGui::MenuItem("New Project...", "Ctrl+Shift+N"))
+            if (ImGui::MenuItem(TrLabel("New Project..."), "Ctrl+Shift+N"))
             {
                 m_NewProjectDialog->Show();
             }
-            if (ImGui::MenuItem("Open Project...", "Ctrl+O"))
+            if (ImGui::MenuItem(TrLabel("Open Project..."), "Ctrl+O"))
             {
                 OpenProjectDialog();
             }
@@ -311,7 +312,7 @@ void EditorApp::DrawMenuBar()
             // CloseProject stays unguarded on purpose: it runs mid-open, and a
             // dialog there would strand the editor between two projects, so
             // the question comes BEFORE OpenProject is called.)
-            if (ImGui::MenuItem("Quit to Project Manager", nullptr, false, m_Project != nullptr))
+            if (ImGui::MenuItem(TrLabel("Quit to Project Manager"), nullptr, false, m_Project != nullptr))
             {
                 if (!CheckUnsavedChanges(PendingSceneAction::CloseProject))
                 {
@@ -321,20 +322,20 @@ void EditorApp::DrawMenuBar()
             ImGui::Separator();
 
             // Save the current scene (Ctrl+S)
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S", false,
+            if (ImGui::MenuItem(TrLabel("Save Scene"), "Ctrl+S", false,
                                 m_CurrentScene != nullptr && !m_CurrentScenePath.empty()))
             {
                 SaveScene();
             }
             // Save As: pick a destination. Also the only way to save an
             // untitled or just-recovered scene, which has no path.
-            if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S", false, m_CurrentScene != nullptr))
+            if (ImGui::MenuItem(TrLabel("Save Scene As..."), "Ctrl+Shift+S", false, m_CurrentScene != nullptr))
             {
                 SaveSceneAsDialog();
             }
             ImGui::Separator();
 
-            if (ImGui::MenuItem("Exit", "Alt+F4"))
+            if (ImGui::MenuItem(TrLabel("Exit"), "Alt+F4"))
             {
                 // Same path as the window close button (main.cpp treats
                 // SDL_EVENT_QUIT and WINDOW_CLOSE_REQUESTED alike), so Exit and
@@ -347,19 +348,39 @@ void EditorApp::DrawMenuBar()
         }
 
         {
-            bool editOpen = beginBarMenu("Edit###Edit");
-            drawMenuItemBg(editOpen, "Edit###Edit");
+            bool editOpen = beginBarMenu(TrLabel("Edit###Edit"));
+            drawMenuItemBg(editOpen, TrLabel("Edit###Edit"));
             if (editOpen)
             {
                 auto& history = CommandHistory::Instance();
-                std::string undoText = history.CanUndo() ? "Undo " + history.GetUndoDescription() : "Undo";
-                std::string redoText = history.CanRedo() ? "Redo " + history.GetRedoDescription() : "Redo";
+                // The verb and what it acts on, in one translated sentence.
+                // The ID stays the same while the description changes.
+                char undoText[256];
+                char redoText[256];
+                if (history.CanUndo())
+                {
+                    std::snprintf(undoText, sizeof(undoText), Tr("Undo %s"), history.GetUndoDescription().c_str());
+                }
+                else
+                {
+                    std::snprintf(undoText, sizeof(undoText), "%s", Tr("Undo"));
+                }
+                if (history.CanRedo())
+                {
+                    std::snprintf(redoText, sizeof(redoText), Tr("Redo %s"), history.GetRedoDescription().c_str());
+                }
+                else
+                {
+                    std::snprintf(redoText, sizeof(redoText), "%s", Tr("Redo"));
+                }
+                const std::string undoLabel = std::string(undoText) + "###Undo";
+                const std::string redoLabel = std::string(redoText) + "###Redo";
 
-                if (ImGui::MenuItem(undoText.c_str(), "Ctrl+Z", false, history.CanUndo()))
+                if (ImGui::MenuItem(undoLabel.c_str(), "Ctrl+Z", false, history.CanUndo()))
                 {
                     history.Undo();
                 }
-                if (ImGui::MenuItem(redoText.c_str(), "Ctrl+Y", false, history.CanRedo()))
+                if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Y", false, history.CanRedo()))
                 {
                     history.Redo();
                 }
@@ -370,11 +391,11 @@ void EditorApp::DrawMenuBar()
                 ImGui::Separator();
                 {
                     bool hasSelection = GetSelectedObject() != nullptr;
-                    if (ImGui::MenuItem("Copy", "Ctrl+C", false, hasSelection))
+                    if (ImGui::MenuItem(TrLabel("Copy"), "Ctrl+C", false, hasSelection))
                     {
                         ClipboardService::Instance().CopyObjects(GetSelectedObjects());
                     }
-                    if (ImGui::MenuItem("Paste", "Ctrl+V", false, ClipboardService::Instance().HasObjects()))
+                    if (ImGui::MenuItem(TrLabel("Paste"), "Ctrl+V", false, ClipboardService::Instance().HasObjects()))
                     {
                         auto data = ClipboardService::Instance().GetObjectsData();
                         if (data.has_value())
@@ -394,12 +415,12 @@ void EditorApp::DrawMenuBar()
                     }
                 }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Project Settings...", nullptr, false, m_Project != nullptr))
+                if (ImGui::MenuItem(TrLabel("Project Settings..."), nullptr, false, m_Project != nullptr))
                 {
                     m_ProjectSettingsPanel->isOpen = true;
                     FocusPanelTab("Project Settings");
                 }
-                if (ImGui::MenuItem("Editor Settings..."))
+                if (ImGui::MenuItem(TrLabel("Editor Settings...")))
                 {
                     m_EditorSettingsPanel->isOpen = true;
                     FocusPanelTab("Editor Settings");
@@ -413,24 +434,26 @@ void EditorApp::DrawMenuBar()
                     const bool busy = IsPlaying() || (GetHotReloadService() && GetHotReloadService()->IsBuilding());
                     const bool canRun = m_Project != nullptr && !busy;
 
-                    if (ImGui::BeginMenu("Maintenance", m_Project != nullptr))
+                    if (ImGui::BeginMenu(TrLabel("Maintenance"), m_Project != nullptr))
                     {
                         if (busy)
                         {
-                            ImGui::TextDisabled("Unavailable while playing or building");
+                            ImGui::TextDisabled("%s", Tr("Unavailable while playing or building"));
                         }
 
                         for (MaintenanceAction action : ProjectMaintenance::AllActions())
                         {
                             const MaintenanceInfo info = ProjectMaintenance::Describe(action);
-                            if (ImGui::MenuItem(info.label, nullptr, false, canRun))
+                            // English in ProjectMaintenance, which its log
+                            // lines use too; translated here.
+                            if (ImGui::MenuItem(TrLabel(info.label), nullptr, false, canRun))
                             {
                                 // Confirmed and run by DrawMaintenanceConfirm.
                                 m_PendingMaintenance = action;
                             }
                             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                             {
-                                ImGui::SetTooltip("%s", info.cost);
+                                ImGui::SetTooltip("%s", Tr(info.cost));
                             }
                         }
                         ImGui::EndMenu();
@@ -441,8 +464,8 @@ void EditorApp::DrawMenuBar()
         }
 
         {
-            bool toolsOpen = beginBarMenu("Tools###Tools");
-            drawMenuItemBg(toolsOpen, "Tools###Tools");
+            bool toolsOpen = beginBarMenu(TrLabel("Tools###Tools"));
+            drawMenuItemBg(toolsOpen, TrLabel("Tools###Tools"));
             if (toolsOpen)
             {
                 // A menu item for every discovered tool
@@ -452,27 +475,27 @@ void EditorApp::DrawMenuBar()
                 }
                 else
                 {
-                    ImGui::TextDisabled("Open a project to access tools");
+                    ImGui::TextDisabled("%s", Tr("Open a project to access tools"));
                 }
                 endBarMenu();
             }
         }
 
         {
-            bool buildOpen = beginBarMenu("Build###Build");
-            drawMenuItemBg(buildOpen, "Build###Build");
+            bool buildOpen = beginBarMenu(TrLabel("Build###Build"));
+            drawMenuItemBg(buildOpen, TrLabel("Build###Build"));
             if (buildOpen)
             {
                 // No "Build"/"Upload" entries: Ctrl+B / Ctrl+U do nothing, and an
                 // advertised shortcut that never fires is worse than no entry.
                 // Build Panel below is the way to build. Add them only together
                 // with an implementation.
-                if (ImGui::MenuItem("Build Panel"))
+                if (ImGui::MenuItem(TrLabel("Build Panel")))
                 {
                     m_BuildPanel->SetOpen(true);
                     FocusPanelTab("Build");
                 }
-                if (ImGui::MenuItem("Platform Manager..."))
+                if (ImGui::MenuItem(TrLabel("Platform Manager...")))
                 {
                     m_PlatformManagerPanel->SetOpen(true);
                     FocusPanelTab("Platform Manager");
@@ -480,7 +503,7 @@ void EditorApp::DrawMenuBar()
                 ImGui::Separator();
 
                 // Platform submenu
-                if (ImGui::BeginMenu("Build Platform"))
+                if (ImGui::BeginMenu(TrLabel("Build Platform")))
                 {
                     auto& registry = PlatformRegistry::Instance();
                     auto platforms = registry.GetPlatformDisplayList();
@@ -499,8 +522,8 @@ void EditorApp::DrawMenuBar()
         }
 
         {
-            bool viewOpen = beginBarMenu("View###View");
-            drawMenuItemBg(viewOpen, "View###View");
+            bool viewOpen = beginBarMenu(TrLabel("View###View"));
+            drawMenuItemBg(viewOpen, TrLabel("View###View"));
             if (viewOpen)
             {
                 // Opens the panel and focuses its (possibly docked) tab. Plain
@@ -539,38 +562,38 @@ void EditorApp::DrawMenuBar()
                     ImGui::PopStyleColor();
                 };
 
-                group("SCENE");
-                panelMenuItem("Hierarchy", m_HierarchyPanel->isOpen, "Hierarchy");
-                panelMenuItem("Inspector", m_InspectorPanel->isOpen, "Inspector");
-                panelMenuItem("Scene View", m_SceneViewPanel->isOpen, "Scene View");
-                panelMenuItem("Play View", m_PlayViewPanel->isOpen, "Play View");
+                group(Tr("SCENE"));
+                panelMenuItem(TrLabel("Hierarchy"), m_HierarchyPanel->isOpen, "Hierarchy");
+                panelMenuItem(TrLabel("Inspector"), m_InspectorPanel->isOpen, "Inspector");
+                panelMenuItem(TrLabel("Scene View"), m_SceneViewPanel->isOpen, "Scene View");
+                panelMenuItem(TrLabel("Play View"), m_PlayViewPanel->isOpen, "Play View");
 
-                group("PROJECT");
-                panelMenuItem("Asset Browser", m_AssetBrowserPanel->isOpen, "Asset Browser");
-                panelMenuItem("Package Manager", m_PackageManagerPanel->isOpen, "Package Manager");
-                panelMenuItem("Console", m_ConsolePanel->isOpen, "Console");
-                panelMenuItem("Activity", m_ActivityPanel->isOpen, "Activity");
+                group(Tr("PROJECT"));
+                panelMenuItem(TrLabel("Asset Browser"), m_AssetBrowserPanel->isOpen, "Asset Browser");
+                panelMenuItem(TrLabel("Package Manager"), m_PackageManagerPanel->isOpen, "Package Manager");
+                panelMenuItem(TrLabel("Console"), m_ConsolePanel->isOpen, "Console");
+                panelMenuItem(TrLabel("Activity"), m_ActivityPanel->isOpen, "Activity");
 
-                group("BUILD & DEPLOY");
-                panelMenuItem("Build", m_BuildPanel->isOpen, "Build");
-                panelMenuItem("Platform Manager", m_PlatformManagerPanel->isOpen, "Platform Manager");
-                panelMenuItem("SD Card Deploy", m_SDCardDeployPanel->isOpen, "SD Card Deploy");
-                panelMenuItem("Deploy Analysis", m_DeployAnalysisPanel->isOpen, "Deploy Analysis");
-                panelMenuItem("Serial Monitor", m_SerialMonitorPanel->isOpen, "Serial Monitor");
+                group(Tr("BUILD & DEPLOY"));
+                panelMenuItem(TrLabel("Build"), m_BuildPanel->isOpen, "Build");
+                panelMenuItem(TrLabel("Platform Manager"), m_PlatformManagerPanel->isOpen, "Platform Manager");
+                panelMenuItem(TrLabel("SD Card Deploy"), m_SDCardDeployPanel->isOpen, "SD Card Deploy");
+                panelMenuItem(TrLabel("Deploy Analysis"), m_DeployAnalysisPanel->isOpen, "Deploy Analysis");
+                panelMenuItem(TrLabel("Serial Monitor"), m_SerialMonitorPanel->isOpen, "Serial Monitor");
 
-                group("PERFORMANCE");
-                if (ImGui::MenuItem("Profiler"))
+                group(Tr("PERFORMANCE"));
+                if (ImGui::MenuItem(TrLabel("Profiler")))
                 {
                     m_ProfilerPanel->SetOpen(true);
                     FocusPanelTab("Profiler");
                 }
-                if (ImGui::MenuItem("Frame Capture"))
+                if (ImGui::MenuItem(TrLabel("Frame Capture")))
                 {
                     m_FrameCapturePanel->SetOpen(true);
                     FocusPanelTab("Frame Capture");
                 }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Restore Layout"))
+                if (ImGui::MenuItem(TrLabel("Restore Layout")))
                 {
                     // Exactly the six panels of the default layout, nothing else:
                     // anything left open would come back as a stray tab in
@@ -634,12 +657,12 @@ void EditorApp::DrawMenuBar()
         }
 
         {
-            bool helpOpen = beginBarMenu("Help###Help");
-            drawMenuItemBg(helpOpen, "Help###Help");
+            bool helpOpen = beginBarMenu(TrLabel("Help###Help"));
+            drawMenuItemBg(helpOpen, TrLabel("Help###Help"));
             if (helpOpen)
             {
                 // The version line a bug report should quote (EditorApp::DrawAboutWindow).
-                if (ImGui::MenuItem("About Deki Editor"))
+                if (ImGui::MenuItem(TrLabel("About Deki Editor")))
                 {
                     m_ShowAboutWindow = true;
                 }
@@ -649,17 +672,20 @@ void EditorApp::DrawMenuBar()
                 const std::string available = UpdateCheck::AvailableVersion();
                 if (!available.empty())
                 {
-                    if (ImGui::MenuItem(("Open release page (" + available + " available)").c_str()))
+                    char releaseText[160];
+                    std::snprintf(releaseText, sizeof(releaseText), Tr("Open release page (%s available)"),
+                                  available.c_str());
+                    if (ImGui::MenuItem((std::string(releaseText) + "###OpenReleasePage").c_str()))
                     {
                         SDL_OpenURL(UpdateCheck::AvailableUrl().c_str());
                     }
                 }
-                if (ImGui::MenuItem("Check for updates now"))
+                if (ImGui::MenuItem(TrLabel("Check for updates now")))
                 {
                     UpdateCheck::CheckNow();
                 }
                 bool checkOnStartup = UpdateCheck::IsEnabled();
-                if (ImGui::MenuItem("Check for updates daily", nullptr, &checkOnStartup))
+                if (ImGui::MenuItem(TrLabel("Check for updates daily"), nullptr, &checkOnStartup))
                 {
                     UpdateCheck::SetEnabled(checkOnStartup);
                 }
@@ -778,8 +804,9 @@ void EditorApp::DrawGlobalToolbar()
         cursorX += btnW + 1.0f;  // +1px so the next button starts past the separator
     };
 
-    drawTransportBtn("##gt_run", ICON_TI_PLAYER_PLAY, "Run", isPlaying || isPaused, /*disabled*/ false,
-                     /*tintBg*/ isPlaying, isStopped ? "Play (Ctrl+P)" : (isPaused ? "Resume (Ctrl+P)" : "Playing"),
+    drawTransportBtn("##gt_run", ICON_TI_PLAYER_PLAY, Tr("Run"), isPlaying || isPaused, /*disabled*/ false,
+                     /*tintBg*/ isPlaying,
+                     isStopped ? Tr("Play (Ctrl+P)") : (isPaused ? Tr("Resume (Ctrl+P)") : Tr("Playing")),
                      [&]
                      {
                          if (!isPlaying)
@@ -789,8 +816,8 @@ void EditorApp::DrawGlobalToolbar()
                      });
 
     const bool canPause = isPlaying || isPaused;
-    drawTransportBtn("##gt_pause", ICON_TI_PLAYER_PAUSE, "Pause", isPaused, /*disabled*/ !canPause, /*tintBg*/ isPaused,
-                     isPaused ? "Resume (Ctrl+P)" : "Pause (Ctrl+P)",
+    drawTransportBtn("##gt_pause", ICON_TI_PLAYER_PAUSE, Tr("Pause"), isPaused, /*disabled*/ !canPause,
+                     /*tintBg*/ isPaused, isPaused ? Tr("Resume (Ctrl+P)") : Tr("Pause (Ctrl+P)"),
                      [&]
                      {
                          if (isPlaying)
@@ -803,8 +830,8 @@ void EditorApp::DrawGlobalToolbar()
                          }
                      });
 
-    drawTransportBtn("##gt_stop", ICON_TI_PLAYER_STOP, "Stop",
-                     /*active*/ false, /*disabled*/ isStopped, /*tintBg*/ false, "Stop (Ctrl+Shift+P)",
+    drawTransportBtn("##gt_stop", ICON_TI_PLAYER_STOP, Tr("Stop"),
+                     /*active*/ false, /*disabled*/ isStopped, /*tintBg*/ false, Tr("Stop (Ctrl+Shift+P)"),
                      [&] { Stop(); });
 
     // Put the cursor on the row just below the toolbar, so the next widget
@@ -970,7 +997,7 @@ void EditorApp::DrawProjectManagerMenuBar()
 
 void EditorApp::OpenProjectDialog()
 {
-    FileDialogs::OpenFolder("Select Project Folder",
+    FileDialogs::OpenFolder(TrMark("Select Project Folder"),
                             [this](const std::string& path)
                             {
                                 if (path.empty())

@@ -306,6 +306,7 @@ DEKI_EDITOR_API bool PanelToolbar(bool* pinned = nullptr);
 /// While there is text, a dim x shows at the right of the input; clicking it
 /// or pressing Escape in the field empties the buffer, so the user can always
 /// see how to clear the filter.
+/// The hint is English and shown in the editor's language.
 DEKI_EDITOR_API void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve = 0.0f,
                                  bool bottomBorder = false, float* outSlotX = nullptr, float* outSlotY = nullptr,
                                  float* outSlotW = nullptr, float* outSlotH = nullptr, const char* hint = "Search");

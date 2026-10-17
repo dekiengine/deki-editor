@@ -7,6 +7,7 @@
 #include <deki-editor/build/BuilderRegistry.h>
 #include <deki-editor/build/TargetBuilder.h>
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <cstring>
 #include <algorithm>
@@ -52,7 +53,7 @@ void PlatformEditorDialog::PopulateBuilderList()
     }
 
     // Custom last: a platform whose framework no installed builder claims.
-    m_AvailableBuilders.push_back({ "Custom", "", "custom", nullptr, "" });
+    m_AvailableBuilders.push_back({ TrMark("Custom"), "", "custom", nullptr, "" });
 }
 
 void PlatformEditorDialog::ApplyBuilderDefaults(int builderIndex)
@@ -237,7 +238,7 @@ bool PlatformEditorDialog::Validate(std::string& errorMessage)
 {
     if (strlen(m_Id) == 0)
     {
-        errorMessage = "Platform ID cannot be empty.";
+        errorMessage = Tr("Platform ID cannot be empty.");
         return false;
     }
 
@@ -247,14 +248,15 @@ bool PlatformEditorDialog::Validate(std::string& errorMessage)
         if (c == ' ' || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' ||
             c == '|')
         {
-            errorMessage = "Platform ID contains invalid characters. Use lowercase letters, numbers, and underscores.";
+            errorMessage =
+                Tr("Platform ID contains invalid characters. Use lowercase letters, numbers, and underscores.");
             return false;
         }
     }
 
     if (strlen(m_DisplayName) == 0)
     {
-        errorMessage = "Display name cannot be empty.";
+        errorMessage = Tr("Display name cannot be empty.");
         return false;
     }
 
@@ -262,7 +264,7 @@ bool PlatformEditorDialog::Validate(std::string& errorMessage)
     {
         if (PlatformRegistry::Instance().GetPlatform(m_Id) != nullptr)
         {
-            errorMessage = "A platform with this ID already exists.";
+            errorMessage = Tr("A platform with this ID already exists.");
             return false;
         }
     }
@@ -283,8 +285,8 @@ void PlatformEditorDialog::Draw()
 
     // Two steps in two dialogs: pick a framework, then edit the platform.
     // Opening the second at the same level closes the first.
-    const char* title =
-        m_ShowFrameworkPicker ? "New Platform##framework" : (m_IsEditing ? "Edit Platform" : "New Platform");
+    const char* title = m_ShowFrameworkPicker ? TrLabel("New Platform##framework")
+                                              : (m_IsEditing ? TrLabel("Edit Platform") : TrLabel("New Platform"));
     if (!ImGui::IsPopupOpen(title))
     {
         ImGui::OpenPopup(title);
@@ -298,7 +300,7 @@ void PlatformEditorDialog::Draw()
             return;
         }
         DrawFrameworkPicker();
-        if (SchematicDialogButtons({ { "Cancel" } }) == 0)
+        if (SchematicDialogButtons({ { TrMark("Cancel") } }) == 0)
         {
             m_Open = false;
             ImGui::CloseCurrentPopup();
@@ -336,7 +338,7 @@ void PlatformEditorDialog::Draw()
         ImGui::PopStyleColor();
     }
 
-    const int button = SchematicDialogButtons({ { "Cancel" }, { "Save", DialogButton::Primary } });
+    const int button = SchematicDialogButtons({ { TrMark("Cancel") }, { TrMark("Save"), DialogButton::Primary } });
     if (button == 1)
     {
         if (Validate(m_ErrorMessage))
@@ -377,7 +379,7 @@ bool PlatformEditorDialog::DrawInline()
     if (m_ShowFrameworkPicker)
     {
         DrawFrameworkPicker();
-        if (SchematicDialogButtons({ { "Cancel" } }) == 0)
+        if (SchematicDialogButtons({ { TrMark("Cancel") } }) == 0)
         {
             m_Open = false;
         }
@@ -409,7 +411,7 @@ bool PlatformEditorDialog::DrawInline()
     }
 
     bool saved = false;
-    const int button = SchematicDialogButtons({ { "Cancel" }, { "Save", DialogButton::Primary } });
+    const int button = SchematicDialogButtons({ { TrMark("Cancel") }, { TrMark("Save"), DialogButton::Primary } });
     if (button == 1)
     {
         if (Validate(m_ErrorMessage))
@@ -465,14 +467,14 @@ static std::string GetFrameworkDescription(const std::string& builderDesc, const
     // described by the backend that provides it.
     if (frameworkId.empty())
     {
-        return "Configure a custom platform with manual settings";
+        return TrMark("Configure a custom platform with manual settings");
     }
     return "";
 }
 
 void PlatformEditorDialog::DrawFrameworkPicker()
 {
-    ImGui::TextColored(DekiEditor::Palette::Dim, "Pick the framework the platform builds with.");
+    ImGui::TextColored(DekiEditor::Palette::Dim, "%s", Tr("Pick the framework the platform builds with."));
     ImGui::Spacing();
 
     float cardHeight = 72.0f;
@@ -504,10 +506,11 @@ void PlatformEditorDialog::DrawFrameworkPicker()
 
         float textX = pos.x + iconAreaWidth + padding;
         float nameY = pos.y + padding;
-        drawList->AddText(ImVec2(textX, nameY), iconColor, entry.name.c_str());
+        // Names and descriptions are English, from the editor or the backend.
+        drawList->AddText(ImVec2(textX, nameY), iconColor, Tr(entry.name.c_str()));
 
         float descY = pos.y + padding + ImGui::GetTextLineHeight() + 2.0f;
-        drawList->AddText(ImVec2(textX, descY), descColor, desc.c_str());
+        drawList->AddText(ImVec2(textX, descY), descColor, desc.empty() ? "" : Tr(desc.c_str()));
 
         ImGui::PopID();
     }
@@ -561,7 +564,8 @@ void PlatformEditorDialog::DrawBasicSection()
     {
         InspectorUtils::BeginPropertyRow("");
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
-        ImGui::TextWrapped("A custom platform builds with your own toolchain, set up in the project's CMakeLists.txt.");
+        ImGui::TextWrapped("%s", Tr("A custom platform builds with your own toolchain, set up in the project's "
+                                    "CMakeLists.txt."));
         ImGui::PopStyleColor();
     }
 
@@ -587,11 +591,12 @@ void PlatformEditorDialog::DrawStorageSection()
     DekiEditor::BeginPropertyContext();
     InspectorUtils::BeginPropertyRow("Assets On");
     ImGui::SetNextItemWidth(-FLT_MIN);
-    DekiEditor::SchematicCombo("##AssetStorage", &m_AssetStorageIndex, "Internal storage\0External storage\0");
+    static constexpr const char* kStorage[] = { TrMark("Internal storage"), TrMark("External storage") };
+    DekiEditor::SchematicCombo("##AssetStorage", &m_AssetStorageIndex, kStorage, 2);
     InspectorUtils::BeginPropertyRow("");
     ImGui::TextColored(DekiEditor::Palette::Dim, "%s",
-                       m_AssetStorageIndex == 1 ? "Copy the assets to the card with SD Card Deploy."
-                                                : "The assets are flashed with the game.");
+                       m_AssetStorageIndex == 1 ? Tr("Copy the assets to the card with SD Card Deploy.")
+                                                : Tr("The assets are flashed with the game."));
     DekiEditor::EndPropertyContext();
     DekiEditor::SchematicSectionEnd();
 }

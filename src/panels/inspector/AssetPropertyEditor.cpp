@@ -20,6 +20,7 @@
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/Command.h>
 #include <deki-editor/CommandHistory.h>
+#include <deki-editor/Localization.h>
 #include "../../core/commands/PropertyCommands.h"
 #include "../../core/commands/ModifyFieldCommand.h"
 #include <nlohmann/json.hpp>
@@ -29,6 +30,7 @@
 #include <cctype>
 #include <sstream>
 #include <iomanip>
+#include <cstdio>
 #include <cstring>
 
 namespace fs = std::filesystem;
@@ -89,11 +91,28 @@ AssetPropertyEditor::AssetPropertyEditor(EditorApp* app, AssetPicker* picker)
 {
 }
 
+namespace
+{
+
+// A sprite frame's name, or "Frame N" when it has none.
+std::string SubAssetName(const SubAssetInfo& subAsset)
+{
+    if (!subAsset.name.empty())
+    {
+        return subAsset.name;
+    }
+    char name[64];
+    snprintf(name, sizeof(name), Tr("Frame %d"), static_cast<int>(subAsset.subAssetIndex));
+    return name;
+}
+
+}  // namespace
+
 std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& guid)
 {
     if (guid.empty())
     {
-        return "(None)";
+        return Tr("(None)");
     }
 
     // A GUID has dashes and is at least 32 characters.
@@ -114,13 +133,11 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
                     size_t lastSlash = parentInfo->path.find_last_of("/\\");
                     std::string parentName =
                         (lastSlash != std::string::npos) ? parentInfo->path.substr(lastSlash + 1) : parentInfo->path;
-                    std::string frameName =
-                        subAsset->name.empty() ? "Frame " + std::to_string(subAsset->subAssetIndex) : subAsset->name;
-                    return parentName + " > " + frameName;
+                    return parentName + " > " + SubAssetName(*subAsset);
                 }
                 else
                 {
-                    return subAsset->name.empty() ? "Frame " + std::to_string(subAsset->subAssetIndex) : subAsset->name;
+                    return SubAssetName(*subAsset);
                 }
             }
 
@@ -148,7 +165,7 @@ std::string AssetPropertyEditor::ResolveGuidToDisplayName(const std::string& gui
             else
             {
                 // The asset is gone: show "Missing", like Unity.
-                return "Missing";
+                return Tr("Missing");
             }
         }
         else

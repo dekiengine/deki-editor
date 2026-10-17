@@ -1,6 +1,7 @@
 #include "PlayViewPanel.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include "EditorApp.h"
@@ -121,7 +122,7 @@ void PlayViewPanel::Draw()
         m_App->ResizePlayMode(SceneView::Get().GetPreviewWidth(), SceneView::Get().GetPreviewHeight());
     }
 
-    const bool visible = ImGui::Begin("PLAY VIEW###Play View", &isOpen,
+    const bool visible = ImGui::Begin(TrLabel("PLAY VIEW###Play View"), &isOpen,
                                       DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") |
                                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -200,7 +201,7 @@ void PlayViewPanel::Draw()
             bool hovered = ImGui::IsItemHovered();
             if (hovered)
             {
-                DekiEditor::Tooltip(on ? "Simulate touch: on" : "Simulate touch: off");
+                DekiEditor::Tooltip(on ? TrMark("Simulate touch: on") : TrMark("Simulate touch: off"));
             }
             if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
             {
@@ -236,11 +237,11 @@ void PlayViewPanel::Draw()
             char fpsBuf[64];
             if (m_App->IsPlaying() && gameFps > 0.0f)
             {
-                snprintf(fpsBuf, sizeof(fpsBuf), "Editor %.0f fps    Game %.0f fps", editorFps, gameFps);
+                snprintf(fpsBuf, sizeof(fpsBuf), Tr("Editor %.0f fps    Game %.0f fps"), editorFps, gameFps);
             }
             else
             {
-                snprintf(fpsBuf, sizeof(fpsBuf), "Editor %.0f fps", editorFps);
+                snprintf(fpsBuf, sizeof(fpsBuf), Tr("Editor %.0f fps"), editorFps);
             }
 
             if (DekiEditor::g_FontMonoSmall)
@@ -288,7 +289,7 @@ void PlayViewPanel::Draw()
 
             drawList->AddRect(p1, p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
 
-            const char* msg = "No render pipeline configured";
+            const char* msg = Tr("No render pipeline configured");
             ImVec2 textSize = ImGui::CalcTextSize(msg);
             float tx = p1.x + (texScreenW - textSize.x) * 0.5f;
             float ty = p1.y + (texScreenH - textSize.y) * 0.5f;
@@ -427,7 +428,7 @@ void PlayViewPanel::Draw()
 
         AddGameImage(drawList, (ImTextureID)(intptr_t)playTexId, fit);
 
-        const char* status = m_App->IsPlaying() ? "PLAYING" : "PAUSED";
+        const char* status = m_App->IsPlaying() ? Tr("PLAYING") : Tr("PAUSED");
         ImU32 statusColor = m_App->IsPlaying() ? IM_COL32(0, 255, 0, 200) : IM_COL32(255, 255, 0, 200);
         drawList->AddText(ImVec2(m_CanvasTopLeft.x + 10, m_CanvasTopLeft.y + 10), statusColor, status);
 
@@ -607,7 +608,7 @@ std::string PlayViewPanel::ScreenLabel(const std::string& id) const
     int w = 0, h = 0;
     if (id == kFreeAspect)
     {
-        return "Free Aspect";
+        return Tr("Free Aspect");
     }
     if (ParseAspect(id, w, h))
     {
@@ -775,7 +776,7 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
             if (ImGui::BeginPopupContextItem())
             {
                 PushContextMenuItemStyle();
-                if (ImGui::MenuItem("Remove"))
+                if (ImGui::MenuItem(TrLabel("Remove")))
                 {
                     m_RemoveUserScreen = userIndex;
                 }
@@ -791,7 +792,7 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
             return s.name.empty() ? dims : s.name + "  " + dims;
         };
 
-        row(kFreeAspect, "Free Aspect", -1);
+        row(kFreeAspect, Tr("Free Aspect"), -1);
 
         ImGui::Separator();
         for (const BuiltInAspect& a : kAspects)
@@ -825,7 +826,7 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
         }
 
         ImGui::Separator();
-        if (ImGui::Selectable("Add...", false, ImGuiSelectableFlags_SpanAvailWidth))
+        if (ImGui::Selectable(TrLabel("Add..."), false, ImGuiSelectableFlags_SpanAvailWidth))
         {
             m_OpenAddScreen = true;
         }
@@ -854,19 +855,20 @@ void PlayViewPanel::DrawAddScreenDialog()
         m_NewScreen.w = 1920;
         m_NewScreen.h = 1080;
         m_NewScreenName[0] = '\0';
-        ImGui::OpenPopup("Add Screen Size");
+        ImGui::OpenPopup(TrLabel("Add Screen Size"));
     }
-    if (!BeginSchematicModal("Add Screen Size", 360.0f))
+    if (!BeginSchematicModal(TrLabel("Add Screen Size"), 360.0f))
     {
         return;
     }
 
     BeginPropertyContext();
     BeginPropertyRow("Name");
-    ImGui::InputTextWithHint("##name", "Optional", m_NewScreenName, sizeof(m_NewScreenName));
+    ImGui::InputTextWithHint("##name", Tr("Optional"), m_NewScreenName, sizeof(m_NewScreenName));
     BeginPropertyRow("Type");
     int type = m_NewScreen.aspect ? 0 : 1;
-    if (SchematicCombo("##type", &type, "Aspect Ratio\0Resolution\0"))
+    const char* types[] = { TrMark("Aspect Ratio"), TrMark("Resolution") };
+    if (SchematicCombo("##type", &type, types, 2))
     {
         m_NewScreen.aspect = (type == 0);
     }
@@ -910,8 +912,8 @@ void PlayViewPanel::DrawFormatPicker(float& cursorX, const ImVec2& rowMin, float
     const bool open = SchematicBeginToolbarCombo("##previewformat", preview, rowH);
     if (!open && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
     {
-        DekiEditor::Tooltip(locked ? "The pixel format is fixed while playing"
-                                   : "Pixel format of the previewed screen. Play renders in it.");
+        DekiEditor::Tooltip(locked ? TrMark("The pixel format is fixed while playing")
+                                   : TrMark("Pixel format of the previewed screen. Play renders in it."));
     }
     cursorX += width;
     if (open)

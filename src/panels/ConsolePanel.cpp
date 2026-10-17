@@ -3,6 +3,7 @@
 #include "../PanelMaximize.h"
 #include "../EditorApp.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
 #include <functional>
@@ -132,7 +133,7 @@ void ConsolePanel::Draw()
     // leaves the mouse wheel over the toolbar free for the toolbar's
     // horizontal scroll, instead of scrolling the whole window and the log
     // with it.
-    if (!ImGui::Begin("CONSOLE###Console", &isOpen,
+    if (!ImGui::Begin(TrLabel("CONSOLE###Console"), &isOpen,
                       DekiEditor::MaximizedWindowFlags("CONSOLE###Console") | ImGuiWindowFlags_NoScrollbar |
                           ImGuiWindowFlags_NoScrollWithMouse))
     {
@@ -175,7 +176,7 @@ void ConsolePanel::Draw()
             bool hovered = ImGui::IsItemHovered();
             if (hovered && tooltip)
             {
-                DekiEditor::Tooltip("%s", tooltip);
+                DekiEditor::Tooltip("%s", Tr(tooltip));
             }
             // Active and hover backgrounds fade; hover only while not active.
             const float hoverT = DekiEditor::Motion::ItemHover(hovered);
@@ -287,14 +288,14 @@ void ConsolePanel::Draw()
 
         drawDivider(cursorX);
 
-        iconBtn("##clear", ICON_TI_ERASER, "Clear", false, [&] { Clear(); });
-        iconBtn("##fold", ICON_TI_FOLD, "Collapse repeats", m_Collapse,
+        iconBtn("##clear", ICON_TI_ERASER, TrMark("Clear"), false, [&] { Clear(); });
+        iconBtn("##fold", ICON_TI_FOLD, TrMark("Collapse repeats"), m_Collapse,
                 [&]
                 {
                     m_Collapse = !m_Collapse;
                     EditorSettings::SetBool("console.collapse", m_Collapse);
                 });
-        iconBtn("##autoscroll", ICON_TI_ARROW_DOWN, "Auto-scroll", m_AutoScroll,
+        iconBtn("##autoscroll", ICON_TI_ARROW_DOWN, TrMark("Auto-scroll"), m_AutoScroll,
                 [&]
                 {
                     m_AutoScroll = !m_AutoScroll;
@@ -311,9 +312,9 @@ void ConsolePanel::Draw()
         // in the menu at the right end rather than in the row.
         (void)dotAccent;
         (void)dotDim;
-        chip("##info", "Info", dotFg, &m_ShowInfo, "console.showInfo", false);
-        chip("##warnings", "Warnings", dotAmber, &m_ShowWarnings, "console.showWarnings", false);
-        chip("##errors", "Errors", dotRed, &m_ShowErrors, "console.showErrors", true);
+        chip("##info", Tr("Info"), dotFg, &m_ShowInfo, "console.showInfo", false);
+        chip("##warnings", Tr("Warnings"), dotAmber, &m_ShowWarnings, "console.showWarnings", false);
+        chip("##errors", Tr("Errors"), dotRed, &m_ShowErrors, "console.showErrors", true);
 
         // The search bar starts after the chips and stretches to the right
         // edge, but is never narrower than 150px. With room to spare the strip
@@ -349,14 +350,15 @@ void ConsolePanel::Draw()
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_TextDisabled, Palette::Dim2);
         ImGui::SetNextItemWidth((filterX + filterW) - inputX);
-        ImGui::InputTextWithHint("##filter", "Filter…", m_FilterText, sizeof(m_FilterText));
+        ImGui::InputTextWithHint("##filter", Tr("Filter…"), m_FilterText, sizeof(m_FilterText));
         ImGui::PopStyleColor(4);
         ImGui::PopStyleVar(2);
 
         // More: the levels for working on the editor itself.
         cursorX = moreX;
         drawDivider(cursorX);
-        iconBtn("##more", ICON_TI_DOTS_VERTICAL, "More filters", false, [&] { ImGui::OpenPopup("##consolemore"); });
+        iconBtn("##more", ICON_TI_DOTS_VERTICAL, TrMark("More filters"), false,
+                [&] { ImGui::OpenPopup("##consolemore"); });
 
         ImGui::PopClipRect();
 
@@ -366,11 +368,11 @@ void ConsolePanel::Draw()
         if (ImGui::BeginPopup("##consolemore"))
         {
             PushContextMenuItemStyle();
-            if (ImGui::MenuItem("Editor messages", nullptr, &m_ShowEditor))
+            if (ImGui::MenuItem(TrLabel("Editor messages"), nullptr, &m_ShowEditor))
             {
                 EditorSettings::SetBool("console.showEditor", m_ShowEditor);
             }
-            if (ImGui::MenuItem("Debug messages", nullptr, &m_ShowDebug))
+            if (ImGui::MenuItem(TrLabel("Debug messages"), nullptr, &m_ShowDebug))
             {
                 EditorSettings::SetBool("console.showDebug", m_ShowDebug);
             }
@@ -710,7 +712,7 @@ void ConsolePanel::Draw()
             // On a row of a multi-selection it copies the selection, otherwise
             // just this entry's message.
             const bool copySelection = isSelected && m_SelectedRows.size() > 1;
-            if (ImGui::MenuItem(copySelection ? "Copy selected" : "Copy"))
+            if (ImGui::MenuItem(copySelection ? TrLabel("Copy selected") : TrLabel("Copy")))
             {
                 if (copySelection)
                 {
@@ -729,7 +731,7 @@ void ConsolePanel::Draw()
                     ImGui::SetClipboardText(entry.message.c_str());
                 }
             }
-            if (ImGui::MenuItem("Copy All (Visible)"))
+            if (ImGui::MenuItem(TrLabel("Copy All (Visible)")))
             {
                 std::string allText;
                 for (const auto& e : m_Entries)

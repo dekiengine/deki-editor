@@ -17,6 +17,7 @@
 #include <deki-editor/EditorExtension.h>
 #include <deki-editor/AssetTypeRegistry.h>
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include <deki/assets/AssetManager.h>
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -179,7 +180,7 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
     std::ifstream file(assetPath);
     if (!file.is_open())
     {
-        ImGui::TextColored(Palette::Red, "Failed to open asset file");
+        ImGui::TextColored(Palette::Red, "%s", Tr("Failed to open asset file"));
         return;
     }
 
@@ -190,14 +191,14 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
     }
     catch (const std::exception& e)
     {
-        ImGui::TextColored(Palette::Red, "Failed to parse JSON: %s", e.what());
+        ImGui::TextColored(Palette::Red, Tr("Failed to parse JSON: %s"), e.what());
         return;
     }
     file.close();
 
     if (!jsonData.contains("type") || !jsonData["type"].is_string())
     {
-        ImGui::TextDisabled("Asset has no 'type' field");
+        ImGui::TextDisabled("%s", Tr("Asset has no 'type' field"));
         return;
     }
 
@@ -206,7 +207,7 @@ void AssetTypeInspector::DrawAssetTypeEditor(const std::string& assetPath, const
     auto* editor = AssetTypeEditorRegistry::Instance().GetEditor(typeName);
     if (!editor)
     {
-        ImGui::TextDisabled("No editor for type: %s", typeName.c_str());
+        ImGui::TextDisabled(Tr("No editor for type: %s"), typeName.c_str());
         return;
     }
 
@@ -286,7 +287,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
         }
         else
         {
-            ImGui::TextDisabled("No project loaded");
+            ImGui::TextDisabled("%s", Tr("No project loaded"));
             DekiEditor::SchematicSectionEnd();
             return;
         }
@@ -303,9 +304,9 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
     // One row: does it ship. Scenes always do, and so does anything a scene
     // uses (ticked and locked, saying why). Anything else ships only when
     // ticked here.
-    InspectorUtils::SetNextRowTooltip(isScene  ? "Every scene ships"
-                                      : isUsed ? "A scene uses it, so it ships"
-                                               : "Ship it even though no scene uses it");
+    InspectorUtils::SetNextRowTooltip(isScene  ? TrMark("Every scene ships")
+                                      : isUsed ? TrMark("A scene uses it, so it ships")
+                                               : TrMark("Ship it even though no scene uses it"));
     InspectorUtils::BeginPropertyRow("Included in builds");
     if (isScene || isUsed)
     {
@@ -315,7 +316,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
         ImGui::EndDisabled();
         ImGui::SameLine();
         ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(Palette::Dim, isScene ? "scene" : "used by a scene");
+        ImGui::TextColored(Palette::Dim, "%s", isScene ? Tr("scene") : Tr("used by a scene"));
     }
     else if (DekiEditor::SchematicCheckbox("##Included", &isForceIncluded) && proj)
     {

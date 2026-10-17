@@ -7,7 +7,9 @@ at once and is kept for the next session.
 Each language other than English is a table from the English text to the
 translation, one JSON file per language:
 
-- the editor's: `resources/lang/<code>.json`, such as `resources/lang/ja.json`
+- the editor's: `resources/lang/<code>.json`, such as `resources/lang/ja.json`,
+  plus any files in `resources/lang/<code>/` (the editor's Japanese is split by
+  area: `ja/app.json`, `ja/views.json`, ...)
 - a package's: `editor/lang/<code>.json` inside the package
 
 ```json
@@ -16,6 +18,9 @@ translation, one JSON file per language:
     "%d objects": "%d 個のオブジェクト"
 }
 ```
+
+A label that starts with an icon is looked up without it: the entry for
+`"New Project"` also covers `ICON_TI_PLUS "  New Project"`.
 
 Text with no entry shows in English, so a table can be filled in a little at a
 time. Comments (`//`) are allowed, for notes to the next translator. When the
