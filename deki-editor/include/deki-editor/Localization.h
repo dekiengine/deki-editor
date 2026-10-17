@@ -61,8 +61,8 @@ namespace Localization
 
 struct Language
 {
-    std::string code;  // "en", "ja"
-    std::string name;  // in its own language: "English", "日本語"
+    std::string code;  // "en", "ja", "zh" (Simplified Chinese), "ko"
+    std::string name;  // in its own language: "English", "日本語", "简体中文", "한국어"
 };
 
 /// Every language the editor offers, English first.

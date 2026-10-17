@@ -1,6 +1,7 @@
 # Languages
 
-The editor is written in English and shown in the language picked in
+The editor is written in English and shown in English, Japanese (`ja`),
+Simplified Chinese (`zh`) or Korean (`ko`), picked in
 Edit > Editor Settings > Language, or on the project list. The choice applies
 at once and is kept for the next session.
 
@@ -106,6 +107,13 @@ the class is in.
 
 ## Fonts
 
-Noto Sans JP is merged behind every editor font, so Japanese text draws in any
-language, including Japanese file and project names in an English editor.
-Glyphs are drawn the first time they are shown.
+Noto Sans JP, SC and KR are merged behind every editor font, so Japanese,
+Chinese and Korean text draws in any language, including file and project
+names in an English editor. Glyphs are drawn the first time they are shown.
+Han characters, CJK punctuation and full-width forms are in all three fonts
+with different shapes; the current language's font draws them
+(`SetCjkPreference`, Japanese for every other language).
+
+The Tabler icon font is limited to the icons the editor uses (the Private Use
+Area, and U+FA17): it also has icons over full-width punctuation, which would
+otherwise replace "（" and "，".

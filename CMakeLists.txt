@@ -1014,6 +1014,18 @@ add_custom_command(TARGET DekiEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansJP-Medium.otf"
         "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansJP-Medium.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansSC-Regular.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansSC-Regular.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansSC-Medium.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansSC-Medium.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansKR-Regular.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansKR-Regular.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansKR-Medium.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansKR-Medium.otf"
     # The editor's translations (Localization.h).
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/resources/lang"

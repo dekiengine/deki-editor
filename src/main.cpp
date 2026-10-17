@@ -15,6 +15,7 @@
 
 #include "EditorApp.h"
 #include "EditorBoot.h"
+#include <deki-editor/Localization.h>
 #include "EditorCli.h"
 #include "EditorHeadless.h"
 #include "EditorVersion.h"
@@ -264,6 +265,14 @@ int main(int argc, char* argv[])
         phase.emplace("Frame: deferred tasks");
         editor.ProcessDeferredTasks();
         phase.emplace("Frame: begin ImGui frame");
+
+        // A language switch picks whose CJK glyph shapes win, between frames.
+        static std::string s_FontLanguage;
+        if (s_FontLanguage != DekiEditor::Localization::Current())
+        {
+            s_FontLanguage = DekiEditor::Localization::Current();
+            DekiEditor::SetCjkPreference(s_FontLanguage);
+        }
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();

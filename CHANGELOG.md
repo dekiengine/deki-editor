@@ -8,10 +8,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ### Added
 - **Languages.** Edit > Editor Settings > Language, and the project list,
-  switch the editor's language at once and remember it. Japanese is the first
-  one; its translation is in progress, and text not yet translated shows in
-  English. Noto Sans JP ships with the editor for Japanese text, which also
-  shows Japanese file and project names in any language. How to translate
+  switch the editor's language at once and remember it: English, Japanese,
+  Simplified Chinese and Korean. Text not yet translated shows in English.
+  Noto Sans JP, SC and KR ship with the editor, so Japanese, Chinese and
+  Korean file and project names show in any language, and the characters the
+  three share take the current language's shapes. How to translate
   editor and package text: [docs/localization.md](docs/localization.md).
 - Japanese covers every screen, the Inspector's component and property names,
   tooltips and enum values, the Add Component picker, the Create menu, asset

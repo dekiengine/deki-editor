@@ -315,6 +315,81 @@ namespace DekiEditor
 namespace
 {
 
+// The CJK fallback fonts, behind every editor font: Noto Sans JP, SC and KR.
+// Each file is read once and shared by every font that merges it.
+struct CjkFont
+{
+    const char* language;  // the editor language whose shapes it draws: "ja", "zh", "ko"
+    const char* regular;   // file names in resources/fonts
+    const char* medium;
+    std::vector<char> regularData, mediumData;
+};
+CjkFont s_CjkFonts[] = {
+    { "ja", "NotoSansJP-Regular.otf", "NotoSansJP-Medium.otf", {}, {} },
+    { "zh", "NotoSansSC-Regular.otf", "NotoSansSC-Medium.otf", {}, {} },
+    { "ko", "NotoSansKR-Regular.otf", "NotoSansKR-Medium.otf", {}, {} },
+};
+
+// What a CJK source leaves to the fonts after it. All skip the icons, which
+// are in the Private Use Area only, so full-width punctuation (U+FF00 on)
+// still draws. The slots after the icon pair are the characters several of
+// these fonts draw, each in its own language's shapes: switched on for every
+// font but the current language's, so that one draws them. An "off" slot is an
+// empty range. ImGui copies the list when the font is added, and
+// SetCjkPreference writes the copies.
+constexpr ImWchar kRangeOff[2] = { 0xFFFF, 0xFFFE };
+constexpr ImWchar kSharedCjk[][2] = {
+    { 0x3000, 0x303F },  // CJK symbols and punctuation
+    { 0x3400, 0x4DBF },  // CJK unified ideographs extension A
+    { 0x4E00, 0x9FFF },  // CJK unified ideographs
+    { 0xF900, 0xFAFF },  // CJK compatibility ideographs
+    { 0xFF00, 0xFFEF },  // half-width and full-width forms
+};
+// The icon pairs (see kIconRanges) first, then one slot per kSharedCjk range.
+constexpr int kCjkSlotStart = 4;
+const ImWchar kCjkExclude[] = { ICON_MIN_TI, 0xF8FF, 0xFA17, 0xFA17, 0xFFFF, 0xFFFE, 0xFFFF, 0xFFFE,
+                                0xFFFF,      0xFFFE, 0xFFFF, 0xFFFE, 0xFFFF, 0xFFFE, 0 };
+
+}  // namespace
+
+void SetCjkPreference(const std::string& language)
+{
+    if (!ImGui::GetCurrentContext())
+    {
+        return;
+    }
+    // English and other languages keep the first font's shapes (Japanese).
+    const bool known = language == "ja" || language == "zh" || language == "ko";
+    const std::string preferred = known ? language : "ja";
+    ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+    for (ImFontConfig& src : atlas->Sources)
+    {
+        for (const CjkFont& cjk : s_CjkFonts)
+        {
+            if (src.FontData != cjk.regularData.data() && src.FontData != cjk.mediumData.data())
+            {
+                continue;
+            }
+            // ImGui's own copy of kCjkExclude: the shared slots follow the icon pairs.
+            const bool stepAside = preferred != cjk.language;
+            auto* ranges = const_cast<ImWchar*>(src.GlyphExcludeRanges);
+            for (size_t i = 0; i < std::size(kSharedCjk); ++i)
+            {
+                ranges[kCjkSlotStart + i * 2] = stepAside ? kSharedCjk[i][0] : kRangeOff[0];
+                ranges[kCjkSlotStart + 1 + i * 2] = stepAside ? kSharedCjk[i][1] : kRangeOff[1];
+            }
+        }
+    }
+    // Glyphs already drawn came from another font.
+    for (ImFont* font : atlas->Fonts)
+    {
+        ImFontAtlasFontDiscardBakes(atlas, font, 0);
+    }
+}
+
+namespace
+{
+
 /// GL_VENDOR / GL_RENDERER / GL_VERSION of the current context.
 std::string CurrentGlStrings()
 {
@@ -762,11 +837,14 @@ bool BootDisplay(BootContext& ctx)
         std::string monoMed = (std::filesystem::path(fontDir) / "JetBrainsMono-Medium.ttf").string();
         std::string displayPath = (std::filesystem::path(fontDir) / "SpaceGrotesk-Medium.ttf").string();
         std::string iconsPath = (std::filesystem::path(fontDir) / FONT_ICON_FILE_NAME_TI).string();
-        std::string japaneseReg = (std::filesystem::path(fontDir) / "NotoSansJP-Regular.otf").string();
-        std::string japaneseMed = (std::filesystem::path(fontDir) / "NotoSansJP-Medium.otf").string();
+        std::vector<std::string> required = { interReg, interMed, interSemi, monoReg, monoMed, displayPath, iconsPath };
+        for (const CjkFont& cjk : s_CjkFonts)
+        {
+            required.push_back((std::filesystem::path(fontDir) / cjk.regular).string());
+            required.push_back((std::filesystem::path(fontDir) / cjk.medium).string());
+        }
 
-        for (const auto& p :
-             { interReg, interMed, interSemi, monoReg, monoMed, displayPath, iconsPath, japaneseReg, japaneseMed })
+        for (const auto& p : required)
         {
             if (!std::filesystem::exists(p))
             {
@@ -788,10 +866,12 @@ bool BootDisplay(BootContext& ctx)
         // Chrome, without changing the logical font size.
         baseCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
 
-        // The Tabler range is capped at 0xFFFF to fit ImWchar (uint16). The
-        // icons the editor uses (player-play, folder, search...) are all in
-        // 0xEA02 - 0xF34F.
-        static const ImWchar kIconRanges[] = { ICON_MIN_TI, 0xFFFF, 0 };
+        // The icons the editor uses: the Private Use Area from Tabler's first
+        // icon, and database-plus (U+FA17). Tabler also puts icons over the
+        // CJK compatibility ideographs and full-width forms (up to U+10095),
+        // which Chinese and Japanese text needs as characters, so the rest of
+        // its range is left out. kCjkExclude keeps the same pairs first.
+        static const ImWchar kIconRanges[] = { ICON_MIN_TI, 0xF8FF, 0xFA17, 0xFA17, 0 };
 
         // The text fonts (Inter, JetBrains Mono, ...) map a few Private Use
         // Area codepoints that overlap the Tabler range (Inter maps U+EE94 to
@@ -809,9 +889,16 @@ bool BootDisplay(BootContext& ctx)
             monoCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_ForceAutoHint;
         }
 
+        // ImGui 1.92 loads a glyph from the first source that has it, and
+        // the ranges passed to AddFont only steer the old preload. So the
+        // icon font is kept to the icons by excluding everything else; it
+        // would otherwise answer for full-width punctuation with icons.
+        static const ImWchar kNotIcons[] = { 0x0001, ICON_MIN_TI - 1, 0xF900, 0xFA16, 0xFA18, 0xFFFF, 0 };
+
         auto mergeIcons = [&](float size)
         {
             ImFontConfig iconCfg;
+            iconCfg.GlyphExcludeRanges = kNotIcons;
             iconCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
             iconCfg.MergeMode = true;
             iconCfg.PixelSnapH = true;
@@ -820,27 +907,34 @@ bool BootDisplay(BootContext& ctx)
             io.Fonts->AddFontFromFileTTF(iconsPath.c_str(), size, &iconCfg, kIconRanges);
         };
 
-        // Japanese text: whatever glyph the font in front lacks comes from Noto
-        // Sans JP, Medium behind the heavier fonts. Glyphs are only drawn when
-        // first shown, and each file is read once and shared by every font.
-        static std::vector<char> s_JapaneseReg, s_JapaneseMed;
+        // Japanese, Chinese and Korean text: whatever glyph the font in front
+        // lacks comes from Noto Sans JP, SC or KR, Medium behind the heavier
+        // fonts. Glyphs are only drawn when first shown. The three draw some
+        // of the same characters differently; SetCjkPreference picks whose
+        // shapes win.
         auto readFile = [](const std::string& path, std::vector<char>& out)
         {
             std::ifstream file(path, std::ios::binary);
             out.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
         };
-        readFile(japaneseReg, s_JapaneseReg);
-        readFile(japaneseMed, s_JapaneseMed);
-        auto mergeJapanese = [&](float size, bool medium)
+        for (CjkFont& cjk : s_CjkFonts)
         {
-            std::vector<char>& data = medium ? s_JapaneseMed : s_JapaneseReg;
-            ImFontConfig japaneseCfg;
-            japaneseCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
-            japaneseCfg.MergeMode = true;
-            japaneseCfg.PixelSnapH = true;
-            japaneseCfg.FontDataOwnedByAtlas = false;
-            japaneseCfg.GlyphExcludeRanges = kIconRanges;
-            io.Fonts->AddFontFromMemoryTTF(data.data(), static_cast<int>(data.size()), size, &japaneseCfg);
+            readFile((std::filesystem::path(fontDir) / cjk.regular).string(), cjk.regularData);
+            readFile((std::filesystem::path(fontDir) / cjk.medium).string(), cjk.mediumData);
+        }
+        auto mergeCjk = [&](float size, bool medium)
+        {
+            ImFontConfig cfg;
+            cfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
+            cfg.MergeMode = true;
+            cfg.PixelSnapH = true;
+            cfg.FontDataOwnedByAtlas = false;
+            cfg.GlyphExcludeRanges = kCjkExclude;
+            for (CjkFont& cjk : s_CjkFonts)
+            {
+                std::vector<char>& data = medium ? cjk.mediumData : cjk.regularData;
+                io.Fonts->AddFontFromMemoryTTF(data.data(), static_cast<int>(data.size()), size, &cfg);
+            }
         };
 
         // Fonts load at base sizes (logical pixels); ImGui 1.92's
@@ -860,48 +954,50 @@ bool BootDisplay(BootContext& ctx)
         // first, so io.FontDefault points to it.
         DekiEditor::g_FontUI = loadAndRegister(interReg, 13.0f);
         mergeIcons(13.0f);
-        mergeJapanese(13.0f, false);
+        mergeCjk(13.0f, false);
         io.FontDefault = DekiEditor::g_FontUI;
 
         // Inter Regular 11.5px (with icons merged so chips/status keep icons inline).
         DekiEditor::g_FontUISmall = loadAndRegister(interReg, 11.5f);
         mergeIcons(11.5f);
-        mergeJapanese(11.5f, false);
+        mergeCjk(11.5f, false);
 
         // Inter Medium 12.5px - inspector property labels, outlined action
         // buttons. Icons merged, for labels like ICON_TI_PLUS "  Add Component".
         DekiEditor::g_FontUIMed = loadAndRegister(interMed, 12.5f);
         mergeIcons(12.5f);
-        mergeJapanese(12.5f, true);
+        mergeCjk(12.5f, true);
 
         // Inter SemiBold 11px - tab labels, section headers (rendered uppercased).
         DekiEditor::g_FontUIBold = loadAndRegister(interSemi, 11.0f);
         mergeIcons(11.0f);
-        mergeJapanese(11.0f, true);
+        mergeCjk(11.0f, true);
 
         // JetBrains Mono Regular 12px - value cells, code.
         DekiEditor::g_FontMono = loadAndRegister(monoReg, 12.0f);
-        mergeJapanese(12.0f, false);
+        mergeCjk(12.0f, false);
 
         // JetBrains Mono Regular 11.5px - log timestamps, commit hash, stats.
         DekiEditor::g_FontMonoSmall = loadAndRegister(monoReg, 11.5f);
-        mergeJapanese(11.5f, false);
+        mergeCjk(11.5f, false);
 
         // JetBrains Mono Medium 12px - menubar DEKI/EDITOR wordmark.
         DekiEditor::g_FontMonoBold = loadAndRegister(monoMed, 12.0f);
-        mergeJapanese(12.0f, true);
+        mergeCjk(12.0f, true);
 
         // Space Grotesk Medium 20px - inspector selection banner.
         DekiEditor::g_FontDisplay = loadAndRegister(displayPath, 20.0f);
-        mergeJapanese(20.0f, true);
+        mergeCjk(20.0f, true);
 
         // Space Grotesk Medium 12px - section-header alt usage.
         DekiEditor::g_FontDisplaySmall = loadAndRegister(displayPath, 12.0f);
-        mergeJapanese(12.0f, true);
+        mergeCjk(12.0f, true);
 
         // Space Grotesk Medium 13px - the "D" letter in the menubar logo box.
         DekiEditor::g_FontLogo = loadAndRegister(displayPath, 13.0f);
     }
+
+    SetCjkPreference(Localization::Current());
 
     // Now that g_FontUI is registered with its ratio, set the CSS-equivalent
     // FontSizeBase: the size of the default font when no PushFont is active.

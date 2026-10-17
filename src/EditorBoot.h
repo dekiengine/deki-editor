@@ -60,4 +60,10 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor);
 /// Tears down what BootPlatform created. Does nothing for a headless context.
 void ShutdownPlatform(BootContext& ctx);
 
+/// Which CJK font draws the characters several of them have (Han characters,
+/// CJK punctuation, full-width forms): Noto Sans SC for Chinese, KR for
+/// Korean, JP for Japanese and every other language. Call between frames when
+/// the language changes.
+void SetCjkPreference(const std::string& language);
+
 }  // namespace DekiEditor

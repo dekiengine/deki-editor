@@ -307,6 +307,8 @@ const std::vector<Language>& Languages()
     static const std::vector<Language> s_Languages = {
         { "en", "English" },
         { "ja", "日本語" },
+        { "zh", "简体中文" },
+        { "ko", "한국어" },
     };
     return s_Languages;
 }
