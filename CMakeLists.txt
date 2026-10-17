@@ -714,6 +714,8 @@ set(EDITOR_SOURCES
     src/services/GitProcess.h
     src/services/ProgressModal.cpp
     src/services/ProgressModal.h
+    src/widgets/LanguagePicker.cpp
+    src/widgets/LanguagePicker.h
     src/widgets/Toast.cpp
     src/widgets/Toast.h
     src/widgets/DrawListFx.h
@@ -1006,6 +1008,16 @@ add_custom_command(TARGET DekiEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/fonts/tabler-icons.ttf"
         "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/tabler-icons.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansJP-Regular.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansJP-Regular.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansJP-Medium.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansJP-Medium.otf"
+    # The editor's translations (Localization.h).
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/resources/lang"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/lang"
     # What a new project starts with (ProjectScaffold::LoadProjectStarter).
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/starter.json"

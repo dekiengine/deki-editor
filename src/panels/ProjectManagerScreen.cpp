@@ -5,6 +5,7 @@
 #include "services/FileDialogs.h"
 #include <deki-editor/ProcessLaunch.h>
 #include "services/ProjectRegistry.h"
+#include "widgets/LanguagePicker.h"
 
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
@@ -244,6 +245,15 @@ void ProjectManagerScreen::Draw()
         // Not focused on arrival: while the search box is active, ImGui takes
         // the arrow keys and Enter that drive the list below.
         ImGui::InputTextWithHint("##ProjectSearch", ICON_TI_SEARCH "  Search projects", m_Search, sizeof(m_Search));
+        ImGui::PopStyleVar();
+
+        // The language, left of the search and as tall: set before opening a
+        // project.
+        const float languageW = 130.0f * s;
+        ImGui::SetCursorScreenPos(ImVec2(origin.x + contentW - searchW - 10.0f * s - languageW, origin.y + 6.0f * s));
+        ImGui::SetNextItemWidth(languageW);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f * s, 7.0f * s));
+        DrawLanguagePicker("##language");
         ImGui::PopStyleVar();
 
         ImGui::SetCursorScreenPos(ImVec2(origin.x, origin.y + 62.0f * s));

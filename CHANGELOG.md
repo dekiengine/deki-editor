@@ -4,6 +4,25 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- **Languages.** Edit > Editor Settings > Language, and the project list,
+  switch the editor's language at once and remember it. Japanese is the first
+  one; its translation is in progress, and text not yet translated shows in
+  English. Noto Sans JP ships with the editor for Japanese text, which also
+  shows Japanese file and project names in any language. How to translate
+  editor and package text: [docs/localization.md](docs/localization.md).
+- The Play view's screen size can change while playing or paused. The game
+  gets a display of the new size, as if the device's screen changed; the
+  pixel format stays the one play started with.
+- Screen Anchor's **Update**: Always (every frame, as before) or Once (placed
+  on the game's first frame, then left where it is).
+
+### Fixed
+- Screen Anchors in the Play view moved to a newly picked screen size only
+  after a visit to the Scene view.
+
 ## 0.18.4 - 2026-10-16
 
 ### Fixed

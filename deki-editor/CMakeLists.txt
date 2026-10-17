@@ -37,6 +37,7 @@ set(EDITOR_DLL_SOURCES
     src/AssetPicker.cpp
     src/CommandHistory.cpp
     src/EditorNaming.cpp
+    src/Localization.cpp
     src/EditorComponents.cpp
     # The build-target machinery. Here rather than in the application so a
     # package's builder DLL links ONE copy of the registry, the dispatch and

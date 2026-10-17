@@ -10,6 +10,7 @@ Inter-Regular/Medium/SemiBold       SIL OFL 1.1    Inter-OFL.txt             htt
 JetBrainsMono-Regular/Medium        SIL OFL 1.1    JetBrainsMono-OFL.txt     https://github.com/JetBrains/JetBrainsMono
 SpaceGrotesk-Medium                 SIL OFL 1.1    SpaceGrotesk-OFL.txt      https://github.com/floriankarsten/space-grotesk
 tabler-icons                        MIT            TablerIcons-LICENSE.txt   https://github.com/tabler/tabler-icons
+NotoSansJP-Regular/Medium           SIL OFL 1.1    NotoSansJP-OFL.txt        https://github.com/notofonts/noto-cjk
 
 Notes
 -----

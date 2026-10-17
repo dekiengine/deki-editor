@@ -26,6 +26,7 @@
 #include <deki-profiling-hooks/ProfilingHooks.h>
 #include "services/ProfilingService.h"
 #include <deki-editor/EditorSettings.h>
+#include <deki-editor/Localization.h>
 #include "services/FileDialogs.h"
 #include "widgets/PopupMotion.h"
 #include "widgets/PressMotion.h"
@@ -39,6 +40,9 @@
 #include <stdio.h>
 #include <string>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -673,6 +677,9 @@ bool BootDisplay(BootContext& ctx)
 
     DekiEditor::SetupEditorTheme(ctx.dpiScale);
 
+    // The language text is shown in, and the editor's translations.
+    DekiEditor::Localization::Load();
+
     // Text antialiasing follows the system, like every other Windows app:
     // subpixel (ClearType) when the desktop uses it, in the panel's stripe
     // order, greyscale otherwise. DEKI_TEXT_AA=gray|rgb|bgr overrides it
@@ -741,8 +748,9 @@ bool BootDisplay(BootContext& ctx)
 
     // Theme fonts: Inter (UI body, tabs, labels), JetBrains Mono (values,
     // code, wordmark) and Space Grotesk Medium (display headings, logo), with
-    // Tabler Icons merged into the body sizes. There is no fallback: if a TTF
-    // is missing, startup stops with a clear error.
+    // Tabler Icons merged into the body sizes and Noto Sans JP behind every
+    // one, for Japanese text. There is no fallback: if a font file is
+    // missing, startup stops with a clear error.
     {
         const char* basePath = SDL_GetBasePath();
         std::string fontDir = (std::filesystem::path(basePath ? basePath : ".") / "resources" / "fonts").string();
@@ -754,8 +762,11 @@ bool BootDisplay(BootContext& ctx)
         std::string monoMed = (std::filesystem::path(fontDir) / "JetBrainsMono-Medium.ttf").string();
         std::string displayPath = (std::filesystem::path(fontDir) / "SpaceGrotesk-Medium.ttf").string();
         std::string iconsPath = (std::filesystem::path(fontDir) / FONT_ICON_FILE_NAME_TI).string();
+        std::string japaneseReg = (std::filesystem::path(fontDir) / "NotoSansJP-Regular.otf").string();
+        std::string japaneseMed = (std::filesystem::path(fontDir) / "NotoSansJP-Medium.otf").string();
 
-        for (const auto& p : { interReg, interMed, interSemi, monoReg, monoMed, displayPath, iconsPath })
+        for (const auto& p :
+             { interReg, interMed, interSemi, monoReg, monoMed, displayPath, iconsPath, japaneseReg, japaneseMed })
         {
             if (!std::filesystem::exists(p))
             {
@@ -809,6 +820,29 @@ bool BootDisplay(BootContext& ctx)
             io.Fonts->AddFontFromFileTTF(iconsPath.c_str(), size, &iconCfg, kIconRanges);
         };
 
+        // Japanese text: whatever glyph the font in front lacks comes from Noto
+        // Sans JP, Medium behind the heavier fonts. Glyphs are only drawn when
+        // first shown, and each file is read once and shared by every font.
+        static std::vector<char> s_JapaneseReg, s_JapaneseMed;
+        auto readFile = [](const std::string& path, std::vector<char>& out)
+        {
+            std::ifstream file(path, std::ios::binary);
+            out.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+        };
+        readFile(japaneseReg, s_JapaneseReg);
+        readFile(japaneseMed, s_JapaneseMed);
+        auto mergeJapanese = [&](float size, bool medium)
+        {
+            std::vector<char>& data = medium ? s_JapaneseMed : s_JapaneseReg;
+            ImFontConfig japaneseCfg;
+            japaneseCfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
+            japaneseCfg.MergeMode = true;
+            japaneseCfg.PixelSnapH = true;
+            japaneseCfg.FontDataOwnedByAtlas = false;
+            japaneseCfg.GlyphExcludeRanges = kIconRanges;
+            io.Fonts->AddFontFromMemoryTTF(data.data(), static_cast<int>(data.size()), size, &japaneseCfg);
+        };
+
         // Fonts load at base sizes (logical pixels); ImGui 1.92's
         // ConfigDpiScaleFonts scales them at draw time by style.FontScaleDpi.
         // loadAndRegister adds the font to ImGui and registers its TTF with
@@ -826,35 +860,44 @@ bool BootDisplay(BootContext& ctx)
         // first, so io.FontDefault points to it.
         DekiEditor::g_FontUI = loadAndRegister(interReg, 13.0f);
         mergeIcons(13.0f);
+        mergeJapanese(13.0f, false);
         io.FontDefault = DekiEditor::g_FontUI;
 
         // Inter Regular 11.5px (with icons merged so chips/status keep icons inline).
         DekiEditor::g_FontUISmall = loadAndRegister(interReg, 11.5f);
         mergeIcons(11.5f);
+        mergeJapanese(11.5f, false);
 
         // Inter Medium 12.5px - inspector property labels, outlined action
         // buttons. Icons merged, for labels like ICON_TI_PLUS "  Add Component".
         DekiEditor::g_FontUIMed = loadAndRegister(interMed, 12.5f);
         mergeIcons(12.5f);
+        mergeJapanese(12.5f, true);
 
         // Inter SemiBold 11px - tab labels, section headers (rendered uppercased).
         DekiEditor::g_FontUIBold = loadAndRegister(interSemi, 11.0f);
         mergeIcons(11.0f);
+        mergeJapanese(11.0f, true);
 
         // JetBrains Mono Regular 12px - value cells, code.
         DekiEditor::g_FontMono = loadAndRegister(monoReg, 12.0f);
+        mergeJapanese(12.0f, false);
 
         // JetBrains Mono Regular 11.5px - log timestamps, commit hash, stats.
         DekiEditor::g_FontMonoSmall = loadAndRegister(monoReg, 11.5f);
+        mergeJapanese(11.5f, false);
 
         // JetBrains Mono Medium 12px - menubar DEKI/EDITOR wordmark.
         DekiEditor::g_FontMonoBold = loadAndRegister(monoMed, 12.0f);
+        mergeJapanese(12.0f, true);
 
         // Space Grotesk Medium 20px - inspector selection banner.
         DekiEditor::g_FontDisplay = loadAndRegister(displayPath, 20.0f);
+        mergeJapanese(20.0f, true);
 
         // Space Grotesk Medium 12px - section-header alt usage.
         DekiEditor::g_FontDisplaySmall = loadAndRegister(displayPath, 12.0f);
+        mergeJapanese(12.0f, true);
 
         // Space Grotesk Medium 13px - the "D" letter in the menubar logo box.
         DekiEditor::g_FontLogo = loadAndRegister(displayPath, 13.0f);
