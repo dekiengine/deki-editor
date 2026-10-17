@@ -19,6 +19,18 @@ GENERATED = '''const ::Deki::ComponentMeta DekiGen_Deki2D_SpriteComponent_Meta =
     "2D",  // DEKI_CATEGORY
     "Draws a sprite, see https://example.com // not a comment.",  // DEKI_DESCRIPTION
     ::Deki::TypeId<Deki2D::SpriteComponent>(),
+    ::Deki::TypeId<DekiRendering::RendererComponent>(),
+    false,   // isAbstract
+    false,   // isUnique
+    false,   // bootSceneOnly
+    false,   // platformSceneOnly
+    sizeof(Deki2D::SpriteComponent),
+    DekiGen_Deki2D_SpriteComponent_TypeInfo.create,
+    DekiGen_Deki2D_SpriteComponent_Props, 7,
+    {}, false,
+    "Sprite Renderer",   // displayNameOverride (DEKI_DISPLAY_NAME)
+    "Sprites",   // settingsSection
+    &DekiGen_Deki2D_SpriteComponent_TypeInfo,
 };
 '''
 
@@ -32,6 +44,8 @@ class ReflectionTexts(unittest.TestCase):
         self.assertIn("Sprite Component", found)
         self.assertIn("2D", found)
         self.assertIn("Draws a sprite, see https://example.com // not a comment.", found)
+        self.assertIn("Sprite Renderer", found)
+        self.assertIn("Sprites", found)
 
     def test_comments_inside_strings_stay(self):
         text = '"a // b", // gone\n"c\\" // d" // gone too'

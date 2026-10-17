@@ -89,6 +89,13 @@ class Lang:
                 return table[text]
         if text in self.shared:
             return self.shared[text]
+        if not package and self.packages_dir and os.path.isdir(self.packages_dir):
+            # The metadata lists some package classes with the engine's, such
+            # as deki-rendering's RendererComponent, every renderer's base.
+            for other in sorted(os.listdir(self.packages_dir)):
+                table = self._package_table(other)
+                if text in table:
+                    return table[text]
         self.untranslated.add((package or "engine", text))
         return text
 

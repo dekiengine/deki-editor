@@ -36,5 +36,6 @@
     "Asset Pack": "资源包",
     "Keeps the object at a point on the screen, such as a corner, on every screen size.": "在任何屏幕大小下，都让对象停留在屏幕上的某个位置，例如角落。",
     "Runs each Setup Component in order at boot, then loads the startup scene.": "启动时依次运行每个配置组件，然后加载启动场景。",
-    "System": "系统"
+    "System": "系统",
+    "Units": "单位"
 }

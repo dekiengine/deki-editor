@@ -36,5 +36,6 @@
     "Asset Pack": "アセットパック",
     "Keeps the object at a point on the screen, such as a corner, on every screen size.": "どの画面サイズでも、オブジェクトを画面の角などの決まった位置にとどめます。",
     "Runs each Setup Component in order at boot, then loads the startup scene.": "起動時に各セットアップコンポーネントを順に実行し、その後で起動シーンを読み込みます。",
-    "System": "システム"
+    "System": "システム",
+    "Units": "単位"
 }

@@ -277,6 +277,9 @@ def component_section(c, level="##", pid="", base_links=None, package=None, anch
     if c.get("description"):
         out.append(esc(L.tr(c["description"], package)))
         out.append("")
+    elif c.get("note"):
+        out.append(esc(c["note"]))
+        out.append("")
     facts = []
     display = c.get("displayName") or name
     if display and display != name:
@@ -322,8 +325,9 @@ def settings_section(s, pid, level="##", base_links=None, package=None):
     section = s.get("section", "")
     c["name"] = L.ui("{section} settings", section=L.tr(section, package)) if section else s.get("name", "")
     c["displayName"] = c["name"]
-    c["description"] = s.get("description") or L.ui("Project settings section {section} ({name}).",
-                                                    section=code(section), name=s.get("name", ""))
+    # A section with no description of its own gets a line of the generator's,
+    # already in the page's language.
+    c["note"] = L.ui("Project settings section {section} ({name}).", section=code(section), name=s.get("name", ""))
     # The anchor is the English one in every language, so links between them line up.
     anchor_name = f"{section} settings" if section else s.get("name", "")
     return component_section(c, level, pid, base_links, package, anchor_name)

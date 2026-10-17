@@ -36,5 +36,6 @@
     "Asset Pack": "에셋 팩",
     "Keeps the object at a point on the screen, such as a corner, on every screen size.": "화면 크기와 관계없이 오브젝트를 모서리 같은 화면의 한 지점에 고정합니다.",
     "Runs each Setup Component in order at boot, then loads the startup scene.": "부팅 시 각 설정 컴포넌트를 순서대로 실행한 뒤 시작 씬을 로드합니다.",
-    "System": "시스템"
+    "System": "시스템",
+    "Units": "단위"
 }

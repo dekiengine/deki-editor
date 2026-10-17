@@ -118,6 +118,8 @@ def scan(sources: list[Path]) -> dict[str, list[str]]:
 #
 # The order of a PropertyInfo initializer (deki/reflection/Property.h).
 PROP_NAME, PROP_DISPLAY_NAME, PROP_TOOLTIP, PROP_ENUM_VALUES, PROP_GROUP = 0, 1, 4, 9, 21
+# And of a ComponentMeta: DEKI_DISPLAY_NAME, and the Project Settings section's name.
+META_DISPLAY_NAME, META_SETTINGS_SECTION = 16, 17
 
 
 def strip_line_comments(text: str) -> str:
@@ -251,6 +253,8 @@ def reflection_texts(files: list[Path]) -> dict[str, list[str]]:
             add(class_display_name(name) if name else None, where)
             add(literal(fields[2]) if len(fields) > 2 else None, where)  # category
             add(literal(fields[3]) if len(fields) > 3 else None, where)  # description
+            add(literal(fields[META_DISPLAY_NAME]) if len(fields) > META_DISPLAY_NAME else None, where)
+            add(literal(fields[META_SETTINGS_SECTION]) if len(fields) > META_SETTINGS_SECTION else None, where)
         for m in re.finditer(r"PropertyInfo (\w+)_Props\[\] = \{", text):
             block = braced_block(text, m.end() - 1)
             i = 0
