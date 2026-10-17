@@ -4,6 +4,17 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.19.1 - 2026-10-17
+
+### Fixed
+- **The Linux download is back.** 0.19.0's Linux archive was never built: the
+  packaging script asked CMake for its install folder in a way that needs a C
+  compiler named `cc`, and the new build image has only `gcc-16`. 0.19.1 is
+  0.19.0 with that fixed, and is the first 0.19 release with downloads.
+- Component names set with `DEKI_DISPLAY_NAME` (Desktop GPS, Trackball, ...)
+  and the names of the Units and Rendering settings sections are translated.
+  `tools/ci/check_translations.py` checks both now.
+
 ## 0.19.0 - 2026-10-17
 
 ### Added
