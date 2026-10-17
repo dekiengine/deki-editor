@@ -945,6 +945,54 @@ void EditorApp::RenderPlayMode()
     }
 }
 
+void EditorApp::ResizePlayMode(int width, int height)
+{
+    if (m_PlayModeState == PlayModeState::Stopped || !s_EditorDisplay || width <= 0 || height <= 0 ||
+        (width == m_Play.width && height == m_Play.height))
+    {
+        return;
+    }
+
+    // A new display of the new size, as play start makes one. SetDisplay shuts
+    // the old one down and sizes the framebuffer to the new one.
+    auto display = std::make_unique<Deki::EditorDisplay>();
+    display->SetColorFormat(s_EditorDisplay->GetColorFormat());
+    if (!display->Initialize(width, height))
+    {
+        DEKI_LOG_ERROR("Play mode could not make a %dx%d display; it stays at %dx%d", width, height, m_Play.width,
+                       m_Play.height);
+        return;
+    }
+    Deki::Engine::GetInstance().SetDisplay(display.get(), "Editor");
+    s_EditorDisplay = std::move(display);
+
+    Deki::IRenderSystem* renderSystem = Deki::Engine::GetInstance().GetRenderSystem();
+    if (!renderSystem || renderSystem->GetScreenWidth() != width || renderSystem->GetScreenHeight() != height)
+    {
+        DEKI_LOG_ERROR("Play mode could not get a %dx%d framebuffer", width, height);
+        Stop();
+        return;
+    }
+    m_Play.width = width;
+    m_Play.height = height;
+    m_Play.textureId = s_EditorDisplay->GetTextureId();
+    DEKI_LOG_EDITOR("Play mode resized: %dx%d", width, height);
+
+    // Draw a frame at the new size now: paused play renders nothing by itself,
+    // and the new texture is empty until a frame is presented. Before the first
+    // frame the scene has not started, so the first update renders instead.
+    Deki::Scene* renderScene = Deki::Engine::GetInstance().GetRootScene();
+    if (m_Play.ready && renderScene)
+    {
+        const char* renderSceneName = renderScene->GetName().c_str();
+        CrashHandler::SetPlayModeContext("Render", renderSceneName);
+        if (GuardedInvoke("Render", renderSceneName, m_Play.crashedThisFrame, [&] { RenderPlayMode(); }))
+        {
+            CrashHandler::ClearPlayModeContext();
+        }
+    }
+}
+
 void EditorApp::HandlePlayModeInput(float gameX, float gameY, bool isDown, bool isMove, bool isUp)
 {
     if (m_PlayModeState != PlayModeState::Playing)

@@ -21,6 +21,7 @@
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/ICamera.h>
+#include <deki/ScreenAnchor.h>
 #include "InputKeys.h"
 #include "imgui.h"
 #include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth
@@ -114,6 +115,11 @@ void PlayViewPanel::Draw()
         LoadPreview(project->GetPath());
     }
     ApplyPreviewSize();
+    if (!m_App->IsStopped())
+    {
+        // The running game follows the previewed screen.
+        m_App->ResizePlayMode(SceneView::Get().GetPreviewWidth(), SceneView::Get().GetPreviewHeight());
+    }
 
     const bool visible = ImGui::Begin("PLAY VIEW###Play View", &isOpen,
                                       DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") |
@@ -355,6 +361,10 @@ void PlayViewPanel::Draw()
                                           InspectorPanel::IsAnyLiveEditing() || SceneViewPanel::IsEditingObjects();
                 if (renderNeeded)
                 {
+                    // Anchors for this camera and size. The editor placed them
+                    // earlier in the frame, before the size picked this frame
+                    // applied, and a size change alone does not render again.
+                    Deki::ScreenAnchor::PlaceAll(scene, *cam, vpW, vpH);
                     m_PreviewRenderer->RenderScene(scene, cam, clearR, clearG, clearB);
                     m_PreviewStale = false;
                     m_PreviewScene = scene;
@@ -623,7 +633,12 @@ void PlayViewPanel::SelectPreview(const std::string& id)
         m_PreviewId = id;
     }
 
-    // A platform's own format; full colour for anything else.
+    // A platform's own format; full colour for anything else. Play keeps the
+    // format it started with.
+    if (!m_App->IsStopped())
+    {
+        return;
+    }
     m_PreviewFormat = Deki::ColorFormat::ARGB8888;
     if (const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_PreviewId))
     {
@@ -688,12 +703,7 @@ void PlayViewPanel::ApplyPreviewSize()
     }
 
     // Free Aspect and the aspect ratios follow the panel, using last frame's
-    // canvas since this runs before the window is laid out. Play keeps the
-    // size it started with until it stops.
-    if (!m_App->IsStopped())
-    {
-        return;
-    }
+    // canvas since this runs before the window is laid out.
     // In screen pixels.
     const int canvasW = static_cast<int>(m_CanvasSize.x / m_CanvasDpi);
     const int canvasH = static_cast<int>(m_CanvasSize.y / m_CanvasDpi);
@@ -720,8 +730,8 @@ void PlayViewPanel::ApplyPreviewSize()
 // The screen picker: the standard toolbar dropdown, with the list Unity's
 // Game view has: Free Aspect, aspect ratios, every known platform's screen,
 // the user's own sizes, and Add... for more. The user's sizes apply to every
-// project; right-click one to remove it. Play runs at the previewed size, so
-// the choice is locked while it runs.
+// project; right-click one to remove it. Play runs at the previewed size and
+// follows a change while it runs.
 void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, float rowH, float dpi)
 {
     (void)dpi;
@@ -732,17 +742,14 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
     char preview[160];
     snprintf(preview, sizeof(preview), "%s", label == size ? size : (label + "  " + size).c_str());
 
-    const bool locked = !m_App->IsStopped();
     ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
     const float width = SchematicToolbarComboWidth(preview);
     ImGui::SetNextItemWidth(width);
-    ImGui::BeginDisabled(locked);
     const bool open = SchematicBeginToolbarCombo("##previewsize", preview, rowH);
-    if (!open && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    if (!open && ImGui::IsItemHovered())
     {
-        DekiEditor::Tooltip(locked ? "The screen size is fixed while playing"
-                                   : "Screen to preview: a resolution, or an aspect ratio at the panel's size. "
-                                     "Play runs at it.");
+        DekiEditor::Tooltip(
+            "Screen to preview: a resolution, or an aspect ratio at the panel's size. Play runs at it.");
     }
     cursorX += width;
 
@@ -825,7 +832,6 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
 
         SchematicEndToolbarCombo();
     }
-    ImGui::EndDisabled();
 
     if (m_RemoveUserScreen >= 0 && m_RemoveUserScreen < static_cast<int>(m_UserScreens.size()))
     {

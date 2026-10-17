@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <deki/Engine.h>
 #include <deki/ICamera.h>
 #include <deki/Object.h>
 #include <deki/Scene.h>
@@ -190,4 +191,39 @@ TEST(ScreenAnchor, TheFileKeepsZeroForAnAnchoredPosition)
     const nlohmann::json& transform = saved["objects"][0]["transform"];
     EXPECT_EQ(transform["x"].get<float>(), 0.0f);
     EXPECT_EQ(transform["y"].get<float>(), 0.0f);
+}
+
+// In the game, a Once anchor keeps the place it got on the first frame, while
+// an Always one follows the new screen.
+TEST(ScreenAnchor, OnceStaysPutInTheGame)
+{
+    Deki::Scene scene;
+    TestCamera camera;
+    Deki::Object* once = AddAnchored(scene, Deki::ScreenPoint::TopRight, -1.0f, -1.0f);
+    once->GetComponent<Deki::ScreenAnchor>()->update = Deki::AnchorUpdate::Once;
+    Deki::Object* always = AddAnchored(scene, Deki::ScreenPoint::TopRight, -1.0f, -1.0f);
+
+    Deki::Engine::SetRuntimeMode(true);
+    Deki::ScreenAnchor::PlaceAll(&scene, camera, 320, 240);
+    camera.x = 5.0f;
+    Deki::ScreenAnchor::PlaceAll(&scene, camera, 536, 240);
+    Deki::Engine::SetRuntimeMode(false);
+
+    EXPECT_FLOAT_EQ(once->GetWorldX(), 7.0f);
+    EXPECT_FLOAT_EQ(once->GetWorldY(), 5.0f);
+    EXPECT_FLOAT_EQ(always->GetWorldX(), 5.0f + 536.0f / 40.0f - 1.0f);
+}
+
+// Outside play the editor previews the picked screen, so a Once anchor
+// follows it there.
+TEST(ScreenAnchor, OnceFollowsTheScreenInTheEditor)
+{
+    Deki::Scene scene;
+    TestCamera camera;
+    Deki::Object* obj = AddAnchored(scene, Deki::ScreenPoint::TopRight, -1.0f, -1.0f);
+    obj->GetComponent<Deki::ScreenAnchor>()->update = Deki::AnchorUpdate::Once;
+
+    Deki::ScreenAnchor::PlaceAll(&scene, camera, 320, 240);
+    Deki::ScreenAnchor::PlaceAll(&scene, camera, 536, 240);
+    EXPECT_FLOAT_EQ(obj->GetWorldX(), 536.0f / 40.0f - 1.0f);
 }

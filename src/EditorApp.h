@@ -291,6 +291,9 @@ public:
     int GetPlayModeWidth() const { return m_Play.width; }
     int GetPlayModeHeight() const { return m_Play.height; }
     bool IsPlayModeReady() const { return m_Play.ready; }
+    // Gives the running game a display of a new size, as if the device's
+    // screen changed. Does nothing when stopped or already at that size.
+    void ResizePlayMode(int width, int height);
 
     // Smoothed game FPS (updated each game tick from m_Play.lastGameUpdateTime
     // deltas). Returns 0 when not in play mode or no samples yet.

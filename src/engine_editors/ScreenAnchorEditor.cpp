@@ -109,6 +109,7 @@ public:
 
         ui.PropertyField("offsetX");
         ui.PropertyField("offsetY");
+        ui.PropertyField("update");
     }
 
     // A line from the anchor's point on the screen to the object, ending in a
