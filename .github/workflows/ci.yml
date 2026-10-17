@@ -188,6 +188,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    # The same shell the steps had on the bare runner; a container job's
+    # default is sh.
+    defaults:
+      run:
+        shell: bash -e {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -219,14 +224,14 @@ jobs:
           path: |
             build/_deps
             !build/_deps/*-build
-          key: deps-linux-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
 
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-linux-${{ github.sha }}
-          restore-keys: ccache-linux-
+          key: ccache-linux-container-${{ github.sha }}
+          restore-keys: ccache-linux-container-
 
       - name: Configure
         run: >-
@@ -295,6 +300,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    # The same shell the steps had on the bare runner; a container job's
+    # default is sh.
+    defaults:
+      run:
+        shell: bash -e {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -313,14 +323,14 @@ jobs:
           path: |
             build/_deps
             !build/_deps/*-build
-          key: deps-linux-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
 
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-packages-linux-${{ github.sha }}
-          restore-keys: ccache-packages-linux-
+          key: ccache-packages-linux-container-${{ github.sha }}
+          restore-keys: ccache-packages-linux-container-
 
       - name: Configure
         run: >-
@@ -405,6 +415,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    # The same shell the steps had on the bare runner; a container job's
+    # default is sh.
+    defaults:
+      run:
+        shell: bash -e {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -455,6 +470,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    # The same shell the steps had on the bare runner; a container job's
+    # default is sh.
+    defaults:
+      run:
+        shell: bash -e {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -508,6 +528,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    # The same shell the steps had on the bare runner; a container job's
+    # default is sh.
+    defaults:
+      run:
+        shell: bash -e {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -535,7 +560,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.deki-editor/toolchains
-          key: esp-idf-linux-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
+          key: esp-idf-linux-container-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
       - name: Build firmware for every board
         run: |
           set -e

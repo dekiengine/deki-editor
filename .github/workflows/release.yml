@@ -93,6 +93,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    # The same shell the steps had on the bare runner; a container job's
+    # default is sh.
+    defaults:
+      run:
+        shell: bash -e {0}
     steps:
       # actions/checkout first so the composite action below exists in the tree.
       - uses: actions/checkout@v4
