@@ -222,9 +222,10 @@ void Put(std::vector<uint8_t>& out, const void* p, size_t n)
     out.insert(out.end(), b, b + n);
 }
 
-// A project_data.bin with one package section, "Rendering", holding a Bool and
-// an Int32, laid out the way Deki::ProjectSettings::Write emits them.
-std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
+// A project_data.bin with one package section, "Rendering", holding a Bool, an
+// Int32 and a one-byte Enum, laid out the way Deki::ProjectSettings::Write
+// emits them.
+std::vector<uint8_t> BuildImage(bool tracking, int32_t align, uint8_t frameMode = 0)
 {
     std::vector<uint8_t> img;
     Deki::ProjectSettings::FileHeader hdr{ Deki::ProjectSettings::kMagic, Deki::ProjectSettings::kVersion, 0 };
@@ -240,7 +241,7 @@ std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
     Put(img, &passCount, 1);
 
     std::vector<uint8_t> payload;
-    const uint16_t propCount = 2;
+    const uint16_t propCount = 3;
     Put(payload, &propCount, 2);
     uint32_t h = Deki::HashStringLen("dirtyTileTracking", 17);
     uint8_t tag = static_cast<uint8_t>(Deki::PropertyType::Bool);
@@ -253,6 +254,11 @@ std::vector<uint8_t> BuildImage(bool tracking, int32_t align)
     Put(payload, &h, 4);
     Put(payload, &tag, 1);
     Put(payload, &align, 4);
+    h = Deki::HashStringLen("frameMode", 9);
+    tag = static_cast<uint8_t>(Deki::PropertyType::Enum);
+    Put(payload, &h, 4);
+    Put(payload, &tag, 1);
+    Put(payload, &frameMode, 1);
 
     const uint16_t sections = 1;
     Put(img, &sections, 2);
@@ -290,4 +296,19 @@ TEST(ProjectSettingsRuntime, ReadPackageSettingFindsBoolAndInt32)
     EXPECT_FALSE(tracking);
     EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "dirtyTileSize", align));
     EXPECT_EQ(align, 8);
+}
+
+TEST(ProjectSettingsRuntime, ReadPackageSettingFindsAnEnumAtItsWidth)
+{
+    const std::vector<uint8_t> img = BuildImage(false, 32, 2);
+    ASSERT_TRUE(Deki::ProjectSettings::Load(img.data(), img.size()));
+
+    int32_t mode = -1;
+    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "frameMode", 1, mode));
+    EXPECT_EQ(mode, 2);
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "frameMode", 3, mode)) << "not an enum width";
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "dirtyTileSize", 4, mode))
+        << "an Int32 is not an Enum";
+    int32_t asInt = 0;
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "frameMode", asInt)) << "an Enum is not an Int32";
 }

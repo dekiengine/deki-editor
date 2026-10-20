@@ -35,7 +35,8 @@ bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame
 
 /// Reads a board's answer to "DEKI:STATS": one line of name=value pairs
 /// (fps, frameMs, updateMs, renderMs, presentMs, frames, internalFree,
-/// externalFree), averaged over the last second or so.
+/// externalFree, and frameMode "whole" or "strips" with bandRows, the strip
+/// height), averaged over the last second or so.
 bool ParseDeviceStats(const std::string& received, std::map<std::string, std::string>& stats, std::string& error);
 
 /// Asks the board on `port` for its frame statistics. Blocks: call it off the

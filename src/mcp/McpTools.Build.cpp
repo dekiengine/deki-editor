@@ -1282,8 +1282,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "device_stats",
           "Frame statistics from a connected board, averaged over the last second: fps, frameMs, and the engine's "
-          "split of a frame (updateMs, renderMs, presentMs, whole milliseconds averaged), plus free internal and "
-          "external memory. The firmware must answer the request (the ESP32 HAL does, from the build that added "
+          "split of a frame (updateMs, renderMs, presentMs, whole milliseconds averaged), free internal and "
+          "external memory, and how frames reach the screen: frameMode \"whole\" or \"strips\" with bandRows, "
+          "the strip height (the Rendering setting frameMode; Auto picks whole frames when the framebuffer fits "
+          "in internal RAM, strips when not). The firmware must answer the request (the ESP32 HAL does, from the build that added "
           "it). Close the Serial Monitor first if it has the port open.",
           { { "type", "object" },
             { "properties",
