@@ -578,7 +578,8 @@ deki_add_package_tests(deki-spi TARGET DekiSPITests SOURCES DekiSPI.cpp SPIBusCo
 # byte orders. The registries it finds its buses, pins and input in are
 # deki-spi's, deki-gpio's, deki-i2c's and deki-input's.
 set(_deki_display_srcs InitSequence.cpp Controllers.cpp PanelController.cpp PanelDisplay.cpp SpiPanelIO.cpp
-                       DisplayPanelComponent.cpp TouchMapper.cpp GT911Touch.cpp PanelTouchInput.cpp
+                       QspiPanelIO.cpp DisplayPanelComponent.cpp TouchMapper.cpp GT911Touch.cpp CST816Touch.cpp
+                       PanelTouchInput.cpp
                        TouchPanelComponent.cpp ../deki-spi/DekiSPI.cpp ../deki-gpio/DekiGPIO.cpp
                        ../deki-i2c/DekiI2C.cpp ../deki-input/DekiInput.cpp)
 set(_deki_display_defs DEKI_SPI_EXPORTS DEKI_GPIO_EXPORTS DEKI_I2C_EXPORTS DEKI_INPUT_EXPORTS)
