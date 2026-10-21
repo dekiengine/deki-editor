@@ -566,6 +566,10 @@ deki_add_package_tests(deki-lora TARGET DekiLoRaTests SOURCES SX1262Radio.cpp)
 # scene against a fake bus from the factory.
 deki_add_package_tests(deki-i2c TARGET DekiI2CTests SOURCES DekiI2C.cpp I2CBusComponent.cpp)
 
+# deki-spi's bus registry, and SPIBusComponent starting a bus from the boot
+# scene against a fake bus from the factory.
+deki_add_package_tests(deki-spi TARGET DekiSPITests SOURCES DekiSPI.cpp SPIBusComponent.cpp)
+
 # GpioPinSetup against a fake GPIO backend.
 deki_add_package_tests(deki-gpio TARGET DekiGPIOTests SOURCES DekiGPIO.cpp GpioPinSetup.cpp)
 
