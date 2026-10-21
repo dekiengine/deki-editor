@@ -2,6 +2,7 @@
 
 #include <deki-editor/Command.h>
 #include "CommandRefCheck.h"
+#include "CommandText.h"
 #include <functional>
 #include <string>
 
@@ -25,7 +26,10 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return "Change " + m_PropertyName; }
+    std::string GetDescription() const override
+    {
+        return CommandText::Format(Tr("Change %s"), Tr(m_PropertyName.c_str()));
+    }
 
     void Execute() override
     {
@@ -97,7 +101,8 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return m_Description; }
+    // The caller's text, translated when the table has it.
+    std::string GetDescription() const override { return Tr(m_Description.c_str()); }
 
     void Execute() override
     {

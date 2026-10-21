@@ -68,10 +68,12 @@ html:not(.light-mode) {
      * mono is tiring at that length. Prose here takes Space Grotesk - the
      * site's other face, so this adds no third typeface - and everything that
      * is code stays mono: signatures, fragments, inline code, the type names
-     * in the tree, and the bar, which mirrors the site's own mono nav. */
-    --font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    --font-family-monospace: "JetBrains Mono", "Fira Code", ui-monospace, Consolas, monospace;
-    --font-family-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+     * in the tree, and the bar, which mirrors the site's own mono nav.
+     * Noto Sans JP, SC and KR draw Japanese, Chinese and Korean after the
+     * Latin faces; each language's pages load only their own. */
+    --font-family: "Space Grotesk", "Noto Sans JP", "Noto Sans SC", "Noto Sans KR", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-family-monospace: "JetBrains Mono", "Noto Sans JP", "Noto Sans SC", "Noto Sans KR", "Fira Code", ui-monospace, Consolas, monospace;
+    --font-family-display: "Space Grotesk", "Noto Sans JP", "Noto Sans SC", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
 
     --page-font-size: 15px;
     --navigation-font-size: 13px;
@@ -271,6 +273,35 @@ div.title, .title, #projectname {
     background: var(--primary-color);
     color: #0a0b0d !important;
 }
+
+/* The language menu: one entry per language, each in its own script. A
+ * <details> opens it without script; the script only points each entry at
+ * the same page in that language. */
+.deki-lang { position: relative; }
+.deki-lang > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 7px 10px;
+    white-space: nowrap;
+}
+.deki-lang > summary::-webkit-details-marker { display: none; }
+/* doxygen.css turns every summary into a rotating triangle. */
+.deki-lang > summary::before { content: none; }
+.deki-lang > summary::after { content: " \25BE"; color: var(--page-secondary-foreground-color); }
+.deki-lang > summary:hover { background: #101113; color: var(--primary-color); }
+.deki-lang-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    border: 1px solid #26282d;
+    background: #0a0b0d;
+}
+.deki-lang-menu a { padding: 8px 12px; }
+.deki-lang-menu a:hover { background: #101113; color: var(--primary-color) !important; }
+.deki-lang-menu a[aria-current] { color: var(--primary-color) !important; }
 
 /* ─────────────────────── room for the site bar ───────────────────────
  * Doxygen's treeview layout fixes the sidebar and scrolls #doc-content

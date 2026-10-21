@@ -77,6 +77,7 @@ set(TEST_SOURCES
     core/RenamedPropertyTests.cpp
     core/SceneMigrationTests.cpp
     core/EditorNamingTests.cpp
+    core/LocalizationTests.cpp
     core/AssetStorageTests.cpp
     core/TextureSettingsTests.cpp
     services/SimulationBootSceneTests.cpp

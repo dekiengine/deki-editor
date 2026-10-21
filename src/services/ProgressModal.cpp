@@ -1,6 +1,7 @@
 #include "ProgressModal.h"
 #include "TouchInput.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_sdl3.h"
@@ -91,7 +92,7 @@ void DrawCardBody(const char* title, const char* phase, const char* detail, uint
     }
 
     // -------- Current phase --------
-    const char* phaseDisplay = (phase && phase[0] != '\0') ? phase : "Working...";
+    const char* phaseDisplay = (phase && phase[0] != '\0') ? phase : Tr("Working...");
     ImGui::TextColored(Palette::Fg, "%s", phaseDisplay);
 
     ImGui::Spacing();
@@ -173,7 +174,7 @@ void DrawCardBody(const char* title, const char* phase, const char* detail, uint
         {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - buttonW);
         }
-        if (ImGui::Button("Cancel", ImVec2(buttonW, 0.0f)))
+        if (ImGui::Button(TrLabel("Cancel"), ImVec2(buttonW, 0.0f)))
         {
             *cancelRequested = true;
         }

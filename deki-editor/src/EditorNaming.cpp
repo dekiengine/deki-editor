@@ -37,8 +37,11 @@ std::string NicifyName(const char* name)
             continue;
         }
 
-        // A space before an uppercase letter that follows a lowercase one.
-        if (std::isupper(c) && i > 0 && std::islower(name[i - 1]))
+        // A space before an uppercase letter that follows a lowercase one, or
+        // that starts a word after a digit ("stop1Position" -> "Stop 1
+        // Position", but "texture2D" -> "Texture 2D").
+        if (std::isupper(c) && i > 0 &&
+            (std::islower(name[i - 1]) || (std::isdigit(name[i - 1]) && std::islower(name[i + 1]))))
         {
             result += ' ';
         }

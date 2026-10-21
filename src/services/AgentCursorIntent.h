@@ -28,8 +28,9 @@ struct AgentIntent
 
     Target target = Target::None;
 
-    /// Shown next to the pointer. May hold "{object}", which the caller replaces
-    /// with the object's name (it needs the scene; this mapping does not).
+    /// Shown next to the pointer, in the editor's language. May hold
+    /// "{object}", which the caller replaces with the object's name (it needs
+    /// the scene; this mapping does not).
     std::string label;
 
     /// The ImGui window to point at when the item itself is not on screen, or

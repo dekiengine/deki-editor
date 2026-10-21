@@ -1,4 +1,5 @@
 #include "AssetCommands.h"
+#include "CommandText.h"
 
 #include <deki-editor/FileIO.h>
 #include <deki/LogSystem.h>
@@ -24,7 +25,7 @@ CreateFolderCommand::CreateFolderCommand(const std::string& path, std::function<
 
 std::string CreateFolderCommand::GetDescription() const
 {
-    return "Create folder " + fs::path(m_Path).filename().string();
+    return CommandText::Format(Tr("Create folder %s"), fs::path(m_Path).filename().string().c_str());
 }
 
 void CreateFolderCommand::Execute()
@@ -110,9 +111,9 @@ std::string DeleteAssetsCommand::GetDescription() const
 {
     if (m_OriginalPaths.size() == 1)
     {
-        return "Delete " + fs::path(m_OriginalPaths[0]).filename().string();
+        return CommandText::Format(Tr("Delete %s"), fs::path(m_OriginalPaths[0]).filename().string().c_str());
     }
-    return "Delete " + std::to_string(m_OriginalPaths.size()) + " items";
+    return CommandText::Format(Tr("Delete %zu items"), m_OriginalPaths.size());
 }
 
 void DeleteAssetsCommand::SweepStaleTrash(const std::string& projectRoot)
@@ -300,7 +301,7 @@ ModifyAssetCommand::ModifyAssetCommand(const std::string& assetPath, const std::
 
 std::string ModifyAssetCommand::GetDescription() const
 {
-    return "Modify " + m_AssetType;
+    return CommandText::Format(Tr("Modify %s"), Tr(m_AssetType.c_str()));
 }
 
 void ModifyAssetCommand::Execute()

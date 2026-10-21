@@ -1,4 +1,5 @@
 #include "InstanceCommands.h"
+#include "CommandText.h"
 #include "ObjectSerializationHelper.h"
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/Component.h>
@@ -14,7 +15,7 @@ namespace DekiEditor
 
 std::string CreateInstanceCommand::GetDescription() const
 {
-    return "Create Instance " + m_InstanceName;
+    return CommandText::Format(Tr("Create Instance %s"), m_InstanceName.c_str());
 }
 
 void CreateInstanceCommand::Execute()
@@ -79,7 +80,7 @@ bool CreateInstanceCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string UnlinkInstanceCommand::GetDescription() const
 {
-    return "Unlink Instance";
+    return Tr("Unlink Instance");
 }
 
 void UnlinkInstanceCommand::Execute()
@@ -127,7 +128,7 @@ void UnlinkInstanceCommand::SetInstanceFlags(Deki::Object* obj)
 
 std::string LinkInstanceCommand::GetDescription() const
 {
-    return "Link to Scene";
+    return Tr("Link to Scene");
 }
 
 void LinkInstanceCommand::Execute()
@@ -234,7 +235,7 @@ bool LinkInstanceCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string ApplyInstanceToSceneCommand::GetDescription() const
 {
-    return "Apply to Scene";
+    return Tr("Apply to Scene");
 }
 
 void ApplyInstanceToSceneCommand::Execute()
@@ -396,7 +397,7 @@ bool ApplyInstanceToSceneCommand::SceneReferencesGuid(const Deki::Scene& p, cons
 
 std::string RevertInstanceOverridesCommand::GetDescription() const
 {
-    return "Revert Instance";
+    return Tr("Revert Instance");
 }
 
 void RevertInstanceOverridesCommand::Execute()

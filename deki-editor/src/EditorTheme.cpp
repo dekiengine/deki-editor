@@ -2,6 +2,7 @@
 // Near-black backgrounds, square 1px hairline borders, steel-blue accent.
 
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -294,7 +295,7 @@ void Tooltip(const char* fmt, ...)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(pad * 0.6f, pad * 0.4f));
     va_list args;
     va_start(args, fmt);
-    ImGui::SetTooltipV(fmt, args);
+    ImGui::SetTooltipV(Tr(fmt), args);
     va_end(args);
     ImGui::PopStyleVar();
 }
@@ -633,7 +634,7 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
         {
             // Pushed colours skip PressMotion's easing, so these buttons ease
             // their own press: held since last frame -> toward the pressed colour.
-            const ImGuiID id = ImGui::GetID(b.label);
+            const ImGuiID id = ImGui::GetID(TrLabel(b.label));
             const bool held = ImGui::GetActiveID() == id;
             const float t =
                 Motion::EaseOut(Motion::To(id ^ 0x9E55EDu, held ? 1.0f : 0.0f, held ? Motion::kFast : Motion::kNormal));
@@ -661,7 +662,7 @@ int SchematicDialogButtons(std::initializer_list<DialogButtonSpec> buttons)
             colours = 3;
         }
         ImGui::BeginDisabled(!b.enabled);
-        if (ImGui::Button(b.label, ImVec2(width, 0.0f)))
+        if (ImGui::Button(TrLabel(b.label), ImVec2(width, 0.0f)))
         {
             clicked = i;
         }
@@ -1301,7 +1302,9 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     const bool hasId = hash && hash[1] == '#' && hash[2] == '#';
     const size_t visLen = hasId ? (size_t)(hash - label) : strlen(label);
 
-    char visUpper[128];
+    // The id comes from the English text; only the drawn text is translated.
+    char visUpper[256];
+    char idStr[160];
     {
         char vis[128];
         size_t n = visLen < sizeof(vis) - 1 ? visLen : sizeof(vis) - 1;
@@ -1310,17 +1313,16 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
             vis[i] = label[i];
         }
         vis[n] = 0;
-        Upper(vis, visUpper, sizeof(visUpper));
-    }
-
-    char idStr[160];
-    if (hasId)
-    {
-        ImFormatString(idStr, sizeof(idStr), "%s", hash);  // "###ID"
-    }
-    else
-    {
-        ImFormatString(idStr, sizeof(idStr), "###%s", visUpper);  // id == hash(visUpper)
+        if (hasId)
+        {
+            ImFormatString(idStr, sizeof(idStr), "%s", hash);  // "###ID"
+        }
+        else
+        {
+            Upper(vis, visUpper, sizeof(visUpper));
+            ImFormatString(idStr, sizeof(idStr), "###%s", visUpper);  // id == hash(visUpper)
+        }
+        Upper(Tr(vis), visUpper, sizeof(visUpper));
     }
 
     // The header band runs to the panel's real side edges (the dock
@@ -1784,7 +1786,7 @@ bool PanelToolbar(bool* pinnedExt)
     {
         const char* ico = *pinned ? ICON_TI_PIN_FILLED : ICON_TI_PIN;
         const ImVec2 icoSz = iconFont->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, ico);
-        const char* lbl = "PIN";
+        const char* lbl = Tr("PIN");
         const float lblW = lblFont->CalcTextSizeA(lblSize, FLT_MAX, 0.0f, lbl).x + lblSpacing * 3.0f;
         const float btnW = padX * 2.0f + icoSz.x + gapIcoLbl + lblW;
 
@@ -1837,7 +1839,7 @@ bool PanelToolbar(bool* pinnedExt)
     if (ImGui::BeginPopup("##deki_panel_menu"))
     {
         PushContextMenuItemStyle();
-        if (ImGui::MenuItem("Pin", nullptr, *pinned))
+        if (ImGui::MenuItem(TrLabel("Pin Panel"), nullptr, *pinned))
         {
             *pinned = !*pinned;
         }
@@ -1941,7 +1943,7 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_TextDisabled, Palette::Dim2);
     ImGui::SetNextItemWidth((inputRight - clearWidth) - inputLeftX);
-    ImGui::InputTextWithHint(id, hint ? hint : "Search", buf, bufSize);
+    ImGui::InputTextWithHint(id, Tr(hint ? hint : TrMark("Search")), buf, bufSize);
     // Escape empties the field as well as dropping focus. In a popup ImGui
     // uses Escape to close, so this is checked while the input is active.
     const bool inputActive = ImGui::IsItemActive();
@@ -2521,7 +2523,7 @@ bool SchematicCombo(const char* id, int* currentIndex, const char* const items[]
     }
 
     const char* preview =
-        (*currentIndex >= 0 && *currentIndex < count && items[*currentIndex]) ? items[*currentIndex] : "";
+        (*currentIndex >= 0 && *currentIndex < count && items[*currentIndex]) ? Tr(items[*currentIndex]) : "";
 
     bool changed = false;
     if (SchematicBeginCombo(id, preview))
@@ -2532,7 +2534,7 @@ bool SchematicCombo(const char* id, int* currentIndex, const char* const items[]
             // SpanAvailWidth, so the hover/selected highlight fills the row
             // (with the ItemSpacing pushed in SchematicBeginCombo, it reaches
             // both popup edges).
-            if (ImGui::Selectable(items[i] ? items[i] : "", selected, ImGuiSelectableFlags_SpanAvailWidth) &&
+            if (ImGui::Selectable(items[i] ? TrLabel(items[i]) : "", selected, ImGuiSelectableFlags_SpanAvailWidth) &&
                 *currentIndex != i)
             {
                 *currentIndex = i;

@@ -1,6 +1,7 @@
 #include <deki-editor/build/BuilderWidgets.h>
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 
 #include "imgui.h"
 
@@ -30,7 +31,7 @@ bool ListIconButton(const char* icon, const char* tooltip)
 
 void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize)
 {
-    SchematicSubHeader(label);
+    SchematicSubHeader(Tr(label));
 
     ImGui::PushID(label);
     const float gap = ImGui::GetStyle().ItemSpacing.x;
@@ -52,7 +53,7 @@ void DrawStringListEditor(const char* label, std::vector<std::string>& list, cha
         }
 
         ImGui::SameLine(0.0f, gap);
-        if (ListIconButton(ICON_TI_X, "Remove"))
+        if (ListIconButton(ICON_TI_X, Tr("Remove")))
         {
             removeIndex = static_cast<int>(i);
         }
@@ -67,9 +68,9 @@ void DrawStringListEditor(const char* label, std::vector<std::string>& list, cha
 
     ImGui::SetNextItemWidth(fieldW);
     bool add =
-        ImGui::InputTextWithHint("##new", "Add...", newItemBuffer, bufSize, ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::InputTextWithHint("##new", Tr("Add..."), newItemBuffer, bufSize, ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::SameLine(0.0f, gap);
-    add |= ListIconButton(ICON_TI_PLUS, "Add");
+    add |= ListIconButton(ICON_TI_PLUS, Tr("Add"));
     if (add && strlen(newItemBuffer) > 0)
     {
         list.push_back(newItemBuffer);

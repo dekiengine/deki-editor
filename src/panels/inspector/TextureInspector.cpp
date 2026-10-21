@@ -15,6 +15,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth, as SchematicCombo uses
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 #include <SDL3/SDL_opengl.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -27,7 +28,7 @@ namespace DekiEditor
 {
 
 // Index 0 is Automatic: follow the target's screen. The rest are stored as named.
-static const char* s_FormatNames[] = { "Automatic", "RGB888", "RGBA8888", "RGB565", "RGB565A8", "ALPHA8" };
+static const char* s_FormatNames[] = { TrMark("Automatic"), "RGB888", "RGBA8888", "RGB565", "RGB565A8", "ALPHA8" };
 static const int kFormatCount = 6;
 
 static int FormatNameToIndex(const std::string& name)
@@ -65,7 +66,7 @@ static int MaxSizeToIndex(int maxSize)
 
 static const char* MaxSizeLabel(int index)
 {
-    static const char* s_Labels[] = { "None", "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
+    static const char* s_Labels[] = { TrMark("None"), "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192" };
     static_assert(sizeof(s_Labels) / sizeof(s_Labels[0]) == kTextureMaxSizeCount, "one label per Max Size");
     return s_Labels[index];
 }
@@ -215,7 +216,7 @@ void TextureInspector::DrawPreview()
 
         if (!frameData && (m_StoredWidth != m_PreviewWidth || m_StoredHeight != m_PreviewHeight))
         {
-            ImGui::TextDisabled("%d x %d, shown at %u x %u (Max Size)", srcWidth, srcHeight, m_StoredWidth,
+            ImGui::TextDisabled(Tr("%d x %d, shown at %u x %u (Max Size)"), srcWidth, srcHeight, m_StoredWidth,
                                 m_StoredHeight);
         }
         else
@@ -393,7 +394,7 @@ void TextureInspector::DrawSettings()
 
         if (hasCached && !cachePath.empty() && m_PreviewTextureId != 0)
         {
-            if (DekiEditor::SchematicAddButton(ICON_TI_LAYOUT_GRID "  Open in Spritesheet Editor"))
+            if (DekiEditor::SchematicAddButton(Tr(ICON_TI_LAYOUT_GRID "  Open in Spritesheet Editor")))
             {
                 if (auto* toolHost = m_App->GetToolHost())
                 {
@@ -477,7 +478,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
             for (int i = firstIndex; i < count; ++i)
             {
                 const bool selected = !fromDefault && i == index;
-                if (ImGui::Selectable(label(i), selected, ImGuiSelectableFlags_SpanAvailWidth) && !selected)
+                if (ImGui::Selectable(Tr(label(i)), selected, ImGuiSelectableFlags_SpanAvailWidth) && !selected)
                 {
                     index = i;
                     changed = true;
@@ -562,11 +563,11 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
             const float mx = ImGui::GetIO().MousePos.x;
             if (note && noteTip && mx >= innerR - noteW)
             {
-                DekiEditor::Tooltip(noteTip);
+                DekiEditor::Tooltip("%s", noteTip);
             }
             else if (nameTip)
             {
-                DekiEditor::Tooltip(nameTip);
+                DekiEditor::Tooltip("%s", nameTip);
             }
         }
 
@@ -610,20 +611,20 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
     {
         ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", label);
+        ImGui::TextDisabled("%s", Tr(label));
         ImGui::SameLine(0.0f, 0.0f);
         ImGui::SetCursorScreenPos(ImVec2(valueX, ImGui::GetCursorScreenPos().y));
     };
 
     ImGui::Spacing();
     {
-        const std::string summary =
-            std::string(s_FormatNames[m_SelectedFormatIndex]) + "  \xC2\xB7  Max Size " + MaxSizeLabel(m_MaxSizeIndex);
-        card("##default", false, "Default", false, "all targets", nullptr,
-             "What every target uses, unless its own card overrides it", summary, m_DefaultOpen,
+        const std::string summary = std::string(Tr(s_FormatNames[m_SelectedFormatIndex])) + "  \xC2\xB7  " +
+                                    Tr("Max Size") + " " + Tr(MaxSizeLabel(m_MaxSizeIndex));
+        card("##default", false, Tr("Default"), false, Tr("all targets"), nullptr,
+             Tr("What every target uses, unless its own card overrides it"), summary, m_DefaultOpen,
              [&](float labelX, float valueX, float valueW)
              {
-                 cardRow("Format", labelX, valueX);
+                 cardRow(TrMark("Format"), labelX, valueX);
                  ImGui::SetNextItemWidth(valueW);
                  if (DekiEditor::SchematicCombo("##Format", &m_SelectedFormatIndex, s_FormatNames, kFormatCount))
                  {
@@ -634,7 +635,7 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                      DekiEditor::Tooltip("Automatic stores the image in each target's screen format");
                  }
 
-                 cardRow("Max Size", labelX, valueX);
+                 cardRow(TrMark("Max Size"), labelX, valueX);
                  const char* items[kTextureMaxSizeCount];
                  for (int i = 0; i < kTextureMaxSizeCount; ++i)
                  {
@@ -684,26 +685,28 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
 
         // What it takes there: the stored format at the stored size.
         char memory[32] = "";
-        char memoryTip[48] = "";
+        char memoryTip[96] = "";
         if (m_PreviewWidth > 0 && m_PreviewHeight > 0)
         {
             int w = 0, h = 0;
             MaxSizeDims(static_cast<int>(m_PreviewWidth), static_cast<int>(m_PreviewHeight), kTextureMaxSizes[shownMax],
                         w, h);
             snprintf(memory, sizeof(memory), "%.1f KB", static_cast<double>(w) * h * BytesPerTexel(stored) / 1024.0);
-            snprintf(memoryTip, sizeof(memoryTip), "Stored at %d x %d", w, h);
+            snprintf(memoryTip, sizeof(memoryTip), Tr("Stored at %d x %d"), w, h);
         }
         std::string nameTip = name;
         if (knownScreen)
         {
-            nameTip += "\n" + platform->colorFormat + " screen";
+            char screenTip[96];
+            snprintf(screenTip, sizeof(screenTip), Tr("%s screen"), platform->colorFormat.c_str());
+            nameTip += std::string("\n") + screenTip;
         }
         if (overridden)
         {
-            nameTip += "\nOverrides Default";
+            nameTip += std::string("\n") + Tr("Overrides Default");
         }
         const std::string summary =
-            std::string(TextureFormatName(stored)) + "  \xC2\xB7  Max Size " + MaxSizeLabel(shownMax);
+            std::string(TextureFormatName(stored)) + "  \xC2\xB7  " + Tr("Max Size") + " " + Tr(MaxSizeLabel(shownMax));
 
         auto openIt = m_TargetOpen.find(platform->id);
         if (openIt == m_TargetOpen.end())
@@ -715,18 +718,18 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
              summary, openIt->second,
              [&](float labelX, float valueX, float valueW)
              {
-                 cardRow("Format", labelX, valueX);
-                 snprintf(buf, sizeof(buf), "Default (%s)", TextureFormatName(fromDefault));
+                 cardRow(TrMark("Format"), labelX, valueX);
+                 snprintf(buf, sizeof(buf), Tr("Default (%s)"), TextureFormatName(fromDefault));
                  if (overrideCombo("##TargetFormat", valueW, TextureFormatName(stored), !formatOverridden, buf,
                                    s_FormatLabel, kFormatCount, 1, formatIndex))
                  {
                      m_TargetFormatIndex[platform->id] = formatIndex;
                      writeTarget(platform->id);
                  }
-                 cardRow("Max Size", labelX, valueX);
-                 snprintf(buf, sizeof(buf), "Default (%s)", MaxSizeLabel(m_MaxSizeIndex));
+                 cardRow(TrMark("Max Size"), labelX, valueX);
+                 snprintf(buf, sizeof(buf), Tr("Default (%s)"), Tr(MaxSizeLabel(m_MaxSizeIndex)));
                  const std::string maxDefaultLabel = buf;
-                 if (overrideCombo("##TargetMax", valueW, MaxSizeLabel(shownMax), !maxOverridden, maxDefaultLabel,
+                 if (overrideCombo("##TargetMax", valueW, Tr(MaxSizeLabel(shownMax)), !maxOverridden, maxDefaultLabel,
                                    s_MaxLabel, kTextureMaxSizeCount, 0, maxIndex))
                  {
                      if (maxIndex < 0)
@@ -778,17 +781,19 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         }
         if (mi >= 0)
         {
-            held += std::string(held.empty() ? "" : "  \xC2\xB7  ") + "Max Size " + MaxSizeLabel(mi);
+            held += std::string(held.empty() ? "" : "  \xC2\xB7  ") + Tr("Max Size") + " " + Tr(MaxSizeLabel(mi));
         }
         bool open = true;
-        card(id.c_str(), true, id + " (removed)", true, nullptr, nullptr, "Not a target of this project any more", held,
+        char removedName[160];
+        snprintf(removedName, sizeof(removedName), Tr("%s (removed)"), id.c_str());
+        card(id.c_str(), true, removedName, true, nullptr, nullptr, Tr("Not a target of this project any more"), held,
              open,
              [&](float labelX, float, float)
              {
                  ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
                  ImGui::TextDisabled("%s", held.c_str());
                  ImGui::SetCursorScreenPos(ImVec2(labelX, ImGui::GetCursorScreenPos().y));
-                 if (ImGui::SmallButton(ICON_TI_X " Remove override"))
+                 if (ImGui::SmallButton(TrLabel(ICON_TI_X " Remove override")))
                  {
                      m_TargetFormatIndex.erase(id);
                      m_TargetMaxIndex.erase(id);

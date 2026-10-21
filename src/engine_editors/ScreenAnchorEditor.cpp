@@ -9,6 +9,7 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/EditorUI.h>
 #include <deki-editor/SceneView.h>
+#include <deki-editor/Localization.h>
 #include <deki/ScreenAnchor.h>
 #include <deki/reflection/ComponentRegistry.h>
 
@@ -24,8 +25,9 @@ namespace DekiEditor
 namespace
 {
 
-const char* const kPointNames[9] = { "Top Left", "Top",         "Top Right", "Left",        "Center",
-                                     "Right",    "Bottom Left", "Bottom",    "Bottom Right" };
+const char* const kPointNames[9] = { TrMark("Top Left"),    TrMark("Top"),    TrMark("Top Right"),
+                                     TrMark("Left"),        TrMark("Center"), TrMark("Right"),
+                                     TrMark("Bottom Left"), TrMark("Bottom"), TrMark("Bottom Right") };
 
 const Deki::PropertyInfo* FindProperty(Deki::Component* comp, const char* name)
 {
@@ -66,7 +68,7 @@ int PointGrid(int selected)
         const bool hovered = ImGui::IsItemHovered();
         if (hovered)
         {
-            DekiEditor::Tooltip("%s", kPointNames[i]);
+            DekiEditor::Tooltip("%s", Tr(kPointNames[i]));
         }
         ImGui::PopID();
 
@@ -109,6 +111,7 @@ public:
 
         ui.PropertyField("offsetX");
         ui.PropertyField("offsetY");
+        ui.PropertyField("update");
     }
 
     // A line from the anchor's point on the screen to the object, ending in a

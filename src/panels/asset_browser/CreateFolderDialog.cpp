@@ -4,7 +4,9 @@
 #include "../../core/commands/AssetCommands.h"
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
+#include <cstdio>
 #include <filesystem>
 
 namespace DekiEditor
@@ -26,17 +28,17 @@ void CreateFolderDialog::Draw()
 {
     if (m_ShouldOpen)
     {
-        ImGui::OpenPopup("Create New Folder");
+        ImGui::OpenPopup(TrLabel("Create New Folder"));
         m_ShouldOpen = false;
     }
 
-    if (BeginSchematicModal("Create New Folder", 440.0f))
+    if (BeginSchematicModal(TrLabel("Create New Folder"), 440.0f))
     {
         EditorApp* app = m_Browser->GetApp();
 
-        ImGui::Text("Create a new folder in the current directory.");
+        ImGui::TextUnformatted(Tr("Create a new folder in the current directory."));
         ImGui::Spacing();
-        ImGui::TextColored(Palette::Dim, "Folder name");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("Folder name"));
 
         // Focus is requested before the item: SetKeyboardFocusHere(-1) after
         // it does not take on a modal's first frame, and typing goes nowhere.
@@ -67,7 +69,7 @@ void CreateFolderDialog::Draw()
         const float btnW = (availW - gap) * 0.5f;
 
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-        if (ImGui::Button("Cancel", ImVec2(btnW, 0)))
+        if (ImGui::Button(TrLabel("Cancel"), ImVec2(btnW, 0)))
         {
             ImGui::CloseCurrentPopup();
         }
@@ -82,7 +84,7 @@ void CreateFolderDialog::Draw()
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Palette::Accent);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, Palette::Accent);
 
-        if (ImGui::Button("Create", ImVec2(btnW, 0)) || (enterPressed && canCreate))
+        if (ImGui::Button(TrLabel("Create"), ImVec2(btnW, 0)) || (enterPressed && canCreate))
         {
             namespace fs = std::filesystem;
             fs::path newFolderPath = fs::path(m_Browser->GetCurrentPath()) / m_NewFolderName;
@@ -90,7 +92,10 @@ void CreateFolderDialog::Draw()
             if (fs::exists(newFolderPath))
             {
                 // Say so and stay open, rather than close as if it worked.
-                m_Error = "A file or folder named '" + std::string(m_NewFolderName) + "' already exists here.";
+                char message[512];
+                snprintf(message, sizeof(message), Tr("A file or folder named '%s' already exists here."),
+                         m_NewFolderName);
+                m_Error = message;
             }
             else
             {

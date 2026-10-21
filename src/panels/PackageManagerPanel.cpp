@@ -16,9 +16,11 @@
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include <imgui.h>
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -36,6 +38,21 @@ inline void TextCol(EditorUI& ui, const ImVec4& c, const char* s)
 {
     ui.TextColored(c.x, c.y, c.z, c.w, s);
 }
+// `format`, already translated, with one string filled in.
+std::string Format(const char* format, const std::string& value)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf), format, value.c_str());
+    return buf;
+}
+
+// The names FeatureStateName() gives, marked for the translation table; the
+// details view shows them through Tr().
+[[maybe_unused]] constexpr const char* kFeatureStateNames[] = { TrMark("required"), TrMark("pinned on"),
+                                                                TrMark("used"),     TrMark("kept"),
+                                                                TrMark("on"),       TrMark("forced off"),
+                                                                TrMark("stripped") };
+
 // Packs a theme colour into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
@@ -70,7 +87,7 @@ void PackageManagerPanel::Draw()
     // No main-window scrollbar: the split's child panes fill the window, and
     // a main scrollbar would push the right pane's own scrollbar in from the
     // window edge.
-    if (ui.Begin("PACKAGE MANAGER###Package Manager", &isOpen, EditorUI::WinNoScrollbar))
+    if (ui.Begin(TrLabel("PACKAGE MANAGER###Package Manager"), &isOpen, EditorUI::WinNoScrollbar))
     {
         if (m_NeedsRefresh)
         {
@@ -95,7 +112,7 @@ void PackageManagerPanel::Draw()
         {
             ui.Spacing();
             ui.Indent(pad);
-            TextCol(ui, Palette::Dim, "Open a project to manage packages.");
+            TextCol(ui, Palette::Dim, Tr("Open a project to manage packages."));
             ui.Unindent(pad);
         }
         else
@@ -115,7 +132,14 @@ void PackageManagerPanel::Draw()
             ui.GetCursorScreenPos(&belowX, &belowY);
             ui.SetCursorScreenPos(slotX, slotY);
             ui.SetNextItemWidth(slotW);
-            DekiEditor::SchematicToolbarCombo("##filter", &m_FilterMode, "All\0Installed\0Available\0", slotH,
+            static constexpr const char* kFilters[] = { TrMark("All"), TrMark("Installed"), TrMark("Available") };
+            std::string filterItems;
+            for (const char* filter : kFilters)
+            {
+                filterItems += Tr(filter);
+                filterItems += '\0';
+            }
+            DekiEditor::SchematicToolbarCombo("##filter", &m_FilterMode, filterItems.c_str(), slotH,
                                               /*leftDivider*/ true);
             ui.SetCursorScreenPos(belowX, belowY);
 
@@ -214,18 +238,18 @@ void PackageManagerPanel::DrawToolbar()
     // Full-width toolbar in the Console's style. Refresh also fetches the
     // registry index to check for updates, and is disabled while a fetch runs.
     ui.BeginToolbar();
-    if (ui.ToolbarIconButton("##addPackage", ICON_TI_PLUS, "Add Package", true))
+    if (ui.ToolbarIconButton("##addPackage", ICON_TI_PLUS, Tr("Add Package"), true))
     {
         m_ShowAddPopup = true;
         m_AddPackageUrl[0] = '\0';
     }
-    if (ui.ToolbarIconButton("##addRegistry", ICON_TI_DATABASE_PLUS, "Add Registry", true))
+    if (ui.ToolbarIconButton("##addRegistry", ICON_TI_DATABASE_PLUS, Tr("Add Registry"), true))
     {
         m_ShowAddRegistryPopup = true;
         m_AddRegistryUrl[0] = '\0';
     }
     if (ui.ToolbarIconButton("##refreshPackages", ICON_TI_REFRESH,
-                             m_RegistryFetching ? "Checking for updates..." : "Refresh", !m_RegistryFetching))
+                             m_RegistryFetching ? Tr("Checking for updates...") : Tr("Refresh"), !m_RegistryFetching))
     {
         m_NeedsRefresh = true;
         FetchRegistryIndex(true);
@@ -308,12 +332,12 @@ void PackageManagerPanel::DrawPackageList()
         {
             if (isCoreDep)
             {
-                subtitle = "Core dependency";
+                subtitle = Tr("Core dependency");
                 subCol = Palette::Accent;
             }
             else if (HasUpdateAvailable(pkg))
             {
-                subtitle = "Update available";
+                subtitle = Tr("Update available");
                 if (!pkg.installedVersion.empty())
                 {
                     subtitle += "  \xc2\xb7  v" + pkg.installedVersion;
@@ -322,7 +346,7 @@ void PackageManagerPanel::DrawPackageList()
             }
             else
             {
-                subtitle = "Installed";
+                subtitle = Tr("Installed");
                 if (!pkg.installedVersion.empty())
                 {
                     subtitle += "  \xc2\xb7  v" + pkg.installedVersion;
@@ -363,16 +387,16 @@ void PackageManagerPanel::DrawPackageList()
             }
             if (!parents.empty())
             {
-                std::string tip = "Dependency of ";
+                std::string names;
                 for (size_t n = 0; n < parents.size(); ++n)
                 {
                     if (n)
                     {
-                        tip += ", ";
+                        names += ", ";
                     }
-                    tip += parents[n];
+                    names += parents[n];
                 }
-                ui.SetTooltip(tip.c_str());
+                ui.SetTooltip(Format(Tr("Dependency of %s"), names).c_str());
             }
         }
     };
@@ -419,7 +443,7 @@ void PackageManagerPanel::DrawPackageList()
     // added by hand. Custom-registry packages are DekiPackages too, so ones
     // with a registrySource are left out here: they are drawn once, in their
     // own registry's group.
-    drawGroup("Deki Registry",
+    drawGroup(Tr("Deki Registry"),
               [&](const PackageEntry& pkg) { return isFromRegistry(pkg, "Deki") && pkg.registrySource.empty(); });
 
     for (const auto& reg : m_CustomRegistries)
@@ -427,7 +451,7 @@ void PackageManagerPanel::DrawPackageList()
         drawGroup(reg.name.c_str(), [&](const PackageEntry& pkg) { return isFromRegistry(pkg, reg.name); });
     }
 
-    drawGroup("Custom",
+    drawGroup(Tr("Custom"),
               [&](const PackageEntry& pkg)
               {
                   if (isFromRegistry(pkg, "Deki"))
@@ -455,7 +479,7 @@ void PackageManagerPanel::DrawPackageDetails()
 
     if (!m_SelectedPackage)
     {
-        TextCol(ui, Palette::Dim, "Select a package to view details.");
+        TextCol(ui, Palette::Dim, Tr("Select a package to view details."));
         ui.Unindent(pad);
         return;
     }
@@ -498,15 +522,16 @@ void PackageManagerPanel::DrawPackageDetails()
         }
         if (!parentNames.empty())
         {
-            std::string label = std::string(ICON_TI_LINK) + " Dependency of ";
+            std::string names;
             for (size_t n = 0; n < parentNames.size(); ++n)
             {
                 if (n)
                 {
-                    label += ", ";
+                    names += ", ";
                 }
-                label += parentNames[n];
+                names += parentNames[n];
             }
+            const std::string label = std::string(ICON_TI_LINK) + " " + Format(Tr("Dependency of %s"), names);
             TextCol(ui, Palette::Accent, label.c_str());
         }
     }
@@ -529,7 +554,7 @@ void PackageManagerPanel::DrawPackageDetails()
             needs += (needs.empty() ? "" : ", ") + depName;
         }
         ui.Spacing();
-        TextCol(ui, Palette::Dim, "Requires");
+        TextCol(ui, Palette::Dim, Tr("Requires"));
         ImGui::SameLine();
         ui.Text(needs.c_str());
     }
@@ -570,12 +595,12 @@ void PackageManagerPanel::DrawPackageDetails()
         }
 
         ui.Spacing();
-        TextCol(ui, Palette::Dim, "Framework");
+        TextCol(ui, Palette::Dim, Tr("Framework"));
         ui.Text(frameworkDisplay.c_str());
 
         if (ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*config))
         {
-            TextCol(ui, Palette::Dim, "Builder");
+            TextCol(ui, Palette::Dim, Tr("Builder"));
             ui.Text(builder->GetName());
         }
     }
@@ -589,7 +614,7 @@ void PackageManagerPanel::DrawPackageDetails()
     // unsettled.
     if (pkg.experimental)
     {
-        TextCol(ui, Palette::Amber, "Experimental - its API and formats can change without a migration path.");
+        TextCol(ui, Palette::Amber, Tr("Experimental - its API and formats can change without a migration path."));
         ui.Spacing();
     }
 
@@ -598,7 +623,7 @@ void PackageManagerPanel::DrawPackageDetails()
     // engine the package needs, so warn before the download.
     if (const std::string problem = PackageCompatibilityProblem(pkg); !problem.empty())
     {
-        TextCol(ui, Palette::Red, ("Not compatible. " + problem + ".").c_str());
+        TextCol(ui, Palette::Red, Format(Tr("Not compatible. %s."), problem).c_str());
         ui.Spacing();
     }
 
@@ -610,15 +635,15 @@ void PackageManagerPanel::DrawPackageDetails()
     }
     if (!pkg.author.empty())
     {
-        ui.Text(("Author: " + pkg.author).c_str());
+        ui.Text(Format(Tr("Author: %s"), pkg.author).c_str());
     }
     if (!pkg.license.empty())
     {
-        ui.Text(("License: " + pkg.license).c_str());
+        ui.Text(Format(Tr("License: %s"), pkg.license).c_str());
     }
     if (!pkg.url.empty())
     {
-        ui.Text("URL:");
+        ui.Text(Tr("URL:"));
         ui.SameLine();
         TextCol(ui, Palette::Accent, pkg.url.c_str());
     }
@@ -634,9 +659,11 @@ void PackageManagerPanel::DrawPackageDetails()
         {
             ui.Indent();
 
-            ui.Text(("Sources: " + std::to_string(m_PackageDetails.sourceCount) +
-                     (m_PackageDetails.sourceCount != 1 ? " files" : " file"))
-                        .c_str());
+            char sources[64];
+            snprintf(sources, sizeof(sources),
+                     m_PackageDetails.sourceCount != 1 ? Tr("Sources: %d files") : Tr("Sources: %d file"),
+                     static_cast<int>(m_PackageDetails.sourceCount));
+            ui.Text(sources);
 
             if (!m_PackageDetails.linkDeps.empty())
             {
@@ -649,7 +676,7 @@ void PackageManagerPanel::DrawPackageDetails()
                     }
                     depsStr += m_PackageDetails.linkDeps[i];
                 }
-                ui.Text(("Link Dependencies: " + depsStr).c_str());
+                ui.Text(Format(Tr("Link Dependencies: %s"), depsStr).c_str());
             }
 
             ui.Unindent();
@@ -707,14 +734,16 @@ void PackageManagerPanel::DrawPackageDetails()
     // dropdown styled like the inspector's enum fields, then the value below.
     if (!isCoreDep)
     {
-        TextCol(ui, Palette::Dim, "Install from");
+        TextCol(ui, Palette::Dim, Tr("Install from"));
         ui.SetNextItemWidth(m_App->Dpi(160.0f));
-        ui.Combo("##versionMode", &m_VersionMode, "Version\0Branch\0");
+        // The combo translates its items.
+        static constexpr const char* kVersionModes[] = { TrMark("Version"), TrMark("Branch") };
+        ui.Combo("##versionMode", &m_VersionMode, kVersionModes, 2);
 
         ui.Spacing();
 
-        const char* hint = (m_VersionMode == 0) ? "e.g. 1.2.7" : "e.g. develop";
-        TextCol(ui, Palette::Dim, (m_VersionMode == 0) ? "Version" : "Branch");
+        const char* hint = (m_VersionMode == 0) ? Tr("e.g. 1.2.7") : Tr("e.g. develop");
+        TextCol(ui, Palette::Dim, (m_VersionMode == 0) ? Tr("Version") : Tr("Branch"));
         ui.SetNextItemWidth(m_App->Dpi(220.0f));
         ui.InputTextWithHint("##version_input", hint, m_VersionInput, (int)sizeof(m_VersionInput));
 
@@ -727,7 +756,7 @@ void PackageManagerPanel::DrawPackageDetails()
 
     if (pkg.isInstalled)
     {
-        TextCol(ui, Palette::Dim, ("Installed version: " + pkg.installedVersion).c_str());
+        TextCol(ui, Palette::Dim, Format(Tr("Installed version: %s"), pkg.installedVersion).c_str());
         ui.Spacing();
 
         // Editable: this project develops the package, not just uses it. Off
@@ -736,7 +765,8 @@ void PackageManagerPanel::DrawPackageDetails()
         // window regains focus.
         {
             bool editable = pkg.editable;
-            if (ui.Checkbox("Editable (I am developing this package)", &editable))
+            // A labelled checkbox is a property row, which translates its label.
+            if (ui.Checkbox(TrMark("Editable (I am developing this package)"), &editable))
             {
                 pkg.editable = editable;
                 if (auto* proj = m_App->GetProject())
@@ -749,14 +779,14 @@ void PackageManagerPanel::DrawPackageDetails()
                 }
             }
             TextCol(ui, Palette::Dim,
-                    pkg.editable ? "Your changes here are left alone."
-                                 : "Local changes here are stashed and reverted on focus.");
+                    pkg.editable ? Tr("Your changes here are left alone.")
+                                 : Tr("Local changes here are stashed and reverted on focus."));
             ui.Spacing();
         }
 
         if (isCoreDep)
         {
-            TextCol(ui, Palette::Accent, "Core dependency (managed by editor)");
+            TextCol(ui, Palette::Accent, Tr("Core dependency (managed by editor)"));
         }
         else
         {
@@ -765,7 +795,7 @@ void PackageManagerPanel::DrawPackageDetails()
             {
                 ui.BeginDisabled();
             }
-            if (ui.Button("Update", btnW, 0.0f))
+            if (ui.Button(TrLabel("Update"), btnW, 0.0f))
             {
                 OnInstallClicked();
             }
@@ -781,7 +811,7 @@ void PackageManagerPanel::DrawPackageDetails()
             ui.PushStyleColor(EditorUI::Col::ButtonHovered,
                               Pack(ImVec4(red.x * 0.78f, red.y * 0.78f, red.z * 0.78f, 1.0f)));
             ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(red));
-            if (ui.Button("Uninstall", btnW, 0.0f))
+            if (ui.Button(TrLabel("Uninstall"), btnW, 0.0f))
             {
                 OnRemoveClicked();
             }
@@ -798,7 +828,7 @@ void PackageManagerPanel::DrawPackageDetails()
         ui.PushStyleColor(EditorUI::Col::Button, Pack(Palette::AccentDim));
         ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(Palette::Accent));
         ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(Palette::Accent));
-        if (ui.Button("Install", btnW, 0.0f))
+        if (ui.Button(TrLabel("Install"), btnW, 0.0f))
         {
             OnInstallClicked();
         }
@@ -820,7 +850,7 @@ void PackageManagerPanel::DrawAddPackagePopup()
 
     if (m_ShowAddPopup)
     {
-        ui.OpenPopup("Add Package");
+        ui.OpenPopup(TrLabel("Add Package"));
     }
 
     // Centred over the viewport; fixed width, automatic height.
@@ -830,11 +860,11 @@ void PackageManagerPanel::DrawAddPackagePopup()
     ui.SetNextWindowSize(m_App->Dpi(440.0f), 0.0f, false);
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(18.0f), m_App->Dpi(16.0f));
 
-    if (ui.BeginPopupModal("Add Package", &m_ShowAddPopup, EditorUI::WinNoSavedSettings))
+    if (ui.BeginPopupModal(TrLabel("Add Package"), &m_ShowAddPopup, EditorUI::WinNoSavedSettings))
     {
-        ui.Text("Add a package from a GitHub repository.");
+        ui.Text(Tr("Add a package from a GitHub repository."));
         ui.Spacing();
-        TextCol(ui, Palette::Dim, "GitHub URL");
+        TextCol(ui, Palette::Dim, Tr("GitHub URL"));
 
         float aw = 0.0f;
         ui.GetContentRegionAvail(&aw, nullptr);
@@ -850,7 +880,7 @@ void PackageManagerPanel::DrawAddPackagePopup()
         const float btnW = (btnAvailW - gap) * 0.5f;
 
         ui.PushButtonTextAlign(0.5f, 0.5f);
-        if (ui.Button("Cancel", btnW, 0.0f))
+        if (ui.Button(TrLabel("Cancel"), btnW, 0.0f))
         {
             m_ShowAddPopup = false;
             ui.CloseCurrentPopup();
@@ -859,7 +889,7 @@ void PackageManagerPanel::DrawAddPackagePopup()
         ui.PushStyleColor(EditorUI::Col::Button, Pack(Palette::AccentDim));
         ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(Palette::Accent));
         ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(Palette::Accent));
-        if (ui.Button("Add", btnW, 0.0f))
+        if (ui.Button(TrLabel("Add"), btnW, 0.0f))
         {
             OnAddPackageConfirmed();
             if (!m_ShowAddPopup)  // cleared on success
@@ -921,10 +951,10 @@ void PackageManagerPanel::OnMarkedEditable(const PackageEntry& pkg)
 
     if (DekiEditor::RunGit({ "-C", dir.string(), "checkout", "master" }, out) != 0)
     {
-        DekiEditor::Toast::Push(DekiEditor::Toast::Level::Warning, "Editable package",
-                                "'" + DekiPackageInstaller::GetRepoName(pkg) +
-                                    "' is on a detached HEAD; put it on a branch before "
-                                    "committing, or your commits will land on no branch.",
+        DekiEditor::Toast::Push(DekiEditor::Toast::Level::Warning, Tr("Editable package"),
+                                Format(Tr("'%s' is on a detached HEAD; put it on a branch before committing, or your "
+                                          "commits will land on no branch."),
+                                       DekiPackageInstaller::GetRepoName(pkg)),
                                 12.0f);
     }
 }
@@ -1356,7 +1386,7 @@ void PackageManagerPanel::OnInstallClicked()
                                               {
                                                   if (success)
                                                   {
-                                                      m_StatusMessage = "Installed successfully";
+                                                      m_StatusMessage = Tr("Installed successfully");
                                                       m_NeedsRefresh = true;
 
                                                       if (auto* proj = m_App->GetProject())
@@ -1388,7 +1418,7 @@ void PackageManagerPanel::OnInstallClicked()
                                                   }
                                                   else
                                                   {
-                                                      m_StatusMessage = "Install failed: " + message;
+                                                      m_StatusMessage = Format(Tr("Install failed: %s"), message);
                                                   }
                                               });
 }
@@ -1420,7 +1450,7 @@ void PackageManagerPanel::OnRemoveClicked()
                                         {
                                             if (success)
                                             {
-                                                m_StatusMessage = "Removed successfully";
+                                                m_StatusMessage = Tr("Removed successfully");
                                                 m_NeedsRefresh = true;
 
                                                 // Save, then regenerate CMakeLists.txt and rebuild
@@ -1446,7 +1476,7 @@ void PackageManagerPanel::OnRemoveClicked()
                                             }
                                             else
                                             {
-                                                m_StatusMessage = "Remove failed: " + message;
+                                                m_StatusMessage = Format(Tr("Remove failed: %s"), message);
                                             }
                                         });
 }
@@ -1489,11 +1519,11 @@ void PackageManagerPanel::OnAddPackageConfirmed()
             }
         }
 
-        m_StatusMessage = "Package added";
+        m_StatusMessage = Tr("Package added");
     }
     else
     {
-        m_StatusMessage = "Failed to parse URL";
+        m_StatusMessage = Tr("Failed to parse URL");
     }
 }
 
@@ -1780,7 +1810,7 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
 
     auto& ui = EditorUI::Get();
     ui.Spacing();
-    TextCol(ui, Palette::Dim, "Features in device builds:");
+    TextCol(ui, Palette::Dim, Tr("Features in device builds:"));
     ui.Indent();
     bool changed = false;
     for (const FeatureDecision* d : rows)
@@ -1791,14 +1821,15 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
             ImGui::AlignTextToFramePadding();
             ui.Text(d->displayName.c_str());
             ImGui::SameLine();
-            ImGui::TextColored(Palette::Dim, "required");
+            ImGui::TextColored(Palette::Dim, "%s", Tr("required"));
         }
         else
         {
             const std::string ov = m_StripSettings.Override(d->packageId, d->featureId);
             int index = ov == "on" ? 1 : (ov == "off" ? 2 : 0);
-            ImGui::SetNextItemWidth(SchematicToolbarComboWidth("Auto"));
-            if (SchematicCombo("##mode", &index, "Auto\0On\0Off\0"))
+            ImGui::SetNextItemWidth(SchematicToolbarComboWidth(Tr("Auto")));
+            static constexpr const char* kModes[] = { TrMark("Auto"), TrMark("On"), TrMark("Off") };
+            if (SchematicCombo("##mode", &index, kModes, 3))
             {
                 m_StripSettings.SetOverride(d->packageId, d->featureId, index == 1 ? "on" : (index == 2 ? "off" : ""));
                 changed = true;
@@ -1807,7 +1838,7 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
             ImGui::AlignTextToFramePadding();
             ui.Text(d->displayName.c_str());
             ImGui::SameLine();
-            ImGui::TextColored(d->on ? Palette::Dim : Palette::Amber, "%s", FeatureStateName(d->state));
+            ImGui::TextColored(d->on ? Palette::Dim : Palette::Amber, "%s", Tr(FeatureStateName(d->state)));
         }
         if (ImGui::IsItemHovered() && !d->reason.empty())
         {
@@ -1829,17 +1860,17 @@ void PackageManagerPanel::DrawFeatures(const PackageEntry& pkg)
             ImGui::SameLine();
             if (installed)
             {
-                ImGui::TextColored(Palette::Dim, "needs %s", dep.c_str());
+                ImGui::TextColored(Palette::Dim, Tr("needs %s"), dep.c_str());
             }
             else
             {
-                ImGui::TextColored(Palette::Amber, "needs %s (not installed)", dep.c_str());
+                ImGui::TextColored(Palette::Amber, Tr("needs %s (not installed)"), dep.c_str());
             }
             if (ImGui::IsItemHovered())
             {
-                DekiEditor::Tooltip(installed ? "%s is installed, so this feature builds."
-                                              : "Install %s to use this feature. Until then it builds as a step that "
-                                                "logs what is missing.",
+                DekiEditor::Tooltip(installed ? TrMark("%s is installed, so this feature builds.")
+                                              : TrMark("Install %s to use this feature. Until then it builds as a "
+                                                       "step that logs what is missing."),
                                     dep.c_str());
             }
         }
@@ -1859,7 +1890,7 @@ void PackageManagerPanel::DrawAddRegistryPopup()
 
     if (m_ShowAddRegistryPopup)
     {
-        ui.OpenPopup("Add Registry");
+        ui.OpenPopup(TrLabel("Add Registry"));
     }
 
     float vx = 0.0f, vy = 0.0f, vw = 0.0f, vh = 0.0f;
@@ -1868,11 +1899,11 @@ void PackageManagerPanel::DrawAddRegistryPopup()
     ui.SetNextWindowSize(m_App->Dpi(440.0f), 0.0f, false);
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(18.0f), m_App->Dpi(16.0f));
 
-    if (ui.BeginPopupModal("Add Registry", &m_ShowAddRegistryPopup, EditorUI::WinNoSavedSettings))
+    if (ui.BeginPopupModal(TrLabel("Add Registry"), &m_ShowAddRegistryPopup, EditorUI::WinNoSavedSettings))
     {
-        ui.Text("Add a package registry.");
+        ui.Text(Tr("Add a package registry."));
         ui.Spacing();
-        TextCol(ui, Palette::Dim, "Registry URL (must serve index.json)");
+        TextCol(ui, Palette::Dim, Tr("Registry URL (must serve index.json)"));
 
         float aw = 0.0f;
         ui.GetContentRegionAvail(&aw, nullptr);
@@ -1889,7 +1920,7 @@ void PackageManagerPanel::DrawAddRegistryPopup()
         const float btnW = (btnAvailW - gap) * 0.5f;
 
         ui.PushButtonTextAlign(0.5f, 0.5f);
-        if (ui.Button("Cancel", btnW, 0.0f))
+        if (ui.Button(TrLabel("Cancel"), btnW, 0.0f))
         {
             m_ShowAddRegistryPopup = false;
             ui.CloseCurrentPopup();
@@ -1898,7 +1929,7 @@ void PackageManagerPanel::DrawAddRegistryPopup()
         ui.PushStyleColor(EditorUI::Col::Button, Pack(Palette::AccentDim));
         ui.PushStyleColor(EditorUI::Col::ButtonHovered, Pack(Palette::Accent));
         ui.PushStyleColor(EditorUI::Col::ButtonActive, Pack(Palette::Accent));
-        if (ui.Button("Add", btnW, 0.0f))
+        if (ui.Button(TrLabel("Add"), btnW, 0.0f))
         {
             std::string url = m_AddRegistryUrl;
             if (!url.empty())
@@ -1941,11 +1972,11 @@ void PackageManagerPanel::DrawAddRegistryPopup()
                     }
 
                     FetchCustomRegistry(reg, true);
-                    m_StatusMessage = "Registry added: " + name;
+                    m_StatusMessage = Format(Tr("Registry added: %s"), name);
                 }
                 else
                 {
-                    m_StatusMessage = "Registry already exists";
+                    m_StatusMessage = Tr("Registry already exists");
                 }
             }
             m_ShowAddRegistryPopup = false;

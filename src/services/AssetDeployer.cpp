@@ -1,4 +1,7 @@
 #include "AssetDeployer.h"
+
+#include <deki-editor/Localization.h>
+
 #include <filesystem>
 #include <chrono>
 #include <cstring>
@@ -112,12 +115,12 @@ std::vector<std::pair<std::string, std::string>> AssetDeployer::GetRemovableDriv
                     }
                     else
                     {
-                        label = "Removable Disk";
+                        label = Tr("Removable Disk");
                     }
                 }
                 else
                 {
-                    label = "Removable Disk";
+                    label = Tr("Removable Disk");
                 }
 
                 // Format as "E: (Label)"

@@ -1,5 +1,8 @@
 #include "AgentCursorIntent.h"
 
+#include <deki-editor/Localization.h>
+
+#include <cstdio>
 #include <filesystem>
 
 namespace DekiEditor
@@ -56,6 +59,15 @@ std::string ShortType(const std::string& type)
 {
     const size_t at = type.rfind("::");
     return at == std::string::npos ? type : type.substr(at + 2);
+}
+
+// `format`, already translated, with its strings filled in, in order.
+template <typename... Strings>
+std::string Format(const char* format, const Strings&... values)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf), format, values.c_str()...);
+    return buf;
 }
 
 std::string FileName(const std::string& path)
@@ -126,37 +138,39 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
             in.objectId = parent;
             in.hasObject = true;
             in.panel = kHierarchy;
-            in.label = "Creating '" + name + "' under {object}";
+            in.label = Format(Tr("Creating '%s' under {object}"), name);
         }
         else
         {
             in.target = T::Panel;
             in.panel = kHierarchy;
-            in.label = "Creating '" + name + "'";
+            in.label = Format(Tr("Creating '%s'"), name);
         }
         return in;
     }
     if (tool == "delete_object")
     {
-        return OnObject(args, T::Object, "Deleting {object}");
+        return OnObject(args, T::Object, Tr("Deleting {object}"));
     }
     if (tool == "duplicate_object")
     {
-        return OnObject(args, T::Object, "Duplicating {object}");
+        return OnObject(args, T::Object, Tr("Duplicating {object}"));
     }
     if (tool == "reparent_object")
     {
-        return OnObject(args, T::Object, "Moving {object} in the hierarchy");
+        return OnObject(args, T::Object, Tr("Moving {object} in the hierarchy"));
     }
     if (tool == "rename_object")
     {
-        return OnObject(args, T::Object, "Renaming {object} to '" + Str(args, "name") + "'");
+        return OnObject(args, T::Object, Format(Tr("Renaming {object} to '%s'"), Str(args, "name")));
     }
     if (tool == "set_position" || tool == "set_rotation" || tool == "set_scale")
     {
         const std::string field = tool.substr(4);  // position / rotation / scale
-        const char* verb = field == "position" ? "Moving" : field == "rotation" ? "Rotating" : "Scaling";
-        AgentIntent in = OnObject(args, T::Transform, std::string(verb) + " {object}");
+        const char* label = field == "position"   ? Tr("Moving {object}")
+                            : field == "rotation" ? Tr("Rotating {object}")
+                                                  : Tr("Scaling {object}");
+        AgentIntent in = OnObject(args, T::Transform, label);
         in.property = field;
         return in;
     }
@@ -164,8 +178,8 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
     {
         const std::string comp = Str(args, "component_type");
         AgentIntent in = OnObject(args, T::Component,
-                                  tool == "add_component" ? "Adding " + ShortType(comp) + " to {object}"
-                                                          : "Removing " + ShortType(comp) + " from {object}");
+                                  tool == "add_component" ? Format(Tr("Adding %s to {object}"), ShortType(comp))
+                                                          : Format(Tr("Removing %s from {object}"), ShortType(comp)));
         in.component = comp;
         return in;
     }
@@ -173,7 +187,7 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
     {
         const std::string comp = Str(args, "component_type");
         const std::string prop = Str(args, "property_name");
-        AgentIntent in = OnObject(args, T::Property, "Setting " + ShortType(comp) + "." + prop);
+        AgentIntent in = OnObject(args, T::Property, Format(Tr("Setting %s.%s"), ShortType(comp), prop));
         in.component = comp;
         in.property = prop;
         return in;
@@ -185,75 +199,83 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
         const size_t count = (it != args.end() && it->is_array()) ? it->size() : 0;
         if (count == 0)
         {
-            in.label = "Clearing the selection";
+            in.label = Tr("Clearing the selection");
             return in;
         }
         const nlohmann::json first = { { "object_id", (*it)[0] } };
-        in = OnObject(first, T::Object, count == 1 ? "Selecting {object}" : "Selecting " + std::to_string(count) + " objects");
+        std::string label = Tr("Selecting {object}");
+        if (count > 1)
+        {
+            char buf[128];
+            snprintf(buf, sizeof(buf), Tr("Selecting %zu objects"), count);
+            label = buf;
+        }
+        in = OnObject(first, T::Object, label);
         return in;
     }
 
     // History and scenes
     if (tool == "undo")
     {
-        return LabelOnly("Undo");
+        return LabelOnly(Tr("Undo"));
     }
     if (tool == "redo")
     {
-        return LabelOnly("Redo");
+        return LabelOnly(Tr("Redo"));
     }
     if (tool == "save_scene")
     {
-        return LabelOnly("Saving the scene");
+        return LabelOnly(Tr("Saving the scene"));
     }
     if (tool == "save_scene_as")
     {
-        return LabelOnly("Saving the scene as " + FileName(Str(args, "path")));
+        return LabelOnly(Format(Tr("Saving the scene as %s"), FileName(Str(args, "path"))));
     }
     if (tool == "new_scene")
     {
-        return LabelOnly("New scene");
+        return LabelOnly(Tr("New scene"));
     }
     if (tool == "open_scene")
     {
-        return LabelOnly("Opening " + FileName(Str(args, "path")));
+        return LabelOnly(Format(Tr("Opening %s"), FileName(Str(args, "path"))));
     }
     if (tool == "set_project_setting")
     {
-        return LabelOnly("Changing a project setting");
+        return LabelOnly(Tr("Changing a project setting"));
     }
 
     // Assets
     if (tool == "select_asset")
     {
         const std::string path = Str(args, "path");
-        return path.empty() ? LabelOnly("Selecting an asset") : OnAsset(path, "Selecting " + FileName(path));
+        return path.empty() ? LabelOnly(Tr("Selecting an asset"))
+                            : OnAsset(path, Format(Tr("Selecting %s"), FileName(path)));
     }
     if (tool == "open_asset")
     {
         const std::string path = Str(args, "path");
-        return OnAsset(path, "Opening " + FileName(path));
+        return OnAsset(path, Format(Tr("Opening %s"), FileName(path)));
     }
     if (tool == "move_asset")
     {
         const std::string from = Str(args, "from");
-        return OnAsset(from, "Moving " + FileName(from) + " to " + Str(args, "to"));
+        return OnAsset(from, Format(Tr("Moving %s to %s"), FileName(from), Str(args, "to")));
     }
     if (tool == "set_startup_scene")
     {
         const std::string path = Str(args, "path");
-        return OnAsset(path, "Making " + FileName(path) + " the startup scene");
+        return OnAsset(path, Format(Tr("Making %s the startup scene"), FileName(path)));
     }
     if (tool == "create_asset")
     {
-        AgentIntent in = LabelOnly("Creating " + FileName(Str(args, "path")));
+        AgentIntent in = LabelOnly(Format(Tr("Creating %s"), FileName(Str(args, "path"))));
         in.target = T::Panel;
         in.panel = kAssetBrowser;
         return in;
     }
     if (tool == "import_asset")
     {
-        AgentIntent in = LabelOnly("Importing " + FileName(Str(args, "source_path")));
+        AgentIntent in = LabelOnly(Format(Tr("Importing %s"), FileName(Str(args, "source_path"))));
         in.target = T::Panel;
         in.panel = kAssetBrowser;
         return in;
@@ -264,7 +286,7 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
     {
         const std::string id = Str(args, "id");
         const bool open = !args.contains("open") || !args["open"].is_boolean() || args["open"].get<bool>();
-        AgentIntent in = LabelOnly((open ? "Opening " : "Closing ") + id);
+        AgentIntent in = LabelOnly(Format(open ? Tr("Opening %s") : Tr("Closing %s"), id));
         // A panel being opened is not drawn yet; one being closed still is.
         if (!open && !id.empty())
         {
@@ -278,7 +300,8 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
         // "HIERARCHY###Hierarchy" reads as its id, the part after ###.
         const std::string name = Str(args, "name");
         const size_t hashes = name.find("###");
-        AgentIntent in = LabelOnly("Showing " + (hashes == std::string::npos ? name : name.substr(hashes + 3)));
+        AgentIntent in =
+            LabelOnly(Format(Tr("Showing %s"), hashes == std::string::npos ? name : name.substr(hashes + 3)));
         in.target = T::Panel;
         in.panel = Str(args, "name");
         return in;
@@ -287,19 +310,19 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
     {
         const std::string button = Str(args, "button");
         const bool twice = args.contains("double") && args["double"].is_boolean() && args["double"].get<bool>();
-        return AtPoint(args, twice ? "Double-clicking" : button == "right" ? "Right-clicking" : "Clicking");
+        return AtPoint(args, twice ? Tr("Double-clicking") : button == "right" ? Tr("Right-clicking") : Tr("Clicking"));
     }
     if (tool == "drag")
     {
-        return AtPoint(args, "Dragging");
+        return AtPoint(args, Tr("Dragging"));
     }
     if (tool == "hover")
     {
-        return AtPoint(args, "Pointing");
+        return AtPoint(args, Tr("Pointing"));
     }
     if (tool == "scroll")
     {
-        return AtPoint(args, "Scrolling");
+        return AtPoint(args, Tr("Scrolling"));
     }
     if (tool == "key")
     {
@@ -311,49 +334,49 @@ AgentIntent IntentForTool(const std::string& tool, const nlohmann::json& args)
                 combo += std::string(1, static_cast<char>(mod[0] - 'a' + 'A')) + (mod + 1) + "+";
             }
         }
-        return LabelOnly("Pressing " + combo + Str(args, "key"));
+        return LabelOnly(Format(Tr("Pressing %s"), combo + Str(args, "key")));
     }
     if (tool == "type_text")
     {
-        return LabelOnly("Typing");
+        return LabelOnly(Tr("Typing"));
     }
     if (tool == "answer_dialog")
     {
-        return LabelOnly("Answering the dialog: " + Str(args, "answer"));
+        return LabelOnly(Format(Tr("Answering the dialog: %s"), Str(args, "answer")));
     }
 
     // Project, packages, code and firmware: long jobs with nothing to point at.
     if (tool == "create_project")
     {
-        return LabelOnly("Creating project " + Str(args, "name"));
+        return LabelOnly(Format(Tr("Creating project %s"), Str(args, "name")));
     }
     if (tool == "open_project")
     {
-        return LabelOnly("Opening project " + FileName(Str(args, "path")));
+        return LabelOnly(Format(Tr("Opening project %s"), FileName(Str(args, "path"))));
     }
     if (tool == "install_package")
     {
-        return LabelOnly("Installing " + Str(args, "id"));
+        return LabelOnly(Format(Tr("Installing %s"), Str(args, "id")));
     }
     if (tool == "rebuild")
     {
-        return LabelOnly("Rebuilding the code");
+        return LabelOnly(Tr("Rebuilding the code"));
     }
     if (tool == "build_firmware")
     {
-        return LabelOnly("Building firmware");
+        return LabelOnly(Tr("Building firmware"));
     }
     if (tool == "deploy_build")
     {
-        return LabelOnly("Deploying the build");
+        return LabelOnly(Tr("Deploying the build"));
     }
     if (tool == "clean_build")
     {
-        return LabelOnly("Cleaning the build");
+        return LabelOnly(Tr("Cleaning the build"));
     }
     if (tool == "install_toolchain_component" || tool == "setup_toolchain_component")
     {
-        return LabelOnly("Installing " + Str(args, "component_id"));
+        return LabelOnly(Format(Tr("Installing %s"), Str(args, "component_id")));
     }
 
     return {};

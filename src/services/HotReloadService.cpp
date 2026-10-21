@@ -40,6 +40,7 @@
 #include <deki/LogSystem.h>
 #include <deki/Time.h>
 #include <deki/providers/ITimeProvider.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <memory>
 #include "imgui_impl_sdl3.h"
@@ -48,6 +49,7 @@
 #include <SDL3/SDL_opengl.h>
 #include <cstdio>
 #include <sstream>
+#include <string_view>
 #include <fstream>
 #include <algorithm>
 #include <cctype>
@@ -154,6 +156,26 @@ namespace DekiEditor
 static constexpr uint32_t kConfigureTimeoutMs = 10u * 60u * 1000u;
 static constexpr uint32_t kIncrementalBuildTimeoutMs = 10u * 60u * 1000u;
 static constexpr uint32_t kColdBuildTimeoutMs = 60u * 60u * 1000u;
+
+// A package step's phase, "Building <target>...". Kept in English like every
+// phase, since the log names the steps too; ShownBuildPhase translates it.
+static constexpr std::string_view kBuildingPrefix = "Building ";
+static constexpr std::string_view kBuildingSuffix = "...";
+
+// The build phase in the editor's language, for the progress card.
+static std::string ShownBuildPhase(const std::string& phase)
+{
+    if (phase.size() > kBuildingPrefix.size() + kBuildingSuffix.size() && phase.starts_with(kBuildingPrefix) &&
+        phase.ends_with(kBuildingSuffix))
+    {
+        const std::string target =
+            phase.substr(kBuildingPrefix.size(), phase.size() - kBuildingPrefix.size() - kBuildingSuffix.size());
+        char buf[256];
+        snprintf(buf, sizeof(buf), Tr("Building %s..."), target.c_str());
+        return buf;
+    }
+    return Tr(phase.c_str());
+}
 
 struct PackageRebuildInfo
 {
@@ -999,7 +1021,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
     {
         DEKI_LOG_INFO("Rebuilding packages before load (%s)...", reason);
     }
-    StartupProgress::Update("Rebuilding packages...");
+    StartupProgress::Update(TrMark("Rebuilding packages..."));
 
     // m_PluginDirectory was set above; RunBuild reads it for the reload step.
     std::string buildOutput;
@@ -1390,7 +1412,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
             "\"" + " -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
 #endif
         ActiveBuild::Step configure;
-        configure.phase = "Configuring project...";
+        configure.phase = TrMark("Configuring project...");
         configure.command = configCmd;
         configure.timeoutMs = kConfigureTimeoutMs;
         configure.isConfigure = true;
@@ -1465,7 +1487,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     }
 
     ActiveBuild::Step compile;
-    compile.phase = "Compiling...";
+    compile.phase = TrMark("Compiling...");
     compile.command = buildCmd;
     compile.timeoutMs = coldBuild ? kColdBuildTimeoutMs : kIncrementalBuildTimeoutMs;
     b.steps.push_back(std::move(compile));
@@ -1911,7 +1933,7 @@ void HotReloadService::CancelBuild()
     {
         m_Active->runner->Cancel();
     }
-    SetBuildPhase("Cancelling...");
+    SetBuildPhase(TrMark("Cancelling..."));
 }
 
 void HotReloadService::CancelAndWait()
@@ -1932,10 +1954,10 @@ void HotReloadService::DrawBuildProgress()
     }
     std::string phase, currentFile;
     GetBuildStatus(phase, currentFile);
-    const char* title = m_Active->kind == ActiveBuild::Kind::Packages ? "Building Packages" : "Building Plugin";
+    const char* title = m_Active->kind == ActiveBuild::Kind::Packages ? Tr("Building Packages") : Tr("Building Plugin");
+    const std::string shown = ShownBuildPhase(phase.empty() ? "Starting build..." : phase);
     bool cancel = false;
-    ProgressModal::DrawInFrame(title, phase.empty() ? "Starting build..." : phase.c_str(),
-                               currentFile.empty() ? nullptr : currentFile.c_str(),
+    ProgressModal::DrawInFrame(title, shown.c_str(), currentFile.empty() ? nullptr : currentFile.c_str(),
                                m_Active->cancelled ? nullptr : &cancel);
     if (cancel)
     {
@@ -2350,15 +2372,15 @@ void HotReloadService::RenderProgressModal()
     // During startup, keep the "Deki Editor" title, so asset import and the
     // build read as one loading flow. Later hot reloads use "Building Plugin"
     // to say what is happening.
-    const char* title = StartupProgress::IsComplete() ? "Building Plugin" : "Deki Editor";
+    const char* title = StartupProgress::IsComplete() ? Tr("Building Plugin") : "Deki Editor";
+    const std::string shown = ShownBuildPhase(phase.empty() ? TrMark("Initializing...") : phase);
 
-    ProgressModal::Show(title, phase.empty() ? "Initializing..." : phase.c_str(),
-                        currentFile.empty() ? nullptr : currentFile.c_str());
+    ProgressModal::Show(title, shown.c_str(), currentFile.empty() ? nullptr : currentFile.c_str());
 }
 
 void HotReloadService::BeginBuildStatus()
 {
-    SetBuildPhase("Starting build...");
+    SetBuildPhase(TrMark("Starting build..."));
 
     // Reset the elapsed-time clock and phase history, so this build's progress
     // does not carry over from the last one. During startup the clock is kept,
@@ -2507,7 +2529,7 @@ void HotReloadService::CheckAndReloadPackages()
         build->packages = packagesToRebuild;
 
         ActiveBuild::Step configure;
-        configure.phase = "Regenerating metadata...";
+        configure.phase = TrMark("Regenerating metadata...");
         configure.command = "\"" + ResolveTool("cmake") + "\"" + EditorSettings::GetCMakeLocationArgs() + " -B \"" +
                             buildDir + "\" -S \"" + ProjectPaths::Generated(projectPath).string() + "\"";
         configure.timeoutMs = kConfigureTimeoutMs;
@@ -2517,7 +2539,7 @@ void HotReloadService::CheckAndReloadPackages()
         for (const auto& info : packagesToRebuild)
         {
             ActiveBuild::Step step;
-            step.phase = "Building " + info.target + "...";
+            step.phase = std::string(kBuildingPrefix) + info.target + std::string(kBuildingSuffix);
             // Ninja is single-config, so no `--config` is needed.
             step.command =
                 "\"" + ResolveTool("cmake") + "\" --build \"" + buildDir + "\" --target " + info.target + " --parallel";

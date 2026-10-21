@@ -2,6 +2,7 @@
 
 #include <deki-editor/Command.h>
 #include "CommandRefCheck.h"
+#include "CommandText.h"
 #include "HistoryGuards.h"
 #include <cstdint>
 #include <cstring>
@@ -42,7 +43,12 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return "Change " + m_Description; }
+    // m_Description is the field's label, which the field helpers also
+    // translate.
+    std::string GetDescription() const override
+    {
+        return CommandText::Format(Tr("Change %s"), Tr(m_Description.c_str()));
+    }
 
     // Initial commit: apply the new value (pointer mode), without firing onRedo.
     void Execute() override

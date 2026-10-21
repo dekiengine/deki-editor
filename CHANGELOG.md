@@ -4,6 +4,56 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.19.1 - 2026-10-17
+
+### Fixed
+- **The Linux download is back.** 0.19.0's Linux archive was never built: the
+  packaging script asked CMake for its install folder in a way that needs a C
+  compiler named `cc`, and the new build image has only `gcc-16`. 0.19.1 is
+  0.19.0 with that fixed, and is the first 0.19 release with downloads.
+- Component names set with `DEKI_DISPLAY_NAME` (Desktop GPS, Trackball, ...)
+  and the names of the Units and Rendering settings sections are translated.
+  `tools/ci/check_translations.py` checks both now.
+
+## 0.19.0 - 2026-10-17
+
+### Added
+- **Languages.** Edit > Editor Settings > Language, and the project list,
+  switch the editor's language at once and remember it: English, Japanese,
+  Simplified Chinese and Korean. Text not yet translated shows in English.
+  Noto Sans JP, SC and KR ship with the editor, so Japanese, Chinese and
+  Korean file and project names show in any language, and the characters the
+  three share take the current language's shapes. How to translate
+  editor and package text: [docs/localization.md](docs/localization.md).
+- Japanese covers every screen, the Inspector's component and property names,
+  tooltips and enum values, the Add Component picker, the Create menu, asset
+  type names and the Undo/Redo descriptions. A package translates its own
+  names in `editor/lang/<language>.json`, read when a project opens, and its
+  own translation wins for its own components and nodes, so two packages (or
+  a package and the editor) can translate the same English word differently.
+  Logs stay in English.
+- **Docs in four languages.** The docs site is built in English, Japanese,
+  Chinese and Korean (`/docs/ja/`, `/zh/`, `/ko/`, the same for each
+  package's site), with a language menu in the bar that keeps the page. The
+  editor guides in `docs/` are on the site now, translated in
+  `docs/<language>/`. Component names, descriptions and tooltips come from
+  the same tables the editor reads; the API reference stays in English.
+  `tools/docs/build_docs.py --languages` builds some of them.
+- The Play view's screen size can change while playing or paused. The game
+  gets a display of the new size, as if the device's screen changed; the
+  pixel format stays the one play started with.
+- Screen Anchor's **Update**: Always (every frame, as before) or Once (placed
+  on the game's first frame, then left where it is).
+
+### Fixed
+- Property names with a digit before a word read as words: `stop1Position` is
+  "Stop 1 Position", not "Stop 1Position" (`texture2D` stays "Texture 2D").
+- Screen Anchors in the Play view moved to a newly picked screen size only
+  after a visit to the Scene view.
+- `tools/ci/check_translations.py` skipped every component category and
+  description: the comment the codegen writes after a field hid the next one.
+  Those texts, shown in the Add Component picker, are translated now.
+
 ## 0.18.4 - 2026-10-16
 
 ### Fixed

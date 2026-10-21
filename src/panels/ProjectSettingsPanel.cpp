@@ -1,6 +1,7 @@
 #include "ProjectSettingsPanel.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include "inspector/InspectorUtils.h"
@@ -34,7 +35,7 @@ void ShowTooltip(const Deki::PropertyInfo& prop)
 {
     if (prop.tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
     {
-        DekiEditor::Tooltip("%s", prop.tooltip);
+        DekiEditor::Tooltip("%s", Tr(prop.tooltip));
     }
 }
 
@@ -282,7 +283,7 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, 
         default:
             BeginPropertyRow(label);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(DekiEditor::Palette::Dim, "Not editable here");
+            ImGui::TextColored(DekiEditor::Palette::Dim, "%s", Tr("Not editable here"));
             break;
     }
     return committed;
@@ -308,10 +309,10 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
     m_ScanAge = 0.0f;
 
     m_SceneFiles.clear();
-    m_SceneFiles.push_back("(None)");
+    m_SceneFiles.push_back(TrMark("(None)"));
     m_PipelineFiles.clear();
     m_PipelineGuids.clear();
-    m_PipelineFiles.push_back("(None)");
+    m_PipelineFiles.push_back(TrMark("(None)"));
     m_PipelineGuids.push_back("");
 
     const std::string assetsPath = project->GetAssetsPath();
@@ -410,7 +411,7 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
     if (currentIndex == 0)
     {
         BeginPropertyRow("");
-        ImGui::TextColored(DekiEditor::Palette::Amber, "The game has no scene to open.");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "%s", Tr("The game has no scene to open."));
     }
 
     DekiEditor::EndPropertyContext();
@@ -445,7 +446,7 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
         }
         else
         {
-            files.push_back("(Unknown pipeline)");
+            files.push_back(TrMark("(Unknown pipeline)"));
             guids.push_back(currentGuid);
             currentPipelineIndex = static_cast<int>(files.size()) - 1;
         }
@@ -467,7 +468,7 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
     if (currentPipelineIndex == 0)
     {
         BeginPropertyRow("");
-        ImGui::TextColored(DekiEditor::Palette::Amber, "Nothing is drawn on the device without one.");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "%s", Tr("Nothing is drawn on the device without one."));
     }
 
     DekiEditor::EndPropertyContext();
@@ -483,13 +484,13 @@ void ProjectSettingsPanel::Draw()
 
     DekiEditor::FirstUseWindowPlacement(420, 400);
 
-    if (ImGui::Begin("PROJECT SETTINGS###Project Settings", &isOpen,
+    if (ImGui::Begin(TrLabel("PROJECT SETTINGS###Project Settings"), &isOpen,
                      DekiEditor::MaximizedWindowFlags("PROJECT SETTINGS###Project Settings")))
     {
         Project* project = m_App->GetProject();
         if (!project)
         {
-            ImGui::TextDisabled("No project loaded");
+            ImGui::TextDisabled("%s", Tr("No project loaded"));
             ImGui::End();
             return;
         }
@@ -506,6 +507,8 @@ void ProjectSettingsPanel::Draw()
         // as in the Inspector.
         for (const auto& info : Deki::SettingsRegistry::Instance().GetAll())
         {
+            // The section reads as its package translates it.
+            const Localization::ScopedPackage packageText(info.meta ? info.meta->package : nullptr);
             if (DekiEditor::SchematicSectionBegin(info.sectionName))
             {
                 DekiEditor::BeginPropertyContext();

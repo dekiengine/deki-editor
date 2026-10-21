@@ -6,6 +6,7 @@
 #include "InspectorUtils.h"
 #include <deki-editor/EditorUI.h>
 #include <deki-editor/CommandHistory.h>
+#include <deki-editor/Localization.h>
 #include "../../core/Commands.h"
 #include "../../core/commands/PropertyTypeHandlers.h"
 #include <deki/reflection/Property.h>
@@ -52,7 +53,7 @@ void PropertyEditorFactory::DrawReadOnlyMulti(const std::vector<Deki::Component*
 {
     // Wrapped, since on one line it runs past the Inspector's edge.
     ImGui::PushTextWrapPos(0.0f);
-    ImGui::TextDisabled("Shows the first of %zu objects. Select one object to edit this.", components.size());
+    ImGui::TextDisabled(Tr("Shows the first of %zu objects. Select one object to edit this."), components.size());
     ImGui::PopTextWrapPos();
     ImGui::BeginDisabled();
     DrawProperty(components[0], prop);

@@ -12,6 +12,7 @@
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetData.h>
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <algorithm>
 #include <filesystem>
@@ -40,7 +41,7 @@ void DeployAnalysisPanel::Draw()
     auto& ui = EditorUI::Get();
     ui.SetNextWindowSize(550.0f, 400.0f, /*firstUseEver*/ true);
 
-    if (!ui.Begin("DEPLOY ANALYSIS###Deploy Analysis", &isOpen))
+    if (!ui.Begin(TrLabel("DEPLOY ANALYSIS###Deploy Analysis"), &isOpen))
     {
         ui.End();
         return;
@@ -106,7 +107,7 @@ void DeployAnalysisPanel::Draw()
                 bool hovered = ui.IsItemHovered();
                 if (hovered)
                 {
-                    ui.SetTooltip("Rescan scenes to determine which assets are used");
+                    ui.SetTooltip(Tr("Rescan scenes to determine which assets are used"));
                 }
                 if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
                 {
@@ -145,7 +146,7 @@ void DeployAnalysisPanel::Draw()
         ui.Indent(pad);
 
         char header[64];
-        std::snprintf(header, sizeof(header), "Assets (%d total)", (int)m_AssetEntries.size());
+        std::snprintf(header, sizeof(header), Tr("Assets (%d total)"), (int)m_AssetEntries.size());
         ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, header);
         ui.Spacing();
 
@@ -168,10 +169,10 @@ void DeployAnalysisPanel::Draw()
                           tableWidth, tableHeight))
         {
             ui.TableSetupScrollFreeze(0, 1);
-            ui.TableSetupColumn("Asset", EditorUI::TableColumnWidthStretch);
-            ui.TableSetupColumn("Size", EditorUI::TableColumnWidthFixed, 70);
-            ui.TableSetupColumn("Status", EditorUI::TableColumnWidthFixed, 70);
-            ui.TableSetupColumn("Pack", EditorUI::TableColumnWidthFixed, 90);
+            ui.TableSetupColumn(TrLabel("Asset"), EditorUI::TableColumnWidthStretch);
+            ui.TableSetupColumn(TrLabel("Size"), EditorUI::TableColumnWidthFixed, 70);
+            ui.TableSetupColumn(TrLabel("Status"), EditorUI::TableColumnWidthFixed, 70);
+            ui.TableSetupColumn(TrLabel("Pack"), EditorUI::TableColumnWidthFixed, 90);
             ui.TableHeadersRow();
 
             for (size_t i = 0; i < m_AssetEntries.size(); i++)
@@ -217,15 +218,16 @@ void DeployAnalysisPanel::Draw()
                 ui.TableNextColumn();
                 if (entry.isUsed)
                 {
-                    ui.TextColored(Palette::Green.x, Palette::Green.y, Palette::Green.z, Palette::Green.w, "Used");
+                    ui.TextColored(Palette::Green.x, Palette::Green.y, Palette::Green.z, Palette::Green.w, Tr("Used"));
                 }
                 else if (entry.forceIncluded)
                 {
-                    ui.TextColored(Palette::Amber.x, Palette::Amber.y, Palette::Amber.z, Palette::Amber.w, "Forced");
+                    ui.TextColored(Palette::Amber.x, Palette::Amber.y, Palette::Amber.z, Palette::Amber.w,
+                                   Tr("Forced"));
                 }
                 else
                 {
-                    ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, "Unused");
+                    ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, Tr("Unused"));
                 }
 
                 // Pack
@@ -258,14 +260,14 @@ void DeployAnalysisPanel::Draw()
         }
 
         char summary[256];
-        std::snprintf(summary, sizeof(summary), "Deploy: %d used + %d forced = %d assets (%s)", m_UsedCount,
+        std::snprintf(summary, sizeof(summary), Tr("Deploy: %d used + %d forced = %d assets (%s)"), m_UsedCount,
                       m_ForceIncludedCount, m_UsedCount + m_ForceIncludedCount,
                       FormatFileSize(totalDeploySize).c_str());
         ui.Text(summary);
         if (packedCount > 0)
         {
             char packLine[128];
-            std::snprintf(packLine, sizeof(packLine), "  %d assets in packs (fewer SD card reads)", packedCount);
+            std::snprintf(packLine, sizeof(packLine), Tr("  %d assets in packs (fewer SD card reads)"), packedCount);
             ui.TextColored(Palette::Accent.x, Palette::Accent.y, Palette::Accent.z, Palette::Accent.w, packLine);
         }
 
@@ -278,7 +280,7 @@ void DeployAnalysisPanel::Draw()
         ui.Spacing();
         ui.Indent(pad);
         ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w,
-                       hasProject ? "Scanning assets..." : "Open a project to analyze deploy assets.");
+                       hasProject ? Tr("Scanning assets...") : Tr("Open a project to analyze deploy assets."));
         ui.Unindent(pad);
     }
 
@@ -476,8 +478,12 @@ void DeployAnalysisPanel::ScanAssets()
                 fontName = fs::path(fontAsset->path).stem().string();
             }
 
-            addBakedEntry(variantGuid, "(baked) " + fontName + " @ " + std::to_string(fu.fontSize) + "px");
-            addBakedEntry(atlasGuid, "(baked) " + fontName + " atlas @ " + std::to_string(fu.fontSize) + "px");
+            // Shown in the table; made at scan time, in the language of the moment.
+            char baked[256];
+            std::snprintf(baked, sizeof(baked), Tr("(baked) %s @ %dpx"), fontName.c_str(), (int)fu.fontSize);
+            addBakedEntry(variantGuid, baked);
+            std::snprintf(baked, sizeof(baked), Tr("(baked) %s atlas @ %dpx"), fontName.c_str(), (int)fu.fontSize);
+            addBakedEntry(atlasGuid, baked);
         }
     }
 

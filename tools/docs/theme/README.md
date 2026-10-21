@@ -20,6 +20,13 @@ additions (the `<link>`s for the fonts, and the `div.deki-bar` after `<body>`):
 
     doxygen -w html header.html footer.html stylesheet.css
 
+The header is a template of ours too: `build_docs.py` writes one copy per
+language (`localize.header`), which points the bar at that language's pages
+on dekiengine.com, puts the language's Noto Sans where `<!--DEKI_FONTS-->`
+is and the language menu where `<!--DEKI_LANGUAGES-->` is. Keep both
+markers, and keep the bar's links and words as they are, since the
+translation replaces them by their exact text.
+
 **Do not write `<`+`!--BEGIN X--`+`>` or its END twin anywhere in the file,
 including inside a comment.** They are the template language, and Doxygen
 scans the whole file for them: a marker named inside a comment opened a

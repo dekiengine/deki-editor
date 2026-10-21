@@ -5,9 +5,11 @@
 #include "services/FileDialogs.h"
 #include <deki-editor/ProcessLaunch.h>
 #include "services/ProjectRegistry.h"
+#include "widgets/LanguagePicker.h"
 
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 
 #include "imgui.h"
 
@@ -32,7 +34,7 @@ std::string RelativeTime(int64_t stamp)
 {
     if (stamp <= 0)
     {
-        return "never opened";
+        return Tr("never opened");
     }
 
     using namespace std::chrono;
@@ -42,33 +44,33 @@ std::string RelativeTime(int64_t stamp)
     char buf[64];
     if (delta < 60)
     {
-        return "just now";
+        return Tr("just now");
     }
     if (delta < 3600)
     {
-        std::snprintf(buf, sizeof(buf), "%lld min ago", (long long)(delta / 60));
+        std::snprintf(buf, sizeof(buf), Tr("%lld min ago"), (long long)(delta / 60));
         return buf;
     }
     if (delta < 86400)
     {
-        std::snprintf(buf, sizeof(buf), "%lld hours ago", (long long)(delta / 3600));
+        std::snprintf(buf, sizeof(buf), Tr("%lld hours ago"), (long long)(delta / 3600));
         return buf;
     }
     if (delta < 172800)
     {
-        return "yesterday";
+        return Tr("yesterday");
     }
     if (delta < 2592000)
     {
-        std::snprintf(buf, sizeof(buf), "%lld days ago", (long long)(delta / 86400));
+        std::snprintf(buf, sizeof(buf), Tr("%lld days ago"), (long long)(delta / 86400));
         return buf;
     }
     if (delta < 31536000)
     {
-        std::snprintf(buf, sizeof(buf), "%lld months ago", (long long)(delta / 2592000));
+        std::snprintf(buf, sizeof(buf), Tr("%lld months ago"), (long long)(delta / 2592000));
         return buf;
     }
-    return "over a year ago";
+    return Tr("over a year ago");
 }
 
 bool ContainsNoCase(const std::string& haystack, const std::string& needle)
@@ -166,7 +168,7 @@ void ProjectManagerScreen::ImportProject()
 {
     // The result arrives on a later frame, so it only sets member state that
     // the next draw reads.
-    FileDialogs::OpenFolder("Select a Deki project folder",
+    FileDialogs::OpenFolder(TrMark("Select a Deki project folder"),
                             [this](const std::string& path)
                             {
                                 if (path.empty())
@@ -176,9 +178,12 @@ void ProjectManagerScreen::ImportProject()
 
                                 if (!ProjectRegistry::IsProjectDir(path))
                                 {
-                                    m_Error = fs::path(path).filename().string() +
-                                              " is not a Deki project - there is no deki.json in "
-                                              "that folder.";
+                                    char error[512];
+                                    std::snprintf(error, sizeof(error),
+                                                  Tr("%s is not a Deki project - there is no deki.json in "
+                                                     "that folder."),
+                                                  fs::path(path).filename().string().c_str());
+                                    m_Error = error;
                                     return;
                                 }
 
@@ -228,11 +233,12 @@ void ProjectManagerScreen::Draw()
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 origin = ImGui::GetCursorScreenPos();
 
-        TextAt(dl, g_FontDisplay, 28.0f, origin, ImGui::GetColorU32(Palette::Fg), "Projects");
+        TextAt(dl, g_FontDisplay, 28.0f, origin, ImGui::GetColorU32(Palette::Fg), Tr("Projects"));
 
         const size_t total = ProjectRegistry::Get().Entries().size();
         char subtitle[96];
-        std::snprintf(subtitle, sizeof(subtitle), "%zu project%s on this machine", total, total == 1 ? "" : "s");
+        std::snprintf(subtitle, sizeof(subtitle),
+                      total == 1 ? Tr("%zu project on this machine") : Tr("%zu projects on this machine"), total);
         TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x, origin.y + 36.0f * s), ImGui::GetColorU32(kSecondary),
                subtitle);
 
@@ -243,7 +249,16 @@ void ProjectManagerScreen::Draw()
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f * s, 7.0f * s));
         // Not focused on arrival: while the search box is active, ImGui takes
         // the arrow keys and Enter that drive the list below.
-        ImGui::InputTextWithHint("##ProjectSearch", ICON_TI_SEARCH "  Search projects", m_Search, sizeof(m_Search));
+        ImGui::InputTextWithHint("##ProjectSearch", Tr(ICON_TI_SEARCH "  Search projects"), m_Search, sizeof(m_Search));
+        ImGui::PopStyleVar();
+
+        // The language, left of the search and as tall: set before opening a
+        // project.
+        const float languageW = 130.0f * s;
+        ImGui::SetCursorScreenPos(ImVec2(origin.x + contentW - searchW - 10.0f * s - languageW, origin.y + 6.0f * s));
+        ImGui::SetNextItemWidth(languageW);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f * s, 7.0f * s));
+        DrawLanguagePicker("##language");
         ImGui::PopStyleVar();
 
         ImGui::SetCursorScreenPos(ImVec2(origin.x, origin.y + 62.0f * s));
@@ -314,7 +329,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, kSecondary);
         ImGui::SetCursorPos(ImVec2(4.0f * s, 12.0f * s));
-        ImGui::TextUnformatted("No project matches that search.");
+        ImGui::TextUnformatted(Tr("No project matches that search."));
         ImGui::PopStyleColor();
     }
 
@@ -358,16 +373,16 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
         if (rowMenu)
         {
             PushContextMenuItemStyle();
-            if (ImGui::MenuItem("Open", nullptr, false, !entry.missing))
+            if (ImGui::MenuItem(TrLabel("Open"), nullptr, false, !entry.missing))
             {
                 m_PendingOpen = entry.path;
             }
-            if (ImGui::MenuItem("Show in File Explorer", nullptr, false, !entry.missing))
+            if (ImGui::MenuItem(TrLabel("Show in File Explorer"), nullptr, false, !entry.missing))
             {
                 RevealInFileManager(entry.path);
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("Remove from List"))
+            if (ImGui::MenuItem(TrLabel("Remove from List")))
             {
                 // Removing invalidates idx and the entries reference, so the
                 // row loop ends here.
@@ -434,7 +449,7 @@ void ProjectManagerScreen::DrawProjectList(float width, float height)
             if (entry.missing)
             {
                 chipsW = DrawChip(dl, ImVec2(rightEdge, chipY), ImGui::GetColorU32(Palette::Red),
-                                  ImGui::GetColorU32(Palette::Red), "MISSING", s);
+                                  ImGui::GetColorU32(Palette::Red), Tr("MISSING"), s);
             }
             else
             {
@@ -513,7 +528,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.36f, 0.82f, 1.0f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.66f, 0.90f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Bg);
-    if (ImGui::Button(ICON_TI_PLUS "  New Project", buttonSize))
+    if (ImGui::Button(TrLabel(ICON_TI_PLUS "  New Project"), buttonSize))
     {
         m_App->ShowNewProjectDialog();
     }
@@ -521,7 +536,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
 
     ImGui::Dummy(ImVec2(0.0f, 6.0f * s));
 
-    if (ImGui::Button(ICON_TI_FOLDER_PLUS "  Import...", buttonSize))
+    if (ImGui::Button(TrLabel(ICON_TI_FOLDER_PLUS "  Import..."), buttonSize))
     {
         ImportProject();
     }
@@ -531,7 +546,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::Dummy(ImVec2(0.0f, 16.0f * s));
 
     ImGui::BeginDisabled(!canOpen);
-    if (ImGui::Button("Open", buttonSize))
+    if (ImGui::Button(TrLabel("Open"), buttonSize))
     {
         m_PendingOpen = entries[m_Selected].path;
     }
@@ -540,7 +555,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::Dummy(ImVec2(0.0f, 6.0f * s));
 
     ImGui::BeginDisabled(!canOpen);
-    if (ImGui::Button(ICON_TI_EXTERNAL_LINK "  Show in Explorer", buttonSize))
+    if (ImGui::Button(TrLabel(ICON_TI_EXTERNAL_LINK "  Show in Explorer"), buttonSize))
     {
         RevealInFileManager(entries[m_Selected].path);
     }
@@ -549,7 +564,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::Dummy(ImVec2(0.0f, 6.0f * s));
 
     ImGui::BeginDisabled(!hasSelection);
-    if (ImGui::Button(ICON_TI_TRASH "  Remove from List", buttonSize))
+    if (ImGui::Button(TrLabel(ICON_TI_TRASH "  Remove from List"), buttonSize))
     {
         ProjectRegistry::Get().Remove(entries[m_Selected].path);
         m_Selected = -1;
@@ -561,7 +576,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
     ImGui::Dummy(ImVec2(0.0f, 8.0f * s));
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
     ImGui::PushFont(g_FontUISmall, 12.0f);
-    ImGui::TextWrapped("Removing a project only takes it off this list. Nothing is deleted from disk.");
+    ImGui::TextWrapped("%s", Tr("Removing a project only takes it off this list. Nothing is deleted from disk."));
     ImGui::PopFont();
     ImGui::PopStyleColor();
 
@@ -586,12 +601,12 @@ void ProjectManagerScreen::DrawEmptyState(float width, float height)
     TextAt(dl, nullptr, 34.0f, ImVec2(origin.x + (blockW - iconSize.x) * 0.5f, origin.y),
            ImGui::GetColorU32(Palette::Line3), ICON_TI_DEVICE_GAMEPAD);
 
-    const char* title = "No projects yet";
+    const char* title = Tr("No projects yet");
     const ImVec2 titleSize = MeasureIn(g_FontDisplay, 20.0f, title);
     TextAt(dl, g_FontDisplay, 20.0f, ImVec2(origin.x + (blockW - titleSize.x) * 0.5f, origin.y + 52.0f * s),
            ImGui::GetColorU32(Palette::Fg), title);
 
-    const char* hint = "Create one, or import a folder that already has a deki.json.";
+    const char* hint = Tr("Create one, or import a folder that already has a deki.json.");
     const ImVec2 hintSize = MeasureIn(g_FontUISmall, 13.0f, hint);
     TextAt(dl, g_FontUISmall, 13.0f, ImVec2(origin.x + (blockW - hintSize.x) * 0.5f, origin.y + 84.0f * s),
            ImGui::GetColorU32(kSecondary), hint);
@@ -605,14 +620,14 @@ void ProjectManagerScreen::DrawEmptyState(float width, float height)
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.36f, 0.82f, 1.0f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.66f, 0.90f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Bg);
-    if (ImGui::Button(ICON_TI_PLUS "  New Project", ImVec2(buttonW, 34.0f * s)))
+    if (ImGui::Button(TrLabel(ICON_TI_PLUS "  New Project"), ImVec2(buttonW, 34.0f * s)))
     {
         m_App->ShowNewProjectDialog();
     }
     ImGui::PopStyleColor(4);
 
     ImGui::SameLine(0.0f, 10.0f * s);
-    if (ImGui::Button(ICON_TI_FOLDER_PLUS "  Import...", ImVec2(buttonW, 34.0f * s)))
+    if (ImGui::Button(TrLabel(ICON_TI_FOLDER_PLUS "  Import..."), ImVec2(buttonW, 34.0f * s)))
     {
         ImportProject();
     }

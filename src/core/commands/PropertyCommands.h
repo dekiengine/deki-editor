@@ -2,6 +2,7 @@
 
 #include <deki-editor/Command.h>
 #include "CommandRefCheck.h"
+#include "CommandText.h"
 #include "PropertyTypeHandlers.h"
 #include <deki/Object.h>
 #include <deki/Component.h>
@@ -10,6 +11,7 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/ObjectRef.h>
 #include <deki/assets/AssetRef.h>
+#include <deki-editor/EditorNaming.h>
 #include <nlohmann/json.hpp>
 #include <functional>
 #include <string>
@@ -43,7 +45,7 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return "Move Object"; }
+    std::string GetDescription() const override { return Tr("Move Object"); }
 
     void Execute() override;
 
@@ -75,7 +77,7 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return "Move Object"; }
+    std::string GetDescription() const override { return Tr("Move Object"); }
 
     void Execute() override;
 
@@ -105,7 +107,8 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return m_Description; }
+    // The caller's text, translated when the table has it.
+    std::string GetDescription() const override { return Tr(m_Description.c_str()); }
 
     void Execute() override;
 
@@ -136,7 +139,7 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return "Rotate Object"; }
+    std::string GetDescription() const override { return Tr("Rotate Object"); }
 
     void Execute() override;
 
@@ -163,7 +166,7 @@ public:
     {
     }
 
-    std::string GetDescription() const override { return "Scale Object"; }
+    std::string GetDescription() const override { return Tr("Scale Object"); }
 
     void Execute() override;
 
@@ -261,6 +264,7 @@ public:
           m_ElementType(prop.elementType),
           m_EnumSize(prop.enumSize),
           m_PropertyName(prop.name),
+          m_DisplayName(EditorNaming::GetDisplayName(prop)),
           m_NewValue(newValue),
           m_OnChange(onChange),
           m_Executed(false)
@@ -301,6 +305,7 @@ private:
     Deki::PropertyType m_ElementType;  // Array only: the element type
     uint8_t m_EnumSize;                // Enum only: storage size in bytes (1, 2 or 4)
     std::string m_PropertyName;
+    std::string m_DisplayName;  // The Inspector's label, for the description
     nlohmann::json m_OldValue;
     nlohmann::json m_NewValue;
     std::function<void()> m_OnChange;
@@ -320,6 +325,7 @@ public:
           m_ElementType(prop.elementType),
           m_EnumSize(prop.enumSize),
           m_PropertyName(prop.name),
+          m_DisplayName(EditorNaming::GetDisplayName(prop)),
           m_NewValue(newValue),
           m_OnChange(onChange),
           m_Executed(false)
@@ -375,6 +381,7 @@ private:
     Deki::PropertyType m_ElementType;
     uint8_t m_EnumSize;
     std::string m_PropertyName;
+    std::string m_DisplayName;  // The Inspector's label, for the description
     nlohmann::json m_NewValue;
     std::function<void()> m_OnChange;
     bool m_Executed;
@@ -391,6 +398,7 @@ public:
         : m_Component(comp),
           m_PropertyOffset(prop.offset),
           m_PropertyName(prop.name),
+          m_DisplayName(EditorNaming::GetDisplayName(prop)),
           m_NewGuid(newGuid),
           m_NewSource(newSource)
     {
@@ -414,6 +422,7 @@ private:
     Deki::Component* m_Component;
     size_t m_PropertyOffset;
     std::string m_PropertyName;
+    std::string m_DisplayName;  // The Inspector's label, for the description
     std::string m_OldGuid;
     std::string m_OldSource;
     std::string m_NewGuid;

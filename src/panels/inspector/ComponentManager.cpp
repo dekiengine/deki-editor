@@ -21,6 +21,7 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include "imgui.h"
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 #include "../../core/Project.h"
 #include <algorithm>
 #include <cctype>
@@ -301,7 +302,11 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Red);
 
-            std::string label = "Missing: " + missing->typeName;
+            // The id stays the English text, so the header keeps its state
+            // when the language changes.
+            char shown[256];
+            std::snprintf(shown, sizeof(shown), Tr("Missing: %s"), missing->typeName.c_str());
+            std::string label = std::string(shown) + "###Missing: " + missing->typeName;
             bool open = ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 
             ImGui::PopStyleColor(4);
@@ -316,7 +321,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             if (ImGui::BeginPopupContextItem())
             {
                 PushContextMenuItemStyle();
-                if (ImGui::MenuItem("Remove Component"))
+                if (ImGui::MenuItem(TrLabel("Remove Component")))
                 {
                     CommandHistory::Instance().Execute(std::make_unique<RemoveComponentCommand>(obj, comp));
                     ImGui::PopStyleVar();  // context menu ItemSpacing
@@ -333,19 +338,19 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
 
             if (open)
             {
-                ImGui::TextColored(DekiEditor::Palette::Red, "Component type not found");
+                ImGui::TextColored(DekiEditor::Palette::Red, "%s", Tr("Component type not found"));
                 if (!missing->jsonProperties.empty())
                 {
-                    ImGui::TextDisabled("Data preserved (%u properties)", (unsigned)missing->jsonProperties.size());
+                    ImGui::TextDisabled(Tr("Data preserved (%u properties)"), (unsigned)missing->jsonProperties.size());
                 }
                 else if (!missing->rawData.empty())
                 {
-                    ImGui::TextDisabled("Data preserved (%u bytes, %u fields)", (unsigned)missing->rawData.size(),
+                    ImGui::TextDisabled(Tr("Data preserved (%u bytes, %u fields)"), (unsigned)missing->rawData.size(),
                                         missing->dataMapSize);
                 }
                 else
                 {
-                    ImGui::TextDisabled("No data");
+                    ImGui::TextDisabled("%s", Tr("No data"));
                 }
             }
 
@@ -355,6 +360,9 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         }
 
         const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
+        // Its names, tooltips and enum values read as its own package
+        // translates them.
+        const Localization::ScopedPackage packageText(meta ? meta->package : nullptr);
 
         // With a filter typed, a component with no matching property is left
         // out, header and all.
@@ -370,7 +378,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             InspectorUtils::NoteFilterHit();
         }
 
-        const char* compDisplayName = meta ? meta->GetDisplayName() : "Unknown Component";
+        const char* compDisplayName = meta ? meta->GetDisplayName() : TrMark("Unknown Component");
         // A component that passes the filter is forced open while the filter
         // lasts. Its own state was recorded the first frame it was seen (see
         // below) and is put back when the filter clears.
@@ -407,9 +415,8 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             (want->target == AgentIntent::Target::Component || want->target == AgentIntent::Target::Property))
         {
             AgentCursor::Get().Report(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-                                      want->target == AgentIntent::Target::Component
-                                          ? AgentCursor::Precision::Exact
-                                          : AgentCursor::Precision::Section);
+                                      want->target == AgentIntent::Target::Component ? AgentCursor::Precision::Exact
+                                                                                     : AgentCursor::Precision::Section);
             if (AgentCursor::Get().WantsReveal() && !ImGui::IsItemVisible())
             {
                 ImGui::SetScrollHereY(0.5f);
@@ -419,7 +426,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
         // Right-aligned `EDIT ->` action link for package/project components.
         if (meta && IsEditableComponent(m_App, comp->GetType()))
         {
-            if (DekiEditor::SchematicActionLink(("EDIT##comp_edit_" + std::to_string(i)).c_str()))
+            if (DekiEditor::SchematicActionLink((std::string(Tr("EDIT")) + "##comp_edit_" + std::to_string(i)).c_str()))
             {
                 OpenComponentSourceFile(m_App, meta);
             }
@@ -433,7 +440,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             const std::string typeName = meta ? meta->name : "";
             const std::string serializedName = meta ? meta->serializedName : "";
 
-            if (ImGui::MenuItem("Copy Component"))
+            if (ImGui::MenuItem(TrLabel("Copy Component")))
             {
                 clipboard.CopyComponent(comp);
             }
@@ -441,7 +448,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             ImGui::Separator();
 
             bool canPasteValues = clipboard.HasComponentOfType(serializedName);
-            if (ImGui::MenuItem("Paste Component Values", nullptr, false, canPasteValues))
+            if (ImGui::MenuItem(TrLabel("Paste Component Values"), nullptr, false, canPasteValues))
             {
                 auto compDataOpt = clipboard.GetComponentData();
                 if (compDataOpt.has_value())
@@ -471,7 +478,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             }
 
             bool canPasteAsNew = clipboard.HasComponent();
-            if (ImGui::MenuItem("Paste Component as New", nullptr, false, canPasteAsNew))
+            if (ImGui::MenuItem(TrLabel("Paste Component as New"), nullptr, false, canPasteAsNew))
             {
                 auto compDataOpt = clipboard.GetComponentData();
                 if (compDataOpt.has_value())
@@ -512,7 +519,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             ImGui::Separator();
 
             bool protectRemove = (typeName == "PlatformSetupComponent" && IsProtectedComponent(obj));
-            if (ImGui::MenuItem("Remove Component", nullptr, false, !protectRemove))
+            if (ImGui::MenuItem(TrLabel("Remove Component"), nullptr, false, !protectRemove))
             {
                 CommandHistory::Instance().Execute(std::make_unique<RemoveComponentCommand>(obj, comp));
                 ImGui::PopStyleVar();  // context menu ItemSpacing
@@ -551,7 +558,7 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
             }
             else
             {
-                ImGui::TextDisabled("(No properties)");
+                ImGui::TextDisabled("%s", Tr("(No properties)"));
             }
             DekiEditor::SchematicSectionEnd();
         }
@@ -683,17 +690,20 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         // growing vector would move them.
         for (const Deki::ComponentMeta* meta : m_AddCompMetas)
         {
+            // Shown in the editor's language, as the component's package
+            // translates it; the class name stays searchable.
+            const Localization::ScopedPackage packageText(meta->package);
             const char* displayName = meta->GetDisplayName();
             DekiEditor::PickerItem item;
-            item.label = displayName ? displayName : meta->name;
+            item.label = Tr(displayName ? displayName : meta->name);
             item.altName = meta->name;
-            item.category = meta->category;
-            item.description = meta->description;  // shown under the name
+            item.category = meta->category ? Tr(meta->category) : nullptr;
+            item.description = meta->description ? Tr(meta->description) : nullptr;  // shown under the name
             item.disabled = isTaken(meta);
             if (item.disabled)
             {
                 char tip[160];
-                std::snprintf(tip, sizeof(tip), "Only one %s allowed per object", item.label ? item.label : "");
+                std::snprintf(tip, sizeof(tip), Tr("Only one %s allowed per object"), item.label ? item.label : "");
                 m_AddCompTips.push_back(tip);
                 item.disabledTip = m_AddCompTips.back().c_str();
             }
@@ -701,8 +711,8 @@ void ComponentManager::DrawAddComponentMenu(Deki::Object* obj)
         }
 
         const int chosen = DekiEditor::SchematicPicker(
-            "##addcomp", "Add Component", m_AddCompItems.data(), static_cast<int>(m_AddCompItems.size()),
-            m_PopupJustOpened, listMaxH, ICON_TI_PUZZLE, "Search components", "No components available");
+            "##addcomp", Tr("Add Component"), m_AddCompItems.data(), static_cast<int>(m_AddCompItems.size()),
+            m_PopupJustOpened, listMaxH, ICON_TI_PUZZLE, Tr("Search components"), Tr("No components available"));
         m_PopupJustOpened = false;
 
         if (chosen >= 0 && chosen < static_cast<int>(m_AddCompMetas.size()))

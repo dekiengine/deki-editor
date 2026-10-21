@@ -6,6 +6,7 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/CommandHistory.h>
+#include <deki-editor/Localization.h>
 #include "../../core/Commands.h"
 #include "../../services/AgentCursor.h"
 #include "../../services/SafeDispatch.h"
@@ -23,6 +24,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <climits>
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -292,7 +294,7 @@ void PropertyEditorFactory::ShowTooltip(const Deki::PropertyInfo& prop)
 {
     if (prop.tooltip && ImGui::IsItemHovered())
     {
-        DekiEditor::Tooltip("%s", prop.tooltip);
+        DekiEditor::Tooltip("%s", Tr(prop.tooltip));
     }
 }
 
@@ -395,7 +397,7 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
 
         case Deki::PropertyType::Array: DrawArrayProperty(comp, prop, displayName.c_str()); break;
 
-        default: ImGui::TextDisabled("%s: (unsupported type)", displayName.c_str()); break;
+        default: ImGui::TextDisabled(Tr("%s: (unsupported type)"), displayName.c_str()); break;
     }
 
     if (agentRow)
@@ -427,7 +429,7 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
         PushContextMenuItemStyle();
         // The values are looked up on the click; the per-frame work above
         // keeps only the two enable flags.
-        if (ImGui::MenuItem("Revert to Saved", nullptr, false, isUnsaved))
+        if (ImGui::MenuItem(TrLabel("Revert to Saved"), nullptr, false, isUnsaved))
         {
             if (const nlohmann::json* savedValue = InspectorUtils::SavedValueFor(comp, prop))
             {
@@ -436,7 +438,7 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
                 NotifyChanged(comp, prop.name);
             }
         }
-        if (ImGui::MenuItem("Reset to Default", nullptr, false, differsFromDefault))
+        if (ImGui::MenuItem(TrLabel("Reset to Default"), nullptr, false, differsFromDefault))
         {
             if (const nlohmann::json* defaultValue = DefaultValueFor(comp->GetType(), prop))
             {
@@ -589,7 +591,7 @@ void PropertyEditorFactory::DrawStringProperty(Deki::Component* comp, const Deki
     // A property named "text" (TextComponent) gets a multiline box.
     if (strcmp(prop.name, "text") == 0)
     {
-        ImGui::Text("%s", displayName);
+        ImGui::Text("%s", Tr(displayName));
         ShowTooltip(prop);
         if (ImGui::InputTextMultiline("##text_multiline", buf, sizeof(buf), ImVec2(-1, ImGui::GetTextLineHeight() * 4),
                                       ImGuiInputTextFlags_AllowTabInput))
@@ -889,7 +891,7 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
 {
     Deki::ObjectRefBase& ref = *reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + prop.offset);
 
-    std::string refDisplayText = "(None)";
+    std::string refDisplayText = Tr("(None)");
     // A reference whose target is gone gets amber text and border, and
     // "Clear Reference" on the row menu, so it can be seen and fixed in place.
     bool refBroken = false;
@@ -920,7 +922,10 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
         }
         else
         {
-            refDisplayText = ICON_TI_ALERT_TRIANGLE "  Missing object (id " + std::to_string(ref.id) + ")";
+            char missingText[128];
+            snprintf(missingText, sizeof(missingText), Tr(ICON_TI_ALERT_TRIANGLE "  Missing object (id %u)"),
+                     static_cast<unsigned>(ref.id));
+            refDisplayText = missingText;
             refBroken = true;
         }
     }
@@ -1180,7 +1185,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
     {
         bool noneSelected = (currentObjId == 0);
         ImGui::PushID("none");
-        if (drawRow("(None)", std::string(), std::string(), noneSelected))
+        if (drawRow(Tr("(None)"), std::string(), std::string(), noneSelected))
         {
             if (currentObjId != 0)
             {

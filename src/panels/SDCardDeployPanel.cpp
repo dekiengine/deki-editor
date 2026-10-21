@@ -2,6 +2,7 @@
 #include <cfloat>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include "inspector/InspectorUtils.h"
 #include "../services/ExportTarget.h"
 #include "../PanelMaximize.h"
@@ -36,7 +37,7 @@ void SDCardDeployPanel::Draw()
 
     DekiEditor::FirstUseWindowPlacement(400, 300);
 
-    if (!ImGui::Begin("SD CARD DEPLOY###SD Card Deploy", &isOpen,
+    if (!ImGui::Begin(TrLabel("SD CARD DEPLOY###SD Card Deploy"), &isOpen,
                       DekiEditor::MaximizedWindowFlags("SD CARD DEPLOY###SD Card Deploy")))
     {
         ImGui::End();
@@ -71,12 +72,12 @@ void SDCardDeployPanel::Draw()
 
     auto& ui = EditorUI::Get();
     ui.BeginToolbar();
-    const bool deployClicked = ui.ToolbarButton("Deploy to SD Card", canDeploy && !isDeploying);
-    if (ui.ToolbarIconButton("##refreshdrives", ICON_TI_REFRESH, "Look for removable drives again", !isDeploying))
+    const bool deployClicked = ui.ToolbarButton(Tr("Deploy to SD Card"), canDeploy && !isDeploying);
+    if (ui.ToolbarIconButton("##refreshdrives", ICON_TI_REFRESH, Tr("Look for removable drives again"), !isDeploying))
     {
         m_NeedsDriveRefresh = true;
     }
-    if (ui.ToolbarIconButton("##clearoutput", ICON_TI_ERASER, "Clear the output"))
+    if (ui.ToolbarIconButton("##clearoutput", ICON_TI_ERASER, Tr("Clear the output")))
     {
         ClearOutput();
     }
@@ -111,7 +112,7 @@ void SDCardDeployPanel::Draw()
     if (m_RemovableDrives.empty())
     {
         ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(Palette::Amber, "No removable drives found");
+        ImGui::TextColored(Palette::Amber, "%s", Tr("No removable drives found"));
     }
     else
     {

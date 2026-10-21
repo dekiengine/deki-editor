@@ -3,6 +3,7 @@
 #include "FileDialogFilter.h"
 
 #include <deki/LogSystem.h>
+#include <deki-editor/Localization.h>
 
 #include <atomic>
 #include <cstdint>
@@ -84,6 +85,45 @@ std::string WithDefaultExtension(const std::string& path, const char* defaultExt
         ext.erase(0, 1);
     }
     return path + "." + ext;
+}
+
+// The file type names the editor's callers pass, marked so the translation
+// table has them: a filter string cannot be marked where it is written.
+[[maybe_unused]] constexpr const char* kFilterNames[] = { TrMark("Scene Files") };
+
+// The filter with each file type's name in the editor's language. The
+// description is translated and the patterns kept: "Scene Files (*.scene)"
+// uses the entry for "Scene Files".
+std::string TranslateFilter(const char* filter)
+{
+    std::string out;
+    if (!filter)
+    {
+        return out;
+    }
+    const char* p = filter;
+    while (*p)
+    {
+        const std::string name = p;
+        p += name.size() + 1;
+        const std::string spec = p;
+        p += spec.empty() ? 0 : spec.size() + 1;
+
+        const size_t paren = name.find(" (");
+        out += Tr(name.substr(0, paren).c_str());
+        if (paren != std::string::npos)
+        {
+            out += name.substr(paren);
+        }
+        out += '\0';
+        out += spec;
+        out += '\0';
+    }
+    if (!out.empty())
+    {
+        out += '\0';  // the list ends with a double NUL; c_str() adds the second
+    }
+    return out;
 }
 
 #ifdef _WIN32
@@ -304,6 +344,7 @@ void OpenFolder(const char* title, ResultCallback onResult, const char* defaultP
     {
         return;
     }
+    title = Tr(title);
 
 #ifdef _WIN32
     PostResult(id, PickFolderWin32(title, defaultPath));
@@ -323,6 +364,8 @@ void OpenFile(const char* filter, const char* defaultPath, ResultCallback onResu
     {
         return;
     }
+    const std::string shownFilter = TranslateFilter(filter);
+    filter = shownFilter.c_str();
 
 #ifdef _WIN32
     const std::wstring wfilter = WideFilter(filter);
@@ -356,6 +399,8 @@ void SaveFile(const char* filter, const char* defaultExt, const char* defaultPat
     {
         return;
     }
+    const std::string shownFilter = TranslateFilter(filter);
+    filter = shownFilter.c_str();
 
 #ifdef _WIN32
     const std::wstring wfilter = WideFilter(filter);

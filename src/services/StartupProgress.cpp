@@ -1,6 +1,8 @@
 #include "StartupProgress.h"
 #include "ProgressModal.h"
 
+#include <deki-editor/Localization.h>
+
 namespace DekiEditor
 {
 
@@ -36,7 +38,7 @@ void StartupProgress::Update(const char* phase, const char* detail)
         return;
     }
 
-    ProgressModal::Show("Deki Editor", phase, detail);
+    ProgressModal::Show("Deki Editor", Tr(phase), detail);
 }
 
 }  // namespace DekiEditor

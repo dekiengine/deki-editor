@@ -7,10 +7,13 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/EditorUI.h>
 #include <deki-editor/EditorPaths.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/CommandHistory.h>
 #include "core/SceneGuarantee.h"
 #include <algorithm>
 #include <chrono>
+#include <cstdarg>
+#include <cstdio>
 #include <functional>
 #include <ctime>
 #include <deki-editor/EditorApplication.h>
@@ -49,6 +52,7 @@
 // Services
 #include "services/FileDialogs.h"
 #include "core/Commands.h"
+#include "core/commands/CommandText.h"
 #include "core/commands/HistoryGuards.h"
 #include <filesystem>
 #include "services/EngineEditorSetup.h"
@@ -65,6 +69,30 @@
 
 namespace DekiEditor
 {
+
+namespace
+{
+
+/// printf into a std::string, for a translated format whose arguments (names,
+/// paths) have no fixed length.
+std::string FormatText(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    va_list measure;
+    va_copy(measure, args);
+    const int length = std::vsnprintf(nullptr, 0, format, measure);
+    va_end(measure);
+    std::string text(length > 0 ? static_cast<size_t>(length) : 0u, '\0');
+    if (length > 0)
+    {
+        std::vsnprintf(text.data(), text.size() + 1, format, args);
+    }
+    va_end(args);
+    return text;
+}
+
+}  // namespace
 
 EditorApp::EditorApp()
 {
@@ -92,7 +120,7 @@ EditorApp::EditorApp()
     m_PluginLoader = std::make_unique<PluginLoader>();
 
     // Packages load in OpenProject, so each project gets its own set.
-    StartupProgress::Update("Building packages...");
+    StartupProgress::Update(TrMark("Building packages..."));
     m_PackageLoader = std::make_unique<PackageLoader>();
     m_PackageLoader->onPackageUnloading = [](const std::string& package)
     {
@@ -119,7 +147,7 @@ EditorApp::EditorApp()
     // Records play mode output.
     m_FrameCaptureService = std::make_unique<FrameCaptureService>();
 
-    StartupProgress::Update("Creating panels...");
+    StartupProgress::Update(TrMark("Creating panels..."));
     m_HierarchyPanel = std::make_unique<HierarchyPanel>(this);
     m_InspectorPanel = std::make_unique<InspectorPanel>(this);
     m_SceneViewPanel = std::make_unique<SceneViewPanel>(this);
@@ -134,23 +162,23 @@ EditorApp::EditorApp()
     {
         if (!StartupProgress::IsComplete())
         {
-            StartupProgress::Update("Discovering tools...", name.c_str());
+            StartupProgress::Update(TrMark("Discovering tools..."), name.c_str());
         }
     };
 
     // Plugin rebuilds and package reloads.
-    StartupProgress::Update("Setting up hot reload...");
+    StartupProgress::Update(TrMark("Setting up hot reload..."));
     m_HotReloadService =
         std::make_unique<HotReloadService>(m_PluginLoader.get(), m_PackageLoader.get(), m_ConsolePanel.get());
 
     // These keep component state across a reload.
     m_HotReloadService->SetReloadCallbacks([this]() { OnBeforePluginReload(); }, [this]() { OnAfterPluginReload(); });
 
-    StartupProgress::Update("Registering platforms...");
-    StartupProgress::Update("Loading board packs...");
+    StartupProgress::Update(TrMark("Registering platforms..."));
+    StartupProgress::Update(TrMark("Loading board packs..."));
     PlatformRegistry::Instance().LoadPlatformsFromBoardPacks();
 
-    StartupProgress::Update("Creating panels...");
+    StartupProgress::Update(TrMark("Creating panels..."));
     m_BuildPanel = std::make_unique<BuildPanel>(this);
 
     m_NewProjectDialog = std::make_unique<NewProjectDialog>(this);
@@ -214,7 +242,7 @@ EditorApp::EditorApp()
                  m_PlayViewPanel.get(),     m_EditorSettingsPanel.get() };
 
     // Which panels are open, from settings.
-    StartupProgress::Update("Restoring layout...");
+    StartupProgress::Update(TrMark("Restoring layout..."));
     for (IPanel* panel : m_Panels)
     {
         panel->isOpen = panel->PersistOpenState() ? EditorSettings::GetPanelOpen(panel->Id(), panel->OpenByDefault())
@@ -516,24 +544,25 @@ void EditorApp::Update()
 
 void EditorApp::DrawAboutWindow()
 {
-    if (!ImGui::IsPopupOpen("About Deki Editor"))
+    if (!ImGui::IsPopupOpen(TrLabel("About Deki Editor")))
     {
-        ImGui::OpenPopup("About Deki Editor");
+        ImGui::OpenPopup(TrLabel("About Deki Editor"));
     }
-    if (BeginSchematicModal("About Deki Editor", 440.0f))
+    if (BeginSchematicModal(TrLabel("About Deki Editor"), 440.0f))
     {
         const std::string line = EditorVersionLine();
         ImGui::TextWrapped("%s", line.c_str());
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-        ImGui::TextWrapped("Compiler: %s", DEKI_EDITOR_CXX_COMPILER);
+        ImGui::TextWrapped(Tr("Compiler: %s"), DEKI_EDITOR_CXX_COMPILER);
         const std::string logPath = EditorLogFile::GetLogPath();
         if (!logPath.empty())
         {
-            ImGui::TextWrapped("Log: %s", logPath.c_str());
+            ImGui::TextWrapped(Tr("Log: %s"), logPath.c_str());
         }
         ImGui::PopStyleColor();
         // A bug report wants the exact line, not a retyped one.
-        const int button = SchematicDialogButtons({ { "Copy Version" }, { "Close", DialogButton::Primary } });
+        const int button =
+            SchematicDialogButtons({ { TrMark("Copy Version") }, { TrMark("Close"), DialogButton::Primary } });
         if (button == 0)
         {
             ImGui::SetClipboardText(line.c_str());
@@ -876,7 +905,7 @@ void EditorApp::ReportIncompatiblePackages()
         DEKI_LOG_ERROR("Package compatibility: %s", message.c_str());
         if (!m_Headless)
         {
-            DekiEditor::Toast::Push(DekiEditor::Toast::Level::Error, "Package is not compatible with this editor",
+            DekiEditor::Toast::Push(DekiEditor::Toast::Level::Error, Tr("Package is not compatible with this editor"),
                                     message, 15.0f);
             if (m_ConsolePanel)
             {
@@ -952,7 +981,8 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
 
         if (result.action == DekiEditor::PackageIntegrityResult::Action::Failed)
         {
-            DekiEditor::Toast::Push(DekiEditor::Toast::Level::Error, "Package restore failed", result.detail, 12.0f);
+            DekiEditor::Toast::Push(DekiEditor::Toast::Level::Error, Tr("Package restore failed"), result.detail,
+                                    12.0f);
             if (m_ConsolePanel)
             {
                 m_ConsolePanel->LogWarning(result.detail);
@@ -980,7 +1010,28 @@ void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
             message += ".";
         }
 
-        DekiEditor::Toast::Push(DekiEditor::Toast::Level::Warning, "Package restored", message, 12.0f);
+        // The same sentence for the toast, in the editor's language. The
+        // Console and the log keep the English.
+        std::string shown;
+        if (result.restoredRef.empty())
+        {
+            shown = result.stashMessage.empty()
+                        ? FormatText(Tr("'%s' is not marked editable, so it was restored."), dirName.c_str())
+                        : FormatText(Tr("'%s' is not marked editable, so it was restored. Your changes are safe in "
+                                        "git stash (\"%s\")"),
+                                     dirName.c_str(), result.stashMessage.c_str());
+        }
+        else
+        {
+            shown = result.stashMessage.empty()
+                        ? FormatText(Tr("'%s' is not marked editable, so it was restored to %s."), dirName.c_str(),
+                                     result.restoredRef.c_str())
+                        : FormatText(Tr("'%s' is not marked editable, so it was restored to %s. Your changes are safe "
+                                        "in git stash (\"%s\")"),
+                                     dirName.c_str(), result.restoredRef.c_str(), result.stashMessage.c_str());
+        }
+
+        DekiEditor::Toast::Push(DekiEditor::Toast::Level::Warning, Tr("Package restored"), shown, 12.0f);
 
         // The toast gets seen; the Console line can be scrolled back to. Not
         // LogBuildError: pinned entries belong to the compiler and feed the
@@ -1115,7 +1166,7 @@ std::string FormatRecoveryTime(std::time_t when)
 {
     if (when <= 0)
     {
-        return "unknown time";
+        return Tr("unknown time");
     }
 
     char stamp[32] = {};
@@ -1131,29 +1182,28 @@ std::string FormatRecoveryTime(std::time_t when)
     const long long secs = static_cast<long long>(now - when);
 
     // Singular for 1: "1 day ago", not "1 days ago".
-    auto ago = [](long long n, const char* unit)
-    { return std::to_string(n) + " " + unit + (n == 1 ? "" : "s") + " ago"; };
+    auto ago = [](long long n, const char* one, const char* many) { return FormatText(n == 1 ? one : many, n); };
 
     std::string rel;
     if (secs < 0)
     {
-        rel = "in the future";  // clock changed; say so rather than print nonsense
+        rel = Tr("in the future");  // clock changed; say so rather than print nonsense
     }
     else if (secs < 90)
     {
-        rel = "just now";
+        rel = Tr("just now");
     }
     else if (secs < 3600)
     {
-        rel = ago(secs / 60, "minute");
+        rel = ago(secs / 60, Tr("%lld minute ago"), Tr("%lld minutes ago"));
     }
     else if (secs < 86400)
     {
-        rel = ago(secs / 3600, "hour");
+        rel = ago(secs / 3600, Tr("%lld hour ago"), Tr("%lld hours ago"));
     }
     else
     {
-        rel = ago(secs / 86400, "day");
+        rel = ago(secs / 86400, Tr("%lld day ago"), Tr("%lld days ago"));
     }
 
     return std::string(stamp) + "  (" + rel + ")";
@@ -1170,13 +1220,13 @@ void EditorApp::DrawRecoveryDialog()
 
     auto& ui = EditorUI::Get();
 
-    ui.OpenPopup("Recover Scenes");
+    ui.OpenPopup(TrLabel("Recover Scenes"));
 
-    if (BeginSchematicModal("Recover Scenes", 460.0f))
+    if (BeginSchematicModal(TrLabel("Recover Scenes"), 460.0f))
     {
         ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
-        ui.TextWrapped("Saved when the editor crashed. Pick one to restore, "
-                       "or double-click it to see what is inside.");
+        ui.TextWrapped(Tr("Saved when the editor crashed. Pick one to restore, "
+                          "or double-click it to see what is inside."));
         ui.PopStyleColor();
 
         // Set while drawing the list, opened after it: OpenPopup inside the
@@ -1212,13 +1262,15 @@ void EditorApp::DrawRecoveryDialog()
                 char subtitle[192];
                 if (rec.objectCount < 0)
                 {
-                    snprintf(subtitle, sizeof(subtitle), "%s  \xc2\xb7  unreadable  \xc2\xb7  %llu bytes",
+                    snprintf(subtitle, sizeof(subtitle), Tr("%s  ·  unreadable  ·  %llu bytes"),
                              FormatRecoveryTime(rec.savedAt).c_str(), static_cast<unsigned long long>(rec.fileSize));
                 }
                 else
                 {
-                    snprintf(subtitle, sizeof(subtitle), "%s  \xc2\xb7  %d object%s  \xc2\xb7  %llu bytes",
-                             FormatRecoveryTime(rec.savedAt).c_str(), rec.objectCount, rec.objectCount == 1 ? "" : "s",
+                    snprintf(subtitle, sizeof(subtitle),
+                             rec.objectCount == 1 ? Tr("%s  ·  %d object  ·  %llu bytes")
+                                                  : Tr("%s  ·  %d objects  ·  %llu bytes"),
+                             FormatRecoveryTime(rec.savedAt).c_str(), rec.objectCount,
                              static_cast<unsigned long long>(rec.fileSize));
                 }
 
@@ -1246,7 +1298,7 @@ void EditorApp::DrawRecoveryDialog()
 
         if (openPreview)
         {
-            ui.OpenPopup("Recovered contents");
+            ui.OpenPopup(TrLabel("Recovered contents"));
         }
         DrawRecoveryPreview();
 
@@ -1259,7 +1311,7 @@ void EditorApp::DrawRecoveryDialog()
             ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
             if (sel.originalPath.empty())
             {
-                ui.TextWrapped("Restores as untitled \xe2\x80\x94 Save will ask where to put it.");
+                ui.TextWrapped(Tr("Restores as untitled — Save will ask where to put it."));
             }
             else
             {
@@ -1292,18 +1344,18 @@ void EditorApp::DrawRecoveryDialog()
                         dest.erase(dest.begin());
                     }
                 }
-                ui.TextWrapped(("Restores over " + dest).c_str());
+                ui.TextWrapped(FormatText(Tr("Restores over %s"), dest.c_str()).c_str());
             }
             ui.PopStyleColor();
         }
 
         // Later only dismisses: the files stay on disk and are offered again
         // next time the project opens. Discard All asks first.
-        switch (SchematicDialogButtons({ { "Discard All", DialogButton::Danger },
-                                         { "Later" },
-                                         { "Restore", DialogButton::Primary, !m_Recovery.Entries().empty() } }))
+        switch (SchematicDialogButtons({ { TrMark("Discard All"), DialogButton::Danger },
+                                         { TrMark("Later") },
+                                         { TrMark("Restore"), DialogButton::Primary, !m_Recovery.Entries().empty() } }))
         {
-            case 0: ui.OpenPopup("Discard recovered scenes?"); break;
+            case 0: ui.OpenPopup(TrLabel("Discard recovered scenes?")); break;
             case 1:
                 m_Recovery.SetDialogRequested(false);
                 ui.CloseCurrentPopup();
@@ -1322,7 +1374,7 @@ void EditorApp::DrawRecoveryPreview()
 {
     auto& ui = EditorUI::Get();
 
-    if (BeginSchematicModal("Recovered contents", 440.0f))
+    if (BeginSchematicModal(TrLabel("Recovered contents"), 440.0f))
     {
         ui.Text(m_Recovery.PreviewName().c_str());
 
@@ -1335,8 +1387,8 @@ void EditorApp::DrawRecoveryPreview()
                 // Not "no objects": the file could not be read at all, which is
                 // worth saying plainly before someone restores it.
                 ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Amber));
-                ui.TextWrapped("Could not read this scene. Restoring may still work, "
-                               "but there is nothing to preview.");
+                ui.TextWrapped(Tr("Could not read this scene. Restoring may still work, "
+                                  "but there is nothing to preview."));
                 ui.PopStyleColor();
             }
             else
@@ -1369,7 +1421,7 @@ void EditorApp::DrawRecoveryPreview()
         }
         ui.EndChild();
 
-        if (SchematicDialogButtons({ { "Close" } }) == 0)
+        if (SchematicDialogButtons({ { TrMark("Close") } }) == 0)
         {
             ui.CloseCurrentPopup();
         }
@@ -1476,20 +1528,23 @@ void EditorApp::DrawRecoveryDiscardConfirm()
     namespace fs = std::filesystem;
     auto& ui = EditorUI::Get();
 
-    if (BeginSchematicModal("Discard recovered scenes?", 380.0f))
+    if (BeginSchematicModal(TrLabel("Discard recovered scenes?"), 380.0f))
     {
         // This deletes the only copy of unsaved work: confirm, with a count.
         char msg[192];
-        snprintf(msg, sizeof(msg), "Permanently delete %zu recovered scene%s?", m_Recovery.Entries().size(),
-                 m_Recovery.Entries().size() == 1 ? "" : "s");
+        const size_t count = m_Recovery.Entries().size();
+        snprintf(msg, sizeof(msg),
+                 count == 1 ? Tr("Permanently delete %zu recovered scene?")
+                            : Tr("Permanently delete %zu recovered scenes?"),
+                 count);
         ui.Text(msg);
 
         ui.Spacing();
         ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
-        ui.TextWrapped("This is the only copy of that work, and it cannot be undone.");
+        ui.TextWrapped(Tr("This is the only copy of that work, and it cannot be undone."));
         ui.PopStyleColor();
 
-        switch (SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } }))
+        switch (SchematicDialogButtons({ { TrMark("Cancel") }, { TrMark("Delete"), DialogButton::Danger } }))
         {
             case 0: ui.CloseCurrentPopup(); break;
             case 1:
@@ -1508,7 +1563,7 @@ void EditorApp::DrawMaintenanceConfirm()
     static bool s_Open = false;
     if (m_PendingMaintenance && !s_Open)
     {
-        ImGui::OpenPopup("Confirm Maintenance");
+        ImGui::OpenPopup(TrLabel("Confirm Maintenance"));
         s_Open = true;
     }
     if (!s_Open)
@@ -1516,23 +1571,23 @@ void EditorApp::DrawMaintenanceConfirm()
         return;
     }
 
-    if (BeginSchematicModal("Confirm Maintenance", 480.0f))
+    if (BeginSchematicModal(TrLabel("Confirm Maintenance"), 480.0f))
     {
         const MaintenanceAction action = *m_PendingMaintenance;
         const MaintenanceInfo info = ProjectMaintenance::Describe(action);
         const std::string projectPath = m_Project ? m_Project->GetPath() : std::string{};
 
-        ImGui::Text("%s", info.label);
+        ImGui::Text("%s", Tr(info.label));
         ImGui::Spacing();
-        ImGui::TextWrapped("%s", info.cost);
+        ImGui::TextWrapped("%s", Tr(info.cost));
         ImGui::Spacing();
-        ImGui::TextColored(Palette::Dim, "This deletes:");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("This deletes:"));
         for (const std::string& dir : ProjectMaintenance::Targets(action, projectPath))
         {
             ImGui::BulletText("%s", dir.c_str());
         }
         bool close = false;
-        const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
+        const int button = SchematicDialogButtons({ { TrMark("Cancel") }, { TrMark("Delete"), DialogButton::Danger } });
         if (button == 0)
         {
             close = true;
@@ -1574,14 +1629,14 @@ void EditorApp::DrawUnsavedChangesDialog()
 {
     if (m_UnsavedPrompt.DialogVisible())
     {
-        ImGui::OpenPopup("Unsaved Changes");
+        ImGui::OpenPopup(TrLabel("Unsaved Changes"));
         m_UnsavedPrompt.SetDialogVisible(false);
     }
 
     // Open before and closed after: Escape dismissed it. That is a Cancel, so
     // the pending action (a quit, a scene switch) must not stay waiting.
-    const bool wasOpen = ImGui::IsPopupOpen("Unsaved Changes");
-    const bool open = BeginSchematicModal("Unsaved Changes", 420.0f);
+    const bool wasOpen = ImGui::IsPopupOpen(TrLabel("Unsaved Changes"));
+    const bool open = BeginSchematicModal(TrLabel("Unsaved Changes"), 420.0f);
     if (!open && wasOpen)
     {
         m_UnsavedPrompt.Cancel();
@@ -1654,15 +1709,15 @@ void EditorApp::DrawUnsavedChangesDialog()
             return;
         }
 
-        ImGui::TextWrapped("Save the changes to the current scene?");
-        ImGui::TextColored(Palette::Dim, "Not saved, they are lost.");
+        ImGui::TextWrapped("%s", Tr("Save the changes to the current scene?"));
+        ImGui::TextColored(Palette::Dim, "%s", Tr("Not saved, they are lost."));
 
         // While the file dialog is up, the prompt stays on screen but disabled:
         // a second click would stack another dialog behind the first.
         const bool ready = !FileDialogs::IsPending();
-        const int button = SchematicDialogButtons({ { "Cancel", DialogButton::Normal, ready },
-                                                    { "Don't Save", DialogButton::Danger, ready },
-                                                    { "Save", DialogButton::Primary, ready } });
+        const int button = SchematicDialogButtons({ { TrMark("Cancel"), DialogButton::Normal, ready },
+                                                    { TrMark("Don't Save"), DialogButton::Danger, ready },
+                                                    { TrMark("Save"), DialogButton::Primary, ready } });
         if (button == 2)
         {
             // No path yet: ask for one.
@@ -1849,7 +1904,7 @@ bool EditorApp::DeleteObjects(const std::vector<Deki::Object*>& objects)
     }
     ClearSelection();
     CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-        "Delete " + std::to_string(targets.size()) + " objects", std::move(commands)));
+        CommandText::Format(Tr("Delete %zu objects"), targets.size()), std::move(commands)));
     return true;
 }
 
@@ -1892,7 +1947,7 @@ void EditorApp::DuplicateObjects(const std::vector<Deki::Object*>& objects)
     else
     {
         CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-            "Duplicate " + std::to_string(sources.size()) + " objects", std::move(commands)));
+            CommandText::Format(Tr("Duplicate %zu objects"), sources.size()), std::move(commands)));
     }
 }
 

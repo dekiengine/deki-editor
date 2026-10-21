@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/EditorNaming.h>
+#include <deki-editor/Localization.h>
 #include <nlohmann/json.hpp>
 
 // Forward declarations
@@ -265,9 +266,12 @@ inline float PropertyLabelWidth(float labelStartX)
 /// keeps the inherited size, not the size the font was loaded at.
 /// Fonts::CssPx converts 13 CSS px to this font's FreeType size; DPI is
 /// applied at draw time (FontSizeBase * FontScaleDpi).
-inline void BeginPropertyRow(const char* displayName)
+inline void BeginPropertyRow(const char* englishName)
 {
-    const char* tooltip = g_NextRowTooltip;
+    // The row's id stays the English name; the label and tooltip are shown
+    // in the editor's language.
+    const char* displayName = ::DekiEditor::Tr(englishName);
+    const char* tooltip = g_NextRowTooltip ? ::DekiEditor::Tr(g_NextRowTooltip) : nullptr;
     const bool unsaved = g_NextRowUnsaved;
     g_NextRowTooltip = nullptr;
     g_NextRowUnsaved = false;
@@ -303,7 +307,7 @@ inline void BeginPropertyRow(const char* displayName)
     // the button gets the hover, drag and click. The id includes the display
     // name because not every caller wraps its rows in an ID scope.
     const float labelAvail = labelWidth - ImGui::GetStyle().ItemInnerSpacing.x;
-    ImGui::PushID(displayName);
+    ImGui::PushID(englishName);
     ImGui::InvisibleButton("##rowlabel", ImVec2(labelAvail > 1.0f ? labelAvail : 1.0f, rowH),
                            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
     const bool labelHovered = ImGui::IsItemHovered();

@@ -1,4 +1,5 @@
 #include "InspectorPanel.h"
+#include "core/commands/CommandText.h"
 #include "core/commands/HistoryGuards.h"
 #include "../PanelMaximize.h"
 #include "inspector/InspectorUtils.h"
@@ -23,6 +24,7 @@
 #include "AssetBrowserPanel.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/CommandHistory.h>
+#include <deki-editor/Localization.h>
 #include "../core/Commands.h"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -127,7 +129,7 @@ std::string FormatOverrideValue(const nlohmann::json& value, const Deki::Propert
                     }
                     if (src.empty())
                     {
-                        return "<none>";
+                        return Tr("<none>");
                     }
                     if (::Deki::Scene::s_GuidToPathResolver)
                     {
@@ -266,7 +268,7 @@ void InspectorPanel::Draw()
     // multi-select) are never quietly filtered by a box they do not show.
     InspectorUtils::SetPropertyFilter("");
 
-    ImGui::Begin("INSPECTOR###Inspector", &isOpen, DekiEditor::MaximizedWindowFlags("INSPECTOR###Inspector"));
+    ImGui::Begin(TrLabel("INSPECTOR###Inspector"), &isOpen, DekiEditor::MaximizedWindowFlags("INSPECTOR###Inspector"));
 
     // Under-tab toolbar. PIN freezes the inspector on its current target by
     // driving the lock-to-selection state used throughout this function.
@@ -405,7 +407,7 @@ void InspectorPanel::Draw()
                 ImGui::PushFont(g_FontUISmall);
             }
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim2);
-            ImGui::TextUnformatted("Part of scene instance");
+            ImGui::TextUnformatted(Tr("Part of scene instance"));
             ImGui::PopStyleColor();
             if (g_FontUISmall)
             {
@@ -534,7 +536,7 @@ void InspectorPanel::Draw()
     // Show play mode indicator
     if (m_App->IsPlaying() || m_App->IsPaused())
     {
-        ImGui::TextColored(DekiEditor::Palette::Amber, "Play Mode - Changes won't persist");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "%s", Tr("Play Mode - Changes won't persist"));
         ImGui::Separator();
     }
 
@@ -557,7 +559,7 @@ void InspectorPanel::Draw()
         }
 
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Accent);
-        ImGui::Text("Scene Linked Instance -");
+        ImGui::TextUnformatted(Tr("Scene Linked Instance -"));
         ImGui::PopStyleColor();
 
         // Clickable scene name that reveals in asset browser
@@ -601,7 +603,7 @@ void InspectorPanel::Draw()
 
             if (m_OverrideCacheHasOverrides)
             {
-                if (ImGui::SmallButton("Apply"))
+                if (ImGui::SmallButton(TrLabel("Apply")))
                 {
                     // Stash the pending Apply and open a confirmation modal
                     // showing exactly what will be written to the source
@@ -695,7 +697,7 @@ void InspectorPanel::Draw()
                     }
                     if (sourceName.empty())
                     {
-                        sourceName = "source scene";
+                        sourceName = Tr("source scene");
                     }
 
                     m_ApplyPopupSourceName = std::move(sourceName);
@@ -705,7 +707,7 @@ void InspectorPanel::Draw()
                     m_ApplyPopupOpen = true;
                 }
                 ImGui::SameLine();
-                if (ImGui::SmallButton("Revert"))
+                if (ImGui::SmallButton(TrLabel("Revert")))
                 {
                     CommandHistory::Instance().Execute(std::make_unique<RevertInstanceOverridesCommand>(scene, obj));
                 }
@@ -724,7 +726,14 @@ void InspectorPanel::Draw()
         }
 
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
-        ImGui::Text("Part of Scene Instance%s", instanceRoot ? (": " + instanceRoot->GetName()).c_str() : "");
+        if (instanceRoot)
+        {
+            ImGui::Text(Tr("Part of Scene Instance: %s"), instanceRoot->GetName().c_str());
+        }
+        else
+        {
+            ImGui::TextUnformatted(Tr("Part of Scene Instance"));
+        }
         ImGui::PopStyleColor();
         ImGui::Separator();
     }
@@ -764,7 +773,7 @@ void InspectorPanel::Draw()
     ImGui::SetCursorPosX(InspectorUtils::SectionAlignedCursorX());
     DekiEditor::SearchField("##inspector_filter", m_PropertyFilter, sizeof(m_PropertyFilter),
                             m_App->Dpi(Metrics::kInspectorRightPad), /*bottomBorder*/ true, nullptr, nullptr, nullptr,
-                            nullptr, "Filter properties and components");
+                            nullptr, TrMark("Filter properties and components"));
     InspectorUtils::SetPropertyFilter(m_PropertyFilter);
     ImGui::PopStyleVar();
 
@@ -784,7 +793,7 @@ void InspectorPanel::Draw()
     {
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
-        ImGui::TextWrapped("Nothing on this object matches \"%s\".", InspectorUtils::PropertyFilter().c_str());
+        ImGui::TextWrapped(Tr("Nothing on this object matches \"%s\"."), InspectorUtils::PropertyFilter().c_str());
         ImGui::PopStyleColor();
     }
 
@@ -797,7 +806,7 @@ void InspectorPanel::Draw()
         // cursor check), so GetItemRect* afterwards describes that item, not
         // the button.
         const ImVec2 addTop = ImGui::GetCursorScreenPos();
-        const bool addClicked = DekiEditor::SchematicAddButton(ICON_TI_PLUS "  Add Component");
+        const bool addClicked = DekiEditor::SchematicAddButton(Tr(ICON_TI_PLUS "  Add Component"));
         const float addBottom = ImGui::GetCursorScreenPos().y;
 
         // Give the picker its anchor every frame, not only on the click, so it
@@ -848,23 +857,24 @@ void InspectorPanel::DrawApplyConfirmPopup()
 {
     if (m_ApplyPopupOpen)
     {
-        ImGui::OpenPopup("Apply to Scene");
+        ImGui::OpenPopup(TrLabel("Apply to Scene"));
         m_ApplyPopupOpen = false;
     }
 
-    if (DekiEditor::BeginSchematicModal("Apply to Scene", 760.0f))
+    if (DekiEditor::BeginSchematicModal(TrLabel("Apply to Scene"), 760.0f))
     {
         const size_t total = m_ApplyPopupEntries.size();
         const size_t chosen = static_cast<size_t>(std::count_if(m_ApplyPopupEntries.begin(), m_ApplyPopupEntries.end(),
                                                                 [](const ApplyPopupEntry& e) { return e.selected; }));
 
-        ImGui::Text("Applying %zu of %zu change%s to", chosen, total, total == 1 ? "" : "s");
+        ImGui::Text(total == 1 ? Tr("Applying %zu of %zu change to") : Tr("Applying %zu of %zu changes to"), chosen,
+                    total);
         ImGui::SameLine();
         ImGui::TextColored(DekiEditor::Palette::Accent, "%s", m_ApplyPopupSourceName.c_str());
-        ImGui::TextColored(DekiEditor::Palette::Dim, "Other scenes that use this scene are refreshed too.");
+        ImGui::TextColored(DekiEditor::Palette::Dim, "%s", Tr("Other scenes that use this scene are refreshed too."));
 
         // Select all / Deselect all affordances above the list.
-        if (ImGui::SmallButton(ICON_TI_LIST_CHECK "  Select all"))
+        if (ImGui::SmallButton(TrLabel(ICON_TI_LIST_CHECK "  Select all")))
         {
             for (auto& e : m_ApplyPopupEntries)
             {
@@ -872,7 +882,7 @@ void InspectorPanel::DrawApplyConfirmPopup()
             }
         }
         ImGui::SameLine();
-        if (ImGui::SmallButton(ICON_TI_LIST_DETAILS "  Deselect all"))
+        if (ImGui::SmallButton(TrLabel(ICON_TI_LIST_DETAILS "  Deselect all")))
         {
             for (auto& e : m_ApplyPopupEntries)
             {
@@ -885,7 +895,7 @@ void InspectorPanel::DrawApplyConfirmPopup()
 
         if (m_ApplyPopupEntries.empty())
         {
-            ImGui::TextDisabled("(no overrides to apply)");
+            ImGui::TextDisabled("%s", Tr("(no overrides to apply)"));
         }
         else
         {
@@ -908,7 +918,7 @@ void InspectorPanel::DrawApplyConfirmPopup()
                     {
                         ImGui::Spacing();
                     }
-                    const char* pathText = e.path.empty() ? "Root" : e.path.c_str();
+                    const char* pathText = e.path.empty() ? Tr("Root") : e.path.c_str();
                     ImGui::TextColored(pathColor, ICON_TI_BOX "  %s", pathText);
                     prevPath = e.path;
                     prevComp = "<sentinel>\x01";
@@ -1058,13 +1068,13 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             PushContextMenuItemStyle();
             auto& clipboard = ClipboardService::Instance();
 
-            if (ImGui::MenuItem("Copy Transform"))
+            if (ImGui::MenuItem(TrLabel("Copy Transform")))
             {
                 clipboard.CopyTransform(obj);
             }
 
             bool canPaste = clipboard.HasTransform();
-            if (ImGui::MenuItem("Paste Transform", nullptr, false, canPaste))
+            if (ImGui::MenuItem(TrLabel("Paste Transform"), nullptr, false, canPaste))
             {
                 auto transformOpt = clipboard.GetTransformData();
                 if (transformOpt.has_value())
@@ -1092,7 +1102,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
         // also marks the transform dirty so children follow), onStartChange/
         // onEndChange bracket the live edit. Unit::Distance handles px/m + snapping,
         // Unit::Angle handles degrees<->radians.
-        const char* posLabel = obj->GetParent() ? "Local Position" : "Position";
+        const char* posLabel = obj->GetParent() ? TrMark("Local Position") : TrMark("Position");
         ImVec2 agentRowStart = ImGui::GetCursorScreenPos();
         {
             EditorUI::VecCallbacks cb;
@@ -1122,7 +1132,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             cb.onUndo = [obj](float v) { obj->SetRotation(v); };
             cb.onRedo = [obj](float v) { obj->SetRotation(v); };
             cb.onEndChange = [this](float, float) { EndLiveEdit(); };
-            EditorUI::Get().FloatField("Rotation", obj->GetLocalRotation(), EditorUI::Unit::Angle, cb);
+            EditorUI::Get().FloatField(TrMark("Rotation"), obj->GetLocalRotation(), EditorUI::Unit::Angle, cb);
         }
         reportAgentRow("rotation", agentRowStart);
         agentRowStart = ImGui::GetCursorScreenPos();
@@ -1133,7 +1143,8 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
             cb.onUndo = [obj](const float* v) { obj->SetScale(v[0], v[1]); };
             cb.onRedo = [obj](const float* v) { obj->SetScale(v[0], v[1]); };
             cb.onEndChange = [this](const float*, const float*) { EndLiveEdit(); };
-            EditorUI::Get().Vector2Field("Scale", obj->GetScaleX(), obj->GetScaleY(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
+            EditorUI::Get().Vector2Field(TrMark("Scale"), obj->GetScaleX(), obj->GetScaleY(), 0.01f, 0.01f, 10.0f,
+                                         "%.3f", cb);
         }
         reportAgentRow("scale", agentRowStart);
 #ifdef DEKI_TRANSFORM_3D
@@ -1157,7 +1168,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
                 cb.onUndo = [obj](float v) { obj->SetRotationX(v); };
                 cb.onRedo = [obj](float v) { obj->SetRotationX(v); };
                 cb.onEndChange = [this](float, float) { EndLiveEdit(); };
-                EditorUI::Get().FloatField("Rotation X", obj->GetRotationX(), EditorUI::Unit::Angle, cb);
+                EditorUI::Get().FloatField(TrMark("Rotation X"), obj->GetRotationX(), EditorUI::Unit::Angle, cb);
             }
             {
                 EditorUI::FloatCallbacks cb;
@@ -1166,7 +1177,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
                 cb.onUndo = [obj](float v) { obj->SetRotationY(v); };
                 cb.onRedo = [obj](float v) { obj->SetRotationY(v); };
                 cb.onEndChange = [this](float, float) { EndLiveEdit(); };
-                EditorUI::Get().FloatField("Rotation Y", obj->GetRotationY(), EditorUI::Unit::Angle, cb);
+                EditorUI::Get().FloatField(TrMark("Rotation Y"), obj->GetRotationY(), EditorUI::Unit::Angle, cb);
             }
             {
                 EditorUI::FloatCallbacks cb;
@@ -1175,7 +1186,7 @@ void InspectorPanel::DrawTransform(Deki::Object* obj)
                 cb.onUndo = [obj](float v) { obj->SetScaleZ(v); };
                 cb.onRedo = [obj](float v) { obj->SetScaleZ(v); };
                 cb.onEndChange = [this](float, float) { EndLiveEdit(); };
-                EditorUI::Get().FloatField("Scale Z", obj->GetScaleZ(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
+                EditorUI::Get().FloatField(TrMark("Scale Z"), obj->GetScaleZ(), 0.01f, 0.01f, 10.0f, "%.3f", cb);
             }
         }
 #endif
@@ -1187,7 +1198,7 @@ void InspectorPanel::DrawComponent(Deki::Component* comp, const Deki::ComponentM
 {
     if (!meta)
     {
-        ImGui::TextDisabled("(No properties)");
+        ImGui::TextDisabled("%s", Tr("(No properties)"));
         return;
     }
 
@@ -1409,7 +1420,7 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
             ImGui::PushFont(display, DekiEditor::Fonts::CssPx(display, 20.0f));
         }
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
-        ImGui::Text("%zu objects", objects.size());
+        ImGui::Text(Tr("%zu objects"), objects.size());
         ImGui::PopStyleColor();
         if (display)
         {
@@ -1424,7 +1435,9 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
         }
         if (objects.size() > shown)
         {
-            names += " and " + std::to_string(objects.size() - shown) + " more";
+            char more[1024];
+            snprintf(more, sizeof(more), Tr("%s and %zu more"), names.c_str(), objects.size() - shown);
+            names = more;
         }
         ImGui::Dummy(ImVec2(0, m_App->Dpi(4.0f)));
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
@@ -1442,7 +1455,7 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
     // Play mode indicator
     if (m_App->IsPlaying() || m_App->IsPaused())
     {
-        ImGui::TextColored(DekiEditor::Palette::Amber, "Play Mode - Changes won't persist");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "%s", Tr("Play Mode - Changes won't persist"));
         ImGui::Separator();
     }
 
@@ -1456,13 +1469,13 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
             PushContextMenuItemStyle();
             auto& clipboard = ClipboardService::Instance();
 
-            if (ImGui::MenuItem("Copy Transform"))
+            if (ImGui::MenuItem(TrLabel("Copy Transform")))
             {
                 clipboard.CopyTransform(objects[0]);
             }
 
             bool canPaste = clipboard.HasTransform();
-            if (ImGui::MenuItem("Paste Transform", nullptr, false, canPaste))
+            if (ImGui::MenuItem(TrLabel("Paste Transform"), nullptr, false, canPaste))
             {
                 auto transformOpt = clipboard.GetTransformData();
                 if (transformOpt.has_value())
@@ -1487,7 +1500,7 @@ void InspectorPanel::DrawMultiObjectInspector(const std::vector<Deki::Object*>& 
 
     if (commonComponents.empty())
     {
-        ImGui::TextDisabled("No common components");
+        ImGui::TextDisabled("%s", Tr("No common components"));
         return;
     }
 
@@ -1543,9 +1556,9 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
         float speed;
     };
     const Row rows[3] = {
-        { objects[0]->GetParent() ? "Local Position" : "Position", 2, ppm, "%.0f px", 1.0f },
-        { "Rotation", 1, kRadToDeg, "%.2f\xc2\xb0", 0.5f },
-        { "Scale", 2, 1.0f, "%.3f", 0.01f },
+        { objects[0]->GetParent() ? TrMark("Local Position") : TrMark("Position"), 2, ppm, "%.0f px", 1.0f },
+        { TrMark("Rotation"), 1, kRadToDeg, "%.2f\xc2\xb0", 0.5f },
+        { TrMark("Scale"), 2, 1.0f, "%.3f", 0.01f },
     };
 
     bool anyAnchored = false;
@@ -1627,7 +1640,7 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
                     if (!steps.empty())
                     {
                         CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
-                            std::string(r.label) + " (" + std::to_string(objects.size()) + " objects)",
+                            CommandText::Format(Tr("%s (%zu objects)"), Tr(r.label), objects.size()),
                             std::move(steps)));
                     }
                 }
@@ -1728,7 +1741,7 @@ void InspectorPanel::DrawMultiComponentSection(const ComponentGroup& group)
     // Right-aligned `EDIT ->` action link for package/project components.
     if (group.meta && !group.components.empty() && ComponentManager::IsEditableComponent(m_App, group.meta->typeId))
     {
-        if (SchematicActionLink(("EDIT##multi_comp_edit_" + group.typeName).c_str()))
+        if (SchematicActionLink((std::string(Tr("EDIT")) + "##multi_comp_edit_" + group.typeName).c_str()))
         {
             ComponentManager::OpenComponentSourceFile(m_App, group.meta);
         }

@@ -23,6 +23,7 @@
 #include <deki-editor/EditorAssets.h>
 #include "panels/inspector/InspectorUtils.h"
 #include <deki-editor/EditorSettings.h>
+#include <deki-editor/Localization.h>
 #include "services/ProjectRegistry.h"
 #include "services/AssetExporter.h"
 #include "services/StartupProgress.h"
@@ -106,7 +107,7 @@ bool EditorApp::OpenProject(const std::string& path)
         DEKI_LOG_ERROR("[EditorApp] Could not open project '%s': %s", path.c_str(), m_OpenProjectError.c_str());
         if (!m_Headless)
         {
-            Toast::Push(Toast::Level::Error, "Could not open project", m_OpenProjectError);
+            Toast::Push(Toast::Level::Error, Tr("Could not open project"), m_OpenProjectError);
         }
         return false;
     }
@@ -122,7 +123,7 @@ bool EditorApp::OpenProject(const std::string& path)
         m_ConsolePanel->ClearBuildErrors();
     }
 
-    StartupProgress::Update("Loading project...");
+    StartupProgress::Update(TrMark("Loading project..."));
     m_Project = std::make_unique<Project>();
     if (!m_Project->Load(path))
     {
@@ -202,7 +203,7 @@ bool EditorApp::OpenProject(const std::string& path)
 
         if (DekiEditor::HasMissingPackages(path, packageMgr))
         {
-            StartupProgress::Update("Installing packages...");
+            StartupProgress::Update(TrMark("Installing packages..."));
             const auto restored = DekiEditor::RestoreMissingPackages(
                 path, packageMgr,
                 [](const std::string& id, int done, int total)
@@ -211,7 +212,7 @@ bool EditorApp::OpenProject(const std::string& path)
                     {
                         char label[128];
                         snprintf(label, sizeof(label), "%s  (%d/%d)", id.c_str(), done + 1, total);
-                        StartupProgress::Update("Installing packages...", label);
+                        StartupProgress::Update(TrMark("Installing packages..."), label);
                     }
                 });
 
@@ -250,7 +251,7 @@ bool EditorApp::OpenProject(const std::string& path)
         // dependencies a newer version adds.
         if (!DekiEditor::FindPinMismatches(path, packageMgr).empty())
         {
-            StartupProgress::Update("Updating packages...");
+            StartupProgress::Update(TrMark("Updating packages..."));
             DekiEditor::WarmRegistryIndex(packageMgr);
         }
         const auto pins = DekiEditor::ApplyPinnedVersions(path, packageMgr);
@@ -279,7 +280,7 @@ bool EditorApp::OpenProject(const std::string& path)
     // substitute.
     {
         ScopedTimer tPlatforms("OpenProject platforms");
-        StartupProgress::Update("Checking platforms...");
+        StartupProgress::Update(TrMark("Checking platforms..."));
         const std::string activePlatform = m_Project->GetActivePlatformId();
         ReloadProjectPlatforms(path);
 
@@ -320,7 +321,7 @@ bool EditorApp::OpenProject(const std::string& path)
         std::vector<Prerequisite> prereqs;
         {
             ScopedTimer tPrereq("OpenProject CheckPrerequisites");
-            StartupProgress::Update("Checking build tools...");
+            StartupProgress::Update(TrMark("Checking build tools..."));
             prereqs = CheckPrerequisites();
         }
         if (!PrerequisitesSatisfied(prereqs))
@@ -346,7 +347,7 @@ bool EditorApp::OpenProject(const std::string& path)
                 DEKI_LOG_WARNING("%s", line.c_str());
             }
 
-            StartupProgress::Update("Building project...");
+            StartupProgress::Update(TrMark("Building project..."));
             ScopedTimer tFirst("OpenProject EnsureFirstBuild");
             m_HotReloadService->EnsureFirstBuild(path);
         }
@@ -385,12 +386,12 @@ bool EditorApp::OpenProject(const std::string& path)
 
     // Load engine packages with per-project shadow copies
     // Must happen before plugin loading - plugins link against package import libs
-    StartupProgress::Update("Loading packages...");
+    StartupProgress::Update(TrMark("Loading packages..."));
     m_PackageLoader->onPackageLoading = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
         {
-            StartupProgress::Update("Loading packages...", name.c_str());
+            StartupProgress::Update(TrMark("Loading packages..."), name.c_str());
         }
     };
     {
@@ -467,6 +468,19 @@ bool EditorApp::OpenProject(const std::string& path)
         // runs per instance rather than once per open.)
         RegisterBuildersFromPackages(*m_PackageLoader);
         ::PackageManager::RefreshPluginInstallers();
+
+        // Each package's own translations: its component and property names
+        // and its editor's text, in <package>/editor/lang/<language>.json.
+        std::error_code langEc;
+        for (const auto& package :
+             std::filesystem::directory_iterator(std::filesystem::path(path) / "packages", langEc))
+        {
+            const std::filesystem::path lang = package.path() / "editor" / "lang";
+            if (std::filesystem::is_directory(lang, langEc))
+            {
+                Localization::AddTableDirectory(lang.string(), package.path().filename().string());
+            }
+        }
     }
 
     // Re-apply settings now that package-owned sections exist.
@@ -502,19 +516,19 @@ bool EditorApp::OpenProject(const std::string& path)
     // legitimately does not need.
     if (!m_Headless)
     {
-        StartupProgress::Update("Discovering tools...");
+        StartupProgress::Update(TrMark("Discovering tools..."));
         ScopedTimer tTools("OpenProject ToolHost::DiscoverTools");
         m_ToolHost->DiscoverTools();
     }
 
     // Load existing plugins from bin/ before asset import
     // This ensures plugin components are registered before CompileSceneFile() deserializes scenes
-    StartupProgress::Update("Loading plugins...");
+    StartupProgress::Update(TrMark("Loading plugins..."));
     m_PluginLoader->onPluginLoading = [](const std::string& name)
     {
         if (!StartupProgress::IsComplete())
         {
-            StartupProgress::Update("Loading plugins...", name.c_str());
+            StartupProgress::Update(TrMark("Loading plugins..."), name.c_str());
         }
     };
     if (std::filesystem::exists(binPath))
@@ -543,7 +557,7 @@ bool EditorApp::OpenProject(const std::string& path)
     RunPackageIntegrityCheck(true);
 
     // Start asset pipeline - automatically creates GUIDs for all assets
-    StartupProgress::Update("Importing assets...");
+    StartupProgress::Update(TrMark("Importing assets..."));
     m_AssetPipeline = std::make_unique<AssetPipeline>();
 
     // Single source of truth for "make this asset's GUIDs resolvable through
@@ -605,7 +619,7 @@ bool EditorApp::OpenProject(const std::string& path)
         if (!StartupProgress::IsComplete())
         {
             std::filesystem::path p(assetPath);
-            StartupProgress::Update("Importing assets...", p.filename().string().c_str());
+            StartupProgress::Update(TrMark("Importing assets..."), p.filename().string().c_str());
         }
 
         const AssetInfo* info = m_AssetPipeline->GetAssetInfo(assetPath);
@@ -948,7 +962,7 @@ void EditorApp::FinishPendingBuilds()
     // which reads as a flash.
     if (m_HotReloadService && m_HotReloadService->HasPendingBuild())
     {
-        StartupProgress::Update("Building plugin...");
+        StartupProgress::Update(TrMark("Building plugin..."));
         m_HotReloadService->RunPendingBuildNow();
     }
     // Anything still building (a package rebuild the package check queued).

@@ -10,6 +10,7 @@
 #include <deki/SceneSystem.h>
 #include <deki-editor/CommandHistory.h>
 #include "core/Commands.h"
+#include "core/commands/CommandText.h"
 #include "core/Project.h"
 #include "services/AgentCursor.h"
 #include "services/ClipboardService.h"
@@ -17,6 +18,7 @@
 #include "widgets/DragScroll.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/EditorExtension.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
@@ -55,7 +57,7 @@ void HierarchyPanel::Draw()
 
     // The panel itself never scrolls: the breadcrumb and search stay put and
     // the tree below scrolls in its own region.
-    ImGui::Begin("HIERARCHY###Hierarchy", &isOpen,
+    ImGui::Begin(TrLabel("HIERARCHY###Hierarchy"), &isOpen,
                  DekiEditor::MaximizedWindowFlags("HIERARCHY###Hierarchy") | ImGuiWindowFlags_NoScrollbar |
                      ImGuiWindowFlags_NoScrollWithMouse);
     auto* scene = m_App->GetCurrentScene();
@@ -75,7 +77,8 @@ void HierarchyPanel::Draw()
     // Breadcrumb navigation header
     const auto& navStack = m_App->GetSceneNavigationStack();
     const std::string& scenePath = m_App->GetCurrentScenePath();
-    std::string sceneName = scenePath.empty() ? "Untitled Scene" : std::filesystem::path(scenePath).stem().string();
+    std::string sceneName =
+        scenePath.empty() ? std::string(Tr("Untitled Scene")) : std::filesystem::path(scenePath).stem().string();
     // During Play, the edit scene's state: Play's own changes are discarded on Stop.
     bool isDirty =
         m_App->IsStopped() ? CommandHistory::Instance().IsDirty() : CommandHistory::Instance().IsSavedAsideDirty();
@@ -214,7 +217,7 @@ void HierarchyPanel::Draw()
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_TextDisabled, Palette::Dim2);
         ImGui::SetNextItemWidth((winRight - searchInset) - inputLeftX);
-        ImGui::InputTextWithHint("##hierarchy_search", "Search hierarchy", m_SearchBuf, sizeof(m_SearchBuf));
+        ImGui::InputTextWithHint("##hierarchy_search", Tr("Search hierarchy"), m_SearchBuf, sizeof(m_SearchBuf));
         ImGui::PopStyleColor(4);
         ImGui::PopStyleVar();
         ImGui::PopFont();
@@ -276,8 +279,8 @@ void HierarchyPanel::Draw()
         ImGui::Separator();
 
         ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Amber);
-        bool persistentOpen =
-            ImGui::TreeNodeEx("Persistent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
+        bool persistentOpen = ImGui::TreeNodeEx(TrLabel("Persistent"),
+                                                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
         ImGui::PopStyleColor();
 
         if (persistentOpen)
@@ -375,7 +378,7 @@ void HierarchyPanel::Draw()
     // Say so when a search matches nothing.
     if (m_SearchBuf[0] != '\0' && m_FlattenedObjects.empty())
     {
-        DekiEditor::EmptyStateText("No objects match the search.");
+        DekiEditor::EmptyStateText(Tr("No objects match the search."));
     }
 
     // Fill remaining space so the window is fully interactive
@@ -417,7 +420,7 @@ void HierarchyPanel::Draw()
         auto& roots = scene->GetObjects();
         Deki::Object* sceneRoot = roots.empty() ? nullptr : roots[0];
 
-        if (ImGui::MenuItem("Create Empty"))
+        if (ImGui::MenuItem(TrLabel("Create Empty")))
         {
             CommandHistory::Instance().Execute(std::make_unique<CreateObjectCommand>(
                 scene, "DekiObject", [this](Deki::Object* obj) { m_App->SetSelectedObject(obj); }, sceneRoot,
@@ -443,7 +446,7 @@ void HierarchyPanel::Draw()
 
             for (const auto& category : categories)
             {
-                if (ImGui::BeginMenu(category.c_str()))
+                if (ImGui::BeginMenu(TrLabel(category.c_str())))
                 {
                     for (const auto& entry : entries)
                     {
@@ -452,7 +455,7 @@ void HierarchyPanel::Draw()
                             continue;
                         }
 
-                        if (ImGui::MenuItem(entry.displayName.c_str()))
+                        if (ImGui::MenuItem(TrLabel(entry.displayName.c_str())))
                         {
                             std::string compName = entry.componentName;
                             std::string objName = entry.objectName;
@@ -473,7 +476,7 @@ void HierarchyPanel::Draw()
 
         ImGui::Separator();
 
-        if (ImGui::MenuItem("Paste", "Ctrl+V", false, ClipboardService::Instance().HasObjects()))
+        if (ImGui::MenuItem(TrLabel("Paste"), "Ctrl+V", false, ClipboardService::Instance().HasObjects()))
         {
             auto& clipboard = ClipboardService::Instance();
             auto data = clipboard.GetObjectsData();
@@ -909,7 +912,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         // Instance-specific menu items
         if (isInstance)
         {
-            if (ImGui::MenuItem("Open Source Scene"))
+            if (ImGui::MenuItem(TrLabel("Open Source Scene")))
             {
                 std::string sourcePath = Deki::Scene::s_GuidToPathResolver
                                              ? Deki::Scene::s_GuidToPathResolver(obj->GetSourceSceneGuid())
@@ -919,12 +922,12 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                     m_PendingNavigatePath = sourcePath;
                 }
             }
-            if (ImGui::MenuItem("Link to Scene..."))
+            if (ImGui::MenuItem(TrLabel("Link to Scene...")))
             {
                 m_LinkTargetObject = obj;
                 m_OpenLinkPicker = true;
             }
-            if (ImGui::MenuItem("Unlink Instance"))
+            if (ImGui::MenuItem(TrLabel("Unlink Instance")))
             {
                 CommandHistory::Instance().Execute(std::make_unique<UnlinkInstanceCommand>(obj));
             }
@@ -934,16 +937,16 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         // Block editing operations for instance children
         if (isPartOfInstance)
         {
-            ImGui::TextDisabled("Part of Scene Instance");
+            ImGui::TextDisabled("%s", Tr("Part of Scene Instance"));
             ImGui::EndPopup();
         }
         else
         {
-            if (ImGui::MenuItem("Rename", "Enter", false, !isProtected && !isPartOfInstance))
+            if (ImGui::MenuItem(TrLabel("Rename"), "Enter", false, !isProtected && !isPartOfInstance))
             {
                 StartRenaming(obj);
             }
-            if (ImGui::MenuItem("Create Child", nullptr, false, !isInstance))
+            if (ImGui::MenuItem(TrLabel("Create Child"), nullptr, false, !isInstance))
             {
                 // Must go through the command system, which puts it on the undo
                 // stack and registers it with the scene. Otherwise the next Ctrl+Z
@@ -953,15 +956,15 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
                     { m_App->SetSelectedObject(created); }, obj, [this]() { m_App->ClearSelection(); }));
             }
             // On a multi-selection these act on all of it, as the keys do.
-            if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
+            if (ImGui::MenuItem(TrLabel("Duplicate"), "Ctrl+D"))
             {
                 m_App->DuplicateObjects(m_App->ActionTargets(obj));
             }
-            if (ImGui::MenuItem("Copy", "Ctrl+C"))
+            if (ImGui::MenuItem(TrLabel("Copy"), "Ctrl+C"))
             {
                 ClipboardService::Instance().CopyObjects(m_App->GetSelectedObjects());
             }
-            if (ImGui::MenuItem("Paste", "Ctrl+V", false, ClipboardService::Instance().HasObjects()))
+            if (ImGui::MenuItem(TrLabel("Paste"), "Ctrl+V", false, ClipboardService::Instance().HasObjects()))
             {
                 auto& clipboard = ClipboardService::Instance();
                 auto data = clipboard.GetObjectsData();
@@ -983,14 +986,14 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             // Link to Scene (for objects with children, including re-linking instances)
             if (!isInstance && !obj->GetChildren().empty())
             {
-                if (ImGui::MenuItem("Link to Scene..."))
+                if (ImGui::MenuItem(TrLabel("Link to Scene...")))
                 {
                     m_LinkTargetObject = obj;
                     m_OpenLinkPicker = true;
                 }
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("Delete", "Del", false, !isProtected))
+            if (ImGui::MenuItem(TrLabel("Delete"), "Del", false, !isProtected))
             {
                 m_App->DeleteObjects(m_App->ActionTargets(obj));
                 // IMPORTANT: EndPopup first to exit popup window context,
@@ -1045,7 +1048,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         ImGui::SetDragDropPayload("HIERARCHY_OBJECT", &obj, sizeof(Deki::Object*));
         if (m_DraggedObjects.size() > 1)
         {
-            ImGui::Text("Move %d items", (int)m_DraggedObjects.size());
+            ImGui::Text(Tr("Move %d items"), (int)m_DraggedObjects.size());
         }
         else
         {
@@ -1284,8 +1287,8 @@ void HierarchyPanel::AcceptSceneAssetDrop(Deki::Object* parent, size_t index)
     }
     else
     {
-        CommandHistory::Instance().Execute(
-            std::make_unique<CompoundCommand>("Create " + std::to_string(cmds.size()) + " Instances", std::move(cmds)));
+        CommandHistory::Instance().Execute(std::make_unique<CompoundCommand>(
+            CommandText::Format(Tr("Create %zu Instances"), cmds.size()), std::move(cmds)));
     }
 }
 

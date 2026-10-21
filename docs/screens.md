@@ -87,8 +87,9 @@ does:
   of that shape that fits the panel.
 - **A resolution**: any platform's screen, or a custom width and height.
 
-Next to it is the screen's pixel format. Play runs at that size and format,
-and the camera's gizmo in the scene view outlines what that screen sees; with
+Next to it is the screen's pixel format. Play runs at that size and format.
+The size can change while playing, as if the device's screen changed; the
+format is fixed until Stop. The camera's gizmo in the scene view outlines what that screen sees; with
 no camera, the scene view draws the screen around the origin. The Play view
 remembers the choice per project.
 

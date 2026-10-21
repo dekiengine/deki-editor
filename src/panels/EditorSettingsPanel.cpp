@@ -5,9 +5,11 @@
 #include "../services/AgentCursor.h"
 #include "../services/EditorLogFile.h"
 #include "../services/UpdateCheck.h"
+#include "../widgets/LanguagePicker.h"
 
 #include <deki-editor/EditorSettings.h>
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/Motion.h>
 
 #include "imgui.h"
@@ -28,10 +30,10 @@ struct SmoothingChoice
     const char* label;  // shown
 };
 constexpr SmoothingChoice kSmoothing[] = {
-    { "auto", "Automatic" },
-    { "rgb", "Subpixel (RGB)" },
-    { "bgr", "Subpixel (BGR)" },
-    { "gray", "Greyscale" },
+    { "auto", TrMark("Automatic") },
+    { "rgb", TrMark("Subpixel (RGB)") },
+    { "bgr", TrMark("Subpixel (BGR)") },
+    { "gray", TrMark("Greyscale") },
 };
 constexpr int kSmoothingCount = static_cast<int>(sizeof(kSmoothing) / sizeof(kSmoothing[0]));
 
@@ -40,7 +42,7 @@ void Note(const char* text)
 {
     BeginPropertyRow("");
     ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-    ImGui::TextWrapped("%s", text);
+    ImGui::TextWrapped("%s", Tr(text));
     ImGui::PopStyleColor();
 }
 }  // namespace
@@ -53,7 +55,7 @@ void EditorSettingsPanel::Draw()
     }
 
     DekiEditor::FirstUseWindowPlacement(440, 470);
-    if (!ImGui::Begin("EDITOR SETTINGS###Editor Settings", &isOpen,
+    if (!ImGui::Begin(TrLabel("EDITOR SETTINGS###Editor Settings"), &isOpen,
                       DekiEditor::MaximizedWindowFlags("EDITOR SETTINGS###Editor Settings")))
     {
         ImGui::End();
@@ -63,6 +65,11 @@ void EditorSettingsPanel::Draw()
     if (SchematicSectionBegin("Interface"))
     {
         BeginPropertyContext();
+        InspectorUtils::SetNextRowTooltip("The language of the editor's menus, panels and messages.");
+        BeginPropertyRow("Language");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        DrawLanguagePicker("##language");
+
         InspectorUtils::SetNextRowTooltip("Popups, panels, scrolling, zoom and presses land at once instead of "
                                           "moving.");
         BeginPropertyRow("Reduce Motion");

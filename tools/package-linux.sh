@@ -196,10 +196,16 @@ fi
 #   CMake Error: Could not find CMAKE_ROOT !!!
 # It resolves that relative to the executable, so share/cmake-<ver> has to come
 # along at the matching path.
+#
+# Asked in script mode, which needs no compiler. `cmake --system-information`
+# configures a project, so in the build image, which has gcc-16 but no `cc`, it
+# exited 255 and took the release's Linux package down with it.
 if command -v cmake >/dev/null 2>&1; then
     cp -a "$(command -v cmake)" "$TC/bin/"
-    CMAKE_ROOT_DIR="$(cmake --system-information 2>/dev/null \
-                      | sed -n 's/^CMAKE_ROOT "\(.*\)"$/\1/p' | head -1)"
+    probe_dir="$(mktemp -d)"
+    echo 'message("${CMAKE_ROOT}")' > "$probe_dir/root.cmake"
+    CMAKE_ROOT_DIR="$(cmake -P "$probe_dir/root.cmake" 2>&1 || true)"
+    rm -rf "$probe_dir"
     if [[ -n "$CMAKE_ROOT_DIR" && -d "$CMAKE_ROOT_DIR" ]]; then
         mkdir -p "$TC/share"
         cp -a "$CMAKE_ROOT_DIR" "$TC/share/"

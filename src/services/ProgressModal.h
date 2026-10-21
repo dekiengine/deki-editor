@@ -13,6 +13,9 @@ namespace DekiEditor
 /// - the current phase
 /// - an animated progress bar with no fixed end
 /// - optional detail text
+///
+/// The title and phase are drawn as given, so callers pass them already in
+/// the editor's language.
 class ProgressModal
 {
 public:

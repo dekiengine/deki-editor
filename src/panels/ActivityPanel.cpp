@@ -6,6 +6,7 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/Motion.h>
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 #include "imgui.h"
 #include <algorithm>
 
@@ -36,6 +37,22 @@ static void FormatTime(char* buf, size_t bufSize, std::chrono::system_clock::tim
     snprintf(buf, bufSize, "%02d:%02d:%02d", tmVal.tm_hour, tmVal.tm_min, tmVal.tm_sec);
 }
 
+// The process's last message as shown. A finished or cancelled process keeps
+// the English word the panel set (other threads set it, and the MCP reads it);
+// it is translated here, on the main thread.
+static const char* ShownMessage(const ActivityProcess& proc)
+{
+    if (proc.status == ProcessStatus::Completed)
+    {
+        return Tr("Completed");
+    }
+    if (proc.status == ProcessStatus::Cancelled)
+    {
+        return Tr("Cancelled");
+    }
+    return proc.lastMessage.c_str();
+}
+
 void ActivityPanel::Draw()
 {
     if (!isOpen)
@@ -45,7 +62,7 @@ void ActivityPanel::Draw()
 
     DekiEditor::FirstUseWindowPlacement(450, 350);
 
-    if (!ImGui::Begin("ACTIVITY###Activity", &isOpen, DekiEditor::MaximizedWindowFlags("ACTIVITY###Activity")))
+    if (!ImGui::Begin(TrLabel("ACTIVITY###Activity"), &isOpen, DekiEditor::MaximizedWindowFlags("ACTIVITY###Activity")))
     {
         ImGui::End();
         return;
@@ -205,15 +222,16 @@ void ActivityPanel::Draw()
         if (!proc.lastMessage.empty())
         {
             float subtitleY = nameY + lineH + 4.0f;
+            const char* subtitle = ShownMessage(proc);
 
             // Cut the text off at the card's width.
             float maxSubWidth = cardWidth - textX + cardPos.x - padding;
             const char* subtitleEnd = nullptr;
-            ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxSubWidth, maxSubWidth, proc.lastMessage.c_str(),
-                                            nullptr, &subtitleEnd);
+            ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxSubWidth, maxSubWidth, subtitle, nullptr,
+                                            &subtitleEnd);
 
             drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(textX, subtitleY),
-                              ImGui::GetColorU32(ImGuiCol_TextDisabled), proc.lastMessage.c_str(), subtitleEnd);
+                              ImGui::GetColorU32(ImGuiCol_TextDisabled), subtitle, subtitleEnd);
         }
 
         // Expanded: show log entries
@@ -242,12 +260,12 @@ void ActivityPanel::Draw()
                 if (ImGui::BeginPopupContextItem("##entry_ctx"))
                 {
                     PushContextMenuItemStyle();
-                    if (ImGui::MenuItem("Copy"))
+                    if (ImGui::MenuItem(TrLabel("Copy")))
                     {
                         std::string line = std::string(entryTime) + "  " + entry.message;
                         ImGui::SetClipboardText(line.c_str());
                     }
-                    if (ImGui::MenuItem("Copy All"))
+                    if (ImGui::MenuItem(TrLabel("Copy All")))
                     {
                         std::string allText;
                         for (const auto& e2 : proc.entries)
@@ -482,7 +500,7 @@ void ActivityPanel::DrawStatusBar()
 
     // Measure the MCP button first so the bar's click area can stop short of it.
     bool mcpRunning = m_App->IsMcpServerRunning();
-    const char* mcpLabel = mcpRunning ? ICON_TI_PLUG_CONNECTED " MCP connected" : ICON_TI_PLUG " MCP";
+    const char* mcpLabel = mcpRunning ? Tr(ICON_TI_PLUG_CONNECTED " MCP connected") : ICON_TI_PLUG " MCP";
     ImVec2 mcpSize = ImGui::CalcTextSize(mcpLabel);
     float mcpBtnWidth = mcpSize.x + 12.0f;
 
@@ -526,7 +544,7 @@ void ActivityPanel::DrawStatusBar()
 
         // Task count
         char countBuf[32];
-        snprintf(countBuf, sizeof(countBuf), "%d task%s", runningCount, runningCount == 1 ? "" : "s");
+        snprintf(countBuf, sizeof(countBuf), runningCount == 1 ? Tr("%d task") : Tr("%d tasks"), runningCount);
         drawList->AddText(ImVec2(cursorX, textY), ImGui::GetColorU32(ImGuiCol_Text), countBuf);
         cursorX += ImGui::CalcTextSize(countBuf).x + 24.0f;
 
@@ -577,7 +595,7 @@ void ActivityPanel::DrawStatusBar()
         drawList->AddText(ImVec2(cursorX, textY), ImGui::GetColorU32(statusColor), statusIcon);
         cursorX += ImGui::CalcTextSize(statusIcon).x + 6.0f;
 
-        std::string summary = proc.name + ": " + proc.lastMessage;
+        std::string summary = proc.name + ": " + ShownMessage(proc);
         float maxWidth = barMax.x - cursorX - padding;
         const char* summaryEnd = nullptr;
         ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), maxWidth, maxWidth, summary.c_str(), nullptr,
@@ -593,8 +611,9 @@ void ActivityPanel::DrawStatusBar()
         drawList->AddRectFilled(ImVec2(cursorX, textY + (lineH - dotSize) * 0.5f),
                                 ImVec2(cursorX + dotSize, textY + (lineH + dotSize) * 0.5f), accentCol);
         cursorX += dotSize + 6.0f;
-        drawList->AddText(ImVec2(cursorX, textY), accentCol, "Ready");
-        cursorX += ImGui::CalcTextSize("Ready").x;
+        const char* ready = Tr("Ready");
+        drawList->AddText(ImVec2(cursorX, textY), accentCol, ready);
+        cursorX += ImGui::CalcTextSize(ready).x;
 
         // "Build failed · N error(s)" in red only when a build left errors in
         // the Console. Other errors are just counted, so a scene that failed
@@ -605,9 +624,17 @@ void ActivityPanel::DrawStatusBar()
             const int errs = buildErrs > 0 ? buildErrs : console->GetErrorCount();
             if (errs > 0)
             {
-                char buildBuf[48];
-                snprintf(buildBuf, sizeof(buildBuf), buildErrs > 0 ? "Build failed \xc2\xb7 %d error%s" : "%d error%s",
-                         errs, errs == 1 ? "" : "s");
+                char countText[48];
+                snprintf(countText, sizeof(countText), errs == 1 ? Tr("%d error") : Tr("%d errors"), errs);
+                char buildBuf[96];
+                if (buildErrs > 0)
+                {
+                    snprintf(buildBuf, sizeof(buildBuf), "%s \xc2\xb7 %s", Tr("Build failed"), countText);
+                }
+                else
+                {
+                    snprintf(buildBuf, sizeof(buildBuf), "%s", countText);
+                }
                 cursorX += 20.0f;
                 const ImU32 redCol = ImGui::ColorConvertFloat4ToU32(Palette::Red);
                 drawList->AddText(ImVec2(cursorX, textY), redCol, buildBuf);
@@ -662,9 +689,9 @@ void ActivityPanel::DrawStatusBar()
         {
             drawList->AddRectFilled(ImVec2(mcpBtnX, barMin.y), ImVec2(mcpBtnX + mcpBtnWidth, barMax.y),
                                     ImGui::ColorConvertFloat4ToU32(Palette::Bg2));
-            DekiEditor::Tooltip(mcpRunning ? "MCP server running on 127.0.0.1:3000\nRight-click to copy the connection "
-                                             "URL (includes session token)"
-                                           : "Start MCP server (local only, port 3000)");
+            DekiEditor::Tooltip(mcpRunning ? TrMark("MCP server running on 127.0.0.1:3000\nRight-click to copy the "
+                                                    "connection URL (includes session token)")
+                                           : TrMark("Start MCP server (local only, port 3000)"));
         }
 
         drawList->AddText(ImVec2(mcpX, textY), ImGui::GetColorU32(mcpColor), mcpLabel);

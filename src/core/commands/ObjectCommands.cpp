@@ -1,5 +1,6 @@
 #include "ObjectInternal.h"
 #include "ObjectCommands.h"
+#include "CommandText.h"
 #include "ObjectSerializationHelper.h"
 #include <deki-editor/EditorExtension.h>
 #include <deki/reflection/ComponentRegistry.h>
@@ -12,7 +13,7 @@ namespace DekiEditor
 
 std::string DeleteObjectCommand::GetDescription() const
 {
-    return "Delete " + m_ObjectName;
+    return CommandText::Format(Tr("Delete %s"), m_ObjectName.c_str());
 }
 
 void DeleteObjectCommand::Execute()
@@ -78,7 +79,7 @@ bool DeleteObjectCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string SetActiveCommand::GetDescription() const
 {
-    return (m_New ? "Activate " : "Deactivate ") + m_ObjectName;
+    return CommandText::Format(m_New ? Tr("Activate %s") : Tr("Deactivate %s"), m_ObjectName.c_str());
 }
 
 void SetActiveCommand::Execute()
@@ -98,7 +99,7 @@ bool SetActiveCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string AddComponentCommand::GetDescription() const
 {
-    return "Add " + m_TypeName;
+    return CommandText::Format(Tr("Add %s"), CommandText::ComponentName(m_TypeName).c_str());
 }
 
 AddComponentCommand::~AddComponentCommand()
@@ -158,7 +159,7 @@ bool AddComponentCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string RemoveComponentCommand::GetDescription() const
 {
-    return "Remove " + m_TypeName;
+    return CommandText::Format(Tr("Remove %s"), CommandText::ComponentName(m_TypeName).c_str());
 }
 
 RemoveComponentCommand::~RemoveComponentCommand()
@@ -214,7 +215,7 @@ bool RemoveComponentCommand::ReferencesAny(const DeadMemory& dead) const
 
 std::string DuplicateObjectCommand::GetDescription() const
 {
-    return "Duplicate " + m_SourceName;
+    return CommandText::Format(Tr("Duplicate %s"), m_SourceName.c_str());
 }
 
 namespace

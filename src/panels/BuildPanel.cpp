@@ -7,6 +7,7 @@
 #include <cfloat>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include "inspector/InspectorUtils.h"
 #include "ActivityPanel.h"
 #include "EditorApp.h"
@@ -20,6 +21,7 @@
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 
 #ifdef _WIN32
@@ -68,6 +70,38 @@ bool RowIconButton(const char* id, const char* icon, const char* tooltip, bool e
 
 namespace
 {
+
+// The verbs the bundled backends return from GetDeployLabel(), alone and
+// after "Build & ", marked so the translation table has them. The toolbar
+// shows them through Tr().
+[[maybe_unused]] constexpr const char* kDeployVerbs[] = {
+    TrMark("Deploy"),         TrMark("Flash"),         TrMark("Run"),         TrMark("Install"),
+    TrMark("Build & Deploy"), TrMark("Build & Flash"), TrMark("Build & Run"), TrMark("Build & Install"),
+};
+
+// "Build & <verb>" in the editor's language. Each bundled verb has an entry of
+// its own, since a sentence reads better translated whole; any other verb is
+// put into the general pattern.
+std::string BuildAndDeployLabel(const char* verb)
+{
+    const std::string english = std::string("Build & ") + verb;
+    const char* whole = Tr(english.c_str());
+    if (whole != english.c_str())
+    {
+        return whole;
+    }
+    char buf[128];
+    snprintf(buf, sizeof(buf), Tr("Build & %s"), Tr(verb));
+    return buf;
+}
+
+// `format`, already translated, with one string filled in.
+std::string Format(const char* format, const std::string& value)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf), format, value.c_str());
+    return buf;
+}
 
 std::string JoinNames(const std::vector<std::string>& names)
 {
@@ -146,7 +180,7 @@ void BuildPanel::Draw()
 
     DekiEditor::FirstUseWindowPlacement(500, 400);
 
-    if (!ImGui::Begin("BUILD###Build", &isOpen, DekiEditor::MaximizedWindowFlags("BUILD###Build")))
+    if (!ImGui::Begin(TrLabel("BUILD###Build"), &isOpen, DekiEditor::MaximizedWindowFlags("BUILD###Build")))
     {
         ImGui::End();
         return;
@@ -230,8 +264,9 @@ void BuildPanel::Draw()
             InspectorUtils::SetNextRowTooltip("Build this board's firmware for the simulator instead of the board, "
                                               "and run it there. The board's boot scene and its own build are "
                                               "not touched.");
-            const std::string label = std::string("Simulate in ") + simBuilder->GetSimulatorName();
-            BeginPropertyRow(label.c_str());
+            char label[128];
+            snprintf(label, sizeof(label), Tr("Simulate in %s"), simBuilder->GetSimulatorName());
+            BeginPropertyRow(label);
             SchematicCheckbox("##simulate", &m_Simulate);
         }
         EndPropertyContext();
@@ -245,23 +280,23 @@ void BuildPanel::Draw()
     // Delete confirmation.
     if (m_ShowDeleteConfirm)
     {
-        ImGui::OpenPopup("Delete Platform?");
+        ImGui::OpenPopup(TrLabel("Delete Platform?"));
         m_ShowDeleteConfirm = false;
     }
 
-    if (BeginSchematicModal("Delete Platform?", 420.0f))
+    if (BeginSchematicModal(TrLabel("Delete Platform?"), 420.0f))
     {
-        ImGui::TextWrapped("Delete the platform '%s'?", m_PlatformToDelete.c_str());
+        ImGui::TextWrapped(Tr("Delete the platform '%s'?"), m_PlatformToDelete.c_str());
         if (m_PlatformToDelete == m_OriginFor && m_Origin.packageInstalled)
         {
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-            ImGui::TextWrapped("Package '%s' still offers it, so it stays in the list and choosing it again "
-                               "copies the package's version in.",
+            ImGui::TextWrapped(Tr("Package '%s' still offers it, so it stays in the list and choosing it again "
+                                  "copies the package's version in."),
                                m_Origin.packageId.c_str());
             ImGui::PopStyleColor();
         }
 
-        const int button = SchematicDialogButtons({ { "Cancel" }, { "Delete", DialogButton::Danger } });
+        const int button = SchematicDialogButtons({ { TrMark("Cancel") }, { TrMark("Delete"), DialogButton::Danger } });
         if (button == 1)
         {
             auto* project = m_App->GetProject();
@@ -299,23 +334,24 @@ void BuildPanel::Draw()
     // Restore confirmation.
     if (m_ShowRestoreConfirm)
     {
-        ImGui::OpenPopup("Restore Platform?");
+        ImGui::OpenPopup(TrLabel("Restore Platform?"));
         m_ShowRestoreConfirm = false;
     }
 
-    if (BeginSchematicModal("Restore Platform?", 420.0f))
+    if (BeginSchematicModal(TrLabel("Restore Platform?"), 420.0f))
     {
-        ImGui::TextWrapped("Replace the platform '%s' with the version from package '%s'?", m_OriginFor.c_str(),
+        ImGui::TextWrapped(Tr("Replace the platform '%s' with the version from package '%s'?"), m_OriginFor.c_str(),
                            m_Origin.packageId.c_str());
         if (m_Origin.modified)
         {
             ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
-            ImGui::TextWrapped("Your changes are lost: %s", JoinNames(m_Origin.modifiedItems).c_str());
+            ImGui::TextWrapped(Tr("Your changes are lost: %s"), JoinNames(m_Origin.modifiedItems).c_str());
             ImGui::PopStyleColor();
         }
 
         const int button = SchematicDialogButtons(
-            { { "Cancel" }, { "Restore", m_Origin.modified ? DialogButton::Danger : DialogButton::Primary } });
+            { { TrMark("Cancel") },
+              { TrMark("Restore"), m_Origin.modified ? DialogButton::Danger : DialogButton::Primary } });
         if (button == 1)
         {
             if (auto* project = m_App->GetProject())
@@ -328,7 +364,7 @@ void BuildPanel::Draw()
                 }
                 else
                 {
-                    m_OriginNotice = "Restored from " + m_Origin.packageId + ".";
+                    m_OriginNotice = Format(Tr("Restored from %s."), m_Origin.packageId);
                     if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_OriginFor))
                     {
                         RegenerateBuildFiles(*config);
@@ -379,7 +415,7 @@ void BuildPanel::DrawToolbar()
     auto& ui = EditorUI::Get();
     ui.BeginToolbar();
 
-    if (ui.ToolbarButton("Build", !isBusy))
+    if (ui.ToolbarButton(Tr("Build"), !isBusy))
     {
         m_DeployAfterBuild = false;
         StartBuild();
@@ -387,25 +423,27 @@ void BuildPanel::DrawToolbar()
 
     if (activeBuilder != nullptr && activeBuilder->SupportsDeploy())
     {
-        const std::string verb = activeBuilder->GetDeployLabel();
-        if (ui.ToolbarButton(verb.c_str(), !isBusy))
+        // The backend's verb is English ("Flash", "Run"); the buttons show it
+        // in the editor's language.
+        const char* verb = activeBuilder->GetDeployLabel();
+        if (ui.ToolbarButton(Tr(verb), !isBusy))
         {
             StartDeploy();
         }
-        if (ui.ToolbarButton(("Build & " + verb).c_str(), !isBusy))
+        if (ui.ToolbarButton(BuildAndDeployLabel(verb).c_str(), !isBusy))
         {
             m_DeployAfterBuild = true;
             StartBuild();
         }
         // Shown even when nothing is listed: the user plugs a device in and
         // then looks again.
-        if (ui.ToolbarIconButton("##refreshtargets", ICON_TI_REFRESH, "Look for devices again", !isBusy))
+        if (ui.ToolbarIconButton("##refreshtargets", ICON_TI_REFRESH, Tr("Look for devices again"), !isBusy))
         {
             RefreshDeployTargets();
         }
     }
 
-    if (ui.ToolbarIconButton("##clean", ICON_TI_ERASER, "Clean: delete this platform's build output", !isBusy))
+    if (ui.ToolbarIconButton("##clean", ICON_TI_ERASER, Tr("Clean: delete this platform's build output"), !isBusy))
     {
         if (builder && m_App->GetProject())
         {
@@ -720,20 +758,20 @@ void BuildPanel::DrawPlatformSelector()
     else
     {
         ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(Palette::Dim, "No platforms");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("No platforms"));
         ImGui::SameLine(0.0f, 0.0f);
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - iconsWidth));
     }
 
     ImGui::SameLine(0.0f, gap);
-    if (RowIconButton("##addplatform", ICON_TI_PLUS, "Add a platform"))
+    if (RowIconButton("##addplatform", ICON_TI_PLUS, Tr("Add a platform")))
     {
         m_PlatformEditor.ShowNew();
     }
 
     const bool canEdit = !m_SelectedPlatform.empty() && registry.GetPlatform(m_SelectedPlatform) != nullptr;
     ImGui::SameLine(0.0f, gap);
-    if (RowIconButton("##editplatform", ICON_TI_PENCIL, "Edit this platform", canEdit))
+    if (RowIconButton("##editplatform", ICON_TI_PENCIL, Tr("Edit this platform"), canEdit))
     {
         // A platform a package offers becomes the project's own first, boot
         // scene included: saving the dialog alone writes only the JSON.
@@ -752,7 +790,7 @@ void BuildPanel::DrawPlatformSelector()
     }
 
     ImGui::SameLine(0.0f, gap);
-    if (RowIconButton("##deleteplatform", ICON_TI_TRASH, "Delete this platform", canEdit, /*destructive*/ true))
+    if (RowIconButton("##deleteplatform", ICON_TI_TRASH, Tr("Delete this platform"), canEdit, /*destructive*/ true))
     {
         m_PlatformToDelete = m_SelectedPlatform;
         m_ShowDeleteConfirm = true;
@@ -796,7 +834,7 @@ void BuildPanel::DrawPlatformOrigin()
     if (!m_Origin.packageInstalled)
     {
         ImGui::SameLine();
-        ImGui::TextColored(Palette::Dim, "not installed");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("not installed"));
         if (ImGui::IsItemHovered())
         {
             DekiEditor::Tooltip("The platform is the project's own copy and still builds.\n"
@@ -806,7 +844,7 @@ void BuildPanel::DrawPlatformOrigin()
     if (m_Origin.modified)
     {
         ImGui::SameLine();
-        ImGui::TextColored(Palette::Dim, "%s", m_Origin.recorded ? "modified" : "differs from the package");
+        ImGui::TextColored(Palette::Dim, "%s", m_Origin.recorded ? Tr("modified") : Tr("differs from the package"));
         if (ImGui::IsItemHovered())
         {
             DekiEditor::Tooltip("Changed in this project: %s", JoinNames(m_Origin.modifiedItems).c_str());
@@ -815,15 +853,19 @@ void BuildPanel::DrawPlatformOrigin()
     if (m_Origin.updateAvailable)
     {
         ImGui::SameLine();
-        ImGui::TextColored(Palette::Amber, "update available");
+        ImGui::TextColored(Palette::Amber, "%s", Tr("update available"));
         if (ImGui::IsItemHovered())
         {
-            std::string tip = "Changed in the package";
+            const std::string updated = JoinNames(m_Origin.updatedItems);
             if (!m_Origin.offeredVersion.empty() && m_Origin.offeredVersion != m_Origin.adoptedVersion)
             {
-                tip += " (" + m_Origin.offeredVersion + ")";
+                DekiEditor::Tooltip("Changed in the package (%s): %s", m_Origin.offeredVersion.c_str(),
+                                    updated.c_str());
             }
-            DekiEditor::Tooltip("%s: %s", tip.c_str(), JoinNames(m_Origin.updatedItems).c_str());
+            else
+            {
+                DekiEditor::Tooltip("Changed in the package: %s", updated.c_str());
+            }
         }
     }
 
@@ -833,7 +875,7 @@ void BuildPanel::DrawPlatformOrigin()
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
         if (m_Origin.CanUpdate())
         {
-            if (ImGui::Button("Update"))
+            if (ImGui::Button(TrLabel("Update")))
             {
                 const std::string package = m_Origin.packageId;
                 const PlatformSyncResult result = UpdatePlatformFromPackage(project->GetPath(), m_SelectedPlatform);
@@ -844,15 +886,15 @@ void BuildPanel::DrawPlatformOrigin()
                 }
                 else
                 {
-                    m_OriginNotice = "Updated from " + package + ".";
+                    m_OriginNotice = Format(Tr("Updated from %s."), package);
                     if (!result.taken.empty())
                     {
-                        m_OriginNotice += " Took: " + JoinNames(result.taken) + ".";
+                        m_OriginNotice += " " + Format(Tr("Took: %s."), JoinNames(result.taken));
                     }
                     if (!result.kept.empty())
                     {
                         m_OriginNotice +=
-                            " Kept yours, which the package also changed: " + JoinNames(result.kept) + ".";
+                            " " + Format(Tr("Kept yours, which the package also changed: %s."), JoinNames(result.kept));
                     }
                     if (const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform))
                     {
@@ -871,7 +913,7 @@ void BuildPanel::DrawPlatformOrigin()
         }
         if (m_Origin.CanRestore())
         {
-            if (ImGui::Button("Restore Defaults"))
+            if (ImGui::Button(TrLabel("Restore Defaults")))
             {
                 m_ShowRestoreConfirm = true;
             }
@@ -898,14 +940,14 @@ void BuildPanel::DrawToolchainStatusSummary()
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
     if (!platform)
     {
-        ImGui::TextColored(Palette::Dim, "Select a platform");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("Select a platform"));
         return;
     }
 
     ITargetBuilder* builder = BuilderRegistry::Instance().GetBuilderForPlatform(*platform);
     if (!builder)
     {
-        ImGui::TextColored(Palette::Red, "No builder for this platform family");
+        ImGui::TextColored(Palette::Red, "%s", Tr("No builder for this platform family"));
         return;
     }
 
@@ -919,16 +961,16 @@ void BuildPanel::DrawToolchainStatusSummary()
 
     if (m_ToolchainReady)
     {
-        ImGui::TextColored(Palette::Green, "Ready");
+        ImGui::TextColored(Palette::Green, "%s", Tr("Ready"));
         ImGui::SameLine();
         ImGui::TextColored(Palette::Dim, "%s", builder->GetName());
     }
     else
     {
-        ImGui::TextColored(Palette::Red, "Not installed");
+        ImGui::TextColored(Palette::Red, "%s", Tr("Not installed"));
         BeginPropertyRow("");
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-        if (ImGui::Button("Open Platform Manager"))
+        if (ImGui::Button(TrLabel("Open Platform Manager")))
         {
             if (auto* platformMgr = m_App->GetPlatformManagerPanel())
             {
@@ -946,7 +988,7 @@ void BuildPanel::DrawPlatformDetails()
     {
         BeginPropertyRow("");
         ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(Palette::Dim, "No platform selected");
+        ImGui::TextColored(Palette::Dim, "%s", Tr("No platform selected"));
         return;
     }
 
@@ -958,7 +1000,7 @@ void BuildPanel::DrawPlatformDetails()
     };
 
     // The platform's own spelling: the editor has no list of families.
-    row("Family", platform->family.empty() ? "custom" : platform->family);
+    row("Family", platform->family.empty() ? Tr("custom") : platform->family);
 
     // Whatever the backend thinks is worth saying about its kind of target,
     // such as chip, flash and PSRAM. The editor adds no rows of its own.
@@ -1020,7 +1062,7 @@ void BuildPanel::DrawStripping()
     ImGui::PopStyleColor();
     BeginPropertyRow("");
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-    if (ImGui::Button("Recompute"))
+    if (ImGui::Button(TrLabel("Recompute")))
     {
         m_StripSummary.clear();
     }

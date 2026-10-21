@@ -5,6 +5,7 @@
 #include "inspector/InspectorUtils.h"
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/Localization.h>
 #include "EditorApp.h"
 #include "services/FrameCaptureService.h"
 #include <deki-editor/ProcessLaunch.h>
@@ -31,7 +32,7 @@ void FrameCapturePanel::Draw()
 
     DekiEditor::FirstUseWindowPlacement(450, 300);
 
-    if (ImGui::Begin("FRAME CAPTURE###Frame Capture", &isOpen,
+    if (ImGui::Begin(TrLabel("FRAME CAPTURE###Frame Capture"), &isOpen,
                      DekiEditor::MaximizedWindowFlags("FRAME CAPTURE###Frame Capture")))
     {
         auto* captureService = m_App->GetFrameCaptureService();
@@ -50,16 +51,17 @@ void FrameCapturePanel::Draw()
         ui.BeginToolbar();
         if (isCapturing)
         {
-            if (ui.ToolbarButton("Stop Recording", true, /*active*/ true))
+            if (ui.ToolbarButton(Tr("Stop Recording"), true, /*active*/ true))
             {
                 captureService->StopCapture();
             }
         }
-        else if (ui.ToolbarButton("Record", isPlaying && !m_OutputPath.empty() && captureService))
+        else if (ui.ToolbarButton(Tr("Record"), isPlaying && !m_OutputPath.empty() && captureService))
         {
             captureService->StartCapture(m_OutputPath);
         }
-        if (ui.ToolbarIconButton("##openfolder", ICON_TI_FOLDER, "Open the captures folder", !m_OutputPath.empty()) &&
+        if (ui.ToolbarIconButton("##openfolder", ICON_TI_FOLDER, Tr("Open the captures folder"),
+                                 !m_OutputPath.empty()) &&
             fs::exists(m_OutputPath))
         {
             // Argument vector, not a shell string: the folder comes from the
@@ -75,17 +77,17 @@ void FrameCapturePanel::Draw()
             ImGui::AlignTextToFramePadding();
             if (isCapturing)
             {
-                ImGui::TextColored(DekiEditor::Palette::Red, "Recording");
+                ImGui::TextColored(DekiEditor::Palette::Red, "%s", Tr("Recording"));
                 ImGui::SameLine();
-                ImGui::TextColored(DekiEditor::Palette::Dim, "%d frames", captureService->GetFrameCount());
+                ImGui::TextColored(DekiEditor::Palette::Dim, Tr("%d frames"), captureService->GetFrameCount());
             }
             else if (isPlaying)
             {
-                ImGui::TextColored(DekiEditor::Palette::Green, "Ready");
+                ImGui::TextColored(DekiEditor::Palette::Green, "%s", Tr("Ready"));
             }
             else
             {
-                ImGui::TextColored(DekiEditor::Palette::Dim, "Records in Play mode");
+                ImGui::TextColored(DekiEditor::Palette::Dim, "%s", Tr("Records in Play mode"));
             }
 
             InspectorUtils::BeginPropertyRow("Custom Folder");
@@ -105,7 +107,7 @@ void FrameCapturePanel::Draw()
             else
             {
                 ImGui::PushStyleColor(ImGuiCol_Text, DekiEditor::Palette::Dim);
-                ImGui::TextWrapped("%s", defaultPath.empty() ? "No project open" : defaultPath.c_str());
+                ImGui::TextWrapped("%s", defaultPath.empty() ? Tr("No project open") : defaultPath.c_str());
                 ImGui::PopStyleColor();
             }
             DekiEditor::EndPropertyContext();
@@ -130,7 +132,7 @@ void FrameCapturePanel::Draw()
             }
             InspectorUtils::BeginPropertyRow("");
             ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-            if (ImGui::Button("Copy Command"))
+            if (ImGui::Button(TrLabel("Copy Command")))
             {
                 ImGui::SetClipboardText(kCommand);
             }

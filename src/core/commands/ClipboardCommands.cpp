@@ -1,5 +1,6 @@
 #include "ObjectInternal.h"
 #include "ClipboardCommands.h"
+#include "CommandText.h"
 #include <deki/Object.h>
 #include <deki/Component.h>
 #include <deki/Scene.h>
@@ -26,11 +27,12 @@ PasteComponentValuesCommand::PasteComponentValuesCommand(const std::vector<Deki:
 
 std::string PasteComponentValuesCommand::GetDescription() const
 {
+    const std::string type = CommandText::ComponentName(m_SourceData.typeName);
     if (m_Entries.size() == 1)
     {
-        return "Paste " + m_SourceData.typeName + " Values";
+        return CommandText::Format(Tr("Paste %s Values"), type.c_str());
     }
-    return "Paste " + m_SourceData.typeName + " Values (" + std::to_string(m_Entries.size()) + " components)";
+    return CommandText::Format(Tr("Paste %s Values (%zu components)"), type.c_str(), m_Entries.size());
 }
 
 void PasteComponentValuesCommand::Execute()
@@ -76,11 +78,12 @@ PasteComponentAsNewCommand::PasteComponentAsNewCommand(const std::vector<Deki::O
 
 std::string PasteComponentAsNewCommand::GetDescription() const
 {
+    const std::string type = CommandText::ComponentName(m_SourceData.typeName);
     if (m_Entries.size() == 1)
     {
-        return "Paste " + m_SourceData.typeName + " as New";
+        return CommandText::Format(Tr("Paste %s as New"), type.c_str());
     }
-    return "Paste " + m_SourceData.typeName + " as New (" + std::to_string(m_Entries.size()) + " objects)";
+    return CommandText::Format(Tr("Paste %s as New (%zu objects)"), type.c_str(), m_Entries.size());
 }
 
 PasteComponentAsNewCommand::~PasteComponentAsNewCommand()
@@ -164,9 +167,9 @@ std::string PasteTransformCommand::GetDescription() const
 {
     if (m_Entries.size() == 1)
     {
-        return "Paste Transform";
+        return Tr("Paste Transform");
     }
-    return "Paste Transform (" + std::to_string(m_Entries.size()) + " objects)";
+    return CommandText::Format(Tr("Paste Transform (%zu objects)"), m_Entries.size());
 }
 
 void PasteTransformCommand::Execute()
@@ -209,9 +212,9 @@ std::string PasteObjectsCommand::GetDescription() const
 {
     if (m_ObjectsData.size() == 1)
     {
-        return "Paste " + m_ObjectsData[0].objectData.name;
+        return CommandText::Format(Tr("Paste %s"), m_ObjectsData[0].objectData.name.c_str());
     }
-    return "Paste " + std::to_string(m_ObjectsData.size()) + " Objects";
+    return CommandText::Format(Tr("Paste %zu Objects"), m_ObjectsData.size());
 }
 
 void PasteObjectsCommand::Execute()

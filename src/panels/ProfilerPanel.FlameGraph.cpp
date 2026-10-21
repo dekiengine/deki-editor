@@ -1,6 +1,7 @@
 #include "ProfilerPanel.h"
 #include "services/ProfilingService.h"
 #include "imgui.h"
+#include <deki-editor/Localization.h>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -33,7 +34,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
 {
     if (!root || root->children.empty())
     {
-        ImGui::TextDisabled("No data for flame graph");
+        ImGui::TextDisabled("%s", Tr("No data for flame graph"));
         return;
     }
 
@@ -52,7 +53,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
 
     if (frameTimeUs <= 0)
     {
-        ImGui::TextDisabled("No timing data");
+        ImGui::TextDisabled("%s", Tr("No timing data"));
         return;
     }
 
@@ -62,7 +63,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     float spacing = 3.0f;
 
     // Zoom controls
-    ImGui::Text("Zoom:");
+    ImGui::TextUnformatted(Tr("Zoom:"));
     ImGui::SameLine();
     if (ImGui::Button("-"))
     {
@@ -74,7 +75,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
         m_FlameGraphZoom = std::min(10.0f, m_FlameGraphZoom * 1.5f);
     }
     ImGui::SameLine();
-    if (ImGui::Button("Reset"))
+    if (ImGui::Button(TrLabel("Reset")))
     {
         m_FlameGraphZoom = 1.0f;
         m_FlameGraphScrollX = 0.0f;
@@ -82,7 +83,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     ImGui::SameLine();
     ImGui::Text("%.1fx", m_FlameGraphZoom);
     ImGui::SameLine();
-    ImGui::TextDisabled("| Frame: %.2f ms", frameTimeUs / 1000.0);
+    ImGui::TextDisabled(Tr("| Frame: %.2f ms"), frameTimeUs / 1000.0);
 
     float contentWidth = availWidth * m_FlameGraphZoom;
     double pixelsPerUs = contentWidth / frameTimeUs;
@@ -208,8 +209,8 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
 
         ImGui::Text("%s", m_HoveredEvent->name.c_str());
         ImGui::Separator();
-        ImGui::Text("Duration: %.3f ms", eventMs);
-        ImGui::Text("Frame %%: %.1f%%", percent);
+        ImGui::Text(Tr("Duration: %.3f ms"), eventMs);
+        ImGui::Text(Tr("Frame %%: %.1f%%"), percent);
 
         if (!m_HoveredEvent->children.empty())
         {
@@ -218,7 +219,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
             {
                 childrenMs += child->durationUs / 1000.0;
             }
-            ImGui::Text("Self: %.3f ms", eventMs - childrenMs);
+            ImGui::Text(Tr("Self: %.3f ms"), eventMs - childrenMs);
         }
 
         ImGui::EndTooltip();

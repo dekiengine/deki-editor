@@ -24,6 +24,9 @@ void SetWindow(SDL_Window* window);
 //
 // `filter` is the Win32 filter string ("Scene Files (*.scene)\0*.scene\0"),
 // which FileDialogFilter converts for the other platforms.
+//
+// Titles and the file type names in `filter` are English and are shown in the
+// editor's language, so callers pass them without Tr.
 
 /// Asks for a folder. `defaultPath`, when given, is where the picker starts.
 void OpenFolder(const char* title, ResultCallback onResult, const char* defaultPath = nullptr);

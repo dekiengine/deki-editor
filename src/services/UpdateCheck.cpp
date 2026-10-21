@@ -1,6 +1,7 @@
 #include "UpdateCheck.h"
 #include "UpdateCheckParse.h"
 #include <deki-editor/EditorSettings.h>
+#include <deki-editor/Localization.h>
 #include "../EditorVersion.h"
 #include "../widgets/Toast.h"
 
@@ -9,6 +10,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <mutex>
 #include <string>
@@ -32,6 +34,14 @@ std::string g_Error;             // empty when the request parsed
 std::string g_AvailableVersion;  // remembered for the Help menu
 std::string g_AvailableUrl;
 
+// `format`, already translated, with one string filled in.
+std::string Format(const char* format, const std::string& value)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf), format, value.c_str());
+    return buf;
+}
+
 int64_t NowEpoch()
 {
     return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
@@ -50,11 +60,11 @@ void Run(bool manual)
     bool newer = false;
     if (body.empty())
     {
-        error = "no response (offline, or the repository is not public)";
+        error = TrMark("no response (offline, or the repository is not public)");
     }
     else if (!ParseLatestRelease(body, release))
     {
-        error = "no published release in the response";
+        error = TrMark("no published release in the response");
     }
     else
     {
@@ -157,7 +167,8 @@ void UpdateCheck::Poll()
         DEKI_LOG_DEBUG("UpdateCheck: %s", error.c_str());
         if (manual)
         {
-            Toast::Push(Toast::Level::Warning, "Update check", "Could not reach GitHub releases: " + error);
+            Toast::Push(Toast::Level::Warning, Tr("Update check"),
+                        Format(Tr("Could not reach GitHub releases: %s"), Tr(error.c_str())));
         }
         return;
     }
@@ -166,9 +177,8 @@ void UpdateCheck::Poll()
     {
         DEKI_LOG_INFO("UpdateCheck: Deki Editor %s is available (running %s): %s", release.tag.c_str(),
                       EditorVersionString(), release.htmlUrl.c_str());
-        Toast::Push(Toast::Level::Info, ("Deki Editor " + release.tag + " is available").c_str(),
-                    "You are running " + std::string(EditorVersionString()) +
-                        ". Help > Open release page has the download.",
+        Toast::Push(Toast::Level::Info, Format(Tr("Deki Editor %s is available"), release.tag).c_str(),
+                    Format(Tr("You are running %s. Help > Open release page has the download."), EditorVersionString()),
                     12.0f);
     }
     else
@@ -176,8 +186,8 @@ void UpdateCheck::Poll()
         DEKI_LOG_DEBUG("UpdateCheck: up to date (%s, latest %s)", EditorVersionString(), release.tag.c_str());
         if (manual)
         {
-            Toast::Push(Toast::Level::Success, "Up to date",
-                        "Deki Editor " + std::string(EditorVersionString()) + " is the latest release.");
+            Toast::Push(Toast::Level::Success, Tr("Up to date"),
+                        Format(Tr("Deki Editor %s is the latest release."), EditorVersionString()));
         }
     }
 }

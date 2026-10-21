@@ -6,6 +6,7 @@
 #include "InspectorUtils.h"
 #include "../../EditorApp.h"
 #include <deki-editor/CommandHistory.h>
+#include <deki-editor/Localization.h>
 #include "../../core/Commands.h"
 #include "../../core/commands/PropertyTypeHandlers.h"
 #include <deki/reflection/Property.h>
@@ -29,7 +30,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
     nlohmann::json currentValue = CaptureArray(comp, prop);
 
     // --- Header: label + size input + Add button ---
-    ImGui::Text("%s", displayName);
+    ImGui::Text("%s", Tr(displayName));
     ShowTooltip(prop);
 
     ImGui::SameLine();
@@ -84,7 +85,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
     }
 
     ImGui::SameLine(ImGui::GetContentRegionAvail().x - 50);
-    if (ImGui::SmallButton("+ Add"))
+    if (ImGui::SmallButton(TrLabel("+ Add")))
     {
         nlohmann::json newValue = currentValue;
         switch (prop.elementType)
@@ -108,7 +109,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
     if (currentValue.empty())
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 0.7f));
-        ImGui::TextWrapped("  Empty array. Click + Add or set size above.");
+        ImGui::TextWrapped("%s", Tr("  Empty array. Click + Add or set size above."));
         ImGui::PopStyleColor();
     }
 
@@ -333,7 +334,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
                 {
                     refObj = scene->FindDekiObject(objId);
                 }
-                std::string btnLabel = "(None)";
+                std::string btnLabel = Tr("(None)");
                 if (refObj)
                 {
                     btnLabel = refObj->GetName();
@@ -370,7 +371,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
                 ImGui::PopStyleColor(3);
                 break;
             }
-            default: ImGui::TextDisabled("(unsupported element type)"); break;
+            default: ImGui::TextDisabled("%s", Tr("(unsupported element type)")); break;
         }
 
         if (changed)

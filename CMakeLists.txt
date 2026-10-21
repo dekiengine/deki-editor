@@ -47,7 +47,7 @@ endif()
 # The release number. The engine (deki-engine/CMakeLists.txt) carries the same
 # one, packages name it as minEngine, and the git tag equals it; see
 # COMPATIBILITY.md. tools/ci/check_version.py fails when the two drift.
-project(DekiEditor VERSION 0.18.4 LANGUAGES CXX)
+project(DekiEditor VERSION 0.19.1 LANGUAGES CXX)
 
 # Unity builds batch sources into a few large translation units, which makes
 # a clean build much faster. Opt-in until every TU is known to be free of
@@ -714,6 +714,8 @@ set(EDITOR_SOURCES
     src/services/GitProcess.h
     src/services/ProgressModal.cpp
     src/services/ProgressModal.h
+    src/widgets/LanguagePicker.cpp
+    src/widgets/LanguagePicker.h
     src/widgets/Toast.cpp
     src/widgets/Toast.h
     src/widgets/DrawListFx.h
@@ -1006,6 +1008,28 @@ add_custom_command(TARGET DekiEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/fonts/tabler-icons.ttf"
         "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/tabler-icons.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansJP-Regular.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansJP-Regular.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansJP-Medium.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansJP-Medium.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansSC-Regular.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansSC-Regular.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansSC-Medium.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansSC-Medium.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansKR-Regular.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansKR-Regular.otf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts/NotoSansKR-Medium.otf"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/fonts/NotoSansKR-Medium.otf"
+    # The editor's translations (Localization.h).
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/resources/lang"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/lang"
     # What a new project starts with (ProjectScaffold::LoadProjectStarter).
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/resources/starter.json"
