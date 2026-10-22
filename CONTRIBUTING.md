@@ -262,6 +262,13 @@ python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt
 descriptions, tooltips and ranges come from `DEKI_DESCRIPTION`, `DEKI_TOOLTIP`
 and `DEKI_RANGE` on the code, so documenting a component means annotating it.
 
+## Releasing
+
+[docs/releasing.md](docs/releasing.md) is the whole release, in order: choosing
+the version, the checks, then the engine, the editor, the packages, the
+registry, the demo and the docs. Its first section is the promise a release
+keeps to people already using Deki.
+
 ## Reporting problems
 
 Bugs and feature requests: GitHub issues on the repository concerned (editor,
