@@ -22,5 +22,9 @@
     "Editor Log": "エディターログ",
     "Detailed": "詳細",
     "Editor.log also keeps per-item detail: each asset imported, each component and editor registered. For tracking down a problem.": "Editor.log に項目ごとの詳細も残します (インポートした各アセット、登録した各コンポーネントとエディター)。問題の調査用です。",
-    "File": "ファイル"
+    "File": "ファイル",
+    "Screen Size": "画面サイズ",
+    "Diagonal": "対角",
+    "The screen's diagonal in inches, as the board's maker gives it. A panel cannot report its size, so the board says; scenes use it to lay out for small screens. 0: unknown.": "画面の対角サイズ (インチ)。ボードのメーカーが示す値です。パネルは自分のサイズを報告できないため、ボードが示します。シーンは小さな画面向けのレイアウトにこれを使います。0: 不明。",
+    "The screen's diagonal in inches, for scenes that lay out for small screens. 0: unknown.": "画面の対角サイズ (インチ)。小さな画面向けにレイアウトするシーンが使います。0: 不明。"
 }

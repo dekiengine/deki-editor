@@ -23,6 +23,7 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `frameworkOptions` | That backend's own settings: chip, flash size, sdkconfig lines, pins. The editor carries them and does not read them; the backend validates them when it builds. |
 | `family` | Descriptive only. Becomes the capability `family:<x>`. |
 | `screenWidth`, `screenHeight`, `colorFormat` | The screen this target has. The editor previews it, the desktop simulator opens a window of it, and images set to Automatic are stored in `colorFormat` for it. A device renders at its display's own size and format; see [screens.md](screens.md). |
+| `screenDiagonalInches` | The screen's diagonal in inches, as the board's maker gives it (`2.8`, `1.91`). Optional; absent means unknown. A panel cannot report its own size, so the board says, and the build carries it to the device for layouts that fit a physically small screen; see [screens.md](screens.md#size-on-the-glass). |
 | `externalMemorySize` | Bytes of memory beyond the internal heap (PSRAM on a microcontroller). Grants packages `memory:external`. |
 | `provides` | What the target can offer a package: `wifi`, `spi`, `desktop-os`, ... |
 | `requiresPackages` | Packages the target always needs, whatever the scenes use. Its hardware abstraction layer, typically. |

@@ -108,6 +108,13 @@ struct DEKI_EDITOR_API PlatformConfig
     // the setup components that start the target's display, input and storage.
     // Relative to the project.
     std::string bootScene;
+
+    // The screen's diagonal in inches, as the board's maker gives it; 0 when
+    // unknown. A panel cannot report its own size, so the board says. With
+    // screenWidth x screenHeight it gives the pixels per inch, which a build
+    // carries to the device (Deki::Screen). Last in the struct so a builder
+    // compiled against an older header still finds every other field.
+    float screenDiagonalInches = 0.0f;
 };
 
 /// A platform as JSON text, in the one form SavePlatformToFile writes. Reading

@@ -128,6 +128,7 @@ set(TEST_SOURCES
     # Engine-side parser hardening (second audit pass)
     core/EngineHardeningTests.cpp
     core/ScreenAnchorTests.cpp
+    core/ScreenSizeTests.cpp
     core/ScriptRefsTests.cpp
     core/PropertyColorTests.cpp
     core/HeadlessRuntimeTests.cpp

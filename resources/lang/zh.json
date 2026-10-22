@@ -22,5 +22,9 @@
     "Editor Log": "编辑器日志",
     "Detailed": "详细",
     "Editor.log also keeps per-item detail: each asset imported, each component and editor registered. For tracking down a problem.": "Editor.log 还会记录每一项的详细信息：导入的每个资源、注册的每个组件和编辑器。用于排查问题。",
-    "File": "文件"
+    "File": "文件",
+    "Screen Size": "屏幕尺寸",
+    "Diagonal": "对角线",
+    "The screen's diagonal in inches, as the board's maker gives it. A panel cannot report its size, so the board says; scenes use it to lay out for small screens. 0: unknown.": "屏幕对角线尺寸（英寸），以开发板厂商给出的为准。面板无法报告自身尺寸，所以由开发板说明；场景据此为小屏幕布局。0：未知。",
+    "The screen's diagonal in inches, for scenes that lay out for small screens. 0: unknown.": "屏幕对角线尺寸（英寸），供为小屏幕布局的场景使用。0：未知。"
 }

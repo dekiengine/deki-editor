@@ -4,6 +4,22 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- **A platform can say how big its screen is.** `screenDiagonalInches` in a
+  platform file (optional; absent is unknown) is the diagonal the board's
+  maker gives. A panel cannot report its size, so the board does, and a build
+  carries it to the device, where `Deki::Engine` turns it into pixels per inch
+  and meters of glass for layouts that fit a physically small screen. The
+  platform editor (Screen Size), the MCP platform tools
+  (`screen_diagonal_inches`) and the Build panel show it. The Play view uses
+  the previewed platform's, a resolution added with Add... can have one, and
+  `--render-scenes` takes `DEKI_RENDER_INCHES`. Nothing to do for existing
+  projects: a platform that does not say behaves as before, and an older
+  editor reads the new key without complaint. See
+  [docs/screens.md](docs/screens.md#size-on-the-glass).
+
 ## 0.19.1 - 2026-10-17
 
 ### Fixed

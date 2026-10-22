@@ -137,6 +137,39 @@ draw into every framebuffer format. A model's texture is stored at powers of
 two, so Max Size caps them; with None it is capped at 256, the size a small
 board can hold resident.
 
+## Size on the glass
+
+Pixels say nothing about how big a screen is in your hand. The T-Deck Plus
+(320x240, 2.8") and the T-Display S3 AMOLED (536x240, 1.91") are both 240
+pixels tall, so a camera draws them at the same pixel size, but the AMOLED
+packs 307 pixels into an inch against the T-Deck's 143: the same 12 px label
+is 2.1 mm tall on one and 1 mm on the other.
+
+A panel cannot report its own size, so the board says: a platform's
+`screenDiagonalInches` ([platforms.md](platforms.md)). The build carries it to
+the device, and a script reads it from the engine:
+
+| `Deki::Engine` | |
+| --- | --- |
+| `GetScreenDiagonalInches()` | As the platform gives it; 0 when unknown |
+| `GetScreenPixelsPerInch()` | From the diagonal and the screen's current size; 0 when unknown |
+| `GetScreenWidthMeters()`, `GetScreenHeightMeters()` | The screen's size on the glass; 0 when unknown |
+
+The camera does not use it: every screen still shows the camera's ortho
+height. What changes on a small screen is the layout, which is the scene's to
+decide. With the camera's pixels per meter, one meter of world is
+`ppm / ppi * 0.0254` meters of glass, so a script can tell whether a button
+comes out big enough to tap (about 9 mm) and lay the screen out differently
+when it does not. The demo's menu is a 4x2 grid on the T-Deck and on a
+desktop, and a row of tiles twice the size, swiped left and right, on the
+AMOLED.
+
+A screen of unknown size (a desktop window, a platform that does not say)
+reports 0, and a layout should keep its usual form there. The Play view uses
+the previewed platform's diagonal; a resolution added with Add... can be given
+one. `DekiEditor --render-scenes` uses the platform's, and
+`DEKI_RENDER_INCHES` gives another.
+
 ## On the device
 
 The framebuffer is the display's own size and format, read when the display

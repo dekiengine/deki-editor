@@ -93,6 +93,9 @@ private:
     int m_ScreenWidth = 320;
     int m_ScreenHeight = 240;
 
+    // Every platform's, builder or not
+    float m_ScreenDiagonalInches = 0.0f;
+
     // The platform being edited, as loaded. Save starts from it, so fields this
     // dialog does not show (capabilities, required packages, colour format,
     // backend options) are kept.
@@ -101,6 +104,7 @@ private:
     // Where the target keeps its assets: 0 internal, 1 external. Offered only
     // when the platform has external storage.
     int m_AssetStorageIndex = 0;
+    void DrawScreenSizeSection();
     void DrawStorageSection();
 
     // Error display

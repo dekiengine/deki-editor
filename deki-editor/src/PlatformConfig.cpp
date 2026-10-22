@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
+#include <cmath>
 #include <nlohmann/json.hpp>
 #include <set>
 
@@ -256,7 +257,7 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
         static const std::set<std::string> kOwnKeys = {
             "id",          "displayName",  "family",           "framework", "frameworkOptions", "externalMemorySize",
             "screenWidth", "screenHeight", "colorFormat",      "defines",   "cFlags",           "cxxFlags",
-            "linkFlags",   "provides",     "requiresPackages", "bootScene", "assetStorage"
+            "linkFlags",   "provides",     "requiresPackages", "bootScene", "assetStorage", "screenDiagonalInches"
         };
 
         json options = json::object();
@@ -283,6 +284,7 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 
     config.screenWidth = j.value("screenWidth", 0);
     config.screenHeight = j.value("screenHeight", 0);
+    config.screenDiagonalInches = j.value("screenDiagonalInches", 0.0f);
     config.colorFormat = j.value("colorFormat", "RGB565");
     config.assetStorage = j.value("assetStorage", "internal");
 
@@ -419,6 +421,12 @@ std::string PlatformToJson(const PlatformConfig& config)
     if (config.screenHeight > 0)
     {
         j["screenHeight"] = config.screenHeight;
+    }
+    if (config.screenDiagonalInches > 0.0f)
+    {
+        // Through double at three decimals, so 1.91 is written as 1.91 rather
+        // than the float's 1.909999966.
+        j["screenDiagonalInches"] = std::round(static_cast<double>(config.screenDiagonalInches) * 1000.0) / 1000.0;
     }
     if (!config.colorFormat.empty())
     {

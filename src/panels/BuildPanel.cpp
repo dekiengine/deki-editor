@@ -18,6 +18,7 @@
 #include "services/AssetExporter.h"
 #include "services/FirmwareBuildService.h"
 #include <deki-editor/FeatureResolver.h>
+#include <deki/ScreenScale.h>
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -1014,7 +1015,16 @@ void BuildPanel::DrawPlatformDetails()
 
     if (platform->screenWidth > 0 && platform->screenHeight > 0)
     {
-        row("Display", std::to_string(platform->screenWidth) + "x" + std::to_string(platform->screenHeight));
+        std::string display = std::to_string(platform->screenWidth) + "x" + std::to_string(platform->screenHeight);
+        const float ppi =
+            Deki::ScreenPixelsPerInch(platform->screenWidth, platform->screenHeight, platform->screenDiagonalInches);
+        if (ppi > 0.0f)
+        {
+            char inches[48];
+            snprintf(inches, sizeof(inches), ", %.3g\" (%.0f ppi)", platform->screenDiagonalInches, ppi);
+            display += inches;
+        }
+        row("Display", display);
     }
 }
 

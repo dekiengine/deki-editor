@@ -23,6 +23,7 @@
 #include <deki/Object.h>
 #include <deki/ICamera.h>
 #include <deki/ScreenAnchor.h>
+#include <deki/Engine.h>
 #include "InputKeys.h"
 #include "imgui.h"
 #include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth
@@ -574,6 +575,7 @@ void PlayViewPanel::LoadUserScreens()
             s.aspect = e.value("aspect", false);
             s.w = e.value("w", 0);
             s.h = e.value("h", 0);
+            s.inches = e.value("inches", 0.0f);
             if (s.w > 0 && s.h > 0)
             {
                 m_UserScreens.push_back(s);
@@ -591,7 +593,12 @@ void PlayViewPanel::SaveUserScreens() const
     nlohmann::json list = nlohmann::json::array();
     for (const UserScreen& s : m_UserScreens)
     {
-        list.push_back({ { "name", s.name }, { "aspect", s.aspect }, { "w", s.w }, { "h", s.h } });
+        nlohmann::json e = { { "name", s.name }, { "aspect", s.aspect }, { "w", s.w }, { "h", s.h } };
+        if (!s.aspect && s.inches > 0.0f)
+        {
+            e["inches"] = s.inches;
+        }
+        list.push_back(e);
     }
     EditorSettings::SetString(kUserSizesKey, list.dump());
 }
@@ -680,9 +687,30 @@ void PlayViewPanel::SavePreview() const
     EditorSettings::SetString("playView.format:" + m_PreviewProject, ColorFormatName(m_PreviewFormat));
 }
 
+float PlayViewPanel::PreviewDiagonalInches() const
+{
+    if (const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(m_PreviewId))
+    {
+        return platform->screenDiagonalInches;
+    }
+    for (const UserScreen& s : m_UserScreens)
+    {
+        if (!s.aspect && s.Id() == m_PreviewId)
+        {
+            return s.inches;
+        }
+    }
+    // Free Aspect and the aspect ratios follow the panel, which has no size on
+    // any glass.
+    return 0.0f;
+}
+
 void PlayViewPanel::ApplyPreviewSize()
 {
     SceneView::Get().SetPreviewFormat(m_PreviewFormat);
+    // What a device build reads from its project_data.bin, so a layout that
+    // fits a small screen does so here too.
+    Deki::Engine::GetInstance().SetScreenDiagonalInches(PreviewDiagonalInches());
     int aw = 0, ah = 0;
     if (ParseResolution(m_PreviewId, aw, ah))
     {
@@ -789,6 +817,12 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
         {
             std::string dims = s.aspect ? std::to_string(s.w) + ":" + std::to_string(s.h)
                                         : std::to_string(s.w) + "x" + std::to_string(s.h);
+        if (!s.aspect && s.inches > 0.0f)
+        {
+            char inches[16];
+            snprintf(inches, sizeof(inches), "  %.3g\"", s.inches);
+            dims += inches;
+        }
             return s.name.empty() ? dims : s.name + "  " + dims;
         };
 
@@ -815,7 +849,14 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
             {
                 continue;
             }
-            row(id, name + "  " + std::to_string(p->screenWidth) + "x" + std::to_string(p->screenHeight), -1);
+            std::string label = name + "  " + std::to_string(p->screenWidth) + "x" + std::to_string(p->screenHeight);
+            if (p->screenDiagonalInches > 0.0f)
+            {
+                char inches[16];
+                snprintf(inches, sizeof(inches), "  %.3g\"", p->screenDiagonalInches);
+                label += inches;
+            }
+            row(id, label, -1);
         }
         for (size_t i = 0; i < m_UserScreens.size(); ++i)
         {
@@ -876,6 +917,15 @@ void PlayViewPanel::DrawAddScreenDialog()
     SchematicDragInt("##w", &m_NewScreen.w, 1.0f, 1, 8192);
     BeginPropertyRow("Height");
     SchematicDragInt("##h", &m_NewScreen.h, 1.0f, 1, 8192);
+    if (!m_NewScreen.aspect)
+    {
+        InspectorUtils::SetNextRowTooltip("The screen's diagonal in inches, for scenes that lay out for small "
+                                          "screens. 0: unknown.");
+        BeginPropertyRow("Diagonal");
+        SchematicDragFloat("##inches", &m_NewScreen.inches, 0.01f, 0.0f, 100.0f,
+                           m_NewScreen.inches > 0.0f ? "%.2f in" : "unknown");
+        m_NewScreen.inches = std::clamp(m_NewScreen.inches, 0.0f, 100.0f);
+    }
     EndPropertyContext();
     m_NewScreen.w = std::clamp(m_NewScreen.w, 1, 8192);
     m_NewScreen.h = std::clamp(m_NewScreen.h, 1, 8192);

@@ -133,6 +133,7 @@ void PlatformEditorDialog::ResetToDefaults()
     m_SelectedBuilderIndex = -1;
     m_ScreenWidth = 320;
     m_ScreenHeight = 240;
+    m_ScreenDiagonalInches = 0.0f;
     m_Loaded = PlatformConfig{};
     m_AssetStorageIndex = 0;
     m_EditorUI.reset();
@@ -158,6 +159,7 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     // Native fields, used when there is no builder UI
     m_ScreenWidth = config->screenWidth > 0 ? config->screenWidth : 320;
     m_ScreenHeight = config->screenHeight > 0 ? config->screenHeight : 240;
+    m_ScreenDiagonalInches = config->screenDiagonalInches > 0.0f ? config->screenDiagonalInches : 0.0f;
 
     m_Loaded = *config;
     m_AssetStorageIndex = config->assetStorage == "external" ? 1 : 0;
@@ -203,6 +205,7 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
     }
 
     config.assetStorage = m_AssetStorageIndex == 1 ? "external" : "internal";
+    config.screenDiagonalInches = m_ScreenDiagonalInches;
 
     // The builder's UI writes its own fields
     if (m_EditorUI)
@@ -327,6 +330,7 @@ void PlatformEditorDialog::Draw()
     {
         DrawNativeEditor();
     }
+    DrawScreenSizeSection();
     DrawStorageSection();
     ImGui::EndChild();
 
@@ -397,6 +401,7 @@ bool PlatformEditorDialog::DrawInline()
     {
         DrawNativeEditor();
     }
+    DrawScreenSizeSection();
     DrawStorageSection();
 
     ImGui::Spacing();
@@ -577,6 +582,25 @@ void PlatformEditorDialog::DrawBasicSection()
 // Storage: where the target keeps its assets. Only a target with external
 // storage (an SD card) has a choice; every other one keeps them internal.
 // ============================================================================
+
+void PlatformEditorDialog::DrawScreenSizeSection()
+{
+    if (!DekiEditor::SchematicSectionBegin("Screen Size"))
+    {
+        return;
+    }
+    DekiEditor::BeginPropertyContext();
+    InspectorUtils::SetNextRowTooltip("The screen's diagonal in inches, as the board's maker gives it. A panel cannot "
+                                      "report its size, so the board says; scenes use it to lay out for small "
+                                      "screens. 0: unknown.");
+    InspectorUtils::BeginPropertyRow("Diagonal");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    DekiEditor::SchematicDragFloat("##ScreenDiagonal", &m_ScreenDiagonalInches, 0.01f, 0.0f, 100.0f,
+                                   m_ScreenDiagonalInches > 0.0f ? "%.2f in" : "unknown");
+    m_ScreenDiagonalInches = std::max(m_ScreenDiagonalInches, 0.0f);
+    DekiEditor::EndPropertyContext();
+    DekiEditor::SchematicSectionEnd();
+}
 
 void PlatformEditorDialog::DrawStorageSection()
 {
