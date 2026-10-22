@@ -516,8 +516,16 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # copies straight, and getting it wrong is visible only as a wrong pixel in a
 # finished frame. Sprite.cpp is here for Max Size: the loader maps a shrunk
 # texture's frames the way the (header-only) encoder resampled them.
-deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES Sprite.cpp)
-deki_add_package_tests(deki-2d TARGET Deki2DTestsBigEndian SOURCES Sprite.cpp BIG_ENDIAN)
+# ScrollComponent's drag tests press, move and lift through a real
+# InputCollider, so deki-input's collider and gesture claim come in with it;
+# like InputCollider, the scroll and clip build without codegen.
+set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp
+                       ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp)
+deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
+                       DEFINES DEKI_INPUT_EXPORTS)
+deki_add_package_tests(deki-2d TARGET Deki2DTestsBigEndian SOURCES ${_deki_2d_test_srcs}
+                       DEFINES DEKI_INPUT_EXPORTS
+                       BIG_ENDIAN)
 
 # Document wraps the vendored cJSON; its .c file compiles with it, and nothing
 # else in the package is needed. The editor itself is C++ only on Windows
