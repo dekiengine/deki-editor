@@ -1675,9 +1675,15 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
 
     // The screen of --platform, else of the active platform.
     // DEKI_RENDER_SIZE=WxH renders a screen of another size instead, to see
-    // what the camera shows there.
+    // what the camera shows there; its diagonal is then unknown unless
+    // DEKI_RENDER_INCHES gives one.
     int32_t width = 0, height = 0;
     DekiEditor::ActivePlatformScreen(editor.GetProject(), width, height);
+    float diagonalInches = 0.0f;
+    if (const PlatformConfig* active = PlatformRegistry::Instance().GetPlatform(project->GetActivePlatformId()))
+    {
+        diagonalInches = active->screenDiagonalInches;
+    }
     if (platformId && *platformId)
     {
         const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(platformId);
@@ -1693,6 +1699,7 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         }
         width = platform->screenWidth;
         height = platform->screenHeight;
+        diagonalInches = platform->screenDiagonalInches;
     }
     if (const char* env = std::getenv("DEKI_RENDER_SIZE"))
     {
@@ -1704,7 +1711,19 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         }
         width = w;
         height = h;
+        diagonalInches = 0.0f;
     }
+    if (const char* env = std::getenv("DEKI_RENDER_INCHES"))
+    {
+        float inches = 0.0f;
+        if (std::sscanf(env, "%f", &inches) != 1 || !(inches >= 0.0f) || inches > 1000.0f)
+        {
+            printf("Error: DEKI_RENDER_INCHES must be the screen's diagonal in inches, e.g. 1.91 (got '%s')\n", env);
+            return 1;
+        }
+        diagonalInches = inches;
+    }
+    Deki::Engine::GetInstance().SetScreenDiagonalInches(diagonalInches);
     if (width <= 0 || height <= 0)
     {
         printf("Error: the screen size is empty (%dx%d px)\n", width, height);

@@ -1,5 +1,6 @@
 #include "AssetExporter.h"
 #include <deki-editor/build/ProjectPaths.h>
+#include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/FileIO.h>
 #include "AssetPacker.h"
 #include "PackageLoader.h"
@@ -28,6 +29,15 @@
 
 namespace DekiEditor
 {
+
+// The target board's screen diagonal for project_data.bin, 0 when unknown or
+// when exporting for the editor itself.
+static float TargetScreenDiagonalInches(const AssetExportTarget& target)
+{
+    const PlatformConfig* platform =
+        target.platformId.empty() ? nullptr : PlatformRegistry::Instance().GetPlatform(target.platformId);
+    return platform ? platform->screenDiagonalInches : 0.0f;
+}
 
 // Reads a render pipeline asset's renderer name and pass type names.
 static void ResolvePipelineConfig(const std::string& pipelineGuid, AssetPipeline* pipeline,
@@ -893,7 +903,7 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
         m_Target.assetStorage, targetFPS, startupScene.empty() ? nullptr : startupScene.c_str(),
         rendererName.empty() ? nullptr : rendererName.c_str(), passNamePtrs.empty() ? nullptr : passNamePtrs.data(),
-        static_cast<int>(passNamePtrs.size()));
+        static_cast<int>(passNamePtrs.size()), TargetScreenDiagonalInches(m_Target));
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
 
     DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)", Deki::ProjectSettings::kExportFilename,
@@ -957,7 +967,7 @@ bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::
     std::vector<uint8_t> settingsBuffer = Deki::ProjectSettings::Write(
         m_Target.assetStorage, targetFPS, startupScene.empty() ? nullptr : startupScene.c_str(),
         rendererName2.empty() ? nullptr : rendererName2.c_str(), passNamePtrs2.empty() ? nullptr : passNamePtrs2.data(),
-        static_cast<int>(passNamePtrs2.size()));
+        static_cast<int>(passNamePtrs2.size()), TargetScreenDiagonalInches(m_Target));
     settingsFile.write(reinterpret_cast<const char*>(settingsBuffer.data()), settingsBuffer.size());
     settingsFile.close();
 

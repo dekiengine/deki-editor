@@ -310,6 +310,9 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   { { "type", "string" }, { "description", "Human-readable name (default: the id)" } } },
                 { "screen_width", { { "type", "integer" } } },
                 { "screen_height", { { "type", "integer" } } },
+                { "screen_diagonal_inches",
+                  { { "type", "number" },
+                    { "description", "The screen's diagonal in inches, as the board's maker gives it; 0 for unknown" } } },
                 { "family",
                   { { "type", "string" },
                     { "description", "Vendor family; descriptive only, never used to choose a backend" } } },
@@ -412,6 +415,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               {
                   config.screenHeight = args["screen_height"].get<int32_t>();
               }
+              if (args.contains("screen_diagonal_inches") && args["screen_diagonal_inches"].is_number())
+              {
+                  config.screenDiagonalInches = (std::max)(0.0f, args["screen_diagonal_inches"].get<float>());
+              }
               // family is written as a string everywhere a platform
               // is saved, so it is converted here rather than assigned.
               if (args.contains("family") && args["family"].is_string())
@@ -507,6 +514,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                        { "frameworkOptions", config.frameworkOptions },
                        { "screenWidth", config.screenWidth },
                        { "screenHeight", config.screenHeight },
+                       { "screenDiagonalInches", config.screenDiagonalInches },
                        { "bootScene", config.bootScene },
                        { "directory", directory } };
           } });
@@ -746,6 +754,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                 { "screen_height",
                   { { "type", "integer" },
                     { "description", "Screen height in pixels. Give with screen_width. Unchanged when omitted." } } },
+                { "screen_diagonal_inches",
+                  { { "type", "number" },
+                    { "description", "The screen's diagonal in inches, as the board's maker gives it; 0 for unknown. "
+                                     "Scenes use it to lay out for small screens. Unchanged when omitted." } } },
                 { "framework_options",
                   { { "type", "object" },
                     { "description",
@@ -846,6 +858,14 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   config.screenWidth = dimension("screen_width");
                   config.screenHeight = dimension("screen_height");
               }
+              if (args.contains("screen_diagonal_inches"))
+              {
+                  if (!args["screen_diagonal_inches"].is_number() || args["screen_diagonal_inches"].get<double>() < 0.0)
+                  {
+                      throw std::runtime_error("screen_diagonal_inches is a number of inches, 0 for unknown");
+                  }
+                  config.screenDiagonalInches = args["screen_diagonal_inches"].get<float>();
+              }
               if (args.contains("framework_options") && args["framework_options"].is_object())
               {
                   nlohmann::json options = nlohmann::json::parse(
@@ -910,6 +930,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                        { "capabilities", caps },
                        { "screenWidth", config.screenWidth },
                        { "screenHeight", config.screenHeight },
+                       { "screenDiagonalInches", config.screenDiagonalInches },
                        { "cxxFlags", config.cxxFlags },
                        { "assetStorage", config.assetStorage } };
           } });

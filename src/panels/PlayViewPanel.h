@@ -69,6 +69,7 @@ private:
         std::string name;  // optional; the size is shown either way
         bool aspect = false;
         int w = 0, h = 0;
+        float inches = 0.0f;  // a resolution's diagonal; 0 = unknown
         std::string Id() const;
     };
     std::vector<UserScreen> m_UserScreens;
@@ -78,6 +79,9 @@ private:
     UserScreen m_NewScreen;
     char m_NewScreenName[64] = {};
     void LoadUserScreens();
+    // The previewed screen's diagonal in inches, 0 when unknown: a platform's,
+    // or a resolution the user gave one.
+    float PreviewDiagonalInches() const;
     void SaveUserScreens() const;
     void DrawAddScreenDialog();
     std::string ScreenLabel(const std::string& id) const;
