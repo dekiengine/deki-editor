@@ -586,16 +586,19 @@ deki_add_package_tests(deki-spi TARGET DekiSPITests SOURCES DekiSPI.cpp SPIBusCo
 
 # deki-display off a device: the init-sequence parser, the controller's bytes
 # on a recording panel IO, SpiPanelIO on a recording SPI device,
-# PanelDisplay's byte order, bands, overlay and present worker, and touch (the
-# GT911 against a scripted I2C bus, the mapping, the input events), in both
-# byte orders. The registries it finds its buses, pins and input in are
-# deki-spi's, deki-gpio's, deki-i2c's and deki-input's.
+# PanelDisplay's byte order, bands, overlay, present worker and tear-free
+# presenting, and touch (the GT911 against a scripted I2C bus, the mapping,
+# the input events), in both byte orders. The registries it finds its buses,
+# pins, input and scan order in are deki-spi's, deki-gpio's, deki-i2c's,
+# deki-input's and deki-rendering's.
 set(_deki_display_srcs InitSequence.cpp Controllers.cpp PanelController.cpp PanelDisplay.cpp SpiPanelIO.cpp
                        QspiPanelIO.cpp DisplayPanelComponent.cpp TouchMapper.cpp GT911Touch.cpp CST816Touch.cpp
                        PanelTouchInput.cpp
                        TouchPanelComponent.cpp ../deki-spi/DekiSPI.cpp ../deki-gpio/DekiGPIO.cpp
-                       ../deki-i2c/DekiI2C.cpp ../deki-input/DekiInput.cpp)
-set(_deki_display_defs DEKI_SPI_EXPORTS DEKI_GPIO_EXPORTS DEKI_I2C_EXPORTS DEKI_INPUT_EXPORTS)
+                       ../deki-i2c/DekiI2C.cpp ../deki-input/DekiInput.cpp
+                       ../deki-rendering/ScanOrderedDisplay.cpp)
+set(_deki_display_defs DEKI_SPI_EXPORTS DEKI_GPIO_EXPORTS DEKI_I2C_EXPORTS DEKI_INPUT_EXPORTS
+                       DEKI_RENDERING_EXPORTS)
 deki_add_package_tests(deki-display TARGET DekiDisplayTests SOURCES ${_deki_display_srcs}
                        DEFINES ${_deki_display_defs})
 deki_add_package_tests(deki-display TARGET DekiDisplayTestsBigEndian SOURCES ${_deki_display_srcs}
