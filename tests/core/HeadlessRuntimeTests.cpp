@@ -47,6 +47,24 @@ public:
     int updates = 0;
 };
 
+// Opens another scene from its Update, as a button does when clicked.
+class SceneOpener : public Deki::Component
+{
+public:
+    static const Deki::ComponentTypeInfo kInfo;
+    SceneOpener() { SetTypeInfo(&kInfo); }
+    void Update() override
+    {
+        if (next)
+        {
+            Deki::Engine::GetInstance().GetSceneSystem().SetRootScene(next, false);
+            next = nullptr;
+        }
+    }
+    Deki::Scene* next = nullptr;
+};
+
+const Deki::ComponentTypeInfo SceneOpener::kInfo = Deki::MakeHandWrittenTypeInfo<SceneOpener>(/*declaresUpdate=*/true);
 const Deki::ComponentTypeInfo TickCounter::kInfo = Deki::MakeHandWrittenTypeInfo<TickCounter>(/*declaresUpdate=*/true);
 const Deki::ComponentTypeInfo SilentBehaviour::kInfo =
     Deki::MakeHandWrittenTypeInfo<SilentBehaviour>(/*declaresUpdate=*/false);
@@ -138,4 +156,26 @@ TEST(HeadlessRuntime, ObjectTreeAndTransformsWorkWithoutRendering)
     root->SetLocalPosition(0.0f, 0.0f);
     EXPECT_FLOAT_EQ(child->GetWorldX(), 5.0f);
     EXPECT_FLOAT_EQ(child->GetWorldY(), 5.0f);
+}
+
+// A scene opened from Update is started in the same frame, before it is
+// drawn: its first frame shows it, not an empty frame of the clear colour.
+TEST(HeadlessRuntime, ASceneOpenedInUpdateIsStartedBeforeItIsDrawn)
+{
+    auto& engine = Deki::Engine::GetInstance();
+    Deki::Scene first;
+    Deki::Scene second;
+    auto* opener = new SceneOpener();
+    Deki::Internal::AttachComponent(*first.CreateDekiObject("Opener"), opener);
+    auto* counter = new TickCounter();
+    Deki::Internal::AttachComponent(*second.CreateDekiObject("Counter"), counter);
+
+    engine.GetSceneSystem().SetRootScene(&first, false);
+    engine.ProcessLifecycle();  // starts the first scene
+    opener->next = &second;
+    engine.ProcessLifecycle();  // its Update opens the second
+    EXPECT_EQ(engine.GetSceneSystem().GetRootScene(), &second);
+    EXPECT_EQ(counter->awakes, 1);
+    EXPECT_EQ(counter->starts, 1);
+    engine.GetSceneSystem().SetRootScene(nullptr, false);
 }

@@ -584,15 +584,18 @@ deki_add_package_tests(deki-i2c TARGET DekiI2CTests SOURCES DekiI2C.cpp I2CBusCo
 # scene against a fake bus from the factory.
 deki_add_package_tests(deki-spi TARGET DekiSPITests SOURCES DekiSPI.cpp SPIBusComponent.cpp)
 
-# deki-display off a device: the init-sequence parser, the controller's bytes
-# on a recording panel IO, SpiPanelIO on a recording SPI device,
-# PanelDisplay's byte order, bands, overlay, present worker and tear-free
-# presenting, and touch (the GT911 against a scripted I2C bus, the mapping,
+# deki-display off a device: the init-sequence parser, every controller's
+# bytes on a recording panel IO, SpiPanelIO on a recording SPI device,
+# Rgb666PanelIO and ParallelPanelIO, PanelDisplay's byte order, bands,
+# overlay, present worker and tear-free presenting, and touch (the GT911,
+# CST816 and FT5x06 against scripted I2C buses, XPT2046 readings, the mapping,
 # the input events), in both byte orders. The registries it finds its buses,
 # pins, input and scan order in are deki-spi's, deki-gpio's, deki-i2c's,
 # deki-input's and deki-rendering's.
 set(_deki_display_srcs InitSequence.cpp Controllers.cpp PanelController.cpp PanelDisplay.cpp SpiPanelIO.cpp
-                       QspiPanelIO.cpp DisplayPanelComponent.cpp TouchMapper.cpp GT911Touch.cpp CST816Touch.cpp
+                       QspiPanelIO.cpp ParallelPanelIO.cpp Rgb666PanelIO.cpp ScanlineClock.cpp
+                       DisplayPanelComponent.cpp
+                       TouchMapper.cpp GT911Touch.cpp CST816Touch.cpp FT5x06Touch.cpp XPT2046Touch.cpp
                        PanelTouchInput.cpp
                        TouchPanelComponent.cpp ../deki-spi/DekiSPI.cpp ../deki-gpio/DekiGPIO.cpp
                        ../deki-i2c/DekiI2C.cpp ../deki-input/DekiInput.cpp
