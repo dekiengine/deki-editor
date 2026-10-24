@@ -514,8 +514,10 @@ jobs:
         if: failure()
         run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
 
-  # Firmware for every board deki-demo targets. ESP-IDF is several GB and a
-  # cold firmware build takes minutes, so this runs nightly and on demand only.
+  # Firmware for every ESP-IDF board deki-demo targets. ESP-IDF is several GB
+  # and a cold firmware build takes minutes, so this runs nightly and on demand
+  # only. A board on another framework (Tactility) needs that framework's own
+  # toolchain, which its package's repository builds and tests.
   demo-firmware:
     name: Demo firmware (Linux)
     needs: linux
@@ -561,14 +563,19 @@ jobs:
         with:
           path: ~/.deki-editor/toolchains
           key: esp-idf-linux-container-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
-      - name: Build firmware for every board
+      - name: Build firmware for every ESP-IDF board
         run: |
           set -e
           chmod +x build/bin/DekiEditor
           export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
           xvfb-run -a ./build/bin/DekiEditor --install-toolchain esp-idf --platform lilygo_t_deck_plus ci/deki-demo
           for board in $(ls ci/deki-demo/platforms); do
-            [ "$board" = native_simulator ] && continue
+            framework=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("framework", ""))' \
+              "ci/deki-demo/platforms/$board/$board.json")
+            if [ "$framework" != espidf ]; then
+              echo "=== $board: $framework, not built here"
+              continue
+            fi
             echo "=== $board"
             xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform "$board" ci/deki-demo
           done
