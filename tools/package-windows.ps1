@@ -362,7 +362,9 @@ if (Test-Path $cmakeExe) {
          Select-Object -First 1).Matches[0].Groups[1].Value
     } finally {
         Pop-Location
-        Remove-Item -Recurse -Force $sysInfoDir -ErrorAction SilentlyContinue
+        # Only when it is there: a Remove-Item of a missing path stops the script
+        # under ErrorActionPreference Stop, SilentlyContinue or not (pwsh 7.5).
+        if (Test-Path $sysInfoDir) { Remove-Item -Recurse -Force $sysInfoDir }
     }
     if ($root -and (Test-Path $root)) {
         New-Item -ItemType Directory -Force -Path "$TC\share" | Out-Null
