@@ -26,6 +26,18 @@ TEST_F(GuidTest, GenerateDeterministicGuid_SameSeed_SameResult)
     EXPECT_EQ(guid1, guid2);
 }
 
+// Exact strings: asset and frame GUIDs on disk were made by this function, so
+// a change to how it prints one renames every asset that has one.
+TEST_F(GuidTest, GenerateDeterministicGuid_KnownValues)
+{
+    EXPECT_EQ(GenerateDeterministicGuid(""), "cbf29ce4-8422-2325-cbf2-9ce484222325");
+    EXPECT_EQ(GenerateDeterministicGuid("a"), "af63dc4c-8601-ec8c-cbf2-9ce484222325");
+    EXPECT_EQ(GenerateDeterministicGuid("deki"), "08915507-b53b-adc8-088e-3307b5393e2b");
+    EXPECT_EQ(GenerateDeterministicGuid("assets/sprites/kenney/chars.png:0"), "affd2e75-6617-9db3-01bc-43bc9b796581");
+    EXPECT_EQ(GenerateDeterministicGuid("an asset path that is a good deal longer than the others"),
+              "ffd716a1-2570-6b26-f11e-91cd50f46e8f");
+}
+
 TEST_F(GuidTest, GenerateDeterministicGuid_DifferentSeeds_DifferentResults)
 {
     std::string guid1 = GenerateDeterministicGuid("seed1");

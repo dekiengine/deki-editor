@@ -558,17 +558,27 @@ jobs:
           path: build
       - name: Packages at master
         run: python3 tools/ci/link_demo_packages.py ci/deki-demo ci/packages
+      # Where the editor keeps toolchains on Linux, and the compilers and
+      # Python environment ESP-IDF's install puts in ~/.espressif. The cache
+      # once named ~/.deki-editor/toolchains, which the editor never used, so
+      # it saved nothing and every night downloaded ESP-IDF again.
       - name: Cache ESP-IDF
+        id: idf
         uses: actions/cache@v4
         with:
-          path: ~/.deki-editor/toolchains
-          key: esp-idf-linux-container-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
+          path: |
+            ~/.local/share/deki-editor/toolchains/espressif
+            ~/.espressif
+          key: esp-idf-linux-container-v2-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
       - name: Build firmware for every ESP-IDF board
         run: |
           set -e
           chmod +x build/bin/DekiEditor
           export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
-          xvfb-run -a ./build/bin/DekiEditor --install-toolchain esp-idf --platform lilygo_t_deck_plus ci/deki-demo
+          # --install-toolchain installs again even when it is there.
+          if [ "${{ steps.idf.outputs.cache-hit }}" != true ]; then
+            xvfb-run -a ./build/bin/DekiEditor --install-toolchain esp-idf --platform lilygo_t_deck_plus ci/deki-demo
+          fi
           for board in $(ls ci/deki-demo/platforms); do
             framework=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("framework", ""))' \
               "ci/deki-demo/platforms/$board/$board.json")
