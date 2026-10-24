@@ -224,7 +224,7 @@ releasing package to `X.Y.Z`. Commit "Moved the demo onto X.Y.Z" and push.
 
 ### 4.7 The docs and the site
 
-- **Reference docs:** `python tools/docs/build_docs.py --languages --publish`
+- **Reference docs:** `python tools/docs/build_docs.py --publish`
   (needs `gh`). It pushes the main docs and each package's `gh-pages`.
 - **hugo-dekiengine:**
   - the version in `layouts/partials/nav.html`
