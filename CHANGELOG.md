@@ -4,13 +4,18 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## 0.20.1 - 2026-10-24
+## 0.20.2 - 2026-10-24
 
 ### Fixed
-- **The Windows download is back.** 0.20.0's Windows archive was never built:
-  the packaging script removed a scratch folder that was already gone, which
-  the build machine's newer PowerShell treats as an error. 0.20.1 is 0.20.0
-  with that fixed, and is the first 0.20 release with downloads.
+- **The Windows download is back.** Neither 0.20.0's nor 0.20.1's Windows
+  archive was built: the packaging script stopped on removing a scratch
+  folder CMake leaves behind (gone in one run, still in use in the next).
+  Removing it can no longer stop the script. 0.20.2 is 0.20.0 with that
+  fixed, and is the first 0.20 release with downloads.
+
+## 0.20.1 - 2026-10-24
+
+Not released: its Windows archive failed to build, as 0.20.0's did.
 
 ## 0.20.0 - 2026-10-24
 

@@ -362,9 +362,11 @@ if (Test-Path $cmakeExe) {
          Select-Object -First 1).Matches[0].Groups[1].Value
     } finally {
         Pop-Location
-        # Only when it is there: a Remove-Item of a missing path stops the script
-        # under ErrorActionPreference Stop, SilentlyContinue or not (pwsh 7.5).
-        if (Test-Path $sysInfoDir) { Remove-Item -Recurse -Force $sysInfoDir }
+        # Scratch, so a failure to remove it is not the package's: cmake can
+        # still hold a file in it (CI then reports access denied), and under
+        # ErrorActionPreference Stop that ends the script, SilentlyContinue or
+        # not.
+        try { Remove-Item -Recurse -Force $sysInfoDir -ErrorAction Stop } catch { }
     }
     if ($root -and (Test-Path $root)) {
         New-Item -ItemType Directory -Force -Path "$TC\share" | Out-Null
