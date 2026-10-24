@@ -48,21 +48,37 @@ public:
 };
 
 // Opens another scene from its Update, as a button does when clicked.
+bool g_OpenerGone = false;
 class SceneOpener : public Deki::Component
 {
 public:
     static const Deki::ComponentTypeInfo kInfo;
     SceneOpener() { SetTypeInfo(&kInfo); }
+    ~SceneOpener() override { g_OpenerGone = true; }
     void Update() override
     {
         if (next)
         {
-            Deki::Engine::GetInstance().GetSceneSystem().SetRootScene(next, false);
+            Deki::Engine::GetInstance().GetSceneSystem().SetRootScene(next, own);
             next = nullptr;
         }
     }
     Deki::Scene* next = nullptr;
+    bool own = false;
 };
+
+// Notes, as it wakes, whether the scene opener was deleted by then.
+class AwakeWitness : public Deki::Component
+{
+public:
+    static const Deki::ComponentTypeInfo kInfo;
+    AwakeWitness() { SetTypeInfo(&kInfo); }
+    void Awake() override { sawOpenerGone = g_OpenerGone; }
+    bool sawOpenerGone = false;
+};
+
+const Deki::ComponentTypeInfo AwakeWitness::kInfo =
+    Deki::MakeHandWrittenTypeInfo<AwakeWitness>(/*declaresUpdate=*/false);
 
 const Deki::ComponentTypeInfo SceneOpener::kInfo = Deki::MakeHandWrittenTypeInfo<SceneOpener>(/*declaresUpdate=*/true);
 const Deki::ComponentTypeInfo TickCounter::kInfo = Deki::MakeHandWrittenTypeInfo<TickCounter>(/*declaresUpdate=*/true);
@@ -178,4 +194,28 @@ TEST(HeadlessRuntime, ASceneOpenedInUpdateIsStartedBeforeItIsDrawn)
     EXPECT_EQ(counter->awakes, 1);
     EXPECT_EQ(counter->starts, 1);
     engine.GetSceneSystem().SetRootScene(nullptr, false);
+}
+
+// The scene it replaces is deleted before the new one starts: a small board
+// may not hold both.
+TEST(HeadlessRuntime, TheSceneOpenedInUpdateStartsAfterTheOldOneIsGone)
+{
+    auto& engine = Deki::Engine::GetInstance();
+    auto* first = new Deki::Scene();
+    auto* second = new Deki::Scene();
+    auto* opener = new SceneOpener();
+    Deki::Internal::AttachComponent(*first->CreateDekiObject("Opener"), opener);
+    auto* witness = new AwakeWitness();
+    Deki::Internal::AttachComponent(*second->CreateDekiObject("Witness"), witness);
+
+    g_OpenerGone = false;
+    engine.GetSceneSystem().SetRootScene(first, true);
+    engine.ProcessLifecycle();
+    opener->next = second;
+    opener->own = true;
+    engine.ProcessLifecycle();
+    ASSERT_EQ(engine.GetSceneSystem().GetRootScene(), second);
+    EXPECT_TRUE(witness->sawOpenerGone);
+    engine.GetSceneSystem().SetRootScene(nullptr, false);
+    engine.GetSceneSystem().FlushPendingDeletions();
 }
