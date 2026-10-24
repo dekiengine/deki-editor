@@ -4,9 +4,36 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.20.0 - 2026-10-24
+
+A release about performance. The packages that carry most of it, released
+with it: deki-display (new) and deki-spi (new), deki-rendering, deki-2d,
+deki-particles, deki-esp32-integration and deki-lilygo-boards. Each one's
+CHANGELOG has the details.
+
+- **Frames that never tear.** A display waits for its panel's refresh: from
+  the panel's TE line, or, on a board that does not wire it, from the
+  panel's scanline read back (deki-display, `scanlineSync`). The LilyGO
+  T-Deck Plus and T-Display S3 AMOLED both run every demo scene at 60 fps
+  (the T-Display at its panel's 59.6) without tearing.
+- **Faster drawing.** Text, gradients, scaled images and particles cost much
+  less; a screen too big for internal RAM is drawn in strips inside it, of
+  rows or of columns along the panel's refresh (deki-rendering, deki-2d).
+- **More screens.** deki-display drives ILI9341, ILI9488, ST7735, ST7735S,
+  ST7789, ST7789P3, ST7796, GC9A01, SSD1351, RM67162 and CO5300 over SPI,
+  quad SPI, or 8- and 16-bit parallel buses, and reads GT911, CST816,
+  FT5x06 and XPT2046 touch. The LilyGO boards no longer need LovyanGFX.
+- **Less to set.** A board package carries its board's tuning; the rest is
+  chosen on the device, and its boot log says what and why. The Rendering
+  settings `halfWidthFramebuffer` and `interlaced60hz`, never built, are
+  gone. New guide: [docs/performance.md](docs/performance.md).
+- **A scene opened from Update starts before it is drawn** (engine): its
+  first frame is no longer an empty one of the clear colour, and the scene
+  it replaces is deleted first.
 
 ### Added
+- The **Making it fast** guide, [docs/performance.md](docs/performance.md),
+  in English, Japanese, Chinese and Korean.
 - **A platform can say how big its screen is.** `screenDiagonalInches` in a
   platform file (optional; absent is unknown) is the diagonal the board's
   maker gives. A panel cannot report its size, so the board does, and a build
