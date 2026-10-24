@@ -4,6 +4,16 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.20.3 - 2026-10-24
+
+### Fixed
+- **The demo loads as a Tactility app again.** Its firmware called the
+  engine's GUID code, which used C++ streams that Tactility does not give
+  apps, so a T-Deck running Tactility would have refused to load it. The
+  engine now prints GUIDs without them, with the same text as before.
+- With deki-2d 0.20.1: a short line of text at the start of a wide text box
+  no longer hangs the game, and text drawn scaled is back where it was.
+
 ## 0.20.2 - 2026-10-24
 
 ### Fixed
