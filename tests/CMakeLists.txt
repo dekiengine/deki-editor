@@ -108,6 +108,7 @@ set(TEST_SOURCES
 
     # New GUID and architecture tests
     core/GuidTests.cpp
+    core/FileImageTests.cpp
     core/TypeIdTests.cpp
     core/GuidCacheTests.cpp
     core/AssetTypeRegistryTests.cpp
@@ -521,10 +522,13 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # InputCollider, so deki-input's collider and gesture claim come in with it;
 # like InputCollider, the scroll and clip build without codegen. A Sprite
 # drops QuadBlit's scaled copies of its pixels as it goes, so QuadBlit and
-# what it calls come in too.
-set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp
+# what it calls come in too. GradientComponent is here for its bake, which
+# must come out the same pixel by pixel however it is worked out.
+set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp GradientComponent.cpp
                        ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
+                       ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
+                       ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
                        ../deki-rendering/RenderProfiler.cpp)
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
                        DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS)
@@ -563,9 +567,10 @@ deki_add_package_tests(deki-desktop-integration TARGET DekiDesktopIntegrationTes
                        SOURCES DesktopFileSystem.cpp)
 
 # The ESP-IDF builder's validation and generated files, which need the editor
-# library but not ESP-IDF.
+# library but not ESP-IDF, and F:/ read out of the game's file image.
 deki_add_package_tests(deki-esp32-integration TARGET DekiESP32IntegrationTests NEEDS_EDITOR
-                       SOURCES editor/ESPIDFBuilder.cpp editor/ESPIDFToolchain.cpp editor/ESPIDFInstaller.cpp)
+                       SOURCES editor/ESPIDFBuilder.cpp editor/ESPIDFToolchain.cpp editor/ESPIDFInstaller.cpp
+                               ESP32FileSystem.cpp)
 
 # The ELF reader that checks a Tactility device app's imports before it goes
 # to a device.

@@ -4,6 +4,26 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- Packages can say which assets an asset uses
+  (`AssetPipeline::RegisterDependencyReporter`, per file type), and a build
+  ships those too, and theirs in turn: a tilemap's tilesets and their images.
+  Before, only the assets a scene named were shipped (and an animation's
+  sheet), so such an asset loaded on a board and drew nothing.
+- The demo's meadow draws its terrain and hills as two Tiled maps instead of
+  112 sprites: on a T-Deck Plus it leaves 43.8 KB of internal RAM free instead
+  of 7.5 KB, at 60 fps, and its frames are the same as before on every board.
+
+### Changed
+- **Scenes open faster on boards.** Switching scenes on a T-Deck Plus took
+  about 0.8 s and now takes about 65 ms: gradients bake far faster (deki-2d),
+  and an ESP32 reads the game's data from one image in flash instead of
+  LittleFS (deki-esp32-integration). Games can write their own files under
+  `F:/`, kept across updates; the game's data is never written. See
+  [Platforms](docs/platforms.md#files-the-game-writes).
+
 ## 0.20.3 - 2026-10-24
 
 ### Fixed

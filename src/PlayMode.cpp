@@ -813,6 +813,10 @@ void EditorApp::UpdatePlayMode()
             }
         }
 
+        // A scene the game opened (Engine::OpenScene): the one left goes,
+        // then the new one is loaded, as on a device.
+        Deki::Engine::GetInstance().OpenRequestedScene();
+
         // The tick may have switched scenes (SetRootScene). Run the new
         // scene's lifecycle before the next sub-step or render.
         Deki::Scene* currentScene = Deki::Engine::GetInstance().GetRootScene();

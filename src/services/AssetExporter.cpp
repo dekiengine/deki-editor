@@ -458,9 +458,10 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
 
 // A sprite frame is not a file: it lives in its sheet, and an animation plays
 // frames of one sheet. The scan above reads the scene as saved, where a frame
-// is referenced by its own id alone, so the sheets must be added here.
-// Without them, sprites and animations draw nothing on a device, with no
-// error.
+// is referenced by its own id alone, so the sheets must be added here. So are
+// the assets a package's asset type reports it uses (a tilemap's tilesets, a
+// tileset's image), and theirs in turn. Without them, sprites, animations and
+// tilemaps draw nothing on a device, with no error.
 void AssetExporter::AddAssetDependencies(AssetUsageCollection& collection)
 {
     namespace fs = std::filesystem;
@@ -490,6 +491,13 @@ void AssetExporter::AddAssetDependencies(AssetUsageCollection& collection)
         }
         std::string ext = fs::path(info->path).extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (const AssetDependencyReporter* reporter = m_Pipeline->FindDependencyReporter(ext))
+        {
+            for (const std::string& dependency : (*reporter)(m_Pipeline->GetAbsolutePath(info->path), m_Pipeline))
+            {
+                add(dependency);
+            }
+        }
         if (ext != ".anim")
         {
             continue;

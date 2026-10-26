@@ -43,9 +43,11 @@ boot scene the packages ship.
 A build keeps the game's assets in one of two places:
 
 - **Internal storage**, the default: part of the device. The build carries them, in `assets/`
-  next to the boot scene (`F:/assets/` at runtime). On an ESP32 that is the flash: the data
-  partition takes the rest of the chip (about 13 MB on a 16 MB board), and the build fails if
-  the game does not fit. The desktop simulator and Tactility apps work the same way.
+  next to the boot scene (`F:/assets/` at runtime). On an ESP32 that is the flash: the game's
+  data is packed into one image that the board reads in place, so finding a file takes
+  microseconds. It gets the rest of the chip but the user data (about 12 MB on a 16 MB board),
+  and the build fails if the game does not fit. The desktop simulator and Tactility apps keep
+  the assets in the same place.
 - **External storage**: removable, an SD card. The build carries only the boot scene and
   `project_data.bin`; the **SD Card Deploy** panel copies the assets to the card, and the
   card's storage package loads them (`S:/`) once it is mounted.
@@ -56,6 +58,15 @@ for the flash: with external storage and no card in the slot, the game has no as
 LilyGO T-Deck Plus can choose; it keeps its assets in its flash unless told otherwise.
 
 `project_data.bin` records the choice, so the engine knows where to look.
+
+### Files the game writes
+
+A game writes its own files, such as saves, under `F:/` too (`F:/save.bin`). On an ESP32 they
+go to the user data partition at the end of the flash (1 MB on a 16 MB board, 512 KB on 8 MB,
+128 KB on 4 MB). Flashing a new build never touches it, so saves survive updates. The game's
+own data is never written: opening one of its files to write fails, and the log says why.
+In the desktop simulator they go to `userdata/` beside it, and in a Tactility app to `internal/`
+in the app's user data, with the same rule.
 
 ## Simulating a board
 

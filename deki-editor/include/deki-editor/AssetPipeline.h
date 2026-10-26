@@ -95,6 +95,15 @@ struct DEKI_EDITOR_API AssetExportContext
 /// export then reports it and ships nothing for that asset.
 using AssetExportEncoder = std::function<bool(const AssetExportContext& ctx)>;
 
+/// Lists, by GUID, the assets an asset uses that a scene does not name: a
+/// tilemap's tilesets, a tileset's image. A build ships them with it; without
+/// them the asset loads on a device and draws nothing.
+///
+/// Registered per extension by the package that owns the asset type, next to
+/// its cache handler. Given the asset's absolute path.
+using AssetDependencyReporter =
+    std::function<std::vector<std::string>(const std::string& absolutePath, AssetPipeline* pipeline)>;
+
 /// A discovered asset. All paths are project-relative
 /// (e.g. "assets/textures/player.png").
 struct DEKI_EDITOR_API AssetInfo
@@ -160,6 +169,13 @@ public:
 
     /// The encoder for an extension (lowercase, with dot), or null.
     const AssetExportEncoder* FindExportEncoder(const std::string& extension) const;
+
+    /// Registers what lists the assets an extension's assets use. Cleared
+    /// with the cache handlers when a package unloads.
+    void RegisterDependencyReporter(const std::string& extension, AssetDependencyReporter reporter);
+
+    /// The dependency reporter for an extension (any case, with dot), or null.
+    const AssetDependencyReporter* FindDependencyReporter(const std::string& extension) const;
 
     /// Sets the target the editor's own cache is stored for: the project's
     /// active platform, set when a project opens and when the active platform
@@ -313,6 +329,9 @@ private:
 
     // Keyed by lowercase extension.
     std::unordered_map<std::string, AssetExportEncoder> m_ExportEncoders;
+
+    // Keyed by lowercase extension.
+    std::unordered_map<std::string, AssetDependencyReporter> m_DependencyReporters;
 
     AssetExportTarget m_EditorTarget;
 

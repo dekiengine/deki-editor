@@ -227,6 +227,26 @@ Deki::Memory::LogStats("after level load");
   of these is a licence to place memory yourself - they are for sizing a
   project and for finding what is holding memory it should have released.
 
+### Changing scenes
+
+```cpp
+Deki::Engine::GetInstance().OpenScene(nextScene);  // an AssetRef<Scene>
+```
+
+`OpenScene` frees the scene being left before it loads the next one, at the
+end of the frame, so the two are never in memory at once. Loading the next
+scene yourself and calling `SetRootScene` holds both: on a T-Deck Plus, going
+from the demo's menu to its meadow that way left 16 bytes of internal RAM.
+A scene that does not exist is not opened, and the game stays where it is.
+
+On a device it then frees the assets (sprites, fonts, animations) that only the
+scene left used, so a game's memory is what its current scene needs, not every
+scene it has visited. Call `Engine::ReleaseUnusedAssets()` to do the same after
+removing many objects. An asset is kept while an `AssetRef` field of a component
+on a live object names it. Hold assets in `AssetRef`s: one held elsewhere loads
+its asset again when next asked, but a raw pointer from `Get()` kept across
+frames is only good while something still uses the asset.
+
 ## `AllocContext` - the label writes itself
 
 Every allocating call takes one, and almost nobody writes one:

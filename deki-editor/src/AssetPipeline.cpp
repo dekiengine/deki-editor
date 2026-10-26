@@ -173,6 +173,7 @@ void AssetPipeline::ClearOnStartedCallbacks()
         s_Instance->m_SyncHandlers.clear();
         s_Instance->m_CacheHandlers.clear();
         s_Instance->m_ExportEncoders.clear();
+        s_Instance->m_DependencyReporters.clear();
         s_Instance->m_DefaultCacheHandler = nullptr;
         s_Instance->m_CacheVariantProviders.clear();
     }
@@ -223,6 +224,21 @@ const AssetExportEncoder* AssetPipeline::FindExportEncoder(const std::string& ex
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
     auto it = m_ExportEncoders.find(ext);
     return it != m_ExportEncoders.end() ? &it->second : nullptr;
+}
+
+void AssetPipeline::RegisterDependencyReporter(const std::string& extension, AssetDependencyReporter reporter)
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    m_DependencyReporters[ext] = std::move(reporter);
+}
+
+const AssetDependencyReporter* AssetPipeline::FindDependencyReporter(const std::string& extension) const
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    auto it = m_DependencyReporters.find(ext);
+    return it != m_DependencyReporters.end() ? &it->second : nullptr;
 }
 
 void AssetPipeline::RegisterCacheHandler(const std::string& extension, AssetCacheHandler handler)
@@ -463,6 +479,7 @@ void AssetPipeline::Stop()
     m_SyncHandlers.clear();  // they may hold references to destroyed objects
     m_CacheHandlers.clear();
     m_ExportEncoders.clear();
+    m_DependencyReporters.clear();
     m_DefaultCacheHandler = nullptr;
     TextureImporter::ClearFrameData();
 }
@@ -1355,7 +1372,8 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
     {
         for (Deki::Component* comp : obj->GetComponents())
         {
-            const Deki::ComponentMeta* meta = comp ? Deki::ComponentRegistry::Instance().GetMeta(comp->GetType()) : nullptr;
+            const Deki::ComponentMeta* meta =
+                comp ? Deki::ComponentRegistry::Instance().GetMeta(comp->GetType()) : nullptr;
             if (!meta || !meta->properties)
             {
                 continue;
@@ -1619,7 +1637,8 @@ int AssetPipeline::RecompileStaleScenes()
     if (!stale.empty())
     {
         SaveCacheStamps();
-        DEKI_LOG_EDITOR("Recompiled %d scene(s) for the component types registered now", static_cast<int>(stale.size()));
+        DEKI_LOG_EDITOR("Recompiled %d scene(s) for the component types registered now",
+                        static_cast<int>(stale.size()));
     }
     return static_cast<int>(stale.size());
 }

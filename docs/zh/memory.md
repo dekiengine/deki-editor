@@ -142,6 +142,16 @@ Deki::Memory::LogStats("after level load");
 - `LogStats(label)` 一次调用就能回答“我用了多少内存？”。在调试构建中，它还会报告当前和峰值的分配数量。不调用就没有任何开销。
 - `GetStats()` 以结构体形式返回同样的数字；`GetAvailableInternal()` 和 `GetAvailablePSRAM()` 给出空闲的部分。`IsPSRAMAvailable()` 表示是否存在外部区域。这些都不意味着你可以自行放置内存：它们用于确定项目规模，以及查找是什么占着本应释放的内存。
 
+### 切换场景
+
+```cpp
+Deki::Engine::GetInstance().OpenScene(nextScene);  // AssetRef<Scene>
+```
+
+`OpenScene` 在帧结束时先释放要离开的场景，再加载下一个场景，因此两者永远不会同时占用内存。自己加载下一个场景再调用 `SetRootScene` 会同时持有两者：在 T-Deck Plus 上这样从演示的菜单进入草地场景，内部 RAM 只剩 16 字节。不存在的场景不会被打开，游戏会停留在当前场景。
+
+在设备上，它随后会释放只有离开的场景使用的资源（精灵、字体、动画），因此游戏占用的内存是当前场景所需的，而不是访问过的每个场景的。移除大量对象后，调用 `Engine::ReleaseUnusedAssets()` 可以做同样的事。只要活动对象上某个组件的 `AssetRef` 字段指向某个资源，它就会被保留。请用 `AssetRef` 持有资源：在其他地方持有的 `AssetRef` 会在下次请求时重新加载资源，但跨帧保存从 `Get()` 得到的原始指针，只有在仍有东西使用该资源时才有效。
+
 ## `AllocContext` - 标签自动生成
 
 每个分配调用都接受一个 `AllocContext`，而几乎没有人需要写它：
