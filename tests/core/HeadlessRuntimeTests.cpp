@@ -341,6 +341,22 @@ TEST(HeadlessRuntime, OpenSceneFreesTheSceneLeftThenLoadsTheNewOne)
     delete opened;
 }
 
+// The root scene serial tells a new scene from the old one even when the new
+// one sits at the old one's address, which a scene switch makes possible by
+// freeing the old scene first: what cached anything per scene compares it.
+TEST(HeadlessRuntime, RootSceneSerialChangesEvenAtTheSameAddress)
+{
+    auto& scenes = Deki::Engine::GetInstance().GetSceneSystem();
+    Deki::Scene scene;
+    scenes.SetRootScene(&scene, false);
+    const uint32_t first = scenes.GetRootSceneSerial();
+    scenes.SetRootScene(&scene, false);
+    EXPECT_NE(scenes.GetRootSceneSerial(), first);
+    const uint32_t second = scenes.GetRootSceneSerial();
+    scenes.SetRootScene(nullptr, false);
+    EXPECT_NE(scenes.GetRootSceneSerial(), second);
+}
+
 // A scene that does not exist is not opened: the game stays where it is
 // rather than showing nothing.
 TEST(HeadlessRuntime, OpenSceneOfNothingStaysInTheScene)
