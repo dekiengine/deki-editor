@@ -225,7 +225,7 @@ void Put(std::vector<uint8_t>& out, const void* p, size_t n)
 // A project_data.bin with one package section, "Rendering", holding a Bool, an
 // Int32 and a one-byte Enum, laid out the way Deki::ProjectSettings::Write
 // emits them.
-std::vector<uint8_t> BuildImage(bool tracking, int32_t align, uint8_t frameMode = 0)
+std::vector<uint8_t> BuildImage(bool redraw, int32_t rows, uint8_t frameMode = 0)
 {
     std::vector<uint8_t> img;
     Deki::ProjectSettings::FileHeader hdr{ Deki::ProjectSettings::kMagic, Deki::ProjectSettings::kVersion, 0 };
@@ -243,17 +243,17 @@ std::vector<uint8_t> BuildImage(bool tracking, int32_t align, uint8_t frameMode 
     std::vector<uint8_t> payload;
     const uint16_t propCount = 3;
     Put(payload, &propCount, 2);
-    uint32_t h = Deki::HashStringLen("dirtyTileTracking", 17);
+    uint32_t h = Deki::HashStringLen("redrawChanges", 13);
     uint8_t tag = static_cast<uint8_t>(Deki::PropertyType::Bool);
-    uint8_t bv = tracking ? 1 : 0;
+    uint8_t bv = redraw ? 1 : 0;
     Put(payload, &h, 4);
     Put(payload, &tag, 1);
     Put(payload, &bv, 1);
-    h = Deki::HashStringLen("dirtyTileSize", 13);
+    h = Deki::HashStringLen("bandRows", 8);
     tag = static_cast<uint8_t>(Deki::PropertyType::Int32);
     Put(payload, &h, 4);
     Put(payload, &tag, 1);
-    Put(payload, &align, 4);
+    Put(payload, &rows, 4);
     h = Deki::HashStringLen("frameMode", 9);
     tag = static_cast<uint8_t>(Deki::PropertyType::Enum);
     Put(payload, &h, 4);
@@ -278,24 +278,24 @@ TEST(ProjectSettingsRuntime, ReadPackageSettingFindsBoolAndInt32)
     const std::vector<uint8_t> img = BuildImage(true, 16);
     ASSERT_TRUE(Deki::ProjectSettings::Load(img.data(), img.size()));
 
-    bool tracking = false;
-    int32_t align = 0;
+    bool redraw = false;
+    int32_t rows = 0;
     float f = 0.0f;
-    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingBool("Rendering", "dirtyTileTracking", tracking));
-    EXPECT_TRUE(tracking);
-    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "dirtyTileSize", align));
-    EXPECT_EQ(align, 16);
-    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingFloat("Rendering", "dirtyTileSize", f)) << "type mismatch";
-    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingBool("Rendering", "nope", tracking));
-    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingBool("Physics", "dirtyTileTracking", tracking));
+    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingBool("Rendering", "redrawChanges", redraw));
+    EXPECT_TRUE(redraw);
+    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "bandRows", rows));
+    EXPECT_EQ(rows, 16);
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingFloat("Rendering", "bandRows", f)) << "type mismatch";
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingBool("Rendering", "nope", redraw));
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingBool("Physics", "redrawChanges", redraw));
 
     // A reload replaces the retained chunk.
     const std::vector<uint8_t> img2 = BuildImage(false, 8);
     ASSERT_TRUE(Deki::ProjectSettings::Load(img2.data(), img2.size()));
-    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingBool("Rendering", "dirtyTileTracking", tracking));
-    EXPECT_FALSE(tracking);
-    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "dirtyTileSize", align));
-    EXPECT_EQ(align, 8);
+    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingBool("Rendering", "redrawChanges", redraw));
+    EXPECT_FALSE(redraw);
+    EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "bandRows", rows));
+    EXPECT_EQ(rows, 8);
 }
 
 TEST(ProjectSettingsRuntime, ReadPackageSettingFindsAnEnumAtItsWidth)
@@ -306,9 +306,11 @@ TEST(ProjectSettingsRuntime, ReadPackageSettingFindsAnEnumAtItsWidth)
     int32_t mode = -1;
     EXPECT_TRUE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "frameMode", 1, mode));
     EXPECT_EQ(mode, 2);
-    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "frameMode", 3, mode)) << "not an enum width";
-    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "dirtyTileSize", 4, mode))
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "frameMode", 3, mode))
+        << "not an enum width";
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingEnum("Rendering", "bandRows", 4, mode))
         << "an Int32 is not an Enum";
     int32_t asInt = 0;
-    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "frameMode", asInt)) << "an Enum is not an Int32";
+    EXPECT_FALSE(Deki::ProjectSettings::ReadPackageSettingInt32("Rendering", "frameMode", asInt))
+        << "an Enum is not an Int32";
 }

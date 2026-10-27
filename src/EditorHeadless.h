@@ -91,8 +91,8 @@ int CmdUpgradeProject(EditorApp& editor);
 /// DEKI_RENDER_MODE selects the path: "buffer" (default) is RenderToBuffer
 /// with an explicit clear, the scene view's path; "system" drives the engine's
 /// render system as a device does; "tracked" is "system" with the Rendering
-/// setting dirtyTileTracking forced on, so partial clears and present
-/// rectangles run on real scenes. The three must hash identically.
+/// setting redrawChanges forced on, so frames drawn only where they changed
+/// run on real scenes. The three must hash identically.
 int CmdRenderScenes(EditorApp& editor, const char* platformId);
 
 /// List every scriptable tool with its JSON schema. Same registry the MCP

@@ -941,8 +941,8 @@ void EditorApp::RenderPlayMode()
         PROFILE_SCOPE("editor", "PresentFrame");
         if (Deki::Engine::GetInstance().GetDisplay())
         {
-            // Partial upload of the changed rectangles when dirty tracking is
-            // on, the whole frame otherwise (same path as the device).
+            // Only the parts that changed when the frame was drawn that way,
+            // the whole frame otherwise (same path as the device).
             Deki::Engine::GetInstance().PresentFrame();
             m_Play.ready = true;  // a frame exists, so the play texture can be shown
         }

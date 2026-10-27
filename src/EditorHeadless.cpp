@@ -1598,8 +1598,9 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     // DEKI_RENDER_MODE: "buffer" (default) renders through RenderToBuffer with
     // an explicit clear, as the scene view does. "system" drives the engine's
     // render system (camera lookup, clear, present rectangles) as a device
-    // does. "tracked" does the same with dirty-rect tracking forced on in the
-    // Rendering settings. All three must produce the same hash per scene.
+    // does. "tracked" does the same with the Rendering setting redrawChanges
+    // forced on, so each frame is drawn only where it changed. All three must
+    // produce the same hash per scene.
     std::string mode = "buffer";
     if (const char* env = std::getenv("DEKI_RENDER_MODE"))
     {
@@ -1608,7 +1609,7 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
     const bool useSystem = (mode == "system" || mode == "tracked");
     if (mode == "tracked")
     {
-        // Sets RenderingProjectSettings::dirtyTileTracking through its
+        // Sets RenderingProjectSettings::redrawChanges through its
         // reflected metadata, because this file must not depend on the
         // rendering package's headers.
         bool flipped = false;
@@ -1621,7 +1622,7 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
             for (int q = 0; q < info.meta->propertyCount; ++q)
             {
                 const Deki::PropertyInfo& p = info.meta->properties[q];
-                if (p.name && std::string(p.name) == "dirtyTileTracking" && p.type == Deki::PropertyType::Bool)
+                if (p.name && std::string(p.name) == "redrawChanges" && p.type == Deki::PropertyType::Bool)
                 {
                     *reinterpret_cast<bool*>(reinterpret_cast<uint8_t*>(info.instance) + p.offset) = true;
                     flipped = true;
@@ -1630,7 +1631,7 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         }
         if (!flipped)
         {
-            printf("Error: RenderingProjectSettings is not registered - cannot force dirty tracking\n");
+            printf("Error: RenderingProjectSettings is not registered - cannot force redrawing only what changed\n");
             return 1;
         }
     }

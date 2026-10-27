@@ -65,16 +65,14 @@ DekiEditor --tool device_stats --args '{"port":"COM5"}' <demo>
 - [ ] Free internal and external memory are no more than 5% below the last
       release's
 
-## 4. Partial present
+## 4. Redrawing only what changed
 
-Set `dirtyTileTracking` on in the project's Rendering settings, then build and
-flash again.
+deki-demo has `redrawChanges` on in its Rendering settings.
 
-- [ ] Every scene still draws correctly: no stale rectangles left behind by a
-      moving sprite, no smearing at the edges of what changed
-- [ ] A mostly still scene (ui, menu) shows a lower presentMs than with it off
-
-Set it back off before going on.
+- [ ] Every scene draws correctly: nothing left behind by a moving sprite, no
+      smearing at the edges of what changed
+- [ ] A mostly still scene (ui, menu) shows a lower renderMs and presentMs than
+      with it off (set it off, build and flash, then set it back on)
 
 ## 5. Input
 
@@ -110,7 +108,7 @@ Date:
 Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
 meadow
 effects
-Partial present, ui: presentMs off __ / on __
+Redraw changes, ui: renderMs off __ / on __, presentMs off __ / on __
 Notes:
 ```
 

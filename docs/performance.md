@@ -44,7 +44,7 @@ These describe how the board is wired, which the device cannot find out.
 
 | Setting | When to change it |
 | --- | --- |
-| `dirtyTileTracking` | On when most of the screen stays still and nothing is drawn over the whole screen every frame (a full-screen background is). Then only what changed is sent. |
+| `redrawChanges` | On when most of the screen stays still. Then each frame draws and sends only what changed, and a frame where most of the screen changes is drawn whole as usual. |
 | `bandRows` | The size of a strip. Bigger strips walk the scene fewer times but take more internal RAM. 40 suits most screens. |
 | `frameMode` | Leave on Auto, unless you have measured that the other mode is faster on your board. |
 
