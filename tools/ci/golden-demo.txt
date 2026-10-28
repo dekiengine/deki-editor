@@ -14,7 +14,7 @@
 #   DekiEditor --render-scenes --platform <board> <deki-demo> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-10-13 - deki-demo's GPS, LoRa, trackball and keyboard scenes and its modern look
+# recorded: 2026-10-28 - deki-demo 0.21: meadow is an endless run that plays itself
 
 # config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
 aa53b6ee90a63870  scenes/effects.scene
@@ -22,7 +22,7 @@ d80b4fe07b9f030f  scenes/gps.scene
 d5d5fede87de8e1c  scenes/keyboard.scene
 a55409602c651212  scenes/logic.scene
 a42f8c6618245a03  scenes/lora.scene
-6f8116f436336157  scenes/meadow.scene
+52b52f6bac99400f  scenes/meadow.scene
 2a09eb58a80a969b  scenes/menu.scene
 149859cd40054b8c  scenes/trackball.scene
 c42c17ef977841be  scenes/ui.scene
@@ -33,7 +33,7 @@ c42c17ef977841be  scenes/ui.scene
 86b6d7206f42f689  scenes/keyboard.scene
 540df412564f4203  scenes/logic.scene
 6b4c0505bbd31c51  scenes/lora.scene
-6db4ad8b9f83f587  scenes/meadow.scene
+6c990a21dab792cd  scenes/meadow.scene
 1415de709444c91c  scenes/menu.scene
 8bae86a7a52842c5  scenes/trackball.scene
 bf37af0bc447f26c  scenes/ui.scene
@@ -44,7 +44,7 @@ bf37af0bc447f26c  scenes/ui.scene
 e8fc8cc9f2c20469  scenes/keyboard.scene
 acb5a585be4ca6a3  scenes/logic.scene
 a7db6acf8f666291  scenes/lora.scene
-38420fd836ac723b  scenes/meadow.scene
+4ac1fec8607f684e  scenes/meadow.scene
 dce35ceaf7c1471c  scenes/menu.scene
 173a5a90b3713905  scenes/trackball.scene
 c7b7086aeb65e88c  scenes/ui.scene

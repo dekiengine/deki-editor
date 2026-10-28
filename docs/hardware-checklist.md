@@ -114,4 +114,16 @@ Notes:
 
 ## Past releases
 
-None recorded yet.
+```
+Release:     0.21.0  (T-Deck Plus)
+Date:        2026-10-28
+Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
+meadow       60.2  1.08      6.03      8.50       21739         7953392
+effects      60.2  0.93      9.18      5.44       31347         7557800
+Redraw changes, ui: renderMs on 1.03, presentMs on 0.11 (menu, 2026-10-27:
+renderMs off 7.6 / on 2.0, presentMs off 3.4 / on 0.1)
+Notes: fps is the panel's own 60.2 Hz: frames are paced to its refresh, and
+presentMs includes waiting for it. Meadow is the endless run. On the
+T-Display S3 AMOLED (59.7 Hz panel, strips of 88 rows): meadow 59.7 fps,
+effects 59.6; renderMs about 15.4 there is mostly waiting for the panel.
+```
