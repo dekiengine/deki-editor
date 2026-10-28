@@ -25,7 +25,7 @@ one line for each, saying what was chosen and why.
 | What | How it is chosen |
 | --- | --- |
 | Whole frames or strips | Whole frames when the framebuffer fits in internal RAM with room to spare; strips when it does not. Strips are drawn into internal RAM a few rows or columns at a time, which is much faster than drawing a whole frame in PSRAM. (Rendering settings, `frameMode`.) |
-| Sending from the other core | On a dual-core chip with the memory for two frame copies, each frame is sent while the next is drawn. Otherwise frames are sent as they are drawn. (`asyncPresent`, on.) |
+| Sending from the other core | On a dual-core chip with the memory for two frame copies, each frame is sent while the next is drawn. Otherwise frames are sent as they are drawn. (`asyncPresent`, on.) The sender runs on the core the game does not, at priority 5, and takes about 1% of it when little moves and up to 20% (T-Display S3) or 40% (T-Deck Plus) when most of the screen changes. A task of your own on that core above priority 5 runs first; turn `asyncPresent` off when the game needs that whole core. |
 | Tearing | With a TE line wired (`tePin`), frames follow the panel's refresh signal. Without one, the panel's scanline is read back instead (`scanlineSync`, on). A panel that cannot be read back is sent as drawn, and can tear. |
 
 ## What a board sets

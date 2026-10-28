@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 21
+abi_version: 22
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -19,7 +19,7 @@ class Deki::Component (11 virtual)
   bool NeedsRuntimeUpdate() const
   void OnPropertyChanged(const char* propertyName)
 
-class Deki::IDisplay (19 virtual)
+class Deki::IDisplay (20 virtual)
   ~IDisplay()
   bool Initialize(int32_t width, int32_t height)
   void Shutdown()
@@ -39,6 +39,7 @@ class Deki::IDisplay (19 virtual)
   void ClearActiveUIOverlay()
   uint8_t* GetRenderBuffer(int32_t* width, int32_t* height)
   void SetBacklight(bool on)
+  uint32_t GetRefreshPeriodUs() const
 
 class Deki::IPackage (10 virtual)
   ~IPackage()
@@ -109,9 +110,10 @@ class Deki::IPower (14 virtual)
   void RegisterOnBeforeSleep(SleepCallback cb)
   void Tick()
 
-class Deki::ITimeProvider (3 virtual)
+class Deki::ITimeProvider (4 virtual)
   ~ITimeProvider()
   uint32_t GetTicksMs() const
+  uint64_t GetTicksUs() const
   void DelayMs(uint32_t ms) const
 
 class Deki::IMemoryProvider (10 virtual)
