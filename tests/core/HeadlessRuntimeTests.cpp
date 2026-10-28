@@ -337,8 +337,10 @@ TEST(HeadlessRuntime, OpenSceneFreesTheSceneLeftThenLoadsTheNewOne)
     ASSERT_NE(opened, nullptr);
     ASSERT_EQ(opened->GetObjects().size(), 1u);
     EXPECT_EQ(opened->GetObjects()[0]->GetName(), "Loaded");
+    // The engine owns the scene it opened: clearing the root queues it, and
+    // the flush frees it.
     engine.GetSceneSystem().SetRootScene(nullptr, false);
-    delete opened;
+    engine.GetSceneSystem().FlushPendingDeletions();
 }
 
 // The root scene serial tells a new scene from the old one even when the new
