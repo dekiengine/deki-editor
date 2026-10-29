@@ -666,6 +666,22 @@ void EditorApp::DrawMenuBar()
                 {
                     m_ShowAboutWindow = true;
                 }
+                // Pages on the web, in the editor's language: the site and the
+                // docs keep each language but English in a folder of its own.
+                const std::string& language = Localization::Current();
+                const std::string folder = language == "en" || language.empty() ? "" : language + "/";
+                if (ImGui::MenuItem(TrLabel("Documentation")))
+                {
+                    SDL_OpenURL(("https://dekiengine.github.io/docs/" + folder).c_str());
+                }
+                if (ImGui::MenuItem(TrLabel("Discord")))
+                {
+                    SDL_OpenURL("https://dekiengine.com/discord/");
+                }
+                if (ImGui::MenuItem(TrLabel("Support Deki")))
+                {
+                    SDL_OpenURL(("https://dekiengine.com/" + folder + "donate/").c_str());
+                }
                 ImGui::Separator();
                 // The release check is a notice only (services/UpdateCheck.h);
                 // opening the page is the one action it offers.
