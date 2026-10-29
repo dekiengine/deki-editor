@@ -51,9 +51,12 @@ struct CliOptions
     const char* platformId = nullptr;
     const char* deployTarget = nullptr;
 
+    bool headless = false;  // --headless: tools never open an editor; with none open they run hidden
+
     // GUI options
     bool mcp = false;
     int mcpPort = 3000;
+    bool background = false;  // --background: start minimized, never taking focus
 };
 
 /// Fills `out`. Returns false when the line is malformed; `out.badArgs` says

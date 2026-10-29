@@ -508,6 +508,16 @@ project lock refuses. A note on stderr names the editor's process; stdout is
 the tool output as usual. Other verbs on a project open elsewhere are still
 refused.
 
+When no editor has the project open, those three open one, minimized and
+without focus (`--background`), wait until it has the project, run there and
+leave it open: what an agent does is in an editor you can look at, and it
+never takes the keyboard or covers a game. Nothing a tool does brings the
+editor forward. The first open of a project builds its packages, which can
+take minutes; the command waits up to ten. `--headless` never opens an
+editor: with none open, the tools run in a hidden one that closes afterwards,
+as on a CI job (`CI` set) and a Linux machine with no display (`DISPLAY` and
+`WAYLAND_DISPLAY` unset).
+
 **Agent pointer.** In a windowed editor, a violet pointer shows what an agent
 is doing: for each call that changes something it glides to the row, panel or
 pixel the call acts on - the object's Hierarchy row, the property's Inspector

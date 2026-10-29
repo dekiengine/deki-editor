@@ -66,6 +66,12 @@ void PrintUsage(const char* program)
     printf("  --script <file>       Run a JSON array of {\"tool\", \"args\"} in order,\n");
     printf("                        stopping at the first failure. A step with \"as\": \"name\" saves\n");
     printf("                        its result; later steps use it as \"${name.id}\"\n");
+    printf("                        These run in the editor that has the project open, where you can\n");
+    printf("                        watch them. With none open, they open one, minimized and without\n");
+    printf("                        taking focus, and leave it open.\n");
+    printf("  --headless            Never open an editor: with none open, run them in a hidden one\n");
+    printf("                        that closes afterwards (CI jobs and machines with no desktop\n");
+    printf("                        always do)\n");
     printf("  --upgrade-project     Re-save every scene, boot scene, platform file and sprite sheet in\n");
     printf("                        the current format; writes nothing unless all of it loads back the same\n");
     printf("  --render-scenes       Render every scene headless and print a hash per scene\n");
@@ -95,6 +101,7 @@ void PrintUsage(const char* program)
     printf("                        when the editor opens, instead of toggling it in the\n");
     printf("                        Activity panel\n");
     printf("  --mcp-port <port>     Port for the MCP server (implies --mcp)\n");
+    printf("  --background          Open the editor minimized, without taking focus\n");
     printf("\n");
     printf("Examples:\n");
     printf("  %s                                    Open editor with last project\n", program);
@@ -191,6 +198,14 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         else if (strcmp(argv[i], "--mcp") == 0)
         {
             o.mcp = true;
+        }
+        else if (strcmp(argv[i], "--background") == 0)
+        {
+            o.background = true;
+        }
+        else if (strcmp(argv[i], "--headless") == 0)
+        {
+            o.headless = true;
         }
         else if (strcmp(argv[i], "--mcp-port") == 0)
         {

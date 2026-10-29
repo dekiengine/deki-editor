@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     if (headless)
     {
         int rc = 0;
-        if (DekiEditor::TryRunInLiveEditor(cli, rc))
+        if (DekiEditor::TryRunInLiveEditor(cli, rc) || DekiEditor::TryRunInNewEditor(cli, rc))
         {
             return rc;
         }
@@ -170,6 +170,7 @@ int main(int argc, char* argv[])
     boot.projectPath = cli.projectPath;
     boot.startMcp = cli.mcp;
     boot.mcpPort = cli.mcpPort;
+    boot.background = cli.background;
 
     DekiEditor::BootContext ctx;
     if (!DekiEditor::BootPlatform(boot, ctx))

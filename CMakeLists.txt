@@ -541,6 +541,8 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/ProjectLock.cpp
     # LiveSessionTests: how the command line finds and drives a running editor.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/LiveSession.cpp
+    # EditorLauncherTests: when the command line opens an editor, and its command line.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/EditorLauncher.cpp
     # Guard() (SafeDispatch.h) times itself into it.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FrameTiming.cpp
     # UpdateCheckTests: what to make of a GitHub release and whether it is newer.
@@ -672,6 +674,8 @@ set(EDITOR_SOURCES
     src/services/ProjectLock.h
     src/services/LiveSession.cpp
     src/services/LiveSession.h
+    src/services/EditorLauncher.cpp
+    src/services/EditorLauncher.h
     src/services/FrameTiming.cpp
     src/services/FrameTiming.h
     src/services/UpdateCheck.cpp

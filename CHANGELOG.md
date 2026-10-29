@@ -4,6 +4,21 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- **Help** opens the documentation, the Discord and the page to support Deki,
+  in the editor's language where the page has one.
+- `--background` opens the editor minimized, never taking focus.
+
+### Changed
+- **Agents work where you can see them.** `--tool`, `--script` and
+  `--list-tools` on a project no editor has open used to run in a hidden
+  editor that closed afterwards. They now open the editor, minimized and
+  without focus, run there and leave it open, as they already ran in an
+  editor that had the project open. `--headless` never opens one, keeping the
+  hidden run, and CI jobs and machines with no display still get it.
+
 ## 0.21.0 - 2026-10-28
 
 ### Added

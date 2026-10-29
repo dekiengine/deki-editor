@@ -115,6 +115,13 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath);
 /// otherwise.
 bool TryRunInLiveEditor(const CliOptions& cli, int& outRc);
 
+/// The same tools when no editor has the project open: open one, minimized
+/// and without focus, and run them there, where the user can watch
+/// (EditorLauncher.h). It stays open afterwards. False, with nothing done,
+/// for `--headless`, a CI job, a machine with no desktop, or an editor that
+/// could not start or closed first: then this process runs them hidden.
+bool TryRunInNewEditor(const CliOptions& cli, int& outRc);
+
 /// Print the stripping plan for the project open: every package feature with
 /// whether a device build keeps it and why, every package likewise, then the
 /// one-line summary the build log carries. Reads settings/build.json like the

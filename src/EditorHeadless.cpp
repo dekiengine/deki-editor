@@ -30,6 +30,7 @@
 #include "mcp/McpCompletion.h"
 #include "mcp/McpToolRegistry.h"
 #include "services/LiveSession.h"
+#include "services/EditorLauncher.h"
 #include "EditorCli.h"
 #include "mcp/McpTools.h"
 #include "services/AssetExporter.h"
@@ -2327,20 +2328,26 @@ int CmdRunScript(EditorApp& editor, const char* scriptPath)
     return RunScriptWith(LocalToolCall(registry), scriptPath);
 }
 
-bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
+// Whether the command line is tool verbs and nothing else. Only those run in
+// another editor, which would drop anything else (an export, a build); a
+// line with other verbs boots here, and the project lock reports an editor
+// that has the project open.
+static bool IsToolsOnly(const CliOptions& cli)
 {
     if (!cli.projectPath || !(cli.listTools || cli.toolName || cli.scriptPath))
     {
         return false;
     }
-    // Only a command line of tool verbs runs in the live editor, which would
-    // drop anything else (an export, a build). A line with other verbs boots
-    // here instead, and the project lock reports that the editor has it open.
     CliOptions rest = cli;
     rest.listTools = false;
     rest.toolName = nullptr;
     rest.scriptPath = nullptr;
-    if (HasCommand(rest))
+    return !HasCommand(rest);
+}
+
+bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
+{
+    if (!IsToolsOnly(cli))
     {
         return false;
     }
@@ -2372,6 +2379,33 @@ bool TryRunInLiveEditor(const CliOptions& cli, int& outRc)
     const ToolCall call = LiveToolCall(session);
     outRc = cli.toolName ? RunToolWith(call, cli.toolName, cli.toolArgs) : RunScriptWith(call, cli.scriptPath);
     return true;
+}
+
+bool TryRunInNewEditor(const CliOptions& cli, int& outRc)
+{
+    if (cli.headless || !IsToolsOnly(cli) ||
+        !EditorLauncher::CanShowEditor([](const char* name) { return std::getenv(name); }))
+    {
+        return false;
+    }
+    // Long enough for a first open, which builds the project's packages.
+    constexpr int kOpenTimeoutSeconds = 600;
+    LiveSession::Info session;
+    bool timedOut = false;
+    std::string error;
+    if (!EditorLauncher::OpenAndWait(cli.projectPath, kOpenTimeoutSeconds, session, timedOut, error))
+    {
+        fprintf(stderr, "%s%s\n", timedOut ? "Error: " : "Could not open the editor: ", error.c_str());
+        if (timedOut)
+        {
+            // It still has the project, so a hidden run here would be refused.
+            outRc = 1;
+            return true;
+        }
+        fprintf(stderr, "Running the tools in a hidden editor instead.\n");
+        return false;
+    }
+    return TryRunInLiveEditor(cli, outRc);
 }
 
 // The project's own targets, which is what "every target" means. The registry

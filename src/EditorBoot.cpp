@@ -543,12 +543,13 @@ bool BootDisplay(BootContext& ctx)
 
     SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
 
+    // Started minimized (`--background`, or on Windows `start /min`, a
+    // shortcut set to "Run: Minimized", Start-Process -WindowStyle
+    // Minimized): come up minimized and inactive, and restore to maximized
+    // when clicked, so the maximize below does not take the foreground from
+    // whatever the user is doing.
+    bool startInBackground = ctx.background;
 #ifdef _WIN32
-    // Started minimized (`start /min`, a shortcut set to "Run: Minimized",
-    // Start-Process -WindowStyle Minimized): come up minimized and inactive,
-    // and restore to maximized when clicked, so the maximize below does not
-    // take the foreground from whatever the user is doing.
-    bool startInBackground = false;
     {
         STARTUPINFOW si{};
         si.cb = sizeof(si);
@@ -556,10 +557,11 @@ bool BootDisplay(BootContext& ctx)
         if (si.dwFlags & STARTF_USESHOWWINDOW)
         {
             const WORD show = si.wShowWindow;
-            startInBackground = show == SW_SHOWMINNOACTIVE || show == SW_MINIMIZE || show == SW_SHOWMINIMIZED ||
-                                show == SW_FORCEMINIMIZE;
+            startInBackground = startInBackground || show == SW_SHOWMINNOACTIVE || show == SW_MINIMIZE ||
+                                show == SW_SHOWMINIMIZED || show == SW_FORCEMINIMIZE;
         }
     }
+#endif
     if (startInBackground)
     {
         // Hidden until GL and ImGui are set up (below), then shown minimized.
@@ -568,7 +570,6 @@ bool BootDisplay(BootContext& ctx)
         SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
-#endif
 
     ctx.window = SDL_CreateWindow("Deki Editor", 1600, 900, windowFlags);
 
@@ -814,6 +815,14 @@ bool BootDisplay(BootContext& ctx)
             SetWindowPlacement(hwnd, &wp);
         }
     }
+#else
+    // Elsewhere SDL shows it without activating it (the hint above), and the
+    // window manager is asked to minimize it.
+    if (startInBackground)
+    {
+        SDL_MinimizeWindow(ctx.window);
+        SDL_ShowWindow(ctx.window);
+    }
 #endif
 
     // DPI is handled by style.FontScaleDpi and ScaleAllSizes(dpiScale). Turn
@@ -1012,6 +1021,7 @@ bool BootDisplay(BootContext& ctx)
 bool BootPlatform(const BootOptions& opts, BootContext& ctx)
 {
     ctx.headless = opts.headless;
+    ctx.background = opts.background;
 
     if (!opts.headless)
     {

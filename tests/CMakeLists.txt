@@ -43,6 +43,7 @@ set(TEST_SOURCES
     services/EditorLogFileTests.cpp
     services/ProjectLockTests.cpp
     services/LiveSessionTests.cpp
+    services/EditorLauncherTests.cpp
     services/UpdateCheckTests.cpp
     services/AgentCursorIntentTests.cpp
     services/ToolchainPathTests.cpp

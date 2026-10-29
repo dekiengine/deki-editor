@@ -30,6 +30,10 @@ struct BootOptions
     /// panel toggle.
     bool startMcp = false;
     int mcpPort = 3000;
+
+    /// Come up minimized and never take focus (`--background`), as when
+    /// started minimized on Windows. The command line opens its editor so.
+    bool background = false;
 };
 
 /// What BootPlatform created, for the interactive loop to use.
@@ -39,6 +43,7 @@ struct BootContext
     SDL_GLContext glContext = nullptr;
     float dpiScale = 1.0f;
     bool headless = false;
+    bool background = false;  // BootOptions::background
 };
 
 /// Stage 1: SDL, window, GL, ImGui, fonts, theme, profiling.
