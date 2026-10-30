@@ -54,6 +54,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Fixed
 - GCC builds no longer fuse `a*b+c` into one rounding (`-ffp-contract=off`),
   so an arm64 build computes the same floats as x86-64.
+- A scene's preview in the Inspector shows the whole screen with its anchored
+  objects in place; it cropped the top and bottom and drew a HUD title over
+  the rest.
 
 ## 0.21.0 - 2026-10-28
 

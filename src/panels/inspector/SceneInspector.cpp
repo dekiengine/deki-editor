@@ -1,11 +1,13 @@
 #include "ObjectInternal.h"
 #include <deki-editor/EditorTexture.h>
 #include "../../services/PackageLifetime.h"
+#include <deki-editor/EditorTheme.h>
 #include <deki-editor/SceneView.h>
 #include "SceneInspector.h"
 #include "../../EditorApp.h"
 #include "../../core/Project.h"
 #include "../scene_view/EditModeRenderer.h"
+#include <deki/ScreenAnchor.h>
 #include <deki/Object.h>
 #include <deki/ICamera.h>
 #include <deki/Scene.h>
@@ -133,6 +135,10 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
             uint8_t clearR = 49, clearG = 77, clearB = 121;
             cam->GetClearColor(clearR, clearG, clearB);
 
+            // Anchored objects (a HUD title, an FPS readout) to their points
+            // on this screen, as the game and --render-scenes place them;
+            // left where the file has them, they overlapped the rest.
+            Deki::ScreenAnchor::PlaceAll(&scene, *cam, bufW, bufH);
             m_Renderer->RenderScene(&scene, cam, clearR, clearG, clearB);
         }
     }
@@ -145,11 +151,9 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
         const float inset = ImGui::GetCursorScreenPos().x - ImGui::GetWindowPos().x;
         float availWidth = std::max(1.0f, ImGui::GetContentRegionAvail().x - inset);
         float fullAspect = static_cast<float>(bufH) / static_cast<float>(bufW);
+        // The whole screen: a HUD sits at its edges, which a crop would hide.
         float displayWidth = availWidth;
-        float displayHeight = displayWidth * fullAspect * 0.7f;
-
-        // Show the middle 70% of the render, cropped rather than stretched.
-        float uvCrop = (1.0f - 0.7f) * 0.5f;
+        float displayHeight = displayWidth * fullAspect;
 
         float cursorX = (availWidth - displayWidth) / 2.0f;
         if (cursorX > 0)
@@ -158,12 +162,11 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
         }
 
         ImVec2 imagePos = ImGui::GetCursorScreenPos();
-        ImGui::Image(EditorTexture::ToImGui(m_Renderer->GetTextureId()), ImVec2(displayWidth, displayHeight),
-                     ImVec2(0, uvCrop), ImVec2(1, 1 - uvCrop));
+        ImGui::Image(EditorTexture::ToImGui(m_Renderer->GetTextureId()), ImVec2(displayWidth, displayHeight));
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRect(imagePos, ImVec2(imagePos.x + displayWidth, imagePos.y + displayHeight),
-                          IM_COL32(128, 128, 128, 255), 0.0f, 0, 1.0f);
+                          ImGui::ColorConvertFloat4ToU32(Palette::Line2), 0.0f, 0, 1.0f);
     }
 }
 
