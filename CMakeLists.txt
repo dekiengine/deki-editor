@@ -795,7 +795,8 @@ list(APPEND EDITOR_SOURCES
 add_executable(DekiEditor ${EDITOR_SOURCES})
 
 # The application manifest (resources/windows/deki-editor.manifest): UTF-8 as
-# the process code page, so paths with non-ASCII letters open everywhere.
+# the process code page, so paths with non-ASCII letters open everywhere. And
+# the app icon, the Deki cat.
 if(WIN32 AND NOT MSVC)
     enable_language(RC)
     target_sources(DekiEditor PRIVATE resources/windows/deki-editor.rc)

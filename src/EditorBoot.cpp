@@ -37,6 +37,7 @@
 #include <deki/LogSystem.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <string>
 #include <filesystem>
 #include <fstream>
@@ -389,6 +390,49 @@ void SetCjkPreference(const std::string& language)
 namespace
 {
 
+#ifndef _WIN32
+/// The window's icon where the executable carries none (Linux, macOS): the
+/// Deki cat peeking over its ledge, as in the editor's title bar and
+/// tools/make-app-icon.py. On Windows the exe's icon resource
+/// (resources/windows/deki.ico) is used at every size instead.
+void SetCatIcon(SDL_Window* window)
+{
+    static const char* const kCat[] = {
+        "................", "................", "................", "...A........A...",
+        "...AA......AA...", "...AAAAAAAAAA...", "..AAAAAAAAAAAA..", "..AAKSAAAAKSAA..",
+        "..AAKKAAAAKKAA..", "..AAAAAPPAAAAA..", "..AWWAAAAAAWWA..", "BBBBBBBBBBBBBBBB",
+        "................", "................", "................", "................",
+    };
+    constexpr int kScale = 4;  // 64 px, by whole pixels
+    SDL_Surface* icon = SDL_CreateSurface(16 * kScale, 16 * kScale, SDL_PIXELFORMAT_RGBA32);
+    if (!icon)
+    {
+        return;
+    }
+    for (int y = 0; y < 16 * kScale; ++y)
+    {
+        uint8_t* row = static_cast<uint8_t*>(icon->pixels) + static_cast<size_t>(y) * icon->pitch;
+        for (int x = 0; x < 16 * kScale; ++x)
+        {
+            uint8_t rgba[4] = { 0, 0, 0, 0 };
+            switch (kCat[y / kScale][x / kScale])
+            {
+                case 'A': rgba[0] = 0x3b, rgba[1] = 0xc3, rgba[2] = 0xff, rgba[3] = 255; break;  // fur
+                case 'W': rgba[0] = 0x9d, rgba[1] = 0xe1, rgba[2] = 0xff, rgba[3] = 255; break;  // paws
+                case 'B': rgba[0] = 0x0c, rgba[1] = 0x82, rgba[2] = 0xbf, rgba[3] = 255; break;  // ledge
+                case 'S': rgba[0] = 0xe8, rgba[1] = 0xe6, rgba[2] = 0xe1, rgba[3] = 255; break;  // eye shine
+                case 'K': rgba[0] = 0x0a, rgba[1] = 0x0b, rgba[2] = 0x0d, rgba[3] = 255; break;  // eyes
+                case 'P': rgba[0] = 0xff, rgba[1] = 0x8f, rgba[2] = 0xb8, rgba[3] = 255; break;  // mouth
+                default: break;
+            }
+            memcpy(row + x * 4, rgba, 4);
+        }
+    }
+    SDL_SetWindowIcon(window, icon);
+    SDL_DestroySurface(icon);
+}
+#endif
+
 /// The graphics device did not start: says why in an error box and the log.
 /// Lists the step and SDL's error, and the adapter behind each display.
 void ReportGpuFailure(SDL_Window* window, const char* step)
@@ -512,6 +556,9 @@ bool BootDisplay(BootContext& ctx)
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
         return false;
     }
+#ifndef _WIN32
+    SetCatIcon(ctx.window);
+#endif
     DekiEditor::TouchInput::Get().SetWindow(ctx.window);
 
 #ifdef _WIN32

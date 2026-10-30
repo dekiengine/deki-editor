@@ -12,6 +12,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - `--background` opens the editor minimized, never taking focus.
 - `EditorTexture` (`deki-editor/EditorTexture.h`): the textures editor code and
   packages draw in the editor, with `AddImageNearest` for sharp pixels.
+- The editor has an app icon, the Deki cat, in Explorer, the taskbar and the
+  window (`tools/make-app-icon.py` makes it).
 
 ### Changed
 - **Agents work where you can see them.** `--tool`, `--script` and
