@@ -1,7 +1,7 @@
 # Deki Editor CI.
 #
-# Two supported targets, one job each: build the editor, build and run the two
-# test binaries, and run the repository's own consistency checks
+# Three supported targets, one job each: build the editor, build and run the
+# two test binaries, and run the repository's own consistency checks
 # (tools/ci/check_version.py, tools/ci/check_abi.py, the Python tool tests).
 #
 # The "smoke" jobs go one step further and do what a user does: create a
@@ -281,6 +281,97 @@ jobs:
             build/_deps/*-src
             build/CMakeCache.txt
           retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macOS (GCC 16)
+    runs-on: macos-latest
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+
+      - name: Check out packages the tests read
+        run: |
+          git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
+          for p in deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
+            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../templates/$p"
+          done
+
+      # Homebrew's gcc formula is GCC 16 (g++-16). SDL3 is built by Apple's
+      # clang (see the top of CMakeLists.txt), which the image has.
+      - name: Install the toolchain
+        run: brew install gcc ninja ccache
+
+      - name: Toolchain check (GCC 16)
+        run: |
+          g++-16 --version | head -n1
+          ver=$(g++-16 -dumpfullversion)
+          case "$ver" in
+            16.*|1[7-9].*|[2-9][0-9].*) ;;
+            *) echo "::error::GCC 16 required for the reflection codegen, got $ver"; exit 1 ;;
+          esac
+          cmake --version | head -n1
+          clang --version | head -n1
+
+      - name: Cache FetchContent sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-macos-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-macos-${{ github.sha }}
+          restore-keys: ccache-macos-
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+          -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
+          -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build editor
+        run: cmake --build build --target DekiEditor
+
+      - name: Build tests
+        run: cmake --build build --target DekiEditorTests DekiRenderingTests
+
+      - name: Editor tests
+        run: ./build/bin/DekiEditorTests --gtest_brief=1
+
+      - name: Rendering tests
+        run: ./build/bin/DekiRenderingTests --gtest_brief=1
+
+      - name: Version consistency
+        run: python3 tools/ci/check_version.py
+
+      - name: ABI lock
+        run: python3 tools/ci/check_abi.py
+
+      - name: Python tool tests
+        run: |
+          python3 -m unittest discover -s tools/docs/tests
+          if [ -d tools/tests ]; then python3 -m unittest discover -s tools/tests; fi
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s
+
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true
 
   # ---------------------------------------------------------------------------
   # Every package in the registry, at master, against the engine built here:

@@ -14,6 +14,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   packages draw in the editor, with `AddImageNearest` for sharp pixels.
 - The editor has an app icon, the Deki cat, in Explorer, the taskbar and the
   window (`tools/make-app-icon.py` makes it).
+- **The editor builds on macOS** (Apple Silicon, Homebrew GCC 16), and CI
+  builds and tests it there. SDL3 is built by Apple's clang as a dylib; the
+  file watcher uses kqueue. Nobody has run it on a Mac yet. See SETUP.md.
 
 ### Changed
 - **Agents work where you can see them.** `--tool`, `--script` and
@@ -33,6 +36,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Subpixel (ClearType-style) text is drawn in three passes, one per colour
   channel, as SDL's GPU API has no dual-source blending. Direct3D 12 and
   Vulkan have it; macOS shows greyscale text, as macOS itself does.
+
+### Fixed
+- GCC builds no longer fuse `a*b+c` into one rounding (`-ffp-contract=off`),
+  so an arm64 build computes the same floats as x86-64.
 
 ## 0.21.0 - 2026-10-28
 

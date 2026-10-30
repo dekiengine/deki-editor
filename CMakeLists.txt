@@ -70,6 +70,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(SDL_STATIC_PIC ON CACHE BOOL "" FORCE)
 
+# The same floats on every host. GCC fuses a*b+c into one rounding wherever the
+# CPU has FMA, which arm64 always has and x86-64 only with -mfma, so an Apple
+# Silicon build rounded differently from the Windows and Linux ones.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-ffp-contract=off)
+endif()
+
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -85,6 +92,8 @@ include(FetchContent)
 # (deki-sdl3-integration's package.json names it). The archive ships SDL3 as
 # a DLL only, so SDL3.dll is copied next to DekiEditor below and travels with
 # the packaged editor.
+#
+# macOS: built from source at the same release, with clang, shared (below).
 #
 # Elsewhere: built from source at the same release, statically.
 #
@@ -105,6 +114,44 @@ if(WIN32 AND MINGW)
     set(_sdl3_prefix "${sdl3_SOURCE_DIR}/x86_64-w64-mingw32")
     if(NOT EXISTS "${_sdl3_prefix}" AND EXISTS "${sdl3_SOURCE_DIR}/SDL3-${DEKI_SDL3_VERSION}/x86_64-w64-mingw32")
         set(_sdl3_prefix "${sdl3_SOURCE_DIR}/SDL3-${DEKI_SDL3_VERSION}/x86_64-w64-mingw32")
+    endif()
+    set(SDL3_DIR "${_sdl3_prefix}/lib/cmake/SDL3" CACHE PATH "" FORCE)
+    find_package(SDL3 ${DEKI_SDL3_VERSION} EXACT REQUIRED CONFIG)
+    set(DEKI_SDL3_TARGET SDL3::SDL3)
+    set(DEKI_SDL3_INCLUDE_DIR "${_sdl3_prefix}/include" CACHE PATH "SDL3 headers, for generated package builds" FORCE)
+    set(DEKI_SDL3_LIB_DIR "${_sdl3_prefix}/lib" CACHE PATH "SDL3 link library, for generated package builds" FORCE)
+elseif(APPLE)
+    # macOS: built from source at the same release, but by Apple's clang in a
+    # build of its own and as a shared library. SDL's Objective-C needs clang
+    # (it requires -fobjc-arc, which GCC lacks, and checks it against the C
+    # compiler), and inside a dylib clang's runtime stays with SDL, so GCC never
+    # links it. SOURCE_SUBDIR names no directory, so FetchContent only fetches.
+    FetchContent_Declare(
+        SDL3
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+        GIT_TAG release-${DEKI_SDL3_VERSION}
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR deki-fetch-only
+    )
+    FetchContent_MakeAvailable(SDL3)
+    set(_sdl3_prefix "${CMAKE_BINARY_DIR}/_deps/sdl3-clang")
+    set(_sdl3_build "${CMAKE_BINARY_DIR}/_deps/sdl3-clang-build")
+    if(NOT EXISTS "${_sdl3_prefix}/lib/cmake/SDL3/SDL3Config.cmake")
+        message(STATUS "Deki: building SDL3 ${DEKI_SDL3_VERSION} with clang")
+        execute_process(
+            COMMAND "${CMAKE_COMMAND}" -S "${sdl3_SOURCE_DIR}" -B "${_sdl3_build}" -G "${CMAKE_GENERATOR}"
+                    "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}" -DCMAKE_BUILD_TYPE=Release
+                    -DCMAKE_C_COMPILER=clang -DCMAKE_OBJC_COMPILER=clang
+                    -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST_LIBRARY=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+                    "-DCMAKE_INSTALL_PREFIX=${_sdl3_prefix}"
+            RESULT_VARIABLE _sdl3_result)
+        if(_sdl3_result EQUAL 0)
+            execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_sdl3_build}" --target install
+                            RESULT_VARIABLE _sdl3_result)
+        endif()
+        if(NOT _sdl3_result EQUAL 0)
+            message(FATAL_ERROR "Building SDL3 with clang failed (${_sdl3_result})")
+        endif()
     endif()
     set(SDL3_DIR "${_sdl3_prefix}/lib/cmake/SDL3" CACHE PATH "" FORCE)
     find_package(SDL3 ${DEKI_SDL3_VERSION} EXACT REQUIRED CONFIG)
@@ -391,6 +438,11 @@ set(VERBOSE OFF CACHE BOOL "" FORCE)
 set(BUILD_TEST_APP OFF CACHE BOOL "" FORCE)
 set(EFSW_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(efsw)
+# macOS: kqueue rather than FSEvents. The FSEvents backend includes
+# CoreServices, whose headers declare Apple blocks (^), which GCC cannot parse.
+if(APPLE)
+    target_compile_definitions(efsw PRIVATE EFSW_FSEVENTS_NOT_SUPPORTED)
+endif()
 
 
 # ImGui library (with FreeType font rasterizer)
@@ -885,9 +937,9 @@ target_link_libraries(DekiEditor PRIVATE
     httplib::httplib
 )
 
-# The prebuilt SDL3 is a DLL: put it next to the editor, which is also where
-# the tests land, so a build tree runs as-is and the packaging script, which
-# takes bin/ whole, ships it.
+# A shared SDL3 (the prebuilt DLL, or the clang-built dylib on macOS): put it
+# next to the editor, which is also where the tests land, so a build tree runs
+# as-is and the packaging script, which takes bin/ whole, ships it.
 if(TARGET SDL3::SDL3-shared)
     add_custom_command(TARGET DekiEditor POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:SDL3::SDL3-shared>" "$<TARGET_FILE_DIR:DekiEditor>"

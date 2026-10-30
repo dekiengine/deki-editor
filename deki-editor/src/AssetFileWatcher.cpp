@@ -2,8 +2,14 @@
 
 #include <efsw/efsw.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <system_error>
+
+#ifdef __APPLE__
+#include <limits.h>
+#include <sys/resource.h>
+#endif
 
 #include <deki/LogSystem.h>
 
@@ -18,6 +24,22 @@ bool IsSidecarExt(const std::string& ext)
 {
     return ext == ".dekiguid" || ext == ".data";
 }
+
+#ifdef __APPLE__
+// macOS starts a process with at most 256 open files, and efsw's kqueue backend
+// keeps 500 of them spare, so it always fell back to polling, which missed
+// renames. kqueue takes a descriptor per watched file: raise the soft limit as
+// far as the system allows (OPEN_MAX) before efsw first reads it.
+void RaiseOpenFileLimit()
+{
+    rlimit limit;
+    if (getrlimit(RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur < OPEN_MAX)
+    {
+        limit.rlim_cur = std::min<rlim_t>(OPEN_MAX, limit.rlim_max);
+        setrlimit(RLIMIT_NOFILE, &limit);
+    }
+}
+#endif
 }  // namespace
 
 struct AssetFileWatcher::Impl : public efsw::FileWatchListener
@@ -163,6 +185,9 @@ void AssetFileWatcher::Start(const std::string& watchPath, const std::string& pr
     Impl& impl = *m_Impl;
     impl.watchPath = watchPath;
     impl.projectPath = projectPath;
+#ifdef __APPLE__
+    RaiseOpenFileLimit();
+#endif
     impl.watcher = std::make_unique<efsw::FileWatcher>();
 
     impl.watchId = impl.watcher->addWatch(watchPath, &impl, /*recursive*/ true);

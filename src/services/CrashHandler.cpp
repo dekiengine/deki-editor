@@ -40,12 +40,14 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <sys/wait.h>
-#include <ucontext.h>
 #ifdef __APPLE__
+// ucontext_t without <ucontext.h>, which needs _XOPEN_SOURCE on macOS.
+#include <sys/ucontext.h>
 #include <mach/mach.h>
 #include <mach/thread_act.h>
 #include <sys/sysctl.h>
 #else
+#include <ucontext.h>
 #include <dirent.h>
 #include <sys/syscall.h>
 #endif

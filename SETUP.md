@@ -169,7 +169,18 @@ sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 sudo apt-get install g++-16 gcc-16
 ```
 
-Verify: `g++ --version` (MSYS2) or `g++-16 --version` (Ubuntu) must report
+On macOS, from Homebrew, whose `gcc` is GCC 16. Apple's clang (the Command
+Line Tools) is needed too: it builds SDL3, which GCC cannot.
+
+```bash
+brew install gcc ninja cmake
+cmake -B build -S . -G Ninja -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
+```
+
+CI builds and tests the editor on Apple Silicon. Nobody has run it on a Mac
+yet, nor built a project there.
+
+Verify: `g++ --version` (MSYS2) or `g++-16 --version` (Ubuntu, macOS) must report
 **16.x**. With a GCC that lacks reflection the configure step stops with
 `generator compile failed ... needs GCC 16 with -freflection` rather
 than continuing with stale or missing generated sources.
@@ -216,7 +227,9 @@ First configure fetches ImGui, freetype, efsw, nlohmann/json and googletest via
 `FetchContent`, so it takes a while and needs network. SDL3 is not compiled:
 on Windows the configure downloads SDL's prebuilt MinGW release archive
 (hash-pinned) and the editor links `SDL3.dll`, which is copied next to it; on
-Linux SDL3 is fetched and built from source at the same release.
+Linux SDL3 is fetched and built from source at the same release. On macOS it is
+built from source by Apple's clang, in a build of its own, as `libSDL3.dylib`
+next to the editor: its Objective-C needs clang.
 
 Output in `build/bin/`:
 

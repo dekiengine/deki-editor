@@ -417,6 +417,10 @@ bool SerialMonitorPanel::Connect()
         return false;
     }
 
+#ifdef __APPLE__
+    // Darwin's speed_t is the rate itself, with no B460800 or B921600.
+    speed_t baudRate = kBaudRates[m_BaudRateIndex];
+#else
     speed_t baudRate;
     switch (kBaudRates[m_BaudRateIndex])
     {
@@ -430,6 +434,7 @@ bool SerialMonitorPanel::Connect()
         case 921600: baudRate = B921600; break;
         default: baudRate = B115200; break;
     }
+#endif
     cfsetospeed(&tty, baudRate);
     cfsetispeed(&tty, baudRate);
 
