@@ -20,6 +20,9 @@
 
 #include <deki/reflection/Property.h>
 #include <vector>
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -522,6 +525,40 @@ static void InstallEditorUIBackend()
     b.textColored = [](float r, float g, float bl, float a, const char* t)
     { ImGui::TextColored(ImVec4(r, g, bl, a), "%s", t); };
     b.textDisabled = [](const char* t) { ImGui::TextDisabled("%s", t); };
+    b.valueText = [](const char* t)
+    {
+        // A field's value without the field: the same mono font and size
+        // (see DrawLeftAlignedValue), dimmed, on a row of a field's height.
+        // The item is only as wide as the text, so a small control can follow
+        // on the same line; the text is clipped at the value column's end.
+        const float dpi = ImGui::GetStyle().FontScaleDpi;
+        const float padX = ImGui::GetStyle().FramePadding.x;
+        const ImVec2 pos = ImGui::GetCursorScreenPos();
+        const float rowH = ImGui::GetFrameHeight();
+        const float maxW = ImGui::GetContentRegionAvail().x - Metrics::kInspectorRightPad * dpi;
+        ImFont* font = g_FontMono ? g_FontMono : ImGui::GetFont();
+        const float size = Fonts::CssPx(font, 12.5f) * dpi;
+        const ImVec2 textSize = font->CalcTextSizeA(size, FLT_MAX, 0.0f, t);
+        const float w = std::min(textSize.x + 2.0f * padX, maxW > 1.0f ? maxW : 1.0f);
+        ImGui::Dummy(ImVec2(w, rowH));
+        const ImVec2 at(pos.x + padX, pos.y + std::floor((rowH - textSize.y) * 0.5f));
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->PushClipRect(pos, ImVec2(pos.x + w, pos.y + rowH), true);
+        dl->AddText(font, size, at, ImGui::GetColorU32(Palette::Dim), t);
+        dl->PopClipRect();
+    };
+    b.hint = [](const char* t)
+    {
+        const float right =
+            ImGui::GetContentRegionMax().x - Metrics::kInspectorRightPad * ImGui::GetStyle().FontScaleDpi;
+        ImGui::SetCursorPosX(InspectorUtils::SectionAlignedCursorX());
+        ImGui::PushTextWrapPos(right);
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        ImGui::TextUnformatted(t);
+        ImGui::PopStyleColor();
+        ImGui::PopTextWrapPos();
+    };
+    b.actionButton = [](const char* label, float w) { return SchematicAddButton(label, w); };
     b.sameLine = [](float off, float sp) { ImGui::SameLine(off, sp); };
     b.spacing = []() { ImGui::Spacing(); };
     b.separator = []() { ImGui::Separator(); };

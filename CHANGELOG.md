@@ -18,6 +18,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   builds and tests it there. SDL3 is built by Apple's clang as a dylib; the
   file watcher uses kqueue. Nobody has run it on a Mac yet. See SETUP.md.
 
+- `EditorUI::ValueText`, `Hint` and `ActionButton`, so a package's own
+  inspector rows match the rest: a read-only value in a row, help text lined
+  up with the labels, and the outlined button Add Component uses.
+
 ### Changed
 - **Agents work where you can see them.** `--tool`, `--script` and
   `--list-tools` on a project no editor has open used to run in a hidden
@@ -36,6 +40,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Subpixel (ClearType-style) text is drawn in three passes, one per colour
   channel, as SDL's GPU API has no dual-source blending. Direct3D 12 and
   Vulkan have it; macOS shows greyscale text, as macOS itself does.
+
+- **Inspector rows line up.** Arrays (their size, + Add and the empty note),
+  the Text box, the sprite's 9-slice borders, Clip's Edit Rect, the tween's
+  total and the font asset's settings sit on the label and value columns
+  like every other field, with the kit's buttons instead of plain ImGui ones.
+- Values too wide for their box: a number drops its unit ("-114" rather than
+  "-114 p") and keeps its digits; other text ends in "...".
+- Property names keep their acronyms: "I2C Port", "SPI Host", "DIO1 Pin",
+  "TX Power dBm", "Use PSRAM" rather than "I 2c Port", "Spi Host". Package
+  translations are keyed by the new names.
 
 ### Fixed
 - GCC builds no longer fuse `a*b+c` into one rounding (`-ffp-contract=off`),

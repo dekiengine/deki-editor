@@ -29,12 +29,13 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
 {
     nlohmann::json currentValue = CaptureArray(comp, prop);
 
-    // --- Header: label + size input + Add button ---
-    ImGui::Text("%s", Tr(displayName));
-    ShowTooltip(prop);
-
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(40);
+    // --- Header: a property row whose value is the size, then + Add ---
+    // BeginPropertyRow takes the tooltip DrawProperty set for this row.
+    const char* addLabel = TrLabel("+ Add");
+    const ImGuiStyle& style = ImGui::GetStyle();
+    InspectorUtils::BeginPropertyRow(displayName);
+    const float addW = ImGui::CalcTextSize(addLabel, nullptr, true).x + style.FramePadding.x * 2.0f;
+    ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - addW - style.ItemSpacing.x);
     int arraySize = static_cast<int>(currentValue.size());
     if (DekiEditor::SchematicDragInt("##arraysize", &arraySize, 0.1f, 0, 9999))
     {
@@ -84,8 +85,8 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         }
     }
 
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 50);
-    if (ImGui::SmallButton(TrLabel("+ Add")))
+    ImGui::SameLine();
+    if (ImGui::Button(addLabel, ImVec2(addW, 0.0f)))
     {
         nlohmann::json newValue = currentValue;
         switch (prop.elementType)
@@ -106,30 +107,44 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             std::make_unique<ModifyComponentPropertyCommand>(comp, prop, newValue));
     }
 
+    // The cards and the empty note sit in the rows' column: from the label's
+    // left edge to the value controls' right edge.
+    const float dpi = style.FontScaleDpi;
+    const float columnX = InspectorUtils::SectionAlignedCursorX();
+    const float columnW = ImGui::GetContentRegionMax().x - columnX - ::DekiEditor::Metrics::kInspectorRightPad * dpi;
+
     if (currentValue.empty())
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 0.7f));
-        ImGui::TextWrapped("%s", Tr("  Empty array. Click + Add or set size above."));
+        ImGui::SetCursorPosX(columnX);
+        ImGui::PushTextWrapPos(columnX + columnW);
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
+        ImGui::TextUnformatted(Tr("Empty. Use + Add or set the size."));
         ImGui::PopStyleColor();
+        ImGui::PopTextWrapPos();
     }
 
     int indexToRemove = -1;
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
+    auto withAlpha = [](ImVec4 c, float a)
+    {
+        c.w = a;
+        return ImGui::ColorConvertFloat4ToU32(c);
+    };
     const float padY = 5.0f;
-    const float rounding = 4.0f;
+    const float rounding = style.FrameRounding;
     const float accentWidth = 3.0f;
-    const ImU32 cardColor = IM_COL32(38, 40, 43, 255);
-    const ImU32 cardHoverColor = IM_COL32(48, 52, 58, 255);
-    const ImU32 cardBorderColor = IM_COL32(55, 58, 62, 255);
-    const ImU32 accentColor = IM_COL32(86, 158, 255, 80);
-    const ImU32 accentHoverColor = IM_COL32(86, 158, 255, 140);
-    const ImU32 handleColor = IM_COL32(100, 100, 100, 120);
-    const ImU32 handleHoverColor = IM_COL32(170, 170, 170, 220);
-    const ImU32 indexColor = IM_COL32(100, 100, 100, 180);
-    const ImU32 removeColor = IM_COL32(100, 100, 100, 120);
-    const ImU32 removeHoverBg = IM_COL32(200, 70, 70, 60);
-    const ImU32 removeHoverColor = IM_COL32(220, 100, 100, 255);
+    const ImU32 cardColor = ImGui::ColorConvertFloat4ToU32(Palette::Bg3);
+    const ImU32 cardHoverColor = ImGui::ColorConvertFloat4ToU32(Palette::Bg2);
+    const ImU32 cardBorderColor = ImGui::ColorConvertFloat4ToU32(Palette::Line2);
+    const ImU32 accentColor = withAlpha(Palette::Accent, 0.30f);
+    const ImU32 accentHoverColor = withAlpha(Palette::Accent, 0.55f);
+    const ImU32 handleColor = ImGui::ColorConvertFloat4ToU32(Palette::Dim2);
+    const ImU32 handleHoverColor = ImGui::ColorConvertFloat4ToU32(Palette::Fg);
+    const ImU32 indexColor = ImGui::ColorConvertFloat4ToU32(Palette::Dim);
+    const ImU32 removeColor = ImGui::ColorConvertFloat4ToU32(Palette::Dim2);
+    const ImU32 removeHoverBg = withAlpha(Palette::Red, 0.18f);
+    const ImU32 removeHoverColor = ImGui::ColorConvertFloat4ToU32(Palette::Red);
     const float handleWidth = 26.0f;
     const float indexWidth = 22.0f;
     const float removeWidth = 48.0f;
@@ -149,8 +164,9 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         ImGui::PushID(static_cast<int>(i));
 
         // --- Card dimensions ---
+        ImGui::SetCursorPosX(columnX);
         ImVec2 cardStart = ImGui::GetCursorScreenPos();
-        float availWidth = ImGui::GetContentRegionAvail().x;
+        float availWidth = columnW;
         ImVec2 cardMin(cardStart.x, cardStart.y);
         ImVec2 cardMax(cardStart.x + availWidth, cardStart.y + cardHeight);
 
@@ -182,8 +198,8 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
 
             // A faint placeholder where the card was.
             drawList->ChannelsSetCurrent(0);
-            drawList->AddRectFilled(cardMin, cardMax, IM_COL32(35, 37, 40, 40), rounding);
-            drawList->AddRect(cardMin, cardMax, IM_COL32(55, 58, 62, 30), rounding, 0, 1.0f);
+            drawList->AddRectFilled(cardMin, cardMax, withAlpha(Palette::Bg2, 0.5f), rounding);
+            drawList->AddRect(cardMin, cardMax, withAlpha(Palette::Line2, 0.5f), rounding, 0, 1.0f);
 
             cardMin.y += dragOffsetY;
             cardMax.y += dragOffsetY;
@@ -198,8 +214,8 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
 
         bool cardHovered = ImGui::IsMouseHoveringRect(cardMin, cardMax);
         bool showHover = (s_DragSourceIndex < 0) && cardHovered;
-        ImU32 bgColor = isDragSource ? IM_COL32(48, 52, 58, 240) : (showHover ? cardHoverColor : cardColor);
-        ImU32 borderCol = isDragSource ? IM_COL32(86, 158, 255, 180) : cardBorderColor;
+        ImU32 bgColor = isDragSource ? cardHoverColor : (showHover ? cardHoverColor : cardColor);
+        ImU32 borderCol = isDragSource ? ImGui::ColorConvertFloat4ToU32(Palette::AccentDim) : cardBorderColor;
 
         if (isDragSource)
         {
@@ -210,7 +226,8 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         drawList->AddRect(cardMin, cardMax, borderCol, rounding);
 
         // Left accent stripe
-        ImU32 accent = isDragSource ? IM_COL32(86, 158, 255, 200) : (showHover ? accentHoverColor : accentColor);
+        ImU32 accent = isDragSource ? ImGui::ColorConvertFloat4ToU32(Palette::Accent)
+                                    : (showHover ? accentHoverColor : accentColor);
         drawList->AddRectFilled(ImVec2(cardMin.x, cardMin.y + 1), ImVec2(cardMin.x + accentWidth, cardMax.y - 1),
                                 accent, rounding, ImDrawFlags_RoundCornersLeft);
 

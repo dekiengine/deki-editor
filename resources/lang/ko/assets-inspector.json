@@ -140,7 +140,7 @@
     "Missing object (id %u)": "없는 오브젝트 (id %u)",
     "The object this points at is not in the scene any more.\nPick a new one, or clear it from the row menu (right-click the label).": "이 항목이 가리키는 오브젝트가 더 이상 씬에 없습니다.\n새 오브젝트를 선택하거나, 행 메뉴(레이블을 오른쪽 클릭)에서 지우십시오.",
     "+ Add": "+ 추가",
-    "Empty array. Click + Add or set size above.": "빈 배열입니다. + 추가를 클릭하거나 위에서 크기를 설정하십시오.",
+    "Empty. Use + Add or set the size.": "비어 있습니다. + 추가를 사용하거나 크기를 설정하십시오.",
     "(unsupported element type)": "(지원되지 않는 요소 타입)",
     "Shows the first of %zu objects. Select one object to edit this.": "오브젝트 %zu개 중 첫 번째를 표시합니다. 편집하려면 오브젝트를 하나만 선택하십시오.",
     "Missing": "없음",

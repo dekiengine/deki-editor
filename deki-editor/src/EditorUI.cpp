@@ -218,6 +218,27 @@ void EditorUI::TextDisabled(const char* text)
     }
 }
 
+void EditorUI::ValueText(const char* text)
+{
+    if (s_WidgetBackend.valueText)
+    {
+        s_WidgetBackend.valueText(text);
+    }
+}
+
+void EditorUI::Hint(const char* text)
+{
+    if (s_WidgetBackend.hint)
+    {
+        s_WidgetBackend.hint(text);
+    }
+}
+
+bool EditorUI::ActionButton(const char* label, float width)
+{
+    return s_WidgetBackend.actionButton ? s_WidgetBackend.actionButton(label, width) : false;
+}
+
 void EditorUI::SameLine(float offsetFromStartX, float spacing)
 {
     if (s_WidgetBackend.sameLine)

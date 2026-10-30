@@ -232,7 +232,37 @@ def nicify(name: str) -> str:
             out += " "
         out += c.upper() if cap else c
         cap = False
-    return out
+    return join_acronyms(out)
+
+
+# EditorNaming.cpp's AcronymWords: words the camelCase split gets wrong.
+ACRONYM_WORDS = {
+    "Spi": "SPI", "Qspi": "QSPI", "I2c": "I2C", "I2s": "I2S", "Uart": "UART", "Gpio": "GPIO", "Mosi": "MOSI",
+    "Miso": "MISO", "Sclk": "SCLK", "Sck": "SCK", "Sda": "SDA", "Scl": "SCL", "Cs": "CS", "Dc": "DC", "Rst": "RST",
+    "Te": "TE", "Bl": "BL", "Tx": "TX", "Rx": "RX", "Rf": "RF", "Tcxo": "TCXO", "Dbm": "dBm", "Rgb": "RGB",
+    "Rgba": "RGBA", "Psram": "PSRAM", "Gps": "GPS", "Ble": "BLE", "Imu": "IMU", "Rtc": "RTC", "Lcd": "LCD",
+    "Http": "HTTP", "Url": "URL", "Usb": "USB", "Sd": "SD", "Fps": "FPS", "Ui": "UI", "Fsm": "FSM", "Ttf": "TTF",
+    "Bdf": "BDF", "Pwm": "PWM",
+}
+
+
+def join_acronyms(split: str) -> str:
+    """EditorNaming.cpp's JoinAcronyms: "I 2c Port" -> "I2C Port", "Dio 1 Pin" -> "DIO1 Pin"."""
+    words, out, i = split.split(" "), [], 0
+    while i < len(words):
+        word = words[i]
+        nxt = words[i + 1] if i + 1 < len(words) else ""
+        if (word == "I" and nxt in ("2c", "2s")) or (word == "Lo" and nxt == "Ra") or (word in ("Ki", "Mi") and nxt == "B"):
+            word = "I2" + nxt[1].upper() if word == "I" else word + nxt
+            i += 1
+        elif word in ("Dio", "Io", "Gpio") and nxt.isdigit():
+            word = word.upper() + nxt
+            i += 1
+        else:
+            word = ACRONYM_WORDS.get(word, word)
+        out.append(word)
+        i += 1
+    return " ".join(out)
 
 
 def reflection_texts(files: list[Path]) -> dict[str, list[str]]:

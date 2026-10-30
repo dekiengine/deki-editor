@@ -14,6 +14,24 @@ TEST(EditorNaming, PropertyNames)
     EXPECT_EQ(NicifyName("texture2D"), "Texture 2D");
 }
 
+// Acronyms, pins and units read as people write them, not as the camelCase
+// split leaves them ("I 2c Port", "Spi Host", "Lo Ra Demo").
+TEST(EditorNaming, Acronyms)
+{
+    EXPECT_EQ(NicifyName("i2cPort"), "I2C Port");
+    EXPECT_EQ(NicifyName("spiHost"), "SPI Host");
+    EXPECT_EQ(NicifyName("LoRaDemo"), "LoRa Demo");
+    EXPECT_EQ(NicifyName("chunkCacheKiB"), "Chunk Cache KiB");
+    EXPECT_EQ(NicifyName("dio2AsRfSwitch"), "DIO2 As RF Switch");
+    EXPECT_EQ(NicifyName("io3Pin"), "IO3 Pin");
+    EXPECT_EQ(NicifyName("txPowerDbm"), "TX Power dBm");
+    EXPECT_EQ(NicifyName("usePsram"), "Use PSRAM");
+    EXPECT_EQ(NicifyName("ui"), "UI");
+    // Words that only start like an acronym stay as they are.
+    EXPECT_EQ(NicifyName("teleport"), "Teleport");
+    EXPECT_EQ(NicifyName("d0Pin"), "D 0 Pin");
+}
+
 // Asset titles: a file stem reads as a title.
 TEST(EditorNaming, FileStems)
 {

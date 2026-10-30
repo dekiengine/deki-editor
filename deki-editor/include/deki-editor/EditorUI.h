@@ -99,6 +99,17 @@ public:
     void Text(const char* text);
     void TextColored(float r, float g, float b, float a, const char* text);
     void TextDisabled(const char* text);
+    /// A read-only value in the value column of the row PropertyRow began, in
+    /// the fields' font, dimmed and centred on the row. For what a row shows
+    /// but does not edit there (a 9-slice's borders, a computed total).
+    void ValueText(const char* text);
+    /// Dim help text under a run of rows, wrapped and lined up with the row
+    /// labels.
+    void Hint(const char* text);
+    /// A button for an action rather than a value (Edit 9-Slice, Edit Rect):
+    /// the outlined, centred box Add Component uses. `width` 0 uses a
+    /// comfortable default. Returns true when clicked.
+    bool ActionButton(const char* label, float width = 0.0f);
     void SameLine(float offsetFromStartX = 0.0f, float spacing = -1.0f);
     void Spacing();
     void Separator();
@@ -648,6 +659,9 @@ public:
         // CSS-px text (see DrawTextCss): the backend applies Fonts::CssPx and the DPI scale.
         std::function<void(float, float, float, uint32_t, const char*)> drawTextCss;
         std::function<void(float, const char*, float*, float*)> measureTextCss;
+        std::function<void(const char*)> valueText;
+        std::function<void(const char*)> hint;
+        std::function<bool(const char*, float)> actionButton;
     };
     static void SetWidgetBackend(const WidgetBackend& backend);
 

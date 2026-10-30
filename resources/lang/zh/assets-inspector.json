@@ -140,7 +140,7 @@
     "Missing object (id %u)": "缺失对象 (id %u)",
     "The object this points at is not in the scene any more.\nPick a new one, or clear it from the row menu (right-click the label).": "引用的对象已不在场景中。\n请选择新的对象，或通过行菜单（右键单击标签）将其清除。",
     "+ Add": "+ 添加",
-    "Empty array. Click + Add or set size above.": "数组为空。单击“+ 添加”，或在上方设置大小。",
+    "Empty. Use + Add or set the size.": "为空。使用“+ 添加”或设置大小。",
     "(unsupported element type)": "（不支持的元素类型）",
     "Shows the first of %zu objects. Select one object to edit this.": "显示的是 %zu 个对象中的第一个。只选择一个对象才能编辑此项。",
     "Missing": "缺失",

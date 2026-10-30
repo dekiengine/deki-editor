@@ -589,11 +589,14 @@ void PropertyEditorFactory::DrawStringProperty(Deki::Component* comp, const Deki
     static std::string s_OldValue;
 
     // A property named "text" (TextComponent) gets a multiline box.
+    // It is a property row like the others: the label in the label column,
+    // the box filling the value column (BeginPropertyRow set its width).
     if (strcmp(prop.name, "text") == 0)
     {
-        ImGui::Text("%s", Tr(displayName));
-        ShowTooltip(prop);
-        if (ImGui::InputTextMultiline("##text_multiline", buf, sizeof(buf), ImVec2(-1, ImGui::GetTextLineHeight() * 4),
+        InspectorUtils::BeginPropertyRow(displayName);
+        const float boxW = ImGui::CalcItemWidth();
+        const float boxH = ImGui::GetTextLineHeight() * 4.0f + ImGui::GetStyle().FramePadding.y * 2.0f;
+        if (ImGui::InputTextMultiline("##text_multiline", buf, sizeof(buf), ImVec2(boxW, boxH),
                                       ImGuiInputTextFlags_AllowTabInput))
         {
             value = buf;

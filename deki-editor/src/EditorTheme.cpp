@@ -14,6 +14,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <cstdarg>
+#include <cstdlib>
 
 namespace DekiEditor
 {
@@ -1661,10 +1662,12 @@ bool SchematicAddButton(const char* label, float width)
 
     ImFont* f = g_FontUIMed ? g_FontUIMed : ImGui::GetFont();
     const float fontSize = Fonts::CssPx(f, 12.5f) * dpi;
-    const ImVec2 textSz = f->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
+    // Up to any "##id", as ImGui's own buttons show it.
+    const char* labelEnd = ImGui::FindRenderedTextEnd(label);
+    const ImVec2 textSz = f->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label, labelEnd);
     dl->AddText(f, fontSize,
                 ImVec2(ImFloor(boxMin.x + (boxW - textSz.x) * 0.5f), ImFloor(boxMin.y + (boxH - textSz.y) * 0.5f)),
-                text, label);
+                text, label, labelEnd);
 
     // Put x back for whatever follows; the button itself reserved the row.
     ImGui::SetCursorScreenPos(ImVec2(start.x, ImGui::GetCursorScreenPos().y));
@@ -2032,6 +2035,52 @@ void SearchField(const char* id, char* buf, size_t bufSize, float rightReserve, 
     ImGui::PopStyleVar();
 }
 
+// A value too wide for its box. A number drops its unit ("-114 px" ->
+// "-114"): cut mid-unit, "-114 p" read as another number. A number is never
+// cut with "...", which would hide every digit; it keeps its digits and the
+// box clips them. Anything else is cut with "...".
+static std::string FitValueText(ImFont* font, float fontSize, const char* text, float avail)
+{
+    auto width = [&](const std::string& s) { return font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str()).x; };
+    const std::string s(text);
+    char* end = nullptr;
+    std::strtod(s.c_str(), &end);
+    const size_t numberEnd = static_cast<size_t>(end - s.c_str());
+    if (numberEnd > 0)
+    {
+        // A unit is one short word after the number, spaced ("px", "ms") or
+        // not ("°"); "1 - Collider" is a name.
+        const std::string rest = numberEnd < s.size() ? s.substr(numberEnd) : std::string();
+        const std::string unit = !rest.empty() && rest[0] == ' ' ? rest.substr(1) : rest;
+        const bool unitFollows =
+            !unit.empty() && unit.size() <= 4 && unit.find(' ') == std::string::npos && unit[0] != '-';
+        if (unitFollows)
+        {
+            return s.substr(0, numberEnd);
+        }
+        if (rest.empty())
+        {
+            return s;  // a bare number keeps its digits
+        }
+    }
+    const float dots = width("...");
+    size_t keep = 0;
+    while (keep < s.size())
+    {
+        size_t next = keep + 1;
+        while (next < s.size() && (static_cast<unsigned char>(s[next]) & 0xC0) == 0x80)
+        {
+            ++next;  // never split a UTF-8 sequence
+        }
+        if (width(s.substr(0, next)) + dots > avail)
+        {
+            break;
+        }
+        keep = next;
+    }
+    return s.substr(0, keep) + "...";
+}
+
 // Draws the formatted value left-aligned (mono) inside a rect on a draw list.
 // OverlayLeftAlignedValue passes the current item's rect; the schematic combo
 // passes the box rect it captured before BeginCombo, since an open popup
@@ -2043,8 +2092,17 @@ static void DrawLeftAlignedValue(ImDrawList* dl, const ImVec2& itemMin, const Im
     // Mono value font at 12.5 CSS px. CssPx applies the mono em-ratio, and the
     // DPI scale is applied by hand because AddText skips both.
     const float fontSize = Fonts::CssPx(font, 12.5f) * ImGui::GetStyle().FontScaleDpi;
-    const ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, formatted);
+    ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, formatted);
     const float padX = ImGui::GetStyle().FramePadding.x;
+    // Room up to the clip edge, as the text is clipped below.
+    const float avail = itemMax.x - 1.0f - (itemMin.x + xOffset + padX);
+    std::string fitted;
+    if (textSize.x > avail && avail > 0.0f)
+    {
+        fitted = FitValueText(font, fontSize, formatted, avail);
+        formatted = fitted.c_str();
+        textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, formatted);
+    }
     const float y = itemMin.y + ImMax(0.0f, (itemMax.y - itemMin.y - textSize.y) * 0.5f);
 
     dl->PushClipRect(ImVec2(itemMin.x + 1 + xOffset, itemMin.y + 1), ImVec2(itemMax.x - 1, itemMax.y - 1), true);
