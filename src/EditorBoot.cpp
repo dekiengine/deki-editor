@@ -683,15 +683,44 @@ bool BootDisplay(BootContext& ctx)
     // The language text is shown in, and the editor's translations.
     DekiEditor::Localization::Load();
 
-    // Greyscale text: subpixel glyphs need a blend the GPU API's ImGui backend
-    // does not have yet.
-    ImGuiFreeType::DekiSetLcdMode(0);
-
     if (!EditorRenderer::InitImGui(ctx.window))
     {
         ReportGpuFailure(ctx.window, "ImGui_ImplSDLGPU3_Init");
         return false;
     }
+
+    // Text antialiasing follows the system, like every other Windows app:
+    // subpixel (ClearType) when the desktop uses it, in the panel's stripe
+    // order, greyscale otherwise. DEKI_TEXT_AA=gray|rgb|bgr overrides it
+    // (Linux has no system setting to read, so it defaults to greyscale).
+    int lcdMode = 0;
+#ifdef _WIN32
+    {
+        BOOL smoothing = FALSE;
+        UINT type = 0, orientation = FE_FONTSMOOTHINGORIENTATIONRGB;
+        if (SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &smoothing, 0) && smoothing &&
+            SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &type, 0) && type == FE_FONTSMOOTHINGCLEARTYPE)
+        {
+            SystemParametersInfoW(SPI_GETFONTSMOOTHINGORIENTATION, 0, &orientation, 0);
+            lcdMode = (orientation == FE_FONTSMOOTHINGORIENTATIONBGR) ? 2 : 1;
+        }
+    }
+#endif
+    // Edit > Editor Settings > Text can pin it; the variable still wins.
+    auto modeFor = [](const std::string& v) { return (v == "rgb") ? 1 : (v == "bgr") ? 2 : 0; };
+    if (const std::string pinned = EditorSettings::GetString("editor.textSmoothing", "auto"); pinned != "auto")
+    {
+        lcdMode = modeFor(pinned);
+    }
+    if (const char* aa = getenv("DEKI_TEXT_AA"))
+    {
+        lcdMode = modeFor(aa);
+    }
+    // Greyscale where the GPU API has no text shaders (Metal).
+    lcdMode = EditorRenderer::SetSubpixelText(lcdMode);
+    DEKI_LOG_EDITOR("Text antialiasing: %s", lcdMode == 1   ? "subpixel RGB"
+                                             : lcdMode == 2 ? "subpixel BGR"
+                                                            : "greyscale");
 
     // Started in the background: show the hidden window now, minimized and
     // without activating it (the hint above). Through SDL, so SDL knows the

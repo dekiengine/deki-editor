@@ -4,6 +4,10 @@
 
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
+#include "imgui_impl_sdlgpu3_shaders.h"  // its vertex shader, for the text pipelines
+#include "misc/freetype/imgui_freetype.h"
+
+#include "TextShaders.h"
 
 #include <deki/LogSystem.h>
 
@@ -35,6 +39,10 @@ bool s_HaveFrame = false;  // s_Frame holds the last frame drawn
 
 SDL_GPUTransferBuffer* s_Readback = nullptr;
 uint32_t s_ReadbackSize = 0;
+
+// Subpixel text's passes, one per colour channel (see shaders/text.frag),
+// handed to ImGui's backend.
+SDL_GPUGraphicsPipeline* s_TextPasses[3] = {};
 
 // ---- Textures (EditorTexture) ----
 
@@ -325,6 +333,143 @@ bool InitImGui(SDL_Window* window)
     return s_ImGui;
 }
 
+namespace
+{
+// One pass of subpixel text: ImGui's vertex shader and vertex layout, a text
+// fragment shader, and an alpha blend that writes only `channel`. Null when
+// the device refuses it.
+SDL_GPUGraphicsPipeline* CreateTextPipeline(SDL_GPUShaderFormat format, const uint8_t* vertexCode, size_t vertexSize,
+                                            const uint8_t* fragmentCode, size_t fragmentSize,
+                                            SDL_GPUColorComponentFlags channel)
+{
+    SDL_GPUShaderCreateInfo vertexInfo{};
+    vertexInfo.code = vertexCode;
+    vertexInfo.code_size = vertexSize;
+    vertexInfo.entrypoint = "main";
+    vertexInfo.format = format;
+    vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;
+    vertexInfo.num_uniform_buffers = 1;
+    SDL_GPUShaderCreateInfo fragmentInfo{};
+    fragmentInfo.code = fragmentCode;
+    fragmentInfo.code_size = fragmentSize;
+    fragmentInfo.entrypoint = "main";
+    fragmentInfo.format = format;
+    fragmentInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    fragmentInfo.num_samplers = 1;
+    SDL_GPUShader* vertex = SDL_CreateGPUShader(s_Device, &vertexInfo);
+    SDL_GPUShader* fragment = SDL_CreateGPUShader(s_Device, &fragmentInfo);
+
+    SDL_GPUGraphicsPipeline* pipeline = nullptr;
+    if (vertex && fragment)
+    {
+        SDL_GPUVertexBufferDescription buffer{};
+        buffer.slot = 0;
+        buffer.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+        buffer.pitch = sizeof(ImDrawVert);
+        SDL_GPUVertexAttribute attributes[3]{};
+        attributes[0] = { 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, offsetof(ImDrawVert, pos) };
+        attributes[1] = { 1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, offsetof(ImDrawVert, uv) };
+        attributes[2] = { 2, 0, SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4_NORM, offsetof(ImDrawVert, col) };
+
+        // The shader's alpha is this channel's coverage.
+        SDL_GPUColorTargetDescription target{};
+        target.format = s_Format;
+        target.blend_state.enable_blend = true;
+        target.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+        target.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+        target.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+        target.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+        target.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+        target.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+        target.blend_state.enable_color_write_mask = true;
+        target.blend_state.color_write_mask = channel;
+
+        SDL_GPUGraphicsPipelineCreateInfo info{};
+        info.vertex_shader = vertex;
+        info.fragment_shader = fragment;
+        info.vertex_input_state.vertex_buffer_descriptions = &buffer;
+        info.vertex_input_state.num_vertex_buffers = 1;
+        info.vertex_input_state.vertex_attributes = attributes;
+        info.vertex_input_state.num_vertex_attributes = 3;
+        info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+        info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+        info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+        info.multisample_state.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        info.target_info.color_target_descriptions = &target;
+        info.target_info.num_color_targets = 1;
+        pipeline = SDL_CreateGPUGraphicsPipeline(s_Device, &info);
+    }
+    if (vertex)
+    {
+        SDL_ReleaseGPUShader(s_Device, vertex);
+    }
+    if (fragment)
+    {
+        SDL_ReleaseGPUShader(s_Device, fragment);
+    }
+    return pipeline;
+}
+
+void ReleaseTextPipelines()
+{
+    ImGui_ImplSDLGPU3_DekiSetTextPipelines(nullptr, 0);
+    for (SDL_GPUGraphicsPipeline*& pass : s_TextPasses)
+    {
+        if (pass)
+        {
+            SDL_ReleaseGPUGraphicsPipeline(s_Device, pass);
+            pass = nullptr;
+        }
+    }
+}
+}  // namespace
+
+int SetSubpixelText(int mode)
+{
+    ReleaseTextPipelines();
+    const std::string driver = s_ImGui ? DriverName() : "";
+    const bool vulkan = driver == "vulkan";
+    if (mode == 0 || (!vulkan && driver != "direct3d12"))
+    {
+        ImGuiFreeType::DekiSetLcdMode(0);
+        return 0;
+    }
+
+    struct Shader
+    {
+        const uint8_t* code;
+        size_t size;
+    };
+    const Shader passes[3] = {
+        vulkan ? Shader{ kText_channel0_spirv, sizeof(kText_channel0_spirv) }
+               : Shader{ kText_channel0_dxbc, sizeof(kText_channel0_dxbc) },
+        vulkan ? Shader{ kText_channel1_spirv, sizeof(kText_channel1_spirv) }
+               : Shader{ kText_channel1_dxbc, sizeof(kText_channel1_dxbc) },
+        vulkan ? Shader{ kText_channel2_spirv, sizeof(kText_channel2_spirv) }
+               : Shader{ kText_channel2_dxbc, sizeof(kText_channel2_dxbc) },
+    };
+    const SDL_GPUColorComponentFlags channels[3] = { SDL_GPU_COLORCOMPONENT_R, SDL_GPU_COLORCOMPONENT_G,
+                                                     SDL_GPU_COLORCOMPONENT_B };
+    const SDL_GPUShaderFormat format = vulkan ? SDL_GPU_SHADERFORMAT_SPIRV : SDL_GPU_SHADERFORMAT_DXBC;
+    const Shader vertex =
+        vulkan ? Shader{ spirv_vertex, sizeof(spirv_vertex) } : Shader{ dxbc_vertex, sizeof(dxbc_vertex) };
+    for (int i = 0; i < 3; ++i)
+    {
+        s_TextPasses[i] =
+            CreateTextPipeline(format, vertex.code, vertex.size, passes[i].code, passes[i].size, channels[i]);
+        if (!s_TextPasses[i])
+        {
+            DEKI_LOG_WARNING("Subpixel text is off: %s", SDL_GetError());
+            ReleaseTextPipelines();
+            ImGuiFreeType::DekiSetLcdMode(0);
+            return 0;
+        }
+    }
+    ImGui_ImplSDLGPU3_DekiSetTextPipelines(s_TextPasses, 3);
+    ImGuiFreeType::DekiSetLcdMode(mode);
+    return mode;
+}
+
 void Shutdown()
 {
     if (!s_Device)
@@ -333,6 +478,7 @@ void Shutdown()
     }
     SDL_WaitForGPUIdle(s_Device);
     EditorTexture::SetBackend(nullptr);
+    ReleaseTextPipelines();
     if (s_ImGui)
     {
         ImGui_ImplSDLGPU3_Shutdown();

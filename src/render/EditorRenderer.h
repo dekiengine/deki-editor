@@ -36,6 +36,11 @@ bool Attach(SDL_Window* window, std::string& failedStep);
 /// ImGui's platform and renderer backends for the window.
 bool InitImGui(SDL_Window* window);
 
+/// Subpixel (ClearType-style) text: 1 RGB stripes, 2 BGR, 0 greyscale. After
+/// InitImGui, before the first frame. Returns the mode in use: 0 where the
+/// text shaders are missing (Metal) or could not be made.
+int SetSubpixelText(int mode);
+
 /// Undoes InitImGui and Attach.
 void Shutdown();
 

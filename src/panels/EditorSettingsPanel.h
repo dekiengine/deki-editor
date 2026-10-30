@@ -22,6 +22,9 @@ public:
 
     void Draw() override;
 
+    // "auto", "rgb", "bgr" or "gray"; read once at startup by EditorBoot.
+    static constexpr const char* kTextSmoothingKey = "editor.textSmoothing";
+
 private:
     EditorApp* m_App;
 };

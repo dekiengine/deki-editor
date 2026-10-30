@@ -28,8 +28,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Packages no longer link OpenGL. A package that made textures with `gl*`
   calls makes them with `EditorTexture` instead; `EditorAssets` and
   `EditorUI` texture ids are `EditorTexture` ids.
-- Text is greyscale for now: subpixel (ClearType-style) text needs a blend the
-  GPU backend does not have yet, so Editor Settings no longer offers it.
+- Subpixel (ClearType-style) text is drawn in three passes, one per colour
+  channel, as SDL's GPU API has no dual-source blending. Direct3D 12 and
+  Vulkan have it; macOS shows greyscale text, as macOS itself does.
 
 ## 0.21.0 - 2026-10-28
 

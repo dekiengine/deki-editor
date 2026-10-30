@@ -282,28 +282,33 @@ if(EXISTS "${_imgui_widgets_cpp}")
 endif()
 
 # Patch G (imgui_draw + imgui_freetype): text drawn at the size its glyphs
-# were rasterized at, never resampled, and FreeType's subpixel (LCD) glyphs
-# for a renderer that blends them per colour channel. The SDL GPU backend
-# does not yet, so the editor keeps glyphs greyscale (DekiSetLcdMode(0)).
-# Too large for string substitutions, so it is a real patch applied with git:
-# already applied when it reverses cleanly, otherwise it must apply or the
-# build stops.
-set(_deki_imgui_text_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/imgui-subpixel-text.patch")
+# were rasterized at, never resampled, and FreeType's subpixel (LCD) glyphs.
+# Patch H (imgui_impl_sdlgpu3): draws from the font atlas through two
+# pipelines the editor gives it (render/EditorRenderer), which blend those
+# glyphs per colour channel. Too large for string substitutions, so they are
+# real patches applied with git: already applied when one reverses cleanly,
+# otherwise it must apply or the build stops.
 find_package(Git REQUIRED)
-execute_process(
-    COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace --reverse --check "${_deki_imgui_text_patch}"
-    WORKING_DIRECTORY "${imgui_SOURCE_DIR}" RESULT_VARIABLE _deki_text_patch_applied OUTPUT_QUIET ERROR_QUIET)
-if(NOT _deki_text_patch_applied EQUAL 0)
+function(_deki_apply_imgui_patch patch_name patch_file)
     execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace "${_deki_imgui_text_patch}"
-        WORKING_DIRECTORY "${imgui_SOURCE_DIR}" RESULT_VARIABLE _deki_text_patch_result ERROR_VARIABLE _deki_text_patch_err)
-    if(NOT _deki_text_patch_result EQUAL 0)
-        message(FATAL_ERROR "Deki patch G (subpixel text) does not apply to ${imgui_SOURCE_DIR}:\n${_deki_text_patch_err}\n"
-                            "Either an older version of the patch is applied (run `git checkout -- .` in that directory and configure again),\n"
-                            "or upstream ImGui changed the patched files and cmake/patches/imgui-subpixel-text.patch needs regenerating.")
+        COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace --reverse --check "${patch_file}"
+        WORKING_DIRECTORY "${imgui_SOURCE_DIR}" RESULT_VARIABLE _applied OUTPUT_QUIET ERROR_QUIET)
+    if(NOT _applied EQUAL 0)
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace "${patch_file}"
+            WORKING_DIRECTORY "${imgui_SOURCE_DIR}" RESULT_VARIABLE _result ERROR_VARIABLE _err)
+        if(NOT _result EQUAL 0)
+            message(FATAL_ERROR "Deki ${patch_name} does not apply to ${imgui_SOURCE_DIR}:\n${_err}\n"
+                                "Either an older version of the patch is applied (run `git checkout -- .` in that directory and configure again),\n"
+                                "or upstream ImGui changed the patched files and ${patch_file} needs regenerating.")
+        endif()
+        message(STATUS "Applied ${patch_name}")
     endif()
-    message(STATUS "Patched imgui_draw + imgui_freetype: glyph sizes, subpixel glyphs")
-endif()
+endfunction()
+_deki_apply_imgui_patch("patch G (glyph sizes, subpixel glyphs)"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/imgui-subpixel-text.patch")
+_deki_apply_imgui_patch("patch H (subpixel text in the SDL GPU backend)"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/imgui-sdlgpu3-subpixel-text.patch")
 
 # FreeType for font rasterization
 FetchContent_Declare(

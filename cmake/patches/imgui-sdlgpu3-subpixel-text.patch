@@ -1,0 +1,87 @@
+diff --git a/backends/imgui_impl_sdlgpu3.cpp b/backends/imgui_impl_sdlgpu3.cpp
+index 3883ca83d..a9f8a5c61 100644
+--- a/backends/imgui_impl_sdlgpu3.cpp
++++ b/backends/imgui_impl_sdlgpu3.cpp
+@@ -82,6 +82,17 @@ struct ImGui_ImplSDLGPU3_Data
+ // Forward Declarations
+ static void ImGui_ImplSDLGPU3_DestroyFrameData();
+ 
++// Deki patch: subpixel text (see ImGui_ImplSDLGPU3_DekiSetTextPipelines).
++static SDL_GPUGraphicsPipeline* GDekiTextPasses[4] = {};
++static int GDekiTextPassCount = 0;
++void ImGui_ImplSDLGPU3_DekiSetTextPipelines(SDL_GPUGraphicsPipeline* const* passes, int count)
++{
++    const int max_count = (int)IM_ARRAYSIZE(GDekiTextPasses);
++    GDekiTextPassCount = (passes == nullptr || count <= 0) ? 0 : (count < max_count ? count : max_count);
++    for (int i = 0; i < GDekiTextPassCount; i++)
++        GDekiTextPasses[i] = passes[i];
++}
++
+ //-----------------------------------------------------------------------------
+ // FUNCTIONS
+ //-----------------------------------------------------------------------------
+@@ -254,6 +265,12 @@ void ImGui_ImplSDLGPU3_RenderDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffe
+ 
+     ImGui_ImplSDLGPU3_SetupRenderState(draw_data, pipeline, command_buffer, render_pass, fd, fb_width, fb_height);
+ 
++    // Deki patch: which texture is the font atlas, and whether the bound
++    // pipeline is still `pipeline` (the text path below changes it).
++    ImFontAtlas* deki_atlas = ImGui::GetIO().Fonts;
++    const ImTextureID deki_atlas_tex = (deki_atlas && deki_atlas->TexData) ? deki_atlas->TexData->GetTexID() : ImTextureID_Invalid;
++    bool deki_default_bound = true;
++
+     // Render command lists
+     // (Because we merged all buffers into a single one, we maintain our own offset into them)
+     int global_vtx_offset = 0;
+@@ -267,7 +284,10 @@ void ImGui_ImplSDLGPU3_RenderDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffe
+             {
+                 // User callback, registered via ImDrawList::AddCallback()
+                 if (pcmd->UserCallback == ImGui_ImplSDLGPU3_DrawCallback_ResetRenderState)
++                {
+                     ImGui_ImplSDLGPU3_SetupRenderState(draw_data, pipeline, command_buffer, render_pass, fd, fb_width, fb_height);
++                    deki_default_bound = true;
++                }
+                 else
+                     pcmd->UserCallback(draw_list, pcmd);
+             }
+@@ -297,6 +317,25 @@ void ImGui_ImplSDLGPU3_RenderDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffe
+                 SDL_GPUTextureSamplerBinding texture_sampler_binding;
+                 texture_sampler_binding.texture = (SDL_GPUTexture*)(intptr_t)pcmd->GetTexID();
+                 texture_sampler_binding.sampler = bd->CurrentSampler;
++
++                // Deki patch: the font atlas draws once per text pass (one per
++                // colour channel), so subpixel glyphs keep their detail.
++                if (GDekiTextPassCount > 0 && pcmd->GetTexID() == deki_atlas_tex)
++                {
++                    for (int pass = 0; pass < GDekiTextPassCount; pass++)
++                    {
++                        SDL_BindGPUGraphicsPipeline(render_pass, GDekiTextPasses[pass]);
++                        SDL_BindGPUFragmentSamplers(render_pass, 0, &texture_sampler_binding, 1);
++                        SDL_DrawGPUIndexedPrimitives(render_pass, pcmd->ElemCount, 1, pcmd->IdxOffset + global_idx_offset, pcmd->VtxOffset + global_vtx_offset, 0);
++                    }
++                    deki_default_bound = false;
++                    continue;
++                }
++                if (!deki_default_bound)
++                {
++                    SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
++                    deki_default_bound = true;
++                }
+                 SDL_BindGPUFragmentSamplers(render_pass, 0, &texture_sampler_binding, 1);
+ 
+                 // Draw
+diff --git a/backends/imgui_impl_sdlgpu3.h b/backends/imgui_impl_sdlgpu3.h
+index 04ce552c1..f532cb001 100644
+--- a/backends/imgui_impl_sdlgpu3.h
++++ b/backends/imgui_impl_sdlgpu3.h
+@@ -43,6 +43,10 @@ IMGUI_IMPL_API bool     ImGui_ImplSDLGPU3_Init(ImGui_ImplSDLGPU3_InitInfo* info)
+ IMGUI_IMPL_API void     ImGui_ImplSDLGPU3_Shutdown();
+ IMGUI_IMPL_API void     ImGui_ImplSDLGPU3_NewFrame();
+ IMGUI_IMPL_API void     ImGui_ImplSDLGPU3_PrepareDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffer* command_buffer);
++// Deki patch: subpixel text without dual-source blending. Every draw from the
++// font atlas runs through each of `passes` in turn (up to 4) instead of the
++// backend's pipeline; a count of 0 turns it off. The caller owns them.
++IMGUI_IMPL_API void     ImGui_ImplSDLGPU3_DekiSetTextPipelines(SDL_GPUGraphicsPipeline* const* passes, int count);
+ IMGUI_IMPL_API void     ImGui_ImplSDLGPU3_RenderDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass, SDL_GPUGraphicsPipeline* pipeline = nullptr);
+ 
+ // Use if you want to reset your rendering device without losing Dear ImGui state.
