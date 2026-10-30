@@ -524,9 +524,15 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # like InputCollider, the scroll and clip build without codegen. A Sprite
 # drops QuadBlit's scaled copies of its pixels as it goes, so QuadBlit and
 # what it calls come in too. GradientComponent is here for its bake, which
-# must come out the same pixel by pixel however it is worked out.
+# must come out the same pixel by pixel however it is worked out. The UI
+# widgets are here with what they draw with (ShapeComponent and, for labels,
+# TextComponent) and the focus system, which listens to deki-input's event
+# stream.
 set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp GradientComponent.cpp
-                       ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp
+                       ShapeMask.cpp ShapeComponent.cpp FocusSystem.cpp WidgetParts.cpp
+                       BarComponent.cpp SliderComponent.cpp SwitchComponent.cpp CheckboxComponent.cpp
+                       ArcComponent.cpp LedComponent.cpp SpinnerComponent.cpp TextComponent.cpp BitmapFont.cpp
+                       ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp ../deki-input/DekiInput.cpp
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
