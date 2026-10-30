@@ -159,7 +159,7 @@ TEST(ProjectScaffold, RenderPipelineNamesTheRendererAndNoPasses)
     EXPECT_TRUE(j.at("passes").empty());
 }
 
-TEST(ProjectScaffold, StarterFontGetsASidecarWithTheBakedSize)
+TEST(ProjectScaffold, StarterFontGetsASidecarWithItsCharacters)
 {
     TempProject t;
     // A stand-in for the editor's resources/fonts directory.
@@ -181,9 +181,11 @@ TEST(ProjectScaffold, StarterFontGetsASidecarWithTheBakedSize)
     ASSERT_TRUE(LoadAssetData(GetAssetDataPath(ttf.string()), data));
     EXPECT_EQ(data.guid, guid);
     ASSERT_TRUE(data.settings.contains("fontSettings"));
-    const json sizes = data.settings.at("fontSettings").at("sizes");
-    ASSERT_EQ(sizes.size(), 1u);
-    EXPECT_EQ(sizes[0], ProjectScaffold::kStarterFontSize);
+    const json settings = data.settings.at("fontSettings");
+    EXPECT_EQ(settings.at("firstChar"), 32);
+    EXPECT_EQ(settings.at("lastChar"), 126);
+    // The texts that use a size are its record; the editor bakes it.
+    EXPECT_FALSE(settings.contains("sizes"));
 }
 
 TEST(ProjectScaffold, MissingEditorFontIsReportedNotFatal)

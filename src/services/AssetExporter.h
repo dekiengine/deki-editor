@@ -44,7 +44,8 @@ enum class ExportAssetType : uint8_t
 };
 
 /// A font used at one size: its source and the size. The export bakes each
-/// one found in the scenes' TextComponents. A BDF font has one baked form
+/// one found in the scenes' TextComponents, and each size a font's "Also
+/// Ship" list names. A BDF font has one baked form
 /// whatever the size, so it is recorded once, with size 0.
 struct FontUsageInfo
 {
@@ -163,6 +164,10 @@ private:
     // Adds the font and size a font AssetRef on a component (usually a
     // TextComponent) uses.
     void CollectFontUsage(Deki::Component* comp, const Deki::AssetRefBase& assetRef, AssetUsageCollection& collection);
+
+    // Adds the sizes each used TrueType font asks builds to always ship, for
+    // sizes only code sets (a Roller's selected row), which no scene names.
+    void AddFontExtraSizes(AssetUsageCollection& collection);
 
     // =========================================================================
     // Font baking

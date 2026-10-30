@@ -453,7 +453,51 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
         }
     }
 
+    AddFontExtraSizes(collection);
     return collection;
+}
+
+void AssetExporter::AddFontExtraSizes(AssetUsageCollection& collection)
+{
+    // deki-2d reads the font's settings, so the editor needs no knowledge of
+    // their format.
+    using GetExtraSizesFunc = int (*)(const char*, int*, int);
+    auto getExtraSizes = m_PackageLoader ? reinterpret_cast<GetExtraSizesFunc>(m_PackageLoader->GetFunction(
+                                               "Deki 2D Package", "DekiPluginGetFontExtraSizes"))
+                                         : nullptr;
+    if (!getExtraSizes)
+    {
+        return;
+    }
+
+    std::set<std::string> fonts;
+    for (const auto& usage : collection.fontUsages)
+    {
+        if (!usage.bdf)
+        {
+            fonts.insert(usage.sourceGuid);
+        }
+    }
+    for (const std::string& sourceGuid : fonts)
+    {
+        const AssetInfo* info = m_Pipeline->GetAssetInfoByGuid(sourceGuid);
+        if (!info)
+        {
+            continue;
+        }
+        constexpr int kMaxExtraSizes = 64;
+        int sizes[kMaxExtraSizes];
+        const std::string fontPath = m_Pipeline->GetAbsolutePath(info->path);
+        const int count = (std::min)(getExtraSizes(fontPath.c_str(), sizes, kMaxExtraSizes), kMaxExtraSizes);
+        for (int i = 0; i < count; ++i)
+        {
+            FontUsageInfo extra;
+            extra.sourceGuid = sourceGuid;
+            extra.fontSize = sizes[i];
+            collection.fontUsages.insert(extra);
+            DEKI_LOG_DEBUG("  Font %s also ships %d px", sourceGuid.c_str(), sizes[i]);
+        }
+    }
 }
 
 // A sprite frame is not a file: it lives in its sheet, and an animation plays

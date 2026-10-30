@@ -206,6 +206,7 @@ private:
     uint8_t m_LastEditRenderClearG = 0;
     uint8_t m_LastEditRenderClearB = 0;
     uint64_t m_LastEditRenderGeneration = 0;
+    uint64_t m_LastEditRenderAssetEpoch = 0;  // AssetManager epoch: assets that appear or reload
 
     // Gizmo hover state is recomputed only when the mouse moves or the
     // selection changes.

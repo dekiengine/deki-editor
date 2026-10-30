@@ -40,52 +40,6 @@ using json = nlohmann::json;
 namespace DekiEditor
 {
 
-// The GUID of a font size variant, derived from the font's (shared FNV-1a hash).
-static std::string GenerateVariantGuid(const std::string& fontGuid, int fontSize)
-{
-    std::string seed = fontGuid + ":" + std::to_string(fontSize);
-    // Deep copy: the returned string lives on deki-editor.dll's heap.
-    return std::string(DekiEditor::GenerateDeterministicGuid(seed).c_str());
-}
-
-// The font sizes listed in the font's .data file.
-static std::vector<int> GetFontSizesFromData(const std::string& fontPath)
-{
-    std::vector<int> sizes;
-    std::string dataPath = fontPath + ".data";
-
-    if (!fs::exists(dataPath))
-    {
-        return sizes;
-    }
-
-    std::ifstream file(dataPath);
-    if (!file.is_open())
-    {
-        return sizes;
-    }
-
-    try
-    {
-        json j = json::parse(file);
-        if (j.contains("fontSettings") && j["fontSettings"].contains("sizes"))
-        {
-            for (const auto& size : j["fontSettings"]["sizes"])
-            {
-                if (size.is_number_integer())
-                {
-                    sizes.push_back(size.get<int>());
-                }
-            }
-        }
-    }
-    catch (const json::exception&)
-    {
-    }
-
-    return sizes;
-}
-
 AssetPropertyEditor::AssetPropertyEditor(EditorApp* app, AssetPicker* picker)
     : m_App(app),
       m_AssetPicker(picker)

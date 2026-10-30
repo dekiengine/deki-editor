@@ -207,12 +207,11 @@ std::string InstallStarterFont(const std::string& projectPath, const std::string
         return "";
     }
 
-    // The sidecar the asset pipeline would write on import, with one size
-    // baked so the text renders on the first open.
+    // The sidecar the asset pipeline would write on import. The size the
+    // starter text uses is baked when the editor first shows it.
     AssetData data;
     data.guid = GenerateGuid();
-    data.settings["fontSettings"] =
-        json{ { "firstChar", 32 }, { "lastChar", 126 }, { "sizes", json::array({ kStarterFontSize }) } };
+    data.settings["fontSettings"] = json{ { "firstChar", 32 }, { "lastChar", 126 } };
     if (!SaveAssetData(GetAssetDataPath(dst.string()), data))
     {
         err = "could not write the font sidecar for " + dst.string();

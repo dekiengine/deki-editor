@@ -33,6 +33,7 @@
 #include <deki/reflection/ComponentFactory.h>
 #include "LifecycleManager.h"
 #include <deki/Engine.h>
+#include <deki/assets/AssetManager.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
 #include "imgui.h"
@@ -1112,11 +1113,14 @@ void SceneViewPanel::DrawSceneCanvas()
 
     // RenderScene runs only when something the buffer shows changed. A drag
     // counts, since it moves the selected object every frame outside the
-    // command history.
+    // command history. So does an asset that appears or reloads (a font size
+    // baked in the background, a re-imported texture), which moves the
+    // AssetManager epoch.
+    const uint64_t assetEpoch = Deki::AssetManager::Get()->GetEpoch();
     const bool contentChanged = !m_EditRenderHasRendered || m_LastEditRenderedScene != scene ||
                                 m_LastEditRenderClearR != clearR || m_LastEditRenderClearG != clearG ||
                                 m_LastEditRenderClearB != clearB || m_LastEditRenderGeneration != curGen ||
-                                m_IsDragging ||
+                                m_LastEditRenderAssetEpoch != assetEpoch || m_IsDragging ||
                                 m_Gizmos->IsDraggingResize()
                                 // Inspector live edits change objects every frame without a
                                 // command, so the generation stays put; re-render while one is
@@ -1166,6 +1170,7 @@ void SceneViewPanel::DrawSceneCanvas()
         m_LastEditRenderClearG = clearG;
         m_LastEditRenderClearB = clearB;
         m_LastEditRenderGeneration = curGen;
+        m_LastEditRenderAssetEpoch = assetEpoch;
     }
 
     // The last render goes where its own snapped camera places it: the same
