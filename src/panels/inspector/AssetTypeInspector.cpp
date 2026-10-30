@@ -62,8 +62,10 @@ void AssetTypeInspector::Draw()
     std::string assetGuid = pipelineGuid.empty() ? selectedGuid : pipelineGuid;
 
     // A sub-asset with a preview (a font atlas, say) has no editable properties.
+    // Only when one is selected: a file whose own GUID is also another asset's
+    // sub-asset (a tileset, listed under its map) is still the file.
     bool isSubAssetWithPreview = false;
-    if (pipeline && !selectedGuid.empty() && m_App->GetSelectedAssetHasCached())
+    if (pipeline && !selectedGuid.empty() && selectedGuid != pipelineGuid && m_App->GetSelectedAssetHasCached())
     {
         const auto* subInfo = pipeline->GetSubAsset(selectedGuid);
         if (subInfo && subInfo->hasPreview)
