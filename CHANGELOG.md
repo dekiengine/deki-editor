@@ -10,6 +10,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - **Help** opens the documentation, the Discord and the page to support Deki,
   in the editor's language where the page has one.
 - `--background` opens the editor minimized, never taking focus.
+- `EditorTexture` (`deki-editor/EditorTexture.h`): the textures editor code and
+  packages draw in the editor, with `AddImageNearest` for sharp pixels.
 
 ### Changed
 - **Agents work where you can see them.** `--tool`, `--script` and
@@ -18,6 +20,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   without focus, run there and leave it open, as they already ran in an
   editor that had the project open. `--headless` never opens one, keeping the
   hidden run, and CI jobs and machines with no display still get it.
+- **The editor draws with SDL's GPU API**: Direct3D 12 on Windows, Vulkan on
+  Linux, Metal on macOS. OpenGL is gone. A minimized editor still answers tool
+  calls and takes screenshots, which OpenGL could not: NVIDIA's driver stalls
+  for a minimized OpenGL window, and an editor opened by `--tool` hung on its
+  second call. A machine with none of the three gets an error that says so.
+- Packages no longer link OpenGL. A package that made textures with `gl*`
+  calls makes them with `EditorTexture` instead; `EditorAssets` and
+  `EditorUI` texture ids are `EditorTexture` ids.
+- Text is greyscale for now: subpixel (ClearType-style) text needs a blend the
+  GPU backend does not have yet, so Editor Settings no longer offers it.
 
 ## 0.21.0 - 2026-10-28
 

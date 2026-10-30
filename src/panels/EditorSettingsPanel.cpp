@@ -24,19 +24,6 @@ using InspectorUtils::BeginPropertyRow;
 
 namespace
 {
-struct SmoothingChoice
-{
-    const char* value;  // stored
-    const char* label;  // shown
-};
-constexpr SmoothingChoice kSmoothing[] = {
-    { "auto", TrMark("Automatic") },
-    { "rgb", TrMark("Subpixel (RGB)") },
-    { "bgr", TrMark("Subpixel (BGR)") },
-    { "gray", TrMark("Greyscale") },
-};
-constexpr int kSmoothingCount = static_cast<int>(sizeof(kSmoothing) / sizeof(kSmoothing[0]));
-
 // A dim line under a row, for what the row above does or when it applies.
 void Note(const char* text)
 {
@@ -78,37 +65,6 @@ void EditorSettingsPanel::Draw()
         {
             Motion::SetReduceMotion(reduce);
         }
-        EndPropertyContext();
-        SchematicSectionEnd();
-    }
-    ImGui::Spacing();
-
-    if (SchematicSectionBegin("Text"))
-    {
-        BeginPropertyContext();
-        const std::string stored = EditorSettings::GetString(kTextSmoothingKey, "auto");
-        int current = 0;
-        for (int i = 0; i < kSmoothingCount; ++i)
-        {
-            if (stored == kSmoothing[i].value)
-            {
-                current = i;
-            }
-        }
-        const char* labels[kSmoothingCount];
-        for (int i = 0; i < kSmoothingCount; ++i)
-        {
-            labels[i] = kSmoothing[i].label;
-        }
-        InspectorUtils::SetNextRowTooltip("Automatic follows the system: subpixel when ClearType is on, in your "
-                                          "screen's stripe order, greyscale otherwise.");
-        BeginPropertyRow("Smoothing");
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        if (SchematicCombo("##textsmoothing", &current, labels, kSmoothingCount))
-        {
-            EditorSettings::SetString(kTextSmoothingKey, kSmoothing[current].value);
-        }
-        Note("Applies the next time the editor starts.");
         EndPropertyContext();
         SchematicSectionEnd();
     }

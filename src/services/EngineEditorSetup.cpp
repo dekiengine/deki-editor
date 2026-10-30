@@ -1,4 +1,5 @@
 #include "EngineEditorSetup.h"
+#include <deki-editor/EditorTexture.h>
 #include <deki-editor/EditorRegistry.h>
 #include "../PanelMaximize.h"
 
@@ -559,7 +560,7 @@ static void InstallEditorUIBackend()
     b.drawImage =
         [](uint32_t tex, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint32_t tint)
     {
-        ImGui::GetWindowDrawList()->AddImage((ImTextureID)(uintptr_t)tex, ImVec2(x0, y0), ImVec2(x1, y1),
+        ImGui::GetWindowDrawList()->AddImage(EditorTexture::ToImGui(tex), ImVec2(x0, y0), ImVec2(x1, y1),
                                              ImVec2(u0, v0), ImVec2(u1, v1), (ImU32)tint);
     };
     b.drawText = [](float px, float x, float y, uint32_t c, const char* s)

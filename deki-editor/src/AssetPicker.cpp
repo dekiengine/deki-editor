@@ -1,4 +1,5 @@
 #include <deki-editor/AssetPicker.h>
+#include <deki-editor/EditorTexture.h>
 #include <deki-editor/EditorApplication.h>
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
@@ -147,7 +148,7 @@ void DrawFittedTextureAt(ImDrawList* dl, ImVec2 p, float boxSize, uint32_t texId
     float offX = (boxSize - drawW) * 0.5f;
     float offY = (boxSize - drawH) * 0.5f;
     dl->AddRectFilled(p, ImVec2(p.x + boxSize, p.y + boxSize), ImGui::ColorConvertFloat4ToU32(Palette::Bg3));
-    dl->AddImage(static_cast<ImTextureID>(static_cast<intptr_t>(texId)), ImVec2(p.x + offX, p.y + offY),
+    dl->AddImage(EditorTexture::ToImGui(texId), ImVec2(p.x + offX, p.y + offY),
                  ImVec2(p.x + offX + drawW, p.y + offY + drawH), ImVec2(u0, v0), ImVec2(u1, v1));
 }
 

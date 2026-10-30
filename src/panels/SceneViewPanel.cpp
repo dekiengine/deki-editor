@@ -37,7 +37,7 @@
 #include <deki/reflection/Property.h>
 #include "imgui.h"
 #include "imgui_internal.h"  // ImHashStr
-#include <SDL3/SDL_opengl.h>
+#include <deki-editor/EditorTexture.h>
 #include <SDL3/SDL_video.h>
 #include <algorithm>
 #include <cmath>
@@ -1191,24 +1191,9 @@ void SceneViewPanel::DrawSceneCanvas()
     uint32_t texId = m_EditModeRenderer->GetTextureId();
     if (texId != 0)
     {
-        // ImGui's GL backend binds a GL_LINEAR sampler, which overrides the
-        // texture's GL_NEAREST filtering and blurs the zoomed scene. Unbinding
-        // it for this draw keeps the pixels sharp.
-        drawList->AddCallback(
-            [](const ImDrawList*, const ImDrawCmd*)
-            {
-                // NOLINTNEXTLINE(readability-identifier-naming): OpenGL's name
-                typedef void(APIENTRY * PFN_glBindSampler)(GLuint unit, GLuint sampler);
-                static auto s_Fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
-                if (s_Fn)
-                {
-                    s_Fn(0, 0);
-                }
-            },
-            nullptr);
-        drawList->AddImage((ImTextureID)(intptr_t)texId, lastTopLeft, lastBottomRight, ImVec2(0, 0),
-                           ImVec2(m_EditModeRenderer->GetTextureU(), m_EditModeRenderer->GetTextureV()));
-        drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+        // Sampled nearest, so the zoomed scene's pixels stay sharp.
+        EditorTexture::AddImageNearest(drawList, texId, lastTopLeft, lastBottomRight, ImVec2(0, 0),
+                                       ImVec2(m_EditModeRenderer->GetTextureU(), m_EditModeRenderer->GetTextureV()));
     }
 
     if (m_Toolbar->ShowOutlines())

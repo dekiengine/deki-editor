@@ -14,6 +14,7 @@
 #include <deki-editor/Paths.h>
 #include "services/CrashHandler.h"
 #include "services/EditorCapture.h"
+#include "render/EditorRenderer.h"
 #include "services/PlayModeGuard.h"
 #include "services/ProfilingService.h"
 #include "panels/ConsolePanel.h"
@@ -30,10 +31,10 @@
 #include <deki/providers/IRenderSystem.h>
 #include <deki/SceneSystem.h>
 #include <deki/providers/IDisplay.h>
-#include "platforms/editor/EditorDisplay.h"
+#include "EditorDisplay.h"
 
 // Play mode owns the EditorDisplay; engine-core only holds the pointer.
-static std::unique_ptr<Deki::EditorDisplay> s_EditorDisplay;
+static std::unique_ptr<DekiEditor::EditorDisplay> s_EditorDisplay;
 #include <deki-editor/AssetPipeline.h>
 #include <deki/assets/AssetManager.h>
 #include <deki-editor/TextureImporter.h>
@@ -289,7 +290,7 @@ void EditorApp::InitPlayMode()
 
     // Memory, filesystem, logging and timing are already up from editor
     // startup and OpenProject; only the display is new.
-    s_EditorDisplay = std::make_unique<Deki::EditorDisplay>();
+    s_EditorDisplay = std::make_unique<DekiEditor::EditorDisplay>();
     // In the previewed screen's pixel format, which SetDisplay gives the framebuffer.
     s_EditorDisplay->SetColorFormat(DekiEditor::SceneView::Get().GetPreviewFormat());
     if (!s_EditorDisplay->Initialize(m_Play.width, m_Play.height))
@@ -313,7 +314,8 @@ void EditorApp::InitPlayMode()
     }
     m_Play.renderSystem = renderSystem;  // non-owning pointer
 
-    Deki::EditorDisplay* display = static_cast<Deki::EditorDisplay*>(Deki::Engine::GetInstance().GetDisplay());
+    DekiEditor::EditorDisplay* display =
+        static_cast<DekiEditor::EditorDisplay*>(Deki::Engine::GetInstance().GetDisplay());
     if (display)
     {
         m_Play.textureId = display->GetTextureId();
@@ -478,7 +480,7 @@ void EditorApp::ShutdownPlayMode()
     // Restore editor vsync (UpdatePlayMode may have disabled it for uncapped play).
     if (m_Play.lastSwapInterval != 1)
     {
-        SDL_GL_SetSwapInterval(1);
+        EditorRenderer::SetVsync(true);
         m_Play.lastSwapInterval = 1;
     }
 }
@@ -565,7 +567,7 @@ void EditorApp::UpdatePlayMode()
     const int desiredSwapInterval = capFps ? 1 : 0;
     if (desiredSwapInterval != m_Play.lastSwapInterval)
     {
-        SDL_GL_SetSwapInterval(desiredSwapInterval);
+        EditorRenderer::SetVsync(desiredSwapInterval == 1);
         m_Play.lastSwapInterval = desiredSwapInterval;
     }
 
@@ -959,7 +961,7 @@ void EditorApp::ResizePlayMode(int width, int height)
 
     // A new display of the new size, as play start makes one. SetDisplay shuts
     // the old one down and sizes the framebuffer to the new one.
-    auto display = std::make_unique<Deki::EditorDisplay>();
+    auto display = std::make_unique<DekiEditor::EditorDisplay>();
     display->SetColorFormat(s_EditorDisplay->GetColorFormat());
     if (!display->Initialize(width, height))
     {

@@ -11,11 +11,9 @@
 #include "EditorBoot.h"
 
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
 #include "misc/freetype/imgui_freetype.h"
 
 #include "EditorApp.h"
@@ -34,6 +32,7 @@
 #include "widgets/WindowMotion.h"
 #include "services/StartupProgress.h"
 #include "services/TouchInput.h"
+#include "render/EditorRenderer.h"
 #include "services/HotReloadService.h"
 #include <deki/LogSystem.h>
 
@@ -390,38 +389,13 @@ void SetCjkPreference(const std::string& language)
 namespace
 {
 
-/// GL_VENDOR / GL_RENDERER / GL_VERSION of the current context.
-std::string CurrentGlStrings()
-{
-    auto str = [](GLenum name)
-    {
-        const GLubyte* s = glGetString(name);
-        return std::string(s ? reinterpret_cast<const char*>(s) : "?");
-    };
-    return str(GL_VENDOR) + " / " + str(GL_RENDERER) + " / " + str(GL_VERSION);
-}
-
-/// OpenGL did not start: says why in an error box and the log. Without this
-/// the first frame dereferences the GL backend's null data and the editor
-/// crashes with nothing to go on. Lists the step and SDL's error, the adapter
-/// behind each display, and what a plain (version-less) context gives here:
-/// Microsoft's "GDI Generic" means Windows found no GPU OpenGL driver for the
-/// display.
-void ReportGlFailure(SDL_Window* window, const char* step)
+/// The graphics device did not start: says why in an error box and the log.
+/// Lists the step and SDL's error, and the adapter behind each display.
+void ReportGpuFailure(SDL_Window* window, const char* step)
 {
     const char* sdlError = SDL_GetError();
     std::string text = std::string("Failed at: ") + step + "\n";
     text += std::string("SDL error: ") + (sdlError && *sdlError ? sdlError : "(none)") + "\n";
-
-    // Windows' own OpenGL 1.1 software renderer: SDL accepts it as a context,
-    // and the GL backend then refuses it.
-    bool softwareGl = false;
-    if (SDL_GL_GetCurrentContext())
-    {
-        const std::string strings = CurrentGlStrings();
-        softwareGl = strings.find("GDI Generic") != std::string::npos;
-        text += "Editor context: " + strings + "\n";
-    }
 
     if (SDL_DisplayID display = SDL_GetDisplayForWindow(window))
     {
@@ -464,44 +438,15 @@ void ReportGlFailure(SDL_Window* window, const char* step)
     }
 #endif
 
-    // On a second, hidden window: a window's pixel format is set once, and the
-    // editor window already has one.
-    SDL_GL_ResetAttributes();
-    if (SDL_Window* probe = SDL_CreateWindow("Deki GL probe", 64, 64, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN))
-    {
-        if (SDL_GLContext gl = SDL_GL_CreateContext(probe))
-        {
-            const std::string strings = CurrentGlStrings();
-            softwareGl = softwareGl || strings.find("GDI Generic") != std::string::npos;
-            text += "Plain OpenGL context: " + strings + "\n";
-            SDL_GL_DestroyContext(gl);
-        }
-        else
-        {
-            text += std::string("Plain OpenGL context: none (") + SDL_GetError() + ")\n";
-        }
-        SDL_DestroyWindow(probe);
-    }
-
-    std::string advice = "Deki Editor could not start OpenGL 3.3, which it needs to draw.\n\n";
-    if (softwareGl)
-    {
-        advice += "Windows found no OpenGL driver for the graphics card and fell back to its own OpenGL 1.1 "
-                  "software renderer (\"GDI Generic\"). Other OpenGL programs, such as Blender, fail the same "
-                  "way. Reinstall the graphics driver (AMD: the Adrenalin installer's Factory Reset option); "
-                  "DirectX and Vulkan games can keep working while its OpenGL part is broken.\n\n";
-    }
-    else
-    {
-        advice += "Update the graphics driver. Over Remote Desktop, in a virtual machine or on a virtual "
-                  "display, OpenGL 3.3 may not be available at all.\n\n";
-    }
-    text = advice + text;
+    text = "Deki Editor could not start the graphics device it draws with: Direct3D 12 on Windows, Vulkan on "
+           "Linux, Metal on macOS.\n\nUpdate the graphics driver. On Linux, install your GPU's Vulkan driver "
+           "(Mesa's, or the vendor's). Over Remote Desktop or in a virtual machine there may be none.\n\n" +
+           text;
 
     // Editor.log is not open yet this early in boot, so the report also goes
     // to a file next to the executable.
     const char* basePath = SDL_GetBasePath();
-    const std::string reportPath = std::string(basePath ? basePath : "") + "deki_gl_report.txt";
+    const std::string reportPath = std::string(basePath ? basePath : "") + "deki_gpu_report.txt";
     text += "\nThis report is also saved to " + reportPath;
     if (FILE* f = fopen(reportPath.c_str(), "w"))
     {
@@ -509,7 +454,7 @@ void ReportGlFailure(SDL_Window* window, const char* step)
         fclose(f);
     }
 
-    DEKI_LOG_ERROR("[gl] %s", text.c_str());
+    DEKI_LOG_ERROR("[gpu] %s", text.c_str());
     printf("Error: %s\n", text.c_str());
     fflush(stdout);
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Deki Editor", text.c_str(), window);
@@ -530,18 +475,7 @@ bool BootDisplay(BootContext& ctx)
         return false;
     }
 
-    // GL 3.3 + GLSL 330
-    const char* glslVersion = "#version 330";
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-
-    SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
+    SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
 
     // Started minimized (`--background`, or on Windows `start /min`, a
     // shortcut set to "Run: Minimized", Start-Process -WindowStyle
@@ -564,9 +498,9 @@ bool BootDisplay(BootContext& ctx)
 #endif
     if (startInBackground)
     {
-        // Hidden until GL and ImGui are set up (below), then shown minimized.
-        // Do not create it minimized: it would have no size when its GL
-        // context is made, and ImGui's GL backend would fail to load.
+        // Hidden until the GPU device and ImGui are set up (below), then shown
+        // minimized. Not created minimized: its swapchain would be made for a
+        // window with no size.
         SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
@@ -604,7 +538,7 @@ bool BootDisplay(BootContext& ctx)
 
             // Maximize now that the WndProc handles WM_NCCALCSIZE and
             // WM_GETMINMAXINFO. Started in the background, the window is shown
-            // later, once GL is up: SW_MAXIMIZE would activate it.
+            // later, once the GPU device is up: SW_MAXIMIZE would activate it.
             if (!startInBackground)
             {
                 ShowWindow(hwnd, SW_MAXIMIZE);
@@ -674,19 +608,12 @@ bool BootDisplay(BootContext& ctx)
         nullptr);
 #endif
 
-    ctx.glContext = SDL_GL_CreateContext(ctx.window);
-    if (!ctx.glContext)
+    std::string failedStep;
+    if (!EditorRenderer::Attach(ctx.window, failedStep))
     {
-        ReportGlFailure(ctx.window, "SDL_GL_CreateContext");
+        ReportGpuFailure(ctx.window, failedStep.c_str());
         return false;
     }
-    if (!SDL_GL_MakeCurrent(ctx.window, ctx.glContext))
-    {
-        ReportGlFailure(ctx.window, "SDL_GL_MakeCurrent");
-        return false;
-    }
-    DEKI_LOG_EDITOR("OpenGL: %s", CurrentGlStrings().c_str());
-    SDL_GL_SetSwapInterval(1);  // vsync
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -756,56 +683,29 @@ bool BootDisplay(BootContext& ctx)
     // The language text is shown in, and the editor's translations.
     DekiEditor::Localization::Load();
 
-    // Text antialiasing follows the system, like every other Windows app:
-    // subpixel (ClearType) when the desktop uses it, in the panel's stripe
-    // order, greyscale otherwise. DEKI_TEXT_AA=gray|rgb|bgr overrides it
-    // (Linux has no system setting to read, so it defaults to greyscale).
-    int lcdMode = 0;
-#ifdef _WIN32
-    {
-        BOOL smoothing = FALSE;
-        UINT type = 0, orientation = FE_FONTSMOOTHINGORIENTATIONRGB;
-        if (SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &smoothing, 0) && smoothing &&
-            SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &type, 0) && type == FE_FONTSMOOTHINGCLEARTYPE)
-        {
-            SystemParametersInfoW(SPI_GETFONTSMOOTHINGORIENTATION, 0, &orientation, 0);
-            lcdMode = (orientation == FE_FONTSMOOTHINGORIENTATIONBGR) ? 2 : 1;
-        }
-    }
-#endif
-    // Edit > Editor Settings > Text can pin it; the variable still wins.
-    auto modeFor = [](const std::string& v) { return (v == "rgb") ? 1 : (v == "bgr") ? 2 : 0; };
-    if (const std::string pinned = EditorSettings::GetString("editor.textSmoothing", "auto"); pinned != "auto")
-    {
-        lcdMode = modeFor(pinned);
-    }
-    if (const char* aa = getenv("DEKI_TEXT_AA"))
-    {
-        lcdMode = modeFor(aa);
-    }
-    ImGuiFreeType::DekiSetLcdMode(lcdMode);
-    // Coverage exponents for black and for white text: light text on the dark
-    // theme is thickened a little, as DirectWrite and Chromium do.
-    ImGui_ImplOpenGL3_DekiSetTextGamma(1.0f, 0.8f);
-    DEKI_LOG_EDITOR("Text antialiasing: %s", lcdMode == 1   ? "subpixel RGB"
-                                             : lcdMode == 2 ? "subpixel BGR"
-                                                            : "greyscale");
+    // Greyscale text: subpixel glyphs need a blend the GPU API's ImGui backend
+    // does not have yet.
+    ImGuiFreeType::DekiSetLcdMode(0);
 
-    ImGui_ImplSDL3_InitForOpenGL(ctx.window, ctx.glContext);
-    if (!ImGui_ImplOpenGL3_Init(glslVersion))
+    if (!EditorRenderer::InitImGui(ctx.window))
     {
-        ReportGlFailure(ctx.window, "ImGui_ImplOpenGL3_Init");
+        ReportGpuFailure(ctx.window, "ImGui_ImplSDLGPU3_Init");
         return false;
     }
 
-#ifdef _WIN32
     // Started in the background: show the hidden window now, minimized and
-    // inactive, restoring to maximized when the user clicks it.
+    // without activating it (the hint above). Through SDL, so SDL knows the
+    // window is shown: shown behind its back, SDL restored and activated it.
     if (startInBackground)
     {
+        SDL_MinimizeWindow(ctx.window);
+        SDL_ShowWindow(ctx.window);
+#ifdef _WIN32
+        // Restore to maximized when the user clicks it. The window is already
+        // minimized, so this changes nothing on screen.
         HWND hwnd =
             (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
-        if (hwnd)
+        if (hwnd && IsIconic(hwnd))
         {
             WINDOWPLACEMENT wp{};
             wp.length = sizeof(wp);
@@ -814,16 +714,8 @@ bool BootDisplay(BootContext& ctx)
             wp.showCmd = SW_SHOWMINNOACTIVE;
             SetWindowPlacement(hwnd, &wp);
         }
-    }
-#else
-    // Elsewhere SDL shows it without activating it (the hint above), and the
-    // window manager is asked to minimize it.
-    if (startInBackground)
-    {
-        SDL_MinimizeWindow(ctx.window);
-        SDL_ShowWindow(ctx.window);
-    }
 #endif
+    }
 
     // DPI is handled by style.FontScaleDpi and ScaleAllSizes(dpiScale). Turn
     // off ImGui 1.92's per-viewport FramebufferScale font scaling, or DPI
@@ -1155,11 +1047,8 @@ void ShutdownPlatform(BootContext& ctx)
 
     if (!ctx.headless)
     {
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplSDL3_Shutdown();
+        EditorRenderer::Shutdown();
         ImGui::DestroyContext();
-
-        SDL_GL_DestroyContext(ctx.glContext);
         SDL_DestroyWindow(ctx.window);
     }
 

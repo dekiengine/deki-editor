@@ -1,6 +1,7 @@
 #ifdef DEKI_EDITOR
 
 #include <deki-editor/EditorTheme.h>  // DekiEditor::Tooltip (delayed)
+#include <deki-editor/EditorTexture.h>
 #include <vector>
 #include <deki-editor/EditorUI.h>
 #include "imgui.h"  // generic toolkit methods below call ImGui on the shared context
@@ -635,7 +636,7 @@ bool EditorUI::Selectable(const char* label, bool selected, bool spanAllColumns)
 }
 bool EditorUI::ImageButton(const char* id, uint32_t tex, float w, float h, float u0, float v0, float u1, float v1)
 {
-    return ImGui::ImageButton(id, (ImTextureID)(uintptr_t)tex, ImVec2(w, h), ImVec2(u0, v0), ImVec2(u1, v1));
+    return ImGui::ImageButton(id, EditorTexture::ToImGui(tex), ImVec2(w, h), ImVec2(u0, v0), ImVec2(u1, v1));
 }
 bool EditorUI::InvisibleButton(const char* id, float w, float h)
 {
@@ -1073,7 +1074,7 @@ void EditorUI::PopFont()
 }
 void EditorUI::Image(uint32_t tex, float w, float h, float u0, float v0, float u1, float v1)
 {
-    ImGui::Image((ImTextureID)(uintptr_t)tex, ImVec2(w, h), ImVec2(u0, v0), ImVec2(u1, v1));
+    ImGui::Image(EditorTexture::ToImGui(tex), ImVec2(w, h), ImVec2(u0, v0), ImVec2(u1, v1));
 }
 
 // --- Input state ---

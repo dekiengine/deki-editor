@@ -5,9 +5,8 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
+#include "render/EditorRenderer.h"
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -251,7 +250,7 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
     g_State.lastDrawMs = nowMs;
     g_State.lastPhase = phaseText;
 
-    ImGui_ImplOpenGL3_NewFrame();
+    EditorRenderer::NewFrame();
     ImGui_ImplSDL3_NewFrame();
     DekiEditor::TouchInput::Get().InjectPending();
     ImGui::NewFrame();
@@ -291,22 +290,11 @@ void ProgressModal::Show(const char* title, const char* phase, const char* detai
 
     ImGui::Render();
 
-    // Clear the full framebuffer (physical pixels) to the editor background,
-    // then draw the modal on top.
-    int w = 0, h = 0;
-    SDL_GetWindowSizeInPixels(s_Window, &w, &h);
-    glViewport(0, 0, w, h);
-    glClearColor(Palette::Bg.x, Palette::Bg.y, Palette::Bg.z, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    // Swap without waiting for vsync: Show runs inside work that blocks the
-    // main thread, and waiting up to a whole refresh would cost that work a
-    // frame each time. The editor's own frames keep vsync.
-    SDL_GL_SetSwapInterval(0);
-    SDL_GL_SwapWindow(s_Window);
-    SDL_GL_SetSwapInterval(1);
+    // The editor background, with the modal on top. Shown without waiting for
+    // vsync: Show runs inside work that blocks the main thread, and waiting up
+    // to a whole refresh would cost that work a frame each time. The editor's
+    // own frames keep vsync.
+    EditorRenderer::Render(ImGui::GetDrawData(), ImVec4(Palette::Bg.x, Palette::Bg.y, Palette::Bg.z, 1.0f), false);
 }
 
 void ProgressModal::DrawInFrame(const char* title, const char* phase, const char* detail, bool* cancelRequested)

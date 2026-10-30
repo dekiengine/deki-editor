@@ -5,16 +5,7 @@
 #include <deki-editor/TextureImporter.h>
 #include <deki/assets/AssetManager.h>
 
-// OpenGL headers
-#ifdef _WIN32
-#include <windows.h>
-#endif
-#include <GL/gl.h>
-
-// Older GL headers may not define GL_CLAMP_TO_EDGE.
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE 0x812F
-#endif
+#include <deki-editor/EditorTexture.h>
 
 #include <cstdlib>
 #include <cstring>
@@ -197,8 +188,7 @@ void EditorAssets::InvalidateTexture(const std::string& guid)
     {
         if (it->second.textureId != 0)
         {
-            GLuint texId = static_cast<GLuint>(it->second.textureId);
-            glDeleteTextures(1, &texId);
+            EditorTexture::Destroy(it->second.textureId);
         }
         m_TextureCache.erase(it);
     }
@@ -212,8 +202,7 @@ void EditorAssets::ClearTextureCache()
     {
         if (cached.textureId != 0)
         {
-            GLuint texId = static_cast<GLuint>(cached.textureId);
-            glDeleteTextures(1, &texId);
+            EditorTexture::Destroy(cached.textureId);
         }
     }
     m_TextureCache.clear();
@@ -345,8 +334,7 @@ void EditorAssets::InvalidateFontAtlas(const std::string& bakedGuid)
         {
             if (it->second->textureId != 0)
             {
-                GLuint texId = static_cast<GLuint>(it->second->textureId);
-                glDeleteTextures(1, &texId);
+                EditorTexture::Destroy(it->second->textureId);
             }
             if (it->second->font && s_FontDestroyer)
             {
@@ -365,8 +353,7 @@ void EditorAssets::ClearFontCache()
         {
             if (cached->textureId != 0)
             {
-                GLuint texId = static_cast<GLuint>(cached->textureId);
-                glDeleteTextures(1, &texId);
+                EditorTexture::Destroy(cached->textureId);
             }
             if (cached->font && s_FontDestroyer)
             {
@@ -468,30 +455,7 @@ uint32_t EditorAssets::UploadTextureToGPU(const uint8_t* rgba, int width, int he
         return 0;
     }
 
-    GLuint texId = 0;
-    glGenTextures(1, &texId);
-    if (texId == 0)
-    {
-        return 0;
-    }
-
-    glBindTexture(GL_TEXTURE_2D, texId);
-
-    // Nearest filtering, for pixel art.
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Unpack state is global. Other GL users (e.g. ImGui glyph uploads) can
-    // leave a row stride set, which would shear or overread this tightly
-    // packed upload.
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-
-    return static_cast<uint32_t>(texId);
+    return EditorTexture::CreateRgba(width, height, rgba);
 }
 
 // ===== Sprite Settings =====

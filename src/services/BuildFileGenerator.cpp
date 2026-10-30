@@ -702,7 +702,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    if(WIN32)\n";
     // imm32: imgui.lib's Win32 IME backend references Imm* functions; packages link
     // imgui.lib, so they need imm32 too (the editor links it for the same reason).
-    file << "        target_link_libraries(${PACKAGE_TARGET} PRIVATE opengl32 winmm setupapi version cfgmgr32 imm32)\n";
+    file << "        target_link_libraries(${PACKAGE_TARGET} PRIVATE winmm setupapi version cfgmgr32 imm32)\n";
     file << "    endif()\n";
     file << "    # Package-declared system libs (e.g. winhttp). Linked verbatim.\n";
     file << "    if(PACKAGE_SYSTEM_LIBS)\n";

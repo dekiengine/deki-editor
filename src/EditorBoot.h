@@ -40,7 +40,6 @@ struct BootOptions
 struct BootContext
 {
     SDL_Window* window = nullptr;
-    SDL_GLContext glContext = nullptr;
     float dpiScale = 1.0f;
     bool headless = false;
     bool background = false;  // BootOptions::background

@@ -1,4 +1,5 @@
 #include "ObjectInternal.h"
+#include <deki-editor/EditorTexture.h>
 #include "../../services/PackageLifetime.h"
 #include <deki-editor/SceneView.h>
 #include "SceneInspector.h"
@@ -157,7 +158,7 @@ void SceneInspector::DrawPreview(const std::string& assetPath)
         }
 
         ImVec2 imagePos = ImGui::GetCursorScreenPos();
-        ImGui::Image((ImTextureID)(intptr_t)m_Renderer->GetTextureId(), ImVec2(displayWidth, displayHeight),
+        ImGui::Image(EditorTexture::ToImGui(m_Renderer->GetTextureId()), ImVec2(displayWidth, displayHeight),
                      ImVec2(0, uvCrop), ImVec2(1, 1 - uvCrop));
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();

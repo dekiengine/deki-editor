@@ -1,7 +1,7 @@
 #include "EditorCapture.h"
 #include "EditorInput.h"
 
-#include <SDL3/SDL_opengl.h>
+#include "render/EditorRenderer.h"
 #include "imgui.h"
 #include "imgui_internal.h"  // FindWindowByName
 
@@ -197,31 +197,17 @@ bool EditorCapture::ResolveRect(const Request& req, int fbW, int fbH, int& outX,
     return outW > 0 && outH > 0;
 }
 
-bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, int h, int fbH)
+bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, int h)
 {
     const size_t byteCount = (size_t)w * (size_t)h * 4u;
     m_Pixels.resize(byteCount);
 
-    // GL origin is bottom-left; our rect is top-left based.
-    const int glY = fbH - (y + h);
-
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadBuffer(GL_BACK);
-    glReadPixels(x, glY, w, h, GL_RGBA, GL_UNSIGNED_BYTE, m_Pixels.data());
-
-    // glReadPixels returns rows bottom-up; PNG wants top-down.
-    const size_t stride = (size_t)w * 4u;
-    std::vector<uint8_t> row(stride);
-    for (int r = 0; r < h / 2; ++r)
+    if (!EditorRenderer::ReadPixels(x, y, w, h, m_Pixels.data()))
     {
-        uint8_t* a = m_Pixels.data() + (size_t)r * stride;
-        uint8_t* b = m_Pixels.data() + (size_t)(h - 1 - r) * stride;
-        std::copy(a, a + stride, row.data());
-        std::copy(b, b + stride, a);
-        std::copy(row.begin(), row.end(), b);
+        return false;
     }
 
-    // The backbuffer's alpha means nothing here (nothing is composited over
+    // The frame's alpha means nothing here (nothing is composited over
     // it), and alpha 0 would make a fully transparent PNG, so force it opaque.
     for (size_t i = 3; i < byteCount; i += 4)
     {
@@ -244,7 +230,7 @@ bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, 
     const int savedFilter = stbi_write_force_png_filter;
     stbi_write_png_compression_level = kPngCompressionLevel;
     stbi_write_force_png_filter = kPngFilter;
-    const bool encoded = stbi_write_png(tmp.c_str(), w, h, 4, m_Pixels.data(), (int)stride) != 0;
+    const bool encoded = stbi_write_png(tmp.c_str(), w, h, 4, m_Pixels.data(), w * 4) != 0;
     stbi_write_png_compression_level = savedLevel;
     stbi_write_force_png_filter = savedFilter;
     if (!encoded)
@@ -310,10 +296,10 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
                                           "EditorCapture: panel '%s' was not drawn for %d frames, dropping request "
                                           "(is its tab selected? see focus_panel)",
                                           req.panel.c_str(), req.misses);
-            Finish(req, req.panel.empty() ? std::string("the region is outside the window")
-                                          : "panel '" + req.panel + "' was not drawn for " +
-                                                std::to_string(req.misses) +
-                                                " frames (is its tab selected? see focus_panel)");
+            Finish(req, req.panel.empty()
+                            ? std::string("the region is outside the window")
+                            : "panel '" + req.panel + "' was not drawn for " + std::to_string(req.misses) +
+                                  " frames (is its tab selected? see focus_panel)");
             m_Requests.erase(m_Requests.begin() + i);
             continue;
         }
@@ -321,7 +307,7 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
 
         if (!req.sequence)
         {
-            const bool written = CaptureToFile(req.path, x, y, w, h, fbH);
+            const bool written = CaptureToFile(req.path, x, y, w, h);
             Finish(req, written ? std::string() : "could not write " + req.path);
             m_Requests.erase(m_Requests.begin() + i);
             continue;
@@ -336,7 +322,7 @@ void EditorCapture::ProcessEndOfFrame(int fbW, int fbH)
 
         char name[64];
         std::snprintf(name, sizeof(name), "frame_%04d.png", req.frameIndex);
-        CaptureToFile((fs::path(req.path) / name).string(), x, y, w, h, fbH);
+        CaptureToFile((fs::path(req.path) / name).string(), x, y, w, h);
         ++req.frameIndex;
 
         if (--req.framesRemaining <= 0)

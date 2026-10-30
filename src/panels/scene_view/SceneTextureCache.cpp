@@ -5,7 +5,7 @@
 #include <deki-editor/Paths.h>
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/EditorAssets.h>
-#include <SDL3/SDL_opengl.h>
+#include <deki-editor/EditorTexture.h>
 #include <filesystem>
 
 namespace DekiEditor
@@ -27,8 +27,7 @@ void SceneTextureCache::Cleanup()
     {
         if (tex.textureId != 0)
         {
-            GLuint texId = tex.textureId;
-            glDeleteTextures(1, &texId);
+            EditorTexture::Destroy(tex.textureId);
         }
     }
     m_Cache.clear();
@@ -59,8 +58,7 @@ void SceneTextureCache::EvictToBudget(const std::string& keep)
         }
         if (victim->second.textureId != 0)
         {
-            GLuint texId = victim->second.textureId;
-            glDeleteTextures(1, &texId);
+            EditorTexture::Destroy(victim->second.textureId);
         }
         m_TotalBytes -= victim->second.pixelData.size();
         m_Cache.erase(victim);
@@ -74,8 +72,7 @@ void SceneTextureCache::Invalidate(const std::string& assetRef)
     {
         if (it->second.textureId != 0)
         {
-            GLuint texId = it->second.textureId;
-            glDeleteTextures(1, &texId);
+            EditorTexture::Destroy(it->second.textureId);
         }
         m_TotalBytes -= it->second.pixelData.size();
         m_Cache.erase(it);
@@ -171,24 +168,7 @@ CachedTexture* SceneTextureCache::GetOrLoad(const std::string& assetRef)
         return nullptr;
     }
 
-    GLuint textureId;
-    glGenTextures(1, &textureId);
-    glBindTexture(GL_TEXTURE_2D, textureId);
-
-    // GL_NEAREST both ways, so pixels stay sharp.
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Unpack state is global, and other GL users (ImGui glyph uploads, say) can
-    // leave a row stride set, which would shear or overread this packed upload.
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaData);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
+    const uint32_t textureId = EditorTexture::CreateRgba(texWidth, texHeight, rgbaData);
 
     CachedTexture cached;
     cached.textureId = textureId;

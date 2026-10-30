@@ -1,4 +1,5 @@
 #include "TextureInspector.h"
+#include <deki-editor/EditorTexture.h>
 #include <deki-editor/EditorTheme.h>
 #include "InspectorUtils.h"
 #include "../../EditorApp.h"
@@ -16,7 +17,6 @@
 #include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth, as SchematicCombo uses
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/Localization.h>
-#include <SDL3/SDL_opengl.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -206,7 +206,7 @@ void TextureInspector::DrawPreview()
         }
 
         ImVec2 imagePos = ImGui::GetCursorScreenPos();
-        ImGui::Image((ImTextureID)(intptr_t)m_PreviewTextureId,
+        ImGui::Image(EditorTexture::ToImGui(m_PreviewTextureId),
                      ImVec2(static_cast<float>(displayWidth), static_cast<float>(displayHeight)), ImVec2(u0, v0),
                      ImVec2(u1, v1));
 
@@ -841,26 +841,7 @@ void TextureInspector::UpdatePreviewTexture(const std::string& cachePath)
         return;
     }
 
-    GLuint textureId;
-    glGenTextures(1, &textureId);
-    glBindTexture(GL_TEXTURE_2D, textureId);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Unpack state is global, and other GL users (ImGui glyph uploads, say) can
-    // leave a row stride set, which would shear or overread this packed upload.
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texData.header.width, texData.header.height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                 rgbaData.data());
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    m_PreviewTextureId = textureId;
+    m_PreviewTextureId = EditorTexture::CreateRgba(texData.header.width, texData.header.height, rgbaData.data());
     m_PreviewTexturePath = cachePath;
     m_StoredWidth = texData.header.width;
     m_StoredHeight = texData.header.height;
@@ -874,8 +855,7 @@ void TextureInspector::CleanupPreviewTexture()
 {
     if (m_PreviewTextureId != 0)
     {
-        GLuint texId = m_PreviewTextureId;
-        glDeleteTextures(1, &texId);
+        EditorTexture::Destroy(m_PreviewTextureId);
         m_PreviewTextureId = 0;
     }
     m_PreviewTexturePath.clear();

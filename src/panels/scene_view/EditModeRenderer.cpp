@@ -5,78 +5,17 @@
 #include <deki/providers/IRenderSystem.h>
 #include <deki/Engine.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-#include <GL/gl.h>
-#ifndef GL_UNSIGNED_SHORT_5_6_5
-#define GL_UNSIGNED_SHORT_5_6_5 0x8363  // GL 1.2; the Windows SDK header stops at 1.1
-#endif
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE 0x812F  // GL 1.2, same header gap
-#endif
-#ifndef GL_PIXEL_UNPACK_BUFFER  // GL 2.1 / 3.0 buffer objects, same gap
-#define GL_PIXEL_UNPACK_BUFFER 0x88EC
-#endif
-#ifndef GL_STREAM_DRAW
-#define GL_STREAM_DRAW 0x88E0
-#endif
-#ifndef GL_MAP_WRITE_BIT
-#define GL_MAP_WRITE_BIT 0x0002
-#endif
-#ifndef GL_MAP_INVALIDATE_BUFFER_BIT
-#define GL_MAP_INVALIDATE_BUFFER_BIT 0x0008
-#endif
-#ifndef GL_MAP_UNSYNCHRONIZED_BIT
-#define GL_MAP_UNSYNCHRONIZED_BIT 0x0020
-#endif
-
-#include <SDL3/SDL_video.h>
+#include <deki-editor/EditorTexture.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-
-#ifndef APIENTRY
-#define APIENTRY
-#endif
 
 namespace DekiEditor
 {
 
 namespace
 {
-
-// Buffer objects are past the GL 1.1 the Windows header declares, so they are
-// looked up at run time (GL 3.3 core has them all).
-struct BufferGL
-{
-    void(APIENTRY* genBuffers)(GLsizei, GLuint*) = nullptr;
-    void(APIENTRY* deleteBuffers)(GLsizei, const GLuint*) = nullptr;
-    void(APIENTRY* bindBuffer)(GLenum, GLuint) = nullptr;
-    void(APIENTRY* bufferData)(GLenum, ptrdiff_t, const void*, GLenum) = nullptr;
-    void*(APIENTRY* mapBufferRange)(GLenum, ptrdiff_t, ptrdiff_t, GLbitfield) = nullptr;
-    GLboolean(APIENTRY* unmapBuffer)(GLenum) = nullptr;
-    bool loaded = false;
-    bool ok = false;
-
-    bool Load()
-    {
-        if (loaded)
-        {
-            return ok;
-        }
-        loaded = true;
-        genBuffers = reinterpret_cast<decltype(genBuffers)>(SDL_GL_GetProcAddress("glGenBuffers"));
-        deleteBuffers = reinterpret_cast<decltype(deleteBuffers)>(SDL_GL_GetProcAddress("glDeleteBuffers"));
-        bindBuffer = reinterpret_cast<decltype(bindBuffer)>(SDL_GL_GetProcAddress("glBindBuffer"));
-        bufferData = reinterpret_cast<decltype(bufferData)>(SDL_GL_GetProcAddress("glBufferData"));
-        mapBufferRange = reinterpret_cast<decltype(mapBufferRange)>(SDL_GL_GetProcAddress("glMapBufferRange"));
-        unmapBuffer = reinterpret_cast<decltype(unmapBuffer)>(SDL_GL_GetProcAddress("glUnmapBuffer"));
-        ok = genBuffers && deleteBuffers && bindBuffer && bufferData && mapBufferRange && unmapBuffer;
-        return ok;
-    }
-} s_GL;
 
 // RGB565 to RGBA8 bytes with opaque alpha. Each channel is widened by
 // repeating its top bits, as the driver does, so colours match the
@@ -144,22 +83,6 @@ void EditModeRenderer::PrepareTexture(int width, int height)
     int& capW = m_TexCapW[m_Current];
     int& capH = m_TexCapH[m_Current];
 
-    if (m_Textures[m_Current] == 0)
-    {
-        GLuint texId;
-        glGenTextures(1, &texId);
-        glBindTexture(GL_TEXTURE_2D, texId);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        // Not GL_CLAMP: it is not in the 3.3 core profile the editor asks
-        // for, and strict drivers (Mesa) reject it and leave GL_REPEAT.
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        m_Textures[m_Current] = texId;
-        capW = capH = 0;
-    }
-
     // Streaming storage grows with headroom and is given back only once far
     // too big, so zooming reuses it; otherwise it is exactly the picture.
     bool realloc;
@@ -182,11 +105,10 @@ void EditModeRenderer::PrepareTexture(int width, int height)
         realloc = width != capW || height != capH;
     }
 
-    if (realloc)
+    if (realloc || m_Textures[m_Current] == 0)
     {
-        glBindTexture(GL_TEXTURE_2D, m_Textures[m_Current]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newW, newH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        EditorTexture::Destroy(m_Textures[m_Current]);
+        m_Textures[m_Current] = EditorTexture::Create(newW, newH);
         capW = newW;
         capH = newH;
     }
@@ -203,20 +125,9 @@ void EditModeRenderer::Shutdown()
 
     for (int i = 0; i < kTextureRing; ++i)
     {
-        if (m_Textures[i] != 0)
-        {
-            GLuint texId = m_Textures[i];
-            glDeleteTextures(1, &texId);
-            m_Textures[i] = 0;
-        }
+        EditorTexture::Destroy(m_Textures[i]);
+        m_Textures[i] = 0;
         m_TexCapW[i] = m_TexCapH[i] = 0;
-        if (m_Pbos[i] != 0)
-        {
-            GLuint pbo = m_Pbos[i];
-            s_GL.deleteBuffers(1, &pbo);
-            m_Pbos[i] = 0;
-        }
-        m_PboSize[i] = 0;
     }
     m_Current = 0;
 
@@ -265,47 +176,6 @@ void EditModeRenderer::ClearBuffer(uint8_t r, uint8_t g, uint8_t b)
     }
 }
 
-void* EditModeRenderer::MapUploadBuffer(size_t bytes)
-{
-    // From CPU memory, the driver must be done with the pixels before
-    // glTexSubImage2D returns. Instead each texture in the ring has its own
-    // pixel buffer, written here and copied into the texture by the GPU later.
-    // It was last written three renders ago and is long drawn, so it is
-    // mapped without waiting for the GPU.
-    if (!s_GL.Load())
-    {
-        return nullptr;
-    }
-    GLuint& pbo = m_Pbos[m_Current];
-    if (pbo == 0)
-    {
-        s_GL.genBuffers(1, &pbo);
-    }
-    if (pbo == 0)
-    {
-        return nullptr;
-    }
-    s_GL.bindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
-    size_t& size = m_PboSize[m_Current];
-    if (bytes > size || bytes * 8 < size)
-    {
-        size = bytes + bytes / 4;
-        s_GL.bufferData(GL_PIXEL_UNPACK_BUFFER, static_cast<ptrdiff_t>(size), nullptr, GL_STREAM_DRAW);
-    }
-    void* ptr = s_GL.mapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, static_cast<ptrdiff_t>(bytes),
-                                    GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
-    if (!ptr)
-    {
-        s_GL.bindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-    }
-    return ptr;
-}
-
-void EditModeRenderer::UnmapUploadBuffer()
-{
-    s_GL.unmapBuffer(GL_PIXEL_UNPACK_BUFFER);
-}
-
 void EditModeRenderer::PresentToGPU(float displayScale)
 {
     if (!m_Initialized || !m_RenderBuffer)
@@ -314,9 +184,9 @@ void EditModeRenderer::PresentToGPU(float displayScale)
     }
 
     // Zoomed out, the buffer holds many pixels per screen pixel, and uploading
-    // them all (with the driver widening each to RGBA on the CPU) is most of
+    // them all (each widened to RGBA on the CPU) is most of
     // a render's cost; drawing the scene is cheap. So shrink it to screen size
-    // here, taking for screen pixel i the buffer pixel GL_NEAREST would sample
+    // here, taking for screen pixel i the buffer pixel nearest sampling would take
     // from the full buffer drawn scaled: floor((i + 0.5) / displayScale). Same
     // picture, far smaller upload.
     const bool shrink = displayScale > 0.0f && displayScale < 1.0f;
@@ -345,33 +215,17 @@ void EditModeRenderer::PresentToGPU(float displayScale)
     PrepareTexture(upW, upH);
 
     const uint16_t* src = reinterpret_cast<const uint16_t*>(m_RenderBuffer);
-    const void* pixels = nullptr;
-    GLenum format, type;
-    GLint alignment;
-    int sendW = upW, sendH = upH;  // the picture, plus the repeated edge when streaming
-    bool mapped = false;
     if (m_Streaming)
     {
-        // The driver may convert RGB565 to an RGBA8 texture on the CPU inside
-        // glTexSubImage2D, after waiting for the GPU to finish with the
-        // texture: a few hundred KB can stall for up to a second. So the
-        // pixels go up as RGBA8, converted here during the copy, and the
-        // driver only copies.
-        //
         // The texture is larger than the picture, and where the picture's
         // edge lands part-way into a screen pixel the GPU samples just past
         // it. One more column and row repeat the edge there, as clamping to
         // the edge of an exact-size texture would.
-        sendW = upW + 1;
-        sendH = upH + 1;
+        const int sendW = upW + 1;
+        const int sendH = upH + 1;
         const uint32_t* toRgba = Rgb565ToRgba();
-        uint32_t* dst = static_cast<uint32_t*>(MapUploadBuffer(static_cast<size_t>(sendW) * sendH * 4));
-        mapped = dst != nullptr;
-        if (!mapped)
-        {
-            m_Rgba.resize(static_cast<size_t>(sendW) * sendH);
-            dst = m_Rgba.data();
-        }
+        m_Rgba.resize(static_cast<size_t>(sendW) * sendH);
+        uint32_t* dst = m_Rgba.data();
         for (int j = 0; j < upH; ++j)
         {
             const uint16_t* row = src + static_cast<size_t>(shrink ? m_ShrinkRows[j] : j) * m_Width;
@@ -394,54 +248,27 @@ void EditModeRenderer::PresentToGPU(float displayScale)
         }
         std::memcpy(dst + static_cast<size_t>(upH) * sendW, dst + static_cast<size_t>(upH - 1) * sendW,
                     static_cast<size_t>(sendW) * 4);
-        if (mapped)
-        {
-            UnmapUploadBuffer();  // stays bound: the upload below reads from it
-        }
-        else
-        {
-            pixels = dst;
-        }
-        format = GL_RGBA;
-        type = GL_UNSIGNED_BYTE;
-        alignment = 4;
-    }
-    else
-    {
-        // The framebuffer is RGB565; GL accepts that layout directly and the
-        // RGBA8 texture expands it on upload.
-        pixels = src;
-        if (shrink)
-        {
-            m_Shrunk.resize(static_cast<size_t>(upW) * upH);
-            for (int j = 0; j < upH; ++j)
-            {
-                const uint16_t* row = src + static_cast<size_t>(m_ShrinkRows[j]) * m_Width;
-                uint16_t* out = m_Shrunk.data() + static_cast<size_t>(j) * upW;
-                for (int i = 0; i < upW; ++i)
-                {
-                    out[i] = row[m_ShrinkCols[i]];
-                }
-            }
-            pixels = m_Shrunk.data();
-        }
-        format = GL_RGB;
-        type = GL_UNSIGNED_SHORT_5_6_5;
-        alignment = 2;
+        EditorTexture::Update(m_Textures[m_Current], 0, 0, sendW, sendH, EditorTexture::Format::Rgba8, dst);
+        return;
     }
 
-    glBindTexture(GL_TEXTURE_2D, m_Textures[m_Current]);
-    // Unpack state is global, and other GL users (ImGui glyph uploads, say) can
-    // leave a row stride set, which would shear or overread this packed upload.
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sendW, sendH, format, type, pixels);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    if (mapped)
+    // The buffer is RGB565, which the texture takes as it is.
+    const uint16_t* pixels = src;
+    if (shrink)
     {
-        s_GL.bindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        m_Shrunk.resize(static_cast<size_t>(upW) * upH);
+        for (int j = 0; j < upH; ++j)
+        {
+            const uint16_t* row = src + static_cast<size_t>(m_ShrinkRows[j]) * m_Width;
+            uint16_t* out = m_Shrunk.data() + static_cast<size_t>(j) * upW;
+            for (int i = 0; i < upW; ++i)
+            {
+                out[i] = row[m_ShrinkCols[i]];
+            }
+        }
+        pixels = m_Shrunk.data();
     }
+    EditorTexture::Update(m_Textures[m_Current], 0, 0, upW, upH, EditorTexture::Format::Rgb565, pixels);
 }
 
 void EditModeRenderer::RenderScene(Deki::Scene* scene, Deki::ICamera* camera, uint8_t clearR, uint8_t clearG,

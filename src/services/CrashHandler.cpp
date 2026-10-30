@@ -5,10 +5,10 @@
 #endif
 #include <deki-editor/EditorTheme.h>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
+#include "imgui_impl_sdlgpu3.h"
+#include "../render/EditorRenderer.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -217,12 +217,6 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         }
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
     // Query DPI for window sizing (before window is created)
     float preDpiScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
     if (preDpiScale <= 0.0f)
@@ -230,8 +224,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         preDpiScale = 1.0f;
     }
 
-    SDL_Window* crashWindow =
-        SDL_CreateWindow(title.c_str(), (int)(700 * preDpiScale), (int)(500 * preDpiScale), SDL_WINDOW_OPENGL);
+    SDL_Window* crashWindow = SDL_CreateWindow(title.c_str(), (int)(700 * preDpiScale), (int)(500 * preDpiScale), 0);
 
     if (!crashWindow)
     {
@@ -239,16 +232,18 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         return;
     }
 
-    SDL_GLContext glCtx = SDL_GL_CreateContext(crashWindow);
-    if (!glCtx)
+    // A device of its own: the editor's may be what crashed.
+    SDL_GPUDevice* device = DekiEditor::EditorRenderer::CreateDevice();
+    if (!device || !SDL_ClaimWindowForGPUDevice(device, crashWindow))
     {
+        if (device)
+        {
+            SDL_DestroyGPUDevice(device);
+        }
         SDL_DestroyWindow(crashWindow);
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title.c_str(), callstack.c_str(), nullptr);
         return;
     }
-
-    SDL_GL_MakeCurrent(crashWindow, glCtx);
-    SDL_GL_SetSwapInterval(1);
 
     float dpiScale = SDL_GetWindowDisplayScale(crashWindow);
     if (dpiScale <= 0.0f)
@@ -278,11 +273,13 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         fullText += "\nDump file: " + s_LastDumpPath;
     }
 
-    ImGui_ImplSDL3_InitForOpenGL(crashWindow, glCtx);
-    // Fails on a context older than GL 2 (Windows' "GDI Generic" software
-    // renderer, which SDL accepts), and drawing on would crash inside the
-    // crash handler. The plain message box still shows the report.
-    if (!ImGui_ImplOpenGL3_Init("#version 330"))
+    ImGui_ImplSDL3_InitForSDLGPU(crashWindow);
+    ImGui_ImplSDLGPU3_InitInfo gpuInfo;
+    gpuInfo.Device = device;
+    gpuInfo.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, crashWindow);
+    // Drawing on without it would crash inside the crash handler. The plain
+    // message box still shows the report.
+    if (!ImGui_ImplSDLGPU3_Init(&gpuInfo))
     {
         ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext(crashCtx);
@@ -290,7 +287,8 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         {
             ImGui::SetCurrentContext(prevCtx);
         }
-        SDL_GL_DestroyContext(glCtx);
+        SDL_ReleaseWindowFromGPUDevice(device, crashWindow);
+        SDL_DestroyGPUDevice(device);
         SDL_DestroyWindow(crashWindow);
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title.c_str(), fullText.c_str(), nullptr);
         return;
@@ -315,7 +313,7 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
             }
         }
 
-        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
@@ -367,14 +365,30 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         ImGui::End();
 
         ImGui::Render();
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        SDL_GL_SwapWindow(crashWindow);
+        SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(device);
+        SDL_GPUTexture* target = nullptr;
+        SDL_WaitAndAcquireGPUSwapchainTexture(commands, crashWindow, &target, nullptr, nullptr);
+        if (target)
+        {
+            ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commands);
+            SDL_GPUColorTargetInfo color{};
+            color.texture = target;
+            color.clear_color = SDL_FColor{ 0.15f, 0.15f, 0.15f, 1.0f };
+            color.load_op = SDL_GPU_LOADOP_CLEAR;
+            color.store_op = SDL_GPU_STOREOP_STORE;
+            SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commands, &color, 1, nullptr);
+            ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), commands, pass);
+            SDL_EndGPURenderPass(pass);
+        }
+        else
+        {
+            SDL_Delay(16);  // minimized
+        }
+        SDL_SubmitGPUCommandBuffer(commands);
     }
 
-    ImGui_ImplOpenGL3_Shutdown();
+    SDL_WaitForGPUIdle(device);
+    ImGui_ImplSDLGPU3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext(crashCtx);
 
@@ -383,7 +397,8 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         ImGui::SetCurrentContext(prevCtx);
     }
 
-    SDL_GL_DestroyContext(glCtx);
+    SDL_ReleaseWindowFromGPUDevice(device, crashWindow);
+    SDL_DestroyGPUDevice(device);
     SDL_DestroyWindow(crashWindow);
 }
 

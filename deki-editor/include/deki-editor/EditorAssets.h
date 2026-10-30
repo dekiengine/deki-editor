@@ -55,7 +55,7 @@ public:
     /// Frees every GPU resource.
     static void Shutdown();
 
-    /// The OpenGL texture for an asset GUID (resolved through AssetManager),
+    /// The EditorTexture for an asset GUID (resolved through AssetManager),
     /// uploading it on first use, or 0 on failure. Width and height are
     /// written to the optional outputs.
     uint32_t LoadTexture(const std::string& guid, uint32_t* outWidth = nullptr, uint32_t* outHeight = nullptr);
@@ -68,11 +68,11 @@ public:
 
     // ===== Font Atlas Methods =====
 
-    /// The OpenGL atlas texture for a baked font (font.guid, resolved to a
+    /// The EditorTexture atlas for a baked font (font.guid, resolved to a
     /// .dfont through AssetManager::LookupPath()), or 0 on failure.
     uint32_t LoadFontAtlas(const std::string& bakedGuid, uint32_t* outWidth = nullptr, uint32_t* outHeight = nullptr);
 
-    /// The OpenGL atlas texture for the .dfont at a full path, or 0 on failure.
+    /// The EditorTexture atlas for the .dfont at a full path, or 0 on failure.
     uint32_t LoadFontAtlasFromPath(const std::string& dfontPath, uint32_t* outWidth = nullptr,
                                    uint32_t* outHeight = nullptr);
 
@@ -92,7 +92,7 @@ public:
     /// the caller's cache, or nullptr on failure.
     using FontBakeCallback = std::function<Deki2D::BitmapFont*(const std::string&, int)>;
 
-    /// The OpenGL atlas texture of a TTF asset (GUID) at a pixel size, with
+    /// The EditorTexture atlas of a TTF asset (GUID) at a pixel size, with
     /// its width and height, or 0 on failure.
     using FontAtlasCallback = std::function<uint32_t(const std::string&, int, uint32_t*, uint32_t*)>;
 
@@ -108,7 +108,7 @@ public:
     /// nullptr if not found.
     Deki2D::BitmapFont* GetBitmapFontWithBaking(const std::string& sourceGuid, int fontSize);
 
-    /// The OpenGL atlas texture of a TTF asset at a pixel size, baking it if
+    /// The EditorTexture atlas of a TTF asset at a pixel size, baking it if
     /// needed, or 0 on failure.
     uint32_t LoadFontAtlasWithBaking(const std::string& sourceGuid, int fontSize, uint32_t* outWidth = nullptr,
                                      uint32_t* outHeight = nullptr);
@@ -121,7 +121,7 @@ public:
 
     // ===== Frame Sprite Support =====
 
-    /// The OpenGL texture of a frame's parent spritesheet, or 0 on failure.
+    /// The EditorTexture of a frame's parent spritesheet, or 0 on failure.
     /// `frameGuid` has the form "parent:frame-N"; the size outputs get the
     /// parent texture's size. Use GetFrameUVs() for the frame's place in it.
     uint32_t LoadFrameTexture(const std::string& frameGuid, uint32_t* outWidth = nullptr,

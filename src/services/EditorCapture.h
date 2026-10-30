@@ -11,12 +11,12 @@ namespace DekiEditor
 /// Screenshots and frame sequences of the editor's own window.
 ///
 /// FrameCaptureService captures the game's render buffer in play mode; this
-/// reads the editor's OpenGL backbuffer, so it shows the ImGui panels, tabs and
-/// gizmos exactly as a user sees them.
+/// reads the frame EditorRenderer drew, so it shows the ImGui panels, tabs and
+/// gizmos exactly as a user sees them, minimized or not.
 ///
 /// Requests are queued (usually from the MCP main-thread pump, which runs
 /// mid-frame) and handled by ProcessEndOfFrame(), called after
-/// ImGui_ImplOpenGL3_RenderDrawData() and before SDL_GL_SwapWindow(). Queuing
+/// EditorRenderer::Render(). Queuing
 /// gets the timing right: a capture asked for during frame N happens at the end
 /// of frame N + framesToWait, so edits made in the same MCP batch are visible.
 ///
@@ -37,8 +37,8 @@ public:
     /// Queues one PNG. `panel` (an ImGui window name), when set, wins over
     /// `region`; `padding` grows the rect on every side, clamped to the window.
     /// Returns a ticket for TakeOutcome.
-    uint64_t RequestScreenshot(const std::string& path, const std::string& panel, const Region& region,
-                               float padding, int framesToWait);
+    uint64_t RequestScreenshot(const std::string& path, const std::string& panel, const Region& region, float padding,
+                               int framesToWait);
 
     /// True once the screenshot with this ticket is done: written (`error`
     /// empty) or given up on (`error` says why). Each outcome is taken once.
@@ -52,7 +52,7 @@ public:
     void RequestSequence(const std::string& dir, const std::string& panel, const Region& region, float padding,
                          int frames, int stride, int framesToWait, bool agentPointer = false);
 
-    /// Called once per frame, after the draw data is submitted and before swap.
+    /// Called once per frame, after EditorRenderer::Render.
     void ProcessEndOfFrame(int framebufferWidth, int framebufferHeight);
 
     /// Brings a docked panel's tab to the front. MCP handlers run before
@@ -109,8 +109,8 @@ private:
     {
         bool sequence = false;
         bool agentPointer = false;  // a sequence that shows AgentCursor
-        uint64_t ticket = 0;  // a screenshot's, for TakeOutcome
-        std::string path;  // file (single) or directory (sequence)
+        uint64_t ticket = 0;        // a screenshot's, for TakeOutcome
+        std::string path;           // file (single) or directory (sequence)
         std::string panel;
         Region region;
         float padding = 0.0f;
@@ -135,7 +135,7 @@ private:
     // Returns false when the named panel does not exist or is off-screen.
     bool ResolveRect(const Request& req, int fbW, int fbH, int& outX, int& outY, int& outW, int& outH) const;
 
-    bool CaptureToFile(const std::string& path, int x, int y, int w, int h, int fbH);
+    bool CaptureToFile(const std::string& path, int x, int y, int w, int h);
 
     // Records how a screenshot ended, for TakeOutcome.
     void Finish(const Request& req, std::string error);

@@ -65,7 +65,7 @@ struct PlayModeRuntime
     int fpsSubStepCounter = 0;  // sub-steps in this sample window
     float fpsWindowMs = 0.0f;   // wall-clock ms in this sample window
 
-    int lastSwapInterval = 1;  // last SDL_GL swap interval set (1 = vsync, 0 = off)
+    int lastSwapInterval = 1;  // last vsync set through EditorRenderer (1 = on, 0 = off)
 
     // Non-owning, from Deki::Engine
     Deki::LifecycleManager* lifecycleManager = nullptr;

@@ -127,9 +127,6 @@ else()
     set(DEKI_SDL3_LIB_DIR "${CMAKE_BINARY_DIR}/lib" CACHE PATH "SDL3 link library, for generated package builds" FORCE)
 endif()
 
-# Find OpenGL
-find_package(OpenGL REQUIRED)
-
 # ImGui sources (docking branch for DockSpace support).
 # PINNED to an exact commit, not the moving `docking` branch: the Deki patches
 # below live as working-tree edits on this checkout, and FetchContent's update
@@ -173,9 +170,6 @@ FetchContent_MakeAvailable(imgui)
 #   4. No tracked issue for patch D (dock tab bar left FramePadding.x inset).
 #      The inset is hardcoded in DockNodeCalcTabBarLayout; we want the first
 #      tab flush with the column edge for the schematic look.
-#   5. Patch F (imgui_impl_opengl3.cpp): upstream regression from the 2026-07-15
-#      "backup/restore GL_UNPACK state" commit (#8802, #9473). Worth filing;
-#      drop the patch once upstream fixes the dead restore.
 #
 # Last verified against ImGui docking branch tip:
 #   commit 81c008f, IMGUI_VERSION "1.92.9 WIP" (the pinned GIT_TAG above)
@@ -287,48 +281,13 @@ if(EXISTS "${_imgui_widgets_cpp}")
     endif()
 endif()
 
-# Patch F (backends/imgui_impl_opengl3.cpp): fix dead GL_UNPACK state restore.
-# Upstream's 2026-07-15 commit (#8802, #9473) backs up GL_UNPACK_ROW_LENGTH /
-# GL_UNPACK_ALIGNMENT in ImGui_ImplOpenGL3_UpdateTexture() and gates the restore
-# on Status == WantCreate/WantUpdates - but both paths set Status to OK before
-# that check, so the restore never runs. After every dynamic-font glyph upload
-# GL_UNPACK_ROW_LENGTH stays = the font atlas width, and any narrower
-# glTexImage2D afterwards is read at that stride: sheared textures, or OOB reads
-# that surface as access violations inside the GL driver. Capture the condition
-# in a bool before the branches mutate Status.
-set(_imgui_gl3_cpp "${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp")
-if(EXISTS "${_imgui_gl3_cpp}")
-    _deki_assert_patch_applied(
-        "    GLint last_unpack_alignment = 0; (void)last_unpack_alignment;\n    if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates)"
-        "deki_did_backup_unpack"
-        "${_imgui_gl3_cpp}" "F1: unpack backup flag")
-    _deki_assert_patch_applied(
-        "    // Restore GL_UNPACK state\n    if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates)"
-        "deki_did_backup_unpack"
-        "${_imgui_gl3_cpp}" "F2: unpack restore condition")
-
-    file(READ "${_imgui_gl3_cpp}" _imgui_gl3_src)
-    set(_imgui_gl3_patched "${_imgui_gl3_src}")
-    string(REPLACE
-        "    GLint last_unpack_alignment = 0; (void)last_unpack_alignment;\n    if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates)"
-        "    GLint last_unpack_alignment = 0; (void)last_unpack_alignment;\n    const bool deki_did_backup_unpack = (tex->Status == ImTextureStatus_WantCreate) || (tex->Status == ImTextureStatus_WantUpdates); // Deki patch F: Status is set to OK below, so the restore must not re-test it\n    if (deki_did_backup_unpack)"
-        _imgui_gl3_patched "${_imgui_gl3_patched}")
-    string(REPLACE
-        "    // Restore GL_UNPACK state\n    if (tex->Status == ImTextureStatus_WantCreate || tex->Status == ImTextureStatus_WantUpdates)"
-        "    // Restore GL_UNPACK state (Deki patch F: upstream gate was dead code - Status is already OK here)\n    if (deki_did_backup_unpack)"
-        _imgui_gl3_patched "${_imgui_gl3_patched}")
-    if(NOT _imgui_gl3_src STREQUAL _imgui_gl3_patched)
-        file(WRITE "${_imgui_gl3_cpp}" "${_imgui_gl3_patched}")
-        message(STATUS "Patched imgui_impl_opengl3.cpp: GL_UNPACK state restore in UpdateTexture (upstream gate was dead code)")
-    endif()
-endif()
-
-# Patch G (imgui_freetype + imgui_impl_opengl3): subpixel (ClearType-style)
-# text. FreeType renders glyphs in LCD mode into the RGBA atlas, and the
-# OpenGL backend blends text from the atlas per colour channel with
-# dual-source blending, the way Chromium draws text on Windows. Too large for
-# string substitutions, so it is a real patch applied with git: already
-# applied when it reverses cleanly, otherwise it must apply or the build stops.
+# Patch G (imgui_draw + imgui_freetype): text drawn at the size its glyphs
+# were rasterized at, never resampled, and FreeType's subpixel (LCD) glyphs
+# for a renderer that blends them per colour channel. The SDL GPU backend
+# does not yet, so the editor keeps glyphs greyscale (DekiSetLcdMode(0)).
+# Too large for string substitutions, so it is a real patch applied with git:
+# already applied when it reverses cleanly, otherwise it must apply or the
+# build stops.
 set(_deki_imgui_text_patch "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/imgui-subpixel-text.patch")
 find_package(Git REQUIRED)
 execute_process(
@@ -343,7 +302,7 @@ if(NOT _deki_text_patch_applied EQUAL 0)
                             "Either an older version of the patch is applied (run `git checkout -- .` in that directory and configure again),\n"
                             "or upstream ImGui changed the patched files and cmake/patches/imgui-subpixel-text.patch needs regenerating.")
     endif()
-    message(STATUS "Patched imgui_freetype + imgui_impl_opengl3: subpixel text")
+    message(STATUS "Patched imgui_draw + imgui_freetype: glyph sizes, subpixel glyphs")
 endif()
 
 # FreeType for font rasterization
@@ -437,7 +396,7 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlgpu3.cpp
     ${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp
 )
 
@@ -450,7 +409,6 @@ target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_FREETYPE)
 
 target_link_libraries(imgui PUBLIC
     ${DEKI_SDL3_TARGET}
-    OpenGL::GL
     freetype
 )
 
@@ -598,6 +556,8 @@ set(EDITOR_SOURCES
     src/EditorApp.MenuBar.cpp
     src/EditorApp.ProjectManager.cpp
     src/PlayMode.cpp
+    src/EditorDisplay.cpp
+    src/EditorDisplay.h
     src/EditorPlayModeFileSystem.cpp
     src/EditorPlayModeFileSystem.h
     src/panels/HierarchyPanel.cpp
@@ -791,6 +751,8 @@ set(EDITOR_SOURCES
     src/services/AgentCursor.h
     src/services/AgentCursorIntent.h
     src/services/EditorCapture.cpp
+    src/render/EditorRenderer.cpp
+    src/render/EditorRenderer.h
     src/services/EditorCapture.h
     src/services/EditorInput.cpp
     src/services/EditorInput.h
@@ -914,7 +876,6 @@ target_link_libraries(DekiEditor PRIVATE
     imgui
     freetype
     ${DEKI_SDL3_TARGET}
-    OpenGL::GL
     httplib::httplib
 )
 

@@ -7,11 +7,9 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <SDL3/SDL_opengl.h>
 #include "imgui.h"
 #include "imgui_internal.h"  // For DockBuilder
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
 
 #include "EditorApp.h"
 #include "EditorBoot.h"
@@ -32,6 +30,7 @@
 #include "services/EditorInput.h"
 #include "services/TouchInput.h"
 #include "services/FrameTiming.h"
+#include "render/EditorRenderer.h"
 #include "services/Prerequisites.h"
 #include <optional>
 #include <deki/profiling/Profiler.h>
@@ -276,8 +275,16 @@ int main(int argc, char* argv[])
         }
 
         // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
+        DekiEditor::EditorRenderer::NewFrame();
         ImGui_ImplSDL3_NewFrame();
+        // Minimized, SDL's backend gives the frame no size. Lay it out at the
+        // window's size anyway, so a screenshot of it shows the editor.
+        if (ImGui::GetIO().DisplaySize.x <= 0.0f || ImGui::GetIO().DisplaySize.y <= 0.0f)
+        {
+            int w = 0, h = 0;
+            SDL_GetWindowSize(ctx.window, &w, &h);
+            ImGui::GetIO().DisplaySize = ImVec2((float)w, (float)h);
+        }
         // While capture_sequence records, animations advance exactly one 60 fps
         // frame per captured frame, so a recording shows motion as it looks
         // live even though each capture is slow to write. Set before the
@@ -430,20 +437,30 @@ int main(int argc, char* argv[])
         DekiEditor::AgentCursor::Get().Draw();
 
         // Rendering
-        phase.emplace("Frame: ImGui render + GL draw");
+        phase.emplace("Frame: ImGui render + GPU draw");
         ImGui::Render();
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        // Screenshot / sequence capture reads the backbuffer, so it has to run
-        // after the draw data is submitted and before the swap discards it.
+        // Minimized (an editor an agent opened in the background, say), there
+        // is nothing to show: the frame is laid out, so tool calls are
+        // answered, and drawn only when a screenshot waits for it.
+        const bool minimized = DekiEditor::EditorRenderer::IsMinimized(ctx.window);
+        if (minimized && !DekiEditor::EditorCapture::Get().HasPendingWork())
+        {
+            phase.reset();
+            DekiEditor::FrameTiming::EndFrame(frameStart);
+            SDL_Delay(16);
+            continue;
+        }
+
+        // Shown, this waits for vsync: time here is waiting, not work.
+        const bool shown = DekiEditor::EditorRenderer::Render(ImGui::GetDrawData(), ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+
+        // Screenshots read the frame just drawn.
         DekiEditor::EditorCapture::Get().ProcessEndOfFrame((int)io.DisplaySize.x, (int)io.DisplaySize.y);
-
-        // Blocks until vsync: time here is waiting, not work.
-        phase.emplace("Frame: swap (waits for vsync)");
-        SDL_GL_SwapWindow(ctx.window);
+        if (!shown)
+        {
+            SDL_Delay(16);
+        }
         phase.reset();
         DekiEditor::FrameTiming::EndFrame(frameStart);
 

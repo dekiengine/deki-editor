@@ -24,6 +24,7 @@ set(EDITOR_DLL_SOURCES
     src/EditorExtension.cpp
     src/SceneView.cpp
     src/EditorUI.cpp
+    src/EditorTexture.cpp
     src/EditorWindow.cpp
     src/EditorApplication.cpp
     src/EditorHttpUtils.cpp
@@ -87,10 +88,6 @@ target_link_libraries(deki-editor PUBLIC deki-engine-core)
 # The DLL's own sources read engine-internal headers (AuthoredFormat); its
 # public headers must not, so this stays PRIVATE.
 target_link_libraries(deki-editor PRIVATE deki-engine-internal)
-
-# Link OpenGL for EditorAssets GPU texture management
-find_package(OpenGL REQUIRED)
-target_link_libraries(deki-editor PRIVATE OpenGL::GL)
 
 # Export macro for DLL symbols
 target_compile_definitions(deki-editor PRIVATE DEKI_EDITOR_EXPORTS)

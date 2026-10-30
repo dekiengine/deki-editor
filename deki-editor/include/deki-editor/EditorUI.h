@@ -55,7 +55,7 @@ public:
     /// A readable path or name for an asset GUID.
     std::string ResolveAssetName(const std::string& guid);
 
-    /// The OpenGL atlas texture of a font at a size, for previews, with its
+    /// The EditorTexture atlas of a font at a size, for previews, with its
     /// width and height, or 0 on failure.
     uint32_t GetFontAtlasTexture(const std::string& fontGuid, int fontSize, uint32_t* outWidth, uint32_t* outHeight);
 

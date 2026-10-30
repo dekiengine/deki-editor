@@ -27,7 +27,7 @@
 #include "InputKeys.h"
 #include "imgui.h"
 #include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth
-#include <SDL3/SDL_opengl.h>
+#include <deki-editor/EditorTexture.h>
 #include <SDL3/SDL_video.h>
 #include <algorithm>
 #include <cmath>
@@ -39,28 +39,6 @@ namespace DekiEditor
 {
 
 using InspectorUtils::BeginPropertyRow;
-
-// ImGui's GL backend binds a GL_LINEAR sampler object that overrides the
-// texture's own GL_NEAREST setting, which blurs the play view when the game's
-// pixels do not land on whole screen pixels. Unbinding the sampler around the
-// AddImage lets the texture's nearest filtering apply (as in SceneViewPanel).
-static void AddImageNearest(ImDrawList* drawList, ImTextureID texId, const ImVec2& p1, const ImVec2& p2)
-{
-    drawList->AddCallback(
-        [](const ImDrawList*, const ImDrawCmd*)
-        {
-            // NOLINTNEXTLINE(readability-identifier-naming): OpenGL's name
-            typedef void(APIENTRY * PFN_glBindSampler)(GLuint unit, GLuint sampler);
-            static auto s_Fn = (PFN_glBindSampler)SDL_GL_GetProcAddress("glBindSampler");
-            if (s_Fn)
-            {
-                s_Fn(0, 0);
-            }
-        },
-        nullptr);
-    drawList->AddImage(texId, p1, p2);
-    drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
-}
 
 // Where a w x h game image goes in the canvas. `scale` is canvas pixels per
 // game pixel, which input mapping divides by.
@@ -89,10 +67,10 @@ static FittedRect PlaceInCanvas(int w, int h, const ImVec2& canvasTopLeft, const
 }
 
 // Sharp pixels, clipped to the canvas, with its outline.
-static void AddGameImage(ImDrawList* drawList, ImTextureID texId, const FittedRect& fit)
+static void AddGameImage(ImDrawList* drawList, uint32_t texture, const FittedRect& fit)
 {
     drawList->PushClipRect(fit.clipMin, fit.clipMax, true);
-    AddImageNearest(drawList, texId, fit.p1, fit.p2);
+    EditorTexture::AddImageNearest(drawList, texture, fit.p1, fit.p2);
     drawList->AddRect(fit.p1, fit.p2, IM_COL32(100, 100, 100, 255), 0.0f, 0, 1.0f);
     drawList->PopClipRect();
 }
@@ -382,7 +360,7 @@ void PlayViewPanel::Draw()
                 if (texId != 0)
                 {
                     const FittedRect fit = PlaceInCanvas(vpW, vpH, m_CanvasTopLeft, availSize);
-                    AddGameImage(drawList, (ImTextureID)(intptr_t)texId, fit);
+                    AddGameImage(drawList, texId, fit);
 
                     char resInfo[64];
                     snprintf(resInfo, sizeof(resInfo), "%dx%d", vpW, vpH);
@@ -408,7 +386,7 @@ void PlayViewPanel::Draw()
         {
             const FittedRect fit = PlaceInCanvas(m_PreviewRenderer->GetWidth(), m_PreviewRenderer->GetHeight(),
                                                  m_CanvasTopLeft, availSize);
-            AddGameImage(drawList, (ImTextureID)(intptr_t)previewTex, fit);
+            AddGameImage(drawList, previewTex, fit);
         }
 
         ImGui::InvisibleButton("PlayViewCanvas", availSize);
@@ -427,7 +405,7 @@ void PlayViewPanel::Draw()
         const ImVec2 p1 = fit.p1, p2 = fit.p2;
         const float dpiScale = fit.scale;  // canvas pixels per game pixel
 
-        AddGameImage(drawList, (ImTextureID)(intptr_t)playTexId, fit);
+        AddGameImage(drawList, playTexId, fit);
 
         const char* status = m_App->IsPlaying() ? Tr("PLAYING") : Tr("PAUSED");
         ImU32 statusColor = m_App->IsPlaying() ? IM_COL32(0, 255, 0, 200) : IM_COL32(255, 255, 0, 200);
@@ -817,12 +795,12 @@ void PlayViewPanel::DrawPreviewPicker(float& cursorX, const ImVec2& rowMin, floa
         {
             std::string dims = s.aspect ? std::to_string(s.w) + ":" + std::to_string(s.h)
                                         : std::to_string(s.w) + "x" + std::to_string(s.h);
-        if (!s.aspect && s.inches > 0.0f)
-        {
-            char inches[16];
-            snprintf(inches, sizeof(inches), "  %.3g\"", s.inches);
-            dims += inches;
-        }
+            if (!s.aspect && s.inches > 0.0f)
+            {
+                char inches[16];
+                snprintf(inches, sizeof(inches), "  %.3g\"", s.inches);
+                dims += inches;
+            }
             return s.name.empty() ? dims : s.name + "  " + dims;
         };
 
