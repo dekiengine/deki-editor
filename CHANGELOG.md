@@ -4,7 +4,7 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.22.0 - 2026-10-31
 
 ### Added
 - **Memory panel** (Window > PERFORMANCE > Memory). Scene works out what the
