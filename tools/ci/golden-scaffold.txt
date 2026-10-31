@@ -12,7 +12,7 @@
 #   DekiEditor --render-scenes <project> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-09-12 - keyed by configuration; same hash as before, unchanged gate
+# recorded: 2026-10-31 - 0.22: text is baked on the pixel grid (deki-2d 073610b); which changes how the starter scene's text draws. Same hash on Linux and Windows CI
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
-88381d7187f49c1b  scenes/main.scene
+c1e96a8ce8e806e6  scenes/main.scene
