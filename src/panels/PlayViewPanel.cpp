@@ -101,9 +101,13 @@ void PlayViewPanel::Draw()
         m_App->ResizePlayMode(SceneView::Get().GetPreviewWidth(), SceneView::Get().GetPreviewHeight());
     }
 
+    // While the game runs, the arrows, Enter and Space are the game's: without
+    // NoNavInputs they also walked the toolbar's pickers and opened them.
+    const ImGuiWindowFlags navFlags = m_App->IsPlaying() ? ImGuiWindowFlags_NoNavInputs : ImGuiWindowFlags_None;
     const bool visible = ImGui::Begin(TrLabel("PLAY VIEW###Play View"), &isOpen,
                                       DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") |
-                                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+                                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+                                          navFlags);
 
     // Forward keyboard state to the game while playing with the play view
     // focused (InputKeys.h codes, as the desktop simulator's keyboard uses).
