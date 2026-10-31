@@ -531,7 +531,9 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp GradientComponent.cpp
                        ShapeMask.cpp ShapeComponent.cpp FocusSystem.cpp WidgetParts.cpp
                        BarComponent.cpp SliderComponent.cpp SwitchComponent.cpp CheckboxComponent.cpp
-                       ArcComponent.cpp LedComponent.cpp SpinnerComponent.cpp TextComponent.cpp BitmapFont.cpp
+                       ArcComponent.cpp LedComponent.cpp SpinnerComponent.cpp SpinboxComponent.cpp
+                       DropdownComponent.cpp TabviewComponent.cpp MsgboxComponent.cpp ButtonComponent.cpp
+                       DatePickerComponent.cpp RollerComponent.cpp SpriteComponent.cpp TextComponent.cpp BitmapFont.cpp
                        ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp ../deki-input/DekiInput.cpp
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
