@@ -14,8 +14,7 @@
 #   DekiEditor --render-scenes --platform <board> <deki-demo> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-10-28 - deki-demo 0.21: meadow is an endless run that plays itself
-# recorded: 2026-10-31 - menu and widgets only: the UI scene became the Widgets scene's Basics tab
+# recorded: 2026-10-31 - widgets only: deki-2d 6a310bf draws a shape at the scale it was baked at, its exact size inside the mask
 
 # config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
 aa53b6ee90a63870  scenes/effects.scene
@@ -26,7 +25,7 @@ a42f8c6618245a03  scenes/lora.scene
 52b52f6bac99400f  scenes/meadow.scene
 25a0dab80b44a140  scenes/menu.scene
 149859cd40054b8c  scenes/trackball.scene
-fe0ec0efd2dd96ca  scenes/widgets.scene
+a5873d49ec01f522  scenes/widgets.scene
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
 2598b20d26ea5e4a  scenes/effects.scene
@@ -37,7 +36,7 @@ fe0ec0efd2dd96ca  scenes/widgets.scene
 6c990a21dab792cd  scenes/meadow.scene
 9a595e7f1e2dc2a1  scenes/menu.scene
 8bae86a7a52842c5  scenes/trackball.scene
-ddbc4b484b917b58  scenes/widgets.scene
+1c8a870d8557851c  scenes/widgets.scene
 
 # config: renderer=standard2d mode=buffer size=536x240 format=RGB565 frames=60
 497443dcf55bfa2a  scenes/effects.scene
@@ -48,4 +47,4 @@ a7db6acf8f666291  scenes/lora.scene
 4ac1fec8607f684e  scenes/meadow.scene
 94a635ce4db15da1  scenes/menu.scene
 173a5a90b3713905  scenes/trackball.scene
-b7b751dfbd614538  scenes/widgets.scene
+010ab29a74b2a4dc  scenes/widgets.scene
