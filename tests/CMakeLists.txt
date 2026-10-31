@@ -529,7 +529,9 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # must come out the same pixel by pixel however it is worked out. The UI
 # widgets are here with what they draw with (ShapeComponent and, for labels,
 # TextComponent) and the focus system, which listens to deki-input's event
-# stream.
+# stream. The font compiler bakes the editor's own Inter with FreeType, to
+# check each glyph lands where FreeType puts it.
+set(_deki_2d_test_font "${CMAKE_SOURCE_DIR}/resources/fonts/Inter-SemiBold.ttf")
 set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp GradientComponent.cpp
                        ShapeMask.cpp ShapeComponent.cpp FocusSystem.cpp WidgetParts.cpp
                        BarComponent.cpp SliderComponent.cpp SwitchComponent.cpp CheckboxComponent.cpp
@@ -541,11 +543,13 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
-                       ../deki-rendering/RenderProfiler.cpp)
+                       ../deki-rendering/RenderProfiler.cpp editor/FontCompiler.cpp)
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
-                       DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS)
+                       DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS "DEKI_TEST_FONT=\"${_deki_2d_test_font}\""
+                       LIBS freetype)
 deki_add_package_tests(deki-2d TARGET Deki2DTestsBigEndian SOURCES ${_deki_2d_test_srcs}
-                       DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS
+                       DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS "DEKI_TEST_FONT=\"${_deki_2d_test_font}\""
+                       LIBS freetype
                        BIG_ENDIAN)
 
 # Document wraps the vendored cJSON; its .c file compiles with it, and nothing
