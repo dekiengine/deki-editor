@@ -15,6 +15,7 @@
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
 # recorded: 2026-10-28 - deki-demo 0.21: meadow is an endless run that plays itself
+# recorded: 2026-10-31 - menu and widgets only: the UI scene became the Widgets scene's Basics tab
 
 # config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
 aa53b6ee90a63870  scenes/effects.scene
@@ -23,9 +24,9 @@ d5d5fede87de8e1c  scenes/keyboard.scene
 a55409602c651212  scenes/logic.scene
 a42f8c6618245a03  scenes/lora.scene
 52b52f6bac99400f  scenes/meadow.scene
-2a09eb58a80a969b  scenes/menu.scene
+25a0dab80b44a140  scenes/menu.scene
 149859cd40054b8c  scenes/trackball.scene
-c42c17ef977841be  scenes/ui.scene
+fe0ec0efd2dd96ca  scenes/widgets.scene
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
 2598b20d26ea5e4a  scenes/effects.scene
@@ -34,9 +35,9 @@ c42c17ef977841be  scenes/ui.scene
 540df412564f4203  scenes/logic.scene
 6b4c0505bbd31c51  scenes/lora.scene
 6c990a21dab792cd  scenes/meadow.scene
-1415de709444c91c  scenes/menu.scene
+9a595e7f1e2dc2a1  scenes/menu.scene
 8bae86a7a52842c5  scenes/trackball.scene
-bf37af0bc447f26c  scenes/ui.scene
+ddbc4b484b917b58  scenes/widgets.scene
 
 # config: renderer=standard2d mode=buffer size=536x240 format=RGB565 frames=60
 497443dcf55bfa2a  scenes/effects.scene
@@ -45,6 +46,6 @@ e8fc8cc9f2c20469  scenes/keyboard.scene
 acb5a585be4ca6a3  scenes/logic.scene
 a7db6acf8f666291  scenes/lora.scene
 4ac1fec8607f684e  scenes/meadow.scene
-dce35ceaf7c1471c  scenes/menu.scene
+94a635ce4db15da1  scenes/menu.scene
 173a5a90b3713905  scenes/trackball.scene
-c7b7086aeb65e88c  scenes/ui.scene
+b7b751dfbd614538  scenes/widgets.scene
