@@ -53,9 +53,9 @@ private:
     // touchscreen.
     bool m_TouchInputMode = true;
 
-    // Last key state forwarded to the game (one slot per entry of the
-    // forward() table in Draw: space/enter/esc/backspace + 4 arrows + A-Z).
-    bool m_PlayKeyDown[34] = {};
+    // Last key state forwarded to the game, one slot per entry of the
+    // forward() table in Draw (55 today, with room to grow).
+    bool m_PlayKeyDown[64] = {};
 
     // Previewed screen: "free" (Free Aspect, the panel's size), "aspect:W:H"
     // (the largest screen of that shape in the panel), "res:WxH", or a platform

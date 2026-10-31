@@ -18,6 +18,8 @@
 #include "InspectorPanel.h"
 #include "SceneViewPanel.h"
 #include <deki-editor/CommandHistory.h>
+#include <iterator>
+#include <utility>
 #include <deki/assets/AssetManager.h>
 #include <deki/Scene.h>
 #include <deki/Object.h>
@@ -106,8 +108,7 @@ void PlayViewPanel::Draw()
     const ImGuiWindowFlags navFlags = m_App->IsPlaying() ? ImGuiWindowFlags_NoNavInputs : ImGuiWindowFlags_None;
     const bool visible = ImGui::Begin(TrLabel("PLAY VIEW###Play View"), &isOpen,
                                       DekiEditor::MaximizedWindowFlags("PLAY VIEW###Play View") |
-                                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
-                                          navFlags);
+                                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | navFlags);
 
     // Forward keyboard state to the game while playing with the play view
     // focused (InputKeys.h codes, as the desktop simulator's keyboard uses).
@@ -118,6 +119,10 @@ void PlayViewPanel::Draw()
         int slot = 0;
         auto forward = [&](ImGuiKey imguiKey, uint32_t dekiKey)
         {
+            if (slot >= static_cast<int>(std::size(m_PlayKeyDown)))
+            {
+                return;  // a key past the table's room is not forwarded
+            }
             const bool down = acceptKeys && ImGui::IsKeyDown(imguiKey);
             if (down != m_PlayKeyDown[slot])
             {
@@ -138,6 +143,24 @@ void PlayViewPanel::Draw()
         for (int i = 0; i < 26; ++i)  // ImGuiKey_A..Z and Deki::InputKeys::A..Z are both contiguous
         {
             forward(static_cast<ImGuiKey>(ImGuiKey_A + i), Deki::InputKeys::A + static_cast<uint32_t>(i));
+        }
+        // The rest a desktop keyboard gives a game (deki-input's Keys): Tab
+        // moves focus between widgets, and a key that types a character is
+        // that character, so a text field or spinbox can be typed into.
+        forward(ImGuiKey_Tab, 9);
+        forward(ImGuiKey_Delete, 127);
+        for (int i = 0; i < 10; ++i)  // ImGuiKey_0..9 are contiguous, like '0'..'9'
+        {
+            forward(static_cast<ImGuiKey>(ImGuiKey_0 + i), '0' + static_cast<uint32_t>(i));
+        }
+        const std::pair<ImGuiKey, char> punctuation[] = {
+            { ImGuiKey_Minus, '-' },       { ImGuiKey_Equal, '=' },       { ImGuiKey_Period, '.' },
+            { ImGuiKey_Comma, ',' },       { ImGuiKey_Slash, '/' },       { ImGuiKey_Semicolon, ';' },
+            { ImGuiKey_Apostrophe, '\'' }, { ImGuiKey_LeftBracket, '[' }, { ImGuiKey_RightBracket, ']' },
+        };
+        for (const auto& [imguiKey, character] : punctuation)
+        {
+            forward(imguiKey, static_cast<uint32_t>(character));
         }
     }
 

@@ -32,6 +32,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - `copy_from_scene` (MCP and `--tool`) copies objects with their children and
   components from another scene file into the open scene, as one undo step.
   References between the copied objects move to the copies.
+- Guides: UI widgets (every widget, how to add, style and wire it up, keys
+  and focus) and Coming from LVGL (what each LVGL idea and widget is called
+  in Deki).
 
 ### Changed
 - **Agents work where you can see them.** `--tool`, `--script` and
@@ -89,6 +92,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Saving a scene re-saves only the scenes that instance it. Every scene that
   merely named it (a Back button's Scene Link to the menu) was loaded and
   written again too, picking up new default values.
+- The Play view passes Tab, Delete, the digit row and common punctuation to
+  the game, so widgets can be tabbed between and numbers typed into a spinbox
+  or text area. Shifted characters still do not reach it.
 
 ## 0.21.0 - 2026-10-28
 
