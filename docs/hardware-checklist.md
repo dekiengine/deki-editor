@@ -115,6 +115,21 @@ Notes:
 ## Past releases
 
 ```
+Release:     0.22.1  (T-Deck Plus; deki-2d and deki-esp32-integration)
+Date:        2026-10-31
+Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
+meadow       60.1  1.00      5.77      8.88       21498         7952496
+effects      60.2  1.00      8.96      5.72       28551         7555944
+widgets      60.7  2.91      1.08      0.10       16571         7428944
+menu         60.7  1.00      1.04      0.10       26703         7814272
+Notes: built with idf.py outside the editor and flashed over USB. The roller
+on Widgets is cut to its frame: Clip was never registered on boards before.
+Widgets keeps 16 KB internal free (lowest 15684) instead of 235 bytes; its
+updateMs is 0.85 above 0.22.0 because the objects allocated last now live in
+PSRAM.
+```
+
+```
 Release:     0.22.0  (T-Deck Plus)
 Date:        2026-10-31
 Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
@@ -127,7 +142,7 @@ over four one-second windows. Widgets leaves only 235 bytes of internal RAM
 (lowest since boot 16): the engine holds 169 KB there (150 KB frame buffer,
 15 KB display bands); the rest is small allocations, which ESP-IDF keeps
 internal below 16 KB. Its roller draws rows outside its frame on the Basics
-tab. Both open after the release.
+tab. Both fixed in 0.22.1.
 ```
 
 ```
