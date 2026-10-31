@@ -120,6 +120,35 @@ TEST(HeadlessRuntime, UpdateIsSkippedForBehavioursThatDoNotDeclareIt)
     EXPECT_EQ(silent->updates, 0);
 }
 
+// An object shown after load, as a tab page or a dialog is: its component
+// starts on the next frame and stops updating once it is hidden again.
+TEST(HeadlessRuntime, AnObjectActivatedLaterStartsAndUpdates)
+{
+    Deki::Scene scene;
+    Deki::Object* root = scene.CreateDekiObject("Root");
+    auto* page = new Deki::Object("Page");
+    page->SetActive(false);
+    root->AddChild(page);
+    auto* counter = new TickCounter();
+    Deki::Internal::AttachComponent(*page, counter);
+
+    auto* lm = Deki::Engine::GetInstance().GetLifecycleManager();
+    RunFrames(lm, scene, 2);
+    EXPECT_EQ(counter->starts, 0);
+
+    page->SetActive(true);
+    lm->ProcessInternalAwake(&scene);
+    lm->ProcessAwake(&scene);
+    lm->ProcessStart(&scene);
+    EXPECT_EQ(counter->starts, 1);
+    lm->ProcessUpdate(&scene);
+    EXPECT_EQ(counter->updates, 1);
+
+    page->SetActive(false);
+    RunFrames(lm, scene, 2);
+    EXPECT_EQ(counter->updates, 1);
+}
+
 TEST(HeadlessRuntime, LifecycleRunsWithNoDisplayAndNoRenderer)
 {
     auto& engine = Deki::Engine::GetInstance();
