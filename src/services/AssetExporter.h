@@ -147,6 +147,13 @@ public:
     /// Collects the asset GUIDs and font sizes every scene in the project uses.
     AssetUsageCollection CollectUsedAssets();
 
+    /// Bakes each font size the scenes use that the cache lacks, as an export
+    /// does, and registers it with AssetManager so a scene loaded next draws
+    /// it. The editor bakes a size when a text asks for it, so a fresh cache
+    /// holds none and those texts draw nothing. Returns false when a scene
+    /// could not be read or deki-2d is not there to bake (GetProblems()).
+    bool BakeUsedFonts();
+
 private:
     ExportAssetType DetermineAssetType(const std::string& extension, std::string& outDestExtension);
 

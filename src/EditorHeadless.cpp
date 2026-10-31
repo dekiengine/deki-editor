@@ -1590,6 +1590,20 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
         return 1;
     }
 
+    // A text draws only at a size baked into the cache, and the editor bakes a
+    // size when a text asks for it, so a fresh cache (a CI checkout) would
+    // render every text as nothing.
+    AssetExporter fonts(project, editor.GetAssetPipeline(), editor.GetPackageLoader());
+    if (!fonts.BakeUsedFonts())
+    {
+        printf("Error: the fonts the scenes use could not be baked:\n");
+        for (const std::string& problem : fonts.GetProblems())
+        {
+            printf("  %s\n", problem.c_str());
+        }
+        return 1;
+    }
+
     int frames = 60;
     if (const char* env = std::getenv("DEKI_RENDER_FRAMES"))
     {

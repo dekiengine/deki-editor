@@ -15,6 +15,7 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
 #include <deki/assets/AssetRef.h>
+#include <deki/assets/AssetManager.h>
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/Component.h>
@@ -457,6 +458,26 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
 
     AddFontExtraSizes(collection);
     return collection;
+}
+
+bool AssetExporter::BakeUsedFonts()
+{
+    m_Problems.clear();
+    const AssetUsageCollection usage = CollectUsedAssets();
+    for (const std::string& problem : usage.problems)
+    {
+        AddProblem(problem);
+    }
+    // Registered as deki-2d registers its own bakes (the cache file is named
+    // by its GUID), so a scene loaded after this finds them.
+    for (const auto& [key, guid] : BakeFontsForExport(usage.fontUsages))
+    {
+        if (key.size() < 6 || key.compare(key.size() - 6, 6, ":atlas") != 0)
+        {
+            Deki::AssetManager::Get()->RegisterGuid(guid, guid);
+        }
+    }
+    return m_Problems.empty();
 }
 
 void AssetExporter::AddFontExtraSizes(AssetUsageCollection& collection)

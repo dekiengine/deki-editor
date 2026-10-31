@@ -527,7 +527,7 @@ private:
     // MCP server
     std::unique_ptr<McpServer> m_McpServer;
 
-    // For PropagateInstanceChanges: the GUIDs each scene file mentions, keyed
+    // For PropagateInstanceChanges: the scenes each scene file instances, keyed
     // by absolute path and checked against the file's write time, so a save
     // need not read every scene in the project.
     struct SceneGuidRefs

@@ -82,6 +82,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   build or flash with `wait_for_operation`, or rebuilds with `rebuild`. Both
   waited on the main thread; in a running editor the reply now waits instead,
   and the editor keeps drawing.
+- `--render-scenes` bakes the font sizes its scenes use before drawing. Since
+  fonts started baking by themselves, a size no text had asked for in the
+  editor was missing, and its texts drew as nothing: every text from a fresh
+  checkout, and four deki-demo scenes' 11 px captions locally.
+- Saving a scene re-saves only the scenes that instance it. Every scene that
+  merely named it (a Back button's Scene Link to the menu) was loaded and
+  written again too, picking up new default values.
 
 ## 0.21.0 - 2026-10-28
 

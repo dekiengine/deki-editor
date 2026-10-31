@@ -133,6 +133,7 @@ set(TEST_SOURCES
     core/ScreenAnchorTests.cpp
     core/ScreenSizeTests.cpp
     core/ScriptRefsTests.cpp
+    core/SceneInstanceRefsTests.cpp
     core/PropertyColorTests.cpp
     core/HeadlessRuntimeTests.cpp
 

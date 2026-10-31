@@ -5,8 +5,8 @@
 #include "ObjectInternal.h"
 #include "EditorApp.h"
 #include "services/BuildersFromPackages.h"
+#include "core/SceneInstanceRefs.h"
 #include <algorithm>
-#include <regex>
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/SceneTargetFilter.h>
@@ -1668,20 +1668,15 @@ const std::vector<std::string>& EditorApp::SceneGuidsIn(const std::string& absPa
         return it->second.guids;
     }
 
-    // Read once per write; collect every GUID-shaped token in the file.
+    // Read once per write. Only instances count: a scene that merely links to
+    // the saved one (a SceneLink back to the menu) must not be re-saved.
     SceneGuidRefs refs;
     refs.writeTime = writeTime;
     std::ifstream file(absPath);
     if (file.is_open())
     {
         std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        static const std::regex kGuid("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
-        for (auto m = std::sregex_iterator(content.begin(), content.end(), kGuid); m != std::sregex_iterator(); ++m)
-        {
-            refs.guids.push_back(m->str());
-        }
-        std::sort(refs.guids.begin(), refs.guids.end());
-        refs.guids.erase(std::unique(refs.guids.begin(), refs.guids.end()), refs.guids.end());
+        refs.guids = InstancedSceneGuids(content);
     }
     return (m_SceneGuidRefs[absPath] = std::move(refs)).guids;
 }
