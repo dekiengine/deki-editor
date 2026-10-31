@@ -533,7 +533,8 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
                        BarComponent.cpp SliderComponent.cpp SwitchComponent.cpp CheckboxComponent.cpp
                        ArcComponent.cpp LedComponent.cpp SpinnerComponent.cpp SpinboxComponent.cpp
                        DropdownComponent.cpp TabviewComponent.cpp MsgboxComponent.cpp ButtonComponent.cpp
-                       DatePickerComponent.cpp RollerComponent.cpp SpriteComponent.cpp TextComponent.cpp BitmapFont.cpp
+                       DatePickerComponent.cpp RollerComponent.cpp SpriteComponent.cpp TextareaComponent.cpp
+                       KeyboardComponent.cpp ChartComponent.cpp TextComponent.cpp BitmapFont.cpp
                        ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp ../deki-input/DekiInput.cpp
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
