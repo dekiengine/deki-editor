@@ -115,6 +115,22 @@ Notes:
 ## Past releases
 
 ```
+Release:     0.22.0  (T-Deck Plus)
+Date:        2026-10-31
+Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
+meadow       60.2  0.96      5.73      8.88       18985         7952849
+effects      60.1  1.00      9.19      5.51       28887         7555944
+widgets      60.9  2.06      1.83      0.08       235           7445429
+Redraw changes: widgets (Basics tab, still) renderMs 1.83, presentMs 0.08
+Notes: scenes opened over USB with DEKI:SCENE, stats from DEKI:STATS averaged
+over four one-second windows. Widgets leaves only 235 bytes of internal RAM
+(lowest since boot 16): the engine holds 169 KB there (150 KB frame buffer,
+15 KB display bands); the rest is small allocations, which ESP-IDF keeps
+internal below 16 KB. Its roller draws rows outside its frame on the Basics
+tab. Both open after the release.
+```
+
+```
 Release:     0.21.0  (T-Deck Plus)
 Date:        2026-10-28
 Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
