@@ -301,7 +301,7 @@ void DeployAnalysisPanel::ScanAssets()
     }
 
     // GUIDs the scenes use.
-    AssetExporter exporter(project, pipeline);
+    AssetExporter exporter(project, pipeline, m_App->GetPackageLoader());
     AssetUsageCollection usage = exporter.CollectUsedAssets();
 
     // CollectUsedAssets adds a font's own GUID only. Add the GUIDs of its baked

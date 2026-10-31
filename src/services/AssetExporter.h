@@ -169,6 +169,11 @@ private:
     // sizes only code sets (a Roller's selected row), which no scene names.
     void AddFontExtraSizes(AssetUsageCollection& collection);
 
+    // Adds a font usage for each force-included baked font or atlas, so it is
+    // baked when the cache lacks it. Its GUID is derived from the font and
+    // size, so they are found by trying each size of each TrueType font.
+    void AddForceIncludedFontSizes(AssetUsageCollection& collection);
+
     // =========================================================================
     // Font baking
     // =========================================================================

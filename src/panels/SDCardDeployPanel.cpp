@@ -147,7 +147,7 @@ void SDCardDeployPanel::Draw()
             ClearOutput();
             AddOutputLine("Deploying assets to SD card: " + m_SelectedDrivePath);
 
-            AssetExporter exporter(m_App->GetProject(), m_App->GetAssetPipeline());
+            AssetExporter exporter(m_App->GetProject(), m_App->GetAssetPipeline(), m_App->GetPackageLoader());
             // Stored as the active platform wants its assets.
             AssetExportTarget target;
             const std::string platformId = m_App->GetProject()->GetActivePlatformId();

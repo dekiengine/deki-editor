@@ -282,7 +282,7 @@ void AssetTypeInspector::DrawDeployProperties(const std::string& assetGuid)
         AssetPipeline* pipeline = m_App->GetAssetPipeline();
         if (proj && pipeline)
         {
-            AssetExporter exporter(proj, pipeline);
+            AssetExporter exporter(proj, pipeline, m_App->GetPackageLoader());
             AssetUsageCollection usage = exporter.CollectUsedAssets();
             m_UsedGuids = std::move(usage.usedGuids);
             m_HasScannedUsage = true;

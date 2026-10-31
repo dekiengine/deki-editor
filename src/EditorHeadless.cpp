@@ -434,7 +434,7 @@ int CmdExportAssets(EditorApp& editor, const char* platformId)
         return 1;
     }
 
-    AssetExporter exporter(project, pipeline);
+    AssetExporter exporter(project, pipeline, editor.GetPackageLoader());
     // Assets are stored for a target: the one named, else the active platform.
     const std::string target = (platformId && *platformId) ? std::string(platformId) : project->GetActivePlatformId();
     if (!target.empty())

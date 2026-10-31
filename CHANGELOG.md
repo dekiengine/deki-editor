@@ -65,6 +65,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - A scene's preview in the Inspector shows the whole screen with its anchored
   objects in place; it cropped the top and bottom and drew a HUD title over
   the rest.
+- Builds bake the font sizes their scenes use when the editor has not baked
+  them yet. The export could always do it, but was never given the package
+  that bakes fonts, so a scene never opened since fonts started baking by
+  themselves failed the build with missing assets. Baked sizes a project
+  force-includes are baked too.
 
 ## 0.21.0 - 2026-10-28
 

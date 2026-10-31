@@ -275,6 +275,8 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
         usedAssets.usedGuids.insert(guid);
     }
 
+    AddForceIncludedFontSizes(usedAssets);
+
     // Step 1.6: what those cannot load without (a frame's sheet, ...).
     AddAssetDependencies(usedAssets);
 
@@ -496,6 +498,39 @@ void AssetExporter::AddFontExtraSizes(AssetUsageCollection& collection)
             extra.fontSize = sizes[i];
             collection.fontUsages.insert(extra);
             DEKI_LOG_DEBUG("  Font %s also ships %d px", sourceGuid.c_str(), sizes[i]);
+        }
+    }
+}
+
+void AssetExporter::AddForceIncludedFontSizes(AssetUsageCollection& collection)
+{
+    namespace fs = std::filesystem;
+    const std::unordered_set<std::string>& forceIncluded = m_Project->GetForceIncludeGuids();
+    if (forceIncluded.empty())
+    {
+        return;
+    }
+
+    // Every size up to this is tried.
+    constexpr int kMaxFontSize = 512;
+    for (const auto& [path, info] : m_Pipeline->GetAllAssets())
+    {
+        std::string ext = fs::path(info.path).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if ((ext != ".ttf" && ext != ".otf") || info.guid.empty())
+        {
+            continue;
+        }
+        for (int size = 1; size <= kMaxFontSize; ++size)
+        {
+            FontUsageInfo usage;
+            usage.sourceGuid = info.guid;
+            usage.fontSize = size;
+            if (forceIncluded.count(usage.FontGuid()) || forceIncluded.count(usage.AtlasGuid()))
+            {
+                collection.fontUsages.insert(usage);
+                DEKI_LOG_DEBUG("  Font %s ships %d px (force-included)", info.guid.c_str(), size);
+            }
         }
     }
 }
@@ -748,7 +783,8 @@ AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
 
         if (!compileFont || !getAtlas || !writeDfont || !freeResult)
         {
-            DEKI_LOG_WARNING("  deki-2d package not loaded, skipping font baking");
+            AddProblem("The font " + assetInfo->path + " at " + std::to_string(fontInfo.fontSize) +
+                       " px is not baked, and the deki-2d package that bakes it is not loaded");
             continue;
         }
 

@@ -1522,7 +1522,7 @@ bool EditorApp::ExportToStorage()
         return false;
     }
 
-    AssetExporter exporter(m_Project.get(), m_AssetPipeline.get());
+    AssetExporter exporter(m_Project.get(), m_AssetPipeline.get(), m_PackageLoader.get());
     AssetExportTarget target;
     const std::string platformId = m_Project->GetActivePlatformId();
     if (!platformId.empty() && ExportTargetForPlatform(platformId, target))

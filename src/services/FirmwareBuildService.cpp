@@ -637,7 +637,7 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
             return Failure("Cannot export for '" + platform.id + "'; the log says why.");
         }
 
-        AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline());
+        AssetExporter exporter(editor->GetProject(), editor->GetAssetPipeline(), editor->GetPackageLoader());
         exporter.SetTarget(target);
         // A scene object that needs something this board lacks is left out
         // of what gets flashed, rather than shipped and broken.
