@@ -227,6 +227,52 @@ Deki::Memory::LogStats("after level load");
   of these is a licence to place memory yourself - they are for sizing a
   project and for finding what is holding memory it should have released.
 
+### What takes it: call sites, and the Memory panel
+
+The engine also keeps what each **call site** holds: every allocation already
+carries the place it was written (`AllocContext`, below), so the breakdown
+needs no tag at the call. `Memory::GetSiteCount()` and `GetSite(i, out)` give
+one `MemorySite` per place: its function, file and line, the bytes it holds
+now in internal and in external RAM, its peak and how many blocks.
+`GetPeakInternal()` / `GetPeakExternal()` are each region's peak, and
+`ResetPeaks()` starts every peak again from what is held now.
+
+- The table has 64 rows: 63 call sites, in the order they first allocate, and
+  an overflow row the rest share. About 1.8 KB of internal RAM on a 32-bit
+  board, from plain `malloc` like the debug leak table: it is the engine's own
+  bookkeeping, so the board's provider never sees it among the allocations it
+  serves.
+- The row goes in the allocation header, in bits the header was not using, so
+  a free finds its row without a search and the header stays 16 bytes.
+- A site keeps its row once its memory is freed, so its peak stays visible.
+- A build with `DEKI_STRIP_ALLOC_CONTEXT` captures no call sites, so it has no
+  table and `GetSiteCount()` is 0.
+- `std::vector`, `std::string` and scalar `new` have no call site. They are in
+  the heap's free figures, not in the table.
+
+A board answers the serial line `DEKI:MEMORY` with all of it
+(deki-esp32-integration, `ESP32ScreenCapture.cpp`): each region's use, peak,
+free space, lowest free space since boot and size, from `heap_caps`, then a
+`DEKI:MEMORY:SITE` line per call site and `DEKI:MEMORY:END`.
+
+The editor's **Memory panel** (Window > PERFORMANCE > Memory) shows two
+views:
+
+- **Scene** works out what the open scene takes on a target without running
+  it: the frame buffer or render strip from the screen and the Rendering
+  settings, every asset its components name (an image at the size and format
+  it is stored in on that target, anything else at its built file's size), and
+  every object with its components. It sets this against the target's RAM and
+  lists the biggest first. These figures are all estimates, and the panel says
+  so. A target's description gives its external RAM but not its internal RAM,
+  so the internal budget comes from a board read in Live.
+- **Live** measures a running game: Play mode in the editor (optionally only
+  what the game added since Play started), or a board over its serial port. It
+  groups the call sites into categories by the file each one is in (the frame
+  buffer, the display driver, images, fonts, tilemaps and so on), with peaks.
+
+The MCP tools `memory_report` and `device_memory` return the same figures.
+
 ### Changing scenes
 
 ```cpp

@@ -174,3 +174,136 @@ TEST(DeviceStats, TheBoardsErrorAndNoAnswerAreReported)
     EXPECT_FALSE(ParseDeviceStats("nothing\r\n", stats, error));
     EXPECT_NE(error.find("did not answer"), std::string::npos) << error;
 }
+
+// --- the memory report ("DEKI:MEMORY") --------------------------------------
+
+namespace
+{
+// What a T-Deck sends, with a log line in the middle of it as a real console
+// has.
+const char* kMemoryAnswer =
+    "I (1234) boot: something else\r\n"
+    "\nDEKI:MEMORY internal=180000 external=420000 internalPeak=190000 externalPeak=500000 internalFree=60000 "
+    "externalFree=7000000 internalMinFree=41000 externalMinFree=6900000 internalTotal=330000 externalTotal=8380000 "
+    "sites=3\n"
+    "DEKI:MEMORY:SITE internal=153600 external=0 peak=153600 blocks=1 at=deki-rendering/DekiRenderSystem.cpp:327 "
+    "fn=bool DekiRendering::DekiRenderSystem::Setup(int32_t, int32_t, Deki::ColorFormat)\n"
+    "W (1240) wifi: a log line between two rows\n"
+    "DEKI:MEMORY:SITE internal=0 external=65536 peak=98304 blocks=4 at=deki-2d/BitmapFont.cpp:163 "
+    "fn=static BitmapFont* BitmapFont::Load(const char*)\n"
+    "DEKI:MEMORY:SITE internal=10 external=0 peak=10 blocks=1 at=-:0 fn=-\n"
+    "DEKI:MEMORY:END\n";
+}  // namespace
+
+TEST(MemoryReport, ReadsTheRegionsAndEverySite)
+{
+    MemoryReport r;
+    std::string error;
+    ASSERT_TRUE(ParseMemoryReport(kMemoryAnswer, r, error)) << error;
+    EXPECT_EQ(r.internalUsed, 180000u);
+    EXPECT_EQ(r.externalPeak, 500000u);
+    EXPECT_EQ(r.internalMinFree, 41000);
+    EXPECT_EQ(r.externalTotal, 8380000);
+    ASSERT_EQ(r.sites.size(), 3u);
+
+    EXPECT_EQ(r.sites[0].file, "deki-rendering/DekiRenderSystem.cpp");
+    EXPECT_EQ(r.sites[0].line, 327u);
+    EXPECT_EQ(r.sites[0].function, "bool DekiRendering::DekiRenderSystem::Setup(int32_t, int32_t, Deki::ColorFormat)")
+        << "the function keeps its spaces";
+    EXPECT_EQ(r.sites[1].externalBytes, 65536u);
+    EXPECT_EQ(r.sites[1].peakBytes, 98304u);
+    EXPECT_EQ(r.sites[1].blocks, 4u);
+
+    // The overflow row has no file and no function.
+    EXPECT_TRUE(r.sites[2].file.empty());
+    EXPECT_TRUE(r.sites[2].function.empty());
+}
+
+TEST(MemoryReport, ABoardWithoutExternalRamSaysNotThereRatherThanFull)
+{
+    MemoryReport r;
+    std::string error;
+    ASSERT_TRUE(ParseMemoryReport("DEKI:MEMORY internal=5 external=0 internalPeak=5 externalPeak=0 internalFree=9 "
+                                  "externalFree=0 internalMinFree=8 externalMinFree=0 internalTotal=20 "
+                                  "externalTotal=0 sites=0\nDEKI:MEMORY:END\n",
+                                  r, error))
+        << error;
+    EXPECT_EQ(r.externalTotal, -1);
+    EXPECT_EQ(r.externalFree, -1);
+    EXPECT_EQ(r.internalTotal, 20);
+}
+
+TEST(MemoryReport, AnAnswerCutShortIsRefused)
+{
+    MemoryReport r;
+    std::string error;
+    EXPECT_FALSE(ParseMemoryReport("DEKI:MEMORY internal=1 sites=1\nDEKI:MEMORY:SITE internal=1", r, error));
+    EXPECT_NE(error.find("cut short"), std::string::npos) << error;
+    EXPECT_FALSE(ParseMemoryReport("I (1) nothing here\n", r, error));
+    EXPECT_NE(error.find("did not answer"), std::string::npos) << error;
+}
+
+TEST(MemoryReport, CallSitesGroupByTheFileTheyAreIn)
+{
+    MemoryReport r;
+    std::string error;
+    ASSERT_TRUE(ParseMemoryReport(kMemoryAnswer, r, error)) << error;
+    EXPECT_STREQ(MemoryCategory(r.sites[0]), "Frame buffer and strips");
+    EXPECT_STREQ(MemoryCategory(r.sites[1]), "Fonts and text");
+    EXPECT_STREQ(MemoryCategory(r.sites[2]), "More call sites than the table holds");
+
+    MemoryReportSite s;
+    s.file = "deki-display/PanelDisplay.cpp";
+    EXPECT_STREQ(MemoryCategory(s), "Display driver");
+    s.file = "deki-2d/Sprite.cpp";
+    EXPECT_STREQ(MemoryCategory(s), "Images and sprites");
+    s.file = "deki-tiledmapeditor-integration/TilemapStreamer.cpp";
+    EXPECT_STREQ(MemoryCategory(s), "Tilemaps");
+    s.file = "game/Enemy.cpp";
+    EXPECT_STREQ(MemoryCategory(s), "Other");
+}
+
+TEST(MemoryReport, APathIsShortenedToItsFolderAndFile)
+{
+    EXPECT_EQ(ShortSourcePath("C:/proj/packages/deki-2d/Sprite.cpp"), "deki-2d/Sprite.cpp");
+    EXPECT_EQ(ShortSourcePath("C:\\proj\\deki-engine\\src\\Engine.cpp"), "src\\Engine.cpp");
+    EXPECT_EQ(ShortSourcePath("Sprite.cpp"), "Sprite.cpp");
+}
+
+TEST(MemoryReport, SincePlayStartTakesOffWhatTheEditorAlreadyHeld)
+{
+    MemoryReport start;
+    start.internalUsed = 1000;
+    MemoryReportSite editorOnly;
+    editorOnly.function = "a";
+    editorOnly.line = 1;
+    editorOnly.internalBytes = 1000;
+    editorOnly.peakBytes = 1000;
+    editorOnly.blocks = 2;
+    start.sites.push_back(editorOnly);
+
+    MemoryReport now = start;
+    now.internalUsed = 1500;
+    now.internalPeak = 1800;
+    MemoryReportSite game;
+    game.function = "b";
+    game.line = 2;
+    game.internalBytes = 500;
+    game.peakBytes = 800;
+    game.blocks = 1;
+    now.sites.push_back(game);
+
+    const MemoryReport d = SincePlayStart(now, start);
+    EXPECT_EQ(d.internalUsed, 500u);
+    EXPECT_EQ(d.internalPeak, 800u);
+    ASSERT_EQ(d.sites.size(), 1u) << "a site the game did not add to is left out";
+    EXPECT_EQ(d.sites[0].function, "b");
+    EXPECT_EQ(d.sites[0].Bytes(), 500u);
+}
+
+TEST(MemoryReport, BytesReadAsAPersonWouldWriteThem)
+{
+    EXPECT_EQ(FormatMemoryBytes(512), "512 B");
+    EXPECT_EQ(FormatMemoryBytes(153600), "150.0 KB");
+    EXPECT_EQ(FormatMemoryBytes(8u * 1024 * 1024), "8.00 MB");
+}

@@ -590,6 +590,8 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FileDialogFilter.cpp
     # DeviceScreenshotTests: reading a board's answer to a screen capture.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/DeviceScreenshot.cpp
+    # MemoryReportTests: a board's memory report, and what each call site is.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/MemoryReport.cpp
     # TransformWidthTests: the width a project compiles, from the tags its
     # packages and deki.json declare.
     # The stripper: what a device build leaves out, from the descriptors, the
@@ -710,6 +712,7 @@ set(EDITOR_SOURCES
     src/services/EngineEditorSetup.cpp
     src/services/EngineEditorSetup.h
     src/services/AssetExporter.cpp
+    src/services/SceneMemoryEstimate.cpp
     src/services/AssetExporter.h
     src/services/AssetPacker.cpp
     src/services/AssetPacker.h
@@ -822,6 +825,8 @@ set(EDITOR_SOURCES
     src/panels/ProfilerPanel.MemoryView.cpp
     src/panels/FrameCapturePanel.cpp
     src/panels/FrameCapturePanel.h
+    src/panels/MemoryPanel.cpp
+    src/panels/MemoryPanel.h
     src/mcp/McpServer.cpp
     src/mcp/McpServer.h
     src/mcp/McpCompletion.cpp

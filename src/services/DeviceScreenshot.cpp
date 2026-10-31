@@ -414,4 +414,19 @@ bool QueryDeviceStats(const std::string& port, int timeoutMs, std::map<std::stri
     return ParseDeviceStats(received, stats, error);
 }
 
+bool QueryDeviceMemory(const std::string& port, int timeoutMs, MemoryReport& report, std::string& error)
+{
+    std::string received;
+    auto finished = [](const std::string& text)
+    {
+        const size_t at = text.rfind("DEKI:MEMORY:END");
+        return at != std::string::npos && text.find('\n', at) != std::string::npos;
+    };
+    if (!Exchange(port, "\nDEKI:MEMORY\n", finished, timeoutMs, received, error))
+    {
+        return false;
+    }
+    return ParseMemoryReport(received, report, error);
+}
+
 }  // namespace DekiEditor

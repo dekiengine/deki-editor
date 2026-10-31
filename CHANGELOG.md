@@ -7,6 +7,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **Memory panel** (Window > PERFORMANCE > Memory). Scene works out what the
+  open scene takes on a target without running it: the frame buffer or render
+  strip, every asset at the size and format it is stored in there, every
+  object, against the target's RAM, biggest first, all labelled as estimates.
+  Live measures a running game, from Play mode or from a board over its serial
+  port: each region with its peak and free space, and every call site grouped
+  into the frame buffer, the display driver, images, fonts, tilemaps and so on.
+  The Profiler's Memory tab opens it. MCP: `memory_report`, `device_memory`.
 - **Help** opens the documentation, the Discord and the page to support Deki,
   in the editor's language where the page has one.
 - `--background` opens the editor minimized, never taking focus.

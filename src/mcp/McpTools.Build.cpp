@@ -16,6 +16,9 @@
 #include "../services/FirmwareBuildService.h"
 #include "../panels/ActivityPanel.h"
 #include "../services/DeviceScreenshot.h"
+#include "../services/MemoryReport.h"
+#include "../services/SceneMemoryEstimate.h"
+#include "../panels/MemoryPanel.h"
 #include "McpCompletion.h"
 #include <deki-editor/SerialPorts.h>
 #include "stb_image_write.h"
@@ -86,6 +89,60 @@ std::string DeployVerb(EditorApp* editor, const nlohmann::json& args)
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(id);
     ITargetBuilder* builder = platform ? BuilderRegistry::Instance().GetBuilderForPlatform(*platform) : nullptr;
     return builder ? builder->GetDeployLabel() : "Deploy";
+}
+
+// A memory report as MCP returns it: the regions, then every call site,
+// biggest first, with the category it counts under. -1 figures are left out.
+nlohmann::json MemoryReportJson(const MemoryReport& r)
+{
+    nlohmann::json out{ { "internalUsed", r.internalUsed },
+                        { "externalUsed", r.externalUsed },
+                        { "internalPeak", r.internalPeak },
+                        { "externalPeak", r.externalPeak } };
+    auto optional = [&out](const char* name, int64_t value)
+    {
+        if (value >= 0)
+        {
+            out[name] = value;
+        }
+    };
+    optional("internalFree", r.internalFree);
+    optional("externalFree", r.externalFree);
+    optional("internalMinFree", r.internalMinFree);
+    optional("externalMinFree", r.externalMinFree);
+    optional("internalTotal", r.internalTotal);
+    optional("externalTotal", r.externalTotal);
+
+    std::vector<const MemoryReportSite*> sites;
+    for (const MemoryReportSite& s : r.sites)
+    {
+        sites.push_back(&s);
+    }
+    std::sort(sites.begin(), sites.end(),
+              [](const MemoryReportSite* a, const MemoryReportSite* b) { return a->Bytes() > b->Bytes(); });
+    std::map<std::string, nlohmann::json> categories;
+    nlohmann::json list = nlohmann::json::array();
+    for (const MemoryReportSite* s : sites)
+    {
+        const char* category = MemoryCategory(*s);
+        list.push_back({ { "category", category },
+                         { "function", s->function },
+                         { "at", s->file + ":" + std::to_string(s->line) },
+                         { "internal", s->internalBytes },
+                         { "external", s->externalBytes },
+                         { "peak", s->peakBytes },
+                         { "blocks", s->blocks } });
+        nlohmann::json& c = categories[category];
+        if (c.is_null())
+        {
+            c = { { "bytes", 0 }, { "peak", 0 } };
+        }
+        c["bytes"] = c.value("bytes", uint64_t{ 0 }) + s->Bytes();
+        c["peak"] = c.value("peak", uint64_t{ 0 }) + s->peakBytes;
+    }
+    out["categories"] = categories;
+    out["sites"] = list;
+    return out;
 }
 
 // The serial port a board tool talks to: `port` from the arguments, else the
@@ -1368,6 +1425,160 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                       return out;
                   });
               return { { "status", "asking" }, { "port", port } };
+          } });
+
+    registry.Register(
+        { "device_memory",
+          "Where a connected board's memory is, measured: internal and external RAM in use by the engine, their "
+          "peaks, the heap's free space, lowest free space since boot and size, and every call site that allocated "
+          "through the engine with its bytes now, peak and blocks, grouped into categories (frame buffer, display "
+          "driver, images, fonts, tilemaps, ...). The firmware must answer DEKI:MEMORY (the ESP32 HAL does from "
+          "0.22). Close the Serial Monitor first if it has the port open.",
+          { { "type", "object" },
+            { "properties",
+              { { "port",
+                  { { "type", "string" },
+                    { "description", "Serial port (COM3, /dev/ttyACM0); default: the only one there is" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string port = BoardPort(args);
+              struct Job
+              {
+                  std::mutex mutex;
+                  bool done = false;
+                  bool ok = false;
+                  std::string error;
+                  MemoryReport report;
+              };
+              auto job = std::make_shared<Job>();
+              std::thread(
+                  [job, port]()
+                  {
+                      MemoryReport report;
+                      std::string error;
+                      const bool ok = QueryDeviceMemory(port, 5000, report, error);
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      job->ok = ok;
+                      job->error = error;
+                      job->report = std::move(report);
+                      job->done = true;
+                  })
+                  .detach();
+              McpCompletion::Defer(
+                  [job, port]() -> std::optional<nlohmann::json>
+                  {
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      if (!job->done)
+                      {
+                          return std::nullopt;
+                      }
+                      if (!job->ok)
+                      {
+                          throw std::runtime_error(job->error);
+                      }
+                      nlohmann::json out = MemoryReportJson(job->report);
+                      out["port"] = port;
+                      return out;
+                  });
+              return { { "status", "asking" }, { "port", port } };
+          } });
+
+    registry.Register(
+        { "memory_report",
+          "What memory the open scene takes. source \"scene\" (default) estimates it on a target without running "
+          "it: the frame buffer or render strip, every asset its components name (an image at the size and format "
+          "it is stored in there, other assets at their built file's size) and every object, against the target's "
+          "RAM. source \"play\" measures this editor's own process by call site, as Play mode runs it, with what "
+          "was held when Play started taken off when since_play is true.",
+          { { "type", "object" },
+            { "properties",
+              { { "source", { { "type", "string" }, { "enum", { "scene", "play" } } } },
+                { "target",
+                  { { "type", "string" },
+                    { "description", "Platform id for the estimate; default: the project's active one, \"\" for "
+                                     "the editor's desktop" } } },
+                { "since_play", { { "type", "boolean" } } },
+                { "limit",
+                  { { "type", "integer" }, { "description", "Rows per list, biggest first; default 20" } } } } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const size_t limit = static_cast<size_t>(std::max(1, args.value("limit", 20)));
+              if (args.value("source", std::string("scene")) == "play")
+              {
+                  MemoryReport report = CaptureLocalMemory();
+                  const MemoryReport* start = PlayStartMemory();
+                  if (args.value("since_play", true) && editor->IsPlaying() && start)
+                  {
+                      report = SincePlayStart(report, *start);
+                  }
+                  nlohmann::json out = MemoryReportJson(report);
+                  out["playing"] = editor->IsPlaying();
+                  if (out["sites"].size() > limit)
+                  {
+                      out["sites"].erase(out["sites"].begin() + static_cast<long>(limit), out["sites"].end());
+                  }
+                  return out;
+              }
+
+              Project* project = editor->GetProject();
+              if (!project)
+              {
+                  throw std::runtime_error("No project is open");
+              }
+              const std::string targetId =
+                  args.contains("target") ? args["target"].get<std::string>() : project->GetActivePlatformId();
+              const PlatformConfig* platform =
+                  targetId.empty() ? nullptr : PlatformRegistry::Instance().GetPlatform(targetId);
+              if (!targetId.empty() && !platform)
+              {
+                  throw std::runtime_error("No platform '" + targetId + "'");
+              }
+              const MemoryPanel* panel = editor->GetMemoryPanel();
+              const MemoryReport* board = panel ? panel->LastDeviceReport() : nullptr;
+              const SceneMemoryEstimate e =
+                  EstimateSceneMemory(project->GetPath(), editor->GetAssetPipeline(), editor->GetCurrentScene(),
+                                      platform, board ? board->internalTotal : -1, board ? board->internalFree : -1);
+
+              auto item = [](const MemoryEstimateItem& i)
+              {
+                  return nlohmann::json{ { "name", i.name },   { "kind", i.kind },         { "detail", i.detail },
+                                         { "bytes", i.bytes }, { "external", i.external }, { "fileSize", i.fileSize },
+                                         { "users", i.users } };
+              };
+              nlohmann::json rendering = nlohmann::json::array();
+              for (const auto& r : e.rendering)
+              {
+                  rendering.push_back(item(r));
+              }
+              nlohmann::json assets = nlohmann::json::array();
+              for (size_t i = 0; i < e.assets.size() && i < limit; ++i)
+              {
+                  assets.push_back(item(e.assets[i]));
+              }
+              nlohmann::json objects = nlohmann::json::array();
+              for (size_t i = 0; i < e.objects.size() && i < limit; ++i)
+              {
+                  const auto& o = e.objects[i];
+                  objects.push_back({ { "path", o.path },
+                                      { "ownBytes", o.ownBytes },
+                                      { "assetBytes", o.assetBytes },
+                                      { "components", o.components } });
+              }
+              return { { "estimate", true },
+                       { "target", e.targetId },
+                       { "targetName", e.targetName },
+                       { "frameMode", e.frameModeNote },
+                       { "internalBytes", e.internalBytes },
+                       { "externalBytes", e.externalBytes },
+                       { "internalBudget", e.internalBudget },
+                       { "internalBudgetMeasured", e.internalBudgetMeasured },
+                       { "externalBudget", e.externalBudget },
+                       { "objectBytes", e.objectBytes },
+                       { "objectCount", e.objects.size() },
+                       { "assetCount", e.assets.size() },
+                       { "rendering", rendering },
+                       { "assets", assets },
+                       { "objects", objects } };
           } });
 
     registry.Register(

@@ -592,6 +592,11 @@ void EditorApp::DrawMenuBar()
                     m_FrameCapturePanel->SetOpen(true);
                     FocusPanelTab("Frame Capture");
                 }
+                if (ImGui::MenuItem(TrLabel("Memory")))
+                {
+                    m_MemoryPanel->SetOpen(true);
+                    FocusPanelTab("Memory");
+                }
                 ImGui::Separator();
                 if (ImGui::MenuItem(TrLabel("Restore Layout")))
                 {
@@ -617,6 +622,7 @@ void EditorApp::DrawMenuBar()
                     m_ActivityPanel->isOpen = false;
                     m_ProfilerPanel->SetOpen(false);
                     m_FrameCapturePanel->SetOpen(false);
+                    m_MemoryPanel->SetOpen(false);
 
                     // Package tool windows (Node Graph and friends) are hosted, not
                     // owned, so they close through the host.

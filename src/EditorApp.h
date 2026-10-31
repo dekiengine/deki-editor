@@ -33,6 +33,7 @@ struct SDL_Window;
 #include "panels/PlatformManagerPanel.h"
 #include "panels/ProfilerPanel.h"
 #include "panels/FrameCapturePanel.h"
+#include "panels/MemoryPanel.h"
 #include "panels/SerialMonitorPanel.h"
 #include "panels/SDCardDeployPanel.h"
 #include "panels/DeployAnalysisPanel.h"
@@ -236,6 +237,7 @@ public:
     SceneViewPanel* GetSceneViewPanel() { return m_SceneViewPanel.get(); }
     InspectorPanel* GetInspectorPanel() { return m_InspectorPanel.get(); }
     AssetBrowserPanel* GetAssetBrowserPanel() { return m_AssetBrowserPanel.get(); }
+    MemoryPanel* GetMemoryPanel() { return m_MemoryPanel.get(); }
     BuildPanel* GetBuildPanel() { return m_BuildPanel.get(); }
     const std::vector<IPanel*>& GetPanels() const { return m_Panels; }
     PackageManagerPanel* GetPackageManagerPanel() { return m_PackageManagerPanel.get(); }
@@ -395,6 +397,7 @@ private:
     std::unique_ptr<PlatformManagerPanel> m_PlatformManagerPanel;
     std::unique_ptr<ProfilerPanel> m_ProfilerPanel;
     std::unique_ptr<FrameCapturePanel> m_FrameCapturePanel;
+    std::unique_ptr<MemoryPanel> m_MemoryPanel;
     std::unique_ptr<SerialMonitorPanel> m_SerialMonitorPanel;
     std::unique_ptr<SDCardDeployPanel> m_SDCardDeployPanel;
     std::unique_ptr<DeployAnalysisPanel> m_DeployAnalysisPanel;

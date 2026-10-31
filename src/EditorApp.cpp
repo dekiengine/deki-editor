@@ -206,6 +206,8 @@ EditorApp::EditorApp()
 
     m_FrameCapturePanel = std::make_unique<FrameCapturePanel>(this);
 
+    m_MemoryPanel = std::make_unique<MemoryPanel>(this);
+
     m_SerialMonitorPanel = std::make_unique<SerialMonitorPanel>(this);
 
     m_SDCardDeployPanel = std::make_unique<SDCardDeployPanel>(this);
@@ -239,7 +241,7 @@ EditorApp::EditorApp()
                  m_BuildPanel.get(),        m_PackageManagerPanel.get(),  m_PlatformManagerPanel.get(),
                  m_ProfilerPanel.get(),     m_FrameCapturePanel.get(),    m_SerialMonitorPanel.get(),
                  m_SDCardDeployPanel.get(), m_DeployAnalysisPanel.get(),  m_ActivityPanel.get(),
-                 m_PlayViewPanel.get(),     m_EditorSettingsPanel.get() };
+                 m_PlayViewPanel.get(),     m_EditorSettingsPanel.get(),  m_MemoryPanel.get() };
 
     // Which panels are open, from settings.
     StartupProgress::Update(TrMark("Restoring layout..."));

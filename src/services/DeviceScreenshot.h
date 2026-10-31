@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "MemoryReport.h"
+
 namespace DekiEditor
 {
 
@@ -43,5 +45,10 @@ bool ParseDeviceStats(const std::string& received, std::map<std::string, std::st
 /// main thread.
 bool QueryDeviceStats(const std::string& port, int timeoutMs, std::map<std::string, std::string>& stats,
                       std::string& error);
+
+/// Asks the board on `port` where its memory is ("DEKI:MEMORY"): each region's
+/// use, peak and free space, and each call site's bytes. Blocks: call it off
+/// the main thread.
+bool QueryDeviceMemory(const std::string& port, int timeoutMs, MemoryReport& report, std::string& error);
 
 }  // namespace DekiEditor

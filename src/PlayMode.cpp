@@ -45,6 +45,7 @@ static std::unique_ptr<DekiEditor::EditorDisplay> s_EditorDisplay;
 #include <deki/Guid.h>
 #include "services/PackageLoader.h"
 #include "services/AssetExporter.h"
+#include "services/MemoryReport.h"
 #include <deki/assets/AssetLookupTable.h>
 
 namespace fs = std::filesystem;
@@ -124,6 +125,9 @@ void EditorApp::Play()
         return;
     }
 
+    // What the editor holds before the game loads, so the Memory panel can
+    // show what the game added, and peaks from here.
+    MarkPlayStart();
     InitPlayMode();
 
     if (!m_Play.renderSystem || m_Play.textureId == 0 || !Deki::Engine::GetInstance().GetRootScene())

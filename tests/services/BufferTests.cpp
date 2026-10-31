@@ -540,3 +540,116 @@ TEST(DekiMemoryRegion, PrefixedNamesKeepPackagesOutOfEachOthersWay)
     static_assert(Deki::Memory::Region("particles.scratch") != Deki::Memory::Region("tilemap.scratch"));
     static_assert(Deki::Memory::Region("esp32.rtc") != Deki::Memory::Region("rtc"));
 }
+
+// --- where the memory went --------------------------------------------------
+// Each call site's live and peak bytes, so a person can see what takes the
+// memory without tagging a single allocation.
+
+namespace
+{
+// The row for the call site in `function` at `line`, or false.
+bool FindSite(const char* function, uint32_t line, Deki::MemorySite& out)
+{
+    for (uint32_t i = 0; i < Deki::Memory::GetSiteCount(); ++i)
+    {
+        Deki::MemorySite site{};
+        if (Deki::Memory::GetSite(i, site) && site.function && strstr(site.function, function) && site.line == line)
+        {
+            out = site;
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
+
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+TEST(DekiMemorySites, ASiteCountsWhatItHoldsByRegion)
+{
+    Buffer<uint8_t> near;
+    Buffer<uint8_t> far;
+    const uint32_t nearLine = __LINE__ + 1;
+    ASSERT_TRUE(near.Allocate(1000, Deki::Memory::Internal));
+    const uint32_t farLine = __LINE__ + 1;
+    ASSERT_TRUE(far.Allocate(3000, Deki::Memory::External));
+
+    Deki::MemorySite site{};
+    ASSERT_TRUE(FindSite("ASiteCountsWhatItHoldsByRegion", nearLine, site));
+    EXPECT_EQ(site.internalBytes, 1000u);
+    EXPECT_EQ(site.externalBytes, 0u);
+    EXPECT_EQ(site.blocks, 1u);
+    EXPECT_NE(strstr(site.file, "BufferTests"), nullptr) << "file was: " << site.file;
+
+    // No backend here, so External resolves to internal: a board without
+    // external RAM. The site still has a row of its own.
+    ASSERT_TRUE(FindSite("ASiteCountsWhatItHoldsByRegion", farLine, site));
+    EXPECT_EQ(site.internalBytes + site.externalBytes, 3000u);
+}
+
+TEST(DekiMemorySites, FreeingKeepsTheRowAndItsPeak)
+{
+    const uint32_t line = __LINE__ + 3;
+    {
+        Buffer<uint8_t> b;
+        ASSERT_TRUE(b.Allocate(5000, Deki::Memory::Internal));
+    }
+
+    Deki::MemorySite site{};
+    ASSERT_TRUE(FindSite("FreeingKeepsTheRowAndItsPeak", line, site));
+    EXPECT_EQ(site.internalBytes, 0u);
+    EXPECT_EQ(site.blocks, 0u);
+    EXPECT_GE(site.peakBytes, 5000u) << "the peak must outlive the memory";
+}
+
+TEST(DekiMemorySites, ResetPeaksStartsFromWhatIsHeldNow)
+{
+    Buffer<uint8_t> big;
+    const uint32_t line = __LINE__ + 1;
+    ASSERT_TRUE(big.Allocate(8000, Deki::Memory::Internal));
+    big.Reset();
+
+    Deki::Memory::ResetPeaks();
+
+    Deki::MemorySite site{};
+    ASSERT_TRUE(FindSite("ResetPeaksStartsFromWhatIsHeldNow", line, site));
+    EXPECT_EQ(site.peakBytes, 0u);
+    EXPECT_EQ(Deki::Memory::GetPeakInternal(), Deki::Memory::GetStats().internalRamAllocated);
+}
+
+TEST(DekiMemorySites, TheCallerIsTheSiteNotTheEngine)
+{
+    // The same rule as the failure log: Buffer.h and Memory.cpp pass the
+    // context on, so no row may be theirs.
+    Buffer<uint8_t> b;
+    ASSERT_TRUE(b.Allocate(16, Deki::Memory::Internal));
+    for (uint32_t i = 0; i < Deki::Memory::GetSiteCount(); ++i)
+    {
+        Deki::MemorySite site{};
+        ASSERT_TRUE(Deki::Memory::GetSite(i, site));
+        if (!site.file)
+        {
+            continue;  // the overflow row
+        }
+        EXPECT_EQ(strstr(site.file, "Buffer.h"), nullptr);
+        EXPECT_EQ(strstr(site.file, "providers/Memory.cpp"), nullptr);
+    }
+}
+
+TEST(DekiMemorySites, PeaksFollowTheRegionTotals)
+{
+    ScopedSpy s;  // a backend that serves External, so both regions count
+    const uint32_t before = Deki::Memory::GetPeakExternal();
+    {
+        Buffer<uint8_t> b(20000, Deki::Memory::External);
+        ASSERT_TRUE(static_cast<bool>(b));
+    }
+    EXPECT_GE(Deki::Memory::GetPeakExternal(), before + 20000u);
+    EXPECT_EQ(Deki::Memory::GetStats().externalAllocated, 0u);
+}
+#endif
+
+TEST(DekiMemorySites, AnIndexPastTheEndIsRefused)
+{
+    Deki::MemorySite site{};
+    EXPECT_FALSE(Deki::Memory::GetSite(Deki::Memory::GetSiteCount(), site));
+}
