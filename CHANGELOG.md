@@ -61,6 +61,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - Property names keep their acronyms: "I2C Port", "SPI Host", "DIO1 Pin",
   "TX Power dBm", "Use PSRAM" rather than "I 2c Port", "Spi Host". Package
   translations are keyed by the new names.
+- Builds the editor starts run at below-normal priority, so a game or a call
+  gets the CPU first, and run as many compile jobs as free memory holds
+  (about 1.5 GB each) rather than one per core. On an idle machine with
+  memory to spare they are as fast as before. `CMAKE_BUILD_PARALLEL_LEVEL` or
+  `IDF_PY_BUILD_JOBS` set before the editor starts still win.
 
 ### Fixed
 - GCC builds no longer fuse `a*b+c` into one rounding (`-ffp-contract=off`),
@@ -73,6 +78,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   that bakes fonts, so a scene never opened since fonts started baking by
   themselves failed the build with missing assets. Baked sizes a project
   force-includes are baked too.
+- The editor no longer freezes ("not responding") while an agent waits on a
+  build or flash with `wait_for_operation`, or rebuilds with `rebuild`. Both
+  waited on the main thread; in a running editor the reply now waits instead,
+  and the editor keeps drawing.
 
 ## 0.21.0 - 2026-10-28
 

@@ -282,8 +282,9 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "rebuild",
                         "Force a full rebuild of the project's package DLLs and plugin DLL, then "
-                        "reload them. Blocks until the build finishes. Run this after installing "
-                        "packages or editing C++ sources.",
+                        "reload them. Returns once the build and the reload are done; a running "
+                        "editor keeps drawing meanwhile. Run this after installing packages or "
+                        "editing C++ sources.",
                         { { "type", "object" }, { "properties", nlohmann::json::object() } },
                         [editor](const nlohmann::json&) -> nlohmann::json
                         {
@@ -296,6 +297,27 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
                             hotReload->ForceNextBuild();
                             hotReload->RequestBuildCheck(project->GetPath());
+
+                            // In the live editor the build runs as one after a
+                            // code edit does: on its own thread, pumped and
+                            // reloaded by the frame loop, so the editor keeps
+                            // drawing. The reply waits for it.
+                            if (McpCompletion::CanDefer())
+                            {
+                                McpCompletion::Defer(
+                                    [hotReload]() -> std::optional<nlohmann::json>
+                                    {
+                                        if (hotReload->HasPendingBuild() || hotReload->IsBuilding())
+                                        {
+                                            return std::nullopt;
+                                        }
+                                        return nlohmann::json{ { "built", true },
+                                                               { "hasErrors", hotReload->HasBuildErrors() } };
+                                    },
+                                    std::chrono::seconds(840));
+                                return nlohmann::json::object();
+                            }
+
                             hotReload->RunPendingBuildNow();
 
                             return { { "built", true }, { "hasErrors", hotReload->HasBuildErrors() } };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <functional>
 #include <optional>
 
@@ -19,11 +20,38 @@ namespace DekiEditor::McpCompletion
 // is done, nullopt until then, and throws to fail the call.
 using Poll = std::function<std::optional<nlohmann::json>()>;
 
+/// How long deferred work may take before its call fails rather than hangs. A
+/// screenshot or a click takes a few frames; a minute only passes when
+/// something is stuck (a hidden window does not draw).
+inline constexpr std::chrono::seconds kDefaultLimit{ 60 };
+
+/// A tool call's deferred work and how long it may take.
+struct Deferral
+{
+    Poll poll;
+    std::chrono::seconds limit = kDefaultLimit;
+};
+
 /// Called by a tool handler. Only the server's tool calls honour it; a
 /// handler run anywhere else (the headless CLI) has its deferral dropped.
-void Defer(Poll poll);
+void Defer(Poll poll, std::chrono::seconds limit = kDefaultLimit);
 
 /// Takes the deferral the last handler made, if any, and clears it.
-std::optional<Poll> Take();
+std::optional<Deferral> Take();
+
+/// True while the live editor's server runs a tool's handler, so a deferral
+/// is honoured. A handler that would otherwise wait can defer instead, and
+/// the editor keeps drawing.
+bool CanDefer();
+
+/// Marks the server's handler calls, for CanDefer.
+class ServerCallScope
+{
+public:
+    ServerCallScope();
+    ~ServerCallScope();
+    ServerCallScope(const ServerCallScope&) = delete;
+    ServerCallScope& operator=(const ServerCallScope&) = delete;
+};
 
 }  // namespace DekiEditor::McpCompletion

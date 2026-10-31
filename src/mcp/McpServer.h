@@ -152,10 +152,11 @@ private:
         std::shared_ptr<std::promise<std::string>> responsePromise;
         McpCompletion::Poll poll;
         std::chrono::steady_clock::time_point started;
+        std::chrono::seconds limit;
     };
     std::vector<DeferredCall> m_Deferred;
     // The deferral the tool call just handled made, for ProcessMessages.
-    std::optional<McpCompletion::Poll> m_LastCallDeferral;
+    std::optional<McpCompletion::Deferral> m_LastCallDeferral;
 
     // The main thread pushes responses, the SSE stream sends them.
     ThreadSafeQueue<SseResponse> m_SseResponses;

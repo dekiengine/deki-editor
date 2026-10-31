@@ -29,11 +29,6 @@ namespace
 // See the wait_for() call in Start() for why this is minutes rather than seconds.
 constexpr int kRequestTimeoutSeconds = 900;
 
-// How long a tool's deferred work (McpCompletion) may take before its call
-// fails rather than hangs. A screenshot or a click takes a few frames; a
-// minute only fires when something is stuck (a hidden window does not draw).
-constexpr auto kDeferredTimeout = std::chrono::seconds(60);
-
 nlohmann::json ToolResult(const nlohmann::json& result)
 {
     return { { "content", nlohmann::json::array({ { { "type", "text" }, { "text", result.dump() } } }) } };
@@ -438,9 +433,9 @@ void McpServer::ProcessMessages()
             {
                 result = ToolResult(*finished);
             }
-            else if (std::chrono::steady_clock::now() - call.started > kDeferredTimeout)
+            else if (std::chrono::steady_clock::now() - call.started > call.limit)
             {
-                result = ToolError("not finished after " + std::to_string(kDeferredTimeout.count()) + " s");
+                result = ToolError("not finished after " + std::to_string(call.limit.count()) + " s");
             }
             else
             {
@@ -496,12 +491,12 @@ void McpServer::ProcessMessages()
 
         // A tool that finishes on a later frame is answered once it has
         // (above, on a later call); its queued reply is not sent.
-        std::optional<McpCompletion::Poll> poll = std::move(m_LastCallDeferral);
+        std::optional<McpCompletion::Deferral> deferral = std::move(m_LastCallDeferral);
         m_LastCallDeferral.reset();
-        if (poll && req.responsePromise)
+        if (deferral && req.responsePromise)
         {
-            m_Deferred.push_back({ req.message.value("id", nlohmann::json()), req.responsePromise, std::move(*poll),
-                                   std::chrono::steady_clock::now() });
+            m_Deferred.push_back({ req.message.value("id", nlohmann::json()), req.responsePromise,
+                                   std::move(deferral->poll), std::chrono::steady_clock::now(), deferral->limit });
         }
         else if (req.responsePromise)
         {
@@ -641,6 +636,7 @@ nlohmann::json McpServer::HandleToolsCall(const nlohmann::json& params)
     McpCompletion::Take();  // a deferral left by a handler run elsewhere is not this call's
     try
     {
+        McpCompletion::ServerCallScope serverCall;
         nlohmann::json result = tool->handler(arguments);
         m_LastCallDeferral = McpCompletion::Take();
         return ToolResult(result);

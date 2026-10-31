@@ -1,5 +1,7 @@
 #include <deki-editor/ShellCommand.h>
 
+#include <deki-editor/BuildLoad.h>
+
 #include <string>
 #include <vector>
 
@@ -110,7 +112,9 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     if (job != nullptr)
     {
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
-        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        // Every process in it, the compilers too, at build priority.
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PRIORITY_CLASS;
+        limits.BasicLimitInformation.PriorityClass = BuildPriorityFlag();
         SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
     }
 
@@ -123,9 +127,10 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     si.wShowWindow = SW_HIDE;
     PROCESS_INFORMATION pi = {};
 
-    const BOOL created =
-        CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr,
-                       dir.empty() ? nullptr : dir.c_str(), &si, &pi);
+    PrepareBuildJobs();
+    const BOOL created = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE,
+                                        CREATE_NO_WINDOW | CREATE_SUSPENDED | BuildPriorityFlag(), nullptr,
+                                        dir.empty() ? nullptr : dir.c_str(), &si, &pi);
     CloseHandle(writePipe);  // ours; the child holds its own, so EOF comes when it exits
     if (!created)
     {
@@ -203,6 +208,7 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         return -1;
     }
 
+    PrepareBuildJobs();
     const pid_t pid = fork();
     if (pid < 0)
     {
@@ -214,6 +220,7 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     {
         // Its own process group, so a cancel reaches everything it starts.
         setpgid(0, 0);
+        LowerBuildPriority();
         dup2(fds[1], STDOUT_FILENO);
         dup2(fds[1], STDERR_FILENO);
         close(fds[0]);

@@ -1,4 +1,5 @@
 #include "HotReloadService.h"
+#include <deki-editor/BuildLoad.h>
 #include "BuildersFromPackages.h"
 #include "PackageManager.h"
 #include <deki-editor/EditorNaming.h>
@@ -1476,7 +1477,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     {
         buildCmd += " --target " + pluginTarget;
     }
-    buildCmd += " --parallel -- -d explain";
+    buildCmd += " --parallel " + std::to_string(BuildJobCount()) + " -- -d explain";
 
     m_LastBuildWasCold = coldBuild;
     if (coldBuild)
@@ -2539,8 +2540,8 @@ void HotReloadService::CheckAndReloadPackages()
             ActiveBuild::Step step;
             step.phase = std::string(kBuildingPrefix) + info.target + std::string(kBuildingSuffix);
             // Ninja is single-config, so no `--config` is needed.
-            step.command =
-                "\"" + ResolveTool("cmake") + "\" --build \"" + buildDir + "\" --target " + info.target + " --parallel";
+            step.command = "\"" + ResolveTool("cmake") + "\" --build \"" + buildDir + "\" --target " + info.target +
+                           " --parallel " + std::to_string(BuildJobCount());
             step.timeoutMs = kIncrementalBuildTimeoutMs;
             step.target = info.target;
             step.continueOnFailure = true;  // failures are reported per target

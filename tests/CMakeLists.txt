@@ -68,6 +68,7 @@ set(TEST_SOURCES
     core/ZipSafetyTests.cpp
     core/PlatformConfigTests.cpp
     services/PrerequisitesTests.cpp
+    services/BuildLoadTests.cpp
     services/CMakeCacheReaderTests.cpp
     services/RegistrySourceTests.cpp
     services/ProjectScaffoldTests.cpp

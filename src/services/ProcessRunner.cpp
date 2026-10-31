@@ -1,4 +1,5 @@
 #include "ProcessRunner.h"
+#include <deki-editor/BuildLoad.h>
 
 #include <algorithm>
 #include <chrono>
@@ -143,8 +144,9 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
 
     // Suspended so the process joins the job before it can spawn children;
     // CREATE_NO_WINDOW keeps the console window from flashing up.
-    BOOL ok = CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED,
-                             envPtr, nullptr, &si, &pi);
+    PrepareBuildJobs();
+    BOOL ok = CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE,
+                             CREATE_NO_WINDOW | CREATE_SUSPENDED | BuildPriorityFlag(), envPtr, nullptr, &si, &pi);
     CloseHandle(writePipe);
     if (!ok)
     {
@@ -159,7 +161,9 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
     {
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION info;
         ZeroMemory(&info, sizeof(info));
-        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        // Every process in it, the compilers too, at build priority.
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PRIORITY_CLASS;
+        info.BasicLimitInformation.PriorityClass = BuildPriorityFlag();
         SetInformationJobObject(job, JobObjectExtendedLimitInformation, &info, sizeof(info));
         if (!AssignProcessToJobObject(job, pi.hProcess))
         {
@@ -300,6 +304,7 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
         return false;
     }
 
+    PrepareBuildJobs();
     pid_t pid = fork();
     if (pid < 0)
     {
@@ -311,6 +316,7 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
     {
         // Own process group, so Cancel() can kill the whole tree with one signal.
         setpgid(0, 0);
+        LowerBuildPriority();
         dup2(fds[1], STDOUT_FILENO);
         dup2(fds[1], STDERR_FILENO);
         close(fds[0]);

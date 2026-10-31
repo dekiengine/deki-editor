@@ -259,11 +259,13 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register(
         { "wait_for_operation",
-          "Block until the running firmware operation finishes, and report how it "
+          "Return once the running firmware operation finishes, and report how it "
           "went. build_firmware, deploy_build and the toolchain tools all start "
           "in the background and return at once, which suits a GUI polling for "
           "progress but leaves a script with nothing to wait on: the process exits "
-          "and takes the work with it.",
+          "and takes the work with it. In a running editor the editor keeps "
+          "drawing while this waits; a wait past 14 minutes there returns with "
+          "timedOut, so call it again.",
           { { "type", "object" },
             { "properties",
               { { "timeout_seconds",
@@ -277,16 +279,57 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               const int timeoutSeconds = args.value("timeout_seconds", 3600);
               const bool quiet = args.value("quiet", false);
 
+              // The status once the operation is over, else nullopt. A
+              // failure fails the call.
+              auto finished = [](nlohmann::json status) -> std::optional<nlohmann::json>
+              {
+                  const std::string state = status.value("state", "idle");
+                  if (status.value("active", false) && state != "completed" && state != "failed" && state != "idle")
+                  {
+                      return std::nullopt;
+                  }
+                  if (state == "failed")
+                  {
+                      throw std::runtime_error("operation failed: " + status.value("error", "(no detail)"));
+                  }
+                  return status;
+              };
+
+              // In the live editor the reply waits, not the main thread, so
+              // the editor keeps drawing through a build or a flash. The
+              // server's HTTP request gives up after 15 minutes, so a longer
+              // wait answers timedOut first and is called again.
+              if (McpCompletion::CanDefer())
+              {
+                  constexpr int kLiveWaitLimitSeconds = 840;
+                  const int limit = std::min(timeoutSeconds, kLiveWaitLimitSeconds);
+                  const auto started = std::chrono::steady_clock::now();
+                  McpCompletion::Defer(
+                      [finished, started, limit]() -> std::optional<nlohmann::json>
+                      {
+                          nlohmann::json status = FirmwareBuildService::QueryStatus();
+                          if (std::optional<nlohmann::json> done = finished(status))
+                          {
+                              return done;
+                          }
+                          const auto elapsed = std::chrono::steady_clock::now() - started;
+                          if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= limit)
+                          {
+                              status["timedOut"] = true;
+                              return status;
+                          }
+                          return std::nullopt;
+                      },
+                      std::chrono::seconds(limit + 30));
+                  return nlohmann::json::object();
+              }
+
               const auto started = std::chrono::steady_clock::now();
               std::string lastText;
-              nlohmann::json status;
-
               while (true)
               {
-                  status = FirmwareBuildService::QueryStatus();
-                  const std::string state = status.value("state", "idle");
+                  nlohmann::json status = FirmwareBuildService::QueryStatus();
                   const std::string text = status.value("statusText", "");
-
                   if (!quiet && !text.empty() && text != lastText)
                   {
                       // stderr: stdout carries the result, and a
@@ -296,25 +339,19 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                       lastText = text;
                   }
 
-                  if (!status.value("active", false) || state == "completed" || state == "failed" || state == "idle")
+                  if (std::optional<nlohmann::json> done = finished(status))
                   {
-                      break;
+                      return *done;
                   }
 
                   const auto elapsed = std::chrono::steady_clock::now() - started;
                   if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= timeoutSeconds)
                   {
                       status["timedOut"] = true;
-                      break;
+                      return status;
                   }
                   std::this_thread::sleep_for(std::chrono::milliseconds(500));
               }
-
-              if (status.value("state", "") == "failed")
-              {
-                  throw std::runtime_error("operation failed: " + status.value("error", "(no detail)"));
-              }
-              return status;
           } });
 
     registry.Register(
@@ -369,7 +406,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                 { "screen_height", { { "type", "integer" } } },
                 { "screen_diagonal_inches",
                   { { "type", "number" },
-                    { "description", "The screen's diagonal in inches, as the board's maker gives it; 0 for unknown" } } },
+                    { "description",
+                      "The screen's diagonal in inches, as the board's maker gives it; 0 for unknown" } } },
                 { "family",
                   { { "type", "string" },
                     { "description", "Vendor family; descriptive only, never used to choose a backend" } } },
@@ -1155,8 +1193,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               options.simulate = args.value("simulate", false);
               // The editor, so the build gets its boot payload and the
               // scene-scanned defines, as the CLI and the Build panel do.
-              FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), ActivityLines("Build"), editor,
-                                                                   options, ActivityDone("Build"));
+              FirmwareOpResult r = FirmwareBuildService::StartBuild(path, ArgPlatform(args), ActivityLines("Build"),
+                                                                    editor, options, ActivityDone("Build"));
               if (!r.success)
               {
                   throw std::runtime_error(r.error);
@@ -1261,7 +1299,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               options.simulate = args.value("simulate", false);
               const std::string verb = DeployVerb(editor, args);
               FirmwareOpResult r = FirmwareBuildService::StartDeploy(path, ArgPlatform(args), target,
-                                                                    ActivityLines(verb), options, ActivityDone(verb));
+                                                                     ActivityLines(verb), options, ActivityDone(verb));
               if (!r.success)
               {
                   throw std::runtime_error(r.error);
@@ -1288,7 +1326,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   { { "type", "string" },
                     { "description", "Serial port (COM3, /dev/ttyACM0); default: the only one there is" } } },
                 { "timeout_ms",
-                  { { "type", "integer" }, { "description", "How long to wait for the frame (default 15000)" } } } } } },
+                  { { "type", "integer" },
+                    { "description", "How long to wait for the frame (default 15000)" } } } } } },
           [](const nlohmann::json& args) -> nlohmann::json
           {
               const std::string path = args.value("path", std::string());
@@ -1322,8 +1361,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                       job->ok = ok;
                       job->error = error;
                       job->frame = std::move(frame);
-                      job->seconds =
-                          std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                      job->seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
                       job->done = true;
                   })
                   .detach();
@@ -1351,8 +1389,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                       {
                           throw std::runtime_error("could not write " + path);
                       }
-                      return nlohmann::json{ { "path", path },     { "port", port },         { "width", f.width },
-                                             { "height", f.height }, { "format", f.format }, { "seconds", job->seconds } };
+                      return nlohmann::json{
+                          { "path", path },       { "port", port },       { "width", f.width },
+                          { "height", f.height }, { "format", f.format }, { "seconds", job->seconds }
+                      };
                   });
               return { { "status", "fetching" }, { "port", port } };
           } });
@@ -1363,7 +1403,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
           "split of a frame (updateMs, renderMs, presentMs, whole milliseconds averaged), free internal and "
           "external memory, and how frames reach the screen: frameMode \"whole\" or \"strips\" with bandRows, "
           "the strip height (the Rendering setting frameMode; Auto picks whole frames when the framebuffer fits "
-          "in internal RAM, strips when not). The firmware must answer the request (the ESP32 HAL does, from the build that added "
+          "in internal RAM, strips when not). The firmware must answer the request (the ESP32 HAL does, from the build "
+          "that added "
           "it). Close the Serial Monitor first if it has the port open.",
           { { "type", "object" },
             { "properties",
