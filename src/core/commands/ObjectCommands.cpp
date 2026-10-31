@@ -271,10 +271,18 @@ void DuplicateObjectCommand::Execute()
         {
             return;
         }
-        // Number the copy, the way other editors do, so it can be told apart
-        // from the original in the Hierarchy.
-        m_DuplicatedObject->SetName(NextDuplicateName(m_Source ? m_Source->GetParent() : nullptr,
-                                                      m_Source ? m_Source->GetName() : m_DuplicatedObject->GetName()));
+        if (m_FromOtherScene)
+        {
+            m_Source = nullptr;
+        }
+        else
+        {
+            // Number the copy, the way other editors do, so it can be told
+            // apart from the original in the Hierarchy.
+            m_DuplicatedObject->SetName(
+                NextDuplicateName(m_Source ? m_Source->GetParent() : nullptr,
+                                  m_Source ? m_Source->GetName() : m_DuplicatedObject->GetName()));
+        }
     }
 
     // Single root: a null parent means "inside the scene root", not "beside it".

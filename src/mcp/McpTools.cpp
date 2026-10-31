@@ -347,6 +347,120 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
           } });
 
     registry.Register(
+        { "copy_from_scene",
+          "Copy objects, with their children and components, from another scene file into the "
+          "current scene, as one undo step. Each object is named by its path of names from the "
+          "scene's top object (\"Buttons\", \"Text/Left\"; the top object's own name may lead). "
+          "References between the copied objects move to the copies; references to anything "
+          "else keep pointing where they did. The other scene is read, not opened.",
+          { { "type", "object" },
+            { "properties",
+              { { "scene",
+                  { { "type", "string" }, { "description", "Scene to copy from, absolute or project-relative" } } },
+                { "paths",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" } } },
+                    { "description", "Objects to copy, by path of names" } } },
+                { "parent_id",
+                  { { "type", "integer" },
+                    { "description", "Parent for the copies (default: the current scene's top object)" } } } } },
+            { "required", nlohmann::json::array({ "scene", "paths" }) } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              auto* scene = editor->GetCurrentScene();
+              const std::string sourcePath = editor->ResolveProjectPath(args["scene"].get<std::string>());
+              Deki::Scene source;
+              if (!source.LoadFromFile(sourcePath))
+              {
+                  throw std::runtime_error("Could not read " + sourcePath);
+              }
+
+              Deki::Object* parent = nullptr;
+              if (args.contains("parent_id") && !args["parent_id"].is_null())
+              {
+                  const uint32_t parentId = args["parent_id"].get<uint32_t>();
+                  parent = scene->FindDekiObject(parentId);
+                  if (!parent)
+                  {
+                      throw std::runtime_error("Parent not found: " + std::to_string(parentId));
+                  }
+              }
+
+              // Every path is found before anything is copied, so a wrong one
+              // copies nothing.
+              std::vector<Deki::Object*> originals;
+              for (const auto& pathJson : args["paths"])
+              {
+                  const std::string path = pathJson.get<std::string>();
+                  std::vector<std::string> names;
+                  for (size_t start = 0; start <= path.size();)
+                  {
+                      const size_t slash = std::min(path.find('/', start), path.size());
+                      if (slash > start)
+                      {
+                          names.push_back(path.substr(start, slash - start));
+                      }
+                      start = slash + 1;
+                  }
+                  Deki::Object* top = source.GetObjects().empty() ? nullptr : source.GetObjects()[0];
+                  if (!top || names.empty())
+                  {
+                      throw std::runtime_error("Nothing at '" + path + "' in " + sourcePath);
+                  }
+                  Deki::Object* found = top;
+                  size_t first = names[0] == top->GetName() ? 1 : 0;
+                  for (size_t i = first; i < names.size() && found; ++i)
+                  {
+                      Deki::Object* next = nullptr;
+                      for (Deki::Object* child : found->GetChildren())
+                      {
+                          if (child->GetName() == names[i])
+                          {
+                              next = child;
+                              break;
+                          }
+                      }
+                      found = next;
+                  }
+                  if (!found || found == top)
+                  {
+                      throw std::runtime_error("Nothing at '" + path + "' in " + sourcePath);
+                  }
+                  originals.push_back(found);
+              }
+
+              // Read back right after they run, while the history holds them.
+              std::vector<DuplicateObjectCommand*> duplicates;
+              std::vector<std::unique_ptr<Command>> commands;
+              for (Deki::Object* original : originals)
+              {
+                  auto command = std::make_unique<DuplicateObjectCommand>(scene, original, parent);
+                  command->CopyFromOtherScene();
+                  duplicates.push_back(command.get());
+                  commands.push_back(std::move(command));
+              }
+              CommandHistory::Instance().Execute(
+                  std::make_unique<CompoundCommand>("Copy " + std::to_string(originals.size()) + " objects from " +
+                                                        std::filesystem::path(sourcePath).filename().string(),
+                                                    std::move(commands)));
+
+              nlohmann::json copies = nlohmann::json::array();
+              for (const DuplicateObjectCommand* duplicate : duplicates)
+              {
+                  if (Deki::Object* copy = duplicate->GetDuplicatedObject())
+                  {
+                      copies.push_back(SerializeObject(copy));
+                  }
+              }
+              if (copies.size() != originals.size())
+              {
+                  throw std::runtime_error("Copied " + std::to_string(copies.size()) + " of " +
+                                           std::to_string(originals.size()) + " objects");
+              }
+              return { { "copied", copies } };
+          } });
+
+    registry.Register(
         { "get_object",
           "Get details of a DekiObject by ID.",
           { { "type", "object" },

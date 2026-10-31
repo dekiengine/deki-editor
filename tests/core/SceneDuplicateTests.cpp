@@ -5,6 +5,8 @@
 
 #include <deki/Object.h>
 #include <deki/Scene.h>
+#include <deki-editor/CommandHistory.h>
+#include "core/commands/ObjectCommands.h"
 
 // Scene::DuplicateObject clones through the scene JSON, which carries ids.
 // The duplicate and every object under it must get new ids, or a scene built
@@ -59,4 +61,42 @@ TEST(SceneDuplicateTest, RepeatedDuplicatesAreAllDistinct)
         ASSERT_NE(copies.back(), nullptr);
         EXPECT_TRUE(ids.insert(copies.back()->GetId()).second) << "copy " << i << " reused an id";
     }
+}
+
+// copy_from_scene: the original is in a scene read on the side, gone before
+// any undo or redo. The copy keeps its name and lands under the given parent.
+TEST(SceneDuplicateTest, CopyFromAnotherSceneOutlivesIt)
+{
+    using DekiEditor::CommandHistory;
+    CommandHistory::Instance().Clear();
+    auto target = std::make_unique<::Deki::Scene>();
+    ::Deki::Object* root = target->CreateDekiObject("Root");
+
+    ::Deki::Object* copy = nullptr;
+    {
+        auto other = std::make_unique<::Deki::Scene>();
+        ::Deki::Object* otherRoot = other->CreateDekiObject("Root");
+        auto* buttons = new ::Deki::Object("Buttons");
+        otherRoot->AddChild(buttons);
+        buttons->AddChild(new ::Deki::Object("Primary"));
+
+        auto command = std::make_unique<DekiEditor::DuplicateObjectCommand>(target.get(), buttons, root);
+        command->CopyFromOtherScene();
+        DekiEditor::DuplicateObjectCommand* raw = command.get();
+        CommandHistory::Instance().Execute(std::move(command));
+        copy = raw->GetDuplicatedObject();
+    }
+    ASSERT_NE(copy, nullptr);
+    EXPECT_EQ(copy->GetName(), "Buttons") << "a copy from another scene is not numbered";
+    EXPECT_EQ(copy->GetParent(), root);
+    ASSERT_EQ(copy->GetChildren().size(), 1u);
+
+    // The other scene is gone: undo and redo must not reach for it.
+    CommandHistory::Instance().Undo();
+    EXPECT_TRUE(root->GetChildren().empty());
+    CommandHistory::Instance().Redo();
+    ASSERT_EQ(root->GetChildren().size(), 1u);
+    EXPECT_EQ(root->GetChildren()[0], copy);
+
+    CommandHistory::Instance().Clear();
 }

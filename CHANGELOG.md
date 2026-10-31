@@ -29,6 +29,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - `EditorUI::ValueText`, `Hint` and `ActionButton`, so a package's own
   inspector rows match the rest: a read-only value in a row, help text lined
   up with the labels, and the outlined button Add Component uses.
+- `copy_from_scene` (MCP and `--tool`) copies objects with their children and
+  components from another scene file into the open scene, as one undo step.
+  References between the copied objects move to the copies.
 
 ### Changed
 - **Agents work where you can see them.** `--tool`, `--script` and

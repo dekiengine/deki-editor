@@ -196,9 +196,14 @@ public:
 
     Deki::Object* GetDuplicatedObject() const { return m_DuplicatedObject; }
 
+    /// The source is in another scene, which may be gone by the next redo:
+    /// the copy keeps the source's name, and the source is let go once copied.
+    void CopyFromOtherScene() { m_FromOtherScene = true; }
+
     bool ReferencesAny(const DeadMemory& dead) const override;
 
 private:
+    bool m_FromOtherScene = false;
     Deki::Scene* m_Scene;
     Deki::Object* m_Source;
     Deki::Object* m_Parent;
