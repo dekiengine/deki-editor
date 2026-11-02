@@ -133,6 +133,7 @@ private:
     };
     Shown m_Shown;
     bool m_HasShown = false;
+    bool m_TimeDriven = false;  // the last picture changes with time by itself
     // Render scale while the view moves, learnt from what the last moving
     // frames cost.
     float m_MovingScale = 1.0f;

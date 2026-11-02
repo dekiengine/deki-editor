@@ -210,6 +210,7 @@ private:
     uint8_t m_LastEditRenderClearB = 0;
     uint64_t m_LastEditRenderGeneration = 0;
     uint64_t m_LastEditRenderAssetEpoch = 0;  // AssetManager epoch: assets that appear or reload
+    bool m_LastEditRenderTimeDriven = false;  // it changes with time by itself (a shader reading the time)
 
     // Gizmo hover state is recomputed only when the mouse moves or the
     // selection changes.

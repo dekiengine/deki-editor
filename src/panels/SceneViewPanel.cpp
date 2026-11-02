@@ -28,6 +28,7 @@
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/ICamera.h>
+#include <deki/Time.h>
 #include <deki/ScreenAnchor.h>
 #include <deki/ISortableProvider.h>
 #include <deki/IClipProvider.h>
@@ -1179,7 +1180,9 @@ void SceneViewPanel::DrawSceneCanvas()
                                 || InspectorPanel::IsAnyLiveEditing()
                                 // The running game moves objects every tick without touching the
                                 // generation counter.
-                                || playing;
+                                || playing
+                                // A shader that reads the time moves the picture by itself.
+                                || m_LastEditRenderTimeDriven;
     const bool bufferResized = !m_EditModeRenderer->IsInitialized() || m_EditModeRenderer->GetWidth() != renderWidth ||
                                m_EditModeRenderer->GetHeight() != renderHeight;
     const bool viewChanged = bufferResized || m_LastEditRenderCamX != camRenderX || m_LastEditRenderCamY != camRenderY;
@@ -1207,7 +1210,9 @@ void SceneViewPanel::DrawSceneCanvas()
         const auto renderStart = std::chrono::steady_clock::now();
         // Zoomed out, the renderer uploads a screen-size copy (same pixels);
         // see EditModeRenderer::RenderScene.
+        Deki::Time::TakeTimeDrivenFrame();  // what other views rendered
         m_EditModeRenderer->RenderScene(scene, m_EditorCamera, clearR, clearG, clearB, effectiveZoom);
+        m_LastEditRenderTimeDriven = Deki::Time::TakeTimeDrivenFrame();
         m_LastEditRenderCost = std::chrono::duration<double>(std::chrono::steady_clock::now() - renderStart).count();
         m_LastEditRenderTime = now;
         m_LastEditRenderZoom = effectiveZoom;

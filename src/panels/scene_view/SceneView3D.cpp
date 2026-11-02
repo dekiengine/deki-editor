@@ -10,6 +10,7 @@
 #include <deki/Math.h>
 #include <deki/Object.h>
 #include <deki/Scene.h>
+#include <deki/Time.h>
 #include <deki/assets/AssetManager.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
@@ -305,7 +306,9 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
                       now.height == m_Shown.height && now.clearR == m_Shown.clearR &&
                       now.clearG == m_Shown.clearG && now.clearB == m_Shown.clearB && now.scene == m_Shown.scene &&
                       now.generation == m_Shown.generation && now.assetEpoch == m_Shown.assetEpoch;
-    const bool live = InspectorPanel::IsAnyLiveEditing() || m_App->IsPlaying() || m_DragHandle != Handle::None;
+    // A picture with a shader that reads the time moves by itself.
+    const bool live = InspectorPanel::IsAnyLiveEditing() || m_App->IsPlaying() || m_DragHandle != Handle::None ||
+                      m_TimeDriven;
     if (!same || live)
     {
         if (!m_Renderer->IsInitialized())
@@ -317,7 +320,9 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
             m_Renderer->Resize(width, height);
         }
         const auto start = std::chrono::steady_clock::now();
+        Deki::Time::TakeTimeDrivenFrame();  // what other views rendered
         m_Renderer->RenderScene(scene, camera, clearR, clearG, clearB, 1.0f);
+        m_TimeDriven = Deki::Time::TakeTimeDrivenFrame();
         const float ms = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - start).count();
         if (moving && ms > 0.0f)
         {
