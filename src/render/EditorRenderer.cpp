@@ -127,7 +127,13 @@ void UpdateTexture(uint32_t texture, int x, int y, int width, int height, Editor
         return;
     }
 
-    const uint32_t bytes = static_cast<uint32_t>(width) * height * 4;
+    // Rows go in at a 256-byte pitch, the only one Direct3D 12 copies to a
+    // texture from. At any other, SDL makes a new upload buffer the size of the
+    // picture for each upload, copies into it row by row and frees it again:
+    // 35 ms for a full-size Scene View, against well under 1 ms this way.
+    constexpr uint32_t kRowAlignPixels = 256 / 4;
+    const uint32_t pitch = (static_cast<uint32_t>(width) + kRowAlignPixels - 1) / kRowAlignPixels * kRowAlignPixels;
+    const uint32_t bytes = pitch * height * 4;
     if (bytes > slot->uploadSize)
     {
         if (slot->upload)
@@ -157,7 +163,7 @@ void UpdateTexture(uint32_t texture, int x, int y, int width, int height, Editor
         for (int row = 0; row < height; ++row)
         {
             const uint16_t* in = static_cast<const uint16_t*>(pixels) + static_cast<size_t>(row) * rowPixels;
-            uint32_t* out = reinterpret_cast<uint32_t*>(dst) + static_cast<size_t>(row) * width;
+            uint32_t* out = reinterpret_cast<uint32_t*>(dst) + static_cast<size_t>(row) * pitch;
             for (int i = 0; i < width; ++i)
             {
                 out[i] = toRgba[in[i]];
@@ -168,7 +174,7 @@ void UpdateTexture(uint32_t texture, int x, int y, int width, int height, Editor
     {
         for (int row = 0; row < height; ++row)
         {
-            std::memcpy(dst + static_cast<size_t>(row) * width * 4,
+            std::memcpy(dst + static_cast<size_t>(row) * pitch * 4,
                         static_cast<const uint8_t*>(pixels) + static_cast<size_t>(row) * rowPixels * 4,
                         static_cast<size_t>(width) * 4);
         }
@@ -179,7 +185,7 @@ void UpdateTexture(uint32_t texture, int x, int y, int width, int height, Editor
     SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(commands);
     SDL_GPUTextureTransferInfo source{};
     source.transfer_buffer = slot->upload;
-    source.pixels_per_row = static_cast<Uint32>(width);
+    source.pixels_per_row = pitch;
     source.rows_per_layer = static_cast<Uint32>(height);
     SDL_GPUTextureRegion region{};
     region.texture = slot->texture;

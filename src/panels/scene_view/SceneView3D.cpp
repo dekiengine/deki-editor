@@ -266,10 +266,11 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
     camera->SetClearColor(clearR, clearG, clearB);
 
     // Rendered only when something it shows moved, at the canvas's size once
-    // the view is still. While it moves, every frame is a new picture, and a
-    // full-size one costs tens of milliseconds (the 2D on the CPU, the 3D read
-    // back, the upload), so it renders smaller, at whatever scale fits the
-    // budget, shown stretched; the sharp picture follows when it stops.
+    // the view is still. While it moves, every frame is a new picture: full
+    // size while that fits the budget (a few milliseconds for most scenes: the
+    // 2D on the CPU, the 3D read back, the upload), smaller and shown
+    // stretched for a scene too heavy for it; the sharp picture follows when
+    // it stops.
     const ImGuiIO& io = ImGui::GetIO();
     // A little after the last movement too: wheel notches come a few frames
     // apart, and each would otherwise bring a full-size render between them.
@@ -322,7 +323,7 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
         {
             // The cost goes with the pixels, the square of the scale: aim the
             // next moving frame at the budget, never sharper than full size.
-            constexpr float kMovingBudgetMs = 6.0f;
+            constexpr float kMovingBudgetMs = 10.0f;
             m_MovingScale = std::clamp(m_MovingScale * std::sqrt(kMovingBudgetMs / ms), 0.2f, 1.0f);
         }
         m_Shown = now;

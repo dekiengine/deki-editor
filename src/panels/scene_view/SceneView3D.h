@@ -135,7 +135,7 @@ private:
     bool m_HasShown = false;
     // Render scale while the view moves, learnt from what the last moving
     // frames cost.
-    float m_MovingScale = 0.5f;
+    float m_MovingScale = 1.0f;
     double m_LastMoved = -1.0;  // ImGui time of the last movement
 };
 
