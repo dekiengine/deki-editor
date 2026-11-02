@@ -126,7 +126,7 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
     // The 3D view, for a project with depth.
     if (depth)
     {
-        iconBtn("view3d", ICON_TI_CUBE,
+        iconBtn("view3d", ICON_TI_BOX,
                 m_View3D ? TrMark("3D view: Alt+drag orbits, right-drag looks (WASD flies), middle-drag pans, "
                                   "F frames the selection. Click for the 2D view")
                          : TrMark("Switch to the 3D view, to orbit round the scene"),

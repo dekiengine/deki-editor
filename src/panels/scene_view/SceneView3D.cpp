@@ -15,6 +15,7 @@
 #include <deki/reflection/Property.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -157,6 +158,9 @@ const ImU32 kActiveColor = IM_COL32(255, 220, 70, 255);
 
 SceneView3D::SceneView3D(EditorApp* app) : m_App(app), m_Renderer(std::make_unique<EditModeRenderer>())
 {
+    // Its size changes whenever the view starts or stops moving: streaming
+    // keeps textures that only grow, instead of a new one at each size.
+    m_Renderer->SetStreaming(true);
 }
 
 SceneView3D::~SceneView3D() = default;
@@ -261,9 +265,23 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
     SetCameraFloat(cameraObject, "farPlane", m_Distance * 50.0f);
     camera->SetClearColor(clearR, clearG, clearB);
 
-    // Rendered at the canvas's size, and only when something it shows moved.
-    int width = std::max(2, static_cast<int>(size.x)) & ~1;
-    int height = std::max(2, static_cast<int>(size.y)) & ~1;
+    // Rendered only when something it shows moved, at the canvas's size once
+    // the view is still. While it moves, every frame is a new picture, and a
+    // full-size one costs tens of milliseconds (the 2D on the CPU, the 3D read
+    // back, the upload), so it renders smaller, at whatever scale fits the
+    // budget, shown stretched; the sharp picture follows when it stops.
+    const ImGuiIO& io = ImGui::GetIO();
+    // A little after the last movement too: wheel notches come a few frames
+    // apart, and each would otherwise bring a full-size render between them.
+    const double clock = ImGui::GetTime();
+    if (m_Orbiting || m_Looking || m_Panning || io.MouseWheel != 0.0f || m_DragHandle != Handle::None)
+    {
+        m_LastMoved = clock;
+    }
+    const bool moving = clock - m_LastMoved < 0.15;
+    const float scale = moving ? m_MovingScale : 1.0f;
+    int width = std::max(2, static_cast<int>(size.x * scale)) & ~1;
+    int height = std::max(2, static_cast<int>(size.y * scale)) & ~1;
     const uint64_t generation = CommandHistory::Instance().GetGeneration();
     const uint64_t assetEpoch = Deki::AssetManager::Get()->GetEpoch();
     Shown now;
@@ -289,11 +307,24 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
     const bool live = InspectorPanel::IsAnyLiveEditing() || m_App->IsPlaying() || m_DragHandle != Handle::None;
     if (!same || live)
     {
-        if (!m_Renderer->IsInitialized() || m_Renderer->GetWidth() != width || m_Renderer->GetHeight() != height)
+        if (!m_Renderer->IsInitialized())
         {
             m_Renderer->Initialize(width, height);
         }
+        else if (m_Renderer->GetWidth() != width || m_Renderer->GetHeight() != height)
+        {
+            m_Renderer->Resize(width, height);
+        }
+        const auto start = std::chrono::steady_clock::now();
         m_Renderer->RenderScene(scene, camera, clearR, clearG, clearB, 1.0f);
+        const float ms = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - start).count();
+        if (moving && ms > 0.0f)
+        {
+            // The cost goes with the pixels, the square of the scale: aim the
+            // next moving frame at the budget, never sharper than full size.
+            constexpr float kMovingBudgetMs = 6.0f;
+            m_MovingScale = std::clamp(m_MovingScale * std::sqrt(kMovingBudgetMs / ms), 0.2f, 1.0f);
+        }
         m_Shown = now;
         m_HasShown = true;
     }
@@ -304,7 +335,8 @@ void SceneView3D::Draw(Deki::Scene* scene, Deki::Object* cameraObject, Deki::ICa
                             IM_COL32(clearR, clearG, clearB, 255));
     if (const uint32_t tex = m_Renderer->GetTextureId())
     {
-        EditorTexture::AddImageNearest(drawList, tex, topLeft, ImVec2(topLeft.x + width, topLeft.y + height),
+        // Over the whole canvas: 1:1 at rest, stretched while moving.
+        EditorTexture::AddImageNearest(drawList, tex, topLeft, ImVec2(topLeft.x + size.x, topLeft.y + size.y),
                                        ImVec2(0, 0), ImVec2(m_Renderer->GetTextureU(), m_Renderer->GetTextureV()));
     }
     if (showGrid)
