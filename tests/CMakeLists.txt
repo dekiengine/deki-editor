@@ -496,11 +496,13 @@ deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian
 # a CI machine with no GPU (where it proves only that it falls back).
 deki_add_package_tests(deki-3d-gl TARGET Deki3DGLTests
     SOURCES GLMesh3DBackend.cpp ../deki-gl/GLApi.cpp ../deki-gl/GLPresenter.cpp ../deki-3d/Raster3D.cpp
-            ../deki-3d/Mesh3DBackend.cpp
-    DEFINES DEKI_3D_EXPORTS DEKI_GL_EXPORTS LIBS ${CMAKE_DL_LIBS})
+            ../deki-3d/Mesh3DBackend.cpp ../deki-rendering/ShaderAsset.cpp ../deki-gl/ScreenEffect.cpp
+    DEFINES DEKI_3D_EXPORTS DEKI_GL_EXPORTS DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
 
 # deki-gl: the presenter's layers, composed on the GPU and read back.
-deki_add_package_tests(deki-gl TARGET DekiGLTests SOURCES GLApi.cpp GLPresenter.cpp LIBS ${CMAKE_DL_LIBS})
+deki_add_package_tests(deki-gl TARGET DekiGLTests CODEGEN
+    SOURCES GLApi.cpp GLPresenter.cpp ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp
+    DEFINES DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
 deki_add_package_tests(deki-imu TARGET DekiImuTests)
