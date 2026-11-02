@@ -487,9 +487,16 @@ deki_add_package_tests(deki-particles TARGET DekiParticlesTestsBigEndian BIG_END
 # (MeshRoundTrip, and the Raster3DBench benchmark), built by hand from the g++
 # line in their header comments.
 deki_add_package_tests(deki-3d TARGET Deki3DTests
-    SOURCES Raster3D.cpp MeshAsset.cpp editor/ObjImporter.cpp)
+    SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp)
 deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian
-    SOURCES Raster3D.cpp MeshAsset.cpp editor/ObjImporter.cpp BIG_ENDIAN)
+    SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp BIG_ENDIAN)
+
+# deki-3d-gl: the GPU backend against the software rasteriser, picture for
+# picture. Needs OpenGL at run time and skips without it, so it also runs on
+# a CI machine with no GPU (where it proves only that it falls back).
+deki_add_package_tests(deki-3d-gl TARGET Deki3DGLTests
+    SOURCES GLApi.cpp GLMesh3DBackend.cpp ../deki-3d/Raster3D.cpp ../deki-3d/Mesh3DBackend.cpp
+    DEFINES DEKI_3D_EXPORTS LIBS ${CMAKE_DL_LIBS})
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
 deki_add_package_tests(deki-imu TARGET DekiImuTests)
