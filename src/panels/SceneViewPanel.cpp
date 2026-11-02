@@ -3,6 +3,7 @@
 #include "SceneViewPanel.h"
 #include "../PanelMaximize.h"
 #include "scene_view/SceneTextureCache.h"
+#include "scene_view/SceneView3D.h"
 #include "scene_view/SceneCoordinates.h"
 #include "scene_view/SceneObjectMeasurer.h"
 #include "scene_view/SceneSelection.h"
@@ -178,6 +179,7 @@ SceneViewPanel::SceneViewPanel(EditorApp* app)
     m_Measurer = std::make_unique<SceneObjectMeasurer>(app, m_TextureCache.get());
     m_Selection = std::make_unique<SceneSelection>(m_Measurer.get(), m_TextureCache.get());
     m_Snapping = std::make_unique<SceneSnapping>();
+    m_View3D = std::make_unique<SceneView3D>(app);
     m_Gizmos = std::make_unique<SceneGizmos>(m_Coords.get(), m_Measurer.get(), m_Snapping.get());
     m_Toolbar = std::make_unique<SceneToolbar>(app);
     m_EditModeRenderer = std::make_unique<EditModeRenderer>();
@@ -566,6 +568,55 @@ void SceneViewPanel::DrawSceneCanvas()
     }
 
     Deki::ICamera* sceneCam = GetSceneCamera();
+
+    // The 3D view draws the canvas itself. Entering it starts from where the
+    // 2D view looks; leaving it puts the editor camera back as 2D wants it.
+    const bool view3D = m_Toolbar->View3D() && m_App->ProjectDeclaresDepth();
+    if (view3D || m_Was3D)
+    {
+        if (!m_EditorCamera)
+        {
+            Deki::Internal::AddComponentByName(*m_EditorCameraObject, "CameraComponent");
+            m_EditorCamera = m_EditorCameraObject->FindInterface<Deki::ICamera>();
+            if (!m_EditorCamera)
+            {
+                return;
+            }
+        }
+        if (view3D && !m_Was3D)
+        {
+            const float ppm = Deki::EngineSettings::Global().pixelsPerMeter;
+            const float zoom = m_Zoom * dpi;
+            const float toWorld = (zoom * ppm > 0.0f) ? 1.0f / (zoom * ppm) : 0.0f;
+            const float centreX = (m_CanvasSize.x * 0.5f - (m_PanOffsetX + vpWidth * zoom * 0.5f)) * toWorld;
+            const float centreY = -(m_CanvasSize.y * 0.5f - (m_PanOffsetY + vpHeight * zoom * 0.5f)) * toWorld;
+            m_View3D->StartFrom(Deki::Vector3(centreX, centreY, 0.0f), m_CanvasSize.y * toWorld);
+        }
+        else if (!view3D)
+        {
+            SceneView3D::RestoreCamera(m_EditorCameraObject.get(), m_EditorCamera);
+            m_EditRenderHasRendered = false;  // the 2D picture is stale
+        }
+        m_Was3D = view3D;
+    }
+    if (view3D)
+    {
+        if (!m_App->IsPlaying())
+        {
+            m_EditModeLifecycle->ProcessInternalAwake(scene);
+        }
+        uint8_t clearR = 49, clearG = 77, clearB = 121;
+        if (sceneCam)
+        {
+            sceneCam->GetClearColor(clearR, clearG, clearB);
+        }
+        SceneTool tool = m_Toolbar->GetCurrentTool();
+        m_View3D->Draw(scene, m_EditorCameraObject.get(), m_EditorCamera, sceneCam, tool, m_CanvasTopLeft,
+                       m_CanvasSize, clearR, clearG, clearB, m_Toolbar->ShowGrid());
+        m_Toolbar->SetCurrentTool(tool);
+        return;
+    }
+
     // Must match HandleInput's zoom-to-cursor math, or ScreenToWorld and the
     // post-zoom projection stop being inverses and each wheel notch drives the
     // pan offset toward inf/NaN.

@@ -497,12 +497,14 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                         } });
 
     registry.Register({ "set_position",
-                        "Set the local position of a DekiObject.",
+                        "Set the local position of a DekiObject. z, the depth, counts only in a project that "
+                        "declares transform_3d (deki-3d does).",
                         { { "type", "object" },
                           { "properties",
                             { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
                               { "x", { { "type", "number" }, { "description", "X position" } } },
-                              { "y", { { "type", "number" }, { "description", "Y position" } } } } },
+                              { "y", { { "type", "number" }, { "description", "Y position" } } },
+                              { "z", { { "type", "number" }, { "description", "Z position (depth). Unchanged when omitted." } } } } },
                           { "required", nlohmann::json::array({ "object_id", "x", "y" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -518,18 +520,35 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             float x = args["x"].get<float>();
                             float y = args["y"].get<float>();
 
+                            if (args.contains("z"))
+                            {
+                                // One step, depth with the rest, so undo takes it all back.
+                                const Transform3D before = Transform3D::Of(obj);
+                                Transform3D after = before;
+                                after.x = x;
+                                after.y = y;
+                                after.z = args["z"].get<float>();
+                                CommandHistory::Instance().ExecuteNoMerge(
+                                    std::make_unique<SetTransform3DCommand>(obj, before, after));
+                                return { { "id", objId }, { "x", x }, { "y", y }, { "z", after.z } };
+                            }
+
                             CommandHistory::Instance().ExecuteNoMerge(std::make_unique<SetPositionCommand>(obj, x, y));
 
                             return { { "id", objId }, { "x", x }, { "y", y } };
                         } });
 
     registry.Register({ "set_rotation",
-                        "Set the rotation of a DekiObject in degrees.",
+                        "Set the rotation of a DekiObject in degrees. angle turns it in the screen plane (about "
+                        "Z); x and y tilt it about the X and Y axes, which count only in a project that declares "
+                        "transform_3d (deki-3d does). Give any of the three; the others stay as they are.",
                         { { "type", "object" },
                           { "properties",
                             { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
-                              { "angle", { { "type", "number" }, { "description", "Rotation angle in degrees" } } } } },
-                          { "required", nlohmann::json::array({ "object_id", "angle" }) } },
+                              { "angle", { { "type", "number" }, { "description", "Rotation about Z in degrees" } } },
+                              { "x", { { "type", "number" }, { "description", "Rotation about X in degrees" } } },
+                              { "y", { { "type", "number" }, { "description", "Rotation about Y in degrees" } } } } },
+                          { "required", nlohmann::json::array({ "object_id" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             auto* scene = editor->GetCurrentScene();
@@ -541,7 +560,36 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 throw std::runtime_error("Object not found: " + std::to_string(objId));
                             }
 
+                            if (!args.contains("angle") && !args.contains("x") && !args.contains("y"))
+                            {
+                                throw std::runtime_error("Give angle, x or y");
+                            }
+
                             // MCP takes degrees; rotation is stored in radians.
+                            if (args.contains("x") || args.contains("y"))
+                            {
+                                const Transform3D before = Transform3D::Of(obj);
+                                Transform3D after = before;
+                                if (args.contains("angle"))
+                                {
+                                    after.rotation = args["angle"].get<float>() * Deki::Math::kDegToRad;
+                                }
+                                if (args.contains("x"))
+                                {
+                                    after.rotationX = args["x"].get<float>() * Deki::Math::kDegToRad;
+                                }
+                                if (args.contains("y"))
+                                {
+                                    after.rotationY = args["y"].get<float>() * Deki::Math::kDegToRad;
+                                }
+                                CommandHistory::Instance().ExecuteNoMerge(
+                                    std::make_unique<SetTransform3DCommand>(obj, before, after, "Rotate Object"));
+                                return { { "id", objId },
+                                         { "rotation", after.rotation * Deki::Math::kRadToDeg },
+                                         { "rotationX", after.rotationX * Deki::Math::kRadToDeg },
+                                         { "rotationY", after.rotationY * Deki::Math::kRadToDeg } };
+                            }
+
                             float angleDeg = args["angle"].get<float>();
                             float angleRad = angleDeg * Deki::Math::kDegToRad;
                             float oldAngleRad = obj->GetLocalRotation();
@@ -558,7 +606,10 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                           { "properties",
                             { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
                               { "sx", { { "type", "number" }, { "description", "Scale X" } } },
-                              { "sy", { { "type", "number" }, { "description", "Scale Y" } } } } },
+                              { "sy", { { "type", "number" }, { "description", "Scale Y" } } },
+                              { "sz",
+                                { { "type", "number" },
+                                  { "description", "Scale Z (depth), for transform_3d projects. Unchanged when omitted." } } } } },
                           { "required", nlohmann::json::array({ "object_id", "sx", "sy" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -573,6 +624,17 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 
                             float sx = args["sx"].get<float>();
                             float sy = args["sy"].get<float>();
+                            if (args.contains("sz"))
+                            {
+                                const Transform3D before = Transform3D::Of(obj);
+                                Transform3D after = before;
+                                after.scaleX = sx;
+                                after.scaleY = sy;
+                                after.scaleZ = args["sz"].get<float>();
+                                CommandHistory::Instance().ExecuteNoMerge(
+                                    std::make_unique<SetTransform3DCommand>(obj, before, after, "Scale Object"));
+                                return { { "id", objId }, { "scaleX", sx }, { "scaleY", sy }, { "scaleZ", after.scaleZ } };
+                            }
                             float oldSx = obj->GetScaleX();
                             float oldSy = obj->GetScaleY();
 

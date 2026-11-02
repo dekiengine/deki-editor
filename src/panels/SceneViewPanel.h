@@ -38,6 +38,7 @@ class SceneGizmos;
 class SceneToolbar;
 class EditModeRenderer;
 class SceneSnapping;
+class SceneView3D;
 
 class SceneViewPanel : public IPanel
 {
@@ -105,6 +106,8 @@ private:
     std::unique_ptr<SceneToolbar> m_Toolbar;
     std::unique_ptr<EditModeRenderer> m_EditModeRenderer;
     std::unique_ptr<SceneSnapping> m_Snapping;
+    std::unique_ptr<SceneView3D> m_View3D;
+    bool m_Was3D = false;  // the 3D view drew last frame
 
     // Lifecycle manager for edit mode asset loading
     std::unique_ptr<Deki::LifecycleManager> m_EditModeLifecycle;

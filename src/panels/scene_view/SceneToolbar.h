@@ -22,6 +22,9 @@ public:
     bool ShowOutlines() const { return m_ShowOutlines; }
     bool ShowGizmos() const { return m_ShowGizmos; }
     bool RectAnchorEdge() const { return m_RectAnchorEdge; }
+    /// The 3D view instead of the 2D one. Offered only in a project that
+    /// declares transform_3d.
+    bool View3D() const { return m_View3D; }
 
     /// Switches to the next tool.
     void CycleTool();
@@ -39,6 +42,7 @@ private:
     bool m_ShowOutlines = false;
     bool m_ShowGizmos = true;
     bool m_RectAnchorEdge = true;
+    bool m_View3D = false;
     int m_GridSize = 16;
 
     ImVec2 m_RowMin{};

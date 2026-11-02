@@ -13,6 +13,7 @@ enum class SceneTool
     Select,  // select and drag objects (default)
     Move,    // translate gizmo
     Rect,    // resize gizmo
+    Rotate,  // rotation rings, in the 3D view
 };
 
 enum class GizmoAxis

@@ -645,6 +645,8 @@ set(EDITOR_SOURCES
     src/panels/scene_view/EditModeRenderer.h
     src/panels/scene_view/SceneSnapping.cpp
     src/panels/scene_view/SceneSnapping.h
+    src/panels/scene_view/SceneView3D.cpp
+    src/panels/scene_view/SceneView3D.h
     src/panels/inspector/InspectorTypes.h
     src/panels/inspector/InspectorUtils.cpp
     src/panels/inspector/InspectorUtils.h

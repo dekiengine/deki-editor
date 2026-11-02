@@ -180,6 +180,46 @@ private:
     float m_NewScaleX, m_NewScaleY;
 };
 
+/// An object's local transform, the third axis included: what a drag in the
+/// Scene view's 3D view changes, and the tools that set depth.
+struct Transform3D
+{
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    float rotation = 0.0f, rotationX = 0.0f, rotationY = 0.0f;  // radians
+    float scaleX = 1.0f, scaleY = 1.0f, scaleZ = 1.0f;
+
+    static Transform3D Of(const Deki::Object* obj);
+    void ApplyTo(Deki::Object* obj) const;
+    bool operator==(const Transform3D& other) const = default;
+};
+
+/// Sets an object's whole local transform, depth included. Takes the
+/// transforms before and after, for recording a finished drag.
+class SetTransform3DCommand : public Command
+{
+public:
+    SetTransform3DCommand(Deki::Object* obj, const Transform3D& before, const Transform3D& after,
+                          const std::string& description = "Move Object")
+        : m_Object(obj),
+          m_Before(before),
+          m_After(after),
+          m_Description(description)
+    {
+    }
+
+    // The caller's text, translated when the table has it.
+    std::string GetDescription() const override { return Tr(m_Description.c_str()); }
+    void Execute() override;
+    void Undo() override;
+    bool ReferencesAny(const DeadMemory& dead) const override;
+
+private:
+    Deki::Object* m_Object;
+    Transform3D m_Before;
+    Transform3D m_After;
+    std::string m_Description;
+};
+
 /// Call after `propertyName` changes. When it is a Bool property with
 /// DEKI_TOGGLE_OBJECT, sets the object its ObjectRef points at active or
 /// inactive to match.

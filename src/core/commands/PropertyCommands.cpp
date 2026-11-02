@@ -104,6 +104,51 @@ bool SetRotationCommand::ReferencesAny(const DeadMemory& dead) const
     return CommandRefs::Has(dead, m_Object);
 }
 
+Transform3D Transform3D::Of(const Deki::Object* obj)
+{
+    Transform3D t;
+    t.x = obj->GetX();
+    t.y = obj->GetY();
+    t.rotation = obj->GetLocalRotation();
+    t.scaleX = obj->GetScaleX();
+    t.scaleY = obj->GetScaleY();
+#ifdef DEKI_TRANSFORM_3D
+    t.z = obj->GetZ();
+    t.rotationX = obj->GetRotationX();
+    t.rotationY = obj->GetRotationY();
+    t.scaleZ = obj->GetScaleZ();
+#endif
+    return t;
+}
+
+void Transform3D::ApplyTo(Deki::Object* obj) const
+{
+    obj->SetLocalPosition(x, y);
+    obj->SetRotation(rotation);
+    obj->SetScale(scaleX, scaleY);
+#ifdef DEKI_TRANSFORM_3D
+    obj->SetZ(z);
+    obj->SetRotationX(rotationX);
+    obj->SetRotationY(rotationY);
+    obj->SetScaleZ(scaleZ);
+#endif
+}
+
+void SetTransform3DCommand::Execute()
+{
+    m_After.ApplyTo(m_Object);
+}
+
+void SetTransform3DCommand::Undo()
+{
+    m_Before.ApplyTo(m_Object);
+}
+
+bool SetTransform3DCommand::ReferencesAny(const DeadMemory& dead) const
+{
+    return CommandRefs::Has(dead, m_Object);
+}
+
 void SetScaleCommand::Execute()
 {
     m_Object->SetScale(m_NewScaleX, m_NewScaleY);

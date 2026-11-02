@@ -23,7 +23,8 @@ void SceneToolbar::CycleTool()
     {
         case SceneTool::Select: m_CurrentTool = SceneTool::Move; break;
         case SceneTool::Move: m_CurrentTool = SceneTool::Rect; break;
-        case SceneTool::Rect: m_CurrentTool = SceneTool::Select; break;
+        case SceneTool::Rect: m_CurrentTool = m_View3D ? SceneTool::Rotate : SceneTool::Select; break;
+        case SceneTool::Rotate: m_CurrentTool = SceneTool::Select; break;
     }
 }
 
@@ -105,6 +106,13 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
             [&] { m_CurrentTool = SceneTool::Move; });
     iconBtn("rect", ICON_TI_FRAME, TrMark("Rect (R)"), m_CurrentTool == SceneTool::Rect,
             [&] { m_CurrentTool = SceneTool::Rect; });
+    const bool depth = m_App->ProjectDeclaresDepth();
+    m_View3D = m_View3D && depth;
+    if (m_View3D)
+    {
+        iconBtn("rotate", ICON_TI_ROTATE_CLOCKWISE_2, TrMark("Rotate (E)"), m_CurrentTool == SceneTool::Rotate,
+                [&] { m_CurrentTool = SceneTool::Rotate; });
+    }
 
     // Anchor edge toggle, only with the Rect tool.
     if (m_CurrentTool == SceneTool::Rect)
@@ -113,6 +121,16 @@ void SceneToolbar::Draw(float& zoom, float& panOffsetX, float& panOffsetY, bool&
                 m_RectAnchorEdge ? TrMark("Anchor opposite edge (click to resize from center)")
                                  : TrMark("Resize from center (click to anchor opposite edge)"),
                 m_RectAnchorEdge, [&] { m_RectAnchorEdge = !m_RectAnchorEdge; });
+    }
+
+    // The 3D view, for a project with depth.
+    if (depth)
+    {
+        iconBtn("view3d", ICON_TI_CUBE,
+                m_View3D ? TrMark("3D view: Alt+drag orbits, right-drag looks (WASD flies), middle-drag pans, "
+                                  "F frames the selection. Click for the 2D view")
+                         : TrMark("Switch to the 3D view, to orbit round the scene"),
+                m_View3D, [&] { m_View3D = !m_View3D; });
     }
 
     iconBtn("grid", ICON_TI_GRID_DOTS, TrMark("Toggle Grid"), m_ShowGrid, [&] { m_ShowGrid = !m_ShowGrid; });
