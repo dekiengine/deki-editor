@@ -190,6 +190,19 @@ std::set<std::string> PlatformConfig::Capabilities() const
     return caps;
 }
 
+std::vector<std::string> PlatformConfig::CapabilityDefines() const
+{
+    // Named one by one rather than one define per capability: a board's
+    // capabilities ("psram", "memory:rtc") would otherwise all become
+    // defines, and every board's build would change for nothing.
+    std::vector<std::string> defines;
+    if (Capabilities().count("opengl") > 0)
+    {
+        defines.push_back("DEKI_CAPABILITY_OPENGL");
+    }
+    return defines;
+}
+
 // A capability is matched by exact string, so names must be spelled the same
 // way everywhere. Lowercase only, so "WiFi" is refused instead of quietly
 // matching nothing.

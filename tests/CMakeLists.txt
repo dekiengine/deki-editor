@@ -396,7 +396,7 @@ function(deki_add_package_tests pkg_id)
             GENERATOR_SRC "${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
             INCLUDE_DIRS "${DEKI_ENGINE_PATH}/include" "${DEKI_ENGINE_PATH}/third_party"
                          "${DEKI_PACKAGES_DIR}" "${_pkg}" "${_gen}" ${_req_includes}
-            DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines}
+            DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_pkg_defines} ${T_DEFINES}
                     "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
         set_property(GLOBAL PROPERTY DEKI_PKGTEST_RC_${_sfx} "${DEKI_RC_TARGETS_${_sfx}}")
     endif()
@@ -475,8 +475,13 @@ endfunction()
 
 # deki-rendering's tests reach into QuadBlit's .cpp and construct components,
 # so this one needs the package's whole runtime and its reflection tables.
-deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR)
-deki_add_package_tests(deki-rendering TARGET DekiRenderingTestsBigEndian ALL_SOURCES NEEDS_EDITOR BIG_ENDIAN)
+# With DEKI_CAPABILITY_OPENGL, as a desktop project builds it, so the GL
+# presenter's and the GPU 2D's tests run too (skipping without OpenGL); the
+# package's compile check below builds it as a board does, without.
+deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR
+    DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
+deki_add_package_tests(deki-rendering TARGET DekiRenderingTestsBigEndian ALL_SOURCES NEEDS_EDITOR BIG_ENDIAN
+    DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
 
 # ParticlePool is a header, so the tests compile alone against the engine.
 deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
@@ -486,26 +491,21 @@ deki_add_package_tests(deki-particles TARGET DekiParticlesTestsBigEndian BIG_END
 # format. tests/standalone/ holds two programs with their own main()
 # (MeshRoundTrip, and the Raster3DBench benchmark), built by hand from the g++
 # line in their header comments.
-deki_add_package_tests(deki-3d TARGET Deki3DTests
-    SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp)
-deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian
-    SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp BIG_ENDIAN)
-
-# deki-3d-gl: the GPU backend against the software rasteriser, picture for
-# picture. Needs OpenGL at run time and skips without it, so it also runs on
-# a CI machine with no GPU (where it proves only that it falls back).
-deki_add_package_tests(deki-3d-gl TARGET Deki3DGLTests
-    SOURCES GLMesh3DBackend.cpp ../deki-gl/GLApi.cpp ../deki-gl/GLPresenter.cpp ../deki-gl/GLBlitSink.cpp
-            ../deki-3d/Raster3D.cpp ../deki-3d/Mesh3DBackend.cpp ../deki-rendering/ShaderAsset.cpp
-            ../deki-rendering/QuadBlit.cpp ../deki-rendering/RenderProfiler.cpp ../deki-gl/ScreenEffect.cpp
-    DEFINES DEKI_3D_EXPORTS DEKI_GL_EXPORTS DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
-
-# deki-gl: the presenter's layers, composed on the GPU and read back, and the
-# 2D blits it draws, against QuadBlit's CPU code.
-deki_add_package_tests(deki-gl TARGET DekiGLTests CODEGEN
-    SOURCES GLApi.cpp GLPresenter.cpp GLBlitSink.cpp ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp
-            ../deki-rendering/QuadBlit.cpp ../deki-rendering/RenderProfiler.cpp
-    DEFINES DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
+#
+# Built as a desktop project is, with DEKI_CAPABILITY_OPENGL, so the GPU
+# backend's tests (GLBackendTests.cpp) run too: the GPU against the software
+# rasteriser, picture for picture. They need OpenGL at run time and skip
+# without it, so they also run on a CI machine with no GPU (where they prove
+# only that it falls back). The shape a board builds, without the flag, is
+# the package's compile check below.
+set(DEKI_3D_TEST_SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp GLMesh3DBackend.cpp
+    ../deki-rendering/GLApi.cpp ../deki-rendering/GLPresenter.cpp ../deki-rendering/GLBlitSink.cpp
+    ../deki-rendering/ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp ../deki-rendering/QuadBlit.cpp
+    ../deki-rendering/RenderProfiler.cpp)
+deki_add_package_tests(deki-3d TARGET Deki3DTests SOURCES ${DEKI_3D_TEST_SOURCES}
+    DEFINES DEKI_CAPABILITY_OPENGL DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
+deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian SOURCES ${DEKI_3D_TEST_SOURCES}
+    DEFINES DEKI_CAPABILITY_OPENGL DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS} BIG_ENDIAN)
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
 deki_add_package_tests(deki-imu TARGET DekiImuTests)

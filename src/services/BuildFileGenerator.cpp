@@ -558,7 +558,8 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "        GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "        INCLUDE_DIRS ${_RC_INCS}\n";
     file << "        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D "
-            "DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n";
+            "DEKI_CAPABILITY_OPENGL DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" "
+            "\"DEKI_FAST_ATTR=\")\n";
     file << "endif()\n\n";
 
     file << "foreach(PACKAGE_CMAKE ${PACKAGE_CMAKE_FILES})\n";
@@ -668,6 +669,9 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    string(REPLACE \"-\" \"_\" PACKAGE_UPPER_AUTO \"${PACKAGE_UPPER_AUTO}\")\n";
     file << "    target_compile_definitions(${PACKAGE_TARGET} PRIVATE\n";
     file << "        DEKI_EDITOR\n";
+    // The editor runs on a desktop, which has OpenGL: its Scene View draws
+    // meshes on the GPU. Platform builds take it from the platform instead.
+    file << "        DEKI_CAPABILITY_OPENGL\n";
     file << "        DEKI_LOG_ENABLED\n";
     file << "        DEKI_TRANSFORM_2D\n";
     file << "        DEKI_TRANSFORM_3D\n";
@@ -774,7 +778,8 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "    GENERATOR_SRC \"${DEKI_ENGINE_PATH}/tools/reflection_codegen.cpp\" GXX \"${DEKI_GXX16}\"\n";
     file << "    INCLUDE_DIRS ${_RC_INCS}\n";
     file << "    DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_TRANSFORM_2D DEKI_TRANSFORM_3D "
-            "DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" \"DEKI_FAST_ATTR=\")\n\n";
+            "DEKI_CAPABILITY_OPENGL DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN \"DEKI_ENABLE_TRANSPARENCY=true\" "
+            "\"DEKI_FAST_ATTR=\")\n\n";
 
     file << "# Game component sources\n";
     file << "file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS\n";
@@ -833,6 +838,7 @@ bool BuildFileGenerator::GenerateDesktopCMakeLists(const std::string& projectPat
     file << "target_compile_definitions(${PROJECT_NAME} PRIVATE\n";
     file << "    DEKI_PLUGIN_EXPORTS\n";
     file << "    DEKI_EDITOR\n";
+    file << "    DEKI_CAPABILITY_OPENGL\n";
     file << "    DEKI_LOG_ENABLED\n";
     file << "    DEKI_TRANSFORM_2D\n";
     file << "    DEKI_TRANSFORM_3D\n";
