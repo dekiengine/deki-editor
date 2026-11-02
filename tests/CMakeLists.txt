@@ -495,13 +495,16 @@ deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian
 # picture. Needs OpenGL at run time and skips without it, so it also runs on
 # a CI machine with no GPU (where it proves only that it falls back).
 deki_add_package_tests(deki-3d-gl TARGET Deki3DGLTests
-    SOURCES GLMesh3DBackend.cpp ../deki-gl/GLApi.cpp ../deki-gl/GLPresenter.cpp ../deki-3d/Raster3D.cpp
-            ../deki-3d/Mesh3DBackend.cpp ../deki-rendering/ShaderAsset.cpp ../deki-gl/ScreenEffect.cpp
+    SOURCES GLMesh3DBackend.cpp ../deki-gl/GLApi.cpp ../deki-gl/GLPresenter.cpp ../deki-gl/GLBlitSink.cpp
+            ../deki-3d/Raster3D.cpp ../deki-3d/Mesh3DBackend.cpp ../deki-rendering/ShaderAsset.cpp
+            ../deki-rendering/QuadBlit.cpp ../deki-rendering/RenderProfiler.cpp ../deki-gl/ScreenEffect.cpp
     DEFINES DEKI_3D_EXPORTS DEKI_GL_EXPORTS DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
 
-# deki-gl: the presenter's layers, composed on the GPU and read back.
+# deki-gl: the presenter's layers, composed on the GPU and read back, and the
+# 2D blits it draws, against QuadBlit's CPU code.
 deki_add_package_tests(deki-gl TARGET DekiGLTests CODEGEN
-    SOURCES GLApi.cpp GLPresenter.cpp ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp
+    SOURCES GLApi.cpp GLPresenter.cpp GLBlitSink.cpp ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp
+            ../deki-rendering/QuadBlit.cpp ../deki-rendering/RenderProfiler.cpp
     DEFINES DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
