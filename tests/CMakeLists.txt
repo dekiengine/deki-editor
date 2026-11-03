@@ -479,12 +479,16 @@ endfunction()
 # presenter's and the GPU 2D's tests run too (skipping without OpenGL); the
 # package's compile check below builds it as a board does, without.
 # The shader tests compile HLSL with the editor's compiler, through the
-# package's editor code that wraps a file for each use.
-set(DEKI_RENDERING_TEST_SOURCES editor/ShaderUses.cpp editor/EffectShaderUse.cpp)
+# package's editor code that wraps a file for each use. One test checks
+# GLLight2DShader.inl, read from the package's source directory, is what the
+# 2D light's HLSL compiles to.
+set(DEKI_RENDERING_TEST_SOURCES editor/ShaderUses.cpp editor/EffectShaderUse.cpp editor/Light2DShader.cpp)
+set(DEKI_RENDERING_TEST_DEFINES DEKI_CAPABILITY_OPENGL
+    "DEKI_RENDERING_SOURCE_DIR=\"${DEKI_PACKAGES_DIR}/deki-rendering\"")
 deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR
-    SOURCES ${DEKI_RENDERING_TEST_SOURCES} DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
+    SOURCES ${DEKI_RENDERING_TEST_SOURCES} DEFINES ${DEKI_RENDERING_TEST_DEFINES} LIBS ${CMAKE_DL_LIBS})
 deki_add_package_tests(deki-rendering TARGET DekiRenderingTestsBigEndian ALL_SOURCES NEEDS_EDITOR BIG_ENDIAN
-    SOURCES ${DEKI_RENDERING_TEST_SOURCES} DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
+    SOURCES ${DEKI_RENDERING_TEST_SOURCES} DEFINES ${DEKI_RENDERING_TEST_DEFINES} LIBS ${CMAKE_DL_LIBS})
 
 # ParticlePool is a header, so the tests compile alone against the engine.
 deki_add_package_tests(deki-particles TARGET DekiParticlesTests)

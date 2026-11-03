@@ -14,6 +14,8 @@
 // things without asking:
 //
 //   uniforms   one struct, `u`: HLSL's `float uTime;` is "u.uTime"
+//              and an array a struct of its own, `float4 uLights[16];`
+//              element i "u.uLights.data[i]"
 //   textures   a Texture2D and the samplers it is used with become one
 //              sampler2D named as the Texture2D
 //   varyings   vary<location>, the same in both stages
