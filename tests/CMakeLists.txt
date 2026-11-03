@@ -571,7 +571,8 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
-                       ../deki-rendering/RenderProfiler.cpp editor/FontCompiler.cpp)
+                       ../deki-rendering/RenderProfiler.cpp ../deki-rendering/Light.cpp
+                       ../deki-rendering/Lighting2D.cpp editor/FontCompiler.cpp)
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
                        DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS "DEKI_TEST_FONT=\"${_deki_2d_test_font}\""
                        LIBS freetype)
