@@ -6,6 +6,23 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Packages bring everything they need
+- Installing a package installs its dependencies' dependencies too. Only the
+  first level was installed once the registry had been listed:
+  deki-lilygo-boards brought deki-display and deki-gps without the deki-spi
+  and deki-uart they need, so the project's package build failed.
+- Asking to install a package that is already there installs whatever it
+  needs that is missing, so a project left short repairs by asking again
+  (`PackageManager::InstallMissingDependencies`).
+
+### Depth in the MCP tools follows the project
+- `get_object`, `list_objects` and the scene resource show z, rotationX,
+  rotationY and scaleZ in a project that declares transform_3d (deki-3d
+  does), and only there. `set_position`'s z, `set_rotation`'s x and y and
+  `set_scale`'s sz are refused, saying why, in a 2D project, where depth would
+  be lost on export. One `WriteTransform` (src/mcp/McpTransform.h) writes an
+  object's transform for both the tools and the resource.
+
 ### Asset settings per platform, for any asset type
 - `deki-editor/TargetCards.h`: the Targets section an image's inspector
   draws (Default, then a card per platform, each able to override it), now in

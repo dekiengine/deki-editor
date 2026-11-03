@@ -1693,7 +1693,24 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 
     if (pkg->isInstalled)
     {
+        // Already here; what it needs may not be, after an install that
+        // stopped short. Asking again installs that.
         outMessage = "Already installed (" + pkg->installedVersion + ")";
+        const PackageEntry here = *pkg;  // a copy: resolving may move the list
+        m_PackageManager->ResolveDependencies(here);
+        const std::vector<std::string> added = m_PackageManager->InstallMissingDependencies(
+            projectPath, m_PackageManager->GetInstallerById(PackageManager::kDekiInstallerId));
+        if (added.empty())
+        {
+            return true;
+        }
+        std::string names;
+        for (const std::string& name : added)
+        {
+            names += (names.empty() ? "" : ", ") + name;
+        }
+        outMessage += "; installed what it needs that was missing: " + names;
+        AfterInstall(projectPath, true);
         return true;
     }
 
@@ -1726,6 +1743,13 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
         return false;
     }
 
+    AfterInstall(projectPath, installer->GetId() == PackageManager::kDekiInstallerId);
+    outMessage = "Installed " + id + " @ " + useVersion;
+    return true;
+}
+
+void PackageManagerPanel::AfterInstall(const std::string& projectPath, bool dekiPackage)
+{
     // Install() does not set isInstalled on the entry; the panel picks that up
     // on its next refresh. Automation saves at once, so re-scan first, or the
     // package just installed is saved as not wanted.
@@ -1736,7 +1760,7 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
 
     // A Deki package changes the generated build, so delete CMakeLists.txt to
     // have it regenerated, and force a rebuild regardless of file timestamps.
-    if (installer->GetId() == PackageManager::kDekiInstallerId)
+    if (dekiPackage)
     {
         std::error_code ec;
         std::filesystem::remove(std::filesystem::path(projectPath) / "CMakeLists.txt", ec);
@@ -1746,9 +1770,6 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
             hotReload->RequestBuildCheck(projectPath);
         }
     }
-
-    outMessage = "Installed " + id + " @ " + useVersion;
-    return true;
 }
 
 std::vector<std::string> PackageManagerPanel::GetRequiredBuildDefines(const std::string& targetPlatformId) const

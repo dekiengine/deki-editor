@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "services/PackageManager.h"
 #include "services/PackageManifest.h"
 
@@ -273,6 +275,93 @@ TEST(PackageDependencies, EveryRequirementIsResolved)
             found |= entry.id == id && entry.resolvedBy == "deki-board";
         }
         EXPECT_TRUE(found) << id;
+    }
+}
+
+// A requirement already in the list, as every registry offer is once the
+// registry is listed, has its own requirements resolved too, and theirs.
+// Only the first level was: deki-lilygo-boards installed deki-display without
+// the deki-spi it needs, and deki-gps without deki-uart.
+TEST(PackageDependencies, RequirementsOfListedPackagesAreResolvedToo)
+{
+    PackageManager mgr(nullptr);
+    mgr.GetPackages().clear();
+    auto offer = [&](const char* id, std::vector<std::string> needs)
+    {
+        PackageEntry p;
+        p.id = id;
+        p.name = id;
+        p.requiredPackages = std::move(needs);
+        mgr.GetPackages().push_back(p);
+    };
+    offer("deki-board", { "deki-display", "deki-gps" });
+    offer("deki-display", { "deki-spi" });
+    offer("deki-gps", { "deki-uart" });
+    offer("deki-uart", { "deki-gpio" });
+
+    const PackageEntry board = mgr.GetPackages()[0];
+    mgr.ResolveDependencies(board);
+
+    for (const char* id : { "deki-display", "deki-gps", "deki-spi", "deki-uart", "deki-gpio" })
+    {
+        bool resolved = false;
+        for (const PackageEntry& entry : mgr.GetPackages())
+        {
+            resolved |= entry.id == id && !entry.resolvedBy.empty();
+        }
+        EXPECT_TRUE(resolved) << id;
+    }
+}
+
+// A package on disk whose dependencies are not, after an install that
+// stopped short: resolving it again and installing what is missing installs
+// exactly those, and marks them installed.
+TEST(PackageDependencies, MissingDependenciesOfAnInstalledPackageAreInstalled)
+{
+    class RecordingInstaller : public StubInstaller
+    {
+    public:
+        RecordingInstaller()
+            : StubInstaller(PackageManager::kDekiInstallerId)
+        {
+        }
+        void Install(const std::string&, const PackageEntry& pkg, const std::string&,
+                     PackageCallback callback) override
+        {
+            installed->push_back(pkg.id);
+            callback(true, "");
+        }
+        std::shared_ptr<std::vector<std::string>> installed = std::make_shared<std::vector<std::string>>();
+    };
+
+    TempProject project;
+    PackageManager mgr(nullptr);
+    RecordingInstaller recording;  // never the real one, which would clone
+    const auto installed = recording.installed;
+    mgr.GetPackages().clear();
+    auto entry = [&](const char* id, std::vector<std::string> needs, bool onDisk)
+    {
+        PackageEntry p;
+        p.id = id;
+        p.name = id;
+        p.url = std::string("https://github.com/dekiengine/") + id;
+        p.requiredPackages = std::move(needs);
+        p.isInstalled = onDisk;
+        mgr.GetPackages().push_back(p);
+    };
+    entry("deki-board", { "deki-display" }, true);
+    entry("deki-display", { "deki-spi" }, true);
+    entry("deki-spi", {}, false);
+
+    const PackageEntry board = mgr.GetPackages()[0];
+    mgr.ResolveDependencies(board);
+    const std::vector<std::string> added = mgr.InstallMissingDependencies(project.dir.string(), &recording);
+
+    EXPECT_EQ(added, std::vector<std::string>{ "deki-spi" });
+    EXPECT_EQ(*installed, std::vector<std::string>{ "deki-spi" }) << "only what was missing";
+    for (const PackageEntry& p : mgr.GetPackages())
+    {
+        EXPECT_TRUE(p.isInstalled) << p.id;
     }
 }
 

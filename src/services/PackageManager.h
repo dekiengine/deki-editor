@@ -149,6 +149,15 @@ public:
     void InstallWithDependencies(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
                                  IPackageInstaller* installer, PackageCallback callback);
 
+    /// Installs, with `dekiInstaller` (the Deki installer, GetInstallerById
+    /// of kDekiInstallerId), every package something resolved needs
+    /// (resolvedBy set) that is not on disk, at the version the lock
+    /// remembers, else the registry's latest. Returns the ids it installed.
+    /// For a project left with a dependency missing, after
+    /// ResolveDependencies of what needs it.
+    std::vector<std::string> InstallMissingDependencies(const std::string& projectPath,
+                                                        IPackageInstaller* dekiInstaller);
+
     /// Removes a package and the dependencies nothing else needs any more:
     /// deletes them from disk and clears their resolvedBy. The callback's
     /// message lists their IDs, comma-separated.

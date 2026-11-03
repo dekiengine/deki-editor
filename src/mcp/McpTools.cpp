@@ -1,6 +1,7 @@
 #include "McpTools.h"
 #include "../services/FrameTiming.h"
 #include "McpToolRegistry.h"
+#include "McpTransform.h"
 #include "../EditorApp.h"
 #include <deki-editor/CommandHistory.h>
 #include "../core/Commands.h"
@@ -24,18 +25,14 @@
 namespace DekiEditor
 {
 
-// One object as JSON, without its children's contents.
-static nlohmann::json SerializeObject(Deki::Object* obj)
+// One object as JSON, without its children's contents. `depth`: the project
+// declares transform_3d, so its depth is shown (McpTransform.h).
+static nlohmann::json SerializeObject(Deki::Object* obj, bool depth)
 {
     nlohmann::json j;
     j["id"] = obj->GetId();
     j["name"] = obj->GetName();
-    j["x"] = obj->GetX();
-    j["y"] = obj->GetY();
-    // MCP reports rotation in degrees; it is stored in radians.
-    j["rotation"] = obj->GetLocalRotation() * Deki::Math::kRadToDeg;
-    j["scaleX"] = obj->GetScaleX();
-    j["scaleY"] = obj->GetScaleY();
+    WriteTransform(j, obj, depth);
 
     if (obj->GetParent())
     {
@@ -65,12 +62,12 @@ static nlohmann::json SerializeObject(Deki::Object* obj)
 }
 
 // An object and all its descendants, added to `arr`.
-static void SerializeObjectTree(Deki::Object* obj, nlohmann::json& arr)
+static void SerializeObjectTree(Deki::Object* obj, nlohmann::json& arr, bool depth)
 {
-    arr.push_back(SerializeObject(obj));
+    arr.push_back(SerializeObject(obj, depth));
     for (auto* child : obj->GetChildren())
     {
-        SerializeObjectTree(child, arr);
+        SerializeObjectTree(child, arr, depth);
     }
 }
 
@@ -245,7 +242,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   }
               }
 
-              return SerializeObject(createdObj);
+              return SerializeObject(createdObj, editor->ProjectDeclaresDepth());
           } });
 
     registry.Register(
@@ -343,7 +340,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                       std::make_unique<SetPositionCommand>(duplicated, args["x"].get<float>(), args["y"].get<float>()));
               }
 
-              return SerializeObject(duplicated);
+              return SerializeObject(duplicated, editor->ProjectDeclaresDepth());
           } });
 
     registry.Register(
@@ -449,7 +446,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
               {
                   if (Deki::Object* copy = duplicate->GetDuplicatedObject())
                   {
-                      copies.push_back(SerializeObject(copy));
+                      copies.push_back(SerializeObject(copy, editor->ProjectDeclaresDepth()));
                   }
               }
               if (copies.size() != originals.size())
@@ -477,7 +474,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("Object not found: " + std::to_string(objId));
               }
 
-              return SerializeObject(obj);
+              return SerializeObject(obj, editor->ProjectDeclaresDepth());
           } });
 
     registry.Register({ "list_objects",
@@ -490,15 +487,15 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             nlohmann::json objects = nlohmann::json::array();
                             for (auto* obj : scene->GetObjects())
                             {
-                                SerializeObjectTree(obj, objects);
+                                SerializeObjectTree(obj, objects, editor->ProjectDeclaresDepth());
                             }
 
                             return { { "objects", objects }, { "count", objects.size() } };
                         } });
 
     registry.Register({ "set_position",
-                        "Set the local position of a DekiObject. z, the depth, counts only in a project that "
-                        "declares transform_3d (deki-3d does).",
+                        "Set the local position of a DekiObject. z, the depth, is for a project that declares "
+                        "transform_3d (deki-3d does); a 2D project refuses it.",
                         { { "type", "object" },
                           { "properties",
                             { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
@@ -517,6 +514,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 throw std::runtime_error("Object not found: " + std::to_string(objId));
                             }
 
+                            RequireDepthFor(editor, args, { "z" });
                             float x = args["x"].get<float>();
                             float y = args["y"].get<float>();
 
@@ -540,8 +538,9 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register({ "set_rotation",
                         "Set the rotation of a DekiObject in degrees. angle turns it in the screen plane (about "
-                        "Z); x and y tilt it about the X and Y axes, which count only in a project that declares "
-                        "transform_3d (deki-3d does). Give any of the three; the others stay as they are.",
+                        "Z); x and y tilt it about the X and Y axes, which are for a project that declares "
+                        "transform_3d (deki-3d does); a 2D project refuses them. Give any of the three; the others "
+                        "stay as they are.",
                         { { "type", "object" },
                           { "properties",
                             { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
@@ -564,6 +563,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             {
                                 throw std::runtime_error("Give angle, x or y");
                             }
+                            RequireDepthFor(editor, args, { "x", "y" });
 
                             // MCP takes degrees; rotation is stored in radians.
                             if (args.contains("x") || args.contains("y"))
@@ -609,7 +609,8 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                               { "sy", { { "type", "number" }, { "description", "Scale Y" } } },
                               { "sz",
                                 { { "type", "number" },
-                                  { "description", "Scale Z (depth), for transform_3d projects. Unchanged when omitted." } } } } },
+                                  { "description", "Scale Z (depth), for transform_3d projects; a 2D project refuses it. "
+                                                  "Unchanged when omitted." } } } } },
                           { "required", nlohmann::json::array({ "object_id", "sx", "sy" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -622,6 +623,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                                 throw std::runtime_error("Object not found: " + std::to_string(objId));
                             }
 
+                            RequireDepthFor(editor, args, { "sz" });
                             float sx = args["sx"].get<float>();
                             float sy = args["sy"].get<float>();
                             if (args.contains("sz"))
@@ -1158,7 +1160,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                             nlohmann::json objects = nlohmann::json::array();
                             for (auto* obj : scene->GetObjects())
                             {
-                                SerializeObjectTree(obj, objects);
+                                SerializeObjectTree(obj, objects, editor->ProjectDeclaresDepth());
                             }
 
                             return { { "path", editor->GetCurrentScenePath() },

@@ -1,5 +1,6 @@
 #include "McpResources.h"
 #include "../EditorApp.h"
+#include "McpTransform.h"
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/Component.h>
@@ -12,17 +13,14 @@ namespace DekiEditor
 {
 
 // An object and its children as JSON.
-static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
+// `depth`: the project declares transform_3d, so its depth is shown
+// (McpTransform.h).
+static nlohmann::json SerializeObjectForResource(Deki::Object* obj, bool depth)
 {
     nlohmann::json j;
     j["id"] = obj->GetId();
     j["name"] = obj->GetName();
-    j["x"] = obj->GetX();
-    j["y"] = obj->GetY();
-    // MCP reports rotation in degrees; it is stored in radians.
-    j["rotation"] = obj->GetLocalRotation() * Deki::Math::kRadToDeg;
-    j["scaleX"] = obj->GetScaleX();
-    j["scaleY"] = obj->GetScaleY();
+    WriteTransform(j, obj, depth);
 
     auto& registry = Deki::ComponentRegistry::Instance();
 
@@ -62,7 +60,7 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj)
     nlohmann::json children = nlohmann::json::array();
     for (auto* child : obj->GetChildren())
     {
-        children.push_back(SerializeObjectForResource(child));
+        children.push_back(SerializeObjectForResource(child, depth));
     }
     j["children"] = children;
 
@@ -105,7 +103,7 @@ nlohmann::json HandleResourceRead(const std::string& uri, EditorApp* editor)
         nlohmann::json objects = nlohmann::json::array();
         for (auto* obj : scene->GetObjects())
         {
-            objects.push_back(SerializeObjectForResource(obj));
+            objects.push_back(SerializeObjectForResource(obj, editor->ProjectDeclaresDepth()));
         }
 
         return { { "path", editor->GetCurrentScenePath() }, { "objects", objects } };

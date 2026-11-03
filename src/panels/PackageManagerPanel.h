@@ -74,6 +74,13 @@ public:
     bool InstallPackageById(const std::string& id, const std::string& version, std::string& outMessage);
 
 private:
+    /// After packages were installed: save, reload platforms, and for a Deki
+    /// package regenerate and rebuild.
+    void AfterInstall(const std::string& projectPath, bool dekiPackage);
+
+public:
+
+private:
     void DrawToolbar();
     void DrawPackageList();
     void DrawPackageDetails();
