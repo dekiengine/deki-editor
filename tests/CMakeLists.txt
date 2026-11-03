@@ -511,7 +511,7 @@ deki_add_package_tests(deki-particles TARGET DekiParticlesTestsBigEndian BIG_END
 # checks GLMesh3DBuiltinShader.inl, read from the package's source directory,
 # is what the mesh use compiles to.
 set(DEKI_3D_TEST_SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp GLMesh3DBackend.cpp
-    editor/MeshShaderUse.cpp
+    editor/MeshShaderUse.cpp editor/Mesh3DSettingsMigration.cpp
     ../deki-rendering/GLApi.cpp ../deki-rendering/GLPresenter.cpp ../deki-rendering/GLBlitSink.cpp
     ../deki-rendering/ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp ../deki-rendering/QuadBlit.cpp
     ../deki-rendering/RenderProfiler.cpp ../deki-rendering/editor/ShaderUses.cpp
