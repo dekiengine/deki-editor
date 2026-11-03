@@ -272,6 +272,11 @@ bool AssetExporter::ExportAssets(const std::string& outDir)
     {
         AddProblem(problem);
     }
+    m_Warnings = usedAssets.warnings;
+    for (const std::string& warning : m_Warnings)
+    {
+        DEKI_LOG_WARNING("%s", warning.c_str());
+    }
 
     // Step 1.5: the force-included assets. Every build ships them, not only
     // an SD card copy.
@@ -445,6 +450,12 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
         }
 
         DEKI_LOG_DEBUG("Scanning scene: %s", info.path.c_str());
+
+        for (const auto& [name, check] : m_Pipeline->SceneExportChecks())
+        {
+            (void)name;
+            check(scene, info.path, m_TargetCapabilities, collection.warnings);
+        }
 
         // Scan all objects in the scene, noting where each new GUID came from
         const std::unordered_set<std::string> before = collection.usedGuids;

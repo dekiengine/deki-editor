@@ -482,7 +482,8 @@ endfunction()
 # package's editor code that wraps a file for each use. One test checks
 # GLLight2DShader.inl, read from the package's source directory, is what the
 # 2D light's HLSL compiles to.
-set(DEKI_RENDERING_TEST_SOURCES editor/ShaderUses.cpp editor/EffectShaderUse.cpp editor/Light2DShader.cpp)
+set(DEKI_RENDERING_TEST_SOURCES editor/ShaderUses.cpp editor/EffectShaderUse.cpp editor/Light2DShader.cpp
+    editor/LightCustomEditor.cpp)
 set(DEKI_RENDERING_TEST_DEFINES DEKI_CAPABILITY_OPENGL
     "DEKI_RENDERING_SOURCE_DIR=\"${DEKI_PACKAGES_DIR}/deki-rendering\"")
 deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR

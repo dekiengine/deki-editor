@@ -680,6 +680,10 @@ FirmwareOpResult FirmwareBuildService::PrepareBuild(const std::string& projectPa
                                (why.empty() ? std::string("; the log lists what is wrong.") : ": " + why));
             }
             log("Exported the assets into the build (internal storage)", false);
+            for (const std::string& warning : exporter.GetWarnings())
+            {
+                log("Warning: " + warning, false);
+            }
         }
 
         // The simulated board's SD card, made fresh: what the SD Card Deploy

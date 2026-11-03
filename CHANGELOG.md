@@ -6,6 +6,15 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Builds say what a board does without
+- `AssetPipeline::RegisterSceneExportCheck`: a package looks at the scenes a
+  build ships, for what its target goes without that the build still allows
+  (deki-rendering: a light's shadows on a board without OpenGL). What a check
+  says is logged, and listed in the firmware build's output as a warning; the
+  build goes on.
+- `ShaderCompiler.h` says how an array uniform is named in the GLSL:
+  `float4 uLights[16];`'s element i is "u.uLights.data[i]".
+
 ### Added
 - **HLSL shaders.** `ShaderCompiler` (`deki-editor/ShaderCompiler.h`)
   compiles HLSL to the GLSL OpenGL devices run, GLSL ES 3.00 and GLSL 3.30:

@@ -173,6 +173,7 @@ void AssetPipeline::ClearOnStartedCallbacks()
         s_Instance->m_SyncHandlers.clear();
         s_Instance->m_CacheHandlers.clear();
         s_Instance->m_ExportEncoders.clear();
+        s_Instance->m_SceneChecks.clear();
         s_Instance->m_DependencyReporters.clear();
         s_Instance->m_DefaultCacheHandler = nullptr;
         s_Instance->m_CacheVariantProviders.clear();
@@ -216,6 +217,11 @@ void AssetPipeline::RegisterExportEncoder(const std::string& extension, AssetExp
     std::string ext = extension;
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
     m_ExportEncoders[ext] = std::move(encoder);
+}
+
+void AssetPipeline::RegisterSceneExportCheck(const std::string& name, SceneExportCheck check)
+{
+    m_SceneChecks[name] = std::move(check);
 }
 
 const AssetExportEncoder* AssetPipeline::FindExportEncoder(const std::string& extension) const
@@ -479,6 +485,7 @@ void AssetPipeline::Stop()
     m_SyncHandlers.clear();  // they may hold references to destroyed objects
     m_CacheHandlers.clear();
     m_ExportEncoders.clear();
+    m_SceneChecks.clear();
     m_DependencyReporters.clear();
     m_DefaultCacheHandler = nullptr;
     TextureImporter::ClearFrameData();

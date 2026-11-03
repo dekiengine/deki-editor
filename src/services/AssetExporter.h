@@ -82,6 +82,8 @@ struct AssetUsageCollection
     // Scenes that could not be read. Their assets are unknown, so the export
     // must stop rather than ship a build missing them.
     std::vector<std::string> problems;
+    // What the scene checks (AssetPipeline::RegisterSceneExportCheck) said.
+    std::vector<std::string> warnings;
 };
 
 /// Exports the project's assets for the runtime. Each used asset is written
@@ -130,6 +132,10 @@ public:
     /// per problem (a scene that does not load, a referenced asset that is not
     /// in the project, ...). Each was logged as an error too.
     const std::vector<std::string>& GetProblems() const { return m_Problems; }
+
+    /// What the scene checks found this target does without, which the
+    /// export goes on with: for the build's output.
+    const std::vector<std::string>& GetWarnings() const { return m_Warnings; }
 
     /// Writes the binary asset lookup table to `outputPath` (such as
     /// "storage/asset_table.bin") for the GUIDs in `usedGuids`. It is sorted
@@ -215,6 +221,7 @@ private:
     PackageLoader* m_PackageLoader = nullptr;
     int m_ExportedCount = 0;
     std::vector<std::string> m_Problems;
+    std::vector<std::string> m_Warnings;
     std::set<std::string> m_TargetCapabilities;
     AssetExportTarget m_Target;
     bool m_HasTarget = false;

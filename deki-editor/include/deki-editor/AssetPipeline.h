@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -14,6 +15,11 @@
 #include <deki/Engine.h>  // Deki::ColorFormat
 
 #include <deki-editor/EditorExport.h>
+namespace Deki
+{
+class Scene;
+}
+
 namespace DekiEditor
 {
 
@@ -90,6 +96,14 @@ struct DEKI_EDITOR_API AssetExportContext
     // ("x.shader: lilygo_t_deck has no OpenGL"). Never null.
     std::string* error = nullptr;
 };
+
+/// A look at a scene a build ships, for what its target does without that the
+/// build still allows, such as a light's shadows on a board without OpenGL.
+/// Each line added to `warnings` is listed in the build's output; the build
+/// goes on. `capabilities` are the target platform's ("opengl", ...).
+using SceneExportCheck = std::function<void(const Deki::Scene& scene, const std::string& scenePath,
+                                            const std::set<std::string>& capabilities,
+                                            std::vector<std::string>& warnings)>;
 
 /// Writes an asset the way a given target stores it.
 ///
@@ -172,6 +186,11 @@ public:
 
     /// The encoder for an extension (lowercase, with dot), or null.
     const AssetExportEncoder* FindExportEncoder(const std::string& extension) const;
+
+    /// Registers a check of the scenes a build ships, under a name of its own.
+    /// Cleared with the cache handlers when a package unloads.
+    void RegisterSceneExportCheck(const std::string& name, SceneExportCheck check);
+    const std::unordered_map<std::string, SceneExportCheck>& SceneExportChecks() const { return m_SceneChecks; }
 
     /// Registers what lists the assets an extension's assets use. Cleared
     /// with the cache handlers when a package unloads.
@@ -332,6 +351,9 @@ private:
 
     // Keyed by lowercase extension.
     std::unordered_map<std::string, AssetExportEncoder> m_ExportEncoders;
+
+    // Keyed by the name each was registered under.
+    std::unordered_map<std::string, SceneExportCheck> m_SceneChecks;
 
     // Keyed by lowercase extension.
     std::unordered_map<std::string, AssetDependencyReporter> m_DependencyReporters;
