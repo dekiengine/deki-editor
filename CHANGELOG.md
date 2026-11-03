@@ -6,6 +6,19 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Asset settings per platform, for any asset type
+- `deki-editor/TargetCards.h`: the Targets section an image's inspector
+  draws (Default, then a card per platform, each able to override it), now in
+  the editor library, so a package draws its own asset type's per-platform
+  settings the same way (deki-3d's models). The image inspector uses it.
+- `SectionAlignedCursorX` and `PropertyLabelWidth` are the theme's
+  (`EditorTheme.h`), so the library and the application share one layout.
+- An asset encoder can warn as well as fail: `AssetExportContext::warnings`,
+  listed in the build's output. Kept beside the platform's version of the
+  asset, so a build that reuses it says the same.
+- Cache version 6: the editor builds its cache again once (deki-3d's mesh
+  files are version 5).
+
 ### Builds say what a board does without
 - `AssetPipeline::RegisterSceneExportCheck`: a package looks at the scenes a
   build ships, for what its target goes without that the build still allows

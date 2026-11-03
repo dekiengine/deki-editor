@@ -1714,6 +1714,35 @@ void DrawTreeNodeChevronLabel(bool open, bool expandable, const char* label, ImU
     }
 }
 
+float SectionAlignedCursorX()
+{
+    const float dpi = ImGui::GetStyle().FontScaleDpi;
+    const float x = ImGui::GetCursorPosX();
+    const float floorX = Metrics::kSectionHeaderMargin * dpi;
+    const float want = x - Metrics::kSectionHeaderOutdent * dpi;
+    const float bandLeft = want < floorX ? floorX : want;
+    return bandLeft + Metrics::kSectionLabelIndent * dpi;
+}
+
+float PropertyLabelWidth(float labelStartX)
+{
+    const float font = ImGui::GetFontSize();
+    const float rightPad = Metrics::kInspectorRightPad * ImGui::GetStyle().FontScaleDpi;
+    const float rowWidth = ImGui::GetContentRegionMax().x - labelStartX - rightPad;
+    float w = rowWidth * 0.42f;
+    const float minW = font * 5.5f;
+    const float maxW = font * 9.0f;
+    if (w < minW)
+    {
+        w = minW;
+    }
+    if (w > maxW)
+    {
+        w = maxW;
+    }
+    return w;
+}
+
 void FullBleedSeparator()
 {
     ImGuiWindow* w = ImGui::GetCurrentWindow();

@@ -229,12 +229,7 @@ bool ComponentHasFilterMatch(const Deki::ComponentMeta* meta);
 /// DEKI_GROUP sub-header). Window-relative x, ready for SetCursorPosX.
 inline float SectionAlignedCursorX()
 {
-    const float dpi = ImGui::GetStyle().FontScaleDpi;
-    const float x = ImGui::GetCursorPosX();
-    const float floorX = ::DekiEditor::Metrics::kSectionHeaderMargin * dpi;
-    const float want = x - ::DekiEditor::Metrics::kSectionHeaderOutdent * dpi;
-    const float bandLeft = want < floorX ? floorX : want;
-    return bandLeft + ::DekiEditor::Metrics::kSectionLabelIndent * dpi;
+    return ::DekiEditor::SectionAlignedCursorX();
 }
 
 /// Width of a row's label column: 42% of the row, kept between 5.5em and
@@ -242,21 +237,7 @@ inline float SectionAlignedCursorX()
 /// value usable, and below 5.5em names are cut instead.
 inline float PropertyLabelWidth(float labelStartX)
 {
-    const float font = ImGui::GetFontSize();
-    const float rightPad = ::DekiEditor::Metrics::kInspectorRightPad * ImGui::GetStyle().FontScaleDpi;
-    const float rowWidth = ImGui::GetContentRegionMax().x - labelStartX - rightPad;
-    float w = rowWidth * 0.42f;
-    const float minW = font * 5.5f;
-    const float maxW = font * 9.0f;
-    if (w < minW)
-    {
-        w = minW;
-    }
-    if (w > maxW)
-    {
-        w = maxW;
-    }
-    return w;
+    return ::DekiEditor::PropertyLabelWidth(labelStartX);
 }
 
 /// Starts a property row: a label column in Inter Medium 13 CSS px, colour

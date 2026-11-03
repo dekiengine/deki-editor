@@ -25,7 +25,7 @@ namespace DekiEditor
 
 // Bump this when the compiled asset format changes. On a mismatch the
 // pipeline wipes the cache and rebuilds it.
-constexpr int kDekiCacheVersion = 5;  // 5: version 3 meshes and tilemaps without pool offsets are not read
+constexpr int kDekiCacheVersion = 6;  // 6: mesh files are version 5 (32-bit indices, texture filter)
 
 // Bump when CompileSceneFile writes a scene differently: compiled scenes are
 // rebuilt, and nothing else is. 2: a sprite frame is written as its sheet.
@@ -95,6 +95,11 @@ struct DEKI_EDITOR_API AssetExportContext
     // Where an encoder that fails says why, for the build's list of problems
     // ("x.shader: lilygo_t_deck has no OpenGL"). Never null.
     std::string* error = nullptr;
+    // Where an encoder that succeeds says what this target does without, for
+    // the build's warnings ("x.obj: this board draws its textures unfiltered").
+    // The build goes on. Kept with the target's version of the asset, so a
+    // later build that reuses it says the same. Never null.
+    std::vector<std::string>* warnings = nullptr;
 };
 
 /// A look at a scene a build ships, for what its target does without that the

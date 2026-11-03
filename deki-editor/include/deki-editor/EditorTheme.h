@@ -278,6 +278,17 @@ DEKI_EDITOR_API void DrawTreeNodeChevronLabel(bool open, bool expandable, const 
 /// both dock seams. Use it to bound a component section like a window edge.
 DEKI_EDITOR_API void FullBleedSeparator();
 
+/// Where a section band's labels (and the rows under it) start: a fixed
+/// indent in from the band's left edge, which sits kSectionHeaderOutdent left
+/// of the cursor (never past the panel's margin). Window-relative x, ready
+/// for SetCursorPosX.
+DEKI_EDITOR_API float SectionAlignedCursorX();
+
+/// Width of a property row's label column: 42% of the row, kept between
+/// 5.5em and 9em. A wide Inspector gives long names room, a narrow one still
+/// leaves the value usable, and below 5.5em names are cut instead.
+DEKI_EDITOR_API float PropertyLabelWidth(float labelStartX);
+
 /// The toolbar under a panel's tab: a full-width strip with a PIN
 /// (lock-to-selection) toggle on the left, a "..." menu on the right and a
 /// hairline below. Call once right after ImGui::Begin(...), before the

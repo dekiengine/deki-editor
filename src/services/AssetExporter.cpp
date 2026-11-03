@@ -149,6 +149,10 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
     // format change.
     fs::path stampPath = out;
     stampPath += ".stamp";
+    // What the encoder warned of, one line each, kept for the builds that
+    // reuse this version.
+    fs::path warningsPath = out;
+    warningsPath += ".warnings";
     const std::string stamp = m_Pipeline->MakeCacheStamp(source) + "|" + m_Target.platformId + "|" +
                               std::to_string(static_cast<int>(m_Target.colorFormat)) + "|" +
                               std::to_string(static_cast<int>(m_Target.assetStorage));
@@ -175,6 +179,8 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
         ctx.pipeline = m_Pipeline;
         std::string why;
         ctx.error = &why;
+        std::vector<std::string> warnings;
+        ctx.warnings = &warnings;
         if (!(*encoder)(ctx))
         {
             // A problem, so the build stops: shipping without it would leave
@@ -184,8 +190,23 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
             m_EncodeFailed.insert(guid);
             return std::string();
         }
+        std::string text;
+        for (const std::string& warning : warnings)
+        {
+            text += warning + "\n";
+        }
         std::string err;
+        AtomicWriteFile(warningsPath.string(), text, err, /*durable=*/false);
         AtomicWriteFile(stampPath.string(), stamp, err, /*durable=*/false);
+    }
+    std::ifstream warningsIn(warningsPath, std::ios::binary);
+    for (std::string line; std::getline(warningsIn, line);)
+    {
+        if (!line.empty() && std::find(m_Warnings.begin(), m_Warnings.end(), line) == m_Warnings.end())
+        {
+            DEKI_LOG_WARNING("%s", line.c_str());
+            m_Warnings.push_back(line);
+        }
     }
     return out.string();
 }
