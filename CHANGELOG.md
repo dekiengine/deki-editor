@@ -9,10 +9,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Added
 - **HLSL shaders.** `ShaderCompiler` (`deki-editor/ShaderCompiler.h`)
   compiles HLSL to the GLSL OpenGL devices run, GLSL ES 3.00 and GLSL 3.30:
-  DXC, Microsoft's HLSL compiler, to SPIR-V, then SPIRV-Cross. The build
-  downloads both, pinned (`cmake/DekiShaderTools.cmake`); DXC's library goes
-  beside the editor. Errors name the file and line. macOS has no prebuilt DXC,
-  so shaders do not compile there yet, and the error says so.
+  Slang, Khronos's shader compiler, to SPIR-V, then SPIRV-Cross. The build
+  downloads both, pinned (`cmake/DekiShaderTools.cmake`), for Windows, Linux
+  and macOS (Apple Silicon); Slang's libraries go beside the editor. Both are
+  Apache-2.0. Errors and warnings name the file and line.
 
 ### Changed
 - An asset an export encoder cannot store for the target stops the build and

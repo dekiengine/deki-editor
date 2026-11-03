@@ -2,6 +2,7 @@
 
 #include "deki-editor/EditorPaths.h"
 
+#include <slang.h>
 #include <spirv_glsl.hpp>
 
 #include <cstdint>
@@ -25,182 +26,59 @@
 
 namespace DekiEditor
 {
-// Not in an anonymous namespace: GCC would then know no class in this file
-// implements them and turn every call into a pure-virtual-call abort.
-namespace DxcInterfaces
-{
-
-// ---------------------------------------------------------------------------
-// DXC's interfaces, declared by hand. dxcapi.h needs MSVC on Windows (and
-// DXC's WinAdapter elsewhere); these are the few methods used, in the order
-// DXC's vtables have them. The layout is COM's on every platform DXC ships
-// for: three IUnknown methods, then the interface's own.
-// ---------------------------------------------------------------------------
-
-#ifdef _WIN32
-#define DEKI_DXC_CALL __stdcall
-#else
-#define DEKI_DXC_CALL
-#endif
-
-using HResult = int32_t;
-inline bool Failed(HResult hr)
-{
-    return hr < 0;
-}
-
-struct DxcGuid
-{
-    uint32_t data1;
-    uint16_t data2;
-    uint16_t data3;
-    uint8_t data4[8];
-};
-
-struct DxcUnknown
-{
-    virtual HResult DEKI_DXC_CALL QueryInterface(const DxcGuid* iid, void** object) = 0;
-    virtual uint32_t DEKI_DXC_CALL AddRef() = 0;
-    virtual uint32_t DEKI_DXC_CALL Release() = 0;
-};
-
-struct DxcBlob : DxcUnknown
-{
-    virtual void* DEKI_DXC_CALL GetBufferPointer() = 0;
-    virtual size_t DEKI_DXC_CALL GetBufferSize() = 0;
-};
-
-struct DxcBlobEncoding : DxcBlob
-{
-    virtual HResult DEKI_DXC_CALL GetEncoding(int32_t* known, uint32_t* codePage) = 0;
-};
-
-struct DxcOperationResult : DxcUnknown
-{
-    virtual HResult DEKI_DXC_CALL GetStatus(HResult* status) = 0;
-    virtual HResult DEKI_DXC_CALL GetResult(DxcBlob** result) = 0;
-    virtual HResult DEKI_DXC_CALL GetErrorBuffer(DxcBlobEncoding** errors) = 0;
-};
-
-struct DxcBuffer
-{
-    const void* ptr;
-    size_t size;
-    uint32_t encoding;
-};
-
-struct DxcCompiler3 : DxcUnknown
-{
-    virtual HResult DEKI_DXC_CALL Compile(const DxcBuffer* source, const wchar_t** args, uint32_t argCount,
-                                          DxcUnknown* includeHandler, const DxcGuid* iid, void** result) = 0;
-};
-
-using DxcCreateInstanceFn = HResult(DEKI_DXC_CALL*)(const DxcGuid* clsid, const DxcGuid* iid, void** object);
-
-}  // namespace DxcInterfaces
-
 namespace
 {
-using namespace DxcInterfaces;
 
-constexpr DxcGuid kClsidDxcCompiler = { 0x73e22d93, 0xe6ce, 0x47f3, { 0xb5, 0xbf, 0xf0, 0x66, 0x4f, 0x39, 0xc1, 0xb0 } };
-constexpr DxcGuid kIidDxcCompiler3 = { 0x228b4687, 0x5a6a, 0x4730, { 0x90, 0x0c, 0x97, 0x02, 0xb2, 0x20, 0x3f, 0x54 } };
-constexpr DxcGuid kIidDxcOperationResult = {
-    0xcedb484a, 0xd4e9, 0x445a, { 0xb9, 0x91, 0xca, 0x21, 0xca, 0x15, 0x7d, 0xc2 }
-};
-constexpr uint32_t kUtf8 = 65001;
+#if defined(_WIN32)
+constexpr const char* kLibraryName = "slang-compiler.dll";
+#elif defined(__APPLE__)
+constexpr const char* kLibraryName = "libslang-compiler.dylib";
+#else
+constexpr const char* kLibraryName = "libslang-compiler.so";
+#endif
 
-/// Releases a DXC object when it goes out of scope.
+using CreateGlobalSessionFn = SlangResult (*)(const SlangGlobalSessionDesc* desc,
+                                              slang::IGlobalSession** outGlobalSession);
+
+/// Releases a Slang object when it goes out of scope.
 template <typename T>
 struct Ref
 {
     T* p = nullptr;
+    Ref() = default;
+    Ref(const Ref&) = delete;
+    Ref& operator=(const Ref&) = delete;
     ~Ref()
     {
         if (p)
         {
-            p->Release();
-        }
-    }
-    void** Out() { return reinterpret_cast<void**>(&p); }
-};
-
-#if defined(_WIN32)
-constexpr const char* kLibraryName = "dxcompiler.dll";
-#elif defined(__APPLE__)
-constexpr const char* kLibraryName = "libdxcompiler.dylib";
-#else
-constexpr const char* kLibraryName = "libdxcompiler.so";
-#endif
-
-/// DXC, loaded once: the library beside the editor, never one PATH finds.
-struct Dxc
-{
-    DxcCreateInstanceFn create = nullptr;
-    std::string why;  // why `create` is null
-
-    Dxc()
-    {
-        const std::string path = EditorPaths::GetExecutableDir() + "/" + kLibraryName;
-#ifdef _WIN32
-        HMODULE library = LoadLibraryExA(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
-        if (library)
-        {
-            create = reinterpret_cast<DxcCreateInstanceFn>(
-                reinterpret_cast<void*>(GetProcAddress(library, "DxcCreateInstance")));
-        }
-#else
-        void* library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (library)
-        {
-            create = reinterpret_cast<DxcCreateInstanceFn>(dlsym(library, "DxcCreateInstance"));
-        }
-#endif
-        if (!library)
-        {
-#ifdef __APPLE__
-            why = "the HLSL compiler (DXC) is not available on macOS yet, so shaders cannot be compiled here";
-#else
-            why = "the HLSL compiler (DXC) is missing: " + path + " does not load";
-#endif
-        }
-        else if (!create)
-        {
-            why = "the HLSL compiler (DXC) at " + path + " has no DxcCreateInstance";
+            p->release();
         }
     }
 };
 
-Dxc& GetDxc()
+std::string BlobText(slang::IBlob* blob)
 {
-    static Dxc s_Dxc;
-    return s_Dxc;
-}
-
-// DXC and SPIRV-Cross are used from whichever thread compiles an asset; one
-// compile at a time keeps them simple.
-std::mutex s_CompileMutex;
-
-std::wstring Widen(const std::string& text)
-{
-    // Arguments are ASCII (entry points, defines, profile names); a file
-    // name that is not only labels the source, and #line carries the real one.
-    std::wstring wide;
-    wide.reserve(text.size());
-    for (unsigned char c : text)
-    {
-        wide.push_back(c < 0x80 ? static_cast<wchar_t>(c) : L'_');
-    }
-    return wide;
-}
-
-std::string BlobText(DxcBlob* blob)
-{
-    if (!blob || blob->GetBufferSize() == 0)
+    if (!blob || blob->getBufferSize() == 0)
     {
         return {};
     }
-    std::string text(static_cast<const char*>(blob->GetBufferPointer()), blob->GetBufferSize());
+    const std::string all(static_cast<const char*>(blob->getBufferPointer()), blob->getBufferSize());
+    // Without the lines Slang ends a failed compile with ("import failed",
+    // "compilation ceased"), which only repeat that it failed.
+    std::string text;
+    size_t start = 0;
+    while (start < all.size())
+    {
+        size_t end = all.find('\n', start);
+        end = end == std::string::npos ? all.size() : end + 1;
+        const std::string line = all.substr(start, end - start);
+        if (line.find("[E39999]") == std::string::npos && line.find("[E40003]") == std::string::npos)
+        {
+            text += line;
+        }
+        start = end;
+    }
     while (!text.empty() && (text.back() == '\0' || text.back() == '\n' || text.back() == '\r'))
     {
         text.pop_back();
@@ -208,75 +86,170 @@ std::string BlobText(DxcBlob* blob)
     return text;
 }
 
-/// HLSL to SPIR-V. False with DXC's messages in `errors`.
-bool ToSpirv(const ShaderCompileRequest& request, std::vector<uint32_t>& spirv, std::string& errors)
+/// Slang, loaded once: the library beside the editor, never one PATH finds,
+/// and one global session, which loads Slang's core module (slow, so once).
+struct Slang
 {
-    Dxc& dxc = GetDxc();
-    if (!dxc.create)
+    slang::IGlobalSession* global = nullptr;
+    std::string why;  // why `global` is null
+
+    Slang()
     {
-        errors = request.fileName + ": " + dxc.why;
-        return false;
+        const std::string path = EditorPaths::GetExecutableDir() + "/" + kLibraryName;
+        CreateGlobalSessionFn create = nullptr;
+#ifdef _WIN32
+        // Its own folder first for what it loads in turn (slang-glslang).
+        HMODULE library = LoadLibraryExA(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (library)
+        {
+            create = reinterpret_cast<CreateGlobalSessionFn>(
+                reinterpret_cast<void*>(GetProcAddress(library, "slang_createGlobalSession2")));
+        }
+#else
+        void* library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+        if (library)
+        {
+            create = reinterpret_cast<CreateGlobalSessionFn>(dlsym(library, "slang_createGlobalSession2"));
+        }
+#endif
+        if (!library)
+        {
+            why = "the HLSL compiler (Slang) is missing: " + path + " does not load";
+            return;
+        }
+        if (!create)
+        {
+            why = "the HLSL compiler (Slang) at " + path + " has no slang_createGlobalSession2";
+            return;
+        }
+        SlangGlobalSessionDesc desc;
+        if (SLANG_FAILED(create(&desc, &global)) || !global)
+        {
+            global = nullptr;
+            why = "the HLSL compiler (Slang) did not start";
+            return;
+        }
     }
-    Ref<DxcCompiler3> compiler;
-    if (Failed(dxc.create(&kClsidDxcCompiler, &kIidDxcCompiler3, compiler.Out())) || !compiler.p)
+};
+
+Slang& GetSlang()
+{
+    static Slang s_Slang;
+    return s_Slang;
+}
+
+// Slang and SPIRV-Cross are used from whichever thread compiles an asset; one
+// compile at a time keeps them simple.
+std::mutex s_CompileMutex;
+
+/// HLSL to SPIR-V. False with Slang's messages in `errors`; its warnings, if
+/// it compiled, in `warnings`.
+bool ToSpirv(const ShaderCompileRequest& request, std::vector<uint32_t>& spirv, std::string& errors,
+             std::string& warnings)
+{
+    Slang& slangLib = GetSlang();
+    if (!slangLib.global)
     {
-        errors = request.fileName + ": the HLSL compiler (DXC) did not start";
+        errors = request.fileName + ": " + slangLib.why;
         return false;
     }
 
-    std::vector<std::wstring> owned = {
-        Widen(request.fileName),
-        L"-spirv",
-        L"-T",
-        request.stage == ShaderStage::Vertex ? L"vs_6_0" : L"ps_6_0",
-        L"-E",
-        Widen(request.entry),
-        L"-fspv-target-env=vulkan1.0",
-        L"-Zpr",  // matrices row-major (see the header)
-        L"-O3",
-    };
+    // NAME or NAME=VALUE.
+    std::vector<std::string> names, values;
     for (const std::string& define : request.defines)
     {
-        owned.push_back(L"-D");
-        owned.push_back(Widen(define));
+        const size_t eq = define.find('=');
+        names.push_back(define.substr(0, eq));
+        values.push_back(eq == std::string::npos ? std::string() : define.substr(eq + 1));
     }
-    std::vector<const wchar_t*> args;
-    for (const std::wstring& arg : owned)
+    std::vector<slang::PreprocessorMacroDesc> macros;
+    for (size_t i = 0; i < names.size(); ++i)
     {
-        args.push_back(arg.c_str());
+        macros.push_back({ names[i].c_str(), values[i].c_str() });
     }
 
-    const DxcBuffer source{ request.source.data(), request.source.size(), kUtf8 };
-    Ref<DxcOperationResult> result;
-    if (Failed(compiler.p->Compile(&source, args.data(), static_cast<uint32_t>(args.size()), nullptr,
-                                   &kIidDxcOperationResult, result.Out())) ||
-        !result.p)
+    slang::TargetDesc target;
+    target.format = SLANG_SPIRV;
+    // No SPIR-V version: Slang picks its own (and warns about one it finds old);
+    // SPIRV-Cross reads any.
+    slang::SessionDesc desc;
+    desc.targets = &target;
+    desc.targetCount = 1;
+    desc.defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;  // see the header
+    desc.preprocessorMacros = macros.data();
+    desc.preprocessorMacroCount = static_cast<SlangInt>(macros.size());
+    Ref<slang::ISession> session;
+    if (SLANG_FAILED(slangLib.global->createSession(desc, &session.p)) || !session.p)
     {
-        errors = request.fileName + ": the HLSL compiler (DXC) failed to run";
+        errors = request.fileName + ": the HLSL compiler (Slang) did not start a session";
         return false;
     }
-    HResult status = 0;
-    result.p->GetStatus(&status);
-    if (Failed(status))
+
+    // Each step may say something; what fails says why in its diagnostics.
+    std::string said;
+    auto collect = [&](slang::IBlob* blob)
     {
-        Ref<DxcBlobEncoding> messages;
-        result.p->GetErrorBuffer(&messages.p);
-        errors = BlobText(messages.p);
-        if (errors.empty())
+        const std::string text = BlobText(blob);
+        if (!text.empty())
         {
-            errors = request.fileName + ": the HLSL compiler (DXC) rejected it without saying why";
+            said += (said.empty() ? "" : "\n") + text;
         }
-        return false;
-    }
-    Ref<DxcBlob> code;
-    result.p->GetResult(&code.p);
-    if (!code.p || code.p->GetBufferSize() < 4)
+    };
+    auto fail = [&](const char* fallback)
     {
-        errors = request.fileName + ": the HLSL compiler (DXC) made no code";
+        errors = said.empty() ? request.fileName + ": " + fallback : said;
         return false;
+    };
+
+    Ref<slang::IBlob> diagnostics;
+    // The path's extension makes it HLSL; #line in the source names the file.
+    slang::IModule* module =
+        session.p->loadModuleFromSourceString("shader", "shader.hlsl", request.source.c_str(), &diagnostics.p);
+    collect(diagnostics.p);
+    if (!module)
+    {
+        return fail("the HLSL compiler (Slang) rejected it without saying why");
     }
-    spirv.resize(code.p->GetBufferSize() / 4);
-    std::memcpy(spirv.data(), code.p->GetBufferPointer(), spirv.size() * 4);
+
+    Ref<slang::IEntryPoint> entry;
+    Ref<slang::IBlob> entryDiagnostics;
+    const SlangStage stage = request.stage == ShaderStage::Vertex ? SLANG_STAGE_VERTEX : SLANG_STAGE_FRAGMENT;
+    if (SLANG_FAILED(module->findAndCheckEntryPoint(request.entry.c_str(), stage, &entry.p, &entryDiagnostics.p)) ||
+        !entry.p)
+    {
+        collect(entryDiagnostics.p);
+        return fail("has no entry point the HLSL compiler (Slang) could use");
+    }
+    collect(entryDiagnostics.p);
+
+    slang::IComponentType* parts[] = { module, entry.p };
+    Ref<slang::IComponentType> program;
+    Ref<slang::IBlob> composeDiagnostics;
+    if (SLANG_FAILED(session.p->createCompositeComponentType(parts, 2, &program.p, &composeDiagnostics.p)))
+    {
+        collect(composeDiagnostics.p);
+        return fail("could not be put together by the HLSL compiler (Slang)");
+    }
+    Ref<slang::IComponentType> linked;
+    Ref<slang::IBlob> linkDiagnostics;
+    if (SLANG_FAILED(program.p->link(&linked.p, &linkDiagnostics.p)) || !linked.p)
+    {
+        collect(linkDiagnostics.p);
+        return fail("could not be linked by the HLSL compiler (Slang)");
+    }
+    Ref<slang::IBlob> code;
+    Ref<slang::IBlob> codeDiagnostics;
+    if (SLANG_FAILED(linked.p->getEntryPointCode(0, 0, &code.p, &codeDiagnostics.p)) || !code.p ||
+        code.p->getBufferSize() < 4)
+    {
+        collect(codeDiagnostics.p);
+        return fail("made no code in the HLSL compiler (Slang)");
+    }
+    collect(codeDiagnostics.p);
+    warnings = said;
+
+    spirv.resize(code.p->getBufferSize() / 4);
+    std::memcpy(spirv.data(), code.p->getBufferPointer(), spirv.size() * 4);
     return true;
 }
 
@@ -348,22 +321,28 @@ std::string FirstExtension(const std::string& glsl)
 bool ShaderCompiler::IsAvailable(std::string* why)
 {
     std::lock_guard<std::mutex> lock(s_CompileMutex);
-    Dxc& dxc = GetDxc();
+    Slang& slangLib = GetSlang();
     if (why)
     {
-        *why = dxc.why;
+        *why = slangLib.why;
     }
-    return dxc.create != nullptr;
+    return slangLib.global != nullptr;
 }
 
-bool ShaderCompiler::Compile(const ShaderCompileRequest& request, ShaderStageText& out, std::string& errors)
+bool ShaderCompiler::Compile(const ShaderCompileRequest& request, ShaderStageText& out, std::string& errors,
+                             std::string* warnings)
 {
     std::lock_guard<std::mutex> lock(s_CompileMutex);
     errors.clear();
     std::vector<uint32_t> spirv;
-    if (!ToSpirv(request, spirv, errors))
+    std::string said;
+    if (!ToSpirv(request, spirv, errors, said))
     {
         return false;
+    }
+    if (warnings)
+    {
+        *warnings = said;
     }
     try
     {

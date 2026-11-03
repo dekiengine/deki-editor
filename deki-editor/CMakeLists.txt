@@ -118,9 +118,9 @@ endif()
 # real-time asset change detection (replaces focus-driven polling).
 target_link_libraries(deki-editor PRIVATE efsw)
 
-# The shader compiler: SPIRV-Cross built in, DXC loaded beside the editor at
-# run time (cmake/DekiShaderTools.cmake).
-target_link_libraries(deki-editor PRIVATE deki-spirv-cross ${CMAKE_DL_LIBS})
-if(TARGET deki-dxc)
-    add_dependencies(deki-editor deki-dxc)
+# The shader compiler: SPIRV-Cross built in, Slang loaded beside the editor
+# at run time (cmake/DekiShaderTools.cmake).
+target_link_libraries(deki-editor PRIVATE deki-spirv-cross deki-slang-headers ${CMAKE_DL_LIBS})
+if(TARGET deki-slang)
+    add_dependencies(deki-editor deki-slang)
 endif()

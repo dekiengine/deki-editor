@@ -475,7 +475,7 @@ target_link_libraries(imgui PUBLIC
 # This breaks circular dependency between deki-editor and deki-engine
 add_subdirectory(deki-profiling-hooks)
 
-# The shader compiler's SPIRV-Cross and DXC (deki-editor/ShaderCompiler.h).
+# The shader compiler's SPIRV-Cross and Slang (deki-editor/ShaderCompiler.h).
 include(cmake/DekiShaderTools.cmake)
 
 # =============================================================================

@@ -6,9 +6,9 @@
 //
 // Shaders are written in HLSL. Every device Deki draws on with a GPU runs
 // OpenGL ES 3.0 or desktop OpenGL 3.3, which take GLSL, so the editor
-// translates: DXC (Microsoft's HLSL compiler) makes SPIR-V, and SPIRV-Cross
-// writes it as GLSL ES 3.00 and GLSL 3.30. The game ships the GLSL; no
-// compiler goes to a device.
+// translates: Slang (Khronos's shader compiler, which takes HLSL) makes
+// SPIR-V, and SPIRV-Cross writes it as GLSL ES 3.00 and GLSL 3.30. The game
+// ships the GLSL; no compiler goes to a device.
 //
 // The GLSL follows fixed names, so the code that draws with it can find
 // things without asking:
@@ -18,10 +18,11 @@
 //              sampler2D named as the Texture2D
 //   varyings   vary<location>, the same in both stages
 //   output     fragColor
-//   matrices   row-major (-Zpr): mul(M, v) with M uploaded transposed
+//   matrices   row-major: mul(M, v) with M uploaded transposed
 //
-// DXC is dxcompiler.dll / libdxcompiler.so beside the editor. It is loaded on
-// first use; without it nothing compiles, and the error says why.
+// Slang is slang-compiler (.dll, .so, .dylib) beside the editor, with
+// slang-glslang, which it optimises SPIR-V with. It is loaded on first use;
+// without it nothing compiles, and the error says why.
 
 #include <string>
 #include <vector>
@@ -54,13 +55,15 @@ struct ShaderStageText
 class DEKI_EDITOR_API ShaderCompiler
 {
 public:
-    /// Whether DXC is here and loads. False with `why` when not.
+    /// Whether Slang is here and loads. False with `why` when not.
     static bool IsAvailable(std::string* why = nullptr);
 
-    /// Compiles one stage. False with `errors` (one problem per line, as
-    /// "file:line:column: error: ...") when DXC rejects it, or when it uses
-    /// something OpenGL ES 3.0 cannot run.
-    static bool Compile(const ShaderCompileRequest& request, ShaderStageText& out, std::string& errors);
+    /// Compiles one stage. False with `errors` (Slang's messages, each
+    /// naming the file, line and column) when Slang rejects it, or when it
+    /// uses something OpenGL ES 3.0 cannot run. What Slang warns about when it
+    /// compiles goes to `warnings`.
+    static bool Compile(const ShaderCompileRequest& request, ShaderStageText& out, std::string& errors,
+                        std::string* warnings = nullptr);
 };
 
 }  // namespace DekiEditor

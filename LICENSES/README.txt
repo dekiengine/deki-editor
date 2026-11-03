@@ -49,9 +49,13 @@ configure time:
 Library          License                 License file                      Source
 ---------------  ----------------------  --------------------------------  ------
 SPIRV-Cross      Apache-2.0              SPIRV-Cross-LICENSE.txt           https://github.com/KhronosGroup/SPIRV-Cross (compiled in)
-DXC              Microsoft terms (the    DXC-LICENSE-MS.txt,               https://github.com/microsoft/DirectXShaderCompiler
-                 prebuilt release);      DXC-LICENSE-LLVM.txt,             (dxcompiler.dll / libdxcompiler.so, prebuilt, shipped
-                 LLVM / MIT (source)     DXC-LICENCE-MIT.txt               beside the editor)
+Slang            Apache-2.0 WITH         Slang/LICENSE, Slang/LICENSES/,   https://github.com/shader-slang/slang (slang-compiler
+                 LLVM-exception          Slang/third-party-notices/        and slang-glslang, prebuilt, shipped beside the editor)
+
+Slang's libraries carry code under other licences (glslang, SPIRV-Tools,
+lz4, miniz, mimalloc, cmark, unordered_dense); their notices are in
+Slang/third-party-notices/, and the licence texts Slang names in
+Slang/LICENSES/.
 
 The FreeType License requires a credit in the documentation of a product that
 uses FreeType: "Portions of this software are copyright © The FreeType Project
