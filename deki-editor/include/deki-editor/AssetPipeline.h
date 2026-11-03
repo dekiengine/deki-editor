@@ -86,13 +86,16 @@ struct DEKI_EDITOR_API AssetExportContext
     std::string outPath;      // where to write this target's version
     AssetExportTarget target;
     AssetPipeline* pipeline;
+    // Where an encoder that fails says why, for the build's list of problems
+    // ("x.shader: lilygo_t_deck has no OpenGL"). Never null.
+    std::string* error = nullptr;
 };
 
 /// Writes an asset the way a given target stores it.
 ///
 /// Registered per extension by the package that owns the asset type, next to
-/// its cache handler. Returns false when it could not write outPath; the
-/// export then reports it and ships nothing for that asset.
+/// its cache handler. Returns false, with the reason in *ctx.error, when it
+/// could not write outPath; the build then stops and lists it.
 using AssetExportEncoder = std::function<bool(const AssetExportContext& ctx)>;
 
 /// Lists, by GUID, the assets an asset uses that a scene does not name: a

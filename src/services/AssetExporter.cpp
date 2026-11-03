@@ -173,10 +173,15 @@ std::string AssetExporter::ExportSourceFor(const std::string& guid)
         ctx.outPath = out.string();
         ctx.target = m_Target;
         ctx.pipeline = m_Pipeline;
+        std::string why;
+        ctx.error = &why;
         if (!(*encoder)(ctx))
         {
-            DEKI_LOG_ERROR("  Could not store %s for target '%s'; it is left out of this export", info->path.c_str(),
-                           m_Target.platformId.c_str());
+            // A problem, so the build stops: shipping without it would leave
+            // the game drawing something other than what the scene asks.
+            AddProblem(why.empty() ? info->path + " could not be stored for target '" + m_Target.platformId + "'"
+                                   : why);
+            m_EncodeFailed.insert(guid);
             return std::string();
         }
         std::string err;
@@ -902,7 +907,10 @@ void AssetExporter::CopyUsedAssetsToOutput(const std::string& storagePath,
         std::string absoluteCachePath = ExportSourceFor(info.guid);
         if (absoluteCachePath.empty())
         {
-            AddProblem(info.path + " could not be exported for this target (" + info.cachePath + ")");
+            if (m_EncodeFailed.count(info.guid) == 0)
+            {
+                AddProblem(info.path + " could not be exported for this target (" + info.cachePath + ")");
+            }
             continue;
         }
 

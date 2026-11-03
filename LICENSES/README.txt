@@ -43,6 +43,16 @@ googletest       BSD-3-Clause            googletest-LICENSE.txt            https
 nlohmann/json    MIT                     (deki-engine/NOTICE)              https://github.com/nlohmann/json (vendored in the engine)
 doxygen-awesome  MIT                     doxygen-awesome-css-LICENSE.txt   https://github.com/jothepro/doxygen-awesome-css (docs theme only)
 
+The shader compiler's two (cmake/DekiShaderTools.cmake), downloaded at
+configure time:
+
+Library          License                 License file                      Source
+---------------  ----------------------  --------------------------------  ------
+SPIRV-Cross      Apache-2.0              SPIRV-Cross-LICENSE.txt           https://github.com/KhronosGroup/SPIRV-Cross (compiled in)
+DXC              Microsoft terms (the    DXC-LICENSE-MS.txt,               https://github.com/microsoft/DirectXShaderCompiler
+                 prebuilt release);      DXC-LICENSE-LLVM.txt,             (dxcompiler.dll / libdxcompiler.so, prebuilt, shipped
+                 LLVM / MIT (source)     DXC-LICENCE-MIT.txt               beside the editor)
+
 The FreeType License requires a credit in the documentation of a product that
 uses FreeType: "Portions of this software are copyright © The FreeType Project
 (www.freetype.org). All rights reserved." - this file is that credit.

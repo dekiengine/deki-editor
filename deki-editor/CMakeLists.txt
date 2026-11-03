@@ -71,6 +71,8 @@ set(EDITOR_DLL_SOURCES
     src/FeatureResolver.cpp
     src/SimulationBootScene.cpp
     src/BuilderWidgets.cpp
+    # HLSL to GLSL for package shaders (ShaderCompiler.h).
+    src/ShaderCompiler.cpp
 )
 
 # Create shared library (DLL)
@@ -115,3 +117,10 @@ endif()
 # efsw: cross-platform file watcher used by AssetFileWatcher to drive
 # real-time asset change detection (replaces focus-driven polling).
 target_link_libraries(deki-editor PRIVATE efsw)
+
+# The shader compiler: SPIRV-Cross built in, DXC loaded beside the editor at
+# run time (cmake/DekiShaderTools.cmake).
+target_link_libraries(deki-editor PRIVATE deki-spirv-cross ${CMAKE_DL_LIBS})
+if(TARGET deki-dxc)
+    add_dependencies(deki-editor deki-dxc)
+endif()

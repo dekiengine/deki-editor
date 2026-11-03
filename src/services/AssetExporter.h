@@ -218,6 +218,8 @@ private:
     std::set<std::string> m_TargetCapabilities;
     AssetExportTarget m_Target;
     bool m_HasTarget = false;
+    // Assets whose encoder failed this export, already listed as problems.
+    std::unordered_set<std::string> m_EncodeFailed;
 };
 
 }  // namespace DekiEditor

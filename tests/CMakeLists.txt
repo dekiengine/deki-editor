@@ -478,10 +478,13 @@ endfunction()
 # With DEKI_CAPABILITY_OPENGL, as a desktop project builds it, so the GL
 # presenter's and the GPU 2D's tests run too (skipping without OpenGL); the
 # package's compile check below builds it as a board does, without.
+# The shader tests compile HLSL with the editor's compiler, through the
+# package's editor code that wraps a file for each use.
+set(DEKI_RENDERING_TEST_SOURCES editor/ShaderUses.cpp editor/EffectShaderUse.cpp)
 deki_add_package_tests(deki-rendering TARGET DekiRenderingTests ALL_SOURCES NEEDS_EDITOR
-    DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
+    SOURCES ${DEKI_RENDERING_TEST_SOURCES} DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
 deki_add_package_tests(deki-rendering TARGET DekiRenderingTestsBigEndian ALL_SOURCES NEEDS_EDITOR BIG_ENDIAN
-    DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
+    SOURCES ${DEKI_RENDERING_TEST_SOURCES} DEFINES DEKI_CAPABILITY_OPENGL LIBS ${CMAKE_DL_LIBS})
 
 # ParticlePool is a header, so the tests compile alone against the engine.
 deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
@@ -498,14 +501,23 @@ deki_add_package_tests(deki-particles TARGET DekiParticlesTestsBigEndian BIG_END
 # without it, so they also run on a CI machine with no GPU (where they prove
 # only that it falls back). The shape a board builds, without the flag, is
 # the package's compile check below.
+#
+# The shaders are HLSL, compiled by the editor's compiler (so NEEDS_EDITOR)
+# through deki-rendering's shader uses and this package's mesh use. One test
+# checks GLMesh3DBuiltinShader.inl, read from the package's source directory,
+# is what the mesh use compiles to.
 set(DEKI_3D_TEST_SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp GLMesh3DBackend.cpp
+    editor/MeshShaderUse.cpp
     ../deki-rendering/GLApi.cpp ../deki-rendering/GLPresenter.cpp ../deki-rendering/GLBlitSink.cpp
     ../deki-rendering/ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp ../deki-rendering/QuadBlit.cpp
-    ../deki-rendering/RenderProfiler.cpp)
-deki_add_package_tests(deki-3d TARGET Deki3DTests SOURCES ${DEKI_3D_TEST_SOURCES}
-    DEFINES DEKI_CAPABILITY_OPENGL DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS})
-deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian SOURCES ${DEKI_3D_TEST_SOURCES}
-    DEFINES DEKI_CAPABILITY_OPENGL DEKI_RENDERING_EXPORTS LIBS ${CMAKE_DL_LIBS} BIG_ENDIAN)
+    ../deki-rendering/RenderProfiler.cpp ../deki-rendering/editor/ShaderUses.cpp
+    ../deki-rendering/editor/EffectShaderUse.cpp)
+set(DEKI_3D_TEST_DEFINES DEKI_CAPABILITY_OPENGL DEKI_RENDERING_EXPORTS
+    "DEKI_3D_SOURCE_DIR=\"${DEKI_PACKAGES_DIR}/deki-3d\"")
+deki_add_package_tests(deki-3d TARGET Deki3DTests NEEDS_EDITOR SOURCES ${DEKI_3D_TEST_SOURCES}
+    DEFINES ${DEKI_3D_TEST_DEFINES} LIBS ${CMAKE_DL_LIBS})
+deki_add_package_tests(deki-3d TARGET Deki3DTestsBigEndian NEEDS_EDITOR SOURCES ${DEKI_3D_TEST_SOURCES}
+    DEFINES ${DEKI_3D_TEST_DEFINES} LIBS ${CMAKE_DL_LIBS} BIG_ENDIAN)
 
 # The unit accessors under test are inline in IDekiIMU.h; no sources needed.
 deki_add_package_tests(deki-imu TARGET DekiImuTests)
