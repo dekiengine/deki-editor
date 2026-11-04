@@ -6,6 +6,27 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### One list of a project's platforms
+- `ProjectTargets` (TargetCards.h) is every platform the project can build
+  for: its own, those its packages offer, and the board packs', the Build
+  panel's list. The image and model Targets cards and the Memory panel listed
+  only platforms already copied into the project, so a board a package offers
+  (deki-lilygo-boards' T-Deck) had no card. The Memory panel's copy of the
+  function is gone.
+- Choosing the active platform is one operation,
+  `BuildPanel::ChooseActivePlatform`: the Build panel's dropdown, the Build
+  Platform menu and `set_active_platform` all copy a package's platform into
+  the project, save, apply it to the editor and generate its build files. The
+  menu only changed the panel's selection, and the tool skipped the build
+  files.
+- `create_platform`, `set_platform_provides` and `set_active_platform` fill the
+  platform registry as the editor does (`ReloadProjectPlatforms`), and put the
+  open project's back when they work on another. `set_platform_provides` on a
+  platform a package offers copies it into the project first, so the package
+  can still update or restore it.
+- `memory_report` starts from the same target as the Memory panel: the active
+  platform, else the first board (`DefaultEstimateTarget`).
+
 ### One form of a property everywhere
 - The Inspector's edits and their undo, copy, paste and duplicate, the
   "modified" and "unsaved" markers, the settings files and the MCP tools read

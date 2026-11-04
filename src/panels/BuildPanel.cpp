@@ -712,47 +712,10 @@ void BuildPanel::DrawPlatformSelector()
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - iconsWidth);
         if (SchematicCombo("##Platform", &currentIndex, items.data(), static_cast<int>(items.size())))
         {
-            m_SelectedPlatform = platforms[currentIndex].first;
-            m_SelectedPlatformIndex = currentIndex;
-
-            // Save the choice in the project.
-            if (m_App && m_App->GetProject())
+            std::string chooseErr;
+            if (!ChooseActivePlatform(platforms[currentIndex].first, chooseErr))
             {
-                // A platform a package offers becomes the project's own copy
-                // now, so it can be edited and has its boot scene.
-                std::string adoptErr;
-                if (!EnsureProjectPlatform(m_App->GetProject()->GetPath(), m_SelectedPlatform, adoptErr))
-                {
-                    ActivityPanel::LogError("Build", adoptErr);
-                }
-
-                m_App->GetProject()->SetActivePlatformId(m_SelectedPlatform);
-                m_App->GetProject()->Save();
-                m_App->ApplyEditorTarget();
-
-                const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(m_SelectedPlatform);
-                ITargetBuilder* platformBuilder = GetActiveBuilder();
-                if (config && platformBuilder)
-                {
-                    std::vector<std::string> packageDefines;
-                    if (auto* pkgPanel = m_App->GetPackageManagerPanel())
-                    {
-                        pkgPanel->ScanProjectForPackageUsage();
-                        packageDefines = pkgPanel->GetRequiredBuildDefines();
-                    }
-
-                    std::string projectPath = m_App->GetProject()->GetPath();
-                    std::string processName = "Regenerate " + config->displayName;
-                    ActivityPanel::Log(processName, "Regenerating build files...");
-                    if (platformBuilder->GenerateBuildFiles(projectPath, *config, packageDefines))
-                    {
-                        ActivityPanel::CompleteProcess(processName);
-                    }
-                    else
-                    {
-                        ActivityPanel::FailProcess(processName, "Failed to regenerate build files");
-                    }
-                }
+                ActivityPanel::LogError("Build", chooseErr);
             }
         }
     }
@@ -1077,6 +1040,62 @@ void BuildPanel::DrawStripping()
         m_StripSummary.clear();
     }
     ImGui::PopStyleVar();
+}
+
+bool BuildPanel::ChooseActivePlatform(const std::string& platformId, std::string& error)
+{
+    Project* project = m_App ? m_App->GetProject() : nullptr;
+    if (!project)
+    {
+        error = "no project open";
+        return false;
+    }
+    const std::string projectPath = project->GetPath();
+    if (!platformId.empty())
+    {
+        // A platform a package offers becomes the project's own copy now, so
+        // it can be edited and has its boot scene.
+        if (!EnsureProjectPlatform(projectPath, platformId, error))
+        {
+            return false;
+        }
+        if (!PlatformRegistry::Instance().GetPlatform(platformId))
+        {
+            error = "no platform '" + platformId + "' in this project, its packages or the installed board packs";
+            return false;
+        }
+    }
+    SetSelectedPlatform(platformId);
+    project->SetActivePlatformId(platformId);
+    if (!project->Save())
+    {
+        error = "could not save the project";
+        return false;
+    }
+    m_App->ApplyEditorTarget();
+
+    const PlatformConfig* config = PlatformRegistry::Instance().GetPlatform(platformId);
+    ITargetBuilder* platformBuilder = GetActiveBuilder();
+    if (config && platformBuilder)
+    {
+        std::vector<std::string> packageDefines;
+        if (auto* pkgPanel = m_App->GetPackageManagerPanel())
+        {
+            pkgPanel->ScanProjectForPackageUsage();
+            packageDefines = pkgPanel->GetRequiredBuildDefines();
+        }
+        const std::string processName = "Regenerate " + config->displayName;
+        ActivityPanel::Log(processName, "Regenerating build files...");
+        if (platformBuilder->GenerateBuildFiles(projectPath, *config, packageDefines))
+        {
+            ActivityPanel::CompleteProcess(processName);
+        }
+        else
+        {
+            ActivityPanel::FailProcess(processName, "Failed to regenerate build files");
+        }
+    }
+    return true;
 }
 
 void BuildPanel::SetSelectedPlatform(const std::string& platformId)

@@ -23,8 +23,10 @@ namespace DekiEditor
 
 struct PlatformConfig;
 
-/// The platforms this project has its own copy of (platforms/<id>/), in the
-/// registry's order. Those are its targets.
+/// The platforms this project can build for, in the registry's order: its
+/// own (platforms/<id>/), those its packages offer, and the installed board
+/// packs', as ReloadProjectPlatforms fills the registry for it. The same list
+/// as the Build panel's, so every platform a build can target has its card.
 DEKI_EDITOR_API std::vector<const PlatformConfig*> ProjectTargets(const std::string& projectPath);
 
 /// Starts the Targets section. False when it is folded: draw nothing more and

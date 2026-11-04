@@ -91,6 +91,12 @@ SceneMemoryEstimate EstimateSceneMemory(const std::string& projectPath, AssetPip
                                         const PlatformConfig* platform, int64_t measuredInternalTotal = -1,
                                         int64_t measuredInternalFree = -1);
 
+/// The platform an estimate is for when none is asked for: the project's
+/// active one, else the first board among its targets (the one a budget
+/// matters on), else "" for the editor's own desktop. The Memory panel and
+/// memory_report both start from it.
+std::string DefaultEstimateTarget(const std::string& projectPath, const std::string& activePlatformId);
+
 /// The bytes an image takes once loaded on a target: its size after Max Size,
 /// in the format it is stored in there. False when `cachePath` is not a
 /// compiled image.

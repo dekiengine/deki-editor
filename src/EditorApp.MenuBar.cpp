@@ -9,6 +9,8 @@
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "core/Commands.h"
+#include "panels/ActivityPanel.h"
+#include "panels/BuildPanel.h"
 #include "services/FileDialogs.h"
 #include "services/ClipboardService.h"
 #include "services/ProjectMaintenance.h"
@@ -512,7 +514,12 @@ void EditorApp::DrawMenuBar()
                         bool selected = (m_BuildPanel->GetSelectedPlatform() == id);
                         if (ImGui::MenuItem(displayName.c_str(), nullptr, selected))
                         {
-                            m_BuildPanel->SetSelectedPlatform(id);
+                            // As the Build panel's dropdown chooses it.
+                            std::string chooseErr;
+                            if (!m_BuildPanel->ChooseActivePlatform(id, chooseErr))
+                            {
+                                ActivityPanel::LogError("Build", chooseErr);
+                            }
                         }
                     }
                     ImGui::EndMenu();

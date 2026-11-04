@@ -1,4 +1,5 @@
 #include "SceneMemoryEstimate.h"
+#include <deki-editor/TargetCards.h>
 
 #include <deki-editor/AssetData.h>
 #include <deki-editor/AssetPipeline.h>
@@ -255,6 +256,22 @@ bool EstimateImageBytes(const std::string& assetPath, const std::string& cachePa
     std::snprintf(buf, sizeof(buf), "%d x %d %s", w, h, TextureFormatName(stored));
     detail = buf;
     return true;
+}
+
+std::string DefaultEstimateTarget(const std::string& projectPath, const std::string& activePlatformId)
+{
+    if (!activePlatformId.empty())
+    {
+        return activePlatformId;
+    }
+    for (const PlatformConfig* t : ProjectTargets(projectPath))
+    {
+        if (t->family != "native")
+        {
+            return t->id;
+        }
+    }
+    return std::string();
 }
 
 SceneMemoryEstimate EstimateSceneMemory(const std::string& projectPath, AssetPipeline* pipeline, Deki::Scene* scene,

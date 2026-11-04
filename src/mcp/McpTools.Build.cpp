@@ -18,6 +18,7 @@
 #include "../services/DeviceScreenshot.h"
 #include "../services/MemoryReport.h"
 #include "../services/SceneMemoryEstimate.h"
+#include "../panels/BuildPanel.h"
 #include "../panels/MemoryPanel.h"
 #include "McpCompletion.h"
 #include <deki-editor/SerialPorts.h>
@@ -71,6 +72,33 @@ std::string ResolveProjectPath(EditorApp* editor, const nlohmann::json& args)
 
     throw std::runtime_error("No project open and no project_path supplied.");
 }
+
+/// For one tool call, the platform registry as the editor fills it for
+/// `path`'s project (ReloadProjectPlatforms: its own platforms, its packages'
+/// and the board packs'), and the open project's again afterwards when `path`
+/// is another project. Filling it any other way leaves out what the Build
+/// panel lists, or mixes two projects' platforms.
+class ProjectPlatformsScope
+{
+public:
+    ProjectPlatformsScope(EditorApp* editor, const std::string& path)
+        : m_Restore(editor && editor->GetProject() && editor->GetProject()->GetPath() != path
+                        ? editor->GetProject()->GetPath()
+                        : std::string())
+    {
+        ReloadProjectPlatforms(path);
+    }
+    ~ProjectPlatformsScope()
+    {
+        if (!m_Restore.empty())
+        {
+            ReloadProjectPlatforms(m_Restore);
+        }
+    }
+
+private:
+    std::string m_Restore;
+};
 
 std::string ArgPlatform(const nlohmann::json& args)
 {
@@ -455,11 +483,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("'" + id + "' is not a usable platform id: " + why);
               }
 
-              // Board packs as well as the project's own, so a
-              // supported board can be adopted by name.
+              // Every platform the project can use, board packs and its
+              // packages' included, so a supported board can be adopted by name.
+              ProjectPlatformsScope platforms(editor, path);
               auto& registryRef = PlatformRegistry::Instance();
-              registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
-              registryRef.LoadPlatformsFromBoardPacks();
 
               if (registryRef.GetPlatform(id))
               {
@@ -633,31 +660,19 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               }
 
               const std::string id = args.value("platform_id", "");
-              if (!id.empty())
+              // The Build panel's own way of choosing, which its dropdown and
+              // the Build Platform menu use too.
+              BuildPanel* buildPanel = editor->GetBuildPanel();
+              if (!buildPanel)
               {
-                  auto& registryRef = PlatformRegistry::Instance();
-                  registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(project->GetPath()));
-                  registryRef.LoadPlatformsFromBoardPacks();
-                  RegisterPlatformTemplates(project->GetPath());
-                  std::string adoptErr;
-                  if (!EnsureProjectPlatform(project->GetPath(), id, adoptErr))
-                  {
-                      throw std::runtime_error(adoptErr);
-                  }
-                  if (!registryRef.GetPlatform(id))
-                  {
-                      throw std::runtime_error("no platform '" + id +
-                                               "' in this project, its "
-                                               "packages or the installed board packs");
-                  }
+                  throw std::runtime_error("the Build panel is not available");
               }
-
-              project->SetActivePlatformId(id);
-              if (!project->Save())
+              ProjectPlatformsScope platforms(editor, project->GetPath());
+              std::string why;
+              if (!buildPanel->ChooseActivePlatform(id, why))
               {
-                  throw std::runtime_error("could not save the project");
+                  throw std::runtime_error(why);
               }
-              editor->ApplyEditorTarget();
 
               return { { "activePlatformId", id } };
           } });
@@ -884,14 +899,22 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("set_platform_provides needs a platform_id");
               }
 
+              ProjectPlatformsScope platforms(editor, path);
+              // A platform a package offers becomes the project's own copy
+              // first, origin record and boot scene included, as the Build
+              // panel's edit button does; saved without it, the package could
+              // no longer update or restore it.
+              std::string adoptErr;
+              if (!EnsureProjectPlatform(path, id, adoptErr))
+              {
+                  throw std::runtime_error(adoptErr);
+              }
               auto& registryRef = PlatformRegistry::Instance();
-              registryRef.LoadPlatformsFromDirectory(GetPlatformsDirectory(path));
-              registryRef.LoadPlatformsFromBoardPacks();
-
               const PlatformConfig* existing = registryRef.GetPlatform(id);
               if (!existing)
               {
-                  throw std::runtime_error("no platform '" + id + "' in this project");
+                  throw std::runtime_error("no platform '" + id +
+                                           "' in this project, its packages or the installed board packs");
               }
 
               PlatformConfig config = *existing;
@@ -1536,8 +1559,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               { { "source", { { "type", "string" }, { "enum", { "scene", "play" } } } },
                 { "target",
                   { { "type", "string" },
-                    { "description", "Platform id for the estimate; default: the project's active one, \"\" for "
-                                     "the editor's desktop" } } },
+                    { "description", "Platform id for the estimate, \"\" for the editor's desktop; default: as the "
+                                     "Memory panel starts, the project's active one, else its first board" } } },
                 { "since_play", { { "type", "boolean" } } },
                 { "limit",
                   { { "type", "integer" }, { "description", "Rows per list, biggest first; default 20" } } } } } },
@@ -1567,7 +1590,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("No project is open");
               }
               const std::string targetId =
-                  args.contains("target") ? args["target"].get<std::string>() : project->GetActivePlatformId();
+                  args.contains("target") ? args["target"].get<std::string>()
+                                          : DefaultEstimateTarget(project->GetPath(), project->GetActivePlatformId());
               const PlatformConfig* platform =
                   targetId.empty() ? nullptr : PlatformRegistry::Instance().GetPlatform(targetId);
               if (!targetId.empty() && !platform)

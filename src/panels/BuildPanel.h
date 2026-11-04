@@ -31,6 +31,15 @@ public:
     const std::string& GetSelectedPlatform() const { return m_SelectedPlatform; }
     void SetSelectedPlatform(const std::string& platformId);
 
+    /// Makes `platformId` the project's active platform, the one way the
+    /// editor does it (this panel's dropdown, the Build Platform menu,
+    /// set_active_platform): a platform a package offers is copied into the
+    /// project first, then it is saved, the editor's assets follow it, and
+    /// its build files are generated again. "" leaves the project with no
+    /// default. False, with why, when the platform cannot be used or the
+    /// project not saved.
+    bool ChooseActivePlatform(const std::string& platformId, std::string& error);
+
 private:
     void DrawToolbar();
     void DrawPlatformSelector();

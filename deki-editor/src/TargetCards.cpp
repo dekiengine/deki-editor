@@ -3,13 +3,11 @@
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/Localization.h>
-#include <deki-editor/Paths.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "imgui.h"
 #include "imgui_internal.h"  // ImGuiSelectableFlags_SpanAvailWidth, as SchematicCombo uses
 
 #include <algorithm>
-#include <filesystem>
 
 namespace DekiEditor
 {
@@ -26,16 +24,12 @@ float Dpi(float logicalPixels)
 
 std::vector<const PlatformConfig*> ProjectTargets(const std::string& projectPath)
 {
-    namespace fs = std::filesystem;
+    // The registry holds this project's platforms: ReloadProjectPlatforms
+    // fills it when the project opens and when its packages change.
+    (void)projectPath;
     std::vector<const PlatformConfig*> out;
-    const std::string dir = GetPlatformsDirectory(projectPath);
     for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
     {
-        std::error_code ec;
-        if (!fs::is_directory(fs::path(dir) / id, ec))
-        {
-            continue;
-        }
         if (const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id))
         {
             out.push_back(p);

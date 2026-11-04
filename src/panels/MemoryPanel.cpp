@@ -1,4 +1,5 @@
 #include "MemoryPanel.h"
+#include <deki-editor/TargetCards.h>
 
 #include "EditorApp.h"
 #include "../PanelMaximize.h"
@@ -87,26 +88,6 @@ std::string ShortFunction(const std::string& f)
     return s.substr(start);
 }
 
-// The targets the project has its own copy of (platforms/<id>/), as the
-// texture inspector lists them.
-std::vector<const PlatformConfig*> ProjectTargets(const std::string& projectPath)
-{
-    std::vector<const PlatformConfig*> out;
-    const std::string dir = GetPlatformsDirectory(projectPath);
-    for (const auto& [id, name] : PlatformRegistry::Instance().GetPlatformDisplayList())
-    {
-        std::error_code ec;
-        if (!fs::is_directory(fs::path(dir) / id, ec))
-        {
-            continue;
-        }
-        if (const PlatformConfig* p = PlatformRegistry::Instance().GetPlatform(id))
-        {
-            out.push_back(p);
-        }
-    }
-    return out;
-}
 
 std::string TargetLabel(const PlatformConfig* p)
 {
@@ -276,22 +257,11 @@ void MemoryPanel::DrawSceneView()
         return;
     }
 
-    // The target: the project's active one until another is picked.
+    // The target: DefaultEstimateTarget until another is picked.
     const std::vector<const PlatformConfig*> targets = ProjectTargets(project->GetPath());
     if (!m_EstimateValid && m_TargetId.empty() && m_EstimateScene == nullptr)
     {
-        m_TargetId = project->GetActivePlatformId();
-        if (m_TargetId.empty())
-        {
-            for (const PlatformConfig* t : targets)
-            {
-                if (t->family != "native")
-                {
-                    m_TargetId = t->id;  // the first board, the one budgets matter on
-                    break;
-                }
-            }
-        }
+        m_TargetId = DefaultEstimateTarget(project->GetPath(), project->GetActivePlatformId());
     }
 
     // Worked out again when the scene changes, and every few seconds while it
