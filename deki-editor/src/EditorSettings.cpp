@@ -79,6 +79,9 @@ namespace
 {
 // Set by the deferred setters (panel state, focused window); Save() clears it.
 bool s_SettingsDirty = false;
+// Whether the last save failed and said so: a failure is reported once, not
+// at every save, until a save works again.
+bool s_SaveFailureReported = false;
 }  // namespace
 
 void EditorSettings::Load()
@@ -192,7 +195,20 @@ void EditorSettings::Save()
     std::string err;
     if (!AtomicWriteFile(settingsPath, data.dump(2), err))
     {
-        DEKI_LOG_WARNING("EditorSettings: failed to save '%s': %s", settingsPath.c_str(), err.c_str());
+        if (!s_SaveFailureReported)
+        {
+            s_SaveFailureReported = true;
+            DEKI_LOG_WARNING("EditorSettings: the editor's settings are not being saved: '%s' could not be "
+                             "replaced: %s. Until that is fixed (a restart frees a file another program holds), "
+                             "changes to them are lost when the editor closes; the latest are in '%s.tmp'. Said "
+                             "once; the editor keeps trying at every save.",
+                             settingsPath.c_str(), err.c_str(), settingsPath.c_str());
+        }
+    }
+    else if (s_SaveFailureReported)
+    {
+        s_SaveFailureReported = false;
+        DEKI_LOG_INFO("EditorSettings: settings save again ('%s')", settingsPath.c_str());
     }
 }
 

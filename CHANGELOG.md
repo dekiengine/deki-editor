@@ -6,6 +6,14 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### A settings file that cannot be saved says why, once
+- When `settings.json` cannot be replaced, the warning says whether another
+  program holds it open (an antivirus, an indexer or a sync tool can) or the
+  editor has no permission, that settings are not being saved until it is
+  fixed, and where the latest are (`settings.json.tmp`). It is said once, not
+  at every save, and again only after a save has worked. Any atomic write
+  (`ReplaceFileWith`) names the cause the same way.
+
 ### Recover Scenes only when there is something to recover
 - A recovery snapshot the same as the scene saved at its path holds no
   unsaved work, so it is no longer offered: opening the project removes it,

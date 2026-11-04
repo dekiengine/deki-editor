@@ -78,7 +78,28 @@ inline bool ReplaceFileWith(const std::filesystem::path& tmp, const std::filesys
     {
         return true;
     }
-    err = "rename failed (win32 error " + std::to_string(::GetLastError()) + ")";
+    const DWORD error = ::GetLastError();
+    err = "rename failed (win32 error " + std::to_string(error) + ")";
+    if (error == ERROR_ACCESS_DENIED || error == ERROR_SHARING_VIOLATION)
+    {
+        // Say which: another program holding the target open without letting
+        // it be replaced (the usual case: an antivirus, an indexer or a sync
+        // tool), or no permission to replace it at all.
+        const HANDLE probe = ::CreateFileW(wTarget.c_str(), DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (probe != INVALID_HANDLE_VALUE)
+        {
+            ::CloseHandle(probe);
+        }
+        else if (::GetLastError() == ERROR_SHARING_VIOLATION)
+        {
+            err += ": another program has the file open and does not let it be replaced";
+        }
+        else
+        {
+            err += ": no permission to replace the file (it may be read-only)";
+        }
+    }
     return false;
 #else
     (void)durable;

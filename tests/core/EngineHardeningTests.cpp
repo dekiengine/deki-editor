@@ -244,6 +244,39 @@ TEST(SettingsDurability, AtomicWriteReplacesWithoutAnIntermediateEmptyState)
     fs::remove_all(dir, ec);
 }
 
+#ifdef _WIN32
+// A file another program holds open, letting it be read and written but not
+// replaced (an indexer or antivirus can), is left as it was, the new contents
+// stay in the temp file, and the error says why rather than a bare code.
+TEST(AtomicWrite, AFileHeldOpenByAnotherProgramSaysSo)
+{
+    const fs::path dir = fs::temp_directory_path() / "deki_atomic_held";
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+    fs::create_directories(dir);
+    const fs::path target = dir / "settings.json";
+    {
+        std::ofstream out(target);
+        out << "old";
+    }
+    const HANDLE held = ::CreateFileW(target.wstring().c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                      nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    ASSERT_NE(held, INVALID_HANDLE_VALUE);
+
+    std::string err;
+    EXPECT_FALSE(DekiEditor::AtomicWriteFile(target.string(), "new", err));
+    EXPECT_NE(err.find("another program has the file open"), std::string::npos) << err;
+    ::CloseHandle(held);
+
+    std::ifstream in(target);
+    const std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(contents, "old");
+    EXPECT_TRUE(fs::exists(target.string() + ".tmp")) << "the new contents are kept";
+    in.close();
+    fs::remove_all(dir, ec);
+}
+#endif
+
 // ============================================================================
 // Lifecycle phases must not allocate every frame
 // ============================================================================
