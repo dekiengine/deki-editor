@@ -65,7 +65,7 @@ public:
     /// first, and resets the selection. A missing directory gives an empty list.
     ///
     /// A snapshot the same as the scene saved at its original path is not
-    /// offered: it is deleted, and the Console says so. Only a snapshot that
+    /// offered: it is deleted, and the editor log says so. Only a snapshot that
     /// differs, or whose scene is untitled, missing or unreadable, is kept.
     void ScanProject(const std::string& projectPath);
 

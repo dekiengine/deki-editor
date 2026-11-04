@@ -209,8 +209,8 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
             std::error_code rmEc;
             fs::remove(entry.path(), rmEc);
             fs::remove(metaPath, rmEc);
-            DEKI_LOG_INFO("Recovery: %s is the same as the saved scene, so there is nothing to recover; removed it",
-                          rec.originalPath.c_str());
+            DEKI_LOG_EDITOR("Recovery: %s is the same as the saved scene, so there is nothing to recover; removed it",
+                            rec.originalPath.c_str());
             continue;
         }
 

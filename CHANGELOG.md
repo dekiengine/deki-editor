@@ -9,9 +9,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ### Recover Scenes only when there is something to recover
 - A recovery snapshot the same as the scene saved at its path holds no
   unsaved work, so it is no longer offered: opening the project removes it,
-  and the Console says so (Info). The editor stopped with the scene saved, or
-  a crash postponed with Later and saved since, offered the same copy at
-  every open. A snapshot that differs, or whose scene is untitled, missing or
+  and says so in the editor log. The editor stopped with the scene saved, or a
+  crash postponed with Later and saved since, offered the same copy at every
+  open. A snapshot that differs, or whose scene is untitled, missing or
   unreadable, is offered as before (`EditorRecovery::SnapshotMatchesSavedScene`).
 
 ### Texture filtering, and editing several images at once
