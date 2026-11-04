@@ -6,6 +6,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Assets compile again once
+- `kDekiCacheVersion` 8: deki-3d's Detail now collapses texture seams, so a
+  model reduced for a board is compiled again.
+
 ### A settings file that cannot be saved says why, once
 - When `settings.json` cannot be replaced, the warning says whether another
   program holds it open (an antivirus, an indexer or a sync tool can) or the
