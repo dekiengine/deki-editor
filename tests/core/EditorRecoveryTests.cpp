@@ -456,3 +456,52 @@ TEST_F(EditorRecoveryTest, ScenesWithTheSameNameKeepSeparateSnapshots)
     EXPECT_EQ(originals[0], pathA);
     EXPECT_EQ(originals[1], pathB);
 }
+
+// --- snapshots with nothing unsaved -------------------------------------------
+
+// A snapshot the same as its saved scene (the editor stopped with the scene
+// saved) is not offered, and its files go.
+TEST_F(EditorRecoveryTest, ASnapshotTheSameAsItsSavedSceneIsNotOffered)
+{
+    const fs::path saved = fs::path(m_ProjectPath) / "assets" / "main.scene";
+    fs::create_directories(saved.parent_path());
+    {
+        // The same document with other spacing still matches.
+        std::ofstream f(saved);
+        f << R"({ "objects": [ {"name":"obj0", "children":[], "components":[]} ] })";
+    }
+    WriteScene("assets~main.scene", 1);
+    WriteSidecar("assets~main.scene", saved.generic_string(), 1700000000LL);
+
+    EditorRecovery rec;
+    rec.ScanProject(m_ProjectPath);
+    EXPECT_FALSE(rec.HasPending());
+    EXPECT_FALSE(rec.DialogRequested());
+    EXPECT_FALSE(fs::exists(fs::path(m_Dir) / "assets~main.scene"));
+    EXPECT_FALSE(fs::exists(fs::path(m_Dir) / "assets~main.scene.meta.json"));
+    EXPECT_FALSE(fs::exists(m_Dir)) << "nothing left, so the directory goes too";
+    fs::remove_all(m_ProjectPath);
+}
+
+// One that differs from its saved scene, or whose scene is gone, is offered.
+TEST_F(EditorRecoveryTest, ASnapshotThatDiffersOrHasNoSavedSceneIsOffered)
+{
+    const fs::path saved = fs::path(m_ProjectPath) / "assets" / "main.scene";
+    fs::create_directories(saved.parent_path());
+    {
+        std::ofstream f(saved);
+        f << R"({"objects":[]})";
+    }
+    WriteScene("assets~main.scene", 2);
+    WriteSidecar("assets~main.scene", saved.generic_string(), 1700000000LL);
+    WriteScene("assets~gone.scene", 1);
+    WriteSidecar("assets~gone.scene", (fs::path(m_ProjectPath) / "assets" / "gone.scene").generic_string(),
+                 1700000001LL);
+    WriteScene("recovered.scene", 1);  // untitled
+
+    EditorRecovery rec;
+    rec.ScanProject(m_ProjectPath);
+    EXPECT_EQ(rec.Entries().size(), 3u);
+    EXPECT_TRUE(rec.DialogRequested());
+    fs::remove_all(m_ProjectPath);
+}

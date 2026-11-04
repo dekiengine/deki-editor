@@ -7,6 +7,8 @@
 
 #include "SceneStats.h"  // SceneOutlineNode, CountSceneObjects, BuildSceneOutline
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace Deki
 {
 class Scene;
@@ -61,7 +63,15 @@ public:
 
     /// Fills the entry list from the project's recovery directory, newest
     /// first, and resets the selection. A missing directory gives an empty list.
+    ///
+    /// A snapshot the same as the scene saved at its original path is not
+    /// offered: it is deleted, and the Console says so. Only a snapshot that
+    /// differs, or whose scene is untitled, missing or unreadable, is kept.
     void ScanProject(const std::string& projectPath);
+
+    /// Whether `snapshot` is the same document as the scene file at
+    /// `originalPath`. False when there is no such file or it does not parse.
+    static bool SnapshotMatchesSavedScene(const nlohmann::json& snapshot, const std::string& originalPath);
 
     const std::vector<RecoveryEntry>& Entries() const { return m_Files; }
     bool HasPending() const { return !m_Files.empty(); }

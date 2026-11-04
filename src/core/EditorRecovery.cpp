@@ -85,6 +85,32 @@ void EditorRecovery::RemoveRecoveryDir(const std::string& projectPath)
     }
 }
 
+bool EditorRecovery::SnapshotMatchesSavedScene(const nlohmann::json& snapshot, const std::string& originalPath)
+{
+    std::error_code ec;
+    if (originalPath.empty() || !fs::is_regular_file(originalPath, ec))
+    {
+        return false;  // untitled, or its scene is gone: the snapshot is all there is
+    }
+    try
+    {
+        std::ifstream f(originalPath);
+        if (!f.is_open())
+        {
+            return false;
+        }
+        nlohmann::json saved;
+        f >> saved;
+        // Compared as documents, not bytes, so a scene saved with other
+        // spacing still matches.
+        return saved == snapshot;
+    }
+    catch (const std::exception&)
+    {
+        return false;  // a saved scene that does not parse: the snapshot may be the good copy
+    }
+}
+
 void EditorRecovery::ScanProject(const std::string& projectPath)
 {
     m_Files.clear();
@@ -158,19 +184,34 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
         // The object count tells the user whether this is worth recovering.
         // Counted here, not in the crash handler, which must only get the
         // file written.
+        nlohmann::json doc;
+        bool parsed = false;
         try
         {
             std::ifstream pf(entry.path());
             if (pf.is_open())
             {
-                nlohmann::json doc;
                 pf >> doc;
+                parsed = true;
                 rec.objectCount = CountSceneObjects(doc);
             }
         }
         catch (const std::exception&)
         {
             rec.objectCount = -1;  // shown as "unreadable" - still offered, the loader may cope
+        }
+
+        // A snapshot the same as its scene on disk holds no unsaved work: the
+        // editor was closed or stopped with the scene saved, or it was saved
+        // after a crash. It goes rather than be offered at every open.
+        if (parsed && SnapshotMatchesSavedScene(doc, rec.originalPath))
+        {
+            std::error_code rmEc;
+            fs::remove(entry.path(), rmEc);
+            fs::remove(metaPath, rmEc);
+            DEKI_LOG_INFO("Recovery: %s is the same as the saved scene, so there is nothing to recover; removed it",
+                          rec.originalPath.c_str());
+            continue;
         }
 
         // Shown as its place in the project ("assets/level1/main.scene"): the
@@ -193,7 +234,16 @@ void EditorRecovery::ScanProject(const std::string& projectPath)
     std::sort(m_Files.begin(), m_Files.end(),
               [](const RecoveryEntry& a, const RecoveryEntry& b) { return a.savedAt > b.savedAt; });
 
-    if (!m_Files.empty())
+    if (m_Files.empty())
+    {
+        // Every snapshot matched its scene: nothing is left to offer.
+        std::error_code leftEc;
+        if (fs::is_empty(recoveryDir, leftEc) && !leftEc)
+        {
+            fs::remove(recoveryDir, leftEc);
+        }
+    }
+    else
     {
         m_ProjectPath = projectPath;
         m_DialogRequested = true;
