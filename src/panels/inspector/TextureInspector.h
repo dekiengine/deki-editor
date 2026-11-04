@@ -49,6 +49,13 @@ private:
     std::map<std::string, int> m_TargetFormatIndex;  // platform id -> index; absent/0 = the asset's own
     int m_MaxSizeIndex = 0;                          // into kTextureMaxSizes; 0 = no limit
     std::map<std::string, int> m_TargetMaxIndex;     // platform id -> index; absent = the asset's own
+    int m_FilterIndex = 0;                           // into s_FilterNames: Point, Bilinear, Trilinear
+    std::map<std::string, int> m_TargetFilterIndex;  // platform id -> index; absent = the asset's own
+
+    /// The images a change applies to: every image selected in the Asset
+    /// Browser when the inspected one is among them, else that one alone.
+    /// Absolute paths, the inspected one first.
+    std::vector<std::string> SelectedImagePaths(const std::string& inspected) const;
     bool m_DefaultOpen = true;                       // the Default card unfolded
     std::map<std::string, bool> m_TargetOpen;        // platform id -> card unfolded (first seen: open if overridden)
     bool m_SourceHasAlpha = false;                   // from the cached header, for showing what Automatic gives

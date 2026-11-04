@@ -175,6 +175,7 @@ void AssetPipeline::ClearOnStartedCallbacks()
         s_Instance->m_ExportEncoders.clear();
         s_Instance->m_SceneChecks.clear();
         s_Instance->m_DependencyReporters.clear();
+        s_Instance->m_SourceFilesReporters.clear();
         s_Instance->m_DefaultCacheHandler = nullptr;
         s_Instance->m_CacheVariantProviders.clear();
     }
@@ -237,6 +238,70 @@ void AssetPipeline::RegisterDependencyReporter(const std::string& extension, Ass
     std::string ext = extension;
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
     m_DependencyReporters[ext] = std::move(reporter);
+}
+
+void AssetPipeline::RegisterSourceFilesReporter(const std::string& extension, AssetSourceFilesReporter reporter)
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    m_SourceFilesReporters[ext] = std::move(reporter);
+}
+
+void AssetPipeline::ProcessAssetsCompiledFrom(const std::string& relativePath)
+{
+    if (m_SourceFilesReporters.empty())
+    {
+        return;
+    }
+    const fs::path changed = GetAbsolutePath(relativePath);
+    // Collected first: ProcessAsset updates m_Assets.
+    std::vector<std::string> dependents;
+    for (const auto& [path, info] : m_Assets)
+    {
+        std::string ext = fs::path(path).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+        auto reporter = m_SourceFilesReporters.find(ext);
+        if (reporter == m_SourceFilesReporters.end() || path == relativePath)
+        {
+            continue;
+        }
+        for (const std::string& file : reporter->second(GetAbsolutePath(path)))
+        {
+            std::error_code ec;
+            if (fs::equivalent(file, changed, ec))
+            {
+                dependents.push_back(path);
+                break;
+            }
+        }
+    }
+    for (const std::string& dependent : dependents)
+    {
+        DEKI_LOG_DEBUG("AssetPipeline: %s is compiled from %s, which changed: rebuilding it next", dependent.c_str(),
+                       relativePath.c_str());
+        ++m_QueuedDependents[dependent];
+    }
+}
+
+void AssetPipeline::ProcessQueuedDependents()
+{
+    // Taken first: processing one may queue more.
+    std::map<std::string, int> queued;
+    queued.swap(m_QueuedDependents);
+    for (const auto& [dependent, changes] : queued)
+    {
+        if (m_Assets.find(dependent) == m_Assets.end())
+        {
+            continue;  // gone since it was queued
+        }
+        DEKI_LOG_INFO("AssetPipeline: rebuilding %s, as %d of the files it is compiled from changed",
+                      dependent.c_str(), changes);
+        ProcessAsset(dependent);  // its stamp names the changed files, so it is stale now
+        if (onAssetChanged)
+        {
+            onAssetChanged(dependent);
+        }
+    }
 }
 
 const AssetDependencyReporter* AssetPipeline::FindDependencyReporter(const std::string& extension) const
@@ -487,6 +552,10 @@ void AssetPipeline::Stop()
     m_ExportEncoders.clear();
     m_SceneChecks.clear();
     m_DependencyReporters.clear();
+    m_SourceFilesReporters.clear();
+    // Not rebuilt now: their stamps name the changed files, so the next
+    // import rebuilds them.
+    m_QueuedDependents.clear();
     m_DefaultCacheHandler = nullptr;
     TextureImporter::ClearFrameData();
 }
@@ -767,6 +836,17 @@ std::string AssetPipeline::MakeCacheStamp(const std::string& absolutePath) const
     };
     std::string stamp =
         part(absolutePath) + "|" + part(absolutePath + ".data") + "|v" + std::to_string(kDekiCacheVersion);
+    // And what it is compiled from besides (AssetSourceFilesReporter).
+    std::string ext = fs::path(absolutePath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    auto sources = m_SourceFilesReporters.find(ext);
+    if (sources != m_SourceFilesReporters.end())
+    {
+        for (const std::string& file : sources->second(absolutePath))
+        {
+            stamp += "|" + part(file) + "|" + part(file + ".data");
+        }
+    }
     if (fs::path(absolutePath).extension() == ".scene")
     {
         stamp += "|s" + std::to_string(kSceneCompileVersion) + "|r" + ComponentRegistryFingerprint();
@@ -803,6 +883,10 @@ void AssetPipeline::Tick()
     if (!m_Running)
     {
         return;
+    }
+    if (!m_QueuedDependents.empty())
+    {
+        ProcessQueuedDependents();
     }
     if (m_StampsDirty && !m_ImportingAll)
     {
@@ -914,6 +998,7 @@ void AssetPipeline::Tick()
 
                 const bool wasKnown = (m_Assets.find(relativePath) != m_Assets.end());
                 ProcessAsset(relativePath);  // fires onAssetDiscovered if !wasKnown
+                ProcessAssetsCompiledFrom(relativePath);
                 assetsChanged = true;
                 if (wasKnown && onAssetChanged)
                 {
@@ -1612,6 +1697,7 @@ void AssetPipeline::RefreshAsset(const std::string& relativePath)
     {
         onAssetChanged(relativePath);
     }
+    ProcessAssetsCompiledFrom(relativePath);
 }
 
 int AssetPipeline::RecompileStaleScenes()

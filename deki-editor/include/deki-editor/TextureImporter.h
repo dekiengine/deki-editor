@@ -3,6 +3,7 @@
 #include <deki-editor/IAssetImporter.h>
 #include <deki-editor/TextureData.h>
 #include <deki-editor/SubAsset.h>
+#include <deki/assets/TextureFilter.h>
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
@@ -145,7 +146,7 @@ public:
                              const SpriteSettings* spriteSettings = nullptr,
                              const std::vector<SubAssetInfo>* frameSubAssets = nullptr,
                              const ChromaKeySettings* chromaKey = nullptr, uint32_t sourceWidth = 0,
-                             uint32_t sourceHeight = 0);
+                             uint32_t sourceHeight = 0, Deki::TextureFilter filter = Deki::TextureFilter::Point);
 
     static bool ReadTexFile(const std::string& path, TexData& outData);
 

@@ -16,6 +16,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <atomic>
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -738,4 +739,43 @@ TEST_F(AssetLifecycleTest, CompiledScene_BdfTextPointsAtItsOneBakedForm)
         << "a BDF text does not point at the font's baked form";
     EXPECT_EQ(bytes.find(GenerateDeterministicGuid(fontSource + ":24")), std::string::npos)
         << "a BDF text points at a per-size form, which is never baked";
+}
+// -----------------------------------------------------------------------------
+// An asset compiled from other files (a model from its images) is rebuilt when
+// they change: once, at the next Tick, however many of them changed.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, CompiledFromOtherFiles_RebuiltOnceWhenTheyChange)
+{
+    const std::string a = CreateAssetFile("a.lifecycle", 1);
+    const std::string b = CreateAssetFile("b.lifecycle", 2);
+    const std::string model = CreateAssetFile("model.lifecycle", 3);
+    const std::string aAbsolute = m_Pipeline->GetAbsolutePath(a);
+    const std::string bAbsolute = m_Pipeline->GetAbsolutePath(b);
+    m_Pipeline->RegisterSourceFilesReporter(".lifecycle",
+                                            [=](const std::string& absolutePath)
+                                            {
+                                                return fs::path(absolutePath).filename() == "model.lifecycle"
+                                                           ? std::vector<std::string>{ aAbsolute, bAbsolute }
+                                                           : std::vector<std::string>{};
+                                            });
+    for (const std::string& rel : { a, b, model })
+    {
+        m_Pipeline->RefreshAsset(rel);
+    }
+    m_Pipeline->Tick();
+
+    std::vector<std::string> changed;
+    m_Pipeline->onAssetChanged = [&](const std::string& rel) { changed.push_back(rel); };
+    CreateAssetFile("a.lifecycle", 10);
+    CreateAssetFile("b.lifecycle", 20);
+    m_Pipeline->RefreshAsset(a);
+    m_Pipeline->RefreshAsset(b);
+    EXPECT_EQ(std::count(changed.begin(), changed.end(), model), 0) << "not yet: queued for the next Tick";
+
+    m_Pipeline->Tick();
+    EXPECT_EQ(std::count(changed.begin(), changed.end(), model), 1) << "once, for both changes";
+    m_Pipeline->Tick();
+    EXPECT_EQ(std::count(changed.begin(), changed.end(), model), 1) << "and not again";
+    m_Pipeline->onAssetChanged = nullptr;
 }

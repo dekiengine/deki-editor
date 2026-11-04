@@ -1,0 +1,52 @@
+#include <deki-editor/TextureSettings.h>
+
+#include <deki-editor/build/PlatformConfig.h>
+
+#include <fstream>
+
+namespace DekiEditor
+{
+
+TextureSettings ReadImageTextureSettings(const std::string& imagePath)
+{
+    std::ifstream in(imagePath + ".data");
+    if (!in.is_open())
+    {
+        return {};
+    }
+    try
+    {
+        const nlohmann::json data = nlohmann::json::parse(in);
+        if (data.is_object() && data.contains("settings") && data["settings"].is_object() &&
+            data["settings"].contains("texture"))
+        {
+            return ReadTextureSettings(data["settings"]["texture"]);
+        }
+    }
+    catch (const nlohmann::json::exception&)
+    {
+    }
+    return {};
+}
+
+bool TargetSamplesTextures(const std::string& platformId)
+{
+    if (platformId.empty())
+    {
+        return true;
+    }
+    const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(platformId);
+    return platform && platform->Capabilities().count("opengl") != 0;
+}
+
+Deki::TextureFilter ResolveTextureFilter(const TextureSettings& settings, const std::string& platformId)
+{
+    Deki::TextureFilter filter = Deki::TextureFilter::Point;
+    if (!TargetSamplesTextures(platformId) || !Deki::ParseTextureFilter(settings.FilterFor(platformId).c_str(), filter))
+    {
+        return Deki::TextureFilter::Point;
+    }
+    return filter;
+}
+
+}  // namespace DekiEditor

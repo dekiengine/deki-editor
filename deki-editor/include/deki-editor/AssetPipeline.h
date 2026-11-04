@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -25,7 +26,7 @@ namespace DekiEditor
 
 // Bump this when the compiled asset format changes. On a mismatch the
 // pipeline wipes the cache and rebuilds it.
-constexpr int kDekiCacheVersion = 6;  // 6: mesh files are version 5 (32-bit indices, texture filter)
+constexpr int kDekiCacheVersion = 7;  // 7: textures carry their filter (Point, Bilinear, Trilinear)
 
 // Bump when CompileSceneFile writes a scene differently: compiled scenes are
 // rebuilt, and nothing else is. 2: a sprite frame is written as its sheet.
@@ -126,6 +127,15 @@ using AssetExportEncoder = std::function<bool(const AssetExportContext& ctx)>;
 using AssetDependencyReporter =
     std::function<std::vector<std::string>(const std::string& absolutePath, AssetPipeline* pipeline)>;
 
+/// The other files an asset is compiled from, absolute: a model's material
+/// library and texture images. They and their sidecars are part of its cache
+/// stamp, so a change to one, or to its settings, rebuilds the asset; and when
+/// one of them is processed, the assets compiled from it are processed again.
+///
+/// Registered per extension by the package that owns the asset type, next to
+/// its cache handler. Given the asset's absolute path.
+using AssetSourceFilesReporter = std::function<std::vector<std::string>(const std::string& absolutePath)>;
+
 /// A discovered asset. All paths are project-relative
 /// (e.g. "assets/textures/player.png").
 struct DEKI_EDITOR_API AssetInfo
@@ -200,6 +210,10 @@ public:
     /// Registers what lists the assets an extension's assets use. Cleared
     /// with the cache handlers when a package unloads.
     void RegisterDependencyReporter(const std::string& extension, AssetDependencyReporter reporter);
+
+    /// Registers what an asset type is compiled from besides its own file
+    /// (AssetSourceFilesReporter). Cleared with the cache handlers.
+    void RegisterSourceFilesReporter(const std::string& extension, AssetSourceFilesReporter reporter);
 
     /// The dependency reporter for an extension (any case, with dot), or null.
     const AssetDependencyReporter* FindDependencyReporter(const std::string& extension) const;
@@ -362,6 +376,18 @@ private:
 
     // Keyed by lowercase extension.
     std::unordered_map<std::string, AssetDependencyReporter> m_DependencyReporters;
+    std::unordered_map<std::string, AssetSourceFilesReporter> m_SourceFilesReporters;  // by lowercase extension
+
+    // Queues every asset compiled from `relativePath`
+    // (AssetSourceFilesReporter) to be processed again, so the ones it changed
+    // are rebuilt. Queued, not processed here: a change to many of a model's
+    // images at once (the image inspector's multi-edit) rebuilds it once, at
+    // the next Tick. One still queued at Stop is rebuilt at the next import,
+    // its stamp being stale.
+    void ProcessAssetsCompiledFrom(const std::string& relativePath);
+    void ProcessQueuedDependents();
+    // Asset -> how many of the files it is compiled from changed, for the log.
+    std::map<std::string, int> m_QueuedDependents;
 
     AssetExportTarget m_EditorTarget;
 

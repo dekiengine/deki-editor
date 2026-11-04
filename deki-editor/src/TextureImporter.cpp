@@ -169,7 +169,7 @@ bool TextureImporter::ReadTexFile(const std::string& path, TexData& outData)
 bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaData, uint32_t width, uint32_t height,
                                    TextureFormat format, const SpriteSettings* spriteSettings,
                                    const std::vector<SubAssetInfo>* frameSubAssets, const ChromaKeySettings* chromaKey,
-                                   uint32_t sourceWidth, uint32_t sourceHeight)
+                                   uint32_t sourceWidth, uint32_t sourceHeight, Deki::TextureFilter filter)
 {
     fs::path filePath(path);
     fs::path parentDir = filePath.parent_path();
@@ -453,6 +453,7 @@ bool TextureImporter::WriteTexFile(const std::string& path, const uint8_t* rgbaD
     {
         header.flags |= static_cast<uint32_t>(TexFlags::AllOpaque);
     }
+    header.flags |= Deki::TextureFilterToFlags(filter);
 
     file.write(header.magic, 4);
     file.write(reinterpret_cast<const char*>(&header.version), sizeof(uint32_t));

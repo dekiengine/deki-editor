@@ -6,6 +6,22 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Texture filtering, and editing several images at once
+- An image's Filter: Point, Bilinear or Trilinear, Default and per platform,
+  in the image inspector's Targets cards (`TextureSettings::filter`,
+  `"filter"` in its `.data`). A platform without a GPU shows Point, with the
+  reason, whatever is set (`TargetSamplesTextures`, `ResolveTextureFilter`).
+  The compiled image carries it, and a model's textures follow their images'.
+- Selecting several images in the Asset Browser edits them together: a change
+  in the image inspector goes to each, leaving their other settings as they
+  are, and the inspector says how many it applies to.
+- What an asset is compiled from besides its own file
+  (`AssetPipeline::RegisterSourceFilesReporter`: a model's material library
+  and images) is part of its cache stamp, so a change to one, or to its
+  settings, rebuilds it. A change to many at once rebuilds it once, at the
+  next tick, and the Console says how many of its files changed.
+  `kDekiCacheVersion` 7: every asset is compiled again once.
+
 ### One list of a project's platforms
 - `ProjectTargets` (TargetCards.h) is every platform the project can build
   for: its own, those its packages offer, and the board packs', the Build

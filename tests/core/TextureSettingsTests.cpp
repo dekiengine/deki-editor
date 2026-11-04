@@ -86,3 +86,34 @@ TEST(TextureSettings, SourceSizeChunkRoundTrips)
 
     std::filesystem::remove_all(dir);
 }
+
+// An image's filter, its own and per target, through its settings and into
+// the compiled texture's header.
+TEST(TextureSettings, FilterRoundTripsAndReachesTheHeader)
+{
+    nlohmann::json tex = nlohmann::json::object();
+    tex["filter"] = "Bilinear";
+    TextureTargetSettings deck;
+    deck.filter = "Trilinear";
+    WriteTextureTarget(tex, "desktop", deck);
+    const TextureSettings s = ReadTextureSettings(tex);
+    EXPECT_EQ(s.FilterFor("android"), "Bilinear");
+    EXPECT_EQ(s.FilterFor("desktop"), "Trilinear");
+    EXPECT_EQ(ResolveTextureFilter(s, ""), Deki::TextureFilter::Bilinear) << "the editor draws with a GPU";
+    EXPECT_EQ(ResolveTextureFilter(TextureSettings{}, ""), Deki::TextureFilter::Point) << "none set is Point";
+
+    const auto dir = std::filesystem::temp_directory_path() / "deki_filter_test";
+    std::filesystem::create_directories(dir);
+    const std::vector<uint8_t> px(8 * 8 * 4, 200);
+    for (Deki::TextureFilter filter :
+         { Deki::TextureFilter::Point, Deki::TextureFilter::Bilinear, Deki::TextureFilter::Trilinear })
+    {
+        const std::string path = (dir / "f.tex").string();
+        ASSERT_TRUE(TextureImporter::WriteTexFile(path, px.data(), 8, 8, TextureFormat::RGB565, nullptr, nullptr,
+                                                  nullptr, 0, 0, filter));
+        TexData data;
+        ASSERT_TRUE(TextureImporter::ReadTexFile(path, data));
+        EXPECT_EQ(Deki::TextureFilterFromFlags(data.header.flags), filter);
+    }
+    std::filesystem::remove_all(dir);
+}

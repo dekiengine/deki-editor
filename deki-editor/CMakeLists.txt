@@ -34,6 +34,7 @@ set(EDITOR_DLL_SOURCES
     # windows, node-graph editors) can use the one theme / undo stack / nicifier.
     src/EditorTheme.cpp
     src/TargetCards.cpp
+    src/TextureSettings.cpp
     src/Motion.cpp
     src/SchematicPicker.cpp
     src/AssetPicker.cpp

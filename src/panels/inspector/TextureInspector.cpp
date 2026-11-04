@@ -3,6 +3,7 @@
 #include <deki-editor/EditorTheme.h>
 #include "InspectorUtils.h"
 #include "../../EditorApp.h"
+#include "../AssetBrowserPanel.h"
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/AssetData.h>
 #include <deki-editor/AssetPipeline.h>
@@ -31,6 +32,17 @@ namespace DekiEditor
 // Index 0 is Automatic: follow the target's screen. The rest are stored as named.
 static const char* s_FormatNames[] = { TrMark("Automatic"), "RGB888", "RGBA8888", "RGB565", "RGB565A8", "ALPHA8" };
 static const int kFormatCount = 6;
+
+// The filters (Deki::TextureFilter), in its order.
+static const char* s_FilterNames[] = { TrMark("Point"), TrMark("Bilinear"), TrMark("Trilinear") };
+static const int kFilterCount = 3;
+
+static int FilterNameToIndex(const std::string& name)
+{
+    Deki::TextureFilter filter = Deki::TextureFilter::Point;
+    Deki::ParseTextureFilter(name.c_str(), filter);
+    return static_cast<int>(filter);
+}
 
 static int FormatNameToIndex(const std::string& name)
 {
@@ -237,6 +249,8 @@ void TextureInspector::DrawSettings()
         m_TargetFormatIndex.clear();
         m_MaxSizeIndex = 0;  // no limit
         m_TargetMaxIndex.clear();
+        m_FilterIndex = 0;  // Point
+        m_TargetFilterIndex.clear();
         m_SourceHasAlpha = false;
         m_ChromaKeyEnabled = false;
         m_ChromaKeyColor[0] = 1.0f;
@@ -258,8 +272,13 @@ void TextureInspector::DrawSettings()
                         const TextureSettings settings = ReadTextureSettings(tex);
                         m_SelectedFormatIndex = FormatNameToIndex(settings.format);
                         m_MaxSizeIndex = MaxSizeToIndex(settings.maxSize);
+                        m_FilterIndex = FilterNameToIndex(settings.filter);
                         for (const auto& [id, t] : settings.targets)
                         {
+                            if (!t.filter.empty())
+                            {
+                                m_TargetFilterIndex[id] = FilterNameToIndex(t.filter);
+                            }
                             if (!t.format.empty())
                             {
                                 m_TargetFormatIndex[id] = FormatNameToIndex(t.format);
@@ -296,40 +315,60 @@ void TextureInspector::DrawSettings()
         }
     }
 
-    // Reads the .data sidecar, applies `mutate`, writes it back and reimports.
+    // Every selected image's .data sidecar: reads it, applies `mutate`, writes
+    // it back and reimports. `mutate` changes only the one setting edited, so
+    // each image keeps its own others.
+    const std::vector<std::string> images = SelectedImagePaths(assetPath);
     auto writeTextureSettings = [&](auto mutate)
     {
-        std::string dataPath = assetPath + ".data";
-        nlohmann::json dataJson;
-        if (fs::exists(dataPath))
+        for (const std::string& image : images)
         {
-            std::ifstream dataFile(dataPath);
-            if (dataFile.is_open())
+            std::string dataPath = image + ".data";
+            nlohmann::json dataJson;
+            if (fs::exists(dataPath))
             {
-                try
+                std::ifstream dataFile(dataPath);
+                if (dataFile.is_open())
                 {
-                    dataJson = nlohmann::json::parse(dataFile);
-                }
-                catch (const nlohmann::json::exception&)
-                {
+                    try
+                    {
+                        dataJson = nlohmann::json::parse(dataFile);
+                    }
+                    catch (const nlohmann::json::exception&)
+                    {
+                    }
                 }
             }
-        }
-        mutate(dataJson["settings"]["texture"]);
-        {
-            // Closed before the reimport below reads it: an open stream may
-            // not have written anything yet.
-            std::ofstream outFile(dataPath);
-            if (outFile.is_open())
+            mutate(dataJson["settings"]["texture"]);
             {
-                outFile << dataJson.dump(2);
+                // Closed before the reimport below reads it: an open stream may
+                // not have written anything yet.
+                std::ofstream outFile(dataPath);
+                if (outFile.is_open())
+                {
+                    outFile << dataJson.dump(2);
+                }
+            }
+            // The pipeline keys assets by their project-relative path; the
+            // selection holds the absolute one.
+            if (AssetPipeline* pipeline = AssetPipeline::Instance())
+            {
+                AssetDatabase::ImportAsset(pipeline->MakeProjectRelative(image));
             }
         }
-        // The pipeline keys assets by their project-relative path; the
-        // selection holds the absolute one.
-        AssetDatabase::ImportAsset(AssetDatabase::GUIDToAssetPath(m_App->GetSelectedAssetGuid()));
         InvalidatePreview();
     };
+    if (images.size() > 1)
+    {
+        DekiEditor::FullBleedSeparator();
+        // Wrapped with the same margin on the right as on the left: the
+        // Inspector's content runs to its edge.
+        ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - ImGui::GetCursorPosX());
+        ImGui::TextDisabled(Tr("%zu images selected: a change applies to each of them, and leaves their other "
+                               "settings as they are. The values shown are this one's."),
+                            images.size());
+        ImGui::PopTextWrapPos();
+    }
 
     // Each section opens like a component in the object inspector: a
     // full-width line, then the band below it.
@@ -408,24 +447,38 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         auto it = m_TargetMaxIndex.find(id);
         return it == m_TargetMaxIndex.end() ? -1 : it->second;
     };
-    // A target's values, written together as its entry.
-    auto writeTarget = [&](const std::string& id)
+    auto targetFilterIndex = [&](const std::string& id)
     {
-        TextureTargetSettings t;
-        const int fi = targetFormatIndex(id);
-        if (fi > 0)
-        {
-            t.format = s_FormatNames[fi];
-        }
-        const int mi = targetMaxIndex(id);
-        if (mi >= 0)
-        {
-            t.maxSize = kTextureMaxSizes[mi];
-        }
-        write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, t); });
+        auto it = m_TargetFilterIndex.find(id);
+        return it == m_TargetFilterIndex.end() ? -1 : it->second;
+    };
+    // One of a target's values, in each image: `value` null takes it back to
+    // the image's own. The target's other values stay as each image has them.
+    auto writeTargetField = [&](const std::string& id, const char* key, const nlohmann::json& value)
+    {
+        write(
+            [&](nlohmann::json& tex)
+            {
+                TextureSettings current = ReadTextureSettings(tex);
+                TextureTargetSettings t = current.targets.count(id) ? current.targets[id] : TextureTargetSettings{};
+                if (std::string(key) == "format")
+                {
+                    t.format = value.is_string() ? value.get<std::string>() : std::string();
+                }
+                else if (std::string(key) == "maxSize")
+                {
+                    t.maxSize = value.is_number_integer() ? value.get<int>() : -1;
+                }
+                else if (std::string(key) == "filter")
+                {
+                    t.filter = value.is_string() ? value.get<std::string>() : std::string();
+                }
+                WriteTextureTarget(tex, id, t);
+            });
     };
     static const char* (*s_FormatLabel)(int) = [](int i) { return s_FormatNames[i]; };
     static const char* (*s_MaxLabel)(int) = [](int i) { return MaxSizeLabel(i); };
+    static const char* (*s_FilterLabel)(int) = [](int i) { return s_FilterNames[i]; };
     char buf[96];
 
     if (!TargetCardsBegin())
@@ -456,7 +509,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
 
     {
         const std::string summary = std::string(Tr(s_FormatNames[m_SelectedFormatIndex])) + "  \xC2\xB7  " +
-                                    Tr("Max Size") + " " + Tr(MaxSizeLabel(m_MaxSizeIndex));
+                                    Tr("Max Size") + " " + Tr(MaxSizeLabel(m_MaxSizeIndex)) + "  \xC2\xB7  " +
+                                    Tr(s_FilterNames[m_FilterIndex]);
         card("##default", false, Tr("Default"), false, Tr("all targets"), nullptr,
              Tr("What every target uses, unless its own card overrides it"), summary, m_DefaultOpen,
              [&](float labelX, float valueX, float valueW)
@@ -499,6 +553,32 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                      DekiEditor::Tooltip("An image whose larger side is over this is stored scaled down so that "
                                          "side is exactly this. None never shrinks it.");
                  }
+
+                 cardRow(TrMark("Filter"), labelX, valueX);
+                 ImGui::SetNextItemWidth(valueW);
+                 if (DekiEditor::SchematicCombo("##Filter", &m_FilterIndex, s_FilterNames, kFilterCount))
+                 {
+                     write(
+                         [&](nlohmann::json& tex)
+                         {
+                             if (m_FilterIndex == 0)
+                             {
+                                 tex.erase("filter");
+                             }
+                             else
+                             {
+                                 tex["filter"] = s_FilterNames[m_FilterIndex];
+                             }
+                         });
+                 }
+                 if (ImGui::IsItemHovered())
+                 {
+                     DekiEditor::Tooltip("How a GPU samples it, for a sprite and for a model's texture alike. Point "
+                                         "takes the nearest texel: sharp, for pixel art. Bilinear blends the four "
+                                         "nearest: smooth near its own size. Trilinear also blends smaller copies "
+                                         "(mipmaps) by how small it is drawn: steady at any size, for 3D. A target "
+                                         "without a GPU draws Point.");
+                 }
              });
     }
     for (const PlatformConfig* platform : targets)
@@ -506,9 +586,14 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         const std::string name = platform->displayName.empty() ? platform->id : platform->displayName;
         int formatIndex = targetFormatIndex(platform->id);
         int maxIndex = targetMaxIndex(platform->id);
+        int filterIndex = targetFilterIndex(platform->id);
         const bool formatOverridden = formatIndex > 0;
         const bool maxOverridden = maxIndex >= 0;
-        const bool overridden = formatOverridden || maxOverridden;
+        const bool filterOverridden = filterIndex >= 0;
+        const bool overridden = formatOverridden || maxOverridden || filterOverridden;
+        // Without a GPU the target draws Point, whatever is set.
+        const bool samples = TargetSamplesTextures(platform->id);
+        const int shownFilter = !samples ? 0 : (filterOverridden ? filterIndex : m_FilterIndex);
 
         Deki::ColorFormat screen = Deki::ColorFormat::RGB565;
         const bool knownScreen = ParseColorFormat(platform->colorFormat, screen);
@@ -542,8 +627,9 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         {
             nameTip += std::string("\n") + Tr("Overrides Default");
         }
-        const std::string summary =
-            std::string(TextureFormatName(stored)) + "  \xC2\xB7  " + Tr("Max Size") + " " + Tr(MaxSizeLabel(shownMax));
+        const std::string summary = std::string(TextureFormatName(stored)) + "  \xC2\xB7  " + Tr("Max Size") +
+                                    " " + Tr(MaxSizeLabel(shownMax)) + "  \xC2\xB7  " +
+                                    Tr(s_FilterNames[shownFilter]);
 
         auto openIt = m_TargetOpen.find(platform->id);
         if (openIt == m_TargetOpen.end())
@@ -561,7 +647,8 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                                    s_FormatLabel, kFormatCount, 1, formatIndex))
                  {
                      m_TargetFormatIndex[platform->id] = formatIndex;
-                     writeTarget(platform->id);
+                     writeTargetField(platform->id, "format",
+                                      formatIndex > 0 ? nlohmann::json(s_FormatNames[formatIndex]) : nlohmann::json());
                  }
                  cardRow(TrMark("Max Size"), labelX, valueX);
                  snprintf(buf, sizeof(buf), Tr("Default (%s)"), Tr(MaxSizeLabel(m_MaxSizeIndex)));
@@ -577,7 +664,40 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                      {
                          m_TargetMaxIndex[platform->id] = maxIndex;
                      }
-                     writeTarget(platform->id);
+                     writeTargetField(platform->id, "maxSize",
+                                      maxIndex >= 0 ? nlohmann::json(kTextureMaxSizes[maxIndex]) : nlohmann::json());
+                 }
+
+                 cardRow(TrMark("Filter"), labelX, valueX);
+                 if (!samples)
+                 {
+                     // Nothing to choose: this target draws without a GPU.
+                     ImGui::AlignTextToFramePadding();
+                     ImGui::TextDisabled("%s", Tr("Point (no GPU)"));
+                     if (ImGui::IsItemHovered())
+                     {
+                         DekiEditor::Tooltip("This target draws in software, which takes the nearest texel. Its "
+                                             "images draw Point, whatever their filter.");
+                     }
+                 }
+                 else
+                 {
+                     snprintf(buf, sizeof(buf), Tr("Default (%s)"), Tr(s_FilterNames[m_FilterIndex]));
+                     if (overrideCombo("##TargetFilter", valueW, Tr(s_FilterNames[shownFilter]), !filterOverridden, buf,
+                                       s_FilterLabel, kFilterCount, 0, filterIndex))
+                     {
+                         if (filterIndex < 0)
+                         {
+                             m_TargetFilterIndex.erase(platform->id);
+                         }
+                         else
+                         {
+                             m_TargetFilterIndex[platform->id] = filterIndex;
+                         }
+                         writeTargetField(platform->id, "filter",
+                                          filterIndex >= 0 ? nlohmann::json(s_FilterNames[filterIndex])
+                                                           : nlohmann::json());
+                     }
                  }
              });
     }
@@ -593,6 +713,10 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
         }
     }
     for (const auto& [id, index] : m_TargetMaxIndex)
+    {
+        gone.push_back(id);
+    }
+    for (const auto& [id, index] : m_TargetFilterIndex)
     {
         gone.push_back(id);
     }
@@ -634,12 +758,52 @@ void TextureInspector::DrawTargets(const std::function<void(const std::function<
                  {
                      m_TargetFormatIndex.erase(id);
                      m_TargetMaxIndex.erase(id);
+                     m_TargetFilterIndex.erase(id);
                      write([&](nlohmann::json& tex) { WriteTextureTarget(tex, id, TextureTargetSettings{}); });
                  }
              });
     }
 
     TargetCardsEnd();
+}
+
+std::vector<std::string> TextureInspector::SelectedImagePaths(const std::string& inspected) const
+{
+    std::vector<std::string> paths{ inspected };
+    AssetBrowserPanel* browser = m_App->GetAssetBrowserPanel();
+    if (!browser)
+    {
+        return paths;
+    }
+    const auto& entries = browser->GetEntries();
+    bool inspectedSelected = false;
+    std::vector<std::string> others;
+    for (int index : browser->GetSelectedIndices())
+    {
+        if (index < 0 || index >= static_cast<int>(entries.size()))
+        {
+            continue;
+        }
+        const AssetEntry& entry = entries[static_cast<size_t>(index)];
+        if (entry.isDirectory || !IsTextureFile(entry.path))
+        {
+            continue;
+        }
+        std::error_code ec;
+        if (std::filesystem::equivalent(entry.path, inspected, ec))
+        {
+            inspectedSelected = true;
+        }
+        else
+        {
+            others.push_back(entry.path);
+        }
+    }
+    if (inspectedSelected)
+    {
+        paths.insert(paths.end(), others.begin(), others.end());
+    }
+    return paths;
 }
 
 bool TextureInspector::IsTextureFile(const std::string& path)
