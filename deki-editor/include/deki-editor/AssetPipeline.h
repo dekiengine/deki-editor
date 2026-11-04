@@ -26,7 +26,7 @@ namespace DekiEditor
 
 // Bump this when the compiled asset format changes. On a mismatch the
 // pipeline wipes the cache and rebuilds it.
-constexpr int kDekiCacheVersion = 8;  // 8: Detail collapses texture seams; 7: textures carry their filter
+constexpr int kDekiCacheVersion = 9;  // 9: Detail keeps seams again (8 collapsed them); 7: texture filters
 
 // Bump when CompileSceneFile writes a scene differently: compiled scenes are
 // rebuilt, and nothing else is. 2: a sprite frame is written as its sheet.

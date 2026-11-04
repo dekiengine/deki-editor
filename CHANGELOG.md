@@ -7,8 +7,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Assets compile again once
-- `kDekiCacheVersion` 8: deki-3d's Detail now collapses texture seams, so a
-  model reduced for a board is compiled again.
+- `kDekiCacheVersion` 9: a model reduced for a board is compiled again (8
+  held models whose Detail had collapsed texture seams, which deki-3d no
+  longer does: it broke the shape of models like Sponza).
 
 ### A settings file that cannot be saved says why, once
 - When `settings.json` cannot be replaced, the warning says whether another
