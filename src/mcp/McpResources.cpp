@@ -7,7 +7,6 @@
 #include <deki/Math.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
-#include "../core/commands/PropertyTypeHandlers.h"
 
 namespace DekiEditor
 {
@@ -38,21 +37,8 @@ static nlohmann::json SerializeObjectForResource(Deki::Object* obj, bool depth)
         compJson["type"] = meta->serializedName;
         compJson["displayName"] = meta->name;
 
-        nlohmann::json props = nlohmann::json::object();
-        for (int i = 0; i < meta->propertyCount; ++i)
-        {
-            const auto& prop = meta->properties[i];
-            if (prop.type == Deki::PropertyType::Array)
-            {
-                props[prop.name] = CaptureArray(comp, prop);
-            }
-            else
-            {
-                const auto& handler = GetPropertyTypeHandler(prop.type);
-                props[prop.name] = handler.capture(comp, prop.offset);
-            }
-        }
-        compJson["properties"] = props;
+        // As a scene file holds them, base classes' included.
+        compJson["properties"] = Deki::Scene::ComponentPropertiesToJson(comp, *meta);
         comps.push_back(compJson);
     }
     j["components"] = comps;

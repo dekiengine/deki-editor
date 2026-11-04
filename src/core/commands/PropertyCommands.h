@@ -3,8 +3,8 @@
 #include <deki-editor/Command.h>
 #include "CommandRefCheck.h"
 #include "CommandText.h"
-#include "PropertyTypeHandlers.h"
 #include <deki/Object.h>
+#include <deki/Scene.h>
 #include <deki/Component.h>
 #include <deki/ScreenAnchor.h>
 #include <deki/reflection/Property.h>
@@ -230,100 +230,45 @@ inline void ApplyToggleObject(Deki::Component* comp, const char* propertyName)
     {
         return;
     }
-
-    auto scan = [&](const Deki::PropertyInfo* props, int count)
+    const Deki::PropertyInfo* toggle = Deki::Scene::FindProperty(*meta, propertyName);
+    if (!toggle || toggle->type != Deki::PropertyType::Bool || !toggle->togglesObjectOf)
     {
-        for (int i = 0; i < count; i++)
-        {
-            if (props[i].type != Deki::PropertyType::Bool)
-            {
-                continue;
-            }
-            if (!props[i].togglesObjectOf)
-            {
-                continue;
-            }
-            if (strcmp(props[i].name, propertyName) != 0)
-            {
-                continue;
-            }
-
-            bool value = Deki::GetPropertyValue<bool>(comp, props[i]);
-            const char* targetName = props[i].togglesObjectOf;
-
-            // The ObjectRef property named by DEKI_TOGGLE_OBJECT.
-            auto findRef = [&](const Deki::PropertyInfo* p, int c) -> Deki::ObjectRefBase*
-            {
-                for (int j = 0; j < c; j++)
-                {
-                    if (p[j].type == Deki::PropertyType::ObjectRef && strcmp(p[j].name, targetName) == 0)
-                    {
-                        return reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + p[j].offset);
-                    }
-                }
-                return nullptr;
-            };
-
-            Deki::ObjectRefBase* ref = findRef(meta->properties, meta->propertyCount);
-            if (!ref && meta->baseTypeId != 0)
-            {
-                const Deki::ComponentMeta* baseMeta = Deki::ComponentRegistry::Instance().GetMeta(meta->baseTypeId);
-                if (baseMeta)
-                {
-                    ref = findRef(baseMeta->properties, baseMeta->propertyCount);
-                }
-            }
-            if (ref && ref->resolved)
-            {
-                ref->resolved->SetActive(value);
-            }
-        }
-    };
-
-    if (meta->baseTypeId != 0)
-    {
-        const Deki::ComponentMeta* baseMeta = Deki::ComponentRegistry::Instance().GetMeta(meta->baseTypeId);
-        if (baseMeta)
-        {
-            scan(baseMeta->properties, baseMeta->propertyCount);
-        }
+        return;
     }
-    scan(meta->properties, meta->propertyCount);
+    // The ObjectRef property named by DEKI_TOGGLE_OBJECT, on the class or a base.
+    const Deki::PropertyInfo* target = Deki::Scene::FindProperty(*meta, toggle->togglesObjectOf);
+    if (!target || target->type != Deki::PropertyType::ObjectRef)
+    {
+        return;
+    }
+    auto* ref = reinterpret_cast<Deki::ObjectRefBase*>(reinterpret_cast<char*>(comp) + target->offset);
+    if (ref->resolved)
+    {
+        ref->resolved->SetActive(Deki::GetPropertyValue<bool>(comp, *toggle));
+    }
 }
 
-/// Sets a component property through reflection. The PropertyTypeHandlers
-/// capture and apply the value for each type.
+/// Sets a component property through reflection. The value is the editor's
+/// one JSON form of a property (Deki::Scene::PropertyToJson, read back by
+/// PropertyFromJson), so an edit, its undo and a saved scene agree.
+///
+/// Holds a copy of the PropertyInfo: its strings and enum tables live in the
+/// package that declared the type, and a reload of that package clears the
+/// history first (EditorApp::OnBeforePluginReload).
 class ModifyComponentPropertyCommand : public Command
 {
 public:
     ModifyComponentPropertyCommand(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                    const nlohmann::json& newValue, std::function<void()> onChange = nullptr)
         : m_Component(comp),
-          m_PropertyOffset(prop.offset),
-          m_PropertyType(prop.type),
-          m_ElementType(prop.elementType),
-          m_EnumSize(prop.enumSize),
+          m_Prop(prop),
           m_PropertyName(prop.name),
           m_DisplayName(EditorNaming::GetDisplayName(prop)),
+          m_OldValue(Deki::Scene::PropertyToJson(comp, prop)),
           m_NewValue(newValue),
           m_OnChange(onChange),
           m_Executed(false)
     {
-        // Array and Enum have their own capture functions. Enum reads only its
-        // real storage size, so it does not read the fields next to it.
-        if (prop.type == Deki::PropertyType::Array)
-        {
-            m_OldValue = CaptureArray(comp, prop);
-        }
-        else if (prop.type == Deki::PropertyType::Enum)
-        {
-            m_OldValue = CaptureEnumSized(comp, prop.offset, m_EnumSize);
-        }
-        else
-        {
-            const auto& handler = GetPropertyTypeHandler(prop.type);
-            m_OldValue = handler.capture(comp, prop.offset);
-        }
     }
 
     std::string GetDescription() const override;
@@ -339,11 +284,10 @@ public:
     bool ReferencesAny(const DeadMemory& dead) const override;
 
 private:
+    void Apply(const nlohmann::json& value);
+
     Deki::Component* m_Component;
-    size_t m_PropertyOffset;
-    Deki::PropertyType m_PropertyType;
-    Deki::PropertyType m_ElementType;  // Array only: the element type
-    uint8_t m_EnumSize;                // Enum only: storage size in bytes (1, 2 or 4)
+    Deki::PropertyInfo m_Prop;
     std::string m_PropertyName;
     std::string m_DisplayName;  // The Inspector's label, for the description
     nlohmann::json m_OldValue;
@@ -360,36 +304,19 @@ public:
     ModifyMultipleComponentPropertyCommand(const std::vector<Deki::Component*>& components,
                                            const Deki::PropertyInfo& prop, const nlohmann::json& newValue,
                                            std::function<void()> onChange = nullptr)
-        : m_PropertyOffset(prop.offset),
-          m_PropertyType(prop.type),
-          m_ElementType(prop.elementType),
-          m_EnumSize(prop.enumSize),
+        : m_Prop(prop),
           m_PropertyName(prop.name),
           m_DisplayName(EditorNaming::GetDisplayName(prop)),
           m_NewValue(newValue),
           m_OnChange(onChange),
           m_Executed(false)
     {
-        // Each component's old value.
+        // Each component's old value, in the same form.
         for (Deki::Component* comp : components)
         {
             ComponentEntry entry;
             entry.component = comp;
-
-            if (prop.type == Deki::PropertyType::Array)
-            {
-                entry.oldValue = CaptureArray(comp, prop);
-            }
-            else if (prop.type == Deki::PropertyType::Enum)
-            {
-                entry.oldValue = CaptureEnumSized(comp, prop.offset, m_EnumSize);
-            }
-            else
-            {
-                const auto& handler = GetPropertyTypeHandler(prop.type);
-                entry.oldValue = handler.capture(comp, prop.offset);
-            }
-
+            entry.oldValue = Deki::Scene::PropertyToJson(comp, prop);
             m_Entries.push_back(entry);
         }
     }
@@ -416,10 +343,7 @@ private:
     void ApplyValue(Deki::Component* comp, const nlohmann::json& value);
 
     std::vector<ComponentEntry> m_Entries;
-    size_t m_PropertyOffset;
-    Deki::PropertyType m_PropertyType;
-    Deki::PropertyType m_ElementType;
-    uint8_t m_EnumSize;
+    Deki::PropertyInfo m_Prop;  // see ModifyComponentPropertyCommand
     std::string m_PropertyName;
     std::string m_DisplayName;  // The Inspector's label, for the description
     nlohmann::json m_NewValue;

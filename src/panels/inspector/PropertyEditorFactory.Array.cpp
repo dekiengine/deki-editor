@@ -8,7 +8,6 @@
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/Localization.h>
 #include "../../core/Commands.h"
-#include "../../core/commands/PropertyTypeHandlers.h"
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/Component.h>
@@ -27,7 +26,7 @@ using InspectorUtils::ComponentIsOrDerivesFrom;
 void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki::PropertyInfo& prop,
                                               const char* displayName)
 {
-    nlohmann::json currentValue = CaptureArray(comp, prop);
+    nlohmann::json currentValue = Deki::Scene::PropertyToJson(comp, prop);
 
     // --- Header: a property row whose value is the size, then + Add ---
     // BeginPropertyRow takes the tooltip DrawProperty set for this row.
@@ -76,10 +75,10 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
     }
     if (ImGui::IsItemDeactivatedAfterEdit())
     {
-        nlohmann::json nowValue = CaptureArray(comp, prop);
+        nlohmann::json nowValue = Deki::Scene::PropertyToJson(comp, prop);
         if (nowValue != s_OldSizeValue)
         {
-            ApplyArray(comp, prop, s_OldSizeValue);
+            Deki::Scene::PropertyFromJson(comp, prop, s_OldSizeValue);
             CommandHistory::Instance().ExecuteNoMerge(
                 std::make_unique<ModifyComponentPropertyCommand>(comp, prop, nowValue));
         }
@@ -393,7 +392,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
 
         if (changed)
         {
-            ApplyArray(comp, prop, newValue);
+            Deki::Scene::PropertyFromJson(comp, prop, newValue);
         }
 
         // Undo command when the edit finishes.
@@ -404,7 +403,7 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         }
         if (ImGui::IsItemDeactivatedAfterEdit() && newValue != s_OldArrayValue)
         {
-            ApplyArray(comp, prop, s_OldArrayValue);
+            Deki::Scene::PropertyFromJson(comp, prop, s_OldArrayValue);
             CommandHistory::Instance().Execute(std::make_unique<ModifyComponentPropertyCommand>(comp, prop, newValue));
         }
 
@@ -457,9 +456,9 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             float aboveCenter = arrayTopY + (s_DragSourceIndex - 1) * (cardHeight + cardSpacing) + cardHeight * 0.5f;
             if (floatingCenterY < aboveCenter)
             {
-                nlohmann::json arr = CaptureArray(comp, prop);
+                nlohmann::json arr = Deki::Scene::PropertyToJson(comp, prop);
                 std::swap(arr[s_DragSourceIndex], arr[s_DragSourceIndex - 1]);
-                ApplyArray(comp, prop, arr);
+                Deki::Scene::PropertyFromJson(comp, prop, arr);
                 s_DragSourceIndex--;
             }
         }
@@ -468,9 +467,9 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
             float belowCenter = arrayTopY + (s_DragSourceIndex + 1) * (cardHeight + cardSpacing) + cardHeight * 0.5f;
             if (floatingCenterY > belowCenter)
             {
-                nlohmann::json arr = CaptureArray(comp, prop);
+                nlohmann::json arr = Deki::Scene::PropertyToJson(comp, prop);
                 std::swap(arr[s_DragSourceIndex], arr[s_DragSourceIndex + 1]);
-                ApplyArray(comp, prop, arr);
+                Deki::Scene::PropertyFromJson(comp, prop, arr);
                 s_DragSourceIndex++;
             }
         }
@@ -478,10 +477,10 @@ void PropertyEditorFactory::DrawArrayProperty(Deki::Component* comp, const Deki:
         // On release, the reorder becomes one undo command.
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            nlohmann::json finalArray = CaptureArray(comp, prop);
+            nlohmann::json finalArray = Deki::Scene::PropertyToJson(comp, prop);
             if (finalArray != s_DragOriginalArray)
             {
-                ApplyArray(comp, prop, s_DragOriginalArray);
+                Deki::Scene::PropertyFromJson(comp, prop, s_DragOriginalArray);
                 CommandHistory::Instance().ExecuteNoMerge(
                     std::make_unique<ModifyComponentPropertyCommand>(comp, prop, finalArray));
             }

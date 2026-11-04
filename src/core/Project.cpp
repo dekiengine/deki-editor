@@ -1,4 +1,5 @@
 #include "Project.h"
+#include <deki/Scene.h>
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/VersionCompare.h>
 #include <deki-editor/Paths.h>
@@ -42,119 +43,22 @@ void ApplySettingsToGlobalCache()
 
 namespace
 {
-// Reads and writes one settings property as JSON. Settings use only bool,
-// integer, float, enum and string properties, so this handles fewer types than
-// Scene::SavePropertyToJson (no arrays, asset or object refs, or colours).
-
+// A settings file holds each property as a scene file does
+// (Scene::PropertyToJson): an enum by name, which survives the enum gaining or
+// reordering values. Files written when enums were stored as numbers still
+// load, since the reader takes those too.
 void SaveSettingProperty(const Deki::Component* comp, const Deki::PropertyInfo& prop, nlohmann::json& out)
 {
-    switch (prop.type)
+    nlohmann::json value = Deki::Scene::PropertyToJson(comp, prop);
+    if (!value.is_discarded())
     {
-        case Deki::PropertyType::Bool: out[prop.name] = Deki::GetPropertyValue<bool>(comp, prop); break;
-        case Deki::PropertyType::Int8: out[prop.name] = (int32_t)Deki::GetPropertyValue<int8_t>(comp, prop); break;
-        case Deki::PropertyType::Int16: out[prop.name] = (int32_t)Deki::GetPropertyValue<int16_t>(comp, prop); break;
-        case Deki::PropertyType::Int32: out[prop.name] = Deki::GetPropertyValue<int32_t>(comp, prop); break;
-        case Deki::PropertyType::UInt8: out[prop.name] = (int32_t)Deki::GetPropertyValue<uint8_t>(comp, prop); break;
-        case Deki::PropertyType::UInt16: out[prop.name] = (int32_t)Deki::GetPropertyValue<uint16_t>(comp, prop); break;
-        case Deki::PropertyType::UInt32: out[prop.name] = Deki::GetPropertyValue<uint32_t>(comp, prop); break;
-        case Deki::PropertyType::Float: out[prop.name] = Deki::GetPropertyValue<float>(comp, prop); break;
-        case Deki::PropertyType::String: out[prop.name] = Deki::GetPropertyValue<std::string>(comp, prop); break;
-        case Deki::PropertyType::Enum:
-            switch (prop.enumSize)
-            {
-                case 1: out[prop.name] = (int32_t)Deki::GetPropertyValue<uint8_t>(comp, prop); break;
-                case 2: out[prop.name] = (int32_t)Deki::GetPropertyValue<uint16_t>(comp, prop); break;
-                default: out[prop.name] = Deki::GetPropertyValue<int32_t>(comp, prop); break;
-            }
-            break;
-        default:
-            // Other types are skipped; the field keeps its compiled default on
-            // the next load.
-            break;
+        out[prop.name] = std::move(value);
     }
 }
 
 void LoadSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, const nlohmann::json& in)
 {
-    if (!in.contains(prop.name))
-    {
-        return;
-    }
-    const auto& v = in[prop.name];
-    switch (prop.type)
-    {
-        case Deki::PropertyType::Bool:
-            if (v.is_boolean())
-            {
-                Deki::SetPropertyValue<bool>(comp, prop, v.get<bool>());
-            }
-            break;
-        case Deki::PropertyType::Int8:
-            if (v.is_number_integer())
-            {
-                Deki::SetPropertyValue<int8_t>(comp, prop, (int8_t)v.get<int32_t>());
-            }
-            break;
-        case Deki::PropertyType::Int16:
-            if (v.is_number_integer())
-            {
-                Deki::SetPropertyValue<int16_t>(comp, prop, (int16_t)v.get<int32_t>());
-            }
-            break;
-        case Deki::PropertyType::Int32:
-            if (v.is_number_integer())
-            {
-                Deki::SetPropertyValue<int32_t>(comp, prop, v.get<int32_t>());
-            }
-            break;
-        case Deki::PropertyType::UInt8:
-            if (v.is_number_integer())
-            {
-                Deki::SetPropertyValue<uint8_t>(comp, prop, (uint8_t)v.get<int32_t>());
-            }
-            break;
-        case Deki::PropertyType::UInt16:
-            if (v.is_number_integer())
-            {
-                Deki::SetPropertyValue<uint16_t>(comp, prop, (uint16_t)v.get<int32_t>());
-            }
-            break;
-        case Deki::PropertyType::UInt32:
-            if (v.is_number_unsigned())
-            {
-                Deki::SetPropertyValue<uint32_t>(comp, prop, v.get<uint32_t>());
-            }
-            else if (v.is_number_integer())
-            {
-                Deki::SetPropertyValue<uint32_t>(comp, prop, (uint32_t)v.get<int32_t>());
-            }
-            break;
-        case Deki::PropertyType::Float:
-            if (v.is_number())
-            {
-                Deki::SetPropertyValue<float>(comp, prop, v.get<float>());
-            }
-            break;
-        case Deki::PropertyType::String:
-            if (v.is_string())
-            {
-                Deki::SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
-            }
-            break;
-        case Deki::PropertyType::Enum:
-            if (v.is_number_integer())
-            {
-                int32_t intVal = v.get<int32_t>();
-                switch (prop.enumSize)
-                {
-                    case 1: Deki::SetPropertyValue<uint8_t>(comp, prop, (uint8_t)intVal); break;
-                    case 2: Deki::SetPropertyValue<uint16_t>(comp, prop, (uint16_t)intVal); break;
-                    default: Deki::SetPropertyValue<int32_t>(comp, prop, intVal); break;
-                }
-            }
-            break;
-        default: break;
-    }
+    Deki::Scene::PropertyFromJsonObject(comp, prop, in);
 }
 }  // namespace
 
@@ -245,9 +149,9 @@ std::vector<std::string> Project::SaveSettingsFiles(const std::string& root) con
         }
 
         nlohmann::json sectionJson = nlohmann::json::object();
-        for (int i = 0; i < info.meta->propertyCount; ++i)
+        for (const Deki::PropertyInfo* prop : Deki::Scene::AllProperties(*info.meta))
         {
-            SaveSettingProperty(info.instance, info.meta->properties[i], sectionJson);
+            SaveSettingProperty(info.instance, *prop, sectionJson);
         }
 
         it->second[info.sectionName] = sectionJson;
@@ -293,9 +197,9 @@ void Project::LoadSettingsFiles(const std::string& root)
             continue;
         }
 
-        for (int i = 0; i < info.meta->propertyCount; ++i)
+        for (const Deki::PropertyInfo* prop : Deki::Scene::AllProperties(*info.meta))
         {
-            LoadSettingProperty(info.instance, info.meta->properties[i], sectionJson);
+            LoadSettingProperty(info.instance, *prop, sectionJson);
         }
     }
 }

@@ -6,7 +6,6 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
 #include <deki/assets/AssetRef.h>
-#include "PropertyTypeHandlers.h"
 #include <nlohmann/json.hpp>
 #include <vector>
 #include <string>
@@ -28,9 +27,7 @@ struct ComponentData
 struct ObjectData
 {
     std::string name;
-    float x, y;
-    float rotation;
-    float scaleX, scaleY;
+    nlohmann::json transform;  // Deki::Scene::TransformToJson's form, depth included
     bool active;
     int originalIndex = -1;  // index among the parent's children, or the scene's objects
     uint32_t parentId = 0;   // 0 = root object

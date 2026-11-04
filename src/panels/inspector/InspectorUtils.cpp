@@ -2,7 +2,6 @@
 #include <deki/reflection/Property.h>
 #include <deki/Component.h>
 #include <deki/reflection/ComponentRegistry.h>
-#include "../../core/commands/PropertyTypeHandlers.h"
 #include <deki/Object.h>
 #include <deki/Scene.h>
 
@@ -129,20 +128,8 @@ struct SavedKeyHash
 };
 std::unordered_map<SavedKey, nlohmann::json, SavedKeyHash> g_SavedState;
 
-// The same capture the undo system uses, so "unsaved" means what "this edit
-// changed something" means, arrays and sized enums included.
-nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
-{
-    if (prop.type == Deki::PropertyType::Array)
-    {
-        return CaptureArray(comp, prop);
-    }
-    if (prop.type == Deki::PropertyType::Enum)
-    {
-        return CaptureEnumSized(comp, prop.offset, prop.enumSize);
-    }
-    return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
-}
+// Values are Deki::Scene::PropertyToJson's, the form undo and the scene file
+// use, so "unsaved" means what "this edit changed something" means.
 
 // The object's id and the component's index among its components, which
 // key the saved state instead of a pointer.
@@ -208,15 +195,15 @@ void CaptureSavedState(::Deki::Scene* scene)
                 continue;
             }
             // Own and inherited properties, as the Inspector draws them.
-            const Deki::ComponentMeta* walk = registry.GetMeta(comp->GetType());
-            while (walk)
+            const Deki::ComponentMeta* meta = registry.GetMeta(comp->GetType());
+            if (!meta)
             {
-                for (int i = 0; i < walk->propertyCount; ++i)
-                {
-                    const Deki::PropertyInfo& p = walk->properties[i];
-                    g_SavedState[SavedKey{ obj->GetId(), static_cast<uint32_t>(ci), p.offset }] = CaptureValue(comp, p);
-                }
-                walk = walk->baseTypeId != 0 ? registry.GetMeta(walk->baseTypeId) : nullptr;
+                continue;
+            }
+            for (const Deki::PropertyInfo* p : Deki::Scene::AllProperties(*meta))
+            {
+                g_SavedState[SavedKey{ obj->GetId(), static_cast<uint32_t>(ci), p->offset }] =
+                    Deki::Scene::PropertyToJson(comp, *p);
             }
         }
     }

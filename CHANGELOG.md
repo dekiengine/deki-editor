@@ -6,6 +6,31 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### One form of a property everywhere
+- The Inspector's edits and their undo, copy, paste and duplicate, the
+  "modified" and "unsaved" markers, the settings files and the MCP tools read
+  and write a property through the scene file's own functions
+  (`Deki::Scene::PropertyToJson` / `PropertyFromJson`), so a value has one
+  form everywhere. `PropertyTypeHandlers.h` is gone.
+- Fixed by it:
+  - `set_property` and `set_project_setting` set an enum given by name to the
+    named value; they used its position in the list, wrong for an enum whose
+    values skip numbers.
+  - The scene resource read an enum as 4 bytes whatever its size, every asset
+    reference as null, and only a component's own properties.
+  - Copy, paste and the undo of a delete kept only a few property types:
+    Int8/16/64, unsigned, Double and Vector2/3 properties (a mesh's
+    `shaderParams`) were dropped, and with them an object's depth (z, tilt,
+    scaleZ). They keep everything now.
+  - The general property edit command ignored asset references; it sets
+    them now.
+- Changed for scripts: `get_properties`, `set_property` (its result) and the
+  scene resource give values as a scene file holds them: an enum by name, a
+  colour as `"#RRGGBBAA"`, an asset by GUID. `set_property` takes those and an
+  enum's number or a colour as `[r, g, b, a]`, and refuses anything else,
+  saying why, instead of setting nothing.
+- Project settings files are written with enums by name from now on.
+
 ### Packages bring everything they need
 - Installing a package installs its dependencies' dependencies too. Only the
   first level was installed once the registry had been listed:

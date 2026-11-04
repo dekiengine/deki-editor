@@ -1,5 +1,4 @@
 #include "PropertyCommands.h"
-#include "PropertyTypeHandlers.h"
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/Property.h>
 #include <deki/Component.h>
@@ -170,26 +169,9 @@ std::string ModifyComponentPropertyCommand::GetDescription() const
     return CommandText::Format(Tr("Change %s"), name.c_str());
 }
 
-void ModifyComponentPropertyCommand::Execute()
+void ModifyComponentPropertyCommand::Apply(const nlohmann::json& value)
 {
-    // Array and Enum have their own apply functions; the rest use the type handler.
-    if (m_PropertyType == Deki::PropertyType::Array)
-    {
-        Deki::PropertyInfo tempProp = {};
-        tempProp.offset = m_PropertyOffset;
-        tempProp.elementType = m_ElementType;
-        ApplyArray(m_Component, tempProp, m_NewValue);
-    }
-    else if (m_PropertyType == Deki::PropertyType::Enum)
-    {
-        ApplyEnumSized(m_Component, m_PropertyOffset, m_NewValue, m_EnumSize);
-    }
-    else
-    {
-        const auto& handler = GetPropertyTypeHandler(m_PropertyType);
-        handler.apply(m_Component, m_PropertyOffset, m_NewValue);
-    }
-    m_Executed = true;
+    Deki::Scene::PropertyFromJson(m_Component, m_Prop, value);
     if (m_OnChange)
     {
         m_OnChange();
@@ -198,31 +180,15 @@ void ModifyComponentPropertyCommand::Execute()
     ApplyToggleObject(m_Component, m_PropertyName.c_str());
 }
 
+void ModifyComponentPropertyCommand::Execute()
+{
+    Apply(m_NewValue);
+    m_Executed = true;
+}
+
 void ModifyComponentPropertyCommand::Undo()
 {
-    // Array and Enum have their own apply functions; the rest use the type handler.
-    if (m_PropertyType == Deki::PropertyType::Array)
-    {
-        Deki::PropertyInfo tempProp = {};
-        tempProp.offset = m_PropertyOffset;
-        tempProp.elementType = m_ElementType;
-        ApplyArray(m_Component, tempProp, m_OldValue);
-    }
-    else if (m_PropertyType == Deki::PropertyType::Enum)
-    {
-        ApplyEnumSized(m_Component, m_PropertyOffset, m_OldValue, m_EnumSize);
-    }
-    else
-    {
-        const auto& handler = GetPropertyTypeHandler(m_PropertyType);
-        handler.apply(m_Component, m_PropertyOffset, m_OldValue);
-    }
-    if (m_OnChange)
-    {
-        m_OnChange();
-    }
-    m_Component->OnPropertyChanged(m_PropertyName.c_str());
-    ApplyToggleObject(m_Component, m_PropertyName.c_str());
+    Apply(m_OldValue);
 }
 
 bool ModifyComponentPropertyCommand::CanMerge(const Command* other) const
@@ -232,7 +198,7 @@ bool ModifyComponentPropertyCommand::CanMerge(const Command* other) const
         return false;
     }
     auto* cmd = dynamic_cast<const ModifyComponentPropertyCommand*>(other);
-    return cmd && cmd->m_Component == m_Component && cmd->m_PropertyOffset == m_PropertyOffset;
+    return cmd && cmd->m_Component == m_Component && cmd->m_Prop.offset == m_Prop.offset;
 }
 
 void ModifyComponentPropertyCommand::Merge(const Command* other)
@@ -300,7 +266,7 @@ bool ModifyMultipleComponentPropertyCommand::CanMerge(const Command* other) cons
     {
         return false;
     }
-    if (cmd->m_PropertyOffset != m_PropertyOffset)
+    if (cmd->m_Prop.offset != m_Prop.offset)
     {
         return false;
     }
@@ -343,22 +309,7 @@ bool ModifyMultipleComponentPropertyCommand::ReferencesAny(const DeadMemory& dea
 
 void ModifyMultipleComponentPropertyCommand::ApplyValue(Deki::Component* comp, const nlohmann::json& value)
 {
-    if (m_PropertyType == Deki::PropertyType::Array)
-    {
-        Deki::PropertyInfo tempProp = {};
-        tempProp.offset = m_PropertyOffset;
-        tempProp.elementType = m_ElementType;
-        ApplyArray(comp, tempProp, value);
-    }
-    else if (m_PropertyType == Deki::PropertyType::Enum)
-    {
-        ApplyEnumSized(comp, m_PropertyOffset, value, m_EnumSize);
-    }
-    else
-    {
-        const auto& handler = GetPropertyTypeHandler(m_PropertyType);
-        handler.apply(comp, m_PropertyOffset, value);
-    }
+    Deki::Scene::PropertyFromJson(comp, m_Prop, value);
 }
 
 std::string ModifyAssetRefCommand::GetDescription() const

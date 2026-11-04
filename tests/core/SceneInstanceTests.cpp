@@ -227,21 +227,29 @@ TEST_F(SceneInstanceTest, ObjectRefRoundTrip_PreservesAllFields)
 TEST_F(SceneInstanceTest, SerializeObjectData_CapturesTransformAndState)
 {
     // Verifies all object fields are captured: name, position, rotation,
-    // scale, active state, and the object's own ID.
+    // scale, depth, active state, and the object's own ID. The transform is
+    // in the scene file's form.
     Deki::Object obj("TestObj");
     obj.SetLocalPosition(10.0f, 20.0f);
     obj.SetRotation(45.0f);
     obj.SetScale(2.0f, 3.0f);
+    obj.SetZ(-7.0f);
+    obj.SetRotationX(0.25f);
+    obj.SetScaleZ(4.0f);
     obj.SetActive(false);
 
     ObjectData data = SerializeObjectData(&obj);
 
     EXPECT_EQ(data.name, "TestObj");
-    EXPECT_FLOAT_EQ(data.x, 10.0f);
-    EXPECT_FLOAT_EQ(data.y, 20.0f);
-    EXPECT_FLOAT_EQ(data.rotation, 45.0f);
-    EXPECT_FLOAT_EQ(data.scaleX, 2.0f);
-    EXPECT_FLOAT_EQ(data.scaleY, 3.0f);
+    EXPECT_EQ(data.transform, Deki::Scene::TransformToJson(&obj));
+    EXPECT_FLOAT_EQ(data.transform["x"].get<float>(), 10.0f);
+    EXPECT_FLOAT_EQ(data.transform["y"].get<float>(), 20.0f);
+    EXPECT_FLOAT_EQ(data.transform["rotation"].get<float>(), 45.0f);
+    EXPECT_FLOAT_EQ(data.transform["scaleX"].get<float>(), 2.0f);
+    EXPECT_FLOAT_EQ(data.transform["scaleY"].get<float>(), 3.0f);
+    EXPECT_FLOAT_EQ(data.transform["z"].get<float>(), -7.0f);
+    EXPECT_FLOAT_EQ(data.transform["rotationX"].get<float>(), 0.25f);
+    EXPECT_FLOAT_EQ(data.transform["scaleZ"].get<float>(), 4.0f);
     EXPECT_FALSE(data.active);
     EXPECT_EQ(data.objectId, obj.GetId());
 }
@@ -254,11 +262,8 @@ TEST_F(SceneInstanceTest, ApplyObjectData_RestoresTransformAndState)
 
     ObjectData data;
     data.name = "OriginalName";
-    data.x = 5.0f;
-    data.y = 15.0f;
-    data.rotation = 90.0f;
-    data.scaleX = 0.5f;
-    data.scaleY = 0.75f;
+    data.transform = { { "x", 5.0f },     { "y", 15.0f }, { "rotation", 90.0f }, { "scaleX", 0.5f },
+                       { "scaleY", 0.75f }, { "z", 3.0f }, { "rotationY", 0.5f } };
     data.active = false;
 
     ApplyObjectData(&obj, data);
@@ -268,6 +273,9 @@ TEST_F(SceneInstanceTest, ApplyObjectData_RestoresTransformAndState)
     EXPECT_FLOAT_EQ(obj.GetLocalRotation(), 90.0f);
     EXPECT_FLOAT_EQ(obj.GetScaleX(), 0.5f);
     EXPECT_FLOAT_EQ(obj.GetScaleY(), 0.75f);
+    EXPECT_FLOAT_EQ(obj.GetZ(), 3.0f) << "depth comes back with the rest";
+    EXPECT_FLOAT_EQ(obj.GetRotationY(), 0.5f);
+    EXPECT_FLOAT_EQ(obj.GetScaleZ(), 1.0f) << "an absent key is its default";
     EXPECT_FALSE(obj.IsActive());
 }
 

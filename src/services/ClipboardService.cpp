@@ -73,11 +73,7 @@ std::optional<ClipboardService::ParsedClipboard> ClipboardService::ParseClipboar
         {
             const auto& t = json["transform"];
             data.transformData.name = "";
-            data.transformData.x = t.value("x", 0.0f);
-            data.transformData.y = t.value("y", 0.0f);
-            data.transformData.rotation = t.value("rotation", 0.0f);
-            data.transformData.scaleX = t.value("scaleX", 1.0f);
-            data.transformData.scaleY = t.value("scaleY", 1.0f);
+            data.transformData.transform = t;
             data.transformData.active = t.value("active", true);
         }
     }
@@ -104,11 +100,7 @@ nlohmann::json ClipboardService::ChildDataToJson(const ChildData& data)
 {
     nlohmann::json obj;
     obj["name"] = data.objectData.name;
-    obj["x"] = data.objectData.x;
-    obj["y"] = data.objectData.y;
-    obj["rotation"] = data.objectData.rotation;
-    obj["scaleX"] = data.objectData.scaleX;
-    obj["scaleY"] = data.objectData.scaleY;
+    obj["transform"] = data.objectData.transform;
     obj["active"] = data.objectData.active;
 
     nlohmann::json compsJson = nlohmann::json::array();
@@ -135,11 +127,9 @@ ChildData ClipboardService::JsonToChildData(const nlohmann::json& json)
 {
     ChildData data;
     data.objectData.name = json.value("name", "Object");
-    data.objectData.x = json.value("x", 0.0f);
-    data.objectData.y = json.value("y", 0.0f);
-    data.objectData.rotation = json.value("rotation", 0.0f);
-    data.objectData.scaleX = json.value("scaleX", 1.0f);
-    data.objectData.scaleY = json.value("scaleY", 1.0f);
+    // The transform as a scene file holds it; a clipboard from before that
+    // kept x, y, rotation and scale on the object itself, which reads the same.
+    data.objectData.transform = json.contains("transform") ? json["transform"] : json;
     data.objectData.active = json.value("active", true);
 
     if (json.contains("components") && json["components"].is_array())
@@ -201,11 +191,7 @@ void ClipboardService::CopyTransform(const Deki::Object* obj)
     nlohmann::json json;
     json["deki_clipboard_type"] = kTypeTransform;
     json["version"] = kClipboardVersion;
-    json["transform"]["x"] = od.x;
-    json["transform"]["y"] = od.y;
-    json["transform"]["rotation"] = od.rotation;
-    json["transform"]["scaleX"] = od.scaleX;
-    json["transform"]["scaleY"] = od.scaleY;
+    json["transform"] = od.transform;
     json["transform"]["active"] = od.active;
 
     WriteToClipboard(json);

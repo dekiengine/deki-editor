@@ -8,7 +8,7 @@
 #include <deki-editor/CommandHistory.h>
 #include <deki-editor/Localization.h>
 #include "../../core/Commands.h"
-#include "../../core/commands/PropertyTypeHandlers.h"
+#include <deki/Color.h>
 #include <deki/reflection/Property.h>
 #include <deki/Component.h>
 #include "imgui.h"

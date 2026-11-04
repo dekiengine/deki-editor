@@ -86,7 +86,8 @@ TEST_F(ObjectSerializationTest, SerializeComponent_ColorProperty_SerializesCorre
     ComponentData data = SerializeComponent(m_Component);
 
     ASSERT_TRUE(data.properties.contains("colorValue"));
-    // Color is serialized as uint32_t (RGBA packed)
+    // As a scene file holds it.
+    EXPECT_EQ(data.properties["colorValue"], "#FF8040FF");
 }
 
 TEST_F(ObjectSerializationTest, SerializeComponent_EnumProperty_SerializesCorrectly)

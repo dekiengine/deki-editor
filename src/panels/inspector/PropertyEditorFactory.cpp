@@ -10,7 +10,6 @@
 #include "../../core/Commands.h"
 #include "../../services/AgentCursor.h"
 #include "../../services/SafeDispatch.h"
-#include "../../core/commands/PropertyTypeHandlers.h"
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/ComponentFactory.h>
@@ -107,21 +106,9 @@ struct DefaultsSnapshot
 };
 DefaultsSnapshot g_Defaults;
 
-// One property's current value, captured as the undo system does, so "differs
-// from default" means what "this edit changed something" means, for every type
-// including arrays and sized enums.
-nlohmann::json CaptureValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
-{
-    if (prop.type == Deki::PropertyType::Array)
-    {
-        return CaptureArray(comp, prop);
-    }
-    if (prop.type == Deki::PropertyType::Enum)
-    {
-        return CaptureEnumSized(comp, prop.offset, prop.enumSize);
-    }
-    return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
-}
+// Values are Deki::Scene::PropertyToJson's, the form undo and the scene file
+// use, so "differs from default" means what "this edit changed something"
+// means.
 
 void BuildDefaultsFor(uint32_t typeId)
 {
@@ -145,15 +132,12 @@ void BuildDefaultsFor(uint32_t typeId)
               }
 
               // Own and inherited properties, as the Inspector draws both.
-              const Deki::ComponentMeta* walk = registry.GetMeta(typeId);
-              while (walk)
+              if (const Deki::ComponentMeta* meta = registry.GetMeta(typeId))
               {
-                  for (int i = 0; i < walk->propertyCount; ++i)
+                  for (const Deki::PropertyInfo* p : Deki::Scene::AllProperties(*meta))
                   {
-                      const Deki::PropertyInfo& p = walk->properties[i];
-                      slot[p.offset] = CaptureValue(probe.get(), p);
+                      slot[p->offset] = Deki::Scene::PropertyToJson(probe.get(), *p);
                   }
-                  walk = walk->baseTypeId != 0 ? registry.GetMeta(walk->baseTypeId) : nullptr;
               }
               built = true;
           });
@@ -346,7 +330,7 @@ void PropertyEditorFactory::DrawProperty(Deki::Component* comp, const Deki::Prop
         RowState& row = m_RowStates[RowKey{ comp, prop.offset }];
         if (row.generation != gen || row.epoch != epoch || row.pendingRefresh)
         {
-            const nlohmann::json current = CaptureValue(comp, prop);
+            const nlohmann::json current = Deki::Scene::PropertyToJson(comp, prop);
             const nlohmann::json* savedValue = InspectorUtils::SavedValueFor(comp, prop);
             row.isUnsaved = savedValue && current != *savedValue;
             const nlohmann::json* defaultValue = DefaultValueFor(comp->GetType(), prop);
@@ -1053,7 +1037,7 @@ void PropertyEditorFactory::DrawObjectRefPicker()
 
     if (isArray)
     {
-        currentArrayValue = CaptureArray(comp, prop);
+        currentArrayValue = Deki::Scene::PropertyToJson(comp, prop);
         if (arrayIdx < static_cast<int>(currentArrayValue.size()))
         {
             if (currentArrayValue[arrayIdx].is_object())

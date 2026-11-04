@@ -12,7 +12,6 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/SettingsRegistry.h>
 #include <deki/reflection/Property.h>
-#include "../core/commands/PropertyTypeHandlers.h"
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/AssetTypeRegistry.h>
 #include <deki-editor/CliTool.h>
@@ -86,86 +85,8 @@ static Deki::Component* FindComponentByType(Deki::Object* obj, const std::string
     return nullptr;
 }
 
-// Read one property as JSON.
-//
-// Enum and AssetRef need the property info, not just its offset, so they must
-// not go through the offset-only handler table. That table maps Enum to
-// CaptureEnum, which reads 4 bytes from what may be a 1-byte enum (taking in
-// whatever follows it in the struct), and AssetRef to a no-op that always
-// reports null.
-static nlohmann::json CapturePropertyValue(const Deki::Component* comp, const Deki::PropertyInfo& prop)
-{
-    if (prop.type == Deki::PropertyType::Enum)
-    {
-        return CaptureEnumSized(comp, prop.offset, prop.enumSize);
-    }
 
-    if (prop.type == Deki::PropertyType::AssetRef)
-    {
-        const auto& ref =
-            *reinterpret_cast<const Deki::AssetRefBase*>(reinterpret_cast<const char*>(comp) + prop.offset);
-        if (ref.guid.empty())
-        {
-            return nullptr;
-        }
-        nlohmann::json j;
-        j["guid"] = ref.guid;
-        if (!ref.source.empty())
-        {
-            j["source"] = ref.source;
-        }
-        return j;
-    }
 
-    return GetPropertyTypeHandler(prop.type).capture(comp, prop.offset);
-}
-
-// Turns an enum argument into its index. Accepts the integer index or the name
-// as listed in get_properties' enumValues, the only form a caller can find
-// without reading the C++ header.
-static int ResolveEnumValue(const Deki::PropertyInfo& prop, const nlohmann::json& value)
-{
-    if (value.is_number_integer())
-    {
-        return value.get<int>();
-    }
-
-    if (value.is_string())
-    {
-        const std::string name = value.get<std::string>();
-        for (int i = 0; i < prop.enumCount; ++i)
-        {
-            if (prop.enumValues && prop.enumValues[i] && name == prop.enumValues[i])
-            {
-                return i;
-            }
-        }
-        throw std::runtime_error("Unknown value '" + name + "' for enum property '" + std::string(prop.name) + "'");
-    }
-
-    throw std::runtime_error("Enum property '" + std::string(prop.name) +
-                             "' expects an index or one of its enumValues names");
-}
-
-// The property named `propName` in `meta`, or null.
-// The component's own properties first, then each base class's (sortingOrder
-// on a SpriteComponent is RendererComponent's), as the Inspector shows them.
-static const Deki::PropertyInfo* FindProperty(const Deki::ComponentMeta* meta, const std::string& propName)
-{
-    auto& registry = Deki::ComponentRegistry::Instance();
-    for (int depth = 0; meta && depth < 8; ++depth)
-    {
-        for (int i = 0; i < meta->propertyCount; ++i)
-        {
-            if (meta->properties[i].name == propName)
-            {
-                return &meta->properties[i];
-            }
-        }
-        meta = meta->baseTypeId ? registry.GetMeta(meta->baseTypeId) : nullptr;
-    }
-    return nullptr;
-}
 
 // A property type's name.
 static const char* PropertyTypeToString(Deki::PropertyType type)
@@ -779,9 +700,10 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register(
         { "set_property",
-          "Set a component property value. Use get_properties to see available properties and types. "
-          "For an assetRef property pass the asset GUID as a string (see list_assets), or an object "
-          "{\"guid\": \"...\", \"source\": \"...\"}; pass null or \"\" to clear it.",
+          "Set a component property value, in the form get_properties shows and a scene file holds: an "
+          "enum by name (or its stored number), a colour as \"#RRGGBBAA\" (or [r, g, b, a]), a vector as "
+          "an array, an assetRef as the asset's GUID (see list_assets) or {\"guid\": \"...\", "
+          "\"source\": \"...\"}, null or \"\" to clear it. One undo step, as an Inspector edit is.",
           { { "type", "object" },
             { "properties",
               { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
@@ -815,53 +737,26 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
               }
 
               std::string propName = args["property_name"].get<std::string>();
-              const Deki::PropertyInfo* prop = FindProperty(meta, propName);
+              const Deki::PropertyInfo* prop = Deki::Scene::FindProperty(*meta, propName);
               if (!prop)
               {
                   throw std::runtime_error("Property not found: " + propName);
               }
 
-              // AssetRef is a (guid, source) pair, not a plain value, and the
-              // generic property command's handler table does nothing with it on
-              // purpose. Handling it here lets automation give a sprite a
-              // texture; otherwise the call would succeed and leave the
-              // reference null.
-              if (prop->type == Deki::PropertyType::AssetRef)
+              // Read it the one way a value is read (Scene::PropertyFromJson),
+              // which says whether the value is a form this property takes and
+              // leaves it untouched when not. Then put the old value back and
+              // record the change, in its canonical form, as the Inspector's
+              // edit command does, so it is one undo step.
+              const nlohmann::json before = Deki::Scene::PropertyToJson(comp, *prop);
+              if (!Deki::Scene::PropertyFromJson(comp, *prop, args["value"]))
               {
-                  const auto& value = args["value"];
-                  std::string guid, source;
-                  if (value.is_string())
-                  {
-                      guid = value.get<std::string>();
-                  }
-                  else if (value.is_object())
-                  {
-                      guid = value.value("guid", "");
-                      source = value.value("source", "");
-                  }
-                  else if (!value.is_null())
-                  {
-                      throw std::runtime_error("assetRef property '" + propName +
-                                               "' expects a GUID string, an object, or null");
-                  }
-
-                  CommandHistory::Instance().ExecuteNoMerge(
-                      std::make_unique<ModifyAssetRefCommand>(comp, *prop, guid, source));
-
-                  return { { "id", objId },
-                           { "component", typeName },
-                           { "property", propName },
-                           { "value", { { "guid", guid }, { "source", source } } } };
+                  throw std::runtime_error("'" + args["value"].dump() + "' is not a value " + propName + " (" +
+                                           PropertyTypeToString(prop->type) +
+                                           ") takes; get_properties shows its current one");
               }
-
-              // The command stores enums by index; accept the name too, since that
-              // is what get_properties advertises in enumValues.
-              nlohmann::json value = args["value"];
-              if (prop->type == Deki::PropertyType::Enum)
-              {
-                  value = ResolveEnumValue(*prop, value);
-              }
-
+              const nlohmann::json value = Deki::Scene::PropertyToJson(comp, *prop);
+              Deki::Scene::PropertyFromJson(comp, *prop, before);
               CommandHistory::Instance().ExecuteNoMerge(
                   std::make_unique<ModifyComponentPropertyCommand>(comp, *prop, value));
 
@@ -870,7 +765,8 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 
     registry.Register(
         { "get_properties",
-          "Get all property values of a component on an object.",
+          "Get all property values of a component on an object, its base classes' included, each in the form "
+          "a scene file holds (see set_property).",
           { { "type", "object" },
             { "properties",
               { { "object_id", { { "type", "integer" }, { "description", "ID of the object" } } },
@@ -901,32 +797,13 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                   throw std::runtime_error("Unknown component type: " + typeName);
               }
 
-              // Own properties and those of each base class (see FindProperty).
-              std::vector<const Deki::PropertyInfo*> all;
-              for (const Deki::ComponentMeta* m = meta; m && all.size() < 1024;
-                   m = m->baseTypeId ? reg.GetMeta(m->baseTypeId) : nullptr)
-              {
-                  for (int i = 0; i < m->propertyCount; ++i)
-                  {
-                      all.push_back(&m->properties[i]);
-                  }
-              }
-
               nlohmann::json properties = nlohmann::json::object();
-              for (const Deki::PropertyInfo* p : all)
+              for (const Deki::PropertyInfo* p : Deki::Scene::AllProperties(*meta))
               {
                   const auto& prop = *p;
                   nlohmann::json propInfo;
                   propInfo["type"] = PropertyTypeToString(prop.type);
-
-                  if (prop.type == Deki::PropertyType::Array)
-                  {
-                      propInfo["value"] = CaptureArray(comp, prop);
-                  }
-                  else
-                  {
-                      propInfo["value"] = CapturePropertyValue(comp, prop);
-                  }
+                  propInfo["value"] = Deki::Scene::PropertyToJson(comp, prop);
 
                   if (prop.hasRange)
                   {
@@ -1444,8 +1321,8 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "set_project_setting",
           "Set a project setting: a property of one of the Project Settings sections (e.g. "
-          "section \"Core\", property \"targetFps\"), then save the project. Enum values "
-          "take their index or name.",
+          "section \"Core\", property \"targetFps\"), then save the project. The value is in the form a "
+          "settings file holds: an enum by name (or its stored number).",
           { { "type", "object" },
             { "properties",
               { { "section",
@@ -1479,23 +1356,17 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
               }
 
               const std::string propName = args["property"].get<std::string>();
-              const Deki::PropertyInfo* prop = FindProperty(info->meta, propName);
+              const Deki::PropertyInfo* prop = Deki::Scene::FindProperty(*info->meta, propName);
               if (!prop)
               {
                   throw std::runtime_error("Section '" + section + "' has no property '" + propName + "'");
               }
-              if (prop->type == Deki::PropertyType::AssetRef)
+              // The one reader of a property (Scene::PropertyFromJson), which
+              // a settings file is read with too.
+              if (!Deki::Scene::PropertyFromJson(info->instance, *prop, args["value"]))
               {
-                  throw std::runtime_error("set_project_setting does not set asset references");
-              }
-
-              if (prop->type == Deki::PropertyType::Enum)
-              {
-                  ApplyEnumSized(info->instance, prop->offset, ResolveEnumValue(*prop, args["value"]), prop->enumSize);
-              }
-              else
-              {
-                  GetPropertyTypeHandler(prop->type).apply(info->instance, prop->offset, args["value"]);
+                  throw std::runtime_error("'" + args["value"].dump() + "' is not a value " + propName + " (" +
+                                           PropertyTypeToString(prop->type) + ") takes");
               }
               DekiEditor::ApplySettingsToGlobalCache();
               if (!project->Save())
@@ -1505,7 +1376,7 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
 
               return { { "section", section },
                        { "property", propName },
-                       { "value", CapturePropertyValue(info->instance, *prop) } };
+                       { "value", Deki::Scene::PropertyToJson(info->instance, *prop) } };
           } });
 
     // =========================================================================
