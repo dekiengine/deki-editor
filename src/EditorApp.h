@@ -501,6 +501,22 @@ public:
     bool IsRecoveryDialogOpen() const { return m_Recovery.DialogRequested(); }
     void PostponeRecoveryDialog() { m_Recovery.SetDialogRequested(false); }
 
+    // A package from an older release, as the project pins it: shown on open
+    // in the "Packages from an older release" dialog, which offers to update
+    // them. Editable ones are listed but left to their developer.
+    struct OutdatedPackage
+    {
+        std::string id;
+        std::string version;    // as installed
+        std::string minEngine;  // the engine it was made for
+        bool editable = false;
+    };
+    bool IsOutdatedPackagesDialogOpen() const { return m_OutdatedDialogOpen; }
+    const std::vector<OutdatedPackage>& GetOutdatedPackages() const { return m_OutdatedPackages; }
+    // Its answers without a mouse: update the packages it can, or not now.
+    // Takes effect on the next frame.
+    void AnswerOutdatedPackagesDialog(bool update) { m_OutdatedAnswer = update ? 1 : 2; }
+
 private:
     // Tab focus restoration on startup
     std::string m_FocusRestoreWindow;
@@ -510,6 +526,13 @@ private:
     // what stays here is the UI that presents them and the scene swap on
     // restore, which needs EditorApp's own state.
     EditorRecovery m_Recovery;
+
+    std::vector<OutdatedPackage> m_OutdatedPackages;
+    bool m_OutdatedDialogOpen = false;
+    int m_OutdatedAnswer = 0;  // 1 update, 2 not now, from AnswerOutdatedPackagesDialog
+    void DrawOutdatedPackagesDialog();
+    void UpdateOutdatedPackages();
+
     void DrawRecoveryDialog();
     void DrawRecoveryDiscardConfirm();
     void DrawRecoveryPreview();

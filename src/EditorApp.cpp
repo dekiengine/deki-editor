@@ -452,6 +452,7 @@ void EditorApp::Update()
         m_HotReloadService->DrawBuildProgress();
     }
     DrawRecoveryDialog();
+    DrawOutdatedPackagesDialog();
 
     // Toasts last: they stack above the build progress card in the
     // bottom-right corner, so that card must already be drawn.
@@ -886,6 +887,7 @@ void EditorApp::ReportIncompatiblePackages()
 
     const std::filesystem::path packagesDir = std::filesystem::path(DekiEditor::GetPackagesDirectory(projectPath));
 
+    m_OutdatedPackages.clear();
     for (const PackageEntry& pkg : mgr.GetPackages())
     {
         if (!pkg.isInstalled)
@@ -900,6 +902,18 @@ void EditorApp::ReportIncompatiblePackages()
         std::string reason;
         if (DekiPackageInstaller::EngineSatisfiesPackage(packagesDir / dirName, reason))
         {
+            continue;
+        }
+
+        // From an older release, as the project pinned it: the open dialog
+        // offers its update, so a project made before this editor builds
+        // again after one click. Said in the log too, for headless runs.
+        std::string minEngine;
+        if (DekiPackageInstaller::IsFromOlderRelease(packagesDir / dirName, minEngine))
+        {
+            m_OutdatedPackages.push_back({ pkg.id.empty() ? dirName : pkg.name.empty() ? pkg.id : pkg.name,
+                                           pkg.installedVersion, minEngine, pkg.editable });
+            DEKI_LOG_ERROR("Package compatibility: '%s': %s", dirName.c_str(), reason.c_str());
             continue;
         }
 
@@ -1212,6 +1226,121 @@ std::string FormatRecoveryTime(std::time_t when)
 }
 
 }  // namespace
+
+void EditorApp::DrawOutdatedPackagesDialog()
+{
+    if (m_OutdatedPackages.empty() || m_Headless)
+    {
+        return;
+    }
+    if (!m_OutdatedDialogOpen && m_OutdatedAnswer == 0)
+    {
+        // Opened once per project open; Not now leaves it for the next.
+        static std::string s_ShownFor;
+        const std::string project = m_Project ? m_Project->GetPath() : std::string();
+        if (s_ShownFor == project)
+        {
+            return;
+        }
+        s_ShownFor = project;
+        m_OutdatedDialogOpen = true;
+    }
+
+    auto& ui = EditorUI::Get();
+    ui.OpenPopup(TrLabel("Packages from an older release"));
+    if (BeginSchematicModal(TrLabel("Packages from an older release"), 480.0f))
+    {
+        ui.TextWrapped(Tr("This project uses packages made for an older Deki, which this editor cannot build. "
+                          "Update moves each one to its release for this editor. Scenes, assets and settings "
+                          "stay as they are."));
+        ui.Spacing();
+        bool anyToUpdate = false;
+        for (const OutdatedPackage& p : m_OutdatedPackages)
+        {
+            const std::string line =
+                FormatText(p.editable ? Tr("%s %s (made for %s): editable, so yours to update")
+                                      : Tr("%s %s (made for %s)"),
+                           p.id.c_str(), p.version.c_str(), p.minEngine.c_str());
+            ui.PushStyleColor(EditorUI::Col::Text, PackColor(p.editable ? Palette::Dim : Palette::Amber));
+            ui.TextWrapped(line.c_str());
+            ui.PopStyleColor();
+            anyToUpdate = anyToUpdate || !p.editable;
+        }
+        ui.Spacing();
+        ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
+        ui.TextWrapped(Tr("Not now leaves them: the project's builds stop and say which package to update, "
+                          "and this is offered again next time the project opens."));
+        ui.PopStyleColor();
+
+        int choice = SchematicDialogButtons({ { TrMark("Not now") },
+                                               { TrMark("Update"), DialogButton::Primary, anyToUpdate } });
+        if (m_OutdatedAnswer == 1)
+        {
+            choice = 1;
+        }
+        else if (m_OutdatedAnswer == 2)
+        {
+            choice = 0;
+        }
+        m_OutdatedAnswer = 0;
+        if (choice == 0 || choice == 1)
+        {
+            m_OutdatedDialogOpen = false;
+            ui.CloseCurrentPopup();
+            if (choice == 1)
+            {
+                UpdateOutdatedPackages();
+            }
+        }
+        EndSchematicModal();
+    }
+}
+
+void EditorApp::UpdateOutdatedPackages()
+{
+    PackageManagerPanel* panel = GetPackageManagerPanel();
+    if (!panel)
+    {
+        return;
+    }
+    std::vector<OutdatedPackage> left;
+    int updated = 0;
+    for (const OutdatedPackage& p : m_OutdatedPackages)
+    {
+        if (p.editable)
+        {
+            left.push_back(p);
+            continue;
+        }
+        std::string message;
+        if (panel->UpdateToThisEditorsRelease(p.id, message))
+        {
+            ++updated;
+            DEKI_LOG_EDITOR("Package update: %s", message.c_str());
+        }
+        else
+        {
+            left.push_back(p);
+            const std::string line = "'" + p.id + "' was not updated: " + message;
+            DEKI_LOG_ERROR("Package update: %s", line.c_str());
+            if (m_ConsolePanel)
+            {
+                m_ConsolePanel->LogError(line);
+            }
+        }
+    }
+    m_OutdatedPackages = left;
+    if (left.empty())
+    {
+        DekiEditor::Toast::Push(DekiEditor::Toast::Level::Info, Tr("Packages updated"),
+                                FormatText(Tr("%d packages moved to this editor's release."), updated), 8.0f);
+    }
+    else
+    {
+        DekiEditor::Toast::Push(DekiEditor::Toast::Level::Error, Tr("Some packages were not updated"),
+                                Tr("The Console says which and why."), 15.0f);
+    }
+}
 
 void EditorApp::DrawRecoveryDialog()
 {

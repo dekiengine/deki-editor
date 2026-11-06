@@ -485,25 +485,50 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                   others.push_back(p.name);
               }
 
-              return { { "unsavedChangesDialog", unsaved }, { "blocking", unsaved }, { "floatingWindows", others } };
+              nlohmann::json outdated = nlohmann::json::array();
+              for (const auto& p : editor->GetOutdatedPackages())
+              {
+                  outdated.push_back({ { "id", p.id },
+                                       { "version", p.version },
+                                       { "madeFor", p.minEngine },
+                                       { "editable", p.editable } });
+              }
+              const bool outdatedOpen = editor->IsOutdatedPackagesDialogOpen();
+              return { { "unsavedChangesDialog", unsaved },
+                       { "outdatedPackagesDialog", outdatedOpen },
+                       { "outdatedPackages", outdated },
+                       { "blocking", unsaved || outdatedOpen },
+                       { "floatingWindows", others } };
           } });
 
     registry.Register({ "answer_dialog",
                         "Answer a dialog without clicking. The unsaved-changes dialog: \"save\", \"discard\" or "
                         "\"cancel\" (\"save\" fails if the scene has no path yet - give it one with save_scene_as "
                         "first). The crash-recovery window (Recover Scenes): \"later\", which dismisses it and "
-                        "keeps every recovered file for the next open. Applied on the next frame.",
+                        "keeps every recovered file for the next open. The older-release packages dialog "
+                        "(Packages from an older release): \"update\", which moves the packages it lists to "
+                        "this editor's release, or \"later\". Applied on the next frame.",
                         { { "type", "object" },
                           { "properties",
                             { { "answer",
                                 { { "type", "string" },
-                                  { "enum", nlohmann::json::array({ "save", "discard", "cancel", "later" }) } } } } },
+                                  { "enum",
+                                    nlohmann::json::array({ "save", "discard", "cancel", "later", "update" }) } } } } },
                           { "required", nlohmann::json::array({ "answer" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string answer = args.at("answer").get<std::string>();
                             // Restoring or discarding recovered scenes overwrites or
                             // deletes a person's work, so neither is offered here.
+                            if (editor->IsOutdatedPackagesDialogOpen() && (answer == "update" || answer == "later"))
+                            {
+                                editor->AnswerOutdatedPackagesDialog(answer == "update");
+                                return { { "answered", answer } };
+                            }
+                            if (answer == "update")
+                            {
+                                throw std::runtime_error("The older-release packages dialog is not open");
+                            }
                             if (answer == "later")
                             {
                                 if (!editor->IsRecoveryDialogOpen())

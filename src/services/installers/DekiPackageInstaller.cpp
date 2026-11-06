@@ -925,6 +925,24 @@ bool DekiPackageInstaller::IsCoreDependency(const std::string& /*name*/) const
     return false;
 }
 
+bool DekiPackageInstaller::IsFromOlderRelease(const fs::path& packageDir, std::string& minEngine)
+{
+    std::ifstream in(packageDir / "package.json");
+    const nlohmann::json j = nlohmann::json::parse(in, nullptr, /*allow_exceptions*/ false);
+    if (!j.is_object() || !j.contains("minEngine") || !j["minEngine"].is_string())
+    {
+        return false;
+    }
+    minEngine = j["minEngine"].get<std::string>();
+    return !minEngine.empty() && DekiEditor::CompareVersions(minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0;
+}
+
+bool DekiPackageInstaller::ReleaseFitsThisEditor(const std::string& minEngine)
+{
+    return !minEngine.empty() && DekiEditor::CompareVersions(minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) >= 0 &&
+           DekiEditor::CompareVersions(minEngine, DEKI_ENGINE_VERSION) <= 0;
+}
+
 bool DekiPackageInstaller::EngineSatisfiesPackage(const fs::path& packageDir, std::string& reason)
 {
     const fs::path manifest = packageDir / "package.json";

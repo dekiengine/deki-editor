@@ -1748,6 +1748,69 @@ bool PackageManagerPanel::InstallPackageById(const std::string& id, const std::s
     return true;
 }
 
+bool PackageManagerPanel::UpdateToThisEditorsRelease(const std::string& id, std::string& outMessage)
+{
+    auto* project = m_App->GetProject();
+    if (!project)
+    {
+        outMessage = "No project open";
+        return false;
+    }
+    const std::string projectPath = project->GetPath();
+    if (!RefreshPackagesBlocking(30))
+    {
+        outMessage = "the package registry could not be reached; try again from the Package Manager";
+        return false;
+    }
+
+    PackageEntry* pkg = nullptr;
+    for (auto& p : m_PackageManager->GetPackages())
+    {
+        if (p.id == id || p.name == id)
+        {
+            pkg = &p;
+            break;
+        }
+    }
+    if (!pkg || pkg->availableVersions.empty())
+    {
+        outMessage = "the registry does not list " + id;
+        return false;
+    }
+    const std::string version = pkg->availableVersions[0];
+    if (!DekiPackageInstaller::ReleaseFitsThisEditor(pkg->minEngine))
+    {
+        outMessage = "the registry has no release of " + id + " for this editor yet (its latest, " + version +
+                     ", needs engine " + (pkg->minEngine.empty() ? std::string("?") : pkg->minEngine) +
+                     "; this editor has " + DEKI_ENGINE_VERSION + ")";
+        return false;
+    }
+
+    std::string whyNot;
+    IPackageInstaller* installer = m_PackageManager->GetInstallerFor(*pkg, projectPath, whyNot);
+    if (!installer)
+    {
+        outMessage = whyNot;
+        return false;
+    }
+    bool ok = false;
+    std::string message;
+    m_PackageManager->InstallWithDependencies(projectPath, *pkg, version, installer,
+                                              [&ok, &message](bool success, const std::string& msg)
+                                              {
+                                                  ok = success;
+                                                  message = msg;
+                                              });
+    if (!ok)
+    {
+        outMessage = message.empty() ? "the update failed" : message;
+        return false;
+    }
+    AfterInstall(projectPath, installer->GetId() == PackageManager::kDekiInstallerId);
+    outMessage = "updated " + id + " to " + version;
+    return true;
+}
+
 void PackageManagerPanel::AfterInstall(const std::string& projectPath, bool dekiPackage)
 {
     // Install() does not set isInstalled on the entry; the panel picks that up

@@ -73,6 +73,14 @@ public:
     /// does. Blocks while the installer's git clone runs.
     bool InstallPackageById(const std::string& id, const std::string& version, std::string& outMessage);
 
+    /// Moves an installed package to the registry's release for this editor:
+    /// its latest, when that one fits this editor
+    /// (DekiPackageInstaller::ReleaseFitsThisEditor). Saves, regenerates and
+    /// rebuilds as an install does. False, with why, when the registry cannot
+    /// be reached, has no release for this editor, or the install fails.
+    /// Blocks while the installer's git checkout runs.
+    bool UpdateToThisEditorsRelease(const std::string& id, std::string& outMessage);
+
 private:
     /// After packages were installed: save, reload platforms, and for a Deki
     /// package regenerate and rebuild.

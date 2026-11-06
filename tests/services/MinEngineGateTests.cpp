@@ -175,3 +175,34 @@ TEST(MinEngineGate, TheListAgreesWithTheInstaller)
             << "the list and the installer disagree about minEngine '" << c.minEngine << "'";
     }
 }
+
+// A project opened in a newer editor still pins packages from the release it
+// was made with. Those are the ones the open dialog offers to update: older
+// than the oldest release this editor builds, as their minEngine says.
+TEST(MinEngineGate, APackageFromAnOlderReleaseIsToldApart)
+{
+    PackageDir old("older_release");
+    old.WriteManifest(R"({"id":"x","minEngine":"0.1.0"})");
+    std::string minEngine;
+    EXPECT_TRUE(DekiPackageInstaller::IsFromOlderRelease(old.Path(), minEngine));
+    EXPECT_EQ(minEngine, "0.1.0");
+
+    PackageDir current("this_release");
+    current.WriteManifest(std::string(R"({"id":"x","minEngine":")") + DEKI_OLDEST_SUPPORTED_PACKAGE + "\"}");
+    EXPECT_FALSE(DekiPackageInstaller::IsFromOlderRelease(current.Path(), minEngine));
+
+    PackageDir none("no_min_engine");
+    none.WriteManifest(R"({"id":"x"})");
+    EXPECT_FALSE(DekiPackageInstaller::IsFromOlderRelease(none.Path(), minEngine)) << "nothing says it is older";
+}
+
+// The update moves a package only to a release that fits this editor: not
+// newer than its engine, not older than the oldest it builds.
+TEST(MinEngineGate, OnlyAReleaseForThisEditorIsUpdatedTo)
+{
+    EXPECT_TRUE(DekiPackageInstaller::ReleaseFitsThisEditor(DEKI_OLDEST_SUPPORTED_PACKAGE));
+    EXPECT_TRUE(DekiPackageInstaller::ReleaseFitsThisEditor(DEKI_ENGINE_VERSION));
+    EXPECT_FALSE(DekiPackageInstaller::ReleaseFitsThisEditor("0.1.0"));
+    EXPECT_FALSE(DekiPackageInstaller::ReleaseFitsThisEditor("99.0.0"));
+    EXPECT_FALSE(DekiPackageInstaller::ReleaseFitsThisEditor(""));
+}

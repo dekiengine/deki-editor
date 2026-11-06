@@ -6,6 +6,27 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### A project made before this release
+- **On open, its own files get this release's names**: `desktop-os` is
+  `hosted` in its platform files and its editable packages' `package.json`,
+  and `SIMULATOR` is `DEKI_HOSTED` on the `#if`/`#ifdef`/`#ifndef`/`#elif`
+  lines of `src/` and the editable packages. The Console names each file
+  changed (`HostedRename`). Packages from the registry are left to their own
+  release; the editor still reads `desktop-os` there, with a warning.
+- **Packages from an older release, as the project pins them, are offered an
+  update**: a dialog on open lists them, and Update moves each to the
+  registry's release for this editor (`UpdateToThisEditorsRelease`). Not now
+  leaves them, and the build then stops naming the package. Editable ones are
+  listed for their developer to update. `get_dialog` reports it and
+  `answer_dialog` takes "update" or "later".
+- **A package with its own `main()`** (deki-desktop-integration before this
+  release) stops a program's build before it compiles, naming the file,
+  instead of the linker's "multiple definition of main".
+- **A package whose code tests a `DEKI_CAPABILITY_` define it does not
+  declare** gets it defined anyway where the platform provides it, with a
+  warning to declare it; one from before `filtersTexturesWith` that tests the
+  OpenGL define keeps drawing textures filtered, as the old editor did.
+
 ### The build says why it failed
 - The `rebuild` tool returns `errors` beside `hasErrors`: each failed step's
   error lines (the compiler's, or a command's own output when it could not

@@ -55,6 +55,18 @@ public:
     // Public so it can be tested directly rather than through a network clone.
     static bool EngineSatisfiesPackage(const fs::path& packageDir, std::string& reason);
 
+    // True when the package in `packageDir` is from an older release than this
+    // editor builds: its minEngine is below DEKI_OLDEST_SUPPORTED_PACKAGE.
+    // `minEngine` gets it. What the editor offers to update when a project
+    // opens, rather than only reporting it.
+    static bool IsFromOlderRelease(const fs::path& packageDir, std::string& minEngine);
+
+    // Whether a package release that needs engine `minEngine` works with this
+    // editor: not newer than its engine, and not older than the oldest release
+    // it builds. Empty (a release from before the field) does not fit: nothing
+    // says it does.
+    static bool ReleaseFitsThisEditor(const std::string& minEngine);
+
     // The repo name of a package ("owner/repo" -> "repo"). It is the directory
     // name under packages/, so anything locating a package on disk needs it;
     // public and static so the integrity check shares this rule.
