@@ -170,5 +170,18 @@
     "Location cannot be empty.": "位置不能为空。",
     "Could not create the location folder:": "无法创建位置文件夹：",
     "A folder with this name already exists at the specified location.": "指定位置已存在同名文件夹。",
-    "Failed to create project. Check folder permissions.": "无法创建项目。请检查文件夹权限。"
+    "Failed to create project. Check folder permissions.": "无法创建项目。请检查文件夹权限。",
+    "Upgrade Project": "升级项目",
+    "This project was made with an older Deki. Upgrade it to open it here:": "此项目是用旧版 Deki 制作的。升级后才能在这里打开：",
+    "Renames desktop-os to \"hosted\" and SIMULATOR to DEKI_HOSTED in:": "在以下位置将 desktop-os 重命名为 \"hosted\"，将 SIMULATOR 重命名为 DEKI_HOSTED：",
+    "Moves these packages from an older release to this editor's:": "将这些包从旧版本移到此编辑器的版本：",
+    "%s %s (made for %s)": "%s %s（适用于 %s）",
+    "%s %s is editable and made for %s: yours to update": "%s %s 可编辑，适用于 %s：请自行更新",
+    "Scenes, assets and settings stay as they are, and version control shows every change.": "场景、资源和设置保持不变，每处更改都能在版本控制中看到。",
+    "Cancel leaves the project as it is, and it does not open.": "取消则项目保持原样，也不会打开。",
+    "Upgrade": "升级",
+    "Packages updated": "包已更新",
+    "%d packages moved to this editor's release.": "已将 %d 个包移到此编辑器的版本。",
+    "Some packages were not updated": "部分包未更新",
+    "The Console says which and why.": "控制台会说明是哪些以及原因。"
 }

@@ -207,5 +207,10 @@
     "Auto: whole frames if the frame fits in internal RAM with 64 KB to spare, otherwise strips. Read a board in Live to know which": "自動：フレームが 64 KB の余裕を残して内部 RAM に収まればフレーム全体、そうでなければストリップ。どちらになるかはライブでボードを読むとわかります",
     "Open Memory": "メモリを開く",
     "The Memory panel shows what a running game holds, by what holds it, with peaks, and what the open scene would take on a board.": "メモリパネルには、実行中のゲームが何にどれだけメモリを使っているかとそのピーク、開いているシーンがボード上で使う量が表示されます。",
-    "of %s": "/ %s"
+    "of %s": "/ %s",
+    "Rotate (E)": "回転 (E)",
+    "3D view: Alt+drag orbits, right-drag looks (WASD flies), middle-drag pans, F frames the selection. Click for the 2D view": "3D ビュー: Alt+ドラッグで周回、右ドラッグで見回し (WASD で移動)、中ドラッグでパン、F で選択範囲に合わせます。クリックで 2D ビュー",
+    "Switch to the 3D view, to orbit round the scene": "3D ビューに切り替えて、シーンの周りを回ります",
+    "Project": "プロジェクト",
+    "The name the editor and the builds show: a Miyoo app is labelled and named by it. The project's folder keeps its name.": "エディターとビルドに表示される名前です。Miyoo アプリのラベルと名前にも使われます。プロジェクトのフォルダー名は変わりません。"
 }

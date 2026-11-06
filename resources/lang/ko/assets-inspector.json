@@ -191,5 +191,12 @@
     "Right": "오른쪽",
     "Bottom Left": "왼쪽 아래",
     "Bottom": "아래",
-    "Bottom Right": "오른쪽 아래"
+    "Bottom Right": "오른쪽 아래",
+    "Point": "포인트",
+    "Bilinear": "바이리니어",
+    "Trilinear": "트라이리니어",
+    "Point (no GPU)": "포인트 (GPU 없음)",
+    "How a GPU samples it, for a sprite and for a model's texture alike. Point takes the nearest texel: sharp, for pixel art. Bilinear blends the four nearest: smooth near its own size. Trilinear also blends smaller copies (mipmaps) by how small it is drawn: steady at any size, for 3D. A target without a GPU draws Point.": "GPU가 샘플링하는 방식으로, 스프라이트와 모델 텍스처에 똑같이 쓰입니다. 포인트는 가장 가까운 텍셀을 가져옵니다: 선명하며 픽셀 아트에 맞습니다. 바이리니어는 가장 가까운 네 개를 섞습니다: 원래 크기 근처에서 부드럽습니다. 트라이리니어는 그려지는 크기에 따라 축소본(밉맵)도 섞습니다: 어떤 크기에서도 안정적이며 3D에 맞습니다. GPU가 없는 타깃은 포인트로 그립니다.",
+    "This target draws in software, which takes the nearest texel. Its images draw Point, whatever their filter.": "이 타깃은 소프트웨어로 그리며 가장 가까운 텍셀을 가져옵니다. 이미지는 필터와 상관없이 포인트로 그려집니다.",
+    "%zu images selected: a change applies to each of them, and leaves their other settings as they are. The values shown are this one's.": "이미지 %zu개 선택됨: 변경 사항은 각각에 적용되며 다른 설정은 그대로 둡니다. 표시된 값은 이 이미지의 값입니다."
 }

@@ -207,5 +207,10 @@
     "Auto: whole frames if the frame fits in internal RAM with 64 KB to spare, otherwise strips. Read a board in Live to know which": "自动：若帧能放进内部 RAM 且留出 64 KB 余量则用整帧，否则用条带。在“实时”中读取开发板即可知道是哪一种",
     "Open Memory": "打开内存",
     "The Memory panel shows what a running game holds, by what holds it, with peaks, and what the open scene would take on a board.": "内存面板显示运行中的游戏把内存用在了什么上及其峰值，以及当前打开的场景在开发板上会占用多少。",
-    "of %s": "/ %s"
+    "of %s": "/ %s",
+    "Rotate (E)": "旋转 (E)",
+    "3D view: Alt+drag orbits, right-drag looks (WASD flies), middle-drag pans, F frames the selection. Click for the 2D view": "3D 视图：Alt+拖动环绕，右键拖动环顾（WASD 飞行），中键拖动平移，F 对准所选。点击切换到 2D 视图",
+    "Switch to the 3D view, to orbit round the scene": "切换到 3D 视图，环绕场景",
+    "Project": "项目",
+    "The name the editor and the builds show: a Miyoo app is labelled and named by it. The project's folder keeps its name.": "编辑器和构建中显示的名称：Miyoo 应用的标签和名称也用它。项目文件夹保留原名。"
 }

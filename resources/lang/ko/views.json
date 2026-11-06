@@ -207,5 +207,10 @@
     "Auto: whole frames if the frame fits in internal RAM with 64 KB to spare, otherwise strips. Read a board in Live to know which": "자동: 프레임이 64 KB를 남기고 내부 RAM에 들어가면 전체 프레임, 아니면 스트립. 어느 쪽인지는 라이브에서 보드를 읽으면 알 수 있습니다",
     "Open Memory": "메모리 열기",
     "The Memory panel shows what a running game holds, by what holds it, with peaks, and what the open scene would take on a board.": "메모리 패널은 실행 중인 게임이 무엇에 메모리를 쓰는지와 최대치, 열린 씬이 보드에서 차지할 양을 보여 줍니다.",
-    "of %s": "/ %s"
+    "of %s": "/ %s",
+    "Rotate (E)": "회전 (E)",
+    "3D view: Alt+drag orbits, right-drag looks (WASD flies), middle-drag pans, F frames the selection. Click for the 2D view": "3D 뷰: Alt+드래그로 궤도 회전, 오른쪽 드래그로 둘러보기(WASD로 비행), 가운데 드래그로 이동, F로 선택 항목에 맞춤. 클릭하면 2D 뷰",
+    "Switch to the 3D view, to orbit round the scene": "3D 뷰로 전환하여 씬 주위를 돕니다",
+    "Project": "프로젝트",
+    "The name the editor and the builds show: a Miyoo app is labelled and named by it. The project's folder keeps its name.": "에디터와 빌드에 표시되는 이름입니다. Miyoo 앱의 라벨과 이름에도 쓰입니다. 프로젝트 폴더 이름은 그대로입니다."
 }

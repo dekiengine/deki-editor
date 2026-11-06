@@ -200,5 +200,12 @@
     "Right": "右",
     "Bottom Left": "左下",
     "Bottom": "下",
-    "Bottom Right": "右下"
+    "Bottom Right": "右下",
+    "Point": "ポイント",
+    "Bilinear": "バイリニア",
+    "Trilinear": "トライリニア",
+    "Point (no GPU)": "ポイント (GPU なし)",
+    "How a GPU samples it, for a sprite and for a model's texture alike. Point takes the nearest texel: sharp, for pixel art. Bilinear blends the four nearest: smooth near its own size. Trilinear also blends smaller copies (mipmaps) by how small it is drawn: steady at any size, for 3D. A target without a GPU draws Point.": "GPU がどうサンプリングするかで、スプライトにもモデルのテクスチャにも同じく使われます。ポイントは最も近いテクセルを取ります: くっきりしていて、ピクセルアート向きです。バイリニアは近い 4 つを混ぜます: 元のサイズ付近でなめらかです。トライリニアは描画される小ささに応じて縮小版 (ミップマップ) も混ぜます: どのサイズでも安定していて、3D 向きです。GPU のないターゲットはポイントで描画します。",
+    "This target draws in software, which takes the nearest texel. Its images draw Point, whatever their filter.": "このターゲットはソフトウェアで描画し、最も近いテクセルを取ります。画像はフィルターにかかわらずポイントで描画されます。",
+    "%zu images selected: a change applies to each of them, and leaves their other settings as they are. The values shown are this one's.": "%zu 枚の画像を選択中: 変更はそれぞれに適用され、ほかの設定はそのままです。表示している値はこの画像のものです。"
 }

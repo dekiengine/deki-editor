@@ -170,5 +170,18 @@
     "Location cannot be empty.": "場所を入力してください。",
     "Could not create the location folder:": "場所のフォルダーを作成できませんでした:",
     "A folder with this name already exists at the specified location.": "指定した場所に同じ名前のフォルダーがすでにあります。",
-    "Failed to create project. Check folder permissions.": "プロジェクトを作成できませんでした。フォルダーのアクセス許可を確認してください。"
+    "Failed to create project. Check folder permissions.": "プロジェクトを作成できませんでした。フォルダーのアクセス許可を確認してください。",
+    "Upgrade Project": "プロジェクトをアップグレード",
+    "This project was made with an older Deki. Upgrade it to open it here:": "このプロジェクトは古い Deki で作られています。ここで開くにはアップグレードしてください:",
+    "Renames desktop-os to \"hosted\" and SIMULATOR to DEKI_HOSTED in:": "次の場所で desktop-os を \"hosted\" に、SIMULATOR を DEKI_HOSTED に名前を変えます:",
+    "Moves these packages from an older release to this editor's:": "これらのパッケージを古いリリースからこのエディターのリリースに移します:",
+    "%s %s (made for %s)": "%s %s (%s 向け)",
+    "%s %s is editable and made for %s: yours to update": "%s %s は編集可能で %s 向けです。更新はご自身で行ってください",
+    "Scenes, assets and settings stay as they are, and version control shows every change.": "シーン、アセット、設定はそのままで、すべての変更はバージョン管理で確認できます。",
+    "Cancel leaves the project as it is, and it does not open.": "キャンセルするとプロジェクトはそのままで、開きません。",
+    "Upgrade": "アップグレード",
+    "Packages updated": "パッケージを更新しました",
+    "%d packages moved to this editor's release.": "%d 個のパッケージをこのエディターのリリースに移しました。",
+    "Some packages were not updated": "一部のパッケージは更新されませんでした",
+    "The Console says which and why.": "どれが、なぜかはコンソールに表示されます。"
 }

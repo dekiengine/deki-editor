@@ -191,5 +191,12 @@
     "Right": "右",
     "Bottom Left": "左下",
     "Bottom": "下",
-    "Bottom Right": "右下"
+    "Bottom Right": "右下",
+    "Point": "点",
+    "Bilinear": "双线性",
+    "Trilinear": "三线性",
+    "Point (no GPU)": "点（无 GPU）",
+    "How a GPU samples it, for a sprite and for a model's texture alike. Point takes the nearest texel: sharp, for pixel art. Bilinear blends the four nearest: smooth near its own size. Trilinear also blends smaller copies (mipmaps) by how small it is drawn: steady at any size, for 3D. A target without a GPU draws Point.": "GPU 如何对它采样，精灵和模型纹理都一样。点采样取最近的纹素：锐利，适合像素画。双线性混合最近的四个：在原尺寸附近平滑。三线性还会按绘制的大小混合缩小的副本（mipmap）：任何尺寸都稳定，适合 3D。没有 GPU 的目标按点采样绘制。",
+    "This target draws in software, which takes the nearest texel. Its images draw Point, whatever their filter.": "此目标以软件绘制，取最近的纹素。无论滤波方式如何，其图像都按点采样绘制。",
+    "%zu images selected: a change applies to each of them, and leaves their other settings as they are. The values shown are this one's.": "已选择 %zu 张图像：更改会应用到每一张，其他设置保持不变。显示的是这一张的值。"
 }
