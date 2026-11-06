@@ -371,6 +371,9 @@ void EditorApp::Update()
 
         DekiEditor::Guard("ProjectManagerScreen", [&] { m_ProjectManagerScreen->Draw(); });
         DekiEditor::Guard("NewProjectDialog", [&] { m_NewProjectDialog->Draw(); });
+        // A project from an older Deki asks here before it opens, as no
+        // project is open behind it.
+        DekiEditor::Guard("UpgradeDialog", [&] { DrawUpgradeDialog(); });
 
         // Opened here, not in the screen's draw: OpenProject loads package
         // DLLs and imports assets, which must not run inside a widget tree.
@@ -452,7 +455,7 @@ void EditorApp::Update()
         m_HotReloadService->DrawBuildProgress();
     }
     DrawRecoveryDialog();
-    DrawOutdatedPackagesDialog();
+    DrawUpgradeDialog();
 
     // Toasts last: they stack above the build progress card in the
     // bottom-right corner, so that card must already be drawn.
@@ -905,9 +908,9 @@ void EditorApp::ReportIncompatiblePackages()
             continue;
         }
 
-        // From an older release, as the project pinned it: the open dialog
-        // offers its update, so a project made before this editor builds
-        // again after one click. Said in the log too, for headless runs.
+        // From an older release, as the project pinned it: an approved
+        // upgrade moves it to this release just below, so a project made
+        // before this editor builds again. Said in the log too.
         std::string minEngine;
         if (DekiPackageInstaller::IsFromOlderRelease(packagesDir / dirName, minEngine))
         {
@@ -929,6 +932,14 @@ void EditorApp::ReportIncompatiblePackages()
             }
         }
     }
+
+    // The open was an agreed upgrade: move the packages from an older release
+    // to this one now, as the Upgrade Project dialog said it would.
+    if (m_UpgradingProject && !m_OutdatedPackages.empty())
+    {
+        UpdateOutdatedPackages();
+    }
+    m_UpgradingProject = false;
 }
 
 void EditorApp::RunPackageIntegrityCheck(bool sweepAll)
@@ -1227,69 +1238,93 @@ std::string FormatRecoveryTime(std::time_t when)
 
 }  // namespace
 
-void EditorApp::DrawOutdatedPackagesDialog()
+void EditorApp::DrawUpgradeDialog()
 {
-    if (m_OutdatedPackages.empty() || m_Headless)
+    if (m_PendingUpgradePath.empty() || m_Headless)
     {
         return;
     }
-    if (!m_OutdatedDialogOpen && m_OutdatedAnswer == 0)
-    {
-        // Opened once per project open; Not now leaves it for the next.
-        static std::string s_ShownFor;
-        const std::string project = m_Project ? m_Project->GetPath() : std::string();
-        if (s_ShownFor == project)
-        {
-            return;
-        }
-        s_ShownFor = project;
-        m_OutdatedDialogOpen = true;
-    }
-
     auto& ui = EditorUI::Get();
-    ui.OpenPopup(TrLabel("Packages from an older release"));
-    if (BeginSchematicModal(TrLabel("Packages from an older release"), 480.0f))
+    ui.OpenPopup(TrLabel("Upgrade Project"));
+    if (BeginSchematicModal(TrLabel("Upgrade Project"), 520.0f))
     {
-        ui.TextWrapped(Tr("This project uses packages made for an older Deki, which this editor cannot build. "
-                          "Update moves each one to its release for this editor. Scenes, assets and settings "
-                          "stay as they are."));
+        ui.TextWrapped(m_PendingUpgradePath.c_str());
         ui.Spacing();
-        bool anyToUpdate = false;
-        for (const OutdatedPackage& p : m_OutdatedPackages)
+        ui.TextWrapped(Tr("This project was made with an older Deki. Upgrade it to open it here:"));
+        ui.Spacing();
+        // One line per file and package, rather than one paragraph, so each
+        // can be read and found in version control.
+        if (!m_PendingUpgrade.files.empty())
         {
-            const std::string line =
-                FormatText(p.editable ? Tr("%s %s (made for %s): editable, so yours to update")
-                                      : Tr("%s %s (made for %s)"),
-                           p.id.c_str(), p.version.c_str(), p.minEngine.c_str());
-            ui.PushStyleColor(EditorUI::Col::Text, PackColor(p.editable ? Palette::Dim : Palette::Amber));
-            ui.TextWrapped(line.c_str());
+            ui.TextWrapped(Tr("Renames desktop-os to \"hosted\" and SIMULATOR to DEKI_HOSTED in:"));
+            ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
+            for (const std::string& file : m_PendingUpgrade.files)
+            {
+                ui.TextWrapped(("  " + file).c_str());
+            }
             ui.PopStyleColor();
-            anyToUpdate = anyToUpdate || !p.editable;
+            ui.Spacing();
         }
+        bool headed = false;
+        for (const ProjectUpgrade::Package& pkg : m_PendingUpgrade.packages)
+        {
+            if (pkg.editable)
+            {
+                continue;
+            }
+            if (!headed)
+            {
+                ui.TextWrapped(Tr("Moves these packages from an older release to this editor's:"));
+                headed = true;
+            }
+            ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
+            ui.TextWrapped(FormatText(Tr("  %s %s (made for %s)"), pkg.id.c_str(), pkg.version.c_str(),
+                                      pkg.minEngine.c_str())
+                               .c_str());
+            ui.PopStyleColor();
+        }
+        for (const ProjectUpgrade::Package& pkg : m_PendingUpgrade.packages)
+        {
+            if (pkg.editable)
+            {
+                ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Amber));
+                ui.TextWrapped(FormatText(Tr("  %s %s is editable and made for %s: yours to update"), pkg.id.c_str(),
+                                          pkg.version.c_str(), pkg.minEngine.c_str())
+                                   .c_str());
+                ui.PopStyleColor();
+            }
+        }
+        ui.Spacing();
+        ui.TextWrapped(Tr("Scenes, assets and settings stay as they are, and version control shows every change."));
         ui.Spacing();
         ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
-        ui.TextWrapped(Tr("Not now leaves them: the project's builds stop and say which package to update, "
-                          "and this is offered again next time the project opens."));
+        ui.TextWrapped(Tr("Cancel leaves the project as it is, and it does not open."));
         ui.PopStyleColor();
 
-        int choice = SchematicDialogButtons({ { TrMark("Not now") },
-                                               { TrMark("Update"), DialogButton::Primary, anyToUpdate } });
-        if (m_OutdatedAnswer == 1)
+        int choice = SchematicDialogButtons({ { TrMark("Cancel") }, { TrMark("Upgrade"), DialogButton::Primary } });
+        if (m_UpgradeAnswer == 1)
         {
             choice = 1;
         }
-        else if (m_OutdatedAnswer == 2)
+        else if (m_UpgradeAnswer == 2)
         {
             choice = 0;
         }
-        m_OutdatedAnswer = 0;
+        m_UpgradeAnswer = 0;
         if (choice == 0 || choice == 1)
         {
-            m_OutdatedDialogOpen = false;
+            const std::string path = m_PendingUpgradePath;
+            m_PendingUpgradePath.clear();
+            m_PendingUpgrade = {};
             ui.CloseCurrentPopup();
             if (choice == 1)
             {
-                UpdateOutdatedPackages();
+                ApproveProjectUpgrade(path);
+                RequestOpenProject(path);
+            }
+            else
+            {
+                DEKI_LOG_EDITOR("Upgrade Project: cancelled; '%s' was left as it is and not opened.", path.c_str());
             }
         }
         EndSchematicModal();

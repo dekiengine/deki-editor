@@ -182,10 +182,17 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "open_project",
           "Open an existing Deki project (the folder containing deki.json). Restores "
-          "missing packages, imports assets, and queues a plugin build.",
+          "missing packages, imports assets, and queues a plugin build. A project made with an "
+          "older Deki opens only upgraded: without \"upgrade\": true it is refused, saying what the "
+          "upgrade would change, and left as it is.",
           { { "type", "object" },
             { "properties",
               { { "path", { { "type", "string" }, { "description", "Project root path" } } },
+                { "upgrade",
+                  { { "type", "boolean" },
+                    { "description",
+                      "Upgrade a project made with an older Deki as it opens: rename the old names in its "
+                      "files and move its packages from an older release to this one (default false)" } } },
                 { "discard_changes",
                   { { "type", "boolean" },
                     { "description",
@@ -200,6 +207,10 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               }
               RequireSceneSavedOrDiscarded(editor, args);
 
+              if (args.value("upgrade", false))
+              {
+                  editor->ApproveProjectUpgrade(path);
+              }
               if (!editor->OpenProjectShowingProgress(path))
               {
                   throw std::runtime_error(editor->GetOpenProjectError());
@@ -485,49 +496,60 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                   others.push_back(p.name);
               }
 
-              nlohmann::json outdated = nlohmann::json::array();
-              for (const auto& p : editor->GetOutdatedPackages())
+              const bool upgrade = editor->IsUpgradeDialogOpen();
+              nlohmann::json result = { { "unsavedChangesDialog", unsaved },
+                                        { "upgradeDialog", upgrade },
+                                        { "blocking", unsaved || upgrade },
+                                        { "floatingWindows", others } };
+              // A project from an older Deki, waiting to be upgraded before it
+              // opens: what the upgrade would do, so a caller can decide.
+              if (upgrade)
               {
-                  outdated.push_back({ { "id", p.id },
-                                       { "version", p.version },
-                                       { "madeFor", p.minEngine },
-                                       { "editable", p.editable } });
+                  const ProjectUpgrade& plan = editor->GetPendingUpgrade();
+                  nlohmann::json packages = nlohmann::json::array();
+                  for (const auto& p : plan.packages)
+                  {
+                      packages.push_back({ { "id", p.id },
+                                           { "version", p.version },
+                                           { "madeFor", p.minEngine },
+                                           { "editable", p.editable } });
+                  }
+                  result["upgrade"] = { { "project", editor->GetPendingUpgradePath() },
+                                        { "files", plan.files },
+                                        { "packages", packages },
+                                        { "description", plan.Describe() } };
               }
-              const bool outdatedOpen = editor->IsOutdatedPackagesDialogOpen();
-              return { { "unsavedChangesDialog", unsaved },
-                       { "outdatedPackagesDialog", outdatedOpen },
-                       { "outdatedPackages", outdated },
-                       { "blocking", unsaved || outdatedOpen },
-                       { "floatingWindows", others } };
+              return result;
           } });
 
     registry.Register({ "answer_dialog",
                         "Answer a dialog without clicking. The unsaved-changes dialog: \"save\", \"discard\" or "
                         "\"cancel\" (\"save\" fails if the scene has no path yet - give it one with save_scene_as "
                         "first). The crash-recovery window (Recover Scenes): \"later\", which dismisses it and "
-                        "keeps every recovered file for the next open. The older-release packages dialog "
-                        "(Packages from an older release): \"update\", which moves the packages it lists to "
-                        "this editor's release, or \"later\". Applied on the next frame.",
+                        "keeps every recovered file for the next open. The Upgrade Project dialog (a project "
+                        "made with an older Deki, which does not open until it is upgraded): \"upgrade\", which "
+                        "upgrades and opens it, or \"cancel\", which leaves it closed and unchanged. Applied on "
+                        "the next frame.",
                         { { "type", "object" },
                           { "properties",
                             { { "answer",
                                 { { "type", "string" },
                                   { "enum",
-                                    nlohmann::json::array({ "save", "discard", "cancel", "later", "update" }) } } } } },
+                                    nlohmann::json::array({ "save", "discard", "cancel", "later", "upgrade" }) } } } } },
                           { "required", nlohmann::json::array({ "answer" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
                             const std::string answer = args.at("answer").get<std::string>();
                             // Restoring or discarding recovered scenes overwrites or
                             // deletes a person's work, so neither is offered here.
-                            if (editor->IsOutdatedPackagesDialogOpen() && (answer == "update" || answer == "later"))
+                            if (editor->IsUpgradeDialogOpen() && (answer == "upgrade" || answer == "cancel"))
                             {
-                                editor->AnswerOutdatedPackagesDialog(answer == "update");
+                                editor->AnswerUpgradeDialog(answer == "upgrade");
                                 return { { "answered", answer } };
                             }
-                            if (answer == "update")
+                            if (answer == "upgrade")
                             {
-                                throw std::runtime_error("The older-release packages dialog is not open");
+                                throw std::runtime_error("The Upgrade Project dialog is not open");
                             }
                             if (answer == "later")
                             {

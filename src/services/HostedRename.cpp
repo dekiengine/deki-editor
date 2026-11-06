@@ -253,7 +253,7 @@ bool MigrateSimulatorDefine(std::string& text)
     return changed;
 }
 
-std::vector<std::string> MigrateProject(const std::string& projectPath)
+std::vector<std::string> MigrateProject(const std::string& projectPath, bool write)
 {
     const fs::path root = NormalizeProjectRoot(projectPath);
     std::vector<std::string> changed;
@@ -264,7 +264,7 @@ std::vector<std::string> MigrateProject(const std::string& projectPath)
         {
             return;
         }
-        if (WriteText(file, text))
+        if (!write || WriteText(file, text))
         {
             std::error_code ec;
             changed.push_back(fs::relative(file, root, ec).generic_string());

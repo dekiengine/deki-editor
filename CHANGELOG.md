@@ -7,21 +7,31 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### A project made before this release
-- **On open, its own files get this release's names**: `desktop-os` is
+- **It opens only once someone agrees to upgrade it.** Before opening, the
+  editor works out what it needs, changing nothing (`ProjectUpgrade`): the
+  files below, and packages it pins from a release older than this editor
+  builds. If anything, the project does not open and the **Upgrade Project**
+  dialog lists it; Upgrade does it and opens the project, Cancel leaves it
+  closed and unchanged. MCP: `get_dialog` reports it (`upgradeDialog`, with
+  the files and packages), `answer_dialog` takes "upgrade" or "cancel", and
+  `open_project` takes `"upgrade": true` (without it, such a project is
+  refused, saying what the upgrade would change). Command line: `--upgrade`
+  (and `--upgrade-project`) agree to it; a `--tool` run that would start an
+  editor on such a project says so and stops instead. Editable packages from
+  an older release are listed as their developer's to update, and alone do
+  not ask, since the upgrade cannot change them.
+- **The upgrade gives its own files this release's names**: `desktop-os` is
   `hosted` in its platform files and its editable packages' `package.json`,
   and `SIMULATOR` is `DEKI_HOSTED` on the `#if`/`#ifdef`/`#ifndef`/`#elif`
   lines of `src/` and the editable packages, and in the platform files'
   `defines`. That define is what lets a build by an older package's builder,
   which defines only `SIMULATOR` itself, compile the renamed code: a project
   still on 0.22 packages builds after the change, as checked with deki-demo's
-  0.22 set. The Console names each file changed (`HostedRename`). Packages from the registry are left to their own
-  release; the editor still reads `desktop-os` there, with a warning.
-- **Packages from an older release, as the project pins them, are offered an
-  update**: a dialog on open lists them, and Update moves each to the
-  registry's release for this editor (`UpdateToThisEditorsRelease`). Not now
-  leaves them, and the build then stops naming the package. Editable ones are
-  listed for their developer to update. `get_dialog` reports it and
-  `answer_dialog` takes "update" or "later".
+  0.22 set. The Console names each file changed (`HostedRename`). Packages
+  from the registry are left to their own release; the editor still reads
+  `desktop-os` there, with a warning.
+- **And moves its packages from an older release** to the registry's release
+  for this editor (`UpdateToThisEditorsRelease`), once the project is open.
 - **A package with its own `main()`** (deki-desktop-integration before this
   release) stops a program's build before it compiles, naming the file,
   instead of the linker's "multiple definition of main".

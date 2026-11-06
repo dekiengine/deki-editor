@@ -87,7 +87,7 @@ void Release(Started& started)
 #endif
 }
 
-bool Start(const std::string& projectPath, Started& out, std::string& error)
+bool Start(const std::string& projectPath, Started& out, std::string& error, bool upgrade)
 {
 #ifdef _WIN32
     wchar_t exe[MAX_PATH * 4];
@@ -101,7 +101,7 @@ bool Start(const std::string& projectPath, Started& out, std::string& error)
     std::string exeUtf8(static_cast<size_t>(exeBytes > 0 ? exeBytes - 1 : 0), '\0');
     WideCharToMultiByte(CP_UTF8, 0, exe, -1, exeUtf8.data(), exeBytes, nullptr, nullptr);
 
-    const std::string line = BackgroundCommandLine(exeUtf8, projectPath);
+    const std::string line = BackgroundCommandLine(exeUtf8, projectPath, upgrade);
     const int wideLength = MultiByteToWideChar(CP_UTF8, 0, line.c_str(), -1, nullptr, 0);
     std::vector<wchar_t> wide(static_cast<size_t>(wideLength));
     MultiByteToWideChar(CP_UTF8, 0, line.c_str(), -1, wide.data(), wideLength);
@@ -173,17 +173,17 @@ bool CanShowEditor(const EnvFn& env)
 #endif
 }
 
-std::string BackgroundCommandLine(const std::string& exe, const std::string& projectPath)
+std::string BackgroundCommandLine(const std::string& exe, const std::string& projectPath, bool upgrade)
 {
-    return QuoteArgument(exe) + " --background " + QuoteArgument(projectPath);
+    return QuoteArgument(exe) + " --background " + (upgrade ? "--upgrade " : "") + QuoteArgument(projectPath);
 }
 
 bool OpenAndWait(const std::string& projectPath, int timeoutSeconds, LiveSession::Info& out, bool& timedOut,
-                 std::string& error)
+                 std::string& error, bool upgrade)
 {
     timedOut = false;
     Started started;
-    if (!Start(projectPath, started, error))
+    if (!Start(projectPath, started, error, upgrade))
     {
         return false;
     }

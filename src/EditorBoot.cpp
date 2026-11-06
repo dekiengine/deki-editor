@@ -1048,8 +1048,20 @@ bool BootEditor(const BootOptions& opts, BootContext& ctx, EditorApp& editor)
     if (opts.projectPath)
     {
         StartupProgress::Update(DekiEditor::TrMark("Loading project..."));
+        if (opts.upgrade)
+        {
+            editor.ApproveProjectUpgrade(opts.projectPath);
+        }
         opened = editor.OpenProject(opts.projectPath);
-        if (!opened)
+        if (!opened && editor.IsUpgradeDialogOpen())
+        {
+            // Not an error: the window asks whether to upgrade it first.
+            printf("Project '%s' was made with an older Deki; the editor asks whether to upgrade it before it "
+                   "opens.\n",
+                   opts.projectPath);
+            fflush(stdout);
+        }
+        else if (!opened)
         {
             DEKI_LOG_ERROR("[boot] could not open project '%s'", opts.projectPath);
             printf("Error: could not open project '%s'. %s\n", opts.projectPath, editor.GetOpenProjectError().c_str());

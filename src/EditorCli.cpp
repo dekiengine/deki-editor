@@ -102,6 +102,8 @@ void PrintUsage(const char* program)
     printf("                        Activity panel\n");
     printf("  --mcp-port <port>     Port for the MCP server (implies --mcp)\n");
     printf("  --background          Open the editor minimized, without taking focus\n");
+    printf("  --upgrade             Upgrade a project made with an older Deki as it opens; without it,\n");
+    printf("                        such a project is not opened (the editor asks first)\n");
     printf("\n");
     printf("Examples:\n");
     printf("  %s                                    Open editor with last project\n", program);
@@ -202,6 +204,10 @@ bool ParseArgs(int argc, char* argv[], CliOptions& o)
         else if (strcmp(argv[i], "--background") == 0)
         {
             o.background = true;
+        }
+        else if (strcmp(argv[i], "--upgrade") == 0)
+        {
+            o.upgrade = true;
         }
         else if (strcmp(argv[i], "--headless") == 0)
         {

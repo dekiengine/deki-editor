@@ -30,15 +30,17 @@ bool CanShowEditor(const EnvFn& env);
 /// The Windows command line that opens `projectPath` with the editor at `exe`,
 /// in the background. Each argument is quoted as CommandLineToArgvW reads it
 /// back.
-std::string BackgroundCommandLine(const std::string& exe, const std::string& projectPath);
+std::string BackgroundCommandLine(const std::string& exe, const std::string& projectPath, bool upgrade = false);
 
 /// Opens `projectPath` in a new editor, minimized and without focus, detached
 /// from this process, and waits until it has the project open: up to
 /// `timeoutSeconds`, or until that editor exits. Says how it goes on stderr.
 /// False with `error` when it could not start or closed first; `timedOut`
 /// says it was still opening when the time ran out.
+/// With `upgrade`, the editor upgrades a project made with an older Deki as it
+/// opens it (--upgrade); without, such a project does not open.
 bool OpenAndWait(const std::string& projectPath, int timeoutSeconds, LiveSession::Info& out, bool& timedOut,
-                 std::string& error);
+                 std::string& error, bool upgrade = false);
 
 }  // namespace EditorLauncher
 }  // namespace DekiEditor

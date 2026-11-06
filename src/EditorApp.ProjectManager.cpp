@@ -95,6 +95,34 @@ bool EditorApp::OpenProject(const std::string& path)
     ScopedTimer tOpen("EditorApp::OpenProject total");
     m_OpenProjectError.clear();
 
+    // A project from an older Deki opens only once someone has agreed to
+    // upgrade it; nothing is changed before that, and the editor stays as it
+    // was. The answer comes from the Upgrade Project dialog, or ahead of time
+    // from MCP (open_project `upgrade`) or the command line (--upgrade).
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        const auto same = [&](const std::string& a)
+        { return !a.empty() && fs::equivalent(fs::path(a), fs::path(path), ec); };
+        const bool approved = same(m_UpgradeApprovedFor);
+        const ProjectUpgrade plan = PlanProjectUpgrade(path);
+        if (plan.Needed() && !approved)
+        {
+            m_OpenProjectError = plan.Describe() + " It opens only once it is upgraded: choose Upgrade in the editor, "
+                                                   "or open it with upgrade (MCP open_project's \"upgrade\": true, "
+                                                   "or --upgrade on the command line).";
+            DEKI_LOG_WARNING("[EditorApp] Not opening '%s' yet: %s", path.c_str(), m_OpenProjectError.c_str());
+            if (!m_Headless)
+            {
+                m_PendingUpgradePath = path;
+                m_PendingUpgrade = plan;
+            }
+            return false;
+        }
+        m_UpgradingProject = approved;
+        m_UpgradeApprovedFor.clear();
+    }
+
     // One editor per project. Taken before the current project closes, so a
     // refused open leaves this editor as it was. Reopening the project this
     // editor already has keeps its own lock.

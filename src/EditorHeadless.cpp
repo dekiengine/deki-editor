@@ -22,6 +22,7 @@
 #include "core/Project.h"
 #include <deki-editor/build/ProjectPaths.h>
 #include "services/PackageManager.h"
+#include "services/ProjectUpgrade.h"
 #include "services/sources/DekiRegistrySource.h"
 #include "services/PackageRestore.h"
 #include "services/HotReloadService.h"
@@ -2402,12 +2403,23 @@ bool TryRunInNewEditor(const CliOptions& cli, int& outRc)
     {
         return false;
     }
+    // A project made with an older Deki opens only once agreed to: said here,
+    // before an editor is started that would sit on its Upgrade dialog.
+    const ProjectUpgrade upgrade = PlanProjectUpgrade(cli.projectPath);
+    if (upgrade.Needed() && !cli.upgrade)
+    {
+        fprintf(stderr, "Error: %s It opens only once it is upgraded: run again with --upgrade, or open it in the "
+                        "editor and choose Upgrade.\n",
+                upgrade.Describe().c_str());
+        outRc = 1;
+        return true;
+    }
     // Long enough for a first open, which builds the project's packages.
     constexpr int kOpenTimeoutSeconds = 600;
     LiveSession::Info session;
     bool timedOut = false;
     std::string error;
-    if (!EditorLauncher::OpenAndWait(cli.projectPath, kOpenTimeoutSeconds, session, timedOut, error))
+    if (!EditorLauncher::OpenAndWait(cli.projectPath, kOpenTimeoutSeconds, session, timedOut, error, cli.upgrade))
     {
         fprintf(stderr, "%s%s\n", timedOut ? "Error: " : "Could not open the editor: ", error.c_str());
         if (timedOut)

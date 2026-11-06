@@ -34,6 +34,11 @@ struct BootOptions
     /// Come up minimized and never take focus (`--background`), as when
     /// started minimized on Windows. The command line opens its editor so.
     bool background = false;
+
+    /// Upgrade the project as it opens if it was made with an older Deki
+    /// (`--upgrade`). Without it such a project is not opened: the window
+    /// asks, and a headless run says why and stops.
+    bool upgrade = false;
 };
 
 /// What BootPlatform created, for the interactive loop to use.

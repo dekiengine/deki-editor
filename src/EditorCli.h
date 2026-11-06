@@ -57,6 +57,7 @@ struct CliOptions
     bool mcp = false;
     int mcpPort = 3000;
     bool background = false;  // --background: start minimized, never taking focus
+    bool upgrade = false;     // --upgrade: upgrade a project made with an older Deki as it opens
 };
 
 /// Fills `out`. Returns false when the line is malformed; `out.badArgs` says

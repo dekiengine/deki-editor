@@ -37,7 +37,8 @@ bool MigrateSimulatorDefine(std::string& text);
 /// Applies all three to the project at `projectPath`: platforms/*/*.json, and
 /// the package.json and code of the packages its deki-packages.json marks
 /// editable, and the code under src/. Returns the files it changed, relative
-/// to the project.
-std::vector<std::string> MigrateProject(const std::string& projectPath);
+/// to the project. With `write` false it writes nothing and returns the files
+/// it would change (ProjectUpgrade asks before it does).
+std::vector<std::string> MigrateProject(const std::string& projectPath, bool write = true);
 
 }  // namespace DekiEditor::HostedRename

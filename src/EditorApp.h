@@ -30,6 +30,7 @@ struct SDL_Window;
 #include "panels/NewProjectDialog.h"
 #include "panels/ProjectManagerScreen.h"
 #include "panels/PackageManagerPanel.h"
+#include "services/ProjectUpgrade.h"
 #include "panels/PlatformManagerPanel.h"
 #include "panels/ProfilerPanel.h"
 #include "panels/FrameCapturePanel.h"
@@ -501,9 +502,20 @@ public:
     bool IsRecoveryDialogOpen() const { return m_Recovery.DialogRequested(); }
     void PostponeRecoveryDialog() { m_Recovery.SetDialogRequested(false); }
 
-    // A package from an older release, as the project pins it: shown on open
-    // in the "Packages from an older release" dialog, which offers to update
-    // them. Editable ones are listed but left to their developer.
+    // A project made with an older Deki is not opened until someone agrees
+    // to upgrade it (ProjectUpgrade): OpenProject refuses it, saying what the
+    // upgrade does, and the Upgrade Project dialog asks. Approving opens it
+    // upgraded; MCP's open_project `upgrade` and --upgrade approve ahead.
+    void ApproveProjectUpgrade(const std::string& path) { m_UpgradeApprovedFor = path; }
+    bool IsUpgradeDialogOpen() const { return !m_PendingUpgradePath.empty(); }
+    const std::string& GetPendingUpgradePath() const { return m_PendingUpgradePath; }
+    const ProjectUpgrade& GetPendingUpgrade() const { return m_PendingUpgrade; }
+    // Its answers without a mouse: upgrade and open, or leave it closed.
+    // Takes effect on the next frame.
+    void AnswerUpgradeDialog(bool upgrade) { m_UpgradeAnswer = upgrade ? 1 : 2; }
+
+    // A package from an older release, as the project pins it, found once the
+    // project is open; an approved upgrade then moves it to this release.
     struct OutdatedPackage
     {
         std::string id;
@@ -511,11 +523,6 @@ public:
         std::string minEngine;  // the engine it was made for
         bool editable = false;
     };
-    bool IsOutdatedPackagesDialogOpen() const { return m_OutdatedDialogOpen; }
-    const std::vector<OutdatedPackage>& GetOutdatedPackages() const { return m_OutdatedPackages; }
-    // Its answers without a mouse: update the packages it can, or not now.
-    // Takes effect on the next frame.
-    void AnswerOutdatedPackagesDialog(bool update) { m_OutdatedAnswer = update ? 1 : 2; }
 
 private:
     // Tab focus restoration on startup
@@ -528,10 +535,14 @@ private:
     EditorRecovery m_Recovery;
 
     std::vector<OutdatedPackage> m_OutdatedPackages;
-    bool m_OutdatedDialogOpen = false;
-    int m_OutdatedAnswer = 0;  // 1 update, 2 not now, from AnswerOutdatedPackagesDialog
-    void DrawOutdatedPackagesDialog();
     void UpdateOutdatedPackages();
+
+    std::string m_UpgradeApprovedFor;   // the path an upgrade was agreed for
+    bool m_UpgradingProject = false;    // the open under way is an approved upgrade
+    std::string m_PendingUpgradePath;   // a project waiting for the answer
+    ProjectUpgrade m_PendingUpgrade;
+    int m_UpgradeAnswer = 0;  // 1 upgrade, 2 cancel, from AnswerUpgradeDialog
+    void DrawUpgradeDialog();
 
     void DrawRecoveryDialog();
     void DrawRecoveryDiscardConfirm();

@@ -170,6 +170,9 @@ int main(int argc, char* argv[])
     boot.startMcp = cli.mcp;
     boot.mcpPort = cli.mcpPort;
     boot.background = cli.background;
+    // Re-saving a project in the current format is upgrading it, so that verb
+    // agrees to it as --upgrade does.
+    boot.upgrade = cli.upgrade || cli.upgradeProject;
 
     DekiEditor::BootContext ctx;
     if (!DekiEditor::BootPlatform(boot, ctx))
