@@ -364,6 +364,54 @@ void ProjectSettingsPanel::RefreshScans(Project* project)
     }
 }
 
+void ProjectSettingsPanel::DrawProjectSection(Project* project)
+{
+    if (!DekiEditor::SchematicSectionBegin("Project"))
+    {
+        return;
+    }
+
+    DekiEditor::BeginPropertyContext();
+
+    // Typed into a buffer of its own and applied when the field is left, so a
+    // name is never saved half typed, and one that cannot be used is said
+    // beside the field instead of saved. A rename from elsewhere (the
+    // set_project_name tool) refills it.
+    if (m_NameShownFor != project->GetName())
+    {
+        m_NameShownFor = project->GetName();
+        m_NameBuffer = project->GetName();
+        m_NameProblem.clear();
+    }
+    char buf[128];
+    std::strncpy(buf, m_NameBuffer.c_str(), sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = 0;
+    InspectorUtils::SetNextRowTooltip(
+        "The name the editor and the builds show: a Miyoo app is labelled and named by it. The project's folder "
+        "keeps its name.");
+    BeginPropertyRow("Name");
+    if (ImGui::InputText("##project_name", buf, sizeof(buf)))
+    {
+        m_NameBuffer = buf;
+    }
+    if (ImGui::IsItemDeactivatedAfterEdit() && m_NameBuffer != project->GetName())
+    {
+        std::string why;
+        if (!project->SetName(m_NameBuffer, why))
+        {
+            m_NameProblem = why;
+        }
+    }
+    if (!m_NameProblem.empty())
+    {
+        BeginPropertyRow("");
+        ImGui::TextColored(DekiEditor::Palette::Amber, "%s", Tr(m_NameProblem.c_str()));
+    }
+
+    DekiEditor::EndPropertyContext();
+    DekiEditor::SchematicSectionEnd();
+}
+
 void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
 {
     // Laid out like an Inspector section, since it is a list of properties too.
@@ -495,8 +543,11 @@ void ProjectSettingsPanel::Draw()
             return;
         }
 
-        // These two pick assets through the editor-only AssetPipeline, so they
-        // are written here rather than registered as settings.
+        // The name lives in deki.json, and the next two pick assets through the
+        // editor-only AssetPipeline, so they are written here rather than
+        // registered as settings.
+        DrawProjectSection(project);
+        ImGui::Spacing();
         DrawStartupSceneSection(project);
         ImGui::Spacing();
         DrawRenderPipelineSection(project);

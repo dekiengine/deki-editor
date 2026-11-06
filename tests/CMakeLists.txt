@@ -88,6 +88,7 @@ set(TEST_SOURCES
     core/TextureFormatResolveTests.cpp
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
+    core/ProjectNameTests.cpp
     core/ProjectSettingsFilesTests.cpp
     core/RemoveTreeTests.cpp
     core/RenamedComponentRefTests.cpp

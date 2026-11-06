@@ -6,6 +6,17 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### A project can be renamed
+- **Project Settings > Project > Name**, and the `set_project_name` tool. The
+  name is what the editor's lists and a build's app show (a Miyoo app's label
+  and folder); the project's folder keeps its name, as the editor finds a
+  project by its folder. Spaces around it are dropped; an empty name, one over
+  64 characters or one with a control character is refused, saying why
+  (`CleanProjectName`, `Project::SetName`). Before, the name was fixed when
+  the project was made.
+- A project whose `deki.json` has no name is called after its folder, as the
+  project list already showed it, instead of "Unnamed Project".
+
 ### `desktop-os` is called `hosted`, `SIMULATOR` is `DEKI_HOSTED`
 - The capability a platform provides when an operating system starts the
   game as a program and gets control back when it quits (the desktop

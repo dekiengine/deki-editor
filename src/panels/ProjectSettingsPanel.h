@@ -22,6 +22,7 @@ public:
     void Draw();
 
 private:
+    void DrawProjectSection(Project* project);
     void DrawStartupSceneSection(Project* project);
     void DrawRenderPipelineSection(Project* project);
 
@@ -34,6 +35,12 @@ private:
     std::vector<std::string> m_PipelineGuids;
     size_t m_ScannedAssetCount = static_cast<size_t>(-1);
     float m_ScanAge = 1.0e9f;
+
+    // The Name field: what is typed, the project name it was filled from, and
+    // why the last name typed was refused.
+    std::string m_NameBuffer;
+    std::string m_NameShownFor;
+    std::string m_NameProblem;
 
     EditorApp* m_App;
 };

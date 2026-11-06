@@ -56,6 +56,38 @@ inline bool ProjectNeedsNewerEditor(const std::string& lastSavedBy, const std::s
     return DekiEditor::CompareVersions(lastSavedBy, thisEditor) > 0;
 }
 
+/// `name` as a project's name, without the spaces around it, in `cleaned`.
+/// False, with `why`, for a name the editor's lists and a build's app label
+/// cannot show: empty, longer than 64 characters, or holding a control
+/// character (a line break, a tab).
+///
+/// Inline so tests can use it without linking Project.cpp.
+inline bool CleanProjectName(const std::string& name, std::string& cleaned, std::string& why)
+{
+    const size_t first = name.find_first_not_of(" ");
+    const size_t last = name.find_last_not_of(" ");
+    cleaned = first == std::string::npos ? std::string() : name.substr(first, last - first + 1);
+    if (cleaned.empty())
+    {
+        why = "A project needs a name.";
+        return false;
+    }
+    if (cleaned.size() > 64)
+    {
+        why = "A project's name can be at most 64 characters.";
+        return false;
+    }
+    for (unsigned char c : cleaned)
+    {
+        if (c < 0x20 || c == 0x7F)
+        {
+            why = "A project's name cannot hold a line break, a tab or another control character.";
+            return false;
+        }
+    }
+    return true;
+}
+
 /// The project file (deki.json): paths and asset/build wiring.
 ///
 /// Typed settings (display, profiling, units, rendering, ...) live in
@@ -88,6 +120,12 @@ public:
     void LoadSettingsFiles(const std::string& root);
 
     const std::string& GetName() const { return m_Name; }
+    /// Renames the project and saves it: the name the editor and the builds
+    /// show (a Miyoo app is labelled and named by it). The folder keeps its
+    /// name: the editor finds a project by its folder, so nothing that points
+    /// at it breaks. False, with `why`, for a name CleanProjectName refuses,
+    /// or when deki.json cannot be written.
+    bool SetName(const std::string& name, std::string& why);
     const std::string& GetPath() const { return m_Path; }
     const std::string& GetAssetsPath() const { return m_AssetsPath; }
     const std::string& GetSrcPath() const { return m_SrcPath; }

@@ -249,11 +249,18 @@ bool Project::Load(const std::string& path)
         nlohmann::json json;
         file >> json;
 
-        m_Name = json.value("name", "Unnamed Project");
         // Stored absolute: every derived path is built from it, and package
         // loading rejects relative paths.
         m_Path = NormalizeProjectRoot(projectPath.string());
         projectPath = m_Path;
+        // A project without a name is called after its folder, as the project
+        // list shows it, and saves that name.
+        m_Name = json.value("name", std::string());
+        if (m_Name.empty())
+        {
+            const fs::path folder = projectPath.filename().empty() ? projectPath.parent_path() : projectPath;
+            m_Name = folder.filename().string();
+        }
 
         // Refuse a project last saved by a newer editor: its scenes may use a
         // format this build does not understand, and the next save would
@@ -323,6 +330,24 @@ bool Project::Load(const std::string& path)
     }
 }
 
+bool Project::SetName(const std::string& name, std::string& why)
+{
+    std::string cleaned;
+    if (!CleanProjectName(name, cleaned, why))
+    {
+        return false;
+    }
+    const std::string previous = m_Name;
+    m_Name = cleaned;
+    if (!Save())
+    {
+        m_Name = previous;
+        why = "deki.json could not be written; the project keeps its name.";
+        return false;
+    }
+    return true;
+}
+
 bool Project::Save()
 {
     namespace fs = std::filesystem;
@@ -366,6 +391,8 @@ bool Project::Save()
 
     // The folder layout this project uses.
     json["structure"] = ProjectPaths::kStructureVersion;
+
+    json["name"] = m_Name;
 
     json["startupScene"] = m_StartupScene;
 

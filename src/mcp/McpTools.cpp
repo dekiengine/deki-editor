@@ -1093,6 +1093,32 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
                        { "startupScene", project->GetStartupScene() } };
           } });
 
+    // The name is deki.json's, not a settings section's, so it has a tool of
+    // its own, as the Project Settings panel has a field of its own.
+    registry.Register(
+        { "set_project_name",
+          "Rename the open project and save it: the name the editor and the builds show (a Miyoo app is "
+          "labelled and named by it). The project's folder keeps its name. Spaces around the name are "
+          "dropped; an empty name, one over 64 characters or one with a control character is refused.",
+          { { "type", "object" },
+            { "properties", { { "name", { { "type", "string" }, { "description", "The new name" } } } } },
+            { "required", nlohmann::json::array({ "name" }) } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              auto* project = editor->GetProject();
+              if (!project)
+              {
+                  throw std::runtime_error("No project is open");
+              }
+              const std::string previous = project->GetName();
+              std::string why;
+              if (!project->SetName(args.value("name", std::string()), why))
+              {
+                  throw std::runtime_error(why);
+              }
+              return { { "name", project->GetName() }, { "previous", previous }, { "path", project->GetPath() } };
+          } });
+
     // A new asset of any registered type, with the content the Asset Browser's
     // Create menu gives it, imported at once. The type's own tools (a node
     // graph's, say) then edit it.
