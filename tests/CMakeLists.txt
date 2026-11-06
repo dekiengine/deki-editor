@@ -709,7 +709,7 @@ deki_add_package_tests(deki-lilygo-boards TARGET DekiLilyGOBoardsTests NEEDS_EDI
 # NEON path the same tests hold to the plain one when built for the device.
 # The rest of its runtime code only builds for ARM Linux.
 deki_add_package_tests(deki-miyoo-boards TARGET DekiMiyooBoardsTests NEEDS_EDITOR
-                       SOURCES editor/MiyooBuilder.cpp editor/MiyooToolchain.cpp editor/OnionApp.cpp MiyooRows.cpp
+                       SOURCES editor/MiyooBuilder.cpp editor/MiyooToolchain.cpp editor/MainUiApp.cpp MiyooRows.cpp
                        DEFINES "DEKI_MIYOO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-miyoo-boards\""
                        LIBS nlohmann_json::nlohmann_json)
 
