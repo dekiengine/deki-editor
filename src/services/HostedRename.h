@@ -18,9 +18,11 @@ namespace DekiEditor::HostedRename
 {
 
 /// A platform's JSON with the old names changed: "desktop-os" in provides is
-/// "hosted", and "SIMULATOR" leaves the defines of a hosted platform, whose
-/// build defines DEKI_HOSTED itself. Keys keep their order. False, `text`
-/// untouched, when it has neither, or is not JSON.
+/// "hosted", and "SIMULATOR" in the defines of a hosted platform is
+/// "DEKI_HOSTED". Kept as a define, not dropped: an older package's builder
+/// defines only SIMULATOR itself, so the platform's define is what gives code
+/// renamed by MigrateSimulatorDefine its DEKI_HOSTED there. Keys keep their
+/// order. False, `text` untouched, when it has neither, or is not JSON.
 bool MigratePlatformJson(std::string& text);
 
 /// A package.json with "desktop-os" in platformRequires as "hosted". False,

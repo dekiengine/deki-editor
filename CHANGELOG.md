@@ -10,8 +10,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - **On open, its own files get this release's names**: `desktop-os` is
   `hosted` in its platform files and its editable packages' `package.json`,
   and `SIMULATOR` is `DEKI_HOSTED` on the `#if`/`#ifdef`/`#ifndef`/`#elif`
-  lines of `src/` and the editable packages. The Console names each file
-  changed (`HostedRename`). Packages from the registry are left to their own
+  lines of `src/` and the editable packages, and in the platform files'
+  `defines`. That define is what lets a build by an older package's builder,
+  which defines only `SIMULATOR` itself, compile the renamed code: a project
+  still on 0.22 packages builds after the change, as checked with deki-demo's
+  0.22 set. The Console names each file changed (`HostedRename`). Packages from the registry are left to their own
   release; the editor still reads `desktop-os` there, with a warning.
 - **Packages from an older release, as the project pins them, are offered an
   update**: a dialog on open lists them, and Update moves each to the

@@ -24,7 +24,8 @@ TEST(HostedRename, APlatformFileGetsTheNewNamesAndKeepsItsOrder)
     ASSERT_TRUE(MigratePlatformJson(text));
     const nlohmann::ordered_json j = nlohmann::ordered_json::parse(text);
     EXPECT_EQ(j["provides"], nlohmann::ordered_json({ "hosted", "sdl3" }));
-    EXPECT_EQ(j["defines"], nlohmann::ordered_json({ "DEBUG" }));
+    EXPECT_EQ(j["defines"], nlohmann::ordered_json({ "DEKI_HOSTED", "DEBUG" }))
+        << "kept as a define, for a build by an older package's builder";
     EXPECT_EQ(j.begin().key(), "id") << "the keys keep their order";
     EXPECT_NE(text.find("\r\n"), std::string::npos) << "and the file its line breaks";
     EXPECT_EQ(text.substr(text.size() - 2), "\r\n");
@@ -32,6 +33,13 @@ TEST(HostedRename, APlatformFileGetsTheNewNamesAndKeepsItsOrder)
     std::string again = text;
     EXPECT_FALSE(MigratePlatformJson(again)) << "a second open changes nothing";
     EXPECT_EQ(again, text);
+}
+
+TEST(HostedRename, ADefineAlreadyThereIsNotListedTwice)
+{
+    std::string text = R"({"defines":["SIMULATOR","DEKI_HOSTED"],"provides":["hosted"]})";
+    ASSERT_TRUE(MigratePlatformJson(text));
+    EXPECT_EQ(nlohmann::ordered_json::parse(text)["defines"], nlohmann::ordered_json({ "DEKI_HOSTED" }));
 }
 
 TEST(HostedRename, ABoardKeepsADefineNamedSimulator)

@@ -161,19 +161,30 @@ bool MigratePlatformJson(std::string& text)
     }
     const bool hosted = j.contains("provides") && j["provides"].is_array() &&
                         std::find(j["provides"].begin(), j["provides"].end(), kNewCapability) != j["provides"].end();
+    // SIMULATOR becomes DEKI_HOSTED here, rather than going: a build made by
+    // an older package's builder defines SIMULATOR itself but not DEKI_HOSTED,
+    // and passes the platform's defines through, so code renamed below still
+    // compiles its hosted path with it. The current builder defines
+    // DEKI_HOSTED anyway.
     if (hosted && j.contains("defines") && j["defines"].is_array())
     {
         auto& defines = j["defines"];
-        const auto before = defines.size();
+        bool renamed = false;
+        bool haveNew = false;
         nlohmann::ordered_json kept = nlohmann::ordered_json::array();
         for (const auto& d : defines)
         {
-            if (!(d.is_string() && d.get<std::string>() == "SIMULATOR"))
+            const bool isOld = d.is_string() && d.get<std::string>() == "SIMULATOR";
+            const bool isNew = d.is_string() && d.get<std::string>() == "DEKI_HOSTED";
+            renamed = renamed || isOld;
+            if ((isOld || isNew) && haveNew)
             {
-                kept.push_back(d);
+                continue;
             }
+            haveNew = haveNew || isOld || isNew;
+            kept.push_back(isOld ? nlohmann::ordered_json("DEKI_HOSTED") : d);
         }
-        if (kept.size() != before)
+        if (renamed)
         {
             defines = kept;
             changed = true;
