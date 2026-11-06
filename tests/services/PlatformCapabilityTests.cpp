@@ -187,3 +187,56 @@ TEST(PlatformCapability, APackageSaysWhichCapabilitiesItDefinesAndFiltersTexture
     EXPECT_EQ(scanned[0].filtersTexturesWith, (std::vector<std::string>{ "opengl" }));
     EXPECT_EQ(TextureFilteringCapabilities(scanned), (std::set<std::string>{ "opengl" }));
 }
+
+namespace
+{
+void WriteFile(const std::filesystem::path& file, const std::string& text)
+{
+    std::filesystem::create_directories(file.parent_path());
+    std::ofstream(file, std::ios::binary) << text;
+}
+}  // namespace
+
+// A package from before capabilityDefines (an older deki-rendering, someone's
+// own GPU package) still tests the define in its code. The build reads which
+// ones from its game code, so it keeps building as it did.
+TEST(PlatformCapability, ADefineAPackagesCodeTestsWithoutDeclaringIsFound)
+{
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "deki-undeclared-define";
+    fs::remove_all(dir);
+    WriteFile(dir / "GLThing.cpp", "#ifdef DEKI_CAPABILITY_OPENGL\nint gl;\n#endif\n#if DEKI_CAPABILITY_GPU_GLES2\n#endif\n");
+    WriteFile(dir / "editor" / "Tool.cpp", "#ifdef DEKI_CAPABILITY_VULKAN\n#endif\n");
+    WriteFile(dir / "tests" / "T.cpp", "#ifdef DEKI_CAPABILITY_METAL\n#endif\n");
+    const std::set<std::string> tested = CapabilityDefinesTestedBy(dir);
+    fs::remove_all(dir);
+    EXPECT_EQ(tested, (std::set<std::string>{ "DEKI_CAPABILITY_GPU_GLES2", "DEKI_CAPABILITY_OPENGL" }))
+        << "editor/ and tests/ are not the game's code";
+
+    PackageEntry old = Pkg("old-gl", "DEKI_PACKAGE_OLD_GL", {});
+    std::set<std::string> desktop = kDesktop;
+    desktop.insert("opengl");
+    EXPECT_EQ(UndeclaredCapabilities(desktop, old, tested), (std::vector<std::string>{ "opengl" }));
+    EXPECT_EQ(UndeclaredCapabilities(kThirdParty, old, tested), (std::vector<std::string>{ "gpu-gles2" }));
+    EXPECT_TRUE(UndeclaredCapabilities(kBoard, old, tested).empty()) << "a board offers neither";
+    old.capabilityDefines = { "opengl" };
+    EXPECT_TRUE(UndeclaredCapabilities(desktop, old, tested).empty()) << "declared, so nothing to warn of";
+    EXPECT_EQ(CapabilityDefineName("gpu-gles2"), "DEKI_CAPABILITY_GPU_GLES2");
+}
+
+// A package with a main() of its own (deki-desktop-integration before this
+// release, a fork of it) would give a game built as a program two; the build
+// names the file instead of the linker's "multiple definition".
+TEST(PlatformCapability, APackageThatDefinesMainIsFound)
+{
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "deki-package-main";
+    fs::remove_all(dir);
+    WriteFile(dir / "DesktopHALPackage.cpp", "#if defined(SIMULATOR)\nint main(int argc, char* argv[])\n{\n}\n#endif\n");
+    WriteFile(dir / "Other.cpp", "// int main( is only mentioned here\nint mainLoop();\n");
+    WriteFile(dir / "C.cpp", "extern \"C\" int main (void) { return 0; }\n");
+    WriteFile(dir / "editor" / "EditorMain.cpp", "int main() {}\n");
+    const std::vector<std::string> mains = SourcesDefiningMain(dir);
+    fs::remove_all(dir);
+    EXPECT_EQ(mains, (std::vector<std::string>{ "C.cpp", "DesktopHALPackage.cpp" }));
+}

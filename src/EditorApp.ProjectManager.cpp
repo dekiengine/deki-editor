@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/TextureSettings.h>
+#include "services/HostedRename.h"
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/SceneTargetFilter.h>
 #include <functional>
@@ -279,6 +280,15 @@ bool EditorApp::OpenProject(const std::string& path)
     // platform and nothing more - is adopted from the package offering it, and
     // one that nobody offers is an error said here rather than a quiet
     // substitute.
+    // Names this release changed (desktop-os is hosted, SIMULATOR is
+    // DEKI_HOSTED), in the files the project owns, before anything reads them.
+    for (const std::string& file : HostedRename::MigrateProject(path))
+    {
+        DEKI_LOG_WARNING("Updated %s: this release calls desktop-os \"hosted\" and SIMULATOR DEKI_HOSTED, and "
+                         "the old names in it were changed (version control shows the change).",
+                         file.c_str());
+    }
+
     {
         ScopedTimer tPlatforms("OpenProject platforms");
         StartupProgress::Update(TrMark("Checking platforms..."));
@@ -443,7 +453,28 @@ bool EditorApp::OpenProject(const std::string& path)
         DEKI_LOG_EDITOR("Project transform: %s", why.c_str());
         // Which platforms draw textures filtered is the packages' to say, so
         // it is read with them.
-        SetTextureFilteringCapabilities(CMakeGen::TextureFilteringCapabilities(declared));
+        std::set<std::string> filtering = CMakeGen::TextureFilteringCapabilities(declared);
+        // A package from before filtersTexturesWith whose code tests the
+        // OpenGL define drew textures filtered wherever there was OpenGL, the
+        // one capability the editor knew then; it still does, and is told to
+        // declare it.
+        for (const auto& pkg : declared)
+        {
+            if (!pkg.filtersTexturesWith.empty() || !pkg.capabilityDefines.empty())
+            {
+                continue;
+            }
+            const std::filesystem::path dir = std::filesystem::path(GetPackagesDirectory(path)) / pkg.dirName;
+            if (CMakeGen::CapabilityDefinesTestedBy(dir).count(CMakeGen::CapabilityDefineName("opengl")) != 0)
+            {
+                filtering.insert("opengl");
+                DEKI_LOG_WARNING("Package '%s' tests DEKI_CAPABILITY_OPENGL but its package.json declares no "
+                                 "capabilityDefines or filtersTexturesWith; its textures are drawn filtered "
+                                 "with OpenGL, as before. Declare \"opengl\" in both.",
+                                 pkg.id.c_str());
+            }
+        }
+        SetTextureFilteringCapabilities(std::move(filtering));
     }
 
     // A project is open, so runtime/ is authoritative about what a package is -

@@ -524,6 +524,7 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/hot_reload/SourceChangeDetector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/hot_reload/PluginPromotion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/BuiltLibraries.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/HostedRename.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/asset_browser/VirtualFolders.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/asset_browser/AssetFileOps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/commands/ObjectSerializationHelper.cpp

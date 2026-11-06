@@ -83,7 +83,47 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // or the project itself declares (CMakeGenUtils, COMPATIBILITY.md).
     const auto allPackages = ScanPackageManifests(projectPath);
     const auto activeIds = ResolveActivePackages(allPackages, packageDefines, config.Capabilities());
-    const std::vector<std::string> capabilityDefines = CapabilityDefinesFor(config.Capabilities(), allPackages);
+    std::vector<std::string> capabilityDefines = CapabilityDefinesFor(config.Capabilities(), allPackages);
+
+    // Packages from before this release, or forks of them. One with a main()
+    // of its own would give the game two, and the linker's "multiple
+    // definition" says nothing about why, so the build stops here, naming it.
+    // One whose code tests a capability define it does not declare is built
+    // as it was, the define set, and told to declare it.
+    {
+        const fs::path packagesDir = GetPackagesDirectory(projectPath);
+        const std::set<std::string> capabilities = config.Capabilities();
+        for (const auto& pkg : allPackages)
+        {
+            if (activeIds.count(pkg.id) == 0)
+            {
+                continue;
+            }
+            const fs::path dir = packagesDir / pkg.dirName;
+            const std::vector<std::string> mains = SourcesDefiningMain(dir);
+            if (!mains.empty())
+            {
+                error = "package '" + pkg.id + "' defines main() (" + mains.front() +
+                        "), and a game built as a program has the engine's own since this release "
+                        "(deki-engine-hosted), so it would have two. Update " + pkg.id +
+                        " (deki-desktop-integration's current version has none) or remove its main().";
+                return false;
+            }
+            for (const std::string& capability : UndeclaredCapabilities(capabilities, pkg, CapabilityDefinesTestedBy(dir)))
+            {
+                const std::string define = CapabilityDefineName(capability);
+                DEKI_LOG_WARNING("Package '%s' tests %s but does not declare \"%s\" in its package.json "
+                                 "capabilityDefines; this build defines it anyway. Declare it, so the build "
+                                 "need not read the package's code to know.",
+                                 pkg.id.c_str(), define.c_str(), capability.c_str());
+                if (std::find(capabilityDefines.begin(), capabilityDefines.end(), define) == capabilityDefines.end())
+                {
+                    capabilityDefines.push_back(define);
+                }
+            }
+        }
+        std::sort(capabilityDefines.begin(), capabilityDefines.end());
+    }
     std::string transformWhy;
     const TransformWidth transformWidth =
         ResolveProjectTransformWidth(allPackages, ReadProjectTags(projectPath), &transformWhy);

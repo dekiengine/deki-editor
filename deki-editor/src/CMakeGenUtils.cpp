@@ -6,6 +6,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <map>
 #include <nlohmann/json.hpp>
 
@@ -353,6 +354,16 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
     }
 }
 
+std::string CapabilityDefineName(const std::string& capability)
+{
+    std::string define = "DEKI_CAPABILITY_";
+    for (unsigned char ch : capability)
+    {
+        define += std::isalnum(ch) ? static_cast<char>(std::toupper(ch)) : '_';
+    }
+    return define;
+}
+
 std::vector<std::string> CapabilityDefinesFor(const std::set<std::string>& platformCapabilities,
                                               const std::vector<PackageEntry>& packages)
 {
@@ -361,19 +372,151 @@ std::vector<std::string> CapabilityDefinesFor(const std::set<std::string>& platf
     {
         for (const auto& capability : pkg.capabilityDefines)
         {
-            if (platformCapabilities.count(capability) == 0)
+            if (platformCapabilities.count(capability) != 0)
             {
-                continue;
+                defines.insert(CapabilityDefineName(capability));
             }
-            std::string define = "DEKI_CAPABILITY_";
-            for (unsigned char ch : capability)
-            {
-                define += std::isalnum(ch) ? static_cast<char>(std::toupper(ch)) : '_';
-            }
-            defines.insert(define);
         }
     }
     return { defines.begin(), defines.end() };
+}
+
+namespace
+{
+// A package's game code: what a game build compiles of it. Its editor code is
+// built with the editor, which has every capability, and its tests apart.
+std::vector<fs::path> GameSourcesOf(const fs::path& packageDir)
+{
+    std::vector<fs::path> files;
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(packageDir, ec); !ec && it != fs::recursive_directory_iterator();
+         it.increment(ec))
+    {
+        const std::string name = it->path().filename().string();
+        if (it->is_directory(ec))
+        {
+            if (it.depth() == 0 && (name == "editor" || name == "tests" || name == "generated" || name == "build"))
+            {
+                it.disable_recursion_pending();
+            }
+            else if (!name.empty() && name[0] == '.')
+            {
+                it.disable_recursion_pending();
+            }
+            continue;
+        }
+        const std::string ext = it->path().extension().string();
+        if (ext == ".c" || ext == ".cpp" || ext == ".h" || ext == ".hpp")
+        {
+            files.push_back(it->path());
+        }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+std::string ReadWhole(const fs::path& file)
+{
+    std::ifstream in(file, std::ios::binary);
+    std::ostringstream text;
+    text << in.rdbuf();
+    return text.str();
+}
+}  // namespace
+
+std::set<std::string> CapabilityDefinesTestedBy(const fs::path& packageDir)
+{
+    // A plain search, not std::regex: it runs over every active package's
+    // code on every build.
+    static const std::string kPrefix = "DEKI_CAPABILITY_";
+    std::set<std::string> tested;
+    for (const fs::path& file : GameSourcesOf(packageDir))
+    {
+        const std::string text = ReadWhole(file);
+        for (size_t at = text.find(kPrefix); at != std::string::npos; at = text.find(kPrefix, at + 1))
+        {
+            size_t end = at + kPrefix.size();
+            while (end < text.size() && (std::isupper(static_cast<unsigned char>(text[end])) ||
+                                         std::isdigit(static_cast<unsigned char>(text[end])) || text[end] == '_'))
+            {
+                ++end;
+            }
+            if (end > at + kPrefix.size())
+            {
+                tested.insert(text.substr(at, end - at));
+            }
+        }
+    }
+    return tested;
+}
+
+std::vector<std::string> UndeclaredCapabilities(const std::set<std::string>& platformCapabilities,
+                                                const PackageEntry& pkg, const std::set<std::string>& tested)
+{
+    std::vector<std::string> undeclared;
+    for (const std::string& capability : platformCapabilities)
+    {
+        if (tested.count(CapabilityDefineName(capability)) != 0 &&
+            std::find(pkg.capabilityDefines.begin(), pkg.capabilityDefines.end(), capability) ==
+                pkg.capabilityDefines.end())
+        {
+            undeclared.push_back(capability);
+        }
+    }
+    return undeclared;
+}
+
+namespace
+{
+// Whether `line` (no line break) starts a definition of main: "int main(",
+// after spaces, maybe after extern "C". So a comment that mentions one does
+// not count.
+bool DefinesMain(const std::string& line)
+{
+    size_t at = line.find_first_not_of(" \t");
+    auto word = [&](const char* w)
+    {
+        const size_t n = std::strlen(w);
+        if (at == std::string::npos || line.compare(at, n, w) != 0)
+        {
+            return false;
+        }
+        at = line.find_first_not_of(" \t", at + n);
+        return true;
+    };
+    if (word("extern"))
+    {
+        if (!word("\"C\""))
+        {
+            return false;
+        }
+    }
+    return word("int") && word("main") && at != std::string::npos && line[at] == '(';
+}
+}  // namespace
+
+std::vector<std::string> SourcesDefiningMain(const fs::path& packageDir)
+{
+    std::vector<std::string> files;
+    for (const fs::path& file : GameSourcesOf(packageDir))
+    {
+        const std::string text = ReadWhole(file);
+        if (text.find("main") == std::string::npos)
+        {
+            continue;
+        }
+        std::istringstream lines(text);
+        for (std::string line; std::getline(lines, line);)
+        {
+            if (DefinesMain(line))
+            {
+                std::error_code ec;
+                files.push_back(fs::relative(file, packageDir, ec).generic_string());
+                break;
+            }
+        }
+    }
+    return files;
 }
 
 std::set<std::string> TextureFilteringCapabilities(const std::vector<PackageEntry>& packages)

@@ -131,6 +131,29 @@ DEKI_EDITOR_API std::vector<std::string> CapabilityDefinesFor(const std::set<std
 /// filtersTexturesWith).
 DEKI_EDITOR_API std::set<std::string> TextureFilteringCapabilities(const std::vector<PackageEntry>& packages);
 
+/// The define a capability becomes: DEKI_CAPABILITY_ and the name upper-cased,
+/// any other character as '_' ("opengl" is DEKI_CAPABILITY_OPENGL).
+DEKI_EDITOR_API std::string CapabilityDefineName(const std::string& capability);
+
+/// The DEKI_CAPABILITY_ names the game code of the package in `packageDir`
+/// tests: its .c, .cpp and .h files outside editor/, tests/ and generated/.
+DEKI_EDITOR_API std::set<std::string> CapabilityDefinesTestedBy(const std::filesystem::path& packageDir);
+
+/// The capabilities of `platformCapabilities` whose define `tested` (what the
+/// package's code tests, CapabilityDefinesTestedBy) names but `pkg` does not
+/// declare in its capabilityDefines: a package from before the list, or one
+/// that forgot. A build defines them anyway and says so, so the package keeps
+/// building as it did; the old editor defined DEKI_CAPABILITY_OPENGL for every
+/// platform with "opengl".
+DEKI_EDITOR_API std::vector<std::string> UndeclaredCapabilities(const std::set<std::string>& platformCapabilities,
+                                                                const PackageEntry& pkg,
+                                                                const std::set<std::string>& tested);
+
+/// The game code files of the package in `packageDir` (as above) that define
+/// main(), relative to it. A game built as a program has the engine's entry
+/// (deki-engine-hosted), so a package with its own is one from before it.
+DEKI_EDITOR_API std::vector<std::string> SourcesDefiningMain(const std::filesystem::path& packageDir);
+
 /// Whether a feature is compiled into a build with these defines: always when
 /// no feature plan is in force (the editor's own build), else when its define is.
 DEKI_EDITOR_API bool FeatureInBuild(const FeatureEntry& feature, const std::vector<std::string>& packageDefines);

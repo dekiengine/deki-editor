@@ -89,6 +89,7 @@ set(TEST_SOURCES
     core/RenamedComponentTests.cpp
     core/ProjectVersionGateTests.cpp
     core/ProjectNameTests.cpp
+    services/HostedRenameTests.cpp
     core/ProjectSettingsFilesTests.cpp
     core/RemoveTreeTests.cpp
     core/RenamedComponentRefTests.cpp
