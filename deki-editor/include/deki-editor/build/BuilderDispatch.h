@@ -27,8 +27,11 @@ DEKI_EDITOR_API ITargetBuilder* SelectBuilder(const std::vector<ITargetBuilder*>
                                               const std::string& framework);
 
 /// Why no builder matched, for the error the user sees: names the framework
-/// asked for and lists the registered ones.
+/// asked for and lists the registered ones. Build backends come from packages,
+/// so when the project's packages did not build, `packageBuildErrors` (their
+/// first error lines) says that is why theirs are missing.
 DEKI_EDITOR_API std::string DescribeNoBuilder(const std::vector<ITargetBuilder*>& builders,
-                                              const std::string& framework);
+                                              const std::string& framework,
+                                              const std::vector<std::string>& packageBuildErrors = {});
 
 }  // namespace DekiEditor

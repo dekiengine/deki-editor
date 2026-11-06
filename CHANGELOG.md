@@ -6,6 +6,31 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### The build says why it failed
+- The `rebuild` tool returns `errors` beside `hasErrors`: each failed step's
+  error lines (the compiler's, or a command's own output when it could not
+  run), led by the package or step (`HotReloadService::GetLastBuildErrors`,
+  `BuildErrorLines`). It returned only `hasErrors: true`.
+- When no build backend claims a platform because the project's packages did
+  not build, the error says so and what they failed on
+  (`BuilderRegistry::SetPackageBuildErrors`). It said only "No build backends
+  are registered at all", which read as a missing install; with nothing failed
+  it says to install the package that builds for that framework.
+
+### Capabilities mean what the packages say
+- A package names the capabilities its code tests at compile time in
+  `package.json` `capabilityDefines`; a build for a platform that provides one
+  defines `DEKI_CAPABILITY_<NAME>` (`CMakeGen::CapabilityDefinesFor`). It names
+  the capabilities it draws textures filtered with in `filtersTexturesWith`;
+  an image's Filter applies on a platform that provides one
+  (`TargetSamplesTextures`, `SetTextureFilteringCapabilities`, read when a
+  project opens). The editor no longer names `opengl` itself;
+  `PlatformConfig::CapabilityDefines` is gone. deki-rendering, deki-3d and
+  deki-sdl3-integration declare `opengl`: a project needs their versions from
+  this release, or its desktop build compiles without its OpenGL code.
+- `kDekiBuilderAbiVersion` is 4 (`CMakeGen::PackageEntry` gained the two
+  lists), so builder plugins are rebuilt with this editor.
+
 ### A project can be renamed
 - **Project Settings > Project > Name**, and the `set_project_name` tool. The
   name is what the editor's lists and a build's app show (a Miyoo app's label

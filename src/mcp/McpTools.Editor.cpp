@@ -284,7 +284,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         "Force a full rebuild of the project's package DLLs and plugin DLL, then "
                         "reload them. Returns once the build and the reload are done; a running "
                         "editor keeps drawing meanwhile. Run this after installing packages or "
-                        "editing C++ sources.",
+                        "editing C++ sources. hasErrors says whether it failed, and errors gives "
+                        "each failed step's error lines, led by the package or step.",
                         { { "type", "object" }, { "properties", nlohmann::json::object() } },
                         [editor](const nlohmann::json&) -> nlohmann::json
                         {
@@ -312,7 +313,8 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                                             return std::nullopt;
                                         }
                                         return nlohmann::json{ { "built", true },
-                                                               { "hasErrors", hotReload->HasBuildErrors() } };
+                                                               { "hasErrors", hotReload->HasBuildErrors() },
+                                                               { "errors", hotReload->GetLastBuildErrors() } };
                                     },
                                     std::chrono::seconds(840));
                                 return nlohmann::json::object();
@@ -320,7 +322,9 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
                             hotReload->RunPendingBuildNow();
 
-                            return { { "built", true }, { "hasErrors", hotReload->HasBuildErrors() } };
+                            return { { "built", true },
+                                     { "hasErrors", hotReload->HasBuildErrors() },
+                                     { "errors", hotReload->GetLastBuildErrors() } };
                         } });
 
     // ── Assets ───────────────────────────────────────────────────────────────

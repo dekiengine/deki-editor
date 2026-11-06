@@ -28,6 +28,8 @@ JSON은 에디터가 알아야 할 것을 기술하며, 빌드 방법에 대해�
 | `bootScene` | 프로젝트 기준 부트 씬의 경로. |
 | `assetStorage` | 빌드가 게임의 에셋을 두는 곳: `internal`(기본값) 또는 `external`. 아래를 참조하십시오. |
 
+기능(capability)이 무엇을 뜻하는지는 에디터가 아니라 패키지가 정합니다. 컴파일 시점에 기능을 검사하는 코드가 있는 패키지는 `package.json`의 `capabilityDefines`에 그 이름을 적고, 그 기능을 제공하는 플랫폼용 빌드에는 `DEKI_CAPABILITY_<NAME>`이 정의됩니다(`opengl`은 `DEKI_CAPABILITY_OPENGL`이며, deki-rendering, deki-3d, deki-sdl3-integration이 지정합니다). 텍스처를 필터링해서 그리는 패키지는 그때 쓰는 기능을 `filtersTexturesWith`에 적습니다. 이미지의 Filter 설정은 그 기능을 제공하는 플랫폼에서 적용되고, 다른 곳에서는 Point로 그려집니다.
+
 **부트 씬**에는 `Deki::PlatformSetupComponent`가 있으며, 그 `setupComponents` 목록은 하드웨어를 기동하는 설정 단계를 순서대로 지정합니다: 전원 핀, 디스플레이, I2C 버스, 터치. 각 항목은 `{id, typeId}`이며, 단계를 담은 자식 오브젝트의 ID와 단계의 정규화된 클래스 이름의 해시(`Deki::HashString`)입니다. `typeId`가 틀려도 실패하지 않으며, 그 단계가 조용히 실행되지 않을 뿐입니다. 에디터 테스트의 `ShippedPlatformTemplates`가 패키지가 제공하는 모든 부트 씬을 검사합니다.
 
 ## 에셋이 놓이는 곳

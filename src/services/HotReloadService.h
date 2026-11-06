@@ -95,6 +95,11 @@ public:
 
     /// True when the last plugin or package build had compile errors.
     bool HasBuildErrors() const { return m_HasBuildErrors; }
+    /// What the last finished build failed on: each failed step's error lines
+    /// (BuildErrorLines), led by the package target or the step, so a caller
+    /// without the Console (the rebuild tool) can say why. Empty after a build
+    /// that succeeded.
+    const std::vector<std::string>& GetLastBuildErrors() const { return m_LastBuildErrors; }
 
     /// Asks for a package reload check. Called when the window gains focus.
     void RequestPackageCheck();
@@ -240,6 +245,7 @@ private:
     // build just produced them for the first time.
     bool m_LastBuildWasCold = false;
     bool m_HasBuildErrors = false;
+    std::vector<std::string> m_LastBuildErrors;
 
     // OS file watchers on project/src and project/packages. Tick drains them
     // into m_SourcesDirty on the main thread; a build attempt clears it. The

@@ -101,12 +101,8 @@ struct DEKI_EDITOR_API PlatformConfig
     /// those without anyone writing a new list.
     std::set<std::string> Capabilities() const;
 
-    /// The capabilities code tests at compile time, as defines: today only
-    /// DEKI_CAPABILITY_OPENGL, for a platform that provides "opengl", which
-    /// turns on the GPU code in deki-rendering and deki-3d. Empty for one
-    /// without, so a board's build is exactly what it was. A builder adds
-    /// these to the platform's own defines.
-    std::vector<std::string> CapabilityDefines() const;
+    // The capabilities code tests at compile time, as defines, are the
+    // packages' to name (CMakeGen::CapabilityDefinesFor).
 
     // Packages this platform needs whether or not any scene names one of their
     // components, typically its hardware abstraction layer. Package ids, e.g.

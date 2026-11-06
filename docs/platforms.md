@@ -31,6 +31,8 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `bootScene` | Path of the boot scene, relative to the project. |
 | `assetStorage` | Where a build keeps the game's assets: `internal` (the default) or `external`. See below. |
 
+What a capability means is the packages' to say, not the editor's. A package whose code tests one at compile time names it in its `package.json` `capabilityDefines`, and a build for a platform that provides it defines `DEKI_CAPABILITY_<NAME>` (`opengl` is `DEKI_CAPABILITY_OPENGL`, named by deki-rendering, deki-3d and deki-sdl3-integration). A package that draws textures filtered names the capability it does that with in `filtersTexturesWith`, so an image's Filter setting applies on a platform that provides it and is drawn Point elsewhere.
+
 The **boot scene** holds a `Deki::PlatformSetupComponent` whose `setupComponents` list names,
 in order, the setup steps that bring the hardware up: a power pin, the display, an I2C bus,
 touch. Each entry is `{id, typeId}`: the id of the child object holding the step, and the

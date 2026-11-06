@@ -2,6 +2,7 @@
 
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/TextureSettings.h>
+#include <deki-editor/build/PlatformConfig.h>
 
 #include <filesystem>
 #include <vector>
@@ -116,4 +117,40 @@ TEST(TextureSettings, FilterRoundTripsAndReachesTheHeader)
         EXPECT_EQ(Deki::TextureFilterFromFlags(data.header.flags), filter);
     }
     std::filesystem::remove_all(dir);
+}
+
+// Whether a target draws textures filtered is the packages' to say
+// (filtersTexturesWith), not a backend name the editor knows. Without a
+// package that filters with what the platform offers, a filter set on the
+// image is drawn Point there.
+TEST(TextureSettings, ATargetFiltersOnlyWithACapabilityAPackageFiltersWith)
+{
+    using DekiEditor::PlatformConfig;
+    using DekiEditor::PlatformRegistry;
+    PlatformConfig gpu;
+    gpu.id = "filter_test_gpu";
+    gpu.framework = "native";
+    gpu.provides = { "opengl" };
+    PlatformConfig board;
+    board.id = "filter_test_board";
+    board.framework = "espidf";
+    PlatformRegistry::Instance().RegisterPlatform(gpu);
+    PlatformRegistry::Instance().RegisterPlatform(board);
+
+    TextureSettings s;
+    s.filter = "Bilinear";
+    SetTextureFilteringCapabilities({});
+    EXPECT_FALSE(TargetSamplesTextures("filter_test_gpu")) << "no package filters with opengl";
+    EXPECT_EQ(ResolveTextureFilter(s, "filter_test_gpu"), Deki::TextureFilter::Point);
+
+    SetTextureFilteringCapabilities({ "opengl" });
+    EXPECT_TRUE(TargetSamplesTextures("filter_test_gpu"));
+    EXPECT_EQ(ResolveTextureFilter(s, "filter_test_gpu"), Deki::TextureFilter::Bilinear);
+    EXPECT_FALSE(TargetSamplesTextures("filter_test_board"));
+    EXPECT_EQ(ResolveTextureFilter(s, "filter_test_board"), Deki::TextureFilter::Point);
+    EXPECT_TRUE(TargetSamplesTextures("")) << "the editor draws with a GPU";
+
+    SetTextureFilteringCapabilities({});
+    PlatformRegistry::Instance().UnregisterPlatform("filter_test_gpu");
+    PlatformRegistry::Instance().UnregisterPlatform("filter_test_board");
 }

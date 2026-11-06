@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
+#include <vector>
 
 namespace DekiEditor
 {
@@ -40,5 +42,11 @@ struct BuildOutputSummary
 // the raw text when nothing matched" fallback exist once.
 BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& output, const std::string& tag,
                                      const BuildOutputOptions& options);
+
+// The error lines of `output`, at most `maxLines`, as the Console shows them:
+// the lines ClassifyBuildLine calls errors, or when there is none (a command
+// that could not run at all) its first lines as they are, as those are then
+// the only explanation.
+std::vector<std::string> BuildErrorLines(const std::string& output, size_t maxLines);
 
 }  // namespace DekiEditor

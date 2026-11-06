@@ -43,6 +43,12 @@ public:
     /// Message for when GetBuilderForPlatform returned nullptr.
     std::string DescribeMissingBuilder(const PlatformConfig& config) const;
 
+    /// What the last build of the project's packages failed on (its error
+    /// lines), or nothing when it built. The editor sets it after each build,
+    /// so DescribeMissingBuilder can say the backends are missing because
+    /// their packages did not build.
+    void SetPackageBuildErrors(std::vector<std::string> errors);
+
     std::vector<ITargetBuilder*> GetAllBuilders() const;
 
     /// The platforms a package supports, according to its metadata file. Each
@@ -97,6 +103,7 @@ private:
     bool m_BuiltInsRegistered = false;
     bool m_PluginsLoaded = false;
     bool m_ShutDown = false;
+    std::vector<std::string> m_PackageBuildErrors;
 
     // Module handles for cleanup: HMODULE on Windows, dlopen's handle on Unix
     std::vector<void*> m_PluginHandles;

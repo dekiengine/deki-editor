@@ -28,6 +28,8 @@ JSON にはエディターが知る必要のあることが書かれており、
 | `bootScene` | プロジェクトからの相対パスで示したブートシーンのパスです。 |
 | `assetStorage` | ビルドがゲームのアセットを置く場所: `internal` (デフォルト) または `external`。後述します。 |
 
+機能 (capability) が何を意味するかを決めるのはエディターではなくパッケージです。コンパイル時に機能を調べるコードを持つパッケージは、`package.json` の `capabilityDefines` にその名前を書きます。その機能を提供するプラットフォーム向けのビルドでは `DEKI_CAPABILITY_<NAME>` が定義されます (`opengl` は `DEKI_CAPABILITY_OPENGL` で、deki-rendering、deki-3d、deki-sdl3-integration が指定しています)。テクスチャをフィルタリングして描くパッケージは、そのために使う機能を `filtersTexturesWith` に書きます。画像の Filter 設定はその機能を提供するプラットフォームで使われ、それ以外では Point で描かれます。
+
 **ブートシーン**には `Deki::PlatformSetupComponent` があり、その `setupComponents` リストには、ハードウェアを立ち上げるセットアップの手順が順番に並んでいます。電源ピン、ディスプレイ、I2C バス、タッチなどです。各項目は `{id, typeId}` で、手順を持つ子オブジェクトの id と、手順の修飾クラス名のハッシュ (`Deki::HashString`) です。`typeId` が間違っていても失敗はせず、その手順が黙って実行されないだけです。エディターのテストの `ShippedPlatformTemplates` は、パッケージが提供するすべてのブートシーンを検査します。
 
 ## アセットの置き場所 {#where-the-assets-go}

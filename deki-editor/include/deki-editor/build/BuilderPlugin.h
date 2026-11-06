@@ -82,7 +82,7 @@ extern "C"
     /// Bump when the builder interface changes shape: a new virtual, a reordered
     /// one, a changed signature, or a change to the layout of a struct that
     /// crosses the boundary.
-    constexpr uint32_t kDekiBuilderAbiVersion = 3;
+    constexpr uint32_t kDekiBuilderAbiVersion = 4;  // 4: PackageEntry gained capabilityDefines, filtersTexturesWith
 
     /// The compiler and standard library this translation unit uses. A MinGW
     /// plugin and an MSVC editor lay out std::string differently, and nothing else

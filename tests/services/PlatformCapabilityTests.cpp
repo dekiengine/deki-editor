@@ -150,3 +150,40 @@ TEST(PlatformCapability, TheOldNameOfHostedIsReadAsHosted)
     EXPECT_EQ(scanned[0].platformRequires, (std::vector<std::string>{ "hosted" }));
     EXPECT_TRUE(PackageSupportsPlatform(scanned[0], kDesktop));
 }
+
+// The capability defines are the packages' to name: the editor turns what a
+// package lists in capabilityDefines into DEKI_CAPABILITY_<NAME> where the
+// platform offers it, and names no rendering backend itself.
+TEST(PlatformCapability, ACapabilityDefineIsOneAPackageNamesAndThePlatformOffers)
+{
+    PackageEntry rendering = Pkg("deki-rendering", "DEKI_PACKAGE_RENDERING", {});
+    rendering.capabilityDefines = { "opengl" };
+    PackageEntry other = Pkg("deki-gpu", "DEKI_PACKAGE_GPU", {});
+    other.capabilityDefines = { "gpu-gles2", "opengl" };
+
+    std::set<std::string> desktop = kDesktop;
+    desktop.insert("opengl");
+    EXPECT_EQ(CapabilityDefinesFor(desktop, { rendering, other }),
+              (std::vector<std::string>{ "DEKI_CAPABILITY_OPENGL" }));
+    EXPECT_EQ(CapabilityDefinesFor(kThirdParty, { rendering, other }),
+              (std::vector<std::string>{ "DEKI_CAPABILITY_GPU_GLES2" }));
+    EXPECT_TRUE(CapabilityDefinesFor(kBoard, { rendering, other }).empty()) << "a board's build is unchanged";
+    EXPECT_TRUE(CapabilityDefinesFor(desktop, {}).empty()) << "no package names opengl, so nothing defines it";
+}
+
+TEST(PlatformCapability, APackageSaysWhichCapabilitiesItDefinesAndFiltersTexturesWith)
+{
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "deki-capability-defines";
+    fs::remove_all(root);
+    fs::create_directories(root / "packages" / "gpu");
+    std::ofstream(root / "packages" / "gpu" / "package.json")
+        << R"({"id":"gpu","buildDefine":"DEKI_PACKAGE_GPU","capabilityDefines":["opengl"],)"
+           R"("filtersTexturesWith":["opengl"]})";
+    const std::vector<PackageEntry> scanned = ScanPackageManifests(root.string());
+    fs::remove_all(root);
+    ASSERT_EQ(scanned.size(), 1u);
+    EXPECT_EQ(scanned[0].capabilityDefines, (std::vector<std::string>{ "opengl" }));
+    EXPECT_EQ(scanned[0].filtersTexturesWith, (std::vector<std::string>{ "opengl" }));
+    EXPECT_EQ(TextureFilteringCapabilities(scanned), (std::set<std::string>{ "opengl" }));
+}

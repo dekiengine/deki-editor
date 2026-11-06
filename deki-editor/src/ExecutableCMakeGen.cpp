@@ -83,6 +83,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // or the project itself declares (CMakeGenUtils, COMPATIBILITY.md).
     const auto allPackages = ScanPackageManifests(projectPath);
     const auto activeIds = ResolveActivePackages(allPackages, packageDefines, config.Capabilities());
+    const std::vector<std::string> capabilityDefines = CapabilityDefinesFor(config.Capabilities(), allPackages);
     std::string transformWhy;
     const TransformWidth transformWidth =
         ResolveProjectTransformWidth(allPackages, ReadProjectTags(projectPath), &transformWhy);
@@ -476,7 +477,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     {
         file << "                " << define << "\n";
     }
-    for (const auto& define : config.CapabilityDefines())
+    for (const auto& define : capabilityDefines)
     {
         file << "                " << define << "\n";
     }
@@ -568,8 +569,9 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     {
         file << "    " << define << "\n";
     }
-    // DEKI_CAPABILITY_OPENGL where the platform provides opengl.
-    for (const auto& define : config.CapabilityDefines())
+    // DEKI_CAPABILITY_OPENGL where the platform provides opengl, as the
+    // packages that test it say.
+    for (const auto& define : capabilityDefines)
     {
         file << "    " << define << "\n";
     }

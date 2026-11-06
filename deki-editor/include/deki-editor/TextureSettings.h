@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 
 #include <deki-editor/EditorExport.h>
@@ -195,9 +196,14 @@ inline void MaxSizeDims(int srcW, int srcH, int maxSize, int& outW, int& outH)
 /// settings.
 DEKI_EDITOR_API TextureSettings ReadImageTextureSettings(const std::string& imagePath);
 
-/// Whether `platformId` draws with a GPU, so a texture's filter means
-/// something there: a platform that provides "opengl", or "" (the editor's
-/// own desktop).
+/// The capabilities with which the project's packages draw textures filtered
+/// (CMakeGen::TextureFilteringCapabilities of its packages). The editor sets
+/// them when it opens a project; none are set before.
+DEKI_EDITOR_API void SetTextureFilteringCapabilities(std::set<std::string> capabilities);
+
+/// Whether `platformId` draws textures filtered, so a texture's filter means
+/// something there: a platform that provides a capability some package
+/// filters with (deki-rendering's "opengl"), or "" (the editor's own desktop).
 DEKI_EDITOR_API bool TargetSamplesTextures(const std::string& platformId);
 
 /// The filter an image is drawn with on `platformId`: FilterFor's, or Point

@@ -8,6 +8,7 @@
 #include "core/SceneInstanceRefs.h"
 #include <algorithm>
 #include <deki-editor/build/ProjectPaths.h>
+#include <deki-editor/TextureSettings.h>
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/SceneTargetFilter.h>
 #include <functional>
@@ -440,6 +441,9 @@ bool EditorApp::OpenProject(const std::string& path)
         m_ProjectTransformWidth =
             static_cast<int>(CMakeGen::ResolveTransformWidth(declared, ids, CMakeGen::ReadProjectTags(path), &why));
         DEKI_LOG_EDITOR("Project transform: %s", why.c_str());
+        // Which platforms draw textures filtered is the packages' to say, so
+        // it is read with them.
+        SetTextureFilteringCapabilities(CMakeGen::TextureFilteringCapabilities(declared));
     }
 
     // A project is open, so runtime/ is authoritative about what a package is -

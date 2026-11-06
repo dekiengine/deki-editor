@@ -90,6 +90,19 @@ struct DEKI_EDITOR_API PackageEntry
     // unused is not enough, since package stripping is off by default and the
     // components may be used by another target.
     std::vector<std::string> platformRequires;
+
+    // package.json "capabilityDefines": capabilities this package's code
+    // tests at compile time. A build for a platform that provides one defines
+    // DEKI_CAPABILITY_<NAME> (CapabilityDefinesFor). deki-rendering and
+    // deki-3d name "opengl" for their GPU code, so the editor names no
+    // rendering backend itself.
+    std::vector<std::string> capabilityDefines;
+
+    // package.json "filtersTexturesWith": capabilities with which this
+    // package draws textures filtered (bilinear) rather than point-sampled,
+    // so an image's Filter setting means something on a platform that
+    // provides one (TextureFilteringCapabilities, TargetSamplesTextures).
+    std::vector<std::string> filtersTexturesWith;
 };
 
 /// What `pkg` needs that `platformCapabilities` does not offer. Empty means it
@@ -104,6 +117,19 @@ DEKI_EDITOR_API bool PackageSupportsPlatform(const PackageEntry& pkg,
 
 /// Reads every package manifest in the project's packages/ directory.
 DEKI_EDITOR_API std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath);
+
+/// The capability defines a build for a platform offering `platformCapabilities`
+/// compiles with: DEKI_CAPABILITY_<NAME> for each capability a package names
+/// in its capabilityDefines that the platform offers, once each, sorted. NAME
+/// is the capability upper-cased with any other character as '_' ("opengl" is
+/// DEKI_CAPABILITY_OPENGL). Empty for a board none of them names, so its build
+/// is exactly what it was.
+DEKI_EDITOR_API std::vector<std::string> CapabilityDefinesFor(const std::set<std::string>& platformCapabilities,
+                                                              const std::vector<PackageEntry>& packages);
+
+/// Every capability some package filters textures with (its
+/// filtersTexturesWith).
+DEKI_EDITOR_API std::set<std::string> TextureFilteringCapabilities(const std::vector<PackageEntry>& packages);
 
 /// Whether a feature is compiled into a build with these defines: always when
 /// no feature plan is in force (the editor's own build), else when its define is.

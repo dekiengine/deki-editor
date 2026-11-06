@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <nlohmann/json.hpp>
 
@@ -102,6 +103,33 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                                          info.id.empty() ? info.dirName.c_str() : info.id.c_str(), need.c_str());
                     }
                     info.platformRequires.push_back(std::move(need));
+                }
+            }
+            // Capability names, checked as platformRequires is.
+            for (const auto& [key, into] : { std::pair<const char*, std::vector<std::string>*>{
+                                                 "capabilityDefines", &info.capabilityDefines },
+                                             std::pair<const char*, std::vector<std::string>*>{
+                                                 "filtersTexturesWith", &info.filtersTexturesWith } })
+            {
+                if (!j.contains(key) || !j[key].is_array())
+                {
+                    continue;
+                }
+                for (const auto& p : j[key])
+                {
+                    if (!p.is_string())
+                    {
+                        continue;
+                    }
+                    const std::string name = CurrentCapabilityName(p.get<std::string>());
+                    if (!IsValidCapabilityName(name))
+                    {
+                        DEKI_LOG_WARNING("Package '%s': %s '%s' is not a valid capability name (lowercase "
+                                         "letters, digits and . - : _ only), so no platform can provide it",
+                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(), key,
+                                         name.c_str());
+                    }
+                    into->push_back(name);
                 }
             }
             if (j.contains("features") && j["features"].is_array())
@@ -323,6 +351,39 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 e.what());
         }
     }
+}
+
+std::vector<std::string> CapabilityDefinesFor(const std::set<std::string>& platformCapabilities,
+                                              const std::vector<PackageEntry>& packages)
+{
+    std::set<std::string> defines;
+    for (const auto& pkg : packages)
+    {
+        for (const auto& capability : pkg.capabilityDefines)
+        {
+            if (platformCapabilities.count(capability) == 0)
+            {
+                continue;
+            }
+            std::string define = "DEKI_CAPABILITY_";
+            for (unsigned char ch : capability)
+            {
+                define += std::isalnum(ch) ? static_cast<char>(std::toupper(ch)) : '_';
+            }
+            defines.insert(define);
+        }
+    }
+    return { defines.begin(), defines.end() };
+}
+
+std::set<std::string> TextureFilteringCapabilities(const std::vector<PackageEntry>& packages)
+{
+    std::set<std::string> capabilities;
+    for (const auto& pkg : packages)
+    {
+        capabilities.insert(pkg.filtersTexturesWith.begin(), pkg.filtersTexturesWith.end());
+    }
+    return capabilities;
 }
 
 std::vector<PackageEntry> ScanPackageManifests(const std::string& projectPath)

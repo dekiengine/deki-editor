@@ -28,6 +28,8 @@ JSON 描述编辑器需要知道的内容，而不涉及如何构建：
 | `bootScene` | 引导场景的路径，相对于项目。 |
 | `assetStorage` | 构建将游戏资源保存在哪里：`internal`（默认）或 `external`。见下文。 |
 
+能力（capability）的含义由包决定，而不是由编辑器决定。在编译时检查某项能力的包，会在其 `package.json` 的 `capabilityDefines` 中写明该能力；为提供该能力的平台进行构建时，会定义 `DEKI_CAPABILITY_<NAME>`（`opengl` 即 `DEKI_CAPABILITY_OPENGL`，由 deki-rendering、deki-3d 和 deki-sdl3-integration 指定）。以过滤方式绘制纹理的包，会在 `filtersTexturesWith` 中写明它为此使用的能力；图像的 Filter 设置在提供该能力的平台上生效，在其他平台上以 Point 绘制。
+
 **引导场景**包含一个 `Deki::PlatformSetupComponent`，其 `setupComponents` 列表按顺序列出启动硬件的配置步骤：电源引脚、显示屏、I2C 总线、触摸。每个条目为 `{id, typeId}`：持有该步骤的子对象的 id，以及该步骤限定类名的哈希值（`Deki::HashString`）。`typeId` 错误不会导致失败；该步骤只是悄无声息地永远不会运行。编辑器测试中的 `ShippedPlatformTemplates` 会检查各个包附带的每个引导场景。
 
 ## 资源放在哪里 {#where-the-assets-go}

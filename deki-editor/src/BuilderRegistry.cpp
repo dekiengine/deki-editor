@@ -178,7 +178,12 @@ ITargetBuilder* BuilderRegistry::GetBuilderForPlatform(const PlatformConfig& con
 
 std::string BuilderRegistry::DescribeMissingBuilder(const PlatformConfig& config) const
 {
-    return DescribeNoBuilder(GetAllBuilders(), config.framework);
+    return DescribeNoBuilder(GetAllBuilders(), config.framework, m_PackageBuildErrors);
+}
+
+void BuilderRegistry::SetPackageBuildErrors(std::vector<std::string> errors)
+{
+    m_PackageBuildErrors = std::move(errors);
 }
 
 std::vector<ITargetBuilder*> BuilderRegistry::GetAllBuilders() const

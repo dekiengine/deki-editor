@@ -111,4 +111,32 @@ BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& o
     return summary;
 }
 
+std::vector<std::string> BuildErrorLines(const std::string& output, size_t maxLines)
+{
+    std::vector<std::string> errors;
+    std::vector<std::string> first;
+    std::istringstream stream(output);
+    std::string line;
+    while (std::getline(stream, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.pop_back();
+        }
+        if (line.empty())
+        {
+            continue;
+        }
+        if (ClassifyBuildLine(line) == BuildLineKind::Error && errors.size() < maxLines)
+        {
+            errors.push_back(line);
+        }
+        else if (first.size() < maxLines)
+        {
+            first.push_back(line);
+        }
+    }
+    return errors.empty() ? first : errors;
+}
+
 }  // namespace DekiEditor

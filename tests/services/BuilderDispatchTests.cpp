@@ -120,3 +120,19 @@ TEST(BuilderDispatch, TheErrorSaysSoWhenNothingIsRegisteredAtAll)
     const std::string msg = DescribeNoBuilder({}, "espidf");
     EXPECT_NE(msg.find("No build backends are registered"), std::string::npos);
 }
+
+// Every backend is a package's, so when none is there because the packages
+// did not build (say CMake could not be found), the error says that and what
+// the build failed on, not just that nothing is registered.
+TEST(BuilderDispatch, TheErrorSaysThePackagesDidNotBuildAndOnWhat)
+{
+    const std::string msg =
+        DescribeNoBuilder({}, "native", { "Configuring project...: 'cmake' is not recognized as a command" });
+    EXPECT_NE(msg.find("No build backends are registered"), std::string::npos);
+    EXPECT_NE(msg.find("the last build of them failed"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("'cmake' is not recognized"), std::string::npos) << msg;
+
+    const std::string installed = DescribeNoBuilder({}, "native");
+    EXPECT_EQ(installed.find("failed"), std::string::npos);
+    EXPECT_NE(installed.find("install the one that builds for 'native'"), std::string::npos) << installed;
+}

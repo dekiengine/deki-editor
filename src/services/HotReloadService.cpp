@@ -6,6 +6,7 @@
 #include "EngineEditorSetup.h"
 #include "hot_reload/SourceChangeDetector.h"
 #include "hot_reload/BuildOutputParser.h"
+#include <deki-editor/build/BuilderRegistry.h>
 #include "hot_reload/CMakeCacheRepair.h"
 #include "hot_reload/PluginPromotion.h"
 #include <deki-editor/CMakeCacheReader.h>
@@ -1858,6 +1859,7 @@ void HotReloadService::FinishBuild()
     if (!b.cancelled)
     {
         m_HasBuildErrors = !ok;  // Plugin/Packages refine this below
+        m_LastBuildErrors.clear();
     }
 
     if (!ok && !b.cancelled)
@@ -1875,9 +1877,31 @@ void HotReloadService::FinishBuild()
             DEKI_LOG_ERROR("HotReload: step '%s' failed (exit %d):\n%s", step.phase.c_str(), step.exitCode,
                            tail.c_str());
         }
+        for (const ActiveBuild::Step& step : b.steps)
+        {
+            if (step.exitCode == 0)
+            {
+                continue;
+            }
+            const std::string who = step.target.empty() ? step.phase : step.target;
+            const std::vector<std::string> lines = BuildErrorLines(step.output, 20);
+            if (lines.empty())
+            {
+                m_LastBuildErrors.push_back(who + ": failed (exit " + std::to_string(step.exitCode) +
+                                            ") with no output");
+            }
+            for (const std::string& line : lines)
+            {
+                m_LastBuildErrors.push_back(who + ": " + line);
+            }
+        }
     }
 
     SetBuildPhase("");
+    if (!b.cancelled)
+    {
+        BuilderRegistry::Instance().SetPackageBuildErrors(m_LastBuildErrors);
+    }
 
     if (b.cancelled)
     {

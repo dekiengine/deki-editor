@@ -29,6 +29,20 @@ TextureSettings ReadImageTextureSettings(const std::string& imagePath)
     return {};
 }
 
+namespace
+{
+std::set<std::string>& FilteringCapabilities()
+{
+    static std::set<std::string> capabilities;
+    return capabilities;
+}
+}  // namespace
+
+void SetTextureFilteringCapabilities(std::set<std::string> capabilities)
+{
+    FilteringCapabilities() = std::move(capabilities);
+}
+
 bool TargetSamplesTextures(const std::string& platformId)
 {
     if (platformId.empty())
@@ -36,7 +50,19 @@ bool TargetSamplesTextures(const std::string& platformId)
         return true;
     }
     const PlatformConfig* platform = PlatformRegistry::Instance().GetPlatform(platformId);
-    return platform && platform->Capabilities().count("opengl") != 0;
+    if (!platform)
+    {
+        return false;
+    }
+    const std::set<std::string> offered = platform->Capabilities();
+    for (const std::string& capability : FilteringCapabilities())
+    {
+        if (offered.count(capability) != 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 Deki::TextureFilter ResolveTextureFilter(const TextureSettings& settings, const std::string& platformId)
