@@ -125,8 +125,16 @@ jobs:
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -DDEKI_PACKAGES_DIR="$ROOT/packages"
 
+      # Absent for a package with no tests of its own (deki-desktop-integration,
+      # whose file system and main() moved into the engine with their tests).
       - name: Tests
-        run: cmake --build "$ROOT/deki-editor/build" --target "run-pkgtests-$PACKAGE"
+        run: |
+          target="run-pkgtests-$PACKAGE"
+          if ninja -C "$ROOT/deki-editor/build" -t targets all | grep -q "^$target:"; then
+            cmake --build "$ROOT/deki-editor/build" --target "$target"
+          else
+            echo "No tests for $PACKAGE"
+          fi
 
       # The package's own sources against the engine, as a project would
       # compile them. Absent for a package that needs a library CI does not
