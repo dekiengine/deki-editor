@@ -7,6 +7,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Fixed
+- **Inspector names after a run of capitals read as words**: `draw2DOnGpu` is
+  "Draw 2D On GPU" (it was "Draw 2DOn Gpu"), `presentThroughOpenGL` "Present
+  Through OpenGL", `HTTPServer` "HTTP Server". A single capital before a word
+  stays with it, as a unit's does ("Bandwidth KHz"). GPU and CPU are written
+  in capitals. A translation table keyed by an old name needs the new one;
+  `tools/ci/check_translations.py` lists any.
 - **Wrapped text broke words anywhere** ("Sce nes") in every dialog and
   package window: deki-editor.dll's own copy of ImGui never filled in its
   table of which characters are spaces, since only the editor's copy builds a

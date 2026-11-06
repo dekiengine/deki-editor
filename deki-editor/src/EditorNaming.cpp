@@ -30,12 +30,14 @@ const std::unordered_map<std::string, const char*>& AcronymWords()
         { "Gps", "GPS" },     { "Ble", "BLE" },     { "Imu", "IMU" },   { "Rtc", "RTC" },   { "Lcd", "LCD" },
         { "Http", "HTTP" },   { "Url", "URL" },     { "Usb", "USB" },   { "Sd", "SD" },     { "Fps", "FPS" },
         { "Ui", "UI" },       { "Fsm", "FSM" },     { "Ttf", "TTF" },   { "Bdf", "BDF" },   { "Pwm", "PWM" },
+        { "Gpu", "GPU" },     { "Cpu", "CPU" },
     };
     return kWords;
 }
 
 // Two words of the split that are one: "I 2c" (i2cPort), "Lo Ra" (loRa),
-// "Ki B" (chunkCacheKiB); and a pin family and its number, "Dio 1" -> "DIO1".
+// "Ki B" (chunkCacheKiB), "Open GL" (presentThroughOpenGL); and a pin family
+// and its number, "Dio 1" -> "DIO1".
 std::string JoinAcronyms(const std::string& split)
 {
     std::vector<std::string> words;
@@ -57,7 +59,7 @@ std::string JoinAcronyms(const std::string& split)
         std::string word = words[i];
         const std::string next = i + 1 < words.size() ? words[i + 1] : std::string();
         if ((word == "I" && (next == "2c" || next == "2s")) || (word == "Lo" && next == "Ra") ||
-            ((word == "Ki" || word == "Mi") && next == "B"))
+            ((word == "Ki" || word == "Mi") && next == "B") || (word == "Open" && next == "GL"))
         {
             word = word == "I" ? "I2" + std::string(1, static_cast<char>(std::toupper(next[1]))) : word + next;
             ++i;
@@ -115,9 +117,14 @@ std::string NicifyName(const char* name)
 
         // A space before an uppercase letter that follows a lowercase one, or
         // that starts a word after a digit ("stop1Position" -> "Stop 1
-        // Position", but "texture2D" -> "Texture 2D").
+        // Position", but "texture2D" -> "Texture 2D"), or after a run of two
+        // or more capitals and digits ("draw2DOnGpu" -> "Draw 2D On GPU",
+        // "HTTPServer" -> "HTTP Server"; one capital is a unit's, as in
+        // "bandwidthKHz" -> "Bandwidth KHz").
+        const bool afterRun = i > 1 && std::isupper(name[i - 1]) &&
+                              (std::isupper(name[i - 2]) || std::isdigit(name[i - 2]));
         if (std::isupper(c) && i > 0 &&
-            (std::islower(name[i - 1]) || (std::isdigit(name[i - 1]) && std::islower(name[i + 1]))))
+            (std::islower(name[i - 1]) || ((std::isdigit(name[i - 1]) || afterRun) && std::islower(name[i + 1]))))
         {
             result += ' ';
         }

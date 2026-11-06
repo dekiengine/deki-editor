@@ -12,6 +12,12 @@ TEST(EditorNaming, PropertyNames)
     EXPECT_EQ(NicifyName("stop1Position"), "Stop 1 Position");
     EXPECT_EQ(NicifyName("d0Pin"), "D 0 Pin");
     EXPECT_EQ(NicifyName("texture2D"), "Texture 2D");
+    // A capital that starts a word after a run of them ends the run.
+    EXPECT_EQ(NicifyName("draw2DOnGpu"), "Draw 2D On GPU");
+    EXPECT_EQ(NicifyName("HTTPServer"), "HTTP Server");
+    EXPECT_EQ(NicifyName("colorRGBA"), "Color RGBA");
+    // One capital before a word is a unit's, not a run.
+    EXPECT_EQ(NicifyName("bandwidthKHz"), "Bandwidth KHz");
 }
 
 // Acronyms, pins and units read as people write them, not as the camelCase
@@ -27,6 +33,8 @@ TEST(EditorNaming, Acronyms)
     EXPECT_EQ(NicifyName("txPowerDbm"), "TX Power dBm");
     EXPECT_EQ(NicifyName("usePsram"), "Use PSRAM");
     EXPECT_EQ(NicifyName("ui"), "UI");
+    EXPECT_EQ(NicifyName("composeOnGpu"), "Compose On GPU");
+    EXPECT_EQ(NicifyName("presentThroughOpenGL"), "Present Through OpenGL");
     // Words that only start like an acronym stay as they are.
     EXPECT_EQ(NicifyName("teleport"), "Teleport");
     EXPECT_EQ(NicifyName("d0Pin"), "D 0 Pin");
