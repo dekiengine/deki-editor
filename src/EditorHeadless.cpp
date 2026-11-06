@@ -23,6 +23,7 @@
 #include <deki-editor/build/ProjectPaths.h>
 #include "services/PackageManager.h"
 #include "services/ProjectUpgrade.h"
+#include "services/ProjectLock.h"
 #include "services/sources/DekiRegistrySource.h"
 #include "services/PackageRestore.h"
 #include "services/HotReloadService.h"
@@ -2403,6 +2404,39 @@ bool TryRunInNewEditor(const CliOptions& cli, int& outRc)
     {
         return false;
     }
+    // An editor that is still opening this project, or closing it, holds its
+    // lock but serves no tools yet, or any more. Starting another here would
+    // put two editors on one project; wait for that one instead: its tools
+    // once it has the project open, or the lock once it has closed.
+    {
+        using Clock = std::chrono::steady_clock;
+        const auto begin = Clock::now();
+        bool said = false;
+        ProjectLock probe;
+        std::string busy;
+        while (!probe.Acquire(cli.projectPath, busy))
+        {
+            if (TryRunInLiveEditor(cli, outRc))
+            {
+                return true;
+            }
+            if (Clock::now() - begin >= std::chrono::seconds(600))
+            {
+                fprintf(stderr, "Error: %s It was still not ready after 600 seconds.\n", busy.c_str());
+                outRc = 1;
+                return true;
+            }
+            if (!said)
+            {
+                fprintf(stderr, "Another editor is opening or closing this project; waiting for it rather than "
+                                "starting a second one.\n");
+                said = true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        probe.Release();
+    }
+
     // A project made with an older Deki opens only once agreed to: said here,
     // before an editor is started that would sit on its Upgrade dialog.
     const ProjectUpgrade upgrade = PlanProjectUpgrade(cli.projectPath);

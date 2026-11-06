@@ -6,6 +6,25 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Fixed
+- **Wrapped text broke words anywhere** ("Sce nes") in every dialog and
+  package window: deki-editor.dll's own copy of ImGui never filled in its
+  table of which characters are spaces, since only the editor's copy builds a
+  font atlas, so every character counted as one. `Deki::SetImGuiContext` fills
+  it in (`ImTextInitClassifiers`).
+- **A `--tool` run no longer starts a second editor** on a project whose
+  editor is still opening it, or closing it: it waits for that editor, then
+  runs in it, or starts one once the project is free.
+- **`rebuild`'s errors name what failed**: the package, the project code or
+  the engine, from the file the error is in, rather than the step's progress
+  text ("Compiling...:").
+- **The `main()` check counts only a `main()` the build compiles**: one that
+  compiles only with `SIMULATOR` defined (an older package the upgrade did not
+  touch) does not stop the build; one under `#else` of that test still does.
+- **The `desktop-os` warning names the file** that says it, and for a
+  package's own platform file says the package's update renames it, instead
+  of always pointing at the project's `platforms/<id>/<id>.json`.
+
 ### A project made before this release
 - **It opens only once someone agrees to upgrade it.** Before opening, the
   editor works out what it needs, changing nothing (`ProjectUpgrade`): the

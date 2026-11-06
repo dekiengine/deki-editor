@@ -1,4 +1,5 @@
 #include "imgui.h"
+#include "imgui_internal.h"  // ImTextInitClassifiers
 
 #ifdef _WIN32
 #ifdef DEKI_EDITOR_EXPORTS
@@ -18,6 +19,15 @@ namespace Deki
 DEKI_EDITOR_API void SetImGuiContext(void* context)
 {
     ImGui::SetCurrentContext(static_cast<ImGuiContext*>(context));
+    // This DLL's ImGui copy also has its own table of which characters are
+    // spaces and punctuation, which ImGui fills in only when it builds a font
+    // atlas, and the editor builds the atlas in its own copy. Left empty, every
+    // character counts as a space, and word-wrapped text (EditorUI's
+    // TextWrapped, so every dialog and package window) breaks mid-word.
+    if (context != nullptr)
+    {
+        ImTextInitClassifiers();
+    }
 }
 
 // This DLL's own ImGui copy has its own allocator globals; point them at the

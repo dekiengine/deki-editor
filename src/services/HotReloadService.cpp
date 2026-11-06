@@ -1883,15 +1883,31 @@ void HotReloadService::FinishBuild()
             {
                 continue;
             }
-            const std::string who = step.target.empty() ? step.phase : step.target;
+            // Each line is led by what failed, not the step's progress text
+            // ("Compiling..."): a package's own step by the package, and in a
+            // step that builds several, the package or the project code the
+            // error's file is in (BuildErrorSource).
             const std::vector<std::string> lines = BuildErrorLines(step.output, 20);
             if (lines.empty())
             {
+                const std::string who =
+                    !step.target.empty() ? step.target : step.isConfigure ? "CMake configure" : "build";
                 m_LastBuildErrors.push_back(who + ": failed (exit " + std::to_string(step.exitCode) +
                                             ") with no output");
             }
+            // A line that names no file (the compiler quoting the source line
+            // under its error) belongs with the line before it.
+            std::string previous;
             for (const std::string& line : lines)
             {
+                std::string who = !step.target.empty() ? step.target
+                                  : step.isConfigure   ? "CMake configure"
+                                                       : BuildErrorSource(line);
+                if (who == "build" && !previous.empty())
+                {
+                    who = previous;
+                }
+                previous = who;
                 m_LastBuildErrors.push_back(who + ": " + line);
             }
         }

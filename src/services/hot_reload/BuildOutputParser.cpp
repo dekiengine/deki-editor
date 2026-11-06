@@ -111,6 +111,37 @@ BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& o
     return summary;
 }
 
+std::string BuildErrorSource(const std::string& line)
+{
+    std::string path = line;
+    for (char& ch : path)
+    {
+        if (ch == '\\')
+        {
+            ch = '/';
+        }
+    }
+    const size_t packages = path.find("/packages/");
+    if (packages != std::string::npos)
+    {
+        const size_t start = packages + 10;
+        const size_t end = path.find('/', start);
+        if (end != std::string::npos && end > start)
+        {
+            return "package " + path.substr(start, end - start);
+        }
+    }
+    if (path.find("/deki-engine/") != std::string::npos)
+    {
+        return "engine";
+    }
+    if (path.find("/src/") != std::string::npos)
+    {
+        return "project code";
+    }
+    return "build";
+}
+
 std::vector<std::string> BuildErrorLines(const std::string& output, size_t maxLines)
 {
     std::vector<std::string> errors;

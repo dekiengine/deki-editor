@@ -493,6 +493,86 @@ bool DefinesMain(const std::string& line)
     }
     return word("int") && word("main") && at != std::string::npos && line[at] == '(';
 }
+
+// A conditional preprocessor line, as far as the main() check needs it:
+// whether it opens a block (#if, #ifdef, #ifndef), switches one (#elif,
+// #else) or closes it (#endif), and whether its block compiles only with
+// SIMULATOR defined, which a build from this release never defines.
+enum class Directive
+{
+    None,
+    Open,
+    Else,
+    Elif,
+    Close
+};
+
+Directive ReadDirective(const std::string& line, bool& onlyWithSimulator)
+{
+    onlyWithSimulator = false;
+    size_t at = line.find_first_not_of(" \t");
+    if (at == std::string::npos || line[at] != '#')
+    {
+        return Directive::None;
+    }
+    at = line.find_first_not_of(" \t", at + 1);
+    if (at == std::string::npos)
+    {
+        return Directive::None;
+    }
+    size_t end = at;
+    while (end < line.size() && std::isalpha(static_cast<unsigned char>(line[end])))
+    {
+        ++end;
+    }
+    const std::string name = line.substr(at, end - at);
+    std::string expression = line.substr(end);
+    const size_t comment = expression.find("//");
+    if (comment != std::string::npos)
+    {
+        expression.erase(comment);
+    }
+    std::string squeezed;
+    for (char c : expression)
+    {
+        if (c != ' ' && c != '\t' && c != '\r')
+        {
+            squeezed += c;
+        }
+    }
+    if (name == "ifdef")
+    {
+        onlyWithSimulator = squeezed == "SIMULATOR";
+        return Directive::Open;
+    }
+    if (name == "if")
+    {
+        // defined(SIMULATOR) on its own or joined by && only: false whenever
+        // SIMULATOR is not defined. Anything with || or a negation is left
+        // as possibly compiled.
+        const bool tests = squeezed.find("defined(SIMULATOR)") != std::string::npos ||
+                           squeezed.find("definedSIMULATOR") != std::string::npos || squeezed == "SIMULATOR";
+        onlyWithSimulator = tests && squeezed.find("||") == std::string::npos && squeezed.find('!') == std::string::npos;
+        return Directive::Open;
+    }
+    if (name == "ifndef")
+    {
+        return Directive::Open;
+    }
+    if (name == "elif" || name == "elifdef" || name == "elifndef")
+    {
+        return Directive::Elif;
+    }
+    if (name == "else")
+    {
+        return Directive::Else;
+    }
+    if (name == "endif")
+    {
+        return Directive::Close;
+    }
+    return Directive::None;
+}
 }  // namespace
 
 std::vector<std::string> SourcesDefiningMain(const fs::path& packageDir)
@@ -505,10 +585,45 @@ std::vector<std::string> SourcesDefiningMain(const fs::path& packageDir)
         {
             continue;
         }
+        // Each open conditional block, and whether it compiles only with
+        // SIMULATOR defined: a main() in one is left out of a build from this
+        // release, which defines DEKI_HOSTED instead, so it does not count.
+        struct Block
+        {
+            bool onlySimulator;  // the block's test is SIMULATOR alone
+            bool skipped;        // this part of it compiles only with SIMULATOR
+        };
+        std::vector<Block> blocks;
         std::istringstream lines(text);
         for (std::string line; std::getline(lines, line);)
         {
-            if (DefinesMain(line))
+            bool onlySimulator = false;
+            switch (ReadDirective(line, onlySimulator))
+            {
+                case Directive::Open: blocks.push_back({ onlySimulator, onlySimulator }); continue;
+                case Directive::Else:
+                    if (!blocks.empty())
+                    {
+                        blocks.back().skipped = false;  // the #else of a SIMULATOR test compiles
+                    }
+                    continue;
+                case Directive::Elif:
+                    if (!blocks.empty())
+                    {
+                        blocks.back().skipped = false;
+                    }
+                    continue;
+                case Directive::Close:
+                    if (!blocks.empty())
+                    {
+                        blocks.pop_back();
+                    }
+                    continue;
+                case Directive::None: break;
+            }
+            const bool compiled =
+                std::none_of(blocks.begin(), blocks.end(), [](const Block& b) { return b.skipped; });
+            if (compiled && DefinesMain(line))
             {
                 std::error_code ec;
                 files.push_back(fs::relative(file, packageDir, ec).generic_string());

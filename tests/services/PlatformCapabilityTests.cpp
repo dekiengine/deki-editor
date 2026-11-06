@@ -232,11 +232,18 @@ TEST(PlatformCapability, APackageThatDefinesMainIsFound)
     namespace fs = std::filesystem;
     const fs::path dir = fs::temp_directory_path() / "deki-package-main";
     fs::remove_all(dir);
-    WriteFile(dir / "DesktopHALPackage.cpp", "#if defined(SIMULATOR)\nint main(int argc, char* argv[])\n{\n}\n#endif\n");
+    // Renamed by the upgrade, so compiled where the build defines DEKI_HOSTED.
+    WriteFile(dir / "DesktopHALPackage.cpp", "#if defined(DEKI_HOSTED)\nint main(int argc, char* argv[])\n{\n}\n#endif\n");
     WriteFile(dir / "Other.cpp", "// int main( is only mentioned here\nint mainLoop();\n");
     WriteFile(dir / "C.cpp", "extern \"C\" int main (void) { return 0; }\n");
     WriteFile(dir / "editor" / "EditorMain.cpp", "int main() {}\n");
+    // Only with SIMULATOR, which a build from this release never defines: a
+    // package the upgrade did not touch, so its main() is left out.
+    WriteFile(dir / "OldGuard.cpp", "#if defined(SIMULATOR)\nint main() {}\n#endif\n");
+    WriteFile(dir / "OldIfdef.cpp", "#ifdef SIMULATOR // the old one\n#if 1\n#endif\nint main() {}\n#endif\n");
+    // ...but its #else is compiled.
+    WriteFile(dir / "OldElse.cpp", "#ifdef SIMULATOR\n#else\nint main() {}\n#endif\n");
     const std::vector<std::string> mains = SourcesDefiningMain(dir);
     fs::remove_all(dir);
-    EXPECT_EQ(mains, (std::vector<std::string>{ "C.cpp", "DesktopHALPackage.cpp" }));
+    EXPECT_EQ(mains, (std::vector<std::string>{ "C.cpp", "DesktopHALPackage.cpp", "OldElse.cpp" }));
 }

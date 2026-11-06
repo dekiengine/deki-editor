@@ -49,4 +49,10 @@ BuildOutputSummary ReportBuildOutput(ConsolePanel& console, const std::string& o
 // the only explanation.
 std::vector<std::string> BuildErrorLines(const std::string& output, size_t maxLines);
 
+// What an error line is about, from the file it names: "package <name>" for a
+// file under packages/<name>/, "project code" for one under src/, the
+// engine's for one under the engine, and "build" when it names no such file
+// (a linker or a command's own message).
+std::string BuildErrorSource(const std::string& line);
+
 }  // namespace DekiEditor

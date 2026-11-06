@@ -5,6 +5,7 @@
 #include <deki-editor/SafeNames.h>
 #include <deki-editor/FileIO.h>
 #include <filesystem>
+#include <iterator>
 #include <fstream>
 #include <algorithm>
 #include <cmath>
@@ -223,7 +224,9 @@ std::string CurrentCapabilityName(const std::string& name)
     return name;
 }
 
-static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
+// `sourceFile`: the file it was read from, for its warnings to name; empty
+// when it came as text.
+static bool LoadPlatformFromJson(const json& j, PlatformConfig& config, const fs::path& sourceFile = {})
 {
     config.id = j.value("id", "");
     if (config.id.empty())
@@ -321,11 +324,25 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
                 const std::string current = CurrentCapabilityName(name);
                 if (current != name)
                 {
-                    DEKI_LOG_WARNING("Platform '%s': capability '%s' is called '%s' now, and is read "
-                                     "as that. Rename it in the platform's provides "
-                                     "(platforms/%s/%s.json); the old name is read for one release",
-                                     config.id.c_str(), name.c_str(), current.c_str(), config.id.c_str(),
-                                     config.id.c_str());
+                    // A package's own file is renamed by the package's update,
+                    // not by hand; the project's own one by upgrading it.
+                    std::string where = "the platform's file";
+                    if (!sourceFile.empty())
+                    {
+                        where = sourceFile.generic_string();
+                        for (auto it = sourceFile.begin(); it != sourceFile.end(); ++it)
+                        {
+                            const auto next = std::next(it);
+                            if (it->string() == "packages" && next != sourceFile.end())
+                            {
+                                where += " (package " + next->string() + "'s: its update renames it)";
+                                break;
+                            }
+                        }
+                    }
+                    DEKI_LOG_WARNING("Platform '%s': capability '%s' is called '%s' now, and is read as that "
+                                     "for one release. Its provides says '%s' in %s",
+                                     config.id.c_str(), name.c_str(), current.c_str(), name.c_str(), where.c_str());
                     name = current;
                 }
                 // Capabilities are matched by exact string against what a
@@ -521,7 +538,7 @@ bool PlatformRegistry::LoadPlatformsFromDirectory(const std::string& path)
             file >> j;
 
             PlatformConfig config;
-            if (LoadPlatformFromJson(j, config))
+            if (LoadPlatformFromJson(j, config, jsonFile))
             {
                 RegisterPlatform(config);
                 loaded = true;
@@ -575,7 +592,7 @@ bool PlatformRegistry::LoadPlatformsFromBoardPacks()
                     file >> j;
 
                     PlatformConfig config;
-                    if (LoadPlatformFromJson(j, config) && !GetPlatform(config.id))
+                    if (LoadPlatformFromJson(j, config, platformFile.path()) && !GetPlatform(config.id))
                     {
                         RegisterPlatform(config);
                         loaded = true;
