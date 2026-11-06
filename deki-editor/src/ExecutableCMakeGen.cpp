@@ -289,7 +289,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // a fixed screen size and format whatever the platform says.
     //
     // DEKI_HOSTED marks a game an operating system starts as a program and
-    // gets control back from when it quits: the desktop simulator's and a
+    // gets control back from when it quits: the desktop build's and a
     // Linux handheld's alike, the platforms that provide "hosted". The
     // program's entry is the engine's (deki-engine-hosted, linked below), not
     // a package's. A board's firmware is the game, RTOS included, and is not
@@ -313,7 +313,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     if (options.engineLogsAlways)
     {
         // The engine defines DEKI_LOG_ENABLED only for editor builds. The
-        // desktop simulator is a debugging tool, so it gets engine-core logs too.
+        // desktop build is for debugging, so it gets engine-core logs too.
         file << "# Desktop simulator: enable engine-core logging (it's a debug build target)\n";
         file << "target_compile_definitions(deki-engine-core PUBLIC DEKI_LOG_ENABLED)\n";
         if (platformInternalLogs)

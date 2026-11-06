@@ -35,7 +35,7 @@ void PlatformEditorDialog::PopulateBuilderList()
     m_AvailableBuilders.clear();
 
     // Only what is registered, so a builder the editor was not compiled with
-    // still appears. Do not add hardcoded rows: the Desktop Simulator comes
+    // still appears. Do not add hardcoded rows: the Desktop platform comes
     // from NativeBuilder and would show twice.
     BuilderRegistry::Instance().EnsureLoaded();
     for (auto* builder : BuilderRegistry::Instance().GetAllBuilders())
@@ -626,7 +626,7 @@ void PlatformEditorDialog::DrawStorageSection()
 }
 
 // ============================================================================
-// Native editor: for platforms without a builder UI (Desktop Simulator, Custom)
+// Native editor: for platforms without a builder UI (Desktop, Custom)
 // ============================================================================
 
 void PlatformEditorDialog::DrawNativeEditor()

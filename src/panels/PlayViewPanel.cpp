@@ -111,7 +111,7 @@ void PlayViewPanel::Draw()
                                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | navFlags);
 
     // Forward keyboard state to the game while playing with the play view
-    // focused (InputKeys.h codes, as the desktop simulator's keyboard uses).
+    // focused (InputKeys.h codes, as the desktop build's keyboard uses).
     // Runs on every draw, even when stopped or unfocused, so releases always
     // reach the game and no key sticks down.
     {

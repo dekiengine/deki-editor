@@ -1,6 +1,6 @@
 # Platforms
 
-A **platform** is one thing a project builds for: a board, the desktop simulator, a console.
+A **platform** is one thing a project builds for: a board, the desktop, a console.
 This page says what a platform is made of, where platforms come from, how a package ships
 boards, and what happens to a board once a project is using it.
 
@@ -22,7 +22,7 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `framework` | Which build backend builds it (`espidf`, `native`, ...). No default: a platform that does not say has no backend, and the build says so. |
 | `frameworkOptions` | That backend's own settings: chip, flash size, sdkconfig lines, pins. The editor carries them and does not read them; the backend validates them when it builds. |
 | `family` | Descriptive only. Becomes the capability `family:<x>`. |
-| `screenWidth`, `screenHeight`, `colorFormat` | The screen this target has. The editor previews it, the desktop simulator opens a window of it, and images set to Automatic are stored in `colorFormat` for it. A device renders at its display's own size and format; see [screens.md](screens.md). |
+| `screenWidth`, `screenHeight`, `colorFormat` | The screen this target has. The editor previews it, the desktop build opens a window of it, and images set to Automatic are stored in `colorFormat` for it. A device renders at its display's own size and format; see [screens.md](screens.md). |
 | `screenDiagonalInches` | The screen's diagonal in inches, as the board's maker gives it (`2.8`, `1.91`). Optional; absent means unknown. A panel cannot report its own size, so the board says, and the build carries it to the device for layouts that fit a physically small screen; see [screens.md](screens.md#size-on-the-glass). |
 | `externalMemorySize` | Bytes of memory beyond the internal heap (PSRAM on a microcontroller). Grants packages `memory:external`. |
 | `provides` | What the target can offer a package: `wifi`, `spi`, `hosted`, ... `hosted`: an operating system starts the game as a program and gets control back when it quits (a desktop, the Miyoo Mini). A board whose firmware is the game, RTOS included, is not hosted. Its old name, `desktop-os`, is read for one release. |
@@ -48,7 +48,7 @@ A build keeps the game's assets in one of two places:
   next to the boot scene (`F:/assets/` at runtime). On an ESP32 that is the flash: the game's
   data is packed into one image that the board reads in place, so finding a file takes
   microseconds. It gets the rest of the chip but the user data (about 12 MB on a 16 MB board),
-  and the build fails if the game does not fit. The desktop simulator and Tactility apps keep
+  and the build fails if the game does not fit. The desktop build and Tactility apps keep
   the assets in the same place.
 - **External storage**: removable, an SD card. The build carries only the boot scene and
   `project_data.bin`; the **SD Card Deploy** panel copies the assets to the card, and the
@@ -67,7 +67,7 @@ A game writes its own files, such as saves, under `F:/` too (`F:/save.bin`). On 
 go to the user data partition at the end of the flash (1 MB on a 16 MB board, 512 KB on 8 MB,
 128 KB on 4 MB). Flashing a new build never touches it, so saves survive updates. The game's
 own data is never written: opening one of its files to write fails, and the log says why.
-In the desktop simulator they go to `userdata/` beside it, and in a Tactility app to `internal/`
+In the desktop build they go to `userdata/` beside it, and in a Tactility app to `internal/`
 in the app's user data, with the same rule.
 
 ## Simulating a board

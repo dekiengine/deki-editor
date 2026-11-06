@@ -1146,7 +1146,7 @@ std::string GeneratePackageInitFile(const fs::path& outputDir, const std::vector
         cpp << "    " << pkg.packagePrefix << "RegisterComponents();\n";
     }
 
-    // Static desktop simulator: the engine core defines an empty
+    // Static desktop build: the engine core defines an empty
     // DekiInitPackageSystems(), so this file must not define it again (link
     // error). Start the package systems here instead, after component
     // registration, in the same order as DekiInitPackageSystems() below.

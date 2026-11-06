@@ -89,7 +89,7 @@ private:
     // Builder-provided UI; draws all builder-specific fields
     std::unique_ptr<IPlatformEditorUI> m_EditorUI;
 
-    // Native fields, used when there is no builder (Desktop Simulator)
+    // Native fields, used when there is no builder (Desktop)
     int m_ScreenWidth = 320;
     int m_ScreenHeight = 240;
 

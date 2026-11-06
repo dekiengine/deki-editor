@@ -175,4 +175,4 @@ one. `DekiEditor --render-scenes` uses the platform's, and
 The framebuffer is the display's own size and format, read when the display
 starts. One build runs on screens of different sizes. A platform's
 `screenWidth`, `screenHeight` and `colorFormat` are what the editor previews
-and what the desktop simulator opens its window as.
+and what the desktop build opens its window as.
