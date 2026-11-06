@@ -702,6 +702,16 @@ deki_add_package_tests(deki-lilygo-boards TARGET DekiLilyGOBoardsTests NEEDS_EDI
                        DEFINES "DEKI_LILYGO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-lilygo-boards\""
                        LIBS nlohmann_json::nlohmann_json)
 
+# deki-miyoo-boards' builder off a Miyoo: the toolchain file and CMake it
+# writes for the shipped platform, the Onion app it packs, and installing it
+# on SD cards that are fake folders; and the display's row widening, whose
+# NEON path the same tests hold to the plain one when built for the device.
+# The rest of its runtime code only builds for ARM Linux.
+deki_add_package_tests(deki-miyoo-boards TARGET DekiMiyooBoardsTests NEEDS_EDITOR
+                       SOURCES editor/MiyooBuilder.cpp editor/MiyooToolchain.cpp editor/OnionApp.cpp MiyooRows.cpp
+                       DEFINES "DEKI_MIYOO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-miyoo-boards\""
+                       LIBS nlohmann_json::nlohmann_json)
+
 # The state machine interpreter. The action library is left out: its actions
 # reach into objects, scenes, deki-2d and deki-tween, which would make this a
 # project-shaped build. The tests register their own behaviour for two of the

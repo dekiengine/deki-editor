@@ -6,6 +6,27 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### One CMake project for every game built as an executable
+- `CMakeGen::GenerateExecutableCMakeLists` (ExecutableCMakeGen.h) writes the
+  CMake project for a game built as one program for an operating system: the
+  engine as a static library, the packages, the reflection codegen and the
+  package init file. It was NativeBuilder's, in deki-desktop-integration; it
+  is in the editor library now so another backend builds the same project
+  without a copy of it. What differs between them is an option: the
+  libraries a backend links (the desktop's SDL3), every installed package or
+  only the active ones, engine logs always on or as the build options say,
+  and whether the platform's flags are the build's only optimisation (Release
+  without CMake's `-O3`, the flags on the engine too). The desktop
+  simulator's file is the same as before.
+- It builds in the packages a platform's `requiresPackages` names, as the
+  ESP-IDF and Tactility builders do (`CMakeGen::AddRequiredPackageDefines`),
+  and fails, saying which package to install, when one is not installed.
+- It reads the platform it is given for the strip plan and the capabilities,
+  not the one the builder was last told about, so regenerating another
+  platform's build files from the Build panel uses that platform's.
+- Used by deki-miyoo-boards' new Miyoo builder; deki-desktop-integration
+  needs this release.
+
 ### Assets compile again once
 - `kDekiCacheVersion` 9: a model reduced for a board is compiled again (8
   held models whose Detail had collapsed texture seams, which deki-3d no

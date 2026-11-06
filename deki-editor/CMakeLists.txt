@@ -62,6 +62,7 @@ set(EDITOR_DLL_SOURCES
     src/VersionCompare.cpp
     src/BuilderDefinition.cpp
     src/CMakeGenUtils.cpp
+    src/ExecutableCMakeGen.cpp
     src/ProjectPaths.cpp
     src/CMakeCacheReader.cpp
     src/EditorSettings.cpp
