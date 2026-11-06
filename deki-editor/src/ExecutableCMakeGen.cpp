@@ -244,9 +244,9 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // platform. The engine's CMake must not hard-code it: it would build at
     // a fixed screen size and format whatever the platform says.
     //
-    // SIMULATOR is what deki-desktop-integration compiles its main() and its
-    // memory and file-system bring-up under: every build of this shape has it,
-    // the desktop simulator's and a handheld's alike.
+    // SIMULATOR marks a build of this shape, the desktop simulator's and a
+    // handheld's alike. The program's entry is the engine's
+    // (deki-engine-hosted, linked below), not a package's.
     file << "# The engine, told about this target (it no longer assumes one)\n";
     file << "target_compile_definitions(deki-engine-core PUBLIC\n";
     file << "    SIMULATOR\n";
@@ -543,7 +543,10 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
 
     // Link deki-engine-core, the libraries and the system libs packages
     // declare (such as winhttp).
-    file << "target_link_libraries(DekiGame PRIVATE deki-engine-core" << libraryTargets << " ${_ALL_SYSTEM_LIBS})\n\n";
+    // deki-engine-hosted: the engine's main() and the file system of a game
+    // run as a program.
+    file << "target_link_libraries(DekiGame PRIVATE deki-engine-hosted deki-engine-core" << libraryTargets
+         << " ${_ALL_SYSTEM_LIBS})\n\n";
 
     for (const auto& lib : options.libraries)
     {

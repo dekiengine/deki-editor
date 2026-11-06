@@ -455,11 +455,14 @@ void EmitEngineCoreSourceCollection(std::ostream& out, const std::vector<std::st
 {
     // CONFIGURE_DEPENDS on every glob here: an engine or package update that
     // adds a file would otherwise stay out of a build configured before it.
-    out << "# Engine core sources (excluding packages, generated, desktop, editor)\n";
+    // src/hosted/ is the entry of a game run as a program (main() and its
+    // file system): a board has its own.
+    out << "# Engine core sources (excluding packages, generated, editor, hosted)\n";
     out << "file(GLOB_RECURSE DEKI_ENGINE_SOURCES CONFIGURE_DEPENDS \"${DEKI_ENGINE_PATH}/src/*.cpp\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/packages/.*\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/generated/.*\")\n";
     out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/editor/.*\")\n";
+    out << "list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX \".*/src/hosted/.*\")\n";
 
     for (const auto& exclusion : extraExclusions)
     {

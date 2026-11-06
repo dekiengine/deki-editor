@@ -11,6 +11,7 @@
 #include <deki-editor/build/CMakeGenUtils.h>
 
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -108,4 +109,14 @@ TEST(PlatformCapability, DependencyEdgesAreFilteredToo)
 
     EXPECT_EQ(ResolveActivePackages(all, defines, kDesktop).count("deki-sdl3"), 1u);
     EXPECT_EQ(ResolveActivePackages(all, defines, kBoard).count("deki-sdl3"), 0u);
+}
+
+// A board compiles the engine from a glob of its sources. The entry of a game
+// run as a program (src/hosted/: main() and its file system) must stay out
+// of it: the board has its own entry, and a second main() would not link.
+TEST(PlatformCapability, ABoardsEngineSourcesLeaveOutTheHostedEntry)
+{
+    std::ostringstream out;
+    EmitEngineCoreSourceCollection(out);
+    EXPECT_NE(out.str().find(R"(list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX ".*/src/hosted/.*"))"), std::string::npos);
 }

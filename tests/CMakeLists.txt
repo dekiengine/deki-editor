@@ -38,6 +38,8 @@ set(TEST_SOURCES
     core/EditorRecoveryTests.cpp
     core/UnsavedChangesPromptTests.cpp
     core/UnitsTests.cpp
+    core/HostFileSystemTests.cpp
+    ${DEKI_ENGINE_PATH}/src/hosted/HostFileSystem.cpp  # not in the engine library: a hosted game's
     services/SourceChangeDetectorTests.cpp
     services/VersionCompareTests.cpp
     services/EditorLogFileTests.cpp
@@ -613,9 +615,8 @@ deki_add_package_tests(deki-http TARGET DekiHttpTests
                        SOURCES DekiHttp.cpp CurlHttpClient.cpp WinHttpClient.cpp
                        LIBS httplib::httplib $<$<PLATFORM_ID:Windows>:winhttp>)
 
-# The desktop file system's mounts and file calls, in a temporary directory.
-deki_add_package_tests(deki-desktop-integration TARGET DekiDesktopIntegrationTests
-                       SOURCES DesktopFileSystem.cpp)
+# deki-desktop-integration has no tests of its own: the file system it had is
+# the engine's HostFileSystem, tested in core/HostFileSystemTests.cpp.
 
 # The ESP-IDF builder's validation and generated files, which need the editor
 # library but not ESP-IDF, and F:/ read out of the game's file image.
