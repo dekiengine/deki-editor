@@ -22,7 +22,7 @@ JSON にはエディターが知る必要のあることが書かれており、
 | `family` | 説明用のみです。ケーパビリティ `family:<x>` になります。 |
 | `screenWidth`, `screenHeight`, `colorFormat` | このターゲットが持つ画面です。エディターはこれをプレビューし、デスクトップシミュレーターはこのサイズのウィンドウを開きます。自動に設定された画像は、このターゲット向けに `colorFormat` で保存されます。デバイスはディスプレイ自身のサイズとフォーマットで描画します。[screens.md](screens.md) を参照してください。 |
 | `externalMemorySize` | 内部ヒープ以外のメモリのバイト数 (マイクロコントローラーでは PSRAM)。パッケージに `memory:external` を与えます。 |
-| `provides` | ターゲットがパッケージに提供できるもの: `wifi`、`spi`、`desktop-os`、... |
+| `provides` | ターゲットがパッケージに提供できるもの: `wifi`、`spi`、`hosted`、... `hosted` は、OS がゲームをプログラムとして起動し、ゲームが終了すると制御が OS に戻ることを表します（デスクトップ、Miyoo Mini）。ゲームそのものがファームウェアであるボード（RTOS を含む）は hosted ではありません。旧名の `desktop-os` も 1 リリースの間は読み込まれます。 |
 | `requiresPackages` | シーンが何を使うかに関係なく、ターゲットが常に必要とするパッケージです。通常はそのハードウェア抽象化レイヤーです。 |
 | `defines`, `cFlags`, `cxxFlags`, `linkFlags` | ゲーム自体のコードのコンパイラー設定です。 |
 | `bootScene` | プロジェクトからの相対パスで示したブートシーンのパスです。 |

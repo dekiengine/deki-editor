@@ -22,7 +22,7 @@ JSON은 에디터가 알아야 할 것을 기술하며, 빌드 방법에 대해�
 | `family` | 설명용일 뿐입니다. 케이퍼빌리티 `family:<x>`가 됩니다. |
 | `screenWidth`, `screenHeight`, `colorFormat` | 이 타겟의 화면입니다. 에디터는 이를 미리 보여 주고, 데스크톱 시뮬레이터는 이 크기의 창을 열며, 자동으로 설정된 이미지는 이 타겟용으로 `colorFormat`으로 저장됩니다. 장치는 디스플레이 고유의 크기와 포맷으로 렌더링합니다. [screens.md](screens.md)를 참조하십시오. |
 | `externalMemorySize` | 내부 힙 외의 메모리 바이트 수(마이크로컨트롤러의 PSRAM). 패키지에 `memory:external`을 부여합니다. |
-| `provides` | 타겟이 패키지에 제공할 수 있는 것: `wifi`, `spi`, `desktop-os`, ... |
+| `provides` | 타겟이 패키지에 제공할 수 있는 것: `wifi`, `spi`, `hosted`, ... `hosted`는 운영체제가 게임을 프로그램으로 실행하고, 게임이 끝나면 제어권을 돌려받는다는 뜻입니다(데스크톱, Miyoo Mini). 게임 자체가 펌웨어인 보드(RTOS 포함)는 hosted가 아닙니다. 예전 이름인 `desktop-os`도 한 릴리스 동안은 읽힙니다. |
 | `requiresPackages` | 씬이 무엇을 사용하든 타겟이 항상 필요로 하는 패키지. 일반적으로 하드웨어 추상화 계층입니다. |
 | `defines`, `cFlags`, `cxxFlags`, `linkFlags` | 게임 자체 코드의 컴파일러 설정. |
 | `bootScene` | 프로젝트 기준 부트 씬의 경로. |

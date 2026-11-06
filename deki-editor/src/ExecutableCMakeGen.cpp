@@ -244,12 +244,15 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // platform. The engine's CMake must not hard-code it: it would build at
     // a fixed screen size and format whatever the platform says.
     //
-    // SIMULATOR marks a build of this shape, the desktop simulator's and a
-    // handheld's alike. The program's entry is the engine's
-    // (deki-engine-hosted, linked below), not a package's.
+    // DEKI_HOSTED marks a game an operating system starts as a program and
+    // gets control back from when it quits: the desktop simulator's and a
+    // Linux handheld's alike, the platforms that provide "hosted". The
+    // program's entry is the engine's (deki-engine-hosted, linked below), not
+    // a package's. A board's firmware is the game, RTOS included, and is not
+    // hosted.
     file << "# The engine, told about this target (it no longer assumes one)\n";
     file << "target_compile_definitions(deki-engine-core PUBLIC\n";
-    file << "    SIMULATOR\n";
+    file << "    DEKI_HOSTED\n";
     file << "    \"DEKI_SCREEN_WIDTH=" << config.screenWidth << "\"\n";
     file << "    \"DEKI_SCREEN_HEIGHT=" << config.screenHeight << "\"\n";
     // The screen's size and pixel format, which the display presents.
@@ -463,7 +466,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
         }
     }
     // The defines the game compiles with, so the tables match its classes.
-    file << "        DEFINES SIMULATOR" << (engineLogs ? " DEKI_LOG_ENABLED" : "");
+    file << "        DEFINES DEKI_HOSTED" << (engineLogs ? " DEKI_LOG_ENABLED" : "");
     for (const auto& define : transformDefines)
     {
         file << " " << define;
@@ -555,7 +558,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
 
     file << "# Platform defines\n";
     file << "target_compile_definitions(DekiGame PRIVATE\n";
-    file << "    SIMULATOR\n";
+    file << "    DEKI_HOSTED\n";
     for (const auto& define : transformDefines)
     {
         file << "    " << define << "\n";

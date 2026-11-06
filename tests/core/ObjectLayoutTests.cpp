@@ -63,7 +63,7 @@ TEST(ObjectLayout, SceneSizeIsPinned)
 // not depend on DEKI_EDITOR. This suite always compiles WITH that define, so
 // it cannot prove the runtime half on its own - that check is the
 // static_assert in Object.cpp, verified by building
-// `-DDEKI_EDITOR=OFF -DSIMULATOR=ON`. What this can prove is that no
+// a game (DEKI_EDITOR off). What this can prove is that no
 // editor-only storage is back in the object.
 TEST(ObjectLayout, EditorOnlyPayloadIsNotStoredInTheObject)
 {

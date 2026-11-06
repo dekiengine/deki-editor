@@ -833,7 +833,10 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "set_platform_provides",
           "Set what a platform can offer packages, as capability names "
-          "(\"desktop-os\", \"sdl3\", \"posix-process\", \"wifi\", \"spi\"). A package "
+          "(\"hosted\", \"sdl3\", \"posix-process\", \"wifi\", \"spi\"). \"hosted\": "
+          "an operating system starts the game as a program and gets control back when "
+          "it quits (desktop, Miyoo); a board whose firmware is the game, RTOS included, "
+          "is not hosted. A package "
           "declares what it needs in its platformRequires and builds for this target "
           "only when everything it needs is offered here. \"framework:<x>\" and "
           "\"family:<x>\" are added automatically and need not be listed.",
@@ -1059,7 +1062,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "set_object_requires",
           "Say which platform capabilities an object needs, so it exists only on "
-          "targets that offer them (\"wifi\", \"desktop-os\"). One project can then "
+          "targets that offer them (\"wifi\", \"hosted\"). One project can then "
           "serve a desktop and a board, with an object present on one and absent "
           "from the other, instead of the build failing or shipping something dead. "
           "An empty list clears it, putting the object back on every target.",

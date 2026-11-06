@@ -1,4 +1,5 @@
 #include <deki-editor/SceneTargetFilter.h>
+#include <deki-editor/build/PlatformConfig.h>
 
 #include <fstream>
 #include <functional>
@@ -100,7 +101,7 @@ std::vector<std::string> ObjectMissingCapabilities(const nlohmann::json& obj, co
             continue;
         }
         const std::string name = need.get<std::string>();
-        if (capabilities.count(name) == 0)
+        if (capabilities.count(CurrentCapabilityName(name)) == 0)
         {
             missing.push_back(name);
         }

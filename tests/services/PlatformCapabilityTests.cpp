@@ -9,12 +9,16 @@
 #include <gtest/gtest.h>
 
 #include <deki-editor/build/CMakeGenUtils.h>
+#include <deki-editor/build/PlatformConfig.h>
 
+#include <filesystem>
+#include <fstream>
 #include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
+using namespace DekiEditor;
 using namespace DekiEditor::CMakeGen;
 
 namespace
@@ -34,7 +38,7 @@ PackageEntry Pkg(const char* id, const char* buildDefine, std::vector<std::strin
 // A desktop, an ESP32 board, and a board from a vendor this code has never
 // heard of which nevertheless ships SDL3.
 const std::set<std::string> kDesktop{
-    "desktop-os", "posix-process", "filesystem", "threads", "sdl3", "framework:native"
+    "hosted", "posix-process", "filesystem", "threads", "sdl3", "framework:native"
 };
 const std::set<std::string> kBoard{ "filesystem", "threads", "spi", "wifi", "framework:espidf" };
 const std::set<std::string> kThirdParty{ "filesystem", "threads", "sdl3", "gpu-gles2", "framework:acme-sdk" };
@@ -68,7 +72,7 @@ TEST(PlatformCapability, UnknownPlatformThatOffersWhatIsNeededIsAccepted)
 
     // One it cannot satisfy is still refused, instead of failing at the
     // compiler.
-    const PackageEntry desktopHal = Pkg("deki-desktop-hal", "DEKI_PACKAGE_DESKTOP_HAL", { "desktop-os" });
+    const PackageEntry desktopHal = Pkg("deki-desktop-hal", "DEKI_PACKAGE_DESKTOP_HAL", { "hosted" });
     EXPECT_FALSE(PackageSupportsPlatform(desktopHal, kThirdParty));
 }
 
@@ -119,4 +123,30 @@ TEST(PlatformCapability, ABoardsEngineSourcesLeaveOutTheHostedEntry)
     std::ostringstream out;
     EmitEngineCoreSourceCollection(out);
     EXPECT_NE(out.str().find(R"(list(FILTER DEKI_ENGINE_SOURCES EXCLUDE REGEX ".*/src/hosted/.*"))"), std::string::npos);
+}
+
+// "desktop-os" was renamed "hosted". A platform or package that still says
+// the old name is read as the new one, so an old project keeps building, and
+// what the editor saves is the new name.
+TEST(PlatformCapability, TheOldNameOfHostedIsReadAsHosted)
+{
+    EXPECT_EQ(CurrentCapabilityName("desktop-os"), "hosted");
+    EXPECT_EQ(CurrentCapabilityName("hosted"), "hosted");
+    EXPECT_EQ(CurrentCapabilityName("wifi"), "wifi");
+
+    PlatformConfig old;
+    ASSERT_TRUE(PlatformFromJson(R"({"id":"old_sim","framework":"native","provides":["desktop-os","sdl3"]})", old));
+    EXPECT_EQ(old.provides, (std::vector<std::string>{ "hosted", "sdl3" }));
+
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "deki-capability-rename";
+    fs::remove_all(root);
+    fs::create_directories(root / "packages" / "old-desktop");
+    std::ofstream(root / "packages" / "old-desktop" / "package.json")
+        << R"({"id":"old-desktop","buildDefine":"DEKI_PACKAGE_OLD","platformRequires":["desktop-os"]})";
+    const std::vector<PackageEntry> scanned = ScanPackageManifests(root.string());
+    fs::remove_all(root);
+    ASSERT_EQ(scanned.size(), 1u);
+    EXPECT_EQ(scanned[0].platformRequires, (std::vector<std::string>{ "hosted" }));
+    EXPECT_TRUE(PackageSupportsPlatform(scanned[0], kDesktop));
 }

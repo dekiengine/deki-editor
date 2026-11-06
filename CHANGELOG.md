@@ -6,6 +6,23 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### `desktop-os` is called `hosted`, `SIMULATOR` is `DEKI_HOSTED`
+- The capability a platform provides when an operating system starts the
+  game as a program and gets control back when it quits (the desktop
+  simulator, the Miyoo Mini) is `hosted`. It was `desktop-os`, which the
+  Miyoo Mini, a handheld, provided too. A board whose firmware is the game,
+  RTOS included, is not hosted. The engine's entry for such a game is
+  `deki-engine-hosted`.
+- The old name is read as `hosted` for one release, in a platform's
+  `provides`, a package's `platformRequires` and an object's `requires`. A
+  platform or package that still says it gets a warning naming the file, and
+  the editor saves a platform with the new name
+  (`CurrentCapabilityName`, PlatformConfig.h).
+- A game built as a program compiles with `DEKI_HOSTED` in place of
+  `SIMULATOR` (`CMakeGen::GenerateExecutableCMakeLists`). Nothing in the
+  engine or the packages read `SIMULATOR`; code of a project's own that did
+  checks `DEKI_HOSTED` now.
+
 ### One CMake project for every game built as an executable
 - `CMakeGen::GenerateExecutableCMakeLists` (ExecutableCMakeGen.h) writes the
   CMake project for a game built as one program for an operating system: the

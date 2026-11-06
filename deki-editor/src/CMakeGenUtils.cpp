@@ -81,6 +81,15 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                         continue;
                     }
                     std::string need = p.get<std::string>();
+                    const std::string current = CurrentCapabilityName(need);
+                    if (current != need)
+                    {
+                        DEKI_LOG_WARNING("Package '%s': platformRequires '%s' is called '%s' now, and is "
+                                         "read as that. Rename it in %s; the old name is read for one release",
+                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(), need.c_str(),
+                                         current.c_str(), manifestPath.string().c_str());
+                        need = current;
+                    }
                     // Checked the same way as a platform's "provides" (which
                     // is checked when it loads). A requirement no valid name
                     // can match would leave the package out of every target

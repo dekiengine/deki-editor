@@ -21,6 +21,14 @@ namespace DekiEditor
 
 DEKI_EDITOR_API bool IsValidCapabilityName(const std::string& name);
 
+/// `name` as capabilities are called now: a renamed one's new name, any other
+/// as it is. `desktop-os` is `hosted`: an operating system starts the game as
+/// a program and gets control back when it quits (the desktop simulator, a
+/// Linux handheld). A board whose firmware is the game, RTOS included, is not
+/// hosted. The old name is read for one release, and whoever reads it from a
+/// file warns, naming the file.
+DEKI_EDITOR_API std::string CurrentCapabilityName(const std::string& name);
+
 /// What the editor knows about a platform: its identity, the framework whose
 /// backend builds for it, that backend's settings (carried, not interpreted),
 /// its screen, compiler flags, what it offers packages and what it needs from

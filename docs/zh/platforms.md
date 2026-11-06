@@ -22,7 +22,7 @@ JSON 描述编辑器需要知道的内容，而不涉及如何构建：
 | `family` | 仅用于描述。会成为能力 `family:<x>`。 |
 | `screenWidth`, `screenHeight`, `colorFormat` | 该目标的屏幕。编辑器会预览它，桌面模拟器会打开该尺寸的窗口，设为“自动”的图像会以 `colorFormat` 为它存储。设备以其显示屏自身的尺寸和格式进行渲染；参见 [screens.md](screens.md)。 |
 | `externalMemorySize` | 内部堆之外的内存字节数（在微控制器上即 PSRAM）。为包提供 `memory:external`。 |
-| `provides` | 该目标可以为包提供的东西：`wifi`、`spi`、`desktop-os`、... |
+| `provides` | 该目标可以为包提供的东西：`wifi`、`spi`、`hosted`、... `hosted` 表示由操作系统把游戏作为程序启动，游戏退出时控制权回到操作系统（桌面、Miyoo Mini）。游戏本身就是固件的开发板（包括 RTOS）不是 hosted。旧名 `desktop-os` 在一个版本内仍会被读取。 |
 | `requiresPackages` | 无论场景使用什么，该目标始终需要的包。通常是它的硬件抽象层。 |
 | `defines`, `cFlags`, `cxxFlags`, `linkFlags` | 游戏自身代码的编译器设置。 |
 | `bootScene` | 引导场景的路径，相对于项目。 |

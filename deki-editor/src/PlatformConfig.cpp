@@ -224,6 +224,18 @@ bool IsValidCapabilityName(const std::string& name)
     return true;
 }
 
+std::string CurrentCapabilityName(const std::string& name)
+{
+    // The old name said "desktop", and the Miyoo Mini, a handheld, provided
+    // it. What it marks is a game run as a program, which links the engine's
+    // own main() (deki-engine-hosted).
+    if (name == "desktop-os")
+    {
+        return "hosted";
+    }
+    return name;
+}
+
 static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
 {
     config.id = j.value("id", "");
@@ -319,6 +331,16 @@ static bool LoadPlatformFromJson(const json& j, PlatformConfig& config)
             if (cap.is_string())
             {
                 std::string name = cap.get<std::string>();
+                const std::string current = CurrentCapabilityName(name);
+                if (current != name)
+                {
+                    DEKI_LOG_WARNING("Platform '%s': capability '%s' is called '%s' now, and is read "
+                                     "as that. Rename it in the platform's provides "
+                                     "(platforms/%s/%s.json); the old name is read for one release",
+                                     config.id.c_str(), name.c_str(), current.c_str(), config.id.c_str(),
+                                     config.id.c_str());
+                    name = current;
+                }
                 // Capabilities are matched by exact string against what a
                 // package requires, so a name that can match nothing is
                 // reported at load ("WiFi", "wifi " are the usual ones),
