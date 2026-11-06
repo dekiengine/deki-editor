@@ -265,6 +265,9 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     file << "set(DEKI_TRANSFORM_3D " << (transformWidth == TransformWidth::ThreeD ? "ON" : "OFF")
          << " CACHE BOOL \"\" FORCE)\n";
     file << "message(STATUS \"Deki transform: " << EscapeCMakeString(transformWhy) << "\")\n";
+    // The game's package init file defines the package systems' start and
+    // shutdown (below), so the engine leaves out its empty stub of them.
+    file << "set(DEKI_GAME_DEFINES_PACKAGE_SYSTEMS ON)\n";
     file << "add_subdirectory(\"${DEKI_ENGINE_PATH}\" \"${CMAKE_BINARY_DIR}/deki-engine\")\n\n";
 
     // The engine links the libraries its packages include (SDL3).
@@ -546,7 +549,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // defining that symbol a second time, which would fail to link.
     const std::string packageInitName =
         fs::path(GeneratePackageInitFile(buildDir, allPackages, activeIds, fs::path(GetSourceDirectory(projectPath)),
-                                         /*engineDefinesSystemInit=*/true))
+                                         /*engineDefinesSystemInit=*/true, /*gameShutsPackagesDown=*/true))
             .filename()
             .string();
 

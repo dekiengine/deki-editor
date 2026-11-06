@@ -265,11 +265,21 @@ DEKI_EDITOR_API void EmitIncludePaths(std::ostream& out, const std::string& targ
 /// *_InitSystem() calls go at the end of DekiRegisterProjectPackages() instead.
 /// False (the default, firmware): the engine leaves the stub out and this file
 /// defines both functions.
+///
+/// `gameShutsPackagesDown` (with `engineDefinesSystemInit`): the build leaves
+/// the engine's stub out (DEKI_GAME_DEFINES_PACKAGE_SYSTEMS, as
+/// GenerateExecutableCMakeLists sets it), so this file defines both functions:
+/// DekiInitPackageSystems() empty, the systems having started in
+/// DekiRegisterProjectPackages() as above, and DekiShutdownPackageSystems()
+/// shutting them down in reverse order. Without it a game built as a program
+/// never shut its packages down, and their memory (the render system, the
+/// passes, the 3D rasteriser's working memory) was reported as a leak.
 DEKI_EDITOR_API std::string GeneratePackageInitFile(const std::filesystem::path& outputDir,
                                                     const std::vector<PackageEntry>& allPackages,
                                                     const std::set<std::string>& activePackageIds,
                                                     const std::filesystem::path& projectSrcPath = "",
-                                                    bool engineDefinesSystemInit = false);
+                                                    bool engineDefinesSystemInit = false,
+                                                    bool gameShutsPackagesDown = false);
 
 /// Writes `content` only if the file differs, so unchanged files cause no rebuild.
 DEKI_EDITOR_API bool WriteIfChanged(const std::filesystem::path& filePath, const std::string& content);
