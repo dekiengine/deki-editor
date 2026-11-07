@@ -163,7 +163,10 @@ git -C <repo> merge --ff-only <branch>
 ```
 
 The branch already has master in it (step 2), so this fast-forwards.
-Nothing is pushed yet.
+Then push the releasing packages' master, without tags: the editor's
+release workflow builds a new project with the packages' master before it
+publishes (4.3), and users see nothing until the tags and the registry
+(4.4, 4.5). Nothing else is pushed yet.
 
 ### 4.2 The engine
 

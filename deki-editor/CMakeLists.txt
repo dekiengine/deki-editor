@@ -29,6 +29,7 @@ set(EDITOR_DLL_SOURCES
     src/EditorApplication.cpp
     src/EditorHttpUtils.cpp
     src/EditorPaths.cpp
+    src/BundledToolchain.cpp
     src/NodeCanvas.cpp
     # Shared editor services promoted out of the app so package DLLs (tool
     # windows, node-graph editors) can use the one theme / undo stack / nicifier.
@@ -97,6 +98,11 @@ target_link_libraries(deki-editor PRIVATE deki-engine-internal)
 
 # Export macro for DLL symbols
 target_compile_definitions(deki-editor PRIVATE DEKI_EDITOR_EXPORTS)
+# BundledToolchain.cpp: projects are built with the compiler the editor was
+# built with when it carries no toolchain of its own (ProjectCxxCompiler).
+target_compile_definitions(deki-editor PRIVATE
+    DEKI_EDITOR_CXX_COMPILER="${CMAKE_CXX_COMPILER}"
+    DEKI_EDITOR_C_COMPILER="${CMAKE_C_COMPILER}")
 target_compile_definitions(deki-editor PUBLIC DEKI_EDITOR)
 
 # nlohmann_json for AssetData and AssetTypeRegistry

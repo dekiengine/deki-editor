@@ -21,6 +21,7 @@
 // Each tool falls back to PATH when there is no bundled copy, so a build from
 // source works too.
 
+#include <deki-editor/EditorExport.h>
 #include <string>
 
 namespace DekiEditor
@@ -28,24 +29,24 @@ namespace DekiEditor
 
 /// Absolute path to <executable dir>/toolchain (toolchain/mingw64 on Windows),
 /// whether or not it exists.
-std::string BundledToolchainDir();
+DEKI_EDITOR_API std::string BundledToolchainDir();
 
 /// True if a bundled toolchain is present (its bin/ directory exists).
-bool HasBundledToolchain();
+DEKI_EDITOR_API bool HasBundledToolchain();
 
 /// Returns the bundled copy of a tool when there is one; else `name` unchanged
 /// for PATH lookup when it is on PATH; else its full path in the toolchain
 /// folder (ToolchainBinDir) when it is there; else `name`. `name` is the plain
 /// tool name ("ninja", "cmake"); the platform's executable suffix is added as
 /// needed.
-std::string ResolveTool(const std::string& name);
+DEKI_EDITOR_API std::string ResolveTool(const std::string& name);
 
 /// Windows: the folder of the GNU toolchain projects are built with - the
 /// bundled toolchain's bin/, else the folder of the compiler this editor was
 /// built with, else the first standard MSYS2 / MinGW folder that has g++.
 /// Empty when there is none, and always empty elsewhere (the toolchain is on
 /// the system PATH there).
-std::string ToolchainBinDir();
+DEKI_EDITOR_API std::string ToolchainBinDir();
 
 /// Windows: puts ToolchainBinDir() at the front of this process's PATH unless
 /// it is on PATH already. Every build the editor starts inherits it, so cmake,
@@ -53,16 +54,16 @@ std::string ToolchainBinDir();
 /// that folder - are found however the editor was started: from the Start
 /// menu, from a terminal opened before MSYS2 was installed, or with MSYS2 not
 /// on the user PATH at all. Call once, first thing in main().
-void PrepareToolchainPath();
+DEKI_EDITOR_API void PrepareToolchainPath();
 
 /// Whether `dir` is one of the ;-separated entries of `pathList`, ignoring
 /// case, slash direction and a trailing slash, as Windows does.
-bool PathListHasDir(const std::string& pathList, const std::string& dir);
+DEKI_EDITOR_API bool PathListHasDir(const std::string& pathList, const std::string& dir);
 
 /// The C++ and C compilers to build projects with: the bundled toolchain's,
 /// otherwise the compiler this editor was built with. Packages are loaded
 /// into this process, so they must stay ABI-compatible with it.
-std::string ProjectCxxCompiler();
-std::string ProjectCCompiler();
+DEKI_EDITOR_API std::string ProjectCxxCompiler();
+DEKI_EDITOR_API std::string ProjectCCompiler();
 
 }  // namespace DekiEditor

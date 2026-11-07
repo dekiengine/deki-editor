@@ -1,6 +1,6 @@
 #include "CMakeCacheRepair.h"
 #include "../../panels/ConsolePanel.h"
-#include "../BundledToolchain.h"
+#include <deki-editor/BundledToolchain.h>
 #include "../PluginToolchain.h"
 #include <deki/LogSystem.h>
 

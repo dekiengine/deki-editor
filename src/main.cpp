@@ -25,7 +25,7 @@
 #include <memory>
 #include "services/ProgressModal.h"
 #include "services/AgentCursor.h"
-#include "services/BundledToolchain.h"
+#include <deki-editor/BundledToolchain.h>
 #include "services/EditorCapture.h"
 #include "services/EditorInput.h"
 #include "services/TouchInput.h"

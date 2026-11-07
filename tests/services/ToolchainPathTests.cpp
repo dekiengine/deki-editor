@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "services/BundledToolchain.h"
+#include <deki-editor/BundledToolchain.h>
 
 using namespace DekiEditor;
 

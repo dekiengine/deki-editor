@@ -4,6 +4,27 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- **A Desktop build works on a computer with no compiler of its own**, with
+  deki-desktop-integration 0.30.2: it builds with the toolchain the editor's
+  download carries (GCC, CMake and Ninja), as the editor's own builds do.
+  Before, it looked only for a compiler installed on the computer, and Make
+  on Linux, and stopped with "No C++ compiler found".
+- `<deki-editor/BundledToolchain.h>` is in the editor library, for package
+  builders: `ResolveTool`, `ProjectCxxCompiler`, `ProjectCCompiler` and the
+  bundled toolchain's folder, the tools the editor builds everything with.
+- `--tool` no longer takes a dead editor's record for a running one when its
+  process number has gone to another program; it checks the process is an
+  editor.
+
+### Changed
+- The release workflow builds a new project from each archive, with the
+  packages' master, for the editor and for Desktop, before it publishes
+  anything; `dry_run` checks without publishing. CI's Project smoke jobs
+  build Desktop too.
+
 ## 0.30.1 - 2026-11-07
 
 ### Fixed

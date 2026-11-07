@@ -152,6 +152,12 @@ jobs:
           parent="$RUNNER_TEMP/smoke"
           mkdir -p "$parent"
           "$editor" --new-project fresh "$parent"
+          # The packages as they are about to be released: each one the new
+          # project has, at its master (pushed before the editor is tagged;
+          # docs/releasing.md). The registry still has the last release's.
+          for p in $(python -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/fresh/deki-packages.json"); do
+            "$editor" --packages-add "$p" --version branch:master "$parent/fresh"
+          done
           "$editor" --build-code "$parent/fresh"
           "$editor" --build-firmware --platform native_simulator "$parent/fresh"
       - name: Editor log on failure
@@ -177,16 +183,18 @@ jobs:
           path: archive
       - name: Unpack, new project, build
         run: |
-          # A Linux install has a plain g++ for the Desktop build (the image has
-          # only g++-16); the bundled GCC is used for the reflection only.
-          ln -sf "$(command -v g++-16)" /usr/local/bin/g++
-          ln -sf "$(command -v gcc-16)" /usr/local/bin/gcc
           cd archive
           tar -xzf DekiEditor-*-linux-x86_64.tar.gz
           editor="$PWD/DekiEditor-linux-x86_64/DekiEditor"
           parent="$RUNNER_TEMP/smoke"
           mkdir -p "$parent"
           xvfb-run -a "$editor" --new-project fresh "$parent"
+          # The packages as they are about to be released: each one the new
+          # project has, at its master (pushed before the editor is tagged;
+          # docs/releasing.md). The registry still has the last release's.
+          for p in $(python3 -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/fresh/deki-packages.json"); do
+            xvfb-run -a "$editor" --packages-add "$p" --version branch:master "$parent/fresh"
+          done
           xvfb-run -a "$editor" --build-code "$parent/fresh"
           xvfb-run -a "$editor" --build-firmware --platform native_simulator "$parent/fresh"
       - name: Editor log on failure

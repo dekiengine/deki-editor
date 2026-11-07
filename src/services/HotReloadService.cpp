@@ -14,7 +14,7 @@
 #include <deki-editor/build/ProjectPaths.h>
 #include "SharedLibNaming.h"
 #include "BuiltLibraries.h"
-#include "BundledToolchain.h"
+#include <deki-editor/BundledToolchain.h>
 #include "BuildFileGenerator.h"
 #include "CrashHandler.h"
 #include "PluginLoader.h"

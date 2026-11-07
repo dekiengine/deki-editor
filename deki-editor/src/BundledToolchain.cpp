@@ -1,4 +1,4 @@
-#include "BundledToolchain.h"
+#include <deki-editor/BundledToolchain.h>
 
 #include <deki-editor/EditorPaths.h>
 

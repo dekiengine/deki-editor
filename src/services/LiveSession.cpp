@@ -39,6 +39,9 @@ bool IsAlive(long long pid)
     {
         return false;
     }
+    // Running, and an editor: a process number is reused once its editor is
+    // gone, and a record naming one now held by another program (a browser,
+    // seen on Windows) sent every --tool to a port nothing answers.
 #ifdef _WIN32
     HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
     if (!h)
@@ -46,11 +49,31 @@ bool IsAlive(long long pid)
         return GetLastError() == ERROR_ACCESS_DENIED;  // exists, someone else's
     }
     DWORD code = 0;
-    const bool running = GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
+    bool running = GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
+    if (running)
+    {
+        wchar_t theirs[MAX_PATH];
+        DWORD size = MAX_PATH;
+        wchar_t ours[MAX_PATH];
+        if (QueryFullProcessImageNameW(h, 0, theirs, &size) && GetModuleFileNameW(nullptr, ours, MAX_PATH))
+        {
+            running = _wcsicmp(fs::path(theirs).filename().c_str(), fs::path(ours).filename().c_str()) == 0;
+        }
+    }
     CloseHandle(h);
     return running;
 #else
-    return kill(static_cast<pid_t>(pid), 0) == 0 || errno == EPERM;
+    if (kill(static_cast<pid_t>(pid), 0) != 0 && errno != EPERM)
+    {
+        return false;
+    }
+    std::error_code ec;
+    const fs::path theirs = fs::read_symlink("/proc/" + std::to_string(pid) + "/exe", ec);
+    if (ec)
+    {
+        return true;  // no /proc (macOS) or not ours to read: as before
+    }
+    return theirs.filename() == fs::read_symlink("/proc/self/exe", ec).filename();
 #endif
 }
 

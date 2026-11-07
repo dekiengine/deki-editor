@@ -573,7 +573,6 @@ set(EDITOR_TESTABLE_SOURCES
     # PrerequisitesTests: the prerequisite probe and the toolchain it reports.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/Prerequisites.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/PluginToolchain.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/BundledToolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/SafeDllCall.cpp
     # AuditRegressionTests exercises its git URL/ref validation, which is what
     # keeps registry content out of a shell.
@@ -801,8 +800,6 @@ set(EDITOR_SOURCES
     src/services/PackageRestore.h
     src/services/Prerequisites.cpp
     src/services/Prerequisites.h
-    src/services/BundledToolchain.cpp
-    src/services/BundledToolchain.h
     src/services/BoardPackManager.cpp
     src/services/BoardPackManager.h
     src/services/sources/GitHubPackageSource.cpp

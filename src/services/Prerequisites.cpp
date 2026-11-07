@@ -1,5 +1,5 @@
 #include "Prerequisites.h"
-#include "BundledToolchain.h"
+#include <deki-editor/BundledToolchain.h>
 #include "PluginToolchain.h"
 
 #include <deki-editor/ShellCommand.h>
