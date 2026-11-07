@@ -130,8 +130,8 @@ kept in IRAM this release (+2.9 KB, deki-rendering's changelog). The first
 in a game with no Light; lights are a feature now and the demo leaves them
 out. Widgets keeps its 16 KB reserve. Menu and scenes switched ten times over
 USB: free memory flat (internal within 140 bytes, external unchanged).
-Screenshots of every scene match the editor's; meadow animates without
-trails.
+Screenshots of every scene draw correctly (text crisp, the roller cut to
+its frame); meadow animates without trails.
 ```
 
 ```
