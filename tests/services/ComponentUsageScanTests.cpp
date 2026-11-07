@@ -83,6 +83,63 @@ TEST(ComponentUsageScan, SourcesCountOnlyWholeIdentifiersOfKnownTypes)
     EXPECT_EQ(u.byType.at("GradientComponent")[0], "src/Game.cpp");
 }
 
+// A type named only in text the compiler never reads as code: a message, a
+// character literal, a comment, a raw string. The demo's keyboard scene
+// printing "Light %d%%" (its backlight) kept deki-rendering's lights in every
+// build of it.
+TEST(ComponentUsageScan, NamesInStringsAndCommentsAreNotUsage)
+{
+    TempProject p;
+    std::ofstream(p.root / "src" / "Keys.cpp")
+        << "void f(char* line) { std::snprintf(line, 32, \"Light %d%%\", 50); }\n"
+           "const char* a = \"escaped \\\" Light \";\n"
+           "/* a Light in a block comment */\n"
+           "const char* r = R\"x(Light)x\";\n"
+           "char c = 'L';\n"
+           "void g(Deki::Object* o) { o->AddComponent<TextComponent>(); }  // TextComponent\n";
+
+    const ComponentUsage u = ScanComponentUsage(p.root.string(), { "Light", "TextComponent" }, {});
+    EXPECT_FALSE(u.Uses("Light"));
+    EXPECT_TRUE(u.Uses("TextComponent"));  // the code, not the comment
+}
+
+// Code that compiles only with a feature on, or only in the editor, is no
+// evidence the game needs it: deki-3d gathers lights inside
+// #ifdef DEKI_FEATURE_LIGHTS. The #else branch is device code.
+TEST(ComponentUsageScan, FeatureAndEditorOnlyCodeIsNotUsage)
+{
+    TempProject p;
+    std::ofstream(p.root / "src" / "Pass.cpp") << "#ifdef DEKI_FEATURE_LIGHTS\n"
+                                                  "void a() { DekiRendering::Light::InScene(nullptr); }\n"
+                                                  "#else\n"
+                                                  "void b() { Deki2D::SpriteComponent* s = nullptr; }\n"
+                                                  "#endif\n"
+                                                  "#if defined(DEKI_EDITOR)\n"
+                                                  "void c() { TextComponent* t = nullptr; }\n"
+                                                  "#endif\n";
+    const ComponentUsage u = ScanComponentUsage(p.root.string(), { "Light", "SpriteComponent", "TextComponent" }, {});
+    EXPECT_FALSE(u.Uses("Light"));
+    EXPECT_TRUE(u.Uses("SpriteComponent"));
+    EXPECT_FALSE(u.Uses("TextComponent"));
+}
+
+// A name in another scope: deki-esp32-integration's SleepMode::Light kept
+// deki-rendering's lights in every ESP32 build. A Deki namespace, or none,
+// still names the component.
+TEST(ComponentUsageScan, ANameInAnotherScopeIsNotTheComponent)
+{
+    TempProject p;
+    std::ofstream(p.root / "src" / "Sleep.cpp") << "bool f(SleepMode m) { return m == SleepMode::Light; }\n";
+    EXPECT_FALSE(ScanComponentUsage(p.root.string(), { "Light" }, {}).Uses("Light"));
+
+    std::ofstream(p.root / "src" / "Lamp.cpp") << "void g(Deki::Object* o) { o->AddComponent<DekiRendering::Light>(); }\n";
+    EXPECT_TRUE(ScanComponentUsage(p.root.string(), { "Light" }, {}).Uses("Light"));
+
+    std::filesystem::remove(p.root / "src" / "Lamp.cpp");
+    std::ofstream(p.root / "src" / "Lamp2.cpp") << "using namespace DekiRendering;\nLight* lamp = nullptr;\n";
+    EXPECT_TRUE(ScanComponentUsage(p.root.string(), { "Light" }, {}).Uses("Light"));
+}
+
 TEST(ComponentUsageScan, AnotherPackageNamingAComponentCountsAsUsage)
 {
     // deki-fsm calls Deki2D::AnimationComponent::Play(). Scanning only the

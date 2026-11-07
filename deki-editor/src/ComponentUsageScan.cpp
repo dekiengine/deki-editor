@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
@@ -83,8 +84,27 @@ bool IsIdentifierChar(char c)
     return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
 }
 
+// Whether the name at `pos` is qualified by a scope that is not a Deki
+// namespace: "SleepMode::Light" is an enum value, not deki-rendering's Light.
+// Every package keeps its components in a namespace named Deki...
+// (DekiRendering::Light, Deki2D::SpriteComponent), so those still count, as
+// does a name with no qualifier.
+bool QualifiedByAnotherScope(const std::string& text, size_t pos)
+{
+    if (pos < 2 || text[pos - 1] != ':' || text[pos - 2] != ':')
+    {
+        return false;
+    }
+    size_t start = pos - 2;
+    while (start > 0 && IsIdentifierChar(text[start - 1]))
+    {
+        --start;
+    }
+    return text.compare(start, 4, "Deki") != 0;
+}
+
 // `type` as a whole identifier somewhere in `text`: "GradientComponent" is
-// a hit, "MyGradientComponentX" is not.
+// a hit, "MyGradientComponentX" is not, nor is "SleepMode::Light".
 bool NamesType(const std::string& text, const std::string& type)
 {
     size_t pos = 0;
@@ -93,13 +113,132 @@ bool NamesType(const std::string& text, const std::string& type)
         const bool startOk = pos == 0 || !IsIdentifierChar(text[pos - 1]);
         const size_t end = pos + type.size();
         const bool endOk = end >= text.size() || !IsIdentifierChar(text[end]);
-        if (startOk && endOk)
+        if (startOk && endOk && !QualifiedByAnotherScope(text, pos))
         {
             return true;
         }
         pos = end;
     }
     return false;
+}
+
+// `text` with its comments and its string and character literals blanked
+// out, newlines kept: a type named in a message ("Light %d%%", the demo's
+// keyboard backlight) or in a comment is no evidence that the game uses it.
+// Raw strings are blanked from R" to the first )" after their delimiter.
+std::string CodeOnly(const std::string& text)
+{
+    std::string out = text;
+    const size_t n = text.size();
+    auto blank = [&out](size_t from, size_t to)
+    {
+        for (size_t k = from; k < to && k < out.size(); ++k)
+        {
+            if (out[k] != '\n')
+            {
+                out[k] = ' ';
+            }
+        }
+    };
+    size_t i = 0;
+    while (i < n)
+    {
+        const char c = text[i];
+        if (c == '/' && i + 1 < n && text[i + 1] == '/')
+        {
+            size_t end = text.find('\n', i);
+            end = end == std::string::npos ? n : end;
+            blank(i, end);
+            i = end;
+        }
+        else if (c == '/' && i + 1 < n && text[i + 1] == '*')
+        {
+            size_t end = text.find("*/", i + 2);
+            end = end == std::string::npos ? n : end + 2;
+            blank(i, end);
+            i = end;
+        }
+        else if (c == 'R' && i + 1 < n && text[i + 1] == '"' && (i == 0 || !IsIdentifierChar(text[i - 1])))
+        {
+            const size_t open = text.find('(', i + 2);
+            const std::string close =
+                ")" + (open == std::string::npos ? std::string() : text.substr(i + 2, open - i - 2)) + "\"";
+            size_t end = open == std::string::npos ? std::string::npos : text.find(close, open);
+            end = end == std::string::npos ? n : end + close.size();
+            blank(i, end);
+            i = end;
+        }
+        else if (c == '"' || c == '\'')
+        {
+            size_t j = i + 1;
+            while (j < n && text[j] != c && text[j] != '\n')
+            {
+                j += text[j] == '\\' ? 2 : 1;
+            }
+            const size_t end = std::min(j + 1, n);
+            blank(i, end);
+            i = end;
+        }
+        else
+        {
+            ++i;
+        }
+    }
+    return out;
+}
+
+// `text` with the code a device build compiles only when some feature is on,
+// or only in the editor, blanked out: `#ifdef DEKI_FEATURE_*` and
+// `#ifdef DEKI_EDITOR` blocks (and `#if defined(...)` of them, not negated),
+// with `#else` flipping a block. Code that needs a feature to be on is no
+// evidence that the game needs it: deki-3d gathers lights inside
+// `#ifdef DEKI_FEATURE_LIGHTS`, and every 3D project would otherwise keep
+// them. The same walk as FeatureResolver's include check.
+std::string DeviceCodeOnly(const std::string& text)
+{
+    std::string out;
+    out.reserve(text.size());
+    std::vector<bool> guarded;
+    size_t start = 0;
+    while (start < text.size())
+    {
+        size_t end = text.find('\n', start);
+        end = end == std::string::npos ? text.size() : end + 1;
+        std::string line = text.substr(start, end - start);
+        const size_t i = line.find_first_not_of(" \t");
+        bool directive = false;
+        if (i != std::string::npos && line[i] == '#')
+        {
+            std::string d = line.substr(i + 1);
+            d.erase(0, d.find_first_not_of(" \t"));
+            const bool ifdef = d.rfind("ifdef", 0) == 0;
+            const bool ifndef = d.rfind("ifndef", 0) == 0;
+            const bool plainIf = !ifdef && !ifndef && d.rfind("if", 0) == 0;
+            if (ifdef || ifndef || plainIf)
+            {
+                const bool names = d.find("DEKI_EDITOR") != std::string::npos ||
+                                   d.find("DEKI_FEATURE_") != std::string::npos;
+                const bool negated = ifndef || d.find('!') != std::string::npos;
+                guarded.push_back(names && !negated);
+                directive = true;
+            }
+            else if (d.rfind("else", 0) == 0 && !guarded.empty())
+            {
+                guarded.back() = !guarded.back();
+                directive = true;
+            }
+            else if (d.rfind("endif", 0) == 0 && !guarded.empty())
+            {
+                guarded.pop_back();
+                directive = true;
+            }
+        }
+        const bool blank =
+            !directive && std::any_of(guarded.begin(), guarded.end(), [](bool g) { return g; });
+        out += blank ? std::string(line.back() == '\n' ? "\n" : "") : line;
+        start = end;
+    }
+    return out;
 }
 
 std::string ReadWhole(const fs::path& p)
@@ -224,7 +363,7 @@ ComponentUsage ScanComponentUsage(const std::string& projectPath, const std::vec
                 {
                     continue;
                 }
-                const std::string text = ReadWhole(entry.path());
+                const std::string text = DeviceCodeOnly(CodeOnly(ReadWhole(entry.path())));
                 const std::string where = Relative(entry.path(), root);
                 for (const auto& type : knownTypes)
                 {

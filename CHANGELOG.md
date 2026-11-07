@@ -7,6 +7,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## 0.30.0 - 2026-11-07
 
 ### Fixed
+- **A build leaves out a feature that nothing really uses.** The scan for
+  which components a game uses read text the compiler never sees as code:
+  a string (the demo's keyboard scene prints "Light %d%%"), a comment, an
+  enum value of the same name in another scope (`SleepMode::Light`), or code
+  inside `#ifdef DEKI_FEATURE_*` or `#ifdef DEKI_EDITOR`. Each kept a feature
+  on, deki-rendering's lights in every ESP32 build. A name in a Deki
+  namespace, or with none, still counts.
 - **Inspector names after a run of capitals read as words**: `draw2DOnGpu` is
   "Draw 2D On GPU" (it was "Draw 2DOn Gpu"), `presentThroughOpenGL` "Present
   Through OpenGL", `HTTPServer` "HTTP Server". A single capital before a word
