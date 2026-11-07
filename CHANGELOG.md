@@ -4,6 +4,19 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## 0.30.3 - 2026-11-07
+
+### Fixed
+- **Opening a project on a fresh cache no longer warns "AssetRef 'font'
+  failed to load" for each text** (engine 0.30.3). The editor makes a text's
+  font size a moment after its scene opens, and the miss before that was
+  reported as a failure. A file that is there and does not load still warns.
+- With deki-3d 0.30.3, the 3D Renderer list says "GPU" in English, not
+  "Gpu". Scenes keep their choice; code naming `Mesh3DRenderer::Gpu` changes
+  to `GPU`.
+- With deki-display 0.30.3, a display destroyed right after its async
+  present is turned off no longer races the worker's last signal.
+
 ## 0.30.2 - 2026-11-07
 
 ### Fixed
