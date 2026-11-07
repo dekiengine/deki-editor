@@ -565,7 +565,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
 
     // Drop a "branch:" prefix
     std::string gitRef = version;
-    if (gitRef.rfind("branch:", 0) == 0)
+    const bool isBranch = gitRef.rfind("branch:", 0) == 0;
+    if (isBranch)
     {
         gitRef = gitRef.substr(7);
     }
@@ -655,6 +656,17 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         if (RunGit({ "-C", dirArg, "checkout", gitRef }, output) != 0)
         {
             callback(false, "git checkout " + gitRef + " failed for '" + repoName + "': " + output);
+            return;
+        }
+        // A branch checks out the local one, which stays where it was when it
+        // was made: brought up to the commits just fetched, so "branch:master"
+        // is master as it is now. Fast-forward only: a local branch with
+        // commits of its own is left as it is, and the install says so.
+        if (isBranch &&
+            RunGit({ "-C", dirArg, "merge", "--ff-only", "origin/" + gitRef }, output) != 0)
+        {
+            callback(false, "'" + repoName + "': the local branch " + gitRef + " has commits origin/" + gitRef +
+                                " does not; it was left as it is (" + output + ")");
             return;
         }
     }
