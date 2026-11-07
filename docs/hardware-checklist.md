@@ -115,6 +115,26 @@ Notes:
 ## Past releases
 
 ```
+Release:     0.30.0  (T-Deck Plus)
+Date:        2026-11-07
+Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
+meadow       60.2  1.00      5.67      8.91       18415         7952300
+effects      60.3  1.00      8.73      5.98       25771         7555748
+widgets      60.8  1.57      1.16      0.11       16503         7423344
+menu         60.9  0.98      1.06      0.09       23603         7813912
+Notes: built and flashed from the editor; scenes opened over USB with
+DEKI:SCENE, stats averaged over four reads. Internal RAM is 3 KB below 0.22.1
+(the 5% rule fails for meadow, effects and menu): QuadBlit's row loops are
+kept in IRAM this release (+2.9 KB, deki-rendering's changelog). The first
+0.30 build was 7 KB below: the 2D light's tables and loops took internal RAM
+in a game with no Light; lights are a feature now and the demo leaves them
+out. Widgets keeps its 16 KB reserve. Menu and scenes switched ten times over
+USB: free memory flat (internal within 140 bytes, external unchanged).
+Screenshots of every scene match the editor's; meadow animates without
+trails.
+```
+
+```
 Release:     0.22.1  (T-Deck Plus; deki-2d and deki-esp32-integration)
 Date:        2026-10-31
 Scene        fps   updateMs  renderMs  presentMs  freeInternal  freeExternal
