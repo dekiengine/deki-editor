@@ -489,14 +489,32 @@ std::string DekiPackageInstaller::RefreshCheckedOutVersion(const std::string& pr
         return "";
     }
 
+    // A tag only when the checkout is on it, else the branch it is on
+    // ("branch:master", as the manifest pins a branch). The nearest tag below
+    // a branch is not its version: written to the manifest, the next restore
+    // checked that tag out, and undid --packages-add --version branch:master.
+    auto trimmed = [](std::string s)
+    {
+        while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' '))
+        {
+            s.pop_back();
+        }
+        return s;
+    };
     std::string out;
-    if (RunGit({ "-C", packageDir.string(), "describe", "--tags", "--abbrev=0", "HEAD" }, out) != 0)
+    if (RunGit({ "-C", packageDir.string(), "describe", "--tags", "--exact-match", "HEAD" }, out) == 0)
     {
-        return "";
+        out = trimmed(out);
     }
-    while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' '))
+    else
     {
-        out.pop_back();
+        std::string branch;
+        if (RunGit({ "-C", packageDir.string(), "symbolic-ref", "--short", "-q", "HEAD" }, branch) != 0)
+        {
+            return "";  // detached, not on a tag: what the install recorded stands
+        }
+        branch = trimmed(branch);
+        out = branch.empty() ? std::string() : "branch:" + branch;
     }
     if (out.empty() || out.find_first_of(" \n") != std::string::npos)
     {
