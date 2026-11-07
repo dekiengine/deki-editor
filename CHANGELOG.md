@@ -13,6 +13,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   project leaving out more than ten components, as a new project does,
   stopped at configure with "RegularExpression::compile(): Too many
   parentheses". They are tested one at a time now.
+- **An editable package the upgrade renamed updates.** The upgrade changes
+  `desktop-os` and `SIMULATOR` in an editable package's files, and a package
+  update then refused it for uncommitted changes, while reverting them by
+  hand brought the old names, and the upgrade, back. Changes that are only
+  those renames are discarded now, since the new version has them, and the
+  log says so; any other change still stops the update.
 - `--new-project`'s help says the Desktop platform, not "the simulator
   platform".
 

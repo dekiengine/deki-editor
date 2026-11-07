@@ -7,7 +7,9 @@
 #include <deki-editor/VersionCompare.h>
 #include "../GitProcess.h"
 #include "../PackageIntegrity.h"
+#include "../HostedRename.h"
 #include <deki-editor/SafeNames.h>
+#include <deki/LogSystem.h>
 #include <nlohmann/json.hpp>
 #include <cstring>
 #include <fstream>
@@ -22,6 +24,46 @@ bool IsPackageDirectory(const fs::path& dir)
 {
     std::error_code ec;
     return fs::exists(dir / "package.json", ec) || fs::exists(dir / "package.cmake", ec);
+}
+
+// Whether `status` (git status --porcelain of `dir`) lists only files changed
+// in place, each differing from HEAD by the upgrade's renames alone
+// (HostedRename::OnlyRenamed). Any other change, a new file, or a file git
+// cannot show, is the user's.
+bool OnlyUpgradeRenames(const std::string& dir, const std::string& status)
+{
+    std::istringstream lines(status);
+    bool any = false;
+    for (std::string line; std::getline(lines, line);)
+    {
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.pop_back();
+        }
+        if (line.empty())
+        {
+            continue;
+        }
+        if (line.size() < 4 || line.compare(0, 3, " M ") != 0)
+        {
+            return false;
+        }
+        const std::string rel = line.substr(3);
+        std::string before;
+        if (DekiEditor::RunGit({ "-C", dir, "show", "HEAD:" + rel }, before) != 0)
+        {
+            return false;
+        }
+        std::ifstream in(fs::path(dir) / rel, std::ios::binary);
+        std::stringstream now;
+        now << in.rdbuf();
+        if (!in || !DekiEditor::HostedRename::OnlyRenamed(rel, before, now.str()))
+        {
+            return false;
+        }
+        any = true;
+    }
+    return any;
 }
 }  // namespace
 
@@ -561,6 +603,20 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // discard edits that exist only here. Refuse while the tree is dirty.
         std::string status;
         RunGit({ "-C", dirArg, "status", "--porcelain" }, status);
+        // Changes that are only the upgrade's renames (desktop-os, SIMULATOR;
+        // HostedRename) are nothing of the user's, and the new version has
+        // them: they go, said in the log. Otherwise an editable package the
+        // upgrade touched could never be updated, since reverting by hand
+        // brings the old names back and the upgrade with them.
+        if (!status.empty() && OnlyUpgradeRenames(dirArg, status))
+        {
+            std::string discarded;
+            RunGit({ "-C", dirArg, "checkout", "--", "." }, discarded);
+            DEKI_LOG_INFO("'%s': discarded the upgrade's renames (desktop-os, SIMULATOR); %s has them", repoName.c_str(),
+                          gitRef.c_str());
+            status.clear();
+            RunGit({ "-C", dirArg, "status", "--porcelain" }, status);
+        }
         if (!status.empty())
         {
             callback(false, "'" + repoName +

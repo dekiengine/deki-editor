@@ -124,3 +124,26 @@ TEST(HostedRename, AProjectChangesItsOwnFilesAndNotTheRegistrysPackages)
     EXPECT_TRUE(MigrateProject(root.string()).empty()) << "nothing left to change";
     fs::remove_all(root);
 }
+
+// A package update drops an editable package's changes only when they are the
+// upgrade's renames and nothing else: the new version has them.
+TEST(HostedRename, OnlyRenamedTellsTheUpgradesChangesFromTheUsers)
+{
+    const std::string pkg = "{\n  \"id\": \"mine\",\n  \"platformRequires\": [\"desktop-os\"]\n}\n";
+    std::string renamed = pkg;
+    ASSERT_TRUE(MigratePackageJson(renamed));
+    EXPECT_TRUE(OnlyRenamed("package.json", pkg, renamed));
+
+    std::string crlf;
+    for (char c : renamed)
+    {
+        crlf += c == '\n' ? std::string("\r\n") : std::string(1, c);
+    }
+    EXPECT_TRUE(OnlyRenamed("package.json", pkg, crlf)) << "a CRLF checkout";
+
+    const std::string code = "#ifdef SIMULATOR\nint x;\n#endif\n";
+    EXPECT_TRUE(OnlyRenamed("src/Main.cpp", code, "#ifdef DEKI_HOSTED\nint x;\n#endif\n"));
+    EXPECT_FALSE(OnlyRenamed("src/Main.cpp", code, "#ifdef DEKI_HOSTED\nint y;\n#endif\n")) << "and an edit";
+    EXPECT_FALSE(OnlyRenamed("src/Main.cpp", "int x;\n", "int y;\n")) << "no rename at all";
+    EXPECT_FALSE(OnlyRenamed("README.md", code, "#ifdef DEKI_HOSTED\nint x;\n#endif\n")) << "not a renamed kind";
+}

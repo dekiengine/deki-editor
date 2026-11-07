@@ -41,4 +41,11 @@ bool MigrateSimulatorDefine(std::string& text);
 /// it would change (ProjectUpgrade asks before it does).
 std::vector<std::string> MigrateProject(const std::string& projectPath, bool write = true);
 
+/// Whether `after` is `before` with only the renames above applied, by the
+/// file's kind: a package.json, a platform's JSON (platforms/), or C/C++
+/// source. A package update uses it: an editable package the upgrade renamed
+/// has nothing of the user's in it when every change is this, and the new
+/// version already has the renames, so the changes can go.
+bool OnlyRenamed(const std::string& relativePath, const std::string& before, const std::string& after);
+
 }  // namespace DekiEditor::HostedRename

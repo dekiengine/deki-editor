@@ -329,4 +329,32 @@ std::vector<std::string> MigrateProject(const std::string& projectPath, bool wri
     return changed;
 }
 
+bool OnlyRenamed(const std::string& relativePath, const std::string& before, const std::string& after)
+{
+    // Line endings aside: git hands back what it stores, the checkout may
+    // have CRLF.
+    auto noCr = [](std::string s)
+    {
+        s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+        return s;
+    };
+    const fs::path p(relativePath);
+    const std::string ext = p.extension().string();
+    std::string renamed = noCr(before);
+    bool migrated = false;
+    if (p.filename() == "package.json")
+    {
+        migrated = MigratePackageJson(renamed);
+    }
+    else if (ext == ".json" && p.generic_string().find("platforms/") != std::string::npos)
+    {
+        migrated = MigratePlatformJson(renamed);
+    }
+    else if (ext == ".c" || ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".cc")
+    {
+        migrated = MigrateSimulatorDefine(renamed);
+    }
+    return migrated && renamed == noCr(after);
+}
+
 }  // namespace DekiEditor::HostedRename
