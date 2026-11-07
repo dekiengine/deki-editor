@@ -486,6 +486,11 @@ jobs:
           parent="$RUNNER_TEMP/smoke"
           mkdir -p "$parent"
           ./build/bin/DekiEditor.exe --new-project ci-smoke "$parent"
+          # The packages at their master, which this editor is tested with (and
+          # released with); the registry still has the last release's.
+          for p in $(python -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/ci-smoke/deki-packages.json"); do
+            ./build/bin/DekiEditor.exe --packages-add "$p" --version branch:master "$parent/ci-smoke"
+          done
           ./build/bin/DekiEditor.exe --build-code "$parent/ci-smoke"
           # The game as a program, as Desktop builds it: a new project leaves
           # most components out, which is what broke 0.30.0.
@@ -534,6 +539,11 @@ jobs:
           parent="$RUNNER_TEMP/smoke"
           mkdir -p "$parent"
           xvfb-run -a ./build/bin/DekiEditor --new-project ci-smoke "$parent"
+          # The packages at their master, which this editor is tested with (and
+          # released with); the registry still has the last release's.
+          for p in $(python3 -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/ci-smoke/deki-packages.json"); do
+            xvfb-run -a ./build/bin/DekiEditor --packages-add "$p" --version branch:master "$parent/ci-smoke"
+          done
           xvfb-run -a ./build/bin/DekiEditor --build-code "$parent/ci-smoke"
           # The game as a program, as Desktop builds it: a new project leaves
           # most components out, which is what broke 0.30.0.
