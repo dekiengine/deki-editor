@@ -16,6 +16,16 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   mostly compiles from the cache. Linux now compiles through ccache there.
 - The release checklist says to build the demo's boards in `deki-demo`,
   whose build folders are warm, rather than in a fresh copy.
+- **A configure with nothing changed takes 8 seconds instead of two
+  minutes** (engine: the reflection codegen's PCH check works now).
+- **Windows CI and the Windows release build cache the editor executable
+  and the tests too.** They build without the precompiled header, which
+  sccache cannot cache for GCC, and the tests go through sccache like the
+  libraries. On this machine a clean rebuild from a warm cache took 1 min
+  53 s for the editor and its tests, against 10 min cold; CI's Windows job
+  spent 15 min on the two. A local build keeps the precompiled header.
+- `EditorBoot.h` includes `<string>` itself rather than through the
+  precompiled header.
 
 ## 0.30.3 - 2026-11-07
 

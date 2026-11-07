@@ -60,6 +60,9 @@ jobs:
         shell: msys2 {0}
     env:
       SCCACHE_DIR: ${{ github.workspace }}\.sccache
+      # The server stays up for the whole job, so the stats step at the end
+      # reports this build; it stopped after ten idle minutes and they read 0.
+      SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
       - uses: actions/checkout@v4
@@ -126,7 +129,9 @@ jobs:
           restore-keys: sccache-windows-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates
+        # No precompiled header, so sccache caches the executable too (see
+        # DEKI_USE_SCCACHE in CMakeLists.txt): a runner starts cold every time.
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
 
       - name: Build editor
         run: cmake --build build --target DekiEditor

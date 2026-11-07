@@ -1164,12 +1164,24 @@ if(WIN32)
     # DEKI_USE_SCCACHE=OFF opts out (bisecting a compiler problem, say).
     option(DEKI_USE_SCCACHE "Compile the editor libraries through the bundled sccache" ON)
     if(DEKI_USE_SCCACHE)
-        foreach(_deki_cached_target deki-editor deki-engine-core imgui)
+        set(_deki_cached_targets deki-editor deki-engine-core imgui)
+        # With precompiled headers off (CI passes
+        # -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON) the executable caches too,
+        # which on a CI runner, where every build starts cold, is worth more
+        # than the precompiled header.
+        if(CMAKE_DISABLE_PRECOMPILE_HEADERS)
+            list(APPEND _deki_cached_targets DekiEditor)
+        endif()
+        foreach(_deki_cached_target ${_deki_cached_targets})
             if(TARGET ${_deki_cached_target})
                 set_property(TARGET ${_deki_cached_target} PROPERTY CXX_COMPILER_LAUNCHER "${DEKI_SCCACHE_EXE}")
                 set_property(TARGET ${_deki_cached_target} PROPERTY C_COMPILER_LAUNCHER "${DEKI_SCCACHE_EXE}")
             endif()
         endforeach()
+        # Every target in tests/ (the editor's tests and each package's), made
+        # after this: none uses a precompiled header.
+        set(CMAKE_C_COMPILER_LAUNCHER "${DEKI_SCCACHE_EXE}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${DEKI_SCCACHE_EXE}")
     endif()
 
     add_custom_command(TARGET DekiEditor POST_BUILD
