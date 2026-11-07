@@ -487,6 +487,9 @@ jobs:
           mkdir -p "$parent"
           ./build/bin/DekiEditor.exe --new-project ci-smoke "$parent"
           ./build/bin/DekiEditor.exe --build-code "$parent/ci-smoke"
+          # The game as a program, as Desktop builds it: a new project leaves
+          # most components out, which is what broke 0.30.0.
+          ./build/bin/DekiEditor.exe --build-firmware --platform native_simulator "$parent/ci-smoke"
           ./build/bin/DekiEditor.exe --verify-scenes "$parent/ci-smoke"
           ./build/bin/DekiEditor.exe --render-scenes "$parent/ci-smoke" | tee render.txt
           python tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt
@@ -532,6 +535,9 @@ jobs:
           mkdir -p "$parent"
           xvfb-run -a ./build/bin/DekiEditor --new-project ci-smoke "$parent"
           xvfb-run -a ./build/bin/DekiEditor --build-code "$parent/ci-smoke"
+          # The game as a program, as Desktop builds it: a new project leaves
+          # most components out, which is what broke 0.30.0.
+          xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform native_simulator "$parent/ci-smoke"
           xvfb-run -a ./build/bin/DekiEditor --verify-scenes "$parent/ci-smoke"
           xvfb-run -a ./build/bin/DekiEditor --render-scenes "$parent/ci-smoke" | tee render.txt
           python3 tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt

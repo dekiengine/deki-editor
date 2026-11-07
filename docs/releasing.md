@@ -127,6 +127,22 @@ Every box, on the branches about to be released:
 - [ ] **An existing project still works.** Open a project made with the
   previous release in the new editor without updating anything, and build
   it. It must load and build as before. This is the check for rule 1.
+- [ ] **A new project builds.** Run CI by hand on the branch:
+  `gh workflow run CI --ref <branch>`. Its Project smoke jobs (which a push
+  skips) create a project, build its code, and build it for Desktop as a
+  program. Then, with the editor about to ship, do the same by hand and
+  build it for one board too. Existing projects use most components; a new
+  one leaves most out, and 0.30.0 went out with a Desktop build that failed
+  only then.
+- [ ] **An older project with an editable package upgrades and updates.** On
+  a copy of a previous release's project with an editable package: open it,
+  upgrade, `--packages-update all`, build. The upgrade edits an editable
+  package's files, and the update must still go through.
+
+The release workflow builds a new project from each archive before it
+publishes, so a release whose new project does not build is never published.
+To try that without publishing: `gh workflow run Release -f tag=<tag> -f
+dry_run=true`.
 
 Nothing goes on master until every box is ticked.
 

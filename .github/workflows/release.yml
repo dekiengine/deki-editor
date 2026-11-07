@@ -18,6 +18,10 @@ on:
       tag:
         description: Existing tag to (re)build and publish
         required: true
+      dry_run:
+        description: Build and check the new-project builds, but publish nothing
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -123,9 +127,72 @@ jobs:
             dist/*.sha256
           if-no-files-found: error
 
+  # The archive a user downloads, unpacked as they would: a new project must
+  # build, for the editor and as a program, before anything is published.
+  # 0.30.0 went out with a Desktop build that failed for every new project,
+  # because the checks before it used existing projects only.
+  smoke-windows:
+    name: New project (Windows archive)
+    needs: windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: archive
+      - name: Unpack, new project, build
+        run: |
+          set -e
+          cd archive
+          unzip -q DekiEditor-*-windows-x86_64.zip
+          editor="$PWD/DekiEditor-windows-x86_64/DekiEditor.exe"
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          "$editor" --new-project fresh "$parent"
+          "$editor" --build-code "$parent/fresh"
+          "$editor" --build-firmware --platform native_simulator "$parent/fresh"
+      - name: Editor log on failure
+        if: failure()
+        run: cat "$APPDATA/DekiEditor/Editor.log" 2>/dev/null || true
+
+  smoke-linux:
+    name: New project (Linux archive)
+    needs: linux
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: bash -e {0}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-linux
+          path: archive
+      - name: Unpack, new project, build
+        run: |
+          cd archive
+          tar -xzf DekiEditor-*-linux-x86_64.tar.gz
+          editor="$PWD/DekiEditor-linux-x86_64/DekiEditor"
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          xvfb-run -a "$editor" --new-project fresh "$parent"
+          xvfb-run -a "$editor" --build-code "$parent/fresh"
+          xvfb-run -a "$editor" --build-firmware --platform native_simulator "$parent/fresh"
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
+
   publish:
     name: Publish GitHub release
-    needs: [windows, linux]
+    needs: [windows, linux, smoke-windows, smoke-linux]
+    if: ${{ github.event.inputs.dry_run != 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
