@@ -529,6 +529,10 @@ jobs:
       - name: New project, build, verify, render
         run: |
           set -e
+          # A Linux install has a plain g++ for the Desktop build (the image has
+          # only g++-16).
+          ln -sf "$(command -v g++-16)" /usr/local/bin/g++
+          ln -sf "$(command -v gcc-16)" /usr/local/bin/gcc
           chmod +x build/bin/DekiEditor
           export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
           parent="$RUNNER_TEMP/smoke"

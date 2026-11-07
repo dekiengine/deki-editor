@@ -177,6 +177,10 @@ jobs:
           path: archive
       - name: Unpack, new project, build
         run: |
+          # A Linux install has a plain g++ for the Desktop build (the image has
+          # only g++-16); the bundled GCC is used for the reflection only.
+          ln -sf "$(command -v g++-16)" /usr/local/bin/g++
+          ln -sf "$(command -v gcc-16)" /usr/local/bin/gcc
           cd archive
           tar -xzf DekiEditor-*-linux-x86_64.tar.gz
           editor="$PWD/DekiEditor-linux-x86_64/DekiEditor"
