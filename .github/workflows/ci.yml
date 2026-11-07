@@ -545,6 +545,11 @@ jobs:
             xvfb-run -a ./build/bin/DekiEditor --packages-add "$p" --version branch:master "$parent/ci-smoke"
           done
           xvfb-run -a ./build/bin/DekiEditor --build-code "$parent/ci-smoke"
+          # What the Desktop build below runs: the package's commit, and where
+          # its builder came from.
+          git -C "$parent/ci-smoke/packages/deki-desktop-integration" log --oneline -1 || true
+          ls -la "$parent/ci-smoke/packages" || true
+          find "$parent/ci-smoke/generated" -name '*desktop*' -newer "$parent/ci-smoke/deki-packages.json" | head -20 || true
           # The game as a program, as Desktop builds it: a new project leaves
           # most components out, which is what broke 0.30.0.
           xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform native_simulator "$parent/ci-smoke"
