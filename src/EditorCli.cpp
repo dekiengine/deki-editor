@@ -40,7 +40,7 @@ void PrintUsage(const char* program)
     printf("  --help, -h            Show this help message\n");
     printf("  --editor-version, -V  Print the editor, engine and reflection ABI versions\n");
     printf("  --new-project <name>  Create <project_path>/<name>: the desktop packages declared,\n");
-    printf("                        a starter scene, the simulator platform. Open it to build.\n");
+    printf("                        a starter scene, the Desktop platform. Open it to build.\n");
     printf("  --build               Compile all assets to cache/ (headless)\n");
     printf("  --export              Build and export assets to storage/, stored for the\n");
     printf("                        active platform, or for --platform <id>\n");

@@ -4,6 +4,18 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- **A new project builds for Desktop again** (and the Miyoo Mini, and any
+  game built as a program). The build joined the sources it leaves out into
+  one regular expression, and CMake takes at most ten groups in one: a
+  project leaving out more than ten components, as a new project does,
+  stopped at configure with "RegularExpression::compile(): Too many
+  parentheses". They are tested one at a time now.
+- `--new-project`'s help says the Desktop platform, not "the simulator
+  platform".
+
 ## 0.30.0 - 2026-11-07
 
 ### Fixed

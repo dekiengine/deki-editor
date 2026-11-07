@@ -137,10 +137,15 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     {
         DEKI_LOG_WARNING("%s", w.c_str());
     }
-    std::string stripSourceRegex;
+    // A CMake list, tested one pattern at a time: joined into one with "|", a
+    // project leaving out more than ten components failed to configure ("Too
+    // many parentheses"), since each pattern has a group and a CMake regular
+    // expression takes at most ten. One quoted argument each: escaped, a ';'
+    // would not separate them.
+    std::string stripSourceRegexes;
     for (const auto& rx : strip.SourceExcludeRegexes())
     {
-        stripSourceRegex += (stripSourceRegex.empty() ? "" : "|") + rx;
+        stripSourceRegexes += " \"" + EscapeCMakeString(rx) + "\"";
     }
 
     // Validated: it lands in a generated CMake file, and a platform JSON can
@@ -352,7 +357,7 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     file << "set(PACKAGE_INCLUDE_DIRS \"\")\n";
     file << "set(PACKAGE_DEFINES \"\")\n";
     file << "message(STATUS \"Deki stripping: " << EscapeCMakeString(strip.summary) << "\")\n";
-    file << "set(_DEKI_STRIP_SRC_REGEX \"" << EscapeCMakeString(stripSourceRegex) << "\")\n";
+    file << "set(_DEKI_STRIP_SRC_REGEXES" << stripSourceRegexes << ")\n";
     // Totals are named _ALL_* because every include(package.cmake) sets
     // PACKAGE_SOURCES, PACKAGE_SYSTEM_LIBS and the like for that package.
     // Must stay separate names: sharing them keeps only the last package.
@@ -422,9 +427,12 @@ bool GenerateExecutableCMakeLists(const std::string& projectPath, const std::str
     // generates its own below.
     file << "        string(FIND \"${SRC}\" \"/generated/\" _IS_GEN)\n";
     file << "        set(_IS_STRIPPED FALSE)\n";
-    file << "        if(_DEKI_STRIP_SRC_REGEX AND \"${SRC}\" MATCHES \"${_DEKI_STRIP_SRC_REGEX}\")\n";
-    file << "            set(_IS_STRIPPED TRUE)\n";
-    file << "        endif()\n";
+    file << "        foreach(_RX IN LISTS _DEKI_STRIP_SRC_REGEXES)\n";
+    file << "            if(\"${SRC}\" MATCHES \"${_RX}\")\n";
+    file << "                set(_IS_STRIPPED TRUE)\n";
+    file << "                break()\n";
+    file << "            endif()\n";
+    file << "        endforeach()\n";
     file << "        if(_IS_EDITOR EQUAL -1 AND _IS_TESTS EQUAL -1 AND _IS_GEN EQUAL -1 AND NOT _IS_STRIPPED AND NOT "
             "\"${SRC}\" STREQUAL \"${_ENTRY_PATH}\")\n";
     file << "            list(APPEND _ALL_PACKAGE_SOURCES \"${SRC}\")\n";

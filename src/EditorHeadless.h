@@ -154,7 +154,7 @@ int CmdClean(EditorApp& editor, const char* platformId);
 int CmdPackagesList(const char* projectPath);
 
 /// Create <parentDir>/<name> from the project scaffold (ProjectTemplate::
-/// CreateProject with the simulator platform). Prints the path on success.
+/// CreateProject with the Desktop platform). Prints the path on success.
 int CmdNewProject(const char* parentDir, const char* name);
 int CmdListPlatforms(const char* projectPath);
 int CmdToolchainStatus(const char* projectPath, const char* platformId);
