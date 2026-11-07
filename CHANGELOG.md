@@ -4,7 +4,7 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.30.0 - 2026-11-07
 
 ### Fixed
 - **Inspector names after a run of capitals read as words**: `draw2DOnGpu` is
