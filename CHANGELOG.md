@@ -4,7 +4,7 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.30.2 - 2026-11-07
 
 ### Fixed
 - **A Desktop build works on a computer with no compiler of its own**, with
@@ -18,6 +18,13 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - `--tool` no longer takes a dead editor's record for a running one when its
   process number has gone to another program; it checks the process is an
   editor.
+- **A package switched to a branch stays on it.** `--packages-add <id>
+  --version branch:master` checked the branch out but recorded the nearest tag
+  below it in deki-packages.json, so the next open or build put the tag back.
+  A checkout is recorded as its tag only when it is on one, else as
+  `branch:<name>`. And the branch is the one on the remote: a local branch
+  made earlier is brought up to it, and left alone, with a message, when it
+  has commits of its own.
 
 ### Changed
 - The release workflow builds a new project from each archive, with the
