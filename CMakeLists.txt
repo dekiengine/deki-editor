@@ -895,9 +895,14 @@ target_precompile_headers(DekiEditor PRIVATE
 target_compile_definitions(DekiEditor PRIVATE
     DEKI_EDITOR_CXX_COMPILER="${CMAKE_CXX_COMPILER}"
     DEKI_EDITOR_C_COMPILER="${CMAKE_C_COMPILER}"
-    # The release number, from project() above; see src/EditorVersion.h.
-    DEKI_EDITOR_VERSION="${PROJECT_VERSION}"
 )
+
+# The release number, from project() above, in a header rather than a compile
+# definition, so a new version rebuilds only what includes it
+# (src/EditorVersion.h). configure_file rewrites it only when it changes.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/EditorVersion.gen.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/generated/EditorVersion.gen.h @ONLY)
+target_include_directories(DekiEditor PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 if(MSVC)
     target_compile_definitions(DekiEditor PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)

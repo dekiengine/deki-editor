@@ -5,6 +5,7 @@
 #include <deki-editor/SafeNames.h>
 #include "PackageManifest.h"
 #include <deki-editor/VersionCompare.h>
+#include <deki/EngineVersion.h>
 #include <deki-editor/Paths.h>
 #include "PackageIntegrity.h"
 #include <deki-editor/FileIO.h>
@@ -1264,4 +1265,32 @@ void PackageManager::RemoveWithOrphans(const std::string& projectPath, const Pac
 
     // Report the real outcome, with the orphan list on success.
     callback(primary->first, primary->first ? *orphansOut : primary->second);
+}
+
+std::string PackageCompatibilityProblem(const PackageEntry& pkg)
+{
+    // A package that never said which engine it needs predates the field, and
+    // the installer accepts those too.
+    if (pkg.minEngine.empty())
+    {
+        return {};
+    }
+
+    if (DekiEditor::CompareVersions(DEKI_ENGINE_VERSION, pkg.minEngine) < 0)
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf), DekiEditor::Tr("Needs editor %s; this one is %s"), pkg.minEngine.c_str(),
+                 DEKI_ENGINE_VERSION);
+        return buf;
+    }
+
+    if (DekiEditor::CompareVersions(pkg.minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf), DekiEditor::Tr("Built for editor %s; this one needs %s or newer"),
+                 pkg.minEngine.c_str(), DEKI_OLDEST_SUPPORTED_PACKAGE);
+        return buf;
+    }
+
+    return {};
 }

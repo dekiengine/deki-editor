@@ -71,7 +71,26 @@ jobs:
           update: true
           path-type: inherit
           install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja git
+      # CI's caches from master, read only: the release commit has normally
+      # been through CI there, so most of the build is a cache hit. A cache
+      # changes how long the build takes, not what it builds. A tag's run may
+      # read the default branch's caches.
+      - name: Restore FetchContent sources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-windows-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+      - name: Restore sccache
+        uses: actions/cache/restore@v4
+        with:
+          path: .sccache
+          key: sccache-windows-${{ github.sha }}
+          restore-keys: sccache-windows-
       - name: Configure and build
+        env:
+          SCCACHE_DIR: ${{ github.workspace }}\.sccache
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
           cmake --build build --target DekiEditor
@@ -112,11 +131,27 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
           deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
+      # CI's caches from master, read only, as for Windows above.
+      - name: Restore FetchContent sources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-linux-container-${{ github.sha }}
+          restore-keys: ccache-linux-container-
       - name: Configure and build
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
-                -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
+                -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --target DekiEditor
+          ccache -s
       - name: Package
         run: tools/package-linux.sh build
       - uses: actions/upload-artifact@v4

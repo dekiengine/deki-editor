@@ -3,6 +3,8 @@
 #include "services/installers/DekiPackageInstaller.h"
 #include "services/PackageManager.h"
 
+#include <deki/EngineVersion.h>
+
 #include <filesystem>
 #include <fstream>
 #include <string>

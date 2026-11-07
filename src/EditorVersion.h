@@ -3,13 +3,18 @@
 // The editor's own version, and the one line that names a build.
 //
 // DEKI_EDITOR_VERSION comes from `project(DekiEditor VERSION ...)` in the
-// top-level CMakeLists.txt; DEKI_ENGINE_VERSION from the engine's, through the
-// deki-engine-core target. The two are always equal in a release (the engine
+// top-level CMakeLists.txt, through the generated EditorVersion.gen.h;
+// DEKI_ENGINE_VERSION from the engine's, through <deki/EngineVersion.h>. The two are always equal in a release (the engine
 // carries the editor's number, see COMPATIBILITY.md), and tools/ci/check_version.py
 // fails the build when they drift. A tree built without the define reports
 // "0.0.0-dev" rather than pretending to be a release.
 
+#include <deki/EngineVersion.h>
 #include <deki/interop/ReflectionAbi.h>
+
+#if __has_include("EditorVersion.gen.h")
+#include "EditorVersion.gen.h"
+#endif
 
 #include <cstdio>
 #include <string>

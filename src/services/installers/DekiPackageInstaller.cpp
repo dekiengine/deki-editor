@@ -10,6 +10,7 @@
 #include "../HostedRename.h"
 #include <deki-editor/SafeNames.h>
 #include <deki/LogSystem.h>
+#include <deki/EngineVersion.h>
 #include <nlohmann/json.hpp>
 #include <cstring>
 #include <fstream>

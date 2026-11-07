@@ -21,8 +21,9 @@ class EditorApp;
 class DekiRegistrySource;
 
 // Editor policy, not part of the package contract: it reads the editor's own
-// build defines (DEKI_ENGINE_VERSION, DEKI_OLDEST_SUPPORTED_PACKAGE), which a
-// package compiling against the contract header does not have.
+// version (DEKI_ENGINE_VERSION, DEKI_OLDEST_SUPPORTED_PACKAGE, in
+// <deki/EngineVersion.h>), which a package compiling against the contract
+// header does not have.
 /// Why a package cannot be used with this editor, in the editor's language,
 /// or empty when it can.
 ///
@@ -30,35 +31,9 @@ class DekiRegistrySource;
 /// minEngine instead of a manifest that exists only after download, so the
 /// package list can say so before anyone clicks Install.
 ///
-/// Inline so it can be tested without linking PackageManager.cpp, which pulls
-/// in the editor application. A test checks it against the installer's answer.
-inline std::string PackageCompatibilityProblem(const PackageEntry& pkg)
-{
-    // A package that never said which engine it needs predates the field, and
-    // the installer accepts those too.
-    if (pkg.minEngine.empty())
-    {
-        return {};
-    }
-
-    if (DekiEditor::CompareVersions(DEKI_ENGINE_VERSION, pkg.minEngine) < 0)
-    {
-        char buf[256];
-        snprintf(buf, sizeof(buf), DekiEditor::Tr("Needs editor %s; this one is %s"), pkg.minEngine.c_str(),
-                 DEKI_ENGINE_VERSION);
-        return buf;
-    }
-
-    if (DekiEditor::CompareVersions(pkg.minEngine, DEKI_OLDEST_SUPPORTED_PACKAGE) < 0)
-    {
-        char buf[256];
-        snprintf(buf, sizeof(buf), DekiEditor::Tr("Built for editor %s; this one needs %s or newer"),
-                 pkg.minEngine.c_str(), DEKI_OLDEST_SUPPORTED_PACKAGE);
-        return buf;
-    }
-
-    return {};
-}
+/// A test checks it against the installer's answer. In PackageManager.cpp, so
+/// a new version recompiles one file rather than everything including this.
+std::string PackageCompatibilityProblem(const PackageEntry& pkg);
 
 class PackageManager
 {

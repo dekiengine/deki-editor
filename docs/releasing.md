@@ -124,6 +124,13 @@ Every box, on the branches about to be released:
   timing, compare libraries and releases with the frame cap lifted:
   `targetFps` 200 in `deki-demo/settings/core.json`. At 60 the engine's
   16 ms budget caps every board at 62.5 fps. Put it back afterwards.
+
+  Build them in `deki-demo` itself, whose build folders are warm: a board
+  takes from under a minute to several minutes there, depending on what
+  changed, and 10 to 15 minutes from an empty cache (0.30.3 took an hour for
+  five boards in a fresh copy). A check that needs
+  an empty cache, such as what a first open logs, only needs the copy opened,
+  not its boards built.
 - [ ] **An existing project still works.** Open a project made with the
   previous release in the new editor without updating anything, and build
   it. It must load and build as before. This is the check for rule 1.

@@ -10,6 +10,7 @@
 #include <deki-editor/Paths.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/SafeNames.h>
+#include <deki/EngineVersion.h>
 
 #include <fstream>
 

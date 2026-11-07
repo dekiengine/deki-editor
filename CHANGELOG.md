@@ -4,6 +4,19 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Changed
+- **A version change rebuilds 12 files instead of the whole editor.** The
+  editor's and the engine's versions are in generated headers, not compile
+  definitions on every file; on this machine a bump went from a full rebuild
+  to 3 minutes, two of them CMake's configure.
+- The release workflow's Windows and Linux builds reuse CI's compiler caches
+  from master (read only), so a release whose commit has been through CI
+  mostly compiles from the cache. Linux now compiles through ccache there.
+- The release checklist says to build the demo's boards in `deki-demo`,
+  whose build folders are warm, rather than in a fresh copy.
+
 ## 0.30.3 - 2026-11-07
 
 ### Fixed

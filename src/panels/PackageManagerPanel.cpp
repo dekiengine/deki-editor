@@ -1,5 +1,6 @@
 #include "PackageManagerPanel.h"
 #include <deki/LogSystem.h>
+#include <deki/EngineVersion.h>
 #include <deki-editor/Paths.h>
 #include <deki-editor/IconsTabler.h>
 #include <deki-editor/EditorTheme.h>
