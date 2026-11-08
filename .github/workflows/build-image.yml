@@ -3,8 +3,10 @@
 # release.yml run in it.
 #
 # Runs when the Dockerfile or the PPA script changes on master, and by hand
-# (Actions > Build image > Run workflow). It is the only job that needs the
-# toolchain PPA, so a PPA outage delays a new image, never CI or a release.
+# (Actions > Build image > Run workflow). A PPA outage delays a new image, never
+# this repository's CI or a release. The package repositories cannot pull this
+# private image, so their jobs (package-tests.yml, the Tactility firmware build)
+# still install GCC from the PPA.
 
 name: Build image
 
@@ -32,14 +34,15 @@ jobs:
   linux-build:
     name: Linux build image
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: tools/ci
           file: tools/ci/docker/linux-build/Dockerfile

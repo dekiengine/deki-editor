@@ -8,7 +8,7 @@
 # project, build it (packages cloned from the public registry, compiled with
 # the same GCC), verify its scene and render it, and compare the pixel hash to
 # tools/ci/golden-scaffold.txt. That is a cold build of several packages, so
-# it runs on pull requests, tags and manual dispatch rather than on every push.
+# it runs on pull requests, nightly and on manual dispatch rather than on every push.
 #
 # The "demo" jobs do the same with deki-demo on every board it targets: its
 # renders against tools/ci/golden-demo.txt, and nightly its firmware.
@@ -32,7 +32,8 @@ on:
     branches: [master]
   # Nightly: the demo's board checks and firmware builds (see demo-boards).
   schedule:
-    - cron: '0 3 * * *'
+    # Off the hour: GitHub delays the runs scheduled on it the most.
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 # Least privilege, set here rather than inherited: the repository or org
@@ -43,8 +44,10 @@ permissions:
   contents: read
   packages: read  # the Linux jobs' build image
 
+# Per event: a push cancels the push before it, never a nightly or manual run,
+# which are the only ones that run the demo and firmware jobs.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -55,6 +58,7 @@ jobs:
   windows:
     name: Windows (MinGW GCC 16)
     runs-on: windows-latest
+    timeout-minutes: 60
     defaults:
       run:
         shell: msys2 {0}
@@ -65,12 +69,10 @@ jobs:
       SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
 
       # DekiRenderingTests compiles deki-rendering's own tests; it looks for
       # the package beside the editor checkout (DEKI_PACKAGES_DIR defaults to
@@ -114,7 +116,7 @@ jobs:
           python --version
 
       - name: Cache FetchContent sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             build/_deps
@@ -123,7 +125,7 @@ jobs:
           restore-keys: deps-windows-
 
       - name: Cache sccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .sccache
           key: sccache-windows-${{ github.sha }}
@@ -167,7 +169,7 @@ jobs:
 
       - name: Upload editor build
         if: github.event_name != 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: editor-windows
           # The sources the editor fetched: a project build compiles against
@@ -187,6 +189,7 @@ jobs:
   linux:
     name: Linux (GCC 16)
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     # Ubuntu 24.04 with GCC 16 and the build dependencies installed
     # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
     container:
@@ -201,12 +204,10 @@ jobs:
         shell: bash -e {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
 
       - name: Check out packages the tests read
         run: |
@@ -225,7 +226,7 @@ jobs:
           esac
 
       - name: Cache FetchContent sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             build/_deps
@@ -234,7 +235,7 @@ jobs:
           restore-keys: deps-linux-container-
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
           key: ccache-linux-container-${{ github.sha }}
@@ -279,7 +280,7 @@ jobs:
 
       - name: Upload editor build
         if: github.event_name != 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: editor-linux
           path: |
@@ -293,16 +294,15 @@ jobs:
   macos:
     name: macOS (GCC 16)
     runs-on: macos-latest
+    timeout-minutes: 60
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
 
       - name: Check out packages the tests read
         run: |
@@ -328,7 +328,7 @@ jobs:
           clang --version | head -n1
 
       - name: Cache FetchContent sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             build/_deps
@@ -337,7 +337,7 @@ jobs:
           restore-keys: deps-macos-
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ccache
           key: ccache-macos-${{ github.sha }}
@@ -381,6 +381,18 @@ jobs:
         if: failure()
         run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true
 
+      - name: Upload editor build
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: editor-macos
+          path: |
+            build/bin
+            build/lib
+            build/_deps/*-src
+            build/CMakeCache.txt
+          retention-days: 3
+
   # ---------------------------------------------------------------------------
   # Every package in the registry, at master, against the engine built here:
   # each package's own tests (deki_add_package_tests in tests/CMakeLists.txt)
@@ -392,6 +404,7 @@ jobs:
   packages:
     name: Packages (Linux)
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     # Ubuntu 24.04 with GCC 16 and the build dependencies installed
     # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
     container:
@@ -406,18 +419,16 @@ jobs:
         shell: bash -e {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
 
       - name: Check out every package
         run: python3 tools/ci/clone_packages.py ../packages
 
       - name: Cache FetchContent sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             build/_deps
@@ -426,7 +437,7 @@ jobs:
           restore-keys: deps-linux-container-
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
           key: ccache-packages-linux-container-${{ github.sha }}
@@ -467,17 +478,16 @@ jobs:
     needs: windows
     if: github.event_name != 'push'
     runs-on: windows-latest
+    timeout-minutes: 45
     defaults:
       run:
         shell: msys2 {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -485,7 +495,7 @@ jobs:
           update: true
           path-type: inherit
           install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja git
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: editor-windows
           path: build
@@ -516,6 +526,7 @@ jobs:
     needs: linux
     if: github.event_name != 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     # Ubuntu 24.04 with GCC 16 and the build dependencies installed
     # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
     container:
@@ -530,13 +541,11 @@ jobs:
         shell: bash -e {0}
     steps:
       # actions/checkout first: a local composite action only exists once the tree is there.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: editor-linux
           path: build
@@ -554,11 +563,6 @@ jobs:
             xvfb-run -a ./build/bin/DekiEditor --packages-add "$p" --version branch:master "$parent/ci-smoke"
           done
           xvfb-run -a ./build/bin/DekiEditor --build-code "$parent/ci-smoke"
-          # What the Desktop build below runs: the package's commit, and where
-          # its builder came from.
-          git -C "$parent/ci-smoke/packages/deki-desktop-integration" log --oneline -1 || true
-          ls -la "$parent/ci-smoke/packages" || true
-          find "$parent/ci-smoke/generated" -name '*desktop*' -newer "$parent/ci-smoke/deki-packages.json" | head -20 || true
           # The game as a program, as Desktop builds it: a new project leaves
           # most components out, which is what broke 0.30.0.
           xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform native_simulator "$parent/ci-smoke"
@@ -569,21 +573,61 @@ jobs:
         if: failure()
         run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
 
+  smoke-macos:
+    name: Project smoke (macOS)
+    needs: macos
+    if: github.event_name != 'push'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      # actions/checkout first: a local composite action only exists once the tree is there.
+      - uses: actions/checkout@v7
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+      # What the project build needs from Homebrew. The editor links against
+      # this GCC's libstdc++, so it must be the same one the macos job used.
+      - name: Install the toolchain
+        run: brew install gcc ninja
+      - uses: actions/download-artifact@v8
+        with:
+          name: editor-macos
+          path: build
+      - name: New project, build, verify, render
+        run: |
+          set -e
+          chmod +x build/bin/DekiEditor
+          export DYLD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          ./build/bin/DekiEditor --new-project ci-smoke "$parent"
+          # The packages at their master, which this editor is tested with (and
+          # released with); the registry still has the last release's.
+          for p in $(python3 -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/ci-smoke/deki-packages.json"); do
+            ./build/bin/DekiEditor --packages-add "$p" --version branch:master "$parent/ci-smoke"
+          done
+          ./build/bin/DekiEditor --build-code "$parent/ci-smoke"
+          # The game as a program, as Desktop builds it: a new project leaves
+          # most components out, which is what broke 0.30.0.
+          ./build/bin/DekiEditor --build-firmware --platform native_simulator "$parent/ci-smoke"
+          ./build/bin/DekiEditor --verify-scenes "$parent/ci-smoke"
+          ./build/bin/DekiEditor --render-scenes "$parent/ci-smoke" | tee render.txt
+          python3 tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true
+
   # ---------------------------------------------------------------------------
   # deki-demo on every board it targets, against the editor, engine and
   # packages on master. Each board renders the demo at its own screen size and
   # colour format, and the hashes must match that board's block in
-  # tools/ci/golden-demo.txt. deki-demo is private: it is checked out with a
-  # read-only deploy key (DEKI_DEMO_DEPLOY_KEY, set up like the engine's, see
-  # .github/actions/checkout-with-engine). A pull request from a fork gets no
-  # secrets, so it cannot read the demo and skips this job.
+  # tools/ci/golden-demo.txt.
   demo-boards:
     name: Demo on every board (Linux)
     needs: linux
-    if: >-
-      github.event_name != 'push' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     # Ubuntu 24.04 with GCC 16 and the build dependencies installed
     # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
     container:
@@ -597,23 +641,15 @@ jobs:
       run:
         shell: bash -e {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
-      # Without the agent the engine checkout left running: ssh would offer
-      # the engine's key first, GitHub would take it, and deki-demo would read
-      # as "not found".
-      - uses: actions/checkout@v4
-        env:
-          SSH_AUTH_SOCK: ''
+      - uses: actions/checkout@v7
         with:
           repository: dekiengine/deki-demo
-          ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
           path: ci/deki-demo
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: editor-linux
           path: build
@@ -644,6 +680,7 @@ jobs:
     needs: linux
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
+    timeout-minutes: 120
     # Ubuntu 24.04 with GCC 16 and the build dependencies installed
     # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
     container:
@@ -657,23 +694,15 @@ jobs:
       run:
         shell: bash -e {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
-        with:
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
-      # Without the agent the engine checkout left running: ssh would offer
-      # the engine's key first, GitHub would take it, and deki-demo would read
-      # as "not found".
-      - uses: actions/checkout@v4
-        env:
-          SSH_AUTH_SOCK: ''
+      - uses: actions/checkout@v7
         with:
           repository: dekiengine/deki-demo
-          ssh-key: ${{ secrets.DEKI_DEMO_DEPLOY_KEY }}
           path: ci/deki-demo
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: editor-linux
           path: build
@@ -685,7 +714,7 @@ jobs:
       # it saved nothing and every night downloaded ESP-IDF again.
       - name: Cache ESP-IDF
         id: idf
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/deki-editor/toolchains/espressif
@@ -695,7 +724,7 @@ jobs:
       # every run builds each board from an empty build folder, mostly the
       # same ESP-IDF sources as the night before.
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ccache-firmware
           key: ccache-firmware-linux-${{ github.sha }}
@@ -703,6 +732,7 @@ jobs:
       - name: Build firmware for every ESP-IDF board
         env:
           IDF_CCACHE_ENABLE: "1"
+          CCACHE_MAXSIZE: 1G
           # By content, not by time: every compile names a specs file ESP-IDF
           # writes again at each configure, and its new time made every compile
           # a miss.

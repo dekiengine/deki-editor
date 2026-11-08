@@ -47,14 +47,15 @@ jobs:
   tests:
     name: ${{ inputs.package }} (Linux)
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - name: Check out the package
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: packages/${{ inputs.package }}
 
       - name: Check out deki-editor and deki-engine
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: dekiengine/deki-editor
           ref: ${{ inputs.editor-ref }}
@@ -99,18 +100,19 @@ jobs:
             libdbus-1-dev libudev-dev
 
       - name: Cache fetched dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ${{ runner.temp }}/w/deki-editor/build/_deps
             !${{ runner.temp }}/w/deki-editor/build/_deps/*-build
           key: deps-linux-${{ steps.moved.outputs.deps }}
+          restore-keys: deps-linux-
 
       # Keyed by the editor and engine commits: a new commit of the package
       # alone reuses the whole engine build, and a new engine commit starts
       # from the last one's and recompiles only what changed.
       - name: Cache compiler output
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/ccache
           key: ccache-pkgtests-${{ steps.editor.outputs.sha }}-${{ github.sha }}

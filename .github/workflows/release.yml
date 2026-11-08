@@ -23,8 +23,10 @@ on:
         type: boolean
         default: false
 
+# Read only, for code that builds and runs what is being released; the publish
+# job alone asks for write.
 permissions:
-  contents: write
+  contents: read
   packages: read  # the Linux job's build image
 
 env:
@@ -35,35 +37,35 @@ jobs:
   check:
     name: Version and changelog
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       # actions/checkout first so the composite action below exists in the tree.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
         with:
           ref: ${{ env.RELEASE_TAG }}
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
       - run: python3 tools/ci/check_version.py --tag "$RELEASE_TAG"
 
   windows:
     name: Package Windows
     needs: check
     runs-on: windows-latest
+    timeout-minutes: 60
     defaults:
       run:
         shell: msys2 {0}
     steps:
       # actions/checkout first so the composite action below exists in the tree.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
         with:
           ref: ${{ env.RELEASE_TAG }}
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -76,7 +78,7 @@ jobs:
       # changes how long the build takes, not what it builds. A tag's run may
       # read the default branch's caches.
       - name: Restore FetchContent sources
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             build/_deps
@@ -84,7 +86,7 @@ jobs:
           key: deps-windows-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: deps-windows-
       - name: Restore sccache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .sccache
           key: sccache-windows-${{ github.sha }}
@@ -99,7 +101,7 @@ jobs:
       - name: Package
         shell: pwsh
         run: tools/package-windows.ps1 -Msys2 C:\msys64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-windows
           path: |
@@ -111,6 +113,7 @@ jobs:
     name: Package Linux
     needs: check
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     # Ubuntu 24.04 with GCC 16 and the build dependencies installed
     # (tools/ci/docker/linux-build); the toolchain PPA is not touched here.
     container:
@@ -125,17 +128,16 @@ jobs:
         shell: bash -e {0}
     steps:
       # actions/checkout first so the composite action below exists in the tree.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           submodules: false
       - uses: ./.github/actions/checkout-with-engine
         with:
           ref: ${{ env.RELEASE_TAG }}
-          deploy-key: ${{ secrets.DEKI_ENGINE_DEPLOY_KEY }}
       # CI's caches from master, read only, as for Windows above.
       - name: Restore FetchContent sources
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             build/_deps
@@ -143,7 +145,7 @@ jobs:
           key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: deps-linux-container-
       - name: Restore ccache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ccache
           key: ccache-linux-container-${{ github.sha }}
@@ -157,7 +159,7 @@ jobs:
           ccache -s
       - name: Package
         run: tools/package-linux.sh build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-linux
           path: |
@@ -173,11 +175,12 @@ jobs:
     name: New project (Windows archive)
     needs: windows
     runs-on: windows-latest
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-windows
           path: archive
@@ -206,6 +209,7 @@ jobs:
     name: New project (Linux archive)
     needs: linux
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     container:
       image: ghcr.io/dekiengine/deki-linux-build:1
       credentials:
@@ -215,7 +219,7 @@ jobs:
       run:
         shell: bash -e {0}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-linux
           path: archive
@@ -243,12 +247,15 @@ jobs:
     name: Publish GitHub release
     needs: [windows, linux, smoke-windows, smoke-linux]
     if: ${{ github.event.inputs.dry_run != 'true' }}
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
