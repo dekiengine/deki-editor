@@ -62,7 +62,7 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
 
     // Called by the efsw worker thread.
     void handleFileAction(efsw::WatchID /*watchid*/, const std::string& dir, const std::string& filename,
-                          efsw::Action action, std::string oldFilename) override
+                          efsw::Action action, const std::string& oldFilename) override
     {
         const auto now = std::chrono::steady_clock::now();
 

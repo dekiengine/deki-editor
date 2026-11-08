@@ -6,6 +6,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Fixed
+- macOS: a file renamed right after the asset watcher started is no longer
+  missed. efsw 1.7.3 registers its kqueue watch when it is added; 1.4.1 waited
+  for the watcher thread's first pass.
+
 ### Changed
 - **A version change rebuilds 12 files instead of the whole editor.** The
   editor's and the engine's versions are in generated headers, not compile

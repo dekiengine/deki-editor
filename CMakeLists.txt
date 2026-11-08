@@ -431,11 +431,15 @@ endif()
 FetchContent_Declare(
     efsw
     GIT_REPOSITORY https://github.com/SpartanJ/efsw.git
-    GIT_TAG 1.4.1
+    # 1.6.0 and later register a kqueue watch when it is added. 1.4.1 waited
+    # for the watcher thread's first pass, so on macOS a change made right
+    # after the watcher started was never reported.
+    GIT_TAG 1.7.3
     GIT_SHALLOW TRUE
 )
 set(VERBOSE OFF CACHE BOOL "" FORCE)
 set(BUILD_TEST_APP OFF CACHE BOOL "" FORCE)
+set(BUILD_AGENT OFF CACHE BOOL "" FORCE)
 set(EFSW_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(efsw)
 # macOS: kqueue rather than FSEvents. The FSEvents backend includes
