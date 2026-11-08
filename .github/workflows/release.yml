@@ -82,6 +82,7 @@ jobs:
             build/_deps
             !build/_deps/*-build
           key: deps-windows-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-windows-
       - name: Restore sccache
         uses: actions/cache/restore@v4
         with:
@@ -140,6 +141,7 @@ jobs:
             build/_deps
             !build/_deps/*-build
           key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-linux-container-
       - name: Restore ccache
         uses: actions/cache/restore@v4
         with:

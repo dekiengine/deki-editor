@@ -897,7 +897,95 @@ void AssetPipeline::Tick()
         return;
     }
 
-    auto events = m_FileWatcher->DrainReadyEvents();
+    const auto now = std::chrono::steady_clock::now();
+    if (m_FileWatcher->TakeMissedEvents())
+    {
+        if (!m_ResyncPending)
+        {
+            DEKI_LOG_WARNING("AssetPipeline: the OS dropped file change events; checking the assets against the disk");
+        }
+        m_ResyncPending = true;
+        m_ResyncAt = now + std::chrono::milliseconds(kResyncDelayMs);
+    }
+
+    ProcessFileEvents(m_FileWatcher->DrainReadyEvents());
+
+    if (m_ResyncPending && now >= m_ResyncAt)
+    {
+        m_ResyncPending = false;
+        ResyncWithDisk();
+    }
+}
+
+void AssetPipeline::ResyncWithDisk()
+{
+    if (!m_Running || m_AssetsPath.empty() || m_ProjectPath.empty())
+    {
+        return;
+    }
+
+    using Event = AssetFileWatcher::Event;
+    using Kind = AssetFileWatcher::EventKind;
+    std::vector<Event> events;
+    std::unordered_set<std::string> onDisk;
+
+    std::error_code ec;
+    fs::recursive_directory_iterator it(m_AssetsPath, fs::directory_options::skip_permission_denied, ec);
+    for (const fs::recursive_directory_iterator end; !ec && it != end; it.increment(ec))
+    {
+        std::error_code entryEc;
+        const std::string ext = it->path().extension().string();
+        if (!it->is_regular_file(entryEc) || ext == ".dekiguid" || ext == ".data" || !IsAssetFile(ext))
+        {
+            continue;
+        }
+
+        const std::string relativePath = fs::relative(it->path(), m_ProjectPath, entryEc).generic_string();
+        if (entryEc)
+        {
+            continue;
+        }
+        onDisk.insert(relativePath);
+
+        const auto known = m_Assets.find(relativePath);
+        if (known == m_Assets.end())
+        {
+            events.push_back({ Kind::Added, relativePath });
+            continue;
+        }
+        // An asset with no stamp (its source is its own cache, or it is not
+        // cached) cannot be told unchanged, so it is processed again.
+        const auto stamp = m_CacheStamps.find(known->second.guid);
+        if (stamp == m_CacheStamps.end() || stamp->second != MakeCacheStamp(it->path().string()))
+        {
+            events.push_back({ Kind::Modified, relativePath });
+        }
+    }
+    if (ec)
+    {
+        // A partial listing would read as every asset after it being deleted.
+        DEKI_LOG_WARNING("AssetPipeline: could not list %s: %s", m_AssetsPath.c_str(), ec.message().c_str());
+        return;
+    }
+
+    // Scenes after the assets they can refer to, as in ImportAllAssets.
+    std::stable_partition(events.begin(), events.end(), [](const Event& e)
+                          { return fs::path(e.relativePath).extension() != ".scene"; });
+
+    const std::string assetsPrefix = fs::relative(m_AssetsPath, m_ProjectPath, ec).generic_string() + "/";
+    for (const auto& [relativePath, info] : m_Assets)
+    {
+        if (relativePath.rfind(assetsPrefix, 0) == 0 && onDisk.count(relativePath) == 0)
+        {
+            events.push_back({ Kind::Deleted, relativePath });
+        }
+    }
+
+    ProcessFileEvents(std::move(events));
+}
+
+void AssetPipeline::ProcessFileEvents(std::vector<AssetFileWatcher::Event> events)
+{
     if (events.empty())
     {
         return;

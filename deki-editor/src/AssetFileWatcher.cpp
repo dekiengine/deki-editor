@@ -3,6 +3,7 @@
 #include <efsw/efsw.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 #include <system_error>
 
@@ -59,6 +60,7 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
 
     std::mutex mutex;
     std::unordered_map<std::string, Pending> pending;
+    std::atomic<bool> missedEvents{ false };
 
     // Called by the efsw worker thread.
     void handleFileAction(efsw::WatchID /*watchid*/, const std::string& dir, const std::string& filename,
@@ -76,6 +78,12 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
                 Submit(dir, filename, EventKind::Added, now);
                 break;
         }
+    }
+
+    // Called by the efsw worker thread.
+    void handleMissedFileActions(efsw::WatchID /*watchid*/, const std::string& /*dir*/) override
+    {
+        missedEvents = true;
     }
 
     void Submit(const std::string& dir, const std::string& filename, EventKind kind,
@@ -227,6 +235,11 @@ void AssetFileWatcher::Stop()
 
     std::lock_guard<std::mutex> lock(impl.mutex);
     impl.pending.clear();
+}
+
+bool AssetFileWatcher::TakeMissedEvents()
+{
+    return m_Impl->missedEvents.exchange(false);
 }
 
 std::vector<AssetFileWatcher::Event> AssetFileWatcher::DrainReadyEvents()

@@ -7,6 +7,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Fixed
+- When the OS drops file change events, as a large checkout can, the editor
+  checks the assets against the disk and every package's sources, so nothing
+  that changed is left stale.
 - A configure no longer stops on one failed download of Ninja, sccache or the
   shader tools. Each is tried up to five times, and its hash is still checked.
 - macOS: a file renamed right after the asset watcher started is no longer

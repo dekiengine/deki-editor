@@ -67,6 +67,11 @@ public:
     /// only. Newer entries stay pending for a later call.
     std::vector<Event> DrainReadyEvents();
 
+    /// True once after the OS dropped change events (a burst overflowed its
+    /// buffer, as a large checkout can): files may have changed that no event
+    /// will report, so the caller should compare with the disk. Main thread.
+    bool TakeMissedEvents();
+
     static constexpr int kDebounceMs = 100;
 
 private:

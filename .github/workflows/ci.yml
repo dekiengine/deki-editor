@@ -120,6 +120,7 @@ jobs:
             build/_deps
             !build/_deps/*-build
           key: deps-windows-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-windows-
 
       - name: Cache sccache
         uses: actions/cache@v4
@@ -230,6 +231,7 @@ jobs:
             build/_deps
             !build/_deps/*-build
           key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-linux-container-
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -332,6 +334,7 @@ jobs:
             build/_deps
             !build/_deps/*-build
           key: deps-macos-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-macos-
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -420,6 +423,7 @@ jobs:
             build/_deps
             !build/_deps/*-build
           key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-linux-container-
 
       - name: Cache ccache
         uses: actions/cache@v4

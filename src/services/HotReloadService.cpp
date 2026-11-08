@@ -427,6 +427,13 @@ void HotReloadService::Tick(const std::string& projectPath)
         {
             return;
         }
+        // Dropped events can hide a change in any package.
+        if (w->TakeMissedEvents())
+        {
+            DEKI_LOG_EDITOR("Watcher: the OS dropped file change events; checking every package");
+            m_SourcesDirty = true;
+            m_AllPackagesSuspect = true;
+        }
         for (const auto& evt : w->DrainReadyEvents())
         {
             if (SourceChangeDetector::IsBuildArtifact(evt.relativePath))

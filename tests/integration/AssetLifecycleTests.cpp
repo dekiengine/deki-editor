@@ -484,6 +484,47 @@ TEST_F(AssetLifecycleTest, RenameOnDisk_KeepsGuidAndCache)
 }
 
 // -----------------------------------------------------------------------------
+// The OS drops change events when a burst overflows its buffer (a big
+// checkout). A resync finds what no event reported, and leaves the rest alone.
+// -----------------------------------------------------------------------------
+
+TEST_F(AssetLifecycleTest, ResyncWithDisk_FindsWhatNoEventReported)
+{
+    const std::string changed = CreateAssetFile("changed.lifecycle", 1);
+    const std::string same = CreateAssetFile("same.lifecycle", 2);
+    const std::string gone = CreateAssetFile("gone.lifecycle", 3);
+    m_Pipeline->ImportAllAssets();
+    const std::string goneGuid = m_Pipeline->GetAssetInfo(gone)->guid;
+
+    std::vector<std::string> changes, discoveries, deletions;
+    m_Pipeline->onAssetChanged = [&](const std::string& path) { changes.push_back(path); };
+    m_Pipeline->onAssetDiscovered = [&](const std::string& path) { discoveries.push_back(path); };
+    m_Pipeline->onAssetDeleted = [&](const std::string& path, const std::string& guid)
+    {
+        deletions.push_back(path);
+        EXPECT_EQ(guid, goneGuid);
+    };
+
+    m_Pipeline->ResyncWithDisk();
+    EXPECT_TRUE(changes.empty()) << "nothing had changed";
+    EXPECT_TRUE(discoveries.empty());
+    EXPECT_TRUE(deletions.empty());
+
+    CreateAssetFile("changed.lifecycle", 12345);  // a different size, so a different stamp
+    const std::string added = CreateAssetFile("sub/added.lifecycle", 4);
+    fs::remove(m_TempDir / "assets" / "gone.lifecycle");
+    m_Pipeline->ResyncWithDisk();
+
+    EXPECT_EQ(changes, std::vector<std::string>{ changed });
+    EXPECT_EQ(discoveries, std::vector<std::string>{ added });
+    EXPECT_EQ(deletions, std::vector<std::string>{ gone });
+    EXPECT_EQ(ReadCachedValue(m_Pipeline->GetAbsolutePath(m_Pipeline->GetAssetInfo(changed)->cachePath)), 12345);
+    ASSERT_NE(m_Pipeline->GetAssetInfo(added), nullptr);
+    EXPECT_EQ(m_Pipeline->GetAssetInfo(gone), nullptr);
+    EXPECT_NE(m_Pipeline->GetAssetInfo(same), nullptr);
+}
+
+// -----------------------------------------------------------------------------
 // A source restored from a backup (or unzipped) with an OLDER time than its
 // cache is still a change: the cache is rebuilt. Checking only "is the source
 // newer?" would keep the old cache and ship it.

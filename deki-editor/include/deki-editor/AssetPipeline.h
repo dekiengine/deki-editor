@@ -12,6 +12,7 @@
 #include <deki-editor/SubAsset.h>
 #include <deki-editor/TextureImporter.h>
 #include <deki-editor/GuidCache.h>
+#include <deki-editor/AssetFileWatcher.h>
 #include <deki/Storage.h>
 #include <deki/Engine.h>  // Deki::ColorFormat
 
@@ -33,7 +34,6 @@ constexpr int kDekiCacheVersion = 9;  // 9: Detail keeps seams again (8 collapse
 constexpr int kSceneCompileVersion = 2;
 
 class AssetPipeline;
-class AssetFileWatcher;
 
 /// Everything a cache handler needs to write the cache files for one asset.
 struct DEKI_EDITOR_API AssetCacheContext
@@ -259,6 +259,12 @@ public:
     /// main thread, because subscribers touch GPU resources.
     void Tick();
 
+    /// Compares the assets with the disk and reprocesses what differs: new
+    /// files, files changed since their cache was built, files that are gone.
+    /// Fires the same callbacks as Tick. Tick calls it when the OS reports
+    /// that it dropped change events.
+    void ResyncWithDisk();
+
     /// Asset info by project-relative path, e.g. "assets/textures/player.png".
     const AssetInfo* GetAssetInfo(const std::string& relativePath) const;
 
@@ -399,6 +405,14 @@ private:
 
     // Started after ImportAllAssets, drained by Tick.
     std::unique_ptr<AssetFileWatcher> m_FileWatcher;
+
+    // Reprocesses the assets `events` name; what Tick does with them.
+    void ProcessFileEvents(std::vector<AssetFileWatcher::Event> events);
+
+    // A resync waits for the burst that overflowed the OS buffer to go quiet.
+    static constexpr int kResyncDelayMs = 500;
+    bool m_ResyncPending = false;
+    std::chrono::steady_clock::time_point m_ResyncAt;
 
     // What each cache was compiled from (MakeCacheStamp), by GUID, kept in
     // cache/cache_stamps.json. A cache is current only when this matches.
