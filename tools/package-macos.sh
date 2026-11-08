@@ -119,13 +119,13 @@ case "$CMAKE_BIN" in
     */CMake.app/Contents/bin/cmake)
         mkdir -p "$TC/CMake.app/Contents/bin" "$TC/CMake.app/Contents/share"
         cp -L "$CMAKE_BIN" "$TC/CMake.app/Contents/bin/cmake"
-        cp -R "$CMAKE_ROOT_DIR" "$TC/CMake.app/Contents/share/"
+        cp -RL "$CMAKE_ROOT_DIR" "$TC/CMake.app/Contents/share/"
         ln -sf ../CMake.app/Contents/bin/cmake "$TC/bin/cmake"
         ;;
     *)
         cp -L "$CMAKE_BIN" "$TC/bin/cmake"
         mkdir -p "$TC/share"
-        cp -R "$CMAKE_ROOT_DIR" "$TC/share/"
+        cp -RL "$CMAKE_ROOT_DIR" "$TC/share/"
         ;;
 esac
 
@@ -134,6 +134,11 @@ python3 "$REPO_ROOT/tools/macos_relocate.py" "$DIST" "$TC/lib/bundled"
 
 "$TC/bin/g++" --version | head -n1
 "$TC/bin/cmake" --version | head -n1
+# --version works without the modules; a script does not.
+echo "    CMake's modules were at $CMAKE_ROOT_DIR"
+cmake_check="$(mktemp -d)/check.cmake"
+echo 'message(STATUS "cmake modules: ${CMAKE_ROOT}")' > "$cmake_check"
+"$TC/bin/cmake" -P "$cmake_check"
 
 # What a user does first, with a plain system PATH. CI's archive job does the
 # same on a machine that never had this GCC.
