@@ -92,7 +92,8 @@ find "$TC" -name '*.la' -delete
 # its own location. The SDK and the linker it takes from the Command Line Tools,
 # asked for by absolute path because PATH may be empty; the SDK named when
 # Homebrew built this GCC need not be the one this Mac has. The run path is how
-# a game built here finds this libstdc++.
+# a game built here finds this libstdc++; only when linking, because GCC takes
+# -Wl as a linker input and would try to link a precompiled header.
 for drv in g++:g++-$GCC_MAJOR gcc:gcc-$GCC_MAJOR; do
     name="${drv%%:*}"; real="${drv##*:}"
     cat > "$TC/bin/$name" <<EOF
@@ -100,8 +101,17 @@ for drv in g++:g++-$GCC_MAJOR gcc:gcc-$GCC_MAJOR; do
 here=\${0%/*}
 [ "\$here" = "\$0" ] && here=.
 sdk=\$(/usr/bin/xcrun --show-sdk-path) || exit 1
-lib=\$(cd "\$here/../lib/gcc/current" && pwd)
-exec "\$here/$real" --sysroot="\$sdk" -Wl,-rpath,"\$lib" "\$@"
+link=1
+for arg in "\$@"; do
+    case "\$arg" in
+        -c|-S|-E|-M|-MM|c-header|c++-header|-dump*|--version) link= ;;
+    esac
+done
+if [ -n "\$link" ]; then
+    lib=\$(cd "\$here/../lib/gcc/current" && pwd)
+    exec "\$here/$real" --sysroot="\$sdk" -Wl,-rpath,"\$lib" "\$@"
+fi
+exec "\$here/$real" --sysroot="\$sdk" "\$@"
 EOF
     chmod +x "$TC/bin/$name"
 done
