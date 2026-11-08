@@ -386,10 +386,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: editor-macos
+          # sdl3-clang: SDL3 as its own clang build installed it (see
+          # CMakeLists.txt), which CMakeCache.txt points project builds at.
           path: |
             build/bin
             build/lib
             build/_deps/*-src
+            build/_deps/sdl3-clang
             build/CMakeCache.txt
           retention-days: 3
 
@@ -613,6 +616,71 @@ jobs:
           ./build/bin/DekiEditor --verify-scenes "$parent/ci-smoke"
           ./build/bin/DekiEditor --render-scenes "$parent/ci-smoke" | tee render.txt
           python3 tools/ci/check_golden.py render.txt tools/ci/golden-scaffold.txt
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true
+
+  # The macOS archive, packaged and used on a machine that never had its GCC.
+  # Windows' and Linux' are checked by the release; macOS' relocation is new
+  # and has no other way to be tried before a release.
+  package-macos:
+    name: Package macOS
+    needs: macos
+    if: github.event_name != 'push'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+      - name: Install the toolchain to package
+        run: brew install gcc ninja
+      - uses: actions/download-artifact@v8
+        with:
+          name: editor-macos
+          path: build
+      - name: Package
+        env:
+          DEKI_SKIP_PROJECT_CHECK: "1"
+        run: tools/package-macos.sh build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-macos
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  archive-macos:
+    name: Use the macOS archive
+    needs: package-macos
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: package-macos
+          path: archive
+      - name: Unpack, new project, build, verify, render
+        run: |
+          set -e
+          cd archive
+          tar -xzf DekiEditor-*-macos-arm64.tar.gz
+          editor="$PWD/DekiEditor-macos-arm64/DekiEditor"
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          # A plain system PATH, as a double-click has, on a machine that never
+          # had the GCC this archive carries.
+          export PATH=/usr/bin:/bin
+          "$editor" --new-project fresh "$parent"
+          # The packages as they are about to be released.
+          for p in $(python3 -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/fresh/deki-packages.json"); do
+            "$editor" --packages-add "$p" --version branch:master "$parent/fresh"
+          done
+          "$editor" --build-code "$parent/fresh"
+          "$editor" --build-firmware --platform native_simulator "$parent/fresh"
+          "$editor" --verify-scenes "$parent/fresh"
+          "$editor" --render-scenes "$parent/fresh"
       - name: Editor log on failure
         if: failure()
         run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true

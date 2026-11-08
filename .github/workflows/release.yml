@@ -167,6 +167,58 @@ jobs:
             dist/*.sha256
           if-no-files-found: error
 
+  macos:
+    name: Package macOS
+    needs: check
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Install the toolchain
+        run: brew install gcc ninja ccache
+      # CI's caches from master, read only, as for Windows above.
+      - name: Restore FetchContent sources
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-macos-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-macos-
+      - name: Restore ccache
+        uses: actions/cache/restore@v6
+        with:
+          path: .ccache
+          key: ccache-macos-${{ github.sha }}
+          restore-keys: ccache-macos-
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+                -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+          cmake --build build --target DekiEditor
+          ccache -s
+      - name: Package
+        env:
+          # smoke-macos below does it on a machine without this GCC.
+          DEKI_SKIP_PROJECT_CHECK: "1"
+        run: tools/package-macos.sh build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-macos
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
   # The archive a user downloads, unpacked as they would: a new project must
   # build, for the editor and as a program, before anything is published.
   # 0.30.0 went out with a Desktop build that failed for every new project,
@@ -243,9 +295,47 @@ jobs:
         if: failure()
         run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
 
+  smoke-macos:
+    name: New project (macOS archive)
+    needs: macos
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          submodules: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-macos
+          path: archive
+      - name: Unpack, new project, build
+        run: |
+          set -e
+          cd archive
+          tar -xzf DekiEditor-*-macos-arm64.tar.gz
+          editor="$PWD/DekiEditor-macos-arm64/DekiEditor"
+          parent="$RUNNER_TEMP/smoke"
+          mkdir -p "$parent"
+          # A plain system PATH, as a double-click has, on a machine that never
+          # had the GCC this archive carries.
+          export PATH=/usr/bin:/bin
+          "$editor" --new-project fresh "$parent"
+          # The packages as they are about to be released.
+          for p in $(python3 -c "import json, sys; print(' '.join(json.load(open(sys.argv[1]))['packages']))" "$parent/fresh/deki-packages.json"); do
+            "$editor" --packages-add "$p" --version branch:master "$parent/fresh"
+          done
+          "$editor" --build-code "$parent/fresh"
+          "$editor" --build-firmware --platform native_simulator "$parent/fresh"
+          "$editor" --verify-scenes "$parent/fresh"
+          "$editor" --render-scenes "$parent/fresh"
+      - name: Editor log on failure
+        if: failure()
+        run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true
+
   publish:
     name: Publish GitHub release
-    needs: [windows, linux, smoke-windows, smoke-linux]
+    needs: [windows, linux, macos, smoke-windows, smoke-linux, smoke-macos]
     if: ${{ github.event.inputs.dry_run != 'true' }}
     permissions:
       contents: write
@@ -284,6 +374,8 @@ jobs:
           fi
           echo "" >> notes.md
           echo "Archives are not code-signed yet; on Windows choose *More info → Run anyway* at the SmartScreen prompt. Verify with \`sha256sum -c <file>.sha256\`." >> notes.md
+          echo "" >> notes.md
+          echo "macOS (Apple Silicon) needs the Command Line Tools (\`xcode-select --install\`). After unpacking, clear the download flag with \`xattr -dr com.apple.quarantine DekiEditor-macos-arm64\`." >> notes.md
           cat notes.md
       - name: Create or update the release
         env:
