@@ -500,6 +500,9 @@ deki_add_package_tests(deki-rendering TARGET DekiRenderingTestsBigEndian ALL_SOU
 deki_add_package_tests(deki-particles TARGET DekiParticlesTests)
 deki_add_package_tests(deki-particles TARGET DekiParticlesTestsBigEndian BIG_ENDIAN)
 
+# deki-physics-2d: the world alone, which knows nothing of the engine.
+deki_add_package_tests(deki-physics-2d TARGET DekiPhysics2DTests SOURCES Physics2DWorld.cpp)
+
 # deki-3d: the rasteriser and the mesh file, every texture and framebuffer
 # format. tests/standalone/ holds two programs with their own main()
 # (MeshRoundTrip, and the Raster3DBench benchmark), built by hand from the g++
