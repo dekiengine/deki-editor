@@ -242,7 +242,7 @@ jobs:
         run: >-
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
           -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
 
       - name: Build editor
         run: cmake --build build --target DekiEditor
@@ -345,7 +345,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
           -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16
           -DDEKI_TEMPLATE_PACKAGES_DIR=${{ github.workspace }}/../templates
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
 
       - name: Build editor
         run: cmake --build build --target DekiEditor
@@ -687,9 +687,21 @@ jobs:
             ~/.local/share/deki-editor/toolchains/espressif
             ~/.espressif
           key: esp-idf-linux-container-v2-${{ hashFiles('ci/packages/deki-esp32-integration/editor/ESPIDFToolchain.cpp') }}
+      # The boards' compiles, through ccache (idf.py reads IDF_CCACHE_ENABLE):
+      # every run builds each board from an empty build folder, mostly the
+      # same ESP-IDF sources as the night before.
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache-firmware
+          key: ccache-firmware-linux-${{ github.sha }}
+          restore-keys: ccache-firmware-linux-
       - name: Build firmware for every ESP-IDF board
+        env:
+          IDF_CCACHE_ENABLE: "1"
         run: |
           set -e
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache-firmware"
           chmod +x build/bin/DekiEditor
           export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
           # --install-toolchain installs again even when it is there.
@@ -706,6 +718,7 @@ jobs:
             echo "=== $board"
             xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform "$board" ci/deki-demo
           done
+          ccache -s
       - name: Editor log on failure
         if: failure()
         run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
