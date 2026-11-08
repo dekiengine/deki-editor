@@ -51,21 +51,24 @@ mkdir -p "$SDK/_deps/imgui-src" "$SDK/_deps/freetype-src" "$SDK/_deps/stb-src" "
       -exec cp -a {} "$SDK/_deps/imgui-src/" \; )
 cp -a "$DEPS_DIR/freetype-src/include" "$SDK/_deps/freetype-src/include"
 cp -a "$DEPS_DIR"/stb-src/*.h "$DEPS_DIR/stb-src/LICENSE" "$SDK/_deps/stb-src/"
-# SDL3's headers as its clang build installed them.
+# SDL3 as its clang build installed it: the headers for package builds, and the
+# whole install for a game built as a program (its CMake package).
 cp -a "$DEPS_DIR/sdl3-clang/include" "$SDK/_deps/sdl3-src/include"
+cp -a "$DEPS_DIR/sdl3-clang" "$SDK/_deps/sdl3-clang"
 
 # Links, so the archive carries one copy of each library.
 for lib in "$DIST"/lib/libdeki-*.dylib; do
     ln -sf "../../lib/$(basename "$lib")" "$SDK/lib/$(basename "$lib")"
 done
-for lib in "$DIST"/libSDL3*.dylib; do
-    ln -sf "../../$(basename "$lib")" "$SDK/lib/$(basename "$lib")"
-done
+cp -a "$DEPS_DIR"/sdl3-clang/lib/libSDL3*.dylib "$SDK/lib/"
 cp -a "$BUILD_DIR"/lib/libimgui.a "$BUILD_DIR"/lib/libfreetype*.a "$SDK/lib/"
-if [[ ! -e "$SDK/lib/libdeki-editor.dylib" || ! -e "$SDK/lib/libSDL3.dylib" ]]; then
-    echo "error: libdeki-editor.dylib or libSDL3.dylib is missing; build the DekiEditor target first." >&2
-    exit 1
-fi
+for needed in libdeki-editor.dylib libSDL3.dylib; do
+    if [[ ! -e "$SDK/lib/$needed" ]]; then
+        echo "error: $needed is missing from the SDK; build the DekiEditor target first. It has:" >&2
+        ls -la "$SDK/lib" "$BUILD_DIR/lib" >&2
+        exit 1
+    fi
+done
 
 echo "==> Staging toolchain"
 GCC_PREFIX="$(cd -P "$(brew --prefix gcc)" && pwd)"
