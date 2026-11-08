@@ -521,7 +521,7 @@ deki_add_package_tests(deki-physics-2d TARGET DekiPhysics2DTests SOURCES Physics
 # through deki-rendering's shader uses and this package's mesh use. One test
 # checks GLMesh3DBuiltinShader.inl, read from the package's source directory,
 # is what the mesh use compiles to.
-set(DEKI_3D_TEST_SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp editor/MeshSimplify.cpp
+set(DEKI_3D_TEST_SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/ObjImporter.cpp editor/GltfImporter.cpp editor/MeshSimplify.cpp
     editor/ModelSettings.cpp editor/ModelInspector.cpp
     GLMesh3DBackend.cpp editor/MeshShaderUse.cpp editor/Mesh3DSettingsMigration.cpp
     ../deki-rendering/GLApi.cpp ../deki-rendering/GLPresenter.cpp ../deki-rendering/GLBlitSink.cpp
