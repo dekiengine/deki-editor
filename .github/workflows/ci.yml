@@ -620,6 +620,51 @@ jobs:
         if: failure()
         run: cat ~/Library/Application\ Support/DekiEditor/Editor.log ~/.deki-editor/Editor.log 2>/dev/null || true
 
+  # The file readers against damaged files, under AddressSanitizer: the normal
+  # test run proves they return, this that they stay inside their buffers.
+  fuzz:
+    name: File format fuzzing (Linux, ASan)
+    needs: linux
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: ghcr.io/dekiengine/deki-linux-build:1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: bash -e {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: false
+      - uses: ./.github/actions/checkout-with-engine
+      - name: Check out packages the tests read
+        run: |
+          git clone --quiet --depth 1 https://github.com/dekiengine/deki-rendering ../packages/deki-rendering
+          for p in deki-desktop-integration deki-lilygo-boards deki-tactility-integration; do
+            git clone --quiet --depth 1 "https://github.com/dekiengine/$p" "../templates/$p"
+          done
+      - name: Restore FetchContent sources
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            build/_deps
+            !build/_deps/*-build
+          key: deps-linux-container-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-linux-container-
+      - name: Build the tests with AddressSanitizer
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo                 -DCMAKE_C_COMPILER=gcc-16 -DCMAKE_CXX_COMPILER=g++-16 -DDEKI_GXX16=g++-16                 -DDEKI_TEMPLATE_PACKAGES_DIR=$GITHUB_WORKSPACE/../templates -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON                 "-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer"                 "-DCMAKE_C_FLAGS=-fsanitize=address -fno-omit-frame-pointer"                 "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address" "-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address"
+          cmake --build build --target DekiEditorTests
+      - name: Fuzz
+        env:
+          DEKI_FUZZ_ITERATIONS: "100000"
+          ASAN_OPTIONS: detect_leaks=0
+        run: ./build/bin/DekiEditorTests --gtest_brief=1 --gtest_filter='FileFormatFuzz*'
+
   # The macOS archive, packaged and used on a machine that never had its GCC.
   # Windows' and Linux' are checked by the release; macOS' relocation is new
   # and has no other way to be tried before a release.

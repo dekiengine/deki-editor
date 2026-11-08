@@ -31,6 +31,7 @@ endif()
 
 set(TEST_SOURCES
     # Existing tests
+    core/FileFormatFuzzTests.cpp
     core/ObjectLayoutTests.cpp
     core/ObjectTransformTests.cpp
     core/ObjectTransform3DTests.cpp

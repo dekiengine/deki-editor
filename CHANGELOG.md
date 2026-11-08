@@ -6,6 +6,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Added
+- Tests that damage valid scene and settings files thousands of ways and load
+  them, and a nightly CI job that runs them under AddressSanitizer.
+
 ### Fixed
 - When the OS drops file change events, as a large checkout can, the editor
   checks the assets against the disk and every package's sources, so nothing
