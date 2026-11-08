@@ -2,6 +2,8 @@
 
 #include "EditorApp.h"
 #include "EditorVersion.h"
+#include "services/EditorUpdater.h"
+#include "services/UpdateCheck.h"
 #include "services/FileDialogs.h"
 #include <deki-editor/ProcessLaunch.h>
 #include "services/ProjectRegistry.h"
@@ -221,6 +223,12 @@ void ProjectManagerScreen::Draw()
             : std::max(railMinH, (float)entryCount * rowStride + 8.0f * s + (m_Error.empty() ? 0.0f : 26.0f * s));
     bodyH = std::max(std::min(bodyH, availBodyH), 120.0f * s);
 
+    if (!UpdateCheck::AvailableVersion().empty() && EditorUpdater::CanUpdateInPlace())
+    {
+        ImGui::SetCursorPos(ImVec2(start.x + pad, start.y + pad * 0.4f));
+        DrawUpdateBanner();
+    }
+
     // Sit slightly above the middle, where the eye lands first.
     const float blockH = headerH + bodyH;
     const float top = std::max(pad * 0.7f, (avail.y - blockH) * 0.42f);
@@ -311,6 +319,44 @@ void ProjectManagerScreen::Draw()
                 m_PendingOpen = entries[m_Selected].path;
             }
         }
+    }
+}
+
+void ProjectManagerScreen::DrawUpdateBanner()
+{
+    const std::string version = UpdateCheck::AvailableVersion();
+    switch (EditorUpdater::GetState())
+    {
+        case EditorUpdater::State::Idle:
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%s %s", Tr("A new version of Deki is available:"), version.c_str());
+            ImGui::SameLine();
+            if (ImGui::Button(Tr("Update")))
+            {
+                EditorUpdater::Start(version);
+            }
+            break;
+        case EditorUpdater::State::Working:
+            ImGui::TextUnformatted(EditorUpdater::GetStatus().c_str());
+            break;
+        case EditorUpdater::State::Ready:
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(EditorUpdater::GetStatus().c_str());
+            ImGui::SameLine();
+            if (ImGui::Button(Tr("Restart")) && EditorUpdater::ApplyAndRestart())
+            {
+                m_App->RequestQuit();
+            }
+            break;
+        case EditorUpdater::State::Failed:
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(EditorUpdater::GetStatus().c_str());
+            ImGui::SameLine();
+            if (ImGui::Button(Tr("Try Again")))
+            {
+                EditorUpdater::Start(version);
+            }
+            break;
     }
 }
 

@@ -46,6 +46,7 @@ private:
     void DrawProjectList(float width, float height);
     void DrawActionRail(float width, float height);
     void DrawEmptyState(float width, float height);
+    void DrawUpdateBanner();
 
     // Picks a folder, adds it to the registry and opens it. Rejects folders
     // without a deki.json.

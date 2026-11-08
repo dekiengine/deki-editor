@@ -579,6 +579,7 @@ set(EDITOR_TESTABLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/FrameTiming.cpp
     # UpdateCheckTests: what to make of a GitHub release and whether it is newer.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/UpdateCheckParse.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/services/EditorUpdatePlan.cpp
     # AgentCursorIntentTests: what the agent pointer shows for each MCP tool call.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/AgentCursorIntent.cpp
     # PrerequisitesTests: the prerequisite probe and the toolchain it reports.
@@ -715,6 +716,9 @@ set(EDITOR_SOURCES
     src/services/EditorLauncher.h
     src/services/FrameTiming.cpp
     src/services/FrameTiming.h
+    src/services/EditorUpdater.cpp
+    src/services/EditorUpdater.h
+    src/services/EditorUpdatePlan.h
     src/services/UpdateCheck.cpp
     src/services/UpdateCheck.h
     src/services/UpdateCheckParse.h

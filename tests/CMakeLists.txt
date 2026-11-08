@@ -47,6 +47,7 @@ set(TEST_SOURCES
     services/ProjectLockTests.cpp
     services/LiveSessionTests.cpp
     services/EditorLauncherTests.cpp
+    services/EditorUpdatePlanTests.cpp
     services/UpdateCheckTests.cpp
     services/AgentCursorIntentTests.cpp
     services/ToolchainPathTests.cpp

@@ -7,6 +7,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- **Update from the project launcher.** A downloaded editor offers a newer
+  release there: it downloads it, checks its SHA-256, unpacks it beside the
+  install and swaps the folders when you restart.
 - Tests that damage valid scene and settings files thousands of ways and load
   them, and a nightly CI job that runs them under AddressSanitizer.
 
