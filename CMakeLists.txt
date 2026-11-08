@@ -480,6 +480,7 @@ target_link_libraries(imgui PUBLIC
 add_subdirectory(deki-profiling-hooks)
 
 # The shader compiler's SPIRV-Cross and Slang (deki-editor/ShaderCompiler.h).
+include(cmake/DekiDownload.cmake)
 include(cmake/DekiShaderTools.cmake)
 
 # =============================================================================
@@ -1093,13 +1094,7 @@ if(WIN32)
     if(NOT EXISTS "${DEKI_NINJA_EXE}")
         message(STATUS "Downloading bundled Ninja ${DEKI_NINJA_VERSION}...")
         file(MAKE_DIRECTORY "${DEKI_NINJA_CACHE_DIR}")
-        file(DOWNLOAD
-            "${DEKI_NINJA_URL}"
-            "${DEKI_NINJA_CACHE_DIR}/ninja-win.zip"
-            EXPECTED_HASH SHA256=${DEKI_NINJA_SHA256}
-            STATUS _deki_ninja_dl_status
-            SHOW_PROGRESS
-        )
+        deki_download("${DEKI_NINJA_URL}" "${DEKI_NINJA_CACHE_DIR}/ninja-win.zip" "${DEKI_NINJA_SHA256}" _deki_ninja_dl_status)
         list(GET _deki_ninja_dl_status 0 _deki_ninja_dl_code)
         if(NOT _deki_ninja_dl_code EQUAL 0)
             message(FATAL_ERROR "Failed to download Ninja: ${_deki_ninja_dl_status}")
@@ -1137,13 +1132,7 @@ if(WIN32)
     if(NOT EXISTS "${DEKI_SCCACHE_EXE}")
         message(STATUS "Downloading bundled sccache ${DEKI_SCCACHE_VERSION}...")
         file(MAKE_DIRECTORY "${DEKI_SCCACHE_CACHE_DIR}")
-        file(DOWNLOAD
-            "${DEKI_SCCACHE_URL}"
-            "${DEKI_SCCACHE_CACHE_DIR}/sccache.tar.gz"
-            EXPECTED_HASH SHA256=${DEKI_SCCACHE_SHA256}
-            STATUS _deki_sccache_dl_status
-            SHOW_PROGRESS
-        )
+        deki_download("${DEKI_SCCACHE_URL}" "${DEKI_SCCACHE_CACHE_DIR}/sccache.tar.gz" "${DEKI_SCCACHE_SHA256}" _deki_sccache_dl_status)
         list(GET _deki_sccache_dl_status 0 _deki_sccache_dl_code)
         if(NOT _deki_sccache_dl_code EQUAL 0)
             message(FATAL_ERROR "Failed to download sccache: ${_deki_sccache_dl_status}")
