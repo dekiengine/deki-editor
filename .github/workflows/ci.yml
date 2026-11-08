@@ -702,6 +702,10 @@ jobs:
         run: |
           set -e
           export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache-firmware"
+          # TEMPORARY: why the boards' compiles never hit the cache.
+          export CCACHE_DEBUG=1 CCACHE_DEBUGDIR="$GITHUB_WORKSPACE/ccache-debug"
+          ccache --version | head -1
+          ccache -p | grep -v "(default)" || true
           chmod +x build/bin/DekiEditor
           export LD_LIBRARY_PATH="$PWD/build/lib:$PWD/build/bin"
           # --install-toolchain installs again even when it is there.
@@ -719,6 +723,16 @@ jobs:
             xvfb-run -a ./build/bin/DekiEditor --build-firmware --platform "$board" ci/deki-demo
           done
           ccache -s
+          mkdir -p ccache-debug-pick
+          find ccache-debug -path '*lilygo_t_deck/*' \( -name 'tasks.c.obj.*' -o -name 'Engine.cpp.obj.*' -o -name 'esp_err.c.obj.*' \)             -exec cp --parents {} ccache-debug-pick/ \;
+          ls -l --time-style=full-iso "$(dirname "$(find ~/.espressif/tools -name xtensa-esp32s3-elf-gcc -type f | head -1)")" | head -5 || true
+      - name: TEMPORARY ccache debug files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache-debug-${{ github.run_id }}
+          path: ccache-debug-pick
+          if-no-files-found: warn
       - name: Editor log on failure
         if: failure()
         run: cat ~/.deki-editor/Editor.log ~/.config/DekiEditor/Editor.log 2>/dev/null || true
