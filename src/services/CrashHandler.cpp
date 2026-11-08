@@ -62,6 +62,7 @@ static std::string s_LastDumpPath;
 static const char* s_PlayModePhase = nullptr;
 static const char* s_PlayModeSceneName = nullptr;
 static bool s_SymbolsInitialized = false;
+static bool s_Headless = false;
 
 // DbgHelp is not thread-safe, and it is used from more than one thread: the
 // symbol refresh started on a worker when a project opens, a fault guard's
@@ -203,6 +204,11 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
 
     fprintf(stderr, "\n=== DEKI EDITOR CRASH ===\n%s\n\n%s\n\nCrash log written to: %s\n", title.c_str(),
             callstack.c_str(), logPath.c_str());
+
+    if (s_Headless)
+    {
+        return;
+    }
 
     // Show an ImGui crash dialog in its own window, apart from the editor's
     // SDL and ImGui state.
@@ -1446,6 +1452,11 @@ static void FaultGuardTraceHook(void* platformInfo, std::string& outTrace, std::
 #endif
 }
 #endif
+
+void CrashHandler::SetHeadless(bool headless)
+{
+    s_Headless = headless;
+}
 
 void CrashHandler::Initialize()
 {

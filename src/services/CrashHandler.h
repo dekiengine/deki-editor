@@ -12,6 +12,10 @@ public:
     /// Installs the crash handlers. Call as early as possible in main().
     static void Initialize();
 
+    /// A command-line run: a crash is logged and the process exits. A dialog
+    /// there has nobody to close it, so the run would hang.
+    static void SetHeadless(bool headless);
+
     /// Sets a callback to run before the crash dialog shows, such as saving
     /// recovery data. It runs in a crash context, so it should allocate as
     /// little as possible.

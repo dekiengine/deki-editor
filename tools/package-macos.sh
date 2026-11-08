@@ -108,15 +108,26 @@ done
 
 cp -L "$(command -v ninja)" "$TC/bin/ninja"
 
-# cmake finds its modules relative to itself, in ../share/cmake-<ver>.
+# cmake finds its modules from where it sits: ../share/cmake-<ver> for a plain
+# install, and inside the bundle for Kitware's CMake.app, which the runners have.
 CMAKE_BIN="$(python3 -c 'import os, shutil; print(os.path.realpath(shutil.which("cmake")))')"
 probe_dir="$(mktemp -d)"
 echo 'message("${CMAKE_ROOT}")' > "$probe_dir/root.cmake"
 CMAKE_ROOT_DIR="$(cmake -P "$probe_dir/root.cmake" 2>&1)"
 rm -rf "$probe_dir"
-cp -L "$CMAKE_BIN" "$TC/bin/cmake"
-mkdir -p "$TC/share"
-cp -R "$CMAKE_ROOT_DIR" "$TC/share/"
+case "$CMAKE_BIN" in
+    */CMake.app/Contents/bin/cmake)
+        mkdir -p "$TC/CMake.app/Contents/bin" "$TC/CMake.app/Contents/share"
+        cp -L "$CMAKE_BIN" "$TC/CMake.app/Contents/bin/cmake"
+        cp -R "$CMAKE_ROOT_DIR" "$TC/CMake.app/Contents/share/"
+        ln -sf ../CMake.app/Contents/bin/cmake "$TC/bin/cmake"
+        ;;
+    *)
+        cp -L "$CMAKE_BIN" "$TC/bin/cmake"
+        mkdir -p "$TC/share"
+        cp -R "$CMAKE_ROOT_DIR" "$TC/share/"
+        ;;
+esac
 
 echo "==> Relocating"
 python3 "$REPO_ROOT/tools/macos_relocate.py" "$DIST" "$TC/lib/bundled"

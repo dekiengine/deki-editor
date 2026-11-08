@@ -112,6 +112,7 @@ int main(int argc, char* argv[])
     // the URL (with its session token) a client needs, so it wants a console
     // too.
     const bool headless = DekiEditor::HasCommand(cli);
+    DekiEditor::CrashHandler::SetHeadless(headless);
     if (headless || cli.help || cli.version || cli.mcp || !parsed)
     {
         DekiEditor::AttachParentConsole();
